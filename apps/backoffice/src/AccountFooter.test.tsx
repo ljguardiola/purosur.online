@@ -15,10 +15,7 @@ beforeEach(async () => {
   await page.viewport(1280, 900);
 });
 
-// The area rail always renders this inside its own <nav> landmark, over its own
-// bg-brand-blue-strong background (see Shell.tsx and AreaNavItem.test.tsx's own Rail wrapper):
-// the text-blue-soft tone below is only AA-contrast against that dark background, and isolated
-// rendering without it would also trip an axe "content not contained by landmarks" false positive.
+// axe flags content with no enclosing landmark, so this wraps it in a <nav> as the rail would.
 function renderInRail(props: {
   displayName: string;
   onSignedOut: () => void;

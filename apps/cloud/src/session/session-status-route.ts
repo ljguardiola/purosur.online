@@ -12,16 +12,9 @@ import {
 export interface SessionStatusRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  /** Injected in tests so idle/absolute expiry are checked against a deterministic clock. */
   now?: () => Date;
 }
 
-/**
- * Registers `GET /users/session/status`: resolves the open session without touching
- * `last_seen_at` (idle/absolute expiry, deactivated-account check) and returns the session's
- * deadline so an already-open tab can notice its session ended without keeping an idle one alive.
- * Answers 401 `unauthenticated` when no open session is found, the same as `GET /users/session`.
- */
 export function registerSessionStatusRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: SessionStatusRouteOptions<TQueryResult>,

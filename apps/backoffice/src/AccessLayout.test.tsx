@@ -5,8 +5,8 @@ import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../packages/ui/src/test/axe";
 import { AccessFooterLink, AccessHeader, AccessLayout } from "./AccessLayout";
 
-// Pins a desktop viewport instead of the default phone-sized one, the same way Modal.test.tsx and
-// DateField.test.tsx do: the panel's 680px basis only holds when the row is wide enough for it.
+// The panel's 680px basis only holds when the row is wide enough for it, so tests pin a desktop
+// viewport instead of the default phone-sized one.
 beforeEach(async () => {
   await page.viewport(1440, 900);
 });
@@ -39,8 +39,6 @@ test("centers the logo horizontally in the panel and keeps the caption on its 32
   expect(panelRect.bottom - captionRect.bottom).toBeCloseTo(32, 0);
   expect(logoRect.left - panelRect.left).toBeCloseTo(panelRect.right - logoRect.right, 0);
   expect(logoRect.width).toBeCloseTo(460, 0);
-  // The drawn logo is narrower than its 460x180 box, so it is only centered if it is drawn in the
-  // middle of the box.
   expect(getComputedStyle(logo).objectPosition).toBe("50% 50%");
 });
 

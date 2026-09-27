@@ -170,10 +170,6 @@ describe("GET /alerts", () => {
     expect(response.json()).toMatchObject({ code: "forbidden" });
   });
 
-  // The audience rule itself (which alert a view_branch_alerts or view_all_alerts holder can see)
-  // is owned and tested once in alert-visibility.test.ts's own visibleAlertsCondition suite; this
-  // only proves the route actually applies that shared condition to its query and reflects the
-  // result in the wire response, rather than fetching every alert unfiltered.
   it("shows a view_branch_alerts holder only the Local alert of their own branch", async () => {
     const roleId = await insertRole(["view_branch_alerts"]);
     const userId = await insertUserWithRole(roleId);

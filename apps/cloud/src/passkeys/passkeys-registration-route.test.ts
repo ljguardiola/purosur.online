@@ -94,7 +94,6 @@ function newDeviceEmulator(): WebAuthnEmulator {
 
 let tokenSequence = 0;
 
-/** Registers a real first passkey for `forUserId`, backed by `emulator`, through the recovery route. */
 async function registerFirstPasskey(forUserId: string, emulator: WebAuthnEmulator): Promise<void> {
   tokenSequence += 1;
   const rawToken = `raw-token-${tokenSequence}`;
@@ -165,11 +164,8 @@ function cookieHeader(rawSessionId: string): Record<string, string> {
   return { cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` };
 }
 
-/**
- * Returned untyped: `nid-webauthn-emulator`'s own bundled WebAuthn JSON types don't structurally
- * match `@simplewebauthn/server`'s exports one-for-one, so this crosses the same JSON boundary a
- * real browser would instead of being typed directly against either package's types.
- */
+// Returned untyped: nid-webauthn-emulator's bundled WebAuthn JSON types don't structurally match
+// @simplewebauthn/server's exports one-for-one, so this crosses the same JSON boundary a browser would.
 async function requestOptions(rawSessionId: string) {
   const response = await postJson(
     "/users/passkeys/registration-options",
@@ -315,9 +311,6 @@ describe("POST /users/passkeys", () => {
   beforeEach(async () => {
     await registerFirstPasskey(userId, new WebAuthnEmulator());
 
-    // Redeeming the setup passkey above already opened the account's own backoffice_passkey_changed
-    // alert; closing it here keeps each test's own assertions about that alert free of this setup's
-    // side effect.
     await db
       .update(alerts)
       .set({ resolvedAt: currentTime, resolvedBy: userId })
@@ -476,8 +469,6 @@ describe("POST /users/passkeys", () => {
       BACKOFFICE_ORIGIN,
       options.passkey_registration_options,
     );
-    // A row for this exact credential id already exists, as if another request had already
-    // registered it (or the device replayed a creation it made before, ignoring excludeCredentials).
     await db.insert(passkeys).values({
       userId,
       credentialId: passkeyRegistration.id,
@@ -496,8 +487,6 @@ describe("POST /users/passkeys", () => {
 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ code: "passkey_already_registered" });
-    // The account's first passkey (seeded in beforeEach) plus the one row this test inserted by
-    // hand: the rejected attempt stores nothing of its own.
     const rows = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
     expect(rows).toHaveLength(2);
   });
@@ -673,8 +662,6 @@ describe("POST /users/passkeys", () => {
         BACKOFFICE_ORIGIN,
         options.passkey_registration_options,
       );
-      // Only the kind separates this row from a genuine pending registration: its registration
-      // challenge is exactly the one the credential above was created against.
       await db.update(passkeyChallenges).set({ kind: "session_authorization" });
 
       const response = await postJson(

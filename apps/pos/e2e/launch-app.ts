@@ -11,10 +11,8 @@ export const APP_DIR = join(dirname(fileURLToPath(import.meta.url)), "..");
 // reaches either installed channel's data or Sentry.
 export const E2E_CHANNEL_FILE = { channel: "staging", dataFolder: "purosur-pos-e2e" };
 
-// The Windows CI runner has a real display and needs no extra flags. The only place this repo can
-// run the packaged app locally is the live Wayland session, where Electron's headless Ozone
-// backend segfaults, so it needs `--ozone-platform=wayland` plus WAYLAND_DISPLAY/XDG_RUNTIME_DIR
-// (already read from the inherited environment below). CI leaves POS_E2E_ELECTRON_ARGS unset.
+// Windows CI needs no extra flags; a local Wayland session needs `--ozone-platform=wayland`
+// (Electron's headless Ozone backend segfaults there), read from POS_E2E_ELECTRON_ARGS.
 export function platformArgs(): string[] {
   const extra = process.env.POS_E2E_ELECTRON_ARGS;
   return extra ? extra.split(" ").filter((arg) => arg.length > 0) : [];
@@ -22,7 +20,6 @@ export function platformArgs(): string[] {
 
 export interface LaunchedApp {
   readonly app: ElectronApplication;
-  // Main process stdout/stderr, captured from launch so no output is missed.
   readonly logs: string[];
 }
 

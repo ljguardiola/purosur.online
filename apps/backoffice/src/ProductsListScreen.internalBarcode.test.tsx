@@ -97,15 +97,7 @@ test("generates an internal code from the edit modal and saves it alongside the 
 test("disables the generate button while its request is pending", async () => {
   const services = createServices();
   mockLoaded(services, []);
-  // Resolves with a failure, not a code: an allocated internal code would keep the button
-  // disabled for the "already listed" reason instead, which is a separate behavior this test
-  // isn't the one covering.
-  let resolveGenerate: (outcome: { kind: "failed" }) => void = () => {};
-  vi.mocked(services.generateInternalBarcode).mockReturnValue(
-    new Promise((resolve) => {
-      resolveGenerate = resolve;
-    }),
-  );
+  const resolveGenerate = pendingGenerate(services);
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
@@ -361,9 +353,8 @@ test("fills the generate button on hover only while it is enabled", async () => 
   await userEvent.click(generateButton);
   await expect.element(generateButton).toBeDisabled();
   await userEvent.hover(generateButton);
-  // Forces a style recalc so any transition the hover would have started has already been
-  // computed, then finishes it outright: a transition starts at its from-value, so reading the
-  // color mid-transition (or too soon after it) can't be told apart from one that never started.
+  // Forces a style recalc to capture any started transition, then finishes it: a transition
+  // begins at its from-value, so reading it too soon looks the same as never starting.
   getComputedStyle(generateButton.element()).backgroundColor;
   for (const animation of generateButton.element().getAnimations()) {
     animation.finish();

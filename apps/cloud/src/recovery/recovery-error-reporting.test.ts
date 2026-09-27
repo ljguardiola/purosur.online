@@ -2,10 +2,8 @@ import * as Sentry from "@sentry/node";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { reportRecoveryBookkeepingError, reportRecoveryError } from "./recovery-error-reporting.js";
 
-// Only this file's "defaults to @sentry/node's own captureException" test relies on this: it
-// needs to spy on the module's own export, which ESM's non-configurable namespace otherwise
-// refuses (`vi.spyOn` throws "Cannot redefine property"). Every other test injects its own
-// `captureException`, so replacing the real one here does not change what they exercise.
+// ESM's non-configurable namespace makes vi.spyOn throw on the module's own export; mocking it
+// here is what lets the "defaults to..." test spy on it.
 vi.mock("@sentry/node", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@sentry/node")>();
   return { ...actual, captureException: vi.fn() };

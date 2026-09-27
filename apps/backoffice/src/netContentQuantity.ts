@@ -24,9 +24,6 @@ export type NetContentQuantityMessages = {
   netContentQuantityTooLarge: string;
 };
 
-/** Mirrors the server's own validateProductFields: a blank quantity is never an error (it clears
- * the field instead), an unparsable or non-positive one gets the format message, and one over the
- * shared cap gets its own friendlier message instead of the format one. */
 export function netContentQuantityError(
   quantity: string,
   messages: NetContentQuantityMessages,

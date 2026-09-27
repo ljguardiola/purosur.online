@@ -23,47 +23,32 @@ const rowTopClassName = [
   "top-[150px]",
 ];
 
-// The top tick's line box is centered on the top grid line, so half of it sits above the plot.
+// pt-2 clears the top tick's own line box, which centers on the grid line and extends above it.
 const chartBoxClassName = "pt-2";
-// The chart's box has to hold what it draws, so it never falls below the width its bars need.
 const chartWidthClassName = "w-max min-w-full";
-// The axis column and the labels' spacer share the first track, so an axis that grows to fit a
-// wide tick moves the labels by exactly as much as the bars.
+// The axis column and the labels' spacer share the first grid track, so an axis that grows to fit
+// a wide tick moves the labels by exactly as much as the bars.
 const visualGridClassName =
   "grid grid-cols-[minmax(4rem,max-content)_minmax(0,1fr)] gap-x-3 gap-y-1.5";
-// The ticks stay in flow, so the widest one sets the column's width; the chart is never narrower
-// than its content, so the track always reaches that width and no tick wraps. Each tick's 16px
-// line box is centered on its grid line, so the column is the 150px plot plus half a line box
-// above and below, pulled out by that half on each side so the row stays as tall as the plot.
+// The negative margin and taller-than-plot height clear the top and bottom ticks' own line boxes,
+// which extend past the plot's grid lines the same way chartBoxClassName's pt-2 does.
 const axisColumnClassName = "-my-2 flex h-[166px] flex-col justify-between";
-// A fixed height, so a tick the caller formats as empty still takes its line and leaves the others
-// on theirs.
+// A fixed height, so a tick the caller formats as empty still takes its line and stays aligned.
 const axisTickClassName = "h-4 text-right text-xs font-normal text-ink-secondary";
 const plotClassName = "relative h-[150px]";
 const gridLineClassName = "absolute inset-x-0 h-px bg-line";
 // Positioned, so the bars paint over the absolutely positioned grid lines instead of under them.
 const barsRowClassName = "relative flex h-full items-end gap-[11px]";
 const barClassName = "w-5 rounded-t-[4px] bg-brand-blue-ui";
-// The zero tick's line box is centered on the bottom grid line, so half of it sits below the plot;
-// the labels keep a label's line of height with no labels in them to hold that half.
-//
-// The first bar's centre has at least 86px of room to the chart's left edge (axis at least 64 +
-// gap 12 + half the bar's own 20px width). The labels reserve the same room past the last bar's
-// centre, 76px beyond its own half, so the chart's intrinsic width holds a label at its cap on
-// either end; the plot grows into that room, so the grid lines still span the whole box.
 const labelsContainerClassName = "flex min-h-4 gap-[11px] pr-[76px]";
 const labelColumnClassName = "flex w-5 justify-center";
-// A label wider than 172px (twice the least room described above) is shortened with an
-// ellipsis instead of overflowing the chart. shrink-0 keeps it from being crushed to the 20px
-// column first: a flex item with overflow hidden otherwise gets a min-width of 0, which would
-// let the column win before the cap ever applied.
+// shrink-0, because a flex item with overflow hidden otherwise gets a min-width of 0, letting the
+// 20px column win over max-w before the truncation cap ever applies.
 const labelTextClassName = "max-w-[172px] shrink-0 truncate text-xs font-normal text-ink-secondary";
 const emptyMessageClassName = "text-xs font-normal text-ink-secondary";
 const announcedListClassName = "sr-only";
 const announcedPartClassName = "block";
 
-// Rounds a raw interval up to the next "nice" number of the form 1, 2 or 5 times a power of ten,
-// the way a chart library picks round axis steps instead of an arbitrary one.
 function roundUpToNiceStep(value: number): number {
   if (value <= 0) {
     return 0;
@@ -74,9 +59,6 @@ function roundUpToNiceStep(value: number): number {
   return niceNormalized * magnitude;
 }
 
-// A value is plottable when a bar can be drawn for it: it has to be a real height, and the scale
-// that would hold it has to be a real number too, which rounding up overflows for a value near
-// the largest one there is.
 function isPlottableValue(value: number): boolean {
   return Number.isFinite(value) && value >= 0 && Number.isFinite(roundUpToNiceStep(value / 5) * 5);
 }

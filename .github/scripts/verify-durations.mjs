@@ -1,6 +1,3 @@
-// Lists Verify's push runs on main with how long each one took, so its duration can be followed
-// across runs without adding a CI job for it: run locally with `pnpm ci:verify-durations`.
-
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
@@ -8,13 +5,7 @@ const LOG_PREFIX = "verify-durations";
 const RUNS_ENDPOINT =
   "repos/{owner}/{repo}/actions/workflows/verify.yml/runs?branch=main&event=push&status=completed&per_page=100";
 
-/**
- * One row per completed run in a GitHub "list workflow runs" response, in the API's order
- * (newest first). A run missing either timestamp, or not yet completed, has no known duration
- * and is left out.
- *
- * @returns {Array<{ sha: string, startedAt: string, durationSeconds: number, conclusion: string, attempt: number, url: string }>}
- */
+// GitHub's list-workflow-runs API returns runs newest first; this relies on that order.
 export function durationsFromRuns(body) {
   const runs = Array.isArray(body?.workflow_runs) ? body.workflow_runs : [];
   return runs
@@ -41,7 +32,6 @@ function formatStartedAt(startedAt) {
   return `${new Date(startedAt).toISOString().replace("T", " ").slice(0, 16)} UTC`;
 }
 
-/** A plain-text table of rows, readable in a terminal. */
 export function formatDurationsTable(rows) {
   if (rows.length === 0) {
     return "No completed Verify runs on main.";
@@ -74,7 +64,6 @@ async function runGhViaChildProcess(args) {
   return stdout;
 }
 
-/** @returns {Promise<number>} the process exit code. */
 export async function runCli({
   runGh = runGhViaChildProcess,
   log = console.log,

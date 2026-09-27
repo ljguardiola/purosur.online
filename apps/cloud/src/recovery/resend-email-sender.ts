@@ -5,7 +5,6 @@ export interface ResendRecoveryEmailSenderOptions {
   apiKey: string;
   from: string;
   replyTo: string;
-  /** Injected in tests so sending an email never reaches the network. */
   fetch?: typeof globalThis.fetch;
 }
 
@@ -18,10 +17,7 @@ function buildEmailBody(link: string): { text: string; html: string } {
   return { text, html };
 }
 
-/**
- * A Resend HTTP API adapter behind the `RecoveryEmailSender` port. Rejects on a non-2xx response
- * so graphile-worker's own retries apply to a failed send, the same as any other task failure.
- */
+/** Rejects on a non-2xx response, so graphile-worker's own retries apply to a failed send. */
 export function createResendRecoveryEmailSender(
   options: ResendRecoveryEmailSenderOptions,
 ): RecoveryEmailSender {

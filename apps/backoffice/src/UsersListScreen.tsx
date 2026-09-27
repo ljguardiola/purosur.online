@@ -21,7 +21,7 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuthorization } from "./AuthorizationModal";
 import { type BackofficeAccess, canReactivateUser } from "./access";
 import { validateEmail } from "./emailValidation";
@@ -32,6 +32,7 @@ import { navigate } from "./router";
 import { ScreenLayout } from "./ScreenLayout";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
 import { sendToMyAccount, userDetailPath } from "./settingsRoutes";
+import { useLatestRef } from "./useLatestRef";
 import {
   type BranchUser,
   type BranchUserRole,
@@ -60,10 +61,8 @@ export const defaultUsersListScreenServices: UsersListScreenServices = {
 };
 
 export type UsersListScreenProps = {
-  /** From the session: hides actions this viewer can't perform (only Administrator-only today). */
   access: BackofficeAccess;
   onSessionEnded: () => void;
-  /** Injected in tests so user management doesn't call the real API or WebAuthn. */
   services?: UsersListScreenServices;
 };
 
@@ -115,7 +114,6 @@ type NewUserModalProps = {
   roles: BranchUserRole[];
   onClose: () => void;
   onCreated: () => void;
-  /** The email typed belongs to a deactivated user the caller can reactivate: leads there instead of creating a second account. */
   onReactivate: (target: { id: string }) => void;
   onSessionEnded: () => void;
   createUser: typeof createUser;
@@ -124,7 +122,6 @@ type NewUserModalProps = {
   startAuthentication: typeof startAuthentication;
 };
 
-/** Creates a backoffice user, confirming with the shared passkey-authorization modal only when the cloud asks for it. */
 function NewUserModal({
   isOpen,
   roles,
@@ -138,20 +135,13 @@ function NewUserModal({
   startAuthentication,
 }: NewUserModalProps) {
   const options = roles.length > 0 ? roleOptions(roles) : undefined;
-  // Read from a ref, not a reactive dependency: the reset below must only run when the modal
-  // opens, never again just because the parent recomputed `roles` into a new array - which would
-  // fight the person's own in-progress role choice while they're still filling the form.
-  const optionsRef = useRef(options);
-  optionsRef.current = options;
+  const optionsRef = useLatestRef(options);
   const [firstName, setFirstName] = useState("");
   const [email, setEmail] = useState("");
   const [roleId, setRoleId] = useState(options?.[0].value ?? "");
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [notice, setNotice] = useState<FormNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  // The typed email belongs to a deactivated user this caller can reactivate: holds their id and
-  // name for the notice and the Reactivar button, cleared as soon as the email is edited again so
-  // a changed address isn't still blocked by a conflict that no longer applies to it.
   const [deactivatedConflict, setDeactivatedConflict] = useState<{
     id: string;
     name: string;
@@ -172,7 +162,7 @@ function NewUserModal({
       setSubmitting(false);
       setDeactivatedConflict(null);
     }
-  }, [isOpen]);
+  }, [isOpen, optionsRef]);
 
   async function handleSubmit() {
     const nameError = validateName(firstName);
@@ -380,12 +370,6 @@ function NewUserModal({
   );
 }
 
-/**
- * "Usuarios": the branch's backoffice users, listed with their role. Open to whoever
- * `canSeeUsersArea` admits: the Administrator, who can also create users, or a role delegated
- * `deactivate_users`, who can only open each user's detail. A `forbidden` read (a role change
- * mid-session) sends the browser to Mi cuenta instead of showing a notice.
- */
 export function UsersListScreen({ access, onSessionEnded, services }: UsersListScreenProps) {
   const {
     fetchUsers,
@@ -398,23 +382,15 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
   const [list, setList] = useState<ListState>({ kind: "loading" });
   const [roles, setRoles] = useState<BranchUserRole[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
-  // Read from a ref, not a reactive dependency: the parent hands a new function on every render
-  // (each session-activity touch re-renders it), which would otherwise reload the list and pull
-  // the roles out from under an open create modal.
-  const onSessionEndedRef = useRef(onSessionEnded);
-  onSessionEndedRef.current = onSessionEnded;
+  const onSessionEndedRef = useLatestRef(onSessionEnded);
 
-  // Every role is offered here, not just the ones some existing user already holds, so a role
-  // that was just created with nobody in it yet can still be picked right away. Users and roles
-  // load (and retry) together: the create action needs both. Only the Administrator can create a
-  // user, and reading the roles is Administrator-only, so any other viewer loads the users alone.
-  const needsRoles = access.isAdministrator;
+  const canReadRoles = access.isAdministrator;
   const load = useCallback(async () => {
     setList({ kind: "loading" });
     const noRolesNeeded: Awaited<ReturnType<typeof fetchRoles>> = { kind: "ok", value: [] };
     const [usersOutcome, rolesOutcome] = await Promise.all([
       fetchUsers(),
-      needsRoles ? fetchRoles() : Promise.resolve(noRolesNeeded),
+      canReadRoles ? fetchRoles() : Promise.resolve(noRolesNeeded),
     ]);
     const outcomes = [usersOutcome, rolesOutcome];
     if (outcomes.some((outcome) => outcome.kind === "unauthenticated")) {
@@ -434,7 +410,7 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchUsers, fetchRoles, needsRoles]);
+  }, [fetchUsers, fetchRoles, canReadRoles, onSessionEndedRef]);
 
   useEffect(() => {
     void load();
@@ -442,9 +418,7 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
 
   const users = list.kind === "loaded" ? list.users : [];
 
-  // Only a caller who can reactivate ever receives a deactivated user at all (the cloud's own
-  // `GET /users` scoping): showing the Estado column and filter to anyone else would be a column
-  // and a control with nothing to ever show or do.
+  // The cloud only ever returns a deactivated user to a caller who can reactivate one.
   const showsState = canReactivateUser(access);
   const stateFilterOptions = [
     { value: "all" as const, label: usersMessages.stateFilterAllOption },
@@ -462,10 +436,6 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
     );
   }, [users, showsState, stateFilter]);
 
-  // Kept as separate `as const` groups, instead of one array with a conditionally spread middle
-  // element, so the branch Table actually receives always keeps its tuple type (at least one
-  // column) - a plain conditional spread widens the whole thing to a bare array, which Table's own
-  // columns prop refuses.
   const baseColumns = [
     {
       key: "user",

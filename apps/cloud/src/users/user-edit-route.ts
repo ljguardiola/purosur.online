@@ -17,10 +17,6 @@ import type { UsersRouteOptions } from "./users-list-route.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Same shape (and same "malformed/missing/other-branch are indistinguishable" reasoning)
-// `user-read-route.ts` answers with; both this route and its options route check the target
-// against the session's own branch before doing anything else, so an outsider never learns the id
-// exists by getting a different response from one route than the other.
 const NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no user with that id belongs to this branch",
@@ -50,11 +46,7 @@ const LAST_ADMINISTRATOR_RESPONSE = {
 const UNIQUE_VIOLATION = "23505";
 const EMAIL_UNIQUE_INDEX = "users_email_key";
 
-/**
- * Walks the driver error (wrapped by Drizzle as its `cause`) for a unique violation on
- * `users.email`. postgres-js, the production driver, names the index `constraint_name`; PGlite,
- * which the unit tests run on, names it `constraint`.
- */
+// postgres-js names the index `constraint_name`; PGlite names it `constraint`.
 function isEmailUniqueViolation(error: unknown): boolean {
   let current: unknown = error;
   while (current instanceof Error) {
@@ -121,13 +113,6 @@ type EditOutcome =
   | { kind: "last_administrator" }
   | { kind: "applied"; user: BranchUserRow };
 
-/**
- * Registers `POST /users/:id/edit`: changes another branch user's email and role together, in one
- * transaction with a single `users.version` bump, gated by the shared passkey-authorization window
- * (`passkey-authorization-guard.ts`) instead of its own per-action step-up. Replaces the old
- * `POST /users/:id/email` (two sequential requests, one per field, could conflict on `version` and
- * half-apply). Checks the target belongs to the session's own branch before doing anything else.
- */
 export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: UsersRouteOptions<TQueryResult>,
@@ -136,8 +121,6 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  /** A malformed id would otherwise reach the database as an invalid uuid input error (500); this
-   * folds it into the same 404 a missing or another branch's id gets, matching `user-read-route.ts`. */
   async function findTarget(locationId: string, targetId: string) {
     if (!UUID_PATTERN.test(targetId)) {
       return undefined;
@@ -199,23 +182,18 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
       const outcome = await options.db
         .transaction<EditOutcome>(async (tx) => {
           // Locks the single Administrator role row before counting its active holders, so two
-          // concurrent role changes that could each leave the business without an active
-          // Administrator serialize on it instead of both reading "not the last one" and both
-          // succeeding (see the "user-role-change-concurrency" integration test).
+          // concurrent role changes serialize on it instead of both reading "not the last one".
           const [administratorRole] = await tx
             .select({ id: roles.id })
             .from(roles)
             .where(eq(roles.isAdministrator, true))
             .for("update");
           if (!administratorRole) {
-            // The migration seeds the single Administrator role; nothing in this codebase removes
-            // it, so this is unreachable in practice.
             return { kind: "stale_version" };
           }
 
           // Locks this one user row so a concurrent edit against the same user waits instead of
-          // racing: the version check below and the write it may lead to happen against a value
-          // that cannot change out from under this transaction while it holds the lock.
+          // racing: the version check below runs against a value that can't change under it.
           const [currentUser] = await tx
             .select({ email: users.email, version: users.version })
             .from(users)
@@ -230,8 +208,6 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
             .from(userRoles)
             .where(eq(userRoles.userId, target.id));
           if (!currentUserRole) {
-            // The branch check above already confirmed this user has a role; nothing in this
-            // codebase removes a user's `user_roles` row, so this is unreachable in practice.
             return { kind: "stale_version" };
           }
 
@@ -317,12 +293,12 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
             });
           }
 
-          // Read under the locks this transaction still holds: once it commits, a deactivation
-          // waiting on this user's row can commit before a later read would find the user.
+          // Read under the locks this transaction still holds, so a deactivation waiting on this
+          // user's row can't commit before this read runs.
           const edited = await findBranchUser(tx, openSession.locationId, target.id);
           if (!edited) {
-            // A deactivation bumps `version`, so a matching version above means the user is still
-            // active; throwing rolls the edit back rather than answering for one that did not apply.
+            // Deactivation bumps `version` too, so the match above already ruled this out; roll back
+            // rather than answer for an edit that did not apply.
             throw new Error("edited user is no longer an active user of this branch");
           }
           return { kind: "applied", user: edited };

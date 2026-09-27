@@ -18,7 +18,6 @@ export type ParsedAmount =
   | { kind: "notPositive" }
   | { kind: "tooLarge" };
 
-/** Parses what a person typed as a peso amount (e.g. "7.500,50", "7500,5", "7500") into cents. */
 export function parseAmountInput(value: string): ParsedAmount {
   const digits = parseEsArNumber(value, 2);
   if (!digits) {

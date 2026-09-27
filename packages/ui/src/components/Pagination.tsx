@@ -1,16 +1,13 @@
 import { Button as AriaButton } from "react-aria-components";
 
 export type PaginationProps = {
-  // 1-based, like every page a person sees printed on the page itself.
+  // 1-based, not 0-based.
   page: number;
   pageCount: number;
   onPageChange: (page: number) => void;
   previousLabel: string;
   nextLabel: string;
-  // Names the pagination's own navigation landmark.
   label: string;
-  // Builds each page button's accessible name from its number, so the caller's own words (and
-  // locale) name it, never a bare digit hardcoded here.
   pageLabel: (page: number) => string;
 };
 
@@ -28,8 +25,6 @@ function ellipsisPlace(key: string): PaginationPlace {
   return { key, kind: "ellipsis" };
 }
 
-// Always resolves to exactly 5 places once there are more than 5 pages, so the row never reflows
-// while paging. Every ellipsis gets its own fixed key, since up to two can appear in the list.
 function pagePlaces(page: number, pageCount: number): PaginationPlace[] {
   if (pageCount <= 5) {
     return Array.from({ length: pageCount }, (_, index) => pagePlace(index + 1));
@@ -61,13 +56,9 @@ function pagePlaces(page: number, pageCount: number): PaginationPlace[] {
   ];
 }
 
-// Previous/Next are never natively disabled, so they stay focusable and in the tab order at their
-// own boundary: aria-disabled marks them unavailable for assistive technology instead, the dimmed
-// look and suppressed hover follow that same boundary, and activating one there is a no-op in the
-// press handler. The dimmed opacity (0.65) keeps the label's text at or above the WCAG AA 4.5:1
-// minimum against every surface this button can sit on. React Aria still reports data-[hovered]
-// while a button is aria-disabled (it isn't natively disabled, so pointer tracking stays live),
-// so the hover background is only ever included for the non-disabled class string.
+// aria-disabled, not native disabled, so Previous/Next stay focusable at their own boundary; the
+// 0.65 opacity keeps the label at or above WCAG AA 4.5:1. react-aria still reports data-[hovered]
+// on an aria-disabled button, so the hover background is only in the non-disabled class string.
 function navButtonClassName(disabled: boolean): string {
   return [
     "flex h-9 items-center justify-center rounded-md border border-line bg-surface-white px-3",
@@ -83,8 +74,8 @@ const pageButtonClassName =
   "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
   "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong";
 
-// Pressing the current page does nothing, so it keeps the arrow the package's base rule gives
-// only to marked-disabled buttons; marking it disabled would announce the current page as unavailable.
+// cursor-default, not aria-disabled: the current page is still present, just non-actionable, and
+// aria-disabled would announce it as unavailable instead.
 const currentPageClassName = "cursor-default bg-brand-blue-ui font-bold text-surface-white";
 // An inset shadow instead of a real border: a real border on only one of these two class strings
 // would make that button's own box 2px wider than the other's, shifting every button's width as
@@ -93,11 +84,9 @@ const otherPageClassName =
   "shadow-[inset_0_0_0_1px_var(--color-line)] bg-surface-white font-normal text-ink " +
   "data-[hovered]:bg-surface-bone";
 
-// NaN and Infinity would otherwise reach Math.min/Math.max and the window math below as
-// themselves (NaN propagates, Infinity never clamps), and a fractional value would render a
-// half number or an off-by-one window, so both props are resolved to a safe integer first.
-// +Infinity is the one non-finite page that still means something ("go to the end"), so it
-// resolves to the last page instead of falling back to page 1 like every other non-finite value.
+// NaN propagates through Math.min/Math.max and Infinity never clamps, so both props are resolved
+// to a safe integer first. +Infinity is the one non-finite page that still means something ("go
+// to the end"), so it resolves to the last page instead of falling back to page 1.
 function resolvePageCount(pageCount: number): number {
   return Number.isFinite(pageCount) ? Math.trunc(pageCount) : 0;
 }

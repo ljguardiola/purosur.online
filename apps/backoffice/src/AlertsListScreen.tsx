@@ -23,6 +23,7 @@ import {
 import { messages } from "./messages";
 import { ScreenLayout } from "./ScreenLayout";
 import { sendToMyAccount } from "./settingsRoutes";
+import { useLatestRef } from "./useLatestRef";
 
 export type AlertsListScreenServices = {
   fetchAlerts: typeof fetchAlertsDefault;
@@ -36,7 +37,6 @@ export const defaultAlertsListScreenServices: AlertsListScreenServices = {
 export type AlertsListScreenProps = {
   access: BackofficeAccess;
   onSessionEnded: () => void;
-  /** Injected in tests so the screen doesn't call the real API. */
   services?: AlertsListScreenServices;
 };
 
@@ -44,8 +44,6 @@ type ListState =
   | { kind: "loading" }
   | { kind: "loadError" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
-  // The page's open counts ignore the level/status filters and search: the header pill and footer
-  // summarize every open alert, not just the rows shown.
   | { kind: "loaded"; page: AlertListPage };
 
 // Every search is a request against the backoffice's own hourly rate limit, so one is sent only
@@ -100,11 +98,6 @@ const STATUS_FILTER_OPTIONS = [
   { value: "closed", label: alertsMessages.statusClosedOption },
 ] as const;
 
-/**
- * "Alertas": every alert the viewer's own permission admits (`canSeeAlertsArea`), filtered by
- * level and open/closed status, searched and paged server-side, with a detail modal (never its
- * own route, the same pattern `RoleEditorModal` uses over Roles) for the eye action.
- */
 export function AlertsListScreen({ access, onSessionEnded, services }: AlertsListScreenProps) {
   const { fetchAlerts, alertDetailModal } = services ?? defaultAlertsListScreenServices;
   const [list, setList] = useState<ListState>({ kind: "loading" });
@@ -115,11 +108,8 @@ export function AlertsListScreen({ access, onSessionEnded, services }: AlertsLis
   const [page, setPage] = useState(1);
   const [selectedAlertId, setSelectedAlertId] = useState<string | null>(null);
 
-  // Bumped on every request, so a response to one sent before the filters, search or page
-  // changed knows it no longer belongs here.
   const requestRef = useRef(0);
-  const onSessionEndedRef = useRef(onSessionEnded);
-  onSessionEndedRef.current = onSessionEnded;
+  const onSessionEndedRef = useLatestRef(onSessionEnded);
 
   useEffect(() => {
     const trimmed = search.trim();
@@ -164,7 +154,7 @@ export function AlertsListScreen({ access, onSessionEnded, services }: AlertsLis
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchAlerts, levelFilter, statusFilter, page, searchQuery]);
+  }, [fetchAlerts, levelFilter, statusFilter, page, searchQuery, onSessionEndedRef]);
 
   useEffect(() => {
     void load();

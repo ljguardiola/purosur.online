@@ -1,7 +1,5 @@
-// The permission key strings are stored verbatim in the cloud's `role_permissions` table, so a
-// role's rows keep meaning across a later rename of the exported constant. Order matches the
-// backoffice Roles screen's design source (design.pen `QGFUe`), area by area; the Spanish label
-// for each key lives only in each app's own message catalog, never here.
+// Permission keys are stored verbatim in the cloud's `role_permissions` table; renaming this
+// constant would not rename existing rows.
 const PERMISSION_KEY_LIST = [
   "sell_and_charge",
   "view_sales_history",
@@ -75,8 +73,6 @@ export type PermissionArea =
   | "backups"
   | "branch";
 
-/** Every permission area, in the role editor's areas pane order — the same order the catalog
- * below groups its permissions in. */
 export const PERMISSION_AREAS: readonly PermissionArea[] = [
   "cashRegister",
   "sale",
@@ -95,11 +91,6 @@ export const PERMISSION_AREAS: readonly PermissionArea[] = [
   "branch",
 ];
 
-/**
- * Whether using this permission at the register requires nothing beyond being signed in there
- * (`"register"`), requires another person's register PIN (`"register_with_another_persons_pin"`),
- * or never applies at the register at all (`"none"`).
- */
 export type PermissionRegisterMarker = "none" | "register" | "register_with_another_persons_pin";
 
 export interface PermissionDefinition {
@@ -214,10 +205,8 @@ export const PERMISSION_CATALOG: readonly PermissionDefinition[] = [
   { key: "configure_branch", area: "branch", registerMarker: "none" },
 ] as const;
 
-/**
- * A role may hold at most one of these: the Alertas area draws them as a single radio ("No ve
- * alertas / Ver alertas del local / Ver todas las alertas"), never as two independent checkboxes.
- */
+// A role may hold at most one of these: the Alertas area presents them as one exclusive choice,
+// not two independent permissions.
 export const ALERT_VIEW_PERMISSION_KEYS: readonly [PermissionKey, PermissionKey] = [
   "view_branch_alerts",
   "view_all_alerts",

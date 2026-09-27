@@ -102,7 +102,6 @@ export const defaultProductsListScreenServices: ProductsListScreenServices = {
 
 export type ProductsListScreenProps = {
   onSessionEnded: () => void;
-  /** Injected in tests so the screen doesn't call the real API. */
   services?: ProductsListScreenServices;
 };
 
@@ -122,9 +121,6 @@ function unitLabel(saleUnit: ProductSaleUnit): string {
   return productsMessages.unitOptionLabels[saleUnit];
 }
 
-// The unit picker's own option list for the net content field, in the same order the contracts
-// package's own NET_CONTENT_UNITS enumerates them; written out rather than mapped over that
-// constant so the tuple type (at least one option) is inferred directly instead of asserted.
 const NET_CONTENT_UNIT_OPTIONS: [
   QuantityUnitFieldOption<NetContentUnit>,
   ...QuantityUnitFieldOption<NetContentUnit>[],
@@ -138,8 +134,6 @@ const NET_CONTENT_UNIT_OPTIONS: [
 
 const NET_CONTENT_DEFAULT_UNIT: NetContentUnit = "G";
 
-/** The `netContent` to send: `null` for a blank quantity (never set, or cleared on edit) or one
- * that still fails validation (an invalid save is blocked before this runs). */
 function netContentToSend(quantity: string, unit: NetContentUnit): NetContent | null {
   const parsed = parseNetContentQuantity(quantity);
   return parsed !== undefined && isValidNetContentQuantity(parsed)
@@ -164,9 +158,7 @@ function sortedByName(products: ProductSummary[], direction: "ascending" | "desc
   return direction === "ascending" ? sorted : sorted.reverse();
 }
 
-// Only a leaf category (no subcategories of its own) can hold a product, labeled by its full
-// path ("Almacén › Untables") the same way the Categorías screen draws it, since a bare name no
-// longer tells the two apart once categories nest.
+// Full paths disambiguate leaves that share a name under different parents.
 function categorySelectOptions(
   categories: CategorySummary[],
 ): [SelectOption<string>, ...SelectOption<string>[]] | undefined {
@@ -202,22 +194,18 @@ function productNameError(
   return undefined;
 }
 
-// Shared by the scan input and the "Generar código interno" button: the design's own outlined
-// control (2px inner stroke, centered 18px icon + 16px/700 label, both in brand blue).
 const barcodeActionClassName =
   "flex h-11 flex-1 items-center justify-center gap-2 rounded-lg px-3 text-base font-bold " +
   "text-brand-blue-strong shadow-[inset_0_0_0_2px_var(--color-brand-blue-ui)] " +
   "outline-none transition-[background-color]";
 
-// packages/ui Button's own focus ring. `outline-none` also clears the outline style, so the ring
-// needs `outline-solid` back to show at all. The scan control's ring sits on the whole control,
-// lit by the input inside it.
+// `outline-none` also clears the outline style, so `outline-solid` is needed to show it again.
 const scanControlClassName =
   `${barcodeActionClassName} relative min-w-0 cursor-text hover:bg-surface-bone ` +
   "focus-within:outline-[3px] focus-within:outline-solid focus-within:outline-offset-3 " +
   "focus-within:outline-brand-blue-strong";
 
-// `enabled:` keeps the hover fill off a disabled button, as packages/ui Button does.
+// `enabled:` keeps the hover fill off a disabled button.
 const generateButtonClassName =
   `${barcodeActionClassName} enabled:hover:bg-surface-bone ` +
   "focus-visible:outline-[3px] focus-visible:outline-solid focus-visible:outline-offset-3 " +
@@ -281,10 +269,6 @@ function BarcodeChips({
         </div>
       )}
       <div className="flex gap-3">
-        {/* The input fills the whole control for clicks and typing, with its text centered; while
-            it is empty, the icon and the placeholder text sit under it as one centered group, which
-            a native placeholder can't do without the input sizing itself to its content. Focus
-            hides the group too, leaving just the centered caret. */}
         <label className={scanControlClassName}>
           {!scanInput && !scanFocused && (
             <span
@@ -350,9 +334,8 @@ type ProductFieldErrors = {
 };
 type ProductFieldErrorKey = keyof ProductFieldErrors;
 
-// Deletes the key rather than setting it to `undefined`, since `exactOptionalPropertyTypes`
-// treats an explicit `undefined` value as different from the key being absent (mirrors
-// UsersListScreen.tsx's own withFieldError).
+// Deletes the key instead of setting `undefined`: `exactOptionalPropertyTypes` treats an
+// explicit `undefined` as different from an absent key.
 function withFieldError(
   current: ProductFieldErrors,
   field: ProductFieldErrorKey,
@@ -438,23 +421,17 @@ function useBarcodeChips(initial: string[], scanMessages: ScanMessages) {
   const [scanInput, setScanInput] = useState("");
   const [scanError, setScanError] = useState<string | undefined>(undefined);
 
-  // Stable across renders (its own deps are only the setState setters, themselves stable), so a
-  // caller's effect can list it as a dependency without re-running on every render.
   const reset = useCallback((next: string[]) => {
     setBarcodes(next);
     setScanInput("");
     setScanError(undefined);
   }, []);
 
-  // A scan error describes the code as last confirmed against the list as it stood, so any change
-  // to either makes it stale.
   function changeScanInput(value: string) {
     setScanInput(value);
     setScanError(undefined);
   }
 
-  // Re-checks a shown error against the shorter list: removing a chip can lift the limit or
-  // unlist a duplicate, but a code with spaces or too long is still wrong.
   function remove(code: string) {
     const next = barcodes.filter((existing) => existing !== code);
     setBarcodes(next);
@@ -463,8 +440,6 @@ function useBarcodeChips(initial: string[], scanMessages: ScanMessages) {
     );
   }
 
-  // Adds the code still sitting in the scan input, if any, and returns the list as it stands
-  // once added, since the state update isn't readable until the next render.
   function commitPending(): PendingCodeResult {
     const trimmed = scanInput.trim();
     if (!trimmed) {
@@ -493,7 +468,7 @@ function useBarcodeChips(initial: string[], scanMessages: ScanMessages) {
     }
   }
 
-  // Shows the shared 20-code cap before a code is allocated, so a full list never burns one.
+  // Checked before allocating a code from the cloud, so a full list never wastes one.
   function refuseWhenFull(): boolean {
     if (barcodes.length < PRODUCT_BARCODES_MAX_COUNT) {
       return false;
@@ -502,9 +477,8 @@ function useBarcodeChips(initial: string[], scanMessages: ScanMessages) {
     return true;
   }
 
-  // Adds a code the cloud already allocated and confirmed unique, so unlike a scanned code it
-  // skips the spaces/length checks. It lands after a request, so it appends to the list as it
-  // stands by then (codes scanned or removed meanwhile), still under the shared 20-code cap.
+  // The cloud already allocated and confirmed this code unique, so unlike a scanned one it
+  // skips the spaces/length checks.
   function addGenerated(code: string): boolean {
     if (barcodesRef.current.length >= PRODUCT_BARCODES_MAX_COUNT) {
       setScanError(scanMessages.barcodeLimitReached);
@@ -528,12 +502,6 @@ function useBarcodeChips(initial: string[], scanMessages: ScanMessages) {
   };
 }
 
-/**
- * Drives the "Generar código interno" button shared by the create and edit modals: allocates a
- * code from the cloud and adds it like a scanned one, or reports the outcome the same way the
- * rest of the modal's own submit does (session end, forbidden, or an inline failure that leaves
- * whatever is already listed untouched).
- */
 function useGenerateInternalBarcode(
   chips: Pick<ReturnType<typeof useBarcodeChips>, "barcodes" | "refuseWhenFull" | "addGenerated">,
   generateInternalBarcodeService: typeof generateInternalBarcode,
@@ -545,12 +513,8 @@ function useGenerateInternalBarcode(
 ) {
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | undefined>(undefined);
-  // Bumped by every reset (the modal reopening, moving to another product, or reloading it), so a
-  // response still in flight from before can tell it no longer belongs to the form on screen.
   const requestIdRef = useRef(0);
 
-  // Stable across renders, like useBarcodeChips's own reset, so a caller's effect can list it as
-  // a dependency without re-running on every render.
   const reset = useCallback(() => {
     requestIdRef.current += 1;
     setGenerating(false);
@@ -607,7 +571,6 @@ type NewProductModalProps = {
   categories: CategorySummary[];
 };
 
-/** Creates a catalog product with its barcodes; no passkey step-up. */
 function NewProductModal({
   isOpen,
   onClose,
@@ -618,10 +581,6 @@ function NewProductModal({
   categories,
 }: NewProductModalProps) {
   const modalMessages = productsMessages.newProductModal;
-  // Neither starts pre-chosen: defaulting to the first category or a fixed unit would let someone
-  // save a product in a category or unit nobody actually picked, which is exactly what the
-  // "neither can be left out" rule guards against (a KG product silently saved as UNIT, or filed
-  // under the wrong category, breaks pricing and category promotions).
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [saleUnit, setSaleUnit] = useState<ProductSaleUnit | null>(null);
@@ -642,8 +601,6 @@ function NewProductModal({
     () => setErrors((current) => withFieldError(current, "barcodes", undefined)),
     (retryAfterSeconds) =>
       setNotice({ kind: "rateLimited", retryAfterSeconds, raisedByGenerate: true }),
-    // Only the notice a generate attempt raised itself: one raised by saving or reloading still
-    // holds, and a stale-version notice still drives the edit modal's reload action.
     () =>
       setNotice((current) =>
         current?.kind === "rateLimited" && current.raisedByGenerate ? null : current,
@@ -940,7 +897,6 @@ type EditNotice =
   | { kind: "notFound" }
   | { kind: "reloadFailed" };
 
-/** Edits a catalog product, rejecting a save over a newer version; no passkey step-up. */
 function EditProductModal({
   target,
   onClose,
@@ -959,8 +915,6 @@ function EditProductModal({
   const [netContentQuantity, setNetContentQuantity] = useState("");
   const [netContentUnit, setNetContentUnit] = useState<NetContentUnit>(NET_CONTENT_DEFAULT_UNIT);
   const [version, setVersion] = useState(1);
-  // The dialog's own title: the product's name as it was when the dialog opened (see
-  // CategoriesListScreen.tsx's own EditCategoryModal for the same non-nullable-title reasoning).
   const [title, setTitle] = useState("");
   const chips = useBarcodeChips([], modalMessages);
   const [errors, setErrors] = useState<ProductFieldErrors>({});
@@ -975,8 +929,6 @@ function EditProductModal({
     () => setErrors((current) => withFieldError(current, "barcodes", undefined)),
     (retryAfterSeconds) =>
       setNotice({ kind: "rateLimited", retryAfterSeconds, raisedByGenerate: true }),
-    // Only the notice a generate attempt raised itself: one raised by saving or reloading still
-    // holds, and a stale-version notice still drives the edit modal's reload action.
     () =>
       setNotice((current) =>
         current?.kind === "rateLimited" && current.raisedByGenerate ? null : current,
@@ -1014,8 +966,6 @@ function EditProductModal({
     const barcodesError =
       pending.ok && pending.barcodes.length === 0 ? modalMessages.barcodeRequired : undefined;
     const netContentError = netContentQuantityError(netContentQuantity, modalMessages);
-    // Category and sale unit are already the product's own current values here (never chosen
-    // through this modal for the first time), so unlike NewProductModal, `unit` is never invalid.
     setErrors(
       productFieldErrors(nameError, categoryError, undefined, barcodesError, netContentError),
     );
@@ -1365,7 +1315,6 @@ type DeactivateNotice =
   | { kind: "rateLimited"; retryAfterSeconds: number }
   | { kind: "alreadyInactive" };
 
-/** Confirms deactivating a product; unlike deactivating a user, this needs no passkey step-up. */
 function DeactivateProductModal({
   target,
   onClose,
@@ -1376,8 +1325,6 @@ function DeactivateProductModal({
 }: DeactivateProductModalProps) {
   const modalMessages = productsMessages.deactivateModal;
   const isOpen = target !== null;
-  // The dialog's own title, the same non-nullable-title reasoning EditProductModal's own title
-  // state carries: kept across the closing animation instead of blanking once target is nulled.
   const [title, setTitle] = useState("");
   const [notice, setNotice] = useState<DeactivateNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -1515,8 +1462,6 @@ function DeactivateProductModal({
 
 type LabelableProduct = { product: ProductSummary; code: string };
 
-// Only a product's first internal barcode counts (a product can carry more than one code once
-// it has ever been re-generated), sorted the same way the table's own default sort reads.
 function labelableProducts(products: ProductSummary[]): LabelableProduct[] {
   return products
     .flatMap((product) => {
@@ -1529,15 +1474,11 @@ function labelableProducts(products: ProductSummary[]): LabelableProduct[] {
     .sort((a, b) => nameCollator(a.product, b.product));
 }
 
-// The standard EAN-13 human-readable layout: the first digit alone, then the left and right
-// halves of six digits each.
+// The standard EAN-13 human-readable layout: first digit alone, then two halves of six digits.
 function groupedEan13Digits(code: string): string {
   return `${code.slice(0, 1)} ${code.slice(1, 7)} ${code.slice(7, 13)}`;
 }
 
-// Merges adjacent "1" modules into a single wider bar (fewer elements than one <rect> per
-// module), each keyed by its own start position, a real domain value rather than a raw loop
-// index.
 function barRuns(modules: string): { start: number; width: number }[] {
   const runs: { start: number; width: number }[] = [];
   let position = 0;
@@ -1555,8 +1496,6 @@ function barRuns(modules: string): { start: number; width: number }[] {
   return runs;
 }
 
-// A decorative preview of the printed label's bars: the digits beside it are the code's own
-// accessible text, so the bars carry aria-hidden instead of repeating it.
 function LabelPreviewBars({ code }: { code: string }) {
   const modules = ean13Modules(code);
   return (
@@ -1600,11 +1539,6 @@ type PrintLabelsModalProps = {
   printLabels: typeof printLabels;
 };
 
-/**
- * Downloads a printable A4 sheet of internal-barcode labels for the chosen products and counts;
- * no passkey step-up. The product list comes from the screen's own already-loaded products (no
- * separate fetch), so a product added, renamed or removed elsewhere is only reflected on reload.
- */
 function PrintLabelsModal({
   isOpen,
   onClose,
@@ -1620,8 +1554,6 @@ function PrintLabelsModal({
   const [notice, setNotice] = useState<PrintNotice | null>(null);
   const [printing, setPrinting] = useState(false);
   const [reloading, setReloading] = useState(false);
-  // Bumped whenever the modal opens or closes, so a print or reload response still in flight from before
-  // can tell it no longer belongs to the modal on screen.
   const printRequestIdRef = useRef(0);
 
   useEffect(() => {
@@ -1676,9 +1608,6 @@ function PrintLabelsModal({
       // Revoking right after click() can cancel the download in Firefox and Safari, which read
       // the blob asynchronously.
       setTimeout(() => URL.revokeObjectURL(url), DOWNLOAD_URL_LIFETIME_MS);
-      // Closes instead of staying open: the products just printed came from a snapshot that can
-      // now be stale (someone edited a product meanwhile), and reopening re-syncs with the
-      // screen's current list instead of carrying that snapshot (and the chosen counts) forward.
       setPrinting(false);
       onClose();
       return;
@@ -1857,9 +1786,8 @@ function PrintLabelsModal({
               })}
             </div>
             {previewRow && (
-              // A <fieldset> carries the implicit "group" role a plain div would need role="group"
-              // for; Tailwind's preflight strips its native border/padding/margin, so the
-              // component's own classes are all that paint it.
+              // <fieldset> carries the implicit "group" role a div would need role="group" for;
+              // Tailwind's preflight strips its native border/padding/margin.
               <fieldset
                 aria-label={modalMessages.previewAria}
                 className="flex items-center gap-4 rounded-lg border border-line p-3"
@@ -1888,12 +1816,6 @@ function PrintLabelsModal({
   );
 }
 
-/**
- * "Productos": the catalog's products, listed with their category and sale unit, searchable by
- * name or barcode, filterable and editable in place. Gated by `manage_products_and_categories`:
- * App.tsx only ever routes here for someone who holds it, and a `forbidden` read (a role change
- * mid-session) sends the browser to Mi cuenta instead of showing a notice.
- */
 export function ProductsListScreen({ onSessionEnded, services }: ProductsListScreenProps) {
   const {
     fetchProducts: fetchProductsService,
@@ -1923,15 +1845,8 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
   const onSessionEndedRef = useRef(onSessionEnded);
   onSessionEndedRef.current = onSessionEnded;
 
-  // Only the latest load may settle the list: an earlier one still in flight would otherwise
-  // overwrite it with a stale result.
   const latestLoad = useRef(0);
 
-  // Every category is offered here, not just the ones some existing product already holds, so a
-  // category that was just created with nobody in it yet can still be picked right away. Products
-  // and categories load (and retry) together: the create action needs both. The status filter is
-  // sent to the server instead of applied client-side, the same split search/category/unit keep
-  // (those narrow an already-loaded page; status narrows what gets fetched in the first place).
   const load = useCallback(async () => {
     latestLoad.current += 1;
     const thisLoad = latestLoad.current;
@@ -1971,8 +1886,6 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
 
   const categoryLabels = useMemo(() => categoryPathLabels(categories), [categories]);
 
-  // Only a leaf category can hold a product, so any other filter option could only ever match
-  // nothing; a full path tells apart two leaves that share a name under different parents.
   const categoryFilterOptions = useMemo(() => {
     const leafIds = new Set(leafCategories(categories).map((category) => category.id));
     const leaves = categoriesInTreeOrder(categories, "ascending").filter((category) =>

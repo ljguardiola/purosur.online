@@ -15,14 +15,11 @@ function blockText(block: HelpBlock<string>): readonly string[] {
       return [block.text];
     case "steps":
       return block.items;
-    // Carries no text of its own to search: it only points at another article, whose own title
-    // and body are searched on their own entry.
     case "articleLink":
       return [];
   }
 }
 
-/** Whether `query` appears, case- and accent-insensitively, in the article's title or body text. */
 export function articleMatchesQuery(article: HelpArticle<string, string>, query: string): boolean {
   const needle = normalizeForSearch(query);
   if (normalizeForSearch(article.title).includes(needle)) {
@@ -33,7 +30,6 @@ export function articleMatchesQuery(article: HelpArticle<string, string>, query:
   );
 }
 
-/** Every [id, article] pair matching `query`, in catalog order. A blank query matches nothing. */
 export function searchArticles<Articles extends Record<string, HelpArticle<string, string>>>(
   articles: Articles,
   query: string,

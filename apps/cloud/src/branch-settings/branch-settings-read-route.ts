@@ -18,11 +18,9 @@ import {
 export interface BranchSettingsRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  /** Injected in tests so idle/absolute expiry are checked against a deterministic clock. */
   now?: () => Date;
 }
 
-/** One row of `branch_hours`, in the shape the table itself stores it. */
 export interface BranchHoursRow {
   dayOfWeek: number;
   position: number;
@@ -59,8 +57,10 @@ function normalizedTime(value: string): string {
   return value.slice(0, 5);
 }
 
-/** `dayOfWeek`'s own ranges, in position order, as the wire speaks them. */
-function dayHoursWire(hours: BranchHoursRow[], dayOfWeek: number): BranchHoursRangeWire[] {
+function dayHoursWireInPositionOrder(
+  hours: BranchHoursRow[],
+  dayOfWeek: number,
+): BranchHoursRangeWire[] {
   return hours
     .filter((row) => row.dayOfWeek === dayOfWeek)
     .sort((a, b) => a.position - b.position)
@@ -81,19 +81,13 @@ export function toBranchSettingsWire(row: BranchSettingsRow): BranchSettingsWire
     version: row.version,
   } as BranchSettingsWire;
   BRANCH_SETTINGS_DAY_FIELDS.forEach((field, index) => {
-    wire[field] = dayHoursWire(row.hours, index + 1);
+    wire[field] = dayHoursWireInPositionOrder(row.hours, index + 1);
   });
   return wire;
 }
 
-/**
- * Reads `locationId`'s branch settings for `GET /branch-settings`. Every location gets its row
- * from the migration that creates this table, so a missing row here means that invariant broke,
- * not a legitimate "not found" a caller should ever see.
- *
- * Both reads share one repeatable-read snapshot: a save committing between them would otherwise
- * pair the settings from before it with the hours from after it.
- */
+// Repeatable-read: both reads see one snapshot, so a save committing between them can't pair
+// settings from before it with hours from after it.
 export async function findBranchSettings<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   locationId: string,
@@ -121,6 +115,8 @@ async function readBranchSettings<TQueryResult extends PgQueryResultHKT>(
     .from(branchSettings)
     .where(eq(branchSettings.locationId, locationId));
   if (!row) {
+    // Every location gets this row from the migration that creates the table, so a missing one
+    // is a broken invariant, not a legitimate case.
     throw new Error(`branch settings missing for location ${locationId}`);
   }
   const hours = await db
@@ -136,12 +132,6 @@ async function readBranchSettings<TQueryResult extends PgQueryResultHKT>(
   return { ...row, hours };
 }
 
-/**
- * Registers `GET /branch-settings`: gated by `configure_branch` (an Administrator always holds it
- * implicitly), and scoped to the requesting session's own location the same way
- * `branch-users.ts`'s reads are, so it always answers with that branch's own settings and never
- * another one's.
- */
 export function registerBranchSettingsReadRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: BranchSettingsRouteOptions<TQueryResult>,

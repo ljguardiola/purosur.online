@@ -17,9 +17,7 @@ import {
 
 const sizes: ButtonSize[] = ["small", "medium", "large", "sale"];
 
-// The helper supplies the text itself, so its props leave out `children`. The Omit distributes
-// over ButtonProps' variant union: a plain Omit on a union collapses it and would stop checking
-// that a secondary button can't take a destructive tone.
+// A plain Omit collapses ButtonProps' union to common keys; this distributes it over each member.
 type ButtonPropsWithoutText = ButtonProps extends infer P
   ? P extends unknown
     ? Omit<P, "children">
@@ -34,24 +32,28 @@ async function buttonStyle(
   return getComputedStyle(screen.getByRole("button", { name: label }).element() as HTMLElement);
 }
 
-// Returns the bounding rect of a plain text child node, which is the glyphs' own box. The span
-// around them (see labelSpan below) is a clip box instead: it coincides with the text while the
-// label fits and is clamped narrower than it once `truncate` shortens it, so its edges answer
-// about where the clip falls rather than about where the text ends. The range also reports
-// fractional geometry, which scrollWidth and clientWidth round away.
+// A Range over the text node itself reports the glyphs' own fractional box, unrounded — unlike
+// scrollWidth/clientWidth, which round to a whole pixel and only describe the clip box around it.
 function textNodeRect(node: ChildNode): DOMRect {
   const range = document.createRange();
   range.selectNodeContents(node);
   return range.getBoundingClientRect();
 }
 
-// An icon's shape lives in its svg's children, and every lucide icon draws a different one, so
-// rendering the expected icon on its own gives a shape to compare a button's icon against. Size
-// and color are imposed from outside and match across icons, which is why they can't tell them
-// apart on their own.
+// Every lucide icon renders the same size and color once inside the button, so only the svg's own
+// children (its drawn shape) can tell one icon apart from another.
 async function lucideShape(icon: ButtonIcon): Promise<string> {
   const screen = await render(icon);
   return (screen.container.querySelector("svg") as SVGSVGElement).innerHTML;
+}
+
+function iconStrokeColor(icon: SVGSVGElement): string {
+  return getComputedStyle(icon).stroke;
+}
+
+// Polls rather than reading once, since a mid-transition color is a plain opaque rgb() too.
+async function expectHoverBackground(button: HTMLElement, token: string): Promise<void> {
+  await expect.poll(() => getComputedStyle(button).backgroundColor).toBe(tokenRgb(token));
 }
 
 test("renders the text provided by the caller", async () => {
@@ -251,11 +253,7 @@ test("keeps the primary variant's hover text readable against its background", a
   const button = screen.getByRole("button", { name: "Primary" }).element() as HTMLElement;
 
   await userEvent.hover(button);
-  // The base and hover backgrounds are both fully opaque, so a mid-fade color is also a plain
-  // "rgb(...)" string: wait for the exact designed hover token instead of just any opaque color.
-  await expect
-    .poll(() => getComputedStyle(button).backgroundColor)
-    .toBe(tokenRgb("brand-blue-strong"));
+  await expectHoverBackground(button, "brand-blue-strong");
 
   const hovered = getComputedStyle(button);
   const ratio = contrastRatio(rgbToHex(hovered.color), rgbToHex(hovered.backgroundColor));
@@ -267,8 +265,7 @@ test("keeps the secondary variant's hover text readable against its background",
   const button = screen.getByRole("button", { name: "Cancel" }).element() as HTMLElement;
 
   await userEvent.hover(button);
-  // See the primary hover test above: wait for the exact designed token, not just any opaque color.
-  await expect.poll(() => getComputedStyle(button).backgroundColor).toBe(tokenRgb("surface-bone"));
+  await expectHoverBackground(button, "surface-bone");
 
   const hovered = getComputedStyle(button);
   const ratio = contrastRatio(rgbToHex(hovered.color), rgbToHex(hovered.backgroundColor));
@@ -289,9 +286,7 @@ test("turns the destructive tone's hover background to error-strong, keeping whi
   const button = screen.getByRole("button", { name: "Void sale" }).element() as HTMLElement;
 
   await userEvent.hover(button);
-  await expect
-    .poll(() => getComputedStyle(button).backgroundColor)
-    .toBe(tokenRgb("status-error-strong"));
+  await expectHoverBackground(button, "status-error-strong");
 
   const hovered = getComputedStyle(button);
   expect(hovered.color).toBe(tokenRgb("surface-white"));
@@ -321,11 +316,6 @@ test("renders the destructive tone of the secondary variant with a white fill an
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// The design leaves this state undrawn. The default secondary tone and the text variant's own
-// destructive tone both turn their transparent background to bone on hover while keeping their
-// tone color unchanged (see their own hover tests above), so the destructive secondary follows
-// that same outline-form convention rather than the primary destructive's filled-background one,
-// which has no bone equivalent to switch to.
 test("keeps the destructive secondary variant's hover background at bone, like the default secondary and the text destructive form, and keeps its error-ui border and text readable", async () => {
   const screen = await render(
     <Button variant="secondary" tone="destructive">
@@ -335,7 +325,7 @@ test("keeps the destructive secondary variant's hover background at bone, like t
   const button = screen.getByRole("button", { name: "Desactivar" }).element() as HTMLElement;
 
   await userEvent.hover(button);
-  await expect.poll(() => getComputedStyle(button).backgroundColor).toBe(tokenRgb("surface-bone"));
+  await expectHoverBackground(button, "surface-bone");
 
   const hovered = getComputedStyle(button);
   expect(hovered.borderColor).toBe(tokenRgb("status-error-ui"));
@@ -375,9 +365,7 @@ test("places the primary variant's 24px icon after the text with its 12px gap", 
   expect(iconRect.width).toBeLessThan(25);
   expect(iconRect.height).toBeGreaterThan(23);
   expect(iconRect.height).toBeLessThan(25);
-  // The stroke the glyph is painted with, not the color it inherits: an icon that brought a
-  // stroke of its own would inherit the button's color just the same and pass on that reading.
-  expect(getComputedStyle(icon as SVGSVGElement).stroke).toBe(tokenRgb("surface-white"));
+  expect(iconStrokeColor(icon as SVGSVGElement)).toBe(tokenRgb("surface-white"));
 
   const textRect = textNodeRect(labelWrapper.firstChild as ChildNode);
   const gap = iconRect.left - textRect.right;
@@ -408,8 +396,7 @@ test("places the secondary variant's 18px icon before the text with its 8px gap"
   expect(iconRect.width).toBeLessThan(19);
   expect(iconRect.height).toBeGreaterThan(17);
   expect(iconRect.height).toBeLessThan(19);
-  // See the primary variant's icon test above: the painted stroke, not the inherited color.
-  expect(getComputedStyle(icon as SVGSVGElement).stroke).toBe(tokenRgb("ink"));
+  expect(iconStrokeColor(icon as SVGSVGElement)).toBe(tokenRgb("ink"));
 
   const textRect = textNodeRect(labelWrapper.firstChild as ChildNode);
   const gap = textRect.left - iconRect.right;
@@ -524,8 +511,6 @@ test("sizes the text-only destructive form at 40px with a 16px semibold label by
 });
 
 test("rounds the text-only destructive form like the package's other transparent surface", async () => {
-  // Nothing of the button's own is rounded here — the radius shapes the bone background it takes
-  // on hover, so it is the one the secondary button rounds that same background with.
   const text = await buttonStyle("Cancel sale", { variant: "text", tone: "destructive" });
   const secondary = await buttonStyle("Cancel", { variant: "secondary" });
 
@@ -567,7 +552,6 @@ test("carries its own 18px x icon before the label, with an 8px gap, on both dra
     expect(labelWrapper.firstChild?.nodeType, `${size} label node`).toBe(Node.TEXT_NODE);
     expect(labelWrapper.textContent, `${size} label`).toBe(`Cancel sale ${size}`);
 
-    // The glyph itself, not just any icon of the right size and color.
     expect((icon as SVGSVGElement).innerHTML, `${size} glyph`).toBe(x);
 
     const iconRect = (icon as SVGSVGElement).getBoundingClientRect();
@@ -575,9 +559,7 @@ test("carries its own 18px x icon before the label, with an 8px gap, on both dra
     expect(iconRect.width, `${size} icon width`).toBeLessThan(19);
     expect(iconRect.height, `${size} icon height`).toBeGreaterThan(17);
     expect(iconRect.height, `${size} icon height`).toBeLessThan(19);
-    // The stroke is what paints a lucide glyph: reading the inherited `color` instead would pass
-    // just as well for an icon that hardcoded a stroke of its own.
-    expect(getComputedStyle(icon as SVGSVGElement).stroke, `${size} icon stroke`).toBe(
+    expect(iconStrokeColor(icon as SVGSVGElement), `${size} icon stroke`).toBe(
       tokenRgb("status-error-ui"),
     );
 
@@ -641,8 +623,7 @@ test("turns the text-only destructive form's background bone on hover, keeping i
   expect(getComputedStyle(button).backgroundColor).toBe("rgba(0, 0, 0, 0)");
 
   await userEvent.hover(button);
-  // See the primary hover test above: wait for the exact designed token, not just any opaque color.
-  await expect.poll(() => getComputedStyle(button).backgroundColor).toBe(tokenRgb("surface-bone"));
+  await expectHoverBackground(button, "surface-bone");
 
   const hovered = getComputedStyle(button);
   expect(hovered.color).toBe(tokenRgb("status-error-ui"));
@@ -652,8 +633,6 @@ test("turns the text-only destructive form's background bone on hover, keeping i
 });
 
 test("keeps the text-only destructive form's label and icon readable on the surfaces it sits on", async () => {
-  // The button paints no background of its own at rest, so the surface behind it is what its
-  // label and icon have to stand out against: the two this form is drawn on.
   for (const surface of ["surface-white", "surface-bone"] as const) {
     const screen = await render(
       <div style={{ backgroundColor: tokenRgb(surface) }}>
@@ -674,8 +653,7 @@ test("keeps the text-only destructive form's label and icon readable on the surf
     );
 
     const labelRatio = contrastRatio(rgbToHex(getComputedStyle(button).color), rgbToHex(behind));
-    // The glyph's own painted stroke, so this ratio can differ from the label's and fail alone.
-    const iconRatio = contrastRatio(rgbToHex(getComputedStyle(icon).stroke), rgbToHex(behind));
+    const iconRatio = contrastRatio(rgbToHex(iconStrokeColor(icon)), rgbToHex(behind));
     expect(labelRatio, `${surface} label contrast`).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
     expect(iconRatio, `${surface} icon contrast`).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
 
@@ -747,27 +725,17 @@ test("dims a disabled text-only destructive form and keeps it out of reach", asy
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// The design's rows are 12px-gapped horizontal footers; the widths below are measured against a
-// container of a known size so a stretched button's share of it can be checked exactly.
-const rowStyle = { width: "500px", display: "flex", gap: "12px" } as const;
+const fixedWidthRowStyle = { width: "500px", display: "flex", gap: "12px" } as const;
 
 function renderedWidth(screen: Awaited<ReturnType<typeof render>>, name: string): number {
   return (screen.getByRole("button", { name }).element() as HTMLElement).getBoundingClientRect()
     .width;
 }
 
-// A row keeps its buttons by position, so measuring them through the row itself compares the very
-// elements laid out together, and stays unambiguous when two of them carry the same label.
-function widthsInRow(row: Element): number[] {
+function widthsByPosition(row: Element): number[] {
   return [...row.children].map((button) => button.getBoundingClientRect().width);
 }
 
-// The label lives in its own span, before the icon wrapper on the primary variant and after it on
-// the others, so position alone does not name it. Its text is the button's whole text instead — an
-// icon wrapper holds a graphic and no text at all — which names the label by what it is rather
-// than by holding no svg: that test hands back the icon wrapper for an icon that isn't an svg, and
-// nothing at all for a label that contains one. Exactly one child has to match, so a change to
-// that structure fails here saying so instead of measuring whichever element came back.
 function labelSpan(button: HTMLElement): HTMLElement {
   const [label, ...also] = [...button.children].filter(
     (child) => child.textContent === button.textContent,
@@ -782,26 +750,16 @@ function labelSpan(button: HTMLElement): HTMLElement {
   return label;
 }
 
-// A width or overflow reading cannot tell truncate's own ellipsis apart from a silent clip: both
-// clip to the same box, and scrollWidth reports the same overflow either way. Only the computed
-// text-overflow catches that swap, so every truncation this suite proves is read through here.
-// The clip box's own width is read first: squeezed to nothing it still holds more content than it
-// has room for, and text-overflow still computes to ellipsis, while nothing is painted at all —
-// neither a character of the label nor the ellipsis standing in for the rest. That is the reading
-// this rules out, a box of no width whatsoever; a box narrower than the ellipsis glyph paints
-// nothing either, and no button here is squeezed that far, so nothing measures one.
+// scrollWidth/clientWidth alone can't tell an ellipsis from a silent clip; only text-overflow does.
+// clientWidth > 0 also rules out a box collapsed to nothing that would still report ellipsis.
 function expectTruncatedWithEllipsis(span: HTMLElement, label: string): void {
   expect(span.clientWidth, `${label} visible`).toBeGreaterThan(0);
   expect(span.scrollWidth, `${label} truncated`).toBeGreaterThan(span.clientWidth);
   expect(getComputedStyle(span).textOverflow, `${label} ellipsis`).toBe("ellipsis");
 }
 
-// One rect per line box the text is laid out on, so a label pushed onto a second line counts 2.
-// Only for a label that fits: text-overflow: ellipsis reports the hidden overflow of a shortened
-// one as a second rect on that very same line, so a truncated label counts 2 without ever having
-// left the first line.
-// Handed anything but the label's own text node it would count that node's boxes instead and read
-// 1 whatever the label does, so it refuses rather than answering about the wrong thing.
+// One client rect per line box — but only when not truncated: an ellipsis reports the hidden
+// overflow as a second rect on the same line, counting 2 for a label that never wrapped.
 function lineCount(node: ChildNode): number {
   if (node.nodeType !== Node.TEXT_NODE) {
     throw new Error(`lineCount needs the label's text node, got nodeType ${node.nodeType}`);
@@ -813,7 +771,7 @@ function lineCount(node: ChildNode): number {
 
 test("takes the whole row when it is the only button in it", async () => {
   const screen = await render(
-    <div style={rowStyle}>
+    <div style={fixedWidthRowStyle}>
       <Button fullWidth>Confirm</Button>
     </div>,
   );
@@ -824,22 +782,20 @@ test("takes the whole row when it is the only button in it", async () => {
 
 test("takes the width a content-sized sibling leaves it in a row", async () => {
   const lonely = await render(
-    <div style={rowStyle}>
+    <div style={fixedWidthRowStyle}>
       <Button variant="secondary">Back</Button>
     </div>,
   );
-  const [ownWidth] = widthsInRow(lonely.container.firstElementChild as Element);
+  const [ownWidth] = widthsByPosition(lonely.container.firstElementChild as Element);
 
   const screen = await render(
-    <div style={rowStyle}>
+    <div style={fixedWidthRowStyle}>
       <Button variant="secondary">Back</Button>
       <Button fullWidth>Confirm</Button>
     </div>,
   );
-  const [sibling, stretched] = widthsInRow(screen.container.firstElementChild as Element);
+  const [sibling, stretched] = widthsByPosition(screen.container.firstElementChild as Element);
 
-  // Measured against the width that button has on its own, so a regression that stretched both of
-  // them — and still filled the row exactly — fails here instead of passing on the arithmetic.
   expect(sibling).toBeCloseTo(ownWidth as number, 0);
   expect(stretched).toBeCloseTo(500 - (sibling as number) - 12, 0);
   await expectNoAccessibilityViolations(screen.container);
@@ -847,18 +803,17 @@ test("takes the width a content-sized sibling leaves it in a row", async () => {
 
 test("splits the row evenly with another stretched button of its variant, labels of either length", async () => {
   const screen = await render(
-    <div style={rowStyle}>
+    <div style={fixedWidthRowStyle}>
       <Button fullWidth>No</Button>
       <Button fullWidth>Charge to the account</Button>
     </div>,
   );
   const row = screen.container.firstElementChild as Element;
-  const [shortLabel, longLabel] = widthsInRow(row);
+  const [shortLabel, longLabel] = widthsByPosition(row);
   const [shorter, longer] = [...row.children] as HTMLElement[];
 
   expect(shortLabel).toBeCloseTo(longLabel as number, 0);
   expect((shortLabel as number) + (longLabel as number) + 12).toBeCloseTo(500, 0);
-  // Labels of different lengths, each still on the one line its button has room for.
   expect(lineCount(labelSpan(shorter as HTMLElement).firstChild as ChildNode), "shorter").toBe(1);
   expect(lineCount(labelSpan(longer as HTMLElement).firstChild as ChildNode), "longer").toBe(1);
   await expectNoAccessibilityViolations(screen.container);
@@ -866,7 +821,7 @@ test("splits the row evenly with another stretched button of its variant, labels
 
 test("shares the row with a stretched button of another variant, neither sized by its label", async () => {
   const screen = await render(
-    <div style={rowStyle}>
+    <div style={fixedWidthRowStyle}>
       <Button variant="secondary" fullWidth>
         No
       </Button>
@@ -876,22 +831,20 @@ test("shares the row with a stretched button of another variant, neither sized b
   const [borderedButton, borderlessButton] = [
     ...(screen.container.firstElementChild as Element).children,
   ] as HTMLElement[];
-  const [bordered, borderless] = widthsInRow(screen.container.firstElementChild as Element);
+  const [bordered, borderless] = widthsByPosition(screen.container.firstElementChild as Element);
   const style = getComputedStyle(borderedButton as HTMLElement);
   const border =
     Number.parseFloat(style.borderLeftWidth) + Number.parseFloat(style.borderRightWidth);
 
   expect(lineCount(labelSpan(borderlessButton as HTMLElement).firstChild as ChildNode)).toBe(1);
   expect((bordered as number) + (borderless as number) + 12).toBeCloseTo(500, 0);
-  // They grow from nothing into equal halves of what the row has free, so what each ends up
-  // measuring differs by exactly the border one of them draws and the other does not.
   expect((bordered as number) - (borderless as number)).toBeCloseTo(border, 0);
   await expectNoAccessibilityViolations(screen.container);
 });
 
 test("leaves the row unfilled when no button in it was asked to stretch", async () => {
   const screen = await render(
-    <div style={rowStyle}>
+    <div style={fixedWidthRowStyle}>
       <Button variant="secondary">Back</Button>
       <Button>Confirm</Button>
     </div>,
@@ -902,14 +855,9 @@ test("leaves the row unfilled when no button in it was asked to stretch", async 
 });
 
 test("is available on every variant", () => {
-  // Asserted from the union's side: every branch of it has to carry the option. Asserting it the
-  // other way round, from a literal that names a variant and the option, proves nothing — a
-  // property the branch never declared is simply ignored when the two are compared.
   expectTypeOf<ButtonPropsWithoutText>().toExtend<{ fullWidth?: boolean | undefined }>();
 });
 
-// One stack is given a height far larger than a button's, the other takes whatever height its
-// buttons come to: a stretched button has to come out the same height in both.
 const stackStyle = {
   width: "500px",
   height: "400px",
@@ -941,8 +889,6 @@ test("is the height of its size in a stack that takes its height from its button
 });
 
 test("is the height of the size it falls back to, in that same stack, on the text variant", async () => {
-  // The text variant does not default to the size the others do, so it reaches the height classes
-  // by a different route and is worth measuring where a stretched button's height is decided.
   const screen = await render(
     <div style={contentHeightStackStyle}>
       <Button variant="text" tone="destructive" fullWidth>
@@ -966,17 +912,14 @@ test("has nothing to take in a row that is only as wide as what it holds", async
     </div>,
   );
   const row = screen.container.firstElementChild as Element;
-  const [sibling, stretched] = widthsInRow(row);
+  const [sibling, stretched] = widthsByPosition(row);
   const plain = await render(
     <div>
       <Button>Confirm</Button>
     </div>,
   );
-  const [unstretched] = widthsInRow(plain.container.firstElementChild as Element);
+  const [unstretched] = widthsByPosition(plain.container.firstElementChild as Element);
 
-  // Such a row is as wide as its buttons make it, so there is no space left over to grow into and
-  // asking for it changes nothing. Pinned so the day that stops being true is a failure, not a
-  // surprise on a screen.
   expect(stretched).toBeCloseTo(unstretched as number, 0);
   expect(row.getBoundingClientRect().width).toBeCloseTo(
     (sibling as number) + (stretched as number) + 12,
@@ -990,11 +933,8 @@ test("keeps its height, its padding and its centering when stretched, at every s
 
   for (const size of sizes) {
     const plain = await buttonStyle(`Plain ${size}`, { size });
-    // Stretched inside a real row, and inside a stack far taller than the button, so `grow` is
-    // live on both axes: measuring it with no flex container around it would compare two buttons
-    // neither of which was ever stretched.
     const row = await render(
-      <div style={rowStyle}>
+      <div style={fixedWidthRowStyle}>
         <Button size={size} fullWidth>{`Row ${size}`}</Button>
       </div>,
     );
@@ -1028,7 +968,7 @@ test("keeps its height, its padding and its centering when stretched, at every s
 
 test("keeps its icon and label together in the middle of the width it is given", async () => {
   const screen = await render(
-    <div style={rowStyle}>
+    <div style={fixedWidthRowStyle}>
       <Button variant="text" tone="destructive" fullWidth>
         Cancel sale
       </Button>
@@ -1042,10 +982,8 @@ test("keeps its icon and label together in the middle of the width it is given",
   const beforeIcon = iconRect.left - buttonRect.left;
   const afterLabel = buttonRect.right - labelRect.right;
 
-  // Centered in the row, not pushed against the 16px padding at either end.
   expect(beforeIcon).toBeGreaterThan(16);
   expect(beforeIcon).toBeCloseTo(afterLabel, 0);
-  // And still together: the extra width goes outside the pair, not between the two of them.
   expect(labelRect.left - iconRect.right).toBeCloseTo(8, 0);
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -1064,23 +1002,20 @@ test("takes the width of a vertical stack without being asked to stretch", async
 test("leaves a content-sized sibling at its own width in a row wide enough for both", async () => {
   const label = "Salir sin completar";
   const alone = await render(
-    <div style={rowStyle}>
+    <div style={fixedWidthRowStyle}>
       <Button variant="secondary">{label}</Button>
     </div>,
   );
-  const [ownWidth] = widthsInRow(alone.container.firstElementChild as Element);
+  const [ownWidth] = widthsByPosition(alone.container.firstElementChild as Element);
 
   const screen = await render(
-    <div style={rowStyle}>
+    <div style={fixedWidthRowStyle}>
       <Button variant="secondary">{label}</Button>
       <Button fullWidth>Confirm</Button>
     </div>,
   );
-  const [sibling] = widthsInRow(screen.container.firstElementChild as Element);
+  const [sibling] = widthsByPosition(screen.container.firstElementChild as Element);
 
-  // A stretched button that asked the row for more than it has would take the difference out of
-  // this sibling, narrowing it toward its longest word and breaking the label across two lines the
-  // design never draws it on.
   expect(sibling).toBeCloseTo(ownWidth as number, 0);
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -1093,7 +1028,7 @@ test("squeezes every button in a row too narrow for them, stretched or not", asy
     </div>,
   );
   const row = screen.container.firstElementChild as Element;
-  const [sibling, stretched] = widthsInRow(row);
+  const [sibling, stretched] = widthsByPosition(row);
   const [siblingButton, stretchedButton] = [...row.children] as HTMLElement[];
   const stretchedStyle = getComputedStyle(stretchedButton as HTMLElement);
   const chrome =
@@ -1103,36 +1038,24 @@ test("squeezes every button in a row too narrow for them, stretched or not", asy
     Number.parseFloat(stretchedStyle.borderRightWidth);
 
   const roomy = await render(
-    <div style={rowStyle}>
+    <div style={fixedWidthRowStyle}>
       <Button variant="secondary">Salir sin completar</Button>
       <Button fullWidth>Confirmar la venta</Button>
     </div>,
   );
-  const [siblingWithRoom] = widthsInRow(roomy.container.firstElementChild as Element);
+  const [siblingWithRoom] = widthsByPosition(roomy.container.firstElementChild as Element);
 
-  // The boundary of what stretching can promise. Once a row is narrower than its buttons, it takes
-  // width from all of them: the one that never asked to stretch is narrower here than the same
-  // button in a row with room, and both shrink down to what the row actually has for them instead
-  // of past it — the row no longer spills. Asking to stretch neither causes that nor escapes it.
   expect(sibling as number).toBeLessThan(siblingWithRoom as number);
   expect(stretched as number).toBeGreaterThan(0);
   expect((sibling as number) + (stretched as number) + 12).toBeCloseTo(200, 0);
   expect(row.getBoundingClientRect().width).toBeCloseTo(200, 0);
-  // The squeezed sibling still has room for a label, and it is that label that gives way.
   expectTruncatedWithEllipsis(labelSpan(siblingButton as HTMLElement), "sibling");
-  // This row is narrow enough that the stretched button is left with nothing but its own chrome:
-  // padding and border do not shrink, so it stops at their width with none left over for a label,
-  // and the clip box shows neither the label nor an ellipsis. The test below takes the same row
-  // wide enough to leave it room, where the label shortens instead.
   expect(stretched as number, "stretched down to its chrome").toBeCloseTo(chrome, 0);
   expect(labelSpan(stretchedButton as HTMLElement).clientWidth, "stretched label box").toBe(0);
   await expectNoAccessibilityViolations(screen.container);
 });
 
 test("shortens a stretched button's label to an ellipsis where the row leaves it room for one", async () => {
-  // 300px is the same row with 100px more: the sibling is back at the 177px it takes on its own,
-  // leaving the stretched button 111px of width for a label that needs 140 — past its chrome, so
-  // there is a clip box to shorten the label inside, and still short of holding it whole.
   const screen = await render(
     <div style={{ width: "300px", display: "flex", gap: "12px" }}>
       <Button variant="secondary">Salir sin completar</Button>
@@ -1140,13 +1063,12 @@ test("shortens a stretched button's label to an ellipsis where the row leaves it
     </div>,
   );
   const row = screen.container.firstElementChild as Element;
-  const [sibling, stretched] = widthsInRow(row);
+  const [sibling, stretched] = widthsByPosition(row);
   const [, stretchedButton] = [...row.children] as HTMLElement[];
   const span = labelSpan(stretchedButton as HTMLElement);
 
   expect((sibling as number) + (stretched as number) + 12).toBeCloseTo(300, 0);
   expectTruncatedWithEllipsis(span, "stretched");
-  // Shortened on the screen only: the label the button was given is all still there to be read out.
   expect(span.textContent, "stretched label").toBe("Confirmar la venta");
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -1173,8 +1095,6 @@ test("is squeezed by a container shorter than it only when it was not asked to s
   const plainHeight = (plainButton as HTMLElement).getBoundingClientRect().height;
   const stretchedHeight = (stretchedButton as HTMLElement).getBoundingClientRect().height;
 
-  // Holding a height against the container is what a stretched button needs and what an ordinary
-  // one is better off without, so the two are held apart rather than both pinned.
   expect(plainHeight).toBeLessThan(48);
   expect(stretchedHeight).toBeCloseTo(48, 0);
   await expectNoAccessibilityViolations(plain.container);
@@ -1192,10 +1112,9 @@ test("is as wide as its content in a container that lays nothing out in a row", 
       <Button fullWidth>Confirm</Button>
     </div>,
   );
-  const [plainWidth] = widthsInRow(plain.container.firstElementChild as Element);
-  const [stretchedWidth] = widthsInRow(stretched.container.firstElementChild as Element);
+  const [plainWidth] = widthsByPosition(plain.container.firstElementChild as Element);
+  const [stretchedWidth] = widthsByPosition(stretched.container.firstElementChild as Element);
 
-  // There is no row here to have anything left over, so asking for its width changes nothing.
   expect(stretchedWidth).toBeCloseTo(plainWidth as number, 0);
   expect(stretchedWidth as number).toBeLessThan(500);
   await expectNoAccessibilityViolations(stretched.container);
@@ -1211,9 +1130,6 @@ test("stays inside a container that lays nothing out in a row, shortening its la
   const container = screen.container.firstElementChild as HTMLElement;
   const button = screen.getByRole("button", { name: label }).element() as HTMLElement;
 
-  // A button sizes to its label whatever its container's width, and there is no row here for
-  // `grow` to bound it against, so without a ceiling of its own it comes out several times the
-  // container's width and paints its label right across everything beside it.
   expect(button.getBoundingClientRect().width).toBeLessThanOrEqual(200);
   expect(button.getBoundingClientRect().right).toBeLessThanOrEqual(
     container.getBoundingClientRect().right,
@@ -1224,7 +1140,7 @@ test("stays inside a container that lays nothing out in a row, shortening its la
 
 test("keeps every label in the row on a single line", async () => {
   const screen = await render(
-    <div style={rowStyle}>
+    <div style={fixedWidthRowStyle}>
       <Button variant="secondary">Salir sin completar</Button>
       <Button fullWidth>Confirmar la venta</Button>
     </div>,
@@ -1233,9 +1149,6 @@ test("keeps every label in the row on a single line", async () => {
     ...(screen.container.firstElementChild as Element).children,
   ] as HTMLElement[];
 
-  // The design draws every one of these labels on one line, and both fit their button with room
-  // to spare, so this is the ordinary case rather than the truncated one: no ellipsis needed, and
-  // still a single line.
   expect(lineCount(labelSpan(sibling as HTMLElement).firstChild as ChildNode), "sibling").toBe(1);
   expect(lineCount(labelSpan(stretched as HTMLElement).firstChild as ChildNode), "stretched").toBe(
     1,
@@ -1245,7 +1158,7 @@ test("keeps every label in the row on a single line", async () => {
 
 test("paints its hover background across the whole width it was given", async () => {
   const screen = await render(
-    <div style={rowStyle}>
+    <div style={fixedWidthRowStyle}>
       <Button variant="text" tone="destructive" fullWidth>
         Cancel sale
       </Button>
@@ -1254,10 +1167,8 @@ test("paints its hover background across the whole width it was given", async ()
   const button = screen.getByRole("button", { name: "Cancel sale" }).element() as HTMLElement;
 
   await userEvent.hover(button);
-  await expect.poll(() => getComputedStyle(button).backgroundColor).toBe(tokenRgb("surface-bone"));
+  await expectHoverBackground(button, "surface-bone");
 
-  // The bone surface is the button's own box, so stretching it stretches the surface: the radius
-  // that rounds it still does so at the row's edges, not at the label's.
   expect(button.getBoundingClientRect().width).toBeCloseTo(500, 0);
   expect(getComputedStyle(button).borderRadius).toBe("6px");
   await expectNoAccessibilityViolations(screen.container);
@@ -1265,9 +1176,7 @@ test("paints its hover background across the whole width it was given", async ()
 
 const heightBySize: Record<ButtonSize, number> = { small: 40, medium: 48, large: 56, sale: 72 };
 
-// Every variant paired with the sizes it is actually drawn at, so a loop over it never asks for a
-// combination the type system itself rejects (the text variant has no medium or sale form).
-const variantSizes: Array<{ variant: ButtonVariant; sizes: ButtonSize[] }> = [
+const sizesDrawnByVariant: Array<{ variant: ButtonVariant; sizes: ButtonSize[] }> = [
   { variant: "primary", sizes },
   { variant: "secondary", sizes },
   { variant: "text", sizes: ["small", "large"] },
@@ -1291,15 +1200,13 @@ function renderWithVariant(
 }
 
 test("keeps the full label visible with no ellipsis when it fits, at every size and variant, stretched or not", async () => {
-  for (const { variant, sizes: variantSizeList } of variantSizes) {
+  for (const { variant, sizes: variantSizeList } of sizesDrawnByVariant) {
     for (const size of variantSizeList) {
       for (const fullWidth of [false, true]) {
         const label = `Fits ${variant} ${size} ${fullWidth ? "stretched" : "content"}`;
-        // Both branches state a container wide enough for the longest of these labels at the
-        // largest of these sizes, so what the label fits in is this width rather than whatever
-        // width the page happens to run the suite at.
+        // A fixed width so this doesn't depend on the runner's own viewport.
         const screen = await render(
-          <div style={fullWidth ? rowStyle : { width: "500px" }}>
+          <div style={fullWidth ? fixedWidthRowStyle : { width: "500px" }}>
             {renderWithVariant(variant, size, fullWidth, label)}
           </div>,
         );
@@ -1322,18 +1229,8 @@ test("truncates only once the label's own rendered width passes what the button 
   const label = "A label with plenty of characters to measure a precise boundary against";
 
   for (const size of sizes) {
-    // Measured first inside a container far wider than this label needs at any of these sizes, so
-    // the width it is laid out at is its own and not the page's — a shrink-to-fit wrapper would
-    // hand it whatever width the suite happens to run at, and clamp it there. From that the exact
-    // pixel the label stops fitting at is computed, instead of guessed at: its own rendered width
-    // read off the glyphs at whatever precision they were laid out with, plus the button's own
-    // chrome around it. Reading the span's scrollWidth instead rounds that width to a whole pixel,
-    // and a text run that rounds down leaves the "fits" case a fraction of a pixel short of
-    // holding its label — an overflow the equally rounded scrollWidth and clientWidth below cannot
-    // see, so it would pass as fitting. Every render below reuses the
-    // same label, so each button is read back through its own render's own container instead of by
-    // role name — a role query would run against the whole page and match every one of them at
-    // once.
+    // A wide container avoids clamping to a shrink-to-fit page; the boundary is computed from
+    // this unrounded width, not scrollWidth, which rounds and could hide a near-miss.
     const natural = await render(
       <div style={{ width: "2000px", display: "flex" }}>
         <Button size={size}>{label}</Button>
@@ -1345,11 +1242,7 @@ test("truncates only once the label's own rendered width passes what the button 
       naturalButton.getBoundingClientRect().width - naturalSpan.getBoundingClientRect().width;
     const exactWidth = textNodeRect(naturalSpan.firstChild as ChildNode).width + chrome;
 
-    // A pixel of slack on this side, because the comparison below rounds the two widths it reads
-    // apart: exactWidth is fractional wherever the text advance is, and a container a fraction
-    // short of it leaves clientWidth rounded down one pixel under the scrollWidth rounded up from
-    // that same text — the font and the device pixel ratio deciding it, not the button. The
-    // truncated case stays a pixel under exactWidth, so what is proven is still the boundary.
+    // 1px of slack: rounding could otherwise read a container exactly at exactWidth as truncated.
     const fits = await render(
       <div style={{ width: `${exactWidth + 1}px`, display: "flex" }}>
         <Button size={size} fullWidth>
@@ -1379,17 +1272,14 @@ test("keeps one line, its exact height, and nothing painted outside it when the 
   const baseLabel =
     "This label is far longer than any button could ever comfortably hold on a single line, no matter how much room the page is willing to give it";
 
-  for (const { variant, sizes: variantSizeList } of variantSizes) {
+  for (const { variant, sizes: variantSizeList } of sizesDrawnByVariant) {
     for (const size of variantSizeList) {
       for (const fullWidth of [false, true]) {
         const caseLabel = `${variant} ${size} ${fullWidth ? "stretched" : "content"}`;
-        // Each case gets its own accessible name, so it can be looked up by role without
-        // matching every other case's button still mounted alongside it from earlier iterations.
+        // Suffixed so this case isn't matched by an earlier iteration's still-mounted button.
         const label = `${baseLabel} (${caseLabel})`;
-        // The same button drawn with a label that needs no shortening, to measure what one line
-        // of it stands to this variant and size before asking the long one to match.
         const oneLine = await render(
-          <div style={fullWidth ? rowStyle : { width: "200px" }}>
+          <div style={fullWidth ? fixedWidthRowStyle : { width: "200px" }}>
             {renderWithVariant(variant, size, fullWidth, `Ok (${caseLabel})`)}
           </div>,
         );
@@ -1397,35 +1287,22 @@ test("keeps one line, its exact height, and nothing painted outside it when the 
           oneLine.container.querySelector("button") as HTMLElement,
         ).getBoundingClientRect().height;
         const screen = await render(
-          <div style={fullWidth ? rowStyle : { width: "200px" }}>
+          <div style={fullWidth ? fixedWidthRowStyle : { width: "200px" }}>
             {renderWithVariant(variant, size, fullWidth, label)}
           </div>,
         );
-        // Resolving by the exact label also proves the accessible name was never shortened, only
-        // the rendered text was.
         const button = screen.getByRole("button", { name: label }).element() as HTMLElement;
         const span = labelSpan(button);
         const buttonRect = button.getBoundingClientRect();
         const spanRect = span.getBoundingClientRect();
 
         expect(button.getBoundingClientRect().height, caseLabel).toBeCloseTo(heightBySize[size], 0);
-        // One line, read from what the label is drawn as rather than from the rule that puts it
-        // there: the same span wrapping this label instead of shortening it measures 128px where
-        // one line measures 32. lineCount can't answer it any more — text-overflow: ellipsis
-        // reports the hidden overflow as a second client rect on that very same line, so it
-        // counts 2 for a label that never left the first one.
         expect(spanRect.height, `${caseLabel} one line`).toBeCloseTo(oneLineHeight, 0);
         expect(spanRect.top, `${caseLabel} top`).toBeGreaterThanOrEqual(buttonRect.top);
         expect(spanRect.bottom, `${caseLabel} bottom`).toBeLessThanOrEqual(buttonRect.bottom);
         expect(spanRect.left, `${caseLabel} left`).toBeGreaterThanOrEqual(buttonRect.left);
         expect(spanRect.right, `${caseLabel} right`).toBeLessThanOrEqual(buttonRect.right);
-        // Every one of these labels is too long to be drawn whole, and what stands in its place is
-        // an ellipsis: read here for each variant and size, since a height or a containment reading
-        // holds just the same for a label clipped without one.
         expectTruncatedWithEllipsis(span, caseLabel);
-        // Neither form grows past the container it was given: the stretched one fills the row and
-        // stops there, and the content-sized one is capped at the narrow block's width instead of
-        // sizing itself to this label.
         expect(buttonRect.width, `${caseLabel} width`).toBeLessThanOrEqual(fullWidth ? 500 : 200);
         await expectNoAccessibilityViolations(screen.container);
       }
@@ -1442,8 +1319,8 @@ test("keeps its icon at full size while a far too long label shortens next to it
       { variant: "secondary", icon: <X />, expectedSize: 18 },
     ];
 
-  // The label is the same across every case in this test, so each button is read back through
-  // its own render's own container instead of by role name.
+  // Every case shares this label, so each button is read back through its own render's container
+  // rather than by role.
   for (const { variant, icon, expectedSize } of cases) {
     const screen = await render(
       <div style={{ width: "200px" }}>
@@ -1465,8 +1342,6 @@ test("keeps its icon at full size while a far too long label shortens next to it
     await expectNoAccessibilityViolations(screen.container);
   }
 
-  // The text variant's own "x" is not caller-configurable, but it sits next to a label that can
-  // outgrow it just the same, so it gets the same proof.
   const textScreen = await render(
     <div style={{ width: "200px" }}>
       <Button variant="text" tone="destructive">

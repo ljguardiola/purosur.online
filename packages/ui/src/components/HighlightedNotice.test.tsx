@@ -21,8 +21,7 @@ test("renders the caller's title, detail and icon", async () => {
     <HighlightedNotice tone="error" icon={<Info />} title="Sale blocked" detail="Card declined" />,
   );
 
-  // The visible paragraph is hidden from assistive technology (see the "exposes the notice's
-  // text" test below), so this reads it directly instead of through a role query.
+  // The paragraph is aria-hidden, so a role query wouldn't find it; read it directly instead.
   const title = screen.container.querySelector("p") as HTMLElement;
   expect(title.textContent).toBe("Sale blocked");
   expect(screen.container.querySelector("svg")).not.toBeNull();
@@ -50,8 +49,7 @@ test("exposes the notice's text to assistive technology exactly once", async () 
     <HighlightedNotice tone="error" icon={<Info />} title="Sale blocked" detail="Card declined" />,
   );
 
-  // getByRole walks the accessibility tree, which aria-hidden removes an element from: once the
-  // visible title/detail are hidden from it, the live region is the only accessible copy left.
+  // aria-hidden removes an element from the accessibility tree that getByRole walks.
   expect(screen.getByRole("paragraph").elements()).toHaveLength(0);
 
   const region = screen.container.querySelector('[role="alert"]') as HTMLElement;

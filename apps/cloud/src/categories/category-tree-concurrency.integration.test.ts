@@ -13,10 +13,8 @@ import {
 import { createCategory } from "./category-creation-route.js";
 import { CATEGORY_MOVE_LOCK_KEY, editCategory } from "./category-edit-route.js";
 
-// PGlite serves every query on one connection and serializes transactions outright, so racing
-// writes can only interleave on a real Postgres pool. Each test pins the interleaving by holding a
-// lock on a connection of its own and waiting until both writes queue behind it, so the order in
-// which they reach the database is decided by the test, not by timing.
+// PGlite serializes every query on one connection, so racing writes can only interleave on a real
+// Postgres pool; each test pins that interleaving by holding a lock until both writes queue behind it.
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;
@@ -43,10 +41,6 @@ async function waitForLockWaiters(count: number): Promise<void> {
   throw new Error(`test setup: ${count} writes never queued behind the held lock`);
 }
 
-/**
- * Takes a lock with `holdLock` on a connection of its own, starts `first`, starts `second` only
- * once `first` is waiting on it, then releases it once `second` waits too.
- */
 async function runQueuedBehindHeldLock<First, Second>(
   holdLock: (connection: postgres.ReservedSql) => Promise<unknown>,
   first: () => Promise<First>,
@@ -121,10 +115,8 @@ describe("moving two unrelated categories under each other concurrently on a rea
   });
 });
 
-// A product write queued first waits behind the held row lock even without its own `FOR UPDATE`
-// (its foreign key check takes a key-share lock on the category), so only the write queued second
-// proves that its own row lock is what makes it see the other's result. Each pair therefore runs
-// in both orders.
+// A product write queues behind the category's row lock even without its own `FOR UPDATE`, because
+// Postgres takes a key-share lock on the referenced row for the foreign key check.
 const ORDERS = ["product write first", "category write first"] as const;
 
 async function raceOnCategory<ProductOutcome, CategoryOutcome>(

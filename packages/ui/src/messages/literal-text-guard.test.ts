@@ -5,12 +5,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-// packages/ui/src/messages -> repo root.
 const repoRoot = fileURLToPath(new URL("../../../..", import.meta.url));
 const biomeBinary = path.join(repoRoot, "node_modules/.bin/biome");
 
-// Biome's own overrides for the literal-text guard match on the file's path (see biome.json), so
-// the samples need a real `apps/*/src` path, just copied into a throwaway root instead of the repo.
+// Biome's literal-text-guard overrides match by file path, so samples need a real apps/*/src
+// path, in a throwaway root rather than the repo's own tree.
 const tmpRoot = mkdtempSync(path.join(tmpdir(), "literal-text-guard-"));
 const sampleDir = path.join(tmpRoot, "apps/pos/src");
 

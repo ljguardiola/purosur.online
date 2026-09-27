@@ -14,7 +14,6 @@ import {
 export interface RolesRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  /** Injected in tests so idle/absolute expiry are checked against a deterministic clock. */
   now?: () => Date;
 }
 
@@ -44,12 +43,6 @@ export function toRoleSummaryWire(row: RoleSummaryRow): RoleSummaryWire {
   };
 }
 
-/**
- * Lists every role, Administrator first (then by name), counting every user who holds each role
- * across every branch: roles aren't scoped to a branch (`db/schema.ts`), so its people aren't
- * either. The Administrator row never has stored `role_permissions` rows, so it always reports the
- * full permission catalog instead of whatever (nothing) is in that table for it.
- */
 export async function listRoles<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
 ): Promise<RoleSummaryRow[]> {
@@ -89,7 +82,6 @@ export async function listRoles<TQueryResult extends PgQueryResultHKT>(
   }));
 }
 
-/** Registers `GET /roles`: Administrator-only, same open-session shape `GET /users` uses. */
 export function registerRolesListRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: RolesRouteOptions<TQueryResult>,

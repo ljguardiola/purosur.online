@@ -43,7 +43,6 @@ export type EditBranchSettingsOutcome =
   | { kind: "stale_version" }
   | { kind: "applied"; row: BranchSettingsRow };
 
-/** The submitted day fields, in Monday..Sunday order, matching `day_of_week` (1 = Monday). */
 function orderedDayHours(input: BranchSettingsEditInput): BranchHoursRange[][] {
   return [
     input.mondayHours,
@@ -56,7 +55,6 @@ function orderedDayHours(input: BranchSettingsEditInput): BranchHoursRange[][] {
   ];
 }
 
-/** The currently stored hours, grouped by day (index 0 = Monday) in position order. */
 function currentOrderedDayHours(hours: BranchHoursRow[]): BranchHoursRange[][] {
   const byDay: BranchHoursRange[][] = Array.from({ length: 7 }, () => []);
   for (const row of hours) {
@@ -78,18 +76,12 @@ function rangesEqual(a: BranchHoursRange[], b: BranchHoursRange[]): boolean {
   );
 }
 
-/**
- * Compares the currently stored hours against the submitted ones, day by day and in order: a
- * day's ranges reordered without changing their times still counts as a change, since the server
- * never reorders them either way.
- */
-function hoursUnchanged(current: BranchHoursRow[], input: BranchSettingsEditInput): boolean {
+function hoursUnchangedInOrder(current: BranchHoursRow[], input: BranchSettingsEditInput): boolean {
   const currentDays = currentOrderedDayHours(current);
   const nextDays = orderedDayHours(input);
   return currentDays.every((ranges, day) => rangesEqual(ranges, nextDays[day] ?? []));
 }
 
-/** The full replacement row set for `branch_hours`, in Monday..Sunday, position order. */
 function nextHoursRows(input: BranchSettingsEditInput): BranchHoursRow[] {
   return orderedDayHours(input).flatMap((ranges, dayIndex) =>
     ranges.map((range, position) => ({
@@ -101,21 +93,13 @@ function nextHoursRows(input: BranchSettingsEditInput): BranchHoursRow[] {
   );
 }
 
-/**
- * Updates one branch's settings row and its hours in one transaction, rejecting a save made over a
- * version someone else already changed the same way `editRole` (`role-edit-route.ts`) rejects a
- * stale role save. Leaving every field and every day's hours exactly as they were is a no-op: the
- * version does not bump and nothing is audited.
- */
 export async function editBranchSettings<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: EditBranchSettingsInput,
 ): Promise<EditBranchSettingsOutcome> {
   return db.transaction<EditBranchSettingsOutcome>(async (tx) => {
-    // Locks this one row so a concurrent save against the same branch waits instead of racing:
-    // the version check below, the hours read that follows, and the write they may lead to all
-    // happen against a value that cannot change out from under this transaction while it holds
-    // the lock.
+    // `for("update")` row-locks this branch so a concurrent save waits instead of racing the
+    // version check, hours read and write below.
     const [current] = await tx
       .select({
         address: branchSettings.address,
@@ -130,9 +114,6 @@ export async function editBranchSettings<TQueryResult extends PgQueryResultHKT>(
       .where(eq(branchSettings.locationId, input.locationId))
       .for("update");
     if (!current) {
-      // Every location gets its row from the migration that creates this table
-      // (`branch-settings-read-route.ts` gives the same reasoning); an open session's own location
-      // missing one would mean that invariant broke, not a legitimate case this route should see.
       throw new Error(`branch settings missing for location ${input.locationId}`);
     }
     if (current.version !== input.version) {
@@ -165,7 +146,7 @@ export async function editBranchSettings<TQueryResult extends PgQueryResultHKT>(
       current.expiringLotAlertDays === next.expiringLotAlertDays &&
       current.unreviewedPriceAlertDays === next.unreviewedPriceAlertDays &&
       current.goodConditionReturnDays === next.goodConditionReturnDays &&
-      hoursUnchanged(currentHours, input);
+      hoursUnchangedInOrder(currentHours, input);
 
     if (unchanged) {
       return { kind: "applied", row: { ...current, hours: currentHours } };
@@ -197,13 +178,6 @@ export async function editBranchSettings<TQueryResult extends PgQueryResultHKT>(
   });
 }
 
-/**
- * Registers `PUT /branch-settings`: gated by `configure_branch` (an Administrator always holds it
- * implicitly) the same way `GET /branch-settings` is, and scoped to the requesting session's own
- * location so a save always lands on that branch's own row and never another one's. Unlike
- * `editRole`, this is not a sensitive action (see the feature document's decisions), so it carries
- * no passkey reauthentication step-up.
- */
 export function registerBranchSettingsEditRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: BranchSettingsRouteOptions<TQueryResult>,

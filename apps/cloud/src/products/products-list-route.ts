@@ -16,7 +16,6 @@ export type ProductStatusFilter = "active" | "inactive" | "all";
 
 const PRODUCT_STATUS_FILTERS: ProductStatusFilter[] = ["active", "inactive", "all"];
 
-/** Reads the `status` query param, defaulting to `active` when absent. */
 export function readProductStatusFilter(
   raw: unknown,
 ): ProductStatusFilter | { field: "status"; message: string } {
@@ -32,7 +31,6 @@ export function readProductStatusFilter(
 export interface ProductsRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  /** Injected in tests so idle/absolute expiry are checked against a deterministic clock. */
   now?: () => Date;
 }
 
@@ -60,12 +58,8 @@ interface ProductWithoutBarcodes {
   version: number;
 }
 
-/**
- * Shapes the flat `net_content_quantity`/`net_content_unit` columns into the wire's nested
- * `netContent` object, `null` for a product saved with none. Both columns are guaranteed
- * both-null-or-both-set by the database (`products_net_content_both_or_neither_check`), so reading
- * one as set is enough to trust the other.
- */
+// Both columns are guaranteed both-null-or-both-set by a database check constraint, so reading one
+// as set is enough to trust the other.
 export function netContentRow(row: {
   netContentQuantity: number | null;
   netContentUnit: string | null;
@@ -76,11 +70,6 @@ export function netContentRow(row: {
   return { quantity: row.netContentQuantity, unit: row.netContentUnit as NetContentUnit };
 }
 
-/**
- * Barcodes are fetched in a second query, grouped by `productId`, and merged in code rather than
- * aggregated in SQL: this keeps the `position` ordering explicit and avoids relying on a
- * driver-specific `json_agg` shape.
- */
 async function barcodesByProductId<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   productIds: string[],
@@ -145,10 +134,6 @@ export async function listProducts<TQueryResult extends PgQueryResultHKT>(
   }));
 }
 
-/**
- * Registers `GET /products`: gated by the `manage_products_and_categories` permission (an
- * Administrator always holds it too), the same open-session shape `GET /categories` uses.
- */
 export function registerProductsListRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: ProductsRouteOptions<TQueryResult>,

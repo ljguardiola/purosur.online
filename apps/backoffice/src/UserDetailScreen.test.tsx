@@ -85,7 +85,6 @@ const phone: UserPasskey = {
 const authorizationOptions = { challenge: "session-auth" } as never;
 const assertion = { id: "existing-cred" } as never;
 
-/** Sets up an already-granted passkey authorization, for a test that isn't about that ceremony itself. */
 function grantAuthorization(services: UserDetailScreenServices) {
   vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
     kind: "ok",
@@ -273,9 +272,7 @@ test("shows no Select, but a locked Rol field with a keyboard-focusable lock and
   const lock = dialog.getByRole("button", { name: "Por qué el rol está fijo" });
   await expect.element(lock).toBeVisible();
 
-  // The modal is wider than the default phone-sized browser-mode viewport, which would leave the
-  // lock (near the field's right edge) outside it and unhoverable (see Tooltip.test.tsx's own
-  // comment on the same constraint applied to another portaled overlay).
+  // Wider than the default phone-sized browser-mode viewport, or the lock is unhoverable.
   await page.viewport(1280, 900);
   await userEvent.hover(lock);
   await expect.element(screen.getByRole("tooltip")).toBeVisible();
@@ -1143,8 +1140,6 @@ const sofia: BranchUser = {
 
 test("hides Editar and the whole Passkeys section for a non-Administrator, never reading the passkeys", async () => {
   window.history.pushState(null, "", "/settings/users/user-1");
-  // The passkeys read is Administrator-only on the cloud: were the screen to ask for it, this
-  // viewer would be sent to Mi cuenta instead of staying on the user.
   const services = createServices({
     fetchUserPasskeys: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });

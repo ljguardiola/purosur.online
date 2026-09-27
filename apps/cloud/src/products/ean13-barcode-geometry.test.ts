@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { ean13BarcodeGeometry } from "./ean13-barcode-geometry.js";
+import {
+  CENTER_GUARD_END_MODULE,
+  CENTER_GUARD_START_MODULE,
+  END_GUARD_START_MODULE,
+  ean13BarcodeGeometry,
+  MODULE_WIDTH_MM,
+  QUIET_ZONE_LEFT_MODULES,
+  START_GUARD_END_MODULE,
+} from "./ean13-barcode-geometry.js";
+
+const QUIET_ZONE_LEFT_MM = QUIET_ZONE_LEFT_MODULES * MODULE_WIDTH_MM;
 
 describe("ean13BarcodeGeometry", () => {
   const geometry = ean13BarcodeGeometry("2000000000015");
@@ -63,15 +73,13 @@ describe("ean13BarcodeGeometry", () => {
   });
 
   it("keeps each 6-digit group's center within its own half, clear of the guard bars", () => {
-    // Start guard ends and the left half begins at module 3; the center guard begins at module 45.
-    const leftHalfStartMm = 3.63 + 3 * 0.33;
-    const centerGuardStartMm = 3.63 + 45 * 0.33;
+    const leftHalfStartMm = QUIET_ZONE_LEFT_MM + START_GUARD_END_MODULE * MODULE_WIDTH_MM;
+    const centerGuardStartMm = QUIET_ZONE_LEFT_MM + CENTER_GUARD_START_MODULE * MODULE_WIDTH_MM;
     expect(geometry.leftGroupText.xMm).toBeGreaterThan(leftHalfStartMm);
     expect(geometry.leftGroupText.xMm).toBeLessThan(centerGuardStartMm);
 
-    // The center guard ends and the right half begins at module 50; the end guard begins at 92.
-    const rightHalfStartMm = 3.63 + 50 * 0.33;
-    const endGuardStartMm = 3.63 + 92 * 0.33;
+    const rightHalfStartMm = QUIET_ZONE_LEFT_MM + CENTER_GUARD_END_MODULE * MODULE_WIDTH_MM;
+    const endGuardStartMm = QUIET_ZONE_LEFT_MM + END_GUARD_START_MODULE * MODULE_WIDTH_MM;
     expect(geometry.rightGroupText.xMm).toBeGreaterThan(rightHalfStartMm);
     expect(geometry.rightGroupText.xMm).toBeLessThan(endGuardStartMm);
   });

@@ -15,9 +15,6 @@ import { toRoleSummaryWire } from "./roles-list-route.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// The Administrator role is never an editable target, so it answers identically to a missing or
-// malformed id, the same "none of the three ever leaks which one it was" reasoning
-// `user-read-route.ts` and `user-edit-route.ts` apply to a cross-branch user id.
 const NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no editable role with that id",
@@ -42,10 +39,6 @@ export function toRoleDetailWire(row: RoleDetailRow): RoleDetailWire {
   return { ...toRoleSummaryWire(row), version: row.version, assigned_users: row.assignedUsers };
 }
 
-/**
- * Every person holding this role, across every branch, ordered by name, for the role editor's
- * confirmation step. Roles aren't scoped to a branch (`db/schema.ts`), so its people aren't either.
- */
 export async function listRoleUsers<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   roleId: string,
@@ -59,11 +52,6 @@ export async function listRoleUsers<TQueryResult extends PgQueryResultHKT>(
   return rows;
 }
 
-/**
- * Reads one hand-made role by id, never the Administrator role, for `GET /roles/:id` and for
- * `role-edit-route.ts`'s `POST /roles/:id/edit`: both share this exact "malformed, missing, and
- * Administrator all answer alike" lookup.
- */
 export async function findEditableRole<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   id: string,
@@ -99,12 +87,6 @@ export async function findEditableRole<TQueryResult extends PgQueryResultHKT>(
   };
 }
 
-/**
- * Registers `GET /roles/:id`: same session, origin, and Administrator-only guard as `GET /roles`,
- * then answers one hand-made role's current name, permissions, user count, and version — the
- * version an edit sends back so a save made over a change someone else already applied is
- * rejected instead of silently overwriting it.
- */
 export function registerRoleReadRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: RolesRouteOptions<TQueryResult>,

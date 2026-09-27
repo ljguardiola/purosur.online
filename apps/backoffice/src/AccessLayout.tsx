@@ -7,14 +7,11 @@ export type AccessLayoutProps = {
   children: ReactNode;
 };
 
-/** The access screens' own frame, outside the Shell. */
 export function AccessLayout({ children }: AccessLayoutProps) {
   return (
     <div className="flex h-screen w-screen bg-surface-white">
-      {/* 680px as a shrinkable flex-basis rather than a fixed width: these screens are
-          desktop-only, but a fixed, non-shrinking panel would force the same horizontal scroll
-          BrandPanelScreen.tsx (the POS's own two-panel access layout) avoids. min-w-80 keeps the
-          same usable floor at narrower widths. */}
+      {/* Shrinkable flex-basis, not a fixed width: a non-shrinking panel would force horizontal
+          scroll. min-w-80 keeps a usable floor at narrower widths. */}
       <div className="flex w-[680px] min-w-80 flex-col bg-surface-sand p-8">
         <div className="flex-1" />
         <PuroSurLogo
@@ -37,7 +34,6 @@ export type AccessHeaderProps = {
   description?: string;
 };
 
-/** The eyebrow/heading/description block every access screen's content opens with. */
 export function AccessHeader({ eyebrow, heading, description }: AccessHeaderProps) {
   return (
     <div className="flex flex-col gap-1.5">
@@ -58,7 +54,6 @@ export type AccessFooterLinkProps = {
   label: string;
 };
 
-/** A footer link to another access screen, such as the lost-passkeys link or the way back to sign-in. */
 export function AccessFooterLink({ to, icon, label }: AccessFooterLinkProps) {
   return (
     <a

@@ -1,6 +1,5 @@
 // On Windows, a utility process's `inherit`-mode stdio does not reach the handle Playwright
-// captures from the main process, unlike on Linux; piping the core's stdout/stderr (see the
-// `stdio` option passed to `utilityProcess.fork`) and forwarding it here works on both.
+// captures from main, unlike on Linux; piping stdout/stderr and forwarding it here works on both.
 
 import { StringDecoder } from "node:string_decoder";
 
@@ -38,7 +37,7 @@ function writeOrDrop(sink: OutputSink, text: string): void {
   try {
     sink.write(text);
   } catch {
-    // Same as an `error` event: nowhere left to write to.
+    // Same as the guarded `error` event: nowhere left to write to.
   }
 }
 

@@ -15,8 +15,6 @@ function run(overrides = {}) {
   };
 }
 
-// durationsFromRuns -----------------------------------------------------------------
-
 test("turns a completed run into a row with its short sha and duration in seconds", () => {
   const rows = durationsFromRuns({ workflow_runs: [run()] });
 
@@ -73,8 +71,6 @@ test("carries the run attempt and conclusion through unchanged", () => {
 test("returns an empty array when the response has no run list", () => {
   assert.deepEqual(durationsFromRuns({ message: "Not Found" }), []);
 });
-
-// formatDurationsTable ----------------------------------------------------------------
 
 test("formats a row's duration as minutes:seconds", () => {
   const table = formatDurationsTable([
@@ -163,7 +159,6 @@ test("lines each column up under its header", () => {
     assert.equal(line.indexOf(conclusion), header.indexOf("CONCLUSION"));
     assert.equal(line.indexOf("https://"), header.indexOf("URL"));
   }
-  // Durations are right-aligned, ending where the DURATION header ends.
   const durationEnd = header.indexOf("DURATION") + "DURATION".length;
   assert.equal(lines[0].slice(0, durationEnd).endsWith("4:32"), true);
   assert.equal(lines[1].slice(0, durationEnd).endsWith("62:05"), true);
@@ -174,8 +169,6 @@ test("reports when there are no completed runs to show", () => {
 
   assert.match(table, /no completed/i);
 });
-
-// runCli ------------------------------------------------------------------------------
 
 test("prints the formatted table built from gh's response", async () => {
   const calls = { gh: [], logs: [] };

@@ -41,7 +41,6 @@ const newRegistration = { id: "new-cred" } as never;
 const authorizationOptions = { challenge: "session-auth" } as never;
 const assertion = { id: "existing-cred" } as never;
 
-/** Sets up an already-granted passkey authorization, for a test that isn't about that ceremony itself. */
 function grantAuthorization(services: MyAccountScreenServices) {
   vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
     kind: "ok",
@@ -370,7 +369,7 @@ test("shows a rate-limited notice, instead of a generic attempt-failed one, when
   expect(services.startRegistration).not.toHaveBeenCalled();
 });
 
-test("shows a rate-limited notice, instead of a generic attempt-failed one, when registering itself is rate limited", async () => {
+test("shows a rate-limited notice, instead of a generic attempt-failed one, when registering itself is rate limited, and still signals the device to forget the unsaved credential", async () => {
   const services = createServices();
   vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
   const screen = await renderScreen(services);
@@ -391,8 +390,6 @@ test("shows a rate-limited notice, instead of a generic attempt-failed one, when
 
   await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
   await expect.element(dialog.getByText("Se puede volver a intentar en 1 minuto.")).toBeVisible();
-  // The device already created this credential and the cloud never saved it (rate limited): the
-  // device should forget it, naming the exact rp.id and credential id from that ceremony.
   expect(services.signalUnknownCredential).toHaveBeenCalledWith({
     rpId: "purosur.online",
     credentialId: "new-cred",
@@ -489,7 +486,7 @@ test("never signals the device on a generic registration failure (network error 
   expect(services.signalUnknownCredential).not.toHaveBeenCalled();
 });
 
-test("shows an attempt-failed notice when the browser cancels the registration ceremony itself", async () => {
+test("shows an attempt-failed notice, without signaling the device, when the browser cancels the registration ceremony itself", async () => {
   const services = createServices();
   vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
   const screen = await renderScreen(services);
@@ -506,8 +503,6 @@ test("shows an attempt-failed notice when the browser cancels the registration c
 
   await expect.element(dialog.getByText("No se pudo registrar la passkey")).toBeVisible();
   expect(services.registerPasskey).not.toHaveBeenCalled();
-  // The device never created a credential (the ceremony itself was cancelled), so there is
-  // nothing to ask it to forget.
   expect(services.signalUnknownCredential).not.toHaveBeenCalled();
 });
 

@@ -11,9 +11,6 @@ import type { RecoveryTokenOutcome } from "./recoveryApi";
 import { fetchRegistrationOptions, redeemRecovery } from "./recoveryApi";
 import { signalUnknownCredential } from "./signalUnknownCredential";
 
-// An explicit allowlist instead of excluding "ok"/"already_registered"/"failed": a future outcome
-// kind the exclusion list doesn't know about would otherwise signal by default. The exhaustive
-// switch (no default case) makes the compiler refuse a kind this doesn't decide for.
 function isDefinitiveRejection(outcome: RecoveryTokenOutcome<unknown>): boolean {
   switch (outcome.kind) {
     case "invalid":
@@ -62,7 +59,6 @@ export const defaultRegisterPasskeyScreenServices: RegisterPasskeyScreenServices
 };
 
 export type RegisterPasskeyScreenProps = {
-  /** Injected in tests so registration doesn't call the real recovery API or WebAuthn. */
   services?: RegisterPasskeyScreenServices;
 };
 
@@ -99,17 +95,11 @@ function TokenErrorNotice({
   );
 }
 
-/**
- * Every token/rate-limit/failure state shares the error-tone notice pattern used for other
- * blocked-by-attempts states in the product.
- */
 export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps = {}) {
   const { fetchRegistrationOptions, redeemRecovery, startRegistration, signalUnknownCredential } =
     services ?? defaultRegisterPasskeyScreenServices;
-  // A lazy initializer runs during the component's initial render, before any effect can strip
-  // the fragment. StrictMode (dev only, see main.tsx) calls it twice, but both calls happen in
-  // that same initial render, before the mount effect below strips the hash, so both read the
-  // same token and the state keeps it even when that effect runs twice.
+  // A lazy initializer runs during the initial render, before any effect strips the fragment;
+  // StrictMode's doubled call falls within that same render, so both reads see the same token.
   const [token] = useState<string | null>(() => readToken());
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
   const [name, setName] = useState("");
@@ -144,20 +134,16 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps =
   }, [token, fetchRegistrationOptions]);
 
   useEffect(() => {
-    // The token never reaches server logs or a Referer header through the URL fragment; it is
-    // stripped from the URL right away so it doesn't linger there.
-    // Idempotent by construction: a StrictMode-doubled effect run finds nothing left to strip.
+    // A URL fragment never reaches server logs or a Referer header, but it's stripped right away
+    // so it doesn't linger in the address bar; idempotent, so a StrictMode-doubled run is a no-op.
     if (window.location.hash) {
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
     }
     void load();
   }, [load]);
 
-  // The cloud keeps only the latest challenge per link, which another tab may have replaced, so an
-  // attempt the cloud rejected fetches fresh options for the next one. Every fetch counts against
-  // the per-source redemption limit, so an attempt that never reached the cloud keeps its options.
-  // It happens now rather than on the next click so that click still starts WebAuthn directly,
-  // within its user activation.
+  // A rejected attempt needs fresh options before retrying; fetched now so the next click still
+  // starts WebAuthn synchronously, within the browser's required user activation.
   async function refreshAfterRejectedAttempt(recoveryToken: string, readyPhase: ReadyPhase) {
     setPhase({ ...readyPhase, attemptFailed: true, submitting: true });
     const outcome = await fetchRegistrationOptions(recoveryToken);
@@ -206,10 +192,8 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps =
     }
 
     const outcome = await redeemRecovery(token, registration, name.trim());
-    // The device just created this credential; every definitive rejection but "already
-    // registered" (the cloud already knows it) means the cloud never saved it, so the device
-    // should forget it. A network throw or an unrecognized status ("failed") is ambiguous — the
-    // save may have landed — and never signals.
+    // Every definitive rejection but "already registered" means the credential was never saved,
+    // so the device should forget it; an ambiguous outcome never signals, since it may have landed.
     if (isDefinitiveRejection(outcome)) {
       const rpId = readyPhase.options.rp.id;
       if (rpId) {

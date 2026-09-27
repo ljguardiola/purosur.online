@@ -4,12 +4,6 @@ import { passkeys, roles, userRoles, users } from "../db/schema.js";
 import type { OpenSession } from "../session/open-session.js";
 import { isAccessGranted, permissionAccess } from "../session/route-access.js";
 
-/**
- * Whether `session` may see a deactivated branch user at all: an Administrator, or a holder of
- * `reactivate_users`. Shared by the Users list/detail (which then also include the `active` field
- * and a deactivated user) and user creation (which then answers a deactivated email conflict with
- * that user's id instead of the plain `email_taken` everyone else gets).
- */
 export function canReactivateUsers(
   session: Pick<OpenSession, "isAdministrator" | "permissionKeys">,
 ): boolean {
@@ -26,8 +20,6 @@ export interface BranchUserRow {
   roleName: string | null;
   roleIsAdministrator: boolean;
   passkeyCount: number;
-  /** True only for the one active user, in this branch, who currently holds the Administrator
-   * role while no one else does: the backoffice locks their role field on this. */
   isLastActiveAdministrator: boolean;
 }
 
@@ -36,8 +28,7 @@ export interface BranchUserWire {
   first_name: string;
   email: string;
   version: number;
-  /** Only present when the caller may see a deactivated user (`toBranchUserWire`'s
-   * `includeActive`): everyone else's responses never mention it, active or not. */
+  // Included only when the caller may see deactivated users, so its absence never reveals one exists.
   active?: boolean;
   role: { id: string; is_administrator: boolean; name: string | null };
   passkey_count: number;
@@ -60,11 +51,6 @@ export function toBranchUserWire(
   };
 }
 
-/**
- * Which of a branch's users a lookup considers: `"active"` (the default, and the only scope every
- * user-mutation lookup other than reactivation itself uses), `"inactive"` (reactivation's own
- * target lookup), or `"any"` (the Users list/detail, for a caller who may see a deactivated user).
- */
 export type BranchUserActiveScope = "active" | "inactive" | "any";
 
 function activeScopeCondition(scope: BranchUserActiveScope) {
@@ -87,8 +73,6 @@ const BRANCH_USER_SELECTION = {
   roleId: roles.id,
   roleName: roles.name,
   roleIsAdministrator: roles.isAdministrator,
-  // Counted in the same query (left-joined, then grouped) instead of a follow-up query per user,
-  // so listing a branch's users never runs N+1 passkey lookups.
   passkeyCount: sql<number>`count(${passkeys.id})::int`.as("passkey_count"),
 };
 
@@ -105,8 +89,6 @@ const BRANCH_USER_GROUP_BY = [
 
 type RawBranchUserRow = Omit<BranchUserRow, "isLastActiveAdministrator">;
 
-/** Stamps `isLastActiveAdministrator` on every row from a count of active Administrator holders
- * already known for their branch, instead of each row computing its own subquery. */
 function withLastActiveAdministratorFlag(
   rows: RawBranchUserRow[],
   activeAdministratorCount: number,
@@ -117,16 +99,6 @@ function withLastActiveAdministratorFlag(
   }));
 }
 
-/**
- * Lists `locationId`'s users in `activeScope` (active users only, by default), ordered by first
- * name, with the role each one holds and how many passkeys they have registered. A user created
- * outside `createFirstAdministrator`/`POST /users` without a `user_roles` row is excluded by the
- * inner join, the same way it would be invisible to any other branch-scoped read. Under the
- * default `"active"` scope, a deactivated user is excluded the same way: never deleted, but
- * invisible here so every caller (every user-mutation target lookup other than reactivation's own)
- * treats it as gone, the same 404 a missing user gets. Only the Users list passes `"any"`, and only
- * for a caller who may see a deactivated user.
- */
 export async function listBranchUsers<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   locationId: string,
@@ -142,21 +114,12 @@ export async function listBranchUsers<TQueryResult extends PgQueryResultHKT>(
     .where(and(eq(users.locationId, locationId), activeScopeCondition(activeScope)))
     .groupBy(...BRANCH_USER_GROUP_BY)
     .orderBy(asc(users.firstName));
-  // A deactivated user, when the scope includes one, is never counted as an active Administrator
-  // (the deactivation route never leaves one deactivated in that role, but this stays correct even
-  // so), so this is still every active Administrator this branch has, with no extra query.
   const activeAdministratorCount = rows.filter(
     (row) => row.roleIsAdministrator && row.active,
   ).length;
   return withLastActiveAdministratorFlag(rows, activeAdministratorCount);
 }
 
-/**
- * Finds `userId` only when it belongs to `locationId` and matches `activeScope` (active users only,
- * by default); otherwise `undefined`, same as a missing id (see `listBranchUsers` for why a
- * deactivated user is excluded under the default scope). Reactivation's own target lookup passes
- * `"inactive"`; the Users detail passes `"any"` for a caller who may see a deactivated user.
- */
 export async function findBranchUser<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   locationId: string,
@@ -186,7 +149,6 @@ export async function findBranchUser<TQueryResult extends PgQueryResultHKT>(
   return withLastActiveAdministratorFlag([row], activeAdministratorCount)[0];
 }
 
-/** How many active users of `locationId` currently hold the Administrator role. */
 async function countActiveAdministrators<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   locationId: string,

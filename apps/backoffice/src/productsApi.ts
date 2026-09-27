@@ -4,12 +4,9 @@ export type ProductSaleUnit = "UNIT" | "KG";
 
 export type NetContent = { quantity: number; unit: NetContentUnit };
 
-/** The `status` query param `GET /products` accepts, mirroring the cloud's own filter. */
 export type ProductStatusFilter = "active" | "inactive" | "all";
 
-// The backoffice API rate limiter counts a rolling one-hour window, the same fallback
-// categoriesApi.ts's own rate-limited outcomes fall back to.
-const RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
+const ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
 
 export type ProductSummary = {
   id: string;
@@ -88,7 +85,9 @@ export type GenerateInternalBarcodeOutcome =
 function retryAfterSeconds(response: Response): number {
   const header = response.headers.get("Retry-After");
   const seconds = header ? Number(header) : Number.NaN;
-  return Number.isFinite(seconds) && seconds > 0 ? seconds : RATE_LIMIT_FALLBACK_SECONDS;
+  return Number.isFinite(seconds) && seconds > 0
+    ? seconds
+    : ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS;
 }
 
 function postJson(path: string, body?: unknown): Promise<Response> {
@@ -118,10 +117,6 @@ async function readBarcodeTakenCodes(response: Response): Promise<string[]> {
     : [];
 }
 
-/**
- * Lists catalog products filtered by status, gated by `manage_products_and_categories`
- * (`GET /products`); defaults to active products, the same default the cloud itself applies.
- */
 export async function fetchProducts(
   status: ProductStatusFilter = "active",
 ): Promise<FetchProductsOutcome> {
@@ -150,7 +145,6 @@ export async function fetchProducts(
   return { kind: "ok", value: body };
 }
 
-/** Creates a product with its barcodes, gated by `manage_products_and_categories`; no passkey step-up (`POST /products`). */
 export async function createProduct(input: CreateProductInput): Promise<CreateProductOutcome> {
   let response: Response;
   try {
@@ -197,10 +191,6 @@ export async function createProduct(input: CreateProductInput): Promise<CreatePr
   return { kind: "failed" };
 }
 
-/**
- * Allocates a fresh internal EAN-13 barcode for a product with no manufacturer code, gated by
- * `manage_products_and_categories`; no passkey step-up (`POST /products/internal-barcode`).
- */
 export async function generateInternalBarcode(): Promise<GenerateInternalBarcodeOutcome> {
   let response: Response;
   try {
@@ -238,10 +228,6 @@ export type PrintLabelsOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-/**
- * Downloads a printable A4 sheet of internal-barcode labels for the requested products and
- * counts, gated by `manage_products_and_categories`; no passkey step-up (`POST /products/labels`).
- */
 export async function printLabels(labels: PrintLabelEntry[]): Promise<PrintLabelsOutcome> {
   let response: Response;
   try {
@@ -278,7 +264,6 @@ export async function printLabels(labels: PrintLabelEntry[]): Promise<PrintLabel
   return { kind: "failed" };
 }
 
-/** Edits a product and replaces its barcodes, rejecting a save over a newer version, gated by `manage_products_and_categories`; no passkey step-up (`POST /products/:id/edit`). */
 export async function editProduct(
   id: string,
   input: EditProductInput,
@@ -346,11 +331,7 @@ export type DeactivateProductOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-/**
- * Deactivates a catalog product, gated by `manage_products_and_categories`; no passkey step-up
- * (`POST /products/:id/deactivation`). The cloud answers the same `not_found` for a malformed,
- * missing, or already-inactive target.
- */
+/** The cloud answers the same `not_found` for a malformed, missing, or already-inactive target. */
 export async function deactivateProduct(id: string): Promise<DeactivateProductOutcome> {
   let response: Response;
   try {

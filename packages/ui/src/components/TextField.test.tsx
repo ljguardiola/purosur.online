@@ -13,8 +13,6 @@ function fieldInput(screen: Screen, name: string): HTMLInputElement {
   return screen.getByRole("textbox", { name }).element() as HTMLInputElement;
 }
 
-// The box is the accessible input's own parent: it always holds the input, plus an optional
-// prefix before it and an optional suffix after it (see TextField.tsx).
 function fieldBox(screen: Screen, name: string): HTMLElement {
   return fieldInput(screen, name).parentElement as HTMLElement;
 }
@@ -23,23 +21,13 @@ function fieldWrapper(screen: Screen, name: string): HTMLElement {
   return fieldBox(screen, name).parentElement as HTMLElement;
 }
 
-// The literal box-shadow string Chromium renders for the focused state (a 2px brand-blue-ui
-// inset border, no outer shadow ring), pinned to the design's own hex value (brand-blue-ui
-// #4f6c7e) rather than read back from the component's own class list or from tokens.css: if that
-// drifted to a wrong color or a wrong pixel value, this fixture would stop matching instead of
-// moving together with it. Tailwind v4's shadow utilities always compose five box-shadow layers
-// even when only one of them carries a real shadow, hence the four transparent placeholder
-// layers ahead of the real one (confirmed once against the actual rendered value, not re-derived
-// from Tailwind's classes).
+// The box-shadow string Chromium renders for the focused state: a 2px brand-blue-ui inset with no
+// outer shadow, behind the four transparent layers Tailwind v4 always composes.
 const FOCUSED_SHADOW =
   "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
   "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
   "rgb(79, 108, 126) 0px 0px 0px 2px inset";
 
-// The text a screen reader would read as the field's description: every id `aria-describedby`
-// names, in the order the attribute lists them. A dangling id (one naming an element that isn't
-// in the document) throws rather than silently contributing an empty string, since that is the
-// failure mode a wrongly composed `aria-describedby` actually produces.
 function describedText(input: HTMLInputElement): string {
   const describedBy = input.getAttribute("aria-describedby");
   if (!describedBy) {
@@ -93,9 +81,6 @@ test("renders the label 6px above an 8px-radius box", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// The backoffice size's own label, gap, box and value are proven once, for TextField, DateField
-// and Select together, in FieldSize.test.tsx; this test only proves the one thing specific to
-// this component's own suffixed plain text: the value stays semibold even then, unlike its unit.
 test("keeps the backoffice plain text value semibold even with a suffix, unlike its own unit", async () => {
   const screen = await render(
     <FieldSizeProvider size="backoffice">
@@ -114,9 +99,6 @@ test("keeps the backoffice plain text value semibold even with a suffix, unlike 
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// The design draws no backoffice money or kg field (see TextField.tsx's own TextFieldKindProps),
-// so a kind other than plain text keeps its whole register-sized field — label, gap and value
-// included, not only its frame — regardless of an ambient backoffice FieldSizeProvider.
 test("keeps a non-plain-text kind at its own register size inside a backoffice FieldSizeProvider", async () => {
   const screen = await render(
     <FieldSizeProvider size="backoffice">
@@ -356,10 +338,6 @@ test("keeps the focused border and white fill instead of the hovered bone one wh
 
   await userEvent.tab();
   await userEvent.hover(box);
-  // Both assertions below also hold for a focused field the pointer never reached: focus alone
-  // paints the boundary, and white is the resting fill too. Focusing by keyboard leaves the hover
-  // as the only thing that puts the pointer on the box, and the poll proves it got there before
-  // asserting that focus won over it.
   await expect.poll(() => box.matches(":hover")).toBe(true);
 
   await expect
@@ -383,15 +361,11 @@ test("dims the whole field to 45% opacity and blocks focus when disabled", async
   const nextControl = screen.getByRole("button", { name: "Next control" }).element();
 
   expect(getComputedStyle(wrapper).opacity).toBe("0.45");
-  // The box itself still renders the field's ordinary resting look underneath that dimming —
-  // it's the wrapper's opacity that communicates "disabled", not a different box appearance.
   expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-white"));
   expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("line", "2px")]);
   expect(input.disabled).toBe(true);
 
   await userEvent.tab();
-  // Landing on the sibling button proves Tab actually traversed the page instead of the
-  // assertion below passing by coincidence because Tab moved focus nowhere at all.
   expect(document.activeElement).toBe(nextControl);
   expect(document.activeElement).not.toBe(input);
 
@@ -413,41 +387,30 @@ test("lets a read-only field be focused and shows it, but is never typed into or
     </>,
   );
   const box = fieldBox(screen, "Reason");
-  const editableBox = fieldBox(screen, "Detail");
+  const controlBox = fieldBox(screen, "Detail");
   const input = fieldInput(screen, "Reason");
   const restingShadow = getComputedStyle(box).boxShadow;
   const restingBackground = getComputedStyle(box).backgroundColor;
 
   expect(input.readOnly).toBe(true);
   expect(restingBackground).toBe(tokenRgb("surface-bone"));
-  // Read-only reuses the same line border as resting/hovered.
   expect(restingShadow).toContain(insetBoundary("line", "2px"));
 
-  // The ordinary field beside it goes first: once the pointer has provably turned that one bone,
-  // a hover over the read-only box that changes nothing means "read-only ignores hover" rather
-  // than "the hover hadn't been applied yet when the assertion ran".
-  await userEvent.hover(editableBox);
+  await userEvent.hover(controlBox);
   await expect
-    .poll(() => getComputedStyle(editableBox).backgroundColor)
+    .poll(() => getComputedStyle(controlBox).backgroundColor)
     .toBe(tokenRgb("surface-bone"));
 
   await userEvent.hover(box);
   await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(restingBackground);
   expect(getComputedStyle(box).boxShadow).toBe(restingShadow);
-  expect(getComputedStyle(editableBox).backgroundColor).toBe(tokenRgb("surface-white"));
+  expect(getComputedStyle(controlBox).backgroundColor).toBe(tokenRgb("surface-white"));
 
   await userEvent.click(input);
   expect(document.activeElement).toBe(input);
-  // The field can't be edited, but it is still in the tab order and the browser's own focus ring
-  // is suppressed, so it has to show the package's focused border like any other reachable field.
   await expect.poll(() => getComputedStyle(box).boxShadow).toBe(FOCUSED_SHADOW);
   expect(getComputedStyle(box).backgroundColor).toBe(restingBackground);
 
-  // The harness's own value never changes regardless of whether the keystroke was accepted, so
-  // asserting the DOM value stayed put wouldn't prove anything a broken read-only couldn't also
-  // produce by coincidence. Read-only means the caller is never told about the attempt at all.
-  // Re-checked right here, not just after the earlier click, so the keystroke below is proven to
-  // have actually reached a focused input instead of landing nowhere.
   expect(document.activeElement).toBe(input);
   await userEvent.keyboard("x");
   expect(onChange).not.toHaveBeenCalled();
@@ -472,17 +435,12 @@ test("lets disabled win the box treatment over invalid, while still announcing i
   const input = fieldInput(screen, "Reason");
   const style = getComputedStyle(box);
 
-  // Disabled's own white-fill look wins the box, not invalid's error-ui border.
   expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
   expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("line", "2px")]);
   expect(getComputedStyle(wrapper).opacity).toBe("0.45");
 
-  // Assistive technology still hears it as invalid, named by its message, regardless of the box.
   expect(input.getAttribute("aria-invalid")).toBe("true");
   expect(describedText(input)).toContain("Enter a reason.");
-  // Marks the message itself exempt from WCAG's contrast minimum, the way an inactive
-  // component's text already is: dimmed by the field's own 45% opacity, it would otherwise fail
-  // it despite being correctly hidden away, not miscolored.
   const errorMessageElement = screen.getByText("Enter a reason.").element();
   expect(errorMessageElement.getAttribute("aria-disabled")).toBe("true");
 
@@ -503,7 +461,6 @@ test("marks the helper text as disabled too when the field itself is disabled", 
   const input = fieldInput(screen, "Reason");
 
   expect(describedText(input)).toContain("No register is open.");
-  // Same exemption as the disabled+invalid error text above, for the ordinary helper line.
   const helperElement = screen.getByText("No register is open.").element();
   expect(helperElement.getAttribute("aria-disabled")).toBe("true");
 
@@ -526,7 +483,6 @@ test("lets read-only win the box treatment over invalid, while still announcing 
   const input = fieldInput(screen, "Reason");
   const style = getComputedStyle(box);
 
-  // Read-only's own bone-fill look wins the box, not invalid's error-ui border.
   expect(style.backgroundColor).toBe(tokenRgb("surface-bone"));
   expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("line", "2px")]);
 
@@ -556,7 +512,6 @@ test("lets disabled win the box treatment over read-only when both apply", async
   const input = fieldInput(screen, "Reason");
   const style = getComputedStyle(box);
 
-  // Disabled's white fill wins the box over read-only's bone fill.
   expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
   expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("line", "2px")]);
   expect(getComputedStyle(wrapper).opacity).toBe("0.45");
@@ -564,8 +519,6 @@ test("lets disabled win the box treatment over read-only when both apply", async
   expect(input.readOnly).toBe(true);
 
   await userEvent.tab();
-  // Landing on the sibling button proves Tab actually traversed the page, instead of the
-  // assertion below passing by coincidence because Tab moved focus nowhere at all.
   expect(document.activeElement).toBe(nextControl);
   expect(document.activeElement).not.toBe(input);
 
@@ -598,9 +551,8 @@ test("marks a required field with an asterisk and exposes it as required", async
     <TextField kind="plain-text" label="Reason" value="" onChange={() => {}} required />,
   );
   const label = screen.getByText("Reason").element() as HTMLElement;
-  // The generated asterisk folds into the input's own accessible name (the browser reads ::after
-  // content as part of accname computation), so the plain "Reason" query used elsewhere in this
-  // file wouldn't match here; there is only one textbox in this render.
+  // A CSS-generated ::after asterisk folds into the accessible name, so the plain "Reason" query
+  // used elsewhere wouldn't match here.
   const input = screen.getByRole("textbox").element() as HTMLInputElement;
 
   expect(getComputedStyle(label, "::after").content).toContain("*");
@@ -645,8 +597,6 @@ test("keeps the label as the accessible name but paints nothing when labelVisual
   const label = screen.getByText("Lunes, horario 1, abre").element() as HTMLElement;
   const labelRect = label.getBoundingClientRect();
 
-  // Named for assistive technology, but not painted: the label's own box collapses to 1x1px
-  // (sr-only), the same technique and assertion as Table.tsx's own srLabel (see Table.test.tsx).
   expect(labelRect.width).toBeLessThanOrEqual(1);
   expect(labelRect.height).toBeLessThanOrEqual(1);
 
@@ -688,7 +638,6 @@ test("exposes the field as invalid, described by a shared message rendered outsi
   expect(input.getAttribute("aria-invalid")).toBe("true");
   expect(describedText(input)).toBe("Enter the time as 9:00.");
   expect(screen.getByText("Should not be visible.").query()).toBeNull();
-  // The message renders once, outside the field: the field itself adds no copy of it.
   expect(fieldWrapper(screen, "Opens").textContent).toBe("Opens");
 
   await expectNoAccessibilityViolations(screen.container);
@@ -760,8 +709,6 @@ test("wires the money prefix into the input's own description for assistive tech
   const prefixElement = screen.getByText("$").element();
 
   expect(describedText(input)).toContain("$");
-  // Still hidden from the page's own reading order — reachable only through the description,
-  // never encountered a second time as a stray node while navigating the field.
   expect(prefixElement.getAttribute("aria-hidden")).toBe("true");
 
   await expectNoAccessibilityViolations(screen.container);
@@ -816,8 +763,6 @@ test("keeps the affix in the description alongside the helper text, each named o
 
   expect(described).toContain("kg");
   expect(described).toContain("Weigh with the scale empty.");
-  // Each description source is referenced by exactly one id: the composed aria-describedby
-  // has no id listed twice, so nothing in it gets announced more than once.
   const describedBy = input.getAttribute("aria-describedby") as string;
   const ids = describedBy.split(" ");
   expect(ids).toHaveLength(new Set(ids).size);
@@ -935,10 +880,8 @@ test("does not accept a kind that calls for a prefix without one", () => {
   }>().not.toExtend<TextFieldProps>();
 });
 
-// Each of these also supplies the affix the kind actually requires, so the only thing that can
-// make the candidate fail to extend TextFieldProps is the extra, wrong one — unlike a candidate
-// that's missing its own required affix too, which would fail for that reason alone regardless
-// of what else is wrong with it.
+// Each candidate below also supplies the affix its kind requires, so only the extra, wrong affix
+// can make it fail to extend TextFieldProps, not a missing required one.
 test("does not accept a suffix on a money kind that already has its own prefix", () => {
   expectTypeOf<{
     kind: "amount";

@@ -49,13 +49,6 @@ export function readSaleUnit(body: unknown): SaleUnit | undefined {
   return raw === "UNIT" || raw === "KG" ? raw : undefined;
 }
 
-/**
- * Reads the `netContent` object from the request body: `undefined` when the key is absent or
- * explicitly `null` (no net content, and on edit, clearing it), the literal `"invalid"` when
- * exactly one of `quantity`/`unit` is present or `unit` is not a listed one, or the parsed
- * `{ quantity, unit }` pair otherwise. `quantity`'s own bounds (positive, at most 3 decimals) are
- * checked by `validateProductFields`, the same split `readProductName` and its length limit use.
- */
 export function readNetContent(body: unknown): NetContentInput | "invalid" | undefined {
   const raw = (body as { netContent?: unknown } | undefined)?.netContent;
   if (raw === undefined || raw === null) {
@@ -73,7 +66,6 @@ export function readNetContent(body: unknown): NetContentInput | "invalid" | und
   return { quantity, unit: unit as NetContentUnit };
 }
 
-/** Reads trimmed, non-blank barcodes from the request body; duplicates are left for the caller. */
 export function readBarcodes(body: unknown): string[] | undefined {
   const raw = (body as { barcodes?: unknown } | undefined)?.barcodes;
   if (!Array.isArray(raw) || raw.length === 0) {
@@ -101,11 +93,6 @@ export interface ProductFieldsInput {
   netContent?: NetContentInput | "invalid" | undefined;
 }
 
-/**
- * Validates the fields shared by product creation and edit, in the order the backoffice's form
- * fields appear: name, category, sale unit, barcodes, then net content. Whether `categoryId` names
- * an existing category is checked separately against the database, not here.
- */
 export function validateProductFields(
   input: ProductFieldsInput,
 ): ProductFieldValidationFailure | undefined {

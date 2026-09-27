@@ -4,7 +4,7 @@ import type { BranchUserRole } from "./usersApi";
 
 const usersMessages = messages.settings.users;
 
-/** Shared between the users list and a user's own detail screen: every role picker shows the Administrator's fixed name instead of its (empty) stored one. */
+/** The Administrator role's own `name` is stored empty; this shows its fixed display name instead. */
 export function roleDisplayName(role: BranchUserRole): string {
   return role.isAdministrator ? usersMessages.administratorRoleName : (role.name ?? "");
 }

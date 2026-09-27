@@ -345,7 +345,6 @@ describe("GET /prices", () => {
     const categoryId = await insertCategory("Almacén");
     const priceListId = await seededPriceListId(db);
 
-    // A 30-day unreviewed alert window is set below; both are past it, so both are pending.
     const olderProductId = await insertProduct("Yerba", categoryId);
     const olderPriceId = await insertPrice(
       olderProductId,

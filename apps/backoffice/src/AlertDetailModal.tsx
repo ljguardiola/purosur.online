@@ -34,11 +34,9 @@ export const defaultAlertDetailModalServices: AlertDetailModalServices = {
 };
 
 export type AlertDetailModalProps = {
-  /** `null` keeps the modal closed; opening one fetches its detail fresh. */
   alertId: string | null;
   access: BackofficeAccess;
   onClose: () => void;
-  /** Fired after a successful close, so the list can refresh; the modal is left to the caller to close too. */
   onClosed: () => void;
   onSessionEnded: () => void;
   services?: AlertDetailModalServices;
@@ -91,8 +89,6 @@ function alertIcon(kind: string): Icon {
   }
 }
 
-// Account recovery only ever registers a passkey, and an Administrator only ever removes someone
-// else's (see the cloud's `PasskeyChangedDetail`).
 type PasskeyChangeDetail =
   | { action: "registered" | "removed"; passkeyName: string; via: "self" }
   | { action: "registered"; passkeyName: string; via: "recovery" }
@@ -201,13 +197,6 @@ function alertDescription(alert: AlertDetail): string {
   }
 }
 
-/**
- * The alert detail modal over the Alertas list (never its own route, the same pattern
- * `RoleEditorModal` uses over Roles): opens on an eye action, shows the level, a description
- * built from the kind's own fact payload, the open/escalated/scope data, per-recipient delivery,
- * and — only for a viewer who holds `dismiss_alerts_manually`, on an alert still open — a "Cerrar
- * la alerta" action.
- */
 export function AlertDetailModal({
   alertId,
   access,
@@ -221,8 +210,6 @@ export function AlertDetailModal({
   const [notice, setNotice] = useState<FormNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Bumped on every alertId change, so a fetch started for an earlier alert (one since closed or
-  // replaced) knows its late response no longer belongs here.
   const sessionRef = useRef(0);
   const onSessionEndedRef = useRef(onSessionEnded);
   onSessionEndedRef.current = onSessionEnded;

@@ -55,9 +55,7 @@ export const defaultPricesListScreenServices: PricesListScreenServices = {
 
 export type PricesListScreenProps = {
   onSessionEnded: () => void;
-  /** Injected in tests so the screen doesn't call the real API. */
   services?: PricesListScreenServices;
-  /** Injected in tests so review-age wording ("Nunca", "Hace N días") is deterministic. */
   now?: () => Date;
 };
 
@@ -81,7 +79,6 @@ const catalogMessages = messages.catalog;
 const pricesMessages = catalogMessages.prices;
 const modalMessages = pricesMessages.changePriceModal;
 
-/** "$ 7.500,00 / kg" for a per-kilo product; "$ 7.500,00" (no suffix) for a per-unit one. */
 function formatCentsWithUnit(cents: number, saleUnit: ProductSaleUnit): string {
   const suffix = modalMessages.unitSuffix[saleUnit];
   return suffix ? `${formatCents(cents)} ${suffix}` : formatCents(cents);
@@ -134,13 +131,11 @@ type ScreenNotice = {
   tone: "success" | "error";
   title: string;
   detail: string;
-  /** A rate-limited notice leaves once this window has passed. */
   retryAfterSeconds?: number;
 };
 
 type PriceChangeModalProps = {
   target: PriceProduct | null;
-  /** An outcome about the product the walk just left (saved, or skipped as deactivated). */
   previousProductNotice: ScreenNotice | null;
   now: () => Date;
   onClose: () => void;
@@ -152,10 +147,6 @@ type PriceChangeModalProps = {
   confirmPrice: typeof confirmPrice;
 };
 
-/**
- * Sets a product's price (a new, append-only price row) or confirms its current one without a
- * change; both count as reviewing it. No passkey step-up: pricing is routine daily work.
- */
 function PriceChangeModal({
   target,
   previousProductNotice,
@@ -170,9 +161,6 @@ function PriceChangeModal({
 }: PriceChangeModalProps) {
   const isOpen = target !== null;
   const [current, setCurrent] = useState<PriceProduct | null>(null);
-  // The dialog's own title, held here (rather than read straight from `current`) so it stays a
-  // non-nullable string, the same reasoning EditCategoryModal's own `title` state documents
-  // (CategoriesListScreen.tsx).
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [amountError, setAmountError] = useState<string | undefined>(undefined);
@@ -539,12 +527,6 @@ function PriceChangeModal({
   );
 }
 
-/**
- * "Precios": every catalog product with its current price (from the branch's own price list) and
- * last review, filterable by name, category and review status. Gated by
- * `manage_prices_and_review`: App.tsx only ever routes here for someone who holds it, and a
- * `forbidden` read (a role change mid-session) sends the browser to Mi cuenta.
- */
 export function PricesListScreen({ onSessionEnded, services, now }: PricesListScreenProps) {
   const {
     fetchPrices: fetchPricesService,
@@ -566,8 +548,6 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
   const [walk, setWalk] = useState<{ queue: PriceProduct[]; index: number } | null>(null);
   const [notice, setNotice] = useState<(ScreenNotice & { id: number }) | null>(null);
   const lastNoticeId = useRef(0);
-  // While a row confirm, or the read that starts Revisar los N, is in flight, no row action or
-  // Revisar los N can start, so no modal opens before its result lands.
   const [screenRequestInFlight, setScreenRequestInFlight] = useState(false);
 
   const onSessionEndedRef = useRef(onSessionEnded);
@@ -578,8 +558,8 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
     return () => clearTimeout(handle);
   }, [search]);
 
-  // Each notice gets its own id, so one identical to the notice on screen remounts the card and
-  // its live region announces it again.
+  // Each notice gets a fresh id: an unchanged id would leave the live region's text identical, and
+  // screen readers don't re-announce a live region that already holds that text.
   function showScreenNotice(shown: ScreenNotice) {
     lastNoticeId.current += 1;
     setNotice({ ...shown, id: lastNoticeId.current });
@@ -599,13 +579,10 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
     return () => clearTimeout(handle);
   }, [notice]);
 
-  /** An error notice stays until the person's next action on the screen. */
   function clearErrorNotice() {
     setNotice((shown) => (shown?.tone === "error" ? null : shown));
   }
 
-  // Only the latest load may settle the list: an earlier one still in flight would otherwise
-  // overwrite it with a stale result.
   const latestLoad = useRef(0);
 
   const load = useCallback(async () => {
@@ -646,8 +623,6 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
     void load();
   }, [load]);
 
-  // The filters stay editable while a request is in flight, so its result reloads with the filters
-  // shown when it settles, not the ones its request was sent under.
   const loadRef = useRef(load);
   loadRef.current = load;
   const reviewFilterRef = useRef(reviewFilter);
@@ -705,13 +680,11 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
     }
   }
 
-  /** Only an "ok" read starts the walk; on any other outcome the loaded table stays as it is. */
   function handleReviewReadOutcome(outcome: FetchPricesOutcome) {
     if (outcome.kind === "ok") {
       const [first] = outcome.value.products;
       if (!first) {
         reloadWithCurrentFilters();
-        // Por revisar's own empty state already says so.
         if (reviewFilterRef.current !== "pending") {
           showScreenNotice({
             tone: "success",
@@ -765,10 +738,6 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
     };
   }
 
-  /**
-   * Opens the walk's next product, carrying the notice about the one just left into the modal; with
-   * no walk or none left, closes the modal and shows that notice on the screen.
-   */
   function moveToNextInWalkOrClose(previousProductNotice: ScreenNotice) {
     const next = walk?.queue[walk.index + 1];
     if (walk && next) {
@@ -786,10 +755,6 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
     moveToNextInWalkOrClose(reviewedNotice(product, outcome));
   }
 
-  /**
-   * The modal's product was deactivated after the list loaded. Outside a walk the modal stays open
-   * on its own not-found notice; during one, the walk moves on and names the skipped product.
-   */
   function handleModalProductGone(product: PriceProduct) {
     reloadWithCurrentFilters();
     if (walk) {
@@ -802,10 +767,6 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
     setModal(null);
   }
 
-  /**
-   * The table row's own "check" action: confirms without opening the Cambiar precio modal.
-   * Never offered for a product with no price (see the actions column below).
-   */
   async function handleRowConfirm(item: PriceProduct) {
     if (!item.currentPrice) {
       return;
@@ -907,11 +868,6 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
       render: (item: PriceProduct) => reviewedCellText(item.lastReviewedAt, clock()),
     },
     {
-      // Table's own `kind: "actions"` column always renders a bare IconButton with no room for a
-      // Tooltip wrapper (see TableActionButton in Table.tsx), and the "check" action needs one
-      // (ftdOb's tooltip). A plain data column can render whatever it likes, at the cost of a
-      // visible header ("Acciones") where `kind: "actions"` would have used a visually-hidden
-      // srLabel instead — an empty header fails the empty-table-header accessibility check.
       key: "actions",
       title: pricesMessages.rowActionsLabel,
       align: "end" as const,

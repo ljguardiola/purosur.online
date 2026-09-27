@@ -15,7 +15,6 @@ const OTHER_IMAGE =
 
 const APPLY_STARTED_AT = Date.parse("2026-09-21T15:14:00.000Z");
 
-// Trimmed from a real `railway deployment list --service "Cloud Server" --json` (newest first).
 const DEPLOYMENT_LIST_FIXTURE = [
   {
     id: "b6b6f6d2-6e2a-4b8a-9c3a-2a2a2a2a2a2a",
@@ -51,8 +50,6 @@ function decide(overrides) {
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
-
-// nextPollDecision -------------------------------------------------------------
 
 test("waits when no deployment for the target image exists yet", () => {
   assert.deepEqual(decide({ deployments: [DEPLOYMENT_LIST_FIXTURE[1]] }), { action: "wait" });
@@ -154,8 +151,6 @@ test("ignores a matching-image deployment with no readable createdAt", () => {
 
   assert.deepEqual(decide({ deployments: [undated] }), { action: "wait" });
 });
-
-// Apply created no new deployment (unchanged image) -------------------------------
 
 const STALE_CREATED_AT = "2026-09-21T14:40:03.001Z";
 
@@ -292,8 +287,6 @@ test("includes the last CLI error in the timeout message", () => {
   assert.equal(decision.action, "fail");
   assert.match(decision.reason, /unexpected argument '--limit'/);
 });
-
-// parseDeploymentListOutput -----------------------------------------------------
 
 test("parseDeploymentListOutput returns the full array from a successful call", () => {
   const parsed = parseDeploymentListOutput({

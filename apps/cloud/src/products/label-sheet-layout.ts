@@ -2,8 +2,8 @@ export const LABEL_COLUMNS = 3;
 export const LABEL_ROWS = 8;
 export const LABELS_PER_PAGE = LABEL_COLUMNS * LABEL_ROWS;
 export const LABEL_WIDTH_MM = 70;
-// 297mm (A4's height) / 8 rows, tiling the sheet edge to edge with no page margin.
-export const LABEL_HEIGHT_MM = 297 / LABEL_ROWS;
+const A4_HEIGHT_MM = 297;
+export const LABEL_HEIGHT_MM = A4_HEIGHT_MM / LABEL_ROWS;
 
 export interface LabelSheetItem {
   name: string;
@@ -18,7 +18,6 @@ export interface PositionedLabel {
   yMm: number;
   widthMm: number;
   heightMm: number;
-  /** A dashed cut line is drawn on this edge only when another label sits right past it. */
   cutRight: boolean;
   cutBottom: boolean;
 }
@@ -37,12 +36,6 @@ function flatten(items: LabelSheetItem[]): Array<{ name: string; code: string }>
   return flattened;
 }
 
-/**
- * Lays out an ordered, product-by-product list of labels onto A4 sheets tiled 3 columns × 8 rows,
- * 70 × 37.125 mm each, with no page margin. Each label reports which of its right/bottom edges
- * borders another label on the same page, so the PDF writer draws a cut line only between labels,
- * never at the sheet's own edge or toward an empty slot on a partial last page.
- */
 export function layoutLabelSheet(items: LabelSheetItem[]): LabelSheetPage[] {
   const flattened = flatten(items);
   const pages: LabelSheetPage[] = [];

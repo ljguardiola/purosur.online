@@ -94,12 +94,8 @@ function cookieHeader(rawSessionId: string): Record<string, string> {
   return { cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` };
 }
 
-/**
- * Runs `change` once the route has read its target (the branch-user read, the only one selecting
- * `roleIsAdministrator`) and just before the next transaction it opens: the window in which a
- * concurrent request can commit a change the route has not seen. Transactions opened earlier, by
- * the session check, run untouched.
- */
+// Runs `change` right after the route's target read (the select fetching `roleIsAdministrator`)
+// and before its next transaction: the race window the route's own lock can't yet cover.
 function withChangeAfterTargetRead(change: () => Promise<unknown>): TestDatabase["db"] {
   let targetRead = false;
   let changed = false;

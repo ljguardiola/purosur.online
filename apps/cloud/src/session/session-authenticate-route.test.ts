@@ -122,13 +122,8 @@ function postAuthenticate(body: Record<string, unknown>, headers: Record<string,
 
 let tokenSequence = 0;
 
-/**
- * Issues a live recovery token for `forUserId` and requests fresh registration options for it,
- * both through the real `/users/recovery/*` HTTP routes so every WebAuthn options/response value
- * this test passes to `WebAuthnEmulator` crosses the same JSON boundary a real browser would,
- * instead of being typed directly against `@simplewebauthn/server`'s exports (which
- * `nid-webauthn-emulator`'s own bundled types don't structurally match one-for-one).
- */
+// Goes through the real HTTP routes so every WebAuthn value crosses the same JSON boundary a
+// browser would; the emulator's bundled types don't match `@simplewebauthn/server`'s one-for-one.
 async function requestRegistrationOptions(forUserId: string) {
   tokenSequence += 1;
   const rawToken = `raw-token-${tokenSequence}`;
@@ -152,7 +147,6 @@ async function requestRegistrationOptions(forUserId: string) {
   return { rawToken, options: response.json().passkey_registration_options };
 }
 
-/** Registers a real passkey for `forUserId`, backed by `emulator`, via the actual redeem route. */
 async function registerPasskey(forUserId: string, emulator: WebAuthnEmulator) {
   const { rawToken, options } = await requestRegistrationOptions(forUserId);
   const credential = emulator.createJSON(BACKOFFICE_ORIGIN, options);
@@ -171,12 +165,7 @@ async function registerPasskey(forUserId: string, emulator: WebAuthnEmulator) {
   }
 }
 
-/**
- * An assertion the server can read and takes all the way to the credential check, and rejects
- * there because no passkey was ever registered under that credential id — a genuine rejected
- * sign-in attempt, without an authenticator's key material behind it.
- */
-function rejectedAssertion() {
+function unregisteredCredentialAssertion() {
   const clientDataJSON = Buffer.from(
     JSON.stringify({
       type: "webauthn.get",
@@ -274,13 +263,11 @@ describe("POST /users/session/authenticate", () => {
     await registerPasskey(userId, emulator);
     const first = await postAuthenticate({ assertion: await getAuthenticationAssertion(emulator) });
     const firstRawId = String(first.headers["set-cookie"]).split(";")[0]?.split("=")[1];
-    // The database is shared across this file's tests: the injected schema break is undone however
-    // this test ends, or every later test's session insert would fail against it.
     onTestFinished(async () => {
       await client.exec("alter table sessions drop column if exists injected_failure");
     });
     // A column with no default fails exactly the INSERT of the new session, while the revoke of
-    // the incoming one — an UPDATE of a row already stored — still goes through on its own.
+    // the incoming one (an UPDATE of an already-stored row) still goes through on its own.
     await client.exec(
       "alter table sessions add column injected_failure text not null default 'x';" +
         "alter table sessions alter column injected_failure drop default;",
@@ -302,8 +289,6 @@ describe("POST /users/session/authenticate", () => {
   it("rejects an unknown credential as unknown_passkey, so the backoffice can tell the device to forget it", async () => {
     const registeredEmulator = new WebAuthnEmulator();
     await registerPasskey(userId, registeredEmulator);
-    // A distinct account whose registration this server never redeemed: its own emulator holds a
-    // real, valid credential that the `passkeys` table simply has no row for.
     const [strangerUser] = await db
       .insert(users)
       .values({
@@ -488,7 +473,6 @@ describe("POST /users/session/authenticate", () => {
   it("rejects a signature counter that does not exceed the stored one once it left zero", async () => {
     const emulator = new WebAuthnEmulator();
     await registerPasskey(userId, emulator);
-    // Bump the stored counter above the authenticator's own next value to force a clone signal.
     await db.update(passkeys).set({ counter: 1_000_000 }).where(eq(passkeys.userId, userId));
     const assertion = await getAuthenticationAssertion(emulator);
 
@@ -515,11 +499,11 @@ describe("POST /users/session/authenticate", () => {
   describe("lockout", () => {
     it("blocks the 11th failed attempt from the same source address within an hour", async () => {
       for (let i = 0; i < SIGN_IN_FAILURE_LIMIT; i++) {
-        const response = await postAuthenticate({ assertion: rejectedAssertion() });
+        const response = await postAuthenticate({ assertion: unregisteredCredentialAssertion() });
         expect(response.statusCode).toBe(401);
       }
 
-      const eleventh = await postAuthenticate({ assertion: rejectedAssertion() });
+      const eleventh = await postAuthenticate({ assertion: unregisteredCredentialAssertion() });
 
       expect(eleventh.statusCode).toBe(429);
       expect(eleventh.json()).toMatchObject({ code: "rate_limited" });
@@ -530,7 +514,7 @@ describe("POST /users/session/authenticate", () => {
       const emulator = new WebAuthnEmulator();
       await registerPasskey(userId, emulator);
       for (let i = 0; i <= SIGN_IN_FAILURE_LIMIT; i++) {
-        await postAuthenticate({ assertion: rejectedAssertion() });
+        await postAuthenticate({ assertion: unregisteredCredentialAssertion() });
       }
       const assertion = await getAuthenticationAssertion(emulator);
 
@@ -543,11 +527,14 @@ describe("POST /users/session/authenticate", () => {
 
     it("never blocks a different source address", async () => {
       for (let i = 0; i <= SIGN_IN_FAILURE_LIMIT; i++) {
-        await postAuthenticate({ assertion: rejectedAssertion() }, { "x-real-ip": "203.0.113.10" });
+        await postAuthenticate(
+          { assertion: unregisteredCredentialAssertion() },
+          { "x-real-ip": "203.0.113.10" },
+        );
       }
 
       const response = await postAuthenticate(
-        { assertion: rejectedAssertion() },
+        { assertion: unregisteredCredentialAssertion() },
         { "x-real-ip": "203.0.113.99" },
       );
 
@@ -567,7 +554,7 @@ describe("POST /users/session/authenticate", () => {
 
     it("blocks the address on the tenth rejected attempt, not on the request after it", async () => {
       for (let i = 0; i < SIGN_IN_FAILURE_LIMIT; i++) {
-        const response = await postAuthenticate({ assertion: rejectedAssertion() });
+        const response = await postAuthenticate({ assertion: unregisteredCredentialAssertion() });
         expect(response.statusCode).toBe(401);
       }
 
@@ -584,14 +571,14 @@ describe("POST /users/session/authenticate", () => {
       const emulator = new WebAuthnEmulator();
       await registerPasskey(userId, emulator);
       for (let i = 0; i < SIGN_IN_FAILURE_LIMIT - 1; i++) {
-        await postAuthenticate({ assertion: rejectedAssertion() });
+        await postAuthenticate({ assertion: unregisteredCredentialAssertion() });
       }
       const signedIn = await postAuthenticate({
         assertion: await getAuthenticationAssertion(emulator),
       });
       expect(signedIn.statusCode).toBe(200);
 
-      const response = await postAuthenticate({ assertion: rejectedAssertion() });
+      const response = await postAuthenticate({ assertion: unregisteredCredentialAssertion() });
 
       expect(response.statusCode).toBe(401);
     });
@@ -612,7 +599,7 @@ describe("POST /users/session/authenticate", () => {
         method: "POST",
         url: "/users/session/authenticate",
         headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": SOURCE_ADDRESS },
-        payload: { assertion: rejectedAssertion() },
+        payload: { assertion: unregisteredCredentialAssertion() },
       });
 
       expect(response.statusCode).toBe(401);
@@ -624,7 +611,7 @@ describe("POST /users/session/authenticate", () => {
 
     it("writes one backoffice_lockout audit row with no actor per block, however many attempts follow it", async () => {
       for (let i = 0; i < SIGN_IN_FAILURE_LIMIT + 3; i++) {
-        await postAuthenticate({ assertion: rejectedAssertion() });
+        await postAuthenticate({ assertion: unregisteredCredentialAssertion() });
       }
 
       const rows = await db

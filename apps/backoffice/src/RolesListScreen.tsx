@@ -1,6 +1,6 @@
 import { Button, InlineNotice, Table } from "@purosur/ui";
 import { Copy, Lock, Pencil, Plus, ShieldX, TriangleAlert } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { messages } from "./messages";
 import {
   RoleEditorModal,
@@ -10,6 +10,7 @@ import {
 import { fetchRoles, type RoleSummary } from "./rolesApi";
 import { ScreenLayout } from "./ScreenLayout";
 import { sendToMyAccount } from "./settingsRoutes";
+import { useLatestRef } from "./useLatestRef";
 
 export type RolesListScreenServices = {
   fetchRoles: typeof fetchRoles;
@@ -22,7 +23,6 @@ export const defaultRolesListScreenServices: RolesListScreenServices = {
 
 export type RolesListScreenProps = {
   onSessionEnded: () => void;
-  /** Injected in tests so the screen doesn't call the real API. */
   services?: RolesListScreenServices;
 };
 
@@ -74,14 +74,14 @@ function columnsFor(openEditor: (request: RoleEditorRequest) => void) {
       kind: "actions",
       srLabel: rolesMessages.rowActionsLabel,
       actions: [
-        // Every row gets this one, Administrator included: duplicating it is how an ordinary role
-        // starts from every permission in the catalog.
+        // Administrator included: duplicating it is how an ordinary role starts from every
+        // permission in the catalog.
         (item: RoleSummary) => ({
           icon: <Copy />,
           "aria-label": rolesMessages.duplicateAria({ name: roleDisplayName(item) }),
           onPress: () => openEditor({ kind: "duplicate", source: item }),
         }),
-        // No edit action at all on the Administrator row: it can't be edited, whatever client asks.
+        // The server refuses to edit the Administrator role regardless, so no edit action is offered.
         (item: RoleSummary) =>
           item.isAdministrator
             ? undefined
@@ -95,20 +95,12 @@ function columnsFor(openEditor: (request: RoleEditorRequest) => void) {
   ] as const;
 }
 
-/**
- * "Roles": every role, shared by all branches, with its permission and user counts. Reserved to the
- * Administrator: App.tsx only ever routes here for one, and a `forbidden` read (a role change mid-
- * session) sends the browser to Mi cuenta instead of showing a notice.
- */
 export function RolesListScreen({ onSessionEnded, services }: RolesListScreenProps) {
   const { fetchRoles, roleEditorModal } = services ?? defaultRolesListScreenServices;
   const [list, setList] = useState<ListState>({ kind: "loading" });
   const [editorRequest, setEditorRequest] = useState<RoleEditorRequest | null>(null);
 
-  // Read from a ref, not a reactive dependency: the parent hands a new function on every render
-  // (each session-activity touch re-renders it), which would otherwise reload the list.
-  const onSessionEndedRef = useRef(onSessionEnded);
-  onSessionEndedRef.current = onSessionEnded;
+  const onSessionEndedRef = useLatestRef(onSessionEnded);
 
   const load = useCallback(async () => {
     setList({ kind: "loading" });
@@ -124,7 +116,7 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchRoles]);
+  }, [fetchRoles, onSessionEndedRef]);
 
   useEffect(() => {
     void load();

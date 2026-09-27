@@ -1,10 +1,5 @@
 import { type ComponentPropsWithoutRef, forwardRef, type ReactNode } from "react";
 
-// Small, right-aligned label such as the role editor's "Caja"/"PIN" permission markers: a filled
-// pill carrying a short word and an optional leading icon, never the sole way to convey meaning
-// (its caller always pairs it with adjacent text). Forwards its ref and spreads unknown props onto
-// its own root so a caller can wrap it in react-aria's `Focusable` to make it a tooltip's trigger,
-// without this component knowing anything about tooltips itself.
 export type TagTone = "neutral" | "info";
 
 export type TagProps = {
@@ -23,8 +18,8 @@ const toneClassName: Record<TagTone, string> = {
   info: "bg-brand-blue-message-bg text-brand-blue-strong",
 };
 
-// See Modal.tsx's headerIconWrapperClassName: each glyph's size is imposed by its own wrapper's
-// CSS, never by cloning a `size` prop onto the caller's icon element.
+// The icon's size is fixed by this span's CSS, not by cloning a `size` prop — only lucide icons
+// interpret one.
 const iconWrapperClassName = "inline-flex size-3 shrink-0 [&>svg]:h-full [&>svg]:w-full";
 
 // The extra span attributes react-aria's `Focusable` merges onto this element when a caller wraps

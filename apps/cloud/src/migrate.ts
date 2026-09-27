@@ -9,13 +9,9 @@ import { describeDatabaseFailure, errorCode } from "./db/describe-database-failu
 
 export interface RunMigrationsOptions {
   migrationsFolder?: string;
-  /** Kept short in tests so an unreachable database fails fast instead of hanging. */
   connectTimeoutSeconds?: number;
-  /** Total time budget to wait for the database to accept connections before giving up. */
   waitForDatabaseSeconds?: number;
-  /** Interval between connection probes while waiting. */
   waitIntervalMs?: number;
-  /** Injected in tests so waiting does not consume real time. */
   sleep?: (ms: number) => Promise<void>;
   now?: () => number;
   onWaiting?: (error: unknown, elapsedMs: number) => void;
@@ -25,16 +21,13 @@ const DEFAULT_MIGRATIONS_FOLDER = new URL("../migrations", import.meta.url).path
 const DEFAULT_WAIT_FOR_DATABASE_SECONDS = 60;
 const DEFAULT_WAIT_INTERVAL_MS = 1000;
 
-// This repository never sets GRAPHILE_WORKER_SCHEMA, so graphile-worker always installs itself
-// under its own default schema name.
+// This repository never sets GRAPHILE_WORKER_SCHEMA, so graphile-worker installs under its default name.
 const GRAPHILE_WORKER_SCHEMA = "graphile_worker";
 const CLOUD_APP_ROLE = "cloud_app";
 const CLOUD_APP_POLICY = "cloud_app_full_access";
 
-// A connection can fail either as a native Node socket error (ECONNREFUSED, ENOTFOUND, ...) or as
-// a postgres.js protocol-level error (CONNECT_TIMEOUT, CONNECTION_CLOSED, ...); both expose the
-// same failure as `error.code`. 57P03 is Postgres's own SQLSTATE for "the database system is
-// starting up and not yet accepting connections" (cannot_connect_now).
+// 57P03 is Postgres's own SQLSTATE for "the database system is starting up" (cannot_connect_now);
+// the rest are Node/postgres.js connection-failure codes.
 const RETRYABLE_CONNECTION_ERROR_CODES = new Set([
   "ECONNREFUSED",
   "ENOTFOUND",
@@ -49,11 +42,7 @@ const RETRYABLE_CONNECTION_ERROR_CODES = new Set([
   "57P03",
 ]);
 
-/**
- * True only for errors that mean the database was not reachable or not ready yet. Any other
- * error — a failing migration statement, wrong credentials, an unknown database — must not be
- * retried, so it stops the deploy immediately instead of masking it behind a retry loop.
- */
+/** Any other error (bad migration, wrong credentials, unknown database) fails immediately, never retried. */
 export function isRetryableConnectionError(error: unknown): boolean {
   const code = errorCode(error);
   return code !== undefined && RETRYABLE_CONNECTION_ERROR_CODES.has(code);
@@ -65,20 +54,9 @@ export interface WaitForDatabaseOptions {
   sleep: (ms: number) => Promise<void>;
   now: () => number;
   onWaiting?: (error: unknown, elapsedMs: number) => void;
-  /**
-   * Which errors from `probe` mean "not ready yet" rather than fatal. Defaults to
-   * `isRetryableConnectionError`; `wait-for-ready.ts` widens this to also retry the schema not
-   * being at the expected version yet, and the app role's own connection not being ready yet.
-   */
   isRetryable?: (error: unknown) => boolean;
 }
 
-/**
- * Calls `probe` until it resolves, retrying only retryable failures (`isRetryable`, defaulting to
- * `isRetryableConnectionError`) on `intervalMs` until `budgetSeconds` has elapsed, then rejects
- * with the last such error. Any non-retryable error from `probe` is rethrown immediately, without
- * waiting.
- */
 export async function waitForDatabase(
   probe: (remainingMs: number) => Promise<unknown>,
   options: WaitForDatabaseOptions,
@@ -105,8 +83,7 @@ export async function waitForDatabase(
   }
 }
 
-// postgres.js reads a connect timeout of 0 as "no timeout", so a probe made with the budget
-// already spent still gets a short timeout instead of an unbounded one.
+// postgres.js reads a connect timeout of 0 as "no timeout", so a spent budget still gets a floor.
 const MIN_PROBE_CONNECT_TIMEOUT_SECONDS = 1;
 
 export function probeConnectTimeoutSeconds(remainingMs: number, maxSeconds: number): number {
@@ -131,17 +108,13 @@ function logWaiting(error: unknown, elapsedMs: number): void {
 }
 
 /**
- * Grants `cloud_app` a policy matching the unrestricted access its owner already has on every one
- * of graphile-worker's own tables that has row-level security enabled (its job, queue, task, and
- * cron bookkeeping tables). graphile-worker enables row-level security on these with no policy of
- * its own, which Postgres reads as deny-all for every role except the table's owner: without this,
- * `cloud_app` would hold the table grants below yet still be refused every row by row-level
- * security itself, the moment it is not also the owning (migrating) role.
+ * graphile-worker enables row-level security on its own tables with no policy, which Postgres
+ * reads as deny-all except for the owner; without a matching policy `cloud_app` would be refused
+ * every row despite holding the grants below.
  */
 async function grantCloudAppGraphileWorkerRowSecurityAccess(sql: postgres.Sql): Promise<void> {
-  // Only a missing policy is created, never an existing one dropped and re-created: the previous
-  // deployment keeps serving as `cloud_app` while this runs, and would be refused every row in
-  // between.
+  // Only a missing policy is created, never dropped and re-created: the previous deployment keeps
+  // serving as `cloud_app` while this runs, and would be refused every row in between.
   const tablesWithoutPolicy = await sql<{ tablename: string }[]>`
     select t.tablename from pg_tables t
     where t.schemaname = ${GRAPHILE_WORKER_SCHEMA} and t.rowsecurity
@@ -158,10 +131,6 @@ async function grantCloudAppGraphileWorkerRowSecurityAccess(sql: postgres.Sql): 
   }
 }
 
-/**
- * Grants `cloud_app` ordinary read/write on graphile-worker's own schema: unlike `audit_log`,
- * nothing here needs to be append-only, since it is job-queue bookkeeping, not an audit trail.
- */
 async function grantCloudAppGraphileWorkerAccess(sql: postgres.Sql): Promise<void> {
   await sql.unsafe(`grant usage on schema ${GRAPHILE_WORKER_SCHEMA} to ${CLOUD_APP_ROLE}`);
   await sql.unsafe(
@@ -181,11 +150,8 @@ const SCRAM_SALT_BYTES = 16;
 const SCRAM_KEY_BYTES = 32;
 
 /**
- * Builds the same SCRAM-SHA-256 verifier Postgres itself stores for a password (RFC 5802, RFC
- * 7677), so `ALTER ROLE` only ever receives the verifier: Postgres writes a failing statement's
- * text to its log, and a plaintext password there would outlive the statement. The password's
- * UTF-8 bytes are used as they are, without SASLprep, the same way postgres.js computes its side
- * of the exchange when the cloud logs in.
+ * Builds the SCRAM-SHA-256 verifier Postgres stores for a password (RFC 5802/7677), so a logged
+ * failing `ALTER ROLE` statement never contains the plaintext. Skips SASLprep, matching postgres.js.
  */
 export function scramSha256Verifier(password: string): string {
   const salt = randomBytes(SCRAM_SALT_BYTES);
@@ -197,10 +163,8 @@ export function scramSha256Verifier(password: string): string {
 }
 
 /**
- * `ALTER ROLE ... PASSWORD` takes a plain string constant, not a bind parameter, so the verifier
- * cannot be substituted directly into that statement the way every other value here is. Instead,
- * `format('%L', ...)` — an ordinary function call, which does accept a bind parameter — builds an
- * already safely quoted statement, and only that finished statement is executed.
+ * `ALTER ROLE ... PASSWORD` takes a literal, not a bind parameter; `format('%L', ...)` (an
+ * ordinary function call, which does bind) builds the safely quoted statement instead.
  */
 async function setCloudAppPassword(sql: postgres.Sql, password: string): Promise<void> {
   const formatString = `alter role ${CLOUD_APP_ROLE} login password %L`;
@@ -214,9 +178,8 @@ async function setCloudAppPassword(sql: postgres.Sql, password: string): Promise
 }
 
 /**
- * graphile-worker warns and installs error handlers of its own on a pool it is given without both
- * an `error` and a `connect` listener; a client that fails with no `error` listener at all would
- * crash the process instead of failing the migration.
+ * graphile-worker installs its own handlers on a pool with no `error`/`connect` listener; without
+ * one, an unhandled `error` event would crash the process instead of failing the migration.
  */
 function createWorkerPool(connectionString: string): pg.Pool {
   const pool = new pg.Pool({ connectionString });
@@ -233,20 +196,9 @@ function createWorkerPool(connectionString: string): pg.Pool {
 }
 
 /**
- * Runs pending migrations against `databaseUrl`. This is the pre-deploy command: it runs before
- * the new deployment takes traffic, never at application startup (see server.ts), so a migration
- * failure stops the deploy instead of starting a worker against an unmigrated schema.
- *
- * A database created in the same deploy is not immediately ready to accept connections, so this
- * first waits, within a bounded budget, until the database responds to a trivial query before
- * running any migration.
- *
- * Runs as the role that owns the schema (never `cloud_app`): besides the drizzle migrations
- * (which create `cloud_app` and its grants, see migrations/0016), this also runs
- * graphile-worker's own schema migrations — graphile-worker would otherwise install its schema
- * lazily when it starts, which would require the running application to hold DDL privileges —
- * grants `cloud_app` what it needs on that schema, and sets `cloud_app`'s login password so the
- * application can connect as it afterward.
+ * Runs before the deployment takes traffic (never at startup), as the schema-owning role — never
+ * `cloud_app` — since graphile-worker would otherwise install its own schema lazily at startup,
+ * requiring the running application to hold DDL privileges.
  */
 export async function runMigrations(
   databaseUrl: string,

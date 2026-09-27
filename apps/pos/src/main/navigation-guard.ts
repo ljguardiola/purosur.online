@@ -36,9 +36,8 @@ export function denyWindowOpen(): { action: "deny" } {
   return { action: "deny" };
 }
 
-// Shared by `will-navigate` and `will-redirect`: a page that redirects itself away must be
-// blocked exactly like one that navigates there directly, or the guard would only cover half of
-// how a page can leave the application.
+// Shared by `will-navigate` and `will-redirect`: blocking only one leaves the other as an
+// unguarded way to leave the app.
 export function denyDisallowedNavigation(
   entryUrl: string,
   event: { preventDefault: () => void },

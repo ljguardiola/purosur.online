@@ -27,7 +27,6 @@ async function migrationsFolderBeforeBranchHours(destFolder: string): Promise<vo
   await migrationsFolderBefore(destFolder, await branchHoursEntry());
 }
 
-/** Adds this feature's real, already hand-edited branch_hours migration to the folder. */
 async function addBranchHoursMigration(destFolder: string): Promise<void> {
   await addMigrationEntry(destFolder, await branchHoursEntry());
 }
@@ -57,7 +56,6 @@ describe("the branch_hours migration's backfill of existing hours", {
     const client = await migrateFreshDatabase(folder, inject("testDatabaseClusterDumpPath"));
     onTestFinished(() => client.close());
 
-    // Seeded by migration 0011: the one location every earlier migration already assumes exists.
     const { rows: seededLocationRows } = await client.query<{ id: string }>(
       "select id from locations limit 1",
     );
@@ -65,7 +63,6 @@ describe("the branch_hours migration's backfill of existing hours", {
     if (!seededLocation) {
       throw new Error("test setup: no location seeded by the migrations run so far");
     }
-    // Weekday and Saturday hours set, Sunday left closed.
     await client.query(
       `update branch_settings set
          weekday_opens_at = $1, weekday_closes_at = $2,
@@ -73,13 +70,11 @@ describe("the branch_hours migration's backfill of existing hours", {
        where location_id = $5`,
       ["09:00", "19:00", "09:00", "13:00", seededLocation.id],
     );
-    // Sunday-only hours, everything else left closed.
     const sundayOnlyLocationId = await insertLocation(client);
     await client.query(
       "update branch_settings set sunday_opens_at = $1, sunday_closes_at = $2 where location_id = $3",
       ["10:00", "14:00", sundayOnlyLocationId],
     );
-    // Every group left closed.
     const closedLocationId = await insertLocation(client);
 
     await addBranchHoursMigration(folder);

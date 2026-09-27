@@ -84,7 +84,6 @@ describe("netContentQuantityError", () => {
     expect(netContentQuantityError(String(NET_CONTENT_QUANTITY_MAX + 1), errorMessages)).toBe(
       "too large",
     );
-    // A million reads fine as grouped thousands, then fails the maximum rather than the format.
     expect(netContentQuantityError("1.000.000", errorMessages)).toBe("too large");
   });
 });

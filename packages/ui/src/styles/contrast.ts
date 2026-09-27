@@ -4,14 +4,13 @@ export interface RgbColor {
   b: number;
 }
 
-// WCAG 2.x AA minimum contrast ratio for normal-size text (https://www.w3.org/TR/WCAG21/#contrast-minimum).
+// WCAG 2.x AA minimum contrast ratio for normal-size text.
 export const AA_TEXT_CONTRAST = 4.5;
 
-// WCAG 2.x AAA minimum for normal-size text (https://www.w3.org/TR/WCAG21/#contrast-enhanced).
+// WCAG 2.x AAA minimum for normal-size text.
 export const AAA_TEXT_CONTRAST = 7;
 
-// WCAG 2.x minimum for non-text elements such as component borders
-// (https://www.w3.org/TR/WCAG21/#non-text-contrast).
+// WCAG 2.x minimum for non-text elements such as component borders.
 export const NON_TEXT_CONTRAST = 3;
 
 const HEX_COLOR_PATTERN = /^#?[0-9a-fA-F]{6}$/;
@@ -39,7 +38,7 @@ function relativeLuminance({ r, g, b }: RgbColor): number {
   return 0.2126 * channelLuminance(r) + 0.7152 * channelLuminance(g) + 0.0722 * channelLuminance(b);
 }
 
-// WCAG 2.x contrast ratio formula (https://www.w3.org/TR/WCAG21/#dfn-contrast-ratio).
+// WCAG 2.x contrast ratio formula.
 export function contrastRatio(hexA: string, hexB: string): number {
   const luminanceA = relativeLuminance(hexToRgb(hexA));
   const luminanceB = relativeLuminance(hexToRgb(hexB));

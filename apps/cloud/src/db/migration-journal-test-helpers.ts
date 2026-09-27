@@ -21,8 +21,6 @@ export async function readRealJournal(): Promise<Journal> {
   return JSON.parse(raw) as Journal;
 }
 
-// Found by the suffix of its tag rather than by number, so a renumbering after merging another
-// branch's migration doesn't silently point a test at the wrong file.
 export async function findMigrationEntry(
   tagSuffix: string,
   notFoundMessage: string,
@@ -35,13 +33,8 @@ export async function findMigrationEntry(
   return entry;
 }
 
-/**
- * Builds a migrations folder holding only the real migrations that precede the given one: the
- * schema as it stood right before that migration existed, so it can be applied afterward, on its
- * own, against data already seeded in that pre-migration shape. Only `_journal.json` and the
- * migration `.sql` files themselves matter to the runtime migrator (unlike `drizzle-kit generate`,
- * it never reads the per-migration snapshot files).
- */
+// Only `_journal.json` and the migration `.sql` files matter to drizzle's runtime migrator —
+// unlike `drizzle-kit generate`, it never reads the per-migration snapshot files.
 export async function migrationsFolderBefore(
   destFolder: string,
   entry: JournalEntry,
@@ -61,7 +54,6 @@ export async function migrationsFolderBefore(
   }
 }
 
-/** Adds one already-generated real migration entry to a folder built by `migrationsFolderBefore`. */
 export async function addMigrationEntry(destFolder: string, entry: JournalEntry): Promise<void> {
   const journalPath = join(destFolder, "meta", "_journal.json");
   const journal = JSON.parse(await readFile(journalPath, "utf8")) as Journal;

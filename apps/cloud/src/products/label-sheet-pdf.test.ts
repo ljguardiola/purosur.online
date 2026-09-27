@@ -9,11 +9,7 @@ interface PdfObject {
   stream: Buffer | undefined;
 }
 
-/**
- * Splits a pdfkit-written PDF into its numbered objects, inflating each FlateDecode stream, so
- * tests read the same compressed bytes production serves without a full PDF parser.
- */
-function pdfObjects(pdf: Buffer): Map<number, PdfObject> {
+function pdfObjectsWithInflatedStreams(pdf: Buffer): Map<number, PdfObject> {
   const text = pdf.toString("latin1");
   const objects = new Map<number, PdfObject>();
   for (const match of text.matchAll(/(\d+) 0 obj\n/g)) {
@@ -63,7 +59,6 @@ function toUnicodeMap(cmap: string): Map<number, string> {
 interface RenderedFont {
   baseFont: string;
   embedded: boolean;
-  /** The font's ascent over 1000 units of its size, from its descriptor; undefined when built in. */
   ascent: number | undefined;
   toUnicode: Map<number, string> | undefined;
 }
@@ -112,13 +107,8 @@ function pageContents(objects: Map<number, PdfObject>): string[] {
   );
 }
 
-/**
- * Every `[<hex>...] TJ` show-text operator of every page, decoded through the font selected by
- * the `Tf` before it: an embedded font's codes through its ToUnicode CMap (an unmapped code, or the
- * `.notdef` glyph 0, as U+FFFD), a built-in font's WinAnsi bytes as Latin-1.
- */
 function renderedTextRuns(pdf: Buffer): RenderedText[] {
-  const objects = pdfObjects(pdf);
+  const objects = pdfObjectsWithInflatedStreams(pdf);
   const fontIds = new Map<string, string>();
   for (const object of objects.values()) {
     for (const entry of object.dictionary.matchAll(/\/(F\d+) (\d+) 0 R/g)) {
@@ -168,12 +158,12 @@ function renderedTexts(pdf: Buffer): string[] {
 }
 
 function pageCount(pdf: Buffer): number {
-  return pageDictionaries(pdfObjects(pdf)).length;
+  return pageDictionaries(pdfObjectsWithInflatedStreams(pdf)).length;
 }
 
 /** Every drawn rectangle `<x> <y> <w> <h> re`, in points from the page's top-left corner. */
 function barRectangles(pdf: Buffer): { yPt: number; heightPt: number }[] {
-  return pageContents(pdfObjects(pdf)).flatMap((content) =>
+  return pageContents(pdfObjectsWithInflatedStreams(pdf)).flatMap((content) =>
     [...content.matchAll(/[\d.]+ ([\d.]+) [\d.]+ ([\d.]+) re/g)].map((match) => ({
       yPt: Number(match[1]),
       heightPt: Number(match[2]),
@@ -192,7 +182,9 @@ function firstBarY(pdf: Buffer): number {
 describe("renderLabelSheetPdf", () => {
   it("compresses every stream it writes", async () => {
     const pdf = await renderLabelSheetPdf([{ name: "Maceta", code: "2000000000015", count: 1 }]);
-    const streams = [...pdfObjects(pdf).values()].filter((object) => object.stream);
+    const streams = [...pdfObjectsWithInflatedStreams(pdf).values()].filter(
+      (object) => object.stream,
+    );
 
     expect(streams.length).toBeGreaterThan(0);
     for (const object of streams) {
@@ -236,10 +228,8 @@ describe("renderLabelSheetPdf", () => {
 
     expect(texts).toContain("Almendras peladas");
     expect(texts).toContain("Nueces mariposa");
-    // 2000000000015's first digit, then its two 6-digit halves either side of the check digit.
     expect(texts).toContain("000000");
     expect(texts).toContain("000015");
-    // 2912345678906's own halves, proving the digits come from each product's own code.
     expect(texts).toContain("912345");
     expect(texts).toContain("678906");
   });
@@ -338,7 +328,7 @@ describe("renderLabelSheetPdf", () => {
 
       expect(nameRuns.length).toBe(name.length > 20 ? 2 : 1);
       for (const run of nameRuns) {
-        // The font's ascent bounds every glyph's top, accented capitals included.
+        // A font's ascent, from its descriptor, is per 1000 units of its size.
         const glyphTopPt = run.baselinePt - ((run.font.ascent ?? 0) / 1000) * run.fontSizePt;
         expect(glyphTopPt).toBeGreaterThanOrEqual(paddedTopPt);
       }

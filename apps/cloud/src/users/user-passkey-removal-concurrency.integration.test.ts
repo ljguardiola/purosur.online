@@ -30,10 +30,8 @@ import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerUserPasskeyRemovalRoutes } from "./user-passkey-removal-route.js";
 
-// PGlite serves every query on one connection and serializes transactions outright, so racing
-// requests can only interleave on a real Postgres pool. Each test pins the interleaving by holding
-// a row lock on a connection of its own and waiting until the requests queue behind it, so the
-// order in which they reach the database is decided by the test, not by timing.
+// PGlite serializes every transaction, so racing requests can only interleave on a real Postgres
+// pool; each test pins the order by holding a row lock until both requests queue behind it.
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 
@@ -43,7 +41,7 @@ let db: PostgresJsDatabase<Record<string, never>>;
 let app: FastifyInstance;
 let addressSequence = 0;
 
-/** A source address of its own per request, so no per-address rate limit or lockout builds up. */
+// A source address of its own per request, so no per-address rate limit or lockout builds up.
 function nextSourceAddress(): string {
   addressSequence += 1;
   return `198.51.100.${addressSequence}`;
@@ -153,7 +151,6 @@ async function registerPasskey(userId: string, emulator: WebAuthnEmulator): Prom
   return row.id;
 }
 
-/** Inserts a session, carrying a valid passkey authorization (the way a passkey sign-in would) unless `authorized` is `false`. */
 async function insertSession(userId: string, authorized = true): Promise<string> {
   const rawSessionId = generateSessionId();
   const now = new Date();
@@ -174,7 +171,6 @@ async function signedInAdministrator(): Promise<{ cookie: string; emulator: WebA
   return { cookie: `${SESSION_COOKIE_NAME}=${await insertSession(administratorId)}`, emulator };
 }
 
-/** Everything up to the removal itself, so only the removal request is left to race. */
 async function prepareRemoval(targetId: string, passkeyId: string) {
   const administrator = await signedInAdministrator();
   const headers = { origin: BACKOFFICE_ORIGIN, cookie: administrator.cookie };
@@ -186,7 +182,6 @@ async function prepareRemoval(targetId: string, passkeyId: string) {
     });
 }
 
-/** Everything up to the sign-in itself, so only the authenticate request is left to race. */
 async function prepareSignIn(emulator: WebAuthnEmulator) {
   const headers = { origin: BACKOFFICE_ORIGIN, "x-real-ip": nextSourceAddress() };
   const options = await app.inject({
@@ -220,12 +215,7 @@ async function waitForLockWaiters(count: number): Promise<void> {
 
 type InjectRequest = () => Promise<LightMyRequestResponse>;
 
-/**
- * Holds `FOR UPDATE` on the rows `lockQuery` selects, starts `first`, starts `second` only once
- * `first` is waiting on a lock, then lets both go once `second` waits too. The rows are released
- * and both requests settled even when one never queues, so no waiter outlives its test and
- * inflates the next one's count.
- */
+// Settles both requests even when one never queues, so no leftover waiter inflates the next test's count.
 async function runQueuedBehindRowLock(
   lockQuery: (reserved: postgres.ReservedSql) => Promise<unknown>,
   first: InjectRequest,
@@ -306,9 +296,8 @@ describe("signing in with a passkey while an Administrator removes it, on a real
 
     expect(removalResponse.statusCode).toBe(200);
     expect(signInResponse.statusCode).toBe(401);
-    // The passkey row still existed when the sign-in looked it up (the removal's delete was not
-    // yet committed), so this loses the race later, updating zero rows in its own transaction: a
-    // different rejection path from an unknown credential, and still the generic code.
+    // The passkey still existed when the sign-in looked it up, so it loses the race later,
+    // updating zero rows — a different path from an unknown credential, but the same generic code.
     expect(signInResponse.json()).toMatchObject({ code: "authentication_failed" });
     expect(await liveSessionsOf(targetId)).toHaveLength(0);
   });

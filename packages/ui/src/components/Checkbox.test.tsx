@@ -16,9 +16,8 @@ import { Checkbox, type CheckboxProps } from "./Checkbox";
 
 type Screen = Awaited<ReturnType<typeof render>>;
 
-// Mirrors OptionCardGroup.test.tsx's radioInput/radioCard split: the accessible "checkbox" role
-// resolves to react-aria's visually hidden native <input>, while the visible box and the pointer
-// target both live on the <label> that wraps it.
+// The accessible "checkbox" role resolves to react-aria's visually hidden native <input>, while
+// the visible box and the pointer target both live on the <label> that wraps it.
 function checkboxInput(screen: Screen, name: string): HTMLInputElement {
   return screen.getByRole("checkbox", { name }).element() as HTMLInputElement;
 }
@@ -43,9 +42,8 @@ function Harness({ initial = false }: { initial?: boolean }) {
 }
 
 test("renders the caller's content 12px from a 22px, 4px-radius box, vertically centered", async () => {
-  // Wrapped in its own element so its rect can be measured on its own: raw text with no wrapping
-  // element would make `getByText` resolve to the label (its only element with that text), not to
-  // the content itself.
+  // Wrapped in its own element: raw text has no element of its own, so getByText would resolve to
+  // the label instead.
   const screen = await render(
     <Checkbox isSelected={false} onChange={() => {}}>
       <span>Return this line</span>
@@ -83,10 +81,7 @@ test("colors an unchecked box white with a 2px ink-secondary border and no check
   expect(style.boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
   expect(box.querySelector("svg")).toBeNull();
 
-  // The boundary check above pins the token this design picked, and a design that picks another
-  // one rewrites that line along with it. What has to hold whichever token is picked is the ratio:
-  // this box's border is a control boundary, not text, so the color it actually renders has to
-  // clear WCAG's 3:1 non-text contrast minimum against the fill it renders on.
+  // Checked as a rendered contrast ratio against WCAG's 3:1 non-text minimum, not by token name.
   const boundaryHex = boundaryColorHex(box);
   const fillHex = rgbToHex(style.backgroundColor);
   expect(contrastRatio(boundaryHex, fillHex)).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
@@ -245,8 +240,7 @@ test("lets its content fill the remaining width of a wide container", async () =
     </div>,
   );
   const label = checkboxLabel(screen, "Return this line");
-  // The label's last child is the wrapper this component puts around the caller's content (see
-  // Checkbox.tsx), not the caller's own <span>: it's the element the design expects to stretch.
+  // The label's last child is Checkbox's own content wrapper, not the caller's <span>.
   const contentWrapper = label.lastElementChild as HTMLElement;
 
   const labelRect = label.getBoundingClientRect();
@@ -258,8 +252,6 @@ test("lets its content fill the remaining width of a wide container", async () =
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// See Button.test.tsx's icon/label tests for the same "does not compile" pattern: the caller's
-// input is checked at the type level, not just at runtime.
 test("does not accept a checkbox without content", () => {
   expectTypeOf<{
     isSelected: boolean;
@@ -275,8 +267,6 @@ test("does not accept a checkbox without isSelected or onChange", () => {
   expectTypeOf<{ isSelected: boolean; children: ReactNode }>().not.toExtend<CheckboxProps>();
 });
 
-// The design has no indeterminate (or invalid, disabled, uncontrolled...) state, so unlike React
-// Aria's own CheckboxProps, this component's props don't carry `isIndeterminate` at all.
 test("does not accept isIndeterminate, since the design has no indeterminate state", () => {
   expectTypeOf<CheckboxProps>().not.toHaveProperty("isIndeterminate");
 });

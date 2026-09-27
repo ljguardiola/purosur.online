@@ -13,17 +13,9 @@ interface ReportingPool {
   ): unknown;
 }
 
-/**
- * Reports every database failure a pool can raise, exactly once each.
- *
- * Both listeners are required: graphile-worker's own `assertPool` installs its handlers — and its
- * releaser removes them again when the worker stops — whenever the pool it is given is missing
- * either an `error` or a `connect` listener, and it checks the two independently.
- *
- * pg hands the error of a connection it has already taken back to the pool, so only a checked-out
- * connection is reported here; reporting both would report one dropped connection twice, the
- * first time as an active connection it no longer is.
- */
+// graphile-worker's assertPool requires the pool to keep its own error and connect listeners
+// populated; pg also re-emits a taken-back connection's error on the pool, so only checked-out
+// connections are reported here.
 export function reportPoolErrors(
   pool: ReportingPool,
   label: string,
@@ -41,9 +33,8 @@ export function reportPoolErrors(
     checkedOut.delete(client);
   });
   pool.on("connect", (client) => {
-    // pg raises one killed backend twice on the same connection — first the backend's own fatal
-    // message, then the socket closing under it — and a connection it has raised an error for is
-    // dead and never handed out again, so only the first of the two says anything new.
+    // pg raises a killed backend's error twice (the fatal message, then the closing socket);
+    // only the first is new.
     let reported = false;
 
     client.on("error", (error) => {

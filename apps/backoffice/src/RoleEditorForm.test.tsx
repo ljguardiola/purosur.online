@@ -12,10 +12,8 @@ import {
   validateRoleName,
 } from "./RoleEditorForm";
 
-// React Aria only opens a tooltip on hover once it has seen a real pointer move: on the very
-// first hover of a fresh page, the browser fires the enter event before the move event React
-// Aria needs to tell the current input is a pointer, so that first hover is silently dropped (see
-// Tooltip.test.tsx's own comment). A throwaway move over neutral ground gives it that signal.
+// React Aria opens a tooltip only after a real pointer move; the first hover on a fresh page
+// fires before that move and is silently dropped, so this throwaway move supplies it.
 async function warmUpPointer() {
   await page.viewport(1280, 900);
   const session = cdp() as unknown as DispatchableCdpSession;

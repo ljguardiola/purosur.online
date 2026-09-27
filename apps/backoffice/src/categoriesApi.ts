@@ -1,6 +1,4 @@
-// The backoffice API rate limiter counts a rolling one-hour window, the same fallback
-// rolesApi.ts's own rate-limited outcomes fall back to.
-const RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
+const ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
 
 export type CategorySummary = {
   id: string;
@@ -50,7 +48,9 @@ export type EditCategoryOutcome =
 function retryAfterSeconds(response: Response): number {
   const header = response.headers.get("Retry-After");
   const seconds = header ? Number(header) : Number.NaN;
-  return Number.isFinite(seconds) && seconds > 0 ? seconds : RATE_LIMIT_FALLBACK_SECONDS;
+  return Number.isFinite(seconds) && seconds > 0
+    ? seconds
+    : ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS;
 }
 
 function postJson(path: string, body?: unknown): Promise<Response> {
@@ -65,7 +65,6 @@ function categoryFieldFromWire(field: unknown): "name" | "parentId" | "version" 
   return field === "name" || field === "parentId" || field === "version" ? field : undefined;
 }
 
-/** Lists every catalog category, gated by `manage_products_and_categories` (`GET /categories`). */
 export async function fetchCategories(): Promise<FetchCategoriesOutcome> {
   let response: Response;
   try {
@@ -92,7 +91,6 @@ export async function fetchCategories(): Promise<FetchCategoriesOutcome> {
   return { kind: "ok", value: body };
 }
 
-/** Creates a category, gated by `manage_products_and_categories`; no passkey step-up (`POST /categories`). */
 export async function createCategory(input: CreateCategoryInput): Promise<CreateCategoryOutcome> {
   let response: Response;
   try {
@@ -137,7 +135,6 @@ export async function createCategory(input: CreateCategoryInput): Promise<Create
   return { kind: "failed" };
 }
 
-/** Renames a category, rejecting a save over a newer version, gated by `manage_products_and_categories`; no passkey step-up (`POST /categories/:id/edit`). */
 export async function editCategory(
   id: string,
   input: EditCategoryInput,

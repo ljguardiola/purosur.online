@@ -15,11 +15,8 @@ export interface ClosablePort {
 
 const CORE_PORT_MESSAGE = "core-port";
 
-// Main hands over a fresh port on every core restart and every page load/reload (see
-// apps/pos/src/main/index.ts), since a MessagePort pair is single-use: each delivery here closes
-// whatever port was current before and replaces it. Only the preload relays it, by posting the
-// "core-port" message to this same window, so a port posted by any other frame or under any other
-// message is never adopted.
+// Only a "core-port" message posted to this same window is adopted: a port from any other frame
+// or message is ignored, and each new port closes whatever was current before.
 export function attachIncomingPort<Port extends ClosablePort>(
   source: PortEventSource<Port>,
   ownWindow: unknown,

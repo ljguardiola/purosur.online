@@ -29,8 +29,6 @@ async function readRealJournal(): Promise<Journal> {
   return JSON.parse(raw) as Journal;
 }
 
-// Found by name rather than by number, so a renumbering after merging another branch's migration
-// doesn't silently point this test at the wrong file.
 async function nestedCategoriesEntry(): Promise<JournalEntry> {
   const journal = await readRealJournal();
   const entry = journal.entries.find((candidate) =>
@@ -42,14 +40,8 @@ async function nestedCategoriesEntry(): Promise<JournalEntry> {
   return entry;
 }
 
-/**
- * Builds a migrations folder holding only the real migrations that precede the nested_categories
- * one: the schema as it stood right before this feature's own migration existed (categories with a
- * single, table-wide `lower(name)` unique index and no `parent_id`), so the migration under test can
- * be applied afterward, on its own, against data seeded in that pre-migration shape. Only
- * `_journal.json` and the migration `.sql` files themselves matter to the runtime migrator (unlike
- * `drizzle-kit generate`, it never reads the per-migration snapshot files).
- */
+// Only `_journal.json` and the migration `.sql` files matter to drizzle's runtime migrator —
+// unlike `drizzle-kit generate`, it never reads the per-migration snapshot files.
 async function migrationsFolderBeforeNestedCategories(destFolder: string): Promise<void> {
   await mkdir(join(destFolder, "meta"), { recursive: true });
   const journal = await readRealJournal();
@@ -67,7 +59,6 @@ async function migrationsFolderBeforeNestedCategories(destFolder: string): Promi
   }
 }
 
-/** Adds this feature's real nested_categories migration to the folder. */
 async function addNestedCategoriesMigration(destFolder: string): Promise<void> {
   const journalPath = join(destFolder, "meta", "_journal.json");
   const journal = JSON.parse(await readFile(journalPath, "utf8")) as Journal;
@@ -131,10 +122,8 @@ describe("the nested_categories migration's effect on existing categories and pr
       const client = await migrateFreshDatabase(folder, inject("testDatabaseClusterDumpPath"));
       onTestFinished(() => client.close());
 
-      // Distinct names: the pre-migration schema's own `categories_name_lower_key` (table-wide,
-      // over `lower(name)`) already made a case-variant duplicate impossible to seed here, exactly
-      // as it will keep being impossible among top-level categories once the migration replaces it
-      // with the parent-scoped index below.
+      // Names must be distinct: the pre-migration, table-wide `categories_name_lower_key` already
+      // forbids a case-variant duplicate here, same as the parent-scoped index will after migrating.
       const bebidas = await insertPreMigrationCategory(client, "Bebidas");
       const lacteos = await insertPreMigrationCategory(client, "Lácteos", 3);
       const limpieza = await insertPreMigrationCategory(client, "Limpieza");
@@ -182,8 +171,6 @@ describe("the nested_categories migration's effect on existing categories and pr
         { id: inactiveProductId, categoryId: lacteos.id, active: false },
       ]);
 
-      // The parent-scoped sibling uniqueness still rejects a case-variant duplicate among the
-      // migrated, now-top-level categories.
       await expect(
         client.query("insert into categories (name) values ($1)", ["BEBIDAS"]),
       ).rejects.toMatchObject({ code: "23505", constraint: "categories_name_lower_key" });

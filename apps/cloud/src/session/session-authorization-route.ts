@@ -22,14 +22,11 @@ import {
 export interface SessionAuthorizationRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  /** Injected in tests so the issued challenge's stored lifetime and the authorized-at timestamp are deterministic. */
   now?: () => Date;
 }
 
 const AUTHENTICATION_TIMEOUT_MS = 60_000;
 
-// Same uniform code and message the other passkey verification routes reject a bad assertion
-// with.
 const AUTHENTICATION_FAILED_RESPONSE = {
   code: "authentication_failed",
   message: "the passkey authorization could not be verified",
@@ -42,14 +39,7 @@ function readAssertion(body: unknown): AuthenticationResponseJSON | undefined {
   return assertion && typeof assertion.id === "string" ? assertion : undefined;
 }
 
-/**
- * Registers the pair behind the shared passkey-authorization window (`passkey-authorization-guard.ts`):
- * `authorization-options` hands back an assertion challenge against the session's own account's
- * passkeys, and `POST /users/session/authorization` verifies it and sets
- * `sessions.passkey_authorized_at` to the moment it succeeds, opening (or refreshing) the 5-minute
- * window every sensitive backoffice action is gated by. Neither route is itself gated by that
- * window: an already-open session can always ask to (re)authorize.
- */
+/** Neither route is itself gated by the passkey-authorization window: an already-open session can always ask to (re)authorize. */
 export function registerSessionAuthorizationRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: SessionAuthorizationRouteOptions<TQueryResult>,

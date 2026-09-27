@@ -14,10 +14,8 @@ import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerUserReactivationRoutes } from "./user-reactivation-route.js";
 
-// PGlite serves every query on one connection and serializes transactions outright, so racing
-// requests can only interleave on a real Postgres pool. This test pins the interleaving by holding
-// a row lock on a connection of its own and waiting until both requests queue behind it, so the
-// order in which they reach the database is decided by the test, not by timing.
+// PGlite serializes every transaction, so racing requests can only interleave on a real Postgres
+// pool; this test pins the order by holding a row lock until both requests queue behind it.
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 
 let integrationDb: IntegrationDatabase;
@@ -74,7 +72,6 @@ async function insertInactiveUser(email: string, roleId: string): Promise<string
   return userId;
 }
 
-/** Inserts a session already carrying a valid passkey authorization, the way a passkey sign-in would. */
 async function insertSession(userId: string): Promise<string> {
   const rawSessionId = generateSessionId();
   const now = new Date();
@@ -101,11 +98,7 @@ async function waitForLockWaiters(count: number): Promise<void> {
   throw new Error(`test setup: ${count} requests never queued behind the held lock`);
 }
 
-/**
- * Holds `FOR UPDATE` on the target user row, starts `first`, starts `second` only once `first` is
- * waiting on that same lock (the reactivation route takes it before reading `active`), then lets
- * both go once `second` waits too.
- */
+// Holds the same row lock the reactivation route takes before reading `active`, so both requests queue behind it in order.
 async function runQueuedBehindTargetUserLock(
   targetId: string,
   first: InjectRequest,

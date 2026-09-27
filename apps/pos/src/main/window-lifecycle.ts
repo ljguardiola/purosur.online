@@ -34,9 +34,6 @@ export interface RendererRecoveryDeps {
   onLoadFailed?(failure: LoadFailure): void;
 }
 
-// The window is created hidden so it never flashes an empty frame, and a crashed interface comes
-// back by itself, under the same backoff and attempt limit as the core: its reload reconnects to
-// the core like any other page load.
 export function showWhenReadyAndReviveRenderer(
   window: RevivableWindow,
   deps: RendererRecoveryDeps,

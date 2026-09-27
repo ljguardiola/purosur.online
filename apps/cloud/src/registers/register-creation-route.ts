@@ -27,11 +27,6 @@ const REGISTER_NAME_UNIQUE_INDEX = "registers_location_id_name_lower_key";
 
 export class RegisterNameTaken extends Error {}
 
-/**
- * Walks the driver error (wrapped by Drizzle as its `cause`) for a unique violation on the
- * case-insensitive-per-branch `registers` index, the same shape `isCategoryNameUniqueViolation`
- * (`category-creation-route.ts`) maps for `categories.name`.
- */
 export function isRegisterNameUniqueViolation(error: unknown): boolean {
   let current: unknown = error;
   while (current instanceof Error) {
@@ -60,7 +55,6 @@ function readCreationBody(body: unknown): CreationRequestBody | RegisterFieldVal
     return nameFailure;
   }
   if (!name) {
-    // Unreachable: `registerNameValidationFailure` above already rejects an empty or missing name.
     return { field: "name", message: "name must not be empty" };
   }
   return { name };
@@ -87,13 +81,8 @@ export type CreateRegisterOutcome =
   | { kind: "name_taken" }
   | { kind: "created"; register: CreatedRegister };
 
-/**
- * Creates a register and an audit row in one transaction, scoped to the branch it belongs to. The
- * name uniqueness check runs first, inside the transaction; the database's own
- * case-insensitive-per-branch unique index (`registers_location_id_name_lower_key`) is the backstop
- * for a name that lands concurrently, mapped by `isRegisterNameUniqueViolation` the same way
- * `createCategory` (`category-creation-route.ts`) maps its own.
- */
+// Two concurrent requests can both pass the select check above; the database's own unique index
+// is what actually stops the second insert, so it's caught here too.
 export async function createRegister<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: CreateRegisterInput,
@@ -145,13 +134,6 @@ export async function createRegister<TQueryResult extends PgQueryResultHKT>(
   return { kind: "created", register: created };
 }
 
-/**
- * Registers `POST /registers`: creates a register in the session's own branch ("Nueva caja"),
- * gated by the `enroll_register_devices` permission (an Administrator always holds it too) and the
- * shared passkey-authorization window (`passkey-authorization-guard.ts`), the same combination
- * `POST /roles` (`role-creation-route.ts`) requires for its own sensitive creation. Body validation
- * runs before the passkey check, the same order `role-creation-route.ts` uses.
- */
 export function registerRegisterCreationRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: RegistersRouteOptions<TQueryResult>,

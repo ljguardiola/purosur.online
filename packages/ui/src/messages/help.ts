@@ -26,8 +26,6 @@ export type HelpCatalog<
   articles: Articles;
 };
 
-// A record whose every article's `category`, `related`, and `articleLink.article` point at a real
-// id of the given `Categories`/`Articles`.
 export type HelpArticles<
   Categories extends CategoryRecord,
   Articles extends Record<string, HelpArticle<string, string>>,

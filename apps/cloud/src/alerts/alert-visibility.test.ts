@@ -7,7 +7,7 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import {
   canSeeAnyAlerts,
   visibleAlertsCondition,
-  visibleToUsersCondition,
+  visibleToUsersJoinedWithRolesCondition,
 } from "./alert-visibility.js";
 
 let testDatabase: TestDatabase;
@@ -104,15 +104,6 @@ async function visibleAlertIds(access: Parameters<typeof visibleAlertsCondition>
   return rows.map((row) => row.id);
 }
 
-/**
- * `visibleAlertsCondition` and `visibleToUsersCondition` (`alert-visibility.ts`) are the audience
- * rule's only two definitions, one per direction it's needed in: filtering alerts down to what a
- * viewer can see, and filtering users down to who can see a newly opened alert. Every consumer
- * (`alerts-list-route.ts`, `alert-read-route.ts`'s `findAlertById` shared by `alert-close-route.ts`,
- * and `open-alert.ts`'s `recipientsFor`) imports one of these two instead of its own copy, so this
- * is the one place the rule itself — Administrator, All, Local, own branch, another branch, no
- * permission — is tested; their own tests stay wiring-only.
- */
 describe("visibleAlertsCondition", () => {
   it("lets an Administrator see every alert, Local or All, of any branch", async () => {
     const allAlert = await insertAlert({ audience: "all" });
@@ -183,7 +174,7 @@ describe("visibleAlertsCondition", () => {
   });
 });
 
-describe("visibleToUsersCondition", () => {
+describe("visibleToUsersJoinedWithRolesCondition", () => {
   async function matchingRecipients(scope: {
     audience: "local" | "all";
     locationId: string | undefined;
@@ -193,7 +184,7 @@ describe("visibleToUsersCondition", () => {
       .from(users)
       .innerJoin(userRoles, eq(userRoles.userId, users.id))
       .innerJoin(roles, eq(roles.id, userRoles.roleId))
-      .where(visibleToUsersCondition(db, scope));
+      .where(visibleToUsersJoinedWithRolesCondition(db, scope));
     return rows.map((row) => row.id);
   }
 

@@ -12,12 +12,7 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { createRole } from "./role-creation-route.js";
 
 // PGlite runs every query over one connection, so it can never race two creations for the same
-// name. This runs them over a real postgres-js pool of more than one connection against a real
-// Postgres, so the name each one races for is caught either by the transaction's own
-// case-insensitive check or, when both slip past it concurrently, by the database's unique index
-// on `lower(roles.name)` — reported as `constraint_name` by postgres-js, unlike PGlite's
-// `constraint`, which is what `isRoleNameUniqueViolation` (in `role-creation-route.ts`) must map
-// correctly for this driver too.
+// name; this runs them over a real postgres-js pool against a real Postgres instead.
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;

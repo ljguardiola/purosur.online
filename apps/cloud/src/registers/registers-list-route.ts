@@ -14,7 +14,6 @@ import {
 export interface RegistersRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  /** Injected in tests so idle/absolute expiry and code expiry are checked against a deterministic clock. */
   now?: () => Date;
 }
 
@@ -26,7 +25,6 @@ export interface RegisterPendingCode {
 export interface RegisterRow {
   id: string;
   name: string;
-  /** The register's unexpired, unredeemed enrollment code, or `null` when it has none. */
   pendingCode: RegisterPendingCode | null;
 }
 
@@ -49,12 +47,6 @@ export function toRegisterWire(row: RegisterRow): RegisterWire {
   };
 }
 
-/**
- * Lists every register of `locationId`, ordered by name, each with its pending enrollment code's
- * `issuedAt`/`expiresAt` when it has one still unexpired and unredeemed (see
- * `register-enrollment-code-route.ts` for how a code is emitted and `registerEnrollmentCodes` for
- * why single use is enforced later, by #341's redemption route).
- */
 export async function listBranchRegisters<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   locationId: string,
@@ -89,11 +81,6 @@ export async function listBranchRegisters<TQueryResult extends PgQueryResultHKT>
   }));
 }
 
-/**
- * Registers `GET /registers`: gated by the `enroll_register_devices` permission (an Administrator
- * always holds it too), the same open-session shape `GET /categories` uses; lists the session's own
- * branch's registers.
- */
 export function registerRegistersListRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: RegistersRouteOptions<TQueryResult>,

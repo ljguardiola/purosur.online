@@ -21,7 +21,6 @@ function createServices(
   };
 }
 
-// The only textbox on this screen is the passkey name field.
 async function fillName(screen: Awaited<ReturnType<typeof render>>, value: string) {
   await userEvent.fill(screen.getByRole("textbox"), value);
 }
@@ -241,7 +240,7 @@ test("lets the person retry, without a new link, after the browser cancels regis
   expect(services.signalUnknownCredential).not.toHaveBeenCalled();
 });
 
-test("lets the person retry, without a new link, after redeem rejects the registration", async () => {
+test("lets the person retry, without a new link, after redeem rejects the registration, signaling the device to forget the credential", async () => {
   const services = createServices({
     fetchRegistrationOptions: vi.fn().mockResolvedValue({
       kind: "ok",
@@ -258,8 +257,6 @@ test("lets the person retry, without a new link, after redeem rejects the regist
   await expect.element(screen.getByText("No se pudo registrar la passkey")).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Registrar la passkey" })).toBeVisible();
   expect(screen.getByRole("link", { name: "Pedir un enlace nuevo" }).query()).toBeNull();
-  // The device already created this credential and the cloud rejected saving it: the device
-  // should forget it, naming the exact rp.id and credential id from that ceremony.
   expect(services.signalUnknownCredential).toHaveBeenCalledWith({
     rpId: "purosur.online",
     credentialId: "cred-1",
@@ -390,7 +387,6 @@ test("retries with fresh options after another tab replaced this link's challeng
     optionFetchesWhenWebAuthnStarted.push(fetchRegistrationOptions.mock.calls.length);
     return registrationResponse;
   });
-  // The other tab's options call replaced the stored challenge, so this tab's first attempt fails.
   const redeemRecovery = vi
     .fn()
     .mockResolvedValueOnce({ kind: "validation_failed" })
@@ -414,7 +410,6 @@ test("retries with fresh options after another tab replaced this link's challeng
 
   await expect.element(screen.getByText("Registraste la passkey")).toBeVisible();
   expect(startRegistration).toHaveBeenLastCalledWith({ optionsJSON: freshOptions });
-  // Each attempt starts WebAuthn straight from its click, with no options fetch in between.
   expect(optionFetchesWhenWebAuthnStarted).toEqual([1, 2]);
 });
 

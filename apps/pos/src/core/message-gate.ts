@@ -3,8 +3,6 @@ export interface MessageIssue {
   readonly message: string;
 }
 
-// Duck-types a Zod schema's `safeParse` shape instead of depending on `zod`
-// directly: parsing stays the concern of packages/contracts.
 export interface MessageSchema<T> {
   safeParse(
     raw: unknown,
@@ -23,8 +21,6 @@ export interface RejectionSummary {
   issues: MessageIssue[];
 }
 
-// A rejected message can carry sale or credential data, so what leaves the core is only its
-// declared type and where it failed validation, never its values.
 export function summarizeRejection(rejection: RejectedMessage): RejectionSummary {
   const { raw } = rejection;
   const declaredType =

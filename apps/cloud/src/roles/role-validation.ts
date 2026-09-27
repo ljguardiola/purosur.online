@@ -5,7 +5,6 @@ import {
   ROLE_NAME_MAX_LENGTH,
 } from "@purosur/contracts";
 
-/** The Administrator role's own reserved name, checked case-insensitively; shared by creation and edit. */
 export const ADMINISTRATOR_NAME = "administrador";
 
 export interface RoleFieldValidationFailure {
@@ -30,10 +29,6 @@ export function readRolePermissionKeys(body: unknown): string[] | undefined {
   return raw;
 }
 
-/**
- * Empty (after trimming), longer than `ROLE_NAME_MAX_LENGTH`, or the Administrator role's own
- * reserved name, case-insensitively.
- */
 export function roleNameValidationFailure(
   name: string | undefined,
 ): RoleFieldValidationFailure | undefined {

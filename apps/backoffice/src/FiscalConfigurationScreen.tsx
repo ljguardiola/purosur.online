@@ -16,7 +16,7 @@ import {
   TriangleAlert,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuthorization } from "./AuthorizationModal";
 import {
   fetchIssuerIdentification,
@@ -29,6 +29,7 @@ import { messages } from "./messages";
 import { ScreenLayout } from "./ScreenLayout";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
 import { sendToMyAccount } from "./settingsRoutes";
+import { useLatestRef } from "./useLatestRef";
 
 export type FiscalConfigurationScreenServices = {
   fetchIssuerIdentification: typeof fetchIssuerIdentification;
@@ -48,9 +49,7 @@ export const defaultFiscalConfigurationScreenServices: FiscalConfigurationScreen
 
 export type FiscalConfigurationScreenProps = {
   onSessionEnded: () => void;
-  /** Injected in tests so the screen doesn't call the real API or WebAuthn. */
   services?: FiscalConfigurationScreenServices;
-  /** Injected in tests so "today" for the activity start date is deterministic. */
   now?: () => Date;
 };
 
@@ -138,8 +137,6 @@ type ModalValidation =
   | { kind: "valid"; values: CompleteModalValues }
   | { kind: "invalid"; errors: FieldErrors };
 
-/** Validates every field client-side, mirroring the server (`issuer-identification-validation.ts`):
- * all three are required, and the activity start date can never be in the future. */
 function validateModal(values: ModalValues, today: CalendarDate): ModalValidation {
   const errors: FieldErrors = {};
   const legalName = values.legalName.trim();
@@ -166,8 +163,7 @@ function validateModal(values: ModalValues, today: CalendarDate): ModalValidatio
   return { kind: "valid", values: { legalName, grossIncomeRegistration, activityStartDate } };
 }
 
-/** The field's own error for a save the server rejected on it; `version` never renders inline
- * (a stale version already has its own notice). */
+/** `version` never maps to a field error here: a stale version already has its own notice. */
 function serverFieldErrors(field: IssuerIdentificationField): FieldErrors | undefined {
   if (field === "legal_name") {
     return { legalName: modalMessages.legalNameTooLong };
@@ -185,19 +181,14 @@ type EditIssuerIdentificationModalProps = {
   target: IssuerIdentification | null;
   onClose: () => void;
   onSaved: (value: IssuerIdentification) => void;
-  /** Receives a fresh load after a stale save; the new `target` it produces re-seeds the modal. */
   onReloaded: (value: IssuerIdentification) => void;
   onSessionEnded: () => void;
   services: FiscalConfigurationScreenServices;
   now: () => Date;
 };
 
-/**
- * "Editar la identificación del emisor": the CUIT and tax status are always shown as plain text,
- * never editable, since both come from the tax authority; the other three fields are required,
- * since the incomplete state only exists before the first save. Saving is gated by the shared
- * passkey-authorization window, the same way `RoleEditorModal` is.
- */
+// CUIT and tax status are always plain text, never editable: both come from the tax authority.
+// The other three fields are required, since the incomplete state only exists before the first save.
 function EditIssuerIdentificationModal({
   target,
   onClose,
@@ -461,12 +452,6 @@ function EditIssuerIdentificationModal({
   );
 }
 
-/**
- * "Configuración fiscal": today, only the business-wide issuer identification, reserved to
- * `change_fiscal_configuration` (an Administrator always holds it implicitly) the same way
- * `BranchSettingsScreen` is reserved to `configure_branch`. The threshold and clock-correction
- * sections the design also draws for this screen belong to #44/#55, not built here.
- */
 export function FiscalConfigurationScreen({
   onSessionEnded,
   services,
@@ -477,9 +462,8 @@ export function FiscalConfigurationScreen({
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [editing, setEditing] = useState(false);
 
-  const onSessionEndedRef = useRef(onSessionEnded);
-  onSessionEndedRef.current = onSessionEnded;
-  const endSession = useCallback(() => onSessionEndedRef.current(), []);
+  const onSessionEndedRef = useLatestRef(onSessionEnded);
+  const endSession = useCallback(() => onSessionEndedRef.current(), [onSessionEndedRef]);
 
   const load = useCallback(async () => {
     setState({ kind: "loading" });

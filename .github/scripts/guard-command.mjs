@@ -1,18 +1,3 @@
-// Pure decision logic behind the Claude Code PreToolUse hook
-// (`.claude/hooks/pretool.mjs`). It inspects a raw shell command string and
-// returns a list of problems; an empty list means the command is allowed.
-//
-// This module enforces operational git/gh hygiene only (branch protection,
-// hook bypass flags, release tags, and template completeness). It is not a
-// second copy of the repository contract: the PR and issue body checks below
-// call the same `validatePr`/`validateIssue` machinery the CI workflows use
-// (`.github/scripts/validate-pr.mjs`, `.github/scripts/validate-issue.mjs`),
-// so the rules themselves live in exactly one place.
-//
-// A command this module cannot parse, or a `gh`/`git` invocation whose shape
-// it does not recognize, is allowed through: this guard only ever adds
-// problems for a rule it positively matched, never for uncertainty.
-
 import { detectIssueType, validateIssue } from "./validate-issue.mjs";
 import { validatePrBodyLocal } from "./validate-pr.mjs";
 
@@ -21,10 +6,8 @@ const ENV_ASSIGNMENT_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*=/;
 const RELEASE_TAG_PATTERN = /^(cloud|pos)-v/;
 const GIT_TAG_VALUE_FLAGS = new Set(["-m", "--message", "-F", "--file", "-u", "--local-user"]);
 
-// Global git options that take a value as a separate following token when
-// not written as `--opt=value`. `-C`, `-c` and the undocumented
-// `--shallow-file` never accept `=value`; `--exec-path` and `--list-cmds`
-// only accept `=value`, so they are value-less flags here.
+// -C, -c and --shallow-file never accept `=value`; --exec-path and --list-cmds only accept
+// `=value`, so they are treated as value-less flags here.
 const GIT_GLOBAL_VALUE_FLAGS = new Set([
   "-C",
   "-c",
@@ -36,15 +19,12 @@ const GIT_GLOBAL_VALUE_FLAGS = new Set([
   "--shallow-file",
 ]);
 
-// Global git options that also select which repository (and so which
-// branch) the command runs against.
+// -C, --git-dir and --work-tree pick which repository (and so which branch) the command runs
+// against.
 const GIT_LOCATION_FLAGS = new Set(["-C", "--git-dir", "--work-tree"]);
 
-// Env-assignment prefixes equivalent to a `--git-dir=`/`--work-tree=` global
-// option; `stripEnvAssignments` otherwise drops these silently.
+// GIT_DIR/GIT_WORK_TREE are git's own environment-variable equivalents of --git-dir/--work-tree.
 const ENV_LOCATION_OPTIONS = { GIT_DIR: "--git-dir", GIT_WORK_TREE: "--work-tree" };
-
-// --- tokenizing --------------------------------------------------------
 
 function tokenize(command) {
   const tokens = [];
@@ -146,9 +126,6 @@ function stripEnvAssignments(tokens) {
   return tokens.slice(index);
 }
 
-// Reads the leading `NAME=value` prefix and returns any `GIT_DIR=`/
-// `GIT_WORK_TREE=` entries, normalized into `--git-dir=`/`--work-tree=`
-// global-option form, in the order they appeared.
 function collectEnvLocationArgs(tokens) {
   const locationArgs = [];
   let index = 0;
@@ -164,10 +141,6 @@ function collectEnvLocationArgs(tokens) {
   return locationArgs;
 }
 
-// Skips git's global options to find the subcommand, collecting the
-// location-changing ones (`-C`, `--git-dir`, `--work-tree`) along the way.
-// A value flag consumes the next token unless its value is attached with
-// `=`; every other leading `-`/`--` token is a flag with no value.
 function parseGitGlobalOptions(rest) {
   const locationArgs = [];
   let index = 0;
@@ -204,11 +177,6 @@ function parseGitGlobalOptions(rest) {
   return { sub: rest[index], args: rest.slice(index + 1), locationArgs };
 }
 
-// Resolves the branch the guard should judge: with no location args,
-// `context.branch` (the session cwd's branch); with location args,
-// `context.branchFor(locationArgs)`. A missing or failing resolver, or a
-// null result, means "branch unknown", which fails open on branch rules
-// without hiding the rules that do not depend on the branch.
 function resolveBranch(context, locationArgs) {
   if (locationArgs.length === 0) {
     return context.branch ?? null;
@@ -223,11 +191,6 @@ function resolveBranch(context, locationArgs) {
   }
 }
 
-// --- flag parsing --------------------------------------------------------
-
-// Parses `tokens` (already past the subcommand) for a fixed set of flags.
-// `valueFlags` take a following (or `--flag=value`) argument and may repeat
-// (each occurrence is collected); `boolFlags` are presence-only.
 function parseFlags(tokens, { valueFlags, boolFlags, aliases = {} }) {
   const values = {};
   const bools = new Set();
@@ -264,8 +227,6 @@ function parseFlags(tokens, { valueFlags, boolFlags, aliases = {} }) {
 
   return { values, bools };
 }
-
-// --- git rules -------------------------------------------------------------
 
 function checkGitCommit(rest, branch, problems) {
   if (rest.includes("--no-verify")) {
@@ -357,8 +318,6 @@ function checkGitTag(rest, problems) {
   }
 }
 
-// --- gh pr / gh issue body rules --------------------------------------
-
 const BODY_FLAG_ALIASES = { "-b": "--body", "-F": "--body-file", "-t": "--title", "-w": "--web" };
 
 function resolveBody(values, bools, context, problems, label) {
@@ -429,10 +388,8 @@ function checkGhIssue(tokens, verb, context, problems) {
   const labels = [...(values["--label"] ?? []), ...(values["--add-label"] ?? [])];
   const type = detectIssueType(labels);
   if (type === null) {
-    // The type label may come from --template (resolved by GitHub, not
-    // knowable here) or already exist on the issue (for `edit`). Without a
-    // type, section requirements can't be decided locally; CI's
-    // issue-format workflow labels it invalid-format if it is wrong.
+    // A type label from --template is resolved by GitHub server-side and isn't visible here;
+    // CI's issue-format workflow still catches a wrong type.
     return;
   }
 
@@ -445,8 +402,6 @@ function checkGhIssue(tokens, verb, context, problems) {
     );
   }
 }
-
-// --- dispatch --------------------------------------------------------------
 
 function checkSegment(tokens, context, problems) {
   const envLocationArgs = collectEnvLocationArgs(tokens);
@@ -498,7 +453,7 @@ export function checkCommand(command, context = {}) {
     try {
       checkSegment(tokens, context, problems);
     } catch {
-      // A rule that cannot make sense of this segment never blocks it.
+      // A segment no rule can parse never blocks.
     }
   }
 

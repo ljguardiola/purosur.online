@@ -13,9 +13,8 @@ function createServices(
   };
 }
 
-// The required asterisk folds into the input's accessible name in Chromium (see
-// TextField.test.tsx's own "marks a required field with an asterisk" test), so this queries by
-// role alone: the form has only one textbox.
+// Chromium folds the required asterisk into the input's accessible name, so this queries by role
+// alone: the form has only one textbox.
 async function fillEmail(screen: Awaited<ReturnType<typeof render>>, value: string) {
   await userEvent.fill(screen.getByRole("textbox"), value);
 }

@@ -296,10 +296,7 @@ describe("migrating a database with a pending passkey challenge of a removed kin
 });
 
 describe("migrating a database that already has users", () => {
-  // Drops the `0011_locations` migration and every migration after it (not just that one), so a
-  // migration added later still leaves this folder ending exactly where locations did not exist
-  // yet, instead of applying a later migration out of order while 0011 itself stays missing.
-  async function migrationsFolderWithoutLocations(): Promise<string> {
+  async function migrationsFolderTruncatedAtLocations(): Promise<string> {
     const folder = await mkdtemp(join(tmpdir(), "migrations-without-locations-"));
     onTestFinished(() => rm(folder, { recursive: true, force: true }));
     await cp(MIGRATIONS_FOLDER, folder, { recursive: true });
@@ -322,7 +319,7 @@ describe("migrating a database that already has users", () => {
   }
 
   it("backfills every existing user onto the seeded location", async () => {
-    const priorMigrationsFolder = await migrationsFolderWithoutLocations();
+    const priorMigrationsFolder = await migrationsFolderTruncatedAtLocations();
     const client = await migrateFreshDatabase(
       priorMigrationsFolder,
       inject("testDatabaseClusterDumpPath"),

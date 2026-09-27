@@ -14,8 +14,6 @@ function fieldInput(screen: Screen, name: string): HTMLInputElement {
   return screen.getByRole("searchbox", { name }).element() as HTMLInputElement;
 }
 
-// The box is the accessible input's own parent: it always holds the input, plus the leading
-// icon (a chip in the register variant, bare in the backoffice variant) before it.
 function fieldBox(screen: Screen, name: string): HTMLElement {
   return fieldInput(screen, name).parentElement as HTMLElement;
 }
@@ -102,7 +100,7 @@ for (const variantCase of variantCases) {
 
 // The literal box-shadow string Chromium renders for the focused state, both variants alike: a 2px
 // brand-blue-ui inset with no outer shadow, behind the four transparent layers Tailwind v4 always
-// composes (see TextField.test.tsx's FOCUSED_SHADOW comment for why they are there).
+// composes.
 const FOCUSED_SHADOW =
   "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
   "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
@@ -173,10 +171,6 @@ for (const variant of ["register", "backoffice"] as const) {
 
     await userEvent.tab();
     await userEvent.hover(box);
-    // Both assertions below also hold for a focused field the pointer never reached: focus alone
-    // paints the boundary, and white is the resting fill too. Focusing by keyboard leaves the hover
-    // as the only thing that puts the pointer on the box, and the poll proves it got there before
-    // asserting that focus won over it.
     await expect.poll(() => box.matches(":hover")).toBe(true);
 
     await expect.poll(() => getComputedStyle(box).boxShadow).toBe(FOCUSED_SHADOW);
@@ -203,8 +197,6 @@ for (const variant of ["register", "backoffice"] as const) {
     const nextControl = screen.getByRole("button", { name: "Next control" }).element();
 
     expect(getComputedStyle(wrapper).opacity).toBe("0.45");
-    // The box itself still renders the field's ordinary resting look underneath that dimming —
-    // it's the wrapper's opacity that communicates "disabled", not a different box appearance.
     expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-white"));
     expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary(restBoundaryToken, "2px")]);
     expect(input.disabled).toBe(true);
@@ -217,11 +209,7 @@ for (const variant of ["register", "backoffice"] as const) {
   });
 }
 
-// The register's own use of the field: a scan fills it, and once the product is on the sale the
-// register empties it for the next one. Rendering the caller's state beside the field, and
-// driving the value from there after mount, is what tells a controlled field from an uncontrolled
-// one — the input's own value alone reads the same either way, since the DOM keeps it by itself.
-function ScanHarness() {
+function ControlledScanHarness() {
   const [value, setValue] = useState("");
   return (
     <>
@@ -244,10 +232,8 @@ function callerValue(screen: Screen): string {
   return screen.getByTestId("caller-value").element().textContent ?? "";
 }
 
-// A barcode scanner acts as a keyboard sending keystrokes as fast as it can, with no pauses
-// between characters the way a person typing would leave.
 test("hands a fast barcode-scanner keystroke sequence to its caller whole, and renders the value that caller sends back down", async () => {
-  const screen = await render(<ScanHarness />);
+  const screen = await render(<ControlledScanHarness />);
   const input = fieldInput(screen, "Scan or type the product name");
   const barcode = "7791234567890";
 
@@ -266,7 +252,7 @@ test("hands a fast barcode-scanner keystroke sequence to its caller whole, and r
 });
 
 test("clears the field and its caller's state when Escape is pressed", async () => {
-  const screen = await render(<ScanHarness />);
+  const screen = await render(<ControlledScanHarness />);
   const input = fieldInput(screen, "Scan or type the product name");
 
   await userEvent.fill(input, "7791234567890");
@@ -280,13 +266,9 @@ test("clears the field and its caller's state when Escape is pressed", async () 
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// Neither variant draws a clear button, but the field is a type="search" input, and Chromium
-// paints its own ::-webkit-search-cancel-button inside one holding a value — Tailwind's preflight
-// resets ::-webkit-search-decoration only. getComputedStyle reports the input's own box for that
-// pseudo-element whether or not it is painted, so the only way to tell is to click where it sits:
-// the browser's button clears the field, while a click on the text itself only moves the caret.
-// Where painted, that button spans roughly the last 4 to 13px of the backoffice input and 4 to 17px
-// of the register one, so a single click 8px in from the right edge lands on it in both.
+// getComputedStyle can't say whether Chromium's own ::-webkit-search-cancel-button is painted, so
+// clicking 8px from the right edge, where it sits, is the only way to tell: it clears the field,
+// while the caret alone moves on plain text.
 for (const variant of ["register", "backoffice"] as const) {
   test(`keeps the value when the right edge of the ${variant} variant is clicked, since it draws no clear button`, async () => {
     const screen = await render(
@@ -380,10 +362,7 @@ test("is a single tab stop", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// Reads the icon's own painted stroke, not the inherited `color`: getComputedStyle(icon).color
-// only reports the color the icon would inherit, which would pass even for an icon that hardcoded
-// its own stroke and painted differently — see Button.test.tsx's own icon color tests.
-test("paints the register chip icon brand-blue-strong and the backoffice icon ink-secondary", async () => {
+test("paints the register chip icon's own stroke brand-blue-strong and the backoffice icon's ink-secondary", async () => {
   const registerScreen = await render(
     <SearchFieldHarness
       variant="register"

@@ -15,8 +15,6 @@ import type { UsersRouteOptions } from "./users-list-route.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Same shape `user-deactivation-route.ts` answers with for a malformed, missing, other-branch, or
-// (here) still-active target: none of them leaks which one it was.
 const USER_NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no user with that id belongs to this branch",
@@ -24,14 +22,6 @@ const USER_NOT_FOUND_RESPONSE = {
 
 type ReactivationOutcome = { kind: "not_found" } | { kind: "reactivated" };
 
-/**
- * Registers `POST /users/:id/reactivation`: lets a holder of `reactivate_users` (an Administrator
- * always holds it too) reactivate a branch user `user-deactivation-route.ts` had deactivated,
- * gated by the shared passkey-authorization window instead of its own per-action step-up. Checks
- * the target belongs to the session's own branch and is still inactive before doing anything else
- * (identical 404 for a malformed, missing, other-branch, or already-active id). Keeps the target's
- * role, email, and passkeys untouched, and audits the target's id alongside the actor who did it.
- */
 export function registerUserReactivationRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: UsersRouteOptions<TQueryResult>,
@@ -51,7 +41,7 @@ export function registerUserReactivationRoutes<TQueryResult extends PgQueryResul
     return true;
   }
 
-  /** Folds a malformed id and an already-active target into the same 404 a missing id gets. */
+  // An already-active target answers the same 404 as a missing one.
   async function findTarget(locationId: string, targetId: string) {
     if (!UUID_PATTERN.test(targetId)) {
       return undefined;
@@ -80,9 +70,9 @@ export function registerUserReactivationRoutes<TQueryResult extends PgQueryResul
       }
 
       const outcome = await options.db.transaction<ReactivationOutcome>(async (tx) => {
-        // Takes the user row lock, then re-reads `active` under it: a concurrent reactivation (or
-        // deactivation) of the same target waits, and a second request against an already-active
-        // target answers not_found instead of re-reactivating and re-auditing.
+        // Re-reads `active` under the row lock, so a concurrent request against the same target
+        // waits, and a second reactivation of an already-active target answers not_found instead
+        // of re-auditing it.
         const [current] = await tx
           .select({ active: users.active, version: users.version })
           .from(users)

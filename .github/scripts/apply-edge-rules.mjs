@@ -1,16 +1,5 @@
-// Declares the two Cloudflare ruleset phase entrypoints the edge relies on and PUTs them
-// idempotently: this script owns both phase entrypoints entirely (each PUT replaces the whole
-// phase's rules, so anything added by hand outside this script is lost on the next run).
-//
-// http_request_late_transform sets a secret header on every request to the cloud service's
-// hostnames forwarded to the origin, which apps/cloud/src/edge-origin-guard.ts requires (its
-// EDGE_ORIGIN_SECRET_HEADER must match the constant below). http_ratelimit blocks a source address
-// sending more than the configured rate to any hostname on the zone.
-//
-// API reference: https://developers.cloudflare.com/api/resources/rulesets/subresources/phases/methods/update/
-// Header operation and ratelimit field shapes:
-// https://github.com/cloudflare/cloudflare-typescript/blob/main/src/resources/rulesets/rules.ts
-// Rate limiting field values: https://developers.cloudflare.com/waf/rate-limiting-rules/parameters/
+// Cloudflare's ruleset-phase PUT replaces the phase's entire rule list; anything added by hand
+// outside this script is lost on the next run.
 
 import customDomains from "../../.railway/custom-domains.json" with { type: "json" };
 
@@ -19,16 +8,13 @@ const LOG_PREFIX = "apply-edge-rules";
 const HTTP_REQUEST_LATE_TRANSFORM_PHASE = "http_request_late_transform";
 const HTTP_RATELIMIT_PHASE = "http_ratelimit";
 
-/** Must match apps/cloud/src/edge-origin-guard.ts's EDGE_ORIGIN_SECRET_HEADER. */
+// Must match the header name the cloud's edge origin guard checks.
 export const EDGE_ORIGIN_SECRET_HEADER = "x-edge-origin-secret";
 
-/** @param {Record<string, string[]>} domainsByEnvironment */
 export function cloudHostnames(domainsByEnvironment) {
   return Object.values(domainsByEnvironment).flat();
 }
 
-// Only requests to these hosts get the edge origin secret, so no other origin behind this zone
-// ever receives it.
 export const CLOUD_HOSTNAMES = cloudHostnames(customDomains);
 
 const RATE_LIMIT_PERIOD_SECONDS = 10;
@@ -39,7 +25,6 @@ const RATE_LIMIT_MITIGATION_TIMEOUT_SECONDS = 10;
 // expression's quoted string or set.
 const HOSTNAME_PATTERN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/;
 
-/** @param {string[]} hostnames */
 function hostInExpression(hostnames) {
   if (hostnames.length === 0) {
     throw new Error(`${LOG_PREFIX}: at least one cloud hostname is required`);
@@ -52,10 +37,6 @@ function hostInExpression(hostnames) {
   return `http.host in {${hostnames.map((hostname) => `"${hostname}"`).join(" ")}}`;
 }
 
-/**
- * @param {string} edgeOriginSecret
- * @param {string[]} hostnames
- */
 export function buildRequestHeaderTransformRules(edgeOriginSecret, hostnames) {
   return {
     rules: [
@@ -98,14 +79,6 @@ function rulesetPhaseEntrypointUrl(zoneId, phase) {
   return `https://api.cloudflare.com/client/v4/zones/${zoneId}/rulesets/phases/${phase}/entrypoint`;
 }
 
-/**
- * @param {object} input
- * @param {string} input.zoneId
- * @param {string} input.token
- * @param {string} input.phase
- * @param {object} input.body
- * @param {typeof fetch} [input.fetchImpl]
- */
 export async function putRulesetPhase({ zoneId, token, phase, body, fetchImpl = fetch }) {
   const response = await fetchImpl(rulesetPhaseEntrypointUrl(zoneId, phase), {
     method: "PUT",
@@ -125,7 +98,6 @@ export async function putRulesetPhase({ zoneId, token, phase, body, fetchImpl = 
   return result;
 }
 
-/** @returns {Promise<number>} the process exit code. */
 export async function runCli({
   env = process.env,
   fetchImpl = fetch,

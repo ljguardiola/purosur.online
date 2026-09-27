@@ -13,11 +13,8 @@ import {
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { type OpenAlertInput, type OpenAlertOutcome, openAlert } from "./open-alert.js";
 
-// PGlite serves every query on one connection and can never race two `openAlert` calls against
-// each other, so the dedup index's own concurrent path (`isAlertOpenDedupViolation`, the savepoint
-// around the insert) never runs under it. This races it for real on both drivers the app actually
-// uses: postgres-js for the routes, node-postgres for the recovery worker
-// (`recovery-worker.ts`).
+// PGlite serves every query on one connection, so these races need a real Postgres, on both
+// drivers the app uses.
 const NOON = new Date("2026-01-05T12:00:00.000Z");
 
 async function insertAdministrator<TQueryResult extends PgQueryResultHKT>(
@@ -42,12 +39,6 @@ async function insertAdministrator<TQueryResult extends PgQueryResultHKT>(
   return user.id;
 }
 
-/**
- * Two `openAlert` calls for the same kind and scope, the first held open (uncommitted) until the
- * second is observed blocked behind it. Committing the first then unblocks the second, which must
- * find the dedup violation, roll back only its own savepoint, and still commit whatever else its
- * own transaction did.
- */
 async function racesOpenAlertDedup<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   waitForLockWaiters: (count: number) => Promise<void>,
@@ -78,12 +69,9 @@ async function racesOpenAlertDedup<TQueryResult extends PgQueryResultHKT>(
 
   let firstAlertId: string;
   let secondCommitted: Promise<OpenAlertOutcome>;
-  // Always releases the first transaction, whatever throws once it has started (the setup check,
-  // the second call, or the wait timing out), so a failure never leaves that transaction open —
-  // which would hang `pool.end()`/`sql.end()` for the full timeout and bury the real error.
+  // An unreleased transaction hangs `pool.end()`/`sql.end()` until timeout, hiding the real error.
   try {
-    // Raced against the transaction itself: if the first `openAlert` call rejects, `firstStarted`
-    // never resolves, so its rejection must surface here as the failure instead.
+    // `firstStarted` never resolves if the first `openAlert` rejects.
     await Promise.race([firstStarted, firstCommitted]);
     if (firstOutcome?.kind !== "opened") {
       throw new Error("test setup: the first openAlert call never opened the alert");
@@ -92,15 +80,11 @@ async function racesOpenAlertDedup<TQueryResult extends PgQueryResultHKT>(
 
     secondCommitted = db.transaction(async (tx) => {
       const outcome = await openAlert(tx, input, { now: () => new Date(NOON.getTime() + 1_000) });
-      // The caller's own other work, in the very same transaction as the losing `openAlert` call:
-      // it must still commit even though the insert attempt inside `openAlert` failed on the
-      // unique index, proving the savepoint kept that failure from poisoning this outer
-      // transaction.
+      // Commits only if the savepoint kept the unique violation out of this transaction.
       await tx.update(users).set({ firstName: "Ada (marked)" }).where(eq(users.id, recipientId));
       return outcome;
     });
-    // Observed now so a rejection while the lock wait polls is reported by the await below, not as
-    // a separate unhandled rejection next to the real failure.
+    // Attached now so a rejection during the lock wait isn't reported as unhandled.
     secondCommitted.catch(() => {});
 
     await waitForLockWaiters(1);

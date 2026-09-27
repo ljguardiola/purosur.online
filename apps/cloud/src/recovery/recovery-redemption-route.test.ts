@@ -80,7 +80,6 @@ async function issueToken(overrides: IssueTokenOverrides = {}): Promise<string> 
   tokenSequence += 1;
   const rawToken = `raw-token-${tokenSequence}`;
   const forUserId = overrides.forUserId ?? userId;
-  // An account holds one live token at a time: issuing another voids the previous one first.
   if (!overrides.usedAt && !overrides.voidedAt) {
     await db
       .update(recoveryTokens)

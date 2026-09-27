@@ -13,20 +13,12 @@ import type { UsersRouteOptions } from "./users-list-route.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Answers identically whether the id is malformed, unknown, or belongs to another branch, so none
-// of the three ever leaks which one it was.
+// Answers identically whether the id is malformed, unknown, or another branch's, so none leaks which.
 const NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no user with that id belongs to this branch",
 } as const;
 
-/**
- * Registers `GET /users/:id`: same session, origin, and access guard as `GET /users`, then answers
- * that one user's shape only when they belong to the session's own branch. A malformed id, a
- * missing id, and an id from another branch all get the identical 404 `not_found`; so does an
- * inactive id, unless the caller can reactivate (`canReactivateUsers`), in which case it answers
- * that deactivated user's shape, with its `active` field, instead.
- */
 export function registerUserReadRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: UsersRouteOptions<TQueryResult>,

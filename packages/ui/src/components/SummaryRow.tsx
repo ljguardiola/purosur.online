@@ -9,8 +9,7 @@ type SummaryRowForm = "regular" | "strong";
 
 const rowClassName = "flex items-baseline gap-4";
 
-// `min-w-0` lets the label give up room a wide value needs, and `break-words` keeps the text it
-// still has to paint inside the box that is left, instead of over the value.
+// min-w-0 overrides flex's default min-width:auto so the label can shrink and break-words wrap.
 const labelBaseClassName = "min-w-0 break-words";
 
 const labelTypeClassName: Record<SummaryRowForm, string> = {
@@ -18,8 +17,8 @@ const labelTypeClassName: Record<SummaryRowForm, string> = {
   strong: "text-lg font-bold",
 };
 
-// Growing from a zero basis makes the value take the room the label does not need, instead of
-// both of them shrinking in proportion, which squeezed the label below its own longest word.
+// flex-1's zero basis gives the value only the room the label doesn't need, instead of both
+// shrinking proportionally and squeezing the label below its longest word.
 const valueBaseClassName = "flex-1 text-right";
 
 const valueTypeClassName: Record<SummaryRowForm, string> = {

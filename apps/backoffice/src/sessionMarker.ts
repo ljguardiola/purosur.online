@@ -1,25 +1,21 @@
 const STORAGE_KEY = "purosur-backoffice-was-signed-in";
 
-// This marker is never the session itself — the session only ever lives in the server-set
-// HttpOnly cookie. It is a plain local hint so the app can tell "never signed in" from "a
-// session opened here and has since ended", to choose between the sign-in screen's plain and
-// session-expired notices after the mount check finds no live session.
+// Never the session itself — that only ever lives in the server-set HttpOnly cookie. This is a
+// local hint distinguishing "never signed in" from "a session opened here and has since ended".
 
 export function markSignedIn(): void {
   try {
     window.localStorage.setItem(STORAGE_KEY, "1");
   } catch {
-    // Storage can be unavailable (private browsing, disabled cookies); the marker is only a UX
-    // hint, so a write failure is silently ignored.
+    // Storage can be unavailable (private browsing, disabled cookies); a write failure is
+    // silently ignored since this is only a UX hint.
   }
 }
 
 export function clearSignedInMarker(): void {
   try {
     window.localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // See markSignedIn.
-  }
+  } catch {}
 }
 
 export function wasSignedIn(): boolean {

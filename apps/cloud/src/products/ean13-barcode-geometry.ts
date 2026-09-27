@@ -7,9 +7,25 @@ export const QUIET_ZONE_LEFT_MODULES = 11;
 export const QUIET_ZONE_RIGHT_MODULES = 7;
 export const HUMAN_READABLE_HEIGHT_MM = 3.1;
 
-// Module indices belonging to the start (101), center (01010) and end (101) guard bars, drawn
-// taller than the ordinary bars so the human-readable digits can sit beside them.
-const GUARD_MODULE_INDEXES = new Set([0, 1, 2, 45, 46, 47, 48, 49, 92, 93, 94]);
+export const DIGITS_PER_GROUP = 6;
+export const MODULES_PER_DIGIT = 7;
+export const START_GUARD_END_MODULE = 3;
+export const CENTER_GUARD_START_MODULE = 45;
+export const CENTER_GUARD_END_MODULE = 50;
+export const END_GUARD_START_MODULE = 92;
+export const END_GUARD_END_MODULE = 95;
+
+function moduleRange(start: number, end: number): number[] {
+  return Array.from({ length: end - start }, (_, offset) => start + offset);
+}
+
+// EAN-13's start (101), center (01010) and end (101) guard bar module indices.
+const GUARD_MODULE_INDEXES = new Set([
+  ...moduleRange(0, START_GUARD_END_MODULE),
+  ...moduleRange(CENTER_GUARD_START_MODULE, CENTER_GUARD_END_MODULE),
+  ...moduleRange(END_GUARD_START_MODULE, END_GUARD_END_MODULE),
+]);
+const HALF_GROUP_WIDTH_MODULES = (DIGITS_PER_GROUP * MODULES_PER_DIGIT) / 2;
 
 export interface BarcodeBar {
   xMm: number;
@@ -33,11 +49,6 @@ export interface Ean13BarcodeGeometry {
   rightGroupText: BarcodeText;
 }
 
-/**
- * Computes the printable geometry (in millimeters) of one EAN-13 barcode: the bars, in the
- * standard layout with digits 3.1mm monospace, first digit left of the start guard then 6 + 6
- * digits under their half of the bars, the format the owner validated on the plain-paper proof.
- */
 export function ean13BarcodeGeometry(code: string): Ean13BarcodeGeometry {
   const modules = ean13Modules(code);
   const bars: BarcodeBar[] = [];
@@ -53,9 +64,10 @@ export function ean13BarcodeGeometry(code: string): Ean13BarcodeGeometry {
     });
   }
 
-  // The 21-module offset centers each 6-digit group (6 digits × 7 modules ÷ 2) under its half.
-  const leftGroupCenterModule = QUIET_ZONE_LEFT_MODULES + 3 + 21;
-  const rightGroupCenterModule = QUIET_ZONE_LEFT_MODULES + 50 + 21;
+  const leftGroupCenterModule =
+    QUIET_ZONE_LEFT_MODULES + START_GUARD_END_MODULE + HALF_GROUP_WIDTH_MODULES;
+  const rightGroupCenterModule =
+    QUIET_ZONE_LEFT_MODULES + CENTER_GUARD_END_MODULE + HALF_GROUP_WIDTH_MODULES;
 
   return {
     totalWidthMm:

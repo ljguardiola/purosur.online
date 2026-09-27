@@ -13,8 +13,6 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
       displayName: "Lucas Guardiola",
       isAdministrator: true,
     }),
-    // Never resolves by default: most tests here are about something else, and run well under the
-    // watcher's interval anyway.
     checkSessionStatus: vi.fn().mockReturnValue(new Promise(() => {})),
     signInScreen: {
       fetchAuthenticationOptions: vi.fn(),
@@ -121,6 +119,8 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
   };
 }
 
+const PAST_ACTIVITY_THROTTLE_WINDOW_MS = 120_000;
+
 const emptyHelp = defineHelp("es-AR", { categories: {}, articles: {} });
 
 const help = defineHelp("es-AR", {
@@ -202,7 +202,7 @@ test("renders the shell's area rail and section column landmarks", async () => {
     .toBeVisible();
 });
 
-test("shows the active Help item in the rail and the Help screen's own content", async () => {
+test("shows the active Help item in the rail, leaving other areas in the rail unhighlighted, and the Help screen's own content", async () => {
   window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} services={createServices()} />);
@@ -212,7 +212,6 @@ test("shows the active Help item in the rail and the Help screen's own content",
   const helpItem = helpItemLocator.element() as HTMLAnchorElement;
   expect(helpItem.getAttribute("aria-current")).toBe("page");
 
-  // Every existing area stays in the rail on every page; only the active one is highlighted.
   const configItemLocator = screen.getByRole("link", { name: "Config" });
   await expect.element(configItemLocator).toBeVisible();
   const configItem = configItemLocator.element() as HTMLAnchorElement;
@@ -310,8 +309,7 @@ test("opens every help page at the top of its content, not where the previous pa
   window.history.pushState(null, "", "/help/getting_started/intro");
   const screen = await render(<App help={longHelp} services={createServices()} />);
 
-  // Scoped to the page body: the backoffice's own "Catálogo" area item in the rail shares this
-  // fixture article's title, now that an Administrator sees that item too.
+  // Scoped to main: the rail's own Catálogo area item shares this fixture article's title.
   const link = screen.getByRole("main").getByRole("link", { name: "Catálogo" });
   await expect.element(link).toBeInTheDocument();
   const firstBody = scrollingAncestor(link.element());
@@ -351,11 +349,6 @@ test("routes /account-recovery to the recovery form, outside the Shell", async (
   expect(screen.getByRole("navigation", { name: "Áreas" }).query()).toBeNull();
 });
 
-// The single place every backoffice field gets its size from: App provides the backoffice
-// FieldSizeProvider once at its own root (see App.tsx), so no screen chooses it for itself.
-// FieldSize.test.tsx already proves every backoffice number in isolation, for TextField, DateField
-// and Select together; this only proves the root actually provides it, on the lightest route that
-// renders a field.
 test("provides the backoffice field size at the root, so a screen never has to ask for it", async () => {
   const services = createServices({
     fetchSession: vi.fn().mockResolvedValue({ kind: "unauthenticated" }),
@@ -364,8 +357,6 @@ test("provides the backoffice field size at the root, so a screen never has to a
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  // AppContent renders nothing until the mount session check resolves, so the field only exists
-  // once this heading (rendered by the same signed-out screen) is visible.
   await expect
     .element(screen.getByRole("heading", { name: "Recuperar el acceso", level: 1 }))
     .toBeVisible();
@@ -509,7 +500,7 @@ test("shows a focus ring on the page heading it focuses after a keyboard navigat
   expect(style.outlineColor).toBe(style.color);
 });
 
-test("routes /settings/users/me to Mi cuenta inside the Shell, with Config and Usuarios active", async () => {
+test("routes /settings/users/me to Mi cuenta inside the Shell, with Config and Usuarios active and Ayuda not", async () => {
   const services = createServices();
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   window.history.pushState(null, "", "/settings/users/me");
@@ -523,13 +514,10 @@ test("routes /settings/users/me to Mi cuenta inside the Shell, with Config and U
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
   await expect.poll(() => document.title).toBe("Mi cuenta · Puro Sur");
 
-  // Every existing area stays in the rail on every page; only the active one is highlighted.
   const helpItemLocator = screen.getByRole("link", { name: "Ayuda" });
   await expect.element(helpItemLocator).toBeVisible();
   const helpItem = helpItemLocator.element() as HTMLAnchorElement;
   expect(helpItem.getAttribute("aria-current")).toBeNull();
-  // No axe check here: this route's <main> already fails axe's pre-existing, unrelated
-  // scrollable-region-focusable rule at this viewport (tracked separately, not this bug's scope).
 });
 
 test("following the account name link from Help shows Mi cuenta", async () => {
@@ -851,10 +839,7 @@ test("redirects a typed /settings/branch to Mi cuenta for a user without configu
   expect(services.branchSettingsScreen.fetchBranchSettings).not.toHaveBeenCalled();
 });
 
-test("opens the role editor modal, over the Roles list, from the Nuevo rol button", async () => {
-  // This checks routing/wiring only, the same way every other screen's own test file (not
-  // App.test.tsx) owns its form-fill-and-submit behavior: RoleEditorModal.test.tsx already covers
-  // the full passkey step-up creation flow, and Cancelar's own behavior, in isolation.
+test("opens the role editor modal, over the Roles list, from the Nuevo rol button, without submitting it", async () => {
   window.history.pushState(null, "", "/settings/roles");
   const services = createServices();
   vi.mocked(services.rolesListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
@@ -869,10 +854,7 @@ test("opens the role editor modal, over the Roles list, from the Nuevo rol butto
 });
 
 test("opens the role editor modal for editing, from a role's pencil action, with Roles still the active sidebar item", async () => {
-  // Routing/wiring only, the same way the user detail wiring test above checks its own row
-  // action: RoleEditorModal.test.tsx already covers the full pre-fill, passkey step-up, and
-  // stale-save flow in isolation. A desktop-sized viewport keeps this row action clear of the
-  // rail at the browser mode's own phone-sized default (see Tooltip.test.tsx's own comment).
+  // A desktop-sized viewport keeps this row action clear of the rail at the default phone-sized viewport.
   await page.viewport(1280, 900);
   const services = createServices();
   const roleEditorModal = services.rolesListScreen.roleEditorModal;
@@ -917,8 +899,6 @@ test("opens the role editor modal for editing, from a role's pencil action, with
 });
 
 test("opens the role editor modal for duplicating, pre-filled from the source row, without refetching the list", async () => {
-  // Routing/wiring only, the same way the edit test above checks its own row action:
-  // RoleEditorModal.test.tsx already covers the full pre-fill, passkey step-up, and error states.
   await page.viewport(1280, 900);
   const services = createServices();
   const fetchRoles = vi.mocked(services.rolesListScreen.fetchRoles);
@@ -1037,7 +1017,6 @@ test("lets a non-Administrator holding deactivate_users open Usuarios, without N
       },
     ],
   });
-  // Reading the roles is Administrator-only on the cloud.
   vi.mocked(services.usersListScreen.fetchRoles).mockResolvedValue({ kind: "forbidden" });
   window.history.pushState(null, "", "/settings/users");
 
@@ -1073,7 +1052,6 @@ test("opens a user's detail for a non-Administrator holding deactivate_users, of
       isLastActiveAdministrator: false,
     },
   });
-  // Reading a user's passkeys is Administrator-only on the cloud.
   vi.mocked(services.userDetailScreen.fetchUserPasskeys).mockResolvedValue({ kind: "forbidden" });
   window.history.pushState(null, "", "/settings/users/user-3");
 
@@ -1140,8 +1118,7 @@ test("follows a demotion reported by real use of the open tab: Usuarios and Role
     isAdministrator: false,
     permissions: [],
   });
-  // Past the activity reporter's throttle window, so the next real use touches the session.
-  vi.setSystemTime(Date.now() + 120_000);
+  vi.setSystemTime(Date.now() + PAST_ACTIVITY_THROTTLE_WINDOW_MS);
   try {
     window.dispatchEvent(new KeyboardEvent("keydown"));
 
@@ -1179,8 +1156,7 @@ test("follows a promotion reported by real use of the open tab: Usuarios and Rol
     isAdministrator: true,
     permissions: [],
   });
-  // Past the activity reporter's throttle window, so the next real use touches the session.
-  vi.setSystemTime(Date.now() + 120_000);
+  vi.setSystemTime(Date.now() + PAST_ACTIVITY_THROTTLE_WINDOW_MS);
   try {
     window.dispatchEvent(new KeyboardEvent("keydown"));
 
@@ -1224,8 +1200,7 @@ test("ends the session with the expired notice when real use of the open tab fin
   await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
 
   vi.mocked(services.fetchSession).mockResolvedValue({ kind: "unauthenticated" });
-  // Past the activity reporter's throttle window, so the next real use touches the session.
-  vi.setSystemTime(Date.now() + 120_000);
+  vi.setSystemTime(Date.now() + PAST_ACTIVITY_THROTTLE_WINDOW_MS);
   try {
     await userEvent.click(screen.getByRole("searchbox", { name: "Buscar en la ayuda" }));
 

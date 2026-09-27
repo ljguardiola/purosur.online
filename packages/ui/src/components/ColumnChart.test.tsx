@@ -7,9 +7,6 @@ import { ColumnChart, type ColumnChartBar } from "./ColumnChart";
 
 type Screen = Awaited<ReturnType<typeof render>>;
 
-// A small typed helper, the same shape as Toggle.test.tsx's own DOM-part helpers: it turns a
-// possibly-out-of-bounds index into a guaranteed value or a clear failure, instead of scattering
-// non-null assertions across every test that reaches into a rendered list by position.
 function at<T>(array: readonly T[], index: number): T {
   const item = array[index];
   if (item === undefined) {
@@ -26,10 +23,8 @@ function visualWrapper(screen: Screen): HTMLElement {
   return chartRoot(screen).children[0] as HTMLElement;
 }
 
-// The axis column, the plot, the label row's spacer and the labels container are the four direct
-// children of the shared grid (visualWrapper itself), in that order: the grid's implicit
-// row-major auto-placement puts the axis column and the plot in row 1, the spacer and the labels
-// container in row 2, sharing the axis column's own track.
+// CSS grid's implicit row-major auto-placement puts these four children in reading order: axis,
+// plot, then the spacer and labels container sharing the axis column's own track.
 function axisColumn(screen: Screen): HTMLElement {
   return visualWrapper(screen).children[0] as HTMLElement;
 }
@@ -91,15 +86,11 @@ function pageBackgroundHex(): string {
   return rgbToHex(getComputedStyle(document.body).backgroundColor);
 }
 
-// axis 64 + gap 12 + half a bar's own 20px width (10) = at least 86: the room a label has on the
-// left of the first bar's centre (the axis only ever grows past its 64px floor, so this is a
-// floor on the room too), and the room the chart reserves on the right of the last bar's centre.
-// A label is capped at twice that, 86px on each side of its own bar's centre, and shortened past it.
 const LABEL_MAX_WIDTH_PX = 172;
 const CHART_RIGHT_RESERVE_PX = 76;
 
-// Renders text with the label's own font, outside the chart and unclamped, to read the width it
-// would naturally want — the same measurement the chart's own max-width then caps or leaves alone.
+// Renders text unclamped, outside the chart, in the label's own font, to read the width it would
+// naturally take.
 function measureNaturalWidth(text: string): number {
   const probe = document.createElement("span");
   probe.className = "text-xs font-normal whitespace-nowrap";
@@ -112,8 +103,7 @@ function measureNaturalWidth(text: string): number {
   return width;
 }
 
-// Grows label text word by word, then character by character, stopping just under a target
-// natural width — the closest this font can land on the label cap without crossing it.
+// Grows word by word, then character by character, to land as close under targetPx as this font allows.
 function buildLabelAtWidth(targetPx: number): string {
   const word = "Boundary label ";
   const character = "x";
@@ -127,8 +117,6 @@ function buildLabelAtWidth(targetPx: number): string {
   return text;
 }
 
-// One bar at each position that matters for the label cap: right against the chart's left edge,
-// somewhere in the middle with room to spare, and right against the chart's reserved right edge.
 function threeBars(label: string): ColumnChartBar[] {
   return [
     { id: "first", label, value: 100 },
@@ -260,7 +248,6 @@ test("scales each bar's height to its value against the top tick, sitting on the
   const rendered = chartBars(screen);
   const plotRect = plotArea(screen).getBoundingClientRect();
 
-  // topTick for a highest of 214300 is 250000 (see the rounding test below).
   expect(at(rendered, 0).getBoundingClientRect().height).toBeCloseTo((214300 / 250000) * 150, 0);
   expect(at(rendered, 1).getBoundingClientRect().height).toBeCloseTo((107150 / 250000) * 150, 0);
   expect(at(rendered, 2).getBoundingClientRect().height).toBeCloseTo(0, 0);
@@ -468,8 +455,6 @@ test("renders a 64px right-aligned value axis with a tick per grid line, formatt
     expect(contrast).toBeGreaterThanOrEqual(AAA_TEXT_CONTRAST);
   }
 
-  // The axis column is taller than the plot, so pin that the row it shares still ends where the
-  // plot does: the labels stay 6px below it.
   expect(labelsContainer(screen).getBoundingClientRect().top - plotRect.bottom).toBeCloseTo(6, 0);
 
   const lines = gridLines(screen);
@@ -484,8 +469,6 @@ test("renders a 64px right-aligned value axis with a tick per grid line, formatt
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// Finds the tick whose text is the widest, the way the browser's own grid track sizing does when
-// it grows the axis column to fit its content.
 function widestTick(ticks: HTMLElement[]): HTMLElement {
   return ticks.reduce((widest, tick) =>
     measureNaturalWidth(tick.textContent ?? "") >= measureNaturalWidth(widest.textContent ?? "")
@@ -560,7 +543,6 @@ test("grows the axis by exactly the overflow of a tick just past the 64px floor"
   const axisRect = axisColumn(screen).getBoundingClientRect();
   const plotRect = plotArea(screen).getBoundingClientRect();
 
-  // Past the floor by more than toBeCloseTo's half-pixel, so an axis stuck at 64px cannot pass.
   expect(naturalWidth - 64).toBeGreaterThan(1);
   expect(axisRect.width).toBeCloseTo(naturalWidth, 0);
   expect(plotRect.left - axisRect.right).toBeCloseTo(12, 0);
@@ -596,8 +578,6 @@ test("grows the axis to its widest tick for a value far too wide, keeping every 
   const wideScreen = await render(
     <ColumnChart bars={bars} formatValue={formatCurrency} emptyMessage="No data" />,
   );
-  // Renders the same numeric ticks with a constant, short label, so the difference between the
-  // two charts' intrinsic widths is exactly the extra room the wide formatter's axis grew by.
   const shortScreen = await render(
     <ColumnChart bars={bars} formatValue={() => "$0"} emptyMessage="No data" />,
   );
@@ -759,8 +739,6 @@ test("keeps a label that contains a space on a single line", async () => {
 });
 
 test("paints every axis tick and every label inside its own bounds", async () => {
-  // Labels here fit their own column outright; a label wider than the chart's own room is
-  // covered by the dedicated cap and shortening tests below.
   const bars: ColumnChartBar[] = [
     { id: "a", label: "1", value: 214300 },
     { id: "b", value: 90000 },
@@ -787,15 +765,12 @@ test("paints every axis tick and every label inside its own bounds", async () =>
 test("paints every bar, grid line and tick inside its own box, at any container width", async () => {
   const bars: ColumnChartBar[] = Array.from({ length: 12 }, (_, index) => ({
     id: `day-${index}`,
-    // Labels here fit their own column outright; a label wider than the chart's own room is
-    // covered by the dedicated cap and shortening tests below.
     label: `${index}`,
     value: 1000,
   }));
   const axisWidth = 64;
   const axisGap = 12;
   const barsWidth = 12 * 20 + 11 * 11;
-  // The chart's own intrinsic width includes the room it reserves past the last bar.
   const chartWidth = axisWidth + axisGap + barsWidth + CHART_RIGHT_RESERVE_PX;
   const screen = await render(
     <ColumnChart bars={bars} formatValue={formatCurrency} emptyMessage="No data" />,
@@ -819,7 +794,6 @@ test("paints every bar, grid line and tick inside its own box, at any container 
       expect(rect.bottom).toBeLessThanOrEqual(rootRect.bottom);
     }
 
-    // The room reserved for the last label belongs to the plot too, so no grid line stops short.
     for (const line of gridLines(screen)) {
       expect(line.getBoundingClientRect().right).toBeCloseTo(rootRect.right, 0);
     }
@@ -886,8 +860,6 @@ test("keeps a label at the 172px cap unshortened, touching the chart's own edge 
   expectLabelCenteredOnBar(lastRect, at(rendered, 2).getBoundingClientRect());
   expectInsideChartBox(firstRect, rootRect);
   expectInsideChartBox(lastRect, rootRect);
-  // The label keeps its whole natural width, and the room it leaves on the side the cap bounds is
-  // exactly what that width falls short of the cap.
   const naturalWidth = measureNaturalWidth(label);
   const slack = (LABEL_MAX_WIDTH_PX - naturalWidth) / 2;
   expect(firstRect.width).toBeCloseTo(naturalWidth, 0);
@@ -919,8 +891,7 @@ test("shortens a label wider than 172px with an ellipsis, keeping it one line, c
       expect(spanRect.width).toBeCloseTo(LABEL_MAX_WIDTH_PX, 0);
       expect(span.scrollWidth).toBeGreaterThan(span.clientWidth);
       expect(getComputedStyle(span).textOverflow).toBe("ellipsis");
-      // The text run itself is still wider than the cap: only the box's own clip keeps what
-      // spills past it from painting beyond the chart.
+      // The text run is still wider than the cap; only the box's own clip keeps it from painting past it.
       expect(textRunRect(span).width).toBeGreaterThan(LABEL_MAX_WIDTH_PX);
       expect(getComputedStyle(span).overflowX).toBe("hidden");
       expect(spanRect.height).toBeCloseTo(16, 0);
@@ -1105,9 +1076,8 @@ test("announces a bar's formatted value alone when it has no label", async () =>
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// React logs a duplicate-key warning synchronously while reconciling the children array, inside
-// the `act()` call that `render()` itself awaits, so the spy already holds it by the time
-// `render()` resolves; nothing here waits on the page's own clock.
+// React logs a duplicate-key warning synchronously inside the `act()` that `render()` awaits, so
+// the spy already holds it by the time `render()` resolves.
 async function collectKeyWarnings(renderChart: () => Promise<Screen>): Promise<{
   screen: Screen;
   warnings: string[];

@@ -1,8 +1,6 @@
 export interface ContentSecurityPolicyOptions {
   // A meta element can't carry frame-ancestors: browsers ignore it there and warn.
   delivery?: "header" | "meta";
-  // Only for the local development server, which injects inline script and style and keeps a
-  // hot-reload socket open; the shipped interface never gets this relaxation.
   devServerUrl?: string;
 }
 

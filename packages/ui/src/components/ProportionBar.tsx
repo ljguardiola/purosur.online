@@ -1,5 +1,4 @@
 export type ProportionBarProps = {
-  /** Between 0 and 1; values outside that range are clamped, and a non-finite value paints nothing. */
   value: number;
 };
 

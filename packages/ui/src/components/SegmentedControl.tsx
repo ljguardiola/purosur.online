@@ -10,10 +10,6 @@ export type SegmentedControlOption<V extends string = string> = {
   icon?: SegmentedControlIcon;
 };
 
-// See OptionCardGroup.tsx's OptionCardGroupProps for the full rationale: a non-empty tuple for
-// `options` plus `value`/`onChange` pinned to V (wrapped in NoInfer so only `options` can widen
-// it) makes an empty group or an out-of-domain chosen value fail to compile, so "exactly one
-// option is always chosen" never needs a runtime check.
 export type SegmentedControlProps<V extends string> = {
   label: string;
   options: readonly [SegmentedControlOption<V>, ...SegmentedControlOption<V>[]];
@@ -22,9 +18,6 @@ export type SegmentedControlProps<V extends string> = {
   size?: SegmentedControlSize;
 };
 
-// `items-stretch` (rather than the sibling components' `items-center`) is deliberate: the
-// container's own height carries the design's 56/48px sizes, border and padding included, and
-// each option is meant to fill that inner height rather than being centered at its own height.
 const containerClassName =
   "inline-flex flex-row items-stretch gap-1 rounded-lg border border-line p-1";
 
@@ -51,8 +44,6 @@ const optionClassName =
   "group flex cursor-pointer items-center justify-center rounded-md px-4 outline-none " +
   "data-[hovered]:bg-surface-bone " +
   "data-[selected]:bg-brand-blue-message-bg " +
-  // Two attribute selectors outrank the single-attribute hover rule above regardless of
-  // stylesheet order, guaranteeing the chosen option's background never changes on hover.
   "data-[hovered]:data-[selected]:bg-brand-blue-message-bg " +
   "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
   "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong";
@@ -113,9 +104,8 @@ export function SegmentedControl<V extends string>({
       aria-label={label}
       orientation="horizontal"
       value={value}
-      // React Aria's own RadioGroupProps types onChange over plain string, but it only ever
-      // calls this with a value it read off one of our own Radio elements, whose `value` is
-      // always one of `options`' own V values, so this cast can't observe a value outside V.
+      // react-aria's RadioGroupProps types onChange over plain string; it only ever fires with a
+      // value read off one of our own Radio elements, always one of V.
       onChange={(nextValue) => onChange(nextValue as V)}
       className={`${containerClassName} ${containerSizeClassName[size]}`}
     >

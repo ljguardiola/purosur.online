@@ -6,10 +6,8 @@
 @source "../components";
 
 @theme {
-  /* Distinguishes 0/O, 1/l/I and 5/S, bundled locally so nothing is fetched at runtime. */
   --font-sans: "Atkinson Hyperlegible Next Variable", sans-serif;
 
-  /* Type sizes: 12, 14, 16, 18, 20, 24, 32, 56 px on a 16 px base. */
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
   --text-base: 1rem;
@@ -21,9 +19,7 @@
 
   --spacing: 0.25rem;
 
-  /* 8 px for panels, the main action and the search field. */
   --radius-lg: 0.5rem;
-  /* 6 px for secondary buttons. */
   --radius-md: 0.375rem;
 
   --color-brand-blue: #9bb6c7;
@@ -43,16 +39,10 @@
   --color-surface-sand: #ede8db;
   --color-surface-bone: #f6f6f4;
   --color-surface-white: #ffffff;
-  /* White at 15% opacity, for the backoffice area rail's active item, painted over the rail's
-     own dark blue-strong background. */
   --color-surface-white-veil: #ffffff26;
   --color-ink: #1a1a1a;
-  /* The status indicator's neutral tone: readable text without competing with primary ink. */
   --color-ink-secondary: #4a4a46;
 
-  /* Border-only colors: the icon button's own border and its hover border, and the text field,
-     search field (both variants) and date field's own box boundary. Deliberately soft, as the
-     design draws them, so they sit outside the text-contrast suite in contrast.test.ts. */
   --color-line: #d9d3c4;
   --color-blue-soft: #c9d7e0;
 
@@ -66,23 +56,14 @@
   --color-status-warning-ui: #955b00;
   --color-status-warning-strong: #753d00;
 
-  /* Ink at 12% opacity, for the floating notification's drop shadow. An 8-digit hex so the
-     alpha channel is part of the token itself instead of a separate opacity utility. */
   --color-ink-shadow: #1a1a1a1f;
 
-  /* Ink at 50% opacity, for the modal's backdrop covering the screen behind it. */
   --color-ink-backdrop: #1a1a1a80;
-  /* Ink at 30% opacity, for the modal panel's own drop shadow. */
   --color-ink-panel-shadow: #1a1a1a4d;
-  /* Ink at 16% opacity, for the list filter's open menu drop shadow. */
   --color-ink-menu-shadow: #1a1a1a29;
 
-  /* Keeps the table's placeholder rows invisible for 300ms, then reveals them in one step, with
-     no timer: the delay and the fill mode live entirely in this animation. */
   --animate-table-placeholder-reveal: table-placeholder-reveal 0s 300ms both;
 
-  /* Slides the table's updating bar segment across its track so it never looks stuck; paired
-     with motion-reduce:animate-none where it's used, for prefers-reduced-motion. */
   --animate-table-loading-bar: table-loading-bar 1.2s linear infinite;
 }
 
@@ -111,13 +92,8 @@
     background-color: var(--color-surface-bone);
   }
 
-  /* Tailwind v4's preflight no longer gives <button> the hand cursor, so the browser's own arrow
-     shows on every button, and on a react-aria control that renders a plain role="button" element
-     instead of a native one (a calendar day cell, see DateField.tsx) — a clickable control showing
-     the arrow instead of the hand it promises. A control that can't respond keeps the arrow; react-aria
-     marks that three different ways depending on what it renders: the real `disabled` attribute on
-     a native button, `aria-disabled` on a button kept focusable at a boundary (see Pagination.tsx's
-     Previous/Next), or `aria-disabled`/`data-disabled` on a non-native role="button" element. */
+  /* Tailwind v4's preflight drops the hand cursor from <button>; react-aria marks a control that
+     can't respond with `disabled`, `aria-disabled` or `data-disabled` depending on what it renders. */
   button,
   [role="button"] {
     cursor: pointer;

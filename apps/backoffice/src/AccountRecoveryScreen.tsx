@@ -18,7 +18,6 @@ export const defaultAccountRecoveryScreenServices: AccountRecoveryScreenServices
 };
 
 export type AccountRecoveryScreenProps = {
-  /** Injected in tests so submitting the form doesn't call the real recovery API. */
   services?: AccountRecoveryScreenServices;
 };
 
@@ -27,10 +26,6 @@ const EMAIL_ERRORS = {
   invalid: messages.access.accountRecovery.emailInvalid,
 };
 
-/**
- * The 429 and generic-failure states share the notice-above-the-action pattern used for other
- * blocked-by-attempts states in the product.
- */
 export function AccountRecoveryScreen({ services }: AccountRecoveryScreenProps = {}) {
   const { requestRecoveryLink } = services ?? defaultAccountRecoveryScreenServices;
   const [email, setEmail] = useState("");

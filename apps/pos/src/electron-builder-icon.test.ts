@@ -15,9 +15,8 @@ afterEach(() => {
   }
 });
 
-// electron-builder.config.mjs reads POS_CHANNEL at import time, so each channel needs a fresh
-// module instance; resetModules clears vitest's module registry so the next import re-evaluates
-// it instead of handing back the other channel's already-computed config.
+// electron-builder.config.mjs reads POS_CHANNEL at import time; resetModules forces a fresh
+// import instead of vitest handing back the other channel's already-cached config.
 async function loadConfig(channel: string) {
   vi.resetModules();
   process.env.POS_CHANNEL = channel;
@@ -41,9 +40,8 @@ describe("the register's app icon file", () => {
     const config = await loadConfig("production");
     const icon = readFileSync(join(APP_ROOT, String(config.win?.icon)));
 
-    // ICO header: 2 reserved bytes (0), a type field (1 = icon), then an image count. Each 16-byte
-    // directory entry that follows holds the frame's width and height in bytes 0 and 1 (0 means
-    // 256), and the frame's byte length and offset in bytes 8 and 12.
+    // ICO format: 2 reserved bytes, a type field (1 = icon), then an image count; each 16-byte
+    // entry holds width/height in bytes 0-1 (0 means 256) and byte length/offset in bytes 8 and 12.
     expect(icon.readUInt16LE(0)).toBe(0);
     expect(icon.readUInt16LE(2)).toBe(1);
     const imageCount = icon.readUInt16LE(4);

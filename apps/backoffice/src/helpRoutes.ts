@@ -24,7 +24,6 @@ export function articleHref(categoryId: string, articleId: string): string {
   return `${HELP_PATH}/${categoryId}/${articleId}`;
 }
 
-/** Resolves a router path against the /help[/:category[/:article]] scheme and the catalog. */
 export function resolveHelpPath(help: BackofficeHelpCatalog, path: string): HelpRoute {
   const [root, categoryId, articleId, ...rest] = path.replace(/\/$/, "").split("/").slice(1);
   if (`/${root}` !== HELP_PATH || rest.length > 0) {

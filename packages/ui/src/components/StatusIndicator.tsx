@@ -5,10 +5,7 @@ export type StatusIndicatorTone = "success" | "warning" | "error" | "info" | "ne
 
 export type StatusIndicatorProps = {
   tone: StatusIndicatorTone;
-  // Replaces the dot with a spinner while the state it names is still settling (e.g. a scale).
   busy?: boolean;
-  // Required, so leaving out the text doesn't compile: the dot/spinner only reinforce the state,
-  // they never carry it alone.
   children: Exclude<ReactNode, null | undefined | boolean>;
 };
 
@@ -39,8 +36,6 @@ const spinnerColorClassName: Record<StatusIndicatorTone, string> = {
   neutral: "text-ink-secondary",
 };
 
-// motion-reduce:animate-none overrides Tailwind's own animate-spin, so the spinner stays still
-// for anyone who asked their system for less motion.
 const spinnerBaseClassName = "size-[0.875rem] shrink-0 animate-spin motion-reduce:animate-none";
 const dotBaseClassName = "size-2 shrink-0 rounded-full";
 

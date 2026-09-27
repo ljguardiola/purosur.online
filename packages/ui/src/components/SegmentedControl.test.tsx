@@ -15,8 +15,6 @@ const options: [SegmentedControlOption<EntryMode>, SegmentedControlOption<EntryM
   { value: "newPrice", label: "New price", icon: <Wallet /> },
 ];
 
-// The helper supplies every field a real caller must pass, so a test only overrides what it is
-// checking.
 function baseProps(
   overrides: Partial<SegmentedControlProps<EntryMode>> = {},
 ): SegmentedControlProps<EntryMode> {
@@ -31,9 +29,8 @@ function baseProps(
 
 type Screen = Awaited<ReturnType<typeof render>>;
 
-// Mirrors OptionCardGroup.test.tsx's radioInput/radioCard split: the accessible "radio" role
-// resolves to react-aria's visually hidden native <input>, while the visible option and its
-// hover/pointer target both live on the <label> that wraps it.
+// The "radio" role resolves to react-aria's visually hidden native <input>; the visible option
+// and its hover/pointer target both live on the <label> that wraps it.
 function segmentInput(screen: Screen, label: string): HTMLInputElement {
   return screen.getByRole("radio", { name: label }).element() as HTMLInputElement;
 }
@@ -46,10 +43,9 @@ function segmentContainer(screen: Screen, groupLabel: string): HTMLElement {
   return screen.getByRole("radiogroup", { name: groupLabel }).element() as HTMLElement;
 }
 
-// An option renders two copies of its label stacked in the same grid cell (see
-// SegmentedControl.tsx's ReservedWidthLabel), so a plain text query resolves to both. Style and
-// interaction assertions go through this helper instead, which picks the one copy that isn't
-// `invisible` — the one a sighted user actually sees.
+// An option renders two copies of its label stacked in the same grid cell, so a plain text query
+// resolves to both. Style and interaction assertions go through this helper instead, which picks
+// the one copy that isn't `invisible` — the one a sighted user actually sees.
 function segmentLabelText(screen: Screen, label: string): HTMLElement {
   const candidates = [...segmentOption(screen, label).querySelectorAll("span")].filter(
     (span) => span.textContent === label && getComputedStyle(span).visibility !== "hidden",
@@ -127,10 +123,12 @@ test("renders the large size with a 56px container whose options fill its inner 
   expect(getComputedStyle(container).height).toBe("56px");
   expect(getComputedStyle(option).columnGap).toBe("8px");
 
-  // The container's border-box height (56px) includes its own 1px border and 4px padding on
-  // each side, so an option filling the inner height stretches to 56 - 2*1 - 2*4 = 46px.
+  const containerHeightPx = 56;
+  const containerBorderPx = 1;
+  const containerPaddingPx = 4;
+  const innerHeightPx = containerHeightPx - 2 * containerBorderPx - 2 * containerPaddingPx;
   const optionRect = option.getBoundingClientRect();
-  expect(optionRect.height).toBeCloseTo(46, 0);
+  expect(optionRect.height).toBeCloseTo(innerHeightPx, 0);
 
   const iconRect = icon.getBoundingClientRect();
   expect(iconRect.width).toBeGreaterThan(17);
@@ -148,9 +146,12 @@ test("renders the medium size with a 48px container whose options fill its inner
   expect(getComputedStyle(container).height).toBe("48px");
   expect(getComputedStyle(option).columnGap).toBe("6px");
 
-  // See the large-size test above: 48 - 2*1 border - 2*4 padding = 38px.
+  const mediumContainerHeightPx = 48;
+  const containerBorderPx = 1;
+  const containerPaddingPx = 4;
+  const innerHeightPx = mediumContainerHeightPx - 2 * containerBorderPx - 2 * containerPaddingPx;
   const optionRect = option.getBoundingClientRect();
-  expect(optionRect.height).toBeCloseTo(38, 0);
+  expect(optionRect.height).toBeCloseTo(innerHeightPx, 0);
 
   const iconRect = icon.getBoundingClientRect();
   expect(iconRect.width).toBeGreaterThan(15);
@@ -336,8 +337,6 @@ test("exposes each option as a radio button named by its label and its chosen st
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// See Button.test.tsx and OptionCardGroup.test.tsx for the same "does not compile" pattern: the
-// caller's input is checked at the type level, not just at runtime.
 test("does not accept an option without a value or a label", () => {
   expectTypeOf<{
     label: string;
@@ -371,9 +370,6 @@ test("does not accept a group without a label, a chosen value or an onChange han
   }>().not.toExtend<SegmentedControlProps<EntryMode>>();
 });
 
-// "Exactly one option is always chosen" is enforced at the type level, not just at runtime:
-// `value` is pinned to the union of the group's own option values (inferred from `options`), and
-// `options` is a non-empty tuple, so neither a value outside the group nor an empty group compiles.
 test("does not accept a chosen value outside the group's own options, or an empty options list", () => {
   expectTypeOf<{
     label: string;
@@ -390,9 +386,6 @@ test("does not accept a chosen value outside the group's own options, or an empt
   }>().not.toExtend<SegmentedControlProps<EntryMode>>();
 });
 
-// Proves the NoInfer fix at a real call site with no explicit type argument, the way JSX actually
-// invokes the component. See OptionCardGroup.test.tsx's isValidOptionCardGroupCall for the full
-// rationale behind this overload-based check.
 type SegmentedControlValueOnlyProps<V extends string> = {
   options: readonly [
     Pick<SegmentedControlOption<V>, "value">,

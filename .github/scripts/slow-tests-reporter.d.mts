@@ -1,8 +1,5 @@
-// Type declarations for slow-tests-reporter.mjs, read only by vitest.config.ts. `.github/scripts`
-// is a plain-JS directory outside tsconfig.json's `include` (see script-entry-paths.test.mjs and
-// its siblings, which use JSDoc but are never themselves type-checked); this file exists solely so
-// tsc can type the one thing vitest.config.ts imports from it, without turning on allowJs for the
-// whole directory.
+// `.github/scripts` is outside tsconfig.json's `include` and is never type-checked; this file
+// exists only so tsc can type what vitest.config.ts imports from it.
 
 import type { Reporter } from "vitest/node";
 

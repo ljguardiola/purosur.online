@@ -11,13 +11,8 @@ import {
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { createRegister } from "./register-creation-route.js";
 
-// PGlite runs every query over one connection, so it can never race two creations for the same
-// name. This runs them over a real postgres-js pool of more than one connection against a real
-// Postgres, so the name each one races for is caught either by the transaction's own
-// case-insensitive check or, when both slip past it concurrently, by the database's unique index on
-// `(location_id, lower(name))` — reported as `constraint_name` by postgres-js, unlike PGlite's
-// `constraint`, which is what `isRegisterNameUniqueViolation` (in `register-creation-route.ts`)
-// must map correctly for this driver too.
+// PGlite can't race two creations for the same name; this runs them on a real postgres-js pool,
+// whose driver reports the violated index as `constraint_name` rather than PGlite's `constraint`.
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let adminSql: ReturnType<typeof postgres>;
@@ -61,12 +56,9 @@ describe("creating two registers with the same name in the same branch concurren
     }
     const name = `Caja ${suffix}`;
 
-    // A SHARE lock on the registers table lets both creations' own name-uniqueness SELECT run and
-    // find no row (SELECT only needs ACCESS SHARE, compatible with SHARE), but parks both at their
-    // INSERT (which needs ROW EXCLUSIVE, incompatible with SHARE) until the lock is released. Both
-    // then race the real INSERT: one commits, and the other's insert always collides with the
-    // now-committed row on the database's own unique index, never on the in-transaction check, which
-    // both already passed before either could commit.
+    // A SHARE lock lets both name-uniqueness SELECTs run (ACCESS SHARE, compatible) but parks both
+    // INSERTs (ROW EXCLUSIVE, incompatible); one commits, and the other then collides on the
+    // database's unique index rather than the in-transaction check.
     const holder = await adminSql.reserve();
     let creations: ReturnType<typeof createRegister>[] = [];
     try {

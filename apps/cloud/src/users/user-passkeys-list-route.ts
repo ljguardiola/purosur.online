@@ -15,20 +15,11 @@ import type { UsersRouteOptions } from "./users-list-route.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Answers identically whether the id is malformed, unknown, or belongs to another branch, same as
-// `user-read-route.ts`.
 const NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no user with that id belongs to this branch",
 } as const;
 
-/**
- * Registers `GET /users/:id/passkeys`: same session, origin, and Administrator-only guard as
- * `GET /users/:id`, then lists the target user's passkeys in the same row shape
- * `passkeys-list-route.ts` returns for the session's own account. A malformed id, a missing id,
- * and an id from another branch all get the identical 404 `not_found`; an inactive id is listed
- * like an active one when the caller can reactivate (`canReactivateUsers`), same as `GET /users/:id`.
- */
 export function registerUserPasskeysListRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: UsersRouteOptions<TQueryResult>,

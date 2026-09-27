@@ -1,10 +1,8 @@
 import { ipcRenderer } from "electron";
 import { createCoreStatusRelay } from "./core-status-relay";
 
-// The only things this preload exposes: it relays the core's MessagePort and main's core-status
-// broadcast into the fully isolated renderer via `window.postMessage`, exactly as Electron's own
-// MessagePorts guide recommends, instead of adding a contextBridge API surface. The renderer
-// validates the core-status payload itself (see renderer/core-status.ts) before trusting it.
+// Relays the core's MessagePort and main's core-status broadcast via `window.postMessage`, as
+// Electron's own MessagePorts guide recommends, instead of a contextBridge API surface.
 ipcRenderer.on("core-port", (event) => {
   window.postMessage("core-port", "*", event.ports);
 });

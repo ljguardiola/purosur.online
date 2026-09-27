@@ -2,11 +2,6 @@ export type CategoryNode = { id: string; name: string; parentId: string | null }
 
 const PATH_SEPARATOR = " › ";
 
-/**
- * Every category's full path label ("Almacén › Untables"), from its top-level ancestor down to
- * itself, keyed by id. Computed once for the whole list rather than per category: an ancestor's
- * label is shared by every one of its descendants.
- */
 export function categoryPathLabels<T extends CategoryNode>(
   categories: readonly T[],
 ): Map<string, string> {
@@ -22,9 +17,8 @@ export function categoryPathLabels<T extends CategoryNode>(
     if (!category) {
       return "";
     }
-    // A cycle never reaches the client (the cloud's own move rules reject one before it can be
-    // saved), but stopping here instead of recursing forever keeps a corrupt payload from hanging
-    // the tab.
+    // The cloud's own move rules reject a cycle before it can be saved, but stopping here instead
+    // of recursing forever keeps a corrupt payload from hanging the tab.
     const label =
       category.parentId && !ancestors.has(category.parentId)
         ? `${labelFor(category.parentId, new Set(ancestors).add(id))}${PATH_SEPARATOR}${category.name}`
@@ -43,15 +37,6 @@ function collator(a: string, b: string): number {
   return a.localeCompare(b, "es");
 }
 
-/**
- * Every category in the tree order the Categorías screen draws (design.pen node ieofw): each
- * parent immediately followed by its whole subtree, siblings ordered by name. Descending reverses
- * the sibling order at every level but still keeps each parent before its descendants. A category
- * whose parent isn't in the list is treated as top level; one caught in a cycle (which the cloud
- * never saves) is still emitted, after the rest, so a corrupt payload loses no row.
- *
- * Callers that show only part of the list filter this result, which keeps its order.
- */
 export function categoriesInTreeOrder<T extends CategoryNode>(
   categories: readonly T[],
   direction: "ascending" | "descending" = "ascending",
@@ -94,7 +79,6 @@ export function categoriesInTreeOrder<T extends CategoryNode>(
   return ordered;
 }
 
-/** A category with no subcategories of its own — the only kind a product can be assigned to. */
 export function leafCategories<T extends CategoryNode>(categories: readonly T[]): T[] {
   const parentIds = new Set(
     categories.flatMap((category) => (category.parentId ? [category.parentId] : [])),
@@ -102,10 +86,6 @@ export function leafCategories<T extends CategoryNode>(categories: readonly T[])
   return categories.filter((category) => !parentIds.has(category.id));
 }
 
-/**
- * A category's own id together with every one of its descendants', for excluding an invalid move
- * target (a category can't become its own parent, or one of its descendants').
- */
 export function selfAndDescendantIds<T extends CategoryNode>(
   categories: readonly T[],
   categoryId: string,

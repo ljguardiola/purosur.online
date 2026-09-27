@@ -34,21 +34,14 @@ export const CATEGORY_NOT_FOUND_FAILURE: ProductFieldValidationFailure = {
   message: "categoryId must be an existing category's id",
 };
 
-// A leaf-only violation is a 409, not a 400 like `CATEGORY_NOT_FOUND_FAILURE`: unlike a malformed
-// or nonexistent id, `categoryId` here is well-formed and names a real category, so it is a
-// conflict with the tree's current state, the same way `barcode_taken` (below) is, not a
-// malformed request.
+// 409, not 400 like `CATEGORY_NOT_FOUND_FAILURE`: a well-formed, existing categoryId that isn't a
+// leaf is a state conflict, not a malformed request.
 export const CATEGORY_NOT_LEAF_RESPONSE = {
   code: "category_not_leaf",
   message: "categoryId must be a leaf category with no subcategories of its own",
 } as const;
 
-/**
- * Walks the driver error (wrapped by Drizzle as its `cause`) for a unique violation on
- * `product_barcodes.code`, the same shape `isCategoryNameUniqueViolation`
- * (`category-creation-route.ts`) maps for `categories.name`; `product-edit-route.ts` reuses this
- * mapping for its own edit transaction.
- */
+// postgres-js names the field `constraint_name`; PGlite names it `constraint`.
 export function isBarcodeUniqueViolation(error: unknown): boolean {
   let current: unknown = error;
   while (current instanceof Error) {
@@ -114,10 +107,7 @@ export type CreateProductOutcome =
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "created"; product: ProductRow };
 
-/**
- * A code held only by an inactive product's (deactivated) barcode is free to reuse (#309): a
- * barcode resolves to a single active product, so only an active barcode row counts as taken.
- */
+// Only an active barcode counts as taken; a deactivated product's barcode is free to reuse.
 async function takenBarcodes<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   codes: string[],
@@ -129,13 +119,8 @@ async function takenBarcodes<TQueryResult extends PgQueryResultHKT>(
   return rows.map((row) => row.code);
 }
 
-/**
- * Locks the category a product is about to be assigned to `FOR UPDATE` (the same lock
- * `lockParentForNewChild`, `category-creation-route.ts`, takes on a category about to receive a
- * child), so this and a concurrent category create or move targeting the same category can never
- * both slip past the other's check: either this sees the child that was just added and rejects
- * as non-leaf, or the category create/move sees this product and rejects as having products.
- */
+// Locks the category `FOR UPDATE`, so this and a concurrent category create or move targeting the
+// same category can never both slip past the other's check.
 export async function lockLeafCategory<TQueryResult extends PgQueryResultHKT>(
   tx: PgDatabase<TQueryResult>,
   categoryId: string,
@@ -163,14 +148,8 @@ export async function lockLeafCategory<TQueryResult extends PgQueryResultHKT>(
   return childCategory ? { kind: "category_not_leaf" } : { kind: "locked", category };
 }
 
-/**
- * Creates a product and its barcodes in one transaction, first locking its category through
- * `lockLeafCategory`. The barcode-uniqueness check runs next, inside the same transaction; the
- * database's own unique index (`product_barcodes_code_key`) is the backstop for a code that lands
- * concurrently, mapped by `isBarcodeUniqueViolation`. On that race, which of this request's codes
- * is now taken isn't known from the violation itself, so it's re-read after the transaction rolls
- * back.
- */
+// On a concurrent-insert race caught by the unique index, which of this request's codes is now
+// taken isn't known from the violation itself, so it's re-read after the transaction rolls back.
 export async function createProduct<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: CreateProductInput,
@@ -239,10 +218,7 @@ export async function createProduct<TQueryResult extends PgQueryResultHKT>(
     });
 }
 
-/**
- * Registers `POST /products`, gated by the `manage_products_and_categories` permission (an
- * Administrator always holds it too). Like categories, this needs no passkey step-up.
- */
+// No passkey step-up: creating a product is routine work, not a sensitive account or role change.
 export function registerProductCreationRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: ProductsRouteOptions<TQueryResult>,

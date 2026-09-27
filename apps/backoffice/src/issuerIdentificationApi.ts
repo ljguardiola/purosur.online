@@ -68,7 +68,6 @@ function issuerIdentificationFieldFromWire(field: unknown): IssuerIdentification
   return fields.find((candidate) => candidate === field);
 }
 
-/** Reads the business's one issuer identification, gated by `change_fiscal_configuration` (`GET /fiscal-configuration/issuer-identification`). */
 export async function fetchIssuerIdentification(): Promise<FetchIssuerIdentificationOutcome> {
   let response: Response;
   try {
@@ -94,12 +93,8 @@ export async function fetchIssuerIdentification(): Promise<FetchIssuerIdentifica
   return { kind: "ok", value: issuerIdentificationFromWire(body) };
 }
 
-/**
- * Saves the issuer identification, rejecting a save over a version someone else already changed,
- * gated by the shared passkey-authorization window (`PUT /fiscal-configuration/issuer-identification`).
- * The authorized CUIT and tax status are never sent: they are deployment configuration and a fixed
- * value, never something this route accepts from a client.
- */
+// The authorized CUIT and tax status are never sent: they are deployment configuration and a
+// fixed value, never client input.
 export async function saveIssuerIdentification(
   input: SaveIssuerIdentificationInput,
 ): Promise<SaveIssuerIdentificationOutcome> {

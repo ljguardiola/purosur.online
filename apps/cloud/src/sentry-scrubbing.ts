@@ -1,34 +1,19 @@
-// `beforeSend` for the cloud service's Sentry init: never the body of an HTTP request or
-// response, never auth headers or cookies, never a query string (which is how a presigned URL's
-// signature or a token-in-query would otherwise travel), never a token, key, secret, password,
-// backoffice session identifier, CUIT, DNI or a credential embedded in a connection string. What
-// reaches Sentry is the error type, its stack trace, and opaque identifiers.
-
 const REDACTED = "[redacted]";
 
 const SENSITIVE_KEY_PATTERN =
   /token|key|secret|password|authorization|cookie|credential|query|fragment/i;
-// Matched only at the start of a word of the key, since these are short enough to appear inside
-// unrelated words (`circuit`, `admin`).
+// Matched only at the start of a word, since these are short enough to appear inside an unrelated
+// word (`circuit`, `admin`).
 const SENSITIVE_KEY_WORD_PATTERN = /(?:^|_)(?:session|cuit|dni)/;
-// Sections dropped entirely rather than redacted field-by-field: a request or response object can
-// carry an arbitrary business payload in its body, which no key-based scrub can enumerate safely.
+// Dropped entirely rather than redacted field-by-field: a request/response body can carry an
+// arbitrary business payload, which no key-based scrub can enumerate safely.
 const DROPPED_SECTIONS = new Set(["request", "response"]);
 
 const URL_PATTERN = /\b[a-zA-Z][a-zA-Z0-9+.-]*:\/\/[^\s"'<>]+/g;
 const BEARER_TOKEN_PATTERN = /\bBearer\s+[A-Za-z0-9\-_.]+/g;
 
-// A path (relative or protocol-relative; a scheme URL is already redacted whole by URL_PATTERN
-// above) has no consistent boundary character in front of it in a log message - it can follow a
-// bracket, a colon, a backtick, or nothing at all. A prior version tried to enumerate every
-// possible leading delimiter in a character class, which both missed a protocol-relative path
-// (no leading delimiter to require) and stopped matching a query early at any character it hadn't
-// also enumerated (leaking the rest of the query past a backtick). Working token by token instead
-// needs no such enumeration: any whitespace-delimited token carrying a "/" before its "?"/"#" is a
-// path, full stop. Only a closing bracket, parenthesis, angle bracket, quote or backtick is
-// trusted as "wrapping" the path rather than being part of it: sentence punctuation (a comma,
-// semicolon or period) is common inside a real token or path segment, so it is left inside the
-// redaction rather than guessed at.
+// Only a closing bracket/parenthesis/angle-bracket/quote/backtick is trusted as wrapping a path
+// rather than part of it; sentence punctuation stays inside the redaction instead of being guessed at.
 const TRAILING_DELIMITER_PATTERN = /[\])>"'`]$/;
 
 function redactPathToken(token: string): string {
@@ -138,7 +123,6 @@ interface EventLike {
   request?: unknown;
 }
 
-/** `beforeSend`: scrubs an error/message event before it leaves the process. */
 export function scrubSentryEvent<E extends EventLike>(event: E): E {
   const { request: _request, ...rest } = event as EventLike & Record<string, unknown>;
 
@@ -162,7 +146,6 @@ export function scrubSentryEvent<E extends EventLike>(event: E): E {
   } as E;
 }
 
-/** Scrubs one breadcrumb carried by an event that `beforeSend` is scrubbing. */
 export function scrubSentryBreadcrumb<B extends BreadcrumbLike>(breadcrumb: B): B {
   const rest = breadcrumb as BreadcrumbLike & Record<string, unknown>;
 

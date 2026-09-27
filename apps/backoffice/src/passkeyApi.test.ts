@@ -207,9 +207,6 @@ test("registerPasskey reports failed on any other status or a network failure", 
 test("registerPasskey reports failed, not validation_failed, on a 400 whose body can't be read", async () => {
   vi.mocked(fetch).mockResolvedValue(new Response("not json", { status: 400 }));
 
-  // An unreadable body could have been passkey_already_registered (a known credential), so this
-  // must never fall back to validation_failed: MyAccountScreen signals validation_failed as an
-  // unsaved credential, but must never signal one the cloud already knows.
   await expect(registerPasskey(passkeyRegistration, "Nombre")).resolves.toEqual({
     kind: "failed",
   });

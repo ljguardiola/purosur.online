@@ -86,7 +86,6 @@ async function insertUser(input: {
   return user.id;
 }
 
-/** Inserts a session, authorized (by default, at `NOON`) unless `authorizedAt` is passed as `null`. */
 async function insertSession(userId: string, authorizedAt: Date | null = NOON): Promise<string> {
   const rawSessionId = generateSessionId();
   await db.insert(sessions).values({
@@ -125,7 +124,6 @@ function newDeviceEmulator(): WebAuthnEmulator {
   );
 }
 
-/** Registers a real passkey for `forUserId`, backed by `emulator`, through the recovery route. */
 async function registerPasskey(
   forUserId: string,
   emulator: WebAuthnEmulator,
@@ -251,9 +249,8 @@ describe("POST /users/:id/passkeys/:passkeyId/remove", () => {
     targetPasskeyAId = passkeyA.id;
     targetPasskeyBId = passkeyB.id;
 
-    // Redeeming the two setup passkeys above already opened (and, on the second, deduped into) the
-    // target's own backoffice_passkey_changed alert; closing it here keeps each test's own
-    // assertions about that alert free of this setup's side effect.
+    // Redeeming the setup passkeys already opened an alert on the target; closing it here isolates
+    // each test's own alert assertions.
     await db
       .update(alerts)
       .set({ resolvedAt: currentTime, resolvedBy: administratorId })
@@ -337,8 +334,7 @@ describe("POST /users/:id/passkeys/:passkeyId/remove", () => {
   });
 
   it("rejects the session's own user as the target with 403 own_account, changing nothing", async () => {
-    // Registered before the session: redeeming a recovery link (how `registerPasskey` seeds a real
-    // credential) ends every session already open on the account.
+    // Registered before the session, since redeeming a recovery link ends every session already open.
     await registerPasskey(administratorId, newDeviceEmulator(), "Passkey del admin");
     const rawSessionId = await insertSession(administratorId);
     const [ownPasskey] = await db

@@ -26,8 +26,6 @@ const options: [
   { value: "transfer", label: "Transfer" },
 ];
 
-// The helper supplies every field a real caller must pass, so a test only overrides what it is
-// checking.
 function baseProps(
   overrides: Partial<RadioGroupProps<PaymentMethod>> = {},
 ): RadioGroupProps<PaymentMethod> {
@@ -42,9 +40,8 @@ function baseProps(
 
 type Screen = Awaited<ReturnType<typeof render>>;
 
-// Mirrors OptionCardGroup.test.tsx's radioInput/radioCard split: the accessible "radio" role
-// resolves to react-aria's visually hidden native <input>, while the visible circle and its own
-// pointer target both live on the <label> that wraps it.
+// The "radio" role resolves to react-aria's visually hidden native <input>; the visible circle
+// and its pointer target both live on the <label> that wraps it.
 function radioInput(screen: Screen, name: string): HTMLInputElement {
   return screen.getByRole("radio", { name }).element() as HTMLInputElement;
 }
@@ -115,9 +112,7 @@ test("colors an unchecked circle white with a 2px ink-secondary border", async (
   expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
   expect(style.boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
 
-  // The unchecked circle's border is a control boundary, not text, so it has to clear WCAG's
-  // 3:1 non-text contrast minimum against the fill it actually renders on — not just carry the
-  // right token name, which a swap to a softer, decorative token (e.g. "line") would still do.
+  // Checked as a rendered contrast ratio against WCAG's 3:1 non-text minimum, not by token name.
   const boundaryHex = boundaryColorHex(circle);
   const fillHex = rgbToHex(style.backgroundColor);
   expect(contrastRatio(boundaryHex, fillHex)).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
@@ -230,8 +225,6 @@ test("is a single tab stop landing on the chosen option", async () => {
 test("moves focus and choice with the arrow keys, wrapping past either end", async () => {
   const screen = await render(<Harness />);
 
-  // Each arrow key both moves focus and chooses the option it lands on, so every step asserts
-  // the two together.
   async function expectArrowLandsOn(key: "{ArrowDown}" | "{ArrowUp}", name: string) {
     await userEvent.keyboard(key);
     expect(document.activeElement).toBe(radioInput(screen, name));
@@ -276,12 +269,9 @@ test("dims every option to 45% opacity, drops the pointer cursor and blocks focu
   const input = radioInput(screen, "Cash");
   const nextControl = screen.getByRole("button", { name: "Next control" }).element();
 
-  // The dimming is drawn per option label, not on the group container, so every option has to
-  // carry it.
   for (const option of options) {
     const label = radioLabel(screen, option.label);
     expect(getComputedStyle(label).opacity).toBe("0.45");
-    // The hand cursor promises a control that responds; a disabled option doesn't.
     expect(getComputedStyle(label).cursor).toBe("default");
     expect(radioInput(screen, option.label).disabled).toBe(true);
   }
@@ -309,8 +299,6 @@ test("exposes each option as a radio button named by its label, with its checked
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// See Button.test.tsx's icon/label tests for the same "does not compile" pattern: the caller's
-// input is checked at the type level, not just at runtime.
 test("does not accept a group without a label, options, a chosen value or an onChange handler", () => {
   expectTypeOf<{
     options: typeof options;
@@ -334,10 +322,6 @@ test("does not accept a group without a label, options, a chosen value or an onC
   }>().not.toExtend<RadioGroupProps<PaymentMethod>>();
 });
 
-// Mirrors OptionCardGroup.test.tsx: "exactly one option is always chosen" is enforced at the
-// type level, since `value` is pinned to the union of the group's own option values (inferred
-// from `options`) and `options` is a non-empty tuple, so neither an out-of-domain value nor an
-// empty group compiles.
 test("does not accept a chosen value outside the group's own options, or an empty options list", () => {
   expectTypeOf<{
     label: string;
@@ -354,16 +338,9 @@ test("does not accept a chosen value outside the group's own options, or an empt
   }>().not.toExtend<RadioGroupProps<PaymentMethod>>();
 });
 
-// This proves the NoInfer fix at a real call site with no explicit type argument, the way JSX
-// actually invokes the component, against the exported RadioGroupProps itself: TypeScript must
-// reject `value: "other"` by inferring V from `options` alone rather than by widening V to also
-// cover `value`. Unlike OptionCardGroup's OptionCardOption, RadioOption carries no element-typed
-// field (just `value` and `label`), so nothing here breaks overload inference and no mirror type
-// projecting `options` down to `Pick<RadioOption<V>, "value">` is needed. The "invalid" call still
-// has to compile — this project bans `@ts-expect-error` — so an object that fails the first
-// overload's `RadioGroupProps<V>` constraint just falls through to the second, `unknown` overload
-// and resolves to `false` instead of refusing to typecheck; that `false` is what the assertion
-// below actually proves.
+// `@ts-expect-error` is banned, so an object that fails the first overload's `RadioGroupProps<V>`
+// constraint falls through to the second, `unknown` overload and resolves to `false` instead of
+// refusing to typecheck.
 function isValidRadioGroupCall<V extends string>(props: RadioGroupProps<V>): true;
 function isValidRadioGroupCall(props: unknown): false;
 function isValidRadioGroupCall(_props: unknown): boolean {

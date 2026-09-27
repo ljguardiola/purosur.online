@@ -2,7 +2,6 @@ import { and, desc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { priceReviews, prices } from "../db/schema.js";
 
-/** The one ordering every route uses to decide which of a product's prices is the current one. */
 export const NEWEST_PRICE_FIRST = [desc(prices.validFrom), desc(prices.id)] as const;
 
 export async function latestReviewedAt<TQueryResult extends PgQueryResultHKT>(
@@ -19,10 +18,7 @@ export async function latestReviewedAt<TQueryResult extends PgQueryResultHKT>(
   return latest?.reviewedAt;
 }
 
-/**
- * `now`, unless an already committed moment is at or after it: then one millisecond after the
- * latest of those. Callers' clocks can disagree, so this keeps a later commit recorded as later.
- */
+// Callers' clocks can disagree, so this keeps a later commit recorded as later than an earlier one.
 export function momentAfter(now: Date, committed: (Date | undefined)[]): Date {
   let moment = now.getTime();
   for (const date of committed) {

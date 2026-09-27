@@ -76,14 +76,13 @@ test("separates the isotype from the rail's main areas with a thin line", async 
   expect(separator).not.toBeNull();
   expect(separator).not.toBe(areas);
   expect(separator.getAttribute("aria-hidden")).toBe("true");
-  // The rail's own translucent-white token (--color-surface-white-veil, #ffffff26): white at
-  // ~15% opacity, painted over the rail's dark blue-strong background.
+  const WHITE_VEIL_TOKEN_ALPHA_BYTE = 0x26;
   const [r, g, b, a] = getComputedStyle(separator)
     .backgroundColor.replace(/rgba?\(|\)/g, "")
     .split(",")
     .map(Number);
   expect([r, g, b]).toEqual([255, 255, 255]);
-  expect(a).toBeCloseTo(0x26 / 255, 2);
+  expect(a).toBeCloseTo(WHITE_VEIL_TOKEN_ALPHA_BYTE / 255, 2);
 
   const separatorRect = separator.getBoundingClientRect();
   expect(separatorRect.top).toBeGreaterThanOrEqual(isotype.getBoundingClientRect().bottom);

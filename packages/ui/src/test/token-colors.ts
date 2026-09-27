@@ -1,13 +1,12 @@
 import { hexToRgb } from "../styles/contrast";
 
-// Converts a "#rrggbb" token value to the "rgb(r, g, b)" form a browser reports from getComputedStyle.
 function hexTokenToRgb(hex: string): string {
   const { r, g, b } = hexToRgb(hex);
   return `rgb(${r}, ${g}, ${b})`;
 }
 
 // Reads a "--color-<name>" custom property from the compiled stylesheet, so expectations are
-// derived from the same token source design.pen and tokens.css agree on, never hardcoded.
+// derived from that source instead of a hardcoded copy.
 export function tokenRgb(name: string): string {
   return hexTokenToRgb(
     getComputedStyle(document.documentElement).getPropertyValue(`--color-${name}`).trim(),
@@ -39,11 +38,9 @@ export function paintedBoxShadowLayers(element: HTMLElement): string[] {
     .filter((layer) => !layer.startsWith("rgba(0, 0, 0, 0) "));
 }
 
-// Extracts an element's own painted boundary color as "#rrggbb", for feeding into
-// contrastRatio() alongside the fill it sits on. A box-shadow layer serializes as "<color> <x>
-// <y> <blur> <spread>[ inset]", so the color is always the leading rgb()/rgba() substring; this
-// only handles a single-layer boundary (a checked ring replaces the resting border rather than
-// stacking under it), which is the only shape this package's controls draw.
+// The color is always the leading rgb()/rgba() substring of a box-shadow layer. Only a
+// single-layer boundary is handled, since a checked ring always replaces the resting border
+// rather than stacking under it.
 export function boundaryColorHex(element: HTMLElement): string {
   const [layer, ...rest] = paintedBoxShadowLayers(element);
   if (!layer) {
@@ -73,7 +70,6 @@ export function tokenBackgroundColor(name: string): string {
   return value;
 }
 
-// Converts a "rgb(r, g, b)" computed style value back to "#rrggbb" for contrastRatio().
 export function rgbToHex(rgb: string): string {
   const channels = rgb.match(/\d+/g);
   if (channels?.length !== 3) {

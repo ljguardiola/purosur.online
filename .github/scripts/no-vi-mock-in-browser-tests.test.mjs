@@ -11,8 +11,6 @@ import {
   readBrowserTestGlobs,
 } from "./no-vi-mock-in-browser-tests.mjs";
 
-// findViMockCalls ------------------------------------------------------------------------
-
 test("finds a vi.mock call on its own line", () => {
   const source = [
     'import { vi } from "vitest";',
@@ -153,8 +151,6 @@ test("reports the text of the line a vi.mock call starts on after a Unicode line
   assert.equal(match.text, 'vi.mock("./sessionApi", () => ({}));');
 });
 
-// readBrowserTestGlobs ---------------------------------------------------------------------
-
 test("reads the include globs of the browser project from a Vitest config", () => {
   const config = [
     "export default defineConfig({",
@@ -202,8 +198,6 @@ test("fails when the browser project include lists something other than a string
   );
 });
 
-// checkFiles -------------------------------------------------------------------------------
-
 test("reports the file and line of every vi.mock call across several files", () => {
   const files = {
     "a.test.tsx": 'import { vi } from "vitest";\nvi.mock("./a");\n',
@@ -236,8 +230,6 @@ test("parses a .ts file as TypeScript, not TSX, so a type assertion does not hid
   );
 });
 
-// findImportSpecifiers ---------------------------------------------------------------------
-
 test("finds the specifiers of static imports, re-exports and dynamic imports", () => {
   const source = [
     'import { vi } from "vitest";',
@@ -253,8 +245,6 @@ test("finds the specifiers of static imports, re-exports and dynamic imports", (
     "./lazy",
   ]);
 });
-
-// collectImportedModules -------------------------------------------------------------------
 
 test("collects the entry files and every local module they import, transitively", () => {
   const files = {
@@ -305,8 +295,6 @@ test("passes each specifier to the resolver with the path of the file that impor
   assert.deepEqual(calls, [["./helper", "dir/a.test.tsx"]]);
 });
 
-// createImportResolver ---------------------------------------------------------------------
-
 test("resolves a relative import to the repository file it names", () => {
   const resolveImport = createImportResolver();
 
@@ -343,10 +331,6 @@ test("does not resolve an import that names no file", () => {
   );
 });
 
-// The guard itself: every browser test file in the repository and every local module it imports,
-// scanned for real. This is what fails `pnpm verify` (via `node --test .github/scripts/*.test.mjs`)
-// when a browser test, or a helper it imports, mocks a module instead of injecting its dependencies
-// through a `services` prop.
 test("no browser test file, nor any module it imports, registers a module mock", () => {
   const files = findBrowserTestFiles();
   assert.ok(files.length > 0, "expected to find at least one browser test file to scan");

@@ -6,8 +6,7 @@ import { expectNoAccessibilityViolations } from "../test/axe";
 import { tokenBackgroundColor, tokenRgb } from "../test/token-colors";
 import { AreaNavItem, type AreaNavItemProps } from "./AreaNavItem";
 
-// The area rail always paints its own bg-brand-blue-strong behind an item (see Shell.tsx); every
-// contrast assertion below needs that same real background, not the page's default surface-bone.
+// Contrast assertions need the rail's real background, not the page's default surface-bone.
 function Rail({ children }: { children: ReactNode }) {
   return <div className="bg-brand-blue-strong p-2">{children}</div>;
 }

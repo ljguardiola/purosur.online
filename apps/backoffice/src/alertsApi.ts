@@ -1,7 +1,6 @@
 import type { AlertAudience, AlertKind, AlertLevel } from "@purosur/contracts";
 
-// Same fallback the backoffice API rate limiter's other outcomes use (usersApi.ts, rolesApi.ts).
-const RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
+const ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
 
 export type { AlertAudience, AlertKind, AlertLevel };
 
@@ -9,10 +8,8 @@ export type AlertSummary = {
   id: string;
   kind: AlertKind;
   scope: string | null;
-  /**
-   * `scope` as a person reads it: a user's first name for a user-scoped kind, the raw scope
-   * otherwise, or `null` for a closed lockout alert, which no longer holds its source address.
-   */
+  /** `scope` as a person reads it (a user's first name, or the raw scope); `null` for a closed
+   * lockout alert, which no longer holds its source address. */
   scopeDisplay: string | null;
   level: AlertLevel;
   audience: AlertAudience;
@@ -42,7 +39,7 @@ export type AlertDetail = {
   scopeDisplay: string | null;
   level: AlertLevel;
   audience: AlertAudience;
-  /** The kind's own fact payload, passed through as the cloud sends it (see alert-read-route.ts). */
+  /** The kind's own fact payload, passed through untyped exactly as the cloud sends it. */
   detail: Record<string, unknown>;
   openedAt: string;
   escalatedAt: string | null;
@@ -61,10 +58,8 @@ export type AlertListQuery = {
 
 export type AlertListPage = {
   alerts: AlertSummary[];
-  /** How many alerts matched the query, across every page. */
   total: number;
   pageSize: number;
-  /** Every open alert the session can see, regardless of the query. */
   openCount: number;
   openCriticalCount: number;
 };
@@ -96,7 +91,9 @@ export type CloseAlertOutcome =
 function retryAfterSeconds(response: Response): number {
   const header = response.headers.get("Retry-After");
   const seconds = header ? Number(header) : Number.NaN;
-  return Number.isFinite(seconds) && seconds > 0 ? seconds : RATE_LIMIT_FALLBACK_SECONDS;
+  return Number.isFinite(seconds) && seconds > 0
+    ? seconds
+    : ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS;
 }
 
 function alertSummaryFromWire(row: {
@@ -223,10 +220,6 @@ function isAlertListPageWire(body: unknown): body is AlertListPageWire {
   );
 }
 
-/**
- * Lists one page of the alerts the session can see, filtered by level, open/closed status and
- * search text, plus the counts of every open one (`GET /alerts`).
- */
 export async function fetchAlerts(listQuery: AlertListQuery = {}): Promise<FetchAlertsOutcome> {
   let response: Response;
   try {
@@ -262,7 +255,6 @@ export async function fetchAlerts(listQuery: AlertListQuery = {}): Promise<Fetch
   };
 }
 
-/** Reads one alert's detail, with its deliveries per recipient (`GET /alerts/:id`). */
 export async function fetchAlert(id: string): Promise<FetchAlertOutcome> {
   let response: Response;
   try {
@@ -294,7 +286,6 @@ export async function fetchAlert(id: string): Promise<FetchAlertOutcome> {
   return { kind: "ok", value: alertDetailFromWire(body) };
 }
 
-/** Closes one alert by hand, gated by `dismiss_alerts_manually` (`POST /alerts/:id/close`). */
 export async function closeAlert(id: string): Promise<CloseAlertOutcome> {
   let response: Response;
   try {

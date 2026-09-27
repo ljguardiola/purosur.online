@@ -18,9 +18,8 @@ import { hashDestinationAddress } from "./recovery-rate-limiter.js";
 import { flushClosedRecoveryRejectedAttemptWindows } from "./recovery-rejected-attempt-flush.js";
 import { hashRecoveryToken } from "./recovery-token-hash.js";
 
-// PGlite serializes every query over a single connection and can never race for real, so
-// overlapping flushes are proven against a real Postgres with a real pool of more than one
-// connection, running them genuinely in parallel over the same closed window.
+// PGlite serializes every query on one connection and can never race for real, so overlapping
+// flushes are proven against a real Postgres pool running genuinely in parallel.
 const CONCURRENT_FLUSHES = 4;
 const WINDOW_START = new Date("2026-01-05T12:00:00.000Z");
 const CLOSED_NOW = new Date("2026-01-05T13:10:00.000Z");
@@ -47,6 +46,12 @@ function connectAs(
     max: 1,
     connection: { application_name: applicationName },
   });
+}
+
+// An unattached rejection here would surface as vitest's own unhandled-rejection failure; each
+// background promise gets an inert catch.
+function ignoreUnhandledRejection(promise: Promise<unknown>): void {
+  promise.catch(() => {});
 }
 
 async function waitUntilBlockedOnALock(applicationName: string): Promise<void> {
@@ -163,10 +168,9 @@ describe("flushClosedRecoveryRejectedAttemptWindows against a real pool", () => 
       firstAt: new Date("2026-01-05T12:05:00.000Z"),
       lastAt: new Date("2026-01-05T12:50:00.000Z"),
     });
-    // `cloud_app` cannot take this lock itself (LOCK TABLE ... IN SHARE MODE needs write
-    // privilege on audit_log, which it does not have), so the holder connects as the admin role
-    // instead: it only stands in for an unrelated transaction that momentarily blocks the write
-    // the flush is about to make, which is not something the code under test ever does itself.
+    // `LOCK TABLE ... IN SHARE MODE` needs write privilege on audit_log, which `cloud_app` lacks,
+    // so the holder connects as admin instead, standing in for an unrelated transaction that
+    // momentarily blocks the write the flush is about to make.
     const holder = connectAs("audit-log-holder", integrationDb.adminDatabaseUrl);
     const firstFlusher = connectAs("first-flush");
     const secondFlusher = connectAs("second-flush");
@@ -182,31 +186,24 @@ describe("flushClosedRecoveryRejectedAttemptWindows against a real pool", () => 
     let secondFlush: Promise<number> | undefined;
     let holding: Promise<void> | undefined;
     try {
-      // Holding audit_log stalls the first flush right before it writes, with its rows taken.
       holding = holder.begin(async (tx) => {
         await tx`lock table audit_log in share mode`;
         auditLogHeld();
         await auditLogReleased;
       });
-      // Attached at creation, same as the flush promises below: a failure here must not add an
-      // unhandled rejection on top of whatever this test already reports.
-      holding.catch(() => {});
-      // If the holder transaction fails before it locks the table, auditLogLocked never
-      // resolves on its own; race it against holding so that failure surfaces here instead of
-      // hanging this await to the test timeout.
+      ignoreUnhandledRejection(holding);
+      // If the holder transaction fails before locking the table, auditLogLocked never resolves
+      // on its own; race it against holding so the failure surfaces here, not as a timeout.
       await Promise.race([auditLogLocked, holding]);
       firstFlush = flushClosedRecoveryRejectedAttemptWindows(drizzle(firstFlusher), {
         now: () => CLOSED_NOW,
       });
-      // Closing the clients below always settles these, whether or not they are awaited first; a
-      // failure between here and that await would otherwise reject them with nothing attached,
-      // and vitest would report that on top of whatever assertion actually failed.
-      firstFlush.catch(() => {});
+      ignoreUnhandledRejection(firstFlush);
       await waitUntilBlockedOnALock("first-flush");
       secondFlush = flushClosedRecoveryRejectedAttemptWindows(drizzle(secondFlusher), {
         now: () => CLOSED_NOW,
       });
-      secondFlush.catch(() => {});
+      ignoreUnhandledRejection(secondFlush);
       await waitUntilBlockedOnALock("second-flush");
 
       const accumulatorLocksOfTheSecondFlush = await sql`

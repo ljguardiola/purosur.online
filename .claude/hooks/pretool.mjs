@@ -1,17 +1,6 @@
 #!/usr/bin/env node
-// Claude Code PreToolUse hook for the Bash tool.
-//
-// Thin wrapper only: it reads the hook payload from stdin, extracts the Bash
-// command, and asks the pure decision logic in
-// .github/scripts/guard-command.mjs whether the command violates the
-// repository contract (CONTRIBUTING.md). All rules live in that module (and
-// the validators it reuses); this file adds no rules of its own.
-//
-// Deny mechanism: exit code 2 with the reason on stderr, per
-// https://docs.claude.com/en/docs/claude-code/hooks ("Exit Code 2 (Blocking)").
-// Anything this hook cannot parse, or any error while checking, fails open
-// (exit 0) rather than blocking: a hook must never block a command it does
-// not understand.
+// Claude Code blocks the tool call when a PreToolUse hook exits with code 2,
+// showing its stderr as the reason.
 
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";

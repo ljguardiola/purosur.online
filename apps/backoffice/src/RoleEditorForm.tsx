@@ -15,8 +15,6 @@ const rolesMessages = messages.settings.roles;
 const formMessages = rolesMessages.roleEditor.form;
 const editorMessages = rolesMessages.roleEditor;
 
-// The Alertas area's own two view permissions are mutually exclusive, drawn as a radio instead of
-// two checkboxes; "dismiss_alerts_manually" is a plain third permission in the same area.
 type AlertsViewOption = "none" | "view_branch_alerts" | "view_all_alerts";
 const ALERTS_RADIO_OPTIONS: readonly [
   { value: AlertsViewOption; label: string },
@@ -32,10 +30,6 @@ function definitionsByArea(area: PermissionArea): PermissionDefinition[] {
   return PERMISSION_CATALOG.filter((definition) => definition.area === area);
 }
 
-/**
- * Empty (after trimming), too long for a role name, or the Administrator role's own
- * reserved name, case-insensitively.
- */
 export function validateRoleName(value: string): string | undefined {
   const trimmed = value.trim();
   if (!trimmed) {
@@ -50,14 +44,12 @@ export function validateRoleName(value: string): string | undefined {
   return undefined;
 }
 
-/** The name field's own error for a save the server rejected on that field; none for any other. */
 export function roleFieldErrorMessage(
   field: CreateRoleFieldError | EditRoleFieldError,
 ): string | undefined {
   return field === "name" ? formMessages.nameFieldError : undefined;
 }
 
-/** How many of an area's permissions `selected` holds, out of how many it has. */
 export function areaSelectedCount(
   area: PermissionArea,
   selected: ReadonlySet<PermissionKey>,
@@ -77,9 +69,7 @@ function PermissionTags({ definition }: { definition: PermissionDefinition }) {
     <div className="flex shrink-0 items-center gap-1">
       <Tooltip description={editorMessages.cashRegisterTagTooltip}>
         <Focusable>
-          {/* `img` is one of the few non-widget roles react-aria's own Focusable accepts, and one
-              of the roles it still announces aria-describedby on: this tag carries no action of
-              its own, only a name and (via the tooltip) a longer description. */}
+          {/* `img` is one of the few non-widget roles react-aria's Focusable accepts, and still announces aria-describedby on it. */}
           <Tag tone="neutral" role="img" aria-label={editorMessages.cashRegisterTag}>
             {editorMessages.cashRegisterTag}
           </Tag>
@@ -216,12 +206,6 @@ export type RoleEditorFormProps = {
   onSelectedAreaChange: (area: PermissionArea) => void;
 };
 
-/**
- * The role editor's name field plus its two-pane permission picker: the areas pane on the left
- * (every area with its own "n de m" count, the shown one highlighted) and the selected area's
- * permissions on the right, a bordered checkbox list with Caja/PIN tags. Fully controlled: the
- * caller owns `name`, `selected` and `selectedArea`.
- */
 export function RoleEditorForm({
   name,
   onNameChange,

@@ -1,8 +1,6 @@
-// Polls GET /health on the staging domain until it reports the commit SHA just deployed, or the
-// wait budget runs out. A deployment reaching SUCCESS only means the container started; this
-// proves the new version is the one serving traffic.
+// Railway's deployment SUCCESS status only means the container started, not that the new code is
+// serving traffic; polling /health for the deployed commit SHA proves that.
 
-/** Builds the `/health` URL from a domain value, with or without a scheme. */
 export function buildHealthUrl(domain) {
   const host = domain.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
   return `https://${host}/health`;
@@ -25,15 +23,6 @@ function describeFailure({ result, expectedVersion }) {
   return `GET /health reported version ${JSON.stringify(result.body.version)}, expected ${JSON.stringify(expectedVersion)}`;
 }
 
-/**
- * @param {object} input
- * @param {{ status: number, body: unknown } | null} input.result - the last health response, or
- *   null when the request itself failed.
- * @param {string} input.expectedVersion - the commit SHA this pipeline just deployed.
- * @param {number} input.elapsedMs
- * @param {number} input.timeoutMs
- * @returns {{ action: "wait" } | { action: "succeed" } | { action: "fail", reason: string }}
- */
 export function nextHealthPollDecision({ result, expectedVersion, elapsedMs, timeoutMs }) {
   const matched =
     result?.status === 200 &&
@@ -52,17 +41,10 @@ export function nextHealthPollDecision({ result, expectedVersion, elapsedMs, tim
 
 export const MAX_REQUEST_TIMEOUT_MS = 10_000;
 
-/** One request's timeout: capped, and never beyond what is left of the wait budget. */
 export function requestTimeoutMs({ elapsedMs, timeoutMs }) {
   return Math.max(1, Math.min(MAX_REQUEST_TIMEOUT_MS, timeoutMs - elapsedMs));
 }
 
-/**
- * @param {string} url
- * @param {{ fetchImpl?: typeof fetch, requestTimeoutMs: number, log?: (message: string) => void }} options
- * @returns {Promise<{ status: number, body: unknown } | null>} null when the request failed or
- *   timed out.
- */
 export async function fetchHealth(url, { fetchImpl = fetch, requestTimeoutMs, log = console.log }) {
   try {
     const response = await fetchImpl(url, {

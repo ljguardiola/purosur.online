@@ -45,20 +45,13 @@ export type EditIssuerIdentificationOutcome =
   | { kind: "stale_version" }
   | { kind: "applied"; row: IssuerIdentificationRow };
 
-/**
- * Updates the business's one issuer identification row in one transaction, rejecting a save made
- * over a version someone else already changed, the same way `editBranchSettings` (`branch-
- * settings-edit-route.ts`) rejects a stale branch settings save. Leaving every field exactly as it
- * was is a no-op: the version does not bump and nothing is audited.
- */
 export async function editIssuerIdentification<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: EditIssuerIdentificationInput,
 ): Promise<EditIssuerIdentificationOutcome> {
   return db.transaction<EditIssuerIdentificationOutcome>(async (tx) => {
-    // Locks the one row so a concurrent save waits instead of racing: the version check below and
-    // the write it may lead to happen against a value that cannot change out from under this
-    // transaction while it holds the lock.
+    // Locks the row so a concurrent save waits instead of racing: the version check and any write
+    // below run against a value that can't change out from under this transaction.
     const [current] = await tx
       .select({
         legalName: issuerIdentification.legalName,
@@ -70,8 +63,6 @@ export async function editIssuerIdentification<TQueryResult extends PgQueryResul
       .where(eq(issuerIdentification.id, ISSUER_IDENTIFICATION_SINGLETON_ID))
       .for("update");
     if (!current) {
-      // The migration that creates `issuer_identification` seeds its single row; a missing row
-      // here would mean that invariant broke, not a legitimate case this route should ever see.
       throw new Error("issuer identification row missing: the seeding migration never ran");
     }
     if (current.version !== input.version) {
@@ -110,8 +101,6 @@ export async function editIssuerIdentification<TQueryResult extends PgQueryResul
   });
 }
 
-// The audit log records only what was actually stored: the authorized CUIT and tax status are
-// deployment configuration, never part of the row, so they never appear in an audit entry either.
 function toIssuerIdentificationWireForAudit(row: IssuerIdentificationRow) {
   return {
     legal_name: row.legalName,
@@ -121,14 +110,6 @@ function toIssuerIdentificationWireForAudit(row: IssuerIdentificationRow) {
   };
 }
 
-/**
- * Registers `PUT /fiscal-configuration/issuer-identification`: gated by
- * `change_fiscal_configuration` the same way `GET /fiscal-configuration/issuer-identification` is,
- * and additionally requiring the shared passkey-authorization window (`passkey-authorization-
- * guard.ts`) before it saves, the same precedent `role-edit-route.ts` sets for a sensitive
- * backoffice action. Body validation runs before the passkey check, the same order `role-edit-
- * route.ts` uses.
- */
 export function registerIssuerIdentificationEditRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: IssuerIdentificationRouteOptions<TQueryResult>,

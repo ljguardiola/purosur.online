@@ -30,14 +30,7 @@ const ROLE_NAME_UNIQUE_INDEX = "roles_name_lower_key";
 
 export class RoleNameTaken extends Error {}
 
-/**
- * Walks the driver error (wrapped by Drizzle as its `cause`) for a unique violation on the
- * case-insensitive `roles.name` index. postgres-js, the production driver, names the index
- * `constraint_name`; PGlite, which the unit tests run on, names it `constraint`. The transaction
- * below already checks for a taken name itself, so this is only the backstop for a name that lands
- * concurrently between that check and the insert; `role-edit-route.ts` reuses this same mapping
- * for its own edit transaction.
- */
+// Drizzle wraps the driver error as `cause`. postgres-js names the index `constraint_name`; PGlite names it `constraint`.
 export function isRoleNameUniqueViolation(error: unknown): boolean {
   let current: unknown = error;
   while (current instanceof Error) {
@@ -67,7 +60,6 @@ function readCreationBody(body: unknown): CreationRequestBody | RoleFieldValidat
     return nameFailure;
   }
   if (!name) {
-    // Unreachable: `roleNameValidationFailure` above already rejects an empty or missing name.
     return { field: "name", message: "name must not be empty" };
   }
   const permissionKeys = readRolePermissionKeys(body);
@@ -95,12 +87,8 @@ export interface CreateRoleInput {
 
 export type CreateRoleOutcome = { kind: "name_taken" } | { kind: "created"; role: RoleSummaryRow };
 
-/**
- * Creates a role, its permission rows, and an audit row in one transaction. The name uniqueness
- * check runs first, inside the transaction; the database's own case-insensitive unique index
- * (`roles_name_lower_key`) is the backstop for a name that lands concurrently, mapped by
- * `isRoleNameUniqueViolation` the same way it would be caught by the check above.
- */
+// The case-insensitive check runs inside the transaction; the database's own unique index
+// (roles_name_lower_key) is the backstop for a name that lands concurrently.
 export async function createRole<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: CreateRoleInput,
@@ -165,13 +153,6 @@ export async function createRole<TQueryResult extends PgQueryResultHKT>(
   };
 }
 
-/**
- * Registers `POST /roles`: creates a new role, gated by the shared passkey-authorization window
- * (`passkey-authorization-guard.ts`) instead of its own per-action step-up. Creates the role, its
- * permission rows, and an audit row in one transaction; the name uniqueness check runs inside that
- * transaction first, and the database's own case-insensitive unique index
- * (`roles_name_lower_key`) is the backstop for a name that lands concurrently.
- */
 export function registerRoleCreationRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: RolesRouteOptions<TQueryResult>,

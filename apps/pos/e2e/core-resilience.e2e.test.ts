@@ -2,9 +2,8 @@ import type { ElectronApplication, Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { launchApp } from "./launch-app";
 
-// Electron's own name for a Node.js utility process (see apps/pos/src/main/index.ts's
-// `utilityProcess.fork`), robust against other utility processes (network, audio, storage...)
-// that Electron itself may also spawn.
+// Electron's own service name for a Node.js utility process, robust against other utility
+// processes (network, audio, storage...) Electron itself may also spawn.
 const CORE_SERVICE_NAME = "node.mojom.NodeService";
 
 interface UtilityProcessInfo {
@@ -48,10 +47,8 @@ describe("the core process's supervision and message gate", () => {
       { timeout: 20_000, interval: 100 },
     );
 
-    // Installed before any page script runs, so no port main posts to a document can arrive
-    // ahead of its listener. The first document was already loading before the script existed,
-    // so the reload hands the test a document under it; its own `did-finish-load` port is the
-    // one waited for here.
+    // addInitScript runs before any page script, so no port main posts can arrive ahead of its
+    // listener; the first document was already loading, so the reload puts the test under it.
     await app.context().addInitScript(() => {
       (window as unknown as { __ports: MessagePort[] }).__ports = [];
       window.addEventListener("message", (event) => {
@@ -87,15 +84,9 @@ describe("the core process's supervision and message gate", () => {
     if (killed === undefined) {
       throw new Error("expected a core process to be running before killing it");
     }
-    // The page's post-load port has already arrived (see beforeAll), and main only posts another
-    // one on a later load or a core restart, so any port counted beyond this snapshot came from
-    // the restart.
     const portsBefore = await portCount(page);
     process.kill(killed.pid, "SIGKILL");
 
-    // Catches core-supervisor.ts no longer restarting a killed core, or index.ts's
-    // onProcessStarted no longer reconnecting the already-loaded renderer (no port arrives after
-    // the kill): either way this never becomes true and the poll times out.
     await expect
       .poll(
         async () => {
@@ -122,13 +113,10 @@ describe("the core process's supervision and message gate", () => {
       port?.start();
       port?.postMessage({ type: "bogus", secret: "4111-1111" });
       port?.postMessage({ type: "ping" });
-      // Queued after the ping on the same port, so its own rejection log only appears once the
-      // ping ahead of it has already been handled — this is what this test waits for instead of
-      // a fixed sleep.
+      // Same-port delivery is FIFO, so this message's own rejection log only appears after the
+      // earlier ping is handled — a wait condition instead of a fixed sleep.
       port?.postMessage({ type: "end-marker" });
     });
-    // Catches the gate rejecting a valid "ping" too: that would still eventually log the
-    // end-marker's rejection, but with 3 rejections total instead of 2 below.
     await expect
       .poll(() => logs.join("").includes("messageType: 'end-marker'"), {
         timeout: 10_000,

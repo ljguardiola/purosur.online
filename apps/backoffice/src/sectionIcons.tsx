@@ -26,7 +26,6 @@ const registry: Record<string, Icon> = {
 
 const fallback = <HelpCircle />;
 
-/** The icon a help category's `icon` name resolves to, or a generic fallback for none/unknown. */
 export function sectionIcon(name: string | undefined): Icon {
   return name !== undefined && Object.hasOwn(registry, name)
     ? (registry[name] ?? fallback)

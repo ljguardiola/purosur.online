@@ -59,9 +59,8 @@ async function renderScreen(
   );
   const rendered = await render(screen);
   return Object.assign(rendered, {
-    /** Lets every settled promise's continuation run (they all run before the next task), then
-     * re-renders the same element inside act, which commits every update scheduled by then, so a
-     * following assertion that something did not happen runs after it could have happened. */
+    /** Flushes pending microtasks, then re-renders inside act so anything they scheduled
+     * commits before a later assertion runs. */
     commitScheduledUpdates: async () => {
       await nextTask();
       await rendered.rerender(screen);
@@ -556,10 +555,10 @@ test("reloading a stale price for a product that is no longer listed shows its n
   await expect
     .element(dialog.getByRole("button", { name: "Confirmar sin cambios" }))
     .toBeDisabled();
-  // One read is the modal's own reload; the other is the screen's list refresh.
+  const loadsFromModalReloadAndListRefresh = loadsBefore + 2;
   await expect
     .poll(() => vi.mocked(services.fetchPrices).mock.calls.length)
-    .toBeGreaterThanOrEqual(loadsBefore + 2);
+    .toBeGreaterThanOrEqual(loadsFromModalReloadAndListRefresh);
 });
 
 test("confirming a row whose product no longer exists names it in the screen's notice", async () => {

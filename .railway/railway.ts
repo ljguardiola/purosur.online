@@ -74,7 +74,7 @@ export default defineRailway((ctx) => {
   const edgeOriginSecret = requireEnv("EDGE_ORIGIN_SECRET");
   const cloudAppDatabasePassword = requireEnv("CLOUD_APP_DATABASE_PASSWORD");
   // The PEM text of the ARCA X.509 certificate the business is authorized under: public data, not
-  // a secret in the credential sense (the matching private key, added in #46, is the secret), but
+  // a secret in the credential sense (the matching private key is the secret), but
   // still an environment-specific value the owner supplies per this file's existing pattern.
   const arcaCertificate = requireEnv("ARCA_CERTIFICATE");
   const environment = ctx.environment;

@@ -6,7 +6,6 @@ import { passkeys } from "../db/schema.js";
 import type { WebAuthnConfig } from "../recovery/webauthn-config.js";
 
 export interface VerifyPasskeyReauthenticationInput {
-  /** The session's own account: an assertion naming another account's credential id is rejected. */
   userId: string;
   assertion: AuthenticationResponseJSON;
   expectedChallenge: string;
@@ -18,15 +17,7 @@ export type PasskeyReauthenticationResult =
   | { verified: true; passkeyId: string }
   | { verified: false };
 
-/**
- * Verifies a WebAuthn assertion as a fresh reauthentication against one of `userId`'s own
- * registered passkeys (never another account's, even if the credential id happens to match one)
- * and a challenge this server itself issued and stored for the session, and, on success, updates
- * that passkey's counter and `last_used_at`. Mirrors `session-authenticate-route.ts`'s own
- * verification (including its clone-signal counter check), since this is the same
- * proof-of-possession-plus-user-verification check, performed against an already-open session
- * instead of at sign-in.
- */
+/** Scoped to `userId` so another account's matching credential id is never accepted. */
 export async function verifyPasskeyReauthentication<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: VerifyPasskeyReauthenticationInput,
@@ -64,9 +55,7 @@ export async function verifyPasskeyReauthentication<TQueryResult extends PgQuery
   }
   const { authenticationInfo } = verification;
 
-  // Same clone-signal guard session-authenticate-route.ts applies at sign-in: once the
-  // authenticator's counter has ever left zero, an assertion that doesn't exceed the stored value
-  // is a clone signal, rejected like any other failed reauthentication.
+  // WebAuthn clone signal: once the counter has left zero, a non-increasing counter means a cloned authenticator.
   const isCloneSignal = passkey.counter > 0 && authenticationInfo.newCounter <= passkey.counter;
   if (isCloneSignal) {
     return { verified: false };

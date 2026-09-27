@@ -36,10 +36,6 @@ const backgrounds: Record<string, string> = {
   sand: colors["surface-sand"] ?? "",
 };
 
-// Every color token declared in tokens.css must land in exactly one of these two lists: a text
-// tone (checked against its own contrast threshold below) or a decorative one (checked at all,
-// just not for text contrast). A token in neither list fails the classification test, so a new
-// color can't be added without someone deciding which bucket it belongs to.
 const textTones = {
   ink: AA_TEXT_CONTRAST,
   "ink-secondary": AAA_TEXT_CONTRAST,
@@ -55,10 +51,7 @@ const textTones = {
   "status-warning-strong": AAA_TEXT_CONTRAST,
 } satisfies Record<string, number>;
 
-// Surfaces (the backgrounds themselves, not foreground text/icon color), borders (line,
-// blue-soft, see tokens.css), the plain/accent/message-background shades that are only ever
-// used as small decorative fills, never as text or icon color, and the alpha shadow tint (never
-// text, and outside contrastRatio()'s opaque 6-digit-hex contract).
+// The shadow tints here carry an alpha channel, outside contrastRatio()'s opaque 6-digit-hex contract.
 const decorativeTones = [
   "surface-sand",
   "surface-bone",
@@ -120,9 +113,6 @@ describe("design tokens contrast", () => {
   itReachesContrastAgainstEverySurface(textTones);
 });
 
-// Shared by the status indicator and the notice family: each paints a tone's text (and, for the
-// notices, its icon) on that same tone's own message background, a pairing none of the shared
-// white/bone/sand surfaces above cover. Reused here instead of duplicated per component.
 const toneOnMessageBackgroundPairs: Record<string, { text: string; background: string }> = {
   success: { text: "brand-green-strong", background: "brand-green-message-bg" },
   warning: { text: "status-warning-strong", background: "status-warning-message-bg" },
@@ -148,11 +138,6 @@ describe("tone text on its own message background contrast", () => {
   }
 });
 
-// The option card's own three backgrounds: white and bone are already covered by the text-tone
-// suite above (ink and ink-secondary reach their threshold against every surface), and its chosen
-// background is the same as the "info" pair above (brand-blue-strong on brand-blue-message-bg).
-// The one combination neither of those cover is the help text's ink-secondary on that same chosen
-// background, since it's the only tone painted on brand-blue-message-bg that isn't brand-blue-strong.
 describe("option card help text on its chosen background contrast", () => {
   it(`ink-secondary reaches ${AAA_TEXT_CONTRAST}:1 against brand-blue-message-bg`, () => {
     const textHex = colors["ink-secondary"];
@@ -166,12 +151,8 @@ describe("option card help text on its chosen background contrast", () => {
   });
 });
 
-// The text-tone suite above already covers this exact pair, since it checks ink against the white
-// surface, but only at AA, the threshold ink is listed with there. The tooltip is held to AAA, so
-// what is missing is the threshold, not the pairing: contrastRatio ignores which of the two colors
-// is the background (the suite at the top of this file proves it), so ink read as text on white
-// and surface-white read as text on ink are the same ratio. surface-white stays in decorativeTones
-// because every text tone is checked against the white surface, where surface-white is 1:1.
+// contrastRatio is order-independent, so this is the same ink/white pair already checked above,
+// just at the tooltip's AAA threshold instead of AA.
 describe("tooltip text on ink background contrast", () => {
   it(`surface-white reaches ${AAA_TEXT_CONTRAST}:1 against ink`, () => {
     const textHex = colors["surface-white"];
@@ -185,8 +166,6 @@ describe("tooltip text on ink background contrast", () => {
   });
 });
 
-// A table row's background changes with its state while its text keeps ink and ink-secondary,
-// a pairing none of the suites above cover.
 const rowStateBackgroundNames = [
   "brand-blue-message-bg",
   "status-warning-message-bg",
@@ -212,9 +191,6 @@ describe("table row state background contrast", () => {
   }
 });
 
-// The pagination's current page is the only place in the package where the header/row/pagination
-// area paints text on a strong brand background instead of a message background or a plain
-// surface, so it needs its own pairing check.
 describe("pagination current page background contrast", () => {
   it(`surface-white reaches ${AA_TEXT_CONTRAST}:1 against brand-blue-ui`, () => {
     const textHex = colors["surface-white"];
@@ -230,11 +206,9 @@ describe("pagination current page background contrast", () => {
   });
 });
 
-// The dimmed nav buttons composite their label's ink at the declared alpha onto whatever sits
-// behind the button (white, or bone under the table's own footer), not onto the button's own
-// equally-faded background, so the pairing below mirrors that compositing rather than comparing
-// two opaque tokens directly. Reads the alpha straight from Pagination.tsx so this check can't
-// drift out of sync with the component.
+// A disabled nav button composites its label onto the page behind it, not onto its own faded
+// background, so the check mirrors that compositing instead of comparing two opaque tokens. The
+// alpha is read from the component's own source so this can't drift out of sync with it.
 describe("pagination dimmed nav button text contrast", () => {
   const paginationPath = fileURLToPath(new URL("../components/Pagination.tsx", import.meta.url));
   const paginationSource = readFileSync(paginationPath, "utf-8");

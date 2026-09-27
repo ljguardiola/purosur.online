@@ -26,12 +26,6 @@ const EMAIL_TAKEN_RESPONSE = {
   message: "a user with that email already exists",
 } as const;
 
-/**
- * Answered instead of the plain `email_taken` above when the conflicting email belongs to a
- * deactivated user and the caller can reactivate one (`canReactivateUsers`): carries that user's id
- * and display name so the form can lead the caller to reactivating them instead of creating a
- * second account.
- */
 function emailBelongsToDeactivatedUserResponse(target: { id: string; firstName: string }) {
   return {
     code: "email_belongs_to_deactivated_user",
@@ -54,7 +48,6 @@ interface ValidationFailure {
   message: string;
 }
 
-/** Trims `first_name` and requires it non-empty once trimmed; no length cap exists elsewhere in the codebase to reuse. */
 function readFirstName(body: unknown): string | undefined {
   const raw = (body as { first_name?: unknown } | undefined)?.first_name;
   if (typeof raw !== "string") {
@@ -91,12 +84,6 @@ function isValidationFailure(
   return "field" in value;
 }
 
-/**
- * Registers `POST /users`: creates a new backoffice user, gated by the shared
- * passkey-authorization window (`passkey-authorization-guard.ts`) instead of its own per-action
- * step-up. Creates the user in the session's own branch with the chosen existing role and no
- * passkeys.
- */
 export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: UsersRouteOptions<TQueryResult>,
@@ -185,10 +172,8 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
         });
 
       if (!created) {
-        // The conflict itself isn't branch-scoped, the same way `users.email`'s unique index isn't,
-        // but naming the conflicting user is: only a deactivated user of the caller's own branch
-        // (the only one they could reactivate) is answered by id and name; any other conflict is a
-        // plain `email_taken`, so another branch's user is never revealed.
+        // Naming the conflicting user is branch-scoped even though the email conflict is not, so
+        // another branch's user is never revealed.
         const [conflicting] = await options.db
           .select({
             id: users.id,
@@ -223,8 +208,6 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
           roleName: role.name,
           roleIsAdministrator: role.isAdministrator,
           passkeyCount: 0,
-          // Only an active Administrator of this same branch can create a user, so a just-created
-          // user is never the sole active Administrator, even given that role.
           isLastActiveAdministrator: false,
         }),
       );

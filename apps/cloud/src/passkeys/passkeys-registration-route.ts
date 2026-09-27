@@ -26,7 +26,6 @@ import { readPasskeyName } from "./passkey-name-validation.js";
 export interface PasskeyRegistrationRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  /** Injected in tests so the issued challenge's stored lifetime and audited timestamps are deterministic. */
   now?: () => Date;
 }
 
@@ -38,19 +37,8 @@ const REGISTRATION_FAILED_RESPONSE = {
 
 class CredentialAlreadyRegistered extends Error {}
 
-/**
- * Registers the two endpoints that add a passkey to an already-open session's account:
- * `registration-options` hands back a registration challenge (excluding the account's existing
- * credentials), and `POST /users/passkeys` verifies it before registering the new credential under
- * the given name. Registration is checked against the shared passkey-authorization window
- * (`passkey-authorization-guard.ts`) once, when it starts: `registration-options` is gated so the
- * browser never runs a creation ceremony (and leaves an orphan credential on the authenticator)
- * before the cloud reveals that an authorization is missing. `POST /users/passkeys` no longer
- * re-checks that window: its protection is consuming the pending registration challenge that only
- * the gated options endpoint can issue, so a ceremony that started under a valid authorization
- * still completes even if the window lapses while the person interacts with their authenticator.
- * Neither ever revokes the session.
- */
+// Doesn't recheck the passkey-authorization window here: consuming the one-time challenge
+// from registration-options already proves the ceremony started under a valid authorization.
 export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: PasskeyRegistrationRouteOptions<TQueryResult>,
@@ -238,8 +226,6 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
         });
 
       if (!inserted) {
-        // A distinct code from every other rejection this route sends: the device already
-        // created a credential the cloud does know, so it must never be asked to forget it.
         await reply.code(400).send({
           code: "passkey_already_registered",
           message: "this passkey is already registered",

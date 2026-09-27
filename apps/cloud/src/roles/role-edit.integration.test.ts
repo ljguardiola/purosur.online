@@ -12,8 +12,7 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { editRole } from "./role-edit-route.js";
 
 // PGlite runs every query over one connection, so it can never race two edits for the same role or
-// the same name. This runs them over a real postgres-js pool of more than one connection against a
-// real Postgres, the same reasoning `role-name-uniqueness.integration.test.ts` gives for creation.
+// the same name; this runs them over a real postgres-js pool against a real Postgres.
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;

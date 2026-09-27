@@ -4,8 +4,6 @@ import { CORE_STATUS_REQUEST } from "../shared/core-status-request";
 import type { CoreStatusEventSource } from "./core-status";
 import { attachCoreStatus } from "./core-status";
 
-// Adapts the DOM's `window` to attachCoreStatus's generic event source, exactly as main.tsx does
-// for attachIncomingPort: real MessageEvents carry more than the DOM's generic Event type knows.
 const windowMessageSource: CoreStatusEventSource = {
   addEventListener(type, listener) {
     window.addEventListener(type, listener as unknown as EventListener);

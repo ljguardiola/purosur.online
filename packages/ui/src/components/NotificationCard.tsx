@@ -1,8 +1,6 @@
 import type { ButtonIcon } from "./Button";
 import { NoticeLiveRegion } from "./NoticeLiveRegion";
 
-// Named NotificationCard, not Notification, so it does not shadow the DOM's global
-// Notification constructor.
 export type NotificationTone = "success" | "warning" | "error";
 
 export type NotificationCardProps = {
@@ -12,7 +10,6 @@ export type NotificationCardProps = {
   detail: string;
   whatToDo?: string;
   time?: string;
-  // 388px wide with a shadow, over the screen; otherwise it takes its container's width.
   floating?: boolean;
 };
 
@@ -28,8 +25,6 @@ const toneCircleClassName: Record<NotificationTone, string> = {
   error: "bg-status-error-message-bg text-status-error-strong",
 };
 
-// See Button.tsx's iconWrapperClassName: the glyph's size is imposed by this box's own CSS,
-// never by cloning a `size` prop onto the caller's icon element.
 const iconWrapperClassName = "inline-flex size-[1.125rem] shrink-0 [&>svg]:h-full [&>svg]:w-full";
 
 export function NotificationCard({

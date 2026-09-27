@@ -12,18 +12,9 @@ import {
 export interface SessionReadRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  /** Injected in tests so idle/absolute expiry are checked against a deterministic clock. */
   now?: () => Date;
 }
 
-/**
- * Registers `GET /users/session`: resolves the session cookie through its declared open-session
- * access (idle/absolute expiry, `last_seen_at` touch, deactivated-account
- * check) and returns the signed-in user's identity, plus the session's deadline (computed after
- * the touch) so the client can schedule its next status probe, whether they're an Administrator,
- * and their permission keys, so the backoffice can decide what to show without a request that would
- * only answer 403. Answers 401 `unauthenticated` when no open session is found.
- */
 export function registerSessionReadRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: SessionReadRouteOptions<TQueryResult>,

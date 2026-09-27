@@ -41,7 +41,6 @@ function EmptyState({ title, body }: { title?: string; body: string }) {
 
 type ArticleEntry = [string, HelpArticle<string, string>];
 
-/** Pairs each item with a React key, numbering repeated content so identical items stay distinct. */
 function keyed<Item>(items: readonly Item[], keyOf: (item: Item) => string): Array<[string, Item]> {
   const occurrences = new Map<string, number>();
   return items.map((item) => {
@@ -177,7 +176,6 @@ export type HelpSectionColumnProps = {
   activeCategoryId: string | null;
 };
 
-/** The section column's content: every help category as a nav row, for Shell's sectionColumn slot. */
 export function HelpSectionColumn({ help, activeCategoryId }: HelpSectionColumnProps) {
   return (
     <>
@@ -208,7 +206,6 @@ export type HelpContentProps = {
   headingRef?: Ref<HTMLHeadingElement>;
 };
 
-/** The help screen's own content: search, and whatever the current route/search selects, for Shell's children slot. */
 export function HelpContent({
   help,
   categoryId,

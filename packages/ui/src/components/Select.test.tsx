@@ -87,8 +87,8 @@ test("gives the caller the chosen option's value and closes the menu, on click",
   expect(onChange).toHaveBeenCalledWith("cashier");
   await expect.element(screen.getByRole("listbox")).not.toBeInTheDocument();
 
-  // The popover portals its own DOM outside screen.container while open (see DateField.test.tsx's
-  // own comment on this); once closed, nothing of this field is rendered outside the container.
+  // react-aria-components portals the popover's DOM outside screen.container while open; once
+  // closed, nothing of this field is rendered outside the container.
   await expectNoAccessibilityViolations(screen.container);
 });
 
@@ -132,9 +132,8 @@ test("marks a required select with an asterisk that folds into the trigger's own
   const label = screen.getByText("Rol", { exact: true }).element() as HTMLElement;
 
   expect(getComputedStyle(label, "::after").content).toContain("*");
-  // The generated asterisk folds into the trigger's own accessible name (the browser reads
-  // ::after content as part of accname computation), the same way TextField.tsx's own asterisk
-  // does - a plain "Rol" query would no longer match here on its own.
+  // A CSS-generated ::after asterisk folds into the accessible name, so a plain "Rol" query would
+  // no longer match here on its own.
   await expect
     .element(screen.getByRole("button", { name: /Responsable de turno Rol\s*\*/ }))
     .toBeVisible();
@@ -187,8 +186,7 @@ test("dims the field and blocks focus when disabled", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// The trigger is a real <button>, so its boundary is a real border rather than TextField's inset
-// shadow; these read the border every state paints and prove no outline ring is ever drawn.
+// The trigger is a real <button>, so its boundary is a real border rather than an inset shadow.
 function borderOf(trigger: HTMLElement) {
   const style = getComputedStyle(trigger);
   return { width: style.borderWidth, color: style.borderColor };
@@ -239,8 +237,6 @@ test("keeps the focused border and white fill instead of the hovered bone one wh
 
   await userEvent.tab();
   await userEvent.hover(trigger);
-  // Both assertions below also hold for a focused trigger the pointer never reached, so the hover
-  // itself is proven first; otherwise a dropped hover would leave this test green.
   await expect.poll(() => trigger.hasAttribute("data-hovered")).toBe(true);
 
   await expect.poll(() => borderOf(trigger).color).toBe(tokenRgb("brand-blue-ui"));

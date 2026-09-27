@@ -30,6 +30,7 @@ import {
 } from "./rolesApi";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
 import { sendToMyAccount } from "./settingsRoutes";
+import { useLatestRef } from "./useLatestRef";
 
 const rolesMessages = messages.settings.roles;
 const editorMessages = rolesMessages.roleEditor;
@@ -37,7 +38,6 @@ const editorMessages = rolesMessages.roleEditor;
 export type RoleEditorRequest =
   | { kind: "new" }
   | { kind: "edit"; roleId: string }
-  /** Opened from the row already on hand, so duplicating never refetches the whole list. */
   | { kind: "duplicate"; source: RoleSummary };
 
 export type RoleEditorModalServices = {
@@ -93,12 +93,6 @@ type RoleSaveConfirmationModalProps = {
   onConfirm: () => void;
 };
 
-/**
- * "¿Guardar los cambios?": the confirmation step an edit with people assigned opens before any
- * other authorization, listing everyone the change applies to. "Volver" returns to the editor
- * with its edits untouched; "Guardar los cambios" here proceeds with the normal save (and its own
- * passkey step-up, if the session needs one).
- */
 function RoleSaveConfirmationModal({
   isOpen,
   roleName,
@@ -164,12 +158,6 @@ function RoleSaveConfirmationModal({
   );
 }
 
-/**
- * "Nuevo rol" / "Editar rol" / "Duplicar rol": one modal over the Roles list for all three,
- * organized by permission area. Edit loads the role fresh (for its version and assigned people);
- * duplicate pre-fills from the row already on hand. Saving is gated by the shared passkey-
- * authorization window, and an edit keeps its optimistic-locking / stale-version reload behavior.
- */
 export function RoleEditorModal({
   request,
   onClose,
@@ -197,13 +185,10 @@ export function RoleEditorModal({
   const [submitting, setSubmitting] = useState(false);
   const [confirmingSave, setConfirmingSave] = useState(false);
 
-  // Bumped whenever the request changes, so a fetch started for an earlier request (one since
-  // closed or replaced by another) knows its late response no longer belongs here.
   const sessionRef = useRef(0);
 
-  const onSessionEndedRef = useRef(onSessionEnded);
-  onSessionEndedRef.current = onSessionEnded;
-  const endSession = useCallback(() => onSessionEndedRef.current(), []);
+  const onSessionEndedRef = useLatestRef(onSessionEnded);
+  const endSession = useCallback(() => onSessionEndedRef.current(), [onSessionEndedRef]);
 
   const { run, modal: authorizationModal } = useAuthorization<CreateRoleOutcome | EditRoleOutcome>({
     action: "roleSave",
@@ -426,8 +411,6 @@ export function RoleEditorModal({
     (notice?.kind === "rateLimited" && notice.offersReload);
   const formReady = loadState.kind === "ready" || loadState.kind === "loaded";
   const canSubmit = !submitting && (mode !== "edit" || loadState.kind === "loaded");
-  // Notices and the load status are transient banners, not part of the design's edge-to-edge name
-  // row and panes, so they keep their own inset padding instead of the flush body's none.
   const hasNoticeOrLoadStatus = notice !== null || !formReady;
 
   return (
@@ -444,7 +427,7 @@ export function RoleEditorModal({
         icon={<Shield />}
         context={editorMessages.eyebrow}
         title={heading}
-        // A save in flight can't be dismissed, like Cancelar: no close button and no Escape.
+        // closable: false also disables Escape, not just the close button.
         {...(submitting
           ? { closable: false }
           : { closable: true, closeLabel: editorMessages.closeLabel })}

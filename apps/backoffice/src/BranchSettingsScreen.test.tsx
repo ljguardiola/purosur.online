@@ -39,9 +39,7 @@ const loaded: BranchSettings = {
   version: 1,
 };
 
-// A range field's own label carries its full sentence ("Lunes, horario 1, abre") but draws
-// nothing (`labelVisuallyHidden`, see TextField.test.tsx): its box collapses to 1x1px, the same
-// technique and assertion as Table.tsx's own srLabel.
+// A visually-hidden label still renders in the DOM, collapsed to a 1x1px box.
 function labelRect(input: HTMLInputElement): DOMRect {
   const label = input.labels?.[0] as HTMLElement;
   return label.getBoundingClientRect();
@@ -101,8 +99,6 @@ test("shows the breadcrumb, heading, and the branch's loaded values", async () =
   );
   expect(closesRect.width).toBeLessThanOrEqual(1);
   expect(closesRect.height).toBeLessThanOrEqual(1);
-  // No standalone "abre"/"cierra" caption renders for a range: only the field's own full,
-  // visually hidden sentence names it.
   expect(screen.getByText("abre", { exact: true }).query()).toBeNull();
   expect(screen.getByText("cierra", { exact: true }).query()).toBeNull();
   await expect.element(screen.getByRole("checkbox", { name: "Lunes — Cerrado" })).not.toBeChecked();
@@ -253,8 +249,7 @@ test("checking Cerrado on a day hides its ranges and saves it as closed", async 
     .element(screen.getByRole("textbox", { name: "Lunes, horario 1, abre" }))
     .toHaveValue("09:00");
 
-  // A custom checkbox's decorative box sits visually above its own native input (see
-  // Checkbox.test.tsx's own checkboxBox helper for the same overlap), so the click is forced.
+  // The checkbox's decorative box sits visually above its own native input, so the click is forced.
   await screen.getByRole("checkbox", { name: "Lunes — Cerrado" }).click({ force: true });
 
   expect(screen.getByRole("textbox", { name: "Lunes, horario 1, abre" }).query()).toBeNull();
@@ -874,12 +869,13 @@ test("draws the same separator line above Lunes as above every other day", async
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Lunes")).toBeVisible();
 
-  // Day name → its fixed-width box → the row's first line → the day's row.
-  const dayRow = (day: string) =>
-    screen.getByText(day, { exact: true }).element().parentElement?.parentElement
-      ?.parentElement as HTMLElement;
-  const monday = getComputedStyle(dayRow("Lunes"));
-  const tuesday = getComputedStyle(dayRow("Martes"));
+  const dayRowFromDayNameElement = (day: string) => {
+    const dayNameBox = screen.getByText(day, { exact: true }).element().parentElement;
+    const rowFirstLine = dayNameBox?.parentElement;
+    return rowFirstLine?.parentElement as HTMLElement;
+  };
+  const monday = getComputedStyle(dayRowFromDayNameElement("Lunes"));
+  const tuesday = getComputedStyle(dayRowFromDayNameElement("Martes"));
 
   expect(monday.borderTopWidth).toBe("1px");
   expect(monday.borderTopStyle).toBe(tuesday.borderTopStyle);

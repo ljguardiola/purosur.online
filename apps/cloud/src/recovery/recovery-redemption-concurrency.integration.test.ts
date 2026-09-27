@@ -17,12 +17,8 @@ import {
 } from "./recovery-integration-database.js";
 import { hashRecoveryToken } from "./recovery-token-hash.js";
 
-// `recovery-redemption-route.test.ts`'s "registers at most one passkey when the same token is
-// redeemed concurrently" test only proved this on PGlite's single connection, which serializes
-// every query and can never race for real. This proves the same guarantee (the atomic
-// `UPDATE ... WHERE used_at IS NULL ... RETURNING` in recovery-redemption-route.ts) against a real
-// Postgres with a real postgres-js pool of more than one connection, over two genuinely parallel
-// HTTP requests.
+// PGlite serializes every query on one connection and can never race for real; this proves the
+// same guarantee against a real Postgres pool, over two genuinely parallel HTTP requests.
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 
@@ -135,7 +131,6 @@ describe("redeeming the same recovery token over two concurrent HTTP requests ag
       expect(tokenRows).toHaveLength(1);
       expect(tokenRows[0]?.usedAt).not.toBeNull();
 
-      // The winner audits the burn and the new passkey; the loser audits its own rejected attempt.
       const auditRows = await db.select().from(auditLog).where(eq(auditLog.actorId, userId));
       expect(auditRows.map((row) => row.entity).sort()).toEqual([
         "passkey",

@@ -69,8 +69,7 @@ test("exposes the notice's text to assistive technology exactly once", async () 
     />,
   );
 
-  // getByRole walks the accessibility tree, which aria-hidden removes an element from: once the
-  // visible title/detail are hidden from it, the live region is the only accessible copy left.
+  // aria-hidden removes an element from the accessibility tree that getByRole walks.
   expect(screen.getByRole("paragraph").elements()).toHaveLength(0);
 
   const region = screen.container.querySelector('[role="status"]') as HTMLElement;

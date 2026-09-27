@@ -266,9 +266,6 @@ test("validatePrBodyLocal reports a non-Conventional-Commit title when one is gi
 });
 
 test("validatePrBodyLocal never checks issue existence, state, type match, or sub-issues", () => {
-  // No `issue` input exists for this function at all; a well-formed body and
-  // title pass regardless of what the (unreachable) referenced issue looks
-  // like on GitHub.
   const problems = validatePrBodyLocal({ title: "feat: x", body: prBody() });
   assert.deepEqual(problems, []);
 });

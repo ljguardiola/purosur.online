@@ -7,11 +7,8 @@ interface NavigationAttempt {
   prevented: boolean;
 }
 
-/**
- * Registered after `guardWindow`'s own `will-navigate` listener (attached during app startup,
- * before this suite ever runs), so by the time this one runs for a given navigation,
- * `event.defaultPrevented` already reflects whatever `guardWindow`'s handler decided.
- */
+// Registered after `guardWindow`'s own will-navigate listener runs at startup, so by the time
+// this one runs, `event.defaultPrevented` already reflects what `guardWindow` decided.
 async function recordNavigationAttempts(app: ElectronApplication): Promise<void> {
   await app.evaluate(({ BrowserWindow }) => {
     const window = BrowserWindow.getAllWindows()[0];
@@ -51,7 +48,6 @@ describe("the register's hardened window", () => {
   });
 
   it("shows the window", async () => {
-    // Catches window-lifecycle.ts's `onceReadyToShow` no longer calling `show()`.
     await expect
       .poll(
         () =>
@@ -131,9 +127,8 @@ describe("the register's hardened window", () => {
         blockedUris.includes("https://example.com/x.png") &&
         blockedUris.includes("https://example.com/x.js") &&
         blockedUris.includes("inline");
-      // Resolves once every one of the three violations this test triggers has been recorded, so
-      // this in-page wait is driven by the events themselves; the cap only bounds a run where a
-      // policy change stops one of them from firing, and the assertions below then fail on it.
+      // Resolves once all three violations are recorded, driven by the events themselves; the
+      // timeout only bounds a run where one stops firing, and the assertions below then fail on it.
       const allViolationsSeen = new Promise<void>((resolve) => {
         document.addEventListener("securitypolicyviolation", (event) => {
           blockedUris.push(event.blockedURI);
@@ -190,7 +185,6 @@ describe("the register's hardened window", () => {
       window.location.href = url;
     }, targetUrlPrefix);
 
-    // Catches index.ts's `guardWindow` no longer wiring its `will-navigate` listener.
     await expect
       .poll(() => lastNavigationAttemptFor(app, targetUrlPrefix), {
         timeout: 5_000,

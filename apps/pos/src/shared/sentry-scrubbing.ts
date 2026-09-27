@@ -1,15 +1,7 @@
-// Shared by every process's Sentry init (main, core, renderer) so the same discipline applies
-// everywhere: never a CUIT or DNI, never an HTTP request body (which is how an outbox event's
-// payload would otherwise travel), never a token/key/secret/password, never a presigned URL's
-// signed query string. What reaches Sentry is the error type, its stack trace, and opaque ids.
-
 const REDACTED = "[redacted]";
 
-// A CUIT is 11 digits, either run together or split 2-8-1 with hyphens; a DNI is 7 or 8 digits,
-// either run together or with dots as thousands separators. Matched in that order so a CUIT's
-// digits are never left exposed as if they were a shorter DNI. A run of digits joined to a letter,
-// a hyphen or a decimal point is part of something else, such as a UUID or a fractional number; an
-// underscore only separates a label from the number it names.
+// Matched CUIT before DNI so a CUIT's digits are never left exposed as a shorter DNI. The
+// boundaries exclude a letter, hyphen or decimal point so a UUID or fractional number is left alone.
 const NOT_JOINED_BEFORE = String.raw`(?<![A-Za-z0-9-])(?<!\d\.)`;
 const NOT_JOINED_AFTER = String.raw`(?![A-Za-z0-9-])(?!\.\d)`;
 const CUIT_PATTERN = new RegExp(
@@ -57,10 +49,8 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-// Sentry's own context integrations put these numeric diagnostics (memory sizes, CPU figures) at
-// the top of their context sections, where they easily have 8 or 11 digits. Only these exact
-// fields, in these sections, keep their numbers; any other number is treated like one from the
-// business.
+// Sentry's own context integrations put these numeric diagnostics (memory sizes, CPU figures) in
+// these sections, easily 8-11 digits; only they keep their numbers, to avoid a false CUIT/DNI match.
 const SDK_CONTEXT_SECTIONS = new Set(["app", "device"]);
 const SDK_NUMERIC_DIAGNOSTICS = new Set([
   "app_memory",

@@ -14,19 +14,17 @@ interface DispatchableCdpSession {
   ): Promise<unknown>;
 }
 
-// aria-disabled, not the native attribute, is what marks Previous/Next unavailable, so Playwright's
-// own locator actionability check (which treats aria-disabled as "not enabled") refuses to drive a
-// hover through it — dispatched directly over CDP instead, the same way setup-browser.ts parks the
-// pointer between tests.
+// aria-disabled, not the native attribute, marks Previous/Next unavailable; Playwright's
+// actionability check treats aria-disabled as "not enabled" and refuses to drive a hover through
+// it, so this dispatches one directly over CDP instead.
 async function hoverAt(x: number, y: number) {
   const session = cdp() as unknown as DispatchableCdpSession;
   await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x, y });
 }
 
-// The dimmed nav buttons paint their label at full opacity internally, then composite that whole
-// button (label included) at aria-disabled:opacity's alpha onto whatever sits behind it (the
-// page), not onto the button's own equally-faded background — so the label's real contrast has to
-// be computed against the page surface, not read off getComputedStyle(button).color directly.
+// CSS opacity composites the whole button, label included, onto the page behind it — not onto the
+// button's own faded background — so the label's real contrast must be computed against the page
+// surface, not read off getComputedStyle(button).color directly.
 function compositeHex(foregroundHex: string, backgroundHex: string, alpha: number): string {
   const foreground = hexToRgb(foregroundHex);
   const background = hexToRgb(backgroundHex);
@@ -45,8 +43,6 @@ function baseProps(overrides: Partial<PaginationProps> = {}): PaginationProps {
     previousLabel: "Anterior",
     nextLabel: "Siguiente",
     label: "Paginación",
-    // The identity, matching every existing `name: "N"` lookup below; a caller free to choose
-    // something richer is proven separately.
     pageLabel: (page) => String(page),
     ...overrides,
   };
@@ -381,9 +377,6 @@ test("does not paint the hover background while Previous is unavailable at page 
   expect(previous.getAttribute("data-hovered")).toBe("true");
   expect(getComputedStyle(previous).backgroundColor).toBe(restBackground);
 
-  // Control: the same hover, over the available Next button, still paints its own hover
-  // background — proving the suppression above is specific to the unavailable state, not a
-  // regression that dropped hover styling everywhere.
   const nextRect = next.getBoundingClientRect();
   await hoverAt(nextRect.left + nextRect.width / 2, nextRect.top + nextRect.height / 2);
   expect(next.getAttribute("data-hovered")).toBe("true");
@@ -409,10 +402,8 @@ test("keeps the dimmed nav label's real composited contrast at or above 4.5:1, o
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// aria-disabled, not the native attribute, is what marks these unavailable, so Playwright's own
-// locator actionability check (which treats aria-disabled as "not enabled") refuses to drive a
-// click through it — exactly the assistive-technology-only signal this is supposed to be, not a
-// real interaction barrier. A real click still reaches the button, so it's dispatched directly.
+// Playwright's actionability check refuses to drive a click through an aria-disabled element, so
+// this dispatches a real DOM click directly, which still reaches the button.
 test("does nothing when Previous is activated at page 1, by click, Enter or Space", async () => {
   const onPageChange = vi.fn();
   const screen = await render(
@@ -530,8 +521,6 @@ test("activates a page button with Enter, calling onPageChange and leaving focus
   );
   const target = screen.getByRole("button", { name: "3", exact: true }).element();
 
-  // Previous is unavailable but still tabbable on page 1, so it's the first stop: Previous, page1,
-  // page2, page3.
   await userEvent.tab();
   await userEvent.tab();
   await userEvent.tab();
@@ -553,8 +542,6 @@ test("activates a page button with Space, calling onPageChange and leaving focus
   );
   const target = screen.getByRole("button", { name: "4", exact: true }).element();
 
-  // Previous is unavailable but still tabbable on page 1, so it's the first stop: Previous, page1,
-  // page2, page3, page4.
   await userEvent.tab();
   await userEvent.tab();
   await userEvent.tab();
@@ -570,8 +557,6 @@ test("activates a page button with Space, calling onPageChange and leaving focus
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// Mirrors how a real caller wires this controlled component: page and onPageChange round-tripped
-// through the caller's own state.
 function ControlledPagination({
   initialPage,
   ...props
@@ -630,9 +615,6 @@ test("leaves focus on Previous, never reaching document.body, when pressing it l
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// A real async caller: pressing Next first lands an unrelated re-render (a loading flag flips,
-// the page itself doesn't move yet), and only a tick later, in a separate commit, does the page
-// actually land.
 function AsyncPagination(props: Omit<PaginationProps, "page" | "pageCount" | "onPageChange">) {
   const [page, setPage] = useState(4);
   const [pendingPage, setPendingPage] = useState<number | null>(null);
@@ -703,10 +685,8 @@ test("names each page button from the caller's own pageLabel, not a bare digit",
 });
 
 test("hides every ellipsis from assistive technology", async () => {
-  // Page 10 of 24 renders [1, …, 10, …, 24]: 5 <li>, 2 of them an ellipsis. getByRole excludes
-  // hidden elements by default, so this counts what actually reaches the accessibility tree —
-  // an aria-hidden span inside a plain <li> wouldn't change that count, since hiding the span
-  // leaves its own parent <li> announced as an empty list item.
+  // getByRole excludes hidden elements by default; the <li> itself, not just an inner span, is
+  // aria-hidden, since hiding only the span would leave its parent announced as an empty item.
   const screen = await render(<Pagination {...baseProps({ page: 10, pageCount: 24 })} />);
 
   const listItems = screen.getByRole("listitem").elements();

@@ -51,13 +51,6 @@ function readEntry(raw: unknown): LabelRequestEntry | undefined {
   return { productId: productId.toLowerCase(), count };
 }
 
-/**
- * Reads and validates `{ labels: [{ productId, count }] }`: a non-empty list, no repeated
- * `productId`, each count a whole number from 1 to `LABELS_MAX_COUNT_PER_PRODUCT`, and a total of
- * at most `LABELS_MAX_TOTAL_COUNT`.
- * Whether each `productId` names an existing product with an internal barcode is checked
- * separately against the database, not here.
- */
 function readLabelsBody(body: unknown): LabelRequestEntry[] | LabelsValidationFailure {
   const raw = (body as { labels?: unknown } | undefined)?.labels;
   if (!Array.isArray(raw) || raw.length === 0) {
@@ -102,10 +95,6 @@ interface LabelableProduct {
   internalBarcode: string | undefined;
 }
 
-/**
- * An inactive product (#309) is rejected exactly the way an unknown id is: it's left out of the
- * map here, so the caller's `product_not_found` check below catches it the same way.
- */
 async function labelableProductsById<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   productIds: string[],
@@ -139,13 +128,6 @@ async function labelableProductsById<TQueryResult extends PgQueryResultHKT>(
   return result;
 }
 
-/**
- * Registers `POST /products/labels`, gated by the `manage_products_and_categories` permission (an
- * Administrator always holds it too), the same access and origin-check shape `POST /products`
- * uses. Responds with a printable A4 PDF of the requested labels (`label-sheet-pdf.ts`), one per
- * product carrying its internal barcode (its first one, in position order), repeated its
- * requested count.
- */
 export function registerProductLabelsRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: ProductsRouteOptions<TQueryResult>,

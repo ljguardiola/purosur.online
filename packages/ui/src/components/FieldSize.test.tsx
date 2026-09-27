@@ -9,12 +9,6 @@ import { QuantityUnitField } from "./QuantityUnitField";
 import { Select } from "./Select";
 import { TextField } from "./TextField";
 
-// TextField, DateField, Select, FieldGroup and QuantityUnitField all draw the backoffice frame
-// from the one shared definition in FieldSize.tsx: this is the only place that measures it, so no
-// component repeats these numbers as its own "matches X exactly" comment. QuantityUnitField, like
-// Select, has no register-scale variant, so it draws this frame regardless of the ambient
-// FieldSizeProvider (see its own comment); it is exercised inside one here only to render it
-// alongside its siblings for the same computed-style assertions.
 test("draws the label, gap, box and value at the backoffice size, identically for TextField, DateField, Select, FieldGroup and QuantityUnitField", async () => {
   const screen = await render(
     <FieldSizeProvider size="backoffice">
@@ -98,14 +92,11 @@ test("draws the label, gap, box and value at the backoffice size, identically fo
     expect(style.color).toBe(tokenRgb("ink"));
   }
 
-  // The shared 8px inner gap (backofficeFieldBoxClassName's own gap-2) sits between the value and
-  // whatever trails it inside the box; DateField.test.tsx proves it for the calendar toggle, this
-  // proves the same gap for a suffixed plain-text TextField and for Select's own chevron.
   expect(
     suffix.getBoundingClientRect().left - suffixedInput.getBoundingClientRect().right,
   ).toBeCloseTo(8, 0);
-  // selectValue is the innermost text-bearing span react-aria-components renders for truncation;
-  // its own parent is the flex box the shared gap actually sits against.
+  // react-aria-components wraps Select's value in its own inner span for truncation; the gap sits
+  // against that span's parent, not the span itself.
   const selectValueBox = selectValue.parentElement as HTMLElement;
   expect(
     selectChevron.getBoundingClientRect().left - selectValueBox.getBoundingClientRect().right,

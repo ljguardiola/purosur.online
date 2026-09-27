@@ -12,19 +12,13 @@ export interface RecoveryRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   jobQueue: RecoveryJobQueue;
   backofficeOrigin: string;
-  /** Injected in tests so the rate limiter's rolling one-hour window is deterministic. */
   now?: () => Date;
-  /** Injected in tests to prove a bookkeeping failure never turns the 429 into a 500. */
   recordRejectedAttempt?: typeof recordRejectedAttempt;
-  /** Injected in tests; defaults to logging and reporting to Sentry. */
   reportError?: (error: unknown) => void;
 }
 
-/**
- * Registers `POST /users/recovery/request`. Does the same work for every well-formed address —
- * both rolling one-hour limits, then one unconditional job enqueue — and answers with no body, so
- * nothing about the response depends on whether that address belongs to a real account.
- */
+/** Does the same work for every well-formed address, so nothing about the response depends on
+ * whether it belongs to a real account. */
 export function registerRecoveryRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: RecoveryRouteOptions<TQueryResult>,
@@ -38,10 +32,6 @@ export function registerRecoveryRoutes<TQueryResult extends PgQueryResultHKT>(
     "/users/recovery/request",
     { config: { access: PUBLIC_ACCESS } },
     async (request, reply) => {
-      // No session exists on this path, so cross-site request forgery is checked the same way
-      // `recovery-redemption-route.ts`'s own endpoints check it: the Origin header verified against
-      // the backoffice's own origin. `origin_rejected` follows the shared
-      // `{ code, message, details }` envelope.
       if (request.headers.origin !== options.backofficeOrigin) {
         await reply.code(403).send({
           code: "origin_rejected",
@@ -69,9 +59,7 @@ export function registerRecoveryRoutes<TQueryResult extends PgQueryResultHKT>(
         now: requestedAt,
       });
       if (!rateLimit.allowed) {
-        // One synchronous upsert, never a lookup: the same work whether or not this address
-        // belongs to a real account. A bookkeeping failure here must never turn this 429 into a
-        // 500.
+        // Upsert, never a lookup, so known and unknown addresses do identical work.
         try {
           await doRecordRejectedAttempt(options.db, {
             kind: "request",

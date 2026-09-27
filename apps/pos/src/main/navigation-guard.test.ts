@@ -70,8 +70,6 @@ describe("denyWindowOpen", () => {
   });
 });
 
-// Shared by both `will-navigate` and `will-redirect`, so a page that redirects itself away is
-// blocked exactly like one that navigates there directly.
 describe("denyDisallowedNavigation", () => {
   const entry = "http://localhost:5173/";
 

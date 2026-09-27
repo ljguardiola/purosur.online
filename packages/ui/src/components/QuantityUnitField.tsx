@@ -31,20 +31,13 @@ type QuantityUnitFieldCommonProps<U extends string> = {
   unit: NoInfer<U>;
   onUnitChange: (value: NoInfer<U>) => void;
   options: readonly [QuantityUnitFieldOption<U>, ...QuantityUnitFieldOption<U>[]];
-  /**
-   * The unit picker's own accessible name (e.g. "Unidad"). It never shares the field's own visible
-   * label: that label already names the quantity value, and the unit picker's chosen option is a
-   * separate control with its own choice to make.
-   */
+  // The unit picker's own accessible name: a separate control from the quantity input, so it
+  // needs its own name rather than sharing the field's visible label.
   unitLabel: string;
   helperText?: string;
   disabled?: boolean;
 };
 
-// Mirrors TextField.tsx's own TextFieldValidityProps: an invalid field always names why, and it
-// never carries both its own message and a shared one at once. The two controls that make up this
-// field (the quantity input and the unit picker) always share one combined validity rather than
-// each getting its own, since "Contenido neto" is invalid or it isn't.
 type QuantityUnitFieldValidityProps =
   | { invalid: true; errorMessage: string; errorMessageId?: undefined }
   | { invalid: true; errorMessageId: string; errorMessage?: undefined }
@@ -53,20 +46,15 @@ type QuantityUnitFieldValidityProps =
 export type QuantityUnitFieldProps<U extends string> = QuantityUnitFieldCommonProps<U> &
   QuantityUnitFieldValidityProps;
 
-// This field only ever draws the backoffice size, the same as Select.tsx: the design has no
-// register-scale net content field, so every class below reads FieldSize.tsx's own shared
-// backoffice definition directly instead of consulting FieldSizeProvider.
 const wrapperClassName = `flex flex-col ${fieldWrapperGapClassName.backoffice} data-[disabled]:opacity-[0.45]`;
 
 const labelClassName = fieldLabelClassName.backoffice;
 
 const boxBaseClassName = `flex min-w-0 max-w-full items-center rounded-lg outline-none ${backofficeFieldBoxClassName}`;
 
-// The same border/fill states TextField.tsx's own boxStateClassName draws (resting, hovered,
-// focused, invalid, disabled), plus one extra branch: opening the unit picker's menu moves DOM
-// focus into its own portaled listbox, off this box entirely, so `focus-within` alone would drop
-// the border the instant it opens. This forces it back on while open, the same way Select.tsx's
-// own triggerStateClassName forces its border on `isOpen` for exactly the same reason.
+// Opening the unit picker's menu moves DOM focus into its own portaled listbox, off this box
+// entirely, so `focus-within` alone would drop the border the instant it opens; this forces it
+// back on while open.
 function boxStateClassName(disabled: boolean, invalid: boolean, unitOpen: boolean): string {
   if (disabled) {
     return "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-line)]";
@@ -100,10 +88,9 @@ const popoverClassName =
   "min-w-24 rounded-lg border border-line bg-surface-white p-1.5 " +
   "shadow-[0_8px_24px_var(--color-ink-menu-shadow)] overflow-y-auto";
 
-// Reuses Select.tsx's own reasoning: this popover portals to the document body as its own
-// stacking layer, which would otherwise paint below a positive-z-index ancestor (e.g. Modal.tsx's
-// own overlay) regardless of mount order, since a positive z-index always wins that comparison
-// over an auto one.
+// This popover portals to the document body as its own stacking layer, which would otherwise
+// paint below a positive-z-index ancestor (e.g. a modal's overlay) regardless of mount order,
+// since a positive z-index always wins that comparison over an auto one.
 const POPOVER_Z_INDEX = 100000;
 
 const optionClassName =
@@ -116,9 +103,7 @@ const optionClassName =
 const helperClassName = "text-sm font-normal text-ink-secondary";
 const errorClassName = "text-sm font-normal text-status-error-ui";
 
-// react-aria-components' onSelectionChange reports a plain Key (string | number), since it
-// doesn't know this picker only ever holds one of the caller's own option ids; this narrows it
-// back without a cast, the same way Select.tsx's own isOptionValue does.
+// react-aria-components' onSelectionChange reports a plain Key (string | number).
 function isOptionValue<U extends string>(
   key: Key,
   options: readonly QuantityUnitFieldOption<U>[],
@@ -145,10 +130,9 @@ export function QuantityUnitField<U extends string>(props: QuantityUnitFieldProp
   const [unitOpen, setUnitOpen] = useState(false);
 
   // Rendered only when this field owns its own message rather than pointing at one the caller
-  // renders elsewhere (the errorMessageId case, mirroring TextField.tsx's own external-message
-  // discipline): a plain paragraph rather than react-aria's own description/errorMessage slot,
-  // since that slot only wires into the quantity input's own root and this same message also has
-  // to describe the unit picker's separate root below.
+  // renders elsewhere: a plain paragraph rather than react-aria's own description/errorMessage
+  // slot, since that slot only wires into the quantity input's own root and this same message
+  // also has to describe the unit picker's separate root below.
   const ownMessageId = useId();
   const showOwnMessage =
     explicitMessageId === undefined &&
@@ -156,9 +140,8 @@ export function QuantityUnitField<U extends string>(props: QuantityUnitFieldProp
   const messageId = explicitMessageId ?? (showOwnMessage ? ownMessageId : undefined);
   const describedByProps = messageId !== undefined ? { "aria-describedby": messageId } : {};
 
-  // Same exemption TextField.tsx's own disabledTextProps grants its helper/error text: WCAG's
-  // contrast minimum doesn't apply to an inactive component's own text, and axe-core's own
-  // color-contrast check only honors that for a node whose OWN aria-disabled says so.
+  // WCAG's contrast minimum doesn't apply to an inactive component's own text, and axe-core's
+  // color-contrast check only honors that for a node whose own aria-disabled says so.
   const disabledTextProps = disabled ? { "aria-disabled": true as const } : {};
 
   return (

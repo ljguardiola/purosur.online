@@ -25,13 +25,6 @@ let recoveryApp: FastifyInstance;
 let userId: string;
 let currentTime: Date;
 
-/**
- * Mounts both routers a session's own account can hold two independent pending passkey
- * challenges through: registration (`registration-options` / `POST /users/passkeys`) and session
- * authorization (`authorization-options` / `POST /users/session/authorization`). One tab could ask
- * for either while the other is mid-ceremony, so these two routers share the same `passkey_challenges`
- * table and must not step on each other's pending row.
- */
 async function buildApp() {
   const built = Fastify();
   registerPasskeyRegistrationRoutes(built, {
@@ -95,7 +88,6 @@ function newDeviceEmulator(): WebAuthnEmulator {
   );
 }
 
-/** Registers a real first passkey for `forUserId`, backed by `emulator`, through the recovery route. */
 async function registerFirstPasskey(forUserId: string, emulator: WebAuthnEmulator): Promise<void> {
   tokenSequence += 1;
   const rawToken = `raw-token-${tokenSequence}`;

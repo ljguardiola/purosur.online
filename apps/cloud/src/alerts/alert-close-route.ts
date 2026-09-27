@@ -32,12 +32,7 @@ export type CloseAlertOutcome =
   | { kind: "already_closed" }
   | { kind: "closed"; alert: AlertDetailRow };
 
-/**
- * A source-address-scoped alert keeps the address in the clear only while it's open, so a
- * second lockout of that same address still deduplicates against it; once closed, the row is
- * permanent and holds only the address's hash, the same rule `sign-in-lockout.ts` applies to a
- * permanent audit row. Any other kind is left as is.
- */
+// Closed rows are permanent, so the raw address is hashed rather than kept indefinitely.
 function withoutSourceAddress(alert: {
   kind: string;
   scope: string;
@@ -58,12 +53,6 @@ function withoutSourceAddress(alert: {
   };
 }
 
-/**
- * Closes one alert: refuses an already-closed one. Every kind is closed by hand. Records who
- * closed it and audits the change, the same `audit_log` shape `branch-settings-edit-route.ts`
- * writes for its own permission-gated mutation, with no passkey step-up: closing an alert is an
- * acknowledgement, not an identity change.
- */
 export async function closeAlert<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: { id: string; actorId: string },
@@ -81,8 +70,6 @@ export async function closeAlert<TQueryResult extends PgQueryResultHKT>(
       .where(eq(alerts.id, input.id))
       .for("update");
     if (!current) {
-      // The caller already confirmed this id exists and is visible right before calling; nothing
-      // in this codebase deletes an alert, so this is unreachable in practice.
       throw new Error(`closeAlert: no alert found for id ${input.id}`);
     }
     if (current.resolvedAt !== null) {
@@ -111,13 +98,6 @@ export async function closeAlert<TQueryResult extends PgQueryResultHKT>(
   });
 }
 
-/**
- * Registers `POST /alerts/:id/close`: gated by `dismiss_alerts_manually` (an Administrator always
- * holds it too), then by the same audience visibility `GET /alerts/:id` enforces — an alert
- * outside the actor's own visibility answers the identical 404 a missing one gets, never leaking
- * that it exists. Requires the request's own Origin match the backoffice's, the same strict check
- * every other mutating route in this app makes.
- */
 export function registerAlertCloseRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: AlertsRouteOptions<TQueryResult>,

@@ -56,11 +56,6 @@ function readVersion(body: unknown): number | undefined {
   return typeof raw === "number" && Number.isInteger(raw) && raw >= 1 ? raw : undefined;
 }
 
-/**
- * `netContent` absent from the body clears it the same way an explicit `null` does: this route
- * already requires every other field to be resent on every edit, so there is no partial-patch
- * convention to distinguish "not sent" from "sent as empty" for this one field either.
- */
 function readEditBody(body: unknown): EditRequestBody | ProductFieldValidationFailure {
   const name = readProductName(body);
   const categoryId = readCategoryId(body);
@@ -92,7 +87,6 @@ function isValidationFailure(
   return "field" in value;
 }
 
-/** Looks up one product by id, answering `undefined` for a malformed or missing one alike. */
 export async function findProductById<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   id: string,
@@ -121,10 +115,6 @@ export type EditProductOutcome =
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "applied"; product: ProductRow };
 
-/**
- * A code held only by another product's inactive (deactivated) barcode is free to reuse (#309): a
- * barcode resolves to a single active product, so only an active barcode row counts as taken.
- */
 async function barcodesTakenByAnotherProduct<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   codes: string[],
@@ -143,16 +133,6 @@ async function barcodesTakenByAnotherProduct<TQueryResult extends PgQueryResultH
   return rows.map((row) => row.code);
 }
 
-/**
- * Edits one product and replaces its barcode set in one transaction, rejecting a save made over a
- * version someone else already changed the same way `editCategory` (`category-edit-route.ts`)
- * rejects one. When the edited product is itself active, a code already held by another active
- * product is rejected the same way `createProduct` rejects one, including its own database
- * backstop for a code that lands concurrently; an inactive product's codes never collide, and a
- * code the product already holds is left alone. Unlike `editCategory`, this always bumps the
- * version: replacing the barcode set is a write on every call, so there is no meaningful no-op to
- * detect.
- */
 export async function editProduct<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: EditProductInput,
@@ -175,8 +155,8 @@ export async function editProduct<TQueryResult extends PgQueryResultHKT>(
       }
       const { category } = locked;
 
-      // An inactive product's barcodes are written inactive below, and uniqueness only binds active
-      // barcodes, so a code an active product holds does not conflict with them.
+      // Skipped for an inactive product: its barcodes are written inactive below, so none can
+      // conflict under the active-only uniqueness rule.
       if (current.active) {
         const taken = await barcodesTakenByAnotherProduct(tx, input.barcodes, input.id);
         if (taken.length > 0) {
@@ -198,9 +178,8 @@ export async function editProduct<TQueryResult extends PgQueryResultHKT>(
         .where(eq(products.id, input.id));
       await tx.delete(productBarcodes).where(eq(productBarcodes.productId, input.id));
       await tx.insert(productBarcodes).values(
-        // Mirrors the product's own (unchanged) `active` flag onto every replaced barcode row
-        // (schema.ts comment on `productBarcodes`): editing an inactive product stays allowed, and
-        // its barcodes stay inactive, not silently reactivated by the default.
+        // Mirrors the product's own `active` flag; the insert default would otherwise reactivate a
+        // deactivated product's barcodes.
         input.barcodes.map((code, position) => ({
           productId: input.id,
           code,
@@ -238,10 +217,7 @@ export async function editProduct<TQueryResult extends PgQueryResultHKT>(
     });
 }
 
-/**
- * Registers `POST /products/:id/edit`, gated by the `manage_products_and_categories` permission
- * (an Administrator always holds it too). Like categories, this needs no passkey step-up.
- */
+// No passkey step-up: editing a product is routine work, not a sensitive account or role change.
 export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: ProductsRouteOptions<TQueryResult>,

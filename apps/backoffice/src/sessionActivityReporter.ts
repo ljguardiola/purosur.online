@@ -1,40 +1,21 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { onNavigate } from "./router";
 import type { SessionOutcome } from "./sessionApi";
+import { useLatestRef } from "./useLatestRef";
 
-/** Minimum time between touches, measured from the last one: an active person keeps a tab alive without flooding the cloud with a request per keystroke. */
 const DEFAULT_THROTTLE_MS = 60_000;
 
-/** DOM events real use of the page dispatches; deliberately excludes pointer/mouse move, since a cursor merely resting over the page is not use. */
 const ACTIVITY_EVENTS = ["pointerdown", "keydown", "wheel", "scroll", "touchstart"] as const;
 
 export type SessionActivityReporterOptions = {
-  /** The reporter runs only while this is true, and tears itself down as soon as it turns false. */
   active: boolean;
-  /** Touches the session the same way a signed-in screen's own reads do (`fetchSession`). */
   touchSession: () => Promise<SessionOutcome>;
-  /**
-   * Called with the session a successful touch reports: its deadline, so the watcher's own deadline
-   * can follow it, and its current Administrator flag and permissions, so what the tab shows
-   * follows a role change made while it stays open.
-   */
   onTouched: (session: Extract<SessionOutcome, { kind: "ok" }>) => void;
-  /** Called once a touch finds the session no longer open. */
   onEnded: () => void;
-  /** Milliseconds a burst of activity is collapsed into at most one touch. */
   throttleMs?: number;
-  /** Injected clock so the throttle window is deterministic in tests. */
   now?: () => Date;
 };
 
-/**
- * Reports real use of an already-open backoffice tab — pointer, keyboard, wheel/scroll and touch
- * activity, and in-app navigation, while the document is visible — by touching the session
- * (`GET /users/session`) at most once per `throttleMs`. The page load that got the tab this far
- * already touched the session, so the throttle window is counted from mount rather than letting
- * the very first activity touch again right away. Network trouble or a rate limit is ignored; the
- * next activity after the throttle window retries.
- */
 export function useSessionActivityReporter({
   active,
   touchSession,
@@ -43,14 +24,10 @@ export function useSessionActivityReporter({
   throttleMs = DEFAULT_THROTTLE_MS,
   now = () => new Date(),
 }: SessionActivityReporterOptions): void {
-  const touchSessionRef = useRef(touchSession);
-  touchSessionRef.current = touchSession;
-  const onTouchedRef = useRef(onTouched);
-  onTouchedRef.current = onTouched;
-  const onEndedRef = useRef(onEnded);
-  onEndedRef.current = onEnded;
-  const nowRef = useRef(now);
-  nowRef.current = now;
+  const touchSessionRef = useLatestRef(touchSession);
+  const onTouchedRef = useLatestRef(onTouched);
+  const onEndedRef = useLatestRef(onEnded);
+  const nowRef = useLatestRef(now);
 
   useEffect(() => {
     if (!active) {
@@ -103,5 +80,5 @@ export function useSessionActivityReporter({
       }
       stopWatchingNavigation();
     };
-  }, [active, throttleMs]);
+  }, [active, throttleMs, touchSessionRef, onTouchedRef, onEndedRef, nowRef]);
 }

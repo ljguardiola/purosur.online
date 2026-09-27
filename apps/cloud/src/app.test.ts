@@ -87,8 +87,6 @@ describe("the edge origin guard", () => {
       headers: { "x-edge-origin-secret": TEST_EDGE_ORIGIN_SECRET },
     });
 
-    // No route is registered at /some-route: reaching Fastify's own 404 (instead of the guard's
-    // 403) proves the request passed the guard and reached routing.
     expect(response.statusCode).toBe(404);
   });
 
@@ -421,9 +419,6 @@ describe("wiring the recovery routes", () => {
       payload: { recovery_token: "an-unknown-raw-token" },
     });
 
-    // An unrecognized token still proves the route is wired: it reaches the redemption handler's
-    // own token-classification error body instead of Fastify's generic not-found response for an
-    // unregistered route.
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ code: "recovery_token_invalid" });
   });
@@ -482,8 +477,6 @@ describe("wiring the session routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
 
-    // No session cookie was sent in any case, so every one reaches its own route handler's
-    // 401 instead of Fastify's generic not-found response for an unregistered route.
     expect(readResponse.statusCode).toBe(401);
     expect(readResponse.json()).toMatchObject({ code: "unauthenticated" });
     expect(statusResponse.statusCode).toBe(401);
@@ -576,8 +569,6 @@ describe("wiring the users routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
 
-    // No session cookie was sent in any case, so each reaches its own route handler's 401
-    // instead of Fastify's generic not-found response for an unregistered route.
     expect(list.statusCode).toBe(401);
     expect(read.statusCode).toBe(401);
     expect(create.statusCode).toBe(401);
@@ -637,8 +628,6 @@ describe("wiring the roles routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
 
-    // No session cookie was sent in any case, so each reaches its own route handler's 401 instead
-    // of Fastify's generic not-found response for an unregistered route.
     expect(list.statusCode).toBe(401);
     expect(read.statusCode).toBe(401);
     expect(create.statusCode).toBe(401);
@@ -685,8 +674,6 @@ describe("wiring the categories routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
 
-    // No session cookie was sent in any case, so each reaches its own route handler's 401 instead
-    // of Fastify's generic not-found response for an unregistered route.
     expect(list.statusCode).toBe(401);
     expect(create.statusCode).toBe(401);
     expect(edit.statusCode).toBe(401);
@@ -754,8 +741,6 @@ describe("wiring the products routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
 
-    // No session cookie was sent in any case, so each reaches its own route handler's 401 instead
-    // of Fastify's generic not-found response for an unregistered route.
     expect(list.statusCode).toBe(401);
     expect(create.statusCode).toBe(401);
     expect(edit.statusCode).toBe(401);
@@ -803,8 +788,6 @@ describe("wiring the prices routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
 
-    // No session cookie was sent in any case, so each reaches its own route handler's 401 instead
-    // of Fastify's generic not-found response for an unregistered route.
     expect(list.statusCode).toBe(401);
     expect(setPrice.statusCode).toBe(401);
     expect(confirmation.statusCode).toBe(401);
@@ -850,8 +833,6 @@ describe("wiring the registers routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
 
-    // No session cookie was sent in any case, so each reaches its own route handler's 401 instead
-    // of Fastify's generic not-found response for an unregistered route.
     expect(list.statusCode).toBe(401);
     expect(create.statusCode).toBe(401);
     expect(emitCode.statusCode).toBe(401);
@@ -879,8 +860,6 @@ describe("wiring the branch settings routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
 
-    // No session cookie was sent, so this reaches the route handler's own 401 instead of
-    // Fastify's generic not-found response for an unregistered route.
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
   });
@@ -905,8 +884,6 @@ describe("wiring the branch settings routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
 
-    // No session cookie was sent, so this reaches the route handler's own 401 instead of
-    // Fastify's generic not-found response for an unregistered route.
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
   });
@@ -942,8 +919,6 @@ describe("wiring the issuer identification routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
 
-    // No session cookie was sent, so this reaches the route handler's own 401 instead of
-    // Fastify's generic not-found response for an unregistered route.
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
   });
@@ -975,8 +950,6 @@ describe("wiring the issuer identification routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
 
-    // No session cookie was sent, so this reaches the route handler's own 401 instead of
-    // Fastify's generic not-found response for an unregistered route.
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
   });
@@ -999,8 +972,6 @@ describe("wiring the passkeys routes", () => {
 
     const response = await app.inject({ method: "GET", url: "/users/passkeys" });
 
-    // No session cookie was sent, so this reaches the route handler's own 401 instead of
-    // Fastify's generic not-found response for an unregistered route.
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
   });
@@ -1040,8 +1011,6 @@ describe("wiring the passkeys routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
 
-    // No session cookie was sent in any case, so each reaches its own route handler's 401
-    // instead of Fastify's generic not-found response for an unregistered route.
     expect(registrationOptions.statusCode).toBe(401);
     expect(remove.statusCode).toBe(401);
   });
@@ -1057,8 +1026,7 @@ afterAll(() => {
   }
 });
 
-/** Wired exactly as production is, including the backoffice's static build. */
-function fullyWiredApp() {
+function productionWiredApp() {
   const staticDir = mkdtempSync(join(tmpdir(), "cloud-static-"));
   productionStaticDirs.push(staticDir);
   writeFileSync(join(staticDir, "index.html"), "<!doctype html><title>backoffice</title>");
@@ -1090,7 +1058,7 @@ function fullyWiredApp() {
 
 describe("the route access inventory", () => {
   it("declares exactly one access level for every registered route", async () => {
-    const app = fullyWiredApp();
+    const app = productionWiredApp();
     await app.ready();
 
     expect(app.routeAccessInventory()).toEqual([
@@ -1249,7 +1217,7 @@ describe("the route access inventory", () => {
   });
 
   it("never registers a route with no declared access", async () => {
-    const app = fullyWiredApp();
+    const app = productionWiredApp();
     await app.ready();
 
     for (const route of app.routeAccessInventory()) {
@@ -1260,7 +1228,7 @@ describe("the route access inventory", () => {
 
 describe("deleting a product", () => {
   it("has no route in the fully wired app", async () => {
-    const app = fullyWiredApp();
+    const app = productionWiredApp();
 
     const response = await app.inject({
       method: "DELETE",
@@ -1268,8 +1236,6 @@ describe("deleting a product", () => {
       headers: { origin: BACKOFFICE_ORIGIN },
     });
 
-    // No session cookie is sent: any registered DELETE route would answer its own access check's
-    // 401 instead of Fastify's not-found response.
     expect(response.statusCode).toBe(404);
   });
 });
@@ -1277,9 +1243,8 @@ describe("deleting a product", () => {
 describe("every route enforces the access it declares", () => {
   const ENDED_BEFORE = new Date("2020-01-01T00:00:00.000Z");
 
-  /** The fully wired app plus a test-only route declaring a permission, since no production route needs one yet. */
-  function sweptApp() {
-    const app = fullyWiredApp();
+  function appWithTestOnlyPermissionRoute() {
+    const app = productionWiredApp();
     app.get(
       "/test-only/void-sale",
       {
@@ -1363,7 +1328,7 @@ describe("every route enforces the access it declares", () => {
   }
 
   it("sweeps every access level a route declares", async () => {
-    const app = sweptApp();
+    const app = appWithTestOnlyPermissionRoute();
     await app.ready();
 
     const declaredLevels = new Set(app.routeAccessInventory().map((route) => route.access?.level));
@@ -1381,7 +1346,7 @@ describe("every route enforces the access it declares", () => {
   });
 
   it("lets every public route through without a session", async () => {
-    const app = sweptApp();
+    const app = appWithTestOnlyPermissionRoute();
     await app.ready();
 
     for (const route of routesDeclaring(app, ["public"])) {
@@ -1395,7 +1360,7 @@ describe("every route enforces the access it declares", () => {
   });
 
   it("answers 401 unauthenticated on every session route without a session", async () => {
-    const app = sweptApp();
+    const app = appWithTestOnlyPermissionRoute();
     await app.ready();
 
     for (const route of routesDeclaring(app, [
@@ -1416,7 +1381,7 @@ describe("every route enforces the access it declares", () => {
   });
 
   it("answers 401 unauthenticated on every open-session route to an already ended session", async () => {
-    const app = sweptApp();
+    const app = appWithTestOnlyPermissionRoute();
     await app.ready();
 
     for (const route of routesDeclaring(app, ["open_session", "open_session_peek"])) {
@@ -1436,7 +1401,7 @@ describe("every route enforces the access it declares", () => {
   });
 
   it("answers 403 forbidden on every Administrator-only route to a non-Administrator holding every permission", async () => {
-    const app = sweptApp();
+    const app = appWithTestOnlyPermissionRoute();
     await app.ready();
     const rawSessionId = await signedInWithRole(PERMISSION_KEYS);
 
@@ -1451,14 +1416,12 @@ describe("every route enforces the access it declares", () => {
     }
   });
 
-  it("answers 403 forbidden on every permission route to a user whose role lacks that permission", async () => {
-    const app = sweptApp();
+  it("answers 403 forbidden on every permission route to a user missing every declared permission", async () => {
+    const app = appWithTestOnlyPermissionRoute();
     await app.ready();
 
     for (const route of routesDeclaring(app, ["permission"])) {
       const access = route.access as Extract<RouteAccess, { level: "permission" }>;
-      // An any-of declaration (more than one permission) needs every one of them withheld, not
-      // just one, before a route declaring it is expected to forbid the request.
       const declaredPermissions = Array.isArray(access.permission)
         ? access.permission
         : [access.permission];

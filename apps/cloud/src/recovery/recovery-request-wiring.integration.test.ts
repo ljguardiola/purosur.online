@@ -25,19 +25,14 @@ import { hashDestinationAddress } from "./recovery-rate-limiter.js";
 import { hashRecoveryToken } from "./recovery-token-hash.js";
 import { RECOVERY_REQUEST_TASK_IDENTIFIER } from "./recovery-worker.js";
 
-// Proves the real production wiring `server.ts`'s `setUpRecovery` builds — a real postgres-js
-// pool and graphile-worker's real `run()` inside the cloud process — end to end, which PGlite
-// cannot exercise (no LISTEN/NOTIFY, and every query served on one connection). The email sender
-// is faked, and one test swaps in a job-queue pool that never reaps idle connections; every other
-// seam (job enqueue, job processing, token issuance, auditing) runs for real.
+// Proves the real production wiring end to end (a real postgres-js pool and graphile-worker's
+// real run()), which PGlite cannot exercise: no LISTEN/NOTIFY, and every query on one connection.
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const WAIT_OPTIONS = { timeout: 20_000, interval: 100 };
 
 /**
- * pg-pool reaps an idle connection after ten seconds by default, which would race the drain wait
- * below against that timer. `idleTimeoutMillis: 0` disables that reaper, so the connection the
- * drained request leaves in the job-queue pool stays there — for however long the drain wait
- * takes — until this test cuts it itself.
+ * pg-pool reaps an idle connection after ten seconds by default, racing the drain wait below.
+ * `idleTimeoutMillis: 0` disables that reaper, until this test cuts the connection itself.
  */
 function createNonReapingJobQueuePool(connectionString: string): pg.Pool {
   return new pg.Pool({ connectionString, idleTimeoutMillis: 0 });
@@ -113,7 +108,6 @@ interface StartedFixture {
 const JOB_QUEUE_FAILURE = /recovery job queue: (idle|active) database client failed/;
 const WORKER_FAILURE = /recovery worker: (idle|active) database client failed/;
 
-/** Cuts every connection both pools hold, the way a database restart or a failover does. */
 async function dropEveryConnection(databaseUrl: string): Promise<void> {
   const sql = postgres(databaseUrl, { max: 1 });
   try {
@@ -127,11 +121,6 @@ async function dropEveryConnection(databaseUrl: string): Promise<void> {
   }
 }
 
-/**
- * Runs `cleanup` after `error` so a failure never leaves a leak behind it, then reports the
- * failure that triggered it: both, joined, if `cleanup` itself throws, so neither is lost — or
- * `error` alone otherwise, unreplaced by whatever `cleanup` returned.
- */
 async function rethrowAfter(error: unknown, cleanup: () => Promise<void>): Promise<never> {
   try {
     await cleanup();
@@ -162,8 +151,6 @@ async function startRealServer(
         ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
       },
       {
-        // The only seams touched: the email sender and, when a test passes one, the job-queue
-        // pool. graphile-worker's run() and the routes are `setUpRecovery`'s real wiring.
         setUpRecovery: async (recoveryEnv) => {
           recovery = await setUpRecovery(recoveryEnv, { emailSender, createJobQueuePool });
           return recovery;
@@ -171,9 +158,8 @@ async function startRealServer(
       },
     );
   } catch (error) {
-    // `recovery` can already be set here even though `startServer` never returned: a rejection
-    // after its own setup resolved (e.g. `app.listen` failing) would otherwise leave its worker
-    // running and polling this file's shared database with no `close()` ever called on it.
+    // `recovery` can be set even though `startServer` never returned (e.g. `app.listen` failing
+    // after setup resolved), which would otherwise leave its worker running with no close() called.
     await rethrowAfter(error, () => (recovery ? recovery.close() : Promise.resolve()));
   }
   return {
@@ -214,16 +200,11 @@ describe("setUpRecovery wired to a real Postgres pool and a real graphile-worker
     );
 
     try {
-      // graphile-worker warns, and then installs (and on release removes) its own handlers, for
-      // every pool it is given that is missing an error or a connect listener.
+      // graphile-worker's own warning text for a pool missing an error or connect listener.
       expect(warnings.filter((warning) => /doesn't have|err\.red/.test(warning))).toEqual([]);
 
-      // What puts a connection of the job-queue pool under the cut below: a request enqueues
-      // through that pool and only answers once its job is in. The job-queue pool this test
-      // injects above never reaps that connection while idle, so this wait is free to take as
-      // long as it needs without racing pg-pool's own idle timeout for it. The job is waited out
-      // before the cut because the tests below share this database and count every job queued
-      // in it.
+      // Waited out before the connection cut below, since later tests share this database and
+      // count every queued job in it.
       const enqueued = await postRecoveryRequest(
         server.origin,
         `dropped-${randomUUID()}@example.com`,
@@ -321,10 +302,8 @@ describe("setUpRecovery wired to a real Postgres pool and a real graphile-worker
     const server = await startRealServer(integrationDb.databaseUrl, sender);
 
     try {
-      // Each link is waited out before the next request: the worker runs two jobs at once, and a
-      // newer request's job that commits its token first supersedes an older one, which then
-      // sends nothing and audits the supersession — correct behavior, but not the over-limit
-      // case this test is about.
+      // Waited out one at a time: the worker runs two jobs at once, and an out-of-order commit
+      // would supersede a link instead of hitting the over-limit case this test is about.
       for (let i = 0; i < 5; i++) {
         expect((await postRecoveryRequest(server.origin, email)).status).toBe(200);
         await vi.waitFor(() => {
@@ -341,9 +320,6 @@ describe("setUpRecovery wired to a real Postgres pool and a real graphile-worker
       const sql = postgres(integrationDb.databaseUrl, { max: 1 });
       try {
         const db = drizzle(sql);
-        // No individual audit row is written for the rejection: it is bookkept by the
-        // accumulator instead and only turned into an audit row once its
-        // hour window closes and the flush cron task runs.
         const auditRows = await db
           .select()
           .from(auditLog)

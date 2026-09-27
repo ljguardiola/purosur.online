@@ -14,8 +14,7 @@ import {
   settleLateResponse,
 } from "./test-support/productsListScreen";
 
-// "2000000000015" is the internal-barcode sample used in the label design's own proof; the
-// second code is another valid check-digit code in the same restricted-circulation range.
+// Both barcodes are valid check-digit values in the GS1 restricted-circulation range.
 const mielConCodigoInterno: ProductSummary = {
   ...miel,
   id: "product-20",
@@ -38,6 +37,14 @@ async function openPrintLabelsModal(screen: Screen) {
   return screen.getByRole("dialog");
 }
 
+// A native click reaches the same handler as userEvent: react-aria's usePress falls back to the
+// click event, so repeated clicks below run fast without weakening what they prove.
+function clickManyTimesNatively(element: { element: () => Element }, times: number): void {
+  for (let clickIndex = 0; clickIndex < times; clickIndex += 1) {
+    (element.element() as HTMLButtonElement).click();
+  }
+}
+
 test("the header button opens the print labels modal", async () => {
   const services = createServices();
   mockLoaded(services, [mielConCodigoInterno]);
@@ -56,8 +63,6 @@ test("lists only products with an internal barcode", async () => {
 
   const dialog = await openPrintLabelsModal(screen);
 
-  // The single labelable product's own name is repeated by the preview card below, so its code
-  // (not grouped there the same way) is what proves the row itself is listed.
   await expect.element(dialog.getByText("Miel pura de abeja 1 kg").first()).toBeVisible();
   await expect.element(dialog.getByText("2000000000015")).toBeVisible();
   expect(dialog.getByText("Producto sin código interno").query()).toBeNull();
@@ -154,13 +159,7 @@ test("the stepper increments and decrements between 0 and 999, disabling each bo
   await userEvent.click(decrease);
   await expect.element(decrease).toBeDisabled();
 
-  // Reaching the 999 upper bound one click at a time through userEvent would drive the same
-  // number of real pointer interactions; a direct native click still goes through the same
-  // handler (react-aria's usePress falls back to the "click" event), so the loop stays fast
-  // without weakening what it proves.
-  for (let clickIndex = 0; clickIndex < 999; clickIndex += 1) {
-    (increase.element() as HTMLButtonElement).click();
-  }
+  clickManyTimesNatively(increase, 999);
   await expect.poll(() => dialog.getByText("999", { exact: true }).query()).not.toBeNull();
   await expect.element(increase).toBeDisabled();
 
@@ -191,8 +190,6 @@ test("previews the first product with a count above zero, defaulting to the firs
   const screen = await renderScreen(services);
   const dialog = await openPrintLabelsModal(screen);
   const preview = dialog.getByRole("group", { name: "Vista previa de la etiqueta" });
-  // Sorted by name, "Almendras peladas" comes first and is the default preview while every
-  // count is still 0.
   await expect.element(preview.getByText(almendrasConCodigoInterno.name)).toBeVisible();
 
   await userEvent.click(
@@ -342,8 +339,6 @@ test("shows the products-changed notice and offers a reload on product_not_found
   });
   await userEvent.click(reload);
 
-  // The reloaded row's own code (unlike its name, not repeated by the preview card's grouped
-  // "2 000000 000022" digits) uniquely identifies it as listed again.
   await expect
     .element(dialog.getByText(almendrasConCodigoInterno.barcodes[0] as string))
     .toBeVisible();
@@ -493,15 +488,12 @@ test("caps the sheet at 2400 labels in total, disabling a row's + once the total
   const increase = (product: ProductSummary) =>
     dialog.getByRole("button", { name: `Sumar una etiqueta a ${product.name}` });
 
-  // Native clicks for the same reason as the 999-bound stepper test above.
   for (const [product, count] of [
     [mielConCodigoInterno, 999],
     [almendrasConCodigoInterno, 999],
     [nuecesConCodigoInterno, 402],
   ] as const) {
-    for (let clickIndex = 0; clickIndex < count; clickIndex += 1) {
-      (increase(product).element() as HTMLButtonElement).click();
-    }
+    clickManyTimesNatively(increase(product), count);
   }
 
   await expect.element(dialog.getByText("2400 etiquetas")).toBeVisible();
