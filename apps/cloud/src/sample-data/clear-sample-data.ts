@@ -8,11 +8,13 @@ import {
   branchSettings,
   categories,
   locations,
+  passkeyChallenges,
   passkeys,
   priceReviews,
   prices,
   productBarcodes,
   products,
+  recoveryTokens,
   registerEnrollmentCodes,
   registers,
   rolePermissions,
@@ -57,6 +59,26 @@ export type ClearSampleDataOutcome =
   | { kind: "cleared"; summary: ClearSampleDataSummary };
 
 class SampleDataClearRefusal extends Error {}
+
+const FOREIGN_KEY_VIOLATION = "23503";
+
+// postgres-js names the field `constraint_name`; PGlite names it `constraint`.
+function foreignKeyViolationConstraint(error: unknown): string | undefined {
+  let current: unknown = error;
+  while (current instanceof Error) {
+    const { code, constraint, constraint_name } = current as {
+      code?: unknown;
+      constraint?: unknown;
+      constraint_name?: unknown;
+    };
+    if (code === FOREIGN_KEY_VIOLATION) {
+      const name = constraint_name ?? constraint;
+      return typeof name === "string" ? name : "unknown constraint";
+    }
+    current = current.cause;
+  }
+  return undefined;
+}
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
@@ -162,6 +184,13 @@ export async function clearSampleData<TQueryResult extends PgQueryResultHKT>(
     if (error instanceof SampleDataClearRefusal) {
       return { kind: "refused", detail: error.message };
     }
+    const violatedConstraint = foreignKeyViolationConstraint(error);
+    if (violatedConstraint !== undefined) {
+      return {
+        kind: "refused",
+        detail: `data that is not sample data still references sample data (${violatedConstraint})`,
+      };
+    }
     throw error;
   }
 }
@@ -178,6 +207,23 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
       return { kind: "not_loaded" };
     }
     const sampleUserIds = sampleUsers.map((row) => row.id);
+
+    const [remainingAdministrator] = await tx
+      .select({ id: users.id })
+      .from(users)
+      .innerJoin(userRoles, eq(userRoles.userId, users.id))
+      .innerJoin(roles, eq(roles.id, userRoles.roleId))
+      .where(
+        and(
+          eq(roles.isAdministrator, true),
+          eq(users.active, true),
+          notInArray(users.id, sampleUserIds),
+        ),
+      )
+      .limit(1);
+    if (!remainingAdministrator) {
+      throw new SampleDataClearRefusal("clearing would leave no active Administrator");
+    }
 
     const [location] = await tx.select({ id: locations.id }).from(locations).limit(1);
     if (!location) {
@@ -223,6 +269,25 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
       .where(inArray(registers.name, [...SAMPLE_REGISTER_NAMES]));
     const sampleRegisterIds = sampleRegisters.map((row) => row.id);
 
+    const sampleSessionIds = (
+      await tx
+        .select({ id: sessions.id })
+        .from(sessions)
+        .where(inArray(sessions.userId, sampleUserIds))
+    ).map((row) => row.id);
+    const samplePasskeyIds = (
+      await tx
+        .select({ id: passkeys.id })
+        .from(passkeys)
+        .where(inArray(passkeys.userId, sampleUserIds))
+    ).map((row) => row.id);
+    const sampleRecoveryTokenIds = (
+      await tx
+        .select({ id: recoveryTokens.id })
+        .from(recoveryTokens)
+        .where(inArray(recoveryTokens.userId, sampleUserIds))
+    ).map((row) => row.id);
+
     await tx
       .delete(alertDeliveries)
       .where(
@@ -251,15 +316,25 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
       ...sampleRoleIds,
       ...sampleRegisterIds,
       ...sampleProductIds,
+      ...sampleAlertIds,
+      ...samplePasskeyIds,
+      ...sampleRecoveryTokenIds,
     ];
     await tx
       .delete(auditLog)
       .where(
-        or(inArray(auditLog.actorId, sampleUserIds), inArray(auditLog.entityId, sampleEntityIds)),
+        or(
+          inArray(auditLog.entityId, sampleEntityIds),
+          and(eq(auditLog.entity, "branch_settings"), inArray(auditLog.actorId, sampleUserIds)),
+        ),
       );
 
-    await tx.delete(sessions).where(inArray(sessions.userId, sampleUserIds));
-    await tx.delete(passkeys).where(inArray(passkeys.userId, sampleUserIds));
+    await tx
+      .delete(passkeyChallenges)
+      .where(inArray(passkeyChallenges.sessionId, sampleSessionIds));
+    await tx.delete(sessions).where(inArray(sessions.id, sampleSessionIds));
+    await tx.delete(passkeys).where(inArray(passkeys.id, samplePasskeyIds));
+    await tx.delete(recoveryTokens).where(inArray(recoveryTokens.id, sampleRecoveryTokenIds));
     await tx.delete(userRoles).where(inArray(userRoles.userId, sampleUserIds));
     await tx.delete(users).where(inArray(users.id, sampleUserIds));
 
