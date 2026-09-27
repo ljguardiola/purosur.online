@@ -1,8 +1,21 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import ts from "typescript";
+import { Lexer } from "yaml";
 
-const SCAN_EXTENSIONS = [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs", ".css"];
+const SCAN_EXTENSIONS = [
+  ".ts",
+  ".tsx",
+  ".mts",
+  ".cts",
+  ".js",
+  ".jsx",
+  ".mjs",
+  ".cjs",
+  ".css",
+  ".yml",
+  ".yaml",
+];
 
 function isJSDocNode(node) {
   return node.kind >= ts.SyntaxKind.FirstJSDocNode && node.kind <= ts.SyntaxKind.LastJSDocNode;
@@ -61,8 +74,24 @@ function findCssComments(source) {
   return comments;
 }
 
+function findYamlComments(source) {
+  const comments = [];
+  let line = 1;
+  for (const token of new Lexer().lex(source)) {
+    if (token.startsWith("#")) comments.push({ line, text: token });
+    line += token.split("\n").length - 1;
+  }
+  return comments;
+}
+
+function isYaml(fileName) {
+  return fileName.endsWith(".yml") || fileName.endsWith(".yaml");
+}
+
 export function findComments(source, fileName = "a.ts") {
-  return fileName.endsWith(".css") ? findCssComments(source) : findScriptComments(source, fileName);
+  if (fileName.endsWith(".css")) return findCssComments(source);
+  if (isYaml(fileName)) return findYamlComments(source);
+  return findScriptComments(source, fileName);
 }
 
 const ISSUE_OR_PR_NUMBER = /(?<![\w&])#\d+(?!\w)/;

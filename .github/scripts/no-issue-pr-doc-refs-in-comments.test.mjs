@@ -199,6 +199,59 @@ test("does not mistake an unterminated CSS string at the end of the file for a c
   assert.deepEqual(comments, []);
 });
 
+test("finds full-line and trailing YAML comments with their lines", () => {
+  const source = ["# see #5", "key: value # closes #123", "other: 1"].join("\n");
+
+  const comments = findComments(source, "a.yml");
+
+  assert.deepEqual(comments, [
+    { line: 1, text: "# see #5" },
+    { line: 2, text: "# closes #123" },
+  ]);
+});
+
+test("reads .yaml files as YAML", () => {
+  const comments = findComments("# see #5\n", "pnpm-workspace.yaml");
+
+  assert.deepEqual(comments, [{ line: 1, text: "# see #5" }]);
+});
+
+test("does not mistake a # inside a quoted YAML string for a comment", () => {
+  const source = ['a: "closes #123"', "b: 'see #5' # real"].join("\n");
+
+  const comments = findComments(source, "a.yml");
+
+  assert.deepEqual(comments, [{ line: 2, text: "# real" }]);
+});
+
+test("does not mistake a # inside a plain YAML value, such as a URL fragment or a color, for a comment", () => {
+  const source = ["url: https://example.com/page#42", "color: a#123", "- x#5"].join("\n");
+
+  assert.deepEqual(findComments(source, "a.yml"), []);
+});
+
+test("does not mistake a # line inside a YAML block scalar for a comment", () => {
+  const source = ["run: |", "  # closes #123", "  echo done", "# after"].join("\n");
+
+  const comments = findComments(source, "a.yml");
+
+  assert.deepEqual(comments, [{ line: 4, text: "# after" }]);
+});
+
+test("does not mistake a YAML anchor or alias for a comment", () => {
+  const source = ["base: &defaults", "  a: 1", "other: *defaults"].join("\n");
+
+  assert.deepEqual(findComments(source, "a.yml"), []);
+});
+
+test("finds a YAML comment inside a flow collection", () => {
+  const source = ["list: [", "  a, # see #5", "  b", "]"].join("\n");
+
+  const comments = findComments(source, "a.yml");
+
+  assert.deepEqual(comments, [{ line: 2, text: "# see #5" }]);
+});
+
 test("reports an issue number in a comment that follows a URL string", () => {
   const violations = findDocumentReferences('fetch("https://x"); // closes #123');
 
@@ -417,6 +470,8 @@ test("scans every listed extension", () => {
     "packages/a/x.mjs",
     "packages/a/x.cjs",
     "packages/a/x.css",
+    "packages/a/x.yml",
+    "packages/a/x.yaml",
     "packages/a/x.json",
   ];
 
@@ -432,6 +487,8 @@ test("scans every listed extension", () => {
     "packages/a/x.mts",
     "packages/a/x.ts",
     "packages/a/x.tsx",
+    "packages/a/x.yaml",
+    "packages/a/x.yml",
   ]);
 });
 
@@ -442,6 +499,8 @@ test("no scanned file in the repository has a comment citing an issue, a pull re
     ".github/scripts/no-issue-pr-doc-refs-in-comments.test.mjs",
     ".railway/railway.ts",
     "packages/ui/src/styles/tokens.css",
+    ".github/workflows/verify.yml",
+    "pnpm-workspace.yaml",
   ]) {
     assert.ok(files.includes(sentinel), `expected the scan to include ${sentinel}`);
   }
