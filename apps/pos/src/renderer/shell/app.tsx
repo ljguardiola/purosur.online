@@ -1,6 +1,6 @@
-import { BrandPanelScreen } from "./BrandPanelScreen";
-import { CoreDownNotice } from "./CoreDownNotice";
-import { useCoreStatus } from "./useCoreStatus";
+import { useCoreStatus } from "../platform/use-core-status";
+import { BrandPanelScreen } from "./brand-panel-screen";
+import { CoreDownNotice } from "./core-down-notice";
 
 export function App() {
   const coreStatus = useCoreStatus();

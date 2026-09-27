@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { render } from "vitest-browser-react";
-import { App } from "./App";
+import { App } from "./app";
 
 const SHELL_READY_TEXT = "Puro Sur está listo";
 const BRAND_LOGO_ALT = "Puro Sur";
