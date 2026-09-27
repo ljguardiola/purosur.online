@@ -24,7 +24,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const miel: ProductSummary = {
+const honey: ProductSummary = {
   id: "product-1",
   name: "Miel pura de abeja 1 kg",
   categoryId: "category-1",
@@ -37,18 +37,18 @@ const miel: ProductSummary = {
 };
 
 test("fetchProducts lists every product on 200, defaulting to the active filter", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [miel]));
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [honey]));
 
   const outcome = await fetchProducts();
 
-  expect(outcome).toEqual({ kind: "ok", value: [miel] });
+  expect(outcome).toEqual({ kind: "ok", value: [honey] });
   expect(fetch).toHaveBeenCalledWith("/products?status=active");
 });
 
 test.each(["active", "inactive", "all"] as const)(
   "fetchProducts sends the requested status filter %s",
   async (status) => {
-    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [miel]));
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [honey]));
 
     await fetchProducts(status);
 
@@ -95,11 +95,11 @@ const createInput = {
 };
 
 test("createProduct posts the fields and returns the created product on 201", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(201, miel));
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(201, honey));
 
   const outcome = await createProduct(createInput);
 
-  expect(outcome).toEqual({ kind: "ok", value: miel });
+  expect(outcome).toEqual({ kind: "ok", value: honey });
   expect(fetch).toHaveBeenCalledWith("/products", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -109,7 +109,7 @@ test("createProduct posts the fields and returns the created product on 201", as
 
 test("createProduct posts a given net content and returns it in the created product", async () => {
   const withNetContent = { ...createInput, netContent: { quantity: 380, unit: "G" as const } };
-  const created: ProductSummary = { ...miel, netContent: withNetContent.netContent };
+  const created: ProductSummary = { ...honey, netContent: withNetContent.netContent };
   vi.mocked(fetch).mockResolvedValue(jsonResponse(201, created));
 
   const outcome = await createProduct(withNetContent);
@@ -181,7 +181,7 @@ test("createProduct returns failed when the request throws", async () => {
 const editInput = { ...createInput, version: 1 };
 
 test("editProduct posts the fields and version and returns the applied product on 200", async () => {
-  const applied: ProductSummary = { ...miel, version: 2 };
+  const applied: ProductSummary = { ...honey, version: 2 };
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, applied));
 
   const outcome = await editProduct("product-1", editInput);

@@ -16,7 +16,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const arroz: PriceProduct = {
+const rice: PriceProduct = {
   id: "product-1",
   name: "Arroz",
   categoryId: "category-1",
@@ -30,14 +30,14 @@ const arroz: PriceProduct = {
 test("fetchPrices lists the products, the pending count, the review window and the categories on 200", async () => {
   const categories = [{ id: "category-1", name: "Almacén" }];
   vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(200, { products: [arroz], pendingCount: 1, reviewWindowDays: 30, categories }),
+    jsonResponse(200, { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories }),
   );
 
   const outcome = await fetchPrices({ review: "pending" });
 
   expect(outcome).toEqual({
     kind: "ok",
-    value: { products: [arroz], pendingCount: 1, reviewWindowDays: 30, categories },
+    value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories },
   });
   expect(fetch).toHaveBeenCalledWith("/prices?review=pending");
 });
@@ -81,7 +81,7 @@ test("fetchPrices returns failed when the request throws", async () => {
 
 test("fetchPrices returns failed on a body without its categories", async () => {
   vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(200, { products: [arroz], pendingCount: 1, reviewWindowDays: 30 }),
+    jsonResponse(200, { products: [rice], pendingCount: 1, reviewWindowDays: 30 }),
   );
 
   expect(await fetchPrices({ review: "pending" })).toEqual({ kind: "failed" });

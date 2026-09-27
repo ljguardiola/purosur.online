@@ -3,7 +3,7 @@ import { userEvent } from "vitest/browser";
 import {
   createServices,
   fillNewProductFieldsExceptBarcodes,
-  miel,
+  honey,
   mockLoaded,
   openEditProductModal,
   openNewProductModal,
@@ -86,13 +86,13 @@ test("shows an invalid-code error, not the required one, when the cloud rejects 
 
 test("shows an invalid-code error on edit when the cloud rejects the listed barcodes", async () => {
   const services = createServices();
-  mockLoaded(services, [miel]);
+  mockLoaded(services, [honey]);
   vi.mocked(services.editProduct).mockResolvedValue({
     kind: "validation_failed",
     field: "barcodes",
   });
   const screen = await renderScreen(services);
-  const dialog = await openEditProductModal(screen, miel);
+  const dialog = await openEditProductModal(screen, honey);
 
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
@@ -143,10 +143,10 @@ test("creating is blocked when the code left in the scan input is invalid", asyn
 
 test("saving an edit includes a code typed in the scan input but not yet confirmed with Enter", async () => {
   const services = createServices();
-  mockLoaded(services, [miel]);
+  mockLoaded(services, [honey]);
   vi.mocked(services.editProduct).mockResolvedValue({ kind: "failed" });
   const screen = await renderScreen(services);
-  const dialog = await openEditProductModal(screen, miel);
+  const dialog = await openEditProductModal(screen, honey);
 
   await userEvent.fill(scanInputOf(dialog), "7790000000099");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
@@ -164,9 +164,9 @@ test("saving an edit includes a code typed in the scan input but not yet confirm
 
 test("saving an edit is blocked when the code left in the scan input is already listed", async () => {
   const services = createServices();
-  mockLoaded(services, [miel]);
+  mockLoaded(services, [honey]);
   const screen = await renderScreen(services);
-  const dialog = await openEditProductModal(screen, miel);
+  const dialog = await openEditProductModal(screen, honey);
 
   await userEvent.fill(scanInputOf(dialog), "7790987000015");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
@@ -195,10 +195,10 @@ test("shows a generic barcode-taken error when the cloud names no taken code", a
 
 test("shows a generic barcode-taken error on edit when the cloud names no taken code", async () => {
   const services = createServices();
-  mockLoaded(services, [miel]);
+  mockLoaded(services, [honey]);
   vi.mocked(services.editProduct).mockResolvedValue({ kind: "barcode_taken", codes: [] });
   const screen = await renderScreen(services);
-  const dialog = await openEditProductModal(screen, miel);
+  const dialog = await openEditProductModal(screen, honey);
 
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 

@@ -3,10 +3,10 @@ import { userEvent } from "vitest/browser";
 import type { GenerateInternalBarcodeOutcome, ProductSummary } from "./products-api";
 import type { ProductsListScreenServices } from "./products-list-screen";
 import {
-  almendras,
+  almonds,
   createServices,
   fillNewProductFieldsExceptBarcodes,
-  miel,
+  honey,
   mockLoaded,
   openEditProductModal,
   openNewProductModal,
@@ -66,17 +66,17 @@ test("generates an internal code, adds it to the list, and saves the product wit
 
 test("generates an internal code from the edit modal and saves it alongside the existing code", async () => {
   const services = createServices();
-  mockLoaded(services, [miel]);
+  mockLoaded(services, [honey]);
   vi.mocked(services.generateInternalBarcode).mockResolvedValue({
     kind: "ok",
     code: "2000000000015",
   });
   vi.mocked(services.editProduct).mockResolvedValue({
     kind: "ok",
-    value: { ...miel, barcodes: [...miel.barcodes, "2000000000015"], version: 2 },
+    value: { ...honey, barcodes: [...honey.barcodes, "2000000000015"], version: 2 },
   });
   const screen = await renderScreen(services);
-  const dialog = await openEditProductModal(screen, miel);
+  const dialog = await openEditProductModal(screen, honey);
 
   await userEvent.click(generateButtonOf(dialog));
   await expect.element(dialog.getByText("2000000000015")).toBeVisible();
@@ -186,10 +186,10 @@ test("keeps a code scanned while the internal code is being generated", async ()
 
 test("keeps a code removed while the internal code is being generated out of the list", async () => {
   const services = createServices();
-  mockLoaded(services, [miel]);
+  mockLoaded(services, [honey]);
   const resolveGenerate = pendingGenerate(services);
   const screen = await renderScreen(services);
-  const dialog = await openEditProductModal(screen, miel);
+  const dialog = await openEditProductModal(screen, honey);
 
   await userEvent.click(generateButtonOf(dialog));
   await userEvent.click(dialog.getByRole("button", { name: "Quitar el código 7790987000015" }));
@@ -223,15 +223,15 @@ test("drops an internal code that arrives after the create modal was closed and 
 
 test("drops an internal code that arrives after the edit modal moved to another product", async () => {
   const services = createServices();
-  mockLoaded(services, [miel, almendras]);
+  mockLoaded(services, [honey, almonds]);
   const resolveGenerate = pendingGenerate(services);
   const screen = await renderScreen(services);
 
-  const firstDialog = await openEditProductModal(screen, miel);
+  const firstDialog = await openEditProductModal(screen, honey);
   await userEvent.click(generateButtonOf(firstDialog));
   await userEvent.click(firstDialog.getByRole("button", { name: "Cancelar" }));
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  const dialog = await openEditProductModal(screen, almendras);
+  const dialog = await openEditProductModal(screen, almonds);
   await expect.element(dialog.getByText("7790000000001")).toBeVisible();
 
   resolveGenerate({ kind: "ok", code: "2000000000015" });
@@ -308,7 +308,7 @@ test("describes the generate button with its failure, so a screen reader announc
 
 test("shows the rate-limited notice when generating is refused for too many requests", async () => {
   const services = createServices();
-  mockLoaded(services, [miel]);
+  mockLoaded(services, [honey]);
   vi.mocked(services.generateInternalBarcode).mockResolvedValue({
     kind: "rate_limited",
     retryAfterSeconds: 120,
@@ -327,7 +327,7 @@ test("shows the rate-limited notice when generating is refused for too many requ
   await userEvent.click(createDialog.getByRole("button", { name: "Cancelar" }));
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
 
-  const editDialog = await openEditProductModal(screen, miel);
+  const editDialog = await openEditProductModal(screen, honey);
   await userEvent.click(generateButtonOf(editDialog));
   await expect.element(editDialog.getByText("Demasiadas solicitudes")).toBeVisible();
   await expect
@@ -381,7 +381,7 @@ test("announces a generate failure as an alert", async () => {
 
 test("clears the rate-limited notice when generating again succeeds", async () => {
   const services = createServices();
-  mockLoaded(services, [miel]);
+  mockLoaded(services, [honey]);
   vi.mocked(services.generateInternalBarcode)
     .mockResolvedValueOnce({ kind: "rate_limited", retryAfterSeconds: 120 })
     .mockResolvedValueOnce({ kind: "ok", code: "2000000000015" })
@@ -398,7 +398,7 @@ test("clears the rate-limited notice when generating again succeeds", async () =
   await userEvent.click(createDialog.getByRole("button", { name: "Cancelar" }));
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
 
-  const editDialog = await openEditProductModal(screen, miel);
+  const editDialog = await openEditProductModal(screen, honey);
   await userEvent.click(generateButtonOf(editDialog));
   await expect.element(editDialog.getByText("Demasiadas solicitudes")).toBeVisible();
   await userEvent.click(generateButtonOf(editDialog));

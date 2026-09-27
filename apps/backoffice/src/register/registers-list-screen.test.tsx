@@ -20,8 +20,8 @@ function createServices(
   };
 }
 
-const caja1: RegisterSummary = { id: "register-1", name: "Caja 1", pendingCode: null };
-const caja2: RegisterSummary = {
+const register1: RegisterSummary = { id: "register-1", name: "Caja 1", pendingCode: null };
+const register2: RegisterSummary = {
   id: "register-2",
   name: "Caja 2",
   pendingCode: { issuedAt: "2026-09-25T11:56:00.000Z", expiresAt: "2026-09-25T12:11:00.000Z" },
@@ -54,7 +54,10 @@ function renderScreen(
 
 test("shows the breadcrumb, heading, each register's name and count", async () => {
   const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [caja1, caja2] });
+  vi.mocked(services.fetchRegisters).mockResolvedValue({
+    kind: "ok",
+    value: [register1, register2],
+  });
 
   const screen = await renderScreen(services);
 
@@ -69,7 +72,7 @@ test("shows the breadcrumb, heading, each register's name and count", async () =
 
 test("shows Sin instalación and Sin configurar for every register, and the Esperando alta tag", async () => {
   const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [caja1] });
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
 
   const screen = await renderScreen(services);
 
@@ -80,7 +83,7 @@ test("shows Sin instalación and Sin configurar for every register, and the Espe
 
 test("shows the elapsed and remaining time for a register with a pending code", async () => {
   const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [caja2] });
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register2] });
 
   const screen = await renderScreen(services);
 
@@ -104,7 +107,7 @@ test("shows recién for a code issued less than a minute ago", async () => {
 
 test("stops showing a pending code once it expires while the screen stays open", async () => {
   const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [caja2] });
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register2] });
   let current = new Date("2026-09-25T12:00:00.000Z");
   vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
   try {
@@ -142,7 +145,7 @@ test("shows a load error with a retry action when the registers fail to load", a
 
   await expect.element(screen.getByText("No pudimos abrir las cajas registradoras")).toBeVisible();
 
-  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja1] });
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register1] });
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
   await expect.element(screen.getByText("1 caja")).toBeVisible();
@@ -208,10 +211,10 @@ test("opens the create modal, and cancel closes it without calling the API", asy
 
 test("creates a register and shows it in the list", async () => {
   const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja1] });
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register1] });
   vi.mocked(services.fetchRegisters).mockResolvedValueOnce({
     kind: "ok",
-    value: [caja1, { id: "register-3", name: "Caja 3", pendingCode: null }],
+    value: [register1, { id: "register-3", name: "Caja 3", pendingCode: null }],
   });
   vi.mocked(services.createRegister).mockResolvedValue({
     kind: "ok",
@@ -233,11 +236,14 @@ test("creates a register and shows it in the list", async () => {
 
 test("shows a created register in the same order the server lists registers", async () => {
   const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja2] });
-  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja1, caja2] });
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register2] });
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({
+    kind: "ok",
+    value: [register1, register2],
+  });
   vi.mocked(services.createRegister).mockResolvedValue({
     kind: "ok",
-    value: { id: caja1.id, name: caja1.name },
+    value: { id: register1.id, name: register1.name },
   });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("1 caja")).toBeVisible();
@@ -290,7 +296,7 @@ test("shows the name-too-long error on create, without calling the API", async (
 
 test("shows the server's validation_failed error on create and does not add the register to the list", async () => {
   const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [caja1] });
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
   vi.mocked(services.createRegister).mockResolvedValue({
     kind: "validation_failed",
     field: "name",
@@ -309,7 +315,7 @@ test("shows the server's validation_failed error on create and does not add the 
 
 test("shows the name-taken error on create and does not add the register to the list", async () => {
   const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [caja1] });
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
   vi.mocked(services.createRegister).mockResolvedValue({ kind: "name_taken" });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("1 caja")).toBeVisible();
@@ -431,7 +437,7 @@ async function openEmitModal(screen: Awaited<ReturnType<typeof renderScreen>>, n
 
 test("emitting a code shows it grouped in fours, with the expiry note and description", async () => {
   const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [caja1] });
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
   vi.mocked(services.emitEnrollmentCode).mockResolvedValue({
     kind: "ok",
     value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
@@ -455,11 +461,11 @@ test("emitting a code shows it grouped in fours, with the expiry note and descri
 
 test("emit's not_found closes the modal and refreshes the list", async () => {
   const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja1] });
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register1] });
   vi.mocked(services.emitEnrollmentCode).mockResolvedValue({ kind: "not_found" });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Caja 1")).toBeVisible();
-  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja2] });
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register2] });
 
   await userEvent.click(screen.getByRole("button", { name: "Emitir código de alta para Caja 1" }));
 
@@ -470,7 +476,7 @@ test("emit's not_found closes the modal and refreshes the list", async () => {
 
 test("under StrictMode, clicking the row action emits the code exactly once and shows that call's code", async () => {
   const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [caja1] });
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
   vi.mocked(services.emitEnrollmentCode).mockResolvedValue({
     kind: "ok",
     value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
@@ -493,7 +499,7 @@ test("under StrictMode, clicking the row action emits the code exactly once and 
 
 test("Listo closes the code modal and refreshes the list", async () => {
   const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja1] });
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register1] });
   vi.mocked(services.emitEnrollmentCode).mockResolvedValue({
     kind: "ok",
     value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
@@ -502,7 +508,7 @@ test("Listo closes the code modal and refreshes the list", async () => {
   await expect.element(screen.getByText("Caja 1")).toBeVisible();
   const dialog = await openEmitModal(screen, "Caja 1");
   await expect.element(dialog.getByText("P4NX 7KWE 2QRT 8MZD")).toBeVisible();
-  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja2] });
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register2] });
 
   await userEvent.click(dialog.getByRole("button", { name: "Listo" }));
 
@@ -521,7 +527,7 @@ function deferred<T>() {
 
 test("while the code is being emitted, neither the close button nor Escape dismisses the modal", async () => {
   const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [caja1] });
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
   const pendingEmission =
     deferred<Awaited<ReturnType<RegistersListScreenServices["emitEnrollmentCode"]>>>();
   vi.mocked(services.emitEnrollmentCode).mockReturnValue(pendingEmission.promise);
@@ -626,12 +632,12 @@ test.each<CloseCodeModalCase>([
   },
 ])("closing $name refreshes the list", async ({ arrange, close }) => {
   const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja1] });
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register1] });
   arrange(services);
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Caja 1")).toBeVisible();
   const dialog = await openEmitModal(screen, "Caja 1");
-  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja2] });
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register2] });
 
   await close(screen, dialog);
 
@@ -642,7 +648,7 @@ test.each<CloseCodeModalCase>([
 
 test("keeps the current rows visible while the list refreshes after closing the code modal", async () => {
   const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja1] });
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register1] });
   vi.mocked(services.emitEnrollmentCode).mockResolvedValue({
     kind: "ok",
     value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
@@ -662,7 +668,7 @@ test("keeps the current rows visible while the list refreshes after closing the 
   await expect.element(screen.getByText("Caja 1")).toBeVisible();
   await expect.element(screen.getByText("1 caja")).toBeVisible();
 
-  pendingRefresh.resolve({ kind: "ok", value: [caja2] });
+  pendingRefresh.resolve({ kind: "ok", value: [register2] });
 
   await expect.element(screen.getByText("Caja 2")).toBeVisible();
   await expect.element(screen.getByRole("table")).not.toHaveAttribute("aria-busy");
@@ -670,7 +676,7 @@ test("keeps the current rows visible while the list refreshes after closing the 
 
 test("keeps the current rows visible while the list refreshes after creating a register", async () => {
   const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja1] });
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register1] });
   const pendingRefresh =
     deferred<Awaited<ReturnType<RegistersListScreenServices["fetchRegisters"]>>>();
   vi.mocked(services.fetchRegisters).mockReturnValueOnce(pendingRefresh.promise);
@@ -691,7 +697,7 @@ test("keeps the current rows visible while the list refreshes after creating a r
 
   pendingRefresh.resolve({
     kind: "ok",
-    value: [caja1, { id: "register-3", name: "Caja 3", pendingCode: null }],
+    value: [register1, { id: "register-3", name: "Caja 3", pendingCode: null }],
   });
 
   await expect.element(screen.getByText("2 cajas")).toBeVisible();
@@ -730,7 +736,7 @@ test("shows loading placeholders, not an empty table, while the list refreshes f
 
 test("a refresh that fails shows the load error with its retry action, like a failed first load", async () => {
   const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja1] });
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register1] });
   vi.mocked(services.emitEnrollmentCode).mockResolvedValue({ kind: "failed" });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Caja 1")).toBeVisible();
@@ -750,7 +756,7 @@ test("navigates to Mi cuenta when emitting a code comes back forbidden", async (
   window.history.pushState(null, "", "/settings/registers");
   try {
     const services = createServices();
-    vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [caja1] });
+    vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
     vi.mocked(services.emitEnrollmentCode).mockResolvedValue({ kind: "forbidden" });
     const screen = await renderScreen(services);
     await expect.element(screen.getByText("Caja 1")).toBeVisible();
@@ -767,7 +773,7 @@ test("navigates to Mi cuenta when emitting a code comes back forbidden", async (
 
 test("ends the session when emitting a code finds no open session", async () => {
   const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [caja1] });
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
   vi.mocked(services.emitEnrollmentCode).mockResolvedValue({ kind: "unauthenticated" });
   const onSessionEnded = vi.fn();
   const screen = await renderScreen(services, onSessionEnded);
@@ -780,7 +786,7 @@ test("ends the session when emitting a code finds no open session", async () => 
 
 test("opens the authorization modal on emit's authorization_required, then authorizes and shows the code", async () => {
   const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [caja1] });
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
   vi.mocked(services.emitEnrollmentCode).mockResolvedValueOnce({ kind: "authorization_required" });
   grantAuthorization(services);
   vi.mocked(services.emitEnrollmentCode).mockResolvedValueOnce({
@@ -810,7 +816,10 @@ test("opens the authorization modal on emit's authorization_required, then autho
 
 test("has no accessibility violations once loaded, with the create modal open, and with the code modal open", async () => {
   const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [caja1, caja2] });
+  vi.mocked(services.fetchRegisters).mockResolvedValue({
+    kind: "ok",
+    value: [register1, register2],
+  });
   vi.mocked(services.emitEnrollmentCode).mockResolvedValue({
     kind: "ok",
     value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },

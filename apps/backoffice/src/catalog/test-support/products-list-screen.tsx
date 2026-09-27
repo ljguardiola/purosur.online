@@ -20,20 +20,20 @@ export function createServices(
   };
 }
 
-export const almacen: CategorySummary = {
+export const groceries: CategorySummary = {
   id: "category-1",
   name: "Almacén",
   version: 1,
   parentId: null,
 };
-export const frutosSecos: CategorySummary = {
+export const driedFruits: CategorySummary = {
   id: "category-2",
   name: "Frutos secos",
   version: 1,
   parentId: null,
 };
 
-export const miel: ProductSummary = {
+export const honey: ProductSummary = {
   id: "product-1",
   name: "Miel pura de abeja 1 kg",
   categoryId: "category-1",
@@ -45,7 +45,7 @@ export const miel: ProductSummary = {
   version: 1,
 };
 
-export const almendras: ProductSummary = {
+export const almonds: ProductSummary = {
   id: "product-2",
   name: "Almendras peladas",
   categoryId: "category-2",
@@ -74,7 +74,7 @@ export function radioLabel(dialog: ScreenLocator, title: string): HTMLElement {
 export function mockLoaded(
   services: ProductsListScreenServices,
   products: ProductSummary[],
-  categories: CategorySummary[] = [almacen, frutosSecos],
+  categories: CategorySummary[] = [groceries, driedFruits],
 ) {
   vi.mocked(services.fetchProducts).mockResolvedValue({ kind: "ok", value: products });
   vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: categories });

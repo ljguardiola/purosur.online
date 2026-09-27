@@ -3,7 +3,7 @@ import { userEvent } from "vitest/browser";
 import type { ProductSummary } from "./products-api";
 import {
   createServices,
-  miel,
+  honey,
   mockLoaded,
   openEditProductModal,
   renderScreen,
@@ -11,7 +11,7 @@ import {
 
 test("the row action opens the edit modal pre-filled with the product's data", async () => {
   const services = createServices();
-  mockLoaded(services, [miel]);
+  mockLoaded(services, [honey]);
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
 
@@ -32,13 +32,13 @@ test("the row action opens the edit modal pre-filled with the product's data", a
 
 test("prefills the edit modal with the product's net content quantity and unit", async () => {
   const services = createServices();
-  const mielConContenido: ProductSummary = {
-    ...miel,
+  const honeyWithNetContent: ProductSummary = {
+    ...honey,
     netContent: { quantity: 1.5, unit: "KG" },
   };
-  mockLoaded(services, [mielConContenido]);
+  mockLoaded(services, [honeyWithNetContent]);
   const screen = await renderScreen(services);
-  const dialog = await openEditProductModal(screen, mielConContenido);
+  const dialog = await openEditProductModal(screen, honeyWithNetContent);
 
   await expect.element(dialog.getByRole("textbox", { name: "Contenido neto" })).toHaveValue("1,5");
   await expect.element(dialog.getByRole("button", { name: "kg Unidad" })).toBeVisible();
@@ -46,7 +46,7 @@ test("prefills the edit modal with the product's net content quantity and unit",
 
 test("opens the edit modal defaulting the net content unit to g when the product has none", async () => {
   const services = createServices();
-  mockLoaded(services, [miel]);
+  mockLoaded(services, [honey]);
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
 
@@ -61,8 +61,8 @@ test("opens the edit modal defaulting the net content unit to g when the product
 
 test("edits a product and shows the updated data in the list", async () => {
   const services = createServices();
-  mockLoaded(services, [miel]);
-  const updated: ProductSummary = { ...miel, name: "Miel pura de abeja 500 g", version: 2 };
+  mockLoaded(services, [honey]);
+  const updated: ProductSummary = { ...honey, name: "Miel pura de abeja 500 g", version: 2 };
   vi.mocked(services.editProduct).mockResolvedValue({ kind: "ok", value: updated });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
@@ -92,11 +92,15 @@ test("edits a product and shows the updated data in the list", async () => {
 
 test("changes a product's net content on edit", async () => {
   const services = createServices();
-  mockLoaded(services, [miel]);
-  const updated: ProductSummary = { ...miel, netContent: { quantity: 500, unit: "G" }, version: 2 };
+  mockLoaded(services, [honey]);
+  const updated: ProductSummary = {
+    ...honey,
+    netContent: { quantity: 500, unit: "G" },
+    version: 2,
+  };
   vi.mocked(services.editProduct).mockResolvedValue({ kind: "ok", value: updated });
   const screen = await renderScreen(services);
-  const dialog = await openEditProductModal(screen, miel);
+  const dialog = await openEditProductModal(screen, honey);
 
   await userEvent.fill(dialog.getByRole("textbox", { name: "Contenido neto" }), "500");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
@@ -114,12 +118,12 @@ test("changes a product's net content on edit", async () => {
 
 test("clears a product's net content by emptying the quantity on edit", async () => {
   const services = createServices();
-  const mielConContenido: ProductSummary = { ...miel, netContent: { quantity: 1, unit: "KG" } };
-  mockLoaded(services, [mielConContenido]);
-  const updated: ProductSummary = { ...mielConContenido, netContent: null, version: 2 };
+  const honeyWithNetContent: ProductSummary = { ...honey, netContent: { quantity: 1, unit: "KG" } };
+  mockLoaded(services, [honeyWithNetContent]);
+  const updated: ProductSummary = { ...honeyWithNetContent, netContent: null, version: 2 };
   vi.mocked(services.editProduct).mockResolvedValue({ kind: "ok", value: updated });
   const screen = await renderScreen(services);
-  const dialog = await openEditProductModal(screen, mielConContenido);
+  const dialog = await openEditProductModal(screen, honeyWithNetContent);
 
   await userEvent.fill(dialog.getByRole("textbox", { name: "Contenido neto" }), "");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
@@ -137,13 +141,13 @@ test("clears a product's net content by emptying the quantity on edit", async ()
 
 test("shows the server's net content error inline on edit", async () => {
   const services = createServices();
-  mockLoaded(services, [miel]);
+  mockLoaded(services, [honey]);
   vi.mocked(services.editProduct).mockResolvedValue({
     kind: "validation_failed",
     field: "netContentQuantity",
   });
   const screen = await renderScreen(services);
-  const dialog = await openEditProductModal(screen, miel);
+  const dialog = await openEditProductModal(screen, honey);
 
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
@@ -154,13 +158,13 @@ test("shows the server's net content error inline on edit", async () => {
 
 test("shows the server's rejection of the whole net content inline on edit", async () => {
   const services = createServices();
-  mockLoaded(services, [miel]);
+  mockLoaded(services, [honey]);
   vi.mocked(services.editProduct).mockResolvedValue({
     kind: "validation_failed",
     field: "netContent",
   });
   const screen = await renderScreen(services);
-  const dialog = await openEditProductModal(screen, miel);
+  const dialog = await openEditProductModal(screen, honey);
 
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
@@ -169,17 +173,17 @@ test("shows the server's rejection of the whole net content inline on edit", asy
 
 test("reloading after a stale-version conflict restores the fresh net content quantity and unit", async () => {
   const services = createServices();
-  mockLoaded(services, [miel]);
+  mockLoaded(services, [honey]);
   vi.mocked(services.editProduct).mockResolvedValue({ kind: "stale_version" });
   const screen = await renderScreen(services);
-  const dialog = await openEditProductModal(screen, miel);
+  const dialog = await openEditProductModal(screen, honey);
 
   await userEvent.fill(dialog.getByRole("textbox", { name: "Contenido neto" }), "500");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
   await expect.element(dialog.getByText("Otra persona cambió este producto")).toBeVisible();
 
   const freshened: ProductSummary = {
-    ...miel,
+    ...honey,
     netContent: { quantity: 2.5, unit: "L" },
     version: 2,
   };
@@ -192,7 +196,7 @@ test("reloading after a stale-version conflict restores the fresh net content qu
 
 test("shows a stale-version conflict banner, and reloading restores the fresh product before saving again", async () => {
   const services = createServices();
-  mockLoaded(services, [miel]);
+  mockLoaded(services, [honey]);
   vi.mocked(services.editProduct).mockResolvedValue({ kind: "stale_version" });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
@@ -210,7 +214,7 @@ test("shows a stale-version conflict banner, and reloading restores the fresh pr
   await expect.element(dialog.getByText("Otra persona cambió este producto")).toBeVisible();
   expect(dialog.getByRole("button", { name: "Guardar los cambios" }).query()).toBeNull();
 
-  const freshened: ProductSummary = { ...miel, name: "Miel pura de abeja 900 g", version: 2 };
+  const freshened: ProductSummary = { ...honey, name: "Miel pura de abeja 900 g", version: 2 };
   vi.mocked(services.fetchProducts).mockResolvedValueOnce({ kind: "ok", value: [freshened] });
   vi.mocked(services.editProduct).mockResolvedValueOnce({
     kind: "ok",
@@ -239,7 +243,7 @@ test("shows a stale-version conflict banner, and reloading restores the fresh pr
 
 test("shows the category-not-leaf error on edit when the chosen category gained a subcategory meanwhile", async () => {
   const services = createServices();
-  mockLoaded(services, [miel]);
+  mockLoaded(services, [honey]);
   vi.mocked(services.editProduct).mockResolvedValue({ kind: "category_not_leaf" });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
@@ -257,15 +261,15 @@ test("shows the category-not-leaf error on edit when the chosen category gained 
 
 test("reloading after a stale-version conflict retitles the modal with the fresh name", async () => {
   const services = createServices();
-  mockLoaded(services, [miel]);
+  mockLoaded(services, [honey]);
   vi.mocked(services.editProduct).mockResolvedValue({ kind: "stale_version" });
   const screen = await renderScreen(services);
-  const dialog = await openEditProductModal(screen, miel);
+  const dialog = await openEditProductModal(screen, honey);
 
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
   await expect.element(dialog.getByText("Otra persona cambió este producto")).toBeVisible();
 
-  const freshened: ProductSummary = { ...miel, name: "Miel pura de abeja 900 g", version: 2 };
+  const freshened: ProductSummary = { ...honey, name: "Miel pura de abeja 900 g", version: 2 };
   vi.mocked(services.fetchProducts).mockResolvedValueOnce({ kind: "ok", value: [freshened] });
   await userEvent.click(dialog.getByRole("button", { name: "Recargar el producto" }));
 
@@ -276,17 +280,17 @@ test("reloading after a stale-version conflict retitles the modal with the fresh
 
 test("reloading an inactive product after a stale-version conflict finds it", async () => {
   const services = createServices();
-  const inactiveMiel: ProductSummary = { ...miel, active: false };
-  mockLoaded(services, [inactiveMiel]);
+  const inactiveHoney: ProductSummary = { ...honey, active: false };
+  mockLoaded(services, [inactiveHoney]);
   vi.mocked(services.editProduct).mockResolvedValue({ kind: "stale_version" });
   const screen = await renderScreen(services);
-  const dialog = await openEditProductModal(screen, inactiveMiel);
+  const dialog = await openEditProductModal(screen, inactiveHoney);
 
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
   await expect.element(dialog.getByText("Otra persona cambió este producto")).toBeVisible();
 
   const freshened: ProductSummary = {
-    ...inactiveMiel,
+    ...inactiveHoney,
     name: "Miel pura de abeja 900 g",
     version: 2,
   };

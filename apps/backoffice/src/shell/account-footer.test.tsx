@@ -51,8 +51,8 @@ test("shows the hand cursor on the Salir item", async () => {
     services,
   });
 
-  const salir = screen.getByRole("button", { name: "Salir" }).element() as HTMLElement;
-  expect(getComputedStyle(salir).cursor).toBe("pointer");
+  const signOutButton = screen.getByRole("button", { name: "Salir" }).element() as HTMLElement;
+  expect(getComputedStyle(signOutButton).cursor).toBe("pointer");
 });
 
 test("links the display name to the signed-in account's own Mi cuenta page", async () => {

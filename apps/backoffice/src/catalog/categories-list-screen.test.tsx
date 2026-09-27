@@ -16,20 +16,25 @@ function createServices(
   };
 }
 
-const almacen: CategorySummary = { id: "category-1", name: "Almacén", version: 1, parentId: null };
-const untables: CategorySummary = {
+const groceries: CategorySummary = {
+  id: "category-1",
+  name: "Almacén",
+  version: 1,
+  parentId: null,
+};
+const spreads: CategorySummary = {
   id: "category-2",
   name: "Untables",
   version: 1,
   parentId: "category-1",
 };
-const mermeladas: CategorySummary = {
+const jams: CategorySummary = {
   id: "category-3",
   name: "Mermeladas",
   version: 1,
   parentId: "category-2",
 };
-const bebidas: CategorySummary = { id: "category-4", name: "Bebidas", version: 3, parentId: null };
+const drinks: CategorySummary = { id: "category-4", name: "Bebidas", version: 3, parentId: null };
 
 function renderScreen(
   services: CategoriesListScreenServices,
@@ -51,7 +56,7 @@ test("shows the breadcrumb, heading, each category's full path label and the cat
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({
     kind: "ok",
-    value: [almacen, untables, bebidas],
+    value: [groceries, spreads, drinks],
   });
 
   const screen = await renderScreen(services);
@@ -68,7 +73,7 @@ test("lists categories in tree order by default: each parent right before its ow
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({
     kind: "ok",
-    value: [bebidas, mermeladas, almacen, untables],
+    value: [drinks, jams, groceries, spreads],
   });
 
   const screen = await renderScreen(services);
@@ -94,7 +99,7 @@ test("the header toggles the sibling order, still listing each parent before its
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({
     kind: "ok",
-    value: [almacen, bebidas, untables, mermeladas],
+    value: [groceries, drinks, spreads, jams],
   });
 
   const screen = await renderScreen(services);
@@ -125,7 +130,7 @@ test("the search field filters the list by the full path label, case-insensitive
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({
     kind: "ok",
-    value: [almacen, untables, bebidas],
+    value: [groceries, spreads, drinks],
   });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("3 categorías")).toBeVisible();
@@ -140,7 +145,7 @@ test("the category count in the footer counts only the categories the search lea
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({
     kind: "ok",
-    value: [almacen, untables, bebidas],
+    value: [groceries, spreads, drinks],
   });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("3 categorías")).toBeVisible();
@@ -162,7 +167,7 @@ test("shows an empty state when there are no categories yet", async () => {
 
 test("shows a filtered empty state when the search matches nothing", async () => {
   const services = createServices();
-  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [almacen] });
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [groceries] });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Almacén")).toBeVisible();
 
@@ -178,7 +183,7 @@ test("shows a load error with a retry action when the categories fail to load", 
 
   await expect.element(screen.getByText("No pudimos abrir las categorías")).toBeVisible();
 
-  vi.mocked(services.fetchCategories).mockResolvedValueOnce({ kind: "ok", value: [almacen] });
+  vi.mocked(services.fetchCategories).mockResolvedValueOnce({ kind: "ok", value: [groceries] });
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
   await expect.element(screen.getByText("1 categoría")).toBeVisible();
@@ -220,7 +225,7 @@ test("ends the session when the categories request finds no open session", async
 
 test("opens the create modal, and cancel closes it without calling the API", async () => {
   const services = createServices();
-  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [almacen] });
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [groceries] });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("1 categoría")).toBeVisible();
 
@@ -236,7 +241,7 @@ test("opens the create modal, and cancel closes it without calling the API", asy
 
 test("shows a category created while the list is still loading, even once the earlier load finishes", async () => {
   const services = createServices();
-  const nueva: CategorySummary = {
+  const newCategory: CategorySummary = {
     id: "category-5",
     name: "Limpieza",
     version: 1,
@@ -249,8 +254,8 @@ test("shows a category created while the list is still loading, even once the ea
   });
   vi.mocked(services.fetchCategories)
     .mockReturnValueOnce(firstLoad)
-    .mockResolvedValueOnce({ kind: "ok", value: [almacen, nueva] });
-  vi.mocked(services.createCategory).mockResolvedValue({ kind: "ok", value: nueva });
+    .mockResolvedValueOnce({ kind: "ok", value: [groceries, newCategory] });
+  vi.mocked(services.createCategory).mockResolvedValue({ kind: "ok", value: newCategory });
   const screen = await renderScreen(services);
   const dialog = await openNewCategoryModal(screen);
 
@@ -262,7 +267,7 @@ test("shows a category created while the list is still loading, even once the ea
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.element(screen.getByText("Limpieza")).toBeVisible();
 
-  finishFirstLoad({ kind: "ok", value: [almacen] });
+  finishFirstLoad({ kind: "ok", value: [groceries] });
   // Awaiting the same promise the screen awaited lets its handling run first; re-rendering then
   // commits whatever state that handling scheduled.
   await firstLoad;
@@ -278,7 +283,7 @@ test("shows a category created while the list is still loading, even once the ea
 
 test("shows a category created while the list failed to load", async () => {
   const services = createServices();
-  const nueva: CategorySummary = {
+  const newCategory: CategorySummary = {
     id: "category-5",
     name: "Limpieza",
     version: 1,
@@ -286,8 +291,8 @@ test("shows a category created while the list failed to load", async () => {
   };
   vi.mocked(services.fetchCategories)
     .mockResolvedValueOnce({ kind: "failed" })
-    .mockResolvedValueOnce({ kind: "ok", value: [almacen, nueva] });
-  vi.mocked(services.createCategory).mockResolvedValue({ kind: "ok", value: nueva });
+    .mockResolvedValueOnce({ kind: "ok", value: [groceries, newCategory] });
+  vi.mocked(services.createCategory).mockResolvedValue({ kind: "ok", value: newCategory });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("No pudimos abrir las categorías")).toBeVisible();
   const dialog = await openNewCategoryModal(screen);
@@ -360,7 +365,7 @@ test("opens the create modal with a parent select offering every category by its
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({
     kind: "ok",
-    value: [almacen, untables],
+    value: [groceries, spreads],
   });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("2 categorías")).toBeVisible();
@@ -382,14 +387,14 @@ test("opens the create modal with a parent select offering every category by its
 
 test("creates a top-level category and shows it in the list", async () => {
   const services = createServices();
-  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [almacen] });
-  const nueva: CategorySummary = {
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [groceries] });
+  const newCategory: CategorySummary = {
     id: "category-5",
     name: "Limpieza",
     version: 1,
     parentId: null,
   };
-  vi.mocked(services.createCategory).mockResolvedValue({ kind: "ok", value: nueva });
+  vi.mocked(services.createCategory).mockResolvedValue({ kind: "ok", value: newCategory });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("1 categoría")).toBeVisible();
   const dialog = await openNewCategoryModal(screen);
@@ -409,14 +414,14 @@ test("creates a top-level category and shows it in the list", async () => {
 
 test("creates a subcategory under the chosen parent", async () => {
   const services = createServices();
-  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [almacen] });
-  const nueva: CategorySummary = {
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [groceries] });
+  const newCategory: CategorySummary = {
     id: "category-5",
     name: "Snacks",
     version: 1,
     parentId: "category-1",
   };
-  vi.mocked(services.createCategory).mockResolvedValue({ kind: "ok", value: nueva });
+  vi.mocked(services.createCategory).mockResolvedValue({ kind: "ok", value: newCategory });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("1 categoría")).toBeVisible();
   const dialog = await openNewCategoryModal(screen);
@@ -437,7 +442,7 @@ test("creates a subcategory under the chosen parent", async () => {
 
 test("shows the parent-has-products error on create, naming the chosen parent", async () => {
   const services = createServices();
-  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [almacen] });
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [groceries] });
   vi.mocked(services.createCategory).mockResolvedValue({ kind: "parent_has_products" });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("1 categoría")).toBeVisible();
@@ -459,7 +464,7 @@ test("shows the parent-has-products error on create, naming the chosen parent", 
 
 test("shows the name-taken-under-parent error on create, naming the entered name and the parent", async () => {
   const services = createServices();
-  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [almacen] });
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [groceries] });
   vi.mocked(services.createCategory).mockResolvedValue({ kind: "name_taken" });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("1 categoría")).toBeVisible();
@@ -477,7 +482,7 @@ test("shows the name-taken-under-parent error on create, naming the entered name
 
 test("shows the plain name-taken error on create when the category is top-level", async () => {
   const services = createServices();
-  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [almacen] });
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [groceries] });
   vi.mocked(services.createCategory).mockResolvedValue({ kind: "name_taken" });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("1 categoría")).toBeVisible();
@@ -491,7 +496,7 @@ test("shows the plain name-taken error on create when the category is top-level"
 
 test("shows a field error under the parent select when the chosen parent has vanished", async () => {
   const services = createServices();
-  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [almacen] });
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [groceries] });
   vi.mocked(services.createCategory).mockResolvedValue({
     kind: "validation_failed",
     field: "parentId",
@@ -514,7 +519,7 @@ test("the row action opens the edit modal preselecting the category's current pa
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({
     kind: "ok",
-    value: [almacen, untables],
+    value: [groceries, spreads],
   });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Almacén › Untables")).toBeVisible();
@@ -533,7 +538,7 @@ test("the row action opens the edit modal preselecting the category's current pa
 
 test("preselects Ninguna in the edit modal for a top-level category", async () => {
   const services = createServices();
-  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [almacen] });
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [groceries] });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Almacén")).toBeVisible();
 
@@ -549,7 +554,7 @@ test("the edit modal's parent select excludes the category itself and its own de
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({
     kind: "ok",
-    value: [almacen, untables, mermeladas, bebidas],
+    value: [groceries, spreads, jams, drinks],
   });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Almacén")).toBeVisible();
@@ -570,9 +575,9 @@ test("moves a category to a new parent and shows its updated path in the list", 
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({
     kind: "ok",
-    value: [almacen, bebidas],
+    value: [groceries, drinks],
   });
-  const moved: CategorySummary = { ...bebidas, parentId: "category-1", version: 4 };
+  const moved: CategorySummary = { ...drinks, parentId: "category-1", version: 4 };
   vi.mocked(services.editCategory).mockResolvedValue({ kind: "ok", value: moved });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Bebidas")).toBeVisible();
@@ -595,7 +600,7 @@ test("moves a category to a new parent and shows its updated path in the list", 
 
 test("rejects a name longer than 100 characters in the edit modal, without calling the API", async () => {
   const services = createServices();
-  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [almacen] });
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [groceries] });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Almacén")).toBeVisible();
   await userEvent.click(screen.getByRole("button", { name: "Editar la categoría Almacén" }));
@@ -615,10 +620,10 @@ test("rejects a name longer than 100 characters in the edit modal, without calli
 
 test("sends the typed name trimmed from the edit modal", async () => {
   const services = createServices();
-  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [almacen] });
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [groceries] });
   vi.mocked(services.editCategory).mockResolvedValue({
     kind: "ok",
-    value: { ...almacen, name: "Despensa", version: 2 },
+    value: { ...groceries, name: "Despensa", version: 2 },
   });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Almacén")).toBeVisible();
@@ -643,7 +648,7 @@ test("shows the parent-has-products error on edit, naming the chosen parent", as
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({
     kind: "ok",
-    value: [almacen, bebidas],
+    value: [groceries, drinks],
   });
   vi.mocked(services.editCategory).mockResolvedValue({ kind: "parent_has_products" });
   const screen = await renderScreen(services);
@@ -668,7 +673,7 @@ test("shows the move-not-allowed error on edit, naming the category and the chos
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({
     kind: "ok",
-    value: [almacen, bebidas],
+    value: [groceries, drinks],
   });
   vi.mocked(services.editCategory).mockResolvedValue({ kind: "move_not_allowed" });
   const screen = await renderScreen(services);
@@ -691,7 +696,7 @@ test("shows the name-taken-under-parent error on rename, naming the entered name
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({
     kind: "ok",
-    value: [almacen, untables],
+    value: [groceries, spreads],
   });
   vi.mocked(services.editCategory).mockResolvedValue({ kind: "name_taken" });
   const screen = await renderScreen(services);
@@ -711,7 +716,7 @@ test("shows the plain name-taken error on rename when the category stays top-lev
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({
     kind: "ok",
-    value: [almacen, bebidas],
+    value: [groceries, drinks],
   });
   vi.mocked(services.editCategory).mockResolvedValue({ kind: "name_taken" });
   const screen = await renderScreen(services);
@@ -728,7 +733,7 @@ test("shows the plain name-taken error on rename when the category stays top-lev
 
 test("shows a not-found notice on edit when the category no longer exists", async () => {
   const services = createServices();
-  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [almacen] });
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [groceries] });
   vi.mocked(services.editCategory).mockResolvedValue({ kind: "not_found" });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Almacén")).toBeVisible();
@@ -744,7 +749,7 @@ test("a stale-version reload on edit discards the typed name and saves again ove
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({
     kind: "ok",
-    value: [almacen, bebidas],
+    value: [groceries, drinks],
   });
   vi.mocked(services.editCategory).mockResolvedValue({ kind: "stale_version" });
   const screen = await renderScreen(services);
@@ -761,10 +766,10 @@ test("a stale-version reload on edit discards the typed name and saves again ove
     .element(dialog.getByText("Esta categoría cambió mientras la editabas"))
     .toBeVisible();
 
-  const freshened: CategorySummary = { ...bebidas, parentId: "category-1", version: 4 };
+  const freshened: CategorySummary = { ...drinks, parentId: "category-1", version: 4 };
   vi.mocked(services.fetchCategories).mockResolvedValueOnce({
     kind: "ok",
-    value: [almacen, freshened],
+    value: [groceries, freshened],
   });
   await userEvent.click(dialog.getByRole("button", { name: "Recargar" }));
 
@@ -790,7 +795,7 @@ test("a stale-version reload on edit also retitles the dialog with the fresh nam
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({
     kind: "ok",
-    value: [almacen, bebidas],
+    value: [groceries, drinks],
   });
   vi.mocked(services.editCategory).mockResolvedValue({ kind: "stale_version" });
   const screen = await renderScreen(services);
@@ -803,10 +808,10 @@ test("a stale-version reload on edit also retitles the dialog with the fresh nam
     .element(dialog.getByText("Esta categoría cambió mientras la editabas"))
     .toBeVisible();
 
-  const renamed: CategorySummary = { ...bebidas, name: "Bebidas frías", version: 4 };
+  const renamed: CategorySummary = { ...drinks, name: "Bebidas frías", version: 4 };
   vi.mocked(services.fetchCategories).mockResolvedValueOnce({
     kind: "ok",
-    value: [almacen, renamed],
+    value: [groceries, renamed],
   });
   await userEvent.click(dialog.getByRole("button", { name: "Recargar" }));
 
@@ -817,7 +822,7 @@ test("a stale-version reload on edit refreshes the categories too, so a parent t
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({
     kind: "ok",
-    value: [almacen, bebidas],
+    value: [groceries, drinks],
   });
   vi.mocked(services.editCategory).mockResolvedValue({ kind: "stale_version" });
   const screen = await renderScreen(services);
@@ -830,16 +835,16 @@ test("a stale-version reload on edit refreshes the categories too, so a parent t
     .element(dialog.getByText("Esta categoría cambió mientras la editabas"))
     .toBeVisible();
 
-  const frescos: CategorySummary = {
+  const freshProduce: CategorySummary = {
     id: "category-9",
     name: "Frescos",
     version: 1,
     parentId: null,
   };
-  const freshened: CategorySummary = { ...bebidas, parentId: frescos.id, version: 4 };
+  const freshened: CategorySummary = { ...drinks, parentId: freshProduce.id, version: 4 };
   vi.mocked(services.fetchCategories).mockResolvedValueOnce({
     kind: "ok",
-    value: [almacen, freshened, frescos],
+    value: [groceries, freshened, freshProduce],
   });
   await userEvent.click(dialog.getByRole("button", { name: "Recargar" }));
 
@@ -858,7 +863,7 @@ test("a stale-version reload on edit refreshes the categories too, so a parent t
 
 test("has no accessibility violations once loaded, and with the create modal open", async () => {
   const services = createServices();
-  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [almacen] });
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [groceries] });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("1 categoría")).toBeVisible();
   await expectNoAccessibilityViolations(document.body);

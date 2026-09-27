@@ -4,9 +4,9 @@ import { expectNoAccessibilityViolations } from "../../../../packages/ui/src/tes
 import type { ProductSummary } from "./products-api";
 import type { ProductsListScreenServices } from "./products-list-screen";
 import {
-  almendras,
+  almonds,
   createServices,
-  miel,
+  honey,
   mockLoaded,
   renderScreen,
   type Screen,
@@ -14,18 +14,18 @@ import {
 } from "./test-support/products-list-screen";
 
 // Both barcodes are valid check-digit values in the GS1 restricted-circulation range.
-const mielConCodigoInterno: ProductSummary = {
-  ...miel,
+const honeyWithInternalBarcode: ProductSummary = {
+  ...honey,
   id: "product-20",
   barcodes: ["2000000000015"],
 };
-const almendrasConCodigoInterno: ProductSummary = {
-  ...almendras,
+const almondsWithInternalBarcode: ProductSummary = {
+  ...almonds,
   id: "product-21",
   barcodes: ["2000000000022"],
 };
-const sinCodigoInterno: ProductSummary = {
-  ...miel,
+const withoutInternalBarcode: ProductSummary = {
+  ...honey,
   id: "product-22",
   name: "Producto sin código interno",
   barcodes: ["7790000000123"],
@@ -46,7 +46,7 @@ function clickManyTimesNatively(element: { element: () => Element }, times: numb
 
 test("the header button opens the print labels modal", async () => {
   const services = createServices();
-  mockLoaded(services, [mielConCodigoInterno]);
+  mockLoaded(services, [honeyWithInternalBarcode]);
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
 
@@ -57,7 +57,7 @@ test("the header button opens the print labels modal", async () => {
 
 test("lists only products with an internal barcode", async () => {
   const services = createServices();
-  mockLoaded(services, [mielConCodigoInterno, sinCodigoInterno]);
+  mockLoaded(services, [honeyWithInternalBarcode, withoutInternalBarcode]);
   const screen = await renderScreen(services);
 
   const dialog = await openPrintLabelsModal(screen);
@@ -69,8 +69,8 @@ test("lists only products with an internal barcode", async () => {
 
 test("does not list an inactive product, even with an internal barcode", async () => {
   const services = createServices();
-  const inactiveAlmendras: ProductSummary = { ...almendrasConCodigoInterno, active: false };
-  mockLoaded(services, [mielConCodigoInterno, inactiveAlmendras]);
+  const inactiveAlmonds: ProductSummary = { ...almondsWithInternalBarcode, active: false };
+  mockLoaded(services, [honeyWithInternalBarcode, inactiveAlmonds]);
   const screen = await renderScreen(services);
   await userEvent.click(screen.getByRole("button", { name: "Estado: Activos" }));
   await userEvent.click(screen.getByRole("option", { name: "Todos" }));
@@ -84,7 +84,7 @@ test("does not list an inactive product, even with an internal barcode", async (
 
 test("reloading the changed product list keeps the screen's own status filter", async () => {
   const services = createServices();
-  mockLoaded(services, [mielConCodigoInterno]);
+  mockLoaded(services, [honeyWithInternalBarcode]);
   vi.mocked(services.printLabels).mockResolvedValue({ kind: "product_not_found" });
   const screen = await renderScreen(services);
   await userEvent.click(screen.getByRole("button", { name: "Estado: Activos" }));
@@ -92,7 +92,7 @@ test("reloading the changed product list keeps the screen's own status filter", 
   await expect.element(screen.getByText("1 producto", { exact: true })).toBeVisible();
   const dialog = await openPrintLabelsModal(screen);
   await userEvent.click(
-    dialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
   );
   await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
   await expect.element(dialog.getByText("La lista de productos cambió")).toBeVisible();
@@ -105,7 +105,7 @@ test("reloading the changed product list keeps the screen's own status filter", 
 
 test("shows an empty state when no product has an internal barcode", async () => {
   const services = createServices();
-  mockLoaded(services, [sinCodigoInterno]);
+  mockLoaded(services, [withoutInternalBarcode]);
   const screen = await renderScreen(services);
 
   const dialog = await openPrintLabelsModal(screen);
@@ -120,8 +120,8 @@ test("shows an empty state when no product has an internal barcode", async () =>
 
 test("an inactive product's internal code isn't offered, and the empty state asks for an active one", async () => {
   const services = createServices();
-  const inactiveAlmendras: ProductSummary = { ...almendrasConCodigoInterno, active: false };
-  mockLoaded(services, [inactiveAlmendras, sinCodigoInterno]);
+  const inactiveAlmonds: ProductSummary = { ...almondsWithInternalBarcode, active: false };
+  mockLoaded(services, [inactiveAlmonds, withoutInternalBarcode]);
   const screen = await renderScreen(services);
   await userEvent.click(screen.getByRole("button", { name: "Estado: Activos" }));
   await userEvent.click(screen.getByRole("option", { name: "Todos" }));
@@ -140,14 +140,14 @@ test("an inactive product's internal code isn't offered, and the empty state ask
 
 test("the stepper increments and decrements between 0 and 999, disabling each bound", async () => {
   const services = createServices();
-  mockLoaded(services, [mielConCodigoInterno]);
+  mockLoaded(services, [honeyWithInternalBarcode]);
   const screen = await renderScreen(services);
   const dialog = await openPrintLabelsModal(screen);
   const decrease = dialog.getByRole("button", {
-    name: `Restar una etiqueta de ${mielConCodigoInterno.name}`,
+    name: `Restar una etiqueta de ${honeyWithInternalBarcode.name}`,
   });
   const increase = dialog.getByRole("button", {
-    name: `Sumar una etiqueta a ${mielConCodigoInterno.name}`,
+    name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}`,
   });
   await expect.element(decrease).toBeDisabled();
 
@@ -168,40 +168,40 @@ test("the stepper increments and decrements between 0 and 999, disabling each bo
 
 test("totals and pluralizes the summary as counts change", async () => {
   const services = createServices();
-  mockLoaded(services, [mielConCodigoInterno, almendrasConCodigoInterno]);
+  mockLoaded(services, [honeyWithInternalBarcode, almondsWithInternalBarcode]);
   const screen = await renderScreen(services);
   const dialog = await openPrintLabelsModal(screen);
 
   await userEvent.click(
-    dialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
   );
   await expect.element(dialog.getByText("1 etiqueta")).toBeVisible();
 
   await userEvent.click(
-    dialog.getByRole("button", { name: `Sumar una etiqueta a ${almendrasConCodigoInterno.name}` }),
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${almondsWithInternalBarcode.name}` }),
   );
   await expect.element(dialog.getByText("2 etiquetas")).toBeVisible();
 });
 
 test("previews the first product with a count above zero, defaulting to the first row", async () => {
   const services = createServices();
-  mockLoaded(services, [mielConCodigoInterno, almendrasConCodigoInterno]);
+  mockLoaded(services, [honeyWithInternalBarcode, almondsWithInternalBarcode]);
   const screen = await renderScreen(services);
   const dialog = await openPrintLabelsModal(screen);
   const preview = dialog.getByRole("group", { name: "Vista previa de la etiqueta" });
-  await expect.element(preview.getByText(almendrasConCodigoInterno.name)).toBeVisible();
+  await expect.element(preview.getByText(almondsWithInternalBarcode.name)).toBeVisible();
 
   await userEvent.click(
-    dialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
   );
 
-  await expect.element(preview.getByText(mielConCodigoInterno.name)).toBeVisible();
-  expect(preview.getByText(almendrasConCodigoInterno.name).query()).toBeNull();
+  await expect.element(preview.getByText(honeyWithInternalBarcode.name)).toBeVisible();
+  expect(preview.getByText(almondsWithInternalBarcode.name).query()).toBeNull();
 });
 
 test("the download action is disabled while the total is zero", async () => {
   const services = createServices();
-  mockLoaded(services, [mielConCodigoInterno]);
+  mockLoaded(services, [honeyWithInternalBarcode]);
   const screen = await renderScreen(services);
   const dialog = await openPrintLabelsModal(screen);
 
@@ -210,7 +210,7 @@ test("the download action is disabled while the total is zero", async () => {
     .toBeDisabled();
 
   await userEvent.click(
-    dialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
   );
 
   await expect
@@ -220,7 +220,7 @@ test("the download action is disabled while the total is zero", async () => {
 
 test("downloads only the products with a count above zero, then closes the modal", async () => {
   const services = createServices();
-  mockLoaded(services, [mielConCodigoInterno, almendrasConCodigoInterno]);
+  mockLoaded(services, [honeyWithInternalBarcode, almondsWithInternalBarcode]);
   vi.mocked(services.printLabels).mockResolvedValue({
     kind: "ok",
     blob: new Blob(["%PDF-1.4"], { type: "application/pdf" }),
@@ -236,14 +236,14 @@ test("downloads only the products with a count above zero, then closes the modal
   const screen = await renderScreen(services);
   const dialog = await openPrintLabelsModal(screen);
   await userEvent.click(
-    dialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
   );
 
   await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
 
   await expect.poll(() => vi.mocked(services.printLabels).mock.calls.length).toBe(1);
   expect(services.printLabels).toHaveBeenCalledWith([
-    { productId: mielConCodigoInterno.id, count: 1 },
+    { productId: honeyWithInternalBarcode.id, count: 1 },
   ]);
   expect(createObjectURL).toHaveBeenCalledTimes(1);
   expect(anchorClick).toHaveBeenCalledTimes(1);
@@ -258,7 +258,7 @@ test("downloads only the products with a count above zero, then closes the modal
 
 test("revokes the downloaded sheet's object URL only a minute after the download starts", async () => {
   const services = createServices();
-  mockLoaded(services, [mielConCodigoInterno]);
+  mockLoaded(services, [honeyWithInternalBarcode]);
   vi.mocked(services.printLabels).mockResolvedValue({
     kind: "ok",
     blob: new Blob(["%PDF-1.4"], { type: "application/pdf" }),
@@ -269,7 +269,7 @@ test("revokes the downloaded sheet's object URL only a minute after the download
   const screen = await renderScreen(services);
   const dialog = await openPrintLabelsModal(screen);
   await userEvent.click(
-    dialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
   );
 
   vi.useFakeTimers({ toFake: ["setTimeout"] });
@@ -293,7 +293,7 @@ test("revokes the downloaded sheet's object URL only a minute after the download
 
 test("the download action is disabled while the request is pending", async () => {
   const services = createServices();
-  mockLoaded(services, [mielConCodigoInterno]);
+  mockLoaded(services, [honeyWithInternalBarcode]);
   let resolvePrint: (outcome: { kind: "failed" }) => void = () => {};
   vi.mocked(services.printLabels).mockReturnValue(
     new Promise((resolve) => {
@@ -303,7 +303,7 @@ test("the download action is disabled while the request is pending", async () =>
   const screen = await renderScreen(services);
   const dialog = await openPrintLabelsModal(screen);
   await userEvent.click(
-    dialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
   );
   const download = dialog.getByRole("button", { name: "Descargar la hoja para imprimir" });
 
@@ -316,12 +316,12 @@ test("the download action is disabled while the request is pending", async () =>
 
 test("shows the products-changed notice and offers a reload on product_not_found", async () => {
   const services = createServices();
-  mockLoaded(services, [mielConCodigoInterno]);
+  mockLoaded(services, [honeyWithInternalBarcode]);
   vi.mocked(services.printLabels).mockResolvedValue({ kind: "product_not_found" });
   const screen = await renderScreen(services);
   const dialog = await openPrintLabelsModal(screen);
   await userEvent.click(
-    dialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
   );
 
   await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
@@ -332,24 +332,24 @@ test("shows the products-changed notice and offers a reload on product_not_found
 
   vi.mocked(services.fetchProducts).mockResolvedValueOnce({
     kind: "ok",
-    value: [almendrasConCodigoInterno],
+    value: [almondsWithInternalBarcode],
   });
   await userEvent.click(reload);
 
   await expect
-    .element(dialog.getByText(almendrasConCodigoInterno.barcodes[0] as string))
+    .element(dialog.getByText(almondsWithInternalBarcode.barcodes[0] as string))
     .toBeVisible();
   expect(dialog.getByText("La lista de productos cambió").query()).toBeNull();
 });
 
 test("shows the products-changed notice on product_without_internal_barcode", async () => {
   const services = createServices();
-  mockLoaded(services, [mielConCodigoInterno]);
+  mockLoaded(services, [honeyWithInternalBarcode]);
   vi.mocked(services.printLabels).mockResolvedValue({ kind: "product_without_internal_barcode" });
   const screen = await renderScreen(services);
   const dialog = await openPrintLabelsModal(screen);
   await userEvent.click(
-    dialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
   );
 
   await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
@@ -359,7 +359,7 @@ test("shows the products-changed notice on product_without_internal_barcode", as
 
 test("shows the rate-limited notice when printing is refused for too many requests", async () => {
   const services = createServices();
-  mockLoaded(services, [mielConCodigoInterno]);
+  mockLoaded(services, [honeyWithInternalBarcode]);
   vi.mocked(services.printLabels).mockResolvedValue({
     kind: "rate_limited",
     retryAfterSeconds: 90,
@@ -367,7 +367,7 @@ test("shows the rate-limited notice when printing is refused for too many reques
   const screen = await renderScreen(services);
   const dialog = await openPrintLabelsModal(screen);
   await userEvent.click(
-    dialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
   );
 
   await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
@@ -378,12 +378,12 @@ test("shows the rate-limited notice when printing is refused for too many reques
 
 test("shows a generic failure notice when printing fails", async () => {
   const services = createServices();
-  mockLoaded(services, [mielConCodigoInterno]);
+  mockLoaded(services, [honeyWithInternalBarcode]);
   vi.mocked(services.printLabels).mockResolvedValue({ kind: "failed" });
   const screen = await renderScreen(services);
   const dialog = await openPrintLabelsModal(screen);
   await userEvent.click(
-    dialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
   );
 
   await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
@@ -393,13 +393,13 @@ test("shows a generic failure notice when printing fails", async () => {
 
 test("ends the session when printing comes back unauthenticated", async () => {
   const services = createServices();
-  mockLoaded(services, [mielConCodigoInterno]);
+  mockLoaded(services, [honeyWithInternalBarcode]);
   vi.mocked(services.printLabels).mockResolvedValue({ kind: "unauthenticated" });
   const onSessionEnded = vi.fn();
   const screen = await renderScreen(services, onSessionEnded);
   const dialog = await openPrintLabelsModal(screen);
   await userEvent.click(
-    dialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
   );
 
   await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
@@ -410,12 +410,12 @@ test("ends the session when printing comes back unauthenticated", async () => {
 test("navigates to Mi cuenta when printing comes back forbidden", async () => {
   window.history.pushState(null, "", "/catalog/products");
   const services = createServices();
-  mockLoaded(services, [mielConCodigoInterno]);
+  mockLoaded(services, [honeyWithInternalBarcode]);
   vi.mocked(services.printLabels).mockResolvedValue({ kind: "forbidden" });
   const screen = await renderScreen(services);
   const dialog = await openPrintLabelsModal(screen);
   await userEvent.click(
-    dialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
   );
 
   await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
@@ -426,7 +426,7 @@ test("navigates to Mi cuenta when printing comes back forbidden", async () => {
 
 test("cancel closes the print labels modal without calling the API", async () => {
   const services = createServices();
-  mockLoaded(services, [mielConCodigoInterno]);
+  mockLoaded(services, [honeyWithInternalBarcode]);
   const screen = await renderScreen(services);
   const dialog = await openPrintLabelsModal(screen);
 
@@ -472,38 +472,44 @@ test("disables the print labels button while loading the products is rate limite
 });
 
 test("caps the sheet at 2400 labels in total, disabling a row's + once the total is reached", async () => {
-  const nuecesConCodigoInterno: ProductSummary = {
-    ...almendras,
+  const walnutsWithInternalBarcode: ProductSummary = {
+    ...almonds,
     id: "product-23",
     name: "Nueces mariposa",
     barcodes: ["2912345678906"],
   };
   const services = createServices();
-  mockLoaded(services, [mielConCodigoInterno, almendrasConCodigoInterno, nuecesConCodigoInterno]);
+  mockLoaded(services, [
+    honeyWithInternalBarcode,
+    almondsWithInternalBarcode,
+    walnutsWithInternalBarcode,
+  ]);
   const screen = await renderScreen(services);
   const dialog = await openPrintLabelsModal(screen);
   const increase = (product: ProductSummary) =>
     dialog.getByRole("button", { name: `Sumar una etiqueta a ${product.name}` });
 
   for (const [product, count] of [
-    [mielConCodigoInterno, 999],
-    [almendrasConCodigoInterno, 999],
-    [nuecesConCodigoInterno, 402],
+    [honeyWithInternalBarcode, 999],
+    [almondsWithInternalBarcode, 999],
+    [walnutsWithInternalBarcode, 402],
   ] as const) {
     clickManyTimesNatively(increase(product), count);
   }
 
   await expect.element(dialog.getByText("2400 etiquetas")).toBeVisible();
   await expect.element(dialog.getByText("402", { exact: true })).toBeVisible();
-  await expect.element(increase(nuecesConCodigoInterno)).toBeDisabled();
+  await expect.element(increase(walnutsWithInternalBarcode)).toBeDisabled();
 
-  (increase(nuecesConCodigoInterno).element() as HTMLButtonElement).click();
+  (increase(walnutsWithInternalBarcode).element() as HTMLButtonElement).click();
   await expect.element(dialog.getByText("2400 etiquetas")).toBeVisible();
 
   await userEvent.click(
-    dialog.getByRole("button", { name: `Restar una etiqueta de ${nuecesConCodigoInterno.name}` }),
+    dialog.getByRole("button", {
+      name: `Restar una etiqueta de ${walnutsWithInternalBarcode.name}`,
+    }),
   );
-  await expect.element(increase(nuecesConCodigoInterno)).toBeEnabled();
+  await expect.element(increase(walnutsWithInternalBarcode)).toBeEnabled();
 });
 
 function pendingPrint(services: ProductsListScreenServices) {
@@ -521,7 +527,9 @@ function pendingPrint(services: ProductsListScreenServices) {
 async function startPrintThenCloseAndReopen(screen: Screen) {
   const firstDialog = await openPrintLabelsModal(screen);
   await userEvent.click(
-    firstDialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+    firstDialog.getByRole("button", {
+      name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}`,
+    }),
   );
   await userEvent.click(
     firstDialog.getByRole("button", { name: "Descargar la hoja para imprimir" }),
@@ -529,13 +537,15 @@ async function startPrintThenCloseAndReopen(screen: Screen) {
   await userEvent.click(firstDialog.getByRole("button", { name: "Cerrar" }));
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   const dialog = await openPrintLabelsModal(screen);
-  await expect.element(dialog.getByText(mielConCodigoInterno.barcodes[0] as string)).toBeVisible();
+  await expect
+    .element(dialog.getByText(honeyWithInternalBarcode.barcodes[0] as string))
+    .toBeVisible();
   return dialog;
 }
 
 test("ignores a print success that arrives after the modal was closed and opened again", async () => {
   const services = createServices();
-  mockLoaded(services, [mielConCodigoInterno]);
+  mockLoaded(services, [honeyWithInternalBarcode]);
   const resolvePrint = pendingPrint(services);
   const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:mock-url");
   const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
@@ -556,7 +566,9 @@ test("ignores a print success that arrives after the modal was closed and opened
 async function startReloadThenCloseAndReopen(screen: Screen, services: ProductsListScreenServices) {
   const firstDialog = await openPrintLabelsModal(screen);
   await userEvent.click(
-    firstDialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+    firstDialog.getByRole("button", {
+      name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}`,
+    }),
   );
   await userEvent.click(
     firstDialog.getByRole("button", { name: "Descargar la hoja para imprimir" }),
@@ -574,7 +586,7 @@ async function startReloadThenCloseAndReopen(screen: Screen, services: ProductsL
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   const dialog = await openPrintLabelsModal(screen);
   await userEvent.click(
-    dialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
   );
   await expect.element(dialog.getByText("1 etiqueta")).toBeVisible();
   return {
@@ -585,12 +597,12 @@ async function startReloadThenCloseAndReopen(screen: Screen, services: ProductsL
 
 test("ignores a reload success that arrives after the modal was closed and opened again", async () => {
   const services = createServices();
-  mockLoaded(services, [mielConCodigoInterno]);
+  mockLoaded(services, [honeyWithInternalBarcode]);
   vi.mocked(services.printLabels).mockResolvedValue({ kind: "product_not_found" });
   const screen = await renderScreen(services);
   const { dialog, resolveReload } = await startReloadThenCloseAndReopen(screen, services);
 
-  resolveReload({ kind: "ok", value: [mielConCodigoInterno] });
+  resolveReload({ kind: "ok", value: [honeyWithInternalBarcode] });
   await settleLateResponse(screen, services);
 
   await expect.element(dialog.getByText("1 etiqueta")).toBeVisible();
@@ -598,7 +610,7 @@ test("ignores a reload success that arrives after the modal was closed and opene
 
 test("ignores a reload failure that arrives after the modal was closed and opened again", async () => {
   const services = createServices();
-  mockLoaded(services, [mielConCodigoInterno]);
+  mockLoaded(services, [honeyWithInternalBarcode]);
   vi.mocked(services.printLabels).mockResolvedValue({ kind: "product_not_found" });
   const screen = await renderScreen(services);
   const { dialog, resolveReload } = await startReloadThenCloseAndReopen(screen, services);
@@ -611,7 +623,7 @@ test("ignores a reload failure that arrives after the modal was closed and opene
 
 test("ignores a print failure that arrives after the modal was closed and opened again", async () => {
   const services = createServices();
-  mockLoaded(services, [mielConCodigoInterno]);
+  mockLoaded(services, [honeyWithInternalBarcode]);
   const resolvePrint = pendingPrint(services);
   const screen = await renderScreen(services);
   const dialog = await startPrintThenCloseAndReopen(screen);
@@ -624,14 +636,16 @@ test("ignores a print failure that arrives after the modal was closed and opened
 
 test("has no accessibility violations with the print labels modal open, loaded and empty", async () => {
   const services = createServices();
-  mockLoaded(services, [mielConCodigoInterno]);
+  mockLoaded(services, [honeyWithInternalBarcode]);
   const screen = await renderScreen(services);
   const dialog = await openPrintLabelsModal(screen);
-  await expect.element(dialog.getByText(mielConCodigoInterno.barcodes[0] as string)).toBeVisible();
+  await expect
+    .element(dialog.getByText(honeyWithInternalBarcode.barcodes[0] as string))
+    .toBeVisible();
   await expectNoAccessibilityViolations(document.body);
 
   await userEvent.click(
-    dialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
   );
   await expectNoAccessibilityViolations(document.body);
   await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
@@ -639,7 +653,7 @@ test("has no accessibility violations with the print labels modal open, loaded a
   await screen.unmount();
 
   const emptyServices = createServices();
-  mockLoaded(emptyServices, [sinCodigoInterno]);
+  mockLoaded(emptyServices, [withoutInternalBarcode]);
   const emptyScreen = await renderScreen(emptyServices);
   const emptyDialog = await openPrintLabelsModal(emptyScreen);
   await expect

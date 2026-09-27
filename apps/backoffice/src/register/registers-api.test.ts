@@ -21,13 +21,13 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const caja1: RegisterSummary = { id: "register-1", name: "Caja 1", pendingCode: null };
-const caja2Wire = {
+const register1: RegisterSummary = { id: "register-1", name: "Caja 1", pendingCode: null };
+const register2Wire = {
   id: "register-2",
   name: "Caja 2",
   pending_code: { issued_at: "2026-09-25T12:00:00.000Z", expires_at: "2026-09-25T12:15:00.000Z" },
 };
-const caja2: RegisterSummary = {
+const register2: RegisterSummary = {
   id: "register-2",
   name: "Caja 2",
   pendingCode: { issuedAt: "2026-09-25T12:00:00.000Z", expiresAt: "2026-09-25T12:15:00.000Z" },
@@ -35,12 +35,12 @@ const caja2: RegisterSummary = {
 
 test("fetchRegisters lists every register, translating pending_code from the wire", async () => {
   vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(200, [{ id: "register-1", name: "Caja 1", pending_code: null }, caja2Wire]),
+    jsonResponse(200, [{ id: "register-1", name: "Caja 1", pending_code: null }, register2Wire]),
   );
 
   const outcome = await fetchRegisters();
 
-  expect(outcome).toEqual({ kind: "ok", value: [caja1, caja2] });
+  expect(outcome).toEqual({ kind: "ok", value: [register1, register2] });
   expect(fetch).toHaveBeenCalledWith("/registers");
 });
 

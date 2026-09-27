@@ -1,9 +1,9 @@
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import {
-  almendras,
+  almonds,
   createServices,
-  miel,
+  honey,
   mockLoaded,
   openDeactivateProductModal,
   renderScreen,
@@ -11,10 +11,10 @@ import {
 
 test("opens the deactivate confirmation modal, and cancel closes it without calling the API", async () => {
   const services = createServices();
-  mockLoaded(services, [miel]);
+  mockLoaded(services, [honey]);
   const screen = await renderScreen(services);
 
-  const dialog = await openDeactivateProductModal(screen, miel);
+  const dialog = await openDeactivateProductModal(screen, honey);
   await expect
     .element(dialog.getByRole("heading", { name: "¿Desactivar Miel pura de abeja 1 kg?" }))
     .toBeVisible();
@@ -34,12 +34,12 @@ test("opens the deactivate confirmation modal, and cancel closes it without call
 
 test("deactivates a product, closes the modal, and refreshes the list", async () => {
   const services = createServices();
-  mockLoaded(services, [miel, almendras]);
+  mockLoaded(services, [honey, almonds]);
   vi.mocked(services.deactivateProduct).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
-  const dialog = await openDeactivateProductModal(screen, miel);
+  const dialog = await openDeactivateProductModal(screen, honey);
 
-  vi.mocked(services.fetchProducts).mockResolvedValueOnce({ kind: "ok", value: [almendras] });
+  vi.mocked(services.fetchProducts).mockResolvedValueOnce({ kind: "ok", value: [almonds] });
   await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
 
   expect(services.deactivateProduct).toHaveBeenCalledWith("product-1");
@@ -51,10 +51,10 @@ test("deactivates a product, closes the modal, and refreshes the list", async ()
 
 test("shows an already-deactivated notice on 404, and updating the list closes the modal", async () => {
   const services = createServices();
-  mockLoaded(services, [miel]);
+  mockLoaded(services, [honey]);
   vi.mocked(services.deactivateProduct).mockResolvedValue({ kind: "not_found" });
   const screen = await renderScreen(services);
-  const dialog = await openDeactivateProductModal(screen, miel);
+  const dialog = await openDeactivateProductModal(screen, honey);
 
   await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
 
@@ -70,10 +70,10 @@ test("shows an already-deactivated notice on 404, and updating the list closes t
 
 test("shows a generic failure notice when deactivating fails", async () => {
   const services = createServices();
-  mockLoaded(services, [miel]);
+  mockLoaded(services, [honey]);
   vi.mocked(services.deactivateProduct).mockResolvedValue({ kind: "failed" });
   const screen = await renderScreen(services);
-  const dialog = await openDeactivateProductModal(screen, miel);
+  const dialog = await openDeactivateProductModal(screen, honey);
 
   await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
 
@@ -82,13 +82,13 @@ test("shows a generic failure notice when deactivating fails", async () => {
 
 test("shows the rate-limited notice when deactivating is refused for too many requests", async () => {
   const services = createServices();
-  mockLoaded(services, [miel]);
+  mockLoaded(services, [honey]);
   vi.mocked(services.deactivateProduct).mockResolvedValue({
     kind: "rate_limited",
     retryAfterSeconds: 90,
   });
   const screen = await renderScreen(services);
-  const dialog = await openDeactivateProductModal(screen, miel);
+  const dialog = await openDeactivateProductModal(screen, honey);
 
   await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
 
@@ -98,10 +98,10 @@ test("shows the rate-limited notice when deactivating is refused for too many re
 test("navigates to Mi cuenta when deactivating comes back forbidden", async () => {
   window.history.pushState(null, "", "/catalog/products");
   const services = createServices();
-  mockLoaded(services, [miel]);
+  mockLoaded(services, [honey]);
   vi.mocked(services.deactivateProduct).mockResolvedValue({ kind: "forbidden" });
   const screen = await renderScreen(services);
-  const dialog = await openDeactivateProductModal(screen, miel);
+  const dialog = await openDeactivateProductModal(screen, honey);
 
   await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
 
@@ -111,11 +111,11 @@ test("navigates to Mi cuenta when deactivating comes back forbidden", async () =
 
 test("ends the session when deactivating finds no open session", async () => {
   const services = createServices();
-  mockLoaded(services, [miel]);
+  mockLoaded(services, [honey]);
   vi.mocked(services.deactivateProduct).mockResolvedValue({ kind: "unauthenticated" });
   const onSessionEnded = vi.fn();
   const screen = await renderScreen(services, onSessionEnded);
-  const dialog = await openDeactivateProductModal(screen, miel);
+  const dialog = await openDeactivateProductModal(screen, honey);
 
   await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
 

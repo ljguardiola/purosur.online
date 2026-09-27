@@ -21,20 +21,25 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const semillas: CategorySummary = {
+const seeds: CategorySummary = {
   id: "category-1",
   name: "Semillas",
   version: 1,
   parentId: null,
 };
-const almacen: CategorySummary = { id: "category-2", name: "Almacén", version: 3, parentId: null };
+const groceries: CategorySummary = {
+  id: "category-2",
+  name: "Almacén",
+  version: 3,
+  parentId: null,
+};
 
 test("fetchCategories lists every category, with its parentId, on 200", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [semillas, almacen]));
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [seeds, groceries]));
 
   const outcome = await fetchCategories();
 
-  expect(outcome).toEqual({ kind: "ok", value: [semillas, almacen] });
+  expect(outcome).toEqual({ kind: "ok", value: [seeds, groceries] });
   expect(fetch).toHaveBeenCalledWith("/categories");
 });
 
@@ -69,11 +74,11 @@ test("fetchCategories returns failed on a malformed body", async () => {
 });
 
 test("createCategory posts the name and parentId and returns the created category on 201", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(201, semillas));
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(201, seeds));
 
   const outcome = await createCategory({ name: "Semillas", parentId: null });
 
-  expect(outcome).toEqual({ kind: "ok", value: semillas });
+  expect(outcome).toEqual({ kind: "ok", value: seeds });
   expect(fetch).toHaveBeenCalledWith("/categories", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -82,17 +87,17 @@ test("createCategory posts the name and parentId and returns the created categor
 });
 
 test("createCategory posts a chosen parentId as a subcategory", async () => {
-  const untables: CategorySummary = {
+  const spreads: CategorySummary = {
     id: "category-3",
     name: "Untables",
     version: 1,
     parentId: "category-2",
   };
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(201, untables));
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(201, spreads));
 
   const outcome = await createCategory({ name: "Untables", parentId: "category-2" });
 
-  expect(outcome).toEqual({ kind: "ok", value: untables });
+  expect(outcome).toEqual({ kind: "ok", value: spreads });
   expect(fetch).toHaveBeenCalledWith("/categories", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

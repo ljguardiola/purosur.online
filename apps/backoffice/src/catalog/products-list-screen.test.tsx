@@ -4,11 +4,11 @@ import { expectNoAccessibilityViolations } from "../../../../packages/ui/src/tes
 import type { CategorySummary } from "./categories-api";
 import type { ProductSummary } from "./products-api";
 import {
-  almacen,
-  almendras,
+  almonds,
   createServices,
-  frutosSecos,
-  miel,
+  driedFruits,
+  groceries,
+  honey,
   mockLoaded,
   openDeactivateProductModal,
   openEditProductModal,
@@ -18,7 +18,7 @@ import {
 
 test("shows the breadcrumb, heading, each product's data and the product count", async () => {
   const services = createServices();
-  mockLoaded(services, [miel, almendras]);
+  mockLoaded(services, [honey, almonds]);
 
   const screen = await renderScreen(services);
 
@@ -33,7 +33,7 @@ test("shows the breadcrumb, heading, each product's data and the product count",
 
 test("the search field filters by name or barcode, case-insensitively", async () => {
   const services = createServices();
-  mockLoaded(services, [miel, almendras]);
+  mockLoaded(services, [honey, almonds]);
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("2 productos activos")).toBeVisible();
 
@@ -48,7 +48,7 @@ test("the search field filters by name or barcode, case-insensitively", async ()
 
 test("the category filter narrows the list", async () => {
   const services = createServices();
-  mockLoaded(services, [miel, almendras]);
+  mockLoaded(services, [honey, almonds]);
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("2 productos activos")).toBeVisible();
 
@@ -59,14 +59,14 @@ test("the category filter narrows the list", async () => {
   expect(screen.getByText("Miel pura de abeja 1 kg").query()).toBeNull();
 });
 
-const bebidas: CategorySummary = { id: "category-4", name: "Bebidas", version: 1, parentId: null };
-const otrosDeAlmacen: CategorySummary = {
+const drinks: CategorySummary = { id: "category-4", name: "Bebidas", version: 1, parentId: null };
+const otherGroceries: CategorySummary = {
   id: "category-5",
   name: "Otros",
   version: 1,
   parentId: "category-1",
 };
-const otrosDeBebidas: CategorySummary = {
+const otherDrinks: CategorySummary = {
   id: "category-6",
   name: "Otros",
   version: 1,
@@ -75,24 +75,24 @@ const otrosDeBebidas: CategorySummary = {
 
 test("the category filter offers only leaf categories, labeled by their full path, in tree order", async () => {
   const soda: ProductSummary = {
-    ...almendras,
+    ...almonds,
     id: "product-3",
     name: "Soda 2 l",
-    categoryId: otrosDeBebidas.id,
+    categoryId: otherDrinks.id,
     categoryName: "Otros",
   };
-  const fosforos: ProductSummary = {
-    ...miel,
+  const matchboxes: ProductSummary = {
+    ...honey,
     id: "product-4",
     name: "Fósforos",
-    categoryId: otrosDeAlmacen.id,
+    categoryId: otherGroceries.id,
     categoryName: "Otros",
   };
   const services = createServices();
   mockLoaded(
     services,
-    [soda, fosforos],
-    [otrosDeBebidas, bebidas, otrosDeAlmacen, almacen, frutosSecos],
+    [soda, matchboxes],
+    [otherDrinks, drinks, otherGroceries, groceries, driedFruits],
   );
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("2 productos activos")).toBeVisible();
@@ -115,15 +115,15 @@ test("the category filter offers only leaf categories, labeled by their full pat
 });
 
 test("the Categoría column shows each product's category by its full path", async () => {
-  const fosforos: ProductSummary = {
-    ...miel,
+  const matchboxes: ProductSummary = {
+    ...honey,
     id: "product-4",
     name: "Fósforos",
-    categoryId: otrosDeAlmacen.id,
+    categoryId: otherGroceries.id,
     categoryName: "Otros",
   };
   const services = createServices();
-  mockLoaded(services, [fosforos], [almacen, otrosDeAlmacen]);
+  mockLoaded(services, [matchboxes], [groceries, otherGroceries]);
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByRole("cell", { name: "Almacén › Otros" })).toBeVisible();
@@ -131,7 +131,7 @@ test("the Categoría column shows each product's category by its full path", asy
 
 test("the Categoría column falls back to the category name the product carries when that category isn't loaded", async () => {
   const services = createServices();
-  mockLoaded(services, [almendras], [almacen]);
+  mockLoaded(services, [almonds], [groceries]);
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByRole("cell", { name: "Frutos secos" })).toBeVisible();
@@ -139,7 +139,7 @@ test("the Categoría column falls back to the category name the product carries 
 
 test("the unit filter narrows the list", async () => {
   const services = createServices();
-  mockLoaded(services, [miel, almendras]);
+  mockLoaded(services, [honey, almonds]);
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("2 productos activos")).toBeVisible();
 
@@ -152,15 +152,15 @@ test("the unit filter narrows the list", async () => {
 
 test("the status filter defaults to active products and refetches with the selected status", async () => {
   const services = createServices();
-  mockLoaded(services, [miel]);
+  mockLoaded(services, [honey]);
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
   expect(services.fetchProducts).toHaveBeenLastCalledWith("active");
 
-  const inactiveAlmendras: ProductSummary = { ...almendras, active: false };
+  const inactiveAlmonds: ProductSummary = { ...almonds, active: false };
   vi.mocked(services.fetchProducts).mockResolvedValueOnce({
     kind: "ok",
-    value: [inactiveAlmendras],
+    value: [inactiveAlmonds],
   });
   await userEvent.click(screen.getByRole("button", { name: "Estado: Activos" }));
   await userEvent.click(screen.getByRole("option", { name: "Inactivos" }));
@@ -171,8 +171,8 @@ test("the status filter defaults to active products and refetches with the selec
 
 test("shows an Estado column with an Activo or Inactivo tag", async () => {
   const services = createServices();
-  const inactiveAlmendras: ProductSummary = { ...almendras, active: false };
-  mockLoaded(services, [miel, inactiveAlmendras]);
+  const inactiveAlmonds: ProductSummary = { ...almonds, active: false };
+  mockLoaded(services, [honey, inactiveAlmonds]);
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByRole("cell", { name: "Activo" })).toBeVisible();
@@ -181,8 +181,8 @@ test("shows an Estado column with an Activo or Inactivo tag", async () => {
 
 test("the actions column offers the ban action only on an active row", async () => {
   const services = createServices();
-  const inactiveAlmendras: ProductSummary = { ...almendras, active: false };
-  mockLoaded(services, [miel, inactiveAlmendras]);
+  const inactiveAlmonds: ProductSummary = { ...almonds, active: false };
+  mockLoaded(services, [honey, inactiveAlmonds]);
   const screen = await renderScreen(services);
 
   await expect
@@ -211,7 +211,7 @@ test("shows a blank empty state naming active products when there are none", asy
 
 test("shows an empty state naming inactive products, with no create prompt, when there are none", async () => {
   const services = createServices();
-  mockLoaded(services, [miel]);
+  mockLoaded(services, [honey]);
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
 
@@ -238,7 +238,7 @@ test("shows the no-products-yet empty state when every status is listed and ther
 
 test("shows a filtered empty state when the search matches nothing", async () => {
   const services = createServices();
-  mockLoaded(services, [miel]);
+  mockLoaded(services, [honey]);
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
 
@@ -255,7 +255,7 @@ test("shows a load error with a retry action when the products fail to load", as
 
   await expect.element(screen.getByText("No pudimos abrir los productos")).toBeVisible();
 
-  mockLoaded(services, [miel]);
+  mockLoaded(services, [honey]);
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
   await expect.element(screen.getByText("1 producto activo")).toBeVisible();
@@ -300,7 +300,7 @@ test("ends the session when the products request finds no open session", async (
 
 test("has no accessibility violations once loaded, and with the create modal open", async () => {
   const services = createServices();
-  mockLoaded(services, [miel]);
+  mockLoaded(services, [honey]);
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("1 producto activo")).toBeVisible();
   await expectNoAccessibilityViolations(document.body);
@@ -310,11 +310,11 @@ test("has no accessibility violations once loaded, and with the create modal ope
   await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
 
-  await openEditProductModal(screen, miel);
+  await openEditProductModal(screen, honey);
   await expectNoAccessibilityViolations(document.body);
   await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
 
-  await openDeactivateProductModal(screen, miel);
+  await openDeactivateProductModal(screen, honey);
   await expectNoAccessibilityViolations(document.body);
 });

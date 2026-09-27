@@ -3,11 +3,11 @@ import { userEvent } from "vitest/browser";
 import type { CategorySummary } from "./categories-api";
 import type { ProductSummary } from "./products-api";
 import {
-  almacen,
-  almendras,
+  almonds,
   createServices,
   fillNewProductFieldsExceptBarcodes,
-  miel,
+  groceries,
+  honey,
   mockLoaded,
   openEditProductModal,
   openNewProductModal,
@@ -17,7 +17,7 @@ import {
 
 test("opens the create modal, and cancel closes it without calling the API", async () => {
   const services = createServices();
-  mockLoaded(services, [miel]);
+  mockLoaded(services, [honey]);
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("1 producto activo")).toBeVisible();
 
@@ -203,8 +203,8 @@ test("shows the server's rejection of the whole net content inline on create", a
 
 test("a product created while only inactive products are listed stays out of the list", async () => {
   const services = createServices();
-  const inactiveAlmendras: ProductSummary = { ...almendras, active: false };
-  mockLoaded(services, [inactiveAlmendras]);
+  const inactiveAlmonds: ProductSummary = { ...almonds, active: false };
+  mockLoaded(services, [inactiveAlmonds]);
   const created: ProductSummary = {
     id: "product-3",
     name: "Pasta de maní 380 g",
@@ -394,14 +394,14 @@ test("shows the category-not-leaf error on create when the chosen category gaine
 });
 
 test("the category select only offers leaf categories, labeled by their full path", async () => {
-  const untables: CategorySummary = {
+  const spreads: CategorySummary = {
     id: "category-3",
     name: "Untables",
     version: 1,
     parentId: "category-1",
   };
   const services = createServices();
-  mockLoaded(services, [], [almacen, untables]);
+  mockLoaded(services, [], [groceries, spreads]);
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
@@ -451,7 +451,7 @@ test("rejects adding an already-listed barcode inline, keeping a single chip", a
 
 test("marks the sale unit and barcode labels as required, like the name and category", async () => {
   const services = createServices();
-  mockLoaded(services, [miel]);
+  mockLoaded(services, [honey]);
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("1 producto activo")).toBeVisible();
 
@@ -466,7 +466,7 @@ test("marks the sale unit and barcode labels as required, like the name and cate
   await userEvent.click(createDialog.getByRole("button", { name: "Cancelar" }));
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
 
-  const editDialog = await openEditProductModal(screen, miel);
+  const editDialog = await openEditProductModal(screen, honey);
   for (const labelText of ["Unidad de venta", "Códigos de barras"]) {
     const label = editDialog.getByText(labelText, { exact: true }).element() as HTMLElement;
     expect(getComputedStyle(label, "::after").content).toContain("*");
@@ -478,7 +478,7 @@ test("marks the sale unit and barcode labels as required, like the name and cate
 
 test("marks the fallback category label as required when there are no categories yet", async () => {
   const services = createServices();
-  mockLoaded(services, [miel], []);
+  mockLoaded(services, [honey], []);
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("1 producto activo")).toBeVisible();
 
@@ -488,7 +488,7 @@ test("marks the fallback category label as required when there are no categories
   await userEvent.click(createDialog.getByRole("button", { name: "Cancelar" }));
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
 
-  const editDialog = await openEditProductModal(screen, miel);
+  const editDialog = await openEditProductModal(screen, honey);
   const editLabel = editDialog.getByText("Categoría", { exact: true }).element() as HTMLElement;
   expect(getComputedStyle(editLabel, "::after").content).toContain("*");
 });
