@@ -17,13 +17,3 @@ export function formatNumber(value: number, options?: Intl.NumberFormatOptions):
 export function formatDate(value: Date | number, options?: Intl.DateTimeFormatOptions): string {
   return new Intl.DateTimeFormat(LOCALE, options).format(value);
 }
-
-export type MessageFormatters = {
-  plural: typeof plural;
-  number: typeof formatNumber;
-  date: typeof formatDate;
-};
-
-export function createFormatters(_locale: Locale): MessageFormatters {
-  return { plural, number: formatNumber, date: formatDate };
-}
