@@ -18,9 +18,13 @@
   "include": ["src/**/*.ts"],
   "exclude": [
     "src/**/*.test.ts",
+    "src/test-support/**",
     "src/db/build-test-database.ts",
+    "src/db/cloud-app-password.ts",
+    "src/db/migration-journal-test-helpers.ts",
     "src/db/test-database-snapshot.ts",
     "src/recovery/recovery-integration-database.ts",
-    "src/recovery/find-free-port.ts"
+    "src/recovery/find-free-port.ts",
+    "src/session/exhaust-backoffice-rate-limit.ts"
   ]
 }

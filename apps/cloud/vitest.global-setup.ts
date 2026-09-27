@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { TestProject } from "vitest/node";
+import { MIGRATIONS_FOLDER } from "./src/db/migrations-folder.js";
 import { provideTestDatabaseSnapshot } from "./src/db/test-database-snapshot.js";
 
 declare module "vitest" {
@@ -38,7 +39,7 @@ export default async function setup(project: TestProject): Promise<() => void> {
       { stdio: "inherit" },
     );
     cpSync(join(CLOUD_DIR, "package.json"), join(buildRoot, "package.json"));
-    cpSync(join(CLOUD_DIR, "migrations"), join(buildRoot, "migrations"), { recursive: true });
+    cpSync(MIGRATIONS_FOLDER, join(buildRoot, "migrations"), { recursive: true });
     symlinkSync(join(CLOUD_DIR, "node_modules"), join(buildRoot, "node_modules"), "dir");
 
     project.provide("cloudBuildDir", join(buildRoot, "dist"));

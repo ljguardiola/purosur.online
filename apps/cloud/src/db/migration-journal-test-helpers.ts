@@ -1,6 +1,6 @@
 import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { MIGRATIONS_FOLDER } from "./test-database-snapshot.js";
+import { MIGRATIONS_FOLDER } from "./migrations-folder.js";
 
 export interface JournalEntry {
   idx: number;

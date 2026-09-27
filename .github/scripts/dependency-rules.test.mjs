@@ -16,15 +16,15 @@ async function writeFixtureFile(root, relativePath, content) {
 
 // pnpm installs under node_modules/.pnpm/<name>@<version>/node_modules/<name>, with a symlink at
 // node_modules/<name>; dependency-cruiser follows the symlink, so a rule sees the store path.
-async function installPnpmPackage(root, packageName) {
+async function installPnpmPackage(root, packageName, main = "index.js") {
   const storeDirName = `${packageName.replace("/", "+")}@1.0.0`;
   const realDir = join(root, "node_modules/.pnpm", storeDirName, "node_modules", packageName);
-  await mkdir(realDir, { recursive: true });
+  await mkdir(dirname(join(realDir, main)), { recursive: true });
   await writeFile(
     join(realDir, "package.json"),
-    JSON.stringify({ name: packageName, version: "1.0.0", main: "index.js" }),
+    JSON.stringify({ name: packageName, version: "1.0.0", main }),
   );
-  await writeFile(join(realDir, "index.js"), "module.exports = {};\n");
+  await writeFile(join(realDir, main), "module.exports = {};\n");
 
   const linkPath = join(root, "node_modules", packageName);
   await mkdir(dirname(linkPath), { recursive: true });
@@ -781,4 +781,112 @@ test("main-process-scope allows an installed electron, electron-updater, and @se
   const report = await cruiseFixture(root, ["apps"]);
 
   assert.equal(violationsFor(report, "main-process-scope").length, 0);
+});
+
+test("real-postgres-tests-no-pglite flags a cloud integration test or the Postgres global setup reaching PGlite, even through a helper", async (t) => {
+  const root = await makeFixture(t, {
+    "apps/cloud/src/db/journal.integration.test.ts": [
+      'import { readJournal } from "./journal-helpers";',
+      "export const deps = [readJournal];",
+    ].join("\n"),
+    "apps/cloud/src/db/journal-helpers.ts": [
+      'import { PGlite } from "@electric-sql/pglite";',
+      'import { drizzle } from "drizzle-orm/pglite";',
+      "export function readJournal() {",
+      "  return [PGlite, drizzle];",
+      "}",
+    ].join("\n"),
+    "apps/cloud/vitest.global-setup.postgres.ts": [
+      'import { PGlite } from "@electric-sql/pglite";',
+      "export default function setup() {",
+      "  return PGlite;",
+      "}",
+    ].join("\n"),
+  });
+  await installPnpmPackage(root, "@electric-sql/pglite", "dist/index.js");
+  await installPnpmPackage(root, "drizzle-orm", "pglite/index.js");
+
+  const report = await cruiseFixture(root, ["apps"]);
+  const violations = violationsFor(report, "real-postgres-tests-no-pglite");
+  const violationPairs = violations.map((violation) => `${violation.from} -> ${violation.to}`);
+
+  assert.equal(violations.length, 3);
+  assert.equal(
+    violationPairs.some(
+      (pair) =>
+        pair.startsWith("apps/cloud/src/db/journal.integration.test.ts -> ") &&
+        pair.endsWith("node_modules/@electric-sql/pglite/dist/index.js"),
+    ),
+    true,
+  );
+  assert.equal(
+    violationPairs.some(
+      (pair) =>
+        pair.startsWith("apps/cloud/src/db/journal.integration.test.ts -> ") &&
+        pair.endsWith("node_modules/drizzle-orm/pglite/index.js"),
+    ),
+    true,
+  );
+  assert.equal(
+    violationPairs.some(
+      (pair) =>
+        pair.startsWith("apps/cloud/vitest.global-setup.postgres.ts -> ") &&
+        pair.endsWith("node_modules/@electric-sql/pglite/dist/index.js"),
+    ),
+    true,
+  );
+
+  await writeFixtureFile(
+    root,
+    "apps/cloud/src/db/journal-helpers.ts",
+    'import { readFile } from "node:fs/promises";\nexport const readJournal = readFile;\n',
+  );
+  await writeFixtureFile(
+    root,
+    "apps/cloud/vitest.global-setup.postgres.ts",
+    "export default function setup() {}\n",
+  );
+  const controlReport = await cruiseFixture(root, ["apps"]);
+  assert.equal(violationsFor(controlReport, "real-postgres-tests-no-pglite").length, 0);
+});
+
+test("a test the cloud's real-Postgres project doesn't run breaks no rule, even when named .integration.test", async (t) => {
+  const root = await makeFixture(t, {
+    "packages/domain/src/sales/model/order.integration.test.ts": [
+      'import { readFileSync } from "node:fs";',
+      "export const deps = [readFileSync];",
+    ].join("\n"),
+    "apps/cloud/src/db/nested/journal.integration.test.ts": [
+      'import { PGlite } from "@electric-sql/pglite";',
+      "export const deps = [PGlite];",
+    ].join("\n"),
+    "apps/cloud/src/db/journal.integration.test.tsx": [
+      'import { PGlite } from "@electric-sql/pglite";',
+      "export const deps = [PGlite];",
+    ].join("\n"),
+  });
+  await installPnpmPackage(root, "@electric-sql/pglite", "dist/index.js");
+
+  const report = await cruiseFixture(root, ["packages", "apps"]);
+
+  assert.deepEqual(report.summary.violations, []);
+});
+
+test("a workspace package's build output under dist/ is not cruised", async (t) => {
+  const root = await makeFixture(t, {
+    "apps/pos/dist/index.js":
+      'import { helper } from "../../cloud/src/helper.js";\nexport { helper };\n',
+    "apps/cloud/src/helper.ts": "export function helper() {}\n",
+  });
+
+  const report = await cruiseFixture(root, ["apps"]);
+  assert.equal(violationsFor(report, "no-app-to-app").length, 0);
+
+  await writeFixtureFile(
+    root,
+    "apps/pos/src/index.ts",
+    'import { helper } from "../../cloud/src/helper";\nexport { helper };\n',
+  );
+  const controlReport = await cruiseFixture(root, ["apps"]);
+  assert.equal(violationsFor(controlReport, "no-app-to-app").length, 1);
 });

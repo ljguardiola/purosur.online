@@ -1,8 +1,9 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import ts from "typescript";
+import { Lexer } from "yaml";
 
-const SCAN_EXTENSIONS = [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs", ".css"];
+const SCRIPT_EXTENSIONS = [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"];
 
 function isJSDocNode(node) {
   return node.kind >= ts.SyntaxKind.FirstJSDocNode && node.kind <= ts.SyntaxKind.LastJSDocNode;
@@ -52,17 +53,61 @@ function findScriptComments(source, fileName) {
 const CSS_COMMENT_OR_SKIPPED_TOKEN =
   /\/\*[\s\S]*?(?:\*\/|$)|"(?:[^"\\\n]|\\[\s\S])*"?|'(?:[^'\\\n]|\\[\s\S])*'?|url\([^)"']*\)?/gi;
 
-function findCssComments(source) {
+function findMatchedComments(source, tokenPattern, commentStart) {
+  return [...source.matchAll(tokenPattern)]
+    .filter((match) => match[0].startsWith(commentStart))
+    .map((match) => ({ line: source.slice(0, match.index).split("\n").length, text: match[0] }));
+}
+
+const findCssComments = (source) => findMatchedComments(source, CSS_COMMENT_OR_SKIPPED_TOKEN, "/*");
+
+function findYamlComments(source) {
   const comments = [];
-  for (const match of source.matchAll(CSS_COMMENT_OR_SKIPPED_TOKEN)) {
-    if (!match[0].startsWith("/*")) continue;
-    comments.push({ line: source.slice(0, match.index).split("\n").length, text: match[0] });
+  let line = 1;
+  for (const token of new Lexer().lex(source)) {
+    if (token.startsWith("#")) comments.push({ line, text: token });
+    line += token.split("\n").length - 1;
   }
   return comments;
 }
 
+function findLineComments(source, commentLine) {
+  return source
+    .split("\n")
+    .flatMap((text, index) =>
+      commentLine.test(text) ? [{ line: index + 1, text: text.trim() }] : [],
+    );
+}
+
+const findDockerfileComments = (source) => findLineComments(source, /^\s*#/);
+const findIgnoreFileComments = (source) => findLineComments(source, /^#/);
+
+const ENV_QUOTED_VALUE_OR_COMMENT =
+  /^[ \t]*(?:export[ \t]+)?[\w.-]+[ \t]*=[ \t]*(["'`])[\s\S]*?\1|#[^\n]*/gm;
+
+const findEnvComments = (source) => findMatchedComments(source, ENV_QUOTED_VALUE_OR_COMMENT, "#");
+
+function isDockerfile(name) {
+  return name === "Dockerfile" || name.startsWith("Dockerfile.") || name.endsWith(".Dockerfile");
+}
+
+function commentFinderFor(path) {
+  const name = path.slice(path.lastIndexOf("/") + 1);
+  if (SCRIPT_EXTENSIONS.some((extension) => name.endsWith(extension))) return findScriptComments;
+  if (name.endsWith(".css")) return findCssComments;
+  if (name.endsWith(".yml") || name.endsWith(".yaml")) return findYamlComments;
+  if (isDockerfile(name)) return findDockerfileComments;
+  if (name === ".gitignore" || name === ".dockerignore") return findIgnoreFileComments;
+  if (name === ".env" || name.startsWith(".env.")) return findEnvComments;
+  return undefined;
+}
+
 export function findComments(source, fileName = "a.ts") {
-  return fileName.endsWith(".css") ? findCssComments(source) : findScriptComments(source, fileName);
+  const findFileComments = commentFinderFor(fileName);
+  if (findFileComments === undefined) {
+    throw new Error(`${fileName} has no comment syntax this check can read`);
+  }
+  return findFileComments(source, fileName);
 }
 
 const ISSUE_OR_PR_NUMBER = /(?<![\w&])#\d+(?!\w)/;
@@ -113,10 +158,8 @@ function defaultListTrackedFiles(cwd) {
     .filter((path) => path !== "");
 }
 
-function hasScanExtension(path) {
-  return SCAN_EXTENSIONS.some((extension) => path.endsWith(extension));
-}
-
 export function findScannedFiles(cwd = process.cwd(), listTrackedFiles = defaultListTrackedFiles) {
-  return listTrackedFiles(cwd).filter(hasScanExtension).sort();
+  return listTrackedFiles(cwd)
+    .filter((path) => commentFinderFor(path) !== undefined)
+    .sort();
 }

@@ -2,6 +2,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import postgres from "postgres";
 import type { TestProject } from "vitest/node";
 import { CLOUD_APP_PASSWORD } from "./src/db/cloud-app-password.js";
+import { MIGRATIONS_FOLDER } from "./src/db/migrations-folder.js";
 import { runMigrations } from "./src/migrate.js";
 
 declare module "vitest" {
@@ -12,7 +13,6 @@ declare module "vitest" {
   }
 }
 
-const MIGRATIONS_FOLDER = new URL("./migrations", import.meta.url).pathname;
 const TEMPLATE_DATABASE_NAME = "cloud_integration_template";
 
 // Matches the Postgres major version Railway's own template deploys, pinned to an explicit tag
