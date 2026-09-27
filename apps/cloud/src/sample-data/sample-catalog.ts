@@ -451,8 +451,8 @@ function hours(opensAt: string, closesAt: string): BranchHoursRange {
 
 export const SAMPLE_BRANCH_SETTINGS = {
   address: "Avenida Ficticia 1234, Ciudad Muestra",
-  whatsappNumber: "+54 9 11 5555-0100",
-  instagramHandle: "@almacen.muestra",
+  whatsappNumber: "+54 9 10 5555-0100",
+  instagramHandle: "@almacen..muestra",
   // Monday is split into a morning and an evening shift; Sunday has no rows at all, so the branch
   // reads as closed that day.
   mondayHours: [hours("09:00", "13:00"), hours("16:00", "20:00")],

@@ -1,9 +1,11 @@
 import { isInternalBarcode, isPermissionKey, PRODUCT_NAME_MAX_LENGTH } from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
 import {
+  SAMPLE_ADMINISTRATOR,
   SAMPLE_BRANCH_SETTINGS,
   SAMPLE_CATEGORY_TREE,
   SAMPLE_EMAIL_DOMAIN,
+  SAMPLE_LOCKOUT_SOURCE_ADDRESSES,
   SAMPLE_REGISTER_NAMES,
   SAMPLE_ROLES,
   sampleEmail,
@@ -221,9 +223,40 @@ describe("SAMPLE_BRANCH_SETTINGS", () => {
     }
   });
 
-  it("carries no real CUIT and only fictional contact details", () => {
-    expect(SAMPLE_BRANCH_SETTINGS.address.length).toBeGreaterThan(0);
-    expect(SAMPLE_BRANCH_SETTINGS.whatsappNumber.length).toBeGreaterThan(0);
-    expect(SAMPLE_BRANCH_SETTINGS.instagramHandle.length).toBeGreaterThan(0);
+  it("uses a WhatsApp number in an Argentine area code that is never assigned", () => {
+    expect(SAMPLE_BRANCH_SETTINGS.whatsappNumber).toMatch(/^\+54 9 10 /);
+  });
+
+  it("uses an Instagram handle with consecutive periods, which Instagram never registers", () => {
+    expect(SAMPLE_BRANCH_SETTINGS.instagramHandle).toMatch(/^@[a-z.]*\.\.[a-z.]*$/);
+  });
+});
+
+describe("SAMPLE_ADMINISTRATOR", () => {
+  it("uses an email in the sample domain", () => {
+    expect(SAMPLE_ADMINISTRATOR.email.endsWith(`@${SAMPLE_EMAIL_DOMAIN}`)).toBe(true);
+  });
+});
+
+describe("SAMPLE_LOCKOUT_SOURCE_ADDRESSES", () => {
+  it("names only addresses in the documentation-only blocks", () => {
+    const documentationBlocks = ["192.0.2.", "198.51.100.", "203.0.113."];
+    for (const address of Object.values(SAMPLE_LOCKOUT_SOURCE_ADDRESSES)) {
+      expect(documentationBlocks.some((block) => address.startsWith(block))).toBe(true);
+    }
+  });
+});
+
+describe("the sample catalog", () => {
+  it("never carries a CUIT-shaped number", () => {
+    const everySampleValue = JSON.stringify([
+      SAMPLE_ADMINISTRATOR,
+      SAMPLE_BRANCH_SETTINGS,
+      SAMPLE_CATEGORY_TREE,
+      SAMPLE_LOCKOUT_SOURCE_ADDRESSES,
+      SAMPLE_REGISTER_NAMES,
+      SAMPLE_ROLES,
+    ]);
+    expect(everySampleValue).not.toMatch(/(?<!\d)\d{2}-?\d{8}-?\d(?!\d)/);
   });
 });
