@@ -31,8 +31,6 @@ function readsVarsOrSecrets(expression) {
   return VARS_OR_SECRETS_RE.test(expression.replace(STRING_LITERAL_RE, "''"));
 }
 
-// Stripping string literals would also erase a bracketed key such as env['NAME'], so the
-// bare vars/secrets word check and the env member lookup read the expression differently.
 function expressionReadsValue(expression, taintedEnvNames) {
   return (
     readsVarsOrSecrets(expression) ||
