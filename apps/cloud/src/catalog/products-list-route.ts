@@ -1,4 +1,4 @@
-import type { NetContentUnit } from "@purosur/contracts";
+import type { NetContentUnit } from "@purosur/domain";
 import { asc, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";

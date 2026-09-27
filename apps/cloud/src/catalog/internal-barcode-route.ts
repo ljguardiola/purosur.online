@@ -1,4 +1,4 @@
-import { appendEan13CheckDigit } from "@purosur/contracts";
+import { appendEan13CheckDigit } from "@purosur/domain";
 import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";

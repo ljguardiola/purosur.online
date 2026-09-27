@@ -1,4 +1,4 @@
-import { MAX_UNIT_PRICE_CENTS } from "@purosur/contracts";
+import { MAX_UNIT_PRICE_CENTS } from "@purosur/domain";
 import { formatNumber } from "@purosur/ui";
 import { parseEsArNumber } from "../platform/es-ar-number";
 

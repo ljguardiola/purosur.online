@@ -1,4 +1,4 @@
-import type { NetContentUnit } from "@purosur/contracts";
+import type { NetContentUnit } from "@purosur/domain";
 
 export type ProductSaleUnit = "UNIT" | "KG";
 

@@ -1,4 +1,5 @@
-import { isInternalBarcode, isPermissionKey, PRODUCT_NAME_MAX_LENGTH } from "@purosur/contracts";
+import { isPermissionKey } from "@purosur/contracts";
+import { isInternalBarcode, PRODUCT_NAME_MAX_LENGTH } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
   SAMPLE_ADMINISTRATOR,

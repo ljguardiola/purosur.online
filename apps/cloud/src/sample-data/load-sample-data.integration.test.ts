@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { isAlertKind, isInternalBarcode } from "@purosur/contracts";
+import { isAlertKind } from "@purosur/contracts";
+import { isInternalBarcode } from "@purosur/domain";
 import { eq, sql } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";

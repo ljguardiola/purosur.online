@@ -1,15 +1,19 @@
-export type { NetContentUnit } from "./catalog/index.js";
 export {
-  appendEan13CheckDigit,
-  BARCODE_MAX_LENGTH,
-  barcodeLength,
   CATEGORY_NAME_MAX_LENGTH,
   categoryNameLength,
+  isCategoryNameTooLong,
+} from "./model/category-name.js";
+export {
+  appendEan13CheckDigit,
   ean13CheckDigit,
   ean13Modules,
-  isBarcodeTooLong,
-  isCategoryNameTooLong,
   isInternalBarcode,
+} from "./model/ean13.js";
+export type { NetContentUnit } from "./model/product.js";
+export {
+  BARCODE_MAX_LENGTH,
+  barcodeLength,
+  isBarcodeTooLong,
   isProductNameTooLong,
   isValidNetContentQuantity,
   LABELS_MAX_COUNT_PER_PRODUCT,
@@ -20,6 +24,4 @@ export {
   PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
   productNameLength,
-} from "./catalog/index.js";
-export { MAX_UNIT_PRICE_CENTS } from "./pricing/index.js";
-export { ARGENTINA_TIME_ZONE, argentinaCalendarDay, codePointLength } from "./shared/index.js";
+} from "./model/product.js";

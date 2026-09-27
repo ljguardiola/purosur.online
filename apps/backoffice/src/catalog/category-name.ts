@@ -1,4 +1,4 @@
-import { CATEGORY_NAME_MAX_LENGTH, isCategoryNameTooLong } from "@purosur/contracts";
+import { CATEGORY_NAME_MAX_LENGTH, isCategoryNameTooLong } from "@purosur/domain";
 
 const CATEGORY_NAME_TOO_LONG = `El nombre puede tener hasta ${CATEGORY_NAME_MAX_LENGTH} caracteres.`;
 

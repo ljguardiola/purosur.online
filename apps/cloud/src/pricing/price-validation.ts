@@ -1,4 +1,4 @@
-import { MAX_UNIT_PRICE_CENTS } from "@purosur/contracts";
+import { MAX_UNIT_PRICE_CENTS } from "@purosur/domain";
 import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 
 export interface PriceFieldValidationFailure {

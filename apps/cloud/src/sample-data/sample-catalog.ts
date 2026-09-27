@@ -2,7 +2,7 @@ import {
   appendEan13CheckDigit,
   type NetContentUnit,
   PRODUCT_NAME_MAX_LENGTH,
-} from "@purosur/contracts";
+} from "@purosur/domain";
 import type { BranchHoursRange } from "../branch/branch-settings-validation.js";
 
 // RFC 2606 reserves the "example" top-level domain for documentation and sample data, so no real

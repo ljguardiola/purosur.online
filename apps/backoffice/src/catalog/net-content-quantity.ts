@@ -2,7 +2,7 @@ import {
   isValidNetContentQuantity,
   NET_CONTENT_QUANTITY_MAX,
   NET_CONTENT_QUANTITY_MAX_DECIMALS,
-} from "@purosur/contracts";
+} from "@purosur/domain";
 import { formatNumber } from "@purosur/ui";
 import { parseEsArNumber } from "../platform/es-ar-number";
 
