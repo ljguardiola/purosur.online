@@ -74,7 +74,7 @@ jobs:
 
       - run: pnpm verify:static
         env:
-          MIGRATIONS_BASE_REF: ${{ github.event_name == 'push' && github.event.before || github.event.pull_request.base.sha }}
+          CHANGE_BASE_REF: ${{ github.event_name == 'push' && github.event.before || github.event.pull_request.base.sha }}
 
   # vitest run, sharded four ways so a slow shard - not the ever-growing total test count - bounds
   # this job's wall time.
