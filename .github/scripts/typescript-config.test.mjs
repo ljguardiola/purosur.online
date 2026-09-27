@@ -82,6 +82,17 @@ const rejectedCode = [
     source: 'import "./module-that-does-not-exist.js";\n',
     code: 2882,
   },
+  {
+    description: "unreachable code",
+    source: [
+      "export function first(values: readonly number[]): number | undefined {",
+      "  return values[0];",
+      "  console.log(values);",
+      "}",
+      "",
+    ].join("\n"),
+    code: 7027,
+  },
 ];
 
 for (const configPath of configPaths) {

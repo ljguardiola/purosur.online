@@ -16,6 +16,7 @@
     "noFallthroughCasesInSwitch": true,
     "noImplicitReturns": true,
     "noUncheckedSideEffectImports": true,
+    "allowUnreachableCode": false,
     "skipLibCheck": true,
     "noEmit": true,
     "paths": {
