@@ -77,6 +77,11 @@ const rejectedCode = [
     ].join("\n"),
     code: 7030,
   },
+  {
+    description: "a side-effect import that does not resolve",
+    source: 'import "./module-that-does-not-exist.js";\n',
+    code: 2882,
+  },
 ];
 
 for (const configPath of configPaths) {
