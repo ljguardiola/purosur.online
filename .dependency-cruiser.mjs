@@ -1,5 +1,7 @@
 export const CLOUD_ONLY_CONCEPTS = ["purchasing", "alerts", "catalog", "pricing"];
 
+const REAL_POSTGRES_TEST = "apps/cloud/src/[^/]+/[^/]+\\.integration\\.test\\.ts$";
+
 // Matches an npm package either by its raw specifier (left unresolved when the
 // package isn't installed) or by its resolved node_modules path, never by a repo
 // folder that happens to share the package's name.
@@ -206,13 +208,27 @@ export default {
       from: { path: "^apps/pos/src/shared/" },
       to: { pathNot: "^apps/pos/src/shared/" },
     },
+    {
+      name: "real-postgres-tests-no-pglite",
+      comment:
+        "Tests that run against a real Postgres, and their global setup, never load " +
+        "PGlite or drizzle's PGlite driver, directly or transitively.",
+      severity: "error",
+      from: {
+        path: [`^${REAL_POSTGRES_TEST}`, "^apps/cloud/vitest\\.global-setup\\.postgres\\.ts$"],
+      },
+      to: {
+        path: [npmPackage("@electric-sql/pglite"), npmPackage("drizzle-orm/pglite")],
+        reachable: true,
+      },
+    },
   ],
   options: {
     doNotFollow: {
       path: "node_modules",
     },
     exclude: {
-      path: ["\\.test\\.(ts|tsx)$", "(^|/)dist/"],
+      path: [`^(?!${REAL_POSTGRES_TEST}).*\\.test\\.(ts|tsx)$`, "^(apps|packages)/[^/]+/dist/"],
     },
     tsPreCompilationDeps: true,
     tsConfig: {

@@ -2,7 +2,8 @@ import { readFile } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
 import { inject } from "vitest";
-import { MIGRATIONS_FOLDER, migrateFreshDatabase } from "./test-database-snapshot.js";
+import { MIGRATIONS_FOLDER } from "./migrations-folder.js";
+import { migrateFreshDatabase } from "./test-database-snapshot.js";
 
 export interface TestDatabase {
   client: PGlite;

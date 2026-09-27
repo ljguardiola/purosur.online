@@ -171,6 +171,81 @@ describe("the edge origin guard", () => {
   });
 });
 
+describe("Strict-Transport-Security", () => {
+  const TWO_YEARS_INCLUDING_SUBDOMAINS = "max-age=63072000; includeSubDomains";
+
+  let staticDir: string;
+  let app: ReturnType<typeof buildRealApp>;
+  let port: number;
+
+  beforeEach(async () => {
+    staticDir = mkdtempSync(join(tmpdir(), "cloud-hsts-static-"));
+    writeFileSync(join(staticDir, "index.html"), "<!doctype html><title>backoffice</title>");
+    mkdirSync(join(staticDir, "assets"));
+    writeFileSync(join(staticDir, "assets", "app.js"), "console.log('app');");
+    app = buildRealApp({
+      version: "abc1234",
+      edgeOriginSecret: TEST_EDGE_ORIGIN_SECRET,
+      staticDir,
+    });
+    app.get("/boom", { config: { access: PUBLIC_ACCESS } }, async () => {
+      throw new Error("boom");
+    });
+    await app.listen({ host: "127.0.0.1", port: 0 });
+    port = (app.server.address() as AddressInfo).port;
+  });
+
+  afterEach(async () => {
+    await app.close();
+    rmSync(staticDir, { recursive: true, force: true });
+  });
+
+  function send(
+    method: string,
+    path: string,
+    headers: Record<string, string> = { "x-edge-origin-secret": TEST_EDGE_ORIGIN_SECRET },
+  ): Promise<{ statusCode: number; strictTransportSecurity: string | undefined }> {
+    return new Promise((resolve, reject) => {
+      const request = httpRequest(
+        { host: "127.0.0.1", port, path, method, headers },
+        (response) => {
+          response.resume();
+          response.on("end", () =>
+            resolve({
+              statusCode: response.statusCode ?? 0,
+              strictTransportSecurity: response.headers["strict-transport-security"],
+            }),
+          );
+        },
+      );
+      request.on("error", reject);
+      request.end();
+    });
+  }
+
+  it.each([
+    ["a route", "GET", "/health", 200],
+    ["a static asset", "GET", "/assets/app.js", 200],
+    ["the page served for a client route", "GET", "/help/getting_started", 200],
+    ["a HEAD to a client route", "HEAD", "/help/getting_started", 200],
+    ["a path that matches nothing", "GET", "/missing.txt", 404],
+    ["a route that throws", "GET", "/boom", 500],
+    ["a path that is not valid percent-encoding", "GET", "/%zz", 400],
+  ])("is sent with the response to %s", async (_case, method, path, statusCode) => {
+    const response = await send(method, path);
+
+    expect(response.statusCode).toBe(statusCode);
+    expect(response.strictTransportSecurity).toBe(TWO_YEARS_INCLUDING_SUBDOMAINS);
+  });
+
+  it("is sent with the refusal of a request that did not come through the edge", async () => {
+    const response = await send("GET", "/some-route", {});
+
+    expect(response.statusCode).toBe(403);
+    expect(response.strictTransportSecurity).toBe(TWO_YEARS_INCLUDING_SUBDOMAINS);
+  });
+});
+
 describe("Sentry error handler wiring", () => {
   it("wires the provided setupFastifyErrorHandler function onto the built app", () => {
     const setupFastifyErrorHandler = vi.fn();

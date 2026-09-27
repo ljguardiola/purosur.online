@@ -1,0 +1,50 @@
+diff --git a/dist/src/stryker-setup.js b/dist/src/stryker-setup.js
+index aecfacbe47b285c272c47e54b3d66a716adfdc41..bbb824c27ced801655581014b11744276df50897 100644
+--- a/dist/src/stryker-setup.js
++++ b/dist/src/stryker-setup.js
+@@ -63,7 +63,7 @@ function collectTestName({ name, suite, }) {
+         nameParts.unshift(currentSuite.name);
+         currentSuite = currentSuite.suite;
+     }
+-    return nameParts.join(' ').trim();
++    return nameParts.join(' > ').trim();
+ }
+ function toRawTestId(test) {
+     return `${test.file?.filepath ?? 'unknown.js'}#${collectTestName(test)}`;
+diff --git a/dist/src/test-helpers.js b/dist/src/test-helpers.js
+index 56cc786f30c524ae18ce87eef1a67fdf26b703c5..2cd9786a153a6b3090b84e30e02750d1c20b5a0b 100644
+--- a/dist/src/test-helpers.js
++++ b/dist/src/test-helpers.js
+@@ -8,7 +8,7 @@ export function collectTestName({ name, suite, }) {
+         nameParts.unshift(currentSuite.name);
+         currentSuite = currentSuite.suite;
+     }
+-    return nameParts.join(' ').trim();
++    return nameParts.join(' > ').trim();
+ }
+ export function toRawTestId(test) {
+     return `${test.file?.filepath ?? 'unknown.js'}#${collectTestName(test)}`;
+diff --git a/dist/src/vitest-test-runner.js b/dist/src/vitest-test-runner.js
+index 84f1ca026503b8e92b7adc952ec6c6a401943656..dec58bc4638a41c4ae315603584fd26603616a0c 100644
+--- a/dist/src/vitest-test-runner.js
++++ b/dist/src/vitest-test-runner.js
+@@ -177,10 +177,15 @@ export class VitestTestRunner {
+             failure ||= testResult.status === TestStatus.Failed;
+             return testResult;
+         });
+-        if (!failure && this.ctx.state.errorsSet.size > 0) {
+-            const errorText = [...this.ctx.state.errorsSet]
+-                .map(errorToString)
+-                .join('\n');
++        const fileErrors = this.ctx.state.getFiles()
++            .filter((file) => file.result?.state === 'fail')
++            .map((file) => `${file.filepath}: ${file.result?.errors?.map((error) => error.message).join('\n') || 'StrykerJS: Test file execution failed'}`);
++        if (!failure &&
++            (fileErrors.length > 0 || this.ctx.state.errorsSet.size > 0)) {
++            const errorText = [
++                ...fileErrors,
++                ...[...this.ctx.state.errorsSet].map(errorToString),
++            ].join('\n');
+             return {
+                 status: DryRunStatus.Error,
+                 errorMessage: `An error occurred outside of a test run: ${errorText}`,

@@ -2,11 +2,10 @@ import { readFile, writeFile } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
+import { MIGRATIONS_FOLDER } from "./migrations-folder.js";
 
 // Loaded outside any test worker (by the node project's global setup), so this module must not
 // import "vitest".
-
-export const MIGRATIONS_FOLDER = new URL("../../migrations", import.meta.url).pathname;
 
 export async function migrateFreshDatabase(
   migrationsFolder: string,
