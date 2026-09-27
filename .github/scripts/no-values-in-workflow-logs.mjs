@@ -10,6 +10,7 @@ const TRACES_COMMANDS_MESSAGE =
   "run: step traces the commands it runs (set -x, a shell invoked with -x, an xtrace shell, or Set-PSDebug -Trace), which prints each command's arguments, including any vars.*/secrets.* value already substituted into them";
 
 const EXPRESSION_RE = /\$\{\{([\s\S]*?)\}\}/g;
+const STRING_LITERAL_RE = /(\[\s*)?'(?:[^']|'')*'/g;
 const VARS_OR_SECRETS_RE = /(?<![\w.'"-])(vars|secrets)(?![\w-])/;
 const ENV_REFERENCE_RE = /(?<![\w.'"-])env(?:\.([A-Za-z_][\w-]*)|\[\s*['"]([^'"]+)['"]\s*\])/g;
 const WHOLE_ENV_RE = /(?<![\w.'"-])env(?![\w-])(?!\s*(?:\.\s*[A-Za-z_]|\[\s*['"]))/;
@@ -31,9 +32,15 @@ function escapeRegExp(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function withoutStringLiterals(expression) {
+  return expression.replace(STRING_LITERAL_RE, (literal, indexOpening) =>
+    indexOpening ? literal : "''",
+  );
+}
+
 function expressionsOf(text) {
   if (typeof text !== "string") return [];
-  return [...text.matchAll(EXPRESSION_RE)].map((match) => match[1]);
+  return [...text.matchAll(EXPRESSION_RE)].map((match) => withoutStringLiterals(match[1]));
 }
 
 function expressionReadsTaintedValue(expression, taintedNames) {

@@ -599,6 +599,8 @@ for (const expression of [
   "format('{0}', vars.CLOUD_SENTRY_DSN)",
   "env.TOKEN",
   "env['TOKEN']",
+  "format('it''s {0}', secrets.X)",
+  "format('{0}', env['TOKEN'])",
 ]) {
   test(`flags a run: script embedding an expression that reads vars or secrets: \${{ ${expression} }}`, () => {
     assertFlagsOnly(messagesOf(`echo \${{ ${expression} }}`), EMBEDS);
@@ -610,6 +612,12 @@ for (const expression of [
   "steps.secrets.outputs.sha",
   "contains(github.ref, 'secrets')",
   "env.MODE",
+  "hashFiles('config/secrets.json')",
+  "contains(github.event.head_commit.message, 'rotate secrets')",
+  "format('{0} vars', github.actor)",
+  "contains(github.ref, 'it''s secrets and vars')",
+  "format('env {0}', github.actor)",
+  "format('{0}', 'env.TOKEN')",
 ]) {
   test(`does not flag a run: script embedding an expression that reads neither: \${{ ${expression} }}`, () => {
     assert.deepEqual(
