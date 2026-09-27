@@ -133,7 +133,6 @@ const PRODUCT_CATEGORY_NOT_LEAF_ERROR = (params: { category: string }) =>
   `"${params.category}" tiene subcategorías. Elegí una de ellas.`;
 const PRODUCT_NAME_REQUIRED = "Ingresá el nombre del producto.";
 const PRODUCT_UNIT_LABEL = "Unidad de venta";
-// The two sale-unit option cards, identical in the new and the edit product modal.
 const SALE_UNIT_OPTION_CONTENT = {
   UNIT: { title: "Por unidad", helpText: "Se vende de a uno" },
   KG: { title: "Por peso", helpText: "Se pesa en la balanza" },
