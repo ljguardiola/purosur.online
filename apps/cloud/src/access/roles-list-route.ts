@@ -43,7 +43,7 @@ export function toRoleSummaryWire(row: RoleSummaryRow): RoleSummaryWire {
   };
 }
 
-export async function listRoles<TQueryResult extends PgQueryResultHKT>(
+async function listRoles<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
 ): Promise<RoleSummaryRow[]> {
   const roleRows = await db

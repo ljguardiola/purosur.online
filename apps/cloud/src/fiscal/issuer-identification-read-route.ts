@@ -10,7 +10,7 @@ import {
 } from "../access/route-access.js";
 import { ISSUER_IDENTIFICATION_SINGLETON_ID, issuerIdentification } from "../platform/db/schema.js";
 
-export const ISSUER_IDENTIFICATION_TAX_STATUS = "Responsable Monotributo";
+const ISSUER_IDENTIFICATION_TAX_STATUS = "Responsable Monotributo";
 
 export interface IssuerIdentificationRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
@@ -50,7 +50,7 @@ export function toIssuerIdentificationWire(
   };
 }
 
-export async function findIssuerIdentification<TQueryResult extends PgQueryResultHKT>(
+async function findIssuerIdentification<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
 ): Promise<IssuerIdentificationRow> {
   const [row] = await db

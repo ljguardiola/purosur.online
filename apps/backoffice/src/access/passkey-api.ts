@@ -14,7 +14,7 @@ export type Passkey = {
 
 export type FetchPasskeysOutcome = { kind: "ok"; value: Passkey[] } | ErrorOutcome;
 
-export type RegistrationChallenge = {
+type RegistrationChallenge = {
   registrationOptions: PublicKeyCredentialCreationOptionsJSON;
 };
 

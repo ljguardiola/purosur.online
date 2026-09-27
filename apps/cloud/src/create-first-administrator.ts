@@ -41,7 +41,7 @@ export function parseCreateFirstAdministratorArgs(
   return { name: values.name, email: values.email };
 }
 
-export async function runCreateFirstAdministrator(
+async function runCreateFirstAdministrator(
   databaseUrl: string,
   input: ParsedCreateFirstAdministratorArgs,
 ): Promise<{ email: string }> {

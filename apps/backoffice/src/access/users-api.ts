@@ -75,7 +75,7 @@ export type FetchUserOutcome =
 
 export type EditUserInput = { email: string; roleId: string; version: number };
 
-export type EditUserFieldError = "email" | "roleId" | "version";
+type EditUserFieldError = "email" | "roleId" | "version";
 
 export type EditUserOutcome =
   | { kind: "ok"; value: BranchUser }

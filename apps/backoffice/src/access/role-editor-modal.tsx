@@ -47,7 +47,7 @@ export type RoleEditorModalServices = {
   startAuthentication: typeof startAuthentication;
 };
 
-export const defaultRoleEditorModalServices: RoleEditorModalServices = {
+const defaultRoleEditorModalServices: RoleEditorModalServices = {
   fetchRole,
   createRole,
   editRole,

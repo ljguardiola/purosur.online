@@ -167,9 +167,6 @@ importers:
       nid-webauthn-emulator:
         specifier: ^0.2.15
         version: 0.2.15
-      testcontainers:
-        specifier: ^12.1.0
-        version: 12.1.0(supports-color@10.2.2)
 
   apps/pos:
     devDependencies:

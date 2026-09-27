@@ -60,7 +60,7 @@ export type AlertDetailModalServices = {
   closeAlert: typeof closeAlertDefault;
 };
 
-export const defaultAlertDetailModalServices: AlertDetailModalServices = {
+const defaultAlertDetailModalServices: AlertDetailModalServices = {
   fetchAlert: fetchAlertDefault,
   closeAlert: closeAlertDefault,
 };

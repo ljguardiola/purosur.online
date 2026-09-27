@@ -1,4 +1,4 @@
-export interface MessageIssue {
+interface MessageIssue {
   readonly path: PropertyKey[];
   readonly message: string;
 }

@@ -90,7 +90,7 @@ export interface EditRoleInput {
   actorId: string;
 }
 
-export interface EditedRole {
+interface EditedRole {
   id: string;
   name: string;
   isAdministrator: false;

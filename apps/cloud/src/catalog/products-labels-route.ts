@@ -17,7 +17,7 @@ import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { renderLabelSheetPdf } from "./label-sheet-pdf.js";
 import type { ProductsRouteOptions } from "./products-list-route.js";
 
-export interface LabelRequestEntry {
+interface LabelRequestEntry {
   productId: string;
   count: number;
 }

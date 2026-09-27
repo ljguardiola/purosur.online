@@ -87,7 +87,7 @@ function isValidationFailure(
   return "field" in value;
 }
 
-export async function findProductById<TQueryResult extends PgQueryResultHKT>(
+async function findProductById<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   id: string,
 ): Promise<{ id: string } | undefined> {

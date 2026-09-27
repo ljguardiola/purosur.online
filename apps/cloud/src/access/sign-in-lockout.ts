@@ -4,7 +4,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
 import { signInFailures, signInLockouts } from "../platform/db/schema.js";
 
-export const SIGN_IN_LOCKOUT_WINDOW_MS = 60 * 60 * 1000;
+const SIGN_IN_LOCKOUT_WINDOW_MS = 60 * 60 * 1000;
 export const SIGN_IN_FAILURE_LIMIT = 10;
 export const SIGN_IN_BLOCK_DURATION_MS = 15 * 60 * 1000;
 const PRUNE_BATCH_SIZE = 100;

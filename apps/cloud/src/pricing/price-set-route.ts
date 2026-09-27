@@ -31,7 +31,7 @@ const PRICE_UNCHANGED_RESPONSE = {
   details: [{ field: "unitPrice" }],
 } as const;
 
-export interface SetPricePriceRow {
+interface SetPricePriceRow {
   id: string;
   unitPrice: number;
   validFrom: Date;
