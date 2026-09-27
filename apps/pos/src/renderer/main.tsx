@@ -9,9 +9,10 @@ import {
 // packages/ui's compiled design tokens; a relative path, not a "@purosur/ui/styles/..." specifier,
 // because the packaged build's "@purosur/ui" alias already maps that whole prefix to its index.ts.
 import "../../../../packages/ui/src/styles/tokens.css";
-import { App } from "./App";
-import type { PortEventSource } from "./incoming-port";
-import { attachIncomingPort } from "./incoming-port";
+import type { PortEventSource } from "./platform/incoming-port";
+import { attachIncomingPort } from "./platform/incoming-port";
+import { App } from "./shell/app";
+import { RenderFailureRecovery } from "./shell/render-failure-recovery";
 
 // Neither a DSN nor an environment: the renderer SDK sends everything to main, which owns the
 // destination and stamps its own environment on the renderer's events and logs.
@@ -40,7 +41,9 @@ const root = document.getElementById("root");
 if (root) {
   createRoot(root).render(
     <StrictMode>
-      <App />
+      <RenderFailureRecovery reportFailure={(error) => Sentry.captureException(error)}>
+        <App />
+      </RenderFailureRecovery>
     </StrictMode>,
   );
 }

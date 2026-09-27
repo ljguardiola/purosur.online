@@ -10,7 +10,7 @@ import {
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
-process.env.TZ = "UTC";
+process.env["TZ"] = "UTC";
 
 export default defineConfig({
   resolve: {
@@ -38,7 +38,7 @@ export default defineConfig({
         test: {
           name: "node",
           include: ["packages/*/src/**/*.test.ts", "apps/*/src/**/*.test.ts"],
-          exclude: ["apps/cloud/src/*/*.integration.test.ts"],
+          exclude: ["apps/cloud/src/**/*.integration.test.ts"],
           environment: "node",
           globalSetup: [r("./apps/cloud/vitest.global-setup.ts")],
         },
@@ -53,7 +53,7 @@ export default defineConfig({
       {
         test: {
           name: "cloud-integration",
-          include: ["apps/cloud/src/*/*.integration.test.ts"],
+          include: ["apps/cloud/src/**/*.integration.test.ts"],
           environment: "node",
           globalSetup: [r("./apps/cloud/vitest.global-setup.postgres.ts")],
           testTimeout: 30_000,

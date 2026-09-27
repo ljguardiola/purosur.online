@@ -19,12 +19,17 @@
     "dev:db": "docker compose up -d",
     "dev:migrate": "pnpm --filter @purosur/cloud build && node --env-file=.env apps/cloud/dist/migrate.js",
     "dev:create-first-administrator": "pnpm --filter @purosur/cloud build && node --env-file=.env apps/cloud/dist/create-first-administrator.js",
+    "dev:load-sample-data": "pnpm --filter @purosur/cloud build && node --env-file=.env apps/cloud/dist/load-sample-data.js",
+    "dev:clear-sample-data": "pnpm --filter @purosur/cloud build && node --env-file=.env apps/cloud/dist/clear-sample-data.js",
     "dev:cloud": "pnpm --filter @purosur/cloud build && node --env-file=.env apps/cloud/dist/server.js",
     "dev:backoffice": "pnpm --filter @purosur/backoffice dev",
     "ci:verify-durations": "node .github/scripts/verify-durations.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.14",
+    "@secretlint/node": "^13.0.6",
+    "@secretlint/secretlint-rule-pattern": "^13.0.6",
+    "@secretlint/secretlint-rule-preset-recommend": "^13.0.6",
     "@stryker-mutator/core": "10.0.0",
     "@stryker-mutator/typescript-checker": "10.0.0",
     "@stryker-mutator/vitest-runner": "10.0.0",

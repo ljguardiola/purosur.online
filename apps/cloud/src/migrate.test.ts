@@ -1,7 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { describe, expect, inject, it, vi } from "vitest";
-import { MIGRATIONS_FOLDER } from "./db/migrations-folder.js";
 import {
   isRetryableConnectionError,
   probeConnectTimeoutSeconds,
@@ -9,6 +8,7 @@ import {
   scramSha256Verifier,
   waitForDatabase,
 } from "./migrate.js";
+import { MIGRATIONS_FOLDER } from "./platform/db/migrations-folder.js";
 
 describe("runMigrations", () => {
   it("rejects immediately when the database is unreachable and the wait budget is zero", async () => {

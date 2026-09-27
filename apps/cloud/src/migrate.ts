@@ -5,8 +5,8 @@ import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { makeWorkerUtils } from "graphile-worker";
 import pg from "pg";
 import postgres from "postgres";
-import { describeDatabaseFailure, errorCode } from "./db/describe-database-failure.js";
-import { MIGRATIONS_FOLDER } from "./db/migrations-folder.js";
+import { describeDatabaseFailure, errorCode } from "./platform/db/describe-database-failure.js";
+import { MIGRATIONS_FOLDER } from "./platform/db/migrations-folder.js";
 
 export interface RunMigrationsOptions {
   migrationsFolder?: string;
@@ -249,8 +249,8 @@ export async function runMigrations(
 const isMainModule =
   process.argv[1] !== undefined && process.argv[1] === fileURLToPath(import.meta.url);
 if (isMainModule) {
-  const databaseUrl = process.env.DATABASE_URL;
-  const cloudAppPassword = process.env.CLOUD_APP_DATABASE_PASSWORD;
+  const databaseUrl = process.env["DATABASE_URL"];
+  const cloudAppPassword = process.env["CLOUD_APP_DATABASE_PASSWORD"];
   if (!databaseUrl) {
     console.error("migrate: DATABASE_URL is not set");
     process.exit(1);

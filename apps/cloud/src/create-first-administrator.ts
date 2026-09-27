@@ -2,12 +2,12 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { describeDatabaseFailure } from "./db/describe-database-failure.js";
 import {
   createFirstAdministrator,
   FirstAdministratorAlreadyBootstrappedError,
   InvalidFirstAdministratorInputError,
-} from "./users/create-first-administrator.js";
+} from "./access/create-first-administrator.js";
+import { describeDatabaseFailure } from "./platform/db/describe-database-failure.js";
 
 export interface ParsedCreateFirstAdministratorArgs {
   name: string;
@@ -79,7 +79,7 @@ const isMainModule =
   process.argv[1] !== undefined && process.argv[1] === fileURLToPath(import.meta.url);
 if (isMainModule) {
   const parsedArgs = parseArgsOrExit(process.argv.slice(2));
-  const databaseUrl = process.env.DATABASE_URL;
+  const databaseUrl = process.env["DATABASE_URL"];
   if (!databaseUrl) {
     console.error("create-first-administrator: DATABASE_URL is not set");
     process.exit(1);

@@ -15,10 +15,13 @@ Runs the cloud, its database, and the backoffice on one origin, with no real mai
 2. `pnpm dev:db` — starts Postgres (`docker-compose.yml`) in the background.
 3. `pnpm dev:migrate` — builds the cloud and applies its migrations against `DATABASE_URL`.
 4. `pnpm dev:create-first-administrator --name "Your Name" --email you@example.com` — creates the first Administrator.
-5. `pnpm dev:cloud` — builds and starts the cloud on port 3000.
-6. In a second terminal, `pnpm dev:backoffice` — starts the backoffice's Vite dev server. Its dev-server proxy (`apps/backoffice/vite.config.ts`) forwards every cloud API path to the cloud process above, so the browser only ever talks to the Vite origin (`http://localhost:5173`, `.env`'s `BACKOFFICE_ORIGIN`) and the cloud's Origin check applies exactly as it does when deployed.
+5. `pnpm dev:load-sample-data` — fills the database with realistic, fictional sample data (products, prices, users, alerts, and more). Running it again is a no-op; `pnpm dev:clear-sample-data` removes only what it added, leaving the Administrator from step 4 untouched, and changes nothing while other data still depends on sample data. Neither runs against anything but a local database or, for loading only, staging.
+6. `pnpm dev:cloud` — builds and starts the cloud on port 3000.
+7. In a second terminal, `pnpm dev:backoffice` — starts the backoffice's Vite dev server. Its dev-server proxy (`apps/backoffice/vite.config.ts`) forwards every cloud API path to the cloud process above, so the browser only ever talks to the Vite origin (`http://localhost:5173`, `.env`'s `BACKOFFICE_ORIGIN`) and the cloud's Origin check applies exactly as it does when deployed.
 
-To register the first Administrator's passkey: open the backoffice, request an account-recovery link for that Administrator's email, and read the link from the cloud process's log (step 5's terminal) instead of an inbox. A real fingerprint reader or phone is not required: Chrome DevTools' WebAuthn panel (More tools → WebAuthn) can add a virtual authenticator that stands in for one.
+Sample data can also be loaded on staging on demand, once it already has its own Administrator: `railway ssh --service "Cloud Server" --environment staging -- node dist/load-sample-data.js`. Clearing it back out is local only, since staging's cloud connects as the limited `cloud_app` role, which cannot delete prices, price reviews, audit rows, or products.
+
+To register the first Administrator's passkey: open the backoffice, request an account-recovery link for that Administrator's email, and read the link from the cloud process's log (step 6's terminal) instead of an inbox. A real fingerprint reader or phone is not required: Chrome DevTools' WebAuthn panel (More tools → WebAuthn) can add a virtual authenticator that stands in for one.
 
 ## Pinned versions
 
@@ -53,7 +56,7 @@ A feature too large for one pull request stays as a parent feature issue holding
 This is the structure the repository is organized into. A part that does not follow it yet is moved to it when it is reorganized, and never serves as a precedent for new code.
 
 - In every layer that covers business concepts — `packages/domain`, the cloud, the backoffice, the register app — the top-level folders are the business concepts it covers, each named like `packages/domain`'s concept of the same name (such as `catalog`, `pricing`, `alerts`, `register`, `fiscal`), so a concept is found under the same name from its rule to its screen. A concept the domain has no rules for yet still gets its own folder under its business name, such as the backoffice's `access` and `branch`. A concept folder holds everything of that concept in that layer: its screens and their parts, its API client, its routes, its helpers.
-- What belongs to no concept lives beside them under its own name: `shell/` for the application's frame (layout, navigation, session guard), `platform/` for shared infrastructure used across concepts (HTTP helpers, formatting), and a folder named after any other part of the application, such as the backoffice's `help/`.
+- What belongs to no concept lives beside them under its own name: `shell/` for the application's frame (layout, navigation, session guard), `platform/` for shared infrastructure used across concepts (HTTP helpers, formatting, the database connection and schema, error reporting), and a folder named after any other part of the application, such as the backoffice's `help/`.
 - A menu area that groups several concepts does so through its routes, not through a folder.
 - Every source file and folder is named in English kebab-case (`products-list-screen.tsx`). Identifiers and URL paths are English too; only user-facing text is Spanish.
 - Each file's tests sit beside it. Helpers used only by tests live in a `test-support/` folder inside the folder they serve.
@@ -75,6 +78,12 @@ This is the structure the repository is organized into. A part that does not fol
 - Every backoffice screen is a typed route, declared in its concept's `routes.tsx` under the layout route of the menu area it belongs to (`shell/`'s home, catalog, cash-and-fiscal, settings or help area, or the public route for screens reached without a session). The route tree in `shell/app-router.ts` lists it; links and navigation name it by its typed path, never by a string built by hand.
 - A route that needs a permission refuses it in its `beforeLoad`, before the screen renders, with `refuseWithout(session, canSee…)`, which sends the person to Mi cuenta. The session and the services reach a route through the router context, never through module state.
 - A list's filters and ordering are a zod schema declared in its route's `validateSearch`, where every field has a default and falls back to it for a value the list does not offer, and the defaults are stripped from the URL. A URL opened with a value the list does not offer, a default, or its values in another order is replaced by that same URL written the list's own way, without adding a history entry. The screen opens on the filters the URL carries and reports every change back, which the route writes into the URL replacing the current history entry. What is open on a screen, such as a modal or a selection, stays in the screen's own state.
+
+## Register screens
+
+- The register has no URL: it moves between screens through declared, typed routes kept in memory. Navigating to a route that does not exist, or with a parameter that is missing or mistyped, fails to type-check.
+- Every screen is reached through its own route, declared in the renderer's router under the root route and added to its route tree, with the screen as the route's component.
+- A screen that must refuse entry before it renders declares that on its own route, as a guard (`beforeLoad`) that redirects instead of letting the screen render.
 
 ## Testing
 
@@ -116,6 +125,10 @@ Dependency and GitHub Actions update PRs are opened by Dependabot (`.github/depe
 CI is the only thing that allows a merge: the `pr-contract` and `verify` checks are both required. A workflow step that references a GitHub Action by a moving tag (e.g. `@v4`) instead of a pinned commit SHA does not pass review.
 
 No tool checks that `packages/ui` carries no screens — composed screens live in each app — so every pull request is reviewed for it by hand.
+
+A configuration variable (`vars`) holds only a value that may be public; anything else is a secret. `pnpm verify` rejects a workflow step that writes a configuration variable or a secret directly into its script instead of passing it through the step's `env:`, or that traces the commands it runs.
+
+`pnpm verify` scans every tracked file for secrets, and every line each commit of the change adds since `main`, even one a later commit removes. When it finds one in CI, the secret has already reached GitHub and stays readable in that commit: revoke and rotate it first, then rewrite the pull request's history without it or close the pull request and open a new one from a clean branch.
 
 Follow Verify's duration across runs on main with `pnpm ci:verify-durations` (needs the `gh` CLI signed in). A test is marked slow only against the duration that is slow for its own kind of test, listed at the end of the run; it never fails a run.
 

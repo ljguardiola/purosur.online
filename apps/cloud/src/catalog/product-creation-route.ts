@@ -1,0 +1,283 @@
+import { and, eq, inArray } from "drizzle-orm";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import {
+  originGuard,
+  permissionAccess,
+  registerRouteAccess,
+  routeSessionSource,
+} from "../access/route-access.js";
+import { categories, productBarcodes, products } from "../platform/db/schema.js";
+import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
+import {
+  type NetContentInput,
+  type ProductFieldValidationFailure,
+  readBarcodes,
+  readCategoryId,
+  readNetContent,
+  readProductName,
+  readSaleUnit,
+  type SaleUnit,
+  validateProductFields,
+} from "./product-validation.js";
+import {
+  netContentRow,
+  type ProductRow,
+  type ProductsRouteOptions,
+} from "./products-list-route.js";
+
+const UNIQUE_VIOLATION = "23505";
+const BARCODE_UNIQUE_INDEX = "product_barcodes_code_key";
+
+export const CATEGORY_NOT_FOUND_FAILURE: ProductFieldValidationFailure = {
+  field: "categoryId",
+  message: "categoryId must be an existing category's id",
+};
+
+// 409, not 400 like `CATEGORY_NOT_FOUND_FAILURE`: a well-formed, existing categoryId that isn't a
+// leaf is a state conflict, not a malformed request.
+export const CATEGORY_NOT_LEAF_RESPONSE = {
+  code: "category_not_leaf",
+  message: "categoryId must be a leaf category with no subcategories of its own",
+} as const;
+
+// postgres-js names the field `constraint_name`; PGlite names it `constraint`.
+export function isBarcodeUniqueViolation(error: unknown): boolean {
+  let current: unknown = error;
+  while (current instanceof Error) {
+    const { code, constraint, constraint_name } = current as {
+      code?: unknown;
+      constraint?: unknown;
+      constraint_name?: unknown;
+    };
+    const index = constraint_name ?? constraint;
+    if (code === UNIQUE_VIOLATION && index === BARCODE_UNIQUE_INDEX) {
+      return true;
+    }
+    current = current.cause;
+  }
+  return false;
+}
+
+interface CreationRequestBody {
+  name: string;
+  categoryId: string;
+  saleUnit: SaleUnit;
+  barcodes: string[];
+  netContent: NetContentInput | null;
+}
+
+function readCreationBody(body: unknown): CreationRequestBody | ProductFieldValidationFailure {
+  const name = readProductName(body);
+  const categoryId = readCategoryId(body);
+  const saleUnit = readSaleUnit(body);
+  const barcodes = readBarcodes(body);
+  const netContent = readNetContent(body);
+  const failure = validateProductFields({ name, categoryId, saleUnit, barcodes, netContent });
+  if (failure) {
+    return failure;
+  }
+  // `validateProductFields` above already guarantees every one of these is defined.
+  return {
+    name: name as string,
+    categoryId: categoryId as string,
+    saleUnit: saleUnit as SaleUnit,
+    barcodes: barcodes as string[],
+    netContent: netContent === undefined ? null : (netContent as NetContentInput),
+  };
+}
+
+function isValidationFailure(
+  value: CreationRequestBody | ProductFieldValidationFailure,
+): value is ProductFieldValidationFailure {
+  return "field" in value;
+}
+
+export interface CreateProductInput {
+  name: string;
+  categoryId: string;
+  saleUnit: SaleUnit;
+  barcodes: string[];
+  netContent?: NetContentInput | null;
+}
+
+export type CreateProductOutcome =
+  | { kind: "category_not_found" }
+  | { kind: "category_not_leaf" }
+  | { kind: "barcode_taken"; codes: string[] }
+  | { kind: "created"; product: ProductRow };
+
+// Only an active barcode counts as taken; a deactivated product's barcode is free to reuse.
+async function takenBarcodes<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  codes: string[],
+): Promise<string[]> {
+  const rows = await db
+    .select({ code: productBarcodes.code })
+    .from(productBarcodes)
+    .where(and(inArray(productBarcodes.code, codes), eq(productBarcodes.active, true)));
+  return rows.map((row) => row.code);
+}
+
+// Locks the category `FOR UPDATE`, so this and a concurrent category create or move targeting the
+// same category can never both slip past the other's check.
+export async function lockLeafCategory<TQueryResult extends PgQueryResultHKT>(
+  tx: PgDatabase<TQueryResult>,
+  categoryId: string,
+): Promise<
+  | { kind: "category_not_found" }
+  | { kind: "category_not_leaf" }
+  | { kind: "locked"; category: { id: string; name: string } }
+> {
+  if (!UUID_PATTERN.test(categoryId)) {
+    return { kind: "category_not_found" };
+  }
+  const [category] = await tx
+    .select({ id: categories.id, name: categories.name })
+    .from(categories)
+    .where(eq(categories.id, categoryId))
+    .for("update");
+  if (!category) {
+    return { kind: "category_not_found" };
+  }
+  const [childCategory] = await tx
+    .select({ id: categories.id })
+    .from(categories)
+    .where(eq(categories.parentId, categoryId))
+    .limit(1);
+  return childCategory ? { kind: "category_not_leaf" } : { kind: "locked", category };
+}
+
+// On a concurrent-insert race caught by the unique index, which of this request's codes is now
+// taken isn't known from the violation itself, so it's re-read after the transaction rolls back.
+export async function createProduct<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  input: CreateProductInput,
+): Promise<CreateProductOutcome> {
+  return db
+    .transaction<CreateProductOutcome>(async (tx) => {
+      const locked = await lockLeafCategory(tx, input.categoryId);
+      if (locked.kind !== "locked") {
+        return locked;
+      }
+      const { category } = locked;
+
+      const taken = await takenBarcodes(tx, input.barcodes);
+      if (taken.length > 0) {
+        return { kind: "barcode_taken", codes: taken };
+      }
+
+      const [newProduct] = await tx
+        .insert(products)
+        .values({
+          name: input.name,
+          categoryId: input.categoryId,
+          saleUnit: input.saleUnit,
+          netContentQuantity: input.netContent?.quantity,
+          netContentUnit: input.netContent?.unit,
+        })
+        .returning({
+          id: products.id,
+          name: products.name,
+          categoryId: products.categoryId,
+          saleUnit: products.saleUnit,
+          netContentQuantity: products.netContentQuantity,
+          netContentUnit: products.netContentUnit,
+          active: products.active,
+          version: products.version,
+        });
+      if (!newProduct) {
+        throw new Error("inserting the product returned no row");
+      }
+      await tx
+        .insert(productBarcodes)
+        .values(
+          input.barcodes.map((code, position) => ({ productId: newProduct.id, code, position })),
+        );
+
+      return {
+        kind: "created",
+        product: {
+          id: newProduct.id,
+          name: newProduct.name,
+          categoryId: newProduct.categoryId,
+          categoryName: category.name,
+          saleUnit: newProduct.saleUnit as SaleUnit,
+          barcodes: input.barcodes,
+          netContent: netContentRow(newProduct),
+          active: newProduct.active,
+          version: newProduct.version,
+        },
+      };
+    })
+    .catch(async (error: unknown): Promise<CreateProductOutcome> => {
+      if (!isBarcodeUniqueViolation(error)) {
+        throw error;
+      }
+      return { kind: "barcode_taken", codes: await takenBarcodes(db, input.barcodes) };
+    });
+}
+
+// No passkey step-up: creating a product is routine work, not a sensitive account or role change.
+export function registerProductCreationRoute<TQueryResult extends PgQueryResultHKT>(
+  app: FastifyInstance,
+  options: ProductsRouteOptions<TQueryResult>,
+): void {
+  const now = options.now ?? (() => new Date());
+  registerRouteAccess(app);
+  const sessionSource = routeSessionSource({ db: options.db, now });
+
+  function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
+    if (request.headers.origin !== options.backofficeOrigin) {
+      void reply.code(403).send({
+        code: "origin_rejected",
+        message: "the request's Origin does not match the backoffice's own origin",
+      });
+      return false;
+    }
+    return true;
+  }
+
+  app.post(
+    "/products",
+    {
+      preHandler: originGuard(checkOrigin),
+      config: {
+        access: permissionAccess("manage_products_and_categories"),
+        sessionSource,
+      },
+    },
+    async (request, reply) => {
+      const parsedBody = readCreationBody(request.body);
+      if (isValidationFailure(parsedBody)) {
+        await reply.code(400).send({
+          code: "validation_failed",
+          message: parsedBody.message,
+          details: [{ field: parsedBody.field }],
+        });
+        return;
+      }
+
+      const outcome = await createProduct(options.db, parsedBody);
+
+      if (outcome.kind === "category_not_found") {
+        await reply.code(400).send({
+          code: "validation_failed",
+          message: CATEGORY_NOT_FOUND_FAILURE.message,
+          details: [{ field: CATEGORY_NOT_FOUND_FAILURE.field }],
+        });
+        return;
+      }
+      if (outcome.kind === "category_not_leaf") {
+        await reply.code(409).send(CATEGORY_NOT_LEAF_RESPONSE);
+        return;
+      }
+      if (outcome.kind === "barcode_taken") {
+        await reply.code(409).send({ code: "barcode_taken", codes: outcome.codes });
+        return;
+      }
+
+      await reply.code(201).send(outcome.product);
+    },
+  );
+}

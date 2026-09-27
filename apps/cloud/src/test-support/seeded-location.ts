@@ -1,5 +1,5 @@
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { locations } from "../db/schema.js";
+import { locations } from "../platform/db/schema.js";
 
 export async function seededLocationId<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,

@@ -1,9 +1,9 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import postgres from "postgres";
 import type { TestProject } from "vitest/node";
-import { CLOUD_APP_PASSWORD } from "./src/db/cloud-app-password.js";
-import { MIGRATIONS_FOLDER } from "./src/db/migrations-folder.js";
 import { runMigrations } from "./src/migrate.js";
+import { MIGRATIONS_FOLDER } from "./src/platform/db/migrations-folder.js";
+import { CLOUD_APP_PASSWORD } from "./src/test-support/cloud-app-password.js";
 
 declare module "vitest" {
   export interface ProvidedContext {

@@ -113,18 +113,6 @@ export function describeViolation({ path, reason }) {
   return `${path}: ${reason}`;
 }
 
-export function resolveBaseRef(env) {
-  return env.MIGRATIONS_BASE_REF || "origin/main";
-}
-
-export function resolveBaseSha({ ref, runGit }) {
-  try {
-    return runGit(["merge-base", "HEAD", ref]).toString("utf8").trim();
-  } catch {
-    return null;
-  }
-}
-
 export function listBasePaths({ base, runGit }) {
   return runGit(["ls-tree", "-r", "-z", "--name-only", base])
     .toString("utf8")

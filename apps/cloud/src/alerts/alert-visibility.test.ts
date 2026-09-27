@@ -1,8 +1,15 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
-import { alerts, locations, rolePermissions, roles, userRoles, users } from "../db/schema.js";
+import {
+  alerts,
+  locations,
+  rolePermissions,
+  roles,
+  userRoles,
+  users,
+} from "../platform/db/schema.js";
+import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import {
   canSeeAnyAlerts,
