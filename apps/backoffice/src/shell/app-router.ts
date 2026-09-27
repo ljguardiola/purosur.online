@@ -68,7 +68,14 @@ const routeTree = rootRoute.addChildren([
 ]);
 
 export function createAppRouter(context: RouterContext) {
-  return createRouter({ routeTree, context, parseSearch, stringifySearch });
+  const router = createRouter({ routeTree, context, parseSearch, stringifySearch });
+  // The router only ever compares its own re-serialized query, so without this the address bar
+  // would keep a query typed in another key order or encoding.
+  const { history, latestLocation } = router;
+  if (history.location.search !== latestLocation.searchStr) {
+    history.replace(latestLocation.href, history.location.state);
+  }
+  return router;
 }
 
 declare module "@tanstack/react-router" {

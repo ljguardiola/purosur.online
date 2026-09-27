@@ -4,7 +4,8 @@ export function parseSearch(searchStr: string): Record<string, string> {
 
 export function stringifySearch(search: Record<string, unknown>): string {
   const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(search)) {
+  const entries = Object.entries(search).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  for (const [key, value] of entries) {
     if (value !== undefined) {
       params.set(key, String(value));
     }

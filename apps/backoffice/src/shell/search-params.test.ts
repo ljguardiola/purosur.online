@@ -21,7 +21,7 @@ test("reads a URL without a query as no values", () => {
 
 test("writes each value as its text and leaves out the ones not set", () => {
   expect(stringifySearch({ search: "miel pura", page: 2, level: undefined })).toBe(
-    "?search=miel+pura&page=2",
+    "?page=2&search=miel+pura",
   );
   expect(stringifySearch({})).toBe("");
 });
@@ -29,4 +29,10 @@ test("writes each value as its text and leaves out the ones not set", () => {
 test("reads back the text it writes", () => {
   const search = { search: '"007" & más', category: "12" };
   expect(parseSearch(stringifySearch(search))).toEqual(search);
+});
+
+test("writes the same query for the same values whatever order they come in", () => {
+  expect(stringifySearch({ status: "inactive", search: "miel" })).toBe(
+    stringifySearch({ search: "miel", status: "inactive" }),
+  );
 });

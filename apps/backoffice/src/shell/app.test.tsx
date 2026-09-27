@@ -1918,3 +1918,56 @@ test.each([
   window.history.back();
   await expect.poll(() => window.location.pathname).toBe("/help");
 });
+
+test.each([
+  {
+    url: "/catalog/products?status=inactive&search=miel",
+    canonical: "/catalog/products?search=miel&status=inactive",
+    status: "Estado: Inactivos",
+  },
+  {
+    url: "/catalog/products?search=miel&category=ALL",
+    canonical: "/catalog/products?search=miel",
+    status: "Estado: Activos",
+  },
+  {
+    url: "/catalog/products?status=bogus",
+    canonical: "/catalog/products",
+    status: "Estado: Activos",
+  },
+  {
+    url: "/catalog/products?search=miel&origin=mail",
+    canonical: "/catalog/products?search=miel",
+    status: "Estado: Activos",
+  },
+  {
+    url: "/catalog/products?search=miel&status=inactive",
+    canonical: "/catalog/products?search=miel&status=inactive",
+    status: "Estado: Inactivos",
+  },
+])(
+  "opening $url ends on $canonical without a history entry of its own",
+  async ({ url, canonical, status }) => {
+    const services = createServices();
+    vi.mocked(services.productsListScreen.fetchProducts).mockResolvedValue({
+      kind: "ok",
+      value: [],
+    });
+    vi.mocked(services.productsListScreen.fetchCategories).mockResolvedValue({
+      kind: "ok",
+      value: [],
+    });
+    window.history.pushState(null, "", "/help");
+    window.history.pushState(null, "", url);
+
+    const screen = await render(<App help={emptyHelp} services={services} />);
+
+    await expect.element(screen.getByRole("button", { name: status })).toBeVisible();
+    await expect.poll(() => `${window.location.pathname}${window.location.search}`).toBe(canonical);
+    await expect
+      .element(screen.getByRole("link", { name: "Productos" }))
+      .toHaveAttribute("href", canonical);
+    window.history.back();
+    await expect.poll(() => window.location.pathname).toBe("/help");
+  },
+);
