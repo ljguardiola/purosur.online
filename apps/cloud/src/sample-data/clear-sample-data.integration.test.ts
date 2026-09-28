@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { createProduct } from "@purosur/domain";
 import { eq, sql } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -8,7 +9,7 @@ import { createUser } from "../access/user-creation-route.js";
 import { openAlert } from "../alerts/open-alert.js";
 import { editBranchSettings } from "../branch/branch-settings-edit-route.js";
 import { createCategory } from "../catalog/category-creation-route.js";
-import { createProduct } from "../catalog/product-creation-route.js";
+import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import {
   alerts,
   auditLog,
@@ -224,11 +225,12 @@ describe("clearSampleData", () => {
     });
     if (realCategoryOutcome.kind !== "created")
       throw new Error("test setup: real category collided");
-    const realProductOutcome = await createProduct(db, {
+    const realProductOutcome = await createProduct(new DrizzleCatalogStore(db), {
       name: "Producto Real",
       categoryId: realCategoryOutcome.category.id,
       saleUnit: "UNIT",
       barcodes: ["7791234567890"],
+      netContent: null,
     });
     if (realProductOutcome.kind !== "created") throw new Error("test setup: real product collided");
     const priceListRow = await db.execute<{ price_list_id: string }>(
@@ -283,11 +285,12 @@ describe("clearSampleData", () => {
       parentId: realTop.category.id,
     });
     if (realNamesake.kind !== "created") throw new Error("test setup: real namesake collided");
-    const realProduct = await createProduct(db, {
+    const realProduct = await createProduct(new DrizzleCatalogStore(db), {
       name: "Aceite Real",
       categoryId: realNamesake.category.id,
       saleUnit: "UNIT",
       barcodes: ["7791234567890"],
+      netContent: null,
     });
     if (realProduct.kind !== "created") throw new Error("test setup: real product collided");
 
@@ -313,11 +316,12 @@ describe("clearSampleData", () => {
       "Aceites y Aderezos",
       "Aceites",
     );
-    const realProduct = await createProduct(db, {
+    const realProduct = await createProduct(new DrizzleCatalogStore(db), {
       name: "Aceite Real",
       categoryId: sampleLeafId,
       saleUnit: "UNIT",
       barcodes: ["7791234567890"],
+      netContent: null,
     });
     if (realProduct.kind !== "created") throw new Error("test setup: real product collided");
     const beforeClear = await sampleDataSnapshot(db);
@@ -397,11 +401,12 @@ describe("clearSampleData", () => {
     const bootstrapAdmin = await seedActiveAdministrator(db);
     const realCategory = await createCategory(db, { name: "Categoría Real", parentId: null });
     if (realCategory.kind !== "created") throw new Error("test setup: real category collided");
-    const realProduct = await createProduct(db, {
+    const realProduct = await createProduct(new DrizzleCatalogStore(db), {
       name: "Producto Real",
       categoryId: realCategory.category.id,
       saleUnit: "UNIT",
       barcodes: ["7791234567890"],
+      netContent: null,
     });
     if (realProduct.kind !== "created") throw new Error("test setup: real product collided");
     const priceListId = await branchPriceListIdOf(db, bootstrapAdmin.locationId);

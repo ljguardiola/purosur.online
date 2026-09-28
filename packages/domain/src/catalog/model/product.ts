@@ -28,6 +28,8 @@ const LABEL_SHEETS_MAX = 100;
 const LABELS_PER_SHEET = 24;
 export const LABELS_MAX_TOTAL_COUNT = LABEL_SHEETS_MAX * LABELS_PER_SHEET;
 
+export type SaleUnit = "UNIT" | "KG";
+
 export type NetContentUnit = "G" | "KG" | "ML" | "L" | "UNIT";
 
 export const NET_CONTENT_UNITS: readonly NetContentUnit[] = ["G", "KG", "ML", "L", "UNIT"];

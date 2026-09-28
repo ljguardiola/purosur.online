@@ -1,3 +1,4 @@
+import { createProduct, deactivateProduct } from "@purosur/domain";
 import { and, eq, like, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { createRole } from "../access/role-creation-route.js";
@@ -9,9 +10,8 @@ import { escalateOverdueAlerts } from "../alerts/alert-escalation.js";
 import { openAlert } from "../alerts/open-alert.js";
 import { editBranchSettings } from "../branch/branch-settings-edit-route.js";
 import { createCategory } from "../catalog/category-creation-route.js";
+import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { allocateInternalBarcode } from "../catalog/internal-barcode-route.js";
-import { createProduct } from "../catalog/product-creation-route.js";
-import { deactivateProduct } from "../catalog/product-deactivation-route.js";
 import { branchSettings, locations, roles, userRoles, users } from "../platform/db/schema.js";
 import { branchPriceListId } from "../pricing/branch-price-list.js";
 import { confirmPrice } from "../pricing/price-confirmation-route.js";
@@ -186,7 +186,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
                 plan.barcode.kind === "manufacturer"
                   ? plan.barcode.code
                   : await allocateInternalBarcode(tx);
-              const productOutcome = await createProduct(tx, {
+              const productOutcome = await createProduct(new DrizzleCatalogStore(tx), {
                 name: plan.name,
                 categoryId: leafCategory.category.id,
                 saleUnit: plan.saleUnit,
@@ -233,7 +233,10 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
               }
 
               if (!plan.active) {
-                const deactivated = await deactivateProduct(tx, product.product.id);
+                const deactivated = await deactivateProduct(
+                  new DrizzleCatalogStore(tx),
+                  product.product.id,
+                );
                 expectOutcome(deactivated, "deactivated", `deactivating product "${plan.name}"`);
               }
             }

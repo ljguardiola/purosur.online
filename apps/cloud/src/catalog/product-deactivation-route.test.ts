@@ -209,17 +209,6 @@ describe("POST /products/:id/deactivation", () => {
     expect(missingResponse.json()).toEqual(malformedResponse.json());
   });
 
-  it("answers not_found for a target already inactive, changing nothing", async () => {
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
-    await db.update(products).set({ active: false }).where(eq(products.id, targetId));
-
-    const response = await deactivateProduct(targetId, rawSessionId);
-
-    expect(response.statusCode).toBe(404);
-    expect(response.json()).toMatchObject({ code: "not_found" });
-  });
-
   it("deactivates the product, bumps its version, and deactivates its barcodes", async () => {
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);

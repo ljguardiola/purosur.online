@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { createProduct, editProduct } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -10,8 +11,7 @@ import {
 } from "../test-support/integration-database.js";
 import { createCategory } from "./category-creation-route.js";
 import { CATEGORY_MOVE_LOCK_KEY, editCategory } from "./category-edit-route.js";
-import { createProduct } from "./product-creation-route.js";
-import { editProduct } from "./product-edit-route.js";
+import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
 
 // PGlite serializes every query on one connection, so racing writes can only interleave on a real
 // Postgres pool; each test pins that interleaving by holding a lock until both writes queue behind it.
@@ -146,11 +146,12 @@ describe("giving a category a product and a subcategory concurrently on a real P
         order,
         almacen.id,
         () =>
-          createProduct(db, {
+          createProduct(new DrizzleCatalogStore(db), {
             name: "Yerba mate",
             categoryId: almacen.id,
             saleUnit: "UNIT",
             barcodes: [randomUUID()],
+            netContent: null,
           }),
         () => createCategory(db, { name: `Infusiones ${randomUUID()}`, parentId: almacen.id }),
       );
@@ -170,11 +171,12 @@ describe("giving a category a product and a subcategory concurrently on a real P
       const almacen = await insertTopLevelCategory("Almacén");
       const bebidas = await insertTopLevelCategory("Bebidas");
       const infusiones = await insertTopLevelCategory("Infusiones");
-      const seeded = await createProduct(db, {
+      const seeded = await createProduct(new DrizzleCatalogStore(db), {
         name: "Yerba mate",
         categoryId: bebidas.id,
         saleUnit: "UNIT",
         barcodes: [randomUUID()],
+        netContent: null,
       });
       if (seeded.kind !== "created") {
         throw new Error("test setup: expected the product to be created");
@@ -185,7 +187,7 @@ describe("giving a category a product and a subcategory concurrently on a real P
         order,
         almacen.id,
         () =>
-          editProduct(db, {
+          editProduct(new DrizzleCatalogStore(db), {
             id: product.id,
             name: product.name,
             categoryId: almacen.id,

@@ -9,7 +9,7 @@ export {
   ean13Modules,
   isInternalBarcode,
 } from "./model/ean13.js";
-export type { NetContentUnit } from "./model/product.js";
+export type { NetContentUnit, SaleUnit } from "./model/product.js";
 export {
   BARCODE_MAX_LENGTH,
   barcodeLength,
@@ -25,3 +25,27 @@ export {
   PRODUCT_NAME_MAX_LENGTH,
   productNameLength,
 } from "./model/product.js";
+export type {
+  CatalogCategory,
+  CatalogNetContent,
+  CatalogProduct,
+  CatalogStore,
+  CatalogStoreTransaction,
+  CategoryFields,
+  LockCategoryResult,
+  LockLeafCategoryResult,
+  LockParentForNewChildResult,
+  LockProductResult,
+  NewProductFields,
+  ProductFields,
+} from "./use-cases/catalog-store.js";
+export {
+  CatalogBarcodeConflict,
+  CatalogCategoryNameConflict,
+} from "./use-cases/catalog-store.js";
+export type { CreateProductInput, CreateProductOutcome } from "./use-cases/create-product.js";
+export { createProduct } from "./use-cases/create-product.js";
+export type { DeactivateProductOutcome } from "./use-cases/deactivate-product.js";
+export { deactivateProduct } from "./use-cases/deactivate-product.js";
+export type { EditProductInput, EditProductOutcome } from "./use-cases/edit-product.js";
+export { editProduct } from "./use-cases/edit-product.js";

@@ -34,7 +34,7 @@ export interface ProductsRouteOptions<TQueryResult extends PgQueryResultHKT> {
   now?: () => Date;
 }
 
-export interface ProductRow {
+interface ProductRow {
   id: string;
   name: string;
   categoryId: string;
@@ -60,7 +60,7 @@ interface ProductWithoutBarcodes {
 
 // Both columns are guaranteed both-null-or-both-set by a database check constraint, so reading one
 // as set is enough to trust the other.
-export function netContentRow(row: {
+function netContentRow(row: {
   netContentQuantity: number | null;
   netContentUnit: string | null;
 }): NetContentInput | null {
