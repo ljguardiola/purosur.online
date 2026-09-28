@@ -17,7 +17,7 @@ export function ScreenFailure() {
   return (
     <ScreenLayout
       topBar={
-        <div className="flex h-18 shrink-0 items-center border-line border-b bg-surface-white px-8">
+        <div className="flex h-18 shrink-0 items-center border-border border-b bg-surface px-8">
           <ScreenTitle>No pudimos mostrar esta pantalla</ScreenTitle>
         </div>
       }
