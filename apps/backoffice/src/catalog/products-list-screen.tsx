@@ -10,7 +10,7 @@ import {
   type NetContentUnit,
   PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
-} from "@purosur/contracts";
+} from "@purosur/domain";
 import {
   Button,
   FieldGroup,
@@ -64,6 +64,7 @@ import { useSendToMyAccount } from "../access/send-to-my-account";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
+import { ScreenTitle } from "../shell/screen-title";
 import { type CategorySummary, fetchCategories } from "./categories-api";
 import { categoriesInTreeOrder, categoryPathLabels, leafCategories } from "./category-path";
 import {
@@ -2034,7 +2035,7 @@ export function ProductsListScreen({
           <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
             <div className="flex flex-col justify-center">
               <p className="text-ink-secondary text-sm">Catálogo</p>
-              <h1 className="font-bold text-2xl text-brand-blue-strong">Productos</h1>
+              <ScreenTitle>Productos</ScreenTitle>
             </div>
             <div className="flex items-center gap-3">
               <Button

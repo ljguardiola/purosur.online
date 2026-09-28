@@ -1,10 +1,10 @@
-import type { PermissionArea, PermissionKey } from "@purosur/contracts";
+import type { PermissionArea, PermissionKey } from "@purosur/domain";
+import type { DispatchableCdpSession } from "@purosur/ui/test";
+import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
 import { expect, test, vi } from "vitest";
 import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { expectNoAccessibilityViolations } from "../../../../packages/ui/src/test/axe";
-import type { DispatchableCdpSession } from "../../../../packages/ui/src/test/setup-browser";
 import {
   areaSelectedCount,
   RoleEditorForm,

@@ -1,4 +1,4 @@
-import type { PermissionKey } from "@purosur/contracts";
+import type { PermissionKey } from "@purosur/domain";
 import { expect, test } from "vitest";
 import { withOneAlertView } from "./role-permissions";
 

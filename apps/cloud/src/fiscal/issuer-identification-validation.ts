@@ -4,7 +4,7 @@ import {
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
   isIssuerIdentificationGrossIncomeRegistrationTooLong,
   isIssuerIdentificationLegalNameTooLong,
-} from "@purosur/contracts";
+} from "@purosur/domain";
 
 const ACTIVITY_START_DATE_PATTERN = /^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})$/;
 

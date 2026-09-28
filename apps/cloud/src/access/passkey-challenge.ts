@@ -6,7 +6,7 @@ import { passkeyChallenges } from "../platform/db/schema.js";
 export const PASSKEY_CHALLENGE_TTL_MS = 5 * 60 * 1000;
 const PRUNE_BATCH_SIZE = 100;
 
-export type PasskeyChallengeKind = "registration" | "session_authorization";
+type PasskeyChallengeKind = "registration" | "session_authorization";
 
 export interface StorePendingPasskeyChallengeInput {
   sessionId: string;

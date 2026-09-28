@@ -1,4 +1,4 @@
-import type { NetContentUnit } from "@purosur/contracts";
+import type { NetContentUnit } from "@purosur/domain";
 
 export type ProductSaleUnit = "UNIT" | "KG";
 
@@ -27,7 +27,7 @@ export type FetchProductsOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-export type ProductFieldError =
+type ProductFieldError =
   | "name"
   | "categoryId"
   | "saleUnit"

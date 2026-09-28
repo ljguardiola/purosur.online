@@ -2,7 +2,7 @@ import {
   appendEan13CheckDigit,
   type NetContentUnit,
   PRODUCT_NAME_MAX_LENGTH,
-} from "@purosur/contracts";
+} from "@purosur/domain";
 import type { BranchHoursRange } from "../branch/branch-settings-validation.js";
 
 // RFC 2606 reserves the "example" top-level domain for documentation and sample data, so no real
@@ -18,13 +18,11 @@ export const SAMPLE_ADMINISTRATOR = {
   email: sampleEmail("administradora.muestra"),
 };
 
-export type SampleSaleUnit = "UNIT" | "KG";
+type SampleSaleUnit = "UNIT" | "KG";
 
-export type SampleProductBarcodePlan =
-  | { kind: "manufacturer"; code: string }
-  | { kind: "internal" };
+type SampleProductBarcodePlan = { kind: "manufacturer"; code: string } | { kind: "internal" };
 
-export interface SampleProductPlan {
+interface SampleProductPlan {
   name: string;
   saleUnit: SampleSaleUnit;
   netContent: { quantity: number; unit: NetContentUnit } | null;
@@ -34,12 +32,12 @@ export interface SampleProductPlan {
   pricePlan: "current" | "due_for_review";
 }
 
-export interface SampleLeafCategory {
+interface SampleLeafCategory {
   name: string;
   products: readonly SampleProductPlan[];
 }
 
-export interface SampleMidCategory {
+interface SampleMidCategory {
   name: string;
   leaves: readonly SampleLeafCategory[];
 }
@@ -274,7 +272,7 @@ const PRODUCT_DESCRIPTORS: readonly string[] = [
   "Formato Ahorro",
 ];
 
-// Deliberately overlong: every leaf's first product uses it, then gets clamped to the contract's
+// Deliberately overlong: every leaf's first product uses it, then gets clamped to the domain's
 // maximum, so at least one sample product always needs a screen to cut its name short.
 const LONG_PRODUCT_DESCRIPTOR =
   "Elaborado con Ingredientes Cuidadosamente Seleccionados, sin Conservantes Agregados y con Controles de Calidad en Cada Etapa del Proceso Productivo";
@@ -364,7 +362,7 @@ function buildSampleCategoryTree(): readonly SampleTopCategory[] {
 
 export const SAMPLE_CATEGORY_TREE: readonly SampleTopCategory[] = buildSampleCategoryTree();
 
-export interface SampleUserPlan {
+interface SampleUserPlan {
   firstName: string;
   email: string;
   active: boolean;

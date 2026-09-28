@@ -1,4 +1,4 @@
-import { BRANCH_HOURS_RANGES_PER_DAY_MAX, BRANCH_SETTINGS_DAYS_MAX } from "@purosur/contracts";
+import { BRANCH_HOURS_RANGES_PER_DAY_MAX, BRANCH_SETTINGS_DAYS_MAX } from "@purosur/domain";
 export const BRANCH_SETTINGS_TEXT_MAX_LENGTH = 200;
 
 const HOURS_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;

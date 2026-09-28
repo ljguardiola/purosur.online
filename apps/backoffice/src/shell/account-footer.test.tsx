@@ -1,6 +1,6 @@
+import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import { expectNoAccessibilityViolations } from "../../../../packages/ui/src/test/axe";
 import { AccountFooter, type AccountFooterServices } from "./account-footer";
 import { render } from "./test-support/render-with-router";
 

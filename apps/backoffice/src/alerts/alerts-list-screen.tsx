@@ -1,4 +1,4 @@
-import { ALERT_KINDS } from "@purosur/contracts";
+import { ALERT_KINDS } from "@purosur/domain";
 import {
   Button,
   InlineNotice,
@@ -19,6 +19,7 @@ import { useSendToMyAccount } from "../access/send-to-my-account";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
+import { ScreenTitle } from "../shell/screen-title";
 import {
   ALERT_LEVEL_LABELS,
   AlertDetailModal,
@@ -258,7 +259,7 @@ export function AlertsListScreen({
           <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
             <div className="flex flex-col justify-center">
               <p className="text-ink-secondary text-sm">Inicio</p>
-              <h1 className="font-bold text-2xl text-brand-blue-strong">Alertas</h1>
+              <ScreenTitle>Alertas</ScreenTitle>
             </div>
             {openCount > 0 && (
               <div className="inline-flex h-[1.75rem] items-center gap-2 rounded-[0.875rem] bg-status-warning-message-bg px-3 font-sans text-sm font-semibold text-status-warning-strong">

@@ -1,4 +1,4 @@
-import type { AlertKind } from "@purosur/contracts";
+import type { AlertKind } from "@purosur/domain";
 import { and, eq, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
@@ -9,7 +9,7 @@ import { visibleToUsersJoinedWithRolesCondition } from "./alert-visibility.js";
 const UNIQUE_VIOLATION = "23505";
 const ALERT_OPEN_DEDUP_UNIQUE_INDEX = "alerts_open_dedup_key";
 
-export function isAlertOpenDedupViolation(error: unknown): boolean {
+function isAlertOpenDedupViolation(error: unknown): boolean {
   return postgresErrorChain(error).some(
     ({ code, constraint }) =>
       code === UNIQUE_VIOLATION && constraint === ALERT_OPEN_DEDUP_UNIQUE_INDEX,
@@ -20,7 +20,7 @@ type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
 >[0];
 
-export type PasskeyChangedDetail =
+type PasskeyChangedDetail =
   | { action: "registered" | "removed"; passkeyName: string; actorId: string; via: "self" }
   | { action: "registered"; passkeyName: string; actorId: string; via: "recovery" }
   | { action: "removed"; passkeyName: string; actorId: string; via: "administrator" };

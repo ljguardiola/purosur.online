@@ -1,4 +1,4 @@
-import { ARGENTINA_TIME_ZONE } from "@purosur/contracts";
+import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import {
   Button,
   formatDate,
@@ -61,7 +61,7 @@ export type AlertDetailModalServices = {
   closeAlert: typeof closeAlertDefault;
 };
 
-export const defaultAlertDetailModalServices: AlertDetailModalServices = {
+const defaultAlertDetailModalServices: AlertDetailModalServices = {
   fetchAlert: fetchAlertDefault,
   closeAlert: closeAlertDefault,
 };

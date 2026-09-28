@@ -1,8 +1,8 @@
 import { defineHelp } from "@purosur/ui";
+import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { expectNoAccessibilityViolations } from "../../../../packages/ui/src/test/axe";
 import { almonds, honey } from "../catalog/test-support/products-list-screen";
 import { App, type AppServices } from "./app";
 
@@ -320,6 +320,108 @@ test("moves focus to the page heading after an in-app navigation, not on the fir
   await expect
     .element(screen.getByRole("heading", { name: "Facturación", level: 1 }))
     .toHaveFocus();
+});
+
+async function pressEnterOn(link: HTMLElement) {
+  link.focus();
+  await userEvent.keyboard("{Enter}");
+}
+
+test("moves focus to the new screen's title, with a focus ring, after choosing a section with the keyboard, not on the first load", async () => {
+  window.history.pushState(null, "", "/settings/users/me");
+  const services = createServices();
+  vi.mocked(services.rolesListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  const firstTitle = screen.getByRole("heading", { name: "Mi cuenta", level: 1 });
+  await expect.element(firstTitle).toBeVisible();
+  expect(document.activeElement).not.toBe(firstTitle.element());
+
+  await pressEnterOn(screen.getByRole("link", { name: "Roles" }).element() as HTMLElement);
+
+  const title = screen.getByRole("heading", { name: "Roles", level: 1 });
+  await expect.element(title).toHaveFocus();
+  const style = getComputedStyle(title.element());
+  await expect.poll(() => style.outlineStyle).toBe("solid");
+  expect(style.outlineWidth).toBe("3px");
+});
+
+test("moves focus to the new area's screen title after switching area from the rail with the keyboard", async () => {
+  window.history.pushState(null, "", "/help");
+  const screen = await render(<App help={emptyHelp} services={createServices()} />);
+  await expect
+    .element(screen.getByRole("heading", { name: "Todavía no hay contenido de ayuda", level: 1 }))
+    .toBeVisible();
+
+  await pressEnterOn(screen.getByRole("link", { name: "Config" }).element() as HTMLElement);
+
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toHaveFocus();
+});
+
+test("moves focus to the new screen's title after following a link between the screens reached without a session", async () => {
+  window.history.pushState(null, "", "/sign-in");
+  const screen = await render(
+    <App
+      help={emptyHelp}
+      services={createServices({
+        fetchSession: vi.fn().mockResolvedValue({ kind: "unauthenticated" }),
+      })}
+    />,
+  );
+  await expect.element(screen.getByRole("heading", { name: "Ingresar", level: 1 })).toBeVisible();
+
+  await pressEnterOn(
+    screen.getByRole("link", { name: "Perdí mis passkeys" }).element() as HTMLElement,
+  );
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Recuperar el acceso", level: 1 }))
+    .toHaveFocus();
+});
+
+test("moves focus to the first screen's title after signing in", async () => {
+  window.history.pushState(null, "", "/sign-in");
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValueOnce({ kind: "unauthenticated" }).mockResolvedValue({
+      kind: "ok",
+      userId: "user-1",
+      displayName: "Lucas Guardiola",
+      isAdministrator: true,
+    }),
+  });
+  vi.mocked(services.signInScreen.fetchAuthenticationOptions).mockResolvedValue({
+    kind: "ok",
+    value: { challenge: "challenge" },
+  });
+  vi.mocked(services.signInScreen.startAuthentication).mockResolvedValue(
+    {} as Awaited<ReturnType<AppServices["signInScreen"]["startAuthentication"]>>,
+  );
+  vi.mocked(services.signInScreen.authenticate).mockResolvedValue({ kind: "ok" });
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await userEvent.click(screen.getByRole("button", { name: "Ingresar con passkey" }));
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Todavía no hay contenido de ayuda", level: 1 }))
+    .toHaveFocus();
+});
+
+test("leaves focus where it is when only a list's filters change", async () => {
+  const services = createServices();
+  vi.mocked(services.productsListScreen.fetchProducts).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.productsListScreen.fetchCategories).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
+  window.history.pushState(null, "", "/catalog/products");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  const searchBox = screen.getByPlaceholder("Buscar por nombre o código de barras");
+  await expect.element(searchBox).toBeVisible();
+
+  await userEvent.fill(searchBox, "miel");
+
+  await expect.poll(() => new URLSearchParams(window.location.search).get("search")).toBe("miel");
+  await expect.element(screen.getByRole("heading", { name: "Productos", level: 1 })).toBeVisible();
+  await expect.element(searchBox).toHaveFocus();
 });
 
 function scrollingAncestor(element: Element): HTMLElement {

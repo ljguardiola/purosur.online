@@ -1,4 +1,4 @@
-import { isPasskeyNameTooLong, PASSKEY_NAME_MAX_LENGTH } from "@purosur/contracts";
+import { isPasskeyNameTooLong, PASSKEY_NAME_MAX_LENGTH } from "@purosur/domain";
 
 const PASSKEY_NAME_TOO_LONG = `El nombre no puede superar los ${PASSKEY_NAME_MAX_LENGTH} caracteres.`;
 

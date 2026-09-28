@@ -16,7 +16,7 @@ const AreaLink = createLink(AreaNavItem);
 
 export const SectionLink = createLink(SectionNavItem);
 
-export type Area = "home" | "catalog" | "cash-and-fiscal" | "settings" | "help";
+type Area = "home" | "catalog" | "cash-and-fiscal" | "settings" | "help";
 
 export type AreaLayoutProps = {
   area: Area;

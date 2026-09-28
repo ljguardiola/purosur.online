@@ -1,4 +1,4 @@
-import { isPasskeyNameTooLong } from "@purosur/contracts";
+import { isPasskeyNameTooLong } from "@purosur/domain";
 
 export function readPasskeyName(body: unknown): string | undefined {
   const rawName = (body as { passkey_name?: unknown } | undefined)?.passkey_name;

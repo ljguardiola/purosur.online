@@ -1,4 +1,4 @@
-import type { PermissionArea, PermissionKey } from "@purosur/contracts";
+import type { PermissionArea, PermissionKey } from "@purosur/domain";
 import { Button, InlineNotice, Modal, plural } from "@purosur/ui";
 import { startAuthentication } from "@simplewebauthn/browser";
 import {
@@ -47,7 +47,7 @@ export type RoleEditorModalServices = {
   startAuthentication: typeof startAuthentication;
 };
 
-export const defaultRoleEditorModalServices: RoleEditorModalServices = {
+const defaultRoleEditorModalServices: RoleEditorModalServices = {
   fetchRole,
   createRole,
   editRole,

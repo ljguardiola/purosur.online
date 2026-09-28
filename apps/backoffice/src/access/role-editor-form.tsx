@@ -6,7 +6,7 @@ import {
   type PermissionDefinition,
   type PermissionKey,
   ROLE_NAME_MAX_LENGTH,
-} from "@purosur/contracts";
+} from "@purosur/domain";
 import { Checkbox, Focusable, RadioGroup, Tag, TextField, Tooltip } from "@purosur/ui";
 import { KeyRound } from "lucide-react";
 import { ADMINISTRATOR_ROLE_NAME } from "./role-display";

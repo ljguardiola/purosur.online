@@ -1,3 +1,4 @@
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
   ALERT_VIEW_PERMISSION_KEYS,
@@ -101,5 +102,16 @@ describe("isPermissionKey", () => {
   it("rejects a non-string value", () => {
     expect(isPermissionKey(42)).toBe(false);
     expect(isPermissionKey(undefined)).toBe(false);
+  });
+
+  it("rejects any string outside the catalog and any non-string value", () => {
+    fc.assert(
+      fc.property(fc.anything(), (value) => {
+        fc.pre(
+          !(typeof value === "string" && (PERMISSION_KEYS as readonly string[]).includes(value)),
+        );
+        expect(isPermissionKey(value)).toBe(false);
+      }),
+    );
   });
 });

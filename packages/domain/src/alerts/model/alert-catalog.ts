@@ -17,6 +17,6 @@ export function isAlertKind(value: unknown): value is AlertKind {
 
 export type AlertLevel = "informational" | "warning" | "critical";
 
-/** Who can see an alert: every alert-view permission holder ("all"), or only a branch's own
- * `view_branch_alerts` holders ("local"). */
+// Who can see an alert: every alert-view permission holder ("all"), or only a branch's own
+// `view_branch_alerts` holders ("local").
 export type AlertAudience = "local" | "all";

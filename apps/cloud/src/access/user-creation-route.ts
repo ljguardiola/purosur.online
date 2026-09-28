@@ -45,7 +45,7 @@ export interface CreateUserInput {
   actorId: string;
 }
 
-export interface CreatedUserRole {
+interface CreatedUserRole {
   id: string;
   name: string | null;
   isAdministrator: boolean;

@@ -1,10 +1,10 @@
-import { ean13Modules } from "@purosur/contracts";
+import { ean13Modules } from "@purosur/domain";
 
 export const MODULE_WIDTH_MM = 0.33;
 export const BAR_HEIGHT_MM = 12;
 export const GUARD_BAR_EXTRA_MM = 2;
 export const QUIET_ZONE_LEFT_MODULES = 11;
-export const QUIET_ZONE_RIGHT_MODULES = 7;
+const QUIET_ZONE_RIGHT_MODULES = 7;
 export const HUMAN_READABLE_HEIGHT_MM = 3.1;
 
 export const DIGITS_PER_GROUP = 6;
@@ -13,7 +13,7 @@ export const START_GUARD_END_MODULE = 3;
 export const CENTER_GUARD_START_MODULE = 45;
 export const CENTER_GUARD_END_MODULE = 50;
 export const END_GUARD_START_MODULE = 92;
-export const END_GUARD_END_MODULE = 95;
+const END_GUARD_END_MODULE = 95;
 
 function moduleRange(start: number, end: number): number[] {
   return Array.from({ length: end - start }, (_, offset) => start + offset);
@@ -27,13 +27,13 @@ const GUARD_MODULE_INDEXES = new Set([
 ]);
 const HALF_GROUP_WIDTH_MODULES = (DIGITS_PER_GROUP * MODULES_PER_DIGIT) / 2;
 
-export interface BarcodeBar {
+interface BarcodeBar {
   xMm: number;
   widthMm: number;
   heightMm: number;
 }
 
-export interface BarcodeText {
+interface BarcodeText {
   value: string;
   xMm: number;
   align: "left" | "center" | "right";

@@ -1,7 +1,7 @@
+import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { expectNoAccessibilityViolations } from "../../../../packages/ui/src/test/axe";
 import { MyAccountScreen, type MyAccountScreenServices } from "./my-account-screen";
 import type { Passkey } from "./passkey-api";
 

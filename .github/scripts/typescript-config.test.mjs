@@ -12,6 +12,7 @@ const configPaths = [
   "apps/cloud/tsconfig.json",
   "apps/pos/tsconfig.json",
   "packages/contracts/tsconfig.json",
+  "packages/domain/tsconfig.json",
 ];
 
 function parseConfig(configPath) {

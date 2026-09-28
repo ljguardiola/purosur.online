@@ -1,4 +1,4 @@
-import { PERMISSION_KEYS, type PermissionKey } from "@purosur/contracts";
+import { PERMISSION_KEYS, type PermissionKey } from "@purosur/domain";
 import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyReply, FastifyRequest } from "fastify";
@@ -8,8 +8,8 @@ import { resolveSourceAddress } from "./recovery-source-address.js";
 import { readSessionCookie } from "./session-cookie.js";
 import { hashSessionId } from "./session-id.js";
 
-export const SESSION_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
-export const SESSION_ABSOLUTE_TIMEOUT_MS = 12 * 60 * 60 * 1000;
+const SESSION_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+const SESSION_ABSOLUTE_TIMEOUT_MS = 12 * 60 * 60 * 1000;
 
 export const UNAUTHENTICATED_RESPONSE = {
   code: "unauthenticated",

@@ -1,4 +1,4 @@
-import { BRANCH_HOURS_RANGES_PER_DAY_MAX, BRANCH_SETTINGS_DAYS_MAX } from "@purosur/contracts";
+import { BRANCH_HOURS_RANGES_PER_DAY_MAX, BRANCH_SETTINGS_DAYS_MAX } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
   BRANCH_SETTINGS_TEXT_MAX_LENGTH,

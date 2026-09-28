@@ -1,4 +1,4 @@
-import { ARGENTINA_TIME_ZONE } from "@purosur/contracts";
+import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import { formatDate } from "@purosur/ui";
 
 const PASSKEY_DATE_OPTIONS: Intl.DateTimeFormatOptions = {

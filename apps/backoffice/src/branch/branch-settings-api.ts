@@ -30,7 +30,7 @@ export type BranchSettings = {
   version: number;
 };
 
-export type BranchHoursRangeWire = { opens_at: string; closes_at: string };
+type BranchHoursRangeWire = { opens_at: string; closes_at: string };
 
 export type BranchSettingsDayField =
   | "monday_hours"
@@ -41,7 +41,7 @@ export type BranchSettingsDayField =
   | "saturday_hours"
   | "sunday_hours";
 
-export type BranchSettingsWire = {
+type BranchSettingsWire = {
   address: string;
   whatsapp_number: string;
   instagram_handle: string;

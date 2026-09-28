@@ -21,6 +21,7 @@ import { helpAreaRoute } from "./help-area";
 import { homeAreaIndexRoute, homeAreaRoute } from "./home-area";
 import { publicRoute } from "./public-route";
 import { type RouterContext, rootRoute } from "./root-route";
+import { focusScreenTitle } from "./screen-title";
 import { parseSearch, stringifySearch } from "./search-params";
 import { settingsAreaIndexRoute, settingsAreaRoute } from "./settings-area";
 import { signedInRoute } from "./signed-in-route";
@@ -69,6 +70,11 @@ const routeTree = rootRoute.addChildren([
 
 export function createAppRouter(context: RouterContext) {
   const router = createRouter({ routeTree, context, parseSearch, stringifySearch });
+  router.subscribe("onRendered", ({ pathChanged }) => {
+    if (pathChanged) {
+      focusScreenTitle();
+    }
+  });
   // The router only ever compares its own re-serialized query, so without this the address bar
   // would keep a query typed in another key order or encoding.
   const { history, latestLocation } = router;

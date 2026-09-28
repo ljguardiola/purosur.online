@@ -1,10 +1,11 @@
-import { PERMISSION_KEYS } from "@purosur/contracts";
+import { PERMISSION_KEYS } from "@purosur/domain";
 import { Button, InlineNotice, plural, Table } from "@purosur/ui";
 import { Copy, Lock, Pencil, Plus, ShieldX, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
+import { ScreenTitle } from "../shell/screen-title";
 import { roleDisplayName } from "./role-display";
 import {
   RoleEditorModal,
@@ -131,7 +132,7 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
         <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
           <div className="flex flex-col justify-center">
             <p className="text-ink-secondary text-sm">Configuración</p>
-            <h1 className="font-bold text-2xl text-brand-blue-strong">Roles</h1>
+            <ScreenTitle>Roles</ScreenTitle>
           </div>
           <Button
             variant="primary"

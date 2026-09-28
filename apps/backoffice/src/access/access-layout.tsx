@@ -1,6 +1,7 @@
 import { PuroSurLogo } from "@purosur/ui";
 import { Link } from "@tanstack/react-router";
 import type { ReactElement, ReactNode } from "react";
+import { focusRingClassName } from "../platform/focus-ring";
 
 export type AccessLayoutProps = {
   children: ReactNode;
@@ -38,7 +39,12 @@ export function AccessHeader({ eyebrow, heading, description }: AccessHeaderProp
           {eyebrow}
         </p>
       ) : null}
-      <h1 className="text-3xl font-bold text-brand-blue-strong">{heading}</h1>
+      <h1
+        tabIndex={-1}
+        className={`text-3xl font-bold text-brand-blue-strong ${focusRingClassName}`}
+      >
+        {heading}
+      </h1>
       {description ? <p className="text-base text-ink-secondary">{description}</p> : null}
     </div>
   );
@@ -54,7 +60,7 @@ export function AccessFooterLink({ to, icon, label }: AccessFooterLinkProps) {
   return (
     <Link
       to={to}
-      className="inline-flex items-center gap-2 self-start py-1 font-bold text-base text-brand-blue-strong outline-none focus-visible:outline-[3px] focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-brand-blue-strong"
+      className={`inline-flex items-center gap-2 self-start py-1 font-bold text-base text-brand-blue-strong ${focusRingClassName}`}
     >
       <span
         aria-hidden="true"

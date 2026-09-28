@@ -3,9 +3,9 @@ import {
   isPermissionKey,
   isRoleNameTooLong,
   ROLE_NAME_MAX_LENGTH,
-} from "@purosur/contracts";
+} from "@purosur/domain";
 
-export const ADMINISTRATOR_NAME = "administrador";
+const ADMINISTRATOR_NAME = "administrador";
 
 export interface RoleFieldValidationFailure {
   field: "name" | "permissions" | "version";

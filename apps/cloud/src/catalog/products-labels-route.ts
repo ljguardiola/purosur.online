@@ -2,7 +2,7 @@ import {
   isInternalBarcode,
   LABELS_MAX_COUNT_PER_PRODUCT,
   LABELS_MAX_TOTAL_COUNT,
-} from "@purosur/contracts";
+} from "@purosur/domain";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
@@ -17,7 +17,7 @@ import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { renderLabelSheetPdf } from "./label-sheet-pdf.js";
 import type { ProductsRouteOptions } from "./products-list-route.js";
 
-export interface LabelRequestEntry {
+interface LabelRequestEntry {
   productId: string;
   count: number;
 }

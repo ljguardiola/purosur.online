@@ -1,4 +1,4 @@
-import { PASSKEY_NAME_MAX_LENGTH } from "@purosur/contracts";
+import { PASSKEY_NAME_MAX_LENGTH } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { validatePasskeyName } from "./passkey-name";
 

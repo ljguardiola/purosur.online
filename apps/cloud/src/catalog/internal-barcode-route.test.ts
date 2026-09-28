@@ -1,4 +1,4 @@
-import { appendEan13CheckDigit } from "@purosur/contracts";
+import { appendEan13CheckDigit } from "@purosur/domain";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";

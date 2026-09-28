@@ -1,8 +1,9 @@
 import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
-import { createContext, useContext } from "react";
+import { createContext, useContext, useEffect, useRef } from "react";
 import type { SignInOpeningNotice } from "../access/sign-in-screen";
 import type { BackofficeHelpCatalog } from "../help/help-page";
 import type { AppServices } from "./app";
+import { focusScreenTitle } from "./screen-title";
 
 export type SignedInSession = {
   kind: "signed-in";
@@ -13,7 +14,7 @@ export type SignedInSession = {
   expiresAt?: string;
 };
 
-export type SignedOutSession = { kind: "signed-out"; notice: SignInOpeningNotice | undefined };
+type SignedOutSession = { kind: "signed-out"; notice: SignInOpeningNotice | undefined };
 
 export type SettledSession = SignedInSession | SignedOutSession;
 
@@ -33,7 +34,15 @@ export type RouterContext = {
 export const SessionCheckPendingContext = createContext(false);
 
 function Root() {
-  return useContext(SessionCheckPendingContext) ? null : <Outlet />;
+  const pending = useContext(SessionCheckPendingContext);
+  const wasPending = useRef(pending);
+  useEffect(() => {
+    if (wasPending.current && !pending) {
+      focusScreenTitle();
+    }
+    wasPending.current = pending;
+  }, [pending]);
+  return pending ? null : <Outlet />;
 }
 
 export const rootRoute = createRootRouteWithContext<RouterContext>()({ component: Root });

@@ -1,4 +1,4 @@
-import type { AlertAudience, AlertLevel } from "@purosur/contracts";
+import type { AlertAudience, AlertLevel } from "@purosur/domain";
 import { and, asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -60,7 +60,7 @@ export interface AlertDeliveryRow {
   recipientRoleIsAdministrator: boolean;
 }
 
-export interface AlertDeliveryWire {
+interface AlertDeliveryWire {
   channel: string;
   status: string;
   error: string | null;
@@ -86,7 +86,7 @@ export interface AlertDetailWire {
   deliveries: AlertDeliveryWire[];
 }
 
-export function detailWithActorName(
+function detailWithActorName(
   detail: Record<string, unknown>,
   namesByUserId: ReadonlyMap<string, string>,
 ): Record<string, unknown> {
@@ -98,7 +98,7 @@ export function detailWithActorName(
   return actorName === undefined ? detail : { ...detail, actorName };
 }
 
-export function toAlertDeliveryWire(row: AlertDeliveryRow): AlertDeliveryWire {
+function toAlertDeliveryWire(row: AlertDeliveryRow): AlertDeliveryWire {
   return {
     channel: row.channel,
     status: row.status,

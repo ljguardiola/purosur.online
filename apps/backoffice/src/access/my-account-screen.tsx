@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
+import { ScreenTitle } from "../shell/screen-title";
 import { useAuthorization } from "./authorization-modal";
 import {
   fetchPasskeyRegistrationChallenge,
@@ -462,7 +463,7 @@ export function MyAccountScreen({
         topBar={
           <div className="flex h-18 shrink-0 flex-col justify-center border-line border-b bg-surface-white px-8">
             <p className="text-ink-secondary text-sm">{`Configuración · ${displayName}`}</p>
-            <h1 className="font-bold text-2xl text-brand-blue-strong">Mi cuenta</h1>
+            <ScreenTitle>Mi cuenta</ScreenTitle>
           </div>
         }
         bodyClassName="gap-4 p-6"
