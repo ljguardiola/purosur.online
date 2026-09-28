@@ -40,6 +40,7 @@ function lint(relativeDir, source) {
       exitCode: result.status,
       categories: report.diagnostics.map((diagnostic) => diagnostic.category),
       severities: report.diagnostics.map((diagnostic) => diagnostic.severity),
+      messages: report.diagnostics.map((diagnostic) => diagnostic.message),
     };
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -167,6 +168,43 @@ for (const { label, relativeDir } of ROOTS) {
     assert.deepEqual([...categories].sort(), INFO_BY_DEFAULT_CATEGORIES);
     assert.deepEqual(severities, ["error", "error"]);
     assert.notEqual(exitCode, 0);
+  });
+}
+
+const UI_FORBIDDEN_IMPORTS = [
+  { specifier: "@purosur/domain", message: "packages/ui must not depend on packages/domain." },
+  {
+    specifier: "@purosur/domain/money",
+    message: "packages/ui must not depend on packages/domain.",
+  },
+  {
+    specifier: "@purosur/contracts",
+    message: "packages/ui must not depend on packages/contracts.",
+  },
+  {
+    specifier: "@purosur/contracts/catalog",
+    message: "packages/ui must not depend on packages/contracts.",
+  },
+];
+
+function importing(specifier) {
+  return `import { rule } from "${specifier}";\n\nexport const used = rule;\n`;
+}
+
+for (const { specifier, message } of UI_FORBIDDEN_IMPORTS) {
+  test(`packages/ui: importing ${specifier} fails under verify's flags`, () => {
+    const { exitCode, categories, messages } = lint("packages/ui/src", importing(specifier));
+
+    assert.deepEqual(categories, ["lint/style/noRestrictedImports"]);
+    assert.deepEqual(messages, [message]);
+    assert.notEqual(exitCode, 0);
+  });
+
+  test(`apps/backoffice: importing ${specifier} is not restricted`, () => {
+    const { exitCode, categories } = lint("apps/backoffice/src", importing(specifier));
+
+    assert.deepEqual(categories, []);
+    assert.equal(exitCode, 0);
   });
 }
 
