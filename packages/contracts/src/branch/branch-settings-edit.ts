@@ -10,13 +10,8 @@ import { z } from "zod";
 import { loadedVersionSchema } from "../shared/index.js";
 
 function textSchema(field: string) {
-  return z
-    .string({ error: `${field} must be a string` })
-    .trim()
-    .max(
-      BRANCH_SETTINGS_TEXT_MAX_LENGTH,
-      `${field} must be a string of at most ${BRANCH_SETTINGS_TEXT_MAX_LENGTH} characters`,
-    );
+  const message = `${field} must be a string of at most ${BRANCH_SETTINGS_TEXT_MAX_LENGTH} characters`;
+  return z.string({ error: message }).trim().max(BRANCH_SETTINGS_TEXT_MAX_LENGTH, message);
 }
 
 function dayHoursSchema(field: string) {

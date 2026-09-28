@@ -31,6 +31,12 @@ function firstFailingField(body: unknown): unknown {
   return result.success ? undefined : result.error.issues[0]?.path[0];
 }
 
+function firstFailure(body: unknown): { field: unknown; message: unknown } | undefined {
+  const result = branchSettingsEditBodySchema.safeParse(body);
+  const issue = result.success ? undefined : result.error.issues[0];
+  return issue && { field: issue.path[0], message: issue.message };
+}
+
 function isAccepted(body: unknown): boolean {
   return branchSettingsEditBodySchema.safeParse(body).success;
 }
@@ -149,6 +155,13 @@ describe("branchSettingsEditBodySchema, per-day hours", () => {
 });
 
 describe("branchSettingsEditBodySchema, text fields", () => {
+  function textFailure(field: string) {
+    return {
+      field,
+      message: `${field} must be a string of at most ${BRANCH_SETTINGS_TEXT_MAX_LENGTH} characters`,
+    };
+  }
+
   it.each(["address", "whatsapp_number", "instagram_handle"])(
     "accepts %s of exactly the maximum length",
     (field) => {
@@ -163,14 +176,14 @@ describe("branchSettingsEditBodySchema, text fields", () => {
     (field) => {
       const text = "a".repeat(BRANCH_SETTINGS_TEXT_MAX_LENGTH + 1);
 
-      expect(firstFailingField(validBody({ [field]: text }))).toBe(field);
+      expect(firstFailure(validBody({ [field]: text }))).toEqual(textFailure(field));
     },
   );
 
   it.each(["address", "whatsapp_number", "instagram_handle"])(
     "rejects %s that isn't a string",
     (field) => {
-      expect(firstFailingField(validBody({ [field]: 541155555555 }))).toBe(field);
+      expect(firstFailure(validBody({ [field]: 541155555555 }))).toEqual(textFailure(field));
     },
   );
 
@@ -178,7 +191,7 @@ describe("branchSettingsEditBodySchema, text fields", () => {
     const body = validBody();
     delete body[field];
 
-    expect(firstFailingField(body)).toBe(field);
+    expect(firstFailure(body)).toEqual(textFailure(field));
   });
 
   it.each(["address", "whatsapp_number", "instagram_handle"])(
