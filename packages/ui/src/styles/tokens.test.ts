@@ -105,7 +105,7 @@ const tShirtSteps = [
 const PIXELS_PER_REM = 16;
 
 function pixels(value: string): number {
-  const match = value.match(/^(-?[\d.]+)(px|rem|em)?$/);
+  const match = value.match(/^(-?[\d.]+)(px|rem)$/);
   if (match === null) {
     throw new Error(`Not a length: ${value}`);
   }

@@ -66,7 +66,7 @@ describe("every token", () => {
     const dead: string[] = [];
     for (const token of themeTokens) {
       const rule = utilityForToken.find(({ prefix }) => token.startsWith(prefix));
-      if (rule === undefined || token.includes("--", 2 + (rule.prefix.length - 2))) {
+      if (rule === undefined || token.includes("--", rule.prefix.length)) {
         continue;
       }
       const candidate = rule.utility(token.slice(rule.prefix.length));

@@ -89,7 +89,7 @@ function Block({ block, help }: { block: HelpBlock<string>; help: BackofficeHelp
   switch (block.kind) {
     case "heading":
       return (
-        <h2 className="font-bold text-text-eyebrow text-caption uppercase tracking-md">
+        <h2 className="font-bold text-text-eyebrow text-caption uppercase tracking-sm">
           {block.text}
         </h2>
       );
@@ -141,7 +141,7 @@ function RelatedPanel({
       aria-label="También te puede servir"
       className="flex w-75 shrink-0 flex-col gap-2 self-start"
     >
-      <h2 className="font-bold text-text-eyebrow text-caption uppercase tracking-md">
+      <h2 className="font-bold text-text-eyebrow text-caption uppercase tracking-sm">
         También te puede servir
       </h2>
       <ul className="flex flex-col gap-2">
