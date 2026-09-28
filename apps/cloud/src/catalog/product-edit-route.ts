@@ -1,3 +1,5 @@
+import type { SaleUnit } from "@purosur/domain";
+import type { CatalogNetContent } from "@purosur/domain/catalog/use-cases";
 import { editProduct } from "@purosur/domain/catalog/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -16,14 +18,12 @@ import {
   CATEGORY_NOT_LEAF_RESPONSE,
 } from "./product-creation-route.js";
 import {
-  type NetContentInput,
   type ProductFieldValidationFailure,
   readBarcodes,
   readCategoryId,
   readNetContent,
   readProductName,
   readSaleUnit,
-  type SaleUnit,
   validateProductFields,
 } from "./product-validation.js";
 import type { ProductsRouteOptions } from "./products-list-route.js";
@@ -43,7 +43,7 @@ interface EditRequestBody {
   categoryId: string;
   saleUnit: SaleUnit;
   barcodes: string[];
-  netContent: NetContentInput | null;
+  netContent: CatalogNetContent | null;
   version: number;
 }
 
@@ -72,7 +72,7 @@ function readEditBody(body: unknown): EditRequestBody | ProductFieldValidationFa
     categoryId: categoryId as string,
     saleUnit: saleUnit as SaleUnit,
     barcodes: barcodes as string[],
-    netContent: netContent === undefined ? null : (netContent as NetContentInput),
+    netContent: netContent === undefined ? null : (netContent as CatalogNetContent),
     version,
   };
 }

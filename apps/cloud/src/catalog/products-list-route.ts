@@ -1,4 +1,5 @@
-import type { NetContentUnit } from "@purosur/domain";
+import type { NetContentUnit, SaleUnit } from "@purosur/domain";
+import type { CatalogNetContent } from "@purosur/domain/catalog/use-cases";
 import { asc, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -10,7 +11,6 @@ import {
   routeSessionSource,
 } from "../access/route-access.js";
 import { categories, productBarcodes, products } from "../platform/db/schema.js";
-import type { NetContentInput, SaleUnit } from "./product-validation.js";
 
 type ProductStatusFilter = "active" | "inactive" | "all";
 
@@ -41,7 +41,7 @@ interface ProductRow {
   categoryName: string;
   saleUnit: SaleUnit;
   barcodes: string[];
-  netContent: NetContentInput | null;
+  netContent: CatalogNetContent | null;
   active: boolean;
   version: number;
 }
@@ -63,7 +63,7 @@ interface ProductWithoutBarcodes {
 function netContentRow(row: {
   netContentQuantity: number | null;
   netContentUnit: string | null;
-}): NetContentInput | null {
+}): CatalogNetContent | null {
   if (row.netContentQuantity === null || row.netContentUnit === null) {
     return null;
   }

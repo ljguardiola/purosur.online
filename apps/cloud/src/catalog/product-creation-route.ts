@@ -1,3 +1,5 @@
+import type { SaleUnit } from "@purosur/domain";
+import type { CatalogNetContent } from "@purosur/domain/catalog/use-cases";
 import { createProduct } from "@purosur/domain/catalog/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
@@ -9,14 +11,12 @@ import {
 } from "../access/route-access.js";
 import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
 import {
-  type NetContentInput,
   type ProductFieldValidationFailure,
   readBarcodes,
   readCategoryId,
   readNetContent,
   readProductName,
   readSaleUnit,
-  type SaleUnit,
   validateProductFields,
 } from "./product-validation.js";
 import type { ProductsRouteOptions } from "./products-list-route.js";
@@ -38,7 +38,7 @@ interface CreationRequestBody {
   categoryId: string;
   saleUnit: SaleUnit;
   barcodes: string[];
-  netContent: NetContentInput | null;
+  netContent: CatalogNetContent | null;
 }
 
 function readCreationBody(body: unknown): CreationRequestBody | ProductFieldValidationFailure {
@@ -57,7 +57,7 @@ function readCreationBody(body: unknown): CreationRequestBody | ProductFieldVali
     categoryId: categoryId as string,
     saleUnit: saleUnit as SaleUnit,
     barcodes: barcodes as string[],
-    netContent: netContent === undefined ? null : (netContent as NetContentInput),
+    netContent: netContent === undefined ? null : (netContent as CatalogNetContent),
   };
 }
 
