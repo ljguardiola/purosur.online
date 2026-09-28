@@ -53,6 +53,53 @@ describe("GET /health", () => {
   });
 });
 
+describe("GET /error-reporting", () => {
+  const dsn = "https://key@errors.example.test/1";
+
+  it("says reporting is off when no backoffice DSN is configured", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    const response = await app.inject({ method: "GET", url: "/error-reporting" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ enabled: false });
+  });
+
+  it("gives the backoffice its DSN, environment and the cloud's own version when a DSN is configured", async () => {
+    const app = buildApp({
+      version: "abc1234",
+      errorReporting: { dsn, environment: "staging" },
+    });
+
+    const response = await app.inject({ method: "GET", url: "/error-reporting" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      enabled: true,
+      dsn,
+      environment: "staging",
+      release: "abc1234",
+    });
+  });
+
+  it("answers without a session", async () => {
+    const app = buildApp({ version: "abc1234", errorReporting: { dsn, environment: "staging" } });
+
+    const response = await app.inject({ method: "GET", url: "/error-reporting" });
+
+    expect(response.statusCode).toBe(200);
+  });
+
+  it("refuses a DSN that is not a URL when building the app", () => {
+    expect(() =>
+      buildApp({
+        version: "abc1234",
+        errorReporting: { dsn: "not a url", environment: "staging" },
+      }),
+    ).toThrow("BACKOFFICE_SENTRY_DSN must be a URL");
+  });
+});
+
 describe("the edge origin guard", () => {
   it("refuses a request with no edge secret header with 403 direct_access_rejected", async () => {
     const app = buildRealApp({ version: "abc1234", edgeOriginSecret: TEST_EDGE_ORIGIN_SECRET });
@@ -363,6 +410,20 @@ describe("serving the backoffice's static build", () => {
       expect(response.headers["referrer-policy"]).toBe("no-referrer");
     },
   );
+
+  it("lets the backoffice send its error reports to the DSN's origin, and only when a DSN is configured", async () => {
+    const app = buildApp({
+      version: "abc1234",
+      staticDir: backofficeBuild(),
+      errorReporting: { dsn: "https://key@errors.example.test/1", environment: "staging" },
+    });
+
+    const response = await app.inject({ method: "GET", url: "/assets/app.js" });
+
+    expect(response.headers["content-security-policy"]).toContain(
+      "connect-src 'self' https://errors.example.test;",
+    );
+  });
 
   it("lets browsers keep a hashed asset for a year without revalidating", async () => {
     const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
@@ -1138,6 +1199,7 @@ describe("the route access inventory", () => {
 
     expect(app.routeAccessInventory()).toEqual([
       { method: "GET", url: "/health", access: PUBLIC_ACCESS },
+      { method: "GET", url: "/error-reporting", access: PUBLIC_ACCESS },
       { method: "POST", url: "/users/recovery/request", access: PUBLIC_ACCESS },
       { method: "POST", url: "/users/recovery/registration-options", access: PUBLIC_ACCESS },
       { method: "POST", url: "/users/recovery/redeem", access: PUBLIC_ACCESS },
