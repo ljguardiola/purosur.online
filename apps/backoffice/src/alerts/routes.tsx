@@ -1,10 +1,8 @@
-import { createRoute, stripSearchParams } from "@tanstack/react-router";
+import { createRoute, lazyRouteComponent, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 import { canSeeAlertsArea } from "../access/backoffice-access";
-import { useDocumentTitle } from "../shell/document-title";
 import { homeAreaRoute } from "../shell/home-area";
 import { refuseWithout } from "../shell/signed-in-route";
-import { AlertsListScreen } from "./alerts-list-screen";
 
 export const alertsListFilters = z.object({
   level: z.enum(["all", "critical", "warning", "informational"]).default("all").catch("all"),
@@ -21,21 +19,5 @@ export const alertsListRoute = createRoute({
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeAlertsArea),
   validateSearch: alertsListFilters,
   search: { middlewares: [stripSearchParams(alertsListFilters.parse({}))] },
-  component: AlertsListPage,
+  component: lazyRouteComponent(() => import("./alerts-list-page"), "AlertsListPage"),
 });
-
-function AlertsListPage() {
-  const { session, services, sessionActions } = alertsListRoute.useRouteContext();
-  const filters = alertsListRoute.useSearch();
-  const navigate = alertsListRoute.useNavigate();
-  useDocumentTitle("Alertas · Puro Sur");
-  return (
-    <AlertsListScreen
-      filters={filters}
-      onFiltersChange={(next) => void navigate({ search: next, replace: true })}
-      access={session}
-      onSessionEnded={sessionActions.sessionEnded}
-      services={services.alertsListScreen}
-    />
-  );
-}

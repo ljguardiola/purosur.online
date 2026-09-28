@@ -7,7 +7,6 @@ import {
   isIssuerIdentificationLegalNameTooLong,
 } from "@purosur/domain";
 import { Button, DateField, formatDate, InlineNotice, Modal, TextField } from "@purosur/ui";
-import { startAuthentication } from "@simplewebauthn/browser";
 import {
   Check,
   CircleAlert,
@@ -21,37 +20,19 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { useAuthorization } from "../access/authorization-modal";
 import { useSendToMyAccount } from "../access/send-to-my-account";
-import { authorizeSession, fetchSessionAuthorizationOptions } from "../access/session-api";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
-import {
-  fetchIssuerIdentification,
-  type IssuerIdentification,
-  type IssuerIdentificationField,
-  type SaveIssuerIdentificationOutcome,
-  saveIssuerIdentification,
+import type { FiscalConfigurationScreenServices } from "./fiscal-configuration-services";
+import type {
+  IssuerIdentification,
+  IssuerIdentificationField,
+  SaveIssuerIdentificationOutcome,
 } from "./issuer-identification-api";
-
-export type FiscalConfigurationScreenServices = {
-  fetchIssuerIdentification: typeof fetchIssuerIdentification;
-  saveIssuerIdentification: typeof saveIssuerIdentification;
-  fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
-  authorizeSession: typeof authorizeSession;
-  startAuthentication: typeof startAuthentication;
-};
-
-export const defaultFiscalConfigurationScreenServices: FiscalConfigurationScreenServices = {
-  fetchIssuerIdentification,
-  saveIssuerIdentification,
-  fetchSessionAuthorizationOptions,
-  authorizeSession,
-  startAuthentication,
-};
 
 export type FiscalConfigurationScreenProps = {
   onSessionEnded: () => void;
-  services?: FiscalConfigurationScreenServices;
+  services: FiscalConfigurationScreenServices;
   now?: () => Date;
 };
 
@@ -470,8 +451,7 @@ export function FiscalConfigurationScreen({
   now,
 }: FiscalConfigurationScreenProps) {
   const sendToMyAccount = useSendToMyAccount();
-  const svc = services ?? defaultFiscalConfigurationScreenServices;
-  const { fetchIssuerIdentification } = svc;
+  const { fetchIssuerIdentification } = services;
   const clock = now ?? (() => new Date());
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [editing, setEditing] = useState(false);
@@ -578,7 +558,7 @@ export function FiscalConfigurationScreen({
         }}
         onReloaded={(value) => setState({ kind: "loaded", value })}
         onSessionEnded={endSession}
-        services={svc}
+        services={services}
         now={clock}
       />
     </ScreenLayout>

@@ -1,6 +1,9 @@
 import { Button, IconButton, InlineNotice, Modal, TextField } from "@purosur/ui";
-import type { RegistrationResponseJSON } from "@simplewebauthn/browser";
-import { startAuthentication, startRegistration } from "@simplewebauthn/browser";
+import type {
+  RegistrationResponseJSON,
+  startAuthentication,
+  startRegistration,
+} from "@simplewebauthn/browser";
 import { KeyRound, Laptop, Plus, ShieldX, Trash2, TriangleAlert, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
@@ -8,19 +11,19 @@ import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { useAuthorization } from "./authorization-modal";
-import {
+import type { MyAccountScreenServices } from "./my-account-services";
+import type {
   fetchPasskeyRegistrationChallenge,
-  fetchPasskeys,
-  type Passkey,
-  type RegisterPasskeyOutcome,
-  type RemovePasskeyOutcome,
+  Passkey,
+  RegisterPasskeyOutcome,
+  RemovePasskeyOutcome,
   registerPasskey,
   removePasskey,
 } from "./passkey-api";
 import { validatePasskeyName } from "./passkey-name";
 import { passkeyRowDetail } from "./passkey-row-detail";
-import { authorizeSession, fetchSessionAuthorizationOptions } from "./session-api";
-import { signalUnknownCredential } from "./signal-unknown-credential";
+import type { authorizeSession, fetchSessionAuthorizationOptions } from "./session-api";
+import type { signalUnknownCredential } from "./signal-unknown-credential";
 
 function isDefinitiveRejection(outcome: RegisterPasskeyOutcome): boolean {
   switch (outcome.kind) {
@@ -36,35 +39,11 @@ function isDefinitiveRejection(outcome: RegisterPasskeyOutcome): boolean {
   }
 }
 
-export type MyAccountScreenServices = {
-  fetchPasskeys: typeof fetchPasskeys;
-  fetchPasskeyRegistrationChallenge: typeof fetchPasskeyRegistrationChallenge;
-  registerPasskey: typeof registerPasskey;
-  removePasskey: typeof removePasskey;
-  fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
-  authorizeSession: typeof authorizeSession;
-  startAuthentication: typeof startAuthentication;
-  startRegistration: typeof startRegistration;
-  signalUnknownCredential: typeof signalUnknownCredential;
-};
-
-export const defaultMyAccountScreenServices: MyAccountScreenServices = {
-  fetchPasskeys,
-  fetchPasskeyRegistrationChallenge,
-  registerPasskey,
-  removePasskey,
-  fetchSessionAuthorizationOptions,
-  authorizeSession,
-  startAuthentication,
-  startRegistration,
-  signalUnknownCredential,
-};
-
 export type MyAccountScreenProps = {
   displayName: string;
   onSessionEnded: () => void;
   now?: () => Date;
-  services?: MyAccountScreenServices;
+  services: MyAccountScreenServices;
 };
 
 type ListState =
@@ -415,7 +394,7 @@ export function MyAccountScreen({
     startAuthentication,
     startRegistration,
     signalUnknownCredential,
-  } = services ?? defaultMyAccountScreenServices;
+  } = services;
   const clock = now ?? (() => new Date());
   const [list, setList] = useState<ListState>({ kind: "loading" });
   const clockRef = useLatestRef(clock);

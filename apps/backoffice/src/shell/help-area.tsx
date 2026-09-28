@@ -1,5 +1,5 @@
 import { createRoute, Outlet, useParams } from "@tanstack/react-router";
-import { HelpSectionColumn } from "../help/help-screen";
+import { HelpSectionColumn } from "../help/help-section-column";
 import { AreaLayout } from "./area-layout";
 import { signedInRoute } from "./signed-in-route";
 

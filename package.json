@@ -12,7 +12,7 @@
     "lint": "biome check . --error-on-warnings",
     "format": "biome format --write .",
     "depcruise": "depcruise packages apps --config .dependency-cruiser.mjs",
-    "verify:static": "tsc --noEmit && tsc --noEmit -p apps/backoffice && tsc --noEmit -p apps/pos && pnpm --filter @purosur/cloud build && biome ci . --error-on-warnings && pnpm depcruise && knip && node .github/scripts/react-compiler-check.mjs && node --test .github/scripts/*.test.mjs",
+    "verify:static": "tsc --noEmit && tsc --noEmit -p apps/backoffice && tsc --noEmit -p apps/pos && pnpm --filter @purosur/cloud build && pnpm --filter @purosur/backoffice build && node .github/scripts/backoffice-download-budget.mjs && biome ci . --error-on-warnings && pnpm depcruise && knip && node .github/scripts/react-compiler-check.mjs && node --test .github/scripts/*.test.mjs",
     "verify:tests": "vitest run --project='!catalog-visual'",
     "verify:visual": "vitest run --project=catalog-visual",
     "verify": "pnpm verify:static && pnpm verify:tests && pnpm verify:visual",

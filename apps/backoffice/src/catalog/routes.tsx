@@ -1,11 +1,8 @@
-import { createRoute, stripSearchParams } from "@tanstack/react-router";
+import { createRoute, lazyRouteComponent, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 import { canManageProductsAndCategories } from "../access/backoffice-access";
 import { catalogAreaRoute } from "../shell/catalog-area";
-import { useDocumentTitle } from "../shell/document-title";
 import { refuseWithout } from "../shell/signed-in-route";
-import { CategoriesListScreen } from "./categories-list-screen";
-import { ProductsListScreen } from "./products-list-screen";
 
 export const productsListFilters = z.object({
   search: z.string().default("").catch(""),
@@ -23,23 +20,8 @@ export const productsListRoute = createRoute({
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canManageProductsAndCategories),
   validateSearch: productsListFilters,
   search: { middlewares: [stripSearchParams(productsListFilters.parse({}))] },
-  component: ProductsListPage,
+  component: lazyRouteComponent(() => import("./products-list-page"), "ProductsListPage"),
 });
-
-function ProductsListPage() {
-  const { services, sessionActions } = productsListRoute.useRouteContext();
-  const filters = productsListRoute.useSearch();
-  const navigate = productsListRoute.useNavigate();
-  useDocumentTitle("Productos · Puro Sur");
-  return (
-    <ProductsListScreen
-      filters={filters}
-      onFiltersChange={(next) => void navigate({ search: next, replace: true })}
-      onSessionEnded={sessionActions.sessionEnded}
-      services={services.productsListScreen}
-    />
-  );
-}
 
 export const categoriesListFilters = z.object({
   search: z.string().default("").catch(""),
@@ -54,20 +36,5 @@ export const categoriesListRoute = createRoute({
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canManageProductsAndCategories),
   validateSearch: categoriesListFilters,
   search: { middlewares: [stripSearchParams(categoriesListFilters.parse({}))] },
-  component: CategoriesListPage,
+  component: lazyRouteComponent(() => import("./categories-list-page"), "CategoriesListPage"),
 });
-
-function CategoriesListPage() {
-  const { services, sessionActions } = categoriesListRoute.useRouteContext();
-  const filters = categoriesListRoute.useSearch();
-  const navigate = categoriesListRoute.useNavigate();
-  useDocumentTitle("Categorías · Puro Sur");
-  return (
-    <CategoriesListScreen
-      filters={filters}
-      onFiltersChange={(next) => void navigate({ search: next, replace: true })}
-      onSessionEnded={sessionActions.sessionEnded}
-      services={services.categoriesListScreen}
-    />
-  );
-}

@@ -5,120 +5,7 @@ import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { almonds, honey } from "../catalog/test-support/products-list-screen";
 import { App, type AppServices } from "./app";
-
-function createServices(overrides: Partial<AppServices> = {}): AppServices {
-  return {
-    fetchSession: vi.fn().mockResolvedValue({
-      kind: "ok",
-      userId: "user-1",
-      displayName: "Lucas Guardiola",
-      isAdministrator: true,
-    }),
-    checkSessionStatus: vi.fn().mockReturnValue(new Promise(() => {})),
-    signInScreen: {
-      fetchAuthenticationOptions: vi.fn(),
-      authenticate: vi.fn(),
-      startAuthentication: vi.fn(),
-      signalUnknownCredential: vi.fn(),
-    },
-    accountRecoveryScreen: { requestRecoveryLink: vi.fn() },
-    registerPasskeyScreen: {
-      fetchRegistrationOptions: vi.fn().mockReturnValue(new Promise(() => {})),
-      redeemRecovery: vi.fn(),
-      startRegistration: vi.fn(),
-      signalUnknownCredential: vi.fn(),
-    },
-    myAccountScreen: {
-      fetchPasskeys: vi.fn().mockReturnValue(new Promise(() => {})),
-      fetchPasskeyRegistrationChallenge: vi.fn(),
-      registerPasskey: vi.fn(),
-      removePasskey: vi.fn(),
-      fetchSessionAuthorizationOptions: vi.fn(),
-      authorizeSession: vi.fn(),
-      startAuthentication: vi.fn(),
-      startRegistration: vi.fn(),
-      signalUnknownCredential: vi.fn(),
-    },
-    usersListScreen: {
-      fetchUsers: vi.fn().mockReturnValue(new Promise(() => {})),
-      fetchRoles: vi.fn().mockReturnValue(new Promise(() => {})),
-      createUser: vi.fn(),
-      fetchSessionAuthorizationOptions: vi.fn(),
-      authorizeSession: vi.fn(),
-      startAuthentication: vi.fn(),
-    },
-    rolesListScreen: {
-      fetchRoles: vi.fn().mockReturnValue(new Promise(() => {})),
-      roleEditorModal: {
-        fetchRole: vi.fn().mockReturnValue(new Promise(() => {})),
-        createRole: vi.fn(),
-        editRole: vi.fn(),
-        fetchSessionAuthorizationOptions: vi.fn(),
-        authorizeSession: vi.fn(),
-        startAuthentication: vi.fn(),
-      },
-    },
-    categoriesListScreen: {
-      fetchCategories: vi.fn().mockReturnValue(new Promise(() => {})),
-      createCategory: vi.fn(),
-      editCategory: vi.fn(),
-    },
-    productsListScreen: {
-      fetchProducts: vi.fn().mockReturnValue(new Promise(() => {})),
-      createProduct: vi.fn(),
-      editProduct: vi.fn(),
-      deactivateProduct: vi.fn(),
-      fetchCategories: vi.fn().mockReturnValue(new Promise(() => {})),
-      generateInternalBarcode: vi.fn(),
-      printLabels: vi.fn(),
-    },
-    pricesListScreen: {
-      fetchPrices: vi.fn().mockReturnValue(new Promise(() => {})),
-      setPrice: vi.fn(),
-      confirmPrice: vi.fn(),
-    },
-    userDetailScreen: {
-      fetchUser: vi.fn().mockReturnValue(new Promise(() => {})),
-      editUser: vi.fn(),
-      fetchRoles: vi.fn().mockReturnValue(new Promise(() => {})),
-      fetchUserPasskeys: vi.fn().mockReturnValue(new Promise(() => {})),
-      removeUserPasskey: vi.fn(),
-      deactivateUser: vi.fn(),
-      reactivateUser: vi.fn(),
-      fetchSessionAuthorizationOptions: vi.fn(),
-      authorizeSession: vi.fn(),
-      startAuthentication: vi.fn(),
-    },
-    registersListScreen: {
-      fetchRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
-      createRegister: vi.fn(),
-      emitEnrollmentCode: vi.fn(),
-      fetchSessionAuthorizationOptions: vi.fn(),
-      authorizeSession: vi.fn(),
-      startAuthentication: vi.fn(),
-    },
-    branchSettingsScreen: {
-      fetchBranchSettings: vi.fn().mockReturnValue(new Promise(() => {})),
-      saveBranchSettings: vi.fn(),
-    },
-    fiscalConfigurationScreen: {
-      fetchIssuerIdentification: vi.fn().mockReturnValue(new Promise(() => {})),
-      saveIssuerIdentification: vi.fn(),
-      fetchSessionAuthorizationOptions: vi.fn(),
-      authorizeSession: vi.fn(),
-      startAuthentication: vi.fn(),
-    },
-    accountFooter: { signOut: vi.fn().mockResolvedValue({ kind: "ok" }) },
-    alertsListScreen: {
-      fetchAlerts: vi.fn().mockReturnValue(new Promise(() => {})),
-      alertDetailModal: {
-        fetchAlert: vi.fn().mockReturnValue(new Promise(() => {})),
-        closeAlert: vi.fn(),
-      },
-    },
-    ...overrides,
-  };
-}
+import { createAppServices } from "./test-support/app-services";
 
 const PAST_ACTIVITY_THROTTLE_WINDOW_MS = 120_000;
 
@@ -156,7 +43,7 @@ afterEach(() => {
 test("redirects the root path to /help without leaving the root in the history", async () => {
   const lengthBefore = window.history.length;
 
-  await render(<App help={emptyHelp} services={createServices()} />);
+  await render(<App help={emptyHelp} services={createAppServices()} />);
 
   await expect.poll(() => window.location.pathname).toBe("/help");
   expect(window.history.length).toBe(lengthBefore);
@@ -167,7 +54,7 @@ test.each(["/ventas", "/helps", "/help/getting_started/intro/extra", "/catalog",
   async (path) => {
     window.history.pushState(null, "", path);
 
-    await render(<App help={help} services={createServices()} />);
+    await render(<App help={help} services={createAppServices()} />);
 
     await expect.poll(() => window.location.pathname).toBe("/help");
   },
@@ -175,7 +62,7 @@ test.each(["/ventas", "/helps", "/help/getting_started/intro/extra", "/catalog",
 
 test("redirects an unknown category or article to the closest page that exists", async () => {
   window.history.pushState(null, "", "/help/x/constructor");
-  const screen = await render(<App help={help} services={createServices()} />);
+  const screen = await render(<App help={help} services={createAppServices()} />);
 
   await expect.poll(() => window.location.pathname).toBe("/help");
   await expect
@@ -191,14 +78,14 @@ test("redirects an unknown category or article to the closest page that exists",
 test("moves an article reached under another category to its own category's URL", async () => {
   window.history.pushState(null, "", "/help/billing/intro");
 
-  const screen = await render(<App help={help} services={createServices()} />);
+  const screen = await render(<App help={help} services={createAppServices()} />);
 
   await expect.poll(() => window.location.pathname).toBe("/help/getting_started/intro");
   await expect.element(screen.getByText("Ayuda · Primeros pasos")).toBeVisible();
 });
 
 test("a rail item is a real link to its screen, and a plain click opens that screen in place", async () => {
-  const services = createServices();
+  const services = createAppServices();
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   window.history.pushState(null, "", "/help");
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -218,7 +105,7 @@ test("a rail item is a real link to its screen, and a plain click opens that scr
 
 test("a rail item leaves a modifier click to the browser", async () => {
   window.history.pushState(null, "", "/help");
-  const screen = await render(<App help={emptyHelp} services={createServices()} />);
+  const screen = await render(<App help={emptyHelp} services={createAppServices()} />);
   const configItem = screen.getByRole("link", { name: "Config" });
   await expect.element(configItem).toBeVisible();
 
@@ -235,7 +122,7 @@ test("a rail item leaves a modifier click to the browser", async () => {
 });
 
 test("renders the shell's area rail and section column landmarks", async () => {
-  const screen = await render(<App help={emptyHelp} services={createServices()} />);
+  const screen = await render(<App help={emptyHelp} services={createAppServices()} />);
 
   await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
   await expect
@@ -246,7 +133,7 @@ test("renders the shell's area rail and section column landmarks", async () => {
 test("shows the active Help item in the rail, leaving other areas in the rail unhighlighted, and the Help screen's own content", async () => {
   window.history.pushState(null, "", "/help");
 
-  const screen = await render(<App help={emptyHelp} services={createServices()} />);
+  const screen = await render(<App help={emptyHelp} services={createAppServices()} />);
 
   const helpItemLocator = screen.getByRole("link", { name: "Ayuda" });
   await expect.element(helpItemLocator).toBeVisible();
@@ -267,7 +154,7 @@ test("shows the active Help item in the rail, leaving other areas in the rail un
 
 test("following a search result shows that article and clears the search", async () => {
   window.history.pushState(null, "", "/help");
-  const screen = await render(<App help={help} services={createServices()} />);
+  const screen = await render(<App help={help} services={createAppServices()} />);
 
   await userEvent.fill(screen.getByRole("searchbox", { name: "Buscar en la ayuda" }), "factura");
   await userEvent.click(screen.getByRole("link", { name: "Facturación básica" }));
@@ -283,7 +170,7 @@ test("following a search result shows that article and clears the search", async
 
 test("following a section link to the current page while searching shows that section", async () => {
   window.history.pushState(null, "", "/help/billing");
-  const screen = await render(<App help={help} services={createServices()} />);
+  const screen = await render(<App help={help} services={createAppServices()} />);
 
   await userEvent.fill(screen.getByRole("searchbox", { name: "Buscar en la ayuda" }), "bienvenida");
   await expect.element(screen.getByRole("link", { name: "Bienvenida" })).toBeVisible();
@@ -296,7 +183,7 @@ test("following a section link to the current page while searching shows that se
 
 test("titles the document after the page being shown", async () => {
   window.history.pushState(null, "", "/help");
-  const screen = await render(<App help={help} services={createServices()} />);
+  const screen = await render(<App help={help} services={createAppServices()} />);
 
   await expect.poll(() => document.title).toBe("Ayuda · Puro Sur");
 
@@ -309,7 +196,7 @@ test("titles the document after the page being shown", async () => {
 
 test("moves focus to the page heading after an in-app navigation, not on the first load", async () => {
   window.history.pushState(null, "", "/help/getting_started/intro");
-  const screen = await render(<App help={help} services={createServices()} />);
+  const screen = await render(<App help={help} services={createAppServices()} />);
 
   const firstHeading = screen.getByRole("heading", { name: "Bienvenida", level: 1 });
   await expect.element(firstHeading).toBeVisible();
@@ -329,7 +216,7 @@ async function pressEnterOn(link: HTMLElement) {
 
 test("moves focus to the new screen's title, with a focus ring, after choosing a section with the keyboard, not on the first load", async () => {
   window.history.pushState(null, "", "/settings/users/me");
-  const services = createServices();
+  const services = createAppServices();
   vi.mocked(services.rolesListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
   const screen = await render(<App help={emptyHelp} services={services} />);
   const firstTitle = screen.getByRole("heading", { name: "Mi cuenta", level: 1 });
@@ -347,7 +234,7 @@ test("moves focus to the new screen's title, with a focus ring, after choosing a
 
 test("moves focus to the new area's screen title after switching area from the rail with the keyboard", async () => {
   window.history.pushState(null, "", "/help");
-  const screen = await render(<App help={emptyHelp} services={createServices()} />);
+  const screen = await render(<App help={emptyHelp} services={createAppServices()} />);
   await expect
     .element(screen.getByRole("heading", { name: "Todavía no hay contenido de ayuda", level: 1 }))
     .toBeVisible();
@@ -362,7 +249,7 @@ test("moves focus to the new screen's title after following a link between the s
   const screen = await render(
     <App
       help={emptyHelp}
-      services={createServices({
+      services={createAppServices({
         fetchSession: vi.fn().mockResolvedValue({ kind: "unauthenticated" }),
       })}
     />,
@@ -380,7 +267,7 @@ test("moves focus to the new screen's title after following a link between the s
 
 test("moves focus to the first screen's title after signing in", async () => {
   window.history.pushState(null, "", "/sign-in");
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValueOnce({ kind: "unauthenticated" }).mockResolvedValue({
       kind: "ok",
       userId: "user-1",
@@ -406,7 +293,7 @@ test("moves focus to the first screen's title after signing in", async () => {
 });
 
 test("leaves focus where it is when only a list's filters change", async () => {
-  const services = createServices();
+  const services = createAppServices();
   vi.mocked(services.productsListScreen.fetchProducts).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.productsListScreen.fetchCategories).mockResolvedValue({
     kind: "ok",
@@ -450,7 +337,7 @@ test("opens every help page at the top of its content, not where the previous pa
     },
   });
   window.history.pushState(null, "", "/help/getting_started/intro");
-  const screen = await render(<App help={longHelp} services={createServices()} />);
+  const screen = await render(<App help={longHelp} services={createAppServices()} />);
 
   // Scoped to main: the rail's own Catálogo area item shares this fixture article's title.
   const link = screen.getByRole("main").getByRole("link", { name: "Catálogo" });
@@ -467,7 +354,7 @@ test("opens every help page at the top of its content, not where the previous pa
 });
 
 test("routes /sign-in to the sign-in screen, outside the Shell, when no session is live", async () => {
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({ kind: "unauthenticated" }),
   });
   window.history.pushState(null, "", "/sign-in");
@@ -479,7 +366,7 @@ test("routes /sign-in to the sign-in screen, outside the Shell, when no session 
 });
 
 test("routes /account-recovery to the recovery form, outside the Shell", async () => {
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({ kind: "unauthenticated" }),
   });
   window.history.pushState(null, "", "/account-recovery");
@@ -493,7 +380,7 @@ test("routes /account-recovery to the recovery form, outside the Shell", async (
 });
 
 test("provides the backoffice field size at the root, so a screen never has to ask for it", async () => {
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({ kind: "unauthenticated" }),
   });
   window.history.pushState(null, "", "/account-recovery");
@@ -513,7 +400,7 @@ test("provides the backoffice field size at the root, so a screen never has to a
 });
 
 test("routes /account-recovery/passkey to the passkey registration screen, reading its token from the hash", async () => {
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({ kind: "unauthenticated" }),
   });
   window.history.pushState(null, "", "/account-recovery/passkey#the-token");
@@ -521,12 +408,16 @@ test("routes /account-recovery/passkey to the passkey registration screen, readi
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByText("Abriendo el registro…")).toBeVisible();
-  expect(services.registerPasskeyScreen.fetchRegistrationOptions).toHaveBeenCalledWith("the-token");
+  await expect
+    .poll(() => services.registerPasskeyScreen.fetchRegistrationOptions)
+    .toHaveBeenCalledWith("the-token");
   expect(screen.getByRole("navigation", { name: "Áreas" }).query()).toBeNull();
 });
 
 test("renders nothing while the mount session check is pending", async () => {
-  const services = createServices({ fetchSession: vi.fn().mockReturnValue(new Promise(() => {})) });
+  const services = createAppServices({
+    fetchSession: vi.fn().mockReturnValue(new Promise(() => {})),
+  });
   window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -536,7 +427,7 @@ test("renders nothing while the mount session check is pending", async () => {
 });
 
 test("routes a shell path to the sign-in screen when the mount check finds no session", async () => {
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({ kind: "unauthenticated" }),
   });
   window.history.pushState(null, "", "/help");
@@ -548,7 +439,7 @@ test("routes a shell path to the sign-in screen when the mount check finds no se
 
 test("shows the session-expired notice when a session was open in this browser before and now answers unauthenticated", async () => {
   window.localStorage.setItem("purosur-backoffice-was-signed-in", "1");
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({ kind: "unauthenticated" }),
   });
   window.history.pushState(null, "", "/help");
@@ -560,7 +451,9 @@ test("shows the session-expired notice when a session was open in this browser b
 
 test("says the session could not be checked, instead of that it expired, when the check itself fails", async () => {
   window.localStorage.setItem("purosur-backoffice-was-signed-in", "1");
-  const services = createServices({ fetchSession: vi.fn().mockResolvedValue({ kind: "failed" }) });
+  const services = createAppServices({
+    fetchSession: vi.fn().mockResolvedValue({ kind: "failed" }),
+  });
   window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -571,7 +464,9 @@ test("says the session could not be checked, instead of that it expired, when th
 
 test("keeps the signed-in marker when the session check fails, since the session may still be live", async () => {
   window.localStorage.setItem("purosur-backoffice-was-signed-in", "1");
-  const services = createServices({ fetchSession: vi.fn().mockResolvedValue({ kind: "failed" }) });
+  const services = createAppServices({
+    fetchSession: vi.fn().mockResolvedValue({ kind: "failed" }),
+  });
   window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -582,7 +477,7 @@ test("keeps the signed-in marker when the session check fails, since the session
 
 test("shows a rate-limited notice, instead of a generic failure, when the mount check is rate limited", async () => {
   window.localStorage.setItem("purosur-backoffice-was-signed-in", "1");
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({ kind: "rate_limited", retryAfterSeconds: 120 }),
   });
   window.history.pushState(null, "", "/help");
@@ -598,7 +493,7 @@ test("shows a rate-limited notice, instead of a generic failure, when the mount 
 test("redirects away from /sign-in to the shell when a session is already live", async () => {
   window.history.pushState(null, "", "/sign-in");
 
-  const screen = await render(<App help={emptyHelp} services={createServices()} />);
+  const screen = await render(<App help={emptyHelp} services={createAppServices()} />);
 
   await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
   expect(screen.getByRole("heading", { name: "Ingresar" }).query()).toBeNull();
@@ -606,7 +501,7 @@ test("redirects away from /sign-in to the shell when a session is already live",
 
 test("shows the signed-in user's name in the rail footer, and Salir signs back out to /sign-in", async () => {
   window.history.pushState(null, "", "/help");
-  const services = createServices();
+  const services = createAppServices();
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -623,7 +518,7 @@ test("shows the signed-in user's name in the rail footer, and Salir signs back o
 
 test("shows a focus ring on the page heading it focuses after a keyboard navigation", async () => {
   window.history.pushState(null, "", "/help/getting_started");
-  const screen = await render(<App help={help} services={createServices()} />);
+  const screen = await render(<App help={help} services={createAppServices()} />);
 
   const link = screen
     .getByRole("link", { name: "Facturación", exact: true })
@@ -644,7 +539,7 @@ test("shows a focus ring on the page heading it focuses after a keyboard navigat
 });
 
 test("routes /settings/users/me to Mi cuenta inside the Shell, with Config and Usuarios active and Ayuda not", async () => {
-  const services = createServices();
+  const services = createAppServices();
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   window.history.pushState(null, "", "/settings/users/me");
 
@@ -664,7 +559,7 @@ test("routes /settings/users/me to Mi cuenta inside the Shell, with Config and U
 });
 
 test("following the account name link from Help shows Mi cuenta", async () => {
-  const services = createServices();
+  const services = createAppServices();
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   window.history.pushState(null, "", "/help");
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -676,7 +571,7 @@ test("following the account name link from Help shows Mi cuenta", async () => {
 });
 
 test("following the sidebar's Usuarios item from Mi cuenta opens the Users list, with Mi cuenta still reachable from the account name", async () => {
-  const services = createServices();
+  const services = createAppServices();
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   window.history.pushState(null, "", "/settings/users/me");
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -696,7 +591,7 @@ test("following the sidebar's Usuarios item from Mi cuenta opens the Users list,
 });
 
 test("opens a user's detail screen at /settings/users/:id, with Usuarios still the active sidebar item, and the browser's back button returns to the list", async () => {
-  const services = createServices();
+  const services = createAppServices();
   const martina = {
     id: "user-2",
     firstName: "Martina Gómez",
@@ -729,7 +624,7 @@ test("opens a user's detail screen at /settings/users/:id, with Usuarios still t
 });
 
 test("passes the signed-in Administrator's own id to the user detail screen, hiding their own passkey's remove button", async () => {
-  const services = createServices();
+  const services = createAppServices();
   const lucas = {
     id: "user-1",
     firstName: "Lucas Guardiola",
@@ -764,7 +659,7 @@ test("passes the signed-in Administrator's own id to the user detail screen, hid
 
 test("shows the Roles item in the rail, only for an Administrator, linking to the roles list", async () => {
   window.history.pushState(null, "", "/settings/users/me");
-  const services = createServices();
+  const services = createAppServices();
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
@@ -773,7 +668,7 @@ test("shows the Roles item in the rail, only for an Administrator, linking to th
 });
 
 test("hides the Roles item in the rail for a non-Administrator", async () => {
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
       userId: "user-2",
@@ -791,7 +686,7 @@ test("hides the Roles item in the rail for a non-Administrator", async () => {
 
 test("following the sidebar's Roles item opens the roles list, with Config and Roles active", async () => {
   window.history.pushState(null, "", "/settings/users/me");
-  const services = createServices();
+  const services = createAppServices();
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.rolesListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -809,7 +704,7 @@ test("following the sidebar's Roles item opens the roles list, with Config and R
 
 test("shows the Cajas registradoras item in the rail for a user holding enroll_register_devices, linking to its screen", async () => {
   window.history.pushState(null, "", "/settings/users/me");
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
       userId: "user-2",
@@ -826,7 +721,7 @@ test("shows the Cajas registradoras item in the rail for a user holding enroll_r
 });
 
 test("hides the Cajas registradoras item in the rail for a user without enroll_register_devices", async () => {
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
       userId: "user-2",
@@ -845,7 +740,7 @@ test("hides the Cajas registradoras item in the rail for a user without enroll_r
 
 test("following the sidebar's Cajas registradoras item opens the registers list, with Config and Cajas registradoras active", async () => {
   window.history.pushState(null, "", "/settings/users/me");
-  const services = createServices();
+  const services = createAppServices();
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.registersListScreen.fetchRegisters).mockResolvedValue({
     kind: "ok",
@@ -869,7 +764,7 @@ test("following the sidebar's Cajas registradoras item opens the registers list,
 });
 
 test("redirects a typed /settings/registers to Mi cuenta for a user without enroll_register_devices, without calling its API", async () => {
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
       userId: "user-2",
@@ -890,7 +785,7 @@ test("redirects a typed /settings/registers to Mi cuenta for a user without enro
 
 test("shows the Sucursal item in the rail for a user holding configure_branch, linking to its screen", async () => {
   window.history.pushState(null, "", "/settings/users/me");
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
       userId: "user-2",
@@ -907,7 +802,7 @@ test("shows the Sucursal item in the rail for a user holding configure_branch, l
 });
 
 test("hides the Sucursal item in the rail for a user without configure_branch", async () => {
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
       userId: "user-2",
@@ -926,7 +821,7 @@ test("hides the Sucursal item in the rail for a user without configure_branch", 
 
 test("following the sidebar's Sucursal item opens the branch settings screen, with Config and Sucursal active", async () => {
   window.history.pushState(null, "", "/settings/users/me");
-  const services = createServices();
+  const services = createAppServices();
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.branchSettingsScreen.fetchBranchSettings).mockResolvedValue({
     kind: "ok",
@@ -963,7 +858,7 @@ test("following the sidebar's Sucursal item opens the branch settings screen, wi
 });
 
 test("redirects a typed /settings/branch to Mi cuenta for a user without configure_branch, without calling its API", async () => {
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
       userId: "user-2",
@@ -984,7 +879,7 @@ test("redirects a typed /settings/branch to Mi cuenta for a user without configu
 
 test("opens the role editor modal, over the Roles list, from the Nuevo rol button, without submitting it", async () => {
   window.history.pushState(null, "", "/settings/roles");
-  const services = createServices();
+  const services = createAppServices();
   vi.mocked(services.rolesListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("heading", { name: "Roles", level: 1 })).toBeVisible();
@@ -999,10 +894,10 @@ test("opens the role editor modal, over the Roles list, from the Nuevo rol butto
 test("opens the role editor modal for editing, from a role's pencil action, with Roles still the active sidebar item", async () => {
   // A desktop-sized viewport keeps this row action clear of the rail at the default phone-sized viewport.
   await page.viewport(1280, 900);
-  const services = createServices();
+  const services = createAppServices();
   const roleEditorModal = services.rolesListScreen.roleEditorModal;
   if (!roleEditorModal) {
-    throw new Error("test setup: createServices always fills roleEditorModal");
+    throw new Error("test setup: createAppServices always fills roleEditorModal");
   }
   vi.mocked(services.rolesListScreen.fetchRoles).mockResolvedValue({
     kind: "ok",
@@ -1035,7 +930,9 @@ test("opens the role editor modal for editing, from a role's pencil action, with
   await userEvent.click(screen.getByRole("button", { name: "Editar el rol Depósito" }));
 
   await expect.element(screen.getByRole("dialog").getByText("Editar rol")).toBeVisible();
-  expect(services.rolesListScreen.roleEditorModal?.fetchRole).toHaveBeenCalledWith("role-stock");
+  await expect
+    .poll(() => services.rolesListScreen.roleEditorModal?.fetchRole)
+    .toHaveBeenCalledWith("role-stock");
   const rolesItem = screen.getByRole("link", { name: "Roles" }).element() as HTMLAnchorElement;
   expect(rolesItem.getAttribute("aria-current")).toBe("page");
   expect(window.location.pathname).toBe("/settings/roles");
@@ -1043,7 +940,7 @@ test("opens the role editor modal for editing, from a role's pencil action, with
 
 test("opens the role editor modal for duplicating, pre-filled from the source row, without refetching the list", async () => {
   await page.viewport(1280, 900);
-  const services = createServices();
+  const services = createAppServices();
   const fetchRoles = vi.mocked(services.rolesListScreen.fetchRoles);
   fetchRoles.mockResolvedValue({
     kind: "ok",
@@ -1073,7 +970,7 @@ test("opens the role editor modal for duplicating, pre-filled from the source ro
 });
 
 test("redirects a non-Administrator's typed /settings/roles to Mi cuenta, without listing roles", async () => {
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
       userId: "user-2",
@@ -1093,7 +990,7 @@ test("redirects a non-Administrator's typed /settings/roles to Mi cuenta, withou
 });
 
 test("redirects a non-Administrator's typed /settings/users to Mi cuenta, without listing users", async () => {
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
       userId: "user-2",
@@ -1113,7 +1010,7 @@ test("redirects a non-Administrator's typed /settings/users to Mi cuenta, withou
 });
 
 test("shows Mi cuenta's own sidebar entry instead of Usuarios for a non-Administrator", async () => {
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
       userId: "user-2",
@@ -1137,7 +1034,7 @@ test("shows Mi cuenta's own sidebar entry instead of Usuarios for a non-Administ
 });
 
 test("lets a non-Administrator holding deactivate_users open Usuarios, without Nuevo usuario", async () => {
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
       userId: "user-2",
@@ -1174,7 +1071,7 @@ test("lets a non-Administrator holding deactivate_users open Usuarios, without N
 });
 
 test("opens a user's detail for a non-Administrator holding deactivate_users, offering only Desactivar", async () => {
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
       userId: "user-2",
@@ -1221,7 +1118,7 @@ test.each([
 ])(
   "redirects a non-Administrator's typed $path to Mi cuenta, without calling its API",
   async ({ path, adminOnlyCalls }) => {
-    const services = createServices({
+    const services = createAppServices({
       fetchSession: vi.fn().mockResolvedValue({
         kind: "ok",
         userId: "user-2",
@@ -1246,7 +1143,7 @@ test.each([
 );
 
 test("follows a demotion reported by real use of the open tab: Usuarios and Roles leave the rail and the Users list gives way to Mi cuenta", async () => {
-  const services = createServices();
+  const services = createAppServices();
   vi.mocked(services.usersListScreen.fetchUsers).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.usersListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
@@ -1277,7 +1174,7 @@ test("follows a demotion reported by real use of the open tab: Usuarios and Role
 });
 
 test("follows a promotion reported by real use of the open tab: Usuarios and Roles join the rail", async () => {
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
       userId: "user-2",
@@ -1311,7 +1208,7 @@ test("follows a promotion reported by real use of the open tab: Usuarios and Rol
 });
 
 test("ends the session with the expired notice when Mi cuenta's passkeys request finds it already ended", async () => {
-  const services = createServices();
+  const services = createAppServices();
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({
     kind: "unauthenticated",
   });
@@ -1325,7 +1222,7 @@ test("ends the session with the expired notice when Mi cuenta's passkeys request
 });
 
 test("ends the session with the expired notice when the open tab's status check finds it already ended", async () => {
-  const services = createServices();
+  const services = createAppServices();
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
 
@@ -1338,7 +1235,7 @@ test("ends the session with the expired notice when the open tab's status check 
 });
 
 test("ends the session with the expired notice when real use of the open tab finds it already ended", async () => {
-  const services = createServices();
+  const services = createAppServices();
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
 
@@ -1356,7 +1253,7 @@ test("ends the session with the expired notice when real use of the open tab fin
 });
 
 test("shows the Catálogo item in the rail for a user holding manage_products_and_categories, linking to the products list", async () => {
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
       userId: "user-2",
@@ -1373,7 +1270,7 @@ test("shows the Catálogo item in the rail for a user holding manage_products_an
 });
 
 test("hides the Catálogo item in the rail for a user without the permission", async () => {
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
       userId: "user-2",
@@ -1391,7 +1288,7 @@ test("hides the Catálogo item in the rail for a user without the permission", a
 });
 
 test("shows the Inicio item in the rail for a user holding view_branch_alerts, linking to Alertas", async () => {
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
       userId: "user-2",
@@ -1408,7 +1305,7 @@ test("shows the Inicio item in the rail for a user holding view_branch_alerts, l
 });
 
 test("hides the Inicio item in the rail for a user without either alert-view permission", async () => {
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
       userId: "user-2",
@@ -1427,7 +1324,7 @@ test("hides the Inicio item in the rail for a user without either alert-view per
 
 test("following the rail's Inicio item opens the Alertas list, with Inicio and Alertas active", async () => {
   window.history.pushState(null, "", "/help");
-  const services = createServices();
+  const services = createAppServices();
   vi.mocked(services.alertsListScreen.fetchAlerts).mockResolvedValue({
     kind: "ok",
     value: { alerts: [], total: 0, pageSize: 25, openCount: 0, openCriticalCount: 0 },
@@ -1449,7 +1346,7 @@ test.each(["/help", "/settings/users", "/catalog/categories", "/catalog/products
   "lists Inicio above Catálogo in the rail on %s",
   async (path) => {
     window.history.pushState(null, "", path);
-    const services = createServices();
+    const services = createAppServices();
     vi.mocked(services.categoriesListScreen.fetchCategories).mockResolvedValue({
       kind: "ok",
       value: [],
@@ -1479,7 +1376,7 @@ test.each(["/help", "/settings/users", "/catalog/categories", "/catalog/products
   "lists Catálogo above Config in the rail on %s",
   async (path) => {
     window.history.pushState(null, "", path);
-    const services = createServices();
+    const services = createAppServices();
     vi.mocked(services.categoriesListScreen.fetchCategories).mockResolvedValue({
       kind: "ok",
       value: [],
@@ -1507,7 +1404,7 @@ test.each(["/help", "/settings/users", "/catalog/categories", "/catalog/products
 
 test("following the rail's Catálogo item opens the products list, with Catálogo and Productos active", async () => {
   window.history.pushState(null, "", "/help");
-  const services = createServices();
+  const services = createAppServices();
   vi.mocked(services.productsListScreen.fetchProducts).mockResolvedValue({
     kind: "ok",
     value: [],
@@ -1533,7 +1430,7 @@ test("following the rail's Catálogo item opens the products list, with Catálog
 
 test("navigating directly to /catalog/categories opens the categories list, with Categorías active", async () => {
   window.history.pushState(null, "", "/catalog/categories");
-  const services = createServices();
+  const services = createAppServices();
   vi.mocked(services.categoriesListScreen.fetchCategories).mockResolvedValue({
     kind: "ok",
     value: [],
@@ -1550,7 +1447,7 @@ test("navigating directly to /catalog/categories opens the categories list, with
 });
 
 test("redirects a non-permitted user's typed /catalog/categories to Mi cuenta, without listing categories", async () => {
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
       userId: "user-2",
@@ -1570,7 +1467,7 @@ test("redirects a non-permitted user's typed /catalog/categories to Mi cuenta, w
 });
 
 test("redirects a non-permitted user's typed /catalog/products to Mi cuenta, without listing products", async () => {
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
       userId: "user-2",
@@ -1590,7 +1487,7 @@ test("redirects a non-permitted user's typed /catalog/products to Mi cuenta, wit
 });
 
 test("redirects a non-permitted user's typed /catalog/prices to Mi cuenta, without listing prices", async () => {
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
       userId: "user-2",
@@ -1610,7 +1507,7 @@ test("redirects a non-permitted user's typed /catalog/prices to Mi cuenta, witho
 });
 
 test("redirects a user holding only manage_products_and_categories away from a typed /catalog/prices", async () => {
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
       userId: "user-2",
@@ -1629,7 +1526,7 @@ test("redirects a user holding only manage_products_and_categories away from a t
 });
 
 test("redirects a user holding only manage_prices_and_review away from a typed /catalog/products", async () => {
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
       userId: "user-2",
@@ -1648,7 +1545,7 @@ test("redirects a user holding only manage_prices_and_review away from a typed /
 });
 
 test("shows the Precios section, and only it, for a user holding only manage_prices_and_review, opening it by default from the rail's Catálogo item", async () => {
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
       userId: "user-2",
@@ -1674,7 +1571,7 @@ test("shows the Precios section, and only it, for a user holding only manage_pri
 });
 
 test("hides the Precios section item for a user holding only manage_products_and_categories", async () => {
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
       userId: "user-2",
@@ -1692,7 +1589,7 @@ test("hides the Precios section item for a user holding only manage_products_and
 });
 
 test("shows the Caja item in the rail for a user holding change_fiscal_configuration, linking to Configuración fiscal", async () => {
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
       userId: "user-2",
@@ -1709,7 +1606,7 @@ test("shows the Caja item in the rail for a user holding change_fiscal_configura
 });
 
 test("hides the Caja item in the rail for a user without change_fiscal_configuration", async () => {
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
       userId: "user-2",
@@ -1733,7 +1630,7 @@ test.each([
   "/cash-and-fiscal/fiscal-configuration",
 ])("lists Catálogo, then Caja, then Config in the rail on %s", async (path) => {
   window.history.pushState(null, "", path);
-  const services = createServices();
+  const services = createAppServices();
   vi.mocked(services.productsListScreen.fetchProducts).mockResolvedValue({
     kind: "ok",
     value: [],
@@ -1768,7 +1665,7 @@ test.each([
 
 test("following the rail's Caja item opens Configuración fiscal, with Caja and Configuración fiscal active", async () => {
   window.history.pushState(null, "", "/help");
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
       userId: "user-2",
@@ -1806,7 +1703,7 @@ test("following the rail's Caja item opens Configuración fiscal, with Caja and 
 });
 
 test("redirects a non-permitted user's typed /cash-and-fiscal/fiscal-configuration to Mi cuenta, without loading it", async () => {
-  const services = createServices({
+  const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
       userId: "user-2",
@@ -1826,7 +1723,7 @@ test("redirects a non-permitted user's typed /cash-and-fiscal/fiscal-configurati
 });
 
 test("reopens the products list with the filters and ordering its URL carries", async () => {
-  const services = createServices();
+  const services = createAppServices();
   vi.mocked(services.productsListScreen.fetchProducts).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.productsListScreen.fetchCategories).mockResolvedValue({
     kind: "ok",
@@ -1840,11 +1737,13 @@ test("reopens the products list with the filters and ordering its URL carries", 
     .element(screen.getByPlaceholder("Buscar por nombre o código de barras"))
     .toHaveValue("miel");
   await expect.element(screen.getByRole("button", { name: "Unidad: Por peso" })).toBeVisible();
-  expect(services.productsListScreen.fetchProducts).toHaveBeenCalledWith("inactive");
+  await expect
+    .poll(() => services.productsListScreen.fetchProducts)
+    .toHaveBeenCalledWith("inactive");
 });
 
 test("reopens the products list searching the barcode its URL carries", async () => {
-  const services = createServices();
+  const services = createAppServices();
   vi.mocked(services.productsListScreen.fetchProducts).mockResolvedValue({
     kind: "ok",
     value: [honey, almonds],
@@ -1865,7 +1764,7 @@ test("reopens the products list searching the barcode its URL carries", async ()
 });
 
 test("keeps a products list filter change in the URL, replacing the history entry instead of adding one", async () => {
-  const services = createServices();
+  const services = createAppServices();
   vi.mocked(services.productsListScreen.fetchProducts).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.productsListScreen.fetchCategories).mockResolvedValue({
     kind: "ok",
@@ -1890,7 +1789,7 @@ test("keeps a products list filter change in the URL, replacing the history entr
 });
 
 test("opens a list on its defaults for a filter value its URL carries that the list does not offer", async () => {
-  const services = createServices();
+  const services = createAppServices();
   vi.mocked(services.productsListScreen.fetchProducts).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.productsListScreen.fetchCategories).mockResolvedValue({
     kind: "ok",
@@ -1901,11 +1800,11 @@ test("opens a list on its defaults for a filter value its URL carries that the l
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("button", { name: "Estado: Activos" })).toBeVisible();
-  expect(services.productsListScreen.fetchProducts).toHaveBeenCalledWith("active");
+  await expect.poll(() => services.productsListScreen.fetchProducts).toHaveBeenCalledWith("active");
 });
 
 test("reopens the categories list with the search its URL carries", async () => {
-  const services = createServices();
+  const services = createAppServices();
   vi.mocked(services.categoriesListScreen.fetchCategories).mockResolvedValue({
     kind: "ok",
     value: [],
@@ -1918,20 +1817,22 @@ test("reopens the categories list with the search its URL carries", async () => 
 });
 
 test("reopens the prices list with the filters its URL carries", async () => {
-  const services = createServices();
+  const services = createAppServices();
   window.history.pushState(null, "", "/catalog/prices?search=yerba&review=all");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByPlaceholder("Buscar un producto")).toHaveValue("yerba");
-  expect(services.pricesListScreen.fetchPrices).toHaveBeenCalledWith({
-    review: "all",
-    search: "yerba",
-  });
+  await expect
+    .poll(() => services.pricesListScreen.fetchPrices)
+    .toHaveBeenCalledWith({
+      review: "all",
+      search: "yerba",
+    });
 });
 
 test("reopens the users list on the state its URL carries", async () => {
-  const services = createServices();
+  const services = createAppServices();
   vi.mocked(services.usersListScreen.fetchUsers).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.usersListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
   window.history.pushState(null, "", "/settings/users?state=inactive");
@@ -1942,21 +1843,23 @@ test("reopens the users list on the state its URL carries", async () => {
 });
 
 test("reopens the alerts list with the filters and page its URL carries", async () => {
-  const services = createServices();
+  const services = createAppServices();
   window.history.pushState(null, "", "/home/alerts?level=critical&status=closed&page=2");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("heading", { name: "Alertas", level: 1 })).toBeVisible();
-  expect(services.alertsListScreen.fetchAlerts).toHaveBeenCalledWith({
-    level: "critical",
-    open: false,
-    page: 2,
-  });
+  await expect
+    .poll(() => services.alertsListScreen.fetchAlerts)
+    .toHaveBeenCalledWith({
+      level: "critical",
+      open: false,
+      page: 2,
+    });
 });
 
 test("keeps the products list filters in the URL after following its own section link", async () => {
-  const services = createServices();
+  const services = createAppServices();
   vi.mocked(services.productsListScreen.fetchProducts).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.productsListScreen.fetchCategories).mockResolvedValue({
     kind: "ok",
@@ -1984,7 +1887,7 @@ test.each([
   { url: "/settings/users?state=inactive", link: "Usuarios" },
   { url: "/home/alerts?status=closed", link: "Alertas" },
 ])("the $link section link carries the filters its list is showing", async ({ url, link }) => {
-  const services = createServices();
+  const services = createAppServices();
   vi.mocked(services.categoriesListScreen.fetchCategories).mockResolvedValue({
     kind: "ok",
     value: [],
@@ -2002,7 +1905,7 @@ test.each([
   { url: "/home/alerts?status=closed", link: "Inicio" },
   { url: "/catalog/products?search=miel", link: "Catálogo" },
 ])("the $link rail link keeps the filters its list is showing", async ({ url, link }) => {
-  const services = createServices();
+  const services = createAppServices();
   vi.mocked(services.productsListScreen.fetchProducts).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.productsListScreen.fetchCategories).mockResolvedValue({
     kind: "ok",
@@ -2050,7 +1953,7 @@ test.each([
 ])(
   "opening $url ends on $canonical without a history entry of its own",
   async ({ url, canonical, status }) => {
-    const services = createServices();
+    const services = createAppServices();
     vi.mocked(services.productsListScreen.fetchProducts).mockResolvedValue({
       kind: "ok",
       value: [],

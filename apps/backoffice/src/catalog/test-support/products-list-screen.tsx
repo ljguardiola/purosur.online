@@ -3,7 +3,8 @@ import { page, userEvent } from "vitest/browser";
 import { render } from "../../shell/test-support/render-with-router";
 import type { CategorySummary } from "../categories-api";
 import type { ProductSummary } from "../products-api";
-import { ProductsListScreen, type ProductsListScreenServices } from "../products-list-screen";
+import { ProductsListScreen } from "../products-list-screen";
+import type { ProductsListScreenServices } from "../products-list-services";
 import { type ProductsListFilters, productsListFilters } from "../routes";
 
 export function createServices(
