@@ -14,8 +14,9 @@ import {
 } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { checkRequestIsSameOrigin } from "../access/backoffice-origin.js";
 import { FORBIDDEN_RESPONSE } from "../access/forbidden-response.js";
-import { checkRequestIsSameOrigin, type OpenSession } from "../access/open-session.js";
+import type { OpenSession } from "../access/open-session.js";
 import {
   OPEN_SESSION_ACCESS,
   openSessionOf,

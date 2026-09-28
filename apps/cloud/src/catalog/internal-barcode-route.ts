@@ -2,8 +2,8 @@ import { appendEan13CheckDigit } from "@purosur/domain";
 import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { backofficeOriginGuard } from "../access/backoffice-origin.js";
 import {
-  originGuard,
   permissionAccess,
   registerRouteAccess,
   routeSessionSource,
@@ -78,16 +78,7 @@ export function registerInternalBarcodeRoute<TQueryResult extends PgQueryResultH
   app.post(
     "/products/internal-barcode",
     {
-      preHandler: originGuard((request, reply) => {
-        if (request.headers.origin !== options.backofficeOrigin) {
-          void reply.code(403).send({
-            code: "origin_rejected",
-            message: "the request's Origin does not match the backoffice's own origin",
-          });
-          return false;
-        }
-        return true;
-      }),
+      preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: {
         access: permissionAccess("manage_products_and_categories"),
         sessionSource,

@@ -3,7 +3,7 @@ import { asc, desc, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { rolePermissions, roles, userRoles, users } from "../platform/db/schema.js";
-import { checkRequestIsSameOrigin } from "./open-session.js";
+import { checkRequestIsSameOrigin } from "./backoffice-origin.js";
 import {
   ADMINISTRATOR_ACCESS,
   originGuard,

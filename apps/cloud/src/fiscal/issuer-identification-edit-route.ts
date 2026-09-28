@@ -2,7 +2,7 @@ import { issuerIdentificationEditBodySchema } from "@purosur/contracts";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { checkRequestIsSameOrigin } from "../access/open-session.js";
+import { checkRequestIsSameOrigin } from "../access/backoffice-origin.js";
 import { requirePasskeyAuthorization } from "../access/passkey-authorization-guard.js";
 import {
   openSessionOf,

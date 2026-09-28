@@ -2,8 +2,8 @@ import { asc, eq } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { passkeys } from "../platform/db/schema.js";
+import { checkRequestIsSameOrigin } from "./backoffice-origin.js";
 import { canReactivateUsers, findBranchUser } from "./branch-users.js";
-import { checkRequestIsSameOrigin } from "./open-session.js";
 import {
   ADMINISTRATOR_ACCESS,
   openSessionOf,

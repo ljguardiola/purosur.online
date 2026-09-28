@@ -2,7 +2,7 @@ import { type BranchSettingsEditBody, branchSettingsEditBodySchema } from "@puro
 import { asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { checkRequestIsSameOrigin } from "../access/open-session.js";
+import { checkRequestIsSameOrigin } from "../access/backoffice-origin.js";
 import {
   openSessionOf,
   originGuard,

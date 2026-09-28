@@ -2,7 +2,7 @@ import { asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { passkeys } from "../platform/db/schema.js";
-import { checkRequestIsSameOrigin } from "./open-session.js";
+import { checkRequestIsSameOrigin } from "./backoffice-origin.js";
 import {
   OPEN_SESSION_ACCESS,
   openSessionOf,

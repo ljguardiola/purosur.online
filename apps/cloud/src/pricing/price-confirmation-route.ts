@@ -2,7 +2,7 @@ import { priceConfirmationBodySchema } from "@purosur/contracts";
 import { confirmPrice } from "@purosur/domain/pricing/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { checkRequestIsSameOrigin } from "../access/open-session.js";
+import { checkRequestIsSameOrigin } from "../access/backoffice-origin.js";
 import {
   openSessionOf,
   originGuard,

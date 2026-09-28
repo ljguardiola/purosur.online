@@ -1,6 +1,7 @@
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { checkRequestIsSameOrigin, sessionExpiresAt } from "./open-session.js";
+import { checkRequestIsSameOrigin } from "./backoffice-origin.js";
+import { sessionExpiresAt } from "./open-session.js";
 import {
   OPEN_SESSION_PEEK_ACCESS,
   openSessionOf,

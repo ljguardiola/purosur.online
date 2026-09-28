@@ -1,7 +1,7 @@
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { checkRequestIsSameOrigin } from "./backoffice-origin.js";
 import { canReactivateUsers, findBranchUser, toBranchUserWire } from "./branch-users.js";
-import { checkRequestIsSameOrigin } from "./open-session.js";
 import {
   openSessionOf,
   originGuard,
