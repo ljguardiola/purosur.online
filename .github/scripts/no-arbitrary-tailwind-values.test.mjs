@@ -57,6 +57,7 @@ test("does not flag subtraction, division, indexing or ternaries", () => {
   const source = [
     "const a = total - (count);",
     "const b = total / (count);",
+    "const g = total-(count) + total/(count);",
     "const c = items[i];",
     "const d = { key: [1] };",
     "const e = x ? [a] : [b];",

@@ -85,7 +85,7 @@ const unitValueClassName = "text-body text-text-subtle";
 const chevronClassName = "size-icon-md shrink-0 text-text-subtle";
 
 const popoverClassName =
-  "min-w-24 rounded-lg border border-border bg-surface p-1.5 " + "shadow-lg overflow-y-auto";
+  "min-w-24 rounded-lg border border-border bg-surface p-1.5 shadow-lg overflow-y-auto";
 
 // This popover portals to the document body as its own stacking layer, which would otherwise
 // paint below a positive-z-index ancestor (e.g. a modal's overlay) regardless of mount order,
