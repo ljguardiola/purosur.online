@@ -155,6 +155,26 @@ describe("confirmPrice", () => {
     expect(after.priceChanges).toEqual([]);
   });
 
+  it.each([
+    ["lesser", ["price-1", "price-2"]],
+    ["greater", ["price-2", "price-1"]],
+  ])(
+    "takes the price with the greater id as current when two share the newest moment, the %s id seeded first",
+    async (_case, seedingOrder) => {
+      const store = storeWithProduct();
+      for (const id of seedingOrder) {
+        seedPrice(store, { id, validFrom: EARLIER });
+      }
+
+      const outcome = await confirm(store, "price-2");
+
+      expect(outcome).toEqual({ kind: "confirmed", lastReviewedAt: NOON });
+      expect(store.snapshot().priceConfirmations).toEqual([
+        { productId: "product-1", actorId: "actor-1", priceId: "price-2" },
+      ]);
+    },
+  );
+
   it("records the review after the latest one when the clock is behind it", async () => {
     const store = storeWithProduct();
     seedPrice(store);

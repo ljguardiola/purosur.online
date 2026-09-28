@@ -72,7 +72,7 @@ class FakePricingStoreTransaction implements PricingStoreTransaction {
     this.store.operationOrder.push("currentPrice");
     const [newest] = this.state.prices
       .filter((row) => row.productId === productId && row.priceListId === priceListId)
-      .sort((a, b) => b.validFrom.getTime() - a.validFrom.getTime());
+      .sort((a, b) => b.validFrom.getTime() - a.validFrom.getTime() || b.id.localeCompare(a.id));
     return newest && { id: newest.id, unitPrice: newest.unitPrice, validFrom: newest.validFrom };
   }
 
