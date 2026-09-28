@@ -18,6 +18,7 @@
     "build": "tsc -b"
   },
   "dependencies": {
+    "@purosur/domain": "workspace:*",
     "zod": "^4.6.5"
   }
 }

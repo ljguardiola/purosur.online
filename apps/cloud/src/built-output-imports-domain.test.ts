@@ -5,14 +5,14 @@ import { describe, expect, inject, it } from "vitest";
 
 describe("the built cloud", () => {
   it("runs a module that imports @purosur/domain under plain Node", () => {
-    const registerValidationUrl = pathToFileURL(
-      join(inject("cloudBuildDir"), "register", "register-validation.js"),
+    const passkeyNameValidationUrl = pathToFileURL(
+      join(inject("cloudBuildDir"), "access", "passkey-name-validation.js"),
     ).href;
     const script = `
-      const { registerNameValidationFailure } = await import(${JSON.stringify(registerValidationUrl)});
+      const { readPasskeyName } = await import(${JSON.stringify(passkeyNameValidationUrl)});
       console.log(JSON.stringify({
-        atLimit: registerNameValidationFailure("😀".repeat(100)) ?? null,
-        overLimit: registerNameValidationFailure("😀".repeat(101)) ?? null,
+        atLimit: readPasskeyName({ passkey_name: "😀".repeat(40) }) ?? null,
+        overLimit: readPasskeyName({ passkey_name: "😀".repeat(41) }) ?? null,
       }));
     `;
 
@@ -23,8 +23,8 @@ describe("the built cloud", () => {
     expect(result.stderr).toBe("");
     expect(result.status).toBe(0);
     expect(JSON.parse(result.stdout)).toEqual({
-      atLimit: null,
-      overLimit: { field: "name", message: "name must be at most 100 characters" },
+      atLimit: "😀".repeat(40),
+      overLimit: null,
     });
   });
 });
