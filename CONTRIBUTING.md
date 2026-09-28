@@ -63,6 +63,20 @@ This is the structure the repository is organized into. A part that does not fol
 - Every source file and folder is named in English kebab-case (`products-list-screen.tsx`). Identifiers and URL paths are English too; only user-facing text is Spanish.
 - Each file's tests sit beside it. Helpers used only by tests live in a `test-support/` folder inside the folder they serve.
 
+## Operations
+
+An operation that changes state is split in three, each owning one kind of rule:
+
+- **Use case.** One file per operation in its concept's `use-cases/` folder in `packages/domain`, named for what it does (`create-product.ts`). It receives the input the caller already validated for shape, applies the business rules, and returns a union of outcomes naming every way the operation can end; an expected refusal is an outcome, never a thrown error. It reaches the outside world only through ports, and applies the rules of its concept's `model/`. A concept's use cases and ports are reached only through its own `use-cases/index.ts`, exposed as the package subpath `@purosur/domain/<concept>/use-cases`, never through the concept's or the package's `index.ts`.
+- **Ports.** Interfaces declared beside the use cases, one per thing the operation needs from outside: storage, the clock, id generation. A port's operations are named for their business meaning (`lockLeafCategory`), not for a table or a query, and no driver detail crosses it: no SQL state, constraint name or ORM type. A failure the use case must react to, such as a write that loses a unique-index race, is an error defined in the domain that the adapter raises. Storage is reached through one transaction per operation, and the order the use case takes its locks in is part of the rule it states.
+- **Adapters.** The app provides the implementation behind each port in its own concept folder (the cloud's Drizzle store in `apps/cloud/src/catalog/`). An adapter translates driver errors into the port's errors and owns storage concerns such as a malformed id being "not found". A route handler only translates its transport to and from the use case: it parses the request, calls the use case, and maps each outcome to its response.
+
+Each level's tests own what only that level can prove:
+
+- Use-case tests run against in-memory fakes of the ports, kept in the concept's `use-cases/test-support/`. They prove every rule and every outcome, including the lost race, the rollback of a failed operation, and the order of the locks.
+- What only a real database can prove (locks, concurrency, constraints, the result of a query) is owned by the adapter's integration tests and by the route tests against the database.
+- A route test proves the wiring: authorization, that the route reaches the use case, and the response of each kind of outcome.
+
 ## Code style
 
 - This repository is strict TDD: write a failing test first, then the code that makes it pass. Never write implementation code ahead of its test.
@@ -107,6 +121,7 @@ Each risk has one kind of test that owns it:
 | Risk | Owning test | Runs |
 |---|---|---|
 | Domain rules: money, taxes, rounding, pricing, field validation | Unit tests of `packages/domain`, with generated cases where a rule must hold for every input | `verify` |
+| Operation rules: what an operation refuses, in which order, and what it leaves behind when it fails | Use-case tests of `packages/domain` against in-memory fakes of its ports | `verify` |
 | API behavior: authorization, input validation wiring, response shape, audit rows | Route tests in process against the lightweight database | `verify` |
 | Database constraints, row locks and concurrency, background jobs | Integration tests against a real Postgres, used only for these | `verify` |
 | Migrations, in the cloud and on the register | Applying each migration to a database that already holds data in the previous schema | `verify` |

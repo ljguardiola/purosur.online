@@ -1,3 +1,8 @@
+import {
+  createCategory,
+  createProduct,
+  deactivateProduct,
+} from "@purosur/domain/catalog/use-cases";
 import { and, eq, like, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { createRole } from "../access/role-creation-route.js";
@@ -8,10 +13,8 @@ import { closeAlert } from "../alerts/alert-close-route.js";
 import { escalateOverdueAlerts } from "../alerts/alert-escalation.js";
 import { openAlert } from "../alerts/open-alert.js";
 import { editBranchSettings } from "../branch/branch-settings-edit-route.js";
-import { createCategory } from "../catalog/category-creation-route.js";
+import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { allocateInternalBarcode } from "../catalog/internal-barcode-route.js";
-import { createProduct } from "../catalog/product-creation-route.js";
-import { deactivateProduct } from "../catalog/product-deactivation-route.js";
 import { branchSettings, locations, roles, userRoles, users } from "../platform/db/schema.js";
 import { branchPriceListId } from "../pricing/branch-price-list.js";
 import { confirmPrice } from "../pricing/price-confirmation-route.js";
@@ -158,15 +161,19 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
       const recentMoment = deps.now();
       const overdueReviewMoment = new Date(recentMoment.getTime() - OVERDUE_PRICE_REVIEW_AGE_MS);
 
+      const catalogStore = new DrizzleCatalogStore(tx);
       let categoryCount = 0;
       let productCount = 0;
       for (const top of SAMPLE_CATEGORY_TREE) {
-        const topOutcome = await createCategory(tx, { name: top.name, parentId: null });
+        const topOutcome = await createCategory(catalogStore, {
+          name: top.name,
+          parentId: null,
+        });
         const topCategory = expectOutcome(topOutcome, "created", `category "${top.name}"`);
         categoryCount += 1;
 
         for (const mid of top.mids) {
-          const midOutcome = await createCategory(tx, {
+          const midOutcome = await createCategory(catalogStore, {
             name: mid.name,
             parentId: topCategory.category.id,
           });
@@ -174,7 +181,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
           categoryCount += 1;
 
           for (const leaf of mid.leaves) {
-            const leafOutcome = await createCategory(tx, {
+            const leafOutcome = await createCategory(catalogStore, {
               name: leaf.name,
               parentId: midCategory.category.id,
             });
@@ -186,7 +193,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
                 plan.barcode.kind === "manufacturer"
                   ? plan.barcode.code
                   : await allocateInternalBarcode(tx);
-              const productOutcome = await createProduct(tx, {
+              const productOutcome = await createProduct(catalogStore, {
                 name: plan.name,
                 categoryId: leafCategory.category.id,
                 saleUnit: plan.saleUnit,
@@ -233,7 +240,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
               }
 
               if (!plan.active) {
-                const deactivated = await deactivateProduct(tx, product.product.id);
+                const deactivated = await deactivateProduct(catalogStore, product.product.id);
                 expectOutcome(deactivated, "deactivated", `deactivating product "${plan.name}"`);
               }
             }
