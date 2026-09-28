@@ -552,8 +552,6 @@ test("dims the calendar's month controls once the allowed range reaches no furth
 
   await userEvent.hover(previous);
   expect(getComputedStyle(previous).backgroundColor).not.toBe(tokenRgb("surface-bone"));
-
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("shows the hand cursor on the calendar's month controls while the range still reaches further", async () => {
@@ -604,8 +602,6 @@ test("shows an unchosen day in ink that turns bone on hover", async () => {
   await expect
     .poll(() => getComputedStyle(unchosen).backgroundColor)
     .toBe(tokenRgb("surface-bone"));
-
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("shows the hand cursor on a selectable day and the arrow on a day outside the allowed range", async () => {
@@ -631,8 +627,6 @@ test("shows the hand cursor on a selectable day and the arrow on a day outside t
 
   expect(getComputedStyle(selectable).cursor).toBe("pointer");
   expect(getComputedStyle(outOfRange).cursor).toBe("default");
-
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("shows the package's own outline focus ring on the focused day", async () => {
@@ -657,8 +651,6 @@ test("shows the package's own outline focus ring on the focused day", async () =
   expect(style.outlineStyle).toBe("solid");
   expect(style.outlineColor).toBe(tokenRgb("brand-blue-strong"));
   expect(Math.round(Number.parseFloat(style.outlineOffset))).toBe(3);
-
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("keeps the focused day's outline ring inside the calendar panel", async () => {

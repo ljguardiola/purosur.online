@@ -38,6 +38,17 @@ function fieldBox(canvasElement: HTMLElement): HTMLElement {
   return within(canvasElement).getByRole("group");
 }
 
+function monthControl(slot: "previous" | "next"): HTMLElement {
+  return document.body.querySelector(`[slot="${slot}"]`) as HTMLElement;
+}
+
+function calendarDay(day: string): HTMLElement {
+  const days = Array.from(
+    within(document.body).getByRole("dialog").querySelectorAll<HTMLElement>("td [role='button']"),
+  );
+  return days.find((cell) => cell.textContent?.trim() === day) as HTMLElement;
+}
+
 export const Register: Story = {
   args: { value: null },
 };
@@ -95,6 +106,63 @@ export const CalendarMonthControlHovered: Story = {
     await playHoverSetsDataHovered(
       () => document.body.querySelector('[slot="next"]') as HTMLElement,
     )(context);
+  },
+};
+
+export const CalendarDayHovered: Story = {
+  args: { value: new CalendarDate(2027, 2, 28) },
+  play: async (context) => {
+    await userEvent.click(toggle(context.canvasElement));
+    await playHoverSetsDataHovered(() => calendarDay("15"))(context);
+  },
+};
+
+export const CalendarDayFocusVisible: Story = {
+  args: { value: new CalendarDate(2027, 2, 28) },
+  play: async () => {
+    await userEvent.tab();
+    await userEvent.keyboard("{Enter}");
+    const day = calendarDay("28");
+    await expect(day).toHaveFocus();
+    await expect(day).toHaveAttribute("data-focus-visible");
+  },
+};
+
+export const CalendarMonthControlFocusVisible: Story = {
+  args: { value: new CalendarDate(2027, 2, 28) },
+  play: async () => {
+    await userEvent.tab();
+    await userEvent.keyboard("{Enter}");
+    await userEvent.tab({ shift: true });
+    await expect(monthControl("next")).toHaveFocus();
+    await expect(monthControl("next")).toHaveAttribute("data-focus-visible");
+  },
+};
+
+export const CalendarMonthControlsDisabled: Story = {
+  args: {
+    value: new CalendarDate(2027, 2, 15),
+    minValue: new CalendarDate(2027, 2, 1),
+    maxValue: new CalendarDate(2027, 2, 28),
+    rangeMessage: "La fecha debe ser de febrero de 2027.",
+  },
+  play: async ({ canvasElement }) => {
+    await userEvent.click(toggle(canvasElement));
+    await expect(monthControl("previous")).toHaveAttribute("data-disabled");
+    await expect(monthControl("next")).toHaveAttribute("data-disabled");
+  },
+};
+
+export const CalendarDayOutOfRange: Story = {
+  args: {
+    value: new CalendarDate(2027, 2, 15),
+    minValue: new CalendarDate(2027, 2, 10),
+    maxValue: new CalendarDate(2027, 2, 20),
+    rangeMessage: "La fecha debe estar entre el 10/02/2027 y el 20/02/2027.",
+  },
+  play: async ({ canvasElement }) => {
+    await userEvent.click(toggle(canvasElement));
+    await expect(calendarDay("5")).toHaveAttribute("data-disabled");
   },
 };
 
