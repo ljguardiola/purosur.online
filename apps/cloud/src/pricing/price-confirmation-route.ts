@@ -1,3 +1,4 @@
+import { priceConfirmationBodySchema } from "@purosur/contracts";
 import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -10,13 +11,10 @@ import {
   routeSessionSource,
 } from "../access/route-access.js";
 import { auditLog, priceReviews, prices, products } from "../platform/db/schema.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
 import { findActiveProductById } from "./active-product.js";
 import { branchPriceListId } from "./branch-price-list.js";
 import { latestReviewedAt, momentAfter, NEWEST_PRICE_FIRST } from "./current-price.js";
-import {
-  readRequiredExpectedCurrentPriceId,
-  validateConfirmationFields,
-} from "./price-validation.js";
 import type { PricesRouteOptions } from "./prices-list-route.js";
 
 const NOT_FOUND_RESPONSE = { code: "not_found", message: "no product with that id" } as const;
@@ -120,14 +118,8 @@ export function registerPriceConfirmationRoute<TQueryResult extends PgQueryResul
         return;
       }
 
-      const expectedCurrentPriceId = readRequiredExpectedCurrentPriceId(request.body);
-      const failure = validateConfirmationFields({ expectedCurrentPriceId });
-      if (failure) {
-        await reply.code(400).send({
-          code: "validation_failed",
-          message: failure.message,
-          details: [{ field: failure.field }],
-        });
+      const body = await readValidatedBody(reply, priceConfirmationBodySchema, request.body);
+      if (!body) {
         return;
       }
 
@@ -137,7 +129,7 @@ export function registerPriceConfirmationRoute<TQueryResult extends PgQueryResul
       const outcome = await confirmPrice(options.db, {
         productId: target.id,
         priceListId,
-        expectedCurrentPriceId: expectedCurrentPriceId as string,
+        expectedCurrentPriceId: body.expectedCurrentPriceId,
         actorId: openSession.userId,
         now,
       });

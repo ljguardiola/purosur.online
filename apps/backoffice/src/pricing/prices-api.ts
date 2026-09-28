@@ -1,3 +1,4 @@
+import type { PriceConfirmationBody, PriceSetBody } from "@purosur/contracts";
 import type { ProductSaleUnit } from "../catalog/products-api";
 
 const ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
@@ -41,11 +42,7 @@ export type FetchPricesOutcome =
 
 type SetPriceFieldError = "unitPrice" | "expectedCurrentPriceId";
 
-export type SetPriceInput = {
-  unitPrice: number;
-  /** `null` when the caller saw no current price yet. */
-  expectedCurrentPriceId: string | null;
-};
+export type SetPriceInput = PriceSetBody;
 
 export type SetPriceOutcome =
   | { kind: "ok"; value: { price: PriceRow; lastReviewedAt: string } }
@@ -58,7 +55,7 @@ export type SetPriceOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-export type ConfirmPriceInput = { expectedCurrentPriceId: string };
+export type ConfirmPriceInput = PriceConfirmationBody;
 
 export type ConfirmPriceOutcome =
   | { kind: "ok"; value: { lastReviewedAt: string } }
