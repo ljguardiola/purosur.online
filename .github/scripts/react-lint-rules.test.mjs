@@ -171,19 +171,18 @@ for (const { label, relativeDir } of ROOTS) {
   });
 }
 
-const UI_FORBIDDEN_IMPORTS = [
-  { specifier: "@purosur/domain", message: "packages/ui must not depend on packages/domain." },
+const UI_FORBIDDEN_PACKAGES = [
   {
-    specifier: "@purosur/domain/money",
-    message: "packages/ui must not depend on packages/domain.",
+    name: "domain",
+    specifiers: ["@purosur/domain", "@purosur/domain/money", "@purosur/domain/catalog/sale-unit"],
   },
   {
-    specifier: "@purosur/contracts",
-    message: "packages/ui must not depend on packages/contracts.",
-  },
-  {
-    specifier: "@purosur/contracts/catalog",
-    message: "packages/ui must not depend on packages/contracts.",
+    name: "contracts",
+    specifiers: [
+      "@purosur/contracts",
+      "@purosur/contracts/catalog",
+      "@purosur/contracts/catalog/product-creation",
+    ],
   },
 ];
 
@@ -191,21 +190,23 @@ function importing(specifier) {
   return `import { rule } from "${specifier}";\n\nexport const used = rule;\n`;
 }
 
-for (const { specifier, message } of UI_FORBIDDEN_IMPORTS) {
-  test(`packages/ui: importing ${specifier} fails under verify's flags`, () => {
-    const { exitCode, categories, messages } = lint("packages/ui/src", importing(specifier));
+for (const { name, specifiers } of UI_FORBIDDEN_PACKAGES) {
+  for (const specifier of specifiers) {
+    test(`packages/ui: importing ${specifier} fails under verify's flags`, () => {
+      const { exitCode, categories, messages } = lint("packages/ui/src", importing(specifier));
 
-    assert.deepEqual(categories, ["lint/style/noRestrictedImports"]);
-    assert.deepEqual(messages, [message]);
-    assert.notEqual(exitCode, 0);
-  });
+      assert.deepEqual(categories, ["lint/style/noRestrictedImports"]);
+      assert.deepEqual(messages, [`packages/ui must not depend on packages/${name}.`]);
+      assert.notEqual(exitCode, 0);
+    });
 
-  test(`apps/backoffice: importing ${specifier} is not restricted`, () => {
-    const { exitCode, categories } = lint("apps/backoffice/src", importing(specifier));
+    test(`apps/backoffice: importing ${specifier} is not restricted`, () => {
+      const { exitCode, categories } = lint("apps/backoffice/src", importing(specifier));
 
-    assert.deepEqual(categories, []);
-    assert.equal(exitCode, 0);
-  });
+      assert.deepEqual(categories, []);
+      assert.equal(exitCode, 0);
+    });
+  }
 }
 
 test("verify:static runs biome ci with --error-on-warnings so warning-level React rules fail verify", () => {
