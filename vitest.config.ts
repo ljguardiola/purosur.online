@@ -9,9 +9,6 @@ import {
   SlowTestsReporter,
 } from "./.github/scripts/slow-tests-reporter.mjs";
 
-// Kept as a literal, matching the constant of the same name in
-// packages/ui/vitest.global-setup.catalog-visual.ts: importing that module here would need an
-// explicit ".ts" import specifier, which tsc rejects without allowImportingTsExtensions.
 const CATALOG_VISUAL_WS_ENDPOINT_ENV = "CATALOG_VISUAL_BROWSER_WS_ENDPOINT";
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
@@ -98,11 +95,8 @@ export default defineConfig({
             headless: true,
             provider: playwright({
               connectOptions: {
-                // A getter, not a plain value: Vite's own config resolution reads this once
-                // before globalSetup runs (and must see no thrown error), but the provider
-                // itself destructures connectOptions only when it actually opens the browser,
-                // which happens after globalSetup has started the container and set the
-                // variable below.
+                // A getter, not a plain value: Vite reads this config once before globalSetup
+                // runs, but the provider only calls it once it actually opens the browser.
                 get wsEndpoint() {
                   return process.env[CATALOG_VISUAL_WS_ENDPOINT_ENV] ?? "";
                 },

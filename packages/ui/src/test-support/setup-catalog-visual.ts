@@ -1,7 +1,6 @@
 const style = document.createElement("style");
-// A paused composited animation does not reliably reach a screenshot taken right after render;
-// removing every animation and transition instead means there is none left to reach a stable
-// state for.
+// A paused composited animation does not reliably reach a screenshot taken right after render, so
+// every animation and transition is removed instead.
 style.textContent = `
   *, *::before, *::after {
     animation: none !important;

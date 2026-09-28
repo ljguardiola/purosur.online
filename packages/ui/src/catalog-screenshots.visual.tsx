@@ -3,8 +3,7 @@ import { page } from "vitest/browser";
 import { catalogStories, renderCatalogStory } from "./test-support/catalog-runner";
 
 // react-aria-components portals overlay content (Modal, Tooltip, Select's popover, ...) outside
-// the rendered story's own container, so the whole body is captured instead of just that
-// container.
+// the story's own container, so the whole body is captured instead.
 for (const { title, story: Story } of catalogStories) {
   test(`${title} / ${Story.storyName}`, async () => {
     await renderCatalogStory(Story);

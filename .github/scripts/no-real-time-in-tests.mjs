@@ -1076,8 +1076,6 @@ export function findTestOnlyHelperFiles(cwd = process.cwd()) {
   return files.filter(isTestOnlyHelperPath).sort();
 }
 
-// Storybook stories are not listed by any Vitest project, yet the catalog runner executes their
-// play functions as tests.
 const STORY_GLOBS = ["apps/*/src/**/*.stories.tsx", "packages/*/src/**/*.stories.tsx"];
 
 export function findScannedFiles(cwd = process.cwd()) {

@@ -15,11 +15,6 @@ permissions:
   contents: read
 
 jobs:
-  # Decides whether a `pull_request` change is docs-only, the one case that may skip static/tests
-  # below, and whether either event's change can affect the Storybook catalog, which gates the
-  # visual job further down. A push's docs_only output is unused: static/tests always run in full
-  # on it, since a push's success is what lets the deploy ship it and the commit before it may not
-  # have passed.
   scope:
     name: scope
     runs-on: ubuntu-24.04
@@ -135,10 +130,6 @@ jobs:
 
       - run: pnpm verify:tests --shard=${{ matrix.shard }}/4
 
-  # Renders every Storybook story in a remote Chromium (Testcontainers, not a browser installed on
-  # this runner) and compares it with its approved screenshot. Gated on catalog_changed rather than
-  # docs_only, and the same way on `pull_request` and `push`, since an unreviewed catalog change on
-  # main would otherwise go unnoticed until packages/ui is next touched.
   visual:
     name: visual
     needs: [scope]
@@ -169,14 +160,10 @@ jobs:
           path: .vitest/attachments
           if-no-files-found: ignore
 
-  # The required status check named in .github/rulesets/main.json. It runs no check itself; it
-  # only translates scope/static/tests/visual's outcomes into the single pass/fail that check
-  # reports.
+  # The required status check named in .github/rulesets/main.json.
   verify:
     name: verify
     needs: [scope, static, tests, visual]
-    # always(), unlike static/tests/visual: a skipped job reports "Success" to a required check, so
-    # a cancelled run must still reach this job and fail it on the cancelled results.
     if: always()
     runs-on: ubuntu-24.04
     steps:

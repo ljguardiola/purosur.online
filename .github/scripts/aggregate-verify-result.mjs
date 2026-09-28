@@ -30,8 +30,6 @@ export function decideVerifyResult({
     return { ok: false, reason: `tests: ${testsResult}` };
   }
 
-  // Unlike docs_only, catalog_changed can decisively skip the visual job on a push too: its own
-  // job condition applies the same way on every event, not only on pull_request.
   const isDecisivelyCatalogUnchanged = scopeResult === "success" && scopeCatalogChanged === "false";
   const visualOk = isDecisivelyCatalogUnchanged
     ? NON_FAILING_RESULTS.has(visualResult)

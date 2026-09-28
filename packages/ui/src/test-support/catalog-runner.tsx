@@ -8,15 +8,12 @@ import * as preview from "../../.storybook/preview";
 import type { AccessibilityRunOptions } from "../test/axe";
 
 // storybook-addon-pseudo-states drives its stylesheet rewriting off Storybook's own preview
-// channel, captured once when its module first runs; installing a real (if inert) channel before
-// that first import, rather than after, is what lets the channel event renderCatalogStory emits
-// below reach it, instead of a throwaway channel of its own that nothing else ever sees.
+// channel, captured once when its module first runs, so the channel must exist before that import.
 addons.setChannel(mockChannel());
 const pseudoStates = await import("storybook-addon-pseudo-states/preview");
 
-// The addon looks for Storybook's own "#storybook-root"/"#root" by default, which only exists
-// when a story runs inside Storybook itself; every runner built on this module mounts stories
-// directly into document.body instead, so every story's pseudo-state root is pointed there.
+// The addon looks for Storybook's own "#storybook-root"/"#root" by default; this runner mounts
+// stories into document.body instead, so its pseudo-state root is pointed there.
 const runnerAnnotations = { parameters: { pseudo: { rootSelector: "body" } } };
 
 setProjectAnnotations([preview, pseudoStates, runnerAnnotations]);

@@ -13,10 +13,6 @@ on:
       - .github/workflows/catalog.yml
   workflow_dispatch:
 
-# Every push here already passed Verify before it could merge to main, so this workflow never
-# waits on it; a manual dispatch republishes main's current catalog on demand. Pages deployments
-# from Actions already serialize themselves, so this group only keeps two of this workflow's own
-# runs from racing the same build artifact.
 concurrency:
   group: catalog-pages
   cancel-in-progress: false

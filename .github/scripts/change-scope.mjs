@@ -30,10 +30,6 @@ export function decideScope(changedPaths) {
 
 const CATALOG_INPUT_ROOTS = ["packages/ui/"];
 
-// Every other file the catalog-visual vitest project reads before it renders a single story:
-// packages/ui/vitest.global-setup.catalog-visual.ts and
-// packages/ui/src/test-support/setup-catalog-visual.ts already live under packages/ui/, but the
-// root config and the reporter it imports do not.
 const CATALOG_INPUT_FILES = new Set([
   "package.json",
   "pnpm-lock.yaml",
