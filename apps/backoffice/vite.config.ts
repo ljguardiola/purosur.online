@@ -1,7 +1,9 @@
 import { fileURLToPath } from "node:url";
+import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
-import react from "@vitejs/plugin-react";
+import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { defineConfig, loadEnv, type ProxyOptions } from "vite";
+import { preloadFont } from "./preload-font";
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 const REPO_ROOT = r("../..");
@@ -29,11 +31,17 @@ export default defineConfig(({ mode }) => {
   return {
     resolve: {
       alias: {
+        "@purosur/contracts": r("../../packages/contracts/src/index.ts"),
         "@purosur/domain": r("../../packages/domain/src/index.ts"),
         "@purosur/ui": r("../../packages/ui/src/index.ts"),
       },
     },
-    plugins: [react(), tailwindcss()],
+    plugins: [
+      react(),
+      babel({ presets: [reactCompilerPreset()] }),
+      tailwindcss(),
+      preloadFont("atkinson-hyperlegible-next-latin-wght-normal.woff2"),
+    ],
     build: {
       outDir: "dist",
     },

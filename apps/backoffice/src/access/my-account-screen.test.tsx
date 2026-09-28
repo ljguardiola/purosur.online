@@ -2,7 +2,8 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { MyAccountScreen, type MyAccountScreenServices } from "./my-account-screen";
+import { MyAccountScreen } from "./my-account-screen";
+import type { MyAccountScreenServices } from "./my-account-services";
 import type { Passkey } from "./passkey-api";
 
 function createServices(overrides: Partial<MyAccountScreenServices> = {}): MyAccountScreenServices {
@@ -627,6 +628,64 @@ test("opens the remove modal naming the passkey and confirms the removal directl
   expect(services.removePasskey).toHaveBeenCalledWith("pk-1");
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   expect(screen.getByText("Notebook del local").query()).toBeNull();
+});
+
+test("dates each passkey's last use against the time the list was last refreshed", async () => {
+  const services = createServices();
+  let current = new Date("2026-09-23T12:00:00.000Z");
+  vi.mocked(services.fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [notebook, phone] });
+  const screen = await render(
+    <main>
+      <MyAccountScreen
+        displayName="Lucía Pérez"
+        onSessionEnded={() => {}}
+        now={() => current}
+        services={services}
+      />
+    </main>,
+  );
+  await expect
+    .element(screen.getByText("Registrada el 02/08/2026 · último uso hoy 09:12"))
+    .toBeVisible();
+
+  current = new Date("2026-09-24T12:00:00.000Z");
+  vi.mocked(services.removePasskey).mockResolvedValue({ kind: "ok" });
+  vi.mocked(services.fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [notebook] });
+  const dialog = await openRemoveModal(screen, "Teléfono de Lucía");
+  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
+
+  await expect
+    .element(screen.getByText("Registrada el 02/08/2026 · último uso el 23/09/2026 09:12"))
+    .toBeVisible();
+});
+
+test("dates each passkey's last use against the time the list was loaded, not the time a re-render draws it", async () => {
+  const services = createServices();
+  let current = new Date("2026-09-23T12:00:00.000Z");
+  const onSessionEnded = () => {};
+  vi.mocked(services.fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [notebook, phone] });
+  const screenFor = (now: () => Date) => (
+    <main>
+      <MyAccountScreen
+        displayName="Lucía Pérez"
+        onSessionEnded={onSessionEnded}
+        now={now}
+        services={services}
+      />
+    </main>
+  );
+  const screen = await render(screenFor(() => current));
+  await expect
+    .element(screen.getByText("Registrada el 02/08/2026 · último uso hoy 09:12"))
+    .toBeVisible();
+
+  current = new Date("2026-09-24T12:00:00.000Z");
+  await screen.rerender(screenFor(() => current));
+
+  expect(
+    screen.getByText("Registrada el 02/08/2026 · último uso hoy 09:12").query(),
+  ).not.toBeNull();
+  expect(services.fetchPasskeys).toHaveBeenCalledTimes(1);
 });
 
 test("opens the authorization modal on authorization_required, then authorizes and retries the removal", async () => {

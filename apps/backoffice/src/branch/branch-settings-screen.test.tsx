@@ -5,7 +5,8 @@ import { expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { BranchSettings } from "./branch-settings-api";
-import { BranchSettingsScreen, type BranchSettingsScreenServices } from "./branch-settings-screen";
+import { BranchSettingsScreen } from "./branch-settings-screen";
+import type { BranchSettingsScreenServices } from "./branch-settings-services";
 
 function createServices(
   overrides: Partial<BranchSettingsScreenServices> = {},

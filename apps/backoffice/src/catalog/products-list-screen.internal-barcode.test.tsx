@@ -1,7 +1,7 @@
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { GenerateInternalBarcodeOutcome, ProductSummary } from "./products-api";
-import type { ProductsListScreenServices } from "./products-list-screen";
+import type { ProductsListScreenServices } from "./products-list-services";
 import {
   almonds,
   createServices,

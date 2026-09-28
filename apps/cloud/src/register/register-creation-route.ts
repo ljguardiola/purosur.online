@@ -1,3 +1,4 @@
+import { registerCreationBodySchema } from "@purosur/contracts";
 import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
@@ -10,11 +11,7 @@ import {
   routeSessionSource,
 } from "../access/route-access.js";
 import { auditLog, registers } from "../platform/db/schema.js";
-import {
-  type RegisterFieldValidationFailure,
-  readRegisterName,
-  registerNameValidationFailure,
-} from "./register-validation.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
 import type { RegistersRouteOptions } from "./registers-list-route.js";
 
 const REGISTER_NAME_TAKEN_RESPONSE = {
@@ -42,28 +39,6 @@ function isRegisterNameUniqueViolation(error: unknown): boolean {
     current = current.cause;
   }
   return false;
-}
-
-interface CreationRequestBody {
-  name: string;
-}
-
-function readCreationBody(body: unknown): CreationRequestBody | RegisterFieldValidationFailure {
-  const name = readRegisterName(body);
-  const nameFailure = registerNameValidationFailure(name);
-  if (nameFailure) {
-    return nameFailure;
-  }
-  if (!name) {
-    return { field: "name", message: "name must not be empty" };
-  }
-  return { name };
-}
-
-function isValidationFailure(
-  value: CreationRequestBody | RegisterFieldValidationFailure,
-): value is RegisterFieldValidationFailure {
-  return "field" in value;
 }
 
 export interface CreateRegisterInput {
@@ -163,13 +138,8 @@ export function registerRegisterCreationRoute<TQueryResult extends PgQueryResult
       const attemptedAt = now();
       const openSession = openSessionOf(request);
 
-      const parsedBody = readCreationBody(request.body);
-      if (isValidationFailure(parsedBody)) {
-        await reply.code(400).send({
-          code: "validation_failed",
-          message: parsedBody.message,
-          details: [{ field: parsedBody.field }],
-        });
+      const parsedBody = await readValidatedBody(reply, registerCreationBodySchema, request.body);
+      if (!parsedBody) {
         return;
       }
 

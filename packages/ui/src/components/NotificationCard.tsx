@@ -57,8 +57,8 @@ export function NotificationCard({
       <div aria-hidden="true" className="flex flex-col gap-1">
         <p className="text-body font-bold text-text">{title}</p>
         <p className="text-detail text-text-subtle">{detail}</p>
-        {whatToDo && <p className="text-detail font-semibold text-text">{whatToDo}</p>}
-        {time && <p className="text-caption text-text-subtle">{time}</p>}
+        {whatToDo ? <p className="text-detail font-semibold text-text">{whatToDo}</p> : null}
+        {time ? <p className="text-caption text-text-subtle">{time}</p> : null}
       </div>
       <NoticeLiveRegion
         assertiveness={tone === "error" ? "assertive" : "polite"}

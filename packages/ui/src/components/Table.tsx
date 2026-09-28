@@ -279,8 +279,8 @@ function TableEmptyState({ icon, title, detail, tone, actions }: TableEmptyState
         <span className="inline-flex size-icon-4xl shrink-0 *:size-full">{icon}</span>
       </span>
       <p className="max-w-130 text-title text-text-accent">{title}</p>
-      {detail && <p className="max-w-130 text-body text-text-subtle">{detail}</p>}
-      {actions && <div className="flex items-center gap-3">{actions}</div>}
+      {detail ? <p className="max-w-130 text-body text-text-subtle">{detail}</p> : null}
+      {actions ? <div className="flex items-center gap-3">{actions}</div> : null}
     </div>
   );
 }
@@ -357,7 +357,7 @@ export function TableCellText({ children, detail }: TableCellTextProps) {
   return (
     <div className="flex flex-col gap-1">
       <span className="text-body">{children}</span>
-      {hasDetail && <span className="text-detail text-text-subtle">{detail}</span>}
+      {hasDetail ? <span className="text-detail text-text-subtle">{detail}</span> : null}
     </div>
   );
 }
@@ -409,7 +409,9 @@ function TableCell<T>({
         {isActions ? (
           <>
             <TableActionButton action={column.actions[0]} item={item} />
-            {column.actions[1] && <TableActionButton action={column.actions[1]} item={item} />}
+            {column.actions[1] ? (
+              <TableActionButton action={column.actions[1]} item={item} />
+            ) : null}
           </>
         ) : (
           // items-start/-end opts out of flex stretch, so an unbreakable run's unclamped preferred

@@ -1,12 +1,11 @@
-import { createRoute, redirect, useParams } from "@tanstack/react-router";
+import { createRoute, lazyRouteComponent, redirect } from "@tanstack/react-router";
 import { helpAreaRoute } from "../shell/help-area";
 import {
   type BackofficeHelpCatalog,
   canonicalHelpPage,
   isRequestedPage,
   type RequestedHelpPage,
-} from "./help-page";
-import { HelpScreen } from "./help-screen";
+} from "./help-catalog";
 
 function refuseNonCanonical(help: BackofficeHelpCatalog, requested: RequestedHelpPage): void {
   const page = canonicalHelpPage(help, requested);
@@ -25,28 +24,24 @@ function refuseNonCanonical(help: BackofficeHelpCatalog, requested: RequestedHel
   throw redirect({ to: "/help" });
 }
 
-function HelpPage() {
-  const { help } = helpAreaRoute.useRouteContext();
-  const { categoryId, articleId } = useParams({ strict: false });
-  return <HelpScreen help={help} categoryId={categoryId ?? null} articleId={articleId ?? null} />;
-}
+const helpPage = lazyRouteComponent(() => import("./help-page"), "HelpPage");
 
 export const helpHomeRoute = createRoute({
   getParentRoute: () => helpAreaRoute,
   path: "/",
-  component: HelpPage,
+  component: helpPage,
 });
 
 export const helpCategoryRoute = createRoute({
   getParentRoute: () => helpAreaRoute,
   path: "$categoryId",
   beforeLoad: ({ context: { help }, params }) => refuseNonCanonical(help, params),
-  component: HelpPage,
+  component: helpPage,
 });
 
 export const helpArticleRoute = createRoute({
   getParentRoute: () => helpAreaRoute,
   path: "$categoryId/$articleId",
   beforeLoad: ({ context: { help }, params }) => refuseNonCanonical(help, params),
-  component: HelpPage,
+  component: helpPage,
 });

@@ -16,23 +16,38 @@ const NEXTVAL_QUERY = sql.raw(`select nextval('${INTERNAL_BARCODE_SEQUENCE_NAME}
 
 // `db.execute`'s result shape differs by driver: node-postgres and PGlite return `{ rows }`,
 // postgres-js returns the row array itself.
-function rowsOf<TRow>(result: unknown): TRow[] {
+function rowsOf(result: unknown): unknown[] {
   if (Array.isArray(result)) {
     return result;
   }
-  const rows = (result as { rows?: unknown }).rows;
-  return Array.isArray(rows) ? (rows as TRow[]) : [];
+  if (typeof result === "object" && result !== null && "rows" in result) {
+    return Array.isArray(result.rows) ? result.rows : [];
+  }
+  return [];
+}
+
+export function sequenceValueOf(result: unknown): bigint {
+  const [row] = rowsOf(result);
+  if (row === undefined) {
+    throw new Error("internal-barcode: nextval returned no row");
+  }
+  if (typeof row === "object" && row !== null && "value" in row) {
+    const { value } = row;
+    if (
+      typeof value === "string" ||
+      typeof value === "bigint" ||
+      (typeof value === "number" && Number.isInteger(value))
+    ) {
+      return BigInt(value);
+    }
+  }
+  throw new Error("internal-barcode: nextval returned a row without an integer value");
 }
 
 async function nextSequenceValue<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
 ): Promise<bigint> {
-  const result = await db.execute<{ value: string }>(NEXTVAL_QUERY);
-  const [row] = rowsOf<{ value: string }>(result);
-  if (!row) {
-    throw new Error("internal-barcode: nextval returned no row");
-  }
-  return BigInt(row.value);
+  return sequenceValueOf(await db.execute(NEXTVAL_QUERY));
 }
 
 export async function allocateInternalBarcode<TQueryResult extends PgQueryResultHKT>(

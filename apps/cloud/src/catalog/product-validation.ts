@@ -9,14 +9,9 @@ import {
   type NetContentUnit,
   PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
+  type SaleUnit,
 } from "@purosur/domain";
-
-export type SaleUnit = "UNIT" | "KG";
-
-export interface NetContentInput {
-  quantity: number;
-  unit: NetContentUnit;
-}
+import type { CatalogNetContent } from "@purosur/domain/catalog/use-cases";
 
 export interface ProductFieldValidationFailure {
   field:
@@ -49,7 +44,7 @@ export function readSaleUnit(body: unknown): SaleUnit | undefined {
   return raw === "UNIT" || raw === "KG" ? raw : undefined;
 }
 
-export function readNetContent(body: unknown): NetContentInput | "invalid" | undefined {
+export function readNetContent(body: unknown): CatalogNetContent | "invalid" | undefined {
   const raw = (body as { netContent?: unknown } | undefined)?.netContent;
   if (raw === undefined || raw === null) {
     return undefined;
@@ -90,7 +85,7 @@ export interface ProductFieldsInput {
   categoryId: string | undefined;
   saleUnit: SaleUnit | undefined;
   barcodes: string[] | undefined;
-  netContent?: NetContentInput | "invalid" | undefined;
+  netContent?: CatalogNetContent | "invalid" | undefined;
 }
 
 export function validateProductFields(

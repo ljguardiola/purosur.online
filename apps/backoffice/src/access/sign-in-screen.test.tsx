@@ -2,7 +2,8 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import { SignInScreen, type SignInScreenServices } from "./sign-in-screen";
+import { SignInScreen } from "./sign-in-screen";
+import type { SignInScreenServices } from "./sign-in-services";
 
 const authenticationOptions = { challenge: "abc", rpId: "purosur.online" } as never;
 const assertionResponse = { id: "cred-1" } as never;
@@ -18,7 +19,7 @@ function createServices(overrides: Partial<SignInScreenServices> = {}): SignInSc
 }
 
 test("shows the sign-in heading, its passkey copy, the submit button and the recovery link", async () => {
-  const screen = await render(<SignInScreen onSignedIn={() => {}} />);
+  const screen = await render(<SignInScreen onSignedIn={() => {}} services={createServices()} />);
 
   await expect.element(screen.getByRole("heading", { name: "Ingresar", level: 1 })).toBeVisible();
   await expect
@@ -78,7 +79,11 @@ test("shows a blocked notice, without navigating away, when the cloud reports th
 
 test("shows the session-expired notice up front when the app opens it that way", async () => {
   const screen = await render(
-    <SignInScreen openingNotice={{ kind: "expired" }} onSignedIn={() => {}} />,
+    <SignInScreen
+      openingNotice={{ kind: "expired" }}
+      onSignedIn={() => {}}
+      services={createServices()}
+    />,
   );
 
   await expect.element(screen.getByText("Tu sesión venció")).toBeVisible();
@@ -116,7 +121,11 @@ test("lets the person retry after the browser cancels the passkey prompt, cleari
 
 test("shows that the session could not be checked when the app opens it that way", async () => {
   const screen = await render(
-    <SignInScreen openingNotice={{ kind: "check_failed" }} onSignedIn={() => {}} />,
+    <SignInScreen
+      openingNotice={{ kind: "check_failed" }}
+      onSignedIn={() => {}}
+      services={createServices()}
+    />,
   );
 
   await expect.element(screen.getByText("No pudimos verificar tu sesión")).toBeVisible();
@@ -130,6 +139,7 @@ test("shows a rate-limited notice up front when the app opens it that way", asyn
     <SignInScreen
       openingNotice={{ kind: "rate_limited", retryAfterSeconds: 120 }}
       onSignedIn={() => {}}
+      services={createServices()}
     />,
   );
 

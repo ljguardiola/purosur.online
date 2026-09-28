@@ -20,26 +20,12 @@ import type {
   BranchSettings,
   BranchSettingsField,
 } from "./branch-settings-api";
-import {
-  BRANCH_DAYS,
-  DAY_FIELD_OF,
-  fetchBranchSettings,
-  saveBranchSettings,
-} from "./branch-settings-api";
-
-export type BranchSettingsScreenServices = {
-  fetchBranchSettings: typeof fetchBranchSettings;
-  saveBranchSettings: typeof saveBranchSettings;
-};
-
-export const defaultBranchSettingsScreenServices: BranchSettingsScreenServices = {
-  fetchBranchSettings,
-  saveBranchSettings,
-};
+import { BRANCH_DAYS, DAY_FIELD_OF } from "./branch-settings-api";
+import type { BranchSettingsScreenServices } from "./branch-settings-services";
 
 export type BranchSettingsScreenProps = {
   onSessionEnded: () => void;
-  services?: BranchSettingsScreenServices;
+  services: BranchSettingsScreenServices;
 };
 
 type LoadState = { kind: "loading" } | { kind: "loadError" } | { kind: "loaded" };
@@ -282,8 +268,7 @@ const EMPTY_VALUES: FormValues = {
 
 export function BranchSettingsScreen({ onSessionEnded, services }: BranchSettingsScreenProps) {
   const sendToMyAccount = useSendToMyAccount();
-  const { fetchBranchSettings, saveBranchSettings } =
-    services ?? defaultBranchSettingsScreenServices;
+  const { fetchBranchSettings, saveBranchSettings } = services;
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [version, setVersion] = useState(0);
   const [values, setValues] = useState<FormValues>(EMPTY_VALUES);
@@ -665,7 +650,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           detail="Probá de nuevo."
         />
       )}
-      {offersReload && (
+      {offersReload ? (
         <Button
           variant="secondary"
           icon={<RotateCcw />}
@@ -674,7 +659,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
         >
           Recargar
         </Button>
-      )}
+      ) : null}
       {state.kind === "loaded" && (
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">

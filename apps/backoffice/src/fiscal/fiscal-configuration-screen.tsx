@@ -7,7 +7,6 @@ import {
   isIssuerIdentificationLegalNameTooLong,
 } from "@purosur/domain";
 import { Button, DateField, formatDate, InlineNotice, Modal, TextField } from "@purosur/ui";
-import { startAuthentication } from "@simplewebauthn/browser";
 import {
   Check,
   CircleAlert,
@@ -21,37 +20,19 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { useAuthorization } from "../access/authorization-modal";
 import { useSendToMyAccount } from "../access/send-to-my-account";
-import { authorizeSession, fetchSessionAuthorizationOptions } from "../access/session-api";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
-import {
-  fetchIssuerIdentification,
-  type IssuerIdentification,
-  type IssuerIdentificationField,
-  type SaveIssuerIdentificationOutcome,
-  saveIssuerIdentification,
+import type { FiscalConfigurationScreenServices } from "./fiscal-configuration-services";
+import type {
+  IssuerIdentification,
+  IssuerIdentificationField,
+  SaveIssuerIdentificationOutcome,
 } from "./issuer-identification-api";
-
-export type FiscalConfigurationScreenServices = {
-  fetchIssuerIdentification: typeof fetchIssuerIdentification;
-  saveIssuerIdentification: typeof saveIssuerIdentification;
-  fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
-  authorizeSession: typeof authorizeSession;
-  startAuthentication: typeof startAuthentication;
-};
-
-export const defaultFiscalConfigurationScreenServices: FiscalConfigurationScreenServices = {
-  fetchIssuerIdentification,
-  saveIssuerIdentification,
-  fetchSessionAuthorizationOptions,
-  authorizeSession,
-  startAuthentication,
-};
 
 export type FiscalConfigurationScreenProps = {
   onSessionEnded: () => void;
-  services?: FiscalConfigurationScreenServices;
+  services: FiscalConfigurationScreenServices;
   now?: () => Date;
 };
 
@@ -215,6 +196,8 @@ function EditIssuerIdentificationModal({
   const [errors, setErrors] = useState<FieldErrors>({});
   const [notice, setNotice] = useState<ModalNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [today, setToday] = useState(() => todayCalendarDate(now()));
+  const nowRef = useLatestRef(now);
   const { run, modal } = useAuthorization<SaveIssuerIdentificationOutcome>({
     actionName: "Guardar la identificación del emisor",
     onSessionEnded,
@@ -224,12 +207,13 @@ function EditIssuerIdentificationModal({
   useEffect(() => {
     if (isOpen && target) {
       setValues(valuesFrom(target));
+      setToday(todayCalendarDate(nowRef.current()));
       setVersion(target.version);
       setErrors({});
       setNotice(null);
       setSubmitting(false);
     }
-  }, [isOpen, target]);
+  }, [isOpen, target, nowRef]);
 
   function clearFieldError(field: FieldErrorKey) {
     if (!errors[field]) {
@@ -374,7 +358,7 @@ function EditIssuerIdentificationModal({
           </>
         }
       >
-        {target && (
+        {target ? (
           <div className="flex flex-col gap-4">
             {notice?.kind === "attemptFailed" && (
               <InlineNotice
@@ -440,7 +424,7 @@ function EditIssuerIdentificationModal({
                     clearFieldError("activityStartDate");
                   }}
                   required
-                  maxValue={todayCalendarDate(now())}
+                  maxValue={today}
                   rangeMessage={ACTIVITY_START_DATE_FUTURE_ERROR}
                   {...activityStartDateValidity}
                 />
@@ -452,7 +436,7 @@ function EditIssuerIdentificationModal({
               detail="Los comprobantes ya emitidos conservan los datos con los que se imprimieron."
             />
           </div>
-        )}
+        ) : null}
       </Modal>
       {modal}
     </>
@@ -465,7 +449,7 @@ export function FiscalConfigurationScreen({
   now,
 }: FiscalConfigurationScreenProps) {
   const sendToMyAccount = useSendToMyAccount();
-  const svc = services ?? defaultFiscalConfigurationScreenServices;
+  const { fetchIssuerIdentification } = services;
   const clock = now ?? (() => new Date());
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [editing, setEditing] = useState(false);
@@ -475,7 +459,7 @@ export function FiscalConfigurationScreen({
 
   const load = useCallback(async () => {
     setState({ kind: "loading" });
-    const outcome = await svc.fetchIssuerIdentification();
+    const outcome = await fetchIssuerIdentification();
     if (outcome.kind === "ok") {
       setState({ kind: "loaded", value: outcome.value });
     } else if (outcome.kind === "unauthenticated") {
@@ -485,7 +469,7 @@ export function FiscalConfigurationScreen({
     } else {
       setState({ kind: "loadError" });
     }
-  }, [svc.fetchIssuerIdentification, endSession, sendToMyAccount]);
+  }, [fetchIssuerIdentification, endSession, sendToMyAccount]);
 
   useEffect(() => {
     void load();
@@ -536,14 +520,14 @@ export function FiscalConfigurationScreen({
               Editar
             </Button>
           </div>
-          {incomplete && (
+          {incomplete ? (
             <InlineNotice
               tone="error"
               icon={<CircleAlert />}
               title="Las cajas no están emitiendo facturas ni notas de crédito"
               detail="Hasta que se carguen los datos que faltan. Las ventas se siguen cobrando."
             />
-          )}
+          ) : null}
           <div className="flex gap-8">
             {dataPair("Razón social", state.value.legalName)}
             {fixedPair("CUIT", state.value.authorizedCuit)}
@@ -568,7 +552,7 @@ export function FiscalConfigurationScreen({
         }}
         onReloaded={(value) => setState({ kind: "loaded", value })}
         onSessionEnded={endSession}
-        services={svc}
+        services={services}
         now={clock}
       />
     </ScreenLayout>

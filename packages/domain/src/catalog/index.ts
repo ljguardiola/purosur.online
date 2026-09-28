@@ -9,7 +9,7 @@ export {
   ean13Modules,
   isInternalBarcode,
 } from "./model/ean13.js";
-export type { NetContentUnit } from "./model/product.js";
+export type { NetContentUnit, SaleUnit } from "./model/product.js";
 export {
   BARCODE_MAX_LENGTH,
   barcodeLength,

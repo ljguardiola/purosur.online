@@ -1,14 +1,12 @@
 import { Button, InlineNotice, TextField } from "@purosur/ui";
 import type { PublicKeyCredentialCreationOptionsJSON } from "@simplewebauthn/browser";
-import { startRegistration } from "@simplewebauthn/browser";
 import { ArrowLeft, KeyRound, ShieldCheck, ShieldX, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { AccessFooterLink, AccessHeader, AccessLayout } from "./access-layout";
 import { validatePasskeyName } from "./passkey-name";
 import type { RecoveryTokenOutcome } from "./recovery-api";
-import { fetchRegistrationOptions, redeemRecovery } from "./recovery-api";
-import { signalUnknownCredential } from "./signal-unknown-credential";
+import type { RegisterPasskeyScreenServices } from "./register-passkey-services";
 
 function isDefinitiveRejection(outcome: RecoveryTokenOutcome<unknown>): boolean {
   switch (outcome.kind) {
@@ -43,22 +41,8 @@ type Phase =
   | ReadyPhase
   | { kind: "registered" };
 
-export type RegisterPasskeyScreenServices = {
-  fetchRegistrationOptions: typeof fetchRegistrationOptions;
-  redeemRecovery: typeof redeemRecovery;
-  startRegistration: typeof startRegistration;
-  signalUnknownCredential: typeof signalUnknownCredential;
-};
-
-export const defaultRegisterPasskeyScreenServices: RegisterPasskeyScreenServices = {
-  fetchRegistrationOptions,
-  redeemRecovery,
-  startRegistration,
-  signalUnknownCredential,
-};
-
 export type RegisterPasskeyScreenProps = {
-  services?: RegisterPasskeyScreenServices;
+  services: RegisterPasskeyScreenServices;
 };
 
 function readToken(): string | null {
@@ -83,20 +67,20 @@ function TokenErrorNotice({
         title={title}
         {...(detail ? { detail } : {})}
       />
-      {offerNewLink && (
+      {offerNewLink ? (
         <AccessFooterLink
           to="/account-recovery"
           icon={<ArrowLeft />}
           label="Pedir un enlace nuevo"
         />
-      )}
+      ) : null}
     </>
   );
 }
 
-export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps = {}) {
+export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps) {
   const { fetchRegistrationOptions, redeemRecovery, startRegistration, signalUnknownCredential } =
-    services ?? defaultRegisterPasskeyScreenServices;
+    services;
   // A lazy initializer runs during the initial render, before any effect strips the fragment;
   // StrictMode's doubled call falls within that same render, so both reads see the same token.
   const [token] = useState<string | null>(() => readToken());
@@ -314,14 +298,14 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps =
         heading="Registrá una passkey nueva"
         description="Con ella vas a ingresar de ahora en adelante."
       />
-      {phase.attemptFailed && (
+      {phase.attemptFailed ? (
         <InlineNotice
           tone="error"
           icon={<TriangleAlert />}
           title="No se pudo registrar la passkey"
           detail="Podés volver a intentarlo con este mismo enlace."
         />
-      )}
+      ) : null}
       <TextField
         kind="plain-text"
         label="Nombre de la passkey"

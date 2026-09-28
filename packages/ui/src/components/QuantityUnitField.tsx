@@ -191,12 +191,12 @@ export function QuantityUnitField<U extends string>(props: QuantityUnitFieldProp
                       {({ isSelected }) => (
                         <>
                           <span className="truncate">{option.label}</span>
-                          {isSelected && (
+                          {isSelected ? (
                             <Check
                               aria-hidden="true"
                               className="size-icon-md shrink-0 text-text-accent"
                             />
-                          )}
+                          ) : null}
                         </>
                       )}
                     </AriaListBoxItem>
@@ -207,18 +207,17 @@ export function QuantityUnitField<U extends string>(props: QuantityUnitFieldProp
           )}
         </AriaSelect>
       </div>
-      {showOwnMessage &&
-        (errorMessage !== undefined ? (
+      {showOwnMessage ? (
+        errorMessage !== undefined ? (
           <p id={ownMessageId} className={errorClassName} {...disabledTextProps}>
             {errorMessage}
           </p>
-        ) : (
-          helperText !== undefined && (
-            <p id={ownMessageId} className={helperClassName} {...disabledTextProps}>
-              {helperText}
-            </p>
-          )
-        ))}
+        ) : helperText !== undefined ? (
+          <p id={ownMessageId} className={helperClassName} {...disabledTextProps}>
+            {helperText}
+          </p>
+        ) : null
+      ) : null}
     </AriaTextField>
   );
 }

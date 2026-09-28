@@ -9,47 +9,28 @@ import {
   Tag,
   TextField,
 } from "@purosur/ui";
-import { startAuthentication } from "@simplewebauthn/browser";
+import type { startAuthentication } from "@simplewebauthn/browser";
 import { Check, KeySquare, Laptop, Plus, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuthorization } from "../access/authorization-modal";
 import { useSendToMyAccount } from "../access/send-to-my-account";
-import { authorizeSession, fetchSessionAuthorizationOptions } from "../access/session-api";
+import type { authorizeSession, fetchSessionAuthorizationOptions } from "../access/session-api";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
-import {
-  type CreateRegisterOutcome,
+import type {
+  CreateRegisterOutcome,
   createRegister,
-  type EmitEnrollmentCodeOutcome,
-  emitEnrollmentCode,
-  fetchRegisters,
-  type RegisterSummary,
+  EmitEnrollmentCodeOutcome,
+  RegisterSummary,
 } from "./registers-api";
-
-export type RegistersListScreenServices = {
-  fetchRegisters: typeof fetchRegisters;
-  createRegister: typeof createRegister;
-  emitEnrollmentCode: typeof emitEnrollmentCode;
-  fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
-  authorizeSession: typeof authorizeSession;
-  startAuthentication: typeof startAuthentication;
-};
-
-export const defaultRegistersListScreenServices: RegistersListScreenServices = {
-  fetchRegisters,
-  createRegister,
-  emitEnrollmentCode,
-  fetchSessionAuthorizationOptions,
-  authorizeSession,
-  startAuthentication,
-};
+import type { RegistersListScreenServices } from "./registers-list-services";
 
 export type RegistersListScreenProps = {
   onSessionEnded: () => void;
   now?: () => Date;
-  services?: RegistersListScreenServices;
+  services: RegistersListScreenServices;
 };
 
 type ListState =
@@ -370,9 +351,10 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
     fetchSessionAuthorizationOptions,
     authorizeSession,
     startAuthentication,
-  } = services ?? defaultRegistersListScreenServices;
+  } = services;
   const clock = now ?? (() => new Date());
   const [list, setList] = useState<ListState>({ kind: "loading" });
+  const [currentTime, setCurrentTime] = useState(() => clock());
   const [newModalOpen, setNewModalOpen] = useState(false);
   const [emission, setEmission] = useState<EmissionState>({ kind: "closed" });
   const { run: runEmission, modal: emissionAuthModal } =
@@ -382,6 +364,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
       services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
     });
   const onSessionEndedRef = useLatestRef(onSessionEnded);
+  const clockRef = useLatestRef(clock);
 
   const latestLoad = useRef(0);
   const latestEmission = useRef(0);
@@ -399,6 +382,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
       return;
     }
     if (outcome.kind === "ok") {
+      setCurrentTime(clockRef.current());
       setList({ kind: "loaded", registers: outcome.value });
     } else if (outcome.kind === "unauthenticated") {
       onSessionEndedRef.current();
@@ -409,20 +393,19 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchRegisters, onSessionEndedRef, sendToMyAccount]);
+  }, [fetchRegisters, onSessionEndedRef, clockRef, sendToMyAccount]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const [, setClockTick] = useState(0);
   useEffect(() => {
     const intervalId = window.setInterval(
-      () => setClockTick((tick) => tick + 1),
+      () => setCurrentTime(clockRef.current()),
       PENDING_CODE_REFRESH_MS,
     );
     return () => window.clearInterval(intervalId);
-  }, []);
+  }, [clockRef]);
 
   // Guards a second Enter/Space activation before the first request settles (the modal backdrop
   // blocks other rows).
@@ -491,7 +474,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
       key: "installation",
       title: "INSTALACIÓN",
       render: (item: RegisterSummary) => {
-        const now = clock();
+        const now = currentTime;
         const pendingCode =
           item.pendingCode && new Date(item.pendingCode.expiresAt) > now ? item.pendingCode : null;
         if (!pendingCode) {

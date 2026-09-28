@@ -5,7 +5,8 @@ import { userEvent } from "vitest/browser";
 import type { BackofficeAccess } from "../access/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import type { AlertDetail, AlertListPage, AlertSummary, FetchAlertsOutcome } from "./alerts-api";
-import { AlertsListScreen, type AlertsListScreenServices } from "./alerts-list-screen";
+import { AlertsListScreen } from "./alerts-list-screen";
+import type { AlertsListScreenServices } from "./alerts-list-services";
 import { type AlertsListFilters, alertsListFilters } from "./routes";
 
 const ADMINISTRATOR_ACCESS: BackofficeAccess = { isAdministrator: true, permissions: [] };
@@ -163,7 +164,7 @@ test("searches server-side by the typed text, sending the kinds whose title matc
       { open: true, page: 1, search: { text: "passkey", kinds: ["backoffice_passkey_changed"] } },
     ]);
   await expect.element(screen.getByText("Lucía Pérez")).toBeVisible();
-  expect(screen.getByText("203.0.113.5").query()).toBeNull();
+  await expect.element(screen.getByText("203.0.113.5")).not.toBeInTheDocument();
 });
 
 test("pages through the alerts, going back to the first page when a filter changes", async () => {

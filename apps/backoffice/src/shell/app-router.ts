@@ -21,6 +21,7 @@ import { helpAreaRoute } from "./help-area";
 import { homeAreaIndexRoute, homeAreaRoute } from "./home-area";
 import { publicRoute } from "./public-route";
 import { type RouterContext, rootRoute } from "./root-route";
+import { ScreenPending } from "./screen-pending";
 import { focusScreenTitle } from "./screen-title";
 import { parseSearch, stringifySearch } from "./search-params";
 import { settingsAreaIndexRoute, settingsAreaRoute } from "./settings-area";
@@ -69,7 +70,13 @@ const routeTree = rootRoute.addChildren([
 ]);
 
 export function createAppRouter(context: RouterContext) {
-  const router = createRouter({ routeTree, context, parseSearch, stringifySearch });
+  const router = createRouter({
+    routeTree,
+    context,
+    parseSearch,
+    stringifySearch,
+    defaultPendingComponent: ScreenPending,
+  });
   router.subscribe("onRendered", ({ pathChanged }) => {
     if (pathChanged) {
       focusScreenTitle();

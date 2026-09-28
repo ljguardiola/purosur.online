@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { createProduct } from "@purosur/domain/catalog/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -8,7 +9,7 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
-import { createProduct } from "./product-creation-route.js";
+import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
 
 // PGlite runs every query over one connection, so it can never race two creations for the same
 // barcode; this runs that race over a real postgres-js pool against real Postgres.
@@ -39,17 +40,19 @@ describe("creating two products with the same barcode concurrently on a real Pos
     const code = randomUUID();
 
     const [first, second] = await Promise.all([
-      createProduct(db, {
+      createProduct(new DrizzleCatalogStore(db), {
         name: "Maceta A",
         categoryId: category.id,
         saleUnit: "UNIT",
         barcodes: [code],
+        netContent: null,
       }),
-      createProduct(db, {
+      createProduct(new DrizzleCatalogStore(db), {
         name: "Maceta B",
         categoryId: category.id,
         saleUnit: "UNIT",
         barcodes: [code],
+        netContent: null,
       }),
     ]);
 

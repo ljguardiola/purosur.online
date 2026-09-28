@@ -95,11 +95,11 @@ export function OptionCardGroup<V extends string>(props: OptionCardGroupProps<V>
           <OptionCard key={option.value} {...option} />
         ))}
       </div>
-      {invalid && (
+      {invalid ? (
         <AriaText slot="errorMessage" className={errorClassName}>
           {errorMessage}
         </AriaText>
-      )}
+      ) : null}
     </AriaRadioGroup>
   );
 }

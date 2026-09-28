@@ -4,7 +4,8 @@ import { expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { RegisterSummary } from "./registers-api";
-import { RegistersListScreen, type RegistersListScreenServices } from "./registers-list-screen";
+import { RegistersListScreen } from "./registers-list-screen";
+import type { RegistersListScreenServices } from "./registers-list-services";
 
 function createServices(
   overrides: Partial<RegistersListScreenServices> = {},
@@ -515,6 +516,48 @@ test("Listo closes the code modal and refreshes the list", async () => {
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.poll(() => vi.mocked(services.fetchRegisters).mock.calls.length).toBe(2);
   await expect.element(screen.getByText("Caja 2")).toBeVisible();
+});
+
+test("a code shown after the list refreshes counts its time from that refresh, not from the last tick", async () => {
+  const services = createServices();
+  let current = new Date("2026-09-25T12:00:00.000Z");
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register1] });
+  vi.mocked(services.emitEnrollmentCode).mockResolvedValue({
+    kind: "ok",
+    value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:25.000Z" },
+  });
+  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+  try {
+    const screen = await render(
+      <main>
+        <RegistersListScreen services={services} onSessionEnded={() => {}} now={() => current} />
+      </main>,
+    );
+    await expect.element(screen.getByText("Caja 1")).toBeVisible();
+    current = new Date("2026-09-25T12:00:25.000Z");
+    const dialog = await openEmitModal(screen, "Caja 1");
+    await expect
+      .element(dialog.getByText("Vence en 15 minutos · se usa una sola vez"))
+      .toBeVisible();
+    vi.mocked(services.fetchRegisters).mockResolvedValueOnce({
+      kind: "ok",
+      value: [
+        {
+          ...register1,
+          pendingCode: {
+            issuedAt: "2026-09-25T12:00:25.000Z",
+            expiresAt: "2026-09-25T12:15:25.000Z",
+          },
+        },
+      ],
+    });
+
+    await userEvent.click(dialog.getByRole("button", { name: "Listo" }));
+
+    await expect.element(screen.getByText("Vence en 15 minutos")).toBeVisible();
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 function deferred<T>() {

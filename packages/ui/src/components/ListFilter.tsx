@@ -102,12 +102,12 @@ export function ListFilter<V extends string>({
                   {({ isSelected }) => (
                     <>
                       <span className="truncate">{option.label}</span>
-                      {isSelected && (
+                      {isSelected ? (
                         <Check
                           aria-hidden="true"
                           className="size-icon-sm shrink-0 text-text-accent"
                         />
-                      )}
+                      ) : null}
                     </>
                   )}
                 </AriaListBoxItem>

@@ -1,3 +1,4 @@
+import { recoveryRedemptionBodySchema, recoveryTokenBodySchema } from "@purosur/contracts";
 import type { RegistrationResponseJSON } from "@simplewebauthn/server";
 import { generateRegistrationOptions, verifyRegistrationResponse } from "@simplewebauthn/server";
 import { and, eq, gt, isNull } from "drizzle-orm";
@@ -5,7 +6,6 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { openAlert } from "../alerts/open-alert.js";
 import { auditLog, passkeys, recoveryTokens, sessions, users } from "../platform/db/schema.js";
-import { readPasskeyName } from "./passkey-name-validation.js";
 import { reportRecoveryBookkeepingError } from "./recovery-error-reporting.js";
 import { recordRedemptionAttempt } from "./recovery-rate-limiter.js";
 import {
@@ -38,8 +38,8 @@ type RedemptionAttempt = Exclude<RecoveryRejectedAttemptKind, "request">;
 class CredentialAlreadyRegistered extends Error {}
 
 function readRawToken(body: unknown): string | undefined {
-  const recoveryToken = (body as { recovery_token?: unknown } | undefined)?.recovery_token;
-  return typeof recoveryToken === "string" && recoveryToken !== "" ? recoveryToken : undefined;
+  const result = recoveryTokenBodySchema.safeParse(body);
+  return result.success ? result.data.recovery_token : undefined;
 }
 
 export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryResultHKT>(
@@ -276,27 +276,20 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
         return;
       }
 
-      const passkeyRegistration = (request.body as { passkey_registration?: unknown } | undefined)
-        ?.passkey_registration as RegistrationResponseJSON | undefined;
-      if (!passkeyRegistration) {
+      const redemption = recoveryRedemptionBodySchema.safeParse(request.body);
+      if (!redemption.success) {
+        const [firstIssue] = redemption.error.issues;
         await rejectRedemptionAsInvalid(reply, token, {
-          message: "passkey_registration is required",
-          details: [{ field: "passkey_registration" }],
+          message: firstIssue?.message ?? "invalid request body",
+          details: [{ field: String(firstIssue?.path[0] ?? "") }],
         });
         return;
       }
-
-      const passkeyName = readPasskeyName(request.body);
-      if (!passkeyName) {
-        await rejectRedemptionAsInvalid(reply, token, {
-          message: "passkey_name is required and must be 1-40 characters once trimmed",
-          details: [{ field: "passkey_name" }],
-        });
-        return;
-      }
+      const { passkey_registration: passkeyRegistration, passkey_name: passkeyName } =
+        redemption.data;
 
       const verification = await verifyRegistrationResponse({
-        response: passkeyRegistration,
+        response: passkeyRegistration as RegistrationResponseJSON,
         expectedChallenge: token.registrationChallenge,
         expectedOrigin: webAuthnConfig.expectedOrigin,
         expectedRPID: webAuthnConfig.rpID,

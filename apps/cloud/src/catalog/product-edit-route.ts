@@ -1,4 +1,7 @@
-import { and, eq, inArray, ne } from "drizzle-orm";
+import type { SaleUnit } from "@purosur/domain";
+import type { CatalogNetContent } from "@purosur/domain/catalog/use-cases";
+import { editProduct } from "@purosur/domain/catalog/use-cases";
+import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
@@ -7,30 +10,23 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
-import { productBarcodes, products } from "../platform/db/schema.js";
+import { products } from "../platform/db/schema.js";
 import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
+import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
 import {
   CATEGORY_NOT_FOUND_FAILURE,
   CATEGORY_NOT_LEAF_RESPONSE,
-  isBarcodeUniqueViolation,
-  lockLeafCategory,
 } from "./product-creation-route.js";
 import {
-  type NetContentInput,
   type ProductFieldValidationFailure,
   readBarcodes,
   readCategoryId,
   readNetContent,
   readProductName,
   readSaleUnit,
-  type SaleUnit,
   validateProductFields,
 } from "./product-validation.js";
-import {
-  netContentRow,
-  type ProductRow,
-  type ProductsRouteOptions,
-} from "./products-list-route.js";
+import type { ProductsRouteOptions } from "./products-list-route.js";
 
 const NOT_FOUND_RESPONSE = {
   code: "not_found",
@@ -47,7 +43,7 @@ interface EditRequestBody {
   categoryId: string;
   saleUnit: SaleUnit;
   barcodes: string[];
-  netContent: NetContentInput | null;
+  netContent: CatalogNetContent | null;
   version: number;
 }
 
@@ -76,7 +72,7 @@ function readEditBody(body: unknown): EditRequestBody | ProductFieldValidationFa
     categoryId: categoryId as string,
     saleUnit: saleUnit as SaleUnit,
     barcodes: barcodes as string[],
-    netContent: netContent === undefined ? null : (netContent as NetContentInput),
+    netContent: netContent === undefined ? null : (netContent as CatalogNetContent),
     version,
   };
 }
@@ -98,125 +94,6 @@ async function findProductById<TQueryResult extends PgQueryResultHKT>(
   return product;
 }
 
-export interface EditProductInput {
-  id: string;
-  name: string;
-  categoryId: string;
-  saleUnit: SaleUnit;
-  barcodes: string[];
-  netContent: NetContentInput | null;
-  version: number;
-}
-
-export type EditProductOutcome =
-  | { kind: "stale_version" }
-  | { kind: "category_not_found" }
-  | { kind: "category_not_leaf" }
-  | { kind: "barcode_taken"; codes: string[] }
-  | { kind: "applied"; product: ProductRow };
-
-async function barcodesTakenByAnotherProduct<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  codes: string[],
-  excludingProductId: string,
-): Promise<string[]> {
-  const rows = await db
-    .select({ code: productBarcodes.code })
-    .from(productBarcodes)
-    .where(
-      and(
-        inArray(productBarcodes.code, codes),
-        ne(productBarcodes.productId, excludingProductId),
-        eq(productBarcodes.active, true),
-      ),
-    );
-  return rows.map((row) => row.code);
-}
-
-export async function editProduct<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  input: EditProductInput,
-): Promise<EditProductOutcome> {
-  return db
-    .transaction<EditProductOutcome>(async (tx) => {
-      // Locks this one row so a concurrent edit against the same product waits instead of racing.
-      const [current] = await tx
-        .select({ version: products.version, active: products.active })
-        .from(products)
-        .where(eq(products.id, input.id))
-        .for("update");
-      if (!current || current.version !== input.version) {
-        return { kind: "stale_version" };
-      }
-
-      const locked = await lockLeafCategory(tx, input.categoryId);
-      if (locked.kind !== "locked") {
-        return locked;
-      }
-      const { category } = locked;
-
-      // Skipped for an inactive product: its barcodes are written inactive below, so none can
-      // conflict under the active-only uniqueness rule.
-      if (current.active) {
-        const taken = await barcodesTakenByAnotherProduct(tx, input.barcodes, input.id);
-        if (taken.length > 0) {
-          return { kind: "barcode_taken", codes: taken };
-        }
-      }
-
-      const nextVersion = current.version + 1;
-      await tx
-        .update(products)
-        .set({
-          name: input.name,
-          categoryId: input.categoryId,
-          saleUnit: input.saleUnit,
-          netContentQuantity: input.netContent?.quantity ?? null,
-          netContentUnit: input.netContent?.unit ?? null,
-          version: nextVersion,
-        })
-        .where(eq(products.id, input.id));
-      await tx.delete(productBarcodes).where(eq(productBarcodes.productId, input.id));
-      await tx.insert(productBarcodes).values(
-        // Mirrors the product's own `active` flag; the insert default would otherwise reactivate a
-        // deactivated product's barcodes.
-        input.barcodes.map((code, position) => ({
-          productId: input.id,
-          code,
-          position,
-          active: current.active,
-        })),
-      );
-
-      return {
-        kind: "applied",
-        product: {
-          id: input.id,
-          name: input.name,
-          categoryId: input.categoryId,
-          categoryName: category.name,
-          saleUnit: input.saleUnit,
-          barcodes: input.barcodes,
-          netContent: netContentRow({
-            netContentQuantity: input.netContent?.quantity ?? null,
-            netContentUnit: input.netContent?.unit ?? null,
-          }),
-          active: current.active,
-          version: nextVersion,
-        },
-      };
-    })
-    .catch(async (error: unknown): Promise<EditProductOutcome> => {
-      if (!isBarcodeUniqueViolation(error)) {
-        throw error;
-      }
-      return {
-        kind: "barcode_taken",
-        codes: await barcodesTakenByAnotherProduct(db, input.barcodes, input.id),
-      };
-    });
-}
-
 // No passkey step-up: editing a product is routine work, not a sensitive account or role change.
 export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
@@ -224,6 +101,7 @@ export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
 ): void {
   const now = options.now ?? (() => new Date());
   registerRouteAccess(app);
+  const catalogStore = new DrizzleCatalogStore(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
   function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
@@ -263,7 +141,7 @@ export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      const outcome = await editProduct(options.db, { id: target.id, ...parsedBody });
+      const outcome = await editProduct(catalogStore, { id: target.id, ...parsedBody });
 
       if (outcome.kind === "stale_version") {
         await reply.code(409).send(STALE_VERSION_RESPONSE);

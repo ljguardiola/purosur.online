@@ -1,7 +1,9 @@
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
-import react from "@vitejs/plugin-react";
+import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
 import { configDefaults, defineConfig } from "vitest/config";
 import {
@@ -15,11 +17,32 @@ const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
 process.env["TZ"] = "UTC";
 
+function compiledReactProject() {
+  return {
+    plugins: [react(), babel({ presets: [reactCompilerPreset()] }), tailwindcss()],
+    resolve: {
+      // `optimizeDeps.include` entries resolve from the workspace root, which has no react of
+      // its own; this alias gives Vite a resolvable path so the compiler's import gets
+      // pre-bundled instead of served with broken CommonJS interop.
+      alias: {
+        "react/compiler-runtime": createRequire(r("./apps/backoffice/package.json")).resolve(
+          "react/compiler-runtime",
+        ),
+      },
+    },
+    optimizeDeps: { include: ["react/compiler-runtime"] },
+  };
+}
+
 export default defineConfig({
   resolve: {
     dedupe: ["react", "react-dom"],
     alias: [
       { find: /^@purosur\/domain$/, replacement: r("./packages/domain/src/index.ts") },
+      {
+        find: /^@purosur\/domain\/catalog\/use-cases$/,
+        replacement: r("./packages/domain/src/catalog/use-cases/index.ts"),
+      },
       { find: /^@purosur\/contracts$/, replacement: r("./packages/contracts/src/index.ts") },
       { find: /^@purosur\/ui$/, replacement: r("./packages/ui/src/index.ts") },
     ],
@@ -32,6 +55,7 @@ export default defineConfig({
       new SlowTestsReporter({
         node: 1000,
         "railway-iac": 1000,
+        "backoffice-build": 1000,
         "cloud-integration": 5000,
         browser: 2000,
         "catalog-visual": 4000,
@@ -56,6 +80,13 @@ export default defineConfig({
       },
       {
         test: {
+          name: "backoffice-build",
+          include: ["apps/backoffice/*.test.ts"],
+          environment: "node",
+        },
+      },
+      {
+        test: {
           name: "cloud-integration",
           include: ["apps/cloud/src/**/*.integration.test.ts"],
           environment: "node",
@@ -65,7 +96,7 @@ export default defineConfig({
         },
       },
       {
-        plugins: [react(), tailwindcss()],
+        ...compiledReactProject(),
         test: {
           name: "browser",
           include: ["packages/*/src/**/*.test.tsx", "apps/*/src/**/*.test.tsx"],
@@ -81,7 +112,7 @@ export default defineConfig({
         },
       },
       {
-        plugins: [react(), tailwindcss()],
+        ...compiledReactProject(),
         test: {
           name: "catalog-visual",
           include: ["packages/ui/src/**/*.visual.tsx"],

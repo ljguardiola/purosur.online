@@ -8,7 +8,7 @@ import {
   TextField,
   Tooltip,
 } from "@purosur/ui";
-import { startAuthentication } from "@simplewebauthn/browser";
+import type { startAuthentication } from "@simplewebauthn/browser";
 import { useNavigate } from "@tanstack/react-router";
 import {
   Check,
@@ -34,50 +34,24 @@ import { type BackofficeAccess, canDeactivateUser, canReactivateUser } from "./b
 import { validateEmail } from "./email-validation";
 import { passkeyRowDetail } from "./passkey-row-detail";
 import { roleDisplayName, roleOptions } from "./role-display";
-import { fetchRoles } from "./roles-api";
+import type { fetchRoles } from "./roles-api";
 import { useSendToMyAccount } from "./send-to-my-account";
-import { authorizeSession, fetchSessionAuthorizationOptions } from "./session-api";
-import {
-  type BranchUser,
-  type BranchUserRole,
-  type DeactivateUserOutcome,
+import type { authorizeSession, fetchSessionAuthorizationOptions } from "./session-api";
+import type { UserDetailScreenServices } from "./user-detail-services";
+import type {
+  BranchUser,
+  BranchUserRole,
+  DeactivateUserOutcome,
   deactivateUser,
-  type EditUserOutcome,
+  EditUserOutcome,
   editUser,
   fetchUser,
-  fetchUserPasskeys,
-  type ReactivateUserOutcome,
-  type RemoveUserPasskeyOutcome,
+  ReactivateUserOutcome,
+  RemoveUserPasskeyOutcome,
   reactivateUser,
   removeUserPasskey,
-  type UserPasskey,
+  UserPasskey,
 } from "./users-api";
-
-export type UserDetailScreenServices = {
-  fetchUser: typeof fetchUser;
-  editUser: typeof editUser;
-  fetchRoles: typeof fetchRoles;
-  fetchUserPasskeys: typeof fetchUserPasskeys;
-  removeUserPasskey: typeof removeUserPasskey;
-  deactivateUser: typeof deactivateUser;
-  reactivateUser: typeof reactivateUser;
-  fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
-  authorizeSession: typeof authorizeSession;
-  startAuthentication: typeof startAuthentication;
-};
-
-export const defaultUserDetailScreenServices: UserDetailScreenServices = {
-  fetchUser,
-  editUser,
-  fetchRoles,
-  fetchUserPasskeys,
-  removeUserPasskey,
-  deactivateUser,
-  reactivateUser,
-  fetchSessionAuthorizationOptions,
-  authorizeSession,
-  startAuthentication,
-};
 
 export type UserDetailScreenProps = {
   userId: string;
@@ -85,7 +59,7 @@ export type UserDetailScreenProps = {
   access: BackofficeAccess;
   onSessionEnded: () => void;
   now?: () => Date;
-  services?: UserDetailScreenServices;
+  services: UserDetailScreenServices;
 };
 
 type DetailState =
@@ -99,7 +73,7 @@ type PasskeysState =
   | { kind: "loading" }
   | { kind: "loadError" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "loaded"; passkeys: UserPasskey[] };
+  | { kind: "loaded"; passkeys: UserPasskey[]; loadedAt: Date };
 
 const EMAIL_REQUIRED = "Ingresá el correo.";
 const EMAIL_INVALID = "Ingresá un correo válido.";
@@ -538,7 +512,7 @@ function RemoveUserPasskeyModal({
           </>
         }
       >
-        {target && (
+        {target ? (
           <div className="flex flex-col gap-4">
             <p className="text-body text-text">
               {`«${target.name}» deja de servir para entrar.`}
@@ -546,14 +520,14 @@ function RemoveUserPasskeyModal({
                 ? ` Es su única passkey: para volver a entrar, ${userName} va a tener que pedir el enlace de recuperación por correo.`
                 : ""}
             </p>
-            {attemptFailed && (
+            {attemptFailed ? (
               <InlineNotice
                 tone="error"
                 icon={<TriangleAlert />}
                 title="No se pudo dar de baja la passkey"
                 detail="Probá de nuevo."
               />
-            )}
+            ) : null}
             {rateLimitedSeconds !== null && (
               <InlineNotice
                 tone="error"
@@ -563,7 +537,7 @@ function RemoveUserPasskeyModal({
               />
             )}
           </div>
-        )}
+        ) : null}
       </Modal>
       {modal}
     </>
@@ -689,14 +663,14 @@ function DeactivateUserModal({
       >
         <div className="flex flex-col gap-4">
           <p className="text-body text-text">Se puede reactivar más adelante.</p>
-          {attemptFailed && (
+          {attemptFailed ? (
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo desactivar el usuario"
               detail="Probá de nuevo."
             />
-          )}
+          ) : null}
           {rateLimitedSeconds !== null && (
             <InlineNotice
               tone="error"
@@ -828,14 +802,14 @@ function ReactivateUserModal({
           <p className="text-center text-body text-text-subtle">
             Vuelve a entrar a la caja y al backoffice con su mismo correo, rol y passkeys.
           </p>
-          {attemptFailed && (
+          {attemptFailed ? (
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo reactivar el usuario"
               detail="Probá de nuevo."
             />
-          )}
+          ) : null}
           {rateLimitedSeconds !== null && (
             <InlineNotice
               tone="error"
@@ -872,7 +846,7 @@ export function UserDetailScreen({
     fetchSessionAuthorizationOptions,
     authorizeSession,
     startAuthentication,
-  } = services ?? defaultUserDetailScreenServices;
+  } = services;
   const clock = now ?? (() => new Date());
   const [state, setState] = useState<DetailState>({ kind: "loading" });
   const [passkeysState, setPasskeysState] = useState<PasskeysState>({ kind: "loading" });
@@ -882,12 +856,13 @@ export function UserDetailScreen({
   const [reactivateModalOpen, setReactivateModalOpen] = useState(false);
   const onSessionEndedRef = useLatestRef(onSessionEnded);
   const endSession = useCallback(() => onSessionEndedRef.current(), [onSessionEndedRef]);
+  const clockRef = useLatestRef(clock);
 
   const loadPasskeys = useCallback(async () => {
     setPasskeysState({ kind: "loading" });
     const outcome = await fetchUserPasskeys(userId);
     if (outcome.kind === "ok") {
-      setPasskeysState({ kind: "loaded", passkeys: outcome.value });
+      setPasskeysState({ kind: "loaded", passkeys: outcome.value, loadedAt: clockRef.current() });
     } else if (outcome.kind === "unauthenticated") {
       endSession();
     } else if (outcome.kind === "forbidden") {
@@ -897,7 +872,7 @@ export function UserDetailScreen({
     } else {
       setPasskeysState({ kind: "loadError" });
     }
-  }, [userId, endSession, fetchUserPasskeys, sendToMyAccount]);
+  }, [userId, endSession, fetchUserPasskeys, sendToMyAccount, clockRef]);
 
   const showsPasskeys = access.isAdministrator;
   const needsRoles = access.isAdministrator;
@@ -965,7 +940,7 @@ export function UserDetailScreen({
               <p className="text-text-subtle text-detail">Configuración · Usuarios</p>
               <div className="flex items-center gap-3">
                 <ScreenTitle>{heading}</ScreenTitle>
-                {isInactive && <Tag tone="neutral">Inactivo</Tag>}
+                {isInactive ? <Tag tone="neutral">Inactivo</Tag> : null}
               </div>
             </div>
           </div>
@@ -1084,7 +1059,7 @@ export function UserDetailScreen({
                       <div className="flex flex-1 flex-col gap-1">
                         <p className="font-semibold text-body text-text">{passkey.name}</p>
                         <p className="text-text-subtle text-detail">
-                          {passkeyRowDetail(passkey, clock())}
+                          {passkeyRowDetail(passkey, passkeysState.loadedAt)}
                         </p>
                       </div>
                       {access.isAdministrator && !isOwnAccount && !isInactive && (
@@ -1146,7 +1121,7 @@ export function UserDetailScreen({
             setRemoveTarget(null);
             setPasskeysState((current) =>
               current.kind === "loaded"
-                ? { kind: "loaded", passkeys: current.passkeys.filter((p) => p.id !== passkeyId) }
+                ? { ...current, passkeys: current.passkeys.filter((p) => p.id !== passkeyId) }
                 : current,
             );
           }}

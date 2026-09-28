@@ -3,7 +3,8 @@ import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { RoleSummary } from "./roles-api";
-import { RolesListScreen, type RolesListScreenServices } from "./roles-list-screen";
+import { RolesListScreen } from "./roles-list-screen";
+import type { RolesListScreenServices } from "./roles-list-services";
 
 function createServices(overrides: Partial<RolesListScreenServices> = {}): RolesListScreenServices {
   return {

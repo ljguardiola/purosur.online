@@ -4,13 +4,11 @@ import { Link, useRouter } from "@tanstack/react-router";
 import { ChevronRight, Info, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { focusRingClassName } from "../platform/focus-ring";
-import { SectionLink } from "../shell/area-layout";
 import { useDocumentTitle } from "../shell/document-title";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
-import type { BackofficeHelpCatalog } from "./help-page";
+import type { BackofficeHelpCatalog } from "./help-catalog";
 import { searchArticles } from "./search-help";
-import { sectionIcon } from "./section-icons";
 
 function ownEntry<Value>(record: Record<string, Value>, key: string | null): Value | undefined {
   return key !== null && Object.hasOwn(record, key) ? record[key] : undefined;
@@ -42,7 +40,7 @@ function ArticleLinkRow({
 function EmptyState({ title, body }: { title?: string; body: string }) {
   return (
     <div className="flex flex-col items-center gap-2 rounded-lg border border-border bg-surface px-6 py-12 text-center">
-      {title && <p className="text-text-accent text-subheading">{title}</p>}
+      {title ? <p className="text-text-accent text-subheading">{title}</p> : null}
       <p className="text-text-subtle text-detail">{body}</p>
     </div>
   );
@@ -176,33 +174,6 @@ function ArticleView({
   );
 }
 
-export type HelpSectionColumnProps = {
-  help: BackofficeHelpCatalog;
-  activeCategoryId: string | null;
-};
-
-export function HelpSectionColumn({ help, activeCategoryId }: HelpSectionColumnProps) {
-  return (
-    <>
-      <h2 className="text-text-accent text-heading">Ayuda</h2>
-      <div className="h-2.5" />
-      <ul className="flex flex-col gap-1">
-        {Object.entries(help.categories).map(([id, category]) => (
-          <li key={id}>
-            <SectionLink
-              to="/help/$categoryId"
-              params={{ categoryId: id }}
-              label={category.label}
-              icon={sectionIcon(category.icon)}
-              active={id === activeCategoryId}
-            />
-          </li>
-        ))}
-      </ul>
-    </>
-  );
-}
-
 export type HelpContentProps = {
   help: BackofficeHelpCatalog;
   categoryId: string | null;
@@ -229,9 +200,9 @@ export function HelpContent({
     <ScreenLayout
       topBar={
         <div className="flex h-18 shrink-0 flex-col justify-center border-border border-b bg-surface px-8">
-          {activeArticle && activeCategory && (
+          {activeArticle && activeCategory ? (
             <p className="text-text-subtle text-detail">{`Ayuda · ${activeCategory.label}`}</p>
-          )}
+          ) : null}
           <ScreenTitle>{activeArticle?.title ?? activeCategory?.label ?? idleTitle}</ScreenTitle>
         </div>
       }

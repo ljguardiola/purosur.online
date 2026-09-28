@@ -81,11 +81,11 @@ function SegmentedOption<V extends string>({
       aria-label={label}
       className={`${optionClassName} ${sizeClassName[size]}`}
     >
-      {icon && (
+      {icon ? (
         <span aria-hidden="true" className={iconWrapperClassName[size]}>
           {icon}
         </span>
-      )}
+      ) : null}
       <ReservedWidthLabel label={label} />
     </AriaRadio>
   );

@@ -28,33 +28,22 @@ import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
-import {
-  type CategorySummary,
+import type {
+  CategorySummary,
   createCategory,
   editCategory,
   fetchCategories,
 } from "./categories-api";
+import type { CategoriesListScreenServices } from "./categories-list-services";
 import { categoryNameError } from "./category-name";
 import { categoriesInTreeOrder, categoryPathLabels, selfAndDescendantIds } from "./category-path";
 import type { CategoriesListFilters } from "./routes";
-
-export type CategoriesListScreenServices = {
-  fetchCategories: typeof fetchCategories;
-  createCategory: typeof createCategory;
-  editCategory: typeof editCategory;
-};
-
-export const defaultCategoriesListScreenServices: CategoriesListScreenServices = {
-  fetchCategories,
-  createCategory,
-  editCategory,
-};
 
 export type CategoriesListScreenProps = {
   filters: CategoriesListFilters;
   onFiltersChange: (filters: CategoriesListFilters) => void;
   onSessionEnded: () => void;
-  services?: CategoriesListScreenServices;
+  services: CategoriesListScreenServices;
 };
 
 type ListState =
@@ -501,7 +490,7 @@ function EditCategoryModal({
         </>
       }
     >
-      {target && (
+      {target ? (
         <div className="flex flex-col gap-4">
           {notice?.kind === "attemptFailed" && (
             <InlineNotice
@@ -542,7 +531,7 @@ function EditCategoryModal({
               detail="Probá de nuevo."
             />
           )}
-          {offersReload && (
+          {offersReload ? (
             <Button
               variant="secondary"
               icon={<RotateCcw />}
@@ -551,7 +540,7 @@ function EditCategoryModal({
             >
               Recargar
             </Button>
-          )}
+          ) : null}
           <TextField
             kind="plain-text"
             label="Nombre de la categoría"
@@ -578,7 +567,7 @@ function EditCategoryModal({
               : { helperText: CATEGORY_PARENT_HELPER_TEXT })}
           />
         </div>
-      )}
+      ) : null}
     </Modal>
   );
 }
@@ -590,8 +579,7 @@ export function CategoriesListScreen({
   services,
 }: CategoriesListScreenProps) {
   const sendToMyAccount = useSendToMyAccount();
-  const { fetchCategories, createCategory, editCategory } =
-    services ?? defaultCategoriesListScreenServices;
+  const { fetchCategories, createCategory, editCategory } = services;
   const [list, setList] = useState<ListState>({ kind: "loading" });
   const listRef = useLatestRef(list);
   const [search, setSearch] = useState(filters.search);

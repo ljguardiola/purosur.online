@@ -449,7 +449,7 @@ export function RoleEditorModal({
         }
       >
         <div className="flex min-h-0 flex-1 flex-col">
-          {hasNoticeOrLoadStatus && (
+          {hasNoticeOrLoadStatus ? (
             <div className="flex shrink-0 flex-col gap-3 px-6 pt-4">
               {notice?.kind === "attemptFailed" && (
                 <InlineNotice
@@ -483,7 +483,7 @@ export function RoleEditorModal({
                   detail="Probá de nuevo."
                 />
               )}
-              {offersReload && (
+              {offersReload ? (
                 <Button
                   variant="secondary"
                   icon={<RotateCcw />}
@@ -492,7 +492,7 @@ export function RoleEditorModal({
                 >
                   Recargar
                 </Button>
-              )}
+              ) : null}
               {loadState.kind === "loading" && <p role="status">Cargando…</p>}
               {loadState.kind === "notFound" && (
                 <InlineNotice tone="error" icon={<ShieldOff />} title="No encontramos este rol" />
@@ -530,8 +530,8 @@ export function RoleEditorModal({
                 </>
               )}
             </div>
-          )}
-          {formReady && (
+          ) : null}
+          {formReady ? (
             <div className="flex min-h-0 flex-1 flex-col">
               <RoleEditorForm
                 name={name}
@@ -548,7 +548,7 @@ export function RoleEditorModal({
                 onSelectedAreaChange={setSelectedArea}
               />
             </div>
-          )}
+          ) : null}
         </div>
       </Modal>
       <RoleSaveConfirmationModal
