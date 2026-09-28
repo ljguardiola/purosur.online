@@ -16,8 +16,6 @@ export type CreateProductOutcome =
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "created"; product: CatalogProduct };
 
-// On a concurrent-insert race caught by the store, which of this request's codes is now taken
-// isn't known from the conflict itself, so it's re-read after the transaction rolls back.
 export async function createProduct(
   store: CatalogStore,
   input: CreateProductInput,

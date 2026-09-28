@@ -39,8 +39,8 @@ export async function editProduct(
         return { kind: "category_not_leaf" };
       }
 
-      // Skipped for an inactive product: its barcodes are written inactive below, so none can
-      // conflict under the active-only uniqueness rule.
+      // Skipped for an inactive product: its barcodes stay inactive, so none can conflict under
+      // the active-only uniqueness rule.
       if (locked.product.active) {
         const taken = await tx.activeBarcodesTaken(input.barcodes, input.id);
         if (taken.length > 0) {

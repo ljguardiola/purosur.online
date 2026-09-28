@@ -24,8 +24,7 @@ export interface CatalogCategory {
   version: number;
 }
 
-// Thrown by a write that races a product's active-barcode uniqueness (a concurrent create or edit
-// landed first); the use case re-reads the taken codes from the store once this has rolled back.
+// Thrown by a write that loses a product's active-barcode uniqueness to a concurrent create or edit.
 export class CatalogBarcodeConflict extends Error {}
 
 // Thrown by a write that races a category's per-parent name uniqueness.
@@ -70,8 +69,6 @@ export interface CategoryFields {
   version: number;
 }
 
-// A transaction-scoped handle: every write an operation makes goes through the same one, so the
-// adapter can commit or roll every one of them back together.
 export interface CatalogStoreTransaction {
   lockLeafCategory(categoryId: string): Promise<LockLeafCategoryResult>;
   lockParentForNewChild(parentId: string): Promise<LockParentForNewChildResult>;

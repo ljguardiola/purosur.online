@@ -233,9 +233,6 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
   }
 }
 
-// An in-memory double of `CatalogStore`, standing in for the cloud's Postgres adapter in use-case
-// tests. `transaction` snapshots its state first and restores it whenever `work` throws, modeling
-// a real rollback so a failed race leaves no partial write behind.
 export class FakeCatalogStore implements CatalogStore {
   private state: FakeCatalogState = emptyState();
 
