@@ -29,41 +29,24 @@ function firstFailure(body: unknown): { field: unknown; message: string | undefi
   return issue && { field: issue.path[0], message: issue.message };
 }
 
+function textFailure(field: string, maxLength: number) {
+  return {
+    field,
+    message: `${field} must be a non-empty string of at most ${maxLength} characters`,
+  };
+}
+
+const legalNameFailure = textFailure("legal_name", ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH);
+const grossIncomeRegistrationFailure = textFailure(
+  "gross_income_registration",
+  ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
+);
+const activityStartDateFailure = {
+  field: "activity_start_date",
+  message: "activity_start_date must be a valid ISO calendar date (YYYY-MM-DD), not in the future",
+};
+
 describe("issuerIdentificationEditBodySchema", () => {
-  it.each([
-    {
-      field: "legal_name",
-      maxLength: ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
-    },
-    {
-      field: "gross_income_registration",
-      maxLength: ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
-    },
-  ])(
-    "names $field and its maximum length in the message of every way it is rejected",
-    ({ field, maxLength }) => {
-      const failure = {
-        field,
-        message: `${field} must be a non-empty string of at most ${maxLength} characters`,
-      };
-
-      for (const value of [42, undefined, "   ", "a".repeat(maxLength + 1)]) {
-        expect(firstFailure(validBody({ [field]: value }))).toEqual(failure);
-      }
-    },
-  );
-
-  it.each([20200115, undefined, "2020-02-30", "2026-09-26"])(
-    "explains an activity_start_date of %j",
-    (activity_start_date) => {
-      expect(firstFailure(validBody({ activity_start_date }))).toEqual({
-        field: "activity_start_date",
-        message:
-          "activity_start_date must be a valid ISO calendar date (YYYY-MM-DD), not in the future",
-      });
-    },
-  );
-
   it("accepts a fully valid body", () => {
     expect(schema.safeParse(validBody())).toMatchObject({
       success: true,
@@ -91,34 +74,46 @@ describe("issuerIdentificationEditBodySchema", () => {
     const body = validBody();
     delete body["legal_name"];
 
-    expect(firstFailingField(body)).toBe("legal_name");
+    expect(firstFailure(body)).toEqual(legalNameFailure);
   });
 
   it("rejects a legal_name that is not a string", () => {
-    expect(firstFailingField(validBody({ legal_name: 42 }))).toBe("legal_name");
+    expect(firstFailure(validBody({ legal_name: 42 }))).toEqual(legalNameFailure);
   });
 
   it("rejects an empty legal_name (blank after trimming)", () => {
-    expect(firstFailingField(validBody({ legal_name: "   " }))).toBe("legal_name");
+    expect(firstFailure(validBody({ legal_name: "   " }))).toEqual(legalNameFailure);
   });
 
   it("accepts a legal_name of exactly the maximum length and rejects one character more", () => {
     const atLimit = "a".repeat(ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH);
 
     expect(schema.safeParse(validBody({ legal_name: atLimit })).success).toBe(true);
-    expect(firstFailingField(validBody({ legal_name: `${atLimit}a` }))).toBe("legal_name");
+    expect(firstFailure(validBody({ legal_name: `${atLimit}a` }))).toEqual(legalNameFailure);
   });
 
   it("rejects a missing gross_income_registration", () => {
     const body = validBody();
     delete body["gross_income_registration"];
 
-    expect(firstFailingField(body)).toBe("gross_income_registration");
+    expect(firstFailure(body)).toEqual(grossIncomeRegistrationFailure);
+  });
+
+  it("rejects a gross_income_registration that is not a string", () => {
+    expect(firstFailure(validBody({ gross_income_registration: 42 }))).toEqual(
+      grossIncomeRegistrationFailure,
+    );
   });
 
   it("rejects an empty gross_income_registration", () => {
-    expect(firstFailingField(validBody({ gross_income_registration: "" }))).toBe(
-      "gross_income_registration",
+    expect(firstFailure(validBody({ gross_income_registration: "" }))).toEqual(
+      grossIncomeRegistrationFailure,
+    );
+  });
+
+  it("rejects a gross_income_registration that is blank after trimming", () => {
+    expect(firstFailure(validBody({ gross_income_registration: "   " }))).toEqual(
+      grossIncomeRegistrationFailure,
     );
   });
 
@@ -126,14 +121,14 @@ describe("issuerIdentificationEditBodySchema", () => {
     const atLimit = "a".repeat(ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH);
 
     expect(schema.safeParse(validBody({ gross_income_registration: atLimit })).success).toBe(true);
-    expect(firstFailingField(validBody({ gross_income_registration: `${atLimit}a` }))).toBe(
-      "gross_income_registration",
+    expect(firstFailure(validBody({ gross_income_registration: `${atLimit}a` }))).toEqual(
+      grossIncomeRegistrationFailure,
     );
   });
 
   it("rejects an activity_start_date that is not a string", () => {
-    expect(firstFailingField(validBody({ activity_start_date: 20200115 }))).toBe(
-      "activity_start_date",
+    expect(firstFailure(validBody({ activity_start_date: 20200115 }))).toEqual(
+      activityStartDateFailure,
     );
   });
 
@@ -141,25 +136,25 @@ describe("issuerIdentificationEditBodySchema", () => {
     const body = validBody();
     delete body["activity_start_date"];
 
-    expect(firstFailingField(body)).toBe("activity_start_date");
+    expect(firstFailure(body)).toEqual(activityStartDateFailure);
   });
 
   it("rejects an activity_start_date that is not zero-padded ISO YYYY-MM-DD", () => {
-    expect(firstFailingField(validBody({ activity_start_date: "2020-1-15" }))).toBe(
-      "activity_start_date",
+    expect(firstFailure(validBody({ activity_start_date: "2020-1-15" }))).toEqual(
+      activityStartDateFailure,
     );
   });
 
   it("rejects a calendar date that does not exist, such as February 30th", () => {
-    expect(firstFailingField(validBody({ activity_start_date: "2020-02-30" }))).toBe(
-      "activity_start_date",
+    expect(firstFailure(validBody({ activity_start_date: "2020-02-30" }))).toEqual(
+      activityStartDateFailure,
     );
   });
 
   it("accepts an activity_start_date of exactly today and rejects the next day", () => {
     expect(schema.safeParse(validBody({ activity_start_date: "2026-09-25" })).success).toBe(true);
-    expect(firstFailingField(validBody({ activity_start_date: "2026-09-26" }))).toBe(
-      "activity_start_date",
+    expect(firstFailure(validBody({ activity_start_date: "2026-09-26" }))).toEqual(
+      activityStartDateFailure,
     );
   });
 

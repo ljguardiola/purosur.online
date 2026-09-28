@@ -59,36 +59,6 @@ function dayHoursFailure(field: string) {
 }
 
 describe("branchSettingsEditBodySchema, per-day hours", () => {
-  it.each(dayHoursFields)("names %s in the message when its hours are not a list", (field) => {
-    expect(firstFailure(validBody({ [field]: null }))).toEqual(dayHoursFailure(field));
-  });
-
-  it.each([
-    { case: "a range that is not an object", hours: ["09:00-13:00"] },
-    { case: "a time that is not a string", hours: [{ opens_at: 9, closes_at: "13:00" }] },
-    { case: "a null time", hours: [{ opens_at: "09:00", closes_at: null }] },
-    { case: "a time that is not HH:MM", hours: [{ opens_at: "9:00", closes_at: "13:00" }] },
-    { case: "a range closing before it opens", hours: [{ opens_at: "13:00", closes_at: "09:00" }] },
-    {
-      case: "overlapping ranges",
-      hours: [
-        { opens_at: "09:00", closes_at: "14:00" },
-        { opens_at: "13:00", closes_at: "18:00" },
-      ],
-    },
-    {
-      case: "more ranges than a day allows",
-      hours: Array.from({ length: BRANCH_HOURS_RANGES_PER_DAY_MAX + 1 }, (_, index) => ({
-        opens_at: `0${index}:00`,
-        closes_at: `0${index}:30`,
-      })),
-    },
-  ])("rejects $case with the day's message", ({ hours }) => {
-    expect(firstFailure(validBody({ monday_hours: hours }))).toEqual(
-      dayHoursFailure("monday_hours"),
-    );
-  });
-
   it("accepts a day closed (an empty list)", () => {
     expect(isAccepted(validBody())).toBe(true);
   });
@@ -112,8 +82,8 @@ describe("branchSettingsEditBodySchema, per-day hours", () => {
     expect(result).toMatchObject({ success: true, data: { friday_hours, monday_hours: [] } });
   });
 
-  it("rejects a day's hours that are not an array", () => {
-    expect(firstFailingField(validBody({ monday_hours: null }))).toBe("monday_hours");
+  it.each(dayHoursFields)("rejects %s that are not a list", (field) => {
+    expect(firstFailure(validBody({ [field]: null }))).toEqual(dayHoursFailure(field));
   });
 
   it("rejects a day missing from the body", () => {
@@ -124,7 +94,9 @@ describe("branchSettingsEditBodySchema, per-day hours", () => {
   });
 
   it("rejects a range that is not an object", () => {
-    expect(firstFailingField(validBody({ monday_hours: ["09:00-13:00"] }))).toBe("monday_hours");
+    expect(firstFailure(validBody({ monday_hours: ["09:00-13:00"] }))).toEqual(
+      dayHoursFailure("monday_hours"),
+    );
   });
 
   it("rejects a range missing one of its two times", () => {
@@ -133,33 +105,45 @@ describe("branchSettingsEditBodySchema, per-day hours", () => {
     );
   });
 
+  it("rejects a range with a time that isn't a string", () => {
+    expect(
+      firstFailure(validBody({ monday_hours: [{ opens_at: 9, closes_at: "13:00" }] })),
+    ).toEqual(dayHoursFailure("monday_hours"));
+  });
+
+  it("rejects a range with a null time", () => {
+    expect(
+      firstFailure(validBody({ monday_hours: [{ opens_at: "09:00", closes_at: null }] })),
+    ).toEqual(dayHoursFailure("monday_hours"));
+  });
+
   it("rejects a range with a time that isn't a zero-padded HH:MM", () => {
     expect(
-      firstFailingField(validBody({ monday_hours: [{ opens_at: "9:00", closes_at: "13:00" }] })),
-    ).toBe("monday_hours");
+      firstFailure(validBody({ monday_hours: [{ opens_at: "9:00", closes_at: "13:00" }] })),
+    ).toEqual(dayHoursFailure("monday_hours"));
   });
 
   it("rejects a range whose closing time isn't later than its opening time", () => {
     expect(
-      firstFailingField(validBody({ tuesday_hours: [{ opens_at: "13:00", closes_at: "09:00" }] })),
-    ).toBe("tuesday_hours");
+      firstFailure(validBody({ tuesday_hours: [{ opens_at: "13:00", closes_at: "09:00" }] })),
+    ).toEqual(dayHoursFailure("tuesday_hours"));
   });
 
   it("rejects a range whose closing time equals its opening time", () => {
     expect(
-      firstFailingField(validBody({ tuesday_hours: [{ opens_at: "09:00", closes_at: "09:00" }] })),
-    ).toBe("tuesday_hours");
+      firstFailure(validBody({ tuesday_hours: [{ opens_at: "09:00", closes_at: "09:00" }] })),
+    ).toEqual(dayHoursFailure("tuesday_hours"));
   });
 
   it("rejects two overlapping ranges on the same day, whatever order they were sent in", () => {
     const morning = { opens_at: "09:00", closes_at: "14:00" };
     const afternoon = { opens_at: "13:00", closes_at: "18:00" };
 
-    expect(firstFailingField(validBody({ wednesday_hours: [morning, afternoon] }))).toBe(
-      "wednesday_hours",
+    expect(firstFailure(validBody({ wednesday_hours: [morning, afternoon] }))).toEqual(
+      dayHoursFailure("wednesday_hours"),
     );
-    expect(firstFailingField(validBody({ wednesday_hours: [afternoon, morning] }))).toBe(
-      "wednesday_hours",
+    expect(firstFailure(validBody({ wednesday_hours: [afternoon, morning] }))).toEqual(
+      dayHoursFailure("wednesday_hours"),
     );
   });
 
@@ -191,7 +175,9 @@ describe("branchSettingsEditBodySchema, per-day hours", () => {
       closes_at: `0${index}:30`,
     }));
 
-    expect(firstFailingField(validBody({ monday_hours: ranges }))).toBe("monday_hours");
+    expect(firstFailure(validBody({ monday_hours: ranges }))).toEqual(
+      dayHoursFailure("monday_hours"),
+    );
   });
 
   it("reports the first day that fails, in Monday to Sunday order", () => {
@@ -269,36 +255,31 @@ describe("branchSettingsEditBodySchema, window values in days", () => {
     "good_condition_return_days",
   ];
 
+  function daysFailure(field: string) {
+    return { field, message: `${field} must be an integer from 0 to ${BRANCH_SETTINGS_DAYS_MAX}` };
+  }
+
   it.each(dayFields)("accepts %s of 0 and of the maximum", (field) => {
     expect(isAccepted(validBody({ [field]: 0 }))).toBe(true);
     expect(isAccepted(validBody({ [field]: BRANCH_SETTINGS_DAYS_MAX }))).toBe(true);
   });
 
   it.each(dayFields)("rejects %s above the maximum", (field) => {
-    expect(firstFailingField(validBody({ [field]: BRANCH_SETTINGS_DAYS_MAX + 1 }))).toBe(field);
+    expect(firstFailure(validBody({ [field]: BRANCH_SETTINGS_DAYS_MAX + 1 }))).toEqual(
+      daysFailure(field),
+    );
   });
 
   it.each(dayFields)("rejects a negative %s", (field) => {
-    expect(firstFailingField(validBody({ [field]: -1 }))).toBe(field);
+    expect(firstFailure(validBody({ [field]: -1 }))).toEqual(daysFailure(field));
   });
 
   it.each(dayFields)("rejects a non-integer %s", (field) => {
-    expect(firstFailingField(validBody({ [field]: 30.5 }))).toBe(field);
+    expect(firstFailure(validBody({ [field]: 30.5 }))).toEqual(daysFailure(field));
   });
 
   it.each(dayFields)("rejects a %s that isn't a number", (field) => {
-    expect(firstFailingField(validBody({ [field]: "30" }))).toBe(field);
-  });
-
-  it.each(dayFields)("names %s in the message of every way it can be rejected", (field) => {
-    const failure = {
-      field,
-      message: `${field} must be an integer from 0 to ${BRANCH_SETTINGS_DAYS_MAX}`,
-    };
-
-    for (const value of ["30", 30.5, -1, BRANCH_SETTINGS_DAYS_MAX + 1]) {
-      expect(firstFailure(validBody({ [field]: value }))).toEqual(failure);
-    }
+    expect(firstFailure(validBody({ [field]: "30" }))).toEqual(daysFailure(field));
   });
 });
 

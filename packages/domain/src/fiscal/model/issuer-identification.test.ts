@@ -128,7 +128,7 @@ describe("isIssuerIdentificationActivityStartDate", () => {
     expect(isIssuerIdentificationActivityStartDate("", today)).toBe(false);
   });
 
-  it("rejects text before the date", () => {
+  it("rejects anything before the four-digit year", () => {
     expect(isIssuerIdentificationActivityStartDate("12020-01-15", today)).toBe(false);
     expect(isIssuerIdentificationActivityStartDate(" 2020-01-15", today)).toBe(false);
   });
