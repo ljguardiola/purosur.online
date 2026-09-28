@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import "../../../packages/ui/src/styles/tokens.css";
+import "@purosur/ui/tokens.css";
 import { help } from "./help/help";
 import { App } from "./shell/app";
 

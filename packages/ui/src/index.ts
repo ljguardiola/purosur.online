@@ -55,7 +55,7 @@ export { DateField } from "./components/forms/date-field";
 export type { FieldGroupProps } from "./components/forms/field-group";
 export { FieldGroup } from "./components/forms/field-group";
 export type { FieldSize, FieldSizeProviderProps } from "./components/forms/field-size";
-export { backofficeFieldHeightClassName, FieldSizeProvider } from "./components/forms/field-size";
+export { FieldSizeProvider } from "./components/forms/field-size";
 export type { IconButtonProps } from "./components/forms/icon-button";
 export { IconButton } from "./components/forms/icon-button";
 export type { ListFilterOption, ListFilterProps } from "./components/forms/list-filter";

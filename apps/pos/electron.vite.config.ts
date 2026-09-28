@@ -62,11 +62,11 @@ export default defineConfig({
   renderer: {
     root: "src/renderer",
     resolve: {
-      alias: {
-        "@purosur/contracts": r("../../packages/contracts/src/index.ts"),
-        "@purosur/domain": r("../../packages/domain/src/index.ts"),
-        "@purosur/ui": r("../../packages/ui/src/index.ts"),
-      },
+      alias: [
+        { find: /^@purosur\/contracts$/, replacement: r("../../packages/contracts/src/index.ts") },
+        { find: /^@purosur\/domain$/, replacement: r("../../packages/domain/src/index.ts") },
+        { find: /^@purosur\/ui$/, replacement: r("../../packages/ui/src/index.ts") },
+      ],
     },
     plugins: [
       react({ babel: { plugins: [reactCompiler] } }),

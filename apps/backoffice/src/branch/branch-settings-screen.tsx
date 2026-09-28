@@ -1,7 +1,6 @@
 import { BRANCH_HOURS_RANGES_PER_DAY_MAX, BRANCH_SETTINGS_DAYS_MAX } from "@purosur/domain";
 import {
   Button,
-  backofficeFieldHeightClassName,
   Checkbox,
   IconButton,
   type IconButtonProps,
@@ -531,10 +530,10 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
     return (
       <div key={day} className="flex flex-col gap-2 border-border border-t py-3">
         <div className="flex flex-wrap items-start gap-4">
-          <div className={`flex ${backofficeFieldHeightClassName} w-35 shrink-0 items-center`}>
+          <div className={`flex h-control-2xl w-35 shrink-0 items-center`}>
             <p className="font-semibold text-text">{dayLabel}</p>
           </div>
-          <div className={`flex ${backofficeFieldHeightClassName} w-25 shrink-0 items-center`}>
+          <div className={`flex h-control-2xl w-25 shrink-0 items-center`}>
             <Checkbox
               isSelected={dayValues.closed}
               onChange={(closed) => setDayClosed(day, closed)}
@@ -572,7 +571,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
                 </div>
               ))}
               {!atCap && (
-                <div className={`flex ${backofficeFieldHeightClassName} items-center`}>
+                <div className={`flex h-control-2xl items-center`}>
                   <IconButton
                     icon={<Plus />}
                     aria-label={`Agregar un horario al ${dayLower}`}

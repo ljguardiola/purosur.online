@@ -28,6 +28,6 @@ export const fieldWrapperGapClassName: Record<FieldSize, string> = {
   backoffice: "gap-1",
 };
 
-export const backofficeFieldHeightClassName = "h-control-2xl";
+const backofficeFieldHeightClassName = "h-control-2xl";
 export const backofficeFieldBoxClassName = `${backofficeFieldHeightClassName} gap-2 px-3`;
 export const backofficeFieldValueClassName = "text-body font-semibold text-text";
