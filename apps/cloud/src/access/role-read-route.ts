@@ -3,15 +3,10 @@ import { and, asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { rolePermissions, roles, userRoles, users } from "../platform/db/schema.js";
-import { checkRequestIsSameOrigin } from "./backoffice-origin.js";
+import { sameOriginGuard } from "./backoffice-origin.js";
 import type { RoleSummaryRow, RoleSummaryWire, RolesRouteOptions } from "./roles-list-route.js";
 import { toRoleSummaryWire } from "./roles-list-route.js";
-import {
-  ADMINISTRATOR_ACCESS,
-  originGuard,
-  registerRouteAccess,
-  routeSessionSource,
-} from "./route-access.js";
+import { ADMINISTRATOR_ACCESS, registerRouteAccess, routeSessionSource } from "./route-access.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -98,9 +93,7 @@ export function registerRoleReadRoute<TQueryResult extends PgQueryResultHKT>(
   app.get(
     "/roles/:id",
     {
-      preHandler: originGuard((request, reply) =>
-        checkRequestIsSameOrigin(request, reply, options.backofficeOrigin),
-      ),
+      preHandler: sameOriginGuard(options.backofficeOrigin),
       config: { access: ADMINISTRATOR_ACCESS, sessionSource },
     },
     async (request, reply) => {

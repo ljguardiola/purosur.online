@@ -3,9 +3,8 @@ import type { CatalogNetContent } from "@purosur/domain/catalog/use-cases";
 import { asc, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { checkRequestIsSameOrigin } from "../access/backoffice-origin.js";
+import { sameOriginGuard } from "../access/backoffice-origin.js";
 import {
-  originGuard,
   permissionAccess,
   registerRouteAccess,
   routeSessionSource,
@@ -143,9 +142,7 @@ export function registerProductsListRoute<TQueryResult extends PgQueryResultHKT>
   app.get<{ Querystring: { status?: string } }>(
     "/products",
     {
-      preHandler: originGuard((request, reply) =>
-        checkRequestIsSameOrigin(request, reply, options.backofficeOrigin),
-      ),
+      preHandler: sameOriginGuard(options.backofficeOrigin),
       config: {
         access: permissionAccess("manage_products_and_categories"),
         sessionSource,

@@ -25,7 +25,7 @@ export function backofficeOriginGuard(backofficeOrigin: string): preHandlerAsync
 
 // Origin is absent on a same-origin GET, so Sec-Fetch-Site (same-origin vs. cross-site, still
 // allowed by SameSite=Lax) fills the gap; a request with neither header still passes unchecked.
-export function checkRequestIsSameOrigin(
+function checkRequestIsSameOrigin(
   request: FastifyRequest,
   reply: FastifyReply,
   backofficeOrigin: string,
@@ -41,4 +41,10 @@ export function checkRequestIsSameOrigin(
   }
 
   return true;
+}
+
+export function sameOriginGuard(backofficeOrigin: string): preHandlerAsyncHookHandler {
+  return originGuard((request, reply) =>
+    checkRequestIsSameOrigin(request, reply, backofficeOrigin),
+  );
 }

@@ -2,10 +2,9 @@ import { priceConfirmationBodySchema } from "@purosur/contracts";
 import { confirmPrice } from "@purosur/domain/pricing/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { checkRequestIsSameOrigin } from "../access/backoffice-origin.js";
+import { sameOriginGuard } from "../access/backoffice-origin.js";
 import {
   openSessionOf,
-  originGuard,
   permissionAccess,
   registerRouteAccess,
   routeSessionSource,
@@ -38,9 +37,7 @@ export function registerPriceConfirmationRoute<TQueryResult extends PgQueryResul
   app.post<{ Params: { id: string } }>(
     "/products/:id/price-confirmation",
     {
-      preHandler: originGuard((request, reply) =>
-        checkRequestIsSameOrigin(request, reply, options.backofficeOrigin),
-      ),
+      preHandler: sameOriginGuard(options.backofficeOrigin),
       config: { access: permissionAccess("manage_prices_and_review"), sessionSource },
     },
     async (request, reply) => {

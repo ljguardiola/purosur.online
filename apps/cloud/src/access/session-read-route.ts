@@ -1,11 +1,10 @@
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { checkRequestIsSameOrigin } from "./backoffice-origin.js";
+import { sameOriginGuard } from "./backoffice-origin.js";
 import { sessionExpiresAt } from "./open-session.js";
 import {
   OPEN_SESSION_ACCESS,
   openSessionOf,
-  originGuard,
   registerRouteAccess,
   routeSessionSource,
 } from "./route-access.js";
@@ -27,9 +26,7 @@ export function registerSessionReadRoute<TQueryResult extends PgQueryResultHKT>(
   app.get(
     "/users/session",
     {
-      preHandler: originGuard((request, reply) =>
-        checkRequestIsSameOrigin(request, reply, options.backofficeOrigin),
-      ),
+      preHandler: sameOriginGuard(options.backofficeOrigin),
       config: { access: OPEN_SESSION_ACCESS, sessionSource },
     },
     async (request, reply) => {

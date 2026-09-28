@@ -2,10 +2,9 @@ import type { SaleUnit } from "@purosur/domain";
 import { desc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { checkRequestIsSameOrigin } from "../access/backoffice-origin.js";
+import { sameOriginGuard } from "../access/backoffice-origin.js";
 import {
   openSessionOf,
-  originGuard,
   permissionAccess,
   registerRouteAccess,
   routeSessionSource,
@@ -236,9 +235,7 @@ export function registerPricesListRoute<TQueryResult extends PgQueryResultHKT>(
   app.get<{ Querystring: { review?: string; categoryId?: string; search?: string } }>(
     "/prices",
     {
-      preHandler: originGuard((request, reply) =>
-        checkRequestIsSameOrigin(request, reply, options.backofficeOrigin),
-      ),
+      preHandler: sameOriginGuard(options.backofficeOrigin),
       config: { access: permissionAccess("manage_prices_and_review"), sessionSource },
     },
     async (request, reply) => {

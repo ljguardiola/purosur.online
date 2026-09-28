@@ -1,10 +1,9 @@
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { checkRequestIsSameOrigin } from "./backoffice-origin.js";
+import { sameOriginGuard } from "./backoffice-origin.js";
 import { canReactivateUsers, findBranchUser, toBranchUserWire } from "./branch-users.js";
 import {
   openSessionOf,
-  originGuard,
   permissionAccess,
   registerRouteAccess,
   routeSessionSource,
@@ -30,9 +29,7 @@ export function registerUserReadRoute<TQueryResult extends PgQueryResultHKT>(
   app.get(
     "/users/:id",
     {
-      preHandler: originGuard((request, reply) =>
-        checkRequestIsSameOrigin(request, reply, options.backofficeOrigin),
-      ),
+      preHandler: sameOriginGuard(options.backofficeOrigin),
       config: { access: permissionAccess(["deactivate_users", "reactivate_users"]), sessionSource },
     },
     async (request, reply) => {

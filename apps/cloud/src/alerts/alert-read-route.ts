@@ -2,12 +2,11 @@ import type { AlertAudience, AlertLevel } from "@purosur/domain";
 import { and, asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { checkRequestIsSameOrigin } from "../access/backoffice-origin.js";
+import { sameOriginGuard } from "../access/backoffice-origin.js";
 import { FORBIDDEN_RESPONSE } from "../access/forbidden-response.js";
 import {
   OPEN_SESSION_ACCESS,
   openSessionOf,
-  originGuard,
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
@@ -208,9 +207,7 @@ export function registerAlertReadRoute<TQueryResult extends PgQueryResultHKT>(
   app.get<{ Params: { id: string } }>(
     "/alerts/:id",
     {
-      preHandler: originGuard((request, reply) =>
-        checkRequestIsSameOrigin(request, reply, options.backofficeOrigin),
-      ),
+      preHandler: sameOriginGuard(options.backofficeOrigin),
       config: { access: OPEN_SESSION_ACCESS, sessionSource },
     },
     async (request, reply) => {

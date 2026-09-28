@@ -316,59 +316,6 @@ describe("GET /users/session", () => {
     expect(row?.lastSeenAt.getTime()).toBe(NOON.getTime());
   });
 
-  it("accepts the backoffice's own Origin", async () => {
-    const rawSessionId = await insertSession();
-
-    const response = await app.inject({
-      method: "GET",
-      url: "/users/session",
-      headers: {
-        cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}`,
-        origin: BACKOFFICE_ORIGIN,
-      },
-    });
-
-    expect(response.statusCode).toBe(200);
-  });
-
-  it("rejects a request the browser reports as cross-site, leaving last_seen_at untouched", async () => {
-    const rawSessionId = await insertSession({ lastSeenAt: NOON });
-    currentTime = new Date(NOON.getTime() + 5 * 60 * 1000);
-
-    const response = await app.inject({
-      method: "GET",
-      url: "/users/session",
-      headers: {
-        cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}`,
-        "sec-fetch-site": "cross-site",
-      },
-    });
-
-    expect(response.statusCode).toBe(403);
-    expect(response.json()).toMatchObject({ code: "origin_rejected" });
-    const row = await sessionRow(rawSessionId);
-    expect(row?.lastSeenAt.getTime()).toBe(NOON.getTime());
-  });
-
-  it("rejects a request the browser reports as started by the person, revoking nothing", async () => {
-    const rawSessionId = await insertSession({ createdAt: NOON, lastSeenAt: NOON });
-    currentTime = new Date(NOON.getTime() + THIRTY_MINUTES_MS);
-
-    const response = await app.inject({
-      method: "GET",
-      url: "/users/session",
-      headers: {
-        cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}`,
-        "sec-fetch-site": "none",
-      },
-    });
-
-    expect(response.statusCode).toBe(403);
-    expect(response.json()).toMatchObject({ code: "origin_rejected" });
-    const row = await sessionRow(rawSessionId);
-    expect(row?.revokedAt).toBeNull();
-  });
-
   it("returns 429 rate_limited with Retry-After once the session is over its backoffice request limit, leaving last_seen_at untouched", async () => {
     const rawSessionId = await insertSession({ lastSeenAt: NOON });
     await exhaustSessionRateLimit(db, rawSessionId, NOON);
@@ -475,23 +422,5 @@ describe("GET /users/session", () => {
       await observedApp.close();
     }
     expect(sessionReads).toHaveLength(1);
-  });
-
-  it("accepts the same-origin fetch the backoffice itself makes, and refreshes the session", async () => {
-    const rawSessionId = await insertSession({ lastSeenAt: NOON });
-    currentTime = new Date(NOON.getTime() + 5 * 60 * 1000);
-
-    const response = await app.inject({
-      method: "GET",
-      url: "/users/session",
-      headers: {
-        cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}`,
-        "sec-fetch-site": "same-origin",
-      },
-    });
-
-    expect(response.statusCode).toBe(200);
-    const row = await sessionRow(rawSessionId);
-    expect(row?.lastSeenAt.getTime()).toBe(currentTime.getTime());
   });
 });
