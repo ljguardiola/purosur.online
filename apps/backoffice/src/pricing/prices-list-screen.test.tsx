@@ -1,3 +1,4 @@
+import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -62,15 +63,17 @@ async function renderScreen(
   } = {},
 ) {
   const screen = (
-    <main>
-      <PricesListScreen
-        services={services}
-        onSessionEnded={onSessionEnded}
-        now={now}
-        filters={filters}
-        onFiltersChange={onFiltersChange}
-      />
-    </main>
+    <FieldSizeProvider size="backoffice">
+      <main>
+        <PricesListScreen
+          services={services}
+          onSessionEnded={onSessionEnded}
+          now={now}
+          filters={filters}
+          onFiltersChange={onFiltersChange}
+        />
+      </main>
+    </FieldSizeProvider>
   );
   const rendered = await render(screen);
   return Object.assign(rendered, {
@@ -1453,15 +1456,17 @@ test("the review age counts against the time the list was loaded, not the time a
     },
   });
   const screenFor = (now: () => Date) => (
-    <main>
-      <PricesListScreen
-        services={services}
-        onSessionEnded={onSessionEnded}
-        now={now}
-        filters={filters}
-        onFiltersChange={onFiltersChange}
-      />
-    </main>
+    <FieldSizeProvider size="backoffice">
+      <main>
+        <PricesListScreen
+          services={services}
+          onSessionEnded={onSessionEnded}
+          now={now}
+          filters={filters}
+          onFiltersChange={onFiltersChange}
+        />
+      </main>
+    </FieldSizeProvider>
   );
   const screen = await render(screenFor(() => current));
   await expect.element(screen.getByText("Hoy", { exact: true })).toBeVisible();
@@ -1491,15 +1496,17 @@ test("the modal's review age counts against the time the modal was opened", asyn
     },
   });
   const screenFor = (now: () => Date) => (
-    <main>
-      <PricesListScreen
-        services={services}
-        onSessionEnded={onSessionEnded}
-        now={now}
-        filters={filters}
-        onFiltersChange={onFiltersChange}
-      />
-    </main>
+    <FieldSizeProvider size="backoffice">
+      <main>
+        <PricesListScreen
+          services={services}
+          onSessionEnded={onSessionEnded}
+          now={now}
+          filters={filters}
+          onFiltersChange={onFiltersChange}
+        />
+      </main>
+    </FieldSizeProvider>
   );
   const screen = await render(screenFor(() => current));
   await userEvent.click(screen.getByRole("button", { name: "Cambiar el precio de Arroz" }));

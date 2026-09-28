@@ -66,10 +66,7 @@ export type {
 export { QuantityUnitField } from "./components/forms/quantity-unit-field";
 export type { RadioGroupProps, RadioOption } from "./components/forms/radio-group";
 export { RadioGroup } from "./components/forms/radio-group";
-export type {
-  SearchFieldProps,
-  SearchFieldVariant,
-} from "./components/forms/search-field";
+export type { SearchFieldProps } from "./components/forms/search-field";
 export { SearchField } from "./components/forms/search-field";
 export type {
   SegmentedControlOption,

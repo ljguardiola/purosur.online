@@ -1,9 +1,10 @@
-import { defineHelp } from "@purosur/ui";
+import { defineHelp, FieldSizeProvider } from "@purosur/ui";
+import type { ComponentProps } from "react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { Shell } from "../shell/shell";
 import { render } from "../shell/test-support/render-with-router";
-import { HelpContent } from "./help-screen";
+import { HelpContent as HelpContentInPage } from "./help-screen";
 
 const help = defineHelp("es-AR", {
   categories: {
@@ -38,6 +39,14 @@ beforeEach(() => {
 afterEach(() => {
   window.history.pushState(null, "", "/");
 });
+
+function HelpContent(props: ComponentProps<typeof HelpContentInPage>) {
+  return (
+    <FieldSizeProvider size="backoffice">
+      <HelpContentInPage {...props} />
+    </FieldSizeProvider>
+  );
+}
 
 function ContentHarness(props: {
   categoryId: string | null;

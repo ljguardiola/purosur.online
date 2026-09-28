@@ -2063,7 +2063,6 @@ export function ProductsListScreen({
             <div className="flex flex-wrap items-center gap-3">
               <div className="w-105">
                 <SearchField
-                  variant="backoffice"
                   value={search}
                   onChange={setSearch}
                   placeholder="Buscar por nombre o código de barras"

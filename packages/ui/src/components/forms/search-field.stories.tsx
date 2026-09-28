@@ -1,9 +1,10 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Decorator, Meta, StoryObj } from "@storybook/react-vite";
 import { Search } from "lucide-react";
 import {
   playPseudoHoverPaintsBoneFill,
   playTabMatchesCssFocusWithin,
 } from "../../test-support/story-interactions";
+import { FieldSizeProvider } from "./field-size";
 import { SearchField } from "./search-field";
 
 const meta: Meta<typeof SearchField> = {
@@ -37,24 +38,32 @@ function fieldInput(canvasElement: HTMLElement): HTMLElement {
 }
 
 export const Register: Story = {
-  args: { variant: "register", value: "" },
+  args: { value: "" },
 };
 
 export const RegisterFilled: Story = {
-  args: { variant: "register", value: "7791234567890" },
+  args: { value: "7791234567890" },
 };
 
+const inBackofficeSize: Decorator = (Story) => (
+  <FieldSizeProvider size="backoffice">
+    <Story />
+  </FieldSizeProvider>
+);
+
 export const Backoffice: Story = {
-  args: { variant: "backoffice", value: "", placeholder: "Filtrar por nombre o SKU" },
+  decorators: [inBackofficeSize],
+  args: { value: "", placeholder: "Filtrar por nombre o SKU" },
 };
 
 export const BackofficeFilled: Story = {
-  args: { variant: "backoffice", value: "Miel", placeholder: "Filtrar por nombre o SKU" },
+  decorators: [inBackofficeSize],
+  args: { value: "Miel", placeholder: "Filtrar por nombre o SKU" },
 };
 
 export const WithLabel: Story = {
+  decorators: [inBackofficeSize],
   args: {
-    variant: "backoffice",
     value: "",
     placeholder: "Filtrar por nombre o SKU",
     label: "Buscar productos",
@@ -62,22 +71,23 @@ export const WithLabel: Story = {
 };
 
 export const FocusWithin: Story = {
-  args: { variant: "register", value: "" },
+  args: { value: "" },
   play: playTabMatchesCssFocusWithin(fieldInput, fieldBox),
 };
 
 export const Hovered: Story = {
-  args: { variant: "register", value: "" },
+  args: { value: "" },
   parameters: { pseudo: { hover: true } },
   play: playPseudoHoverPaintsBoneFill(fieldBox),
 };
 
 export const HoveredBackoffice: Story = {
-  args: { variant: "backoffice", value: "", placeholder: "Filtrar por nombre o SKU" },
+  decorators: [inBackofficeSize],
+  args: { value: "", placeholder: "Filtrar por nombre o SKU" },
   parameters: { pseudo: { hover: true } },
   play: playPseudoHoverPaintsBoneFill(fieldBox),
 };
 
 export const Disabled: Story = {
-  args: { variant: "register", value: "", disabled: true },
+  args: { value: "", disabled: true },
 };

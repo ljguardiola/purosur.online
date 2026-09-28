@@ -708,7 +708,6 @@ export function CategoriesListScreen({
           <>
             <div className="w-105">
               <SearchField
-                variant="backoffice"
                 value={search}
                 onChange={setSearch}
                 placeholder="Buscar una categoría"

@@ -6,6 +6,7 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { insetBoundary, paintedBoxShadowLayers, tokenRgb } from "../../test/token-colors";
+import { type FieldSize, FieldSizeProvider } from "./field-size";
 import { SearchField, type SearchFieldProps } from "./search-field";
 
 type Screen = Awaited<ReturnType<typeof render>>;
@@ -22,13 +23,20 @@ function fieldWrapper(screen: Screen, name: string): HTMLElement {
   return fieldBox(screen, name).parentElement as HTMLElement;
 }
 
-function SearchFieldHarness(props: Omit<SearchFieldProps, "value" | "onChange">) {
+function SearchFieldHarness({
+  size,
+  ...props
+}: Omit<SearchFieldProps, "value" | "onChange"> & { size: FieldSize }) {
   const [value, setValue] = useState("");
-  return <SearchField {...props} value={value} onChange={setValue} />;
+  return (
+    <FieldSizeProvider size={size}>
+      <SearchField {...props} value={value} onChange={setValue} />
+    </FieldSizeProvider>
+  );
 }
 
-type VariantCase = {
-  variant: SearchFieldProps["variant"];
+type SizeCase = {
+  size: FieldSize;
   height: number;
   paddingX: number;
   gap: number;
@@ -37,9 +45,9 @@ type VariantCase = {
   iconSize: number;
 };
 
-const variantCases: VariantCase[] = [
+const sizeCases: SizeCase[] = [
   {
-    variant: "register",
+    size: "register",
     height: 64,
     paddingX: 8,
     gap: 16,
@@ -48,7 +56,7 @@ const variantCases: VariantCase[] = [
     iconSize: 26,
   },
   {
-    variant: "backoffice",
+    size: "backoffice",
     height: 44,
     paddingX: 12,
     gap: 8,
@@ -58,11 +66,11 @@ const variantCases: VariantCase[] = [
   },
 ];
 
-for (const variantCase of variantCases) {
-  test(`renders the ${variantCase.variant} variant at its own height, padding, gap, leading element and placeholder`, async () => {
+for (const sizeCase of sizeCases) {
+  test(`renders the ${sizeCase.size} size at its own height, padding, gap, leading element and placeholder`, async () => {
     const screen = await render(
       <SearchFieldHarness
-        variant={variantCase.variant}
+        size={sizeCase.size}
         placeholder="Scan or type the product name"
         icon={<Search />}
       />,
@@ -73,26 +81,26 @@ for (const variantCase of variantCases) {
     const inputStyle = getComputedStyle(input);
     const rect = box.getBoundingClientRect();
 
-    expect(rect.height).toBeCloseTo(variantCase.height, 0);
+    expect(rect.height).toBeCloseTo(sizeCase.height, 0);
     expect(boxStyle.borderRadius).toBe("8px");
-    expect(Math.round(Number.parseFloat(boxStyle.paddingLeft))).toBe(variantCase.paddingX);
-    expect(Math.round(Number.parseFloat(boxStyle.paddingRight))).toBe(variantCase.paddingX);
-    expect(Math.round(Number.parseFloat(boxStyle.columnGap))).toBe(variantCase.gap);
-    expect(Math.round(Number.parseFloat(inputStyle.fontSize))).toBe(variantCase.valueFontSize);
+    expect(Math.round(Number.parseFloat(boxStyle.paddingLeft))).toBe(sizeCase.paddingX);
+    expect(Math.round(Number.parseFloat(boxStyle.paddingRight))).toBe(sizeCase.paddingX);
+    expect(Math.round(Number.parseFloat(boxStyle.columnGap))).toBe(sizeCase.gap);
+    expect(Math.round(Number.parseFloat(inputStyle.fontSize))).toBe(sizeCase.valueFontSize);
     expect(inputStyle.color).toBe(tokenRgb("text"));
     expect(input.placeholder).toBe("Scan or type the product name");
     expect(getComputedStyle(input, "::placeholder").color).toBe(tokenRgb("text-subtle"));
 
     const leading = box.firstElementChild as HTMLElement;
     const leadingRect = leading.getBoundingClientRect();
-    expect(leadingRect.width).toBeCloseTo(variantCase.leadingSize, 0);
-    expect(leadingRect.height).toBeCloseTo(variantCase.leadingSize, 0);
+    expect(leadingRect.width).toBeCloseTo(sizeCase.leadingSize, 0);
+    expect(leadingRect.height).toBeCloseTo(sizeCase.leadingSize, 0);
     expect(leading.getAttribute("aria-hidden")).toBe("true");
 
     const icon = leading.querySelector("svg") as SVGSVGElement;
     const iconRect = icon.getBoundingClientRect();
-    expect(iconRect.width).toBeCloseTo(variantCase.iconSize, 0);
-    expect(iconRect.height).toBeCloseTo(variantCase.iconSize, 0);
+    expect(iconRect.width).toBeCloseTo(sizeCase.iconSize, 0);
+    expect(iconRect.height).toBeCloseTo(sizeCase.iconSize, 0);
   });
 }
 
@@ -102,11 +110,11 @@ function focusedLayers(): string[] {
 
 const restBoundaryToken = "border";
 
-for (const variant of ["register", "backoffice"] as const) {
-  test(`shows a white box with a 2px ${restBoundaryToken} border at rest in the ${variant} variant`, async () => {
+for (const size of ["register", "backoffice"] as const) {
+  test(`shows a white box with a 2px ${restBoundaryToken} border at rest in the ${size} size`, async () => {
     const screen = await render(
       <SearchFieldHarness
-        variant={variant}
+        size={size}
         placeholder="Scan or type the product name"
         icon={<Search />}
       />,
@@ -117,10 +125,10 @@ for (const variant of ["register", "backoffice"] as const) {
     expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary(restBoundaryToken, "2px")]);
   });
 
-  test(`turns the box bone on hover in the ${variant} variant, keeping the same 2px border`, async () => {
+  test(`turns the box bone on hover in the ${size} size, keeping the same 2px border`, async () => {
     const screen = await render(
       <SearchFieldHarness
-        variant={variant}
+        size={size}
         placeholder="Scan or type the product name"
         icon={<Search />}
       />,
@@ -132,10 +140,10 @@ for (const variant of ["register", "backoffice"] as const) {
     expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary(restBoundaryToken, "2px")]);
   });
 
-  test(`shows its own focused border when focused in the ${variant} variant`, async () => {
+  test(`shows its own focused border when focused in the ${size} size`, async () => {
     const screen = await render(
       <SearchFieldHarness
-        variant={variant}
+        size={size}
         placeholder="Scan or type the product name"
         icon={<Search />}
       />,
@@ -149,10 +157,10 @@ for (const variant of ["register", "backoffice"] as const) {
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  test(`keeps the focused border and white fill instead of the hovered bone one when both apply at once in the ${variant} variant`, async () => {
+  test(`keeps the focused border and white fill instead of the hovered bone one when both apply at once in the ${size} size`, async () => {
     const screen = await render(
       <SearchFieldHarness
-        variant={variant}
+        size={size}
         placeholder="Scan or type the product name"
         icon={<Search />}
       />,
@@ -169,11 +177,11 @@ for (const variant of ["register", "backoffice"] as const) {
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  test(`dims the whole field to 45% opacity and blocks focus when disabled in the ${variant} variant`, async () => {
+  test(`dims the whole field to 45% opacity and blocks focus when disabled in the ${size} size`, async () => {
     const screen = await render(
       <>
         <SearchFieldHarness
-          variant={variant}
+          size={size}
           placeholder="Scan or type the product name"
           icon={<Search />}
           disabled
@@ -204,7 +212,6 @@ function ControlledScanHarness() {
   return (
     <>
       <SearchField
-        variant="register"
         value={value}
         onChange={setValue}
         placeholder="Scan or type the product name"
@@ -255,11 +262,11 @@ test("clears the field and its caller's state when Escape is pressed", async () 
 // getComputedStyle can't say whether Chromium's own ::-webkit-search-cancel-button is painted, so
 // clicking 8px from the right edge, where it sits, is the only way to tell: it clears the field,
 // while the caret alone moves on plain text.
-for (const variant of ["register", "backoffice"] as const) {
-  test(`keeps the value when the right edge of the ${variant} variant is clicked, since it draws no clear button`, async () => {
+for (const size of ["register", "backoffice"] as const) {
+  test(`keeps the value when the right edge of the ${size} size is clicked, since it draws no clear button`, async () => {
     const screen = await render(
       <SearchFieldHarness
-        variant={variant}
+        size={size}
         placeholder="Scan or type the product name"
         icon={<Search />}
       />,
@@ -281,7 +288,7 @@ for (const variant of ["register", "backoffice"] as const) {
 test("is announced as a search field and named by its placeholder when no label is supplied", async () => {
   const screen = await render(
     <SearchFieldHarness
-      variant="register"
+      size="register"
       placeholder="Scan or type the product name"
       icon={<Search />}
     />,
@@ -294,7 +301,7 @@ test("is announced as a search field and named by its placeholder when no label 
 test("is named by the label instead of the placeholder when one is supplied", async () => {
   const screen = await render(
     <SearchFieldHarness
-      variant="backoffice"
+      size="backoffice"
       placeholder="Filter by name or SKU"
       label="Search products"
       icon={<Search />}
@@ -309,7 +316,7 @@ test("is named by the label instead of the placeholder when one is supplied", as
 test("an empty placeholder from a variable, with no label, leaves the field nameless, and the accessibility check catches it", async () => {
   const placeholder: string = "";
   const screen = await render(
-    <SearchFieldHarness variant="register" placeholder={placeholder} icon={<Search />} />,
+    <SearchFieldHarness size="register" placeholder={placeholder} icon={<Search />} />,
   );
 
   const results = await axe.run(screen.container);
@@ -321,7 +328,7 @@ test("is a single tab stop", async () => {
     <>
       <button type="button">Before</button>
       <SearchFieldHarness
-        variant="register"
+        size="register"
         placeholder="Scan or type the product name"
         icon={<Search />}
       />
@@ -345,7 +352,7 @@ test("is a single tab stop", async () => {
 test("paints the register chip icon's own stroke accent-text and the backoffice icon's subtle-text", async () => {
   const registerScreen = await render(
     <SearchFieldHarness
-      variant="register"
+      size="register"
       placeholder="Scan or type the product name"
       icon={<Search />}
     />,
@@ -356,44 +363,30 @@ test("paints the register chip icon's own stroke accent-text and the backoffice 
   await registerScreen.unmount();
 
   const backofficeScreen = await render(
-    <SearchFieldHarness
-      variant="backoffice"
-      placeholder="Filter by name or SKU"
-      icon={<Search />}
-    />,
+    <SearchFieldHarness size="backoffice" placeholder="Filter by name or SKU" icon={<Search />} />,
   );
   const backofficeBox = fieldBox(backofficeScreen, "Filter by name or SKU");
   const backofficeIcon = backofficeBox.querySelector("svg") as SVGSVGElement;
   expect(getComputedStyle(backofficeIcon).stroke).toBe(tokenRgb("text-subtle"));
 });
 
-test("does not accept a field without a variant, a value, an onChange, a placeholder or an icon", () => {
+test("does not accept a field without a value, an onChange, a placeholder or an icon", () => {
   expectTypeOf<{
-    value: string;
     onChange: (value: string) => void;
     placeholder: string;
     icon: SearchFieldProps["icon"];
   }>().not.toExtend<SearchFieldProps>();
   expectTypeOf<{
-    variant: "register";
-    onChange: (value: string) => void;
-    placeholder: string;
-    icon: SearchFieldProps["icon"];
-  }>().not.toExtend<SearchFieldProps>();
-  expectTypeOf<{
-    variant: "register";
     value: string;
     placeholder: string;
     icon: SearchFieldProps["icon"];
   }>().not.toExtend<SearchFieldProps>();
   expectTypeOf<{
-    variant: "register";
     value: string;
     onChange: (value: string) => void;
     icon: SearchFieldProps["icon"];
   }>().not.toExtend<SearchFieldProps>();
   expectTypeOf<{
-    variant: "register";
     value: string;
     onChange: (value: string) => void;
     placeholder: string;
@@ -402,14 +395,12 @@ test("does not accept a field without a variant, a value, an onChange, a placeho
 
 test("accepts a field with only its required props, and separately with a label", () => {
   expectTypeOf<{
-    variant: "backoffice";
     value: string;
     onChange: (value: string) => void;
     placeholder: string;
     icon: SearchFieldProps["icon"];
   }>().toExtend<SearchFieldProps>();
   expectTypeOf<{
-    variant: "backoffice";
     value: string;
     onChange: (value: string) => void;
     placeholder: string;
@@ -421,7 +412,7 @@ test("accepts a field with only its required props, and separately with a label"
 test("fills a chip with the action-subtle fill behind the register icon, colored accent-text", async () => {
   const screen = await render(
     <SearchFieldHarness
-      variant="register"
+      size="register"
       placeholder="Scan or type the product name"
       icon={<Search />}
     />,
@@ -431,4 +422,8 @@ test("fills a chip with the action-subtle fill behind the register icon, colored
 
   expect(getComputedStyle(chip).backgroundColor).toBe(tokenRgb("action-subtle"));
   expect(Math.round(Number.parseFloat(getComputedStyle(chip).borderRadius))).toBe(6);
+});
+
+test("does not name its size as a variant of its own", () => {
+  expectTypeOf<SearchFieldProps>().not.toHaveProperty("variant");
 });
