@@ -22,6 +22,10 @@ export { ALERT_KINDS, isAlertKind } from "./alerts/index.js";
 export {
   BRANCH_HOURS_RANGES_PER_DAY_MAX,
   BRANCH_SETTINGS_DAYS_MAX,
+  BRANCH_SETTINGS_TEXT_MAX_LENGTH,
+  branchHoursRangesOverlap,
+  isBranchHoursRangeOrdered,
+  isBranchHoursTime,
 } from "./branch/index.js";
 export type { NetContentUnit } from "./catalog/index.js";
 export {

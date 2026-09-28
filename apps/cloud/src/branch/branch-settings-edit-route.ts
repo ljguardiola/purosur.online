@@ -1,3 +1,4 @@
+import { type BranchSettingsEditBody, branchSettingsEditBodySchema } from "@purosur/contracts";
 import { asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -10,28 +11,58 @@ import {
   routeSessionSource,
 } from "../access/route-access.js";
 import { auditLog, branchHours, branchSettings } from "../platform/db/schema.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
 import type {
+  BranchHoursRange,
   BranchHoursRow,
   BranchSettingsRouteOptions,
   BranchSettingsRow,
 } from "./branch-settings-read-route.js";
 import { toBranchSettingsWire } from "./branch-settings-read-route.js";
-import {
-  type BranchHoursRange,
-  type BranchSettingsEditInput,
-  type BranchSettingsFieldValidationFailure,
-  readBranchSettingsEditBody,
-} from "./branch-settings-validation.js";
 
 const STALE_VERSION_RESPONSE = {
   code: "stale_version",
   message: "these settings were changed since they were loaded",
 } as const;
 
-function isValidationFailure(
-  value: BranchSettingsEditInput | BranchSettingsFieldValidationFailure,
-): value is BranchSettingsFieldValidationFailure {
-  return "field" in value;
+interface BranchSettingsEditInput {
+  address: string;
+  whatsappNumber: string;
+  instagramHandle: string;
+  mondayHours: BranchHoursRange[];
+  tuesdayHours: BranchHoursRange[];
+  wednesdayHours: BranchHoursRange[];
+  thursdayHours: BranchHoursRange[];
+  fridayHours: BranchHoursRange[];
+  saturdayHours: BranchHoursRange[];
+  sundayHours: BranchHoursRange[];
+  expiringLotAlertDays: number;
+  unreviewedPriceAlertDays: number;
+  goodConditionReturnDays: number;
+  version: number;
+}
+
+function rangesFromBody(ranges: BranchSettingsEditBody["monday_hours"]): BranchHoursRange[] {
+  return ranges.map((range) => ({ opensAt: range.opens_at, closesAt: range.closes_at }));
+}
+
+function editInputFromBody(body: BranchSettingsEditBody): BranchSettingsEditInput {
+  return {
+    address: body.address,
+    whatsappNumber: body.whatsapp_number,
+    instagramHandle: body.instagram_handle,
+    mondayHours: rangesFromBody(body.monday_hours),
+    tuesdayHours: rangesFromBody(body.tuesday_hours),
+    wednesdayHours: rangesFromBody(body.wednesday_hours),
+    thursdayHours: rangesFromBody(body.thursday_hours),
+    fridayHours: rangesFromBody(body.friday_hours),
+    saturdayHours: rangesFromBody(body.saturday_hours),
+    sundayHours: rangesFromBody(body.sunday_hours),
+    expiringLotAlertDays: body.expiring_lot_alert_days,
+    unreviewedPriceAlertDays: body.unreviewed_price_alert_days,
+    goodConditionReturnDays: body.good_condition_return_days,
+    version: body.version,
+  };
 }
 
 export interface EditBranchSettingsInput extends BranchSettingsEditInput {
@@ -197,18 +228,13 @@ export function registerBranchSettingsEditRoute<TQueryResult extends PgQueryResu
     async (request, reply) => {
       const openSession = openSessionOf(request);
 
-      const parsedBody = readBranchSettingsEditBody(request.body);
-      if (isValidationFailure(parsedBody)) {
-        await reply.code(400).send({
-          code: "validation_failed",
-          message: parsedBody.message,
-          details: [{ field: parsedBody.field }],
-        });
+      const parsedBody = await readValidatedBody(reply, branchSettingsEditBodySchema, request.body);
+      if (!parsedBody) {
         return;
       }
 
       const outcome = await editBranchSettings(options.db, {
-        ...parsedBody,
+        ...editInputFromBody(parsedBody),
         locationId: openSession.locationId,
         actorId: openSession.userId,
       });

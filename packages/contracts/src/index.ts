@@ -1,3 +1,5 @@
+export type { BranchSettingsEditBody } from "./branch/branch-settings-edit.js";
+export { branchSettingsEditBodySchema } from "./branch/branch-settings-edit.js";
 export type {
   CoreStatusMessage,
   MainToCoreMessage,

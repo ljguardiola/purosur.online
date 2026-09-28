@@ -1,10 +1,10 @@
 import { asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import type { BranchHoursRange } from "../branch/branch-settings-read-route.js";
 import {
   type BranchSettingsWire,
   toBranchSettingsWire,
 } from "../branch/branch-settings-read-route.js";
-import type { BranchHoursRange } from "../branch/branch-settings-validation.js";
 import { branchHours, branchSettings } from "../platform/db/schema.js";
 import { SAMPLE_BRANCH_SETTINGS } from "./sample-catalog.js";
 
