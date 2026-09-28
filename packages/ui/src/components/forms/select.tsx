@@ -17,6 +17,13 @@ import {
   fieldWrapperGapClassName,
   requiredFieldLabelSuffixClassName,
 } from "./field-size";
+import {
+  disabledTextProps,
+  fieldErrorClassName,
+  fieldHelperClassName,
+  fieldTriggerHoverClassName,
+  fieldWrapperClassName,
+} from "./field-styles";
 
 export type SelectOption<V extends string = string> = {
   value: V;
@@ -45,7 +52,7 @@ export type SelectProps<V extends string> = SelectCommonProps &
     placeholder?: string;
   };
 
-const wrapperClassName = `flex flex-col ${fieldWrapperGapClassName.backoffice} data-disabled:opacity-disabled`;
+const wrapperClassName = `${fieldWrapperClassName} ${fieldWrapperGapClassName.backoffice}`;
 
 const baseLabelClassName = fieldLabelClassName.backoffice;
 const requiredLabelClassName = `${baseLabelClassName} ${requiredFieldLabelSuffixClassName}`;
@@ -62,10 +69,7 @@ function triggerStateClassName(disabled: boolean, invalid: boolean, isOpen: bool
     return "bg-surface border-action";
   }
   const resting = invalid ? "border-error" : "border-border";
-  return (
-    `bg-surface ${resting} data-hovered:not-data-focused:bg-surface-subtle ` +
-    "data-focused:border-action"
-  );
+  return `bg-surface ${resting} ${fieldTriggerHoverClassName} data-focused:border-action`;
 }
 
 const valueClassName =
@@ -92,9 +96,6 @@ const optionClassName =
   "data-hovered:data-selected:bg-action-subtle " +
   "data-focus-visible:data-selected:bg-action-subtle";
 
-const helperClassName = "text-detail text-text-subtle";
-const errorClassName = "text-detail text-error";
-
 // react-aria-components' onSelectionChange reports a plain Key (string | number).
 function isOptionValue<V extends string>(key: Key, options: readonly SelectOption<V>[]): key is V {
   return typeof key === "string" && options.some((option) => option.value === key);
@@ -114,9 +115,6 @@ export function Select<V extends string>(props: SelectProps<V>) {
   const invalid = props.invalid ?? false;
   const errorMessage = props.invalid ? props.errorMessage : undefined;
 
-  // WCAG's contrast minimum doesn't apply to an inactive component's own text, and axe-core's
-  // color-contrast check only honors that for a node whose own aria-disabled says so.
-  const disabledTextProps = disabled ? { "aria-disabled": true as const } : {};
   // Left out entirely rather than set to `undefined`: AriaSelect's `placeholder` prop type doesn't
   // accept `undefined` under `exactOptionalPropertyTypes`.
   const placeholderProps = placeholder !== undefined ? { placeholder } : {};
@@ -162,12 +160,20 @@ export function Select<V extends string>(props: SelectProps<V>) {
             )}
           </AriaButton>
           {invalid ? (
-            <AriaText slot="errorMessage" className={errorClassName} {...disabledTextProps}>
+            <AriaText
+              slot="errorMessage"
+              className={fieldErrorClassName}
+              {...disabledTextProps(disabled)}
+            >
               {errorMessage}
             </AriaText>
           ) : (
             helperText !== undefined && (
-              <AriaText slot="description" className={helperClassName} {...disabledTextProps}>
+              <AriaText
+                slot="description"
+                className={fieldHelperClassName}
+                {...disabledTextProps(disabled)}
+              >
                 {helperText}
               </AriaText>
             )

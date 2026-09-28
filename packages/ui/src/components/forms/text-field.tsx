@@ -14,6 +14,14 @@ import {
   requiredFieldLabelSuffixClassName,
   useFieldSize,
 } from "./field-size";
+import {
+  disabledTextProps,
+  fieldBoxClassName,
+  fieldBoxStateClassName,
+  fieldErrorClassName,
+  fieldHelperClassName,
+  fieldWrapperClassName,
+} from "./field-styles";
 
 export type TextFieldValueKind =
   | "amount"
@@ -57,10 +65,6 @@ type TextFieldKindProps =
 
 export type TextFieldProps = TextFieldCommonProps & TextFieldValidityProps & TextFieldKindProps;
 
-const wrapperBaseClassName = "flex flex-col data-disabled:opacity-disabled";
-
-const boxBaseClassName = "flex items-center rounded-lg outline-none";
-
 const frameClassName: Record<Exclude<TextFieldValueKind, "plain-text">, string> = {
   amount: "h-control-6xl gap-2 px-4",
   "counted-cash": "h-control-7xl gap-3 px-6",
@@ -85,33 +89,6 @@ const inputBaseClassName = "min-w-0 flex-1 bg-transparent caret-focus outline-no
 const moneyPrefixClassName = "shrink-0 text-display font-normal text-text-subtle";
 const unitSuffixClassName = "shrink-0 text-heading font-normal text-text-subtle";
 const plainTextSuffixClassName = "shrink-0 text-body text-text-subtle";
-
-const helperClassName = "text-detail text-text-subtle";
-const errorClassName = "text-detail text-error";
-
-// Drawn as an inset box-shadow rather than a real border so it never participates in layout.
-// `hover:not-focus-within:` keeps the hovered fill from showing once the field is focused,
-// regardless of the two Tailwind rules' generated order.
-function boxStateClassName(disabled: boolean, readOnly: boolean, invalid: boolean): string {
-  if (disabled) {
-    return "bg-surface inset-ring-2 inset-ring-border";
-  }
-  if (readOnly) {
-    return "bg-surface-subtle inset-ring-2 inset-ring-border focus-within:inset-ring-action";
-  }
-  if (invalid) {
-    return (
-      "bg-surface inset-ring-2 inset-ring-error " +
-      "hover:not-focus-within:bg-surface-subtle " +
-      "focus-within:inset-ring-action"
-    );
-  }
-  return (
-    "bg-surface inset-ring-2 inset-ring-border " +
-    "hover:not-focus-within:bg-surface-subtle " +
-    "focus-within:inset-ring-action"
-  );
-}
 
 export function TextField(props: TextFieldProps) {
   const {
@@ -171,12 +148,6 @@ export function TextField(props: TextFieldProps) {
   const labelledByProps =
     labelledBy !== undefined ? { "aria-labelledby": `${labelledBy} ${labelId}` } : {};
 
-  // WCAG 1.4.3/1.4.11 exempt an inactive component's own text from the contrast minimum, but
-  // axe-core's color-contrast check only honors that exemption on a node whose own `aria-disabled`
-  // says so; the wrapper's opacity dip doesn't qualify. react-aria-components' TextField root
-  // filters out `aria-disabled` from forwarded DOM props, so it's set directly on these elements.
-  const disabledTextProps = disabled ? { "aria-disabled": true as const } : {};
-
   return (
     <AriaTextField
       value={value}
@@ -186,7 +157,7 @@ export function TextField(props: TextFieldProps) {
       isRequired={required}
       isInvalid={invalid}
       {...describedByProps}
-      className={`${wrapperBaseClassName} ${fieldWrapperGapClassName[size]}`}
+      className={`${fieldWrapperClassName} ${fieldWrapperGapClassName[size]}`}
     >
       <AriaLabel
         id={labelId}
@@ -201,7 +172,7 @@ export function TextField(props: TextFieldProps) {
         {label}
       </AriaLabel>
       <div
-        className={`${boxBaseClassName} ${boxFrameClassName} ${boxStateClassName(disabled, readOnly, invalid)}`}
+        className={`${fieldBoxClassName} ${boxFrameClassName} ${fieldBoxStateClassName({ disabled, readOnly, invalid })}`}
       >
         {prefix !== undefined && (
           <span aria-hidden="true" id={affixId} className={moneyPrefixClassName}>
@@ -229,13 +200,21 @@ export function TextField(props: TextFieldProps) {
         )}
       </div>
       {errorMessage !== undefined ? (
-        <AriaText slot="errorMessage" className={errorClassName} {...disabledTextProps}>
+        <AriaText
+          slot="errorMessage"
+          className={fieldErrorClassName}
+          {...disabledTextProps(disabled)}
+        >
           {errorMessage}
         </AriaText>
       ) : (
         !invalid &&
         helperText !== undefined && (
-          <AriaText slot="description" className={helperClassName} {...disabledTextProps}>
+          <AriaText
+            slot="description"
+            className={fieldHelperClassName}
+            {...disabledTextProps(disabled)}
+          >
             {helperText}
           </AriaText>
         )

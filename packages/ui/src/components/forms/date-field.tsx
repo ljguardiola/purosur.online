@@ -30,6 +30,14 @@ import {
   requiredFieldLabelSuffixClassName,
   useFieldSize,
 } from "./field-size";
+import {
+  disabledTextProps,
+  fieldBoxClassName,
+  fieldBoxStateClassName,
+  fieldErrorClassName,
+  fieldHelperClassName,
+  fieldWrapperClassName,
+} from "./field-styles";
 
 // CalendarDate's constructor constrains an invalid day, such as February 30th, to the month's
 // real last day instead of refusing it, so no caller value can reach here unparseable.
@@ -54,10 +62,6 @@ type DateFieldRangeProps =
 export type DateFieldProps = DateFieldCommonProps & DateFieldValidityProps & DateFieldRangeProps;
 
 const LOCALE: Locale = "es-AR";
-
-const wrapperBaseClassName = "flex flex-col data-disabled:opacity-disabled";
-
-const boxBaseClassName = "flex items-center rounded-lg outline-none";
 
 const registerFrameClassName = "h-control-4xl gap-2 px-4";
 const registerValueClassName = "text-heading text-text";
@@ -84,27 +88,6 @@ const emptySeparatorClassName = "literal:text-text-subtle";
 const iconButtonClassName =
   "inline-flex size-6 shrink-0 -mx-0.75 items-center justify-center text-text-subtle outline-none " +
   "data-focus-visible:focus-ring";
-
-const helperClassName = "text-detail text-text-subtle";
-const errorClassName = "text-detail text-error";
-
-function boxStateClassName(disabled: boolean, invalid: boolean): string {
-  if (disabled) {
-    return "bg-surface inset-ring-2 inset-ring-border";
-  }
-  if (invalid) {
-    return (
-      "bg-surface inset-ring-2 inset-ring-error " +
-      "hover:not-focus-within:bg-surface-subtle " +
-      "focus-within:inset-ring-action"
-    );
-  }
-  return (
-    "bg-surface inset-ring-2 inset-ring-border " +
-    "hover:not-focus-within:bg-surface-subtle " +
-    "focus-within:inset-ring-action"
-  );
-}
 
 const popoverClassName = "outline-none";
 const dialogClassName =
@@ -149,12 +132,6 @@ export function DateField(props: DateFieldProps) {
   const maxValue = props.maxValue ?? null;
   const rangeMessage = props.rangeMessage;
 
-  // WCAG 1.4.3/1.4.11 exempt an inactive component's own text from the contrast minimum, but
-  // axe-core's color-contrast check only honors that exemption on a node whose own `aria-disabled`
-  // says so; the wrapper's opacity dip doesn't qualify. react-aria-components' DatePicker root
-  // filters out `aria-disabled` from forwarded DOM props, so it's set directly on these elements.
-  const disabledTextProps = disabled ? { "aria-disabled": true as const } : {};
-
   const outOfRange =
     value !== null &&
     ((minValue !== null && value.compare(minValue) < 0) ||
@@ -177,7 +154,7 @@ export function DateField(props: DateFieldProps) {
         isRequired={required}
         minValue={minValue}
         maxValue={maxValue}
-        className={`${wrapperBaseClassName} ${fieldWrapperGapClassName[size]}`}
+        className={`${fieldWrapperClassName} ${fieldWrapperGapClassName[size]}`}
       >
         <AriaLabel
           className={
@@ -187,7 +164,7 @@ export function DateField(props: DateFieldProps) {
           {label}
         </AriaLabel>
         <AriaGroup
-          className={`${boxBaseClassName} ${frameClassName} ${boxStateClassName(disabled, invalid)}`}
+          className={`${fieldBoxClassName} ${frameClassName} ${fieldBoxStateClassName({ disabled, invalid })}`}
         >
           {size === "register" && <CalendarToggleButton />}
           <AriaDateInput className={`${inputBaseClassName} ${valueClassName}`}>
@@ -205,12 +182,20 @@ export function DateField(props: DateFieldProps) {
           {size === "backoffice" && <CalendarToggleButton />}
         </AriaGroup>
         {shownError !== undefined ? (
-          <AriaText slot="errorMessage" className={errorClassName} {...disabledTextProps}>
+          <AriaText
+            slot="errorMessage"
+            className={fieldErrorClassName}
+            {...disabledTextProps(disabled)}
+          >
             {shownError}
           </AriaText>
         ) : (
           helperText !== undefined && (
-            <AriaText slot="description" className={helperClassName} {...disabledTextProps}>
+            <AriaText
+              slot="description"
+              className={fieldHelperClassName}
+              {...disabledTextProps(disabled)}
+            >
               {helperText}
             </AriaText>
           )

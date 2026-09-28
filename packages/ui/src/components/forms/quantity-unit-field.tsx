@@ -18,6 +18,14 @@ import {
   fieldLabelClassName,
   fieldWrapperGapClassName,
 } from "./field-size";
+import {
+  disabledTextProps,
+  fieldBoxClassName,
+  fieldBoxStateClassName,
+  fieldErrorClassName,
+  fieldHelperClassName,
+  fieldWrapperClassName,
+} from "./field-styles";
 
 export type QuantityUnitFieldOption<U extends string = string> = {
   id: U;
@@ -46,35 +54,11 @@ type QuantityUnitFieldValidityProps =
 export type QuantityUnitFieldProps<U extends string> = QuantityUnitFieldCommonProps<U> &
   QuantityUnitFieldValidityProps;
 
-const wrapperClassName = `flex flex-col ${fieldWrapperGapClassName.backoffice} data-disabled:opacity-disabled`;
+const wrapperClassName = `${fieldWrapperClassName} ${fieldWrapperGapClassName.backoffice}`;
 
 const labelClassName = fieldLabelClassName.backoffice;
 
-const boxBaseClassName = `flex min-w-0 max-w-full items-center rounded-lg outline-none ${backofficeFieldBoxClassName}`;
-
-// Opening the unit picker's menu moves DOM focus into its own portaled listbox, off this box
-// entirely, so `focus-within` alone would drop the border the instant it opens; this forces it
-// back on while open.
-function boxStateClassName(disabled: boolean, invalid: boolean, unitOpen: boolean): string {
-  if (disabled) {
-    return "bg-surface inset-ring-2 inset-ring-border";
-  }
-  if (unitOpen) {
-    return "bg-surface inset-ring-2 inset-ring-action";
-  }
-  if (invalid) {
-    return (
-      "bg-surface inset-ring-2 inset-ring-error " +
-      "hover:not-focus-within:bg-surface-subtle " +
-      "focus-within:inset-ring-action"
-    );
-  }
-  return (
-    "bg-surface inset-ring-2 inset-ring-border " +
-    "hover:not-focus-within:bg-surface-subtle " +
-    "focus-within:inset-ring-action"
-  );
-}
+const boxBaseClassName = `${fieldBoxClassName} min-w-0 max-w-full ${backofficeFieldBoxClassName}`;
 
 const valueClassName =
   `min-w-0 flex-1 bg-transparent text-left ${backofficeFieldValueClassName} ` +
@@ -98,9 +82,6 @@ const optionClassName =
   "data-selected:bg-action-subtle data-selected:text-text-accent " +
   "data-hovered:data-selected:bg-action-subtle " +
   "data-focus-visible:data-selected:bg-action-subtle";
-
-const helperClassName = "text-detail text-text-subtle";
-const errorClassName = "text-detail text-error";
 
 // react-aria-components' onSelectionChange reports a plain Key (string | number).
 function isOptionValue<U extends string>(
@@ -139,10 +120,6 @@ export function QuantityUnitField<U extends string>(props: QuantityUnitFieldProp
   const messageId = explicitMessageId ?? (showOwnMessage ? ownMessageId : undefined);
   const describedByProps = messageId !== undefined ? { "aria-describedby": messageId } : {};
 
-  // WCAG's contrast minimum doesn't apply to an inactive component's own text, and axe-core's
-  // color-contrast check only honors that for a node whose own aria-disabled says so.
-  const disabledTextProps = disabled ? { "aria-disabled": true as const } : {};
-
   return (
     <AriaTextField
       value={quantity}
@@ -153,7 +130,9 @@ export function QuantityUnitField<U extends string>(props: QuantityUnitFieldProp
       className={wrapperClassName}
     >
       <AriaLabel className={labelClassName}>{label}</AriaLabel>
-      <div className={`${boxBaseClassName} ${boxStateClassName(disabled, invalid, unitOpen)}`}>
+      <div
+        className={`${boxBaseClassName} ${fieldBoxStateClassName({ disabled, invalid, forcedFocus: unitOpen })}`}
+      >
         <AriaInput className={valueClassName} />
         <AriaSelect
           selectedKey={unit}
@@ -209,11 +188,11 @@ export function QuantityUnitField<U extends string>(props: QuantityUnitFieldProp
       </div>
       {showOwnMessage ? (
         errorMessage !== undefined ? (
-          <p id={ownMessageId} className={errorClassName} {...disabledTextProps}>
+          <p id={ownMessageId} className={fieldErrorClassName} {...disabledTextProps(disabled)}>
             {errorMessage}
           </p>
         ) : helperText !== undefined ? (
-          <p id={ownMessageId} className={helperClassName} {...disabledTextProps}>
+          <p id={ownMessageId} className={fieldHelperClassName} {...disabledTextProps(disabled)}>
             {helperText}
           </p>
         ) : null

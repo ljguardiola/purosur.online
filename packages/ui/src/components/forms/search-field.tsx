@@ -1,5 +1,6 @@
 import { Input as AriaInput, SearchField as AriaSearchField } from "react-aria-components";
 import type { Icon } from "../shared/icon";
+import { fieldBoxClassName, fieldBoxStateClassName, fieldDisabledClassName } from "./field-styles";
 
 export type SearchFieldVariant = "register" | "backoffice";
 
@@ -14,10 +15,6 @@ export type SearchFieldProps = {
   label?: string;
   disabled?: boolean;
 };
-
-const wrapperClassName = "data-disabled:opacity-disabled";
-
-const boxBaseClassName = "flex items-center rounded-lg outline-none";
 
 const frameClassName: Record<SearchFieldVariant, string> = {
   register: "h-control-5xl gap-4 px-2",
@@ -44,19 +41,6 @@ const registerIconWrapperClassName =
 const backofficeIconWrapperClassName =
   "inline-flex size-icon-md shrink-0 text-text-subtle *:size-full";
 
-// A disabled field keeps its resting look on the box itself; the wrapper's opacity communicates
-// "disabled", so neither hover nor focus treatment applies here while it is set.
-function boxStateClassName(disabled: boolean): string {
-  if (disabled) {
-    return "bg-surface inset-ring-2 inset-ring-border";
-  }
-  return (
-    "bg-surface inset-ring-2 inset-ring-border " +
-    "hover:not-focus-within:bg-surface-subtle " +
-    "focus-within:inset-ring-action"
-  );
-}
-
 export function SearchField(props: SearchFieldProps) {
   const { variant, value, onChange, placeholder, icon, label, disabled = false } = props;
 
@@ -77,10 +61,10 @@ export function SearchField(props: SearchFieldProps) {
       onChange={onChange}
       isDisabled={disabled}
       aria-label={label ?? placeholder}
-      className={wrapperClassName}
+      className={fieldDisabledClassName}
     >
       <div
-        className={`${boxBaseClassName} ${frameClassName[variant]} ${boxStateClassName(disabled)}`}
+        className={`${fieldBoxClassName} ${frameClassName[variant]} ${fieldBoxStateClassName({ disabled })}`}
       >
         {leading}
         <AriaInput
