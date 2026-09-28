@@ -1,0 +1,796 @@
+import { AlertTriangle, CheckCircle, Info } from "lucide-react";
+import { useState } from "react";
+import { beforeEach, expect, expectTypeOf, test, vi } from "vitest";
+import { page, userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
+import { expectNoAccessibilityViolations } from "../../test/axe";
+import { paletteColor, tokenBackgroundColor, tokenRgb } from "../../test/token-colors";
+import { Button } from "../forms/button";
+import { Modal, type ModalProps, type ModalWidth } from "./modal";
+
+// The default browser-mode viewport is phone-sized, too narrow for the panel's widest 720px form
+// and a fixed, centered close button that a phone-sized page couldn't scroll into view.
+beforeEach(async () => {
+  await page.viewport(1280, 900);
+});
+
+// react-aria-components portals the modal's DOM into document.body, outside vitest-browser-react's
+// own render container, so scoping an accessibility check to `screen.container` would always pass
+// against an empty placeholder regardless of what the modal renders.
+
+function baseProps(overrides: Partial<ModalProps> = {}): ModalProps {
+  return {
+    isOpen: true,
+    onOpenChange: () => {},
+    tone: "info",
+    icon: <Info />,
+    title: "Void the sale",
+    footer: <span />,
+    children: "Body content",
+    ...overrides,
+  } as ModalProps;
+}
+
+const widths: Record<ModalWidth, number> = {
+  confirmation: 560,
+  standard: 640,
+  wide: 720,
+  editor: 1040,
+};
+
+test("renders each width in the design's scale", async () => {
+  for (const [width, px] of Object.entries(widths) as [ModalWidth, number][]) {
+    const screen = await render(<Modal {...baseProps({ width })} />);
+    const panel = screen.getByRole("dialog").element().parentElement as HTMLElement;
+
+    const rect = panel.getBoundingClientRect();
+    expect(rect.width, `${width} width`).toBeGreaterThan(px - 1);
+    expect(rect.width, `${width} width`).toBeLessThan(px + 1);
+
+    await expectNoAccessibilityViolations(document.body);
+    await screen.unmount();
+  }
+});
+
+test("defaults to the standard 640px width when none is given", async () => {
+  const screen = await render(<Modal {...baseProps()} />);
+  const panel = screen.getByRole("dialog").element().parentElement as HTMLElement;
+
+  const rect = panel.getBoundingClientRect();
+  expect(rect.width).toBeGreaterThan(639);
+  expect(rect.width).toBeLessThan(641);
+});
+
+test("gives the panel a white background, 12px radius and the design's shadow", async () => {
+  const screen = await render(<Modal {...baseProps()} />);
+  const panel = screen.getByRole("dialog").element().parentElement as HTMLElement;
+  const style = getComputedStyle(panel);
+
+  expect(style.backgroundColor).toBe(tokenRgb("surface"));
+  expect(style.borderRadius).toBe("12px");
+  expect(style.boxShadow).toContain("24px 64px");
+  expect(style.boxShadow).toContain(paletteColor("neutral-900-a30"));
+});
+
+test("covers the viewport with a backdrop in ink at 50% opacity", async () => {
+  await render(<Modal {...baseProps()} />);
+  const backdrop = document.querySelector('[class*="bg-backdrop"]') as HTMLElement;
+
+  expect(backdrop).not.toBeNull();
+  const style = getComputedStyle(backdrop);
+  expect(style.backgroundColor).toBe(tokenBackgroundColor("backdrop"));
+  const rect = backdrop.getBoundingClientRect();
+  expect(rect.width).toBeGreaterThan(0);
+  expect(rect.height).toBeGreaterThan(0);
+});
+
+test("stays above page content that has its own stacking order", async () => {
+  const fixedBar = document.createElement("div");
+  fixedBar.style.cssText = "position: fixed; inset: 0; z-index: 10; background: white;";
+  document.body.appendChild(fixedBar);
+
+  try {
+    await render(<Modal {...baseProps()} />);
+    const dialog = page.getByRole("dialog").element() as HTMLElement;
+    const rect = dialog.getBoundingClientRect();
+    // An open modal makes everything outside it inert, and hit testing skips inert elements.
+    fixedBar.inert = false;
+    fixedBar.removeAttribute("aria-hidden");
+    const topmost = document.elementFromPoint(rect.left + rect.width / 2, rect.top + 8);
+
+    expect(dialog.contains(topmost)).toBe(true);
+  } finally {
+    fixedBar.remove();
+  }
+});
+
+const tones: {
+  tone: ModalProps["tone"];
+  boxBg: string;
+  strong: string;
+}[] = [
+  { tone: "info", boxBg: "info-subtle", strong: "info-strong" },
+  { tone: "success", boxBg: "success-subtle", strong: "success-strong" },
+  { tone: "warning", boxBg: "warning-subtle", strong: "warning-strong" },
+  { tone: "error", boxBg: "error-subtle", strong: "error-strong" },
+];
+
+test("colors the icon box and title with each tone's background and strong color", async () => {
+  for (const { tone, boxBg, strong } of tones) {
+    const screen = await render(
+      <Modal {...baseProps({ tone, icon: <CheckCircle />, title: `${tone} title` })} />,
+    );
+    const dialog = screen.getByRole("dialog").element() as HTMLElement;
+    const iconBox = dialog.querySelector('[aria-hidden="true"]') as HTMLElement;
+    const icon = iconBox.querySelector("svg") as SVGSVGElement;
+    const title = screen.getByText(`${tone} title`, { exact: true }).element() as HTMLElement;
+
+    expect(getComputedStyle(iconBox).backgroundColor, `${tone} icon box background`).toBe(
+      tokenRgb(boxBg),
+    );
+    expect(getComputedStyle(iconBox).color, `${tone} icon box color`).toBe(tokenRgb(strong));
+    expect(getComputedStyle(icon).color, `${tone} icon color`).toBe(tokenRgb(strong));
+    expect(getComputedStyle(title).color, `${tone} title color`).toBe(tokenRgb(strong));
+
+    await expectNoAccessibilityViolations(document.body);
+    await screen.unmount();
+  }
+});
+
+test("renders the icon box at 48px with a 12px radius and the icon at 24px", async () => {
+  const screen = await render(<Modal {...baseProps({ icon: <CheckCircle /> })} />);
+  const dialog = screen.getByRole("dialog").element() as HTMLElement;
+  const iconBox = dialog.querySelector('[aria-hidden="true"]') as HTMLElement;
+  const icon = iconBox.querySelector("svg") as SVGSVGElement;
+
+  const boxRect = iconBox.getBoundingClientRect();
+  expect(boxRect.width).toBeGreaterThan(47);
+  expect(boxRect.width).toBeLessThan(49);
+  expect(boxRect.height).toBeGreaterThan(47);
+  expect(boxRect.height).toBeLessThan(49);
+  expect(getComputedStyle(iconBox).borderRadius).toBe("12px");
+
+  const iconRect = icon.getBoundingClientRect();
+  expect(iconRect.width).toBeGreaterThan(23);
+  expect(iconRect.width).toBeLessThan(25);
+});
+
+test("shows a context line in bold uppercase eyebrow color by default", async () => {
+  const screen = await render(<Modal {...baseProps({ context: "Warning" })} />);
+  const context = screen.getByText("Warning", { exact: true }).element() as HTMLElement;
+  const style = getComputedStyle(context);
+
+  expect(style.fontWeight).toBe("700");
+  expect(style.textTransform).toBe("uppercase");
+  expect(style.fontSize).toBe("12px");
+  expect(style.color).toBe(tokenRgb("text-eyebrow"));
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("lets the caller color the context line with another text tone", async () => {
+  const screen = await render(
+    <Modal {...baseProps({ context: "Cannot be undone", contextTone: "error" })} />,
+  );
+  const context = screen.getByText("Cannot be undone", { exact: true }).element() as HTMLElement;
+
+  expect(getComputedStyle(context).color).toBe(tokenRgb("error"));
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("renders no context line when the caller does not supply one", async () => {
+  const screen = await render(<Modal {...baseProps({ title: "Void the sale" })} />);
+  const title = screen.getByRole("heading", { name: "Void the sale" }).element() as HTMLElement;
+  const contextSibling = title.previousElementSibling;
+
+  expect(contextSibling).toBeNull();
+});
+
+test("lays out the header with its padding, border and 16px gap", async () => {
+  const screen = await render(<Modal {...baseProps()} />);
+  const dialog = screen.getByRole("dialog").element() as HTMLElement;
+  const header = dialog.firstElementChild as HTMLElement;
+  const style = getComputedStyle(header);
+
+  expect(style.paddingTop).toBe("16px");
+  expect(style.paddingRight).toBe("16px");
+  expect(style.paddingBottom).toBe("16px");
+  expect(style.paddingLeft).toBe("24px");
+  expect(style.borderBottomWidth).toBe("1px");
+  expect(style.borderBottomColor).toBe(tokenRgb("border"));
+  expect(style.columnGap).toBe("16px");
+  expect(style.alignItems).toBe("center");
+});
+
+test("gives the body 24px padding", async () => {
+  const screen = await render(
+    <Modal {...baseProps({ children: <p>Are you sure you want to void this sale?</p> })} />,
+  );
+  const body = screen
+    .getByText("Are you sure you want to void this sale?", { exact: true })
+    .element().parentElement as HTMLElement;
+  const style = getComputedStyle(body);
+
+  expect(style.paddingTop).toBe("24px");
+  expect(style.paddingRight).toBe("24px");
+  expect(style.paddingBottom).toBe("24px");
+  expect(style.paddingLeft).toBe("24px");
+});
+
+test('gives the body no padding at all when bodyPadding is "none", for a caller laying out its own edge-to-edge regions', async () => {
+  const screen = await render(
+    <Modal
+      {...baseProps({
+        bodyPadding: "none",
+        children: <p>Areas pane and detail pane, flush to the panel's edges</p>,
+      })}
+    />,
+  );
+  const body = screen
+    .getByText("Areas pane and detail pane, flush to the panel's edges", { exact: true })
+    .element().parentElement as HTMLElement;
+  const style = getComputedStyle(body);
+
+  expect(style.paddingTop).toBe("0px");
+  expect(style.paddingRight).toBe("0px");
+  expect(style.paddingBottom).toBe("0px");
+  expect(style.paddingLeft).toBe("0px");
+});
+
+test("centers the header's icon (as a 56px circle) and title when headerLayout is centered", async () => {
+  const screen = await render(<Modal {...baseProps({ headerLayout: "centered" })} />);
+  const dialog = screen.getByRole("dialog").element() as HTMLElement;
+  const iconBox = dialog.querySelector('[aria-hidden="true"]') as HTMLElement;
+  const title = screen.getByRole("heading", { name: "Void the sale" }).element() as HTMLElement;
+
+  const boxRect = iconBox.getBoundingClientRect();
+  expect(boxRect.width).toBeGreaterThan(55);
+  expect(boxRect.width).toBeLessThan(57);
+  expect(boxRect.height).toBeGreaterThan(55);
+  expect(boxRect.height).toBeLessThan(57);
+  // rounded-full computes to an arbitrarily large radius, not 50%, so circularity is a radius at
+  // least half the box's own size, not an exact value.
+  expect(Number.parseFloat(getComputedStyle(iconBox).borderRadius)).toBeGreaterThanOrEqual(
+    boxRect.width / 2,
+  );
+  expect(getComputedStyle(dialog.firstElementChild as HTMLElement).alignItems).toBe("center");
+  expect(getComputedStyle(title).textAlign).toBe("center");
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("draws no close button in the centered header layout, yet still closes on Escape when closable", async () => {
+  const onOpenChange = vi.fn();
+  const screen = await render(
+    <Modal {...baseProps({ headerLayout: "centered", closable: true, onOpenChange })} />,
+  );
+  const dialog = screen.getByRole("dialog").element() as HTMLElement;
+
+  expect(dialog.querySelectorAll("button")).toHaveLength(0);
+
+  await userEvent.keyboard("{Escape}");
+
+  expect(onOpenChange).toHaveBeenCalledWith(false);
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("draws the centered layout's icon, title and body as one 24px-padded, centered column with 12px gaps and no divider", async () => {
+  const screen = await render(
+    <Modal
+      {...baseProps({ headerLayout: "centered", children: <p>The text below the title</p> })}
+    />,
+  );
+  const dialog = screen.getByRole("dialog").element() as HTMLElement;
+  const column = dialog.firstElementChild as HTMLElement;
+  const iconBox = column.querySelector('[aria-hidden="true"]') as HTMLElement;
+  const title = screen.getByRole("heading", { name: "Void the sale" }).element() as HTMLElement;
+  const text = screen.getByText("The text below the title").element() as HTMLElement;
+  const columnStyle = getComputedStyle(column);
+
+  expect(column.contains(text)).toBe(true);
+  expect(columnStyle.borderBottomWidth).toBe("0px");
+  expect(columnStyle.paddingTop).toBe("24px");
+  expect(columnStyle.paddingRight).toBe("24px");
+  expect(columnStyle.paddingBottom).toBe("24px");
+  expect(columnStyle.paddingLeft).toBe("24px");
+  expect(columnStyle.alignItems).toBe("center");
+  expect(title.getBoundingClientRect().top - iconBox.getBoundingClientRect().bottom).toBeCloseTo(
+    12,
+    0,
+  );
+  expect(text.getBoundingClientRect().top - title.getBoundingClientRect().bottom).toBeCloseTo(
+    12,
+    0,
+  );
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test('lays a flush body out as a column its content can fill, so an inner region scrolls instead of the body, when bodyPadding is "none"', async () => {
+  await page.viewport(1280, 400);
+  try {
+    const screen = await render(
+      <Modal
+        {...baseProps({
+          bodyPadding: "none",
+          children: (
+            <div
+              data-testid="inner-region"
+              style={{ flex: "1 1 0%", minHeight: 0, overflowY: "auto" }}
+            >
+              <div style={{ height: 2000 }} />
+            </div>
+          ),
+        })}
+      />,
+    );
+    const inner = screen.getByTestId("inner-region").element() as HTMLElement;
+    const body = inner.parentElement as HTMLElement;
+
+    expect(body.scrollHeight).toBe(body.clientHeight);
+    expect(inner.scrollHeight).toBeGreaterThan(inner.clientHeight);
+
+    await expectNoAccessibilityViolations(document.body);
+  } finally {
+    await page.viewport(1280, 900);
+  }
+});
+
+test("goes straight from the header to the footer when there is nothing to show in the body", async () => {
+  const cases: Array<Partial<ModalProps>> = [
+    { children: undefined },
+    {
+      children: (
+        <>
+          {false}
+          {null}
+        </>
+      ),
+    },
+    { children: [false, null] },
+  ];
+
+  for (const overrides of cases) {
+    const screen = await render(
+      <Modal {...baseProps({ ...overrides, footer: <Button>Confirm</Button> })} />,
+    );
+    const dialog = screen.getByRole("dialog").element() as HTMLElement;
+    const footer = screen.getByRole("button", { name: "Confirm" }).element()
+      .parentElement as HTMLElement;
+    const header = screen.getByRole("heading", { name: "Void the sale" }).element().parentElement
+      ?.parentElement as HTMLElement;
+
+    expect(dialog.children).toHaveLength(2);
+    expect(header.nextElementSibling).toBe(footer);
+
+    await expectNoAccessibilityViolations(document.body);
+    await screen.unmount();
+  }
+});
+
+test("shows the body between the header and the footer once there is something to show in it", async () => {
+  const screen = await render(
+    <Modal
+      {...baseProps({
+        footer: <Button>Confirm</Button>,
+        children: (
+          <>
+            {false}
+            <p>Signing out failed.</p>
+          </>
+        ),
+      })}
+    />,
+  );
+  const dialog = screen.getByRole("dialog").element() as HTMLElement;
+  const body = screen.getByText("Signing out failed.", { exact: true }).element()
+    .parentElement as HTMLElement;
+
+  expect(dialog.children).toHaveLength(3);
+  expect(dialog.children[1]).toBe(body);
+});
+
+test("gives the footer a bone background, its padding, top border and 12px gap", async () => {
+  const screen = await render(<Modal {...baseProps({ footer: <Button>Confirm</Button> })} />);
+  const footerButton = screen.getByRole("button", { name: "Confirm" }).element() as HTMLElement;
+  const footer = footerButton.parentElement as HTMLElement;
+  const style = getComputedStyle(footer);
+
+  expect(style.backgroundColor).toBe(tokenRgb("surface-subtle"));
+  expect(style.paddingTop).toBe("16px");
+  expect(style.paddingBottom).toBe("16px");
+  expect(style.paddingLeft).toBe("24px");
+  expect(style.paddingRight).toBe("24px");
+  expect(style.borderTopWidth).toBe("1px");
+  expect(style.borderTopColor).toBe(tokenRgb("border"));
+  expect(style.columnGap).toBe("12px");
+  expect(style.alignItems).toBe("center");
+});
+
+test("rounds the footer's bottom corners like the panel's so its bone fill keeps them rounded", async () => {
+  const screen = await render(<Modal {...baseProps({ footer: <Button>Confirm</Button> })} />);
+  const footerButton = screen.getByRole("button", { name: "Confirm" }).element() as HTMLElement;
+  const footer = footerButton.parentElement as HTMLElement;
+  const panel = (footer.closest('[role="dialog"]') as HTMLElement).parentElement as HTMLElement;
+  const footerStyle = getComputedStyle(footer);
+  const panelStyle = getComputedStyle(panel);
+
+  expect(panelStyle.borderBottomLeftRadius).toBe("12px");
+  expect(panelStyle.borderBottomRightRadius).toBe("12px");
+  expect(footerStyle.borderBottomLeftRadius).toBe(panelStyle.borderBottomLeftRadius);
+  expect(footerStyle.borderBottomRightRadius).toBe(panelStyle.borderBottomRightRadius);
+});
+
+test("caps the panel below the viewport and lets only the body scroll when content overflows", async () => {
+  await page.viewport(900, 500);
+  try {
+    const screen = await render(
+      <Modal
+        {...baseProps({
+          closable: true,
+          footer: <Button>Confirm</Button>,
+          children: <div style={{ height: "1400px" }}>Tall body content</div>,
+        })}
+      />,
+    );
+    const dialog = screen.getByRole("dialog").element() as HTMLElement;
+    const panel = dialog.parentElement as HTMLElement;
+    const header = dialog.firstElementChild as HTMLElement;
+    const body = header.nextElementSibling as HTMLElement;
+    const footer = body.nextElementSibling as HTMLElement;
+
+    const viewportHeight = window.innerHeight;
+    const panelRect = panel.getBoundingClientRect();
+    const footerRect = footer.getBoundingClientRect();
+
+    expect(panelRect.height).toBeLessThanOrEqual(viewportHeight - 48 + 1);
+    expect(footerRect.bottom).toBeLessThanOrEqual(viewportHeight + 1);
+    expect(body.scrollHeight).toBeGreaterThan(body.clientHeight);
+    expect(["auto", "scroll"]).toContain(getComputedStyle(body).overflowY);
+
+    await expectNoAccessibilityViolations(document.body);
+  } finally {
+    await page.viewport(1280, 900);
+  }
+});
+
+test("keeps the header and footer at their natural height even when the body scrolls", async () => {
+  const naturalScreen = await render(
+    <Modal {...baseProps({ footer: <Button>Confirm</Button> })} />,
+  );
+  const naturalDialog = naturalScreen.getByRole("dialog").element() as HTMLElement;
+  const naturalHeaderHeight = (
+    naturalDialog.firstElementChild as HTMLElement
+  ).getBoundingClientRect().height;
+  const naturalFooterHeight = (
+    naturalDialog.lastElementChild as HTMLElement
+  ).getBoundingClientRect().height;
+  await expectNoAccessibilityViolations(document.body);
+  await naturalScreen.unmount();
+
+  await page.viewport(900, 500);
+  try {
+    const screen = await render(
+      <Modal
+        {...baseProps({
+          footer: <Button>Confirm</Button>,
+          children: <div style={{ height: "1400px" }}>Tall body content</div>,
+        })}
+      />,
+    );
+    const dialog = screen.getByRole("dialog").element() as HTMLElement;
+    const header = dialog.firstElementChild as HTMLElement;
+    const footer = dialog.lastElementChild as HTMLElement;
+
+    expect(header.getBoundingClientRect().height).toBeCloseTo(naturalHeaderHeight, 0);
+    expect(footer.getBoundingClientRect().height).toBeCloseTo(naturalFooterHeight, 0);
+
+    await expectNoAccessibilityViolations(document.body);
+  } finally {
+    await page.viewport(1280, 900);
+  }
+});
+
+test("keeps its natural height and an unscrolled body when the content fits", async () => {
+  const screen = await render(
+    <Modal {...baseProps({ footer: <Button>Confirm</Button>, children: <p>Short body</p> })} />,
+  );
+  const dialog = screen.getByRole("dialog").element() as HTMLElement;
+  const panel = dialog.parentElement as HTMLElement;
+  const header = dialog.firstElementChild as HTMLElement;
+  const body = header.nextElementSibling as HTMLElement;
+
+  expect(panel.getBoundingClientRect().height).toBeLessThan(window.innerHeight - 48);
+  expect(body.scrollHeight).toBeLessThanOrEqual(body.clientHeight + 1);
+});
+
+test("keeps a bottom body control reachable by Tab, scrolled into the body's visible area", async () => {
+  await page.viewport(900, 500);
+  try {
+    const screen = await render(
+      <Modal
+        {...baseProps({
+          closable: true,
+          footer: <Button>Confirm</Button>,
+          children: (
+            <div>
+              <button type="button">Top field</button>
+              <div style={{ height: "1200px" }} />
+              <button type="button">Bottom field</button>
+            </div>
+          ),
+        })}
+      />,
+    );
+    const dialog = screen.getByRole("dialog").element() as HTMLElement;
+    const header = dialog.firstElementChild as HTMLElement;
+    const body = header.nextElementSibling as HTMLElement;
+
+    let reachedBottomField = false;
+    for (let i = 0; i < 10 && !reachedBottomField; i++) {
+      await userEvent.tab();
+      reachedBottomField = document.activeElement?.textContent === "Bottom field";
+    }
+
+    expect(reachedBottomField).toBe(true);
+
+    const focusedRect = (document.activeElement as HTMLElement).getBoundingClientRect();
+    const bodyRect = body.getBoundingClientRect();
+
+    expect(focusedRect.top).toBeGreaterThanOrEqual(0);
+    expect(focusedRect.bottom).toBeLessThanOrEqual(window.innerHeight);
+    expect(focusedRect.top).toBeGreaterThanOrEqual(bodyRect.top - 1);
+    expect(focusedRect.bottom).toBeLessThanOrEqual(bodyRect.bottom + 1);
+
+    await expectNoAccessibilityViolations(document.body);
+  } finally {
+    await page.viewport(1280, 900);
+  }
+});
+
+test("shows a 40px circular close button in bone with a 20px glyph in secondary ink", async () => {
+  const screen = await render(<Modal {...baseProps({ closable: true })} />);
+  const closeButton = screen.getByRole("button", { name: "Cerrar" }).element() as HTMLElement;
+  const icon = closeButton.querySelector("svg") as SVGSVGElement;
+
+  const rect = closeButton.getBoundingClientRect();
+  expect(rect.width).toBeGreaterThan(39);
+  expect(rect.width).toBeLessThan(41);
+  expect(rect.height).toBeGreaterThan(39);
+  expect(rect.height).toBeLessThan(41);
+  // rounded-full computes to a huge radius, not a fixed value, so circularity is checked as a
+  // radius exceeding the button's own size, not as an exact string.
+  expect(Number.parseFloat(getComputedStyle(closeButton).borderRadius)).toBeGreaterThan(rect.width);
+  expect(getComputedStyle(closeButton).backgroundColor).toBe(tokenRgb("surface-subtle"));
+
+  const iconRect = icon.getBoundingClientRect();
+  expect(iconRect.width).toBeGreaterThan(19);
+  expect(iconRect.width).toBeLessThan(21);
+  expect(getComputedStyle(icon).color).toBe(tokenRgb("text-subtle"));
+});
+
+test("shows the hand cursor on the close button", async () => {
+  const screen = await render(<Modal {...baseProps({ closable: true })} />);
+  const closeButton = screen.getByRole("button", { name: "Cerrar" }).element() as HTMLElement;
+
+  expect(getComputedStyle(closeButton).cursor).toBe("pointer");
+});
+
+test("turns the close button's background sand on hover", async () => {
+  const screen = await render(<Modal {...baseProps({ closable: true })} />);
+  const closeButton = screen.getByRole("button", { name: "Cerrar" }).element() as HTMLElement;
+
+  await userEvent.hover(closeButton);
+  await expect
+    .poll(() => getComputedStyle(closeButton).backgroundColor)
+    .toBe(tokenRgb("surface-soft"));
+});
+
+test("shows the package's standard focus ring on the close button", async () => {
+  const screen = await render(<Modal {...baseProps({ closable: true })} />);
+  const closeButton = screen.getByRole("button", { name: "Cerrar" }).element() as HTMLElement;
+
+  await userEvent.tab();
+
+  await expect.poll(() => getComputedStyle(closeButton).outlineWidth).toBe("3px");
+  await expect.poll(() => getComputedStyle(closeButton).outlineOffset).toBe("3px");
+  await expect.poll(() => getComputedStyle(closeButton).outlineColor).toBe(tokenRgb("focus"));
+});
+
+test("closes when the close button is pressed", async () => {
+  const onOpenChange = vi.fn();
+  const screen = await render(<Modal {...baseProps({ closable: true, onOpenChange })} />);
+
+  await screen.getByRole("button", { name: "Cerrar" }).click();
+
+  expect(onOpenChange).toHaveBeenCalledWith(false);
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("closes on Escape when closable", async () => {
+  const onOpenChange = vi.fn();
+  await render(<Modal {...baseProps({ closable: true, onOpenChange })} />);
+
+  await userEvent.keyboard("{Escape}");
+
+  expect(onOpenChange).toHaveBeenCalledWith(false);
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("stays open when the backdrop is clicked, even when closable", async () => {
+  const onOpenChange = vi.fn();
+  await render(<Modal {...baseProps({ closable: true, onOpenChange })} />);
+  const backdrop = document.querySelector('[class*="bg-backdrop"]') as HTMLElement;
+
+  await userEvent.click(backdrop, { position: { x: 4, y: 4 } });
+
+  expect(onOpenChange).not.toHaveBeenCalled();
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("shows no close button and ignores Escape and the backdrop when not closable", async () => {
+  const onOpenChange = vi.fn();
+  const screen = await render(<Modal {...baseProps({ closable: false, onOpenChange })} />);
+  const dialog = screen.getByRole("dialog").element() as HTMLElement;
+
+  expect(dialog.querySelectorAll("button")).toHaveLength(0);
+
+  await userEvent.keyboard("{Escape}");
+  const backdrop = document.querySelector('[class*="bg-backdrop"]') as HTMLElement;
+  await userEvent.click(backdrop, { position: { x: 4, y: 4 } });
+
+  expect(onOpenChange).not.toHaveBeenCalled();
+  await expect.element(screen.getByRole("dialog")).toBeVisible();
+});
+
+test("exposes the modal as a dialog named by its title", async () => {
+  const screen = await render(<Modal {...baseProps({ title: "Void the sale" })} />);
+
+  await expect.element(screen.getByRole("dialog", { name: "Void the sale" })).toBeVisible();
+});
+
+test("moves focus into the modal on open and contains it while tabbing", async () => {
+  const screen = await render(
+    <Modal
+      {...baseProps({
+        closable: true,
+        footer: <Button>Confirm</Button>,
+      })}
+    />,
+  );
+  const dialog = screen.getByRole("dialog").element() as HTMLElement;
+
+  expect(dialog.contains(document.activeElement)).toBe(true);
+
+  for (let i = 0; i < 6; i++) {
+    await userEvent.tab();
+    expect(dialog.contains(document.activeElement)).toBe(true);
+  }
+});
+
+test("returns focus to the element that opened it, on close", async () => {
+  function Harness() {
+    const [open, setOpen] = useState(false);
+    return (
+      <>
+        <button type="button" onClick={() => setOpen(true)}>
+          Open
+        </button>
+        <Modal
+          {...baseProps({
+            isOpen: open,
+            onOpenChange: setOpen,
+            closable: true,
+          })}
+        />
+      </>
+    );
+  }
+
+  const screen = await render(<Harness />);
+  const trigger = screen.getByRole("button", { name: "Open" });
+  await trigger.click();
+
+  await expect.element(screen.getByRole("dialog")).toBeVisible();
+  await expectNoAccessibilityViolations(document.body);
+  await screen.getByRole("button", { name: "Cerrar" }).click();
+
+  await expect.poll(() => document.activeElement).toBe(trigger.element());
+});
+
+test("opens a second modal over the first with its own backdrop and returns to the first when it closes", async () => {
+  function Harness() {
+    const [firstOpen, setFirstOpen] = useState(true);
+    const [secondOpen, setSecondOpen] = useState(false);
+    return (
+      <>
+        <Modal
+          isOpen={firstOpen}
+          onOpenChange={setFirstOpen}
+          tone="info"
+          icon={<Info />}
+          title="First modal"
+          closable
+          footer={<Button onPress={() => setSecondOpen(true)}>Open second</Button>}
+        >
+          First body
+        </Modal>
+        <Modal
+          isOpen={secondOpen}
+          onOpenChange={setSecondOpen}
+          tone="warning"
+          icon={<AlertTriangle />}
+          title="Second modal"
+          closable
+          footer={<Button onPress={() => setSecondOpen(false)}>Done</Button>}
+        >
+          Second body
+        </Modal>
+      </>
+    );
+  }
+
+  const screen = await render(<Harness />);
+  const openSecond = screen.getByRole("button", { name: "Open second" });
+  await openSecond.click();
+
+  await expect.element(screen.getByRole("dialog", { name: "Second modal" })).toBeVisible();
+  await expect.element(screen.getByRole("dialog", { name: "First modal" })).toBeVisible();
+  expect(document.querySelectorAll('[class*="bg-backdrop"]')).toHaveLength(2);
+  await expectNoAccessibilityViolations(document.body);
+
+  const done = screen.getByRole("button", { name: "Done", exact: true });
+  await done.click();
+
+  await expect
+    .element(screen.getByRole("dialog", { name: "Second modal" }))
+    .not.toBeInTheDocument();
+  await expect.element(screen.getByRole("dialog", { name: "First modal" })).toBeVisible();
+  await expect.poll(() => document.activeElement).toBe(openSecond.element());
+
+  const firstDialog = screen.getByRole("dialog", { name: "First modal" }).element() as HTMLElement;
+  expect(firstDialog.contains(document.activeElement)).toBe(true);
+  await expectNoAccessibilityViolations(document.body);
+});
+
+// Distributes Omit over ModalProps' union first: a plain Omit on a union would collapse each
+// branch's optionality. Omit, not Pick, since Pick's `keyof P` constraint can't typecheck against
+// the not-yet-distributed P.
+type ModalCommonKeys =
+  | "isOpen"
+  | "onOpenChange"
+  | "width"
+  | "tone"
+  | "icon"
+  | "context"
+  | "contextTone"
+  | "title"
+  | "children"
+  | "footer";
+
+type ModalLayoutFields = ModalProps extends infer P
+  ? P extends unknown
+    ? Omit<P, Exclude<ModalCommonKeys, "context" | "contextTone"> | "closable">
+    : never
+  : never;
+
+test("accepts a context line, its tone and a flush body in the leading header layout", () => {
+  expectTypeOf<{
+    context: string;
+    contextTone: "info";
+    bodyPadding: "none";
+  }>().toExtend<ModalLayoutFields>();
+});
+
+test("does not accept a context line, its tone or a flush body in the centered header layout, which draws none of them", () => {
+  expectTypeOf<{ headerLayout: "centered"; context: string }>().not.toExtend<ModalLayoutFields>();
+  expectTypeOf<{
+    headerLayout: "centered";
+    contextTone: "info";
+  }>().not.toExtend<ModalLayoutFields>();
+  expectTypeOf<{
+    headerLayout: "centered";
+    bodyPadding: "none";
+  }>().not.toExtend<ModalLayoutFields>();
+});

@@ -124,7 +124,7 @@ test("the register renderer's Vite build compiles a real screen component with t
 test("the root vitest config's browser project compiles a packages/ui component with the React Compiler", async () => {
   const result = await transformWithTestProjectConfig(
     "browser",
-    "/packages/ui/src/components/IconButton.tsx",
+    "/packages/ui/src/components/forms/icon-button.tsx",
   );
 
   assert.ok(result, "the browser project's dev server could not transform the component");
@@ -134,7 +134,7 @@ test("the root vitest config's browser project compiles a packages/ui component 
 test("the root vitest config's catalog-visual project compiles a packages/ui component with the React Compiler", async () => {
   const result = await transformWithTestProjectConfig(
     "catalog-visual",
-    "/packages/ui/src/components/IconButton.tsx",
+    "/packages/ui/src/components/forms/icon-button.tsx",
   );
 
   assert.ok(result, "the catalog-visual project's dev server could not transform the component");
