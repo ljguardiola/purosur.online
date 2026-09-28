@@ -17,8 +17,8 @@ function setUp(overrides: Partial<ErrorReporterDependencies> = {}) {
   return { target, send, startSending, reporter };
 }
 
-function windowError(error: unknown): Event {
-  return Object.assign(new Event("error"), { error });
+function windowError(error: unknown, message = ""): Event {
+  return Object.assign(new Event("error"), { error, message });
 }
 
 function unhandledRejection(reason: unknown): Event {
@@ -66,6 +66,16 @@ describe("startErrorReporting", () => {
     await reporter.settled;
 
     expect(send.mock.calls).toEqual([[uncaught], [rejection]]);
+  });
+
+  it("keeps the message of an uncaught error that carries no error object, such as another origin's script error", async () => {
+    const { target, send, reporter } = setUp();
+
+    target.dispatchEvent(windowError(null, "Script error."));
+    target.dispatchEvent(windowError(undefined, ""));
+    await reporter.settled;
+
+    expect(send.mock.calls).toEqual([[new Error("Script error.")]]);
   });
 
   it("leaves window errors to the reporting library once it has started, so none is reported twice", async () => {

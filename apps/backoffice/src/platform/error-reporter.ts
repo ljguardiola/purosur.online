@@ -19,7 +19,14 @@ function keepWindowErrors(
   target: ErrorReporterDependencies["target"],
   keep: (error: unknown) => void,
 ): () => void {
-  const onError = (event: Event) => keep((event as Event & { error?: unknown }).error);
+  const onError = (event: Event) => {
+    const { error, message } = event as Event & { error?: unknown; message?: string };
+    if (error != null) {
+      keep(error);
+    } else if (message) {
+      keep(new Error(message));
+    }
+  };
   const onRejection = (event: Event) => keep((event as Event & { reason?: unknown }).reason);
   target.addEventListener("error", onError);
   target.addEventListener("unhandledrejection", onRejection);
