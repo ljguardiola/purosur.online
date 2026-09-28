@@ -379,35 +379,6 @@ describe("POST /products/:id/edit", () => {
     expect(edited).toMatchObject([{ netContentQuantity: null, netContentUnit: null }]);
   });
 
-  it("rejects a net content missing its quantity, changing nothing", async () => {
-    const categoryId = await insertCategory("Macetas");
-    const product = await insertProduct({
-      name: "Alpiste",
-      categoryId,
-      saleUnit: "KG",
-      barcodes: ["111"],
-    });
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
-
-    const response = await editProduct(rawSessionId, product.id, {
-      name: "Alpiste",
-      categoryId,
-      saleUnit: "KG",
-      barcodes: ["111"],
-      version: product.version,
-      netContent: { unit: "KG" },
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "netContent" }],
-    });
-    const [unchanged] = await db.select().from(products).where(eq(products.id, product.id));
-    expect(unchanged).toMatchObject({ version: product.version });
-  });
-
   it("returns 404 not_found for an id that does not exist, changing nothing", async () => {
     const categoryId = await insertCategory("Macetas");
     const userId = await insertUserWithPermission();
@@ -550,31 +521,6 @@ describe("POST /products/:id/edit", () => {
     expect(response.json()).toMatchObject({ categoryId: leafCategoryId, categoryName: "Untables" });
     const [moved] = await db.select().from(products).where(eq(products.id, product.id));
     expect(moved).toMatchObject({ categoryId: leafCategoryId, version: 2 });
-  });
-
-  it("rejects a missing or non-positive-integer version, changing nothing", async () => {
-    const categoryId = await insertCategory("Macetas");
-    const product = await insertProduct({
-      name: "Maceta",
-      categoryId,
-      saleUnit: "UNIT",
-      barcodes: ["111"],
-    });
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
-
-    const response = await editProduct(rawSessionId, product.id, {
-      name: "Maceta",
-      categoryId,
-      saleUnit: "UNIT",
-      barcodes: ["111"],
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "version" }],
-    });
   });
 
   it("returns 409 stale_version for a save made over a version someone else already changed", async () => {

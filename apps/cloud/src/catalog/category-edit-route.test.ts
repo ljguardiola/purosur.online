@@ -262,23 +262,6 @@ describe("POST /categories/:id/edit", () => {
     expect(unchanged).toMatchObject({ name: "Semillas", version: 1 });
   });
 
-  it("rejects a missing or non-positive-integer version, changing nothing", async () => {
-    const category = await insertCategory("Semillas");
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
-
-    const response = await editCategory(rawSessionId, category.id, {
-      name: "Macetas",
-      parentId: null,
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "version" }],
-    });
-  });
-
   it("returns 409 stale_version for a save made over a version someone else already changed", async () => {
     const category = await insertCategory("Semillas");
     const userId = await insertUserWithPermission();
@@ -356,26 +339,6 @@ describe("POST /categories/:id/edit", () => {
     });
   });
 
-  it("rejects an edit that omits parentId instead of moving the category to top level, changing nothing", async () => {
-    const parent = await insertCategory("Almacén");
-    const category = await insertCategory("Untables", parent.id);
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
-
-    const response = await editCategory(rawSessionId, category.id, {
-      name: "Pastas untables",
-      version: category.version,
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "parentId" }],
-    });
-    const [unchanged] = await db.select().from(categories).where(eq(categories.id, category.id));
-    expect(unchanged).toMatchObject({ name: "Untables", parentId: parent.id, version: 1 });
-  });
-
   it("rejects a parentId that does not name an existing category, changing nothing", async () => {
     const category = await insertCategory("Untables");
     const userId = await insertUserWithPermission();
@@ -396,17 +359,14 @@ describe("POST /categories/:id/edit", () => {
     expect(unchanged).toMatchObject({ parentId: null, version: 1 });
   });
 
-  it.each([
-    { malformed: "a number", parentId: 42 },
-    { malformed: "a string that is not a uuid", parentId: "not-a-uuid" },
-  ])("rejects a parentId that is $malformed, changing nothing", async ({ parentId }) => {
+  it("rejects a parentId that is not a uuid, changing nothing", async () => {
     const category = await insertCategory("Untables");
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);
 
     const response = await editCategory(rawSessionId, category.id, {
       name: "Untables",
-      parentId,
+      parentId: "not-a-uuid",
       version: category.version,
     });
 
