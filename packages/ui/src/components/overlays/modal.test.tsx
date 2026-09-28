@@ -269,6 +269,27 @@ test("centers the header's icon (as a 56px circle) and title when headerLayout i
   await expectNoAccessibilityViolations(document.body);
 });
 
+function ModalOpenedByButton() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button onPress={() => setOpen(true)}>Open</Button>
+      <Modal {...baseProps({ isOpen: open, onOpenChange: setOpen })} />
+    </>
+  );
+}
+
+test("draws no browser outline around the panel when it opens from the keyboard", async () => {
+  const screen = await render(<ModalOpenedByButton />);
+
+  await userEvent.tab();
+  await userEvent.keyboard("{Enter}");
+
+  const dialog = screen.getByRole("dialog").element() as HTMLElement;
+  expect(document.activeElement).toBe(dialog);
+  expect(getComputedStyle(dialog).outlineStyle).toBe("none");
+});
+
 test("draws no close button in the centered header layout, yet still closes on Escape when closable", async () => {
   const onOpenChange = vi.fn();
   const screen = await render(

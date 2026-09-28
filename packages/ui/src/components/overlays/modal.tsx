@@ -99,7 +99,7 @@ export function Modal(props: ModalProps) {
           widthClassName[width],
         ].join(" ")}
       >
-        <AriaDialog className="flex min-h-0 flex-1 flex-col">
+        <AriaDialog className="flex min-h-0 flex-1 flex-col outline-none">
           {props.headerLayout === "centered" ? (
             <div className="flex min-h-0 flex-1 flex-col items-center gap-3 overflow-y-auto p-6">
               <span
