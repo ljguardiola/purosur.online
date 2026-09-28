@@ -237,10 +237,10 @@ export type PrintLabelsOutcome =
   | { kind: "failed" };
 
 export async function printLabels(labels: PrintLabelEntry[]): Promise<PrintLabelsOutcome> {
+  const requestBody: LabelSheetBody = { labels };
   let response: Response;
-  const body: LabelSheetBody = { labels };
   try {
-    response = await postJson("/products/labels", body);
+    response = await postJson("/products/labels", requestBody);
   } catch {
     return { kind: "failed" };
   }

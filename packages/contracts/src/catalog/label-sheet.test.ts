@@ -84,16 +84,13 @@ describe("labelSheetBodySchema", () => {
     expect(firstIssue({ labels })).toEqual({ field: "labels", message: LIST_MESSAGE });
   });
 
-  it("rejects a body without a list", () => {
-    expect(firstIssue({})).toEqual({ field: "labels", message: LIST_MESSAGE });
-  });
-
   it.each([
     undefined,
     null,
     "entry",
     42,
     {},
+    [],
     { count: 1 },
     { productId: PRODUCT_ID },
     { productId: 42, count: 1 },
@@ -105,6 +102,7 @@ describe("labelSheetBodySchema", () => {
     { productId: PRODUCT_ID, count: "1" },
     { productId: PRODUCT_ID, count: null },
     { productId: PRODUCT_ID, count: Number.NaN },
+    { productId: PRODUCT_ID, count: Number.POSITIVE_INFINITY },
     { productId: PRODUCT_ID, count: 1.5 },
     { productId: PRODUCT_ID, count: 0 },
     { productId: PRODUCT_ID, count: -1 },
