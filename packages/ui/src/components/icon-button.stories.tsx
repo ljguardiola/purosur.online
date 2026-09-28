@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Trash2 } from "lucide-react";
+import { useId } from "react";
 import { within } from "storybook/test";
 import {
   playHoverSetsDataHovered,
@@ -36,11 +37,16 @@ export const Disabled: Story = {
   args: { isDisabled: true },
 };
 
-export const LabelledByExternalHeading: Story = {
-  render: () => (
+function IconButtonLabelledByVisibleText() {
+  const labelId = useId();
+  return (
     <>
-      <span id="delete-row-label">Eliminar fila</span>
-      <IconButton aria-labelledby="delete-row-label" icon={<Trash2 />} />
+      <span id={labelId}>Eliminar fila</span>
+      <IconButton aria-labelledby={labelId} icon={<Trash2 />} />
     </>
-  ),
+  );
+}
+
+export const LabelledByExternalHeading: Story = {
+  render: () => <IconButtonLabelledByVisibleText />,
 };
