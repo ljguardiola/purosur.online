@@ -658,7 +658,10 @@ describe("POST /users/recovery/redeem passkey_name", () => {
     const { rawToken, response } = await redeemWithoutName();
 
     expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({ code: "validation_failed" });
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "passkey_name" }],
+    });
     expect(await tokenUsedAt(rawToken)).toBeNull();
     const insertedPasskeys = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
     expect(insertedPasskeys).toHaveLength(0);

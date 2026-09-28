@@ -1,4 +1,8 @@
-import type { RecoveryRequestBody } from "@purosur/contracts";
+import type {
+  RecoveryRedemptionBody,
+  RecoveryRequestBody,
+  RecoveryTokenBody,
+} from "@purosur/contracts";
 
 import type {
   PublicKeyCredentialCreationOptionsJSON,
@@ -87,11 +91,10 @@ async function tokenErrorOutcome<Value>(response: Response): Promise<RecoveryTok
 export async function fetchRegistrationOptions(
   recoveryToken: string,
 ): Promise<RecoveryTokenOutcome<RegistrationOptions>> {
+  const requestBody: RecoveryTokenBody = { recovery_token: recoveryToken };
   let response: Response;
   try {
-    response = await postJson("/users/recovery/registration-options", {
-      recovery_token: recoveryToken,
-    });
+    response = await postJson("/users/recovery/registration-options", requestBody);
   } catch {
     return { kind: "failed" };
   }
@@ -114,13 +117,14 @@ export async function redeemRecovery(
   passkeyRegistration: RegistrationResponseJSON,
   passkeyName: string,
 ): Promise<RecoveryTokenOutcome<{ userId: string }>> {
+  const requestBody: RecoveryRedemptionBody = {
+    recovery_token: recoveryToken,
+    passkey_registration: passkeyRegistration,
+    passkey_name: passkeyName,
+  };
   let response: Response;
   try {
-    response = await postJson("/users/recovery/redeem", {
-      recovery_token: recoveryToken,
-      passkey_registration: passkeyRegistration,
-      passkey_name: passkeyName,
-    });
+    response = await postJson("/users/recovery/redeem", requestBody);
   } catch {
     return { kind: "failed" };
   }

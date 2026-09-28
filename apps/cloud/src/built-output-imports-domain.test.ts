@@ -5,14 +5,13 @@ import { describe, expect, inject, it } from "vitest";
 
 describe("the built cloud", () => {
   it("runs a module that imports @purosur/domain under plain Node", () => {
-    const passkeyNameValidationUrl = pathToFileURL(
-      join(inject("cloudBuildDir"), "access", "passkey-name-validation.js"),
+    const rolesListRouteUrl = pathToFileURL(
+      join(inject("cloudBuildDir"), "access", "roles-list-route.js"),
     ).href;
     const script = `
-      const { readPasskeyName } = await import(${JSON.stringify(passkeyNameValidationUrl)});
+      const module = await import(${JSON.stringify(rolesListRouteUrl)});
       console.log(JSON.stringify({
-        atLimit: readPasskeyName({ passkey_name: "😀".repeat(40) }) ?? null,
-        overLimit: readPasskeyName({ passkey_name: "😀".repeat(41) }) ?? null,
+        isFunction: typeof module.registerRolesListRoute === "function",
       }));
     `;
 
@@ -22,9 +21,6 @@ describe("the built cloud", () => {
 
     expect(result.stderr).toBe("");
     expect(result.status).toBe(0);
-    expect(JSON.parse(result.stdout)).toEqual({
-      atLimit: "😀".repeat(40),
-      overLimit: null,
-    });
+    expect(JSON.parse(result.stdout)).toEqual({ isFunction: true });
   });
 });

@@ -1,5 +1,11 @@
+export type { PasskeyRegistrationBody } from "./access/passkey-registration.js";
+export { passkeyRegistrationBodySchema } from "./access/passkey-registration.js";
+export type { RecoveryRedemptionBody } from "./access/recovery-redemption.js";
+export { recoveryRedemptionBodySchema } from "./access/recovery-redemption.js";
 export type { RecoveryRequestBody } from "./access/recovery-request.js";
 export { recoveryRequestBodySchema } from "./access/recovery-request.js";
+export type { RecoveryTokenBody } from "./access/recovery-token.js";
+export { recoveryTokenBodySchema } from "./access/recovery-token.js";
 export type { RoleCreationBody } from "./access/role-creation.js";
 export { roleCreationBodySchema } from "./access/role-creation.js";
 export type { RoleEditBody } from "./access/role-edit.js";
