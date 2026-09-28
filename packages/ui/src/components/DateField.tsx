@@ -54,84 +54,80 @@ export type DateFieldProps = DateFieldCommonProps & DateFieldValidityProps & Dat
 
 const LOCALE: Locale = "es-AR";
 
-const wrapperBaseClassName = "flex flex-col data-[disabled]:opacity-[0.45]";
+const wrapperBaseClassName = "flex flex-col data-disabled:opacity-disabled";
 
 const boxBaseClassName = "flex items-center rounded-lg outline-none";
 
-const registerFrameClassName = "h-14 gap-2 px-4";
-const registerValueClassName = "text-xl font-bold text-ink";
+const registerFrameClassName = "h-control-4xl gap-2 px-4";
+const registerValueClassName = "text-heading text-text";
 
 const inputBaseClassName = "flex min-w-0 flex-1 outline-none";
 
 // The focused segment gets its own fill because the box's focus shadow doesn't move with the
 // active segment and this field draws no caret, so nothing else marks which segment is next.
-// `not-data-[focused]` keeps the placeholder tone from losing to the focused segment's color
+// `not-data-focused` keeps the placeholder tone from losing to the focused segment's color
 // regardless of the two Tailwind rules' generated order.
 const segmentClassName =
   "rounded-sm outline-none " +
-  "data-[placeholder]:not-data-[focused]:text-ink-secondary " +
-  "data-[focused]:bg-brand-blue-ui data-[focused]:text-surface-white";
+  "data-placeholder:not-data-focused:text-text-subtle " +
+  "data-focused:bg-action data-focused:text-text-inverse";
 
 // react-aria never marks a literal `/` segment as a placeholder (`data-placeholder` follows
 // `segment.isPlaceholder`, which a literal never is), so without this rule it would keep its
 // full-strength tone between dimmed digits even while the field holds no date.
-const emptySeparatorClassName = "data-[type=literal]:text-ink-secondary";
+const emptySeparatorClassName = "literal:text-text-subtle";
 
 // WCAG 2.5.8 requires a 24x24 CSS px pointer target; the 18px glyph the design draws is under
 // that minimum on a touch-screen register. The negative margin pulls the extra 3px per side back
 // out of the flex layout so the glyph's own edge still lands on the box's padding.
 const iconButtonClassName =
-  "inline-flex size-6 shrink-0 -mx-[3px] items-center justify-center text-ink-secondary outline-none " +
-  "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
-  "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong";
-const iconGlyphClassName = "inline-flex size-[1.125rem] shrink-0 [&>svg]:h-full [&>svg]:w-full";
+  "inline-flex size-6 shrink-0 -mx-0.75 items-center justify-center text-text-subtle outline-none " +
+  "data-focus-visible:focus-ring";
+const iconGlyphClassName = "inline-flex size-icon-md shrink-0 *:size-full";
 
-const helperClassName = "text-sm font-normal text-ink-secondary";
-const errorClassName = "text-sm font-normal text-status-error-ui";
+const helperClassName = "text-detail text-text-subtle";
+const errorClassName = "text-detail text-error";
 
 function boxStateClassName(disabled: boolean, invalid: boolean): string {
   if (disabled) {
-    return "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-line)]";
+    return "bg-surface inset-ring-2 inset-ring-border";
   }
   if (invalid) {
     return (
-      "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-status-error-ui)] " +
-      "hover:not-focus-within:bg-surface-bone " +
-      "focus-within:shadow-[inset_0_0_0_2px_var(--color-brand-blue-ui)]"
+      "bg-surface inset-ring-2 inset-ring-error " +
+      "hover:not-focus-within:bg-surface-subtle " +
+      "focus-within:inset-ring-action"
     );
   }
   return (
-    "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-line)] " +
-    "hover:not-focus-within:bg-surface-bone " +
-    "focus-within:shadow-[inset_0_0_0_2px_var(--color-brand-blue-ui)]"
+    "bg-surface inset-ring-2 inset-ring-border " +
+    "hover:not-focus-within:bg-surface-subtle " +
+    "focus-within:inset-ring-action"
   );
 }
 
 const popoverClassName = "outline-none";
 const dialogClassName =
-  "flex flex-col gap-3 rounded-lg bg-surface-white p-4 shadow-[inset_0_0_0_1px_var(--color-ink-secondary)] outline-none";
+  "flex flex-col gap-3 rounded-lg bg-surface p-4 inset-ring-1 inset-ring-border-strong outline-none";
 const calendarHeaderClassName = "flex items-center justify-between gap-2";
-const calendarHeadingClassName = "text-base font-bold text-ink capitalize";
+const calendarHeadingClassName = "text-body font-bold text-text capitalize";
 const calendarNavButtonClassName =
-  "inline-flex size-8 shrink-0 items-center justify-center rounded-md text-ink-secondary outline-none " +
-  "data-[hovered]:bg-surface-bone " +
-  "data-[disabled]:opacity-[0.45] " +
-  "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
-  "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong";
-const calendarNavIconClassName =
-  "inline-flex size-[1.125rem] shrink-0 [&>svg]:h-full [&>svg]:w-full";
+  "inline-flex size-8 shrink-0 items-center justify-center rounded-md text-text-subtle outline-none " +
+  "data-hovered:bg-surface-subtle " +
+  "data-disabled:opacity-disabled " +
+  "data-focus-visible:focus-ring";
+const calendarNavIconClassName = "inline-flex size-icon-md shrink-0 *:size-full";
 // A focused day's outline ring reaches 6px past its cell (3px width + 3px offset); border-collapse
 // would let that ring paint over the neighbouring cell's fill and drop its contrast under 2:1.
 const calendarGridClassName = "border-separate border-spacing-1.5";
-const calendarWeekdayClassName = "size-9 text-sm font-normal text-ink-secondary";
+const calendarWeekdayClassName = "size-control-sm text-detail text-text-subtle";
 const calendarCellClassName =
-  "size-9 rounded-md text-center align-middle text-base text-ink outline-none " +
-  "data-[hovered]:bg-surface-bone " +
-  "data-[selected]:bg-brand-blue-ui data-[selected]:text-surface-white data-[selected]:font-bold " +
-  "data-[disabled]:pointer-events-none data-[disabled]:opacity-[0.45] " +
-  "data-[outside-month]:invisible " +
-  "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
-  "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong";
+  "size-control-sm rounded-md text-center align-middle text-body text-text outline-none " +
+  "data-hovered:bg-surface-subtle " +
+  "data-selected:bg-action data-selected:text-text-inverse data-selected:font-bold " +
+  "data-disabled:pointer-events-none data-disabled:opacity-disabled " +
+  "data-outside-month:invisible " +
+  "data-focus-visible:focus-ring";
 
 function CalendarToggleButton() {
   return (

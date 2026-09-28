@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   BARCODE_MAX_LENGTH,
   barcodeLength,
+  barcodeListProblem,
   isBarcodeTooLong,
+  isNetContentUnit,
   isProductNameTooLong,
   isValidNetContentQuantity,
   LABELS_MAX_COUNT_PER_PRODUCT,
@@ -206,5 +208,60 @@ describe("isValidNetContentQuantity", () => {
         },
       ),
     );
+  });
+});
+
+describe("isNetContentUnit", () => {
+  it.each(NET_CONTENT_UNITS)("recognises the listed unit %s", (unit) => {
+    expect(isNetContentUnit(unit)).toBe(true);
+  });
+
+  it.each(["g", "LB", "", 1, null, undefined, {}])("rejects %j", (value) => {
+    expect(isNetContentUnit(value)).toBe(false);
+  });
+});
+
+describe("barcodeListProblem", () => {
+  it("finds no problem in a list of distinct codes without whitespace within the limits", () => {
+    expect(barcodeListProblem(["111", "222"])).toBeUndefined();
+    expect(barcodeListProblem(["a".repeat(BARCODE_MAX_LENGTH)])).toBeUndefined();
+    expect(
+      barcodeListProblem(Array.from({ length: PRODUCT_BARCODES_MAX_COUNT }, (_, i) => `${i}`)),
+    ).toBeUndefined();
+  });
+
+  it("finds too many codes beyond the maximum count", () => {
+    expect(
+      barcodeListProblem(Array.from({ length: PRODUCT_BARCODES_MAX_COUNT + 1 }, (_, i) => `${i}`)),
+    ).toBe("too_many");
+  });
+
+  it("finds a code longer than the maximum", () => {
+    expect(barcodeListProblem(["a".repeat(BARCODE_MAX_LENGTH + 1)])).toBe("too_long");
+  });
+
+  it("finds a code containing whitespace", () => {
+    expect(barcodeListProblem(["11 1"])).toBe("whitespace");
+    expect(barcodeListProblem(["11\t1"])).toBe("whitespace");
+  });
+
+  it("finds a code sent more than once", () => {
+    expect(barcodeListProblem(["111", "222", "111"])).toBe("repeated");
+  });
+
+  it("reports the count before any single code's problem", () => {
+    const codes = Array.from({ length: PRODUCT_BARCODES_MAX_COUNT + 1 }, () => "a b");
+
+    expect(barcodeListProblem(codes)).toBe("too_many");
+  });
+
+  it("reports the first problem in the order the codes were sent", () => {
+    expect(barcodeListProblem(["1 1", "a".repeat(BARCODE_MAX_LENGTH + 1)])).toBe("whitespace");
+    expect(barcodeListProblem(["a".repeat(BARCODE_MAX_LENGTH + 1), "1 1"])).toBe("too_long");
+    expect(barcodeListProblem(["111", "111", "1 1"])).toBe("repeated");
+  });
+
+  it("checks a code's length before its whitespace", () => {
+    expect(barcodeListProblem([`${"a".repeat(BARCODE_MAX_LENGTH)} `])).toBe("too_long");
   });
 });

@@ -102,19 +102,6 @@ describe("POST /users/recovery/request", () => {
     expect(jobQueue.requests.map((request) => request.email)).toEqual(["ada@example.com"]);
   });
 
-  it("rejects a missing Origin header without enqueuing a job", async () => {
-    const response = await app.inject({
-      method: "POST",
-      url: "/users/recovery/request",
-      headers: { "x-real-ip": "203.0.113.10" },
-      payload: { email: "ada@example.com" },
-    });
-
-    expect(response.statusCode).toBe(403);
-    expect(response.json()).toMatchObject({ code: "origin_rejected" });
-    expect(jobQueue.requests).toEqual([]);
-  });
-
   it("rejects an Origin that does not match the backoffice's own origin", async () => {
     const response = await post({ email: "ada@example.com" }, { origin: "https://evil.example" });
 

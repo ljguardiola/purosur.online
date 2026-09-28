@@ -79,9 +79,9 @@ for (const variantCase of variantCases) {
     expect(Math.round(Number.parseFloat(boxStyle.paddingRight))).toBe(variantCase.paddingX);
     expect(Math.round(Number.parseFloat(boxStyle.columnGap))).toBe(variantCase.gap);
     expect(Math.round(Number.parseFloat(inputStyle.fontSize))).toBe(variantCase.valueFontSize);
-    expect(inputStyle.color).toBe(tokenRgb("ink"));
+    expect(inputStyle.color).toBe(tokenRgb("text"));
     expect(input.placeholder).toBe("Scan or type the product name");
-    expect(getComputedStyle(input, "::placeholder").color).toBe(tokenRgb("ink-secondary"));
+    expect(getComputedStyle(input, "::placeholder").color).toBe(tokenRgb("text-subtle"));
 
     const leading = box.firstElementChild as HTMLElement;
     const leadingRect = leading.getBoundingClientRect();
@@ -96,15 +96,11 @@ for (const variantCase of variantCases) {
   });
 }
 
-// The literal box-shadow string Chromium renders for the focused state, both variants alike: a 2px
-// brand-blue-ui inset with no outer shadow, behind the four transparent layers Tailwind v4 always
-// composes.
-const FOCUSED_SHADOW =
-  "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
-  "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
-  "rgb(79, 108, 126) 0px 0px 0px 2px inset";
+function focusedLayers(): string[] {
+  return [insetBoundary("action", "2px")];
+}
 
-const restBoundaryToken = "line";
+const restBoundaryToken = "border";
 
 for (const variant of ["register", "backoffice"] as const) {
   test(`shows a white box with a 2px ${restBoundaryToken} border at rest in the ${variant} variant`, async () => {
@@ -117,7 +113,7 @@ for (const variant of ["register", "backoffice"] as const) {
     );
     const box = fieldBox(screen, "Scan or type the product name");
 
-    expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-white"));
+    expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface"));
     expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary(restBoundaryToken, "2px")]);
   });
 
@@ -132,7 +128,7 @@ for (const variant of ["register", "backoffice"] as const) {
     const box = fieldBox(screen, "Scan or type the product name");
 
     await userEvent.hover(box);
-    await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-bone"));
+    await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-subtle"));
     expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary(restBoundaryToken, "2px")]);
   });
 
@@ -148,7 +144,7 @@ for (const variant of ["register", "backoffice"] as const) {
 
     await userEvent.tab();
 
-    await expect.poll(() => getComputedStyle(box).boxShadow).toBe(FOCUSED_SHADOW);
+    await expect.poll(() => paintedBoxShadowLayers(box)).toEqual(focusedLayers());
 
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -167,8 +163,8 @@ for (const variant of ["register", "backoffice"] as const) {
     await userEvent.hover(box);
     await expect.poll(() => box.matches(":hover")).toBe(true);
 
-    await expect.poll(() => getComputedStyle(box).boxShadow).toBe(FOCUSED_SHADOW);
-    expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-white"));
+    await expect.poll(() => paintedBoxShadowLayers(box)).toEqual(focusedLayers());
+    expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface"));
 
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -191,7 +187,7 @@ for (const variant of ["register", "backoffice"] as const) {
     const nextControl = screen.getByRole("button", { name: "Next control" }).element();
 
     expect(getComputedStyle(wrapper).opacity).toBe("0.45");
-    expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-white"));
+    expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface"));
     expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary(restBoundaryToken, "2px")]);
     expect(input.disabled).toBe(true);
 
@@ -346,7 +342,7 @@ test("is a single tab stop", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("paints the register chip icon's own stroke brand-blue-strong and the backoffice icon's ink-secondary", async () => {
+test("paints the register chip icon's own stroke accent-text and the backoffice icon's subtle-text", async () => {
   const registerScreen = await render(
     <SearchFieldHarness
       variant="register"
@@ -356,7 +352,7 @@ test("paints the register chip icon's own stroke brand-blue-strong and the backo
   );
   const registerBox = fieldBox(registerScreen, "Scan or type the product name");
   const registerIcon = registerBox.querySelector("svg") as SVGSVGElement;
-  expect(getComputedStyle(registerIcon).stroke).toBe(tokenRgb("brand-blue-strong"));
+  expect(getComputedStyle(registerIcon).stroke).toBe(tokenRgb("text-accent"));
   await registerScreen.unmount();
 
   const backofficeScreen = await render(
@@ -368,7 +364,7 @@ test("paints the register chip icon's own stroke brand-blue-strong and the backo
   );
   const backofficeBox = fieldBox(backofficeScreen, "Filter by name or SKU");
   const backofficeIcon = backofficeBox.querySelector("svg") as SVGSVGElement;
-  expect(getComputedStyle(backofficeIcon).stroke).toBe(tokenRgb("ink-secondary"));
+  expect(getComputedStyle(backofficeIcon).stroke).toBe(tokenRgb("text-subtle"));
 });
 
 test("does not accept a field without a variant, a value, an onChange, a placeholder or an icon", () => {
@@ -422,7 +418,7 @@ test("accepts a field with only its required props, and separately with a label"
   }>().toExtend<SearchFieldProps>();
 });
 
-test("fills a chip with brand-blue-message-bg behind the register icon, colored brand-blue-strong", async () => {
+test("fills a chip with the action-subtle fill behind the register icon, colored accent-text", async () => {
   const screen = await render(
     <SearchFieldHarness
       variant="register"
@@ -433,6 +429,6 @@ test("fills a chip with brand-blue-message-bg behind the register icon, colored 
   const box = fieldBox(screen, "Scan or type the product name");
   const chip = box.firstElementChild as HTMLElement;
 
-  expect(getComputedStyle(chip).backgroundColor).toBe(tokenRgb("brand-blue-message-bg"));
+  expect(getComputedStyle(chip).backgroundColor).toBe(tokenRgb("action-subtle"));
   expect(Math.round(Number.parseFloat(getComputedStyle(chip).borderRadius))).toBe(6);
 });

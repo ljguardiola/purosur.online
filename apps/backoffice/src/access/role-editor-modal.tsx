@@ -134,19 +134,19 @@ function RoleSaveConfirmationModal({
         </>
       }
     >
-      <p className="text-center text-base text-ink-secondary">
+      <p className="text-center text-body text-text-subtle">
         {`${plural(assignedUsers.length, {
           one: "Se aplica a la 1 persona",
           other: `Se aplican a las ${assignedUsers.length} personas`,
         })} con el rol ${roleName}:`}
       </p>
-      <div className="max-h-60 w-full shrink-0 overflow-y-auto rounded-lg border border-line text-left">
+      <div className="max-h-60 w-full shrink-0 overflow-y-auto rounded-lg border border-border text-left">
         {assignedUsers.map((user) => (
           <div
             key={user.id}
-            className="flex items-center gap-2 border-line border-b px-4 py-2 last:border-b-0"
+            className="flex items-center gap-2 border-border border-b px-4 py-2 last:border-b-0"
           >
-            <User aria-hidden="true" className="size-4 shrink-0 text-ink-secondary" />
+            <User aria-hidden="true" className="size-icon-sm shrink-0 text-text-subtle" />
             <span>{user.name}</span>
           </div>
         ))}
@@ -426,7 +426,7 @@ export function RoleEditorModal({
         bodyPadding="none"
         footer={
           <div className="flex w-full items-center justify-between gap-3">
-            <p className="text-ink-secondary text-sm">
+            <p className="text-text-subtle text-detail">
               {plural(selected.size, {
                 one: "1 permiso elegido",
                 other: `${selected.size} permisos elegidos`,

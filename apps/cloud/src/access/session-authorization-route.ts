@@ -3,8 +3,9 @@ import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
 import { generateAuthenticationOptions } from "@simplewebauthn/server";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyInstance } from "fastify";
 import { passkeys, sessions } from "../platform/db/schema.js";
+import { backofficeOriginGuard } from "./backoffice-origin.js";
 import {
   consumePendingPasskeyChallenge,
   pruneExpiredPasskeyChallenges,
@@ -14,7 +15,6 @@ import { verifyPasskeyReauthentication } from "./passkey-reauthentication.js";
 import {
   OPEN_SESSION_ACCESS,
   openSessionOf,
-  originGuard,
   registerRouteAccess,
   routeSessionSource,
 } from "./route-access.js";
@@ -33,7 +33,6 @@ const AUTHENTICATION_FAILED_RESPONSE = {
   message: "the passkey authorization could not be verified",
 } as const;
 
-/** Neither route is itself gated by the passkey-authorization window: an already-open session can always ask to (re)authorize. */
 export function registerSessionAuthorizationRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: SessionAuthorizationRouteOptions<TQueryResult>,
@@ -43,21 +42,10 @@ export function registerSessionAuthorizationRoutes<TQueryResult extends PgQueryR
   const sessionSource = routeSessionSource({ db: options.db, now });
   const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
 
-  function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
-    if (request.headers.origin !== options.backofficeOrigin) {
-      void reply.code(403).send({
-        code: "origin_rejected",
-        message: "the request's Origin does not match the backoffice's own origin",
-      });
-      return false;
-    }
-    return true;
-  }
-
   app.post(
     "/users/session/authorization-options",
     {
-      preHandler: originGuard(checkOrigin),
+      preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: { access: OPEN_SESSION_ACCESS, sessionSource },
     },
     async (request, reply) => {
@@ -94,7 +82,7 @@ export function registerSessionAuthorizationRoutes<TQueryResult extends PgQueryR
   app.post(
     "/users/session/authorization",
     {
-      preHandler: originGuard(checkOrigin),
+      preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: { access: OPEN_SESSION_ACCESS, sessionSource },
     },
     async (request, reply) => {

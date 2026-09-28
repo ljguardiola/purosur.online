@@ -1,19 +1,15 @@
+import { categoryCreationBodySchema } from "@purosur/contracts";
 import { createCategory } from "@purosur/domain/catalog/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyInstance } from "fastify";
+import { backofficeOriginGuard } from "../access/backoffice-origin.js";
 import {
-  originGuard,
   permissionAccess,
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
 import type { CategoriesRouteOptions } from "./categories-list-route.js";
-import {
-  type CategoryFieldValidationFailure,
-  categoryNameValidationFailure,
-  readCategoryName,
-  readParentId,
-} from "./category-validation.js";
 import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
 
 export const CATEGORY_NAME_TAKEN_RESPONSE = {
@@ -21,43 +17,15 @@ export const CATEGORY_NAME_TAKEN_RESPONSE = {
   message: "a category with that name already exists under that parent",
 } as const;
 
-export const CATEGORY_PARENT_NOT_FOUND_FAILURE: CategoryFieldValidationFailure = {
+export const CATEGORY_PARENT_NOT_FOUND_FAILURE = {
   field: "parentId",
   message: "parentId must be an existing category's id, or null for top level",
-};
+} as const;
 
 export const CATEGORY_PARENT_HAS_PRODUCTS_RESPONSE = {
   code: "category_parent_has_products",
   message: "the parent category has products assigned; move them before adding a subcategory",
 } as const;
-
-interface CreationRequestBody {
-  name: string;
-  parentId: string | null;
-}
-
-function readCreationBody(body: unknown): CreationRequestBody | CategoryFieldValidationFailure {
-  const name = readCategoryName(body);
-  const nameFailure = categoryNameValidationFailure(name);
-  if (nameFailure) {
-    return nameFailure;
-  }
-  if (!name) {
-    // Unreachable: `categoryNameValidationFailure` above already rejects an empty or missing name.
-    return { field: "name", message: "name must not be empty" };
-  }
-  const parentId = readParentId(body);
-  if (parentId === undefined) {
-    return CATEGORY_PARENT_NOT_FOUND_FAILURE;
-  }
-  return { name, parentId };
-}
-
-function isValidationFailure(
-  value: CreationRequestBody | CategoryFieldValidationFailure,
-): value is CategoryFieldValidationFailure {
-  return "field" in value;
-}
 
 export function registerCategoryCreationRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
@@ -68,41 +36,22 @@ export function registerCategoryCreationRoute<TQueryResult extends PgQueryResult
   const catalogStore = new DrizzleCatalogStore(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
-    if (request.headers.origin !== options.backofficeOrigin) {
-      void reply.code(403).send({
-        code: "origin_rejected",
-        message: "the request's Origin does not match the backoffice's own origin",
-      });
-      return false;
-    }
-    return true;
-  }
-
   app.post(
     "/categories",
     {
-      preHandler: originGuard(checkOrigin),
+      preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: {
         access: permissionAccess("manage_products_and_categories"),
         sessionSource,
       },
     },
     async (request, reply) => {
-      const parsedBody = readCreationBody(request.body);
-      if (isValidationFailure(parsedBody)) {
-        await reply.code(400).send({
-          code: "validation_failed",
-          message: parsedBody.message,
-          details: [{ field: parsedBody.field }],
-        });
+      const parsedBody = await readValidatedBody(reply, categoryCreationBodySchema, request.body);
+      if (!parsedBody) {
         return;
       }
 
-      const outcome = await createCategory(catalogStore, {
-        name: parsedBody.name,
-        parentId: parsedBody.parentId,
-      });
+      const outcome = await createCategory(catalogStore, parsedBody);
 
       if (outcome.kind === "parent_not_found") {
         await reply.code(400).send({

@@ -77,7 +77,7 @@ export function playPseudoHoverPaintsBoneFill(
   return async ({ canvasElement }) => {
     const target = locate(canvasElement);
     await waitFor(() => {
-      expect(getComputedStyle(target).backgroundColor).toBe(tokenRgb("surface-bone"));
+      expect(getComputedStyle(target).backgroundColor).toBe(tokenRgb("surface-subtle"));
     });
   };
 }

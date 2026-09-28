@@ -1,12 +1,12 @@
 import { eq } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyInstance } from "fastify";
 import { auditLog, users } from "../platform/db/schema.js";
+import { backofficeOriginGuard } from "./backoffice-origin.js";
 import { findBranchUser } from "./branch-users.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import {
   openSessionOf,
-  originGuard,
   permissionAccess,
   registerRouteAccess,
   routeSessionSource,
@@ -30,17 +30,6 @@ export function registerUserReactivationRoutes<TQueryResult extends PgQueryResul
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
-    if (request.headers.origin !== options.backofficeOrigin) {
-      void reply.code(403).send({
-        code: "origin_rejected",
-        message: "the request's Origin does not match the backoffice's own origin",
-      });
-      return false;
-    }
-    return true;
-  }
-
   // An already-active target answers the same 404 as a missing one.
   async function findTarget(locationId: string, targetId: string) {
     if (!UUID_PATTERN.test(targetId)) {
@@ -52,7 +41,7 @@ export function registerUserReactivationRoutes<TQueryResult extends PgQueryResul
   app.post<{ Params: { id: string } }>(
     "/users/:id/reactivation",
     {
-      preHandler: originGuard(checkOrigin),
+      preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: { access: permissionAccess("reactivate_users"), sessionSource },
     },
     async (request, reply) => {

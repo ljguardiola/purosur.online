@@ -64,7 +64,7 @@ test("renders the register variant at 56px with 16px padding, a leading icon, bo
   expect(style.borderRadius).toBe("8px");
   expect(Math.round(Number.parseFloat(style.paddingLeft))).toBe(16);
   expect(Math.round(Number.parseFloat(style.paddingRight))).toBe(16);
-  expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
+  expect(style.backgroundColor).toBe(tokenRgb("surface"));
 
   const icon = group.querySelector("svg") as SVGSVGElement;
   const iconRect = icon.getBoundingClientRect();
@@ -75,7 +75,7 @@ test("renders the register variant at 56px with 16px padding, a leading icon, bo
   const label = screen.getByText("Expiry").element() as HTMLElement;
   expect(getComputedStyle(label).fontWeight).toBe("700");
   expect(Math.round(Number.parseFloat(getComputedStyle(label).fontSize))).toBe(16);
-  expect(getComputedStyle(label).color).toBe(tokenRgb("ink"));
+  expect(getComputedStyle(label).color).toBe(tokenRgb("text"));
 });
 
 test("renders the backoffice variant with an 8px-radius box and a trailing icon", async () => {
@@ -120,8 +120,8 @@ for (const variant of ["register", "backoffice"] as const) {
     const group = fieldGroup(screen, "Expiry");
     const style = getComputedStyle(group);
 
-    expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
-    expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("line", "2px")]);
+    expect(style.backgroundColor).toBe(tokenRgb("surface"));
+    expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("border", "2px")]);
   });
 
   test(`turns the box bone on hover in the ${variant} variant, keeping the same 2px line border`, async () => {
@@ -129,8 +129,10 @@ for (const variant of ["register", "backoffice"] as const) {
     const group = fieldGroup(screen, "Expiry");
 
     await userEvent.hover(group);
-    await expect.poll(() => getComputedStyle(group).backgroundColor).toBe(tokenRgb("surface-bone"));
-    expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("line", "2px")]);
+    await expect
+      .poll(() => getComputedStyle(group).backgroundColor)
+      .toBe(tokenRgb("surface-subtle"));
+    expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("border", "2px")]);
   });
 
   test(`dims the whole field to 45% opacity and blocks focus when disabled in the ${variant} variant`, async () => {
@@ -145,8 +147,8 @@ for (const variant of ["register", "backoffice"] as const) {
     const nextControl = screen.getByRole("button", { name: "Next control" }).element();
 
     expect(getComputedStyle(wrapper).opacity).toBe("0.45");
-    expect(getComputedStyle(group).backgroundColor).toBe(tokenRgb("surface-white"));
-    expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("line", "2px")]);
+    expect(getComputedStyle(group).backgroundColor).toBe(tokenRgb("surface"));
+    expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("border", "2px")]);
 
     await userEvent.tab();
     expect(document.activeElement).toBe(nextControl);
@@ -263,12 +265,9 @@ const RANGE_MAX = new CalendarDate(2027, 2, 28);
 const RANGE_MESSAGE = "The date must be 28/02/2027 or earlier.";
 const RANGE_HELPER = "A different expiry for the same product is entered as a separate line.";
 
-// The box-shadow string Chromium renders for the focused state: a 2px brand-blue-ui inset with no
-// outer shadow, behind the four transparent layers Tailwind v4 always composes.
-const FOCUSED_SHADOW =
-  "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
-  "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
-  "rgb(79, 108, 126) 0px 0px 0px 2px inset";
+function focusedLayers(): string[] {
+  return [insetBoundary("action", "2px")];
+}
 
 async function focusFirstSegment(group: HTMLElement, variant: FieldSize) {
   await userEvent.tab();
@@ -285,7 +284,7 @@ for (const variant of ["register", "backoffice"] as const) {
 
     await focusFirstSegment(group, variant);
 
-    await expect.poll(() => getComputedStyle(group).boxShadow).toBe(FOCUSED_SHADOW);
+    await expect.poll(() => paintedBoxShadowLayers(group)).toEqual(focusedLayers());
 
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -298,8 +297,8 @@ for (const variant of ["register", "backoffice"] as const) {
     await userEvent.hover(group);
     await expect.poll(() => group.matches(":hover")).toBe(true);
 
-    await expect.poll(() => getComputedStyle(group).boxShadow).toBe(FOCUSED_SHADOW);
-    expect(getComputedStyle(group).backgroundColor).toBe(tokenRgb("surface-white"));
+    await expect.poll(() => paintedBoxShadowLayers(group)).toEqual(focusedLayers());
+    expect(getComputedStyle(group).backgroundColor).toBe(tokenRgb("surface"));
 
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -326,12 +325,10 @@ for (const variant of ["register", "backoffice"] as const) {
 
     await focusFirstSegment(group, variant);
 
-    await expect.poll(() => getComputedStyle(group).boxShadow).toBe(FOCUSED_SHADOW);
+    await expect.poll(() => paintedBoxShadowLayers(group)).toEqual(focusedLayers());
 
     (document.activeElement as HTMLElement).blur();
-    await expect
-      .poll(() => paintedBoxShadowLayers(group))
-      .toEqual([insetBoundary("status-error-ui", "2px")]);
+    await expect.poll(() => paintedBoxShadowLayers(group)).toEqual([insetBoundary("error", "2px")]);
 
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -342,13 +339,13 @@ for (const variant of ["register", "backoffice"] as const) {
     const day = group.querySelector('[role="spinbutton"]') as HTMLElement;
 
     expect(day.getAttribute("data-placeholder")).toBe("true");
-    expect(getComputedStyle(day).color).toBe(tokenRgb("ink-secondary"));
+    expect(getComputedStyle(day).color).toBe(tokenRgb("text-subtle"));
 
     await userEvent.click(group);
     await userEvent.keyboard("28022027");
 
     await expect.poll(() => day.getAttribute("data-placeholder")).toBeNull();
-    expect(getComputedStyle(day).color).toBe(tokenRgb("ink"));
+    expect(getComputedStyle(day).color).toBe(tokenRgb("text"));
 
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -360,12 +357,12 @@ for (const variant of ["register", "backoffice"] as const) {
     expect(separator().textContent?.trim()).not.toBe("");
 
     // react-aria's `isPlaceholder` only applies to editable segments, never to literal ones.
-    expect(getComputedStyle(separator()).color).toBe(tokenRgb("ink-secondary"));
+    expect(getComputedStyle(separator()).color).toBe(tokenRgb("text-subtle"));
 
     await userEvent.click(group);
     await userEvent.keyboard("28022027");
 
-    await expect.poll(() => getComputedStyle(separator()).color).toBe(tokenRgb("ink"));
+    await expect.poll(() => getComputedStyle(separator()).color).toBe(tokenRgb("text"));
 
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -400,7 +397,7 @@ test("shows the package's own outline focus ring on the calendar button when it 
   expect(document.activeElement).toBe(button);
 
   await expect.poll(() => getComputedStyle(button).outlineStyle).toBe("solid");
-  expect(getComputedStyle(button).outlineColor).toBe(tokenRgb("brand-blue-strong"));
+  expect(getComputedStyle(button).outlineColor).toBe(tokenRgb("focus"));
   expect(Math.round(Number.parseFloat(getComputedStyle(button).outlineWidth))).toBe(3);
   expect(Math.round(Number.parseFloat(getComputedStyle(button).outlineOffset))).toBe(3);
 });
@@ -475,9 +472,9 @@ test("opens a white 8px-radius panel with a 1px secondary boundary clearing 3:1 
   const dialog = await openCalendar(screen, "Expiry");
   const style = getComputedStyle(dialog);
 
-  expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
+  expect(style.backgroundColor).toBe(tokenRgb("surface"));
   expect(style.borderRadius).toBe("8px");
-  expect(paintedBoxShadowLayers(dialog)).toEqual([insetBoundary("ink-secondary", "1px")]);
+  expect(paintedBoxShadowLayers(dialog)).toEqual([insetBoundary("border-strong", "1px")]);
 
   const boundaryHex = boundaryColorHex(dialog);
   const fillHex = rgbToHex(style.backgroundColor);
@@ -514,7 +511,7 @@ test("draws the calendar's weekday row in the package's own supporting tone and 
     const style = getComputedStyle(weekday);
     expect(Math.round(Number.parseFloat(style.fontSize))).toBe(14);
     expect(style.fontWeight).toBe("400");
-    expect(style.color).toBe(tokenRgb("ink-secondary"));
+    expect(style.color).toBe(tokenRgb("text-subtle"));
     expect(
       contrastRatio(rgbToHex(style.color), rgbToHex(getComputedStyle(dialog).backgroundColor)),
     ).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
@@ -551,7 +548,7 @@ test("dims the calendar's month controls once the allowed range reaches no furth
   expect(getComputedStyle(next).cursor).toBe("default");
 
   await userEvent.hover(previous);
-  expect(getComputedStyle(previous).backgroundColor).not.toBe(tokenRgb("surface-bone"));
+  expect(getComputedStyle(previous).backgroundColor).not.toBe(tokenRgb("surface-subtle"));
 });
 
 test("shows the hand cursor on the calendar's month controls while the range still reaches further", async () => {
@@ -578,8 +575,8 @@ test("shows the chosen day with a blue UI fill and a white number, clearing the 
   const chosen = dialog.querySelector('[data-selected="true"]') as HTMLElement;
   expect(chosen.textContent?.trim()).toBe("28");
   const style = getComputedStyle(chosen);
-  expect(style.backgroundColor).toBe(tokenRgb("brand-blue-ui"));
-  expect(style.color).toBe(tokenRgb("surface-white"));
+  expect(style.backgroundColor).toBe(tokenRgb("action"));
+  expect(style.color).toBe(tokenRgb("text-inverse"));
 
   const fillHex = rgbToHex(style.backgroundColor);
   const textHex = rgbToHex(style.color);
@@ -596,12 +593,12 @@ test("shows an unchosen day in ink that turns bone on hover", async () => {
 
   const cells = Array.from(dialog.querySelectorAll("td [role='button']")) as HTMLElement[];
   const unchosen = cells.find((cell) => cell.textContent?.trim() === "15") as HTMLElement;
-  expect(getComputedStyle(unchosen).color).toBe(tokenRgb("ink"));
+  expect(getComputedStyle(unchosen).color).toBe(tokenRgb("text"));
 
   await userEvent.hover(unchosen);
   await expect
     .poll(() => getComputedStyle(unchosen).backgroundColor)
-    .toBe(tokenRgb("surface-bone"));
+    .toBe(tokenRgb("surface-subtle"));
 });
 
 test("shows the hand cursor on a selectable day and the arrow on a day outside the allowed range", async () => {
@@ -649,7 +646,7 @@ test("shows the package's own outline focus ring on the focused day", async () =
   expect(focused, "no keyboard-focused day cell found once the calendar opened").not.toBeNull();
   const style = getComputedStyle(focused);
   expect(style.outlineStyle).toBe("solid");
-  expect(style.outlineColor).toBe(tokenRgb("brand-blue-strong"));
+  expect(style.outlineColor).toBe(tokenRgb("focus"));
   expect(Math.round(Number.parseFloat(style.outlineOffset))).toBe(3);
 });
 
@@ -892,10 +889,10 @@ test("refuses a date outside the caller's allowed range, showing its message und
   const screen = await render(<ControlledHarness />);
   const group = fieldGroup(screen, "Expiry");
 
-  expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("status-error-ui", "2px")]);
+  expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("error", "2px")]);
   const message = screen.getByText("The date must be 28/02/2027 or earlier.");
   await expect.element(message).toBeVisible();
-  expect(getComputedStyle(message.element()).color).toBe(tokenRgb("status-error-ui"));
+  expect(getComputedStyle(message.element()).color).toBe(tokenRgb("error"));
 });
 
 test("does not select the out-of-range day in the calendar", async () => {
@@ -944,7 +941,7 @@ for (const [edge, accepted] of [
     const screen = await render(<BoundedHarness value={accepted} />);
     const group = fieldGroup(screen, "Expiry");
 
-    expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("line", "2px")]);
+    expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("border", "2px")]);
     expect(screen.getByText(RANGE_MESSAGE).elements()).toHaveLength(0);
     await expect.element(screen.getByText(RANGE_HELPER)).toBeVisible();
 
@@ -984,7 +981,7 @@ test("still tells the caller a date typed outside the allowed range, while drawi
   (document.activeElement as HTMLElement).blur();
   await expect
     .poll(() => getComputedStyle(group).boxShadow)
-    .toContain(insetBoundary("status-error-ui", "2px"));
+    .toContain(insetBoundary("error", "2px"));
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -1149,10 +1146,10 @@ for (const variant of ["register", "backoffice"] as const) {
     );
     const group = fieldGroup(screen, "Start");
 
-    expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("status-error-ui", "2px")]);
+    expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("error", "2px")]);
     const message = screen.getByText("Choose a start date.");
     await expect.element(message).toBeVisible();
-    expect(getComputedStyle(message.element()).color).toBe(tokenRgb("status-error-ui"));
+    expect(getComputedStyle(message.element()).color).toBe(tokenRgb("error"));
     expect(screen.getByText("Should not be visible.").query()).toBeNull();
     for (const segment of segmentsOf(group)) {
       expect(segment.getAttribute("aria-invalid")).toBe("true");

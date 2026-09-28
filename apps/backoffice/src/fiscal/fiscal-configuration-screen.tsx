@@ -65,12 +65,10 @@ function formatDisplayDate(isoDate: string): string {
 function dataPair(label: string, value: string | null) {
   return (
     <div className="flex flex-col gap-1" key={label}>
-      <p className="font-bold text-ink-secondary text-sm">{label}</p>
+      <p className="font-bold text-text-subtle text-detail">{label}</p>
       <p
         className={
-          value === null
-            ? "font-normal text-base text-ink-secondary"
-            : "font-semibold text-base text-ink"
+          value === null ? "text-body text-text-subtle" : "font-semibold text-body text-text"
         }
       >
         {value ?? "Sin cargar"}
@@ -82,8 +80,8 @@ function dataPair(label: string, value: string | null) {
 function fixedPair(label: string, value: string) {
   return (
     <div className="flex flex-col gap-1" key={label}>
-      <p className="font-bold text-ink-secondary text-sm">{label}</p>
-      <p className="font-semibold text-base text-ink">{value}</p>
+      <p className="font-bold text-text-subtle text-detail">{label}</p>
+      <p className="font-semibold text-body text-text">{value}</p>
     </div>
   );
 }
@@ -486,9 +484,9 @@ export function FiscalConfigurationScreen({
   return (
     <ScreenLayout
       topBar={
-        <div className="flex h-18 shrink-0 items-center border-line border-b bg-surface-white px-8">
+        <div className="flex h-18 shrink-0 items-center border-border border-b bg-surface px-8">
           <div className="flex flex-col justify-center">
-            <p className="text-ink-secondary text-sm">Caja y fiscal · Fiscal</p>
+            <p className="text-text-subtle text-detail">Caja y fiscal · Fiscal</p>
             <ScreenTitle>Configuración fiscal</ScreenTitle>
           </div>
         </div>
@@ -510,11 +508,9 @@ export function FiscalConfigurationScreen({
         </>
       )}
       {state.kind === "loaded" && (
-        <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface-white p-4">
+        <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
           <div className="flex items-center gap-3">
-            <h2 className="flex-1 font-bold text-brand-blue-strong text-lg">
-              Identificación del emisor
-            </h2>
+            <h2 className="flex-1 text-text-accent text-subheading">Identificación del emisor</h2>
             <Button
               variant="secondary"
               size="small"
@@ -544,9 +540,7 @@ export function FiscalConfigurationScreen({
                 : null,
             )}
           </div>
-          <p className="font-normal text-ink-secondary text-sm">
-            Lo imprime cada factura y nota de crédito.
-          </p>
+          <p className="text-text-subtle text-detail">Lo imprime cada factura y nota de crédito.</p>
         </div>
       )}
       <EditIssuerIdentificationModal

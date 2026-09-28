@@ -1,22 +1,18 @@
-import { and, eq } from "drizzle-orm";
-import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { priceConfirmationBodySchema } from "@purosur/contracts";
+import { confirmPrice } from "@purosur/domain/pricing/use-cases";
+import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { checkRequestIsSameOrigin } from "../access/open-session.js";
+import { sameOriginGuard } from "../access/backoffice-origin.js";
 import {
   openSessionOf,
-  originGuard,
   permissionAccess,
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
-import { auditLog, priceReviews, prices, products } from "../platform/db/schema.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
 import { findActiveProductById } from "./active-product.js";
 import { branchPriceListId } from "./branch-price-list.js";
-import { latestReviewedAt, momentAfter, NEWEST_PRICE_FIRST } from "./current-price.js";
-import {
-  readRequiredExpectedCurrentPriceId,
-  validateConfirmationFields,
-} from "./price-validation.js";
+import { DrizzlePricingStore } from "./drizzle-pricing-store.js";
 import type { PricesRouteOptions } from "./prices-list-route.js";
 
 const NOT_FOUND_RESPONSE = { code: "not_found", message: "no product with that id" } as const;
@@ -29,88 +25,19 @@ const NO_PRICE_TO_CONFIRM_RESPONSE = {
   message: "this product has no price yet, so there is nothing to confirm",
 } as const;
 
-export interface ConfirmPriceInput {
-  productId: string;
-  priceListId: string;
-  expectedCurrentPriceId: string;
-  actorId: string;
-  now: () => Date;
-}
-
-export type ConfirmPriceOutcome =
-  | { kind: "not_found" }
-  | { kind: "no_price_to_confirm" }
-  | { kind: "stale_price" }
-  | { kind: "confirmed"; lastReviewedAt: Date };
-
-export async function confirmPrice<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  input: ConfirmPriceInput,
-): Promise<ConfirmPriceOutcome> {
-  return db.transaction<ConfirmPriceOutcome>(async (tx) => {
-    // Locks the product row so a concurrent price change or confirmation waits instead of racing
-    // the current-price read below.
-    const [product] = await tx
-      .select({ id: products.id })
-      .from(products)
-      .where(and(eq(products.id, input.productId), eq(products.active, true)))
-      .for("update");
-    if (!product) {
-      return { kind: "not_found" };
-    }
-
-    const [current] = await tx
-      .select({ id: prices.id })
-      .from(prices)
-      .where(and(eq(prices.productId, input.productId), eq(prices.priceListId, input.priceListId)))
-      .orderBy(...NEWEST_PRICE_FIRST)
-      .limit(1);
-
-    if (!current) {
-      return { kind: "no_price_to_confirm" };
-    }
-    if (current.id !== input.expectedCurrentPriceId) {
-      return { kind: "stale_price" };
-    }
-
-    const now = momentAfter(input.now(), [
-      await latestReviewedAt(tx, input.productId, input.priceListId),
-    ]);
-
-    await tx.insert(priceReviews).values({
-      productId: input.productId,
-      priceListId: input.priceListId,
-      reviewedAt: now,
-      actorId: input.actorId,
-      priceId: current.id,
-    });
-
-    await tx.insert(auditLog).values({
-      entity: "product_price_review",
-      entityId: input.productId,
-      actorId: input.actorId,
-      previousValue: null,
-      newValue: { priceId: current.id },
-    });
-
-    return { kind: "confirmed", lastReviewedAt: now };
-  });
-}
-
 export function registerPriceConfirmationRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: PricesRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
+  const ports = { store: new DrizzlePricingStore(options.db), clock: { now } };
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
   app.post<{ Params: { id: string } }>(
     "/products/:id/price-confirmation",
     {
-      preHandler: originGuard((request, reply) =>
-        checkRequestIsSameOrigin(request, reply, options.backofficeOrigin),
-      ),
+      preHandler: sameOriginGuard(options.backofficeOrigin),
       config: { access: permissionAccess("manage_prices_and_review"), sessionSource },
     },
     async (request, reply) => {
@@ -120,26 +47,19 @@ export function registerPriceConfirmationRoute<TQueryResult extends PgQueryResul
         return;
       }
 
-      const expectedCurrentPriceId = readRequiredExpectedCurrentPriceId(request.body);
-      const failure = validateConfirmationFields({ expectedCurrentPriceId });
-      if (failure) {
-        await reply.code(400).send({
-          code: "validation_failed",
-          message: failure.message,
-          details: [{ field: failure.field }],
-        });
+      const body = await readValidatedBody(reply, priceConfirmationBodySchema, request.body);
+      if (!body) {
         return;
       }
 
       const openSession = openSessionOf(request);
       const priceListId = await branchPriceListId(options.db, openSession.locationId);
 
-      const outcome = await confirmPrice(options.db, {
+      const outcome = await confirmPrice(ports, {
         productId: target.id,
         priceListId,
-        expectedCurrentPriceId: expectedCurrentPriceId as string,
+        expectedCurrentPriceId: body.expectedCurrentPriceId,
         actorId: openSession.userId,
-        now,
       });
 
       if (outcome.kind === "not_found") {

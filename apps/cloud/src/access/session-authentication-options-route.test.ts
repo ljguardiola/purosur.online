@@ -81,16 +81,6 @@ describe("POST /users/session/authentication-options", () => {
     expect(response.headers["set-cookie"]).toBeUndefined();
   });
 
-  it("rejects a missing Origin header", async () => {
-    const response = await app.inject({
-      method: "POST",
-      url: "/users/session/authentication-options",
-    });
-
-    expect(response.statusCode).toBe(403);
-    expect(response.json()).toMatchObject({ code: "origin_rejected" });
-  });
-
   it("rejects an Origin that does not match the backoffice's own origin", async () => {
     const response = await post({ origin: "https://evil.example.com" });
 

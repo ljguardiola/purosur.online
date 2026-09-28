@@ -18,8 +18,7 @@ import {
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
-import { confirmPrice, registerPriceConfirmationRoute } from "./price-confirmation-route.js";
-import { setPrice } from "./price-set-route.js";
+import { registerPriceConfirmationRoute } from "./price-confirmation-route.js";
 import { listPrices } from "./prices-list-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
@@ -322,48 +321,5 @@ describe("POST /products/:id/price-confirmation", () => {
       .from(priceReviews)
       .where(eq(priceReviews.productId, productId));
     expect(reviews).toHaveLength(0);
-  });
-});
-
-describe("confirmations committed by callers whose clocks disagree", () => {
-  it("records a confirmation from an earlier clock as the product's most recent review", async () => {
-    const priceListId = await seededPriceListId(db);
-    const actorId = await insertUserWithPermission();
-    const productId = await insertProduct("Arroz");
-    const laterMoment = new Date("2026-01-05T12:00:05.000Z");
-
-    const first = await setPrice(db, {
-      productId,
-      priceListId,
-      unitPrice: 1000,
-      expectedCurrentPriceId: null,
-      actorId,
-      now: () => laterMoment,
-    });
-    if (first.kind !== "applied") {
-      throw new Error("test setup: the first price was not applied");
-    }
-
-    const confirmation = await confirmPrice(db, {
-      productId,
-      priceListId,
-      expectedCurrentPriceId: first.price.id,
-      actorId,
-      now: () => new Date("2026-01-05T12:00:00.000Z"),
-    });
-    if (confirmation.kind !== "confirmed") {
-      throw new Error(`expected the confirmation to apply, got ${confirmation.kind}`);
-    }
-    expect(confirmation.lastReviewedAt.getTime()).toBeGreaterThan(laterMoment.getTime());
-
-    const listed = await listPrices(db, {
-      priceListId,
-      now: laterMoment,
-      unreviewedPriceAlertDays: 30,
-      review: "all",
-    });
-    expect(listed.products.find((product) => product.id === productId)).toMatchObject({
-      lastReviewedAt: confirmation.lastReviewedAt,
-    });
   });
 });

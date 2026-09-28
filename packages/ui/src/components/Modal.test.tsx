@@ -4,7 +4,7 @@ import { beforeEach, expect, expectTypeOf, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../test/axe";
-import { tokenBackgroundColor, tokenRgb } from "../test/token-colors";
+import { paletteColor, tokenBackgroundColor, tokenRgb } from "../test/token-colors";
 import { Button } from "./Button";
 import { Modal, type ModalProps, type ModalWidth } from "./Modal";
 
@@ -66,19 +66,19 @@ test("gives the panel a white background, 12px radius and the design's shadow", 
   const panel = screen.getByRole("dialog").element().parentElement as HTMLElement;
   const style = getComputedStyle(panel);
 
-  expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
+  expect(style.backgroundColor).toBe(tokenRgb("surface"));
   expect(style.borderRadius).toBe("12px");
   expect(style.boxShadow).toContain("24px 64px");
-  expect(style.boxShadow).toContain(tokenBackgroundColor("ink-panel-shadow"));
+  expect(style.boxShadow).toContain(paletteColor("neutral-900-a30"));
 });
 
 test("covers the viewport with a backdrop in ink at 50% opacity", async () => {
   await render(<Modal {...baseProps()} />);
-  const backdrop = document.querySelector('[class*="bg-ink-backdrop"]') as HTMLElement;
+  const backdrop = document.querySelector('[class*="bg-backdrop"]') as HTMLElement;
 
   expect(backdrop).not.toBeNull();
   const style = getComputedStyle(backdrop);
-  expect(style.backgroundColor).toBe(tokenBackgroundColor("ink-backdrop"));
+  expect(style.backgroundColor).toBe(tokenBackgroundColor("backdrop"));
   const rect = backdrop.getBoundingClientRect();
   expect(rect.width).toBeGreaterThan(0);
   expect(rect.height).toBeGreaterThan(0);
@@ -109,10 +109,10 @@ const tones: {
   boxBg: string;
   strong: string;
 }[] = [
-  { tone: "info", boxBg: "brand-blue-message-bg", strong: "brand-blue-strong" },
-  { tone: "success", boxBg: "brand-green-message-bg", strong: "brand-green-strong" },
-  { tone: "warning", boxBg: "status-warning-message-bg", strong: "status-warning-strong" },
-  { tone: "error", boxBg: "status-error-message-bg", strong: "status-error-strong" },
+  { tone: "info", boxBg: "info-subtle", strong: "info-strong" },
+  { tone: "success", boxBg: "success-subtle", strong: "success-strong" },
+  { tone: "warning", boxBg: "warning-subtle", strong: "warning-strong" },
+  { tone: "error", boxBg: "error-subtle", strong: "error-strong" },
 ];
 
 test("colors the icon box and title with each tone's background and strong color", async () => {
@@ -155,7 +155,7 @@ test("renders the icon box at 48px with a 12px radius and the icon at 24px", asy
   expect(iconRect.width).toBeLessThan(25);
 });
 
-test("shows a context line in bold uppercase earth-ui by default", async () => {
+test("shows a context line in bold uppercase eyebrow color by default", async () => {
   const screen = await render(<Modal {...baseProps({ context: "Warning" })} />);
   const context = screen.getByText("Warning", { exact: true }).element() as HTMLElement;
   const style = getComputedStyle(context);
@@ -163,18 +163,18 @@ test("shows a context line in bold uppercase earth-ui by default", async () => {
   expect(style.fontWeight).toBe("700");
   expect(style.textTransform).toBe("uppercase");
   expect(style.fontSize).toBe("12px");
-  expect(style.color).toBe(tokenRgb("brand-earth-ui"));
+  expect(style.color).toBe(tokenRgb("text-eyebrow"));
 
   await expectNoAccessibilityViolations(document.body);
 });
 
 test("lets the caller color the context line with another text tone", async () => {
   const screen = await render(
-    <Modal {...baseProps({ context: "Cannot be undone", contextTone: "status-error-ui" })} />,
+    <Modal {...baseProps({ context: "Cannot be undone", contextTone: "error" })} />,
   );
   const context = screen.getByText("Cannot be undone", { exact: true }).element() as HTMLElement;
 
-  expect(getComputedStyle(context).color).toBe(tokenRgb("status-error-ui"));
+  expect(getComputedStyle(context).color).toBe(tokenRgb("error"));
 
   await expectNoAccessibilityViolations(document.body);
 });
@@ -198,7 +198,7 @@ test("lays out the header with its padding, border and 16px gap", async () => {
   expect(style.paddingBottom).toBe("16px");
   expect(style.paddingLeft).toBe("24px");
   expect(style.borderBottomWidth).toBe("1px");
-  expect(style.borderBottomColor).toBe(tokenRgb("line"));
+  expect(style.borderBottomColor).toBe(tokenRgb("border"));
   expect(style.columnGap).toBe("16px");
   expect(style.alignItems).toBe("center");
 });
@@ -397,13 +397,13 @@ test("gives the footer a bone background, its padding, top border and 12px gap",
   const footer = footerButton.parentElement as HTMLElement;
   const style = getComputedStyle(footer);
 
-  expect(style.backgroundColor).toBe(tokenRgb("surface-bone"));
+  expect(style.backgroundColor).toBe(tokenRgb("surface-subtle"));
   expect(style.paddingTop).toBe("16px");
   expect(style.paddingBottom).toBe("16px");
   expect(style.paddingLeft).toBe("24px");
   expect(style.paddingRight).toBe("24px");
   expect(style.borderTopWidth).toBe("1px");
-  expect(style.borderTopColor).toBe(tokenRgb("line"));
+  expect(style.borderTopColor).toBe(tokenRgb("border"));
   expect(style.columnGap).toBe("12px");
   expect(style.alignItems).toBe("center");
 });
@@ -562,12 +562,12 @@ test("shows a 40px circular close button in bone with a 20px glyph in secondary 
   // rounded-full computes to a huge radius, not a fixed value, so circularity is checked as a
   // radius exceeding the button's own size, not as an exact string.
   expect(Number.parseFloat(getComputedStyle(closeButton).borderRadius)).toBeGreaterThan(rect.width);
-  expect(getComputedStyle(closeButton).backgroundColor).toBe(tokenRgb("surface-bone"));
+  expect(getComputedStyle(closeButton).backgroundColor).toBe(tokenRgb("surface-subtle"));
 
   const iconRect = icon.getBoundingClientRect();
   expect(iconRect.width).toBeGreaterThan(19);
   expect(iconRect.width).toBeLessThan(21);
-  expect(getComputedStyle(icon).color).toBe(tokenRgb("ink-secondary"));
+  expect(getComputedStyle(icon).color).toBe(tokenRgb("text-subtle"));
 });
 
 test("shows the hand cursor on the close button", async () => {
@@ -584,7 +584,7 @@ test("turns the close button's background sand on hover", async () => {
   await userEvent.hover(closeButton);
   await expect
     .poll(() => getComputedStyle(closeButton).backgroundColor)
-    .toBe(tokenRgb("surface-sand"));
+    .toBe(tokenRgb("surface-soft"));
 });
 
 test("shows the package's standard focus ring on the close button", async () => {
@@ -595,9 +595,7 @@ test("shows the package's standard focus ring on the close button", async () => 
 
   await expect.poll(() => getComputedStyle(closeButton).outlineWidth).toBe("3px");
   await expect.poll(() => getComputedStyle(closeButton).outlineOffset).toBe("3px");
-  await expect
-    .poll(() => getComputedStyle(closeButton).outlineColor)
-    .toBe(tokenRgb("brand-blue-strong"));
+  await expect.poll(() => getComputedStyle(closeButton).outlineColor).toBe(tokenRgb("focus"));
 });
 
 test("closes when the close button is pressed", async () => {
@@ -623,7 +621,7 @@ test("closes on Escape when closable", async () => {
 test("stays open when the backdrop is clicked, even when closable", async () => {
   const onOpenChange = vi.fn();
   await render(<Modal {...baseProps({ closable: true, onOpenChange })} />);
-  const backdrop = document.querySelector('[class*="bg-ink-backdrop"]') as HTMLElement;
+  const backdrop = document.querySelector('[class*="bg-backdrop"]') as HTMLElement;
 
   await userEvent.click(backdrop, { position: { x: 4, y: 4 } });
 
@@ -639,7 +637,7 @@ test("shows no close button and ignores Escape and the backdrop when not closabl
   expect(dialog.querySelectorAll("button")).toHaveLength(0);
 
   await userEvent.keyboard("{Escape}");
-  const backdrop = document.querySelector('[class*="bg-ink-backdrop"]') as HTMLElement;
+  const backdrop = document.querySelector('[class*="bg-backdrop"]') as HTMLElement;
   await userEvent.click(backdrop, { position: { x: 4, y: 4 } });
 
   expect(onOpenChange).not.toHaveBeenCalled();
@@ -739,7 +737,7 @@ test("opens a second modal over the first with its own backdrop and returns to t
 
   await expect.element(screen.getByRole("dialog", { name: "Second modal" })).toBeVisible();
   await expect.element(screen.getByRole("dialog", { name: "First modal" })).toBeVisible();
-  expect(document.querySelectorAll('[class*="bg-ink-backdrop"]')).toHaveLength(2);
+  expect(document.querySelectorAll('[class*="bg-backdrop"]')).toHaveLength(2);
   await expectNoAccessibilityViolations(document.body);
 
   const done = screen.getByRole("button", { name: "Done", exact: true });
@@ -780,7 +778,7 @@ type ModalLayoutFields = ModalProps extends infer P
 test("accepts a context line, its tone and a flush body in the leading header layout", () => {
   expectTypeOf<{
     context: string;
-    contextTone: "brand-blue-ui";
+    contextTone: "info";
     bodyPadding: "none";
   }>().toExtend<ModalLayoutFields>();
 });
@@ -789,7 +787,7 @@ test("does not accept a context line, its tone or a flush body in the centered h
   expectTypeOf<{ headerLayout: "centered"; context: string }>().not.toExtend<ModalLayoutFields>();
   expectTypeOf<{
     headerLayout: "centered";
-    contextTone: "brand-blue-ui";
+    contextTone: "info";
   }>().not.toExtend<ModalLayoutFields>();
   expectTypeOf<{
     headerLayout: "centered";

@@ -179,8 +179,8 @@ test("draws a white trigger with a 2px line border at rest, like every other fie
   const screen = await render(<Select {...baseProps()} />);
   const trigger = screen.getByRole("button", { name: /Rol/ }).element() as HTMLElement;
 
-  expect(getComputedStyle(trigger).backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(borderOf(trigger)).toEqual({ width: "2px", color: tokenRgb("line") });
+  expect(getComputedStyle(trigger).backgroundColor).toBe(tokenRgb("surface"));
+  expect(borderOf(trigger)).toEqual({ width: "2px", color: tokenRgb("border") });
 });
 
 test("turns the trigger bone on hover, keeping the same 2px line border", async () => {
@@ -189,11 +189,13 @@ test("turns the trigger bone on hover, keeping the same 2px line border", async 
 
   await userEvent.hover(trigger);
 
-  await expect.poll(() => getComputedStyle(trigger).backgroundColor).toBe(tokenRgb("surface-bone"));
-  expect(borderOf(trigger)).toEqual({ width: "2px", color: tokenRgb("line") });
+  await expect
+    .poll(() => getComputedStyle(trigger).backgroundColor)
+    .toBe(tokenRgb("surface-subtle"));
+  expect(borderOf(trigger)).toEqual({ width: "2px", color: tokenRgb("border") });
 });
 
-test("draws a 2px brand-blue-ui border and no outline ring when reached by keyboard", async () => {
+test("draws a 2px action-color border and no outline ring when reached by keyboard", async () => {
   const screen = await render(<Select {...baseProps()} />);
   const trigger = screen.getByRole("button", { name: /Rol/ }).element() as HTMLElement;
 
@@ -204,10 +206,10 @@ test("draws a 2px brand-blue-ui border and no outline ring when reached by keybo
     .poll(() => borderOf(trigger))
     .toEqual({
       width: "2px",
-      color: tokenRgb("brand-blue-ui"),
+      color: tokenRgb("action"),
     });
   expect(getComputedStyle(trigger).outlineStyle).toBe("none");
-  expect(getComputedStyle(trigger).backgroundColor).toBe(tokenRgb("surface-white"));
+  expect(getComputedStyle(trigger).backgroundColor).toBe(tokenRgb("surface"));
 });
 
 test("keeps the focused border and white fill instead of the hovered bone one when both apply at once", async () => {
@@ -218,8 +220,8 @@ test("keeps the focused border and white fill instead of the hovered bone one wh
   await userEvent.hover(trigger);
   await expect.poll(() => trigger.hasAttribute("data-hovered")).toBe(true);
 
-  await expect.poll(() => borderOf(trigger).color).toBe(tokenRgb("brand-blue-ui"));
-  expect(getComputedStyle(trigger).backgroundColor).toBe(tokenRgb("surface-white"));
+  await expect.poll(() => borderOf(trigger).color).toBe(tokenRgb("action"));
+  expect(getComputedStyle(trigger).backgroundColor).toBe(tokenRgb("surface"));
 });
 
 test("keeps the focused border while its menu is open", async () => {
@@ -230,14 +232,14 @@ test("keeps the focused border while its menu is open", async () => {
   await expect.element(screen.getByRole("listbox")).toBeVisible();
 
   expect(document.activeElement).not.toBe(trigger);
-  expect(borderOf(trigger)).toEqual({ width: "2px", color: tokenRgb("brand-blue-ui") });
+  expect(borderOf(trigger)).toEqual({ width: "2px", color: tokenRgb("action") });
 });
 
 test("switches the border to the error tone while invalid", async () => {
   const screen = await render(<Select {...baseProps()} invalid errorMessage="Elegí un rol." />);
   const trigger = screen.getByRole("button", { name: /Rol/ }).element() as HTMLElement;
 
-  expect(borderOf(trigger)).toEqual({ width: "2px", color: tokenRgb("status-error-ui") });
+  expect(borderOf(trigger)).toEqual({ width: "2px", color: tokenRgb("error") });
 });
 
 test("turns an invalid trigger bone on hover, keeping its error border", async () => {
@@ -246,8 +248,10 @@ test("turns an invalid trigger bone on hover, keeping its error border", async (
 
   await userEvent.hover(trigger);
 
-  await expect.poll(() => getComputedStyle(trigger).backgroundColor).toBe(tokenRgb("surface-bone"));
-  expect(borderOf(trigger)).toEqual({ width: "2px", color: tokenRgb("status-error-ui") });
+  await expect
+    .poll(() => getComputedStyle(trigger).backgroundColor)
+    .toBe(tokenRgb("surface-subtle"));
+  expect(borderOf(trigger)).toEqual({ width: "2px", color: tokenRgb("error") });
 });
 
 test("shows the focused border instead of the error one while an invalid select's menu is open", async () => {
@@ -257,7 +261,7 @@ test("shows the focused border instead of the error one while an invalid select'
   await userEvent.click(trigger);
   await expect.element(screen.getByRole("listbox")).toBeVisible();
 
-  expect(borderOf(trigger)).toEqual({ width: "2px", color: tokenRgb("brand-blue-ui") });
+  expect(borderOf(trigger)).toEqual({ width: "2px", color: tokenRgb("action") });
 });
 
 test("shows the focused border instead of the error one once an invalid select is focused", async () => {
@@ -266,14 +270,14 @@ test("shows the focused border instead of the error one once an invalid select i
 
   await userEvent.tab();
 
-  await expect.poll(() => borderOf(trigger).color).toBe(tokenRgb("brand-blue-ui"));
+  await expect.poll(() => borderOf(trigger).color).toBe(tokenRgb("action"));
 });
 
 test("keeps the 2px line border while disabled", async () => {
   const screen = await render(<Select {...baseProps({ disabled: true })} />);
   const trigger = screen.getByRole("button", { name: /Rol/ }).element() as HTMLElement;
 
-  expect(borderOf(trigger)).toEqual({ width: "2px", color: tokenRgb("line") });
+  expect(borderOf(trigger)).toEqual({ width: "2px", color: tokenRgb("border") });
 });
 
 test("paints its open popover above a surrounding stacking context that sets a lower positive z-index, the way Modal.tsx's own overlay does", async () => {
@@ -353,7 +357,7 @@ test("shows the caller's placeholder as the trigger's value, styled as inert pla
   await expect.element(screen.getByRole("button", { name: "Elegí un rol Rol" })).toBeVisible();
   const valueEl = trigger.querySelector("[data-placeholder]") as HTMLElement;
   expect(valueEl).not.toBeNull();
-  expect(getComputedStyle(valueEl).color).toBe(tokenRgb("ink-secondary"));
+  expect(getComputedStyle(valueEl).color).toBe(tokenRgb("text-subtle"));
 });
 
 test("does not call onChange or select anything on its own when the value starts out null", async () => {

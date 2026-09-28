@@ -10,9 +10,9 @@ import type { NoticeTone } from "./InlineNotice";
 type ToneTokens = { background: string; text: string };
 
 const tones: Record<NoticeTone, ToneTokens> = {
-  warning: { background: "status-warning-message-bg", text: "status-warning-strong" },
-  info: { background: "brand-blue-message-bg", text: "brand-blue-strong" },
-  error: { background: "status-error-message-bg", text: "status-error-strong" },
+  warning: { background: "warning-subtle", text: "warning-strong" },
+  info: { background: "info-subtle", text: "info-strong" },
+  error: { background: "error-subtle", text: "error-strong" },
 };
 
 test("renders the caller's title, detail and icon", async () => {

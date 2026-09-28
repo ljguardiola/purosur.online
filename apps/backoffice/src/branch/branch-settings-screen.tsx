@@ -507,7 +507,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
   ) {
     const label = `${DAY_LABELS[day]}, horario ${index + 1}, ${part === "opensAt" ? "abre" : "cierra"}`;
     return (
-      <div className="w-[5.5rem]">
+      <div className="w-22">
         <TextField
           kind="plain-text"
           label={label}
@@ -529,16 +529,12 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
     const fieldErrorId = error !== undefined ? errorId : undefined;
     const atCap = dayValues.ranges.length >= BRANCH_HOURS_RANGES_PER_DAY_MAX;
     return (
-      <div key={day} className="flex flex-col gap-2 border-line border-t py-3">
+      <div key={day} className="flex flex-col gap-2 border-border border-t py-3">
         <div className="flex flex-wrap items-start gap-4">
-          <div
-            className={`flex ${backofficeFieldHeightClassName} w-[8.75rem] shrink-0 items-center`}
-          >
-            <p className="font-semibold text-ink">{dayLabel}</p>
+          <div className={`flex ${backofficeFieldHeightClassName} w-35 shrink-0 items-center`}>
+            <p className="font-semibold text-text">{dayLabel}</p>
           </div>
-          <div
-            className={`flex ${backofficeFieldHeightClassName} w-[6.25rem] shrink-0 items-center`}
-          >
+          <div className={`flex ${backofficeFieldHeightClassName} w-25 shrink-0 items-center`}>
             <Checkbox
               isSelected={dayValues.closed}
               onChange={(closed) => setDayClosed(day, closed)}
@@ -562,7 +558,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
                   className="flex items-center gap-2"
                 >
                   {rangeTimeField(day, index, "opensAt", fieldErrorId)}
-                  <span aria-hidden="true" className="text-ink">
+                  <span aria-hidden="true" className="text-text">
                     a
                   </span>
                   {rangeTimeField(day, index, "closesAt", fieldErrorId)}
@@ -588,7 +584,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           )}
         </div>
         {error !== undefined && (
-          <p id={errorId} className="text-sm font-normal text-status-error-ui">
+          <p id={errorId} className="text-detail text-error">
             {error}
           </p>
         )}
@@ -599,9 +595,9 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
   return (
     <ScreenLayout
       topBar={
-        <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
+        <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
           <div className="flex flex-col justify-center">
-            <p className="text-ink-secondary text-sm">Configuración</p>
+            <p className="text-text-subtle text-detail">Configuración</p>
             <ScreenTitle>Sucursal</ScreenTitle>
           </div>
           <Button
@@ -666,20 +662,20 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
       ) : null}
       {state.kind === "loaded" && (
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface-white p-4">
-            <h2 className="font-bold text-brand-blue-strong text-lg">Encabezado del ticket</h2>
+          <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+            <h2 className="text-text-accent text-subheading">Encabezado del ticket</h2>
             <div className="flex gap-4">
               {textField("address", "Dirección")}
               {textField("whatsappNumber", "WhatsApp")}
             </div>
             <div className="flex gap-4">{textField("instagramHandle", "Instagram")}</div>
           </div>
-          <div className="flex flex-col gap-1 rounded-lg border border-line bg-surface-white p-4">
-            <h2 className="mb-2 font-bold text-brand-blue-strong text-lg">Horario de atención</h2>
+          <div className="flex flex-col gap-1 rounded-lg border border-border bg-surface p-4">
+            <h2 className="mb-2 text-text-accent text-subheading">Horario de atención</h2>
             {BRANCH_DAYS.map((day) => dayRow(day))}
           </div>
-          <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface-white p-4">
-            <h2 className="font-bold text-brand-blue-strong text-lg">Plazos</h2>
+          <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+            <h2 className="text-text-accent text-subheading">Plazos</h2>
             <div className="flex gap-4">
               {daysField("expiringLotAlertDays", "Aviso de vencimiento")}
               {daysField("unreviewedPriceAlertDays", "Precio sin revisar")}

@@ -191,31 +191,3 @@ export async function peekOpenSession<TQueryResult extends PgQueryResultHKT>(
   const resolved = await resolveOpenSession(request, reply, options);
   return resolved?.session;
 }
-
-function rejectAsCrossSite(reply: FastifyReply, message: string): false {
-  void reply.code(403).send({ code: "origin_rejected", message });
-  return false;
-}
-
-// Origin is absent on a same-origin GET, so Sec-Fetch-Site (same-origin vs. cross-site, still
-// allowed by SameSite=Lax) fills the gap; a request with neither header still passes unchecked.
-export function checkRequestIsSameOrigin(
-  request: FastifyRequest,
-  reply: FastifyReply,
-  backofficeOrigin: string,
-): boolean {
-  const origin = request.headers.origin;
-  if (origin !== undefined && origin !== backofficeOrigin) {
-    return rejectAsCrossSite(
-      reply,
-      "the request's Origin does not match the backoffice's own origin",
-    );
-  }
-
-  const fetchSite = request.headers["sec-fetch-site"];
-  if (fetchSite !== undefined && fetchSite !== "same-origin") {
-    return rejectAsCrossSite(reply, "the request did not come from the backoffice itself");
-  }
-
-  return true;
-}

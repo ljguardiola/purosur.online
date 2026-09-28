@@ -1,11 +1,11 @@
 import { registerCreationBodySchema } from "@purosur/contracts";
 import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyInstance } from "fastify";
+import { backofficeOriginGuard } from "../access/backoffice-origin.js";
 import { requirePasskeyAuthorization } from "../access/passkey-authorization-guard.js";
 import {
   openSessionOf,
-  originGuard,
   permissionAccess,
   registerRouteAccess,
   routeSessionSource,
@@ -56,8 +56,8 @@ export type CreateRegisterOutcome =
   | { kind: "name_taken" }
   | { kind: "created"; register: CreatedRegister };
 
-// Two concurrent requests can both pass the select check above; the database's own unique index
-// is what actually stops the second insert, so it's caught here too.
+// Two concurrent requests can both pass the transaction's name check below; the database's own unique
+// index is what actually stops the second insert, so its violation is caught too.
 export async function createRegister<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: CreateRegisterInput,
@@ -117,21 +117,10 @@ export function registerRegisterCreationRoute<TQueryResult extends PgQueryResult
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
-    if (request.headers.origin !== options.backofficeOrigin) {
-      void reply.code(403).send({
-        code: "origin_rejected",
-        message: "the request's Origin does not match the backoffice's own origin",
-      });
-      return false;
-    }
-    return true;
-  }
-
   app.post(
     "/registers",
     {
-      preHandler: originGuard(checkOrigin),
+      preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: { access: permissionAccess("enroll_register_devices"), sessionSource },
     },
     async (request, reply) => {

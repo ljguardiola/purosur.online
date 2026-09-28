@@ -172,20 +172,20 @@ function headerColumnWidthStyle<T>(
   };
 }
 
-// A muted row's ink-secondary applies to every cell at once, so a column's own render() should
+// A muted row's subtle text applies to every cell at once, so a column's own render() should
 // leave its text color unset to inherit it.
 function rowStateClassName(state: TableRowState | undefined): string {
   switch (state) {
     case "selected":
-      return "bg-brand-blue-message-bg";
+      return "bg-action-subtle";
     case "warning":
-      return "bg-status-warning-message-bg";
+      return "bg-warning-subtle";
     case "error":
-      return "bg-status-error-message-bg";
+      return "bg-error-subtle";
     case "muted":
-      return "bg-surface-white text-ink-secondary";
+      return "bg-surface text-text-subtle";
     default:
-      return "bg-surface-white";
+      return "bg-surface";
   }
 }
 
@@ -197,28 +197,25 @@ function rowStateClassName(state: TableRowState | undefined): string {
 // for names it finds written out in source, never one assembled at runtime.
 function rowBoxShadowClassName(state: TableRowState | undefined, isLast: boolean): string {
   if (isLast) {
-    return state === "selected" ? "shadow-[inset_4px_0_0_0_var(--color-brand-blue-ui)]" : "";
+    return state === "selected" ? "inset-shadow-marker" : "";
   }
-  return state === "selected"
-    ? "shadow-[inset_0_-1px_0_0_var(--color-line),inset_4px_0_0_0_var(--color-brand-blue-ui)]"
-    : "shadow-[inset_0_-1px_0_0_var(--color-line)]";
+  return state === "selected" ? "inset-shadow-divider-marker" : "inset-shadow-divider";
 }
 
 function oppositeDirection(direction: TableSortDirection): TableSortDirection {
   return direction === "ascending" ? "descending" : "ascending";
 }
 
-const sortIconClassName = "size-3 shrink-0";
+const sortIconClassName = "size-icon-2xs shrink-0";
 
 // The focus ring is inset (negative outline-offset) since the button's box is flush with the
-// container's clipped, rounded edge, leaving no room for an outward ring. relative + z-20, scoped
+// container's clipped, rounded edge, leaving no room for an outward ring. relative + z-focused, scoped
 // to focus-visible only, since the "updating" bar is positioned above all in-flow content and
 // would otherwise paint over the ring.
 const headerButtonClassName =
-  "flex h-full w-full items-center gap-1 outline-none data-[hovered]:bg-surface-sand " +
-  "data-[focus-visible]:relative data-[focus-visible]:z-20 " +
-  "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
-  "data-[focus-visible]:outline-offset-[-3px] data-[focus-visible]:outline-brand-blue-strong";
+  "flex h-full w-full items-center gap-1 outline-none data-hovered:bg-surface-soft " +
+  "data-focus-visible:relative data-focus-visible:z-focused " +
+  "data-focus-visible:focus-ring-inset";
 
 function SortableColumnHeader<T>({
   column,
@@ -235,7 +232,7 @@ function SortableColumnHeader<T>({
 }) {
   const isSorted = sort?.column === column.key;
   const direction = isSorted ? sort.direction : undefined;
-  const colorClassName = isSorted ? "text-ink" : "text-ink-secondary";
+  const colorClassName = isSorted ? "text-text" : "text-text-subtle";
   const Icon =
     direction === "ascending"
       ? ChevronUp
@@ -268,23 +265,21 @@ function SortableColumnHeader<T>({
 }
 
 function TableEmptyState({ icon, title, detail, tone, actions }: TableEmptyStateProps) {
-  const iconColorClassName = tone === "blank" ? "text-brand-blue-strong" : "text-ink-secondary";
+  const iconColorClassName = tone === "blank" ? "text-text-accent" : "text-text-subtle";
 
   return (
     <div className="flex flex-col items-center gap-3 p-8 text-center">
       <span
         aria-hidden="true"
         className={[
-          "flex size-[5.5rem] shrink-0 items-center justify-center rounded-full bg-surface-bone",
+          "flex size-22 shrink-0 items-center justify-center rounded-full bg-surface-subtle",
           iconColorClassName,
         ].join(" ")}
       >
-        <span className="inline-flex size-[2.375rem] shrink-0 [&>svg]:h-full [&>svg]:w-full">
-          {icon}
-        </span>
+        <span className="inline-flex size-icon-4xl shrink-0 *:size-full">{icon}</span>
       </span>
-      <p className="max-w-[32.5rem] text-2xl font-bold text-brand-blue-strong">{title}</p>
-      {detail ? <p className="max-w-[32.5rem] text-base text-ink-secondary">{detail}</p> : null}
+      <p className="max-w-130 text-title text-text-accent">{title}</p>
+      {detail ? <p className="max-w-130 text-body text-text-subtle">{detail}</p> : null}
       {actions ? <div className="flex items-center gap-3">{actions}</div> : null}
     </div>
   );
@@ -300,7 +295,7 @@ function SkeletonRow<T>({
   return (
     <tr
       className={[
-        "h-14",
+        "h-control-4xl",
         rowBoxShadowClassName(undefined, isLastRow),
         "animate-table-placeholder-reveal",
       ].join(" ")}
@@ -323,9 +318,9 @@ function SkeletonRow<T>({
           >
             {isActions ? (
               <div className="flex flex-row items-center justify-end gap-2">
-                <div className="size-[2.375rem] shrink-0 rounded-lg bg-surface-sand" />
+                <div className="size-control-md shrink-0 rounded-lg bg-surface-soft" />
                 {column.actions.length === 2 && (
-                  <div className="size-[2.375rem] shrink-0 rounded-lg bg-surface-sand" />
+                  <div className="size-control-md shrink-0 rounded-lg bg-surface-soft" />
                 )}
               </div>
             ) : (
@@ -333,7 +328,7 @@ function SkeletonRow<T>({
                 className={["flex", align === "end" ? "justify-end" : "justify-start"].join(" ")}
               >
                 <div
-                  className="h-3 rounded-md bg-surface-sand"
+                  className="h-3 rounded-md bg-surface-soft"
                   style={{ width: `${widthPercent}%` }}
                 />
               </div>
@@ -350,7 +345,7 @@ export type TableCellTextProps = {
   detail?: ReactNode;
 };
 
-// The fixed line heights and gap land a two-line row exactly at 64px; the cell's own h-14 floor
+// The fixed line heights and gap land a two-line row exactly at 64px; the cell's own height floor
 // only matters for the single-line case, which would otherwise land under it.
 //
 // A falsy-but-real value like 0 or "" is still content to show: `detail && ...` would instead
@@ -361,10 +356,8 @@ export function TableCellText({ children, detail }: TableCellTextProps) {
   const hasDetail = detail !== undefined && detail !== null && typeof detail !== "boolean";
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-base leading-[24px]">{children}</span>
-      {hasDetail ? (
-        <span className="text-sm leading-[20px] text-ink-secondary">{detail}</span>
-      ) : null}
+      <span className="text-body">{children}</span>
+      {hasDetail ? <span className="text-detail text-text-subtle">{detail}</span> : null}
     </div>
   );
 }
@@ -375,7 +368,7 @@ function TableActionButton<T>({ action, item }: { action: TableAction<T>; item: 
   const descriptor = action(item);
   if (!descriptor) {
     // Matches the visible action button's own footprint, so the other action doesn't shift.
-    return <span aria-hidden="true" className="size-[2.375rem] shrink-0" />;
+    return <span aria-hidden="true" className="size-control-md shrink-0" />;
   }
   const { icon, "aria-label": ariaLabel, onPress } = descriptor;
   return <IconButton icon={icon} aria-label={ariaLabel} onPress={onPress} />;
@@ -398,7 +391,7 @@ function TableCell<T>({
   return (
     <td
       className={[
-        "h-14 break-words align-middle py-2",
+        "h-control-4xl break-words align-middle py-2",
         cellHorizontalPaddingClassName(isFirst, isLast),
         alignClassName(align),
         align === "end" ? "tabular-nums" : "",
@@ -455,15 +448,15 @@ export function Table<T>({
 
   return (
     <>
-      <div className="relative isolate overflow-clip rounded-lg border border-line bg-surface-white">
+      <div className="relative isolate overflow-clip rounded-lg border border-border bg-surface">
         {loading === "updating" && (
           <div
             aria-hidden="true"
             // Without pointer-events-none, this purely visual bar would also physically catch
             // pointer events meant for the header underneath it.
-            className="pointer-events-none absolute inset-x-0 top-0 z-10 h-[3px] overflow-hidden bg-brand-blue-message-bg"
+            className="pointer-events-none absolute inset-x-0 top-0 z-raised h-0.75 overflow-hidden bg-data-subtle"
           >
-            <div className="h-full w-1/3 animate-table-loading-bar bg-brand-blue-ui motion-reduce:animate-none" />
+            <div className="h-full w-1/3 animate-table-loading-bar bg-data motion-reduce:animate-none" />
           </div>
         )}
         {showEmptyState && empty ? (
@@ -479,7 +472,7 @@ export function Table<T>({
             className="w-full table-fixed"
           >
             <thead>
-              <tr className="h-11 bg-surface-bone">
+              <tr className="h-control-xl bg-surface-subtle">
                 {columns.map((column, index) => {
                   const isActions = column.kind === "actions";
                   const isSortable =
@@ -496,11 +489,11 @@ export function Table<T>({
                       className={[
                         // A cell's explicit height is a floor, not a cap, so h-full on a sortable
                         // header's button always has an actual, resolved height to track.
-                        "h-11 break-words align-middle",
+                        "h-control-xl break-words align-middle",
                         // A sortable header's hit area needs the cell's full box, so its padding
                         // lives on the button instead.
                         isSortable ? "" : cellHorizontalPaddingClassName(isFirst, isLast),
-                        "text-xs font-bold uppercase",
+                        "text-caption font-bold uppercase",
                         alignClassName(isActions ? "start" : column.align),
                       ].join(" ")}
                     >
@@ -515,7 +508,7 @@ export function Table<T>({
                           isLast={isLast}
                         />
                       ) : (
-                        <span className="text-ink-secondary">{column.title}</span>
+                        <span className="text-text-subtle">{column.title}</span>
                       )}
                     </th>
                   );

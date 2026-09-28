@@ -59,7 +59,7 @@ test("renders the container with a 1px line border, 8px radius, 4px padding and 
   const style = getComputedStyle(container);
 
   expect(style.borderWidth).toBe("1px");
-  expect(style.borderColor).toBe(tokenRgb("line"));
+  expect(style.borderColor).toBe(tokenRgb("border"));
   expect(style.borderRadius).toBe("8px");
   expect(style.paddingTop).toBe("4px");
   expect(style.paddingLeft).toBe("4px");
@@ -162,8 +162,8 @@ test("colors a not-chosen option with no background, a regular ink label and a s
 
   expect(getComputedStyle(option).backgroundColor).toBe("rgba(0, 0, 0, 0)");
   expect(getComputedStyle(label).fontWeight).toBe("400");
-  expect(getComputedStyle(label).color).toBe(tokenRgb("ink"));
-  expect(getComputedStyle(icon).color).toBe(tokenRgb("ink-secondary"));
+  expect(getComputedStyle(label).color).toBe(tokenRgb("text"));
+  expect(getComputedStyle(icon).color).toBe(tokenRgb("text-subtle"));
 });
 
 test("turns a hovered not-chosen option's background bone without changing its other colors", async () => {
@@ -172,7 +172,9 @@ test("turns a hovered not-chosen option's background bone without changing its o
   const label = segmentLabelText(screen, "Discount");
 
   await userEvent.hover(option);
-  await expect.poll(() => getComputedStyle(option).backgroundColor).toBe(tokenRgb("surface-bone"));
+  await expect
+    .poll(() => getComputedStyle(option).backgroundColor)
+    .toBe(tokenRgb("surface-subtle"));
 
   expect(getComputedStyle(label).fontWeight).toBe("400");
 });
@@ -183,10 +185,10 @@ test("colors the chosen option with the blue message background, a bold blue str
   const icon = option.querySelector("svg") as SVGSVGElement;
   const label = segmentLabelText(screen, "Discount");
 
-  expect(getComputedStyle(option).backgroundColor).toBe(tokenRgb("brand-blue-message-bg"));
+  expect(getComputedStyle(option).backgroundColor).toBe(tokenRgb("action-subtle"));
   expect(getComputedStyle(label).fontWeight).toBe("700");
-  expect(getComputedStyle(label).color).toBe(tokenRgb("brand-blue-strong"));
-  expect(getComputedStyle(icon).color).toBe(tokenRgb("brand-blue-strong"));
+  expect(getComputedStyle(label).color).toBe(tokenRgb("text-accent"));
+  expect(getComputedStyle(icon).color).toBe(tokenRgb("text-accent"));
 });
 
 test("does not change the chosen option's background on hover", async () => {
@@ -196,7 +198,7 @@ test("does not change the chosen option's background on hover", async () => {
   await userEvent.hover(option);
   await expect.poll(() => option.hasAttribute("data-hovered")).toBe(true);
 
-  expect(getComputedStyle(option).backgroundColor).toBe(tokenRgb("brand-blue-message-bg"));
+  expect(getComputedStyle(option).backgroundColor).toBe(tokenRgb("action-subtle"));
 });
 
 test("keeps the control's width stable when the chosen option changes", async () => {
@@ -290,9 +292,7 @@ test("shows the package's focus ring on the focused option", async () => {
 
   await expect.poll(() => getComputedStyle(option).outlineWidth).toBe("3px");
   await expect.poll(() => getComputedStyle(option).outlineOffset).toBe("3px");
-  await expect
-    .poll(() => getComputedStyle(option).outlineColor)
-    .toBe(tokenRgb("brand-blue-strong"));
+  await expect.poll(() => getComputedStyle(option).outlineColor).toBe(tokenRgb("focus"));
 });
 
 test("exposes the group as a radiogroup named by the caller's label", async () => {

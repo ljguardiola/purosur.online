@@ -14,7 +14,7 @@ const meta: Meta<typeof AreaNavItem> = {
   },
   decorators: [
     (Story) => (
-      <div className="bg-brand-blue-strong p-2">
+      <div className="bg-surface-nav p-2">
         <Story />
       </div>
     ),

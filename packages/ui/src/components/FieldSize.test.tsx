@@ -66,7 +66,7 @@ test("draws the label, gap, box and value at the backoffice size, identically fo
     const style = getComputedStyle(label);
     expect(Math.round(Number.parseFloat(style.fontSize))).toBe(14);
     expect(style.fontWeight).toBe("700");
-    expect(style.color).toBe(tokenRgb("ink"));
+    expect(style.color).toBe(tokenRgb("text"));
   }
 
   for (const wrapper of [textWrapper, dateWrapper, selectWrapper, groupWrapper, quantityWrapper]) {
@@ -88,7 +88,7 @@ test("draws the label, gap, box and value at the backoffice size, identically fo
     const style = getComputedStyle(value);
     expect(Math.round(Number.parseFloat(style.fontSize))).toBe(16);
     expect(style.fontWeight).toBe("600");
-    expect(style.color).toBe(tokenRgb("ink"));
+    expect(style.color).toBe(tokenRgb("text"));
   }
 
   expect(

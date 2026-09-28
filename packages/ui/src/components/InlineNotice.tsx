@@ -4,9 +4,9 @@ import { NoticeLiveRegion } from "./NoticeLiveRegion";
 export type NoticeTone = "warning" | "info" | "error";
 
 export const noticeToneClassName: Record<NoticeTone, string> = {
-  warning: "bg-status-warning-message-bg text-status-warning-strong",
-  info: "bg-brand-blue-message-bg text-brand-blue-strong",
-  error: "bg-status-error-message-bg text-status-error-strong",
+  warning: "bg-warning-subtle text-warning-strong",
+  info: "bg-info-subtle text-info-strong",
+  error: "bg-error-subtle text-error-strong",
 };
 
 type NoticeContent = { title: string; detail?: string } | { title?: string; detail: string };
@@ -16,7 +16,7 @@ export type InlineNoticeProps = {
   icon: ButtonIcon;
 } & NoticeContent;
 
-const iconWrapperClassName = "inline-flex size-[1.125rem] shrink-0 [&>svg]:h-full [&>svg]:w-full";
+const iconWrapperClassName = "inline-flex size-icon-md shrink-0 *:size-full";
 
 export function InlineNotice({ tone, icon, title, detail }: InlineNoticeProps) {
   const className = [
@@ -32,8 +32,8 @@ export function InlineNotice({ tone, icon, title, detail }: InlineNoticeProps) {
       {/* Hidden from assistive technology so its text isn't announced twice: the live region
           below is its only accessible copy. */}
       <div aria-hidden="true" className="flex flex-col gap-1">
-        {title ? <p className="text-base font-bold">{title}</p> : null}
-        {detail ? <p className="text-sm leading-[1.35]">{detail}</p> : null}
+        {title ? <p className="text-body font-bold">{title}</p> : null}
+        {detail ? <p className="text-detail leading-sm">{detail}</p> : null}
       </div>
       <NoticeLiveRegion
         assertiveness={tone === "error" ? "assertive" : "polite"}

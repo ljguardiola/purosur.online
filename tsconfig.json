@@ -24,6 +24,7 @@
     "paths": {
       "@purosur/domain": ["./packages/domain/src/index.ts"],
       "@purosur/domain/catalog/use-cases": ["./packages/domain/src/catalog/use-cases/index.ts"],
+      "@purosur/domain/pricing/use-cases": ["./packages/domain/src/pricing/use-cases/index.ts"],
       "@purosur/contracts": ["./packages/contracts/src/index.ts"],
       "@purosur/ui": ["./packages/ui/src/index.ts"],
       "@purosur/ui/test": ["./packages/ui/src/test/index.ts"]

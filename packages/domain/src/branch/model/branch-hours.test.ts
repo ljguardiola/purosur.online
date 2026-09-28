@@ -53,13 +53,12 @@ describe("branchHoursRangesOverlap", () => {
     expect(branchHoursRangesOverlap([afternoon, morning])).toBe(true);
   });
 
-  it("is false for two ranges where one closes when the other opens", () => {
-    expect(
-      branchHoursRangesOverlap([
-        { opensAt: "09:00", closesAt: "13:00" },
-        { opensAt: "13:00", closesAt: "17:00" },
-      ]),
-    ).toBe(false);
+  it("is false for two ranges where one closes when the other opens, whatever order they come in", () => {
+    const morning = { opensAt: "09:00", closesAt: "13:00" };
+    const afternoon = { opensAt: "13:00", closesAt: "17:00" };
+
+    expect(branchHoursRangesOverlap([morning, afternoon])).toBe(false);
+    expect(branchHoursRangesOverlap([afternoon, morning])).toBe(false);
   });
 
   it("finds an overlap between ranges that are not neighbours", () => {

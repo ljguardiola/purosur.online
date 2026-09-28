@@ -54,32 +54,29 @@ function pagePlaces(page: number, pageCount: number): PaginationPlace[] {
 }
 
 // aria-disabled, not native disabled, so Previous/Next stay focusable at their own boundary; the
-// 0.65 opacity keeps the label at or above WCAG AA 4.5:1. react-aria still reports data-[hovered]
+// 0.65 opacity keeps the label at or above WCAG AA 4.5:1. react-aria still reports data-hovered
 // on an aria-disabled button, so the hover background is only in the non-disabled class string.
 function navButtonClassName(disabled: boolean): string {
   return [
-    "flex h-9 items-center justify-center rounded-md border border-line bg-surface-white px-3",
-    "text-sm text-ink outline-none",
-    "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid",
-    "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong",
-    disabled ? "opacity-[0.65]" : "data-[hovered]:bg-surface-bone",
+    "flex h-control-sm items-center justify-center rounded-md border border-border bg-surface px-3",
+    "text-detail text-text outline-none",
+    "data-focus-visible:focus-ring",
+    disabled ? "opacity-disabled-strong" : "data-hovered:bg-surface-subtle",
   ].join(" ");
 }
 
 const pageButtonClassName =
-  "flex h-9 min-w-9 items-center justify-center rounded-md px-3 text-sm outline-none " +
-  "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
-  "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong";
+  "flex h-control-sm min-w-control-sm items-center justify-center rounded-md px-3 text-detail outline-none " +
+  "data-focus-visible:focus-ring";
 
 // cursor-default, not aria-disabled: the current page is still present, just non-actionable, and
 // aria-disabled would announce it as unavailable instead.
-const currentPageClassName = "cursor-default bg-brand-blue-ui font-bold text-surface-white";
+const currentPageClassName = "cursor-default bg-action font-bold text-text-inverse";
 // An inset shadow instead of a real border: a real border on only one of these two class strings
 // would make that button's own box 2px wider than the other's, shifting every button's width as
 // the current page moves.
 const otherPageClassName =
-  "shadow-[inset_0_0_0_1px_var(--color-line)] bg-surface-white font-normal text-ink " +
-  "data-[hovered]:bg-surface-bone";
+  "inset-ring-1 inset-ring-border bg-surface text-text data-hovered:bg-surface-subtle";
 
 // NaN propagates through Math.min/Math.max and Infinity never clamps, so both props are resolved
 // to a safe integer first. +Infinity is the one non-finite page that still means something ("go
@@ -126,7 +123,7 @@ export function Pagination({ page, pageCount, onPageChange, label }: PaginationP
         {pagePlaces(currentPage, resolvedPageCount).map((place) => (
           <li key={place.key} aria-hidden={place.kind === "ellipsis" ? true : undefined}>
             {place.kind === "ellipsis" ? (
-              <span className="px-1 text-sm text-ink-secondary">{ELLIPSIS}</span>
+              <span className="px-1 text-detail text-text-subtle">{ELLIPSIS}</span>
             ) : (
               <AriaButton
                 aria-label={`Página ${place.page}`}

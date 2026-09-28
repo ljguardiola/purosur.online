@@ -102,11 +102,11 @@ test("draws the box with an 8px column gap, an 8px radius and a 2px line border"
 
   expect(Math.round(Number.parseFloat(style.columnGap))).toBe(8);
   expect(style.borderRadius).toBe("8px");
-  expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("line", "2px")]);
+  expect(style.backgroundColor).toBe(tokenRgb("surface"));
+  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("border", "2px")]);
 });
 
-test("shows the quantity value left-aligned, and the unit beside a chevron-down in ink-secondary", async () => {
+test("shows the quantity value left-aligned, and the unit beside a chevron-down in subtle text", async () => {
   const screen = await render(<QuantityUnitField {...baseProps({ quantity: "380", unit: "g" })} />);
   const input = quantityInput(screen);
   const inputStyle = getComputedStyle(input);
@@ -118,7 +118,7 @@ test("shows the quantity value left-aligned, and the unit beside a chevron-down 
   expect(inputStyle.textAlign).toBe("left");
 
   expect(Math.round(Number.parseFloat(unitStyle.fontSize))).toBe(16);
-  expect(unitStyle.color).toBe(tokenRgb("ink-secondary"));
+  expect(unitStyle.color).toBe(tokenRgb("text-subtle"));
 
   const chevron = trigger.querySelector("svg") as SVGElement;
   expect(chevron).not.toBeNull();
@@ -281,22 +281,20 @@ test("turns the box bone on hover, keeping the same 2px line border", async () =
 
   await userEvent.hover(box);
 
-  await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-bone"));
-  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("line", "2px")]);
+  await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-subtle"));
+  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("border", "2px")]);
 });
 
-test("draws a brand-blue-ui border with no outer shadow when the quantity input is focused", async () => {
+test("draws an action-color border with no outer shadow when the quantity input is focused", async () => {
   const screen = await render(<QuantityUnitField {...baseProps()} />);
   const box = fieldBox(screen);
 
   await userEvent.click(quantityInput(screen));
 
-  await expect
-    .poll(() => paintedBoxShadowLayers(box))
-    .toEqual([insetBoundary("brand-blue-ui", "2px")]);
+  await expect.poll(() => paintedBoxShadowLayers(box)).toEqual([insetBoundary("action", "2px")]);
 });
 
-test("keeps the brand-blue-ui border while the unit menu is open, even though DOM focus moves into its portaled listbox", async () => {
+test("keeps the action-color border while the unit menu is open, even though DOM focus moves into its portaled listbox", async () => {
   const screen = await render(<QuantityUnitField {...baseProps()} />);
   const box = fieldBox(screen);
 
@@ -305,7 +303,7 @@ test("keeps the brand-blue-ui border while the unit menu is open, even though DO
   await expect.element(listbox).toBeVisible();
 
   await expect.poll(() => listbox.element().contains(document.activeElement)).toBe(true);
-  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("brand-blue-ui", "2px")]);
+  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("action", "2px")]);
 });
 
 test("switches the box border to the error tone while invalid, then to focused once the quantity input is focused", async () => {
@@ -314,13 +312,11 @@ test("switches the box border to the error tone while invalid, then to focused o
   );
   const box = fieldBox(screen);
 
-  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("status-error-ui", "2px")]);
+  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("error", "2px")]);
 
   await userEvent.click(quantityInput(screen));
 
-  await expect
-    .poll(() => paintedBoxShadowLayers(box))
-    .toEqual([insetBoundary("brand-blue-ui", "2px")]);
+  await expect.poll(() => paintedBoxShadowLayers(box)).toEqual([insetBoundary("action", "2px")]);
 });
 
 test("does not accept a field without a label, quantity, unit, options, unitLabel or their change handlers", () => {

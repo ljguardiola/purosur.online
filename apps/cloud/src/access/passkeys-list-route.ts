@@ -2,11 +2,10 @@ import { asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { passkeys } from "../platform/db/schema.js";
-import { checkRequestIsSameOrigin } from "./open-session.js";
+import { sameOriginGuard } from "./backoffice-origin.js";
 import {
   OPEN_SESSION_ACCESS,
   openSessionOf,
-  originGuard,
   registerRouteAccess,
   routeSessionSource,
 } from "./route-access.js";
@@ -28,9 +27,7 @@ export function registerPasskeysListRoute<TQueryResult extends PgQueryResultHKT>
   app.get(
     "/users/passkeys",
     {
-      preHandler: originGuard((request, reply) =>
-        checkRequestIsSameOrigin(request, reply, options.backofficeOrigin),
-      ),
+      preHandler: sameOriginGuard(options.backofficeOrigin),
       config: { access: OPEN_SESSION_ACCESS, sessionSource },
     },
     async (request, reply) => {

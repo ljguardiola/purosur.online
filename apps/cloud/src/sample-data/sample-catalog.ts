@@ -2,6 +2,7 @@ import {
   appendEan13CheckDigit,
   type NetContentUnit,
   PRODUCT_NAME_MAX_LENGTH,
+  type SaleUnit,
 } from "@purosur/domain";
 import type { BranchHoursRange } from "../branch/branch-settings-read-route.js";
 
@@ -18,13 +19,11 @@ export const SAMPLE_ADMINISTRATOR = {
   email: sampleEmail("administradora.muestra"),
 };
 
-type SampleSaleUnit = "UNIT" | "KG";
-
 type SampleProductBarcodePlan = { kind: "manufacturer"; code: string } | { kind: "internal" };
 
 interface SampleProductPlan {
   name: string;
-  saleUnit: SampleSaleUnit;
+  saleUnit: SaleUnit;
   netContent: { quantity: number; unit: NetContentUnit } | null;
   barcode: SampleProductBarcodePlan;
   active: boolean;
@@ -311,7 +310,7 @@ function sampleProductPlansForLeaf(
   for (let i = 0; i < count; i += 1) {
     const seed = leafIndex * 13 + i;
     const base = leaf.baseProductNames[i % leaf.baseProductNames.length] ?? leaf.name;
-    const saleUnit: SampleSaleUnit = seed % 4 === 3 ? "KG" : "UNIT";
+    const saleUnit: SaleUnit = seed % 4 === 3 ? "KG" : "UNIT";
     const name =
       i === 0
         ? clampToMaxLength(`${base} ${LONG_PRODUCT_DESCRIPTOR}`, PRODUCT_NAME_MAX_LENGTH)

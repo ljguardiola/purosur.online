@@ -19,14 +19,12 @@ export type AccountFooterProps = {
 
 const railItemClassName =
   "flex w-15 flex-col items-center justify-center gap-1 rounded-lg px-0 py-2 outline-none " +
-  "focus-visible:outline-[3px] focus-visible:outline-solid focus-visible:outline-offset-2 " +
-  "focus-visible:outline-surface-white";
+  "focus-visible:focus-ring-inverse";
 const railIconWrapperClassName =
-  "inline-flex size-5 shrink-0 text-blue-soft [&>svg]:h-full [&>svg]:w-full";
+  "inline-flex size-icon-lg shrink-0 text-text-inverse-subtle *:size-full";
 const nameLinkClassName =
-  "w-full rounded px-1 text-center text-xs font-semibold leading-[1.2] text-blue-soft outline-none " +
-  "focus-visible:outline-[3px] focus-visible:outline-solid focus-visible:outline-offset-2 " +
-  "focus-visible:outline-surface-white";
+  "w-full rounded-sm px-1 text-center text-caption font-semibold leading-xs text-text-inverse-subtle outline-none " +
+  "focus-visible:focus-ring-inverse";
 
 type Notice = { kind: "failed" } | { kind: "rate_limited"; retryAfterSeconds: number };
 
@@ -68,7 +66,7 @@ export function AccountFooter({ displayName, onSignedOut, services }: AccountFoo
         <span aria-hidden="true" className={railIconWrapperClassName}>
           <LogOut />
         </span>
-        <span className="text-xs font-normal text-blue-soft">Salir</span>
+        <span className="text-caption text-text-inverse-subtle">Salir</span>
       </button>
       <Modal
         isOpen={confirming}
@@ -77,7 +75,6 @@ export function AccountFooter({ displayName, onSignedOut, services }: AccountFoo
         tone="info"
         icon={<LogOut />}
         context={displayName}
-        contextTone="brand-earth-ui"
         title="¿Salir del backoffice?"
         closable
         footer={
