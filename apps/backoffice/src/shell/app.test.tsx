@@ -2004,3 +2004,29 @@ test("offers to try again when a screen fails to render, reports the failure, an
   expect(screen.getByText("No pudimos mostrar esta pantalla").query()).toBeNull();
   expect(reportError).toHaveBeenCalledTimes(1);
 });
+
+test("keeps focus on the failure's title when trying again fails again", async () => {
+  window.history.pushState(null, "", "/home/alerts");
+  const services = createAppServices();
+  vi.mocked(services.alertsListScreen.fetchAlerts).mockResolvedValue({
+    kind: "ok",
+    value: { alerts: null, total: 0, pageSize: 25, openCount: 0, openCriticalCount: 0 },
+  } as never);
+  const reportError = vi.fn();
+  const screen = await render(
+    <App help={emptyHelp} services={services} reportError={reportError} />,
+  );
+  await expect
+    .element(screen.getByRole("heading", { name: "No pudimos mostrar esta pantalla", level: 1 }))
+    .toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.poll(() => reportError.mock.calls.length).toBeGreaterThan(1);
+  await expect
+    .element(screen.getByRole("heading", { name: "No pudimos mostrar esta pantalla", level: 1 }))
+    .toHaveFocus();
+  await expect
+    .element(screen.getByRole("alert"))
+    .toHaveTextContent("Probá de nuevo en unos minutos.");
+});
