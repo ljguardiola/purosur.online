@@ -14,7 +14,7 @@ import type { BranchSettingsScreenServices } from "../branch/branch-settings-scr
 import type { CategoriesListScreenServices } from "../catalog/categories-list-screen";
 import type { ProductsListScreenServices } from "../catalog/products-list-screen";
 import type { FiscalConfigurationScreenServices } from "../fiscal/fiscal-configuration-screen";
-import type { BackofficeHelpCatalog } from "../help/help-page";
+import type { BackofficeHelpCatalog } from "../help/help-catalog";
 import { useLatestRef } from "../platform/use-latest-ref";
 import type { PricesListScreenServices } from "../pricing/prices-list-screen";
 import type { RegistersListScreenServices } from "../register/registers-list-screen";

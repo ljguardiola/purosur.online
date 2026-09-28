@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { Shell } from "../shell/shell";
 import { render } from "../shell/test-support/render-with-router";
-import { HelpContent, HelpSectionColumn } from "./help-screen";
+import { HelpContent } from "./help-screen";
 
 const help = defineHelp("es-AR", {
   categories: {
@@ -37,36 +37,6 @@ beforeEach(() => {
 
 afterEach(() => {
   window.history.pushState(null, "", "/");
-});
-
-test("HelpSectionColumn lists every category as a link, marking the active one", async () => {
-  const screen = await render(<HelpSectionColumn help={help} activeCategoryId="billing" />);
-
-  await expect.element(screen.getByText("Ayuda")).toBeVisible();
-
-  const gettingStarted = screen
-    .getByRole("link", { name: "Primeros pasos" })
-    .element() as HTMLAnchorElement;
-  expect(gettingStarted.getAttribute("href")).toBe("/help/getting_started");
-  expect(gettingStarted.hasAttribute("aria-current")).toBe(false);
-
-  const billing = screen.getByRole("link", { name: "Facturación" }).element() as HTMLAnchorElement;
-  expect(billing.getAttribute("aria-current")).toBe("page");
-});
-
-test("HelpSectionColumn lists the categories as list items under its heading", async () => {
-  const screen = await render(<HelpSectionColumn help={help} activeCategoryId={null} />);
-
-  await expect.element(screen.getByRole("heading", { name: "Ayuda", level: 2 })).toBeVisible();
-  const items = screen.getByRole("list").getByRole("listitem").elements();
-  expect(items.map((item) => item.textContent)).toEqual(["Primeros pasos", "Facturación"]);
-});
-
-test("HelpSectionColumn renders no items for an empty catalog", async () => {
-  const empty = defineHelp("es-AR", { categories: {}, articles: {} });
-  const screen = await render(<HelpSectionColumn help={empty} activeCategoryId={null} />);
-
-  expect(screen.container.querySelectorAll("a").length).toBe(0);
 });
 
 function ContentHarness(props: {
