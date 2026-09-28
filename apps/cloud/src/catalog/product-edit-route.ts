@@ -1,5 +1,4 @@
-import type { SaleUnit } from "@purosur/domain";
-import type { CatalogNetContent } from "@purosur/domain/catalog/use-cases";
+import { productEditBodySchema } from "@purosur/contracts";
 import { editProduct } from "@purosur/domain/catalog/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -12,20 +11,12 @@ import {
 } from "../access/route-access.js";
 import { products } from "../platform/db/schema.js";
 import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
 import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
 import {
   CATEGORY_NOT_FOUND_FAILURE,
   CATEGORY_NOT_LEAF_RESPONSE,
 } from "./product-creation-route.js";
-import {
-  type ProductFieldValidationFailure,
-  readBarcodes,
-  readCategoryId,
-  readNetContent,
-  readProductName,
-  readSaleUnit,
-  validateProductFields,
-} from "./product-validation.js";
 import type { ProductsRouteOptions } from "./products-list-route.js";
 
 const NOT_FOUND_RESPONSE = {
@@ -37,51 +28,6 @@ const STALE_VERSION_RESPONSE = {
   code: "stale_version",
   message: "this product was changed since it was loaded",
 } as const;
-
-interface EditRequestBody {
-  name: string;
-  categoryId: string;
-  saleUnit: SaleUnit;
-  barcodes: string[];
-  netContent: CatalogNetContent | null;
-  version: number;
-}
-
-function readVersion(body: unknown): number | undefined {
-  const raw = (body as { version?: unknown } | undefined)?.version;
-  return typeof raw === "number" && Number.isInteger(raw) && raw >= 1 ? raw : undefined;
-}
-
-function readEditBody(body: unknown): EditRequestBody | ProductFieldValidationFailure {
-  const name = readProductName(body);
-  const categoryId = readCategoryId(body);
-  const saleUnit = readSaleUnit(body);
-  const barcodes = readBarcodes(body);
-  const netContent = readNetContent(body);
-  const failure = validateProductFields({ name, categoryId, saleUnit, barcodes, netContent });
-  if (failure) {
-    return failure;
-  }
-  const version = readVersion(body);
-  if (version === undefined) {
-    return { field: "version", message: "version must be the positive integer it was loaded with" };
-  }
-  // `validateProductFields` above already guarantees every one of these is defined.
-  return {
-    name: name as string,
-    categoryId: categoryId as string,
-    saleUnit: saleUnit as SaleUnit,
-    barcodes: barcodes as string[],
-    netContent: netContent === undefined ? null : (netContent as CatalogNetContent),
-    version,
-  };
-}
-
-function isValidationFailure(
-  value: EditRequestBody | ProductFieldValidationFailure,
-): value is ProductFieldValidationFailure {
-  return "field" in value;
-}
 
 async function findProductById<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
@@ -131,13 +77,8 @@ export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      const parsedBody = readEditBody(request.body);
-      if (isValidationFailure(parsedBody)) {
-        await reply.code(400).send({
-          code: "validation_failed",
-          message: parsedBody.message,
-          details: [{ field: parsedBody.field }],
-        });
+      const parsedBody = await readValidatedBody(reply, productEditBodySchema, request.body);
+      if (!parsedBody) {
         return;
       }
 
