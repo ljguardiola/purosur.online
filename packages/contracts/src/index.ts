@@ -20,6 +20,14 @@ export type { UserEditBody } from "./access/user-edit.js";
 export { userEditBodySchema } from "./access/user-edit.js";
 export type { BranchSettingsEditBody } from "./branch/branch-settings-edit.js";
 export { branchSettingsEditBodySchema } from "./branch/branch-settings-edit.js";
+export type { CategoryCreationBody } from "./catalog/category-creation.js";
+export { categoryCreationBodySchema } from "./catalog/category-creation.js";
+export type { CategoryEditBody } from "./catalog/category-edit.js";
+export { categoryEditBodySchema } from "./catalog/category-edit.js";
+export type { ProductCreationBody } from "./catalog/product-creation.js";
+export { productCreationBodySchema } from "./catalog/product-creation.js";
+export type { ProductEditBody } from "./catalog/product-edit.js";
+export { productEditBodySchema } from "./catalog/product-edit.js";
 export type { IssuerIdentificationEditBody } from "./fiscal/issuer-identification-edit.js";
 export { issuerIdentificationEditBodySchema } from "./fiscal/issuer-identification-edit.js";
 export type {

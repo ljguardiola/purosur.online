@@ -22,6 +22,28 @@ export function isBarcodeTooLong(code: string): boolean {
 
 export const PRODUCT_BARCODES_MAX_COUNT = 20;
 
+export type BarcodeListProblem = "too_many" | "too_long" | "whitespace" | "repeated";
+
+export function barcodeListProblem(codes: readonly string[]): BarcodeListProblem | undefined {
+  if (codes.length > PRODUCT_BARCODES_MAX_COUNT) {
+    return "too_many";
+  }
+  const seen = new Set<string>();
+  for (const code of codes) {
+    if (isBarcodeTooLong(code)) {
+      return "too_long";
+    }
+    if (/\s/.test(code)) {
+      return "whitespace";
+    }
+    if (seen.has(code)) {
+      return "repeated";
+    }
+    seen.add(code);
+  }
+  return undefined;
+}
+
 export const LABELS_MAX_COUNT_PER_PRODUCT = 999;
 
 const LABEL_SHEETS_MAX = 100;
@@ -33,6 +55,10 @@ export type SaleUnit = "UNIT" | "KG";
 export type NetContentUnit = "G" | "KG" | "ML" | "L" | "UNIT";
 
 export const NET_CONTENT_UNITS: readonly NetContentUnit[] = ["G", "KG", "ML", "L", "UNIT"];
+
+export function isNetContentUnit(value: unknown): value is NetContentUnit {
+  return NET_CONTENT_UNITS.some((unit) => unit === value);
+}
 
 export const NET_CONTENT_QUANTITY_MAX = 100_000;
 
