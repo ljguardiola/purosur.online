@@ -116,7 +116,7 @@ function RoleSaveConfirmationModal({
             size="large"
             icon={<ArrowLeft />}
             fullWidth
-            isDisabled={submitting}
+            disabled={submitting}
             onPress={onBack}
           >
             Volver
@@ -126,7 +126,7 @@ function RoleSaveConfirmationModal({
             size="large"
             icon={<Check />}
             fullWidth
-            isDisabled={submitting}
+            disabled={submitting}
             onPress={onConfirm}
           >
             Guardar los cambios
@@ -433,13 +433,13 @@ export function RoleEditorModal({
               })}
             </p>
             <div className="flex items-center gap-3">
-              <Button variant="secondary" icon={<X />} isDisabled={submitting} onPress={onClose}>
+              <Button variant="secondary" icon={<X />} disabled={submitting} onPress={onClose}>
                 Cancelar
               </Button>
               <Button
                 variant="primary"
                 icon={<Check />}
-                isDisabled={!canSubmit}
+                disabled={!canSubmit}
                 onPress={() => void handleSubmit()}
               >
                 {saveLabel}
@@ -487,7 +487,7 @@ export function RoleEditorModal({
                 <Button
                   variant="secondary"
                   icon={<RotateCcw />}
-                  isDisabled={submitting}
+                  disabled={submitting}
                   onPress={() => void handleReload()}
                 >
                   Recargar

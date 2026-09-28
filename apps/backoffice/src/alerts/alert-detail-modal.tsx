@@ -338,7 +338,7 @@ export function AlertDetailModal({
             variant="secondary"
             size="large"
             icon={<ArrowLeft />}
-            isDisabled={submitting}
+            disabled={submitting}
             onPress={onClose}
           >
             Volver
@@ -349,7 +349,7 @@ export function AlertDetailModal({
               size="large"
               icon={<Check />}
               fullWidth
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={() => void handleCloseAlert()}
             >
               Cerrar la alerta

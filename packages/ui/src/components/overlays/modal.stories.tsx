@@ -30,7 +30,7 @@ export const Leading: Story = {
     footer: (
       <>
         <Button variant="secondary">Cancelar</Button>
-        <Button tone="destructive">Anular</Button>
+        <Button destructive>Anular</Button>
       </>
     ),
   },
@@ -64,7 +64,7 @@ export const ErrorTone: Story = {
     icon: <XCircle />,
     title: "El pago falló",
     children: "La tarjeta fue rechazada por el banco.",
-    footer: <Button tone="destructive">Reintentar</Button>,
+    footer: <Button destructive>Reintentar</Button>,
   },
 };
 

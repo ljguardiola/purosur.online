@@ -103,7 +103,7 @@ export function AccountRecoveryScreen({ services }: AccountRecoveryScreenProps) 
           size="large"
           fullWidth
           icon={<Send />}
-          isDisabled={submitting}
+          disabled={submitting}
         >
           Enviar el enlace
         </Button>

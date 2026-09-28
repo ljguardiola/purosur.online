@@ -752,7 +752,7 @@ function NewProductModal({
             variant="secondary"
             size="large"
             icon={<X />}
-            isDisabled={submitting}
+            disabled={submitting}
             onPress={onClose}
           >
             Cancelar
@@ -762,7 +762,7 @@ function NewProductModal({
             size="large"
             icon={<Check />}
             fullWidth
-            isDisabled={submitting}
+            disabled={submitting}
             onPress={() => void handleSubmit()}
           >
             Crear el producto
@@ -1126,7 +1126,7 @@ function EditProductModal({
             variant="secondary"
             size="large"
             icon={<X />}
-            isDisabled={submitting}
+            disabled={submitting}
             onPress={onClose}
           >
             Cancelar
@@ -1137,7 +1137,7 @@ function EditProductModal({
               size="large"
               icon={<RotateCcw />}
               fullWidth
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={() => void handleReload()}
             >
               Recargar el producto
@@ -1148,7 +1148,7 @@ function EditProductModal({
               size="large"
               icon={<Check />}
               fullWidth
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={() => void handleSubmit()}
             >
               Guardar los cambios
@@ -1384,7 +1384,7 @@ function DeactivateProductModal({
             variant="secondary"
             size="large"
             icon={<X />}
-            isDisabled={submitting}
+            disabled={submitting}
             onPress={onClose}
           >
             Cancelar
@@ -1395,7 +1395,7 @@ function DeactivateProductModal({
               size="large"
               icon={<RotateCcw />}
               fullWidth
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={onVanished}
             >
               Actualizar la lista
@@ -1403,11 +1403,11 @@ function DeactivateProductModal({
           ) : (
             <Button
               variant="primary"
-              tone="destructive"
+              destructive
               size="large"
               icon={<Ban />}
               fullWidth
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={() => void handleConfirm()}
             >
               Desactivar
@@ -1670,7 +1670,7 @@ function PrintLabelsModal({
       closable
       footer={
         <>
-          <Button variant="secondary" size="large" icon={<X />} isDisabled={busy} onPress={onClose}>
+          <Button variant="secondary" size="large" icon={<X />} disabled={busy} onPress={onClose}>
             Cancelar
           </Button>
           <Button
@@ -1678,7 +1678,7 @@ function PrintLabelsModal({
             size="large"
             icon={<Download />}
             fullWidth
-            isDisabled={busy || total === 0}
+            disabled={busy || total === 0}
             onPress={() => void handleDownload()}
           >
             Descargar la hoja para imprimir
@@ -1720,7 +1720,7 @@ function PrintLabelsModal({
           />
         )}
         {offersReload ? (
-          <Button variant="secondary" isDisabled={reloading} onPress={() => void handleReload()}>
+          <Button variant="secondary" disabled={reloading} onPress={() => void handleReload()}>
             Recargar la lista
           </Button>
         ) : null}
@@ -1757,14 +1757,14 @@ function PrintLabelsModal({
                       <IconButton
                         icon={<Minus />}
                         aria-label={`Restar una etiqueta de ${product.name}`}
-                        isDisabled={count === 0}
+                        disabled={count === 0}
                         onPress={() => changeCount(product.id, -1)}
                       />
                       <span className="w-8 text-center font-mono text-body text-text">{count}</span>
                       <IconButton
                         icon={<Plus />}
                         aria-label={`Sumar una etiqueta a ${product.name}`}
-                        isDisabled={
+                        disabled={
                           count === LABELS_MAX_COUNT_PER_PRODUCT || total >= LABELS_MAX_TOTAL_COUNT
                         }
                         onPress={() => changeCount(product.id, 1)}
@@ -2019,7 +2019,7 @@ export function ProductsListScreen({
               <Button
                 variant="secondary"
                 icon={<Printer />}
-                isDisabled={list.kind !== "loaded"}
+                disabled={list.kind !== "loaded"}
                 onPress={() => setPrintModalOpen(true)}
               >
                 Imprimir etiquetas

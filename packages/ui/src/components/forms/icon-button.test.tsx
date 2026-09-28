@@ -121,7 +121,7 @@ test("activates on Enter when focused via keyboard", async () => {
 });
 
 test("dims to the design's 45% opacity when disabled", async () => {
-  const screen = await render(<IconButton aria-label="Delete row" icon={<Trash2 />} isDisabled />);
+  const screen = await render(<IconButton aria-label="Delete row" icon={<Trash2 />} disabled />);
   const button = screen.getByRole("button", { name: "Delete row" }).element() as HTMLElement;
 
   await expect.element(screen.getByRole("button", { name: "Delete row" })).toBeDisabled();
@@ -137,7 +137,7 @@ test("shows the hand cursor when enabled and the arrow cursor when disabled", as
   await enabledScreen.unmount();
 
   const disabledScreen = await render(
-    <IconButton aria-label="Delete row" icon={<Trash2 />} isDisabled />,
+    <IconButton aria-label="Delete row" icon={<Trash2 />} disabled />,
   );
   const disabledButton = disabledScreen
     .getByRole("button", { name: "Delete row" })
@@ -171,4 +171,9 @@ test("an empty aria-label from a variable leaves the button nameless, and the ac
 
   const results = await axe.run(screen.container);
   expect(results.violations.map((violation) => violation.id)).toEqual(["button-name"]);
+});
+
+test("names its disabled state disabled", () => {
+  expectTypeOf<IconButtonProps>().toHaveProperty("disabled");
+  expectTypeOf<IconButtonProps>().not.toHaveProperty("isDisabled");
 });

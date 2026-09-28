@@ -205,7 +205,7 @@ function NewCategoryModal({
             variant="secondary"
             size="large"
             icon={<X />}
-            isDisabled={submitting}
+            disabled={submitting}
             onPress={onClose}
           >
             Cancelar
@@ -215,7 +215,7 @@ function NewCategoryModal({
             size="large"
             icon={<Check />}
             fullWidth
-            isDisabled={submitting}
+            disabled={submitting}
             onPress={() => void handleSubmit()}
           >
             Crear la categoría
@@ -472,7 +472,7 @@ function EditCategoryModal({
             variant="secondary"
             size="large"
             icon={<X />}
-            isDisabled={submitting}
+            disabled={submitting}
             onPress={onClose}
           >
             Cancelar
@@ -482,7 +482,7 @@ function EditCategoryModal({
             size="large"
             icon={<Check />}
             fullWidth
-            isDisabled={submitting}
+            disabled={submitting}
             onPress={() => void handleSubmit()}
           >
             Guardar los cambios
@@ -535,7 +535,7 @@ function EditCategoryModal({
             <Button
               variant="secondary"
               icon={<RotateCcw />}
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={() => void handleReload()}
             >
               Recargar

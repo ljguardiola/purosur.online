@@ -34,7 +34,7 @@ export const FocusVisible: Story = {
 };
 
 export const Disabled: Story = {
-  args: { isDisabled: true },
+  args: { disabled: true },
 };
 
 function IconButtonLabelledByVisibleText() {

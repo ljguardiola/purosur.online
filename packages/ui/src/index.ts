@@ -38,7 +38,6 @@ export type {
   ButtonProps,
   ButtonSize,
   ButtonTextSize,
-  ButtonTone,
   ButtonVariant,
 } from "./components/forms/button";
 export { Button } from "./components/forms/button";

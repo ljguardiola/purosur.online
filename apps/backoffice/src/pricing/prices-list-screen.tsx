@@ -416,7 +416,7 @@ function PriceChangeModal({
                 variant="secondary"
                 size="large"
                 icon={<Check />}
-                isDisabled={actionsDisabled}
+                disabled={actionsDisabled}
                 onPress={() => void handleConfirm()}
               >
                 Confirmar sin cambios
@@ -427,7 +427,7 @@ function PriceChangeModal({
               size="large"
               icon={<Check />}
               fullWidth
-              isDisabled={actionsDisabled}
+              disabled={actionsDisabled}
               onPress={() => void handleSave()}
             >
               Guardar el precio nuevo
@@ -508,7 +508,7 @@ function PriceChangeModal({
             <Button
               variant="secondary"
               icon={<RotateCcw />}
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={() => void handleReload()}
             >
               Recargar el precio
@@ -911,7 +911,7 @@ export function PricesListScreen({
               <IconButton
                 icon={<Check />}
                 aria-label={`Confirmar el precio de ${item.name} sin cambios`}
-                isDisabled={screenRequestInFlight}
+                disabled={screenRequestInFlight}
                 onPress={() => void handleRowConfirm(item)}
               />
             </Tooltip>
@@ -919,7 +919,7 @@ export function PricesListScreen({
           <IconButton
             icon={<Pencil />}
             aria-label={`Cambiar el precio de ${item.name}`}
-            isDisabled={screenRequestInFlight}
+            disabled={screenRequestInFlight}
             onPress={() => {
               clearErrorNotice();
               setModal({ target: item, previousProductNotice: null });
@@ -943,7 +943,7 @@ export function PricesListScreen({
               <Button
                 variant="primary"
                 icon={<ListChecks />}
-                isDisabled={screenRequestInFlight}
+                disabled={screenRequestInFlight}
                 onPress={() => void handleReviewButton()}
               >
                 {plural(pendingCount, { one: "Revisar 1", other: `Revisar los ${pendingCount}` })}

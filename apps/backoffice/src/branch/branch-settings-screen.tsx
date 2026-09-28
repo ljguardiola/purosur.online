@@ -602,7 +602,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           <Button
             variant="primary"
             icon={<Check />}
-            isDisabled={submitting || state.kind !== "loaded"}
+            disabled={submitting || state.kind !== "loaded"}
             onPress={() => void handleSubmit()}
           >
             Guardar los cambios
@@ -653,7 +653,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
         <Button
           variant="secondary"
           icon={<RotateCcw />}
-          isDisabled={submitting}
+          disabled={submitting}
           onPress={() => void handleReload()}
         >
           Recargar

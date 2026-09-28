@@ -109,7 +109,7 @@ test("hides the focus outline when focused by a pointer click", async () => {
 test("a disabled button cannot be activated", async () => {
   const onPress = vi.fn();
   const screen = await render(
-    <Button onPress={onPress} isDisabled>
+    <Button onPress={onPress} disabled>
       Save
     </Button>,
   );
@@ -218,9 +218,9 @@ test("renders bold text on the primary and secondary variants", async () => {
 });
 
 test("dims a disabled button to the design's 45% opacity, on the primary and secondary variants", async () => {
-  const primary = await buttonStyle("Primary", { isDisabled: true });
-  const secondary = await buttonStyle("Secondary", { variant: "secondary", isDisabled: true });
-  const primaryWithIcon = await buttonStyle("Primary icon", { icon: <Check />, isDisabled: true });
+  const primary = await buttonStyle("Primary", { disabled: true });
+  const secondary = await buttonStyle("Secondary", { variant: "secondary", disabled: true });
+  const primaryWithIcon = await buttonStyle("Primary icon", { icon: <Check />, disabled: true });
 
   expect(primary.opacity).toBe("0.45");
   expect(secondary.opacity).toBe("0.45");
@@ -229,7 +229,7 @@ test("dims a disabled button to the design's 45% opacity, on the primary and sec
 
 test("shows the hand cursor when enabled and the arrow cursor when disabled", async () => {
   const enabled = await buttonStyle("Enabled");
-  const disabled = await buttonStyle("Disabled", { isDisabled: true });
+  const disabled = await buttonStyle("Disabled", { disabled: true });
 
   expect(enabled.cursor).toBe("pointer");
   expect(disabled.cursor).toBe("default");
@@ -266,16 +266,16 @@ test("keeps the secondary variant's hover text readable against its background",
   expect(ratio).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
 });
 
-test("renders the destructive tone of the primary button with an error background and white text", async () => {
-  const screen = await render(<Button tone="destructive">Void sale</Button>);
+test("renders the destructive form of the primary button with an error background and white text", async () => {
+  const screen = await render(<Button destructive>Void sale</Button>);
   const button = screen.getByRole("button", { name: "Void sale" }).element() as HTMLElement;
 
   expect(getComputedStyle(button).backgroundColor).toBe(tokenRgb("error"));
   expect(getComputedStyle(button).color).toBe(tokenRgb("text-inverse"));
 });
 
-test("turns the destructive tone's hover background to error-strong, keeping white text readable", async () => {
-  const screen = await render(<Button tone="destructive">Void sale</Button>);
+test("turns the destructive form's hover background to error-strong, keeping white text readable", async () => {
+  const screen = await render(<Button destructive>Void sale</Button>);
   const button = screen.getByRole("button", { name: "Void sale" }).element() as HTMLElement;
 
   await userEvent.hover(button);
@@ -287,10 +287,10 @@ test("turns the destructive tone's hover background to error-strong, keeping whi
   expect(ratio).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
 });
 
-test("renders the destructive tone of the secondary variant with a white fill and error border and text, as the design draws it", async () => {
+test("renders the destructive form of the secondary variant with a white fill and error border and text, as the design draws it", async () => {
   const screen = await render(
     <div style={{ backgroundColor: tokenRgb("surface") }}>
-      <Button variant="secondary" tone="destructive">
+      <Button variant="secondary" destructive>
         Desactivar
       </Button>
     </div>,
@@ -309,7 +309,7 @@ test("renders the destructive tone of the secondary variant with a white fill an
 
 test("keeps the destructive secondary variant's hover background at bone, like the default secondary and the text destructive form, and keeps its error border and text readable", async () => {
   const screen = await render(
-    <Button variant="secondary" tone="destructive">
+    <Button variant="secondary" destructive>
       Desactivar
     </Button>,
   );
@@ -326,7 +326,7 @@ test("keeps the destructive secondary variant's hover background at bone, like t
 });
 
 test("shows the same focus outline on the destructive tone as on every other tone", async () => {
-  const screen = await render(<Button tone="destructive">Void sale</Button>);
+  const screen = await render(<Button destructive>Void sale</Button>);
   const button = screen.getByRole("button", { name: "Void sale" }).element() as HTMLElement;
   const focusRingColor = tokenRgb("focus");
 
@@ -451,10 +451,10 @@ test("does not accept a button without text, since it would have no accessible n
   expectTypeOf<{ icon: Icon }>().not.toExtend<ButtonProps>();
 });
 
-test("accepts a destructive tone on the secondary variant, since the design draws it", () => {
+test("accepts a destructive form on the secondary variant, since the design draws it", () => {
   expectTypeOf<{
     variant: "secondary";
-    tone: "destructive";
+    destructive: true;
   }>().toExtend<ButtonPropsWithoutText>();
 });
 
@@ -468,7 +468,7 @@ test("an empty label from a variable leaves the button nameless, and the accessi
 
 test("renders the text-only destructive form with no background and no border", async () => {
   const screen = await render(
-    <Button variant="text" tone="destructive">
+    <Button variant="text" destructive>
       Cancel sale
     </Button>,
   );
@@ -484,7 +484,7 @@ test("renders the text-only destructive form with no background and no border", 
 });
 
 test("sizes the text-only destructive form at 40px with a 16px semibold label by default", async () => {
-  const style = await buttonStyle("Cancel sale", { variant: "text", tone: "destructive" });
+  const style = await buttonStyle("Cancel sale", { variant: "text", destructive: true });
 
   expect(style.height).toBe("40px");
   expect(style.fontSize).toBe("16px");
@@ -496,7 +496,7 @@ test("sizes the text-only destructive form at 40px with a 16px semibold label by
 });
 
 test("rounds the text-only destructive form like the package's other transparent surface", async () => {
-  const text = await buttonStyle("Cancel sale", { variant: "text", tone: "destructive" });
+  const text = await buttonStyle("Cancel sale", { variant: "text", destructive: true });
   const secondary = await buttonStyle("Cancel", { variant: "secondary" });
 
   expect(text.borderRadius).toBe("6px");
@@ -506,7 +506,7 @@ test("rounds the text-only destructive form like the package's other transparent
 test("sizes the text-only destructive form at 56px with an 18px label at its larger drawn size", async () => {
   const style = await buttonStyle("Cancel", {
     variant: "text",
-    tone: "destructive",
+    destructive: true,
     size: "large",
   });
 
@@ -521,7 +521,7 @@ test("carries its own 18px x icon before the label, with an 8px gap, on both dra
 
   for (const size of ["small", "large"] as const) {
     const screen = await render(
-      <Button variant="text" tone="destructive" size={size}>
+      <Button variant="text" destructive size={size}>
         {`Cancel sale ${size}`}
       </Button>,
     );
@@ -554,28 +554,28 @@ test("carries its own 18px x icon before the label, with an 8px gap, on both dra
 });
 
 test("accepts the text-only destructive form at both drawn sizes", () => {
-  expectTypeOf<{ variant: "text"; tone: "destructive" }>().toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{ variant: "text"; destructive: true }>().toExtend<ButtonPropsWithoutText>();
   expectTypeOf<{
     variant: "text";
-    tone: "destructive";
+    destructive: true;
     size: "small";
   }>().toExtend<ButtonPropsWithoutText>();
   expectTypeOf<{
     variant: "text";
-    tone: "destructive";
+    destructive: true;
     size: "large";
   }>().toExtend<ButtonPropsWithoutText>();
 });
 
-test("does not accept the text variant in any tone but destructive, the only one drawn", () => {
+test("does not accept the text variant unless it is destructive, the only form drawn", () => {
   expectTypeOf<{ variant: "text" }>().not.toExtend<ButtonPropsWithoutText>();
-  expectTypeOf<{ variant: "text"; tone: "default" }>().not.toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{ variant: "text"; destructive: false }>().not.toExtend<ButtonPropsWithoutText>();
 });
 
 test("does not accept a caller's icon on the text variant, which carries its own", () => {
   expectTypeOf<{
     variant: "text";
-    tone: "destructive";
+    destructive: true;
     icon: Icon;
   }>().not.toExtend<ButtonPropsWithoutText>();
 });
@@ -583,19 +583,19 @@ test("does not accept a caller's icon on the text variant, which carries its own
 test("does not accept the text variant at a size the design never draws it", () => {
   expectTypeOf<{
     variant: "text";
-    tone: "destructive";
+    destructive: true;
     size: "medium";
   }>().not.toExtend<ButtonPropsWithoutText>();
   expectTypeOf<{
     variant: "text";
-    tone: "destructive";
+    destructive: true;
     size: "sale";
   }>().not.toExtend<ButtonPropsWithoutText>();
 });
 
 test("turns the text-only destructive form's background bone on hover, keeping its error-UI label", async () => {
   const screen = await render(
-    <Button variant="text" tone="destructive">
+    <Button variant="text" destructive>
       Cancel sale
     </Button>,
   );
@@ -616,7 +616,7 @@ test("keeps the text-only destructive form's label and icon readable on the surf
   for (const surface of ["surface", "surface-subtle"] as const) {
     const screen = await render(
       <div style={{ backgroundColor: tokenRgb(surface) }}>
-        <Button variant="text" tone="destructive">
+        <Button variant="text" destructive>
           {`Cancel sale on ${surface}`}
         </Button>
       </div>,
@@ -643,7 +643,7 @@ test("keeps the text-only destructive form's label and icon readable on the surf
 
 test("shows the shared focus outline on the text-only destructive form", async () => {
   const screen = await render(
-    <Button variant="text" tone="destructive">
+    <Button variant="text" destructive>
       Cancel sale
     </Button>,
   );
@@ -661,7 +661,7 @@ test("shows the shared focus outline on the text-only destructive form", async (
 test("activates the text-only destructive form by keyboard and by pointer", async () => {
   const onPress = vi.fn();
   const screen = await render(
-    <Button variant="text" tone="destructive" onPress={onPress}>
+    <Button variant="text" destructive onPress={onPress}>
       Cancel sale
     </Button>,
   );
@@ -683,7 +683,7 @@ test("activates the text-only destructive form by keyboard and by pointer", asyn
 test("dims a disabled text-only destructive form and keeps it out of reach", async () => {
   const onPress = vi.fn();
   const screen = await render(
-    <Button variant="text" tone="destructive" onPress={onPress} isDisabled>
+    <Button variant="text" destructive onPress={onPress} disabled>
       Cancel sale
     </Button>,
   );
@@ -866,7 +866,7 @@ test("is the height of its size in a stack that takes its height from its button
 test("is the height of the size it falls back to, in that same stack, on the text variant", async () => {
   const screen = await render(
     <div style={contentHeightStackStyle}>
-      <Button variant="text" tone="destructive" fullWidth>
+      <Button variant="text" destructive fullWidth>
         Cancel sale
       </Button>
     </div>,
@@ -944,7 +944,7 @@ test("keeps its height, its padding and its centering when stretched, at every s
 test("keeps its icon and label together in the middle of the width it is given", async () => {
   const screen = await render(
     <div style={fixedWidthRowStyle}>
-      <Button variant="text" tone="destructive" fullWidth>
+      <Button variant="text" destructive fullWidth>
         Cancel sale
       </Button>
     </div>,
@@ -1134,7 +1134,7 @@ test("keeps every label in the row on a single line", async () => {
 test("paints its hover background across the whole width it was given", async () => {
   const screen = await render(
     <div style={fixedWidthRowStyle}>
-      <Button variant="text" tone="destructive" fullWidth>
+      <Button variant="text" destructive fullWidth>
         Cancel sale
       </Button>
     </div>,
@@ -1164,7 +1164,7 @@ function renderWithVariant(
   label: string,
 ) {
   return variant === "text" ? (
-    <Button variant="text" tone="destructive" size={size as ButtonTextSize} fullWidth={fullWidth}>
+    <Button variant="text" destructive size={size as ButtonTextSize} fullWidth={fullWidth}>
       {label}
     </Button>
   ) : (
@@ -1318,7 +1318,7 @@ test("keeps its icon at full size while a far too long label shortens next to it
 
   const textScreen = await render(
     <div style={{ width: "200px" }}>
-      <Button variant="text" tone="destructive">
+      <Button variant="text" destructive>
         {label}
       </Button>
     </div>,
@@ -1331,4 +1331,11 @@ test("keeps its icon at full size while a far too long label shortens next to it
   expect(textIconRect.width).toBeLessThan(19);
   expectTruncatedWithEllipsis(textSpan, "text");
   await expectNoAccessibilityViolations(textScreen.container);
+});
+
+test("names its destructive intent and disabled state as booleans of its own", () => {
+  expectTypeOf<ButtonProps>().toHaveProperty("destructive");
+  expectTypeOf<ButtonProps>().toHaveProperty("disabled");
+  expectTypeOf<ButtonProps>().not.toHaveProperty("tone");
+  expectTypeOf<ButtonProps>().not.toHaveProperty("isDisabled");
 });

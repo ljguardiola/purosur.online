@@ -239,7 +239,7 @@ function NewUserModal({
               variant="secondary"
               size="large"
               icon={<X />}
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={onClose}
             >
               Cancelar
@@ -249,7 +249,7 @@ function NewUserModal({
               size="large"
               icon={<KeyRound />}
               fullWidth
-              isDisabled={submitting || deactivatedConflict !== null}
+              disabled={submitting || deactivatedConflict !== null}
               onPress={() => void handleSubmit()}
             >
               Crear el usuario
@@ -498,7 +498,7 @@ export function UsersListScreen({
               <Button
                 variant="primary"
                 icon={<Plus />}
-                isDisabled={list.kind !== "loaded" || roles.length === 0}
+                disabled={list.kind !== "loaded" || roles.length === 0}
                 onPress={() => setModalOpen(true)}
               >
                 Nuevo usuario

@@ -5,12 +5,10 @@ type AccessibleName =
   | { "aria-label": string; "aria-labelledby"?: string }
   | { "aria-label"?: string; "aria-labelledby": string };
 
-export type IconButtonProps = Omit<
-  AriaButtonProps,
-  "className" | "children" | "aria-label" | "aria-labelledby"
-> &
+export type IconButtonProps = Pick<AriaButtonProps, "onPress"> &
   AccessibleName & {
     icon: Icon;
+    disabled?: boolean;
   };
 
 const className =
@@ -21,9 +19,9 @@ const className =
   "data-hovered:bg-surface-subtle data-hovered:border-action-soft " +
   "data-disabled:opacity-disabled";
 
-export function IconButton({ icon, ...props }: IconButtonProps) {
+export function IconButton({ icon, disabled = false, ...props }: IconButtonProps) {
   return (
-    <AriaButton {...props} className={className}>
+    <AriaButton {...props} isDisabled={disabled} className={className}>
       <span className={iconSlotClassName.md}>{icon}</span>
     </AriaButton>
   );

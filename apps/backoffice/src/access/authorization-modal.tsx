@@ -61,7 +61,7 @@ function AuthorizationModal({
             size="large"
             icon={<X />}
             fullWidth
-            isDisabled={submitting}
+            disabled={submitting}
             onPress={onCancel}
           >
             Cancelar
@@ -71,7 +71,7 @@ function AuthorizationModal({
             size="large"
             icon={<Fingerprint />}
             fullWidth
-            isDisabled={submitting}
+            disabled={submitting}
             onPress={onConfirm}
           >
             Usar mi passkey

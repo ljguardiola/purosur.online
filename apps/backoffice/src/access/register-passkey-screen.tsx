@@ -325,7 +325,7 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps) 
         size="large"
         fullWidth
         icon={<KeyRound />}
-        isDisabled={phase.submitting}
+        disabled={phase.submitting}
         onPress={() => void handleRegister(phase)}
       >
         Registrar la passkey

@@ -36,11 +36,11 @@ export const PrimarySale: Story = {
 };
 
 export const PrimaryDestructive: Story = {
-  args: { tone: "destructive", children: "Anular venta" },
+  args: { destructive: true, children: "Anular venta" },
 };
 
 export const PrimaryDestructiveHovered: Story = {
-  args: { tone: "destructive", children: "Anular venta" },
+  args: { destructive: true, children: "Anular venta" },
   play: playHoverSetsDataHovered(theButton),
 };
 
@@ -49,7 +49,7 @@ export const PrimaryWithIcon: Story = {
 };
 
 export const PrimaryDisabled: Story = {
-  args: { isDisabled: true },
+  args: { disabled: true },
 };
 
 export const PrimaryHovered: Story = {
@@ -69,16 +69,16 @@ export const SecondaryWithIcon: Story = {
 };
 
 export const SecondaryDestructive: Story = {
-  args: { variant: "secondary", tone: "destructive", children: "Desactivar" },
+  args: { variant: "secondary", destructive: true, children: "Desactivar" },
 };
 
 export const SecondaryDestructiveHovered: Story = {
-  args: { variant: "secondary", tone: "destructive", children: "Desactivar" },
+  args: { variant: "secondary", destructive: true, children: "Desactivar" },
   play: playHoverSetsDataHovered(theButton),
 };
 
 export const SecondaryDisabled: Story = {
-  args: { variant: "secondary", isDisabled: true, children: "Cancelar" },
+  args: { variant: "secondary", disabled: true, children: "Cancelar" },
 };
 
 export const SecondaryHovered: Story = {
@@ -87,19 +87,19 @@ export const SecondaryHovered: Story = {
 };
 
 export const TextDestructiveSmall: Story = {
-  args: { variant: "text", tone: "destructive", size: "small", children: "Cancelar venta" },
+  args: { variant: "text", destructive: true, size: "small", children: "Cancelar venta" },
 };
 
 export const TextDestructiveLarge: Story = {
-  args: { variant: "text", tone: "destructive", size: "large", children: "Cancelar venta" },
+  args: { variant: "text", destructive: true, size: "large", children: "Cancelar venta" },
 };
 
 export const TextDestructiveDisabled: Story = {
-  args: { variant: "text", tone: "destructive", isDisabled: true, children: "Cancelar venta" },
+  args: { variant: "text", destructive: true, disabled: true, children: "Cancelar venta" },
 };
 
 export const TextDestructiveHovered: Story = {
-  args: { variant: "text", tone: "destructive", children: "Cancelar venta" },
+  args: { variant: "text", destructive: true, children: "Cancelar venta" },
   play: playHoverSetsDataHovered(theButton),
 };
 

@@ -180,7 +180,7 @@ function RegisterPasskeyModal({
               variant="secondary"
               size="large"
               icon={<X />}
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={onClose}
             >
               Cancelar
@@ -190,7 +190,7 @@ function RegisterPasskeyModal({
               size="large"
               icon={<KeyRound />}
               fullWidth
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={() => void handleSubmit()}
             >
               Registrar la passkey
@@ -327,18 +327,18 @@ function RemovePasskeyModal({
               variant="secondary"
               size="large"
               icon={<X />}
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={onClose}
             >
               Cancelar
             </Button>
             <Button
               variant="primary"
-              tone="destructive"
+              destructive
               size="large"
               icon={<Trash2 />}
               fullWidth
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={() => void handleConfirm()}
             >
               Dar de baja
@@ -453,7 +453,7 @@ export function MyAccountScreen({
             <Button
               variant="secondary"
               icon={<Plus />}
-              isDisabled={list.kind === "loading" || hasNoPasskeys}
+              disabled={list.kind === "loading" || hasNoPasskeys}
               onPress={() => setRegisterModalOpen(true)}
             >
               Registrar otra passkey

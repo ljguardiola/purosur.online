@@ -270,7 +270,7 @@ function EditUserModal({
               variant="secondary"
               size="large"
               icon={<X />}
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={onClose}
             >
               Cancelar
@@ -280,7 +280,7 @@ function EditUserModal({
               size="large"
               icon={<Check />}
               fullWidth
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={() => void handleSubmit()}
             >
               Guardar los cambios
@@ -344,7 +344,7 @@ function EditUserModal({
             <Button
               variant="secondary"
               icon={<RotateCcw />}
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={() => void handleReload()}
             >
               Recargar
@@ -493,18 +493,18 @@ function RemoveUserPasskeyModal({
               variant="secondary"
               size="large"
               icon={<X />}
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={onClose}
             >
               Cancelar
             </Button>
             <Button
               variant="primary"
-              tone="destructive"
+              destructive
               size="large"
               icon={<Trash2 />}
               fullWidth
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={() => void handleConfirm()}
             >
               Dar de baja
@@ -642,18 +642,18 @@ function DeactivateUserModal({
               variant="secondary"
               size="large"
               icon={<X />}
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={onClose}
             >
               Cancelar
             </Button>
             <Button
               variant="primary"
-              tone="destructive"
+              destructive
               size="large"
               icon={<UserX />}
               fullWidth
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={() => void handleConfirm()}
             >
               Desactivar
@@ -780,7 +780,7 @@ function ReactivateUserModal({
               size="large"
               icon={<X />}
               fullWidth
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={onClose}
             >
               Cancelar
@@ -790,7 +790,7 @@ function ReactivateUserModal({
               size="large"
               icon={<RotateCcw />}
               fullWidth
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={() => void handleConfirm()}
             >
               Reactivar
@@ -1086,7 +1086,7 @@ export function UserDetailScreen({
               <Button
                 variant="secondary"
                 size="small"
-                tone="destructive"
+                destructive
                 icon={<UserX />}
                 onPress={() => setDeactivateModalOpen(true)}
               >

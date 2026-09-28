@@ -5,13 +5,11 @@ import { type Icon, iconSlotClassName } from "../shared/icon";
 
 export type ButtonVariant = "primary" | "secondary" | "text";
 export type ButtonSize = "small" | "medium" | "large" | "sale";
-export type ButtonTone = "default" | "destructive";
 
 export type ButtonTextSize = Extract<ButtonSize, "small" | "large">;
 
-// react-aria-components' AriaButtonProps.children also accepts a render-prop function for
-// hover/focus-driven content, which this button's fixed icon+text layout does not support.
-type ButtonCommonProps = Omit<AriaButtonProps, "className" | "children"> & {
+type ButtonCommonProps = Pick<AriaButtonProps, "onPress" | "type"> & {
+  disabled?: boolean;
   // TypeScript can't tell a label from other content, so an empty string or an icon passed as
   // children still compiles; icon-only actions belong to IconButton, which requires an aria-label.
   children: Exclude<ReactNode, null | undefined | boolean>;
@@ -20,9 +18,9 @@ type ButtonCommonProps = Omit<AriaButtonProps, "className" | "children"> & {
 
 export type ButtonProps = ButtonCommonProps &
   (
-    | { variant?: "primary"; tone?: ButtonTone; size?: ButtonSize; icon?: Icon }
-    | { variant: "secondary"; tone?: ButtonTone; size?: ButtonSize; icon?: Icon }
-    | { variant: "text"; tone: "destructive"; size?: ButtonTextSize; icon?: undefined }
+    | { variant?: "primary"; destructive?: boolean; size?: ButtonSize; icon?: Icon }
+    | { variant: "secondary"; destructive?: boolean; size?: ButtonSize; icon?: Icon }
+    | { variant: "text"; destructive: true; size?: ButtonTextSize; icon?: undefined }
   );
 
 // min-w-0 overrides a flex item's default min-width of auto, which otherwise refuses to shrink a
@@ -63,13 +61,13 @@ const defaultSize: { primary: ButtonSize; secondary: ButtonSize; text: ButtonTex
   text: "small",
 };
 
-const primaryToneClassName: Record<ButtonTone, string> = {
-  default: "bg-action data-hovered:bg-action-strong",
+const primaryColorClassName = {
+  regular: "bg-action data-hovered:bg-action-strong",
   destructive: "bg-error data-hovered:bg-error-strong",
 };
 
-const secondaryToneClassName: Record<ButtonTone, string> = {
-  default: "border-border-accent text-text",
+const secondaryColorClassName = {
+  regular: "border-border-accent text-text",
   destructive: "border-error text-error",
 };
 
@@ -88,12 +86,14 @@ const iconWrapperClassName: Record<ButtonVariant, string> = {
 export function Button({
   variant = "primary",
   size,
-  tone = "default",
+  destructive = false,
   icon,
   fullWidth = false,
   children,
+  disabled = false,
   ...props
 }: ButtonProps) {
+  const color = destructive ? "destructive" : "regular";
   const resolvedSize = size ?? defaultSize[variant];
   const className = [
     widthClassName[fullWidth ? "full" : "content"],
@@ -101,8 +101,8 @@ export function Button({
     sizeClassName[resolvedSize],
     fullWidth ? stretchedHeightClassName[resolvedSize] : "",
     variantClassName[variant],
-    variant === "primary" ? primaryToneClassName[tone] : "",
-    variant === "secondary" ? secondaryToneClassName[tone] : "",
+    variant === "primary" ? primaryColorClassName[color] : "",
+    variant === "secondary" ? secondaryColorClassName[color] : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -111,7 +111,7 @@ export function Button({
   const sizedIcon = glyph ? <span className={iconWrapperClassName[variant]}>{glyph}</span> : null;
 
   return (
-    <AriaButton {...props} className={className}>
+    <AriaButton {...props} isDisabled={disabled} className={className}>
       {variant !== "primary" && sizedIcon}
       {/* truncate on this justify-center flex container itself would clip both ends with no
           ellipsis; it needs its own box to truncate correctly. */}

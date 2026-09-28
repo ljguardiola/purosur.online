@@ -119,7 +119,7 @@ export function SignInScreen({ openingNotice, onSignedIn, services }: SignInScre
         size="large"
         fullWidth
         icon={<KeyRound />}
-        isDisabled={submitting}
+        disabled={submitting}
         onPress={() => void handleSignIn()}
       >
         Ingresar con passkey

@@ -179,7 +179,7 @@ function NewRegisterModal({
               variant="secondary"
               size="large"
               icon={<X />}
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={onClose}
             >
               Cancelar
@@ -189,7 +189,7 @@ function NewRegisterModal({
               size="large"
               icon={<Check />}
               fullWidth
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={() => void handleSubmit()}
             >
               Crear la caja
@@ -278,7 +278,7 @@ function EnrollmentCodeModal({ emission, onClose, onDone, onRetry }: EnrollmentC
           size="large"
           icon={<Check />}
           fullWidth
-          isDisabled={!isIssued}
+          disabled={!isIssued}
           onPress={onDone}
         >
           Listo

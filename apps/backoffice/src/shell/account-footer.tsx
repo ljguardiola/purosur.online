@@ -83,7 +83,7 @@ export function AccountFooter({ displayName, onSignedOut, services }: AccountFoo
               variant="secondary"
               size="large"
               icon={<X />}
-              isDisabled={signingOut}
+              disabled={signingOut}
               onPress={() => setConfirming(false)}
             >
               Cancelar
@@ -93,7 +93,7 @@ export function AccountFooter({ displayName, onSignedOut, services }: AccountFoo
               size="large"
               icon={<LogOut />}
               fullWidth
-              isDisabled={signingOut}
+              disabled={signingOut}
               onPress={() => void handleConfirm()}
             >
               Salir

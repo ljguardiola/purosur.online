@@ -327,7 +327,7 @@ function EditIssuerIdentificationModal({
               variant="secondary"
               size="large"
               icon={<X />}
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={onClose}
             >
               Cancelar
@@ -338,7 +338,7 @@ function EditIssuerIdentificationModal({
                 size="large"
                 icon={<RotateCcw />}
                 fullWidth
-                isDisabled={submitting}
+                disabled={submitting}
                 onPress={() => void handleReload()}
               >
                 Recargar
@@ -349,7 +349,7 @@ function EditIssuerIdentificationModal({
                 size="large"
                 icon={<Check />}
                 fullWidth
-                isDisabled={submitting}
+                disabled={submitting}
                 onPress={() => void handleSubmit()}
               >
                 Guardar los cambios
