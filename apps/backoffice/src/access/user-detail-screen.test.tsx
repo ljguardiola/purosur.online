@@ -4,7 +4,8 @@ import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { BackofficeAccess } from "./backoffice-access";
 import type { RoleSummary } from "./roles-api";
-import { UserDetailScreen, type UserDetailScreenServices } from "./user-detail-screen";
+import { UserDetailScreen } from "./user-detail-screen";
+import type { UserDetailScreenServices } from "./user-detail-services";
 import type { BranchUser, UserPasskey } from "./users-api";
 
 const ADMINISTRATOR_ACCESS: BackofficeAccess = { isAdministrator: true, permissions: [] };

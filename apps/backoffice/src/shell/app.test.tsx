@@ -6,7 +6,7 @@ import { render } from "vitest-browser-react";
 import { almonds, honey } from "../catalog/test-support/products-list-screen";
 import { App, type AppServices } from "./app";
 
-function createServices(overrides: Partial<AppServices> = {}): Required<AppServices> {
+function createServices(overrides: Partial<AppServices> = {}): AppServices {
   return {
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
@@ -393,7 +393,7 @@ test("moves focus to the first screen's title after signing in", async () => {
     value: { challenge: "challenge" },
   });
   vi.mocked(services.signInScreen.startAuthentication).mockResolvedValue(
-    {} as Awaited<ReturnType<Required<AppServices>["signInScreen"]["startAuthentication"]>>,
+    {} as Awaited<ReturnType<AppServices["signInScreen"]["startAuthentication"]>>,
   );
   vi.mocked(services.signInScreen.authenticate).mockResolvedValue({ kind: "ok" });
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -1213,7 +1213,7 @@ test("opens a user's detail for a non-Administrator holding deactivate_users, of
 test.each([
   {
     path: "/settings/users/user-3",
-    adminOnlyCalls: (services: Required<AppServices>) => [
+    adminOnlyCalls: (services: AppServices) => [
       services.userDetailScreen.fetchUser,
       services.userDetailScreen.fetchUserPasskeys,
     ],

@@ -3,10 +3,8 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { type Locator, page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import {
-  FiscalConfigurationScreen,
-  type FiscalConfigurationScreenServices,
-} from "./fiscal-configuration-screen";
+import { FiscalConfigurationScreen } from "./fiscal-configuration-screen";
+import type { FiscalConfigurationScreenServices } from "./fiscal-configuration-services";
 import type { IssuerIdentification } from "./issuer-identification-api";
 
 function createServices(

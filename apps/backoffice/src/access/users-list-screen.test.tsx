@@ -5,7 +5,8 @@ import { render } from "../shell/test-support/render-with-router";
 import type { BackofficeAccess } from "./backoffice-access";
 import { type UsersListFilters, usersListFilters } from "./routes";
 import type { BranchUser } from "./users-api";
-import { UsersListScreen, type UsersListScreenServices } from "./users-list-screen";
+import { UsersListScreen } from "./users-list-screen";
+import type { UsersListScreenServices } from "./users-list-services";
 
 const ADMINISTRATOR_ACCESS: BackofficeAccess = { isAdministrator: true, permissions: [] };
 

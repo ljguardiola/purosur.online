@@ -20,19 +20,9 @@ import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
-import {
-  ALERT_LEVEL_LABELS,
-  AlertDetailModal,
-  type AlertDetailModalServices,
-  alertDateTime,
-} from "./alert-detail-modal";
-import {
-  type AlertKind,
-  type AlertLevel,
-  type AlertListPage,
-  type AlertSummary,
-  fetchAlerts as fetchAlertsDefault,
-} from "./alerts-api";
+import { ALERT_LEVEL_LABELS, AlertDetailModal, alertDateTime } from "./alert-detail-modal";
+import type { AlertKind, AlertLevel, AlertListPage, AlertSummary } from "./alerts-api";
+import type { AlertsListScreenServices } from "./alerts-list-services";
 import type { AlertsListFilters } from "./routes";
 
 const LIST_KIND_LABELS = {
@@ -49,21 +39,12 @@ const LIST_KIND_DESCRIPTIONS = {
   backoffice_sign_in_lockout: "Demasiados intentos fallidos de ingreso",
 } satisfies Record<AlertKind, string>;
 
-export type AlertsListScreenServices = {
-  fetchAlerts: typeof fetchAlertsDefault;
-  alertDetailModal?: AlertDetailModalServices;
-};
-
-const defaultAlertsListScreenServices: AlertsListScreenServices = {
-  fetchAlerts: fetchAlertsDefault,
-};
-
 export type AlertsListScreenProps = {
   filters: AlertsListFilters;
   onFiltersChange: (filters: AlertsListFilters) => void;
   access: BackofficeAccess;
   onSessionEnded: () => void;
-  services?: AlertsListScreenServices | undefined;
+  services: AlertsListScreenServices;
 };
 
 type ListState =
@@ -128,7 +109,7 @@ export function AlertsListScreen({
   services,
 }: AlertsListScreenProps) {
   const sendToMyAccount = useSendToMyAccount();
-  const { fetchAlerts, alertDetailModal } = services ?? defaultAlertsListScreenServices;
+  const { fetchAlerts, alertDetailModal } = services;
   const [list, setList] = useState<ListState>({ kind: "loading" });
   const [levelFilter, setLevelFilter] = useState<LevelFilter>(filters.level);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(filters.status);

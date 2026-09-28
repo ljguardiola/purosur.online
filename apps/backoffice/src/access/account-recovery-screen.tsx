@@ -3,21 +3,13 @@ import { ArrowLeft, MailCheck, Send, ShieldX, TriangleAlert } from "lucide-react
 import { type FormEvent, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { AccessFooterLink, AccessHeader, AccessLayout } from "./access-layout";
+import type { AccountRecoveryScreenServices } from "./account-recovery-services";
 import { validateEmail } from "./email-validation";
-import { requestRecoveryLink } from "./recovery-api";
 
 type Notice = { kind: "rate_limited"; retryAfterSeconds: number } | { kind: "error" };
 
-export type AccountRecoveryScreenServices = {
-  requestRecoveryLink: typeof requestRecoveryLink;
-};
-
-const defaultAccountRecoveryScreenServices: AccountRecoveryScreenServices = {
-  requestRecoveryLink,
-};
-
 export type AccountRecoveryScreenProps = {
-  services?: AccountRecoveryScreenServices | undefined;
+  services: AccountRecoveryScreenServices;
 };
 
 const EMAIL_ERRORS = {
@@ -25,8 +17,8 @@ const EMAIL_ERRORS = {
   invalid: "Ingresá un correo válido.",
 };
 
-export function AccountRecoveryScreen({ services }: AccountRecoveryScreenProps = {}) {
-  const { requestRecoveryLink } = services ?? defaultAccountRecoveryScreenServices;
+export function AccountRecoveryScreen({ services }: AccountRecoveryScreenProps) {
+  const { requestRecoveryLink } = services;
   const [email, setEmail] = useState("");
   const [fieldError, setFieldError] = useState<string | undefined>(undefined);
   const [submitting, setSubmitting] = useState(false);

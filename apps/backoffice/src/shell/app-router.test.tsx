@@ -7,11 +7,7 @@ function appRouter() {
   return createAppRouter({
     session: { kind: "signed-out", notice: undefined },
     help: defineHelp("es-AR", { categories: {}, articles: {} }),
-    services: {
-      fetchSession: vi.fn(),
-      checkSessionStatus: vi.fn(),
-      accountFooter: { signOut: vi.fn() },
-    },
+    services: {} as never,
     sessionActions: { signedIn: vi.fn(), signedOut: vi.fn(), sessionEnded: vi.fn() },
   });
 }

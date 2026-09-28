@@ -65,7 +65,7 @@ import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
-import { type CategorySummary, fetchCategories } from "./categories-api";
+import type { CategorySummary } from "./categories-api";
 import { categoriesInTreeOrder, categoryPathLabels, leafCategories } from "./category-path";
 import {
   formatNetContentQuantity,
@@ -73,46 +73,27 @@ import {
   netContentQuantityError,
   parseNetContentQuantity,
 } from "./net-content-quantity";
-import {
-  type CreateProductInput,
+import type {
+  CreateProductInput,
   createProduct,
   deactivateProduct,
   editProduct,
   fetchProducts,
   generateInternalBarcode,
-  type NetContent,
-  type ProductSaleUnit,
-  type ProductStatusFilter,
-  type ProductSummary,
+  NetContent,
+  ProductSaleUnit,
+  ProductStatusFilter,
+  ProductSummary,
   printLabels,
 } from "./products-api";
+import type { ProductsListScreenServices } from "./products-list-services";
 import type { ProductsListFilters } from "./routes";
-
-export type ProductsListScreenServices = {
-  fetchProducts: typeof fetchProducts;
-  createProduct: typeof createProduct;
-  editProduct: typeof editProduct;
-  deactivateProduct: typeof deactivateProduct;
-  fetchCategories: typeof fetchCategories;
-  generateInternalBarcode: typeof generateInternalBarcode;
-  printLabels: typeof printLabels;
-};
-
-const defaultProductsListScreenServices: ProductsListScreenServices = {
-  fetchProducts,
-  createProduct,
-  editProduct,
-  deactivateProduct,
-  fetchCategories,
-  generateInternalBarcode,
-  printLabels,
-};
 
 export type ProductsListScreenProps = {
   filters: ProductsListFilters;
   onFiltersChange: (filters: ProductsListFilters) => void;
   onSessionEnded: () => void;
-  services?: ProductsListScreenServices | undefined;
+  services: ProductsListScreenServices;
 };
 
 type ListState =
@@ -1844,7 +1825,7 @@ export function ProductsListScreen({
     fetchCategories: fetchCategoriesService,
     generateInternalBarcode: generateInternalBarcodeService,
     printLabels: printLabelsService,
-  } = services ?? defaultProductsListScreenServices;
+  } = services;
   const [list, setList] = useState<ListState>({ kind: "loading" });
   const listRef = useLatestRef(list);
   const [categories, setCategories] = useState<CategorySummary[]>([]);

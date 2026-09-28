@@ -8,7 +8,7 @@ import {
   TextField,
   Tooltip,
 } from "@purosur/ui";
-import { startAuthentication } from "@simplewebauthn/browser";
+import type { startAuthentication } from "@simplewebauthn/browser";
 import { useNavigate } from "@tanstack/react-router";
 import {
   Check,
@@ -34,50 +34,24 @@ import { type BackofficeAccess, canDeactivateUser, canReactivateUser } from "./b
 import { validateEmail } from "./email-validation";
 import { passkeyRowDetail } from "./passkey-row-detail";
 import { roleDisplayName, roleOptions } from "./role-display";
-import { fetchRoles } from "./roles-api";
+import type { fetchRoles } from "./roles-api";
 import { useSendToMyAccount } from "./send-to-my-account";
-import { authorizeSession, fetchSessionAuthorizationOptions } from "./session-api";
-import {
-  type BranchUser,
-  type BranchUserRole,
-  type DeactivateUserOutcome,
+import type { authorizeSession, fetchSessionAuthorizationOptions } from "./session-api";
+import type { UserDetailScreenServices } from "./user-detail-services";
+import type {
+  BranchUser,
+  BranchUserRole,
+  DeactivateUserOutcome,
   deactivateUser,
-  type EditUserOutcome,
+  EditUserOutcome,
   editUser,
   fetchUser,
-  fetchUserPasskeys,
-  type ReactivateUserOutcome,
-  type RemoveUserPasskeyOutcome,
+  ReactivateUserOutcome,
+  RemoveUserPasskeyOutcome,
   reactivateUser,
   removeUserPasskey,
-  type UserPasskey,
+  UserPasskey,
 } from "./users-api";
-
-export type UserDetailScreenServices = {
-  fetchUser: typeof fetchUser;
-  editUser: typeof editUser;
-  fetchRoles: typeof fetchRoles;
-  fetchUserPasskeys: typeof fetchUserPasskeys;
-  removeUserPasskey: typeof removeUserPasskey;
-  deactivateUser: typeof deactivateUser;
-  reactivateUser: typeof reactivateUser;
-  fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
-  authorizeSession: typeof authorizeSession;
-  startAuthentication: typeof startAuthentication;
-};
-
-const defaultUserDetailScreenServices: UserDetailScreenServices = {
-  fetchUser,
-  editUser,
-  fetchRoles,
-  fetchUserPasskeys,
-  removeUserPasskey,
-  deactivateUser,
-  reactivateUser,
-  fetchSessionAuthorizationOptions,
-  authorizeSession,
-  startAuthentication,
-};
 
 export type UserDetailScreenProps = {
   userId: string;
@@ -85,7 +59,7 @@ export type UserDetailScreenProps = {
   access: BackofficeAccess;
   onSessionEnded: () => void;
   now?: () => Date;
-  services?: UserDetailScreenServices | undefined;
+  services: UserDetailScreenServices;
 };
 
 type DetailState =
@@ -872,7 +846,7 @@ export function UserDetailScreen({
     fetchSessionAuthorizationOptions,
     authorizeSession,
     startAuthentication,
-  } = services ?? defaultUserDetailScreenServices;
+  } = services;
   const clock = now ?? (() => new Date());
   const [state, setState] = useState<DetailState>({ kind: "loading" });
   const [passkeysState, setPasskeysState] = useState<PasskeysState>({ kind: "loading" });

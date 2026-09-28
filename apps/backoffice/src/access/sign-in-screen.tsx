@@ -1,36 +1,20 @@
 import { Button, InlineNotice } from "@purosur/ui";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/browser";
-import { startAuthentication } from "@simplewebauthn/browser";
 import { Clock, KeyRound, LifeBuoy, ShieldX, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { AccessFooterLink, AccessHeader, AccessLayout } from "./access-layout";
-import { authenticate, fetchAuthenticationOptions } from "./session-api";
-import { signalUnknownCredential } from "./signal-unknown-credential";
+import type { SignInScreenServices } from "./sign-in-services";
 
 export type SignInOpeningNotice =
   | { kind: "expired" }
   | { kind: "check_failed" }
   | { kind: "rate_limited"; retryAfterSeconds: number };
 
-export type SignInScreenServices = {
-  fetchAuthenticationOptions: typeof fetchAuthenticationOptions;
-  authenticate: typeof authenticate;
-  startAuthentication: typeof startAuthentication;
-  signalUnknownCredential: typeof signalUnknownCredential;
-};
-
-const defaultSignInScreenServices: SignInScreenServices = {
-  fetchAuthenticationOptions,
-  authenticate,
-  startAuthentication,
-  signalUnknownCredential,
-};
-
 export type SignInScreenProps = {
   openingNotice?: SignInOpeningNotice | undefined;
   onSignedIn: () => void;
-  services?: SignInScreenServices | undefined;
+  services: SignInScreenServices;
 };
 
 type Notice =
@@ -43,7 +27,7 @@ type Notice =
 // and a cancelled passkey prompt alike: nothing about it may reveal which one actually happened.
 export function SignInScreen({ openingNotice, onSignedIn, services }: SignInScreenProps) {
   const { fetchAuthenticationOptions, authenticate, startAuthentication, signalUnknownCredential } =
-    services ?? defaultSignInScreenServices;
+    services;
   const [notice, setNotice] = useState<Notice | null>(openingNotice ?? null);
   const [submitting, setSubmitting] = useState(false);
 

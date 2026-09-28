@@ -7,26 +7,14 @@ import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { roleDisplayName } from "./role-display";
-import {
-  RoleEditorModal,
-  type RoleEditorModalServices,
-  type RoleEditorRequest,
-} from "./role-editor-modal";
-import { fetchRoles, type RoleSummary } from "./roles-api";
+import { RoleEditorModal, type RoleEditorRequest } from "./role-editor-modal";
+import type { RoleSummary } from "./roles-api";
+import type { RolesListScreenServices } from "./roles-list-services";
 import { useSendToMyAccount } from "./send-to-my-account";
-
-export type RolesListScreenServices = {
-  fetchRoles: typeof fetchRoles;
-  roleEditorModal?: RoleEditorModalServices;
-};
-
-const defaultRolesListScreenServices: RolesListScreenServices = {
-  fetchRoles,
-};
 
 export type RolesListScreenProps = {
   onSessionEnded: () => void;
-  services?: RolesListScreenServices | undefined;
+  services: RolesListScreenServices;
 };
 
 type ListState =
@@ -97,7 +85,7 @@ function columnsFor(openEditor: (request: RoleEditorRequest) => void) {
 
 export function RolesListScreen({ onSessionEnded, services }: RolesListScreenProps) {
   const sendToMyAccount = useSendToMyAccount();
-  const { fetchRoles, roleEditorModal } = services ?? defaultRolesListScreenServices;
+  const { fetchRoles, roleEditorModal } = services;
   const [list, setList] = useState<ListState>({ kind: "loading" });
   const [editorRequest, setEditorRequest] = useState<RoleEditorRequest | null>(null);
 

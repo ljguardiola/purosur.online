@@ -32,37 +32,26 @@ import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { formatCents, MAX_UNIT_PRICE_CENTS, parseAmountInput } from "./money";
-import {
-  type ConfirmPriceOutcome,
+import type {
+  ConfirmPriceOutcome,
   confirmPrice,
-  type FetchPricesOutcome,
+  FetchPricesOutcome,
   fetchPrices,
-  type PriceCategory,
-  type PriceProduct,
-  type PriceRow,
-  type PricesReviewFilter,
-  type SetPriceOutcome,
+  PriceCategory,
+  PriceProduct,
+  PriceRow,
+  PricesReviewFilter,
+  SetPriceOutcome,
   setPrice,
 } from "./prices-api";
+import type { PricesListScreenServices } from "./prices-list-services";
 import type { PricesListFilters } from "./routes";
-
-export type PricesListScreenServices = {
-  fetchPrices: typeof fetchPrices;
-  setPrice: typeof setPrice;
-  confirmPrice: typeof confirmPrice;
-};
-
-const defaultPricesListScreenServices: PricesListScreenServices = {
-  fetchPrices,
-  setPrice,
-  confirmPrice,
-};
 
 export type PricesListScreenProps = {
   filters: PricesListFilters;
   onFiltersChange: (filters: PricesListFilters) => void;
   onSessionEnded: () => void;
-  services?: PricesListScreenServices | undefined;
+  services: PricesListScreenServices;
   now?: () => Date;
 };
 
@@ -562,7 +551,7 @@ export function PricesListScreen({
     fetchPrices: fetchPricesService,
     setPrice: setPriceService,
     confirmPrice: confirmPriceService,
-  } = services ?? defaultPricesListScreenServices;
+  } = services;
   const clock = now ?? (() => new Date());
 
   const [list, setList] = useState<ListState>({ kind: "loading" });

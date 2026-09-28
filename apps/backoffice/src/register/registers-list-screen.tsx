@@ -9,47 +9,28 @@ import {
   Tag,
   TextField,
 } from "@purosur/ui";
-import { startAuthentication } from "@simplewebauthn/browser";
+import type { startAuthentication } from "@simplewebauthn/browser";
 import { Check, KeySquare, Laptop, Plus, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuthorization } from "../access/authorization-modal";
 import { useSendToMyAccount } from "../access/send-to-my-account";
-import { authorizeSession, fetchSessionAuthorizationOptions } from "../access/session-api";
+import type { authorizeSession, fetchSessionAuthorizationOptions } from "../access/session-api";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
-import {
-  type CreateRegisterOutcome,
+import type {
+  CreateRegisterOutcome,
   createRegister,
-  type EmitEnrollmentCodeOutcome,
-  emitEnrollmentCode,
-  fetchRegisters,
-  type RegisterSummary,
+  EmitEnrollmentCodeOutcome,
+  RegisterSummary,
 } from "./registers-api";
-
-export type RegistersListScreenServices = {
-  fetchRegisters: typeof fetchRegisters;
-  createRegister: typeof createRegister;
-  emitEnrollmentCode: typeof emitEnrollmentCode;
-  fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
-  authorizeSession: typeof authorizeSession;
-  startAuthentication: typeof startAuthentication;
-};
-
-const defaultRegistersListScreenServices: RegistersListScreenServices = {
-  fetchRegisters,
-  createRegister,
-  emitEnrollmentCode,
-  fetchSessionAuthorizationOptions,
-  authorizeSession,
-  startAuthentication,
-};
+import type { RegistersListScreenServices } from "./registers-list-services";
 
 export type RegistersListScreenProps = {
   onSessionEnded: () => void;
   now?: () => Date;
-  services?: RegistersListScreenServices | undefined;
+  services: RegistersListScreenServices;
 };
 
 type ListState =
@@ -370,7 +351,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
     fetchSessionAuthorizationOptions,
     authorizeSession,
     startAuthentication,
-  } = services ?? defaultRegistersListScreenServices;
+  } = services;
   const clock = now ?? (() => new Date());
   const [list, setList] = useState<ListState>({ kind: "loading" });
   const [currentTime, setCurrentTime] = useState(() => clock());

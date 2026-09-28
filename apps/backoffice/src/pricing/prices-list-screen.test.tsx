@@ -3,7 +3,8 @@ import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { PriceCategory, PriceProduct } from "./prices-api";
-import { PricesListScreen, type PricesListScreenServices } from "./prices-list-screen";
+import { PricesListScreen } from "./prices-list-screen";
+import type { PricesListScreenServices } from "./prices-list-services";
 import { type PricesListFilters, pricesListFilters } from "./routes";
 
 const NOW = () => new Date("2026-09-25T12:00:00.000Z");

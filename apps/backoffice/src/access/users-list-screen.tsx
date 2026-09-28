@@ -10,7 +10,7 @@ import {
   Tag,
   TextField,
 } from "@purosur/ui";
-import { startAuthentication } from "@simplewebauthn/browser";
+import type { startAuthentication } from "@simplewebauthn/browser";
 import { deepEqual, useNavigate } from "@tanstack/react-router";
 import {
   Eye,
@@ -32,43 +32,25 @@ import { useAuthorization } from "./authorization-modal";
 import { type BackofficeAccess, canReactivateUser } from "./backoffice-access";
 import { validateEmail } from "./email-validation";
 import { roleDisplayName, roleOptions } from "./role-display";
-import { fetchRoles } from "./roles-api";
+import type { fetchRoles } from "./roles-api";
 import type { UsersListFilters } from "./routes";
 import { useSendToMyAccount } from "./send-to-my-account";
-import { authorizeSession, fetchSessionAuthorizationOptions } from "./session-api";
-import {
-  type BranchUser,
-  type BranchUserRole,
-  type CreateUserFieldError,
-  type CreateUserOutcome,
+import type { authorizeSession, fetchSessionAuthorizationOptions } from "./session-api";
+import type {
+  BranchUser,
+  BranchUserRole,
+  CreateUserFieldError,
+  CreateUserOutcome,
   createUser,
-  fetchUsers,
 } from "./users-api";
-
-export type UsersListScreenServices = {
-  fetchUsers: typeof fetchUsers;
-  fetchRoles: typeof fetchRoles;
-  createUser: typeof createUser;
-  fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
-  authorizeSession: typeof authorizeSession;
-  startAuthentication: typeof startAuthentication;
-};
-
-const defaultUsersListScreenServices: UsersListScreenServices = {
-  fetchUsers,
-  fetchRoles,
-  createUser,
-  fetchSessionAuthorizationOptions,
-  authorizeSession,
-  startAuthentication,
-};
+import type { UsersListScreenServices } from "./users-list-services";
 
 export type UsersListScreenProps = {
   filters: UsersListFilters;
   onFiltersChange: (filters: UsersListFilters) => void;
   access: BackofficeAccess;
   onSessionEnded: () => void;
-  services?: UsersListScreenServices | undefined;
+  services: UsersListScreenServices;
 };
 
 type ListState =
@@ -388,7 +370,7 @@ export function UsersListScreen({
     fetchSessionAuthorizationOptions,
     authorizeSession,
     startAuthentication,
-  } = services ?? defaultUsersListScreenServices;
+  } = services;
   const [list, setList] = useState<ListState>({ kind: "loading" });
   const [roles, setRoles] = useState<BranchUserRole[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
