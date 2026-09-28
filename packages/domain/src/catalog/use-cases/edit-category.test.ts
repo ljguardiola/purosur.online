@@ -48,6 +48,31 @@ describe("editCategory", () => {
     });
   });
 
+  it("allows keeping a subcategory's own parent unchanged, as a no-op that locks the tree but does not bump the version", async () => {
+    const store = new FakeCatalogStore();
+    store.seedCategory({ id: "parent", name: "Almacén", parentId: null, version: 1 });
+    store.seedCategory({ id: "category-1", name: "Untables", parentId: "parent", version: 1 });
+
+    const outcome = await editCategory(store, {
+      id: "category-1",
+      name: "Untables",
+      parentId: "parent",
+      version: 1,
+    });
+
+    expect(outcome).toEqual({
+      kind: "applied",
+      category: { id: "category-1", name: "Untables", parentId: "parent", version: 1 },
+    });
+    expect(store.lockCallOrder).toEqual(["lockCategoryTreeForMove", "lockCategoryForUpdate"]);
+    expect(store.snapshot().categories).toContainEqual({
+      id: "category-1",
+      name: "Untables",
+      parentId: "parent",
+      version: 1,
+    });
+  });
+
   it("renames the category, bumping the version", async () => {
     const store = new FakeCatalogStore();
     store.seedCategory({ id: "decoy", name: "Decoy", parentId: null, version: 5 });
@@ -252,7 +277,7 @@ describe("editCategory", () => {
     ]);
   });
 
-  it("does not lock the category tree when the edit doesn't move the category", async () => {
+  it("does not lock the category tree for an edit that keeps the category at top level", async () => {
     const store = new FakeCatalogStore();
     store.seedCategory({ id: "category-1", name: "Yerbas", parentId: null, version: 1 });
 
