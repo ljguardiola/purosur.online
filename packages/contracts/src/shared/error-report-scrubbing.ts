@@ -123,7 +123,7 @@ interface EventLike {
   request?: unknown;
 }
 
-export function scrubSentryEvent<E extends EventLike>(event: E): E {
+export function scrubErrorReport<E extends EventLike>(event: E): E {
   const { request: _request, ...rest } = event as EventLike & Record<string, unknown>;
 
   return {
@@ -142,11 +142,11 @@ export function scrubSentryEvent<E extends EventLike>(event: E): E {
     extra: rest.extra ? redactRecord(rest.extra) : rest.extra,
     contexts: rest.contexts ? redactSections(rest.contexts) : rest.contexts,
     tags: rest.tags ? redactRecord(rest.tags) : rest.tags,
-    breadcrumbs: rest.breadcrumbs?.map(scrubSentryBreadcrumb),
+    breadcrumbs: rest.breadcrumbs?.map(scrubBreadcrumb),
   } as E;
 }
 
-function scrubSentryBreadcrumb<B extends BreadcrumbLike>(breadcrumb: B): B {
+function scrubBreadcrumb<B extends BreadcrumbLike>(breadcrumb: B): B {
   const rest = breadcrumb as BreadcrumbLike & Record<string, unknown>;
 
   return {

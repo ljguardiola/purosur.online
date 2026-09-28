@@ -1,6 +1,6 @@
+import { scrubErrorReport } from "@purosur/contracts";
 import { describe, expect, it, vi } from "vitest";
 import { initSentry } from "./sentry.js";
-import { scrubSentryEvent } from "./sentry-scrubbing.js";
 
 describe("initSentry", () => {
   it("does nothing when no DSN is configured", () => {
@@ -21,7 +21,7 @@ describe("initSentry", () => {
       expect.objectContaining({
         dsn: "https://public@sentry.example/1",
         environment: "staging",
-        beforeSend: scrubSentryEvent,
+        beforeSend: scrubErrorReport,
       }),
     );
   });

@@ -34,3 +34,4 @@ export {
 } from "./register/core-messages.js";
 export type { RegisterCreationBody } from "./register/register-creation.js";
 export { registerCreationBodySchema } from "./register/register-creation.js";
+export { scrubErrorReport } from "./shared/index.js";
