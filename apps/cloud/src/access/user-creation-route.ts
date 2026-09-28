@@ -1,9 +1,10 @@
+import { userCreationBodySchema } from "@purosur/contracts";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { auditLog, roles, userRoles, users } from "../platform/db/schema.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
 import { canReactivateUsers, toBranchUserWire } from "./branch-users.js";
-import { readEmail } from "./email-validation.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import {
   ADMINISTRATOR_ACCESS,
@@ -13,8 +14,6 @@ import {
   routeSessionSource,
 } from "./route-access.js";
 import type { UsersRouteOptions } from "./users-list-route.js";
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const UNKNOWN_ROLE_RESPONSE = {
   code: "unknown_role",
@@ -109,53 +108,6 @@ export async function createUser<TQueryResult extends PgQueryResultHKT>(
   return { kind: "created", id: created.id, role };
 }
 
-interface CreationRequestBody {
-  firstName: string;
-  email: string;
-  roleId: string;
-}
-
-interface ValidationFailure {
-  field: "first_name" | "email" | "role_id";
-  message: string;
-}
-
-function readFirstName(body: unknown): string | undefined {
-  const raw = (body as { first_name?: unknown } | undefined)?.first_name;
-  if (typeof raw !== "string") {
-    return undefined;
-  }
-  const trimmed = raw.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
-}
-
-function readRoleId(body: unknown): string | undefined {
-  const raw = (body as { role_id?: unknown } | undefined)?.role_id;
-  return typeof raw === "string" && UUID_PATTERN.test(raw) ? raw : undefined;
-}
-
-function readCreationBody(body: unknown): CreationRequestBody | ValidationFailure {
-  const firstName = readFirstName(body);
-  if (!firstName) {
-    return { field: "first_name", message: "first_name must not be empty" };
-  }
-  const email = readEmail(body);
-  if (!email) {
-    return { field: "email", message: "email must look like local@domain" };
-  }
-  const roleId = readRoleId(body);
-  if (!roleId) {
-    return { field: "role_id", message: "role_id must be a role's id" };
-  }
-  return { firstName, email, roleId };
-}
-
-function isValidationFailure(
-  value: CreationRequestBody | ValidationFailure,
-): value is ValidationFailure {
-  return "field" in value;
-}
-
 export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: UsersRouteOptions<TQueryResult>,
@@ -185,13 +137,8 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
       const attemptedAt = now();
       const openSession = openSessionOf(request);
 
-      const parsedBody = readCreationBody(request.body);
-      if (isValidationFailure(parsedBody)) {
-        await reply.code(400).send({
-          code: "validation_failed",
-          message: parsedBody.message,
-          details: [{ field: parsedBody.field }],
-        });
+      const parsedBody = await readValidatedBody(reply, userCreationBodySchema, request.body);
+      if (!parsedBody) {
         return;
       }
 
@@ -200,9 +147,9 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
       }
 
       const outcome = await createUser(options.db, {
-        firstName: parsedBody.firstName,
+        firstName: parsedBody.first_name,
         email: parsedBody.email,
-        roleId: parsedBody.roleId,
+        roleId: parsedBody.role_id,
         locationId: openSession.locationId,
         actorId: openSession.userId,
       });
@@ -241,7 +188,7 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
       await reply.code(201).send(
         toBranchUserWire({
           id: outcome.id,
-          firstName: parsedBody.firstName,
+          firstName: parsedBody.first_name,
           email: parsedBody.email,
           version: 1,
           active: true,

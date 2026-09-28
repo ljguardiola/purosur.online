@@ -8,6 +8,7 @@ export {
   ALERT_VIEW_PERMISSION_KEYS,
   holdsBothAlertViewPermissions,
   isAdministratorRoleName,
+  isEmailAddress,
   isPasskeyNameTooLong,
   isPermissionKey,
   isRoleNameTooLong,

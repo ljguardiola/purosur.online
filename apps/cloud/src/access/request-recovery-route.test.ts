@@ -127,7 +127,10 @@ describe("POST /users/recovery/request", () => {
     const response = await post({ email: "not-an-email" });
 
     expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({ code: "validation_failed" });
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "email" }],
+    });
     expect(jobQueue.requests).toEqual([]);
   });
 

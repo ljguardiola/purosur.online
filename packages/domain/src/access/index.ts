@@ -1,3 +1,4 @@
+export { isEmailAddress } from "./model/email-address.js";
 export {
   isPasskeyNameTooLong,
   PASSKEY_NAME_MAX_LENGTH,

@@ -1,3 +1,5 @@
+import type { RecoveryRequestBody } from "@purosur/contracts";
+
 import type {
   PublicKeyCredentialCreationOptionsJSON,
   RegistrationResponseJSON,
@@ -46,9 +48,10 @@ function postJson(path: string, body: unknown): Promise<Response> {
 
 /** The cloud answers identically, with no body, whether or not `email` belongs to a real account. */
 export async function requestRecoveryLink(email: string): Promise<RecoveryRequestOutcome> {
+  const requestBody: RecoveryRequestBody = { email };
   let response: Response;
   try {
-    response = await postJson("/users/recovery/request", { email });
+    response = await postJson("/users/recovery/request", requestBody);
   } catch {
     return { kind: "failed" };
   }
