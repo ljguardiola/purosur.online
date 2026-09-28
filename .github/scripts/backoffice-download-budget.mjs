@@ -6,6 +6,7 @@ const DEFAULT_DIST_DIR = "apps/backoffice/dist";
 const DEFAULT_BUDGET_PATH = "apps/backoffice/download-budget.json";
 const REMOTE_OR_INLINE = /^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i;
 const MEASURES = ["entry", "total"];
+const BUDGET_SHAPE = `the budget must hold exactly ${MEASURES.join(" and ")}, each a positive whole number of bytes`;
 
 export function gzipSizeOf(content) {
   return gzipSync(content).length;
@@ -57,9 +58,7 @@ function holdsExactlyTheMeasures(budget) {
 
 export function findBudgetViolations(measured, budget) {
   if (!holdsExactlyTheMeasures(budget)) {
-    return [
-      `the budget must hold exactly ${MEASURES.join(" and ")}, each a positive whole number of bytes`,
-    ];
+    return [BUDGET_SHAPE];
   }
   const violations = measured.missing.map(
     (file) => `index.html references ${file}, which the build did not produce`,
@@ -88,6 +87,10 @@ export function runCli({
   }
 
   const budget = JSON.parse(readFileSync(budgetPath, "utf8"));
+  if (!holdsExactlyTheMeasures(budget)) {
+    logError(`backoffice-download-budget: ${BUDGET_SHAPE}`);
+    return 1;
+  }
   const measured = measureDownload(distDir);
 
   for (const measure of MEASURES) {

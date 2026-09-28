@@ -216,6 +216,24 @@ test("runCli exits 1 when the budget does not hold every measure", async () => {
   });
 });
 
+for (const [description, budget] of [
+  ["holds null", null],
+  ["lacks the entry", { total: 20_000 }],
+]) {
+  test(`runCli exits 1 with the budget's expected shape and prints no sizes when the budget ${description}`, async () => {
+    await withDist(builtFiles, async ({ dist, budgetPath }) => {
+      await writeFile(budgetPath, JSON.stringify(budget));
+      const { lines, log, logError } = recordingLogs();
+
+      const exitCode = runCli({ distDir: dist, budgetPath, log, logError });
+
+      assert.equal(exitCode, 1);
+      assert.match(lines.err.join("\n"), /must hold exactly entry and total/);
+      assert.deepEqual(lines.out, []);
+    });
+  });
+}
+
 test("runCli exits 1 when there is no build to measure", async () => {
   await withDist({}, async ({ root, budgetPath }) => {
     await writeFile(budgetPath, JSON.stringify({ entry: 10_000, total: 20_000 }));
