@@ -20,26 +20,12 @@ import type {
   BranchSettings,
   BranchSettingsField,
 } from "./branch-settings-api";
-import {
-  BRANCH_DAYS,
-  DAY_FIELD_OF,
-  fetchBranchSettings,
-  saveBranchSettings,
-} from "./branch-settings-api";
-
-export type BranchSettingsScreenServices = {
-  fetchBranchSettings: typeof fetchBranchSettings;
-  saveBranchSettings: typeof saveBranchSettings;
-};
-
-export const defaultBranchSettingsScreenServices: BranchSettingsScreenServices = {
-  fetchBranchSettings,
-  saveBranchSettings,
-};
+import { BRANCH_DAYS, DAY_FIELD_OF } from "./branch-settings-api";
+import type { BranchSettingsScreenServices } from "./branch-settings-services";
 
 export type BranchSettingsScreenProps = {
   onSessionEnded: () => void;
-  services?: BranchSettingsScreenServices;
+  services: BranchSettingsScreenServices;
 };
 
 type LoadState = { kind: "loading" } | { kind: "loadError" } | { kind: "loaded" };
@@ -282,8 +268,7 @@ const EMPTY_VALUES: FormValues = {
 
 export function BranchSettingsScreen({ onSessionEnded, services }: BranchSettingsScreenProps) {
   const sendToMyAccount = useSendToMyAccount();
-  const { fetchBranchSettings, saveBranchSettings } =
-    services ?? defaultBranchSettingsScreenServices;
+  const { fetchBranchSettings, saveBranchSettings } = services;
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [version, setVersion] = useState(0);
   const [values, setValues] = useState<FormValues>(EMPTY_VALUES);

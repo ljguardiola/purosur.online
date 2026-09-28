@@ -3,7 +3,8 @@ import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { CategorySummary } from "./categories-api";
-import { CategoriesListScreen, type CategoriesListScreenServices } from "./categories-list-screen";
+import { CategoriesListScreen } from "./categories-list-screen";
+import type { CategoriesListScreenServices } from "./categories-list-services";
 import { type CategoriesListFilters, categoriesListFilters } from "./routes";
 
 function createServices(

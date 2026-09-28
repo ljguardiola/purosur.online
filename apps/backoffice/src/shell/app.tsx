@@ -4,59 +4,59 @@ import { useEffect, useState } from "react";
 import {
   type AccountRecoveryScreenServices,
   defaultAccountRecoveryScreenServices,
-} from "../access/account-recovery-screen";
+} from "../access/account-recovery-services";
 import {
   defaultMyAccountScreenServices,
   type MyAccountScreenServices,
-} from "../access/my-account-screen";
+} from "../access/my-account-services";
 import {
   defaultRegisterPasskeyScreenServices,
   type RegisterPasskeyScreenServices,
-} from "../access/register-passkey-screen";
+} from "../access/register-passkey-services";
 import {
   defaultRolesListScreenServices,
   type RolesListScreenServices,
-} from "../access/roles-list-screen";
+} from "../access/roles-list-services";
 import { checkSessionStatus, fetchSession, type SessionOutcome } from "../access/session-api";
-import { defaultSignInScreenServices, type SignInScreenServices } from "../access/sign-in-screen";
+import { defaultSignInScreenServices, type SignInScreenServices } from "../access/sign-in-services";
 import {
   defaultUserDetailScreenServices,
   type UserDetailScreenServices,
-} from "../access/user-detail-screen";
+} from "../access/user-detail-services";
 import {
   defaultUsersListScreenServices,
   type UsersListScreenServices,
-} from "../access/users-list-screen";
+} from "../access/users-list-services";
 import {
   type AlertsListScreenServices,
   defaultAlertsListScreenServices,
-} from "../alerts/alerts-list-screen";
+} from "../alerts/alerts-list-services";
 import {
   type BranchSettingsScreenServices,
   defaultBranchSettingsScreenServices,
-} from "../branch/branch-settings-screen";
+} from "../branch/branch-settings-services";
 import {
   type CategoriesListScreenServices,
   defaultCategoriesListScreenServices,
-} from "../catalog/categories-list-screen";
+} from "../catalog/categories-list-services";
 import {
   defaultProductsListScreenServices,
   type ProductsListScreenServices,
-} from "../catalog/products-list-screen";
+} from "../catalog/products-list-services";
 import {
   defaultFiscalConfigurationScreenServices,
   type FiscalConfigurationScreenServices,
-} from "../fiscal/fiscal-configuration-screen";
-import type { BackofficeHelpCatalog } from "../help/help-page";
+} from "../fiscal/fiscal-configuration-services";
+import type { BackofficeHelpCatalog } from "../help/help-catalog";
 import { useLatestRef } from "../platform/use-latest-ref";
 import {
   defaultPricesListScreenServices,
   type PricesListScreenServices,
-} from "../pricing/prices-list-screen";
+} from "../pricing/prices-list-services";
 import {
   defaultRegistersListScreenServices,
   type RegistersListScreenServices,
-} from "../register/registers-list-screen";
+} from "../register/registers-list-services";
 import { type AccountFooterServices, defaultAccountFooterServices } from "./account-footer";
 import { createAppRouter } from "./app-router";
 import {

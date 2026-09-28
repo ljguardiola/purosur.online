@@ -2,10 +2,8 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import {
-  AccountRecoveryScreen,
-  type AccountRecoveryScreenServices,
-} from "./account-recovery-screen";
+import { AccountRecoveryScreen } from "./account-recovery-screen";
+import type { AccountRecoveryScreenServices } from "./account-recovery-services";
 
 function createServices(
   overrides: Partial<AccountRecoveryScreenServices> = {},
@@ -23,7 +21,7 @@ async function fillEmail(screen: Awaited<ReturnType<typeof render>>, value: stri
 }
 
 test("shows the recovery form with its heading, email field, submit button and back link", async () => {
-  const screen = await render(<AccountRecoveryScreen />);
+  const screen = await render(<AccountRecoveryScreen services={createServices()} />);
 
   await expect
     .element(screen.getByRole("heading", { name: "Recuperar el acceso", level: 1 }))

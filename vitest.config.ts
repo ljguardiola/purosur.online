@@ -55,6 +55,7 @@ export default defineConfig({
       new SlowTestsReporter({
         node: 1000,
         "railway-iac": 1000,
+        "backoffice-build": 1000,
         "cloud-integration": 5000,
         browser: 2000,
         "catalog-visual": 4000,
@@ -74,6 +75,13 @@ export default defineConfig({
         test: {
           name: "railway-iac",
           include: [".railway/*.test.ts"],
+          environment: "node",
+        },
+      },
+      {
+        test: {
+          name: "backoffice-build",
+          include: ["apps/backoffice/*.test.ts"],
           environment: "node",
         },
       },

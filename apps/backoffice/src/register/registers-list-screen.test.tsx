@@ -4,7 +4,8 @@ import { expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { RegisterSummary } from "./registers-api";
-import { RegistersListScreen, type RegistersListScreenServices } from "./registers-list-screen";
+import { RegistersListScreen } from "./registers-list-screen";
+import type { RegistersListScreenServices } from "./registers-list-services";
 
 function createServices(
   overrides: Partial<RegistersListScreenServices> = {},
