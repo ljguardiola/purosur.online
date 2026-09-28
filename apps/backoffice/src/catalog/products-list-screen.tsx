@@ -367,17 +367,17 @@ function BarcodeChips({
         </button>
       </div>
       {generateError && (
-        <span id={generateErrorId} role="alert" className="text-detail font-normal text-error">
+        <span id={generateErrorId} role="alert" className="text-detail text-error">
           {generateError}
         </span>
       )}
       {scanError && (
-        <span id={scanErrorId} className="text-detail font-normal text-error">
+        <span id={scanErrorId} className="text-detail text-error">
           {scanError}
         </span>
       )}
       {error && (
-        <span id={errorId} className="text-detail font-normal text-error">
+        <span id={errorId} className="text-detail text-error">
           {error}
         </span>
       )}
@@ -835,9 +835,7 @@ function NewProductModal({
           />
         ) : (
           <FieldGroup label="Categoría" required>
-            {errors.category && (
-              <span className="text-detail font-normal text-error">{errors.category}</span>
-            )}
+            {errors.category && <span className="text-detail text-error">{errors.category}</span>}
           </FieldGroup>
         )}
         <QuantityUnitField
@@ -1246,9 +1244,7 @@ function EditProductModal({
             />
           ) : (
             <FieldGroup label="Categoría" required>
-              {errors.category && (
-                <span className="text-detail font-normal text-error">{errors.category}</span>
-              )}
+              {errors.category && <span className="text-detail text-error">{errors.category}</span>}
             </FieldGroup>
           )}
           <QuantityUnitField
@@ -1813,7 +1809,7 @@ function PrintLabelsModal({
                   </span>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <p className="text-heading font-bold text-text-accent">
+                  <p className="text-heading text-text-accent">
                     {plural(total, { one: "1 etiqueta", other: `${total} etiquetas` })}
                   </p>
                   <p className="text-detail text-text-subtle">

@@ -25,7 +25,7 @@ export function HighlightedNotice({ tone, icon, title, detail }: HighlightedNoti
       {/* Hidden from assistive technology so its text isn't announced twice: the live region
           below is its only accessible copy. */}
       <div aria-hidden="true" className="flex flex-col gap-1">
-        <p className="text-subheading font-bold">{title}</p>
+        <p className="text-subheading">{title}</p>
         <p className="text-detail leading-sm">{detail}</p>
       </div>
       <NoticeLiveRegion

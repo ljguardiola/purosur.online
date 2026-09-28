@@ -66,7 +66,7 @@ export function AccountFooter({ displayName, onSignedOut, services }: AccountFoo
         <span aria-hidden="true" className={railIconWrapperClassName}>
           <LogOut />
         </span>
-        <span className="text-caption font-normal text-text-inverse-subtle">Salir</span>
+        <span className="text-caption text-text-inverse-subtle">Salir</span>
       </button>
       <Modal
         isOpen={confirming}

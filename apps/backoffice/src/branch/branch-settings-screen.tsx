@@ -599,7 +599,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           )}
         </div>
         {error !== undefined && (
-          <p id={errorId} className="text-detail font-normal text-error">
+          <p id={errorId} className="text-detail text-error">
             {error}
           </p>
         )}
@@ -678,7 +678,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
       {state.kind === "loaded" && (
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
-            <h2 className="font-bold text-text-accent text-subheading">Encabezado del ticket</h2>
+            <h2 className="text-text-accent text-subheading">Encabezado del ticket</h2>
             <div className="flex gap-4">
               {textField("address", "Dirección")}
               {textField("whatsappNumber", "WhatsApp")}
@@ -686,11 +686,11 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
             <div className="flex gap-4">{textField("instagramHandle", "Instagram")}</div>
           </div>
           <div className="flex flex-col gap-1 rounded-lg border border-border bg-surface p-4">
-            <h2 className="mb-2 font-bold text-text-accent text-subheading">Horario de atención</h2>
+            <h2 className="mb-2 text-text-accent text-subheading">Horario de atención</h2>
             {BRANCH_DAYS.map((day) => dayRow(day))}
           </div>
           <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
-            <h2 className="font-bold text-text-accent text-subheading">Plazos</h2>
+            <h2 className="text-text-accent text-subheading">Plazos</h2>
             <div className="flex gap-4">
               {daysField("expiringLotAlertDays", "Aviso de vencimiento")}
               {daysField("unreviewedPriceAlertDays", "Precio sin revisar")}

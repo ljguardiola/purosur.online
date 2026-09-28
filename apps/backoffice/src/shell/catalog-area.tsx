@@ -30,7 +30,7 @@ function CatalogArea() {
       sectionColumnLabel="Catálogo"
       sectionColumn={
         <>
-          <h2 className="font-bold text-text-accent text-heading">Catálogo</h2>
+          <h2 className="text-text-accent text-heading">Catálogo</h2>
           <div className="h-2.5" />
           <ul className="flex flex-col gap-1">
             {canManageProductsAndCategories(session) && (

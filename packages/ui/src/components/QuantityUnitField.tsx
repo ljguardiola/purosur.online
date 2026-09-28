@@ -81,7 +81,7 @@ const valueClassName =
   "caret-focus outline-none";
 
 const unitTriggerClassName = "flex shrink-0 items-center gap-1 outline-none";
-const unitValueClassName = "text-body font-normal text-text-subtle";
+const unitValueClassName = "text-body text-text-subtle";
 const chevronClassName = "size-icon-md shrink-0 text-text-subtle";
 
 const popoverClassName =
@@ -99,8 +99,8 @@ const optionClassName =
   "data-hovered:data-selected:bg-action-subtle " +
   "data-focus-visible:data-selected:bg-action-subtle";
 
-const helperClassName = "text-detail font-normal text-text-subtle";
-const errorClassName = "text-detail font-normal text-error";
+const helperClassName = "text-detail text-text-subtle";
+const errorClassName = "text-detail text-error";
 
 // react-aria-components' onSelectionChange reports a plain Key (string | number).
 function isOptionValue<U extends string>(

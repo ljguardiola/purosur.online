@@ -76,8 +76,7 @@ const currentPageClassName = "cursor-default bg-action font-bold text-text-inver
 // would make that button's own box 2px wider than the other's, shifting every button's width as
 // the current page moves.
 const otherPageClassName =
-  "inset-ring-1 inset-ring-border bg-surface font-normal text-text " +
-  "data-hovered:bg-surface-subtle";
+  "inset-ring-1 inset-ring-border bg-surface text-text " + "data-hovered:bg-surface-subtle";
 
 // NaN propagates through Math.min/Math.max and Infinity never clamps, so both props are resolved
 // to a safe integer first. +Infinity is the one non-finite page that still means something ("go

@@ -35,7 +35,7 @@ const inputBaseClassName =
 
 const valueClassName: Record<SearchFieldVariant, string> = {
   register: "text-heading font-normal text-text",
-  backoffice: "text-detail font-normal text-text",
+  backoffice: "text-detail text-text",
 };
 
 const chipClassName =

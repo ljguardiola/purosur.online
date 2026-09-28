@@ -59,7 +59,7 @@ const wrapperBaseClassName = "flex flex-col data-disabled:opacity-disabled";
 const boxBaseClassName = "flex items-center rounded-lg outline-none";
 
 const registerFrameClassName = "h-control-4xl gap-2 px-4";
-const registerValueClassName = "text-heading font-bold text-text";
+const registerValueClassName = "text-heading text-text";
 
 const inputBaseClassName = "flex min-w-0 flex-1 outline-none";
 
@@ -85,8 +85,8 @@ const iconButtonClassName =
   "data-focus-visible:focus-ring";
 const iconGlyphClassName = "inline-flex size-icon-md shrink-0 *:size-full";
 
-const helperClassName = "text-detail font-normal text-text-subtle";
-const errorClassName = "text-detail font-normal text-error";
+const helperClassName = "text-detail text-text-subtle";
+const errorClassName = "text-detail text-error";
 
 function boxStateClassName(disabled: boolean, invalid: boolean): string {
   if (disabled) {
@@ -120,7 +120,7 @@ const calendarNavIconClassName = "inline-flex size-icon-md shrink-0 *:size-full"
 // A focused day's outline ring reaches 6px past its cell (3px width + 3px offset); border-collapse
 // would let that ring paint over the neighbouring cell's fill and drop its contrast under 2:1.
 const calendarGridClassName = "border-separate border-spacing-1.5";
-const calendarWeekdayClassName = "size-control-sm text-detail font-normal text-text-subtle";
+const calendarWeekdayClassName = "size-control-sm text-detail text-text-subtle";
 const calendarCellClassName =
   "size-control-sm rounded-md text-center align-middle text-body text-text outline-none " +
   "data-hovered:bg-surface-subtle " +

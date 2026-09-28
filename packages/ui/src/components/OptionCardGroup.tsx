@@ -34,9 +34,9 @@ const iconWrapperClassName =
 
 const titleClassName = "text-body font-bold text-text group-data-selected:text-text-accent";
 
-const helpTextClassName = "text-caption font-normal text-text-subtle";
+const helpTextClassName = "text-caption text-text-subtle";
 
-const errorClassName = "text-detail font-normal text-error";
+const errorClassName = "text-detail text-error";
 
 // The not-chosen/chosen ring is drawn with an inset box-shadow instead of a real border: a real
 // border going from 1px to 2px on choosing a card would add 1px to its rendered size, but a

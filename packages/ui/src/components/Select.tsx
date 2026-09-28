@@ -92,8 +92,8 @@ const optionClassName =
   "data-hovered:data-selected:bg-action-subtle " +
   "data-focus-visible:data-selected:bg-action-subtle";
 
-const helperClassName = "text-detail font-normal text-text-subtle";
-const errorClassName = "text-detail font-normal text-error";
+const helperClassName = "text-detail text-text-subtle";
+const errorClassName = "text-detail text-error";
 
 // react-aria-components' onSelectionChange reports a plain Key (string | number).
 function isOptionValue<V extends string>(key: Key, options: readonly SelectOption<V>[]): key is V {

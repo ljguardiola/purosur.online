@@ -317,9 +317,7 @@ export function RoleEditorForm({
           ))}
         </fieldset>
         <div className="flex min-h-0 flex-1 flex-col gap-3 bg-surface px-6 py-5">
-          <h2 className="shrink-0 font-bold text-text-accent text-heading">
-            {AREA_LABELS[selectedArea]}
-          </h2>
+          <h2 className="shrink-0 text-text-accent text-heading">{AREA_LABELS[selectedArea]}</h2>
           <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border">
             {selectedArea === "alerts" ? (
               <AlertsAreaList selected={selected} onSelectedChange={onSelectedChange} />

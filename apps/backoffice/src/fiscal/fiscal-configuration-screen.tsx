@@ -87,9 +87,7 @@ function dataPair(label: string, value: string | null) {
       <p className="font-bold text-text-subtle text-detail">{label}</p>
       <p
         className={
-          value === null
-            ? "font-normal text-body text-text-subtle"
-            : "font-semibold text-body text-text"
+          value === null ? "text-body text-text-subtle" : "font-semibold text-body text-text"
         }
       >
         {value ?? "Sin cargar"}
@@ -528,9 +526,7 @@ export function FiscalConfigurationScreen({
       {state.kind === "loaded" && (
         <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
           <div className="flex items-center gap-3">
-            <h2 className="flex-1 font-bold text-text-accent text-subheading">
-              Identificación del emisor
-            </h2>
+            <h2 className="flex-1 text-text-accent text-subheading">Identificación del emisor</h2>
             <Button
               variant="secondary"
               size="small"
@@ -560,9 +556,7 @@ export function FiscalConfigurationScreen({
                 : null,
             )}
           </div>
-          <p className="font-normal text-text-subtle text-detail">
-            Lo imprime cada factura y nota de crédito.
-          </p>
+          <p className="text-text-subtle text-detail">Lo imprime cada factura y nota de crédito.</p>
         </div>
       )}
       <EditIssuerIdentificationModal

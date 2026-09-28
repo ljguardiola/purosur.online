@@ -71,23 +71,23 @@ const frameClassName: Record<Exclude<TextFieldValueKind, "plain-text">, string> 
 const registerPlainTextFrameClassName = "h-control-3xl gap-2 px-4";
 
 const valueClassName: Record<Exclude<TextFieldValueKind, "plain-text">, string> = {
-  amount: "text-right text-display font-bold text-text",
-  "counted-cash": "text-right text-display font-bold text-text",
-  price: "text-right text-display font-bold text-text",
-  weight: "text-left text-display font-bold text-text",
-  quantity: "text-right text-display font-bold text-text",
+  amount: "text-right text-display text-text",
+  "counted-cash": "text-right text-display text-text",
+  price: "text-right text-display text-text",
+  weight: "text-left text-display text-text",
+  quantity: "text-right text-display text-text",
 };
-const registerPlainTextValueClassName = "text-left text-body font-normal text-text";
-const registerPlainTextSuffixedValueClassName = "text-right text-body font-normal text-text";
+const registerPlainTextValueClassName = "text-left text-body text-text";
+const registerPlainTextSuffixedValueClassName = "text-right text-body text-text";
 
 const inputBaseClassName = "min-w-0 flex-1 bg-transparent caret-focus outline-none";
 
 const moneyPrefixClassName = "shrink-0 text-display font-normal text-text-subtle";
 const unitSuffixClassName = "shrink-0 text-heading font-normal text-text-subtle";
-const plainTextSuffixClassName = "shrink-0 text-body font-normal text-text-subtle";
+const plainTextSuffixClassName = "shrink-0 text-body text-text-subtle";
 
-const helperClassName = "text-detail font-normal text-text-subtle";
-const errorClassName = "text-detail font-normal text-error";
+const helperClassName = "text-detail text-text-subtle";
+const errorClassName = "text-detail text-error";
 
 // Drawn as an inset box-shadow rather than a real border so it never participates in layout.
 // `hover:not-focus-within:` keeps the hovered fill from showing once the field is focused,

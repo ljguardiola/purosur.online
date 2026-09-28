@@ -3,7 +3,7 @@ import { focusRingClassName } from "../platform/focus-ring";
 
 export function ScreenTitle({ children }: { children: ReactNode }) {
   return (
-    <h1 tabIndex={-1} className={`font-bold text-title text-text-accent ${focusRingClassName}`}>
+    <h1 tabIndex={-1} className={`text-title text-text-accent ${focusRingClassName}`}>
       {children}
     </h1>
   );

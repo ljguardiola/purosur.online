@@ -62,7 +62,7 @@ function ReservedWidthLabel({ label }: { label: string }) {
       >
         {label}
       </span>
-      <span className="col-start-1 row-start-1 whitespace-nowrap text-body font-normal text-text group-data-selected:font-bold group-data-selected:text-text-accent">
+      <span className="col-start-1 row-start-1 whitespace-nowrap text-body text-text group-data-selected:font-bold group-data-selected:text-text-accent">
         {label}
       </span>
     </span>

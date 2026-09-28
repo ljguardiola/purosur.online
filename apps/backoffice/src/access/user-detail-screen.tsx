@@ -1010,7 +1010,7 @@ export function UserDetailScreen({
         {state.kind === "loaded" && (
           <div className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4">
             <div className="flex items-center gap-3">
-              <h2 className="flex-1 font-bold text-subheading text-text-accent">Datos</h2>
+              <h2 className="flex-1 text-subheading text-text-accent">Datos</h2>
               {access.isAdministrator && !isInactive && (
                 <Button
                   variant="secondary"
@@ -1039,7 +1039,7 @@ export function UserDetailScreen({
         {state.kind === "loaded" && showsPasskeys && (
           <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
             <div className="flex items-center gap-3">
-              <h2 className="flex-1 font-bold text-subheading text-text-accent">Passkeys</h2>
+              <h2 className="flex-1 text-subheading text-text-accent">Passkeys</h2>
             </div>
             {passkeysState.kind === "loading" && <p role="status">Cargando las passkeys…</p>}
             {passkeysState.kind === "loadError" && (

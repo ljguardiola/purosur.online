@@ -343,7 +343,7 @@ function EnrollmentCodeModal({ emission, onClose, onDone, onRetry }: EnrollmentC
         {emission.kind === "issued" && (
           <>
             <div className="flex flex-col items-center gap-1 rounded-lg bg-surface-subtle p-4">
-              <p className="font-bold text-title text-text-accent tracking-md">
+              <p className="text-title text-text-accent tracking-md">
                 {groupedCode(emission.code)}
               </p>
               <p className="text-text-subtle text-detail">

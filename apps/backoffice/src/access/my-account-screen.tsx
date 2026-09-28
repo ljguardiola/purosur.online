@@ -468,7 +468,7 @@ export function MyAccountScreen({
       >
         <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
           <div className="flex items-center gap-3">
-            <h2 className="flex-1 font-bold text-subheading text-text-accent">Passkeys</h2>
+            <h2 className="flex-1 text-subheading text-text-accent">Passkeys</h2>
             <Button
               variant="secondary"
               icon={<Plus />}

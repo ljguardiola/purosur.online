@@ -278,7 +278,7 @@ function TableEmptyState({ icon, title, detail, tone, actions }: TableEmptyState
       >
         <span className="inline-flex size-icon-4xl shrink-0 *:size-full">{icon}</span>
       </span>
-      <p className="max-w-130 text-title font-bold text-text-accent">{title}</p>
+      <p className="max-w-130 text-title text-text-accent">{title}</p>
       {detail && <p className="max-w-130 text-body text-text-subtle">{detail}</p>}
       {actions && <div className="flex items-center gap-3">{actions}</div>}
     </div>

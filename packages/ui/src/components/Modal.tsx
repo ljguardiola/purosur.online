@@ -143,9 +143,7 @@ export function Modal(props: ModalProps) {
               </span>
               <AriaHeading
                 slot="title"
-                className={["text-center text-title font-bold", toneStrongTextClassName[tone]].join(
-                  " ",
-                )}
+                className={["text-center text-title", toneStrongTextClassName[tone]].join(" ")}
               >
                 {title}
               </AriaHeading>
@@ -177,7 +175,7 @@ export function Modal(props: ModalProps) {
                   )}
                   <AriaHeading
                     slot="title"
-                    className={["text-title font-bold", toneStrongTextClassName[tone]].join(" ")}
+                    className={["text-title", toneStrongTextClassName[tone]].join(" ")}
                   >
                     {title}
                   </AriaHeading>

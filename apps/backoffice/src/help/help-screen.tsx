@@ -42,7 +42,7 @@ function ArticleLinkRow({
 function EmptyState({ title, body }: { title?: string; body: string }) {
   return (
     <div className="flex flex-col items-center gap-2 rounded-lg border border-border bg-surface px-6 py-12 text-center">
-      {title && <p className="font-bold text-text-accent text-subheading">{title}</p>}
+      {title && <p className="text-text-accent text-subheading">{title}</p>}
       <p className="text-text-subtle text-detail">{body}</p>
     </div>
   );
@@ -184,7 +184,7 @@ export type HelpSectionColumnProps = {
 export function HelpSectionColumn({ help, activeCategoryId }: HelpSectionColumnProps) {
   return (
     <>
-      <h2 className="font-bold text-text-accent text-heading">Ayuda</h2>
+      <h2 className="text-text-accent text-heading">Ayuda</h2>
       <div className="h-2.5" />
       <ul className="flex flex-col gap-1">
         {Object.entries(help.categories).map(([id, category]) => (

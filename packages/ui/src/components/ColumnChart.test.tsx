@@ -93,7 +93,7 @@ const CHART_RIGHT_RESERVE_PX = 76;
 // naturally take.
 function measureNaturalWidth(text: string): number {
   const probe = document.createElement("span");
-  probe.className = "text-caption font-normal whitespace-nowrap";
+  probe.className = "text-caption whitespace-nowrap";
   probe.style.position = "absolute";
   probe.style.visibility = "hidden";
   probe.textContent = text;

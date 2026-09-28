@@ -37,7 +37,7 @@ export function AccessHeader({ eyebrow, heading, description }: AccessHeaderProp
       {eyebrow && (
         <p className="text-caption font-bold text-text-eyebrow uppercase tracking-sm">{eyebrow}</p>
       )}
-      <h1 tabIndex={-1} className={`text-display font-bold text-text-accent ${focusRingClassName}`}>
+      <h1 tabIndex={-1} className={`text-display text-text-accent ${focusRingClassName}`}>
         {heading}
       </h1>
       {description && <p className="text-body text-text-subtle">{description}</p>}

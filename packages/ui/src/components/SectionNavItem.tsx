@@ -25,7 +25,7 @@ const iconToneClassName: Record<"active" | "inactive", string> = {
 };
 
 const labelToneClassName: Record<"active" | "inactive", string> = {
-  inactive: "text-detail font-normal text-text",
+  inactive: "text-detail text-text",
   active: "text-body font-bold text-text-accent",
 };
 
