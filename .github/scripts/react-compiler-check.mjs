@@ -17,7 +17,7 @@ function reasonOf(event) {
 }
 
 function lineOf(event) {
-  return event.fnLoc?.start?.line ?? event.detail?.loc?.start?.line;
+  return event.detail?.primaryLocation?.()?.start?.line ?? event.fnLoc?.start?.line;
 }
 
 async function violationsOf({ path, source }) {
@@ -26,7 +26,7 @@ async function violationsOf({ path, source }) {
     filename: path,
     babelrc: false,
     configFile: false,
-    parserOpts: { plugins: ["typescript", "jsx"] },
+    parserOpts: { plugins: path.endsWith(".tsx") ? ["typescript", "jsx"] : ["typescript"] },
     plugins: [
       [
         reactCompiler,

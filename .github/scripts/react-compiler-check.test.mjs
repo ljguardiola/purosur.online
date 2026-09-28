@@ -42,6 +42,13 @@ const CLEAN_HOOK = [
   "",
 ].join("\n");
 
+const ANGLE_BRACKET_ASSERTION_HOOK = [
+  "export function useLabel(value: unknown) {",
+  "  return <string>value;",
+  "}",
+  "",
+].join("\n");
+
 const REF_DURING_RENDER = [
   'import { useRef } from "react";',
   "",
@@ -88,12 +95,30 @@ test("a clean hook reports nothing", async () => {
   assert.deepEqual(violations, []);
 });
 
+test("a .ts hook using an angle-bracket type assertion reports nothing", async () => {
+  const violations = await checkFiles([
+    { path: "use-label.ts", source: ANGLE_BRACKET_ASSERTION_HOOK },
+  ]);
+
+  assert.deepEqual(violations, []);
+});
+
 test("a component writing to a ref during render is reported", async () => {
   const violations = await checkFiles([{ path: "labeled.tsx", source: REF_DURING_RENDER }]);
 
   assert.equal(violations.length, 1);
   assert.equal(violations[0].path, "labeled.tsx");
   assert.match(violations[0].reason, /refs during render/);
+});
+
+test("a violation is reported on the line of the offending statement", async () => {
+  const [refWrite] = await checkFiles([{ path: "labeled.tsx", source: REF_DURING_RENDER }]);
+  const [tryStatement] = await checkFiles([
+    { path: "use-guarded.ts", source: HOOK_WITH_TRY_FINALLY },
+  ]);
+
+  assert.equal(refWrite.line, 5);
+  assert.equal(tryStatement.line, 5);
 });
 
 test("a hook with a try/finally the compiler cannot lower is reported", async () => {
