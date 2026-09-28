@@ -40,7 +40,6 @@ async function findProductById<TQueryResult extends PgQueryResultHKT>(
   return product;
 }
 
-// No passkey step-up: editing a product is routine work, not a sensitive account or role change.
 export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: ProductsRouteOptions<TQueryResult>,
