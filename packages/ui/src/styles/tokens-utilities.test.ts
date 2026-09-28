@@ -110,6 +110,13 @@ describe("foundation utilities", () => {
     expect(compile(candidate)).not.toBeNull();
   });
 
+  it.each([
+    ["w-trigger", "width: var(--trigger-width)"],
+    ["min-w-trigger", "min-width: var(--trigger-width)"],
+  ])("sizes %s from the popover trigger's width", (candidate, declaration) => {
+    expect(compile(candidate) ?? "").toContain(declaration);
+  });
+
   it("gives a text style its size, line height and weight together", () => {
     const rule = compile("text-body") ?? "";
 

@@ -31,7 +31,7 @@ const triggerClassName =
 // react-aria-components caps the popover's max-height to fit the viewport but leaves overflow
 // handling to the consumer; without overflow-y-auto a tall options list would paint past that cap.
 const popoverClassName =
-  "min-w-50 w-(--trigger-width) rounded-lg border border-border bg-surface p-1 " +
+  "min-w-50 w-trigger rounded-lg border border-border bg-surface p-1 " +
   "shadow-lg overflow-y-auto";
 
 const optionClassName =

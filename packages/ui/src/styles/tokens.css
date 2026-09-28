@@ -171,6 +171,15 @@
   grid-template-columns: minmax(4rem, max-content) minmax(0, 1fr);
 }
 
+/* react-aria sets --trigger-width on a popover to its trigger's width. */
+@utility w-trigger {
+  width: var(--trigger-width);
+}
+
+@utility min-w-trigger {
+  min-width: var(--trigger-width);
+}
+
 @utility badge-text-offset {
   margin-top: calc((var(--spacing) * 7 - var(--leading-lg) * 1em) / 2);
 }

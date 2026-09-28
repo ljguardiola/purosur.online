@@ -1,11 +1,12 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
-// Either `utility-[value]`, or a class that starts with `[`: an arbitrary variant (`[&>svg]:`) or
+// A value or modifier glued to a utility (`w-[1px]`, `w-(--x)`, `bg-ink/[0.5]`), a bracket glued to a
+// variant (`hover:[&>svg]:`), or a class that starts with `[`: an arbitrary variant (`[&>svg]:`) or
 // property (`[mask-type:luminance]`). The property form needs no space after its colon, which keeps
 // TypeScript index signatures such as `[key: string]` out.
 const ARBITRARY_VALUE =
-  /(?<=[a-z0-9])-\[[^\]\s]*\]|(?<![^\s"'`])\[(?:&|[a-z-]+:[^\s\]])[^\]\s]*\]/gi;
+  /(?<=[a-z0-9])[-/](?:\[[^\]\s]*\]|\(--[^)\s]*\))|(?<=[a-z0-9]:)\[[^\]\s]*\]|(?<![^\s"'`])\[(?:&|[a-z-]+:[^\s\]])[^\]\s]*\]/gi;
 
 const SCANNED_ROOTS = ["packages/ui/src/", "apps/backoffice/src/", "apps/pos/src/renderer/"];
 

@@ -35,6 +35,40 @@ test("finds an arbitrary property after a space inside a class string", () => {
   assert.deepEqual(matchedTexts('"flex [mask-type:luminance]"'), ["[mask-type:luminance]"]);
 });
 
+test("finds a CSS variable shorthand after a utility", () => {
+  assert.deepEqual(matchedTexts('cn("w-(--trigger-width)", "bg-(--x)")'), [
+    "-(--trigger-width)",
+    "-(--x)",
+  ]);
+});
+
+test("finds an arbitrary variant or property after a variant", () => {
+  assert.deepEqual(matchedTexts('"hover:[&>svg]:h-full data-selected:[mask-type:luminance]"'), [
+    "[&>svg]",
+    "[mask-type:luminance]",
+  ]);
+});
+
+test("finds an arbitrary modifier and a CSS variable modifier", () => {
+  assert.deepEqual(matchedTexts('"bg-surface/[0.5] text-ink/(--alpha)"'), [
+    "/[0.5]",
+    "/(--alpha)",
+  ]);
+});
+
+test("does not flag subtraction, division, indexing or ternaries", () => {
+  const source = [
+    "const a = total - (count);",
+    "const b = total / (count);",
+    "const c = items[i];",
+    "const d = { key: [1] };",
+    "const e = x ? [a] : [b];",
+    'const f = "(?:[0-9a-f]{2})?";',
+  ].join("\n");
+
+  assert.deepEqual(findArbitraryValues(source), []);
+});
+
 test("reports the line and column where the match starts", () => {
   const source = ["const a = 1;", 'const b = "flex text-[13px]";'].join("\n");
 

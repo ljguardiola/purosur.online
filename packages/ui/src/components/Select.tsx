@@ -77,7 +77,7 @@ const chevronClassName = "size-icon-md shrink-0 text-text-subtle";
 // react-aria-components caps the popover's max-height to the viewport but leaves overflow
 // handling to the consumer.
 const popoverClassName =
-  "min-w-(--trigger-width) w-(--trigger-width) rounded-lg border border-border " +
+  "min-w-trigger w-trigger rounded-lg border border-border " +
   "bg-surface p-1.5 shadow-lg overflow-y-auto";
 
 // react-aria-components portals this popover to the document body as its own, separately stacked
