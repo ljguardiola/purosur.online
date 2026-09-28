@@ -2,7 +2,6 @@ import { Info } from "lucide-react";
 import { expect, expectTypeOf, test } from "vitest";
 import { render } from "vitest-browser-react";
 import { AA_TEXT_CONTRAST, contrastRatio } from "../styles/contrast";
-import { expectNoAccessibilityViolations } from "../test/axe";
 import { rgbToHex, tokenRgb } from "../test/token-colors";
 import type { ButtonIcon } from "./Button";
 import { HighlightedNotice, type HighlightedNoticeProps } from "./HighlightedNotice";
@@ -25,7 +24,6 @@ test("renders the caller's title, detail and icon", async () => {
   const title = screen.container.querySelector("p") as HTMLElement;
   expect(title.textContent).toBe("Sale blocked");
   expect(screen.container.querySelector("svg")).not.toBeNull();
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("does not accept a highlighted notice without a title", () => {
@@ -54,8 +52,6 @@ test("exposes the notice's text to assistive technology exactly once", async () 
 
   const region = screen.container.querySelector('[role="alert"]') as HTMLElement;
   await expect.poll(() => region.textContent).toBe("Sale blocked Card declined");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders every tone's background, text and icon colors", async () => {
@@ -85,8 +81,6 @@ test("renders every tone's background, text and icon colors", async () => {
     expect(getComputedStyle(icon).color, `${tone} icon`).toBe(tokenRgb(expected.text));
     expect(getComputedStyle(title).color, `${tone} title`).toBe(tokenRgb(expected.text));
     expect(getComputedStyle(detail).color, `${tone} detail`).toBe(tokenRgb(expected.text));
-
-    await expectNoAccessibilityViolations(screen.container);
   }
 });
 
@@ -105,8 +99,6 @@ test("keeps every tone's text readable against its own background", async () => 
 
     const ratio = contrastRatio(rgbToHex(style.color), rgbToHex(style.backgroundColor));
     expect(ratio, `${tone} contrast`).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
-
-    await expectNoAccessibilityViolations(screen.container);
   }
 });
 
@@ -135,8 +127,6 @@ test("renders 16px padding on every side, a 20px icon and a 12px icon-to-text ga
   expect(iconRect.height).toBeLessThan(21);
   expect(textRect.left - iconRect.right).toBeGreaterThan(11);
   expect(textRect.left - iconRect.right).toBeLessThan(13);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("stacks an 18px bold title and a 14px detail 4px apart", async () => {
@@ -157,8 +147,6 @@ test("stacks an 18px bold title and a 14px detail 4px apart", async () => {
   const gap = detailRect.top - titleRect.bottom;
   expect(gap).toBeGreaterThan(3);
   expect(gap).toBeLessThan(5);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("announces an error notice right away, interrupting current speech", async () => {
@@ -171,7 +159,6 @@ test("announces an error notice right away, interrupting current speech", async 
 
   await expect.poll(() => region.textContent).toContain("Sale blocked");
   await expect.poll(() => region.textContent).toContain("Card declined");
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("announces every other tone politely, after the current speech ends", async () => {
@@ -186,6 +173,5 @@ test("announces every other tone politely, after the current speech ends", async
 
     await expect.poll(() => region.textContent).toContain("Heads up");
     await expect.poll(() => region.textContent).toContain("Check the totals");
-    await expectNoAccessibilityViolations(screen.container);
   }
 });

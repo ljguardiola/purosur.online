@@ -367,7 +367,7 @@ function BarcodeChips({
           <span className="truncate">Generar código interno</span>
         </button>
       </div>
-      {generateError && (
+      {generateError ? (
         <span
           id={generateErrorId}
           role="alert"
@@ -375,17 +375,17 @@ function BarcodeChips({
         >
           {generateError}
         </span>
-      )}
-      {scanError && (
+      ) : null}
+      {scanError ? (
         <span id={scanErrorId} className="text-sm font-normal text-status-error-ui">
           {scanError}
         </span>
-      )}
-      {error && (
+      ) : null}
+      {error ? (
         <span id={errorId} className="text-sm font-normal text-status-error-ui">
           {error}
         </span>
-      )}
+      ) : null}
     </FieldGroup>
   );
 }
@@ -459,8 +459,7 @@ function hasInternalBarcode(barcodes: string[]): boolean {
 
 function useBarcodeChips(initial: string[]) {
   const [barcodes, setBarcodes] = useState<string[]>(initial);
-  const barcodesRef = useRef(barcodes);
-  barcodesRef.current = barcodes;
+  const barcodesRef = useLatestRef(barcodes);
   const [scanInput, setScanInput] = useState("");
   const [scanError, setScanError] = useState<string | undefined>(undefined);
 
@@ -840,9 +839,9 @@ function NewProductModal({
           />
         ) : (
           <FieldGroup label="Categoría" required>
-            {errors.category && (
+            {errors.category ? (
               <span className="text-sm font-normal text-status-error-ui">{errors.category}</span>
-            )}
+            ) : null}
           </FieldGroup>
         )}
         <QuantityUnitField
@@ -950,8 +949,7 @@ function EditProductModal({
   const [errors, setErrors] = useState<ProductFieldErrors>({});
   const [notice, setNotice] = useState<EditNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const targetRef = useRef(target);
-  targetRef.current = target;
+  const targetRef = useLatestRef(target);
   const generate = useGenerateInternalBarcode(
     chips,
     generateInternalBarcode,
@@ -1183,7 +1181,7 @@ function EditProductModal({
         </>
       }
     >
-      {target && (
+      {target ? (
         <div className="flex flex-col gap-4">
           {notice?.kind === "attemptFailed" && (
             <InlineNotice
@@ -1251,9 +1249,9 @@ function EditProductModal({
             />
           ) : (
             <FieldGroup label="Categoría" required>
-              {errors.category && (
+              {errors.category ? (
                 <span className="text-sm font-normal text-status-error-ui">{errors.category}</span>
-              )}
+              ) : null}
             </FieldGroup>
           )}
           <QuantityUnitField
@@ -1312,7 +1310,7 @@ function EditProductModal({
             generateError={generate.generateError}
           />
         </div>
-      )}
+      ) : null}
     </Modal>
   );
 }
@@ -1344,8 +1342,7 @@ function DeactivateProductModal({
   const [title, setTitle] = useState("");
   const [notice, setNotice] = useState<DeactivateNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const targetRef = useRef(target);
-  targetRef.current = target;
+  const targetRef = useLatestRef(target);
 
   useEffect(() => {
     if (isOpen && target) {
@@ -1746,11 +1743,11 @@ function PrintLabelsModal({
             detail="Probá de nuevo."
           />
         )}
-        {offersReload && (
+        {offersReload ? (
           <Button variant="secondary" isDisabled={reloading} onPress={() => void handleReload()}>
             Recargar la lista
           </Button>
-        )}
+        ) : null}
         <p className="text-base text-ink">
           Productos con código interno. Elegí cuántas etiquetas va a llevar cada uno.
         </p>
@@ -1799,7 +1796,7 @@ function PrintLabelsModal({
                 );
               })}
             </div>
-            {previewRow && (
+            {previewRow ? (
               // <fieldset> carries the implicit "group" role a div would need role="group" for;
               // Tailwind's preflight strips its native border/padding/margin.
               <fieldset
@@ -1824,7 +1821,7 @@ function PrintLabelsModal({
                   </p>
                 </div>
               </fieldset>
-            )}
+            ) : null}
           </>
         )}
       </div>
@@ -1849,8 +1846,7 @@ export function ProductsListScreen({
     printLabels: printLabelsService,
   } = services ?? defaultProductsListScreenServices;
   const [list, setList] = useState<ListState>({ kind: "loading" });
-  const listRef = useRef(list);
-  listRef.current = list;
+  const listRef = useLatestRef(list);
   const [categories, setCategories] = useState<CategorySummary[]>([]);
   const [search, setSearch] = useState(filters.search);
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>(filters.category);
@@ -1864,8 +1860,7 @@ export function ProductsListScreen({
   const [printModalOpen, setPrintModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ProductSummary | null>(null);
   const [deactivateTarget, setDeactivateTarget] = useState<ProductSummary | null>(null);
-  const onSessionEndedRef = useRef(onSessionEnded);
-  onSessionEndedRef.current = onSessionEnded;
+  const onSessionEndedRef = useLatestRef(onSessionEnded);
   const onFiltersChangeRef = useLatestRef(onFiltersChange);
 
   useEffect(() => {
@@ -1922,7 +1917,13 @@ export function ProductsListScreen({
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchProductsService, fetchCategoriesService, statusFilter, sendToMyAccount]);
+  }, [
+    fetchProductsService,
+    fetchCategoriesService,
+    statusFilter,
+    sendToMyAccount,
+    onSessionEndedRef,
+  ]);
 
   useEffect(() => {
     void load();

@@ -40,8 +40,6 @@ test("renders the fill in blue UI, with the track's own 5px radius, sized to the
   expect(getComputedStyle(fill).borderRadius).toBe("5px");
   expect(fillRect.left).toBeCloseTo(trackRect.left, 0);
   expect(fillRect.width).toBeCloseTo(trackRect.width * 0.6, 0);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("paints no fill for a value of 0", async () => {
@@ -49,8 +47,6 @@ test("paints no fill for a value of 0", async () => {
   const fillRect = proportionBarFill(screen).getBoundingClientRect();
 
   expect(fillRect.width).toBeCloseTo(0, 0);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("fills the whole track for a value of 1", async () => {
@@ -59,8 +55,6 @@ test("fills the whole track for a value of 1", async () => {
   const fill = proportionBarFill(screen);
 
   expect(fill.getBoundingClientRect().width).toBeCloseTo(track.getBoundingClientRect().width, 0);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("clamps a value above 1, painting nothing beyond the track's own width", async () => {

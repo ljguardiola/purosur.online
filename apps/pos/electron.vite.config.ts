@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
+import reactCompiler from "babel-plugin-react-compiler";
 import { defineConfig } from "electron-vite";
 import type { Plugin } from "vite";
 import { buildContentSecurityPolicy } from "./src/main/content-security-policy";
@@ -67,7 +68,11 @@ export default defineConfig({
         "@purosur/ui": r("../../packages/ui/src/index.ts"),
       },
     },
-    plugins: [react(), tailwindcss(), contentSecurityPolicyMeta()],
+    plugins: [
+      react({ babel: { plugins: [reactCompiler] } }),
+      tailwindcss(),
+      contentSecurityPolicyMeta(),
+    ],
     build: {
       rollupOptions: {
         input: {

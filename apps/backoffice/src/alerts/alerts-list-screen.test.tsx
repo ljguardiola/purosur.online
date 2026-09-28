@@ -163,7 +163,7 @@ test("searches server-side by the typed text, sending the kinds whose title matc
       { open: true, page: 1, search: { text: "passkey", kinds: ["backoffice_passkey_changed"] } },
     ]);
   await expect.element(screen.getByText("Lucía Pérez")).toBeVisible();
-  expect(screen.getByText("203.0.113.5").query()).toBeNull();
+  await expect.element(screen.getByText("203.0.113.5")).not.toBeInTheDocument();
 });
 
 test("pages through the alerts, going back to the first page when a filter changes", async () => {

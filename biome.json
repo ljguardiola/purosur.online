@@ -25,7 +25,16 @@
         "noUnusedFunctionParameters": "error",
         "noUnusedImports": "error",
         "noUnusedVariables": "error"
+      },
+      "performance": {
+        "noJsxPropsBind": "off"
+      },
+      "style": {
+        "useComponentExportOnlyModules": "off"
       }
+    },
+    "domains": {
+      "react": "all"
     }
   },
   "javascript": {

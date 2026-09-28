@@ -32,8 +32,8 @@ export function InlineNotice({ tone, icon, title, detail }: InlineNoticeProps) {
       {/* Hidden from assistive technology so its text isn't announced twice: the live region
           below is its only accessible copy. */}
       <div aria-hidden="true" className="flex flex-col gap-1">
-        {title && <p className="text-base font-bold">{title}</p>}
-        {detail && <p className="text-sm leading-[1.35]">{detail}</p>}
+        {title ? <p className="text-base font-bold">{title}</p> : null}
+        {detail ? <p className="text-sm leading-[1.35]">{detail}</p> : null}
       </div>
       <NoticeLiveRegion
         assertiveness={tone === "error" ? "assertive" : "polite"}

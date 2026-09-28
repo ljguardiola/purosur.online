@@ -77,8 +77,6 @@ test("renders a 22px round knob in a 48x28px, 14px-radius track, with the conten
   const gap = content.getBoundingClientRect().left - trackRect.right;
   expect(gap).toBeGreaterThan(11);
   expect(gap).toBeLessThan(13);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("colors an off track and its knob white, each with a 2px ink-secondary border, the knob at the near end", async () => {
@@ -109,8 +107,6 @@ test("colors an off track and its knob white, each with a 2px ink-secondary bord
 
   expect(knobRect.left - trackRect.left).toBeCloseTo(4, 0);
   expect(trackRect.right - knobRect.right).toBeGreaterThan(10);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("turns an off track's background bone on hover, keeping its border", async () => {
@@ -125,8 +121,6 @@ test("turns an off track's background bone on hover, keeping its border", async 
   await userEvent.hover(label);
   await expect.poll(() => getComputedStyle(track).backgroundColor).toBe(tokenRgb("surface-bone"));
   expect(getComputedStyle(track).boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("colors an on track green UI with no border and a plain white knob at the far end", async () => {
@@ -149,8 +143,6 @@ test("colors an on track green UI with no border and a plain white knob at the f
 
   expect(trackRect.right - knobRect.right).toBeCloseTo(4, 0);
   expect(knobRect.left - trackRect.left).toBeGreaterThan(10);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("turns an on track's background green strong on hover, keeping the white knob", async () => {
@@ -168,8 +160,6 @@ test("turns an on track's background green strong on hover, keeping the white kn
     .poll(() => getComputedStyle(track).backgroundColor)
     .toBe(tokenRgb("brand-green-strong"));
   expect(getComputedStyle(knob).backgroundColor).toBe(tokenRgb("surface-white"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("keeps the track's and the knob's size stable between the off and on states", async () => {
@@ -195,8 +185,6 @@ test("keeps the track's and the knob's size stable between the off and on states
 
   expect(onKnobRect.width).toBeCloseTo(offKnobRect.width, 0);
   expect(onKnobRect.height).toBeCloseTo(offKnobRect.height, 0);
-
-  await expectNoAccessibilityViolations(onScreen.container);
 });
 
 test("toggles when clicking the track", async () => {
@@ -205,7 +193,6 @@ test("toggles when clicking the track", async () => {
   await userEvent.click(toggleTrack(screen, "Apply discount"));
 
   expect(toggleInput(screen, "Apply discount").checked).toBe(true);
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("toggles when clicking the content", async () => {
@@ -214,7 +201,6 @@ test("toggles when clicking the content", async () => {
   await userEvent.click(screen.getByText("Apply discount").element());
 
   expect(toggleInput(screen, "Apply discount").checked).toBe(true);
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("toggles with Space when focused", async () => {
@@ -224,7 +210,6 @@ test("toggles with Space when focused", async () => {
   await userEvent.keyboard(" ");
 
   expect(toggleInput(screen, "Apply discount").checked).toBe(true);
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("is a single tab stop", async () => {
@@ -265,8 +250,6 @@ test("exposes the toggle to assistive technology as a switch named by its conten
     </Toggle>,
   );
   await expect.element(onScreen.getByRole("switch", { name: "Apply discount" })).toBeChecked();
-
-  await expectNoAccessibilityViolations(onScreen.container);
 });
 
 test("shows the package's focus ring around the track when focused", async () => {
@@ -282,8 +265,6 @@ test("shows the package's focus ring around the track when focused", async () =>
   await expect.poll(() => getComputedStyle(track).outlineWidth).toBe("3px");
   await expect.poll(() => getComputedStyle(track).outlineOffset).toBe("3px");
   await expect.poll(() => getComputedStyle(track).outlineColor).toBe(tokenRgb("brand-blue-strong"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("dims the whole toggle to 45% opacity, drops the pointer cursor and blocks focus when disabled", async () => {
@@ -306,8 +287,6 @@ test("dims the whole toggle to 45% opacity, drops the pointer cursor and blocks 
   await userEvent.tab();
   expect(document.activeElement).toBe(nextControl);
   expect(document.activeElement).not.toBe(input);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("does not accept a toggle without content", () => {

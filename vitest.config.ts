@@ -1,6 +1,9 @@
+import { createRequire } from "node:module";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
+import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
-import react from "@vitejs/plugin-react";
+import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
 import { configDefaults, defineConfig } from "vitest/config";
 import {
@@ -8,9 +11,28 @@ import {
   SlowTestsReporter,
 } from "./.github/scripts/slow-tests-reporter.mjs";
 
+const CATALOG_VISUAL_WS_ENDPOINT_ENV = "CATALOG_VISUAL_BROWSER_WS_ENDPOINT";
+
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
 process.env["TZ"] = "UTC";
+
+function compiledReactProject() {
+  return {
+    plugins: [react(), babel({ presets: [reactCompilerPreset()] }), tailwindcss()],
+    resolve: {
+      // `optimizeDeps.include` entries resolve from the workspace root, which has no react of
+      // its own; this alias gives Vite a resolvable path so the compiler's import gets
+      // pre-bundled instead of served with broken CommonJS interop.
+      alias: {
+        "react/compiler-runtime": createRequire(r("./apps/backoffice/package.json")).resolve(
+          "react/compiler-runtime",
+        ),
+      },
+    },
+    optimizeDeps: { include: ["react/compiler-runtime"] },
+  };
+}
 
 export default defineConfig({
   resolve: {
@@ -31,6 +53,7 @@ export default defineConfig({
         "railway-iac": 1000,
         "cloud-integration": 5000,
         browser: 2000,
+        "catalog-visual": 4000,
       }),
     ],
     projects: [
@@ -61,7 +84,7 @@ export default defineConfig({
         },
       },
       {
-        plugins: [react(), tailwindcss()],
+        ...compiledReactProject(),
         test: {
           name: "browser",
           include: ["packages/*/src/**/*.test.tsx", "apps/*/src/**/*.test.tsx"],
@@ -73,6 +96,60 @@ export default defineConfig({
             // Vitest would otherwise name this project "browser (chromium)", which matches no
             // SlowTestsReporter threshold.
             instances: [{ browser: "chromium", name: "browser" }],
+          },
+        },
+      },
+      {
+        ...compiledReactProject(),
+        test: {
+          name: "catalog-visual",
+          include: ["packages/ui/src/**/*.visual.tsx"],
+          setupFiles: [
+            r("./packages/ui/src/test/setup-browser.ts"),
+            r("./packages/ui/src/test-support/setup-catalog-visual.ts"),
+          ],
+          globalSetup: [r("./packages/ui/vitest.global-setup.catalog-visual.ts")],
+          browser: {
+            enabled: true,
+            headless: true,
+            provider: playwright({
+              connectOptions: {
+                // A getter, not a plain value: Vite reads this config once before globalSetup
+                // runs, but the provider only calls it once it actually opens the browser.
+                get wsEndpoint() {
+                  return process.env[CATALOG_VISUAL_WS_ENDPOINT_ENV] ?? "";
+                },
+                exposeNetwork: "<loopback>",
+              },
+              contextOptions: {
+                reducedMotion: "reduce",
+                deviceScaleFactor: 1,
+              },
+            }),
+            viewport: { width: 1280, height: 800 },
+            instances: [{ browser: "chromium", name: "catalog-visual" }],
+            expect: {
+              toMatchScreenshot: {
+                // The rendering environment is this project's container regardless of the host
+                // OS, so a platform suffix in the reference file's name would only ever be noise.
+                resolveScreenshotPath: ({
+                  root,
+                  testFileDirectory,
+                  screenshotDirectory,
+                  testFileName,
+                  arg,
+                  browserName,
+                  ext,
+                }) =>
+                  path.resolve(
+                    root,
+                    testFileDirectory,
+                    screenshotDirectory,
+                    testFileName,
+                    `${arg}-${browserName}${ext}`,
+                  ),
+              },
+            },
           },
         },
       },

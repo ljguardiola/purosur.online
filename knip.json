@@ -32,6 +32,11 @@
     "apps/*": {
       "includeEntryExports": true
     },
+    "packages/ui": {
+      "vitest": {
+        "entry": ["src/**/*.test.{ts,tsx}", "src/**/*.visual.tsx"]
+      }
+    },
     "packages/*": {}
   }
 }

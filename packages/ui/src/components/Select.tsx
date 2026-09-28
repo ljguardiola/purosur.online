@@ -184,12 +184,12 @@ export function Select<V extends string>(props: SelectProps<V>) {
                   {({ isSelected }) => (
                     <>
                       <span className="truncate">{option.label}</span>
-                      {isSelected && (
+                      {isSelected ? (
                         <Check
                           aria-hidden="true"
                           className="size-[1.125rem] shrink-0 text-brand-blue-strong"
                         />
-                      )}
+                      ) : null}
                     </>
                   )}
                 </AriaListBoxItem>
