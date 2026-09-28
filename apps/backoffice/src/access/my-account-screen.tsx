@@ -227,7 +227,7 @@ function RegisterPasskeyModal({
             }}
             description="Por ejemplo, Teléfono de Lucía."
             required
-            {...(nameError ? { invalid: true, errorMessage: nameError } : {})}
+            errorMessage={nameError}
           />
         </div>
       </Modal>

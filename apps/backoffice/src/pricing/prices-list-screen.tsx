@@ -531,7 +531,7 @@ function PriceChangeModal({
                   description: `Precio actual: ${formatCentsWithUnit(current.currentPrice.unitPrice, current.saleUnit)}`,
                 }
               : {})}
-            {...(amountError ? { invalid: true, errorMessage: amountError } : {})}
+            errorMessage={amountError}
           />
         </div>
       ) : null}

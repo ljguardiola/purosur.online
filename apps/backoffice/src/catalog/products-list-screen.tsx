@@ -798,7 +798,7 @@ function NewProductModal({
             }
           }}
           required
-          {...(errors.name ? { invalid: true, errorMessage: errors.name } : {})}
+          errorMessage={errors.name}
         />
         {categoryOptions ? (
           <Select
@@ -811,7 +811,7 @@ function NewProductModal({
               setErrors((current) => withFieldError(current, "category", undefined));
             }}
             required
-            {...(errors.category ? { invalid: true, errorMessage: errors.category } : {})}
+            errorMessage={errors.category}
           />
         ) : (
           <FieldGroup label="Categoría" required>
@@ -835,7 +835,7 @@ function NewProductModal({
           onUnitChange={setNetContentUnit}
           options={NET_CONTENT_UNIT_OPTIONS}
           unitLabel="Unidad"
-          {...(errors.netContent ? { invalid: true, errorMessage: errors.netContent } : {})}
+          errorMessage={errors.netContent}
         />
         <FieldGroup label="Unidad de venta" required>
           <OptionCardGroup
@@ -860,7 +860,7 @@ function NewProductModal({
               setErrors((current) => withFieldError(current, "unit", undefined));
             }}
             required
-            {...(errors.unit ? { invalid: true, errorMessage: errors.unit } : {})}
+            errorMessage={errors.unit}
           />
         </FieldGroup>
         <BarcodeChips
@@ -1209,7 +1209,7 @@ function EditProductModal({
               }
             }}
             required
-            {...(errors.name ? { invalid: true, errorMessage: errors.name } : {})}
+            errorMessage={errors.name}
           />
           {categoryOptions ? (
             <Select
@@ -1221,7 +1221,7 @@ function EditProductModal({
                 setErrors((current) => withFieldError(current, "category", undefined));
               }}
               required
-              {...(errors.category ? { invalid: true, errorMessage: errors.category } : {})}
+              errorMessage={errors.category}
             />
           ) : (
             <FieldGroup label="Categoría" required>
@@ -1245,7 +1245,7 @@ function EditProductModal({
             onUnitChange={setNetContentUnit}
             options={NET_CONTENT_UNIT_OPTIONS}
             unitLabel="Unidad"
-            {...(errors.netContent ? { invalid: true, errorMessage: errors.netContent } : {})}
+            errorMessage={errors.netContent}
           />
           <FieldGroup label="Unidad de venta" required>
             <OptionCardGroup

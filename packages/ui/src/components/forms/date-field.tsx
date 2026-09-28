@@ -22,6 +22,7 @@ import {
 } from "react-aria-components";
 import type { Locale } from "../../messages/formatters";
 import { iconSlotClassName } from "../shared/icon";
+import { type FieldErrorProps, fieldError } from "./field-error";
 import {
   backofficeFieldBoxClassName,
   backofficeFieldValueClassName,
@@ -50,16 +51,12 @@ type DateFieldCommonProps = {
   required?: boolean;
 };
 
-type DateFieldValidityProps =
-  | { invalid: true; errorMessage: string }
-  | { invalid?: false; errorMessage?: undefined };
-
 type DateFieldRangeProps =
   | { minValue?: undefined; maxValue?: undefined; rangeMessage?: undefined }
   | { minValue: CalendarDate; maxValue?: CalendarDate; rangeMessage: string }
   | { minValue?: CalendarDate; maxValue: CalendarDate; rangeMessage: string };
 
-export type DateFieldProps = DateFieldCommonProps & DateFieldValidityProps & DateFieldRangeProps;
+export type DateFieldProps = DateFieldCommonProps & FieldErrorProps & DateFieldRangeProps;
 
 const LOCALE: Locale = "es-AR";
 
@@ -124,7 +121,7 @@ function CalendarToggleButton() {
 export function DateField(props: DateFieldProps) {
   const { label, value, onChange, description, disabled = false, required = false } = props;
   const size = useFieldSize();
-  const errorMessage = props.invalid ? props.errorMessage : undefined;
+  const { errorMessage, errorMessageId } = fieldError(props);
   // react-aria-components' Dialog defaults to the field's own label for its aria-labelledby;
   // this overrides it to the calendar heading instead.
   const calendarHeadingId = useId();
@@ -137,7 +134,7 @@ export function DateField(props: DateFieldProps) {
     ((minValue !== null && value.compare(minValue) < 0) ||
       (maxValue !== null && value.compare(maxValue) > 0));
   const shownError = errorMessage ?? (outOfRange ? rangeMessage : undefined);
-  const invalid = shownError !== undefined;
+  const invalid = shownError !== undefined || errorMessageId !== undefined;
   const labelClassName = fieldLabelClassName[size];
   const frameClassName =
     size === "backoffice" ? backofficeFieldBoxClassName : registerFrameClassName;
@@ -152,6 +149,7 @@ export function DateField(props: DateFieldProps) {
         isDisabled={disabled}
         isInvalid={invalid}
         isRequired={required}
+        {...(errorMessageId !== undefined ? { "aria-describedby": errorMessageId } : {})}
         minValue={minValue}
         maxValue={maxValue}
         className={`${fieldWrapperClassName} ${fieldWrapperGapClassName[size]}`}
@@ -190,6 +188,7 @@ export function DateField(props: DateFieldProps) {
             {shownError}
           </AriaText>
         ) : (
+          !invalid &&
           description !== undefined && (
             <AriaText
               slot="description"

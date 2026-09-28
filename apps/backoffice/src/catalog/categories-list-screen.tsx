@@ -251,7 +251,7 @@ function NewCategoryModal({
             }
           }}
           required
-          {...(nameError ? { invalid: true, errorMessage: nameError } : {})}
+          errorMessage={nameError}
         />
         <Select
           label="Categoría superior"
@@ -261,9 +261,8 @@ function NewCategoryModal({
             setParentValue(value);
             setParentError(undefined);
           }}
-          {...(parentError
-            ? { invalid: true, errorMessage: parentError }
-            : { description: CATEGORY_PARENT_HELPER_TEXT })}
+          description={CATEGORY_PARENT_HELPER_TEXT}
+          errorMessage={parentError}
         />
       </div>
     </Modal>
@@ -552,7 +551,7 @@ function EditCategoryModal({
               }
             }}
             required
-            {...(nameError ? { invalid: true, errorMessage: nameError } : {})}
+            errorMessage={nameError}
           />
           <Select
             label="Categoría superior"
@@ -562,9 +561,8 @@ function EditCategoryModal({
               setParentValue(value);
               setParentError(undefined);
             }}
-            {...(parentError
-              ? { invalid: true, errorMessage: parentError }
-              : { description: CATEGORY_PARENT_HELPER_TEXT })}
+            description={CATEGORY_PARENT_HELPER_TEXT}
+            errorMessage={parentError}
           />
         </div>
       ) : null}

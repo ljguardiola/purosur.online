@@ -107,7 +107,6 @@ export const Invalid: Story = {
     label: "Motivo",
     value: "",
     onChange: () => {},
-    invalid: true,
     errorMessage: "Ingresá un motivo.",
   },
 };

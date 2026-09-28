@@ -10,6 +10,7 @@ import {
   Text as AriaText,
   type Key,
 } from "react-aria-components";
+import { type FieldErrorProps, fieldError } from "./field-error";
 import {
   backofficeFieldBoxClassName,
   backofficeFieldValueClassName,
@@ -37,14 +38,10 @@ type SelectCommonProps = {
   required?: boolean;
 };
 
-type SelectValidityProps =
-  | { invalid: true; errorMessage: string }
-  | { invalid?: false; errorMessage?: undefined };
-
 // `value` may be `null` for "nothing chosen yet"; `onChange` never reports null back, since a
 // chosen option is always one of V.
 export type SelectProps<V extends string> = SelectCommonProps &
-  SelectValidityProps & {
+  FieldErrorProps & {
     options: readonly [SelectOption<V>, ...SelectOption<V>[]];
     value: NoInfer<V> | null;
     onChange: (value: NoInfer<V>) => void;
@@ -112,8 +109,7 @@ export function Select<V extends string>(props: SelectProps<V>) {
     disabled = false,
     required = false,
   } = props;
-  const invalid = props.invalid ?? false;
-  const errorMessage = props.invalid ? props.errorMessage : undefined;
+  const { invalid, errorMessage, errorMessageId } = fieldError(props);
 
   // Left out entirely rather than set to `undefined`: AriaSelect's `placeholder` prop type doesn't
   // accept `undefined` under `exactOptionalPropertyTypes`.
@@ -128,6 +124,7 @@ export function Select<V extends string>(props: SelectProps<V>) {
         }
       }}
       {...placeholderProps}
+      {...(errorMessageId !== undefined ? { "aria-describedby": errorMessageId } : {})}
       isDisabled={disabled}
       isRequired={required}
       isInvalid={invalid}
@@ -159,7 +156,7 @@ export function Select<V extends string>(props: SelectProps<V>) {
               <ChevronDown aria-hidden="true" className={chevronClassName} />
             )}
           </AriaButton>
-          {invalid ? (
+          {errorMessage !== undefined ? (
             <AriaText
               slot="errorMessage"
               className={fieldErrorClassName}
@@ -168,6 +165,7 @@ export function Select<V extends string>(props: SelectProps<V>) {
               {errorMessage}
             </AriaText>
           ) : (
+            !invalid &&
             description !== undefined && (
               <AriaText
                 slot="description"

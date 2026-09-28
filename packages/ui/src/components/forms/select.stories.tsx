@@ -84,7 +84,7 @@ export const Required: Story = {
 };
 
 export const Invalid: Story = {
-  args: { value: "shift-lead", invalid: true, errorMessage: "Elegí un rol." },
+  args: { value: "shift-lead", errorMessage: "Elegí un rol." },
 };
 
 export const Disabled: Story = {

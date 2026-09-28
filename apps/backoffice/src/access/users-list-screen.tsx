@@ -295,9 +295,7 @@ function NewUserModal({
               }
             }}
             required
-            {...(fieldErrors.firstName
-              ? { invalid: true, errorMessage: fieldErrors.firstName }
-              : {})}
+            errorMessage={fieldErrors.firstName}
           />
           {options ? (
             <Select
@@ -309,7 +307,7 @@ function NewUserModal({
                 setFieldErrors((current) => withFieldError(current, "roleId", undefined));
               }}
               required
-              {...(fieldErrors.roleId ? { invalid: true, errorMessage: fieldErrors.roleId } : {})}
+              errorMessage={fieldErrors.roleId}
             />
           ) : null}
           <TextField
@@ -328,14 +326,12 @@ function NewUserModal({
               }
             }}
             required
-            {...(fieldErrors.email
-              ? { invalid: true, errorMessage: fieldErrors.email }
-              : deactivatedConflict
-                ? {
-                    invalid: true,
-                    errorMessage: `Ese correo pertenece a la cuenta desactivada de ${deactivatedConflict.name}.`,
-                  }
-                : {})}
+            errorMessage={
+              fieldErrors.email ||
+              (deactivatedConflict
+                ? `Ese correo pertenece a la cuenta desactivada de ${deactivatedConflict.name}.`
+                : undefined)
+            }
           />
           {deactivatedConflict ? (
             <Button

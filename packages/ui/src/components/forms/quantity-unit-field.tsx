@@ -12,6 +12,7 @@ import {
   TextField as AriaTextField,
   type Key,
 } from "react-aria-components";
+import { type FieldErrorProps, fieldError } from "./field-error";
 import {
   backofficeFieldBoxClassName,
   backofficeFieldValueClassName,
@@ -46,13 +47,8 @@ type QuantityUnitFieldCommonProps<U extends string> = {
   disabled?: boolean;
 };
 
-type QuantityUnitFieldValidityProps =
-  | { invalid: true; errorMessage: string; errorMessageId?: undefined }
-  | { invalid: true; errorMessageId: string; errorMessage?: undefined }
-  | { invalid?: false; errorMessage?: undefined; errorMessageId?: undefined };
-
 export type QuantityUnitFieldProps<U extends string> = QuantityUnitFieldCommonProps<U> &
-  QuantityUnitFieldValidityProps;
+  FieldErrorProps;
 
 const wrapperClassName = `${fieldWrapperClassName} ${fieldWrapperGapClassName.backoffice}`;
 
@@ -103,9 +99,7 @@ export function QuantityUnitField<U extends string>(props: QuantityUnitFieldProp
     description,
     disabled = false,
   } = props;
-  const invalid = props.invalid ?? false;
-  const errorMessage = props.invalid ? props.errorMessage : undefined;
-  const explicitMessageId = props.invalid ? props.errorMessageId : undefined;
+  const { invalid, errorMessage, errorMessageId: explicitMessageId } = fieldError(props);
 
   const [unitOpen, setUnitOpen] = useState(false);
 

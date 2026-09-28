@@ -87,5 +87,5 @@ export const Required: Story = {
 };
 
 export const Invalid: Story = {
-  args: { value: null, invalid: true, errorMessage: "Elegí una opción." },
+  args: { value: null, errorMessage: "Elegí una opción." },
 };

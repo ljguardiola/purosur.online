@@ -95,7 +95,7 @@ export function AccountRecoveryScreen({ services }: AccountRecoveryScreenProps) 
             }
           }}
           required
-          {...(fieldError ? { invalid: true, errorMessage: fieldError } : {})}
+          errorMessage={fieldError}
         />
         <Button
           type="submit"

@@ -89,7 +89,7 @@ export const UnitOptionFocusVisible: Story = {
 };
 
 export const Invalid: Story = {
-  args: { quantity: "", invalid: true, errorMessage: "Ingresá una cantidad válida." },
+  args: { quantity: "", errorMessage: "Ingresá una cantidad válida." },
 };
 
 export const Disabled: Story = {

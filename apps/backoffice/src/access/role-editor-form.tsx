@@ -298,7 +298,7 @@ export function RoleEditorForm({
           value={name}
           onChange={onNameChange}
           required
-          {...(nameError ? { invalid: true, errorMessage: nameError } : {})}
+          errorMessage={nameError}
         />
       </div>
       <div className="flex min-h-0 flex-1">

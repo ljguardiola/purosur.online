@@ -192,7 +192,7 @@ export const Required: Story = {
 };
 
 export const Invalid: Story = {
-  args: { value: null, invalid: true, errorMessage: "Elegí una fecha." },
+  args: { value: null, errorMessage: "Elegí una fecha." },
 };
 
 export const OutOfRange: Story = {

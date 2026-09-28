@@ -23,9 +23,9 @@ const unitOptions: [QuantityUnitFieldOption<Unit>, ...QuantityUnitFieldOption<Un
 type Screen = Awaited<ReturnType<typeof render>>;
 
 // A plain (never-invalid) shape rather than `Partial<QuantityUnitFieldProps<Unit>>`: Partial
-// flattens the validity union's three variants into one where `errorMessageId` types as
+// flattens the error union's two variants into one where `errorMessageId` types as
 // `string | undefined` regardless of variant, which fails `exactOptionalPropertyTypes` wherever a
-// test spreads this and adds its own `invalid`/`errorMessage` JSX attributes on top.
+// test spreads this and adds its own `errorMessage`/`errorMessageId` JSX attributes on top.
 type BaseFieldProps = {
   label: string;
   quantity: string;
@@ -228,7 +228,6 @@ test("shows the error message instead of helper text, describing both the quanti
   const screen = await render(
     <QuantityUnitField
       {...baseProps({ description: "Should not be visible." })}
-      invalid
       errorMessage="Ingresá una cantidad válida."
     />,
   );
@@ -257,7 +256,7 @@ function FieldWithSharedErrorMessage() {
   const errorId = useId();
   return (
     <>
-      <QuantityUnitField {...baseProps()} invalid errorMessageId={errorId} />
+      <QuantityUnitField {...baseProps()} errorMessageId={errorId} />
       <p id={errorId}>Compartido por otro campo.</p>
     </>
   );
@@ -308,7 +307,7 @@ test("keeps the action-color border while the unit menu is open, even though DOM
 
 test("switches the box border to the error tone while invalid, then to focused once the quantity input is focused", async () => {
   const screen = await render(
-    <QuantityUnitField {...baseProps()} invalid errorMessage="Ingresá una cantidad válida." />,
+    <QuantityUnitField {...baseProps()} errorMessage="Ingresá una cantidad válida." />,
   );
   const box = fieldBox(screen);
 
@@ -390,20 +389,11 @@ test("does not accept an empty options list", () => {
   }>().not.toExtend<QuantityUnitFieldProps<Unit>>();
 });
 
-test("does not accept an invalid field without an error message of its own or a shared one", () => {
-  expectTypeOf<{
-    label: string;
-    quantity: string;
-    onQuantityChange: (value: string) => void;
-    unit: Unit;
-    onUnitChange: (value: Unit) => void;
-    options: typeof unitOptions;
-    unitLabel: string;
-    invalid: true;
-  }>().not.toExtend<QuantityUnitFieldProps<Unit>>();
+test("has no invalid prop, since an error message or a shared error message id makes the field invalid", () => {
+  expectTypeOf<QuantityUnitFieldProps<Unit>>().not.toHaveProperty("invalid");
 });
 
-test("does not accept an invalid field with both its own message and a shared one", () => {
+test("does not accept both its own message and a shared one", () => {
   expectTypeOf<{
     label: string;
     quantity: string;
@@ -412,13 +402,12 @@ test("does not accept an invalid field with both its own message and a shared on
     onUnitChange: (value: Unit) => void;
     options: typeof unitOptions;
     unitLabel: string;
-    invalid: true;
     errorMessage: string;
     errorMessageId: string;
   }>().not.toExtend<QuantityUnitFieldProps<Unit>>();
 });
 
-test("accepts an invalid field whose message is shared through errorMessageId", () => {
+test("accepts an error message, a shared error message id, or neither", () => {
   expectTypeOf<{
     label: string;
     quantity: string;
@@ -427,7 +416,16 @@ test("accepts an invalid field whose message is shared through errorMessageId", 
     onUnitChange: (value: Unit) => void;
     options: typeof unitOptions;
     unitLabel: string;
-    invalid: true;
+    errorMessage: string | undefined;
+  }>().toExtend<QuantityUnitFieldProps<Unit>>();
+  expectTypeOf<{
+    label: string;
+    quantity: string;
+    onQuantityChange: (value: string) => void;
+    unit: Unit;
+    onUnitChange: (value: Unit) => void;
+    options: typeof unitOptions;
+    unitLabel: string;
     errorMessageId: string;
   }>().toExtend<QuantityUnitFieldProps<Unit>>();
 });

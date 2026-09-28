@@ -303,8 +303,6 @@ function EditIssuerIdentificationModal({
   }
 
   const offersReload = notice?.kind === "staleVersion" || notice?.kind === "reloadFailed";
-  const activityStartDateValidity: { invalid: true; errorMessage: string } | { invalid?: false } =
-    errors.activityStartDate ? { invalid: true, errorMessage: errors.activityStartDate } : {};
 
   return (
     <>
@@ -397,7 +395,7 @@ function EditIssuerIdentificationModal({
                 clearFieldError("legalName");
               }}
               required
-              {...(errors.legalName ? { invalid: true, errorMessage: errors.legalName } : {})}
+              errorMessage={errors.legalName}
             />
             <div className="flex gap-3">
               <div className="flex-1">
@@ -410,9 +408,7 @@ function EditIssuerIdentificationModal({
                     clearFieldError("grossIncomeRegistration");
                   }}
                   required
-                  {...(errors.grossIncomeRegistration
-                    ? { invalid: true, errorMessage: errors.grossIncomeRegistration }
-                    : {})}
+                  errorMessage={errors.grossIncomeRegistration}
                 />
               </div>
               <div className="flex-1">
@@ -426,7 +422,7 @@ function EditIssuerIdentificationModal({
                   required
                   maxValue={today}
                   rangeMessage={ACTIVITY_START_DATE_FUTURE_ERROR}
-                  {...activityStartDateValidity}
+                  errorMessage={errors.activityStartDate}
                 />
               </div>
             </div>

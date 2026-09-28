@@ -1,5 +1,5 @@
 import { CalendarDate } from "@internationalized/date";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { beforeEach, expect, expectTypeOf, test } from "vitest";
 import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -1133,7 +1133,6 @@ for (const variant of ["register", "backoffice"] as const) {
         value={null}
         onChange={() => {}}
         description="Should not be visible."
-        invalid
         errorMessage="Choose a start date."
       />
     );
@@ -1160,6 +1159,47 @@ for (const variant of ["register", "backoffice"] as const) {
   });
 }
 
+function DateFieldWithSharedErrorMessage() {
+  const errorId = useId();
+  return (
+    <>
+      <DateField
+        label="Start"
+        value={null}
+        onChange={() => {}}
+        description="Should not be visible."
+        errorMessageId={errorId}
+      />
+      <p id={errorId}>Shared by another field.</p>
+    </>
+  );
+}
+
+test("exposes the field as invalid, described by a shared message rendered outside it through errorMessageId", async () => {
+  const screen = await render(<DateFieldWithSharedErrorMessage />);
+  const group = fieldGroup(screen, "Start");
+
+  expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("error", "2px")]);
+  expect(screen.getByText("Should not be visible.").query()).toBeNull();
+  for (const segment of segmentsOf(group)) {
+    expect(segment.getAttribute("aria-invalid")).toBe("true");
+    expect(describedTextOf(segment)).toContain("Shared by another field.");
+  }
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("exposes a field without an error message as valid, described by nothing", async () => {
+  const screen = await render(<DateField label="Start" value={null} onChange={() => {}} />);
+  const group = fieldGroup(screen, "Start");
+
+  expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("border", "2px")]);
+  for (const segment of segmentsOf(group)) {
+    expect(segment.getAttribute("aria-invalid")).not.toBe("true");
+    expect(describedTextOf(segment)).toBe("");
+  }
+});
+
 test("shows the caller's message instead of the range message when both apply", async () => {
   const screen = await render(
     <DateField
@@ -1168,7 +1208,6 @@ test("shows the caller's message instead of the range message when both apply", 
       onChange={() => {}}
       maxValue={RANGE_MAX}
       rangeMessage={RANGE_MESSAGE}
-      invalid
       errorMessage="The date cannot be in the future."
     />,
   );
@@ -1193,20 +1232,33 @@ test("marks a required field with an asterisk and exposes it as required", async
   }
 });
 
-test("does not accept an invalid field without the message it shows", () => {
+test("has no invalid prop, since an error message or a shared error message id makes the field invalid", () => {
+  expectTypeOf<DateFieldProps>().not.toHaveProperty("invalid");
+});
+
+test("does not accept both its own message and a shared one", () => {
   expectTypeOf<{
     label: string;
     value: CalendarDate | null;
     onChange: (value: CalendarDate | null) => void;
-    invalid: true;
-  }>().not.toExtend<DateFieldProps>();
-  expectTypeOf<{
-    label: string;
-    value: CalendarDate | null;
-    onChange: (value: CalendarDate | null) => void;
-    invalid: true;
     errorMessage: string;
+    errorMessageId: string;
+  }>().not.toExtend<DateFieldProps>();
+});
+
+test("accepts an error message, a shared error message id, or neither", () => {
+  expectTypeOf<{
+    label: string;
+    value: CalendarDate | null;
+    onChange: (value: CalendarDate | null) => void;
+    errorMessage: string | undefined;
     required: true;
+  }>().toExtend<DateFieldProps>();
+  expectTypeOf<{
+    label: string;
+    value: CalendarDate | null;
+    onChange: (value: CalendarDate | null) => void;
+    errorMessageId: string;
   }>().toExtend<DateFieldProps>();
 });
 

@@ -1,11 +1,12 @@
 import { Banknote, CreditCard, Wallet } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { insetBoundary, tokenRgb } from "../../test/token-colors";
 import type { Icon } from "../shared/icon";
+import type { FieldErrorProps } from "./field-error";
 import type { OptionCardOption } from "./option-card-group";
 import { OptionCardGroup, type OptionCardGroupProps } from "./option-card-group";
 
@@ -36,9 +37,9 @@ const options: [
   },
 ];
 
-function baseProps(
-  overrides: Partial<OptionCardGroupProps<MovementValue>> = {},
-): OptionCardGroupProps<MovementValue> {
+type BaseGroupProps = Omit<OptionCardGroupProps<MovementValue>, keyof FieldErrorProps>;
+
+function baseProps(overrides: Partial<BaseGroupProps> = {}): BaseGroupProps {
   return {
     label: "Movement type",
     options,
@@ -443,12 +444,51 @@ test("choosing a card when nothing is chosen yet calls onChange with that card's
 
 test("shows the error message and marks the group invalid when nothing is chosen", async () => {
   const screen = await render(
-    <OptionCardGroup {...baseProps({ value: null })} invalid errorMessage="Elegí una opción." />,
+    <OptionCardGroup {...baseProps({ value: null })} errorMessage="Elegí una opción." />,
   );
 
   await expect.element(screen.getByText("Elegí una opción.")).toBeVisible();
   const group = screen.getByRole("radiogroup", { name: "Movement type" }).element() as HTMLElement;
   expect(group.getAttribute("aria-invalid")).toBe("true");
+});
+
+function OptionCardGroupWithSharedErrorMessage() {
+  const errorId = useId();
+  return (
+    <>
+      <OptionCardGroup {...baseProps({ value: null })} errorMessageId={errorId} />
+      <p id={errorId}>Compartido por otro campo.</p>
+    </>
+  );
+}
+
+test("marks the group invalid, described by a shared message rendered outside it through errorMessageId", async () => {
+  const screen = await render(<OptionCardGroupWithSharedErrorMessage />);
+  const group = screen.getByRole("radiogroup", { name: "Movement type" }).element() as HTMLElement;
+  const sharedMessage = screen.getByText("Compartido por otro campo.").element();
+
+  expect(group.getAttribute("aria-invalid")).toBe("true");
+  expect(group.getAttribute("aria-describedby")).toBe(sharedMessage.id);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("describes the group by its own error message", async () => {
+  const screen = await render(
+    <OptionCardGroup {...baseProps({ value: null })} errorMessage="Elegí una opción." />,
+  );
+  const group = screen.getByRole("radiogroup", { name: "Movement type" }).element() as HTMLElement;
+  const message = screen.getByText("Elegí una opción.").element();
+
+  expect(group.getAttribute("aria-describedby")).toBe(message.id);
+});
+
+test("exposes a group without an error message as valid, described by nothing", async () => {
+  const screen = await render(<OptionCardGroup {...baseProps({ value: null })} />);
+  const group = screen.getByRole("radiogroup", { name: "Movement type" }).element() as HTMLElement;
+
+  expect(group.getAttribute("aria-invalid")).not.toBe("true");
+  expect(group.getAttribute("aria-describedby")).toBeNull();
 });
 
 test("does not show an error message when not invalid", async () => {
@@ -482,14 +522,36 @@ test("accepts a null value for no selection yet", () => {
   }>().toExtend<OptionCardGroupProps<MovementValue>>();
 });
 
-test("does not accept an invalid group without an error message", () => {
+test("has no invalid prop, since an error message or a shared error message id makes the group invalid", () => {
+  expectTypeOf<OptionCardGroupProps<MovementValue>>().not.toHaveProperty("invalid");
+});
+
+test("does not accept both its own message and a shared one", () => {
   expectTypeOf<{
     label: string;
     options: typeof options;
     value: MovementValue;
     onChange: (value: MovementValue) => void;
-    invalid: true;
+    errorMessage: string;
+    errorMessageId: string;
   }>().not.toExtend<OptionCardGroupProps<MovementValue>>();
+});
+
+test("accepts an error message, a shared error message id, or neither", () => {
+  expectTypeOf<{
+    label: string;
+    options: typeof options;
+    value: MovementValue;
+    onChange: (value: MovementValue) => void;
+    errorMessage: string | undefined;
+  }>().toExtend<OptionCardGroupProps<MovementValue>>();
+  expectTypeOf<{
+    label: string;
+    options: typeof options;
+    value: MovementValue;
+    onChange: (value: MovementValue) => void;
+    errorMessageId: string;
+  }>().toExtend<OptionCardGroupProps<MovementValue>>();
 });
 
 test("does not name its secondary text helpText", () => {

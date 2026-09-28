@@ -5,6 +5,7 @@ import {
   Text as AriaText,
 } from "react-aria-components";
 import type { Icon } from "../shared/icon";
+import { type FieldErrorProps, fieldError } from "./field-error";
 
 export type OptionCardOption<V extends string = string> = {
   value: V;
@@ -13,11 +14,7 @@ export type OptionCardOption<V extends string = string> = {
   description: string;
 };
 
-type OptionCardGroupValidityProps =
-  | { invalid: true; errorMessage: string }
-  | { invalid?: false; errorMessage?: undefined };
-
-export type OptionCardGroupProps<V extends string> = OptionCardGroupValidityProps & {
+export type OptionCardGroupProps<V extends string> = FieldErrorProps & {
   label: string;
   options: readonly [OptionCardOption<V>, ...OptionCardOption<V>[]];
   value: NoInfer<V> | null;
@@ -72,8 +69,7 @@ function OptionCard<V extends string>({ value, icon, title, description }: Optio
 
 export function OptionCardGroup<V extends string>(props: OptionCardGroupProps<V>) {
   const { label, options, value, onChange, required = false } = props;
-  const invalid = props.invalid ?? false;
-  const errorMessage = props.invalid ? props.errorMessage : undefined;
+  const { invalid, errorMessage, errorMessageId } = fieldError(props);
 
   return (
     <AriaRadioGroup
@@ -85,6 +81,7 @@ export function OptionCardGroup<V extends string>(props: OptionCardGroupProps<V>
       onChange={(nextValue) => onChange(nextValue as V)}
       isRequired={required}
       isInvalid={invalid}
+      {...(errorMessageId !== undefined ? { "aria-describedby": errorMessageId } : {})}
       validationBehavior="aria"
       className="flex flex-col gap-1.5"
     >
@@ -93,7 +90,7 @@ export function OptionCardGroup<V extends string>(props: OptionCardGroupProps<V>
           <OptionCard key={option.value} {...option} />
         ))}
       </div>
-      {invalid ? (
+      {errorMessage !== undefined ? (
         <AriaText slot="errorMessage" className={errorClassName}>
           {errorMessage}
         </AriaText>

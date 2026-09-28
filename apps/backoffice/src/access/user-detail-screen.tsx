@@ -384,7 +384,7 @@ function EditUserModal({
               }
             }}
             required
-            {...(emailError ? { invalid: true, errorMessage: emailError } : {})}
+            errorMessage={emailError}
           />
         </div>
       </Modal>

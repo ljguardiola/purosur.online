@@ -318,7 +318,7 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps) 
         }}
         description="Por ejemplo, Notebook del local."
         required
-        {...(nameError ? { invalid: true, errorMessage: nameError } : {})}
+        errorMessage={nameError}
       />
       <Button
         variant="primary"

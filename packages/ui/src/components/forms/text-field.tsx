@@ -6,6 +6,7 @@ import {
   Text as AriaText,
   TextField as AriaTextField,
 } from "react-aria-components";
+import { type FieldErrorProps, fieldError } from "./field-error";
 import {
   backofficeFieldBoxClassName,
   backofficeFieldValueClassName,
@@ -51,19 +52,12 @@ type TextFieldCommonProps = {
   labelVisuallyHidden?: boolean;
 };
 
-// `errorMessageId` names a message already rendered elsewhere and shared by several fields: this
-// one turns invalid and is described by it, without rendering the message under itself too.
-type TextFieldValidityProps =
-  | { invalid: true; errorMessage: string; errorMessageId?: undefined }
-  | { invalid: true; errorMessageId: string; errorMessage?: undefined }
-  | { invalid?: false; errorMessage?: undefined; errorMessageId?: undefined };
-
 type TextFieldKindProps =
   | { kind: "amount" | "counted-cash" | "price"; prefix: TextFieldAffix; suffix?: undefined }
   | { kind: "weight" | "quantity"; suffix: TextFieldAffix; prefix?: undefined }
   | { kind: "plain-text"; prefix?: undefined; suffix?: TextFieldAffix };
 
-export type TextFieldProps = TextFieldCommonProps & TextFieldValidityProps & TextFieldKindProps;
+export type TextFieldProps = TextFieldCommonProps & FieldErrorProps & TextFieldKindProps;
 
 const frameClassName: Record<Exclude<TextFieldValueKind, "plain-text">, string> = {
   amount: "h-control-6xl gap-2 px-4",
@@ -103,9 +97,7 @@ export function TextField(props: TextFieldProps) {
     labelVisuallyHidden = false,
     kind,
   } = props;
-  const invalid = props.invalid ?? false;
-  const errorMessage = props.invalid ? props.errorMessage : undefined;
-  const errorMessageId = props.invalid ? props.errorMessageId : undefined;
+  const { invalid, errorMessage, errorMessageId } = fieldError(props);
   const prefix =
     kind === "amount" || kind === "counted-cash" || kind === "price" ? props.prefix : undefined;
   const suffix =

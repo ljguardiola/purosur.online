@@ -476,7 +476,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           label={label}
           value={values[field]}
           onChange={(value) => setTextValue(field, value)}
-          {...(error ? { invalid: true, errorMessage: error } : {})}
+          errorMessage={error}
         />
       </div>
     );
@@ -492,7 +492,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           value={values[field]}
           onChange={(value) => setDaysValue(field, value)}
           suffix="días"
-          {...(error ? { invalid: true, errorMessage: error } : {})}
+          errorMessage={error}
         />
       </div>
     );
@@ -513,7 +513,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           labelVisuallyHidden
           value={values[day].ranges[index]?.[part] ?? ""}
           onChange={(value) => setRangeValue(day, index, part, value)}
-          {...(errorId !== undefined ? { invalid: true, errorMessageId: errorId } : {})}
+          {...(errorId !== undefined ? { errorMessageId: errorId } : {})}
         />
       </div>
     );

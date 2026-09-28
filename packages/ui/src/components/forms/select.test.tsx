@@ -1,8 +1,10 @@
+import { useId } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { tokenRgb } from "../../test/token-colors";
+import type { FieldErrorProps } from "./field-error";
 import { Select, type SelectOption, type SelectProps } from "./select";
 
 type Role = "administrator" | "shift-lead" | "cashier";
@@ -13,7 +15,9 @@ const options: [SelectOption<Role>, SelectOption<Role>, SelectOption<Role>] = [
   { value: "cashier", label: "Atención de caja" },
 ];
 
-function baseProps(overrides: Partial<SelectProps<Role>> = {}): SelectProps<Role> {
+type BaseSelectProps = Omit<SelectProps<Role>, keyof FieldErrorProps>;
+
+function baseProps(overrides: Partial<BaseSelectProps> = {}): BaseSelectProps {
   return {
     label: "Rol",
     options,
@@ -132,7 +136,6 @@ test("shows the error message instead of the helper text and announces the selec
   const screen = await render(
     <Select
       {...baseProps({ description: "Should not be visible." })}
-      invalid
       errorMessage="Elegí un rol."
     />,
   );
@@ -235,15 +238,45 @@ test("keeps the focused border while its menu is open", async () => {
   expect(borderOf(trigger)).toEqual({ width: "2px", color: tokenRgb("action") });
 });
 
+test("announces a select without an error message as valid", async () => {
+  const screen = await render(<Select {...baseProps()} />);
+  const trigger = screen.getByRole("button", { name: /Rol/ }).element() as HTMLElement;
+
+  expect(trigger.getAttribute("aria-describedby")).toBeNull();
+  expect(borderOf(trigger)).toEqual({ width: "2px", color: tokenRgb("border") });
+});
+
+function SelectWithSharedErrorMessage() {
+  const errorId = useId();
+  return (
+    <>
+      <Select {...baseProps({ description: "Should not be visible." })} errorMessageId={errorId} />
+      <p id={errorId}>Compartido por otro campo.</p>
+    </>
+  );
+}
+
+test("exposes the select as invalid, described by a shared message rendered outside it through errorMessageId", async () => {
+  const screen = await render(<SelectWithSharedErrorMessage />);
+  const trigger = screen.getByRole("button", { name: /Rol/ }).element() as HTMLElement;
+
+  const sharedMessage = screen.getByText("Compartido por otro campo.").element();
+  expect(trigger.getAttribute("aria-describedby")).toBe(sharedMessage.id);
+  expect(screen.getByText("Should not be visible.").query()).toBeNull();
+  expect(borderOf(trigger)).toEqual({ width: "2px", color: tokenRgb("error") });
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("switches the border to the error tone while invalid", async () => {
-  const screen = await render(<Select {...baseProps()} invalid errorMessage="Elegí un rol." />);
+  const screen = await render(<Select {...baseProps()} errorMessage="Elegí un rol." />);
   const trigger = screen.getByRole("button", { name: /Rol/ }).element() as HTMLElement;
 
   expect(borderOf(trigger)).toEqual({ width: "2px", color: tokenRgb("error") });
 });
 
 test("turns an invalid trigger bone on hover, keeping its error border", async () => {
-  const screen = await render(<Select {...baseProps()} invalid errorMessage="Elegí un rol." />);
+  const screen = await render(<Select {...baseProps()} errorMessage="Elegí un rol." />);
   const trigger = screen.getByRole("button", { name: /Rol/ }).element() as HTMLElement;
 
   await userEvent.hover(trigger);
@@ -255,7 +288,7 @@ test("turns an invalid trigger bone on hover, keeping its error border", async (
 });
 
 test("shows the focused border instead of the error one while an invalid select's menu is open", async () => {
-  const screen = await render(<Select {...baseProps()} invalid errorMessage="Elegí un rol." />);
+  const screen = await render(<Select {...baseProps()} errorMessage="Elegí un rol." />);
   const trigger = screen.getByRole("button", { name: /Rol/ }).element() as HTMLElement;
 
   await userEvent.click(trigger);
@@ -265,7 +298,7 @@ test("shows the focused border instead of the error one while an invalid select'
 });
 
 test("shows the focused border instead of the error one once an invalid select is focused", async () => {
-  const screen = await render(<Select {...baseProps()} invalid errorMessage="Elegí un rol." />);
+  const screen = await render(<Select {...baseProps()} errorMessage="Elegí un rol." />);
   const trigger = screen.getByRole("button", { name: /Rol/ }).element() as HTMLElement;
 
   await userEvent.tab();
@@ -329,14 +362,36 @@ test("does not accept an empty options list", () => {
   }>().not.toExtend<SelectProps<Role>>();
 });
 
-test("does not accept an invalid select without an error message", () => {
+test("has no invalid prop, since an error message or a shared error message id makes the select invalid", () => {
+  expectTypeOf<SelectProps<Role>>().not.toHaveProperty("invalid");
+});
+
+test("does not accept both its own message and a shared one", () => {
   expectTypeOf<{
     label: string;
     options: typeof options;
     value: Role;
     onChange: (value: Role) => void;
-    invalid: true;
+    errorMessage: string;
+    errorMessageId: string;
   }>().not.toExtend<SelectProps<Role>>();
+});
+
+test("accepts an error message, a shared error message id, or neither", () => {
+  expectTypeOf<{
+    label: string;
+    options: typeof options;
+    value: Role;
+    onChange: (value: Role) => void;
+    errorMessage: string | undefined;
+  }>().toExtend<SelectProps<Role>>();
+  expectTypeOf<{
+    label: string;
+    options: typeof options;
+    value: Role;
+    onChange: (value: Role) => void;
+    errorMessageId: string;
+  }>().toExtend<SelectProps<Role>>();
 });
 
 test("accepts a null value for no selection yet", () => {
@@ -375,7 +430,6 @@ test("shows the error message and closes-with-choice still works when the value 
   const screen = await render(
     <Select
       {...baseProps({ value: null, placeholder: "Elegí un rol", onChange })}
-      invalid
       errorMessage="Elegí un rol."
     />,
   );

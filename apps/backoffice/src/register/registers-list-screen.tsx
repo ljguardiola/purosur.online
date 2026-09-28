@@ -225,7 +225,7 @@ function NewRegisterModal({
               }
             }}
             required
-            {...(nameError ? { invalid: true, errorMessage: nameError } : {})}
+            errorMessage={nameError}
           />
         </div>
       </Modal>

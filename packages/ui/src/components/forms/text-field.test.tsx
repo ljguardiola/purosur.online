@@ -282,7 +282,6 @@ test("shows the focused border instead of the invalid one once an invalid field 
       label="Reason"
       value=""
       onChange={() => {}}
-      invalid
       errorMessage="Enter a reason."
     />,
   );
@@ -302,7 +301,6 @@ test("turns the invalid box bone on hover, keeping its error border", async () =
       label="Reason"
       value=""
       onChange={() => {}}
-      invalid
       errorMessage="Enter a reason."
     />,
   );
@@ -407,7 +405,6 @@ test("lets disabled win the box treatment over invalid, while still announcing i
       value=""
       onChange={() => {}}
       disabled
-      invalid
       errorMessage="Enter a reason."
     />,
   );
@@ -456,7 +453,6 @@ test("lets read-only win the box treatment over invalid, while still announcing 
       value="Partial close"
       onChange={() => {}}
       readOnly
-      invalid
       errorMessage="Enter a reason."
     />,
   );
@@ -514,7 +510,6 @@ test("describes an invalid money field with both its unit and its message", asyn
       value=""
       onChange={() => {}}
       prefix="$"
-      invalid
       errorMessage="Enter an amount."
     />,
   );
@@ -606,7 +601,6 @@ function FieldWithSharedErrorMessage() {
         value=""
         onChange={() => {}}
         description="Should not be visible."
-        invalid
         errorMessageId={errorId}
       />
       <p id={errorId}>Enter the time as 9:00.</p>
@@ -638,7 +632,6 @@ function FieldWithSuffixAndSharedErrorMessage() {
         value=""
         onChange={() => {}}
         suffix="días"
-        invalid
         errorMessageId={errorId}
       />
       <p id={errorId}>Enter a number.</p>
@@ -662,7 +655,6 @@ test("replaces the helper line with the field's message and exposes it as invali
       value=""
       onChange={() => {}}
       description="Should not be visible."
-      invalid
       errorMessage="Enter a reason."
     />,
   );
@@ -764,7 +756,6 @@ test("follows the field's description as it moves from helper text to an error a
             value=""
             onChange={() => {}}
             description="Optional."
-            invalid
             errorMessage="Enter a reason."
           />
         ) : (
@@ -924,45 +915,34 @@ test("accepts each kind with exactly the affix it calls for", () => {
   }>().toExtend<TextFieldProps>();
 });
 
-test("does not accept an invalid field without an error message", () => {
-  expectTypeOf<{
-    kind: "plain-text";
-    label: string;
-    value: string;
-    onChange: (value: string) => void;
-    invalid: true;
-  }>().not.toExtend<TextFieldProps>();
+test("has no invalid prop, since an error message or a shared error message id makes the field invalid", () => {
+  expectTypeOf<TextFieldProps>().not.toHaveProperty("invalid");
 });
 
-test("does not accept an invalid field with both its own message and a shared one", () => {
+test("does not accept both its own message and a shared one", () => {
   expectTypeOf<{
     kind: "plain-text";
     label: string;
     value: string;
     onChange: (value: string) => void;
-    invalid: true;
     errorMessage: string;
     errorMessageId: string;
   }>().not.toExtend<TextFieldProps>();
 });
 
-test("does not accept a shared error message id on a field that isn't invalid", () => {
+test("accepts an error message, a shared error message id, or neither", () => {
   expectTypeOf<{
     kind: "plain-text";
     label: string;
     value: string;
     onChange: (value: string) => void;
-    errorMessageId: string;
-  }>().not.toExtend<TextFieldProps>();
-});
-
-test("accepts an invalid field whose message is shared through errorMessageId", () => {
+    errorMessage: string | undefined;
+  }>().toExtend<TextFieldProps>();
   expectTypeOf<{
     kind: "plain-text";
     label: string;
     value: string;
     onChange: (value: string) => void;
-    invalid: true;
     errorMessageId: string;
   }>().toExtend<TextFieldProps>();
 });
