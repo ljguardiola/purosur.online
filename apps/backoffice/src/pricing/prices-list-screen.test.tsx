@@ -1404,6 +1404,38 @@ test.each([
   },
 );
 
+test("the review age counts against the time the list was last loaded", async () => {
+  const services = createServices();
+  let current = new Date(2026, 8, 25, 12, 0);
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: {
+      products: [{ ...rice, lastReviewedAt: new Date(2026, 8, 25, 9, 0).toISOString() }],
+      pendingCount: 1,
+      reviewWindowDays: 30,
+      categories: [],
+    },
+  });
+  vi.mocked(services.confirmPrice).mockResolvedValue({
+    kind: "ok",
+    value: { lastReviewedAt: new Date(2026, 8, 25, 9, 0).toISOString() },
+  });
+  const screen = await renderScreen(
+    services,
+    () => {},
+    () => current,
+  );
+  await expect.element(screen.getByText("Hoy", { exact: true })).toBeVisible();
+
+  current = new Date(2026, 8, 26, 12, 0);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Confirmar el precio de Arroz sin cambios" }),
+  );
+
+  await expect.poll(() => vi.mocked(services.fetchPrices).mock.calls.length).toBe(2);
+  await expect.element(screen.getByText("Hace 1 día", { exact: true })).toBeVisible();
+});
+
 test("a save rejected for the price it expected is treated as a changed price and offers the reload", async () => {
   const services = createServices();
   vi.mocked(services.setPrice).mockResolvedValue({

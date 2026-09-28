@@ -372,6 +372,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
   } = services ?? defaultRegistersListScreenServices;
   const clock = now ?? (() => new Date());
   const [list, setList] = useState<ListState>({ kind: "loading" });
+  const [currentTime, setCurrentTime] = useState(() => clock());
   const [newModalOpen, setNewModalOpen] = useState(false);
   const [emission, setEmission] = useState<EmissionState>({ kind: "closed" });
   const { run: runEmission, modal: emissionAuthModal } =
@@ -399,6 +400,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
       return;
     }
     if (outcome.kind === "ok") {
+      setCurrentTime(clockRef.current());
       setList({ kind: "loaded", registers: outcome.value });
     } else if (outcome.kind === "unauthenticated") {
       onSessionEndedRef.current();
@@ -409,13 +411,12 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchRegisters, onSessionEndedRef, sendToMyAccount]);
+  }, [fetchRegisters, onSessionEndedRef, clockRef, sendToMyAccount]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const [currentTime, setCurrentTime] = useState(() => clock());
   useEffect(() => {
     const intervalId = window.setInterval(
       () => setCurrentTime(clockRef.current()),

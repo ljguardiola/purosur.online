@@ -4,6 +4,7 @@ import { startAuthentication, startRegistration } from "@simplewebauthn/browser"
 import { KeyRound, Laptop, Plus, ShieldX, Trash2, TriangleAlert, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
+import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { useAuthorization } from "./authorization-modal";
 import {
@@ -69,7 +70,7 @@ type ListState =
   | { kind: "loading" }
   | { kind: "loadError" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "loaded"; passkeys: Passkey[] };
+  | { kind: "loaded"; passkeys: Passkey[]; loadedAt: Date };
 
 type RegisterPasskeyModalProps = {
   isOpen: boolean;
@@ -416,6 +417,7 @@ export function MyAccountScreen({
   } = services ?? defaultMyAccountScreenServices;
   const clock = now ?? (() => new Date());
   const [list, setList] = useState<ListState>({ kind: "loading" });
+  const clockRef = useLatestRef(clock);
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<Passkey | null>(null);
 
@@ -423,7 +425,7 @@ export function MyAccountScreen({
     setList({ kind: "loading" });
     const outcome = await fetchPasskeys();
     if (outcome.kind === "ok") {
-      setList({ kind: "loaded", passkeys: outcome.value });
+      setList({ kind: "loaded", passkeys: outcome.value, loadedAt: clockRef.current() });
     } else if (outcome.kind === "unauthenticated") {
       onSessionEnded();
     } else if (outcome.kind === "rate_limited") {
@@ -431,7 +433,7 @@ export function MyAccountScreen({
     } else {
       setList({ kind: "loadError" });
     }
-  }, [onSessionEnded, fetchPasskeys]);
+  }, [onSessionEnded, fetchPasskeys, clockRef]);
 
   useEffect(() => {
     void load();
@@ -440,7 +442,7 @@ export function MyAccountScreen({
   async function refreshList() {
     const outcome = await fetchPasskeys();
     if (outcome.kind === "ok") {
-      setList({ kind: "loaded", passkeys: outcome.value });
+      setList({ kind: "loaded", passkeys: outcome.value, loadedAt: clockRef.current() });
     } else if (outcome.kind === "unauthenticated") {
       onSessionEnded();
     } else if (outcome.kind === "rate_limited") {
@@ -525,7 +527,7 @@ export function MyAccountScreen({
                     <div className="flex flex-1 flex-col gap-1">
                       <p className="font-semibold text-base text-ink">{passkey.name}</p>
                       <p className="text-ink-secondary text-sm">
-                        {passkeyRowDetail(passkey, clock())}
+                        {passkeyRowDetail(passkey, list.loadedAt)}
                       </p>
                     </div>
                     <IconButton

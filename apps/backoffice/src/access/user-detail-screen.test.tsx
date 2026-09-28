@@ -1532,6 +1532,41 @@ test("reactivates directly, without the authorization modal, showing the user as
     .toBeVisible();
 });
 
+test("dates each passkey's last use against the time the passkeys were last loaded", async () => {
+  const services = createServices();
+  let current = new Date("2026-09-23T12:00:00.000Z");
+  vi.mocked(services.fetchUser).mockResolvedValueOnce({ kind: "ok", value: sofia });
+  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
+  vi.mocked(services.reactivateUser).mockResolvedValue({ kind: "ok" });
+  const screen = await render(
+    <main>
+      <UserDetailScreen
+        userId="user-5"
+        signedInUserId="admin-1"
+        access={ADMINISTRATOR_ACCESS}
+        now={() => current}
+        services={services}
+        onSessionEnded={() => {}}
+      />
+    </main>,
+  );
+  await expect
+    .element(screen.getByText("Registrada el 02/08/2026 · último uso hoy 09:12"))
+    .toBeVisible();
+
+  current = new Date("2026-09-24T12:00:00.000Z");
+  vi.mocked(services.fetchUser).mockResolvedValueOnce({
+    kind: "ok",
+    value: { ...sofia, active: true },
+  });
+  const dialog = await openReactivateModal(screen);
+  await userEvent.click(dialog.getByRole("button", { name: "Reactivar" }));
+
+  await expect
+    .element(screen.getByText("Registrada el 02/08/2026 · último uso el 23/09/2026 09:12"))
+    .toBeVisible();
+});
+
 test("opens the authorization modal for the reactivation action on authorization_required", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: sofia });

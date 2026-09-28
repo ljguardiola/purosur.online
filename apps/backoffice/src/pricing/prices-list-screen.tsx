@@ -187,6 +187,8 @@ function PriceChangeModal({
   const sendToMyAccount = useSendToMyAccount();
   const isOpen = target !== null;
   const [current, setCurrent] = useState<PriceProduct | null>(null);
+  const [shownAt, setShownAt] = useState<Date | null>(null);
+  const nowRef = useLatestRef(now);
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [amountError, setAmountError] = useState<string | undefined>(undefined);
@@ -213,6 +215,7 @@ function PriceChangeModal({
   useEffect(() => {
     if (target) {
       setCurrent(target);
+      setShownAt(nowRef.current());
       setTitle(target.name);
       setAmount("");
       setAmountError(undefined);
@@ -220,7 +223,7 @@ function PriceChangeModal({
       setPreviousNotice(previousProductNotice);
       setSubmitting(false);
     }
-  }, [target, previousProductNotice]);
+  }, [target, previousProductNotice, nowRef]);
 
   function validatedAmount(product: PriceProduct): number | undefined {
     if (!amount.trim()) {
@@ -376,6 +379,7 @@ function PriceChangeModal({
         return;
       }
       setCurrent(fresh);
+      setShownAt(now());
       setNotice(null);
       return;
     }
@@ -411,7 +415,7 @@ function PriceChangeModal({
       width="standard"
       tone="info"
       icon={<Pencil />}
-      context={current ? modalEyebrow(current, now()) : ""}
+      context={current && shownAt ? modalEyebrow(current, shownAt) : ""}
       title={title}
       closable={!submitting}
       footer={
@@ -561,6 +565,7 @@ export function PricesListScreen({
   const clock = now ?? (() => new Date());
 
   const [list, setList] = useState<ListState>({ kind: "loading" });
+  const [loadedAt, setLoadedAt] = useState(() => clock());
   const [categories, setCategories] = useState<PriceCategory[]>([]);
   const [search, setSearch] = useState(filters.search);
   const [debouncedSearch, setDebouncedSearch] = useState(filters.search.trim());
@@ -577,6 +582,7 @@ export function PricesListScreen({
 
   const onSessionEndedRef = useLatestRef(onSessionEnded);
   const onFiltersChangeRef = useLatestRef(onFiltersChange);
+  const clockRef = useLatestRef(clock);
 
   useEffect(() => {
     const shown: PricesListFilters = { search, category: categoryFilter, review: reviewFilter };
@@ -632,6 +638,7 @@ export function PricesListScreen({
       return;
     }
     if (outcome.kind === "ok") {
+      setLoadedAt(clockRef.current());
       setList({
         kind: "loaded",
         products: outcome.value.products,
@@ -658,6 +665,7 @@ export function PricesListScreen({
     debouncedSearch,
     sendToMyAccount,
     onSessionEndedRef,
+    clockRef,
   ]);
 
   useEffect(() => {
@@ -900,7 +908,7 @@ export function PricesListScreen({
     {
       key: "reviewed",
       title: "REVISADO",
-      render: (item: PriceProduct) => reviewedCellText(item.lastReviewedAt, clock()),
+      render: (item: PriceProduct) => reviewedCellText(item.lastReviewedAt, loadedAt),
     },
     {
       key: "actions",

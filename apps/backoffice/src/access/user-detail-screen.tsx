@@ -98,7 +98,7 @@ type PasskeysState =
   | { kind: "loading" }
   | { kind: "loadError" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "loaded"; passkeys: UserPasskey[] };
+  | { kind: "loaded"; passkeys: UserPasskey[]; loadedAt: Date };
 
 const EMAIL_REQUIRED = "Ingresá el correo.";
 const EMAIL_INVALID = "Ingresá un correo válido.";
@@ -881,12 +881,13 @@ export function UserDetailScreen({
   const [reactivateModalOpen, setReactivateModalOpen] = useState(false);
   const onSessionEndedRef = useLatestRef(onSessionEnded);
   const endSession = useCallback(() => onSessionEndedRef.current(), [onSessionEndedRef]);
+  const clockRef = useLatestRef(clock);
 
   const loadPasskeys = useCallback(async () => {
     setPasskeysState({ kind: "loading" });
     const outcome = await fetchUserPasskeys(userId);
     if (outcome.kind === "ok") {
-      setPasskeysState({ kind: "loaded", passkeys: outcome.value });
+      setPasskeysState({ kind: "loaded", passkeys: outcome.value, loadedAt: clockRef.current() });
     } else if (outcome.kind === "unauthenticated") {
       endSession();
     } else if (outcome.kind === "forbidden") {
@@ -896,7 +897,7 @@ export function UserDetailScreen({
     } else {
       setPasskeysState({ kind: "loadError" });
     }
-  }, [userId, endSession, fetchUserPasskeys, sendToMyAccount]);
+  }, [userId, endSession, fetchUserPasskeys, sendToMyAccount, clockRef]);
 
   const showsPasskeys = access.isAdministrator;
   const needsRoles = access.isAdministrator;
@@ -1083,7 +1084,7 @@ export function UserDetailScreen({
                       <div className="flex flex-1 flex-col gap-1">
                         <p className="font-semibold text-base text-ink">{passkey.name}</p>
                         <p className="text-ink-secondary text-sm">
-                          {passkeyRowDetail(passkey, clock())}
+                          {passkeyRowDetail(passkey, passkeysState.loadedAt)}
                         </p>
                       </div>
                       {access.isAdministrator && !isOwnAccount && !isInactive && (
@@ -1145,7 +1146,7 @@ export function UserDetailScreen({
             setRemoveTarget(null);
             setPasskeysState((current) =>
               current.kind === "loaded"
-                ? { kind: "loaded", passkeys: current.passkeys.filter((p) => p.id !== passkeyId) }
+                ? { ...current, passkeys: current.passkeys.filter((p) => p.id !== passkeyId) }
                 : current,
             );
           }}

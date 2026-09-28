@@ -216,6 +216,8 @@ function EditIssuerIdentificationModal({
   const [errors, setErrors] = useState<FieldErrors>({});
   const [notice, setNotice] = useState<ModalNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [today, setToday] = useState(() => todayCalendarDate(now()));
+  const nowRef = useLatestRef(now);
   const { run, modal } = useAuthorization<SaveIssuerIdentificationOutcome>({
     actionName: "Guardar la identificación del emisor",
     onSessionEnded,
@@ -225,12 +227,13 @@ function EditIssuerIdentificationModal({
   useEffect(() => {
     if (isOpen && target) {
       setValues(valuesFrom(target));
+      setToday(todayCalendarDate(nowRef.current()));
       setVersion(target.version);
       setErrors({});
       setNotice(null);
       setSubmitting(false);
     }
-  }, [isOpen, target]);
+  }, [isOpen, target, nowRef]);
 
   function clearFieldError(field: FieldErrorKey) {
     if (!errors[field]) {
@@ -441,7 +444,7 @@ function EditIssuerIdentificationModal({
                     clearFieldError("activityStartDate");
                   }}
                   required
-                  maxValue={todayCalendarDate(now())}
+                  maxValue={today}
                   rangeMessage={ACTIVITY_START_DATE_FUTURE_ERROR}
                   {...activityStartDateValidity}
                 />
