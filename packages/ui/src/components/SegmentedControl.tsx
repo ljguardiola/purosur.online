@@ -22,8 +22,8 @@ const containerClassName =
   "inline-flex flex-row items-stretch gap-1 rounded-lg border border-border p-1";
 
 const containerSizeClassName: Record<SegmentedControlSize, string> = {
-  large: "h-14",
-  medium: "h-12",
+  large: "h-control-4xl",
+  medium: "h-control-2xl",
 };
 
 const sizeClassName: Record<SegmentedControlSize, string> = {
@@ -33,20 +33,19 @@ const sizeClassName: Record<SegmentedControlSize, string> = {
 
 const iconWrapperClassName: Record<SegmentedControlSize, string> = {
   large:
-    "inline-flex size-[1.125rem] shrink-0 text-text-subtle [&>svg]:h-full [&>svg]:w-full " +
-    "group-data-[selected]:text-text-accent",
+    "inline-flex size-icon-md shrink-0 text-text-subtle *:size-full " +
+    "group-data-selected:text-text-accent",
   medium:
-    "inline-flex size-4 shrink-0 text-text-subtle [&>svg]:h-full [&>svg]:w-full " +
-    "group-data-[selected]:text-text-accent",
+    "inline-flex size-icon-sm shrink-0 text-text-subtle *:size-full " +
+    "group-data-selected:text-text-accent",
 };
 
 const optionClassName =
   "group flex cursor-pointer items-center justify-center rounded-md px-4 outline-none " +
-  "data-[hovered]:bg-surface-subtle " +
-  "data-[selected]:bg-action-subtle " +
-  "data-[hovered]:data-[selected]:bg-action-subtle " +
-  "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
-  "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-focus";
+  "data-hovered:bg-surface-subtle " +
+  "data-selected:bg-action-subtle " +
+  "data-hovered:data-selected:bg-action-subtle " +
+  "data-focus-visible:focus-ring";
 
 // The label going regular -> bold on choosing an option would otherwise widen that option (and so
 // the whole control), since bold text measures wider than regular text at the same size. A hidden
@@ -59,11 +58,11 @@ function ReservedWidthLabel({ label }: { label: string }) {
     <span className="relative grid">
       <span
         aria-hidden="true"
-        className="invisible col-start-1 row-start-1 whitespace-nowrap text-base font-bold"
+        className="invisible col-start-1 row-start-1 whitespace-nowrap text-body font-bold"
       >
         {label}
       </span>
-      <span className="col-start-1 row-start-1 whitespace-nowrap text-base font-normal text-text group-data-[selected]:font-bold group-data-[selected]:text-text-accent">
+      <span className="col-start-1 row-start-1 whitespace-nowrap text-body font-normal text-text group-data-selected:font-bold group-data-selected:text-text-accent">
         {label}
       </span>
     </span>

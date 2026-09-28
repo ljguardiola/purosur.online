@@ -680,7 +680,7 @@ export function CategoriesListScreen({
         topBar={
           <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
             <div className="flex flex-col justify-center">
-              <p className="text-text-subtle text-sm">Catálogo</p>
+              <p className="text-text-subtle text-detail">Catálogo</p>
               <ScreenTitle>Categorías</ScreenTitle>
             </div>
             <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
@@ -718,7 +718,7 @@ export function CategoriesListScreen({
         )}
         {(list.kind === "loading" || list.kind === "loaded") && (
           <>
-            <div className="w-[26.25rem]">
+            <div className="w-105">
               <SearchField
                 variant="backoffice"
                 value={search}
@@ -750,7 +750,7 @@ export function CategoriesListScreen({
                     }
               }
               footer={
-                <p className="text-text-subtle text-sm">
+                <p className="text-text-subtle text-detail">
                   {plural(filtered.length, {
                     one: "1 categoría",
                     other: `${filtered.length} categorías`,

@@ -57,62 +57,59 @@ type TextFieldKindProps =
 
 export type TextFieldProps = TextFieldCommonProps & TextFieldValidityProps & TextFieldKindProps;
 
-const wrapperBaseClassName = "flex flex-col data-[disabled]:opacity-[0.45]";
+const wrapperBaseClassName = "flex flex-col data-disabled:opacity-disabled";
 
 const boxBaseClassName = "flex items-center rounded-lg outline-none";
 
 const frameClassName: Record<Exclude<TextFieldValueKind, "plain-text">, string> = {
-  amount: "h-[4.5rem] gap-2 px-4",
-  "counted-cash": "h-[5rem] gap-3 px-6",
-  price: "h-[4.5rem] gap-2 px-4",
-  weight: "h-[4rem] gap-2 px-4",
-  quantity: "h-[4.5rem] gap-2 px-4",
+  amount: "h-control-6xl gap-2 px-4",
+  "counted-cash": "h-control-7xl gap-3 px-6",
+  price: "h-control-6xl gap-2 px-4",
+  weight: "h-control-5xl gap-2 px-4",
+  quantity: "h-control-6xl gap-2 px-4",
 };
-const registerPlainTextFrameClassName = "h-[3.25rem] gap-2 px-4";
+const registerPlainTextFrameClassName = "h-control-3xl gap-2 px-4";
 
 const valueClassName: Record<Exclude<TextFieldValueKind, "plain-text">, string> = {
-  amount: "text-right text-3xl font-bold text-text",
-  "counted-cash": "text-right text-3xl font-bold text-text",
-  price: "text-right text-3xl font-bold text-text",
-  weight: "text-left text-3xl font-bold text-text",
-  quantity: "text-right text-3xl font-bold text-text",
+  amount: "text-right text-display font-bold text-text",
+  "counted-cash": "text-right text-display font-bold text-text",
+  price: "text-right text-display font-bold text-text",
+  weight: "text-left text-display font-bold text-text",
+  quantity: "text-right text-display font-bold text-text",
 };
-const registerPlainTextValueClassName = "text-left text-base font-normal text-text";
-const registerPlainTextSuffixedValueClassName = "text-right text-base font-normal text-text";
+const registerPlainTextValueClassName = "text-left text-body font-normal text-text";
+const registerPlainTextSuffixedValueClassName = "text-right text-body font-normal text-text";
 
 const inputBaseClassName = "min-w-0 flex-1 bg-transparent caret-focus outline-none";
 
-const moneyPrefixClassName = "shrink-0 text-3xl font-normal text-text-subtle";
-const unitSuffixClassName = "shrink-0 text-xl font-normal text-text-subtle";
-const plainTextSuffixClassName = "shrink-0 text-base font-normal text-text-subtle";
+const moneyPrefixClassName = "shrink-0 text-display font-normal text-text-subtle";
+const unitSuffixClassName = "shrink-0 text-heading font-normal text-text-subtle";
+const plainTextSuffixClassName = "shrink-0 text-body font-normal text-text-subtle";
 
-const helperClassName = "text-sm font-normal text-text-subtle";
-const errorClassName = "text-sm font-normal text-error";
+const helperClassName = "text-detail font-normal text-text-subtle";
+const errorClassName = "text-detail font-normal text-error";
 
 // Drawn as an inset box-shadow rather than a real border so it never participates in layout.
 // `hover:not-focus-within:` keeps the hovered fill from showing once the field is focused,
 // regardless of the two Tailwind rules' generated order.
 function boxStateClassName(disabled: boolean, readOnly: boolean, invalid: boolean): string {
   if (disabled) {
-    return "bg-surface shadow-[inset_0_0_0_2px_var(--color-border)]";
+    return "bg-surface inset-ring-2 inset-ring-border";
   }
   if (readOnly) {
-    return (
-      "bg-surface-subtle shadow-[inset_0_0_0_2px_var(--color-border)] " +
-      "focus-within:shadow-[inset_0_0_0_2px_var(--color-action)]"
-    );
+    return "bg-surface-subtle inset-ring-2 inset-ring-border " + "focus-within:inset-ring-action";
   }
   if (invalid) {
     return (
-      "bg-surface shadow-[inset_0_0_0_2px_var(--color-error)] " +
+      "bg-surface inset-ring-2 inset-ring-error " +
       "hover:not-focus-within:bg-surface-subtle " +
-      "focus-within:shadow-[inset_0_0_0_2px_var(--color-action)]"
+      "focus-within:inset-ring-action"
     );
   }
   return (
-    "bg-surface shadow-[inset_0_0_0_2px_var(--color-border)] " +
+    "bg-surface inset-ring-2 inset-ring-border " +
     "hover:not-focus-within:bg-surface-subtle " +
-    "focus-within:shadow-[inset_0_0_0_2px_var(--color-action)]"
+    "focus-within:inset-ring-action"
   );
 }
 

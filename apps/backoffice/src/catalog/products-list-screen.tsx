@@ -267,21 +267,18 @@ function productNameError(name: string): string | undefined {
 }
 
 const barcodeActionClassName =
-  "flex h-11 flex-1 items-center justify-center gap-2 rounded-lg px-3 text-base font-bold " +
-  "text-text-accent shadow-[inset_0_0_0_2px_var(--color-action)] " +
-  "outline-none transition-[background-color]";
+  "flex h-control-xl flex-1 items-center justify-center gap-2 rounded-lg px-3 text-body font-bold " +
+  "text-text-accent inset-ring-2 inset-ring-action " +
+  "outline-none transition-background";
 
-// `outline-none` also clears the outline style, so `outline-solid` is needed to show it again.
 const scanControlClassName =
   `${barcodeActionClassName} relative min-w-0 cursor-text hover:bg-surface-subtle ` +
-  "focus-within:outline-[3px] focus-within:outline-solid focus-within:outline-offset-3 " +
-  "focus-within:outline-focus";
+  "focus-within:focus-ring";
 
 // `enabled:` keeps the hover fill off a disabled button.
 const generateButtonClassName =
   `${barcodeActionClassName} enabled:hover:bg-surface-subtle ` +
-  "focus-visible:outline-[3px] focus-visible:outline-solid focus-visible:outline-offset-3 " +
-  "focus-visible:outline-focus disabled:opacity-[0.45]";
+  "focus-visible:focus-ring disabled:opacity-disabled";
 
 type BarcodeChipsProps = {
   barcodes: string[];
@@ -321,9 +318,11 @@ function BarcodeChips({
           {barcodes.map((code) => (
             <div
               key={code}
-              className="flex h-11 items-center gap-2 rounded-lg bg-surface-subtle px-3"
+              className="flex h-control-xl items-center gap-2 rounded-lg bg-surface-subtle px-3"
             >
-              <span className="min-w-0 flex-1 truncate font-mono text-sm text-text">{code}</span>
+              <span className="min-w-0 flex-1 truncate font-mono text-detail text-text">
+                {code}
+              </span>
               <IconButton
                 icon={<X />}
                 aria-label={`Quitar el código ${code}`}
@@ -340,7 +339,7 @@ function BarcodeChips({
               aria-hidden="true"
               className="pointer-events-none flex min-w-0 items-center justify-center gap-2"
             >
-              <ScanBarcode className="size-[1.125rem] shrink-0" />
+              <ScanBarcode className="size-icon-md shrink-0" />
               <span className="truncate">Escanear otro código</span>
             </span>
           )}
@@ -363,22 +362,22 @@ function BarcodeChips({
           onClick={onGenerate}
           aria-describedby={generateError ? generateErrorId : undefined}
         >
-          <Barcode aria-hidden="true" className="size-[1.125rem] shrink-0" />
+          <Barcode aria-hidden="true" className="size-icon-md shrink-0" />
           <span className="truncate">Generar código interno</span>
         </button>
       </div>
       {generateError && (
-        <span id={generateErrorId} role="alert" className="text-sm font-normal text-error">
+        <span id={generateErrorId} role="alert" className="text-detail font-normal text-error">
           {generateError}
         </span>
       )}
       {scanError && (
-        <span id={scanErrorId} className="text-sm font-normal text-error">
+        <span id={scanErrorId} className="text-detail font-normal text-error">
           {scanError}
         </span>
       )}
       {error && (
-        <span id={errorId} className="text-sm font-normal text-error">
+        <span id={errorId} className="text-detail font-normal text-error">
           {error}
         </span>
       )}
@@ -837,7 +836,7 @@ function NewProductModal({
         ) : (
           <FieldGroup label="Categoría" required>
             {errors.category && (
-              <span className="text-sm font-normal text-error">{errors.category}</span>
+              <span className="text-detail font-normal text-error">{errors.category}</span>
             )}
           </FieldGroup>
         )}
@@ -1248,7 +1247,7 @@ function EditProductModal({
           ) : (
             <FieldGroup label="Categoría" required>
               {errors.category && (
-                <span className="text-sm font-normal text-error">{errors.category}</span>
+                <span className="text-detail font-normal text-error">{errors.category}</span>
               )}
             </FieldGroup>
           )}
@@ -1440,7 +1439,7 @@ function DeactivateProductModal({
       }
     >
       <div className="flex flex-col gap-4">
-        <p className="text-base text-text">
+        <p className="text-body text-text">
           Deja de ofrecerse en el catálogo y en las cajas. Las ventas que ya lo incluyen no cambian.
         </p>
         {notice?.kind === "attemptFailed" && (
@@ -1747,16 +1746,16 @@ function PrintLabelsModal({
             Recargar la lista
           </Button>
         )}
-        <p className="text-base text-text">
+        <p className="text-body text-text">
           Productos con código interno. Elegí cuántas etiquetas va a llevar cada uno.
         </p>
         {rows.length === 0 ? (
           <div className="flex flex-col items-center gap-2 rounded-lg bg-surface-subtle px-4 py-8 text-center">
-            <Package aria-hidden="true" className="size-6 text-text-subtle" />
-            <p className="text-base font-bold text-text">
+            <Package aria-hidden="true" className="size-icon-xl text-text-subtle" />
+            <p className="text-body font-bold text-text">
               No hay productos activos con código interno
             </p>
-            <p className="text-sm text-text-subtle">
+            <p className="text-detail text-text-subtle">
               Generá uno desde el formulario de un producto activo.
             </p>
           </div>
@@ -1771,8 +1770,10 @@ function PrintLabelsModal({
                     className="flex items-center justify-between gap-3 rounded-lg bg-surface-subtle px-3 py-2"
                   >
                     <div className="flex min-w-0 flex-col">
-                      <span className="truncate text-base font-bold text-text">{product.name}</span>
-                      <span className="truncate font-mono text-sm text-text-subtle">{code}</span>
+                      <span className="truncate text-body font-bold text-text">{product.name}</span>
+                      <span className="truncate font-mono text-detail text-text-subtle">
+                        {code}
+                      </span>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                       <IconButton
@@ -1781,7 +1782,7 @@ function PrintLabelsModal({
                         isDisabled={count === 0}
                         onPress={() => changeCount(product.id, -1)}
                       />
-                      <span className="w-8 text-center font-mono text-base text-text">{count}</span>
+                      <span className="w-8 text-center font-mono text-body text-text">{count}</span>
                       <IconButton
                         icon={<Plus />}
                         aria-label={`Sumar una etiqueta a ${product.name}`}
@@ -1802,20 +1803,20 @@ function PrintLabelsModal({
                 aria-label="Vista previa de la etiqueta"
                 className="flex items-center gap-4 rounded-lg border border-border p-3"
               >
-                <div className="flex w-36 shrink-0 flex-col items-center gap-2 rounded border border-border p-3">
-                  <span className="line-clamp-2 text-center text-xs font-bold text-text">
+                <div className="flex w-36 shrink-0 flex-col items-center gap-2 rounded-sm border border-border p-3">
+                  <span className="line-clamp-2 text-center text-caption font-bold text-text">
                     {previewRow.product.name}
                   </span>
                   <LabelPreviewBars code={previewRow.code} />
-                  <span className="font-mono text-xs text-text">
+                  <span className="font-mono text-caption text-text">
                     {groupedEan13Digits(previewRow.code)}
                   </span>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <p className="text-xl font-bold text-text-accent">
+                  <p className="text-heading font-bold text-text-accent">
                     {plural(total, { one: "1 etiqueta", other: `${total} etiquetas` })}
                   </p>
-                  <p className="text-sm text-text-subtle">
+                  <p className="text-detail text-text-subtle">
                     Hoja autoadhesiva para cualquier impresora común.
                   </p>
                 </div>
@@ -2029,7 +2030,7 @@ export function ProductsListScreen({
         topBar={
           <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
             <div className="flex flex-col justify-center">
-              <p className="text-text-subtle text-sm">Catálogo</p>
+              <p className="text-text-subtle text-detail">Catálogo</p>
               <ScreenTitle>Productos</ScreenTitle>
             </div>
             <div className="flex items-center gap-3">
@@ -2078,7 +2079,7 @@ export function ProductsListScreen({
         {(list.kind === "loading" || list.kind === "loaded") && (
           <>
             <div className="flex flex-wrap items-center gap-3">
-              <div className="w-[26.25rem]">
+              <div className="w-105">
                 <SearchField
                   variant="backoffice"
                   value={search}
@@ -2128,7 +2129,7 @@ export function ProductsListScreen({
                     }
               }
               footer={
-                <p className="text-text-subtle text-sm">
+                <p className="text-text-subtle text-detail">
                   {productsCountText({ count: filtered.length, status: statusFilter })}
                 </p>
               }

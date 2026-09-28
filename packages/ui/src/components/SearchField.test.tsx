@@ -96,13 +96,10 @@ for (const variantCase of variantCases) {
   });
 }
 
-// The literal box-shadow string Chromium renders for the focused state, both variants alike: a 2px
-// action-color inset with no outer shadow, behind the four transparent layers Tailwind v4 always
-// composes.
-const FOCUSED_SHADOW =
-  "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
-  "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
-  "rgb(79, 108, 126) 0px 0px 0px 2px inset";
+// The focused state paints exactly one layer, a 2px action-color inset, with no outer shadow beside it.
+function focusedLayers(): string[] {
+  return [insetBoundary("action", "2px")];
+}
 
 const restBoundaryToken = "border";
 
@@ -148,7 +145,7 @@ for (const variant of ["register", "backoffice"] as const) {
 
     await userEvent.tab();
 
-    await expect.poll(() => getComputedStyle(box).boxShadow).toBe(FOCUSED_SHADOW);
+    await expect.poll(() => paintedBoxShadowLayers(box)).toEqual(focusedLayers());
 
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -167,7 +164,7 @@ for (const variant of ["register", "backoffice"] as const) {
     await userEvent.hover(box);
     await expect.poll(() => box.matches(":hover")).toBe(true);
 
-    await expect.poll(() => getComputedStyle(box).boxShadow).toBe(FOCUSED_SHADOW);
+    await expect.poll(() => paintedBoxShadowLayers(box)).toEqual(focusedLayers());
     expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface"));
 
     await expectNoAccessibilityViolations(screen.container);

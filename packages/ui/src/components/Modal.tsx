@@ -49,10 +49,10 @@ export type ModalProps = ModalCommonProps &
   ((ModalLeadingProps & { closable?: boolean }) | (ModalCenteredProps & { closable?: boolean }));
 
 const widthClassName: Record<ModalWidth, string> = {
-  confirmation: "w-[35rem]",
-  standard: "w-[40rem]",
-  wide: "w-[45rem]",
-  editor: "w-[65rem]",
+  confirmation: "w-140",
+  standard: "w-160",
+  wide: "w-180",
+  editor: "w-260",
 };
 
 const toneMessageBgClassName: Record<ModalTone, string> = {
@@ -77,10 +77,9 @@ const contextToneClassName: Record<ModalContextTone, string> = {
   error: "text-error",
 };
 
-const headerIconWrapperClassName = "inline-flex size-6 shrink-0 [&>svg]:h-full [&>svg]:w-full";
-const centeredHeaderIconWrapperClassName =
-  "inline-flex size-7 shrink-0 [&>svg]:h-full [&>svg]:w-full";
-const closeIconWrapperClassName = "inline-flex size-5 shrink-0 [&>svg]:h-full [&>svg]:w-full";
+const headerIconWrapperClassName = "inline-flex size-icon-xl shrink-0 *:size-full";
+const centeredHeaderIconWrapperClassName = "inline-flex size-icon-3xl shrink-0 *:size-full";
+const closeIconWrapperClassName = "inline-flex size-icon-lg shrink-0 *:size-full";
 
 // Children.toArray drops null/undefined/boolean children but keeps a fragment as one child even
 // when everything inside it was dropped, so fragments are looked into.
@@ -93,10 +92,9 @@ function hasContent(node: ReactNode): boolean {
 }
 
 const closeButtonClassName =
-  "flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-subtle text-text-subtle " +
-  "transition-[background-color] outline-none data-[hovered]:bg-surface-soft " +
-  "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
-  "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-focus";
+  "flex size-control-lg shrink-0 items-center justify-center rounded-full bg-surface-subtle text-text-subtle " +
+  "transition-background outline-none data-hovered:bg-surface-soft " +
+  "data-focus-visible:focus-ring";
 
 export function Modal(props: ModalProps) {
   const {
@@ -119,14 +117,14 @@ export function Modal(props: ModalProps) {
       onOpenChange={onOpenChange}
       isDismissable={false}
       isKeyboardDismissDisabled={!props.closable}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-backdrop"
+      className="fixed inset-0 z-overlay flex items-center justify-center bg-backdrop"
     >
       <AriaModal
         className={[
           // max-height only clips, never stretches, so short content is unaffected; the backdrop
           // centers the panel, so hitting the 24px cap leaves that clearance on both sides.
-          "flex max-h-[calc(100vh-3rem)] shrink-0 flex-col rounded-[0.75rem] bg-surface",
-          "shadow-[0_24px_64px_var(--palette-neutral-900-a30)]",
+          "flex max-h-modal shrink-0 flex-col rounded-xl bg-surface",
+          "shadow-xl",
           widthClassName[width],
         ].join(" ")}
       >
@@ -145,7 +143,7 @@ export function Modal(props: ModalProps) {
               </span>
               <AriaHeading
                 slot="title"
-                className={["text-center text-2xl font-bold", toneStrongTextClassName[tone]].join(
+                className={["text-center text-title font-bold", toneStrongTextClassName[tone]].join(
                   " ",
                 )}
               >
@@ -159,7 +157,7 @@ export function Modal(props: ModalProps) {
                 <span
                   aria-hidden="true"
                   className={[
-                    "flex size-12 shrink-0 items-center justify-center rounded-[0.75rem]",
+                    "flex size-12 shrink-0 items-center justify-center rounded-xl",
                     toneMessageBgClassName[tone],
                     toneStrongTextClassName[tone],
                   ].join(" ")}
@@ -170,7 +168,7 @@ export function Modal(props: ModalProps) {
                   {context && (
                     <p
                       className={[
-                        "text-xs font-bold uppercase",
+                        "text-caption font-bold uppercase",
                         contextToneClassName[contextTone],
                       ].join(" ")}
                     >
@@ -179,7 +177,7 @@ export function Modal(props: ModalProps) {
                   )}
                   <AriaHeading
                     slot="title"
-                    className={["text-2xl font-bold", toneStrongTextClassName[tone]].join(" ")}
+                    className={["text-title font-bold", toneStrongTextClassName[tone]].join(" ")}
                   >
                     {title}
                   </AriaHeading>
@@ -213,7 +211,7 @@ export function Modal(props: ModalProps) {
           )}
           {/* The footer repeats the panel's bottom radius: its bone fill would otherwise paint
               square corners over the panel's rounded ones. */}
-          <div className="flex shrink-0 items-center gap-3 rounded-b-[0.75rem] border-t border-border bg-surface-subtle py-4 px-6">
+          <div className="flex shrink-0 items-center gap-3 rounded-b-xl border-t border-border bg-surface-subtle py-4 px-6">
             {footer}
           </div>
         </AriaDialog>

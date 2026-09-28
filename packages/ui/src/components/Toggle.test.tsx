@@ -4,6 +4,7 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { contrastRatio, NON_TEXT_CONTRAST } from "../styles/contrast";
 import { expectNoAccessibilityViolations } from "../test/axe";
+import { expectFullyRound } from "../test/fully-round";
 import {
   boundaryColorHex,
   insetBoundary,
@@ -43,7 +44,7 @@ function Harness() {
   );
 }
 
-test("renders a 22px round knob in a 48x28px, 14px-radius track, with the content 12px away", async () => {
+test("renders a 22px round knob in a 48x28px, fully round track, with the content 12px away", async () => {
   const screen = await render(
     <Toggle isSelected={false} onChange={() => {}}>
       Apply discount
@@ -59,18 +60,14 @@ test("renders a 22px round knob in a 48x28px, 14px-radius track, with the conten
   expect(trackRect.width).toBeLessThan(49);
   expect(trackRect.height).toBeGreaterThan(27);
   expect(trackRect.height).toBeLessThan(29);
-  expect(getComputedStyle(track).borderRadius).toBe("14px");
+  expectFullyRound(track);
   expect(getComputedStyle(label).alignItems).toBe("center");
 
   expect(knobRect.width).toBeGreaterThan(21);
   expect(knobRect.width).toBeLessThan(23);
   expect(knobRect.height).toBeGreaterThan(21);
   expect(knobRect.height).toBeLessThan(23);
-  // rounded-full computes to an arbitrarily large radius, not 50%, so circularity is a radius
-  // at least half the knob's own size, not one exact value.
-  expect(Number.parseFloat(getComputedStyle(knob).borderRadius)).toBeGreaterThanOrEqual(
-    knobRect.width / 2,
-  );
+  expectFullyRound(knob);
   expect(knobRect.top - trackRect.top).toBeCloseTo(trackRect.bottom - knobRect.bottom, 0);
 
   const content = screen.getByText("Apply discount").element() as HTMLElement;

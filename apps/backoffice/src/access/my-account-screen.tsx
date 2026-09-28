@@ -368,7 +368,7 @@ function RemovePasskeyModal({
       >
         {target && (
           <div className="flex flex-col gap-4">
-            <p className="text-base text-text">
+            <p className="text-body text-text">
               {`«${target.name}» deja de servir para entrar.`}
               {isOnlyPasskey
                 ? " Es tu única passkey: para volver a entrar vas a tener que pedir el enlace de recuperación por correo."
@@ -460,7 +460,7 @@ export function MyAccountScreen({
       <ScreenLayout
         topBar={
           <div className="flex h-18 shrink-0 flex-col justify-center border-border border-b bg-surface px-8">
-            <p className="text-text-subtle text-sm">{`Configuración · ${displayName}`}</p>
+            <p className="text-text-subtle text-detail">{`Configuración · ${displayName}`}</p>
             <ScreenTitle>Mi cuenta</ScreenTitle>
           </div>
         }
@@ -468,7 +468,7 @@ export function MyAccountScreen({
       >
         <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
           <div className="flex items-center gap-3">
-            <h2 className="flex-1 font-bold text-lg text-text-accent">Passkeys</h2>
+            <h2 className="flex-1 font-bold text-subheading text-text-accent">Passkeys</h2>
             <Button
               variant="secondary"
               icon={<Plus />}
@@ -519,13 +519,13 @@ export function MyAccountScreen({
                   <li key={passkey.id} className="flex items-center gap-3">
                     <span
                       aria-hidden="true"
-                      className="inline-flex size-5 shrink-0 text-text-subtle"
+                      className="inline-flex size-icon-lg shrink-0 text-text-subtle"
                     >
                       <Laptop />
                     </span>
                     <div className="flex flex-1 flex-col gap-1">
-                      <p className="font-semibold text-base text-text">{passkey.name}</p>
-                      <p className="text-text-subtle text-sm">
+                      <p className="font-semibold text-body text-text">{passkey.name}</p>
+                      <p className="text-text-subtle text-detail">
                         {passkeyRowDetail(passkey, clock())}
                       </p>
                     </div>

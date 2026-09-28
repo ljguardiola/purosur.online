@@ -55,8 +55,10 @@ export class RenderFailureRecovery extends Component<
     if (this.state.phase === "exhausted") {
       return (
         <BrandPanelScreen>
-          <div role="alert" className="flex w-full max-w-md flex-col gap-4">
-            <p className="text-3xl font-bold text-text-accent">No se pudo mostrar la pantalla</p>
+          <div role="alert" className="flex w-full max-w-112 flex-col gap-4">
+            <p className="text-display font-bold text-text-accent">
+              No se pudo mostrar la pantalla
+            </p>
             <Button size="large" onPress={this.retry}>
               Reintentar
             </Button>

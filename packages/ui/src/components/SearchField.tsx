@@ -17,13 +17,13 @@ export type SearchFieldProps = {
   disabled?: boolean;
 };
 
-const wrapperClassName = "data-[disabled]:opacity-[0.45]";
+const wrapperClassName = "data-disabled:opacity-disabled";
 
 const boxBaseClassName = "flex items-center rounded-lg outline-none";
 
 const frameClassName: Record<SearchFieldVariant, string> = {
-  register: "h-16 gap-4 px-2",
-  backoffice: "h-11 gap-2 px-3",
+  register: "h-control-5xl gap-4 px-2",
+  backoffice: "h-control-xl gap-2 px-3",
 };
 
 // The field is a type="search" input, so Chromium paints its own clear button inside it as soon
@@ -31,31 +31,31 @@ const frameClassName: Record<SearchFieldVariant, string> = {
 // variant draws a clear affordance, so that button is taken out of the input altogether.
 const inputBaseClassName =
   "min-w-0 flex-1 bg-transparent caret-focus outline-none " +
-  "placeholder:text-text-subtle [&::-webkit-search-cancel-button]:hidden";
+  "placeholder:text-text-subtle search-cancel-button:hidden";
 
 const valueClassName: Record<SearchFieldVariant, string> = {
-  register: "text-xl font-normal text-text",
-  backoffice: "text-sm font-normal text-text",
+  register: "text-heading font-normal text-text",
+  backoffice: "text-detail font-normal text-text",
 };
 
 const chipClassName =
   "inline-flex size-12 shrink-0 items-center justify-center rounded-md bg-action-subtle";
 
 const registerIconWrapperClassName =
-  "inline-flex size-[1.625rem] shrink-0 text-text-accent [&>svg]:h-full [&>svg]:w-full";
+  "inline-flex size-icon-2xl shrink-0 text-text-accent *:size-full";
 const backofficeIconWrapperClassName =
-  "inline-flex size-[1.125rem] shrink-0 text-text-subtle [&>svg]:h-full [&>svg]:w-full";
+  "inline-flex size-icon-md shrink-0 text-text-subtle *:size-full";
 
 // A disabled field keeps its resting look on the box itself; the wrapper's opacity communicates
 // "disabled", so neither hover nor focus treatment applies here while it is set.
 function boxStateClassName(disabled: boolean): string {
   if (disabled) {
-    return "bg-surface shadow-[inset_0_0_0_2px_var(--color-border)]";
+    return "bg-surface inset-ring-2 inset-ring-border";
   }
   return (
-    "bg-surface shadow-[inset_0_0_0_2px_var(--color-border)] " +
+    "bg-surface inset-ring-2 inset-ring-border " +
     "hover:not-focus-within:bg-surface-subtle " +
-    "focus-within:shadow-[inset_0_0_0_2px_var(--color-action)]"
+    "focus-within:inset-ring-action"
   );
 }
 

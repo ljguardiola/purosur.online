@@ -243,8 +243,8 @@ function AreaRow({
       aria-pressed={active}
       onClick={onSelect}
       className={[
-        "flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm outline-none",
-        "focus-visible:outline-[3px] focus-visible:outline-solid focus-visible:outline-offset-3 focus-visible:outline-focus",
+        "flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-detail outline-none",
+        "focus-visible:focus-ring",
         active ? "border border-border bg-surface" : "border border-transparent",
       ].join(" ")}
     >
@@ -317,7 +317,7 @@ export function RoleEditorForm({
           ))}
         </fieldset>
         <div className="flex min-h-0 flex-1 flex-col gap-3 bg-surface px-6 py-5">
-          <h2 className="shrink-0 font-bold text-text-accent text-xl">
+          <h2 className="shrink-0 font-bold text-text-accent text-heading">
             {AREA_LABELS[selectedArea]}
           </h2>
           <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border">

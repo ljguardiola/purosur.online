@@ -14,38 +14,30 @@ const PLOT_HEIGHT_PX = 150;
 const TICK_COUNT = 6;
 const MINIMUM_TOP_TICK = 1000;
 
-const rowTopClassName = [
-  "top-0",
-  "top-[30px]",
-  "top-[60px]",
-  "top-[90px]",
-  "top-[120px]",
-  "top-[150px]",
-];
+const rowTopClassName = ["top-0", "top-7.5", "top-15", "top-22.5", "top-30", "top-37.5"];
 
 // pt-2 clears the top tick's own line box, which centers on the grid line and extends above it.
 const chartBoxClassName = "pt-2";
 const chartWidthClassName = "w-max min-w-full";
 // The axis column and the labels' spacer share the first grid track, so an axis that grows to fit
 // a wide tick moves the labels by exactly as much as the bars.
-const visualGridClassName =
-  "grid grid-cols-[minmax(4rem,max-content)_minmax(0,1fr)] gap-x-3 gap-y-1.5";
+const visualGridClassName = "grid grid-cols-chart gap-x-3 gap-y-1.5";
 // The negative margin and taller-than-plot height clear the top and bottom ticks' own line boxes,
 // which extend past the plot's grid lines the same way chartBoxClassName's pt-2 does.
-const axisColumnClassName = "-my-2 flex h-[166px] flex-col justify-between";
+const axisColumnClassName = "-my-2 flex h-41.5 flex-col justify-between";
 // A fixed height, so a tick the caller formats as empty still takes its line and stays aligned.
-const axisTickClassName = "h-4 text-right text-xs font-normal text-text-subtle";
-const plotClassName = "relative h-[150px]";
+const axisTickClassName = "h-4 text-right text-caption font-normal text-text-subtle";
+const plotClassName = "relative h-37.5";
 const gridLineClassName = "absolute inset-x-0 h-px bg-border";
 // Positioned, so the bars paint over the absolutely positioned grid lines instead of under them.
-const barsRowClassName = "relative flex h-full items-end gap-[11px]";
-const barClassName = "w-5 rounded-t-[4px] bg-data";
-const labelsContainerClassName = "flex min-h-4 gap-[11px] pr-[76px]";
+const barsRowClassName = "relative flex h-full items-end gap-2.75";
+const barClassName = "w-5 rounded-t-sm bg-data";
+const labelsContainerClassName = "flex min-h-4 gap-2.75 pr-19";
 const labelColumnClassName = "flex w-5 justify-center";
 // shrink-0, because a flex item with overflow hidden otherwise gets a min-width of 0, letting the
 // 20px column win over max-w before the truncation cap ever applies.
-const labelTextClassName = "max-w-[172px] shrink-0 truncate text-xs font-normal text-text-subtle";
-const emptyMessageClassName = "text-xs font-normal text-text-subtle";
+const labelTextClassName = "max-w-43 shrink-0 truncate text-caption font-normal text-text-subtle";
+const emptyMessageClassName = "text-caption font-normal text-text-subtle";
 const announcedListClassName = "sr-only";
 const announcedPartClassName = "block";
 

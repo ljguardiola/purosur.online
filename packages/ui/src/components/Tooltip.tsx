@@ -16,8 +16,8 @@ export type TooltipProps = {
 };
 
 const tooltipClassName =
-  "max-w-75 rounded-md bg-surface-inverse p-3 text-sm text-text-inverse leading-[1.35] " +
-  "shadow-[0_6px_16px_var(--palette-neutral-900-a12)]";
+  "max-w-75 rounded-md bg-surface-inverse p-3 text-detail text-text-inverse leading-sm " +
+  "shadow-sm";
 
 // Tailwind only compiles class names it can read as literals, so this size is spelled twice: once
 // in the class below, once as the number the arrow's center shift and boundary offset below are
@@ -29,7 +29,7 @@ const BOX_OFFSET_PX = 10;
 // `block` is required, not decorative: a bare <span> defaults to display:inline, which ignores an
 // explicit width/height entirely, collapsing both this element and (since OverlayArrow's own
 // wrapper shrink-to-fits around it) its parent to 0x0.
-const arrowSquareClassName = "block size-[10px] rotate-45 bg-surface-inverse";
+const arrowSquareClassName = "block size-2.5 rotate-45 bg-surface-inverse";
 
 // OverlayArrow's wrapper hugs the box's edge with none of the square crossing it, putting the
 // square's center half its own size outside the box. A negative margin of that same half, on

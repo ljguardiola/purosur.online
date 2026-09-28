@@ -3,7 +3,7 @@ import { expect, expectTypeOf, test, vi } from "vitest";
 import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../test/axe";
-import { tokenRgb } from "../test/token-colors";
+import { paintedBoxShadowLayers, tokenRgb } from "../test/token-colors";
 import {
   Table,
   type TableAction,
@@ -31,26 +31,6 @@ const rows: TableRow<Product>[] = [
 const emptyRows: TableRow<Product>[] = [];
 
 const commonProps = { "aria-label": "Products", rows };
-
-// getComputedStyle's box-shadow lists every layer; split on top-level commas only, not ones
-// nested inside an rgb() color.
-function shadowLayers(boxShadow: string): string[] {
-  const layers: string[] = [];
-  let depth = 0;
-  let current = "";
-  for (const char of boxShadow) {
-    if (char === "(") depth += 1;
-    if (char === ")") depth -= 1;
-    if (char === "," && depth === 0) {
-      layers.push(current.trim());
-      current = "";
-    } else {
-      current += char;
-    }
-  }
-  layers.push(current.trim());
-  return layers;
-}
 
 function paintedTextRight(element: HTMLElement): number {
   const range = document.createRange();
@@ -380,8 +360,7 @@ test("skips its own bottom divider on the last row, since the container's own bo
   const containerRect = container.getBoundingClientRect();
 
   expect(containerRect.bottom - rowRect.bottom).toBeCloseTo(1, 0);
-  const layers = shadowLayers(getComputedStyle(lastRow).boxShadow);
-  expect(layers.some((layer) => layer.includes("-1px 0px 0px inset"))).toBe(false);
+  expect(paintedBoxShadowLayers(lastRow)).toEqual([]);
 });
 
 test("keeps the selected row's own left accent on the last row, with no bottom divider layer", async () => {
@@ -393,10 +372,8 @@ test("keeps the selected row's own left accent on the last row, with no bottom d
     />,
   );
   const row = screen.getByRole("cell", { name: "Coffee" }).element().parentElement as HTMLElement;
-  const layers = shadowLayers(getComputedStyle(row).boxShadow);
 
-  expect(layers.some((layer) => layer.includes("-1px 0px 0px inset"))).toBe(false);
-  expect(layers[layers.length - 1]).toBe(`${tokenRgb("action")} 4px 0px 0px 0px inset`);
+  expect(paintedBoxShadowLayers(row)).toEqual([`${tokenRgb("action")} 4px 0px 0px 0px inset`]);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -414,10 +391,10 @@ test("skips its own bottom divider on the last placeholder row too, while loadin
   const containerRect = container.getBoundingClientRect();
 
   expect(containerRect.bottom - rowRect.bottom).toBeCloseTo(1, 0);
-  const lastLayers = shadowLayers(getComputedStyle(lastPlaceholderRow).boxShadow);
-  expect(lastLayers.some((layer) => layer.includes("-1px 0px 0px inset"))).toBe(false);
-  const otherLayers = shadowLayers(getComputedStyle(otherPlaceholderRow).boxShadow);
-  expect(otherLayers.some((layer) => layer.includes("-1px 0px 0px inset"))).toBe(true);
+  expect(paintedBoxShadowLayers(lastPlaceholderRow)).toEqual([]);
+  expect(paintedBoxShadowLayers(otherPlaceholderRow)).toEqual([
+    `${tokenRgb("border")} 0px -1px 0px 0px inset`,
+  ]);
 });
 
 test("renders every row's cells with 16px edge padding and a 12px gap lined up with the header, over a 1px line bottom border", async () => {
@@ -427,14 +404,12 @@ test("renders every row's cells with 16px edge padding and a 12px gap lined up w
   const row = firstCell.parentElement as HTMLElement;
   const firstStyle = getComputedStyle(firstCell);
   const lastStyle = getComputedStyle(lastCell);
-  const rowStyle = getComputedStyle(row);
 
   expect(firstStyle.paddingLeft).toBe("16px");
   expect(lastStyle.paddingRight).toBe("16px");
   expect(firstStyle.paddingRight).toBe("6px");
   expect(lastStyle.paddingLeft).toBe("6px");
-  const layers = shadowLayers(rowStyle.boxShadow);
-  expect(layers[layers.length - 1]).toBe(`${tokenRgb("border")} 0px -1px 0px 0px inset`);
+  expect(paintedBoxShadowLayers(row)).toEqual([`${tokenRgb("border")} 0px -1px 0px 0px inset`]);
 });
 
 test("renders a 56px row when every cell holds a single line", async () => {
@@ -710,9 +685,10 @@ test("renders the selected row state with a blue message background and a 4px bl
   const cellText = screen.getByText("Coffee", { exact: true }).element() as HTMLElement;
 
   expect(style.backgroundColor).toBe(tokenRgb("action-subtle"));
-  const layers = shadowLayers(style.boxShadow);
-  expect(layers[layers.length - 2]).toBe(`${tokenRgb("border")} 0px -1px 0px 0px inset`);
-  expect(layers[layers.length - 1]).toBe(`${tokenRgb("action")} 4px 0px 0px 0px inset`);
+  expect(paintedBoxShadowLayers(row)).toEqual([
+    `${tokenRgb("border")} 0px -1px 0px 0px inset`,
+    `${tokenRgb("action")} 4px 0px 0px 0px inset`,
+  ]);
   expect(getComputedStyle(cellText).color).toBe(tokenRgb("text"));
 });
 

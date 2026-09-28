@@ -10,7 +10,7 @@ export type StatusIndicatorProps = {
 };
 
 const pillClassName =
-  "inline-flex h-[1.75rem] items-center gap-2 rounded-[0.875rem] px-3 font-sans text-sm font-semibold";
+  "inline-flex h-7 items-center gap-2 rounded-full px-3 font-sans text-detail font-semibold";
 
 const toneClassName: Record<StatusIndicatorTone, string> = {
   success: "bg-success-subtle text-success-strong",
@@ -36,7 +36,7 @@ const spinnerColorClassName: Record<StatusIndicatorTone, string> = {
   neutral: "text-text-subtle",
 };
 
-const spinnerBaseClassName = "size-[0.875rem] shrink-0 animate-spin motion-reduce:animate-none";
+const spinnerBaseClassName = "size-icon-xs shrink-0 animate-spin motion-reduce:animate-none";
 const dotBaseClassName = "size-2 shrink-0 rounded-full";
 
 export function StatusIndicator({ tone, busy = false, children }: StatusIndicatorProps) {

@@ -221,17 +221,16 @@ describe("table row state background contrast", () => {
 
 // A disabled nav button composites its label onto the page behind it, not onto its own faded
 // background, so the check mirrors that compositing instead of comparing two opaque tokens. The
-// alpha is read from the component's own source so this can't drift out of sync with it.
+// alpha is read from the stylesheet's own disabled-strong opacity so this can't drift out of sync
+// with it.
 describe("pagination dimmed nav button text contrast", () => {
-  const paginationPath = fileURLToPath(new URL("../components/Pagination.tsx", import.meta.url));
-  const paginationSource = readFileSync(paginationPath, "utf-8");
-  const opacityMatch = paginationSource.match(/disabled \? "opacity-\[([\d.]+)\]"/);
+  const opacityMatch = stylesheet.match(/--opacity-disabled-strong:\s*([\d.]+)%\s*;/);
 
-  it('declares disabled ? "opacity-[<alpha>]" on the nav buttons', () => {
-    expect(opacityMatch, "no disabled opacity utility found on the nav buttons").not.toBeNull();
+  it("declares the disabled-strong opacity the nav buttons use", () => {
+    expect(opacityMatch, "no --opacity-disabled-strong token found").not.toBeNull();
   });
 
-  const alpha = Number.parseFloat(opacityMatch?.[1] ?? "0");
+  const alpha = Number.parseFloat(opacityMatch?.[1] ?? "0") / 100;
 
   for (const backgroundName of ["white", "bone"] as const) {
     it(`text at that opacity reaches ${AA_TEXT_CONTRAST}:1 against ${backgroundName}`, () => {

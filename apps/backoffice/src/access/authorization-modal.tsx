@@ -80,7 +80,7 @@ function AuthorizationModal({
       }
     >
       <div className="flex flex-col items-center gap-4 text-center">
-        <p className="text-base text-text-subtle">
+        <p className="text-body text-text-subtle">
           {`${actionName} necesita tu autorización. Confirmala con tu passkey.`}
         </p>
         {notice?.kind === "attemptFailed" && (

@@ -265,12 +265,10 @@ const RANGE_MAX = new CalendarDate(2027, 2, 28);
 const RANGE_MESSAGE = "The date must be 28/02/2027 or earlier.";
 const RANGE_HELPER = "A different expiry for the same product is entered as a separate line.";
 
-// The box-shadow string Chromium renders for the focused state: a 2px action-color inset with no
-// outer shadow, behind the four transparent layers Tailwind v4 always composes.
-const FOCUSED_SHADOW =
-  "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
-  "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
-  "rgb(79, 108, 126) 0px 0px 0px 2px inset";
+// The focused state paints exactly one layer, a 2px action-color inset, with no outer shadow beside it.
+function focusedLayers(): string[] {
+  return [insetBoundary("action", "2px")];
+}
 
 async function focusFirstSegment(group: HTMLElement, variant: FieldSize) {
   await userEvent.tab();
@@ -287,7 +285,7 @@ for (const variant of ["register", "backoffice"] as const) {
 
     await focusFirstSegment(group, variant);
 
-    await expect.poll(() => getComputedStyle(group).boxShadow).toBe(FOCUSED_SHADOW);
+    await expect.poll(() => paintedBoxShadowLayers(group)).toEqual(focusedLayers());
 
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -300,7 +298,7 @@ for (const variant of ["register", "backoffice"] as const) {
     await userEvent.hover(group);
     await expect.poll(() => group.matches(":hover")).toBe(true);
 
-    await expect.poll(() => getComputedStyle(group).boxShadow).toBe(FOCUSED_SHADOW);
+    await expect.poll(() => paintedBoxShadowLayers(group)).toEqual(focusedLayers());
     expect(getComputedStyle(group).backgroundColor).toBe(tokenRgb("surface"));
 
     await expectNoAccessibilityViolations(screen.container);
@@ -328,7 +326,7 @@ for (const variant of ["register", "backoffice"] as const) {
 
     await focusFirstSegment(group, variant);
 
-    await expect.poll(() => getComputedStyle(group).boxShadow).toBe(FOCUSED_SHADOW);
+    await expect.poll(() => paintedBoxShadowLayers(group)).toEqual(focusedLayers());
 
     (document.activeElement as HTMLElement).blur();
     await expect.poll(() => paintedBoxShadowLayers(group)).toEqual([insetBoundary("error", "2px")]);

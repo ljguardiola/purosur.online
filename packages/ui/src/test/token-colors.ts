@@ -21,10 +21,13 @@ export function insetBoundary(token: string, width: string): string {
   return `${tokenRgb(token)} 0px 0px 0px ${width} inset`;
 }
 
-// Tailwind composes `shadow-none` into its own shadow layers set to fully transparent rather
-// than into the literal "none", so "this element draws no boundary of its own" is not a string
-// comparison: it is that every layer the browser does report paints nothing. Returning the
-// layers that do paint, instead of a boolean, puts the offending one in the failure message.
+// Tailwind composes a cleared shadow (`inset-ring-0`, `shadow-none`) into its own shadow layers
+// as a transparent or zero-sized one rather than into the literal "none", so "this element draws
+// no boundary of its own" is not a string comparison: it is that every layer the browser does
+// report paints nothing. Returning the layers that do paint, instead of a boolean, puts the
+// offending one in the failure message.
+const ZERO_SIZED_LAYER = / 0px 0px 0px 0px(?: inset)?$/;
+
 export function paintedBoxShadowLayers(element: HTMLElement): string[] {
   const boxShadow = getComputedStyle(element).boxShadow;
   if (boxShadow === "none") {
@@ -35,7 +38,7 @@ export function paintedBoxShadowLayers(element: HTMLElement): string[] {
   return boxShadow
     .split(/,(?![^(]*\))/)
     .map((layer) => layer.trim())
-    .filter((layer) => !layer.startsWith("rgba(0, 0, 0, 0) "));
+    .filter((layer) => !layer.startsWith("rgba(0, 0, 0, 0) ") && !layer.match(ZERO_SIZED_LAYER));
 }
 
 // The color is always the leading rgb()/rgba() substring of a box-shadow layer. Only a

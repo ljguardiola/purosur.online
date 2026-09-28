@@ -134,7 +134,7 @@ function RoleSaveConfirmationModal({
         </>
       }
     >
-      <p className="text-center text-base text-text-subtle">
+      <p className="text-center text-body text-text-subtle">
         {`${plural(assignedUsers.length, {
           one: "Se aplica a la 1 persona",
           other: `Se aplican a las ${assignedUsers.length} personas`,
@@ -146,7 +146,7 @@ function RoleSaveConfirmationModal({
             key={user.id}
             className="flex items-center gap-2 border-border border-b px-4 py-2 last:border-b-0"
           >
-            <User aria-hidden="true" className="size-4 shrink-0 text-text-subtle" />
+            <User aria-hidden="true" className="size-icon-sm shrink-0 text-text-subtle" />
             <span>{user.name}</span>
           </div>
         ))}
@@ -426,7 +426,7 @@ export function RoleEditorModal({
         bodyPadding="none"
         footer={
           <div className="flex w-full items-center justify-between gap-3">
-            <p className="text-text-subtle text-sm">
+            <p className="text-text-subtle text-detail">
               {plural(selected.size, {
                 one: "1 permiso elegido",
                 other: `${selected.size} permisos elegidos`,

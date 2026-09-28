@@ -9,16 +9,15 @@ export type SectionNavItemProps = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 
 };
 
 const baseClassName =
-  "flex h-10 w-full items-center gap-2 rounded-lg px-2 outline-none transition-colors " +
-  "focus-visible:outline-[3px] focus-visible:outline-solid focus-visible:outline-offset-2 " +
-  "focus-visible:outline-focus";
+  "flex h-control-lg w-full items-center gap-2 rounded-lg px-2 outline-none transition-colors " +
+  "focus-visible:focus-ring-tight";
 
 const backgroundClassName: Record<"active" | "inactive", string> = {
   inactive: "hover:bg-surface-subtle",
   active: "bg-action-subtle",
 };
 
-const iconWrapperClassName = "inline-flex size-[1.125rem] shrink-0 [&>svg]:h-full [&>svg]:w-full";
+const iconWrapperClassName = "inline-flex size-icon-md shrink-0 *:size-full";
 
 const iconToneClassName: Record<"active" | "inactive", string> = {
   inactive: "text-text-subtle",
@@ -26,8 +25,8 @@ const iconToneClassName: Record<"active" | "inactive", string> = {
 };
 
 const labelToneClassName: Record<"active" | "inactive", string> = {
-  inactive: "text-sm font-normal text-text",
-  active: "text-base font-bold text-text-accent",
+  inactive: "text-detail font-normal text-text",
+  active: "text-body font-bold text-text-accent",
 };
 
 export function SectionNavItem({ label, icon, active, ...props }: SectionNavItemProps) {

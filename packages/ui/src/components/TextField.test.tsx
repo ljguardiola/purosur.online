@@ -21,12 +21,10 @@ function fieldWrapper(screen: Screen, name: string): HTMLElement {
   return fieldBox(screen, name).parentElement as HTMLElement;
 }
 
-// The box-shadow string Chromium renders for the focused state: a 2px action-color inset with no
-// outer shadow, behind the four transparent layers Tailwind v4 always composes.
-const FOCUSED_SHADOW =
-  "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
-  "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
-  "rgb(79, 108, 126) 0px 0px 0px 2px inset";
+// The focused state paints exactly one layer, a 2px action-color inset, with no outer shadow beside it.
+function focusedLayers(): string[] {
+  return [insetBoundary("action", "2px")];
+}
 
 function describedText(input: HTMLInputElement): string {
   const describedBy = input.getAttribute("aria-describedby");
@@ -275,7 +273,7 @@ test("shows a 2px action-color border with no outer shadow when focused, as one 
 
   await userEvent.tab();
 
-  await expect.poll(() => getComputedStyle(box).boxShadow).toBe(FOCUSED_SHADOW);
+  await expect.poll(() => paintedBoxShadowLayers(box)).toEqual(focusedLayers());
 });
 
 test("shows the focused border instead of the invalid one once an invalid field is focused", async () => {
@@ -293,7 +291,7 @@ test("shows the focused border instead of the invalid one once an invalid field 
 
   await userEvent.tab();
 
-  await expect.poll(() => getComputedStyle(box).boxShadow).toBe(FOCUSED_SHADOW);
+  await expect.poll(() => paintedBoxShadowLayers(box)).toEqual(focusedLayers());
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -392,7 +390,7 @@ test("lets a read-only field be focused and shows it, but is never typed into or
 
   await userEvent.click(input);
   expect(document.activeElement).toBe(input);
-  await expect.poll(() => getComputedStyle(box).boxShadow).toBe(FOCUSED_SHADOW);
+  await expect.poll(() => paintedBoxShadowLayers(box)).toEqual(focusedLayers());
   expect(getComputedStyle(box).backgroundColor).toBe(restingBackground);
 
   expect(document.activeElement).toBe(input);

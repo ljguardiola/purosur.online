@@ -10,26 +10,24 @@ export type ToggleProps = {
 
 const toggleLabelClassName =
   "group flex cursor-pointer items-center gap-3 outline-none " +
-  "data-[disabled]:cursor-default data-[disabled]:opacity-[0.45]";
+  "data-disabled:cursor-default data-disabled:opacity-disabled";
 
 // justify-start/-end (not a translated knob) moves the knob without the track's own size
-// depending on its position. rounded-[14px] pins the exact design px; Tailwind's rounded-full
-// would compute an arbitrarily large radius instead of that fixed value.
+// depending on its position.
 const trackClassName =
-  "inline-flex h-7 w-12 shrink-0 items-center justify-start rounded-[14px] p-1 outline-none " +
-  "bg-surface shadow-[inset_0_0_0_2px_var(--color-border-strong)] " +
-  "group-data-[hovered]:bg-surface-subtle " +
-  "group-data-[selected]:justify-end group-data-[selected]:bg-success group-data-[selected]:shadow-none " +
-  "group-data-[hovered]:group-data-[selected]:bg-success-strong " +
-  "group-data-[focus-visible]:outline-[3px] group-data-[focus-visible]:outline-solid " +
-  "group-data-[focus-visible]:outline-offset-3 group-data-[focus-visible]:outline-focus";
+  "inline-flex h-control-xs w-12 shrink-0 items-center justify-start rounded-full p-1 outline-none " +
+  "bg-surface inset-ring-2 inset-ring-border-strong " +
+  "group-data-hovered:bg-surface-subtle " +
+  "group-data-selected:justify-end group-data-selected:bg-success group-data-selected:inset-ring-0 " +
+  "group-data-hovered:group-data-selected:bg-success-strong " +
+  "group-data-focus-visible:focus-ring";
 
 // A white knob is invisible on the white off-track without its own border; the green on-track
 // already sets it apart, so the border drops there too. An inset box-shadow, not a real border,
 // keeps the knob's size identical across both states.
 const knobClassName =
-  "size-[22px] shrink-0 rounded-full bg-surface " +
-  "shadow-[inset_0_0_0_2px_var(--color-border-strong)] group-data-[selected]:shadow-none";
+  "size-control-2xs shrink-0 rounded-full bg-surface " +
+  "inset-ring-2 inset-ring-border-strong group-data-selected:inset-ring-0";
 
 export function Toggle({ isSelected, onChange, children, disabled = false }: ToggleProps) {
   return (

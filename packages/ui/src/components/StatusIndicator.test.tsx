@@ -2,6 +2,7 @@ import { expect, expectTypeOf, test } from "vitest";
 import { cdp } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../test/axe";
+import { expectFullyRound } from "../test/fully-round";
 import { tokenRgb } from "../test/token-colors";
 import {
   StatusIndicator,
@@ -41,7 +42,7 @@ test("renders the pill's fixed shape regardless of tone", async () => {
   expect(style.display).toBe("inline-flex");
   expect(style.alignItems).toBe("center");
   expect(style.height).toBe("28px");
-  expect(style.borderRadius).toBe("14px");
+  expectFullyRound(pill);
   expect(style.paddingTop).toBe("0px");
   expect(style.paddingBottom).toBe("0px");
   expect(style.paddingLeft).toBe("12px");

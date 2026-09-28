@@ -45,14 +45,14 @@ export type SelectProps<V extends string> = SelectCommonProps &
     placeholder?: string;
   };
 
-const wrapperClassName = `flex flex-col ${fieldWrapperGapClassName.backoffice} data-[disabled]:opacity-[0.45]`;
+const wrapperClassName = `flex flex-col ${fieldWrapperGapClassName.backoffice} data-disabled:opacity-disabled`;
 
 const baseLabelClassName = fieldLabelClassName.backoffice;
 const requiredLabelClassName = `${baseLabelClassName} ${requiredFieldLabelSuffixClassName}`;
 
 const triggerBaseClassName = `flex min-w-0 max-w-full items-center rounded-lg border-2 outline-none ${backofficeFieldBoxClassName}`;
 
-// react-aria keeps `data-[focused]` on the trigger while its menu is open, since focus then sits
+// react-aria keeps `data-focused` on the trigger while its menu is open, since focus then sits
 // in the listbox but the trigger is still the field being edited.
 function triggerStateClassName(disabled: boolean, invalid: boolean, isOpen: boolean): string {
   if (disabled) {
@@ -63,37 +63,37 @@ function triggerStateClassName(disabled: boolean, invalid: boolean, isOpen: bool
   }
   const resting = invalid ? "border-error" : "border-border";
   return (
-    `bg-surface ${resting} data-[hovered]:not-data-[focused]:bg-surface-subtle ` +
-    "data-[focused]:border-action"
+    `bg-surface ${resting} data-hovered:not-data-focused:bg-surface-subtle ` +
+    "data-focused:border-action"
   );
 }
 
 const valueClassName =
   `min-w-0 flex-1 truncate text-left ${backofficeFieldValueClassName} ` +
-  "data-[placeholder]:font-normal data-[placeholder]:text-text-subtle";
+  "data-placeholder:font-normal data-placeholder:text-text-subtle";
 
-const chevronClassName = "size-[1.125rem] shrink-0 text-text-subtle";
+const chevronClassName = "size-icon-md shrink-0 text-text-subtle";
 
 // react-aria-components caps the popover's max-height to the viewport but leaves overflow
 // handling to the consumer.
 const popoverClassName =
-  "min-w-[var(--trigger-width)] w-[var(--trigger-width)] rounded-lg border border-border " +
-  "bg-surface p-1.5 shadow-[0_8px_24px_var(--palette-neutral-900-a16)] overflow-y-auto";
+  "min-w-(--trigger-width) w-(--trigger-width) rounded-lg border border-border " +
+  "bg-surface p-1.5 shadow-lg overflow-y-auto";
 
 // react-aria-components portals this popover to the document body as its own, separately stacked
 // layer: with no z-index of its own it would paint below any sibling with a real positive
 // z-index, since a positive z-index always wins that comparison over an auto one.
-const POPOVER_Z_INDEX = 100000;
+const popoverStyle = { zIndex: "var(--z-index-popover)" };
 
 const optionClassName =
-  "flex h-10 cursor-pointer items-center justify-between rounded-md px-3 text-sm font-semibold " +
-  "text-text outline-none data-[hovered]:bg-surface-subtle data-[focus-visible]:bg-surface-subtle " +
-  "data-[selected]:bg-action-subtle data-[selected]:text-text-accent " +
-  "data-[hovered]:data-[selected]:bg-action-subtle " +
-  "data-[focus-visible]:data-[selected]:bg-action-subtle";
+  "flex h-control-lg cursor-pointer items-center justify-between rounded-md px-3 text-detail font-semibold " +
+  "text-text outline-none data-hovered:bg-surface-subtle data-focus-visible:bg-surface-subtle " +
+  "data-selected:bg-action-subtle data-selected:text-text-accent " +
+  "data-hovered:data-selected:bg-action-subtle " +
+  "data-focus-visible:data-selected:bg-action-subtle";
 
-const helperClassName = "text-sm font-normal text-text-subtle";
-const errorClassName = "text-sm font-normal text-error";
+const helperClassName = "text-detail font-normal text-text-subtle";
+const errorClassName = "text-detail font-normal text-error";
 
 // react-aria-components' onSelectionChange reports a plain Key (string | number).
 function isOptionValue<V extends string>(key: Key, options: readonly SelectOption<V>[]): key is V {
@@ -172,7 +172,7 @@ export function Select<V extends string>(props: SelectProps<V>) {
               </AriaText>
             )
           )}
-          <AriaPopover offset={4} style={{ zIndex: POPOVER_Z_INDEX }} className={popoverClassName}>
+          <AriaPopover offset={4} style={popoverStyle} className={popoverClassName}>
             <AriaListBox className="flex flex-col gap-1">
               {options.map((option) => (
                 <AriaListBoxItem
@@ -187,7 +187,7 @@ export function Select<V extends string>(props: SelectProps<V>) {
                       {isSelected && (
                         <Check
                           aria-hidden="true"
-                          className="size-[1.125rem] shrink-0 text-text-accent"
+                          className="size-icon-md shrink-0 text-text-accent"
                         />
                       )}
                     </>

@@ -343,12 +343,14 @@ function EnrollmentCodeModal({ emission, onClose, onDone, onRetry }: EnrollmentC
         {emission.kind === "issued" && (
           <>
             <div className="flex flex-col items-center gap-1 rounded-lg bg-surface-subtle p-4">
-              <p className="font-bold text-2xl text-text-accent tracking-[0.1em]">
+              <p className="font-bold text-title text-text-accent tracking-md">
                 {groupedCode(emission.code)}
               </p>
-              <p className="text-text-subtle text-sm">Vence en 15 minutos · se usa una sola vez</p>
+              <p className="text-text-subtle text-detail">
+                Vence en 15 minutos · se usa una sola vez
+              </p>
             </div>
-            <p className="text-base text-text">
+            <p className="text-body text-text">
               En la notebook nueva, al abrir la caja por primera vez, se escribe este código.
               Después de 5 intentos equivocados deja de servir y hay que emitir otro.
             </p>
@@ -493,18 +495,18 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
         const pendingCode =
           item.pendingCode && new Date(item.pendingCode.expiresAt) > now ? item.pendingCode : null;
         if (!pendingCode) {
-          return <span className="text-text-subtle text-sm">—</span>;
+          return <span className="text-text-subtle text-detail">—</span>;
         }
         const elapsedMinutes = minutesElapsed(pendingCode.issuedAt, now);
         const remainingMinutes = minutesRemaining(pendingCode.expiresAt, now);
         return (
           <div className="flex flex-col gap-1">
-            <span className="text-text text-sm">
+            <span className="text-text text-detail">
               {elapsedMinutes < 1
                 ? "Código emitido recién"
                 : `Código emitido hace ${plural(elapsedMinutes, { one: "1 minuto", other: `${elapsedMinutes} minutos` })}`}
             </span>
-            <span className="text-sm text-warning-strong">
+            <span className="text-detail text-warning-strong">
               {`Vence en ${plural(remainingMinutes, { one: "1 minuto", other: `${remainingMinutes} minutos` })}`}
             </span>
           </div>
@@ -514,7 +516,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
     {
       key: "pointsOfSale",
       title: "PUNTOS DE VENTA",
-      render: () => <span className="text-text-subtle text-sm">Sin configurar</span>,
+      render: () => <span className="text-text-subtle text-detail">Sin configurar</span>,
     },
     {
       key: "status",
@@ -541,7 +543,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
         topBar={
           <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
             <div className="flex flex-col justify-center">
-              <p className="text-text-subtle text-sm">Configuración</p>
+              <p className="text-text-subtle text-detail">Configuración</p>
               <ScreenTitle>Cajas registradoras</ScreenTitle>
             </div>
             <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
@@ -592,7 +594,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
               tone: "blank",
             }}
             footer={
-              <p className="text-text-subtle text-sm">
+              <p className="text-text-subtle text-detail">
                 {plural(registers.length, { one: "1 caja", other: `${registers.length} cajas` })}
               </p>
             }

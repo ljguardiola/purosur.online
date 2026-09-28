@@ -258,12 +258,12 @@ export function AlertsListScreen({
         topBar={
           <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
             <div className="flex flex-col justify-center">
-              <p className="text-text-subtle text-sm">Inicio</p>
+              <p className="text-text-subtle text-detail">Inicio</p>
               <ScreenTitle>Alertas</ScreenTitle>
             </div>
             {openCount > 0 && (
-              <div className="inline-flex h-[1.75rem] items-center gap-2 rounded-[0.875rem] bg-warning-subtle px-3 font-sans text-sm font-semibold text-warning-strong">
-                <Bell aria-hidden="true" className="size-3.5 shrink-0" />
+              <div className="inline-flex h-7 items-center gap-2 rounded-full bg-warning-subtle px-3 font-sans text-detail font-semibold text-warning-strong">
+                <Bell aria-hidden="true" className="size-icon-xs shrink-0" />
                 {plural(openCount, {
                   one: "1 alerta abierta",
                   other: `${openCount} alertas abiertas`,
@@ -303,7 +303,7 @@ export function AlertsListScreen({
         {(list.kind === "loading" || list.kind === "loaded") && (
           <>
             <div className="flex flex-wrap items-center gap-3">
-              <div className="w-[26.25rem]">
+              <div className="w-105">
                 <SearchField
                   variant="backoffice"
                   value={search}
@@ -353,7 +353,7 @@ export function AlertsListScreen({
               }
               footer={
                 <div className="flex items-center justify-between gap-4">
-                  <p className="text-text-subtle text-sm">
+                  <p className="text-text-subtle text-detail">
                     {`${plural(openCount, { one: "1 alerta abierta", other: `${openCount} alertas abiertas` })} · ${plural(criticalCount, { one: "1 crítica", other: `${criticalCount} críticas` })}`}
                   </p>
                   <Pagination

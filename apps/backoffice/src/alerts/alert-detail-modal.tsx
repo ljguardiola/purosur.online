@@ -418,8 +418,8 @@ export function AlertDetailModal({
                 {levelLabel(alert.level)}
               </StatusIndicator>
             </div>
-            <p className="text-text text-base">{alertDescription(alert)}</p>
-            <div className="flex flex-col gap-1 rounded-lg border border-border p-3 text-sm">
+            <p className="text-text text-body">{alertDescription(alert)}</p>
+            <div className="flex flex-col gap-1 rounded-lg border border-border p-3 text-detail">
               <div className="flex justify-between gap-2">
                 <span className="text-text-subtle">Abierta</span>
                 <span>{alertDateTime(new Date(alert.openedAt))}</span>
@@ -438,8 +438,8 @@ export function AlertDetailModal({
               )}
             </div>
             <div className="flex flex-col gap-2">
-              <p className="font-bold text-text text-sm">Aviso por el backoffice</p>
-              <div className="flex flex-col gap-1 rounded-lg border border-border text-left text-sm">
+              <p className="font-bold text-text text-detail">Aviso por el backoffice</p>
+              <div className="flex flex-col gap-1 rounded-lg border border-border text-left text-detail">
                 {alert.deliveries.map((delivery) => (
                   <div
                     key={delivery.recipient.id}
@@ -459,7 +459,7 @@ export function AlertDetailModal({
               </div>
             </div>
             {alert.resolvedAt === null && (
-              <p className="text-text-subtle text-sm">
+              <p className="text-text-subtle text-detail">
                 No se cierra sola: se cierra a mano después de revisarla.
               </p>
             )}

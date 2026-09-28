@@ -9,7 +9,7 @@ export type HighlightedNoticeProps = {
   detail: string;
 };
 
-const iconWrapperClassName = "inline-flex size-5 shrink-0 [&>svg]:h-full [&>svg]:w-full";
+const iconWrapperClassName = "inline-flex size-icon-lg shrink-0 *:size-full";
 
 export function HighlightedNotice({ tone, icon, title, detail }: HighlightedNoticeProps) {
   const className = [
@@ -25,8 +25,8 @@ export function HighlightedNotice({ tone, icon, title, detail }: HighlightedNoti
       {/* Hidden from assistive technology so its text isn't announced twice: the live region
           below is its only accessible copy. */}
       <div aria-hidden="true" className="flex flex-col gap-1">
-        <p className="text-lg font-bold">{title}</p>
-        <p className="text-sm leading-[1.35]">{detail}</p>
+        <p className="text-subheading font-bold">{title}</p>
+        <p className="text-detail leading-sm">{detail}</p>
       </div>
       <NoticeLiveRegion
         assertiveness={tone === "error" ? "assertive" : "polite"}
