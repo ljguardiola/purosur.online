@@ -21,6 +21,7 @@ import { helpAreaRoute } from "./help-area";
 import { homeAreaIndexRoute, homeAreaRoute } from "./home-area";
 import { publicRoute } from "./public-route";
 import { type RouterContext, rootRoute } from "./root-route";
+import { ScreenFailure } from "./screen-failure";
 import { ScreenPending } from "./screen-pending";
 import { focusScreenTitle } from "./screen-title";
 import { parseSearch, stringifySearch } from "./search-params";
@@ -76,6 +77,8 @@ export function createAppRouter(context: RouterContext) {
     parseSearch,
     stringifySearch,
     defaultPendingComponent: ScreenPending,
+    defaultErrorComponent: ScreenFailure,
+    defaultOnCatch: (error) => context.reportError(error),
   });
   router.subscribe("onRendered", ({ pathChanged }) => {
     if (pathChanged) {

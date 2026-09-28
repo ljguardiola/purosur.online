@@ -10,6 +10,7 @@ function appRouter() {
     help: defineHelp("es-AR", { categories: {}, articles: {} }),
     services: createAppServices(),
     sessionActions: { signedIn: vi.fn(), signedOut: vi.fn(), sessionEnded: vi.fn() },
+    reportError: vi.fn(),
   });
 }
 

@@ -6,7 +6,7 @@ import { startErrorReporting } from "./platform/error-reporter";
 import { fetchErrorReportingConfiguration } from "./platform/error-reporting-configuration-api";
 import { App } from "./shell/app";
 
-startErrorReporting({
+const errorReporter = startErrorReporting({
   target: window,
   fetchConfiguration: fetchErrorReportingConfiguration,
   startSending: async (configuration) =>
@@ -17,7 +17,7 @@ const root = document.getElementById("root");
 if (root) {
   createRoot(root).render(
     <StrictMode>
-      <App help={help} />
+      <App help={help} reportError={errorReporter.report} />
     </StrictMode>,
   );
 }
