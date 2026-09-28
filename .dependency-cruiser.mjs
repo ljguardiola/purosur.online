@@ -228,7 +228,10 @@ export default {
       path: "node_modules",
     },
     exclude: {
-      path: [`^(?!${REAL_POSTGRES_TEST}).*\\.test\\.(ts|tsx)$`, "^(apps|packages)/[^/]+/dist/"],
+      path: [
+        `^(?!${REAL_POSTGRES_TEST}).*\\.test\\.(ts|tsx)$`,
+        "^(apps|packages)/[^/]+/(dist|out)/",
+      ],
     },
     tsPreCompilationDeps: true,
     tsConfig: {
