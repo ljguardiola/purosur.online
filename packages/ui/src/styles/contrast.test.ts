@@ -31,9 +31,9 @@ const stylesheet = readFileSync(stylesheetPath, "utf-8");
 const colors = parseColorTokens(stylesheet);
 
 const backgrounds: Record<string, string> = {
-  white: colors["surface"] ?? "",
-  bone: colors["surface-subtle"] ?? "",
-  sand: colors["surface-soft"] ?? "",
+  surface: colors["surface"] ?? "",
+  "surface-subtle": colors["surface-subtle"] ?? "",
+  "surface-soft": colors["surface-soft"] ?? "",
 };
 
 const textTones = {
@@ -114,10 +114,10 @@ function itReachesContrastAgainstEverySurface(tones: Record<string, number>) {
 }
 
 describe("design tokens contrast", () => {
-  it("reads the white, bone and sand surface tokens from the stylesheet", () => {
-    expect(backgrounds["white"]).toMatch(/^#[0-9a-f]{6}$/i);
-    expect(backgrounds["bone"]).toMatch(/^#[0-9a-f]{6}$/i);
-    expect(backgrounds["sand"]).toMatch(/^#[0-9a-f]{6}$/i);
+  it("reads the surface, surface-subtle and surface-soft tokens from the stylesheet", () => {
+    expect(backgrounds["surface"]).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(backgrounds["surface-subtle"]).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(backgrounds["surface-soft"]).toMatch(/^#[0-9a-f]{6}$/i);
   });
 
   it("classifies every color token in tokens.css as a text tone or a decorative one", () => {
@@ -198,6 +198,19 @@ describe("option card help text on its chosen background contrast", () => {
   });
 });
 
+describe("accent text on the selected option background contrast", () => {
+  it(`text-accent reaches ${AAA_TEXT_CONTRAST}:1 against action-subtle`, () => {
+    const textHex = colors["text-accent"];
+    const backgroundHex = colors["action-subtle"];
+
+    expect(textHex).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(backgroundHex).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(contrastRatio(textHex as string, backgroundHex as string)).toBeGreaterThanOrEqual(
+      AAA_TEXT_CONTRAST,
+    );
+  });
+});
+
 const rowStateBackgroundNames = ["action-subtle", "warning-subtle", "error-subtle"] as const;
 
 describe("table row state background contrast", () => {
@@ -232,7 +245,7 @@ describe("pagination dimmed nav button text contrast", () => {
 
   const alpha = Number.parseFloat(opacityMatch?.[1] ?? "0") / 100;
 
-  for (const backgroundName of ["white", "bone"] as const) {
+  for (const backgroundName of ["surface", "surface-subtle"] as const) {
     it(`text at that opacity reaches ${AA_TEXT_CONTRAST}:1 against ${backgroundName}`, () => {
       const textRgb = hexToRgb(colors["text"] as string);
       const background = hexToRgb(backgrounds[backgroundName] as string);
