@@ -1,6 +1,8 @@
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
+import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
-import react from "@vitejs/plugin-react";
+import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
 import { configDefaults, defineConfig } from "vitest/config";
 import {
@@ -61,7 +63,18 @@ export default defineConfig({
         },
       },
       {
-        plugins: [react(), tailwindcss()],
+        plugins: [react(), babel({ presets: [reactCompilerPreset()] }), tailwindcss()],
+        resolve: {
+          // `optimizeDeps.include` entries resolve from the workspace root, which has no react of
+          // its own; this alias gives Vite a resolvable path so the compiler's import gets
+          // pre-bundled instead of served with broken CommonJS interop.
+          alias: {
+            "react/compiler-runtime": createRequire(r("./apps/backoffice/package.json")).resolve(
+              "react/compiler-runtime",
+            ),
+          },
+        },
+        optimizeDeps: { include: ["react/compiler-runtime"] },
         test: {
           name: "browser",
           include: ["packages/*/src/**/*.test.tsx", "apps/*/src/**/*.test.tsx"],

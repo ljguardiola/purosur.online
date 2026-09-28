@@ -66,7 +66,11 @@ export default defineConfig({
         "@purosur/ui": r("../../packages/ui/src/index.ts"),
       },
     },
-    plugins: [react(), tailwindcss(), contentSecurityPolicyMeta()],
+    plugins: [
+      react({ babel: { plugins: ["babel-plugin-react-compiler"] } }),
+      tailwindcss(),
+      contentSecurityPolicyMeta(),
+    ],
     build: {
       rollupOptions: {
         input: {
