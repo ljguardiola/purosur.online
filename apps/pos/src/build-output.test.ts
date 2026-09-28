@@ -306,7 +306,7 @@ describe("scanCandidates and classNamesIn end to end", () => {
         "}",
         "",
         "// A lowercase `const className = [...]`, not a *ClassName-named declaration.",
-        'const className = ["border-l-4", "bg-surface-white"].join(" ");',
+        'const className = ["border-l-4", "bg-surface"].join(" ");',
         "",
         "// A template literal, not a plain string.",
         // Split so this source string never contains a literal "${", which would otherwise read

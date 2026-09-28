@@ -13,16 +13,16 @@ import {
 type ToneTokens = { border: string; circle: string; icon: string };
 
 const tones: Record<NotificationTone, ToneTokens> = {
-  success: { border: "brand-green", circle: "brand-green-message-bg", icon: "brand-green-strong" },
+  success: { border: "success-soft", circle: "success-subtle", icon: "success-strong" },
   warning: {
-    border: "status-warning-accent",
-    circle: "status-warning-message-bg",
-    icon: "status-warning-strong",
+    border: "warning-soft",
+    circle: "warning-subtle",
+    icon: "warning-strong",
   },
   error: {
-    border: "status-error-accent",
-    circle: "status-error-message-bg",
-    icon: "status-error-strong",
+    border: "error-soft",
+    circle: "error-subtle",
+    icon: "error-strong",
   },
 };
 
@@ -89,7 +89,7 @@ test("renders every tone's border, circle and icon colors, in white with 8px rad
     const circle = icon.parentElement?.parentElement as HTMLElement;
     const style = getComputedStyle(container);
 
-    expect(style.backgroundColor, `${tone} background`).toBe(tokenRgb("surface-white"));
+    expect(style.backgroundColor, `${tone} background`).toBe(tokenRgb("surface"));
     expect(style.borderRadius, `${tone} radius`).toBe("8px");
     expect(style.paddingTop, `${tone} padding top`).toBe("16px");
     expect(style.paddingLeft, `${tone} padding left`).toBe("16px");
@@ -130,7 +130,7 @@ test("keeps the title and detail readable against the white background", async (
   );
   const title = screen.getByText("Title", { exact: true }).first().element() as HTMLElement;
   const detail = screen.getByText("Detail", { exact: true }).first().element() as HTMLElement;
-  const background = tokenRgb("surface-white");
+  const background = tokenRgb("surface");
 
   const titleRatio = contrastRatio(rgbToHex(getComputedStyle(title).color), rgbToHex(background));
   const detailRatio = contrastRatio(rgbToHex(getComputedStyle(detail).color), rgbToHex(background));
@@ -170,9 +170,9 @@ test("centers an 18px icon in a 32px circle, 12px from the text, in a 16px bold 
   const detailStyle = getComputedStyle(detail);
   expect(titleStyle.fontSize).toBe("16px");
   expect(titleStyle.fontWeight).toBe("700");
-  expect(titleStyle.color).toBe(tokenRgb("ink"));
+  expect(titleStyle.color).toBe(tokenRgb("text"));
   expect(detailStyle.fontSize).toBe("14px");
-  expect(detailStyle.color).toBe(tokenRgb("ink-secondary"));
+  expect(detailStyle.color).toBe(tokenRgb("text-subtle"));
 
   const titleRect = title.getBoundingClientRect();
   const detailRect = detail.getBoundingClientRect();
@@ -199,7 +199,7 @@ test("renders an optional what-to-do line in 14px semibold ink", async () => {
 
   expect(style.fontSize).toBe("14px");
   expect(style.fontWeight).toBe("600");
-  expect(style.color).toBe(tokenRgb("ink"));
+  expect(style.color).toBe(tokenRgb("text"));
 });
 
 test("renders an optional time in 12px secondary text", async () => {
@@ -210,7 +210,7 @@ test("renders an optional time in 12px secondary text", async () => {
   const style = getComputedStyle(time);
 
   expect(style.fontSize).toBe("12px");
-  expect(style.color).toBe(tokenRgb("ink-secondary"));
+  expect(style.color).toBe(tokenRgb("text-subtle"));
 });
 
 test("omits the what-to-do and time lines when the caller does not supply them", async () => {

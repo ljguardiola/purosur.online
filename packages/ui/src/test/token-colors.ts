@@ -21,10 +21,13 @@ export function insetBoundary(token: string, width: string): string {
   return `${tokenRgb(token)} 0px 0px 0px ${width} inset`;
 }
 
-// Tailwind composes `shadow-none` into its own shadow layers set to fully transparent rather
-// than into the literal "none", so "this element draws no boundary of its own" is not a string
-// comparison: it is that every layer the browser does report paints nothing. Returning the
-// layers that do paint, instead of a boolean, puts the offending one in the failure message.
+// Tailwind composes a cleared shadow (`inset-ring-0`, `shadow-none`) into its own shadow layers
+// as a transparent or zero-sized one rather than into the literal "none", so "this element draws
+// no boundary of its own" is not a string comparison: it is that every layer the browser does
+// report paints nothing. Returning the layers that do paint, instead of a boolean, puts the
+// offending one in the failure message.
+const ZERO_SIZED_LAYER = / 0px 0px 0px 0px(?: inset)?$/;
+
 export function paintedBoxShadowLayers(element: HTMLElement): string[] {
   const boxShadow = getComputedStyle(element).boxShadow;
   if (boxShadow === "none") {
@@ -35,7 +38,7 @@ export function paintedBoxShadowLayers(element: HTMLElement): string[] {
   return boxShadow
     .split(/,(?![^(]*\))/)
     .map((layer) => layer.trim())
-    .filter((layer) => !layer.startsWith("rgba(0, 0, 0, 0) "));
+    .filter((layer) => !layer.startsWith("rgba(0, 0, 0, 0) ") && !layer.match(ZERO_SIZED_LAYER));
 }
 
 // The color is always the leading rgb()/rgba() substring of a box-shadow layer. Only a
@@ -56,18 +59,27 @@ export function boundaryColorHex(element: HTMLElement): string {
   return rgbToHex(color);
 }
 
-// Reads a "--color-<name>" token's computed color the way the browser itself renders it, instead
-// of parsing its hex text: an 8-digit alpha token (e.g. a backdrop or shadow tint) compiles to an
+// Reads a custom property's computed color the way the browser itself renders it, instead of
+// parsing its hex text: an 8-digit alpha color (e.g. a backdrop or shadow tint) compiles to an
 // "rgba(...)" string whose alpha channel is rounded by the browser, which hexToRgb/tokenRgb above
 // can't reproduce byte-for-byte since they only parse opaque 6-digit hex. A probe element run
 // through the same browser round-trip as the component under test avoids that mismatch entirely.
-export function tokenBackgroundColor(name: string): string {
+function renderedBackgroundColor(property: string): string {
   const probe = document.createElement("div");
-  probe.style.backgroundColor = `var(--color-${name})`;
+  probe.style.backgroundColor = `var(${property})`;
   document.body.appendChild(probe);
   const value = getComputedStyle(probe).backgroundColor;
   probe.remove();
   return value;
+}
+
+export function tokenBackgroundColor(name: string): string {
+  return renderedBackgroundColor(`--color-${name}`);
+}
+
+// A shadow tint has no color role of its own, so its palette entry is read directly.
+export function paletteColor(name: string): string {
+  return renderedBackgroundColor(`--palette-${name}`);
 }
 
 export function rgbToHex(rgb: string): string {

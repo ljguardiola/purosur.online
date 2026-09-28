@@ -2,7 +2,7 @@ import { expect, expectTypeOf, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../test/axe";
-import { tokenBackgroundColor, tokenRgb } from "../test/token-colors";
+import { paletteColor, tokenRgb } from "../test/token-colors";
 import { ListFilter, type ListFilterOption, type ListFilterProps } from "./ListFilter";
 
 type Status = "all" | "open" | "closed";
@@ -43,10 +43,10 @@ test("renders closed at 44px with an 8px radius, a 2px line border and 12px padd
 
   expect(rect.height).toBeGreaterThan(43);
   expect(rect.height).toBeLessThan(45);
-  expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
+  expect(style.backgroundColor).toBe(tokenRgb("surface"));
   expect(style.borderRadius).toBe("8px");
   expect(style.borderWidth).toBe("2px");
-  expect(style.borderColor).toBe(tokenRgb("line"));
+  expect(style.borderColor).toBe(tokenRgb("border"));
   expect(style.paddingLeft).toBe("12px");
   expect(style.paddingRight).toBe("12px");
   expect(style.columnGap).toBe("8px");
@@ -59,10 +59,10 @@ test("shows the label in 14px secondary text and the chosen value in 16px bold i
   const value = trigger.getByText("Todos", { exact: true }).element() as HTMLElement;
 
   expect(getComputedStyle(label).fontSize).toBe("14px");
-  expect(getComputedStyle(label).color).toBe(tokenRgb("ink-secondary"));
+  expect(getComputedStyle(label).color).toBe(tokenRgb("text-subtle"));
   expect(getComputedStyle(value).fontSize).toBe("16px");
   expect(getComputedStyle(value).fontWeight).toBe("700");
-  expect(getComputedStyle(value).color).toBe(tokenRgb("ink"));
+  expect(getComputedStyle(value).color).toBe(tokenRgb("text"));
 });
 
 test("shows a 16px down chevron in secondary text when closed", async () => {
@@ -74,7 +74,7 @@ test("shows a 16px down chevron in secondary text when closed", async () => {
   expect(icon.classList.contains("lucide-chevron-down")).toBe(true);
   expect(rect.width).toBeGreaterThan(15);
   expect(rect.width).toBeLessThan(17);
-  expect(getComputedStyle(icon).color).toBe(tokenRgb("ink-secondary"));
+  expect(getComputedStyle(icon).color).toBe(tokenRgb("text-subtle"));
 });
 
 test("shows a visible focus outline in strong blue when reached by keyboard", async () => {
@@ -85,9 +85,7 @@ test("shows a visible focus outline in strong blue when reached by keyboard", as
 
   await expect.poll(() => getComputedStyle(trigger).outlineWidth).toBe("3px");
   await expect.poll(() => getComputedStyle(trigger).outlineOffset).toBe("3px");
-  await expect
-    .poll(() => getComputedStyle(trigger).outlineColor)
-    .toBe(tokenRgb("brand-blue-strong"));
+  await expect.poll(() => getComputedStyle(trigger).outlineColor).toBe(tokenRgb("focus"));
 });
 
 test("turns the border blue UI and the chevron up when opened", async () => {
@@ -96,9 +94,7 @@ test("turns the border blue UI and the chevron up when opened", async () => {
 
   await trigger.click();
 
-  await expect
-    .poll(() => getComputedStyle(trigger.element()).borderColor)
-    .toBe(tokenRgb("brand-blue-ui"));
+  await expect.poll(() => getComputedStyle(trigger.element()).borderColor).toBe(tokenRgb("action"));
   await expect.element(screen.getByRole("listbox")).toBeVisible();
 
   const icon = trigger.element().querySelector("svg") as SVGSVGElement;
@@ -117,13 +113,13 @@ test("opens a menu at least 200px wide, matching the trigger, white with an 8px 
   const rect = menu.getBoundingClientRect();
 
   expect(rect.width).toBeGreaterThanOrEqual(200);
-  expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
+  expect(style.backgroundColor).toBe(tokenRgb("surface"));
   expect(style.borderRadius).toBe("8px");
   expect(style.borderWidth).toBe("1px");
-  expect(style.borderColor).toBe(tokenRgb("line"));
+  expect(style.borderColor).toBe(tokenRgb("border"));
   expect(style.boxShadow).toContain("8px");
   expect(style.boxShadow).toContain("24px");
-  expect(style.boxShadow).toContain(tokenBackgroundColor("ink-menu-shadow"));
+  expect(style.boxShadow).toContain(paletteColor("neutral-900-a16"));
 
   // react-aria-components flips the popover to the trigger's opposite side when its preferred
   // side lacks room, so the gap is checked against whichever side it actually rendered on.
@@ -482,7 +478,7 @@ test("renders each option at 40px with a 6px radius and 14px semibold ink", asyn
   expect(style.borderRadius).toBe("6px");
   expect(style.fontSize).toBe("14px");
   expect(style.fontWeight).toBe("600");
-  expect(style.color).toBe(tokenRgb("ink"));
+  expect(style.color).toBe(tokenRgb("text"));
 });
 
 test("highlights a hovered option with a bone background", async () => {
@@ -493,7 +489,7 @@ test("highlights a hovered option with a bone background", async () => {
   await userEvent.hover(option.element());
   await expect
     .poll(() => getComputedStyle(option.element()).backgroundColor)
-    .toBe(tokenRgb("surface-bone"));
+    .toBe(tokenRgb("surface-subtle"));
 });
 
 test("highlights a keyboard-focused option with a bone background", async () => {
@@ -506,7 +502,7 @@ test("highlights a keyboard-focused option with a bone background", async () => 
   const focused = screen.getByRole("option", { name: "Todos" });
   await expect
     .poll(() => getComputedStyle(focused.element()).backgroundColor)
-    .toBe(tokenRgb("surface-bone"));
+    .toBe(tokenRgb("surface-subtle"));
 });
 
 test("shows a 16px blue strong check on the chosen option only", async () => {
@@ -521,7 +517,7 @@ test("shows a 16px blue strong check on the chosen option only", async () => {
   const rect = check.getBoundingClientRect();
   expect(rect.width).toBeGreaterThan(15);
   expect(rect.width).toBeLessThan(17);
-  expect(getComputedStyle(check).color).toBe(tokenRgb("brand-blue-strong"));
+  expect(getComputedStyle(check).color).toBe(tokenRgb("text-accent"));
   expect(unchosen.querySelector("svg")).toBeNull();
 });
 

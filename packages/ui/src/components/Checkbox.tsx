@@ -15,17 +15,16 @@ const labelClassName = "group flex cursor-pointer items-center gap-3 outline-non
 // Drawn with an inset box-shadow rather than a real border, so the box never resizes going from
 // unchecked to checked.
 const boxClassName =
-  "inline-flex size-[22px] shrink-0 items-center justify-center rounded-sm outline-none " +
-  "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-ink-secondary)] " +
-  "group-data-[hovered]:bg-surface-bone " +
-  "group-data-[selected]:bg-brand-blue-ui group-data-[selected]:shadow-none " +
+  "inline-flex size-control-2xs shrink-0 items-center justify-center rounded-sm outline-none " +
+  "bg-surface inset-ring-2 inset-ring-border-strong " +
+  "group-data-hovered:bg-surface-subtle " +
+  "group-data-selected:bg-action group-data-selected:inset-ring-0 " +
   // Two attribute selectors outrank the single-attribute hover rule above regardless of
   // stylesheet order, guaranteeing the checked box's hover color wins over the unchecked one.
-  "group-data-[hovered]:group-data-[selected]:bg-brand-blue-strong " +
-  "group-data-[focus-visible]:outline-[3px] group-data-[focus-visible]:outline-solid " +
-  "group-data-[focus-visible]:outline-offset-3 group-data-[focus-visible]:outline-brand-blue-strong";
+  "group-data-hovered:group-data-selected:bg-action-strong " +
+  "group-data-focus-visible:focus-ring";
 
-const checkIconClassName = "size-4 text-surface-white";
+const checkIconClassName = "size-icon-sm text-text-inverse";
 
 export function Checkbox({ isSelected, onChange, children }: CheckboxProps) {
   return (

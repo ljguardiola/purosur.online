@@ -6,7 +6,7 @@ import { render } from "vitest-browser-react";
 import { AAA_TEXT_CONTRAST, contrastRatio } from "../styles/contrast";
 import { expectNoAccessibilityViolations } from "../test/axe";
 import type { DispatchableCdpSession } from "../test/setup-browser";
-import { rgbToHex, tokenBackgroundColor, tokenRgb } from "../test/token-colors";
+import { paletteColor, rgbToHex, tokenRgb } from "../test/token-colors";
 import { Button } from "./Button";
 import { IconButton } from "./IconButton";
 import { CLOSE_DELAY_MS, Tooltip, type TooltipProps } from "./Tooltip";
@@ -116,7 +116,7 @@ test("renders nothing until hovered, focused, or otherwise activated", async () 
   expect(screen.getByRole("tooltip").elements()).toHaveLength(0);
 });
 
-test("shows a 6px-radius ink box, 12px padding, white 14px/1.35 text at AAA contrast, and the ink-shadow drop shadow below its element by default", async () => {
+test("shows a 6px-radius ink box, 12px padding, white 14px/1.35 text at AAA contrast, and the drop shadow below its element by default", async () => {
   const screen = await render(
     <div style={centeredInViewport}>
       <Tooltip description="Voided at checkout by the manager on duty">
@@ -132,8 +132,8 @@ test("shows a 6px-radius ink box, 12px padding, white 14px/1.35 text at AAA cont
   const tooltip = tooltipElement(screen);
   const style = getComputedStyle(tooltip);
 
-  expect(style.backgroundColor).toBe(tokenRgb("ink"));
-  expect(style.color).toBe(tokenRgb("surface-white"));
+  expect(style.backgroundColor).toBe(tokenRgb("surface-inverse"));
+  expect(style.color).toBe(tokenRgb("text-inverse"));
   expect(style.borderRadius).toBe("6px");
   expect(style.paddingTop).toBe("12px");
   expect(style.paddingRight).toBe("12px");
@@ -141,7 +141,7 @@ test("shows a 6px-radius ink box, 12px padding, white 14px/1.35 text at AAA cont
   expect(style.paddingLeft).toBe("12px");
   expect(style.fontSize).toBe("14px");
   expect(Number.parseFloat(style.lineHeight)).toBeCloseTo(14 * 1.35, 0);
-  expect(style.boxShadow).toContain(tokenBackgroundColor("ink-shadow"));
+  expect(style.boxShadow).toContain(paletteColor("neutral-900-a12"));
   expect(style.boxShadow).toContain("6px 16px");
   expect(tooltip.dataset["placement"]).toBe("bottom");
 
@@ -170,7 +170,7 @@ test("centers a 10px ink diamond on the box's edge, the box 10px clear of the el
   const diamond = (arrow as HTMLElement).firstElementChild as HTMLElement;
 
   const diamondStyle = getComputedStyle(diamond);
-  expect(diamondStyle.backgroundColor).toBe(tokenRgb("ink"));
+  expect(diamondStyle.backgroundColor).toBe(tokenRgb("surface-inverse"));
   // Tailwind v4's rotate-* utilities set the native `rotate` property, not a `transform` matrix.
   expect(diamondStyle.rotate).toBe("45deg");
   expect(diamondStyle.width).toBe("10px");

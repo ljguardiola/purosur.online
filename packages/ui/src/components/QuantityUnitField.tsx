@@ -46,7 +46,7 @@ type QuantityUnitFieldValidityProps =
 export type QuantityUnitFieldProps<U extends string> = QuantityUnitFieldCommonProps<U> &
   QuantityUnitFieldValidityProps;
 
-const wrapperClassName = `flex flex-col ${fieldWrapperGapClassName.backoffice} data-[disabled]:opacity-[0.45]`;
+const wrapperClassName = `flex flex-col ${fieldWrapperGapClassName.backoffice} data-disabled:opacity-disabled`;
 
 const labelClassName = fieldLabelClassName.backoffice;
 
@@ -57,51 +57,50 @@ const boxBaseClassName = `flex min-w-0 max-w-full items-center rounded-lg outlin
 // back on while open.
 function boxStateClassName(disabled: boolean, invalid: boolean, unitOpen: boolean): string {
   if (disabled) {
-    return "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-line)]";
+    return "bg-surface inset-ring-2 inset-ring-border";
   }
   if (unitOpen) {
-    return "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-brand-blue-ui)]";
+    return "bg-surface inset-ring-2 inset-ring-action";
   }
   if (invalid) {
     return (
-      "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-status-error-ui)] " +
-      "hover:not-focus-within:bg-surface-bone " +
-      "focus-within:shadow-[inset_0_0_0_2px_var(--color-brand-blue-ui)]"
+      "bg-surface inset-ring-2 inset-ring-error " +
+      "hover:not-focus-within:bg-surface-subtle " +
+      "focus-within:inset-ring-action"
     );
   }
   return (
-    "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-line)] " +
-    "hover:not-focus-within:bg-surface-bone " +
-    "focus-within:shadow-[inset_0_0_0_2px_var(--color-brand-blue-ui)]"
+    "bg-surface inset-ring-2 inset-ring-border " +
+    "hover:not-focus-within:bg-surface-subtle " +
+    "focus-within:inset-ring-action"
   );
 }
 
 const valueClassName =
   `min-w-0 flex-1 bg-transparent text-left ${backofficeFieldValueClassName} ` +
-  "caret-brand-blue-strong outline-none";
+  "caret-focus outline-none";
 
 const unitTriggerClassName = "flex shrink-0 items-center gap-1 outline-none";
-const unitValueClassName = "text-base font-normal text-ink-secondary";
-const chevronClassName = "size-[1.125rem] shrink-0 text-ink-secondary";
+const unitValueClassName = "text-body text-text-subtle";
+const chevronClassName = "size-icon-md shrink-0 text-text-subtle";
 
 const popoverClassName =
-  "min-w-24 rounded-lg border border-line bg-surface-white p-1.5 " +
-  "shadow-[0_8px_24px_var(--color-ink-menu-shadow)] overflow-y-auto";
+  "min-w-24 rounded-lg border border-border bg-surface p-1.5 shadow-lg overflow-y-auto";
 
 // This popover portals to the document body as its own stacking layer, which would otherwise
 // paint below a positive-z-index ancestor (e.g. a modal's overlay) regardless of mount order,
 // since a positive z-index always wins that comparison over an auto one.
-const POPOVER_Z_INDEX = 100000;
+const popoverStyle = { zIndex: "var(--z-index-popover)" };
 
 const optionClassName =
-  "flex h-10 cursor-pointer items-center justify-between rounded-md px-3 text-sm font-semibold " +
-  "text-ink outline-none data-[hovered]:bg-surface-bone data-[focus-visible]:bg-surface-bone " +
-  "data-[selected]:bg-brand-blue-message-bg data-[selected]:text-brand-blue-strong " +
-  "data-[hovered]:data-[selected]:bg-brand-blue-message-bg " +
-  "data-[focus-visible]:data-[selected]:bg-brand-blue-message-bg";
+  "flex h-control-lg cursor-pointer items-center justify-between rounded-md px-3 text-detail font-semibold " +
+  "text-text outline-none data-hovered:bg-surface-subtle data-focus-visible:bg-surface-subtle " +
+  "data-selected:bg-action-subtle data-selected:text-text-accent " +
+  "data-hovered:data-selected:bg-action-subtle " +
+  "data-focus-visible:data-selected:bg-action-subtle";
 
-const helperClassName = "text-sm font-normal text-ink-secondary";
-const errorClassName = "text-sm font-normal text-status-error-ui";
+const helperClassName = "text-detail text-text-subtle";
+const errorClassName = "text-detail text-error";
 
 // react-aria-components' onSelectionChange reports a plain Key (string | number).
 function isOptionValue<U extends string>(
@@ -180,11 +179,7 @@ export function QuantityUnitField<U extends string>(props: QuantityUnitFieldProp
                   <ChevronDown aria-hidden="true" className={chevronClassName} />
                 )}
               </AriaButton>
-              <AriaPopover
-                offset={4}
-                style={{ zIndex: POPOVER_Z_INDEX }}
-                className={popoverClassName}
-              >
+              <AriaPopover offset={4} style={popoverStyle} className={popoverClassName}>
                 <AriaListBox className="flex flex-col gap-1">
                   {options.map((option) => (
                     <AriaListBoxItem
@@ -199,7 +194,7 @@ export function QuantityUnitField<U extends string>(props: QuantityUnitFieldProp
                           {isSelected ? (
                             <Check
                               aria-hidden="true"
-                              className="size-[1.125rem] shrink-0 text-brand-blue-strong"
+                              className="size-icon-md shrink-0 text-text-accent"
                             />
                           ) : null}
                         </>

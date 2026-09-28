@@ -30,8 +30,8 @@ test("stacks rows 8px apart, with a 1px line above and below the group and 16px 
 
   expect(style.borderTopWidth).toBe("1px");
   expect(style.borderBottomWidth).toBe("1px");
-  expect(style.borderTopColor).toBe(tokenRgb("line"));
-  expect(style.borderBottomColor).toBe(tokenRgb("line"));
+  expect(style.borderTopColor).toBe(tokenRgb("border"));
+  expect(style.borderBottomColor).toBe(tokenRgb("border"));
   expect(style.borderLeftWidth).toBe("0px");
   expect(style.borderRightWidth).toBe("0px");
   expect(style.paddingTop).toBe("16px");
@@ -93,14 +93,14 @@ test("renders a row it is given as strong or as a saving, not in the plain form"
   const strongLabel = screen.getByText("Total", { exact: true }).element() as HTMLElement;
   const strongValue = screen.getByText("$130.00", { exact: true }).element() as HTMLElement;
 
-  expect(getComputedStyle(savingValue).color).toBe(tokenRgb("brand-green-ui"));
+  expect(getComputedStyle(savingValue).color).toBe(tokenRgb("success"));
 
   expect(getComputedStyle(strongLabel).fontSize).toBe("18px");
   expect(getComputedStyle(strongLabel).fontWeight).toBe("700");
-  expect(getComputedStyle(strongLabel).color).toBe(tokenRgb("ink"));
+  expect(getComputedStyle(strongLabel).color).toBe(tokenRgb("text"));
   expect(getComputedStyle(strongValue).fontSize).toBe("18px");
   expect(getComputedStyle(strongValue).fontWeight).toBe("700");
-  expect(getComputedStyle(strongValue).color).toBe(tokenRgb("ink"));
+  expect(getComputedStyle(strongValue).color).toBe(tokenRgb("text"));
 
   await expectNoAccessibilityViolations(screen.container);
 });

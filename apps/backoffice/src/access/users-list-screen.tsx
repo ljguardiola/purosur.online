@@ -489,9 +489,9 @@ export function UsersListScreen({
     <>
       <ScreenLayout
         topBar={
-          <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
+          <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
             <div className="flex flex-col justify-center">
-              <p className="text-ink-secondary text-sm">Configuración</p>
+              <p className="text-text-subtle text-detail">Configuración</p>
               <ScreenTitle>Usuarios</ScreenTitle>
             </div>
             {access.isAdministrator ? (
@@ -552,7 +552,7 @@ export function UsersListScreen({
               loading={list.kind === "loading" ? "initial" : false}
               rows={filteredUsers.map((user) => ({ id: user.id, item: user }))}
               footer={
-                <p className="text-ink-secondary text-sm">
+                <p className="text-text-subtle text-detail">
                   {plural(filteredUsers.length, {
                     one: "1 usuario",
                     other: `${filteredUsers.length} usuarios`,

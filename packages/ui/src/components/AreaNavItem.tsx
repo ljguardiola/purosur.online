@@ -10,24 +10,23 @@ export type AreaNavItemProps = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "cl
 
 const baseClassName =
   "flex w-15 flex-col items-center justify-center gap-1 rounded-lg px-0 py-2 outline-none " +
-  "focus-visible:outline-[3px] focus-visible:outline-solid focus-visible:outline-offset-2 " +
-  "focus-visible:outline-surface-white";
+  "focus-visible:focus-ring-inverse";
 
 const backgroundClassName: Record<"active" | "inactive", string> = {
   inactive: "",
-  active: "bg-surface-white-veil",
+  active: "bg-surface-nav-subtle",
 };
 
-const iconWrapperClassName = "inline-flex size-5 shrink-0 [&>svg]:h-full [&>svg]:w-full";
+const iconWrapperClassName = "inline-flex size-icon-lg shrink-0 *:size-full";
 
 const iconToneClassName: Record<"active" | "inactive", string> = {
-  inactive: "text-blue-soft",
-  active: "text-surface-white",
+  inactive: "text-text-inverse-subtle",
+  active: "text-text-inverse",
 };
 
 const labelToneClassName: Record<"active" | "inactive", string> = {
-  inactive: "text-xs font-normal text-blue-soft",
-  active: "text-xs font-bold text-surface-white",
+  inactive: "text-caption text-text-inverse-subtle",
+  active: "text-caption font-bold text-text-inverse",
 };
 
 export function AreaNavItem({ label, icon, active, ...props }: AreaNavItemProps) {

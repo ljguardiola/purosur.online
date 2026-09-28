@@ -15,8 +15,8 @@ function ownEntry<Value>(record: Record<string, Value>, key: string | null): Val
 }
 
 const linkRowClassName =
-  "flex items-center justify-between gap-2 rounded-lg border border-line bg-surface-white px-3 py-3 " +
-  `text-sm text-ink transition-colors hover:bg-surface-bone ${focusRingClassName}`;
+  "flex items-center justify-between gap-2 rounded-lg border border-border bg-surface px-3 py-3 " +
+  `text-detail text-text transition-colors hover:bg-surface-subtle ${focusRingClassName}`;
 
 function ArticleLinkRow({
   articleId,
@@ -32,16 +32,16 @@ function ArticleLinkRow({
       className={linkRowClassName}
     >
       <span>{article.title}</span>
-      <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-ink-secondary" />
+      <ChevronRight aria-hidden="true" className="size-icon-sm shrink-0 text-text-subtle" />
     </Link>
   );
 }
 
 function EmptyState({ title, body }: { title?: string; body: string }) {
   return (
-    <div className="flex flex-col items-center gap-2 rounded-lg border border-line bg-surface-white px-6 py-12 text-center">
-      {title ? <p className="font-bold text-brand-blue-strong text-lg">{title}</p> : null}
-      <p className="text-ink-secondary text-sm">{body}</p>
+    <div className="flex flex-col items-center gap-2 rounded-lg border border-border bg-surface px-6 py-12 text-center">
+      {title ? <p className="text-text-accent text-subheading">{title}</p> : null}
+      <p className="text-text-subtle text-detail">{body}</p>
     </div>
   );
 }
@@ -87,12 +87,12 @@ function Block({ block, help }: { block: HelpBlock<string>; help: BackofficeHelp
   switch (block.kind) {
     case "heading":
       return (
-        <h2 className="font-bold text-brand-earth-ui text-xs uppercase tracking-widest">
+        <h2 className="font-bold text-text-eyebrow text-caption uppercase tracking-sm">
           {block.text}
         </h2>
       );
     case "paragraph":
-      return <p className="text-base text-ink leading-[1.5]">{block.text}</p>;
+      return <p className="text-body text-text">{block.text}</p>;
     case "steps":
       return (
         <ol className="flex flex-col gap-3">
@@ -100,22 +100,20 @@ function Block({ block, help }: { block: HelpBlock<string>; help: BackofficeHelp
             <li key={key} className="flex items-start gap-3">
               <span
                 aria-hidden="true"
-                className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand-blue-message-bg font-bold text-brand-blue-strong text-sm"
+                className="flex size-7 shrink-0 items-center justify-center rounded-full bg-action-subtle font-bold text-text-accent text-detail"
               >
                 {index + 1}
               </span>
-              <p className="mt-[calc((1.75rem_-_1.45em)_/_2)] text-base text-ink leading-[1.45]">
-                {item}
-              </p>
+              <p className="badge-text-offset text-body text-text leading-lg">{item}</p>
             </li>
           ))}
         </ol>
       );
     case "note":
       return (
-        <div className="flex items-center gap-3 rounded-lg bg-surface-bone px-4 py-3">
-          <Info aria-hidden="true" className="size-[1.125rem] shrink-0 text-brand-blue-strong" />
-          <p className="text-ink text-sm leading-[1.4]">{block.text}</p>
+        <div className="flex items-center gap-3 rounded-lg bg-surface-subtle px-4 py-3">
+          <Info aria-hidden="true" className="size-icon-md shrink-0 text-text-accent" />
+          <p className="text-text text-detail leading-md">{block.text}</p>
         </div>
       );
     case "articleLink": {
@@ -139,9 +137,9 @@ function RelatedPanel({
   return (
     <nav
       aria-label="También te puede servir"
-      className="flex w-[18.75rem] shrink-0 flex-col gap-2 self-start"
+      className="flex w-75 shrink-0 flex-col gap-2 self-start"
     >
-      <h2 className="font-bold text-brand-earth-ui text-xs uppercase tracking-widest">
+      <h2 className="font-bold text-text-eyebrow text-caption uppercase tracking-sm">
         También te puede servir
       </h2>
       <ul className="flex flex-col gap-2">
@@ -164,7 +162,7 @@ function ArticleView({
 }) {
   return (
     <div className="flex flex-1 gap-6">
-      <div className="flex flex-1 flex-col gap-4 rounded-lg border border-line bg-surface-white p-6">
+      <div className="flex flex-1 flex-col gap-4 rounded-lg border border-border bg-surface p-6">
         {keyed(article.body, blockContent).map(([key, block]) => (
           <Block key={key} block={block} help={help} />
         ))}
@@ -201,16 +199,16 @@ export function HelpContent({
   return (
     <ScreenLayout
       topBar={
-        <div className="flex h-18 shrink-0 flex-col justify-center border-line border-b bg-surface-white px-8">
+        <div className="flex h-18 shrink-0 flex-col justify-center border-border border-b bg-surface px-8">
           {activeArticle && activeCategory ? (
-            <p className="text-ink-secondary text-sm">{`Ayuda · ${activeCategory.label}`}</p>
+            <p className="text-text-subtle text-detail">{`Ayuda · ${activeCategory.label}`}</p>
           ) : null}
           <ScreenTitle>{activeArticle?.title ?? activeCategory?.label ?? idleTitle}</ScreenTitle>
         </div>
       }
       bodyClassName="gap-4 p-6"
     >
-      <div className="w-[26.25rem]">
+      <div className="w-105">
         <SearchField
           variant="backoffice"
           value={search}

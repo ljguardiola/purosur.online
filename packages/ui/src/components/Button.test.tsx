@@ -85,7 +85,7 @@ test("activates on Space when focused via keyboard", async () => {
 test("shows a visible focus outline in strong blue when reached by keyboard", async () => {
   const screen = await render(<Button>Save</Button>);
   const button = screen.getByRole("button", { name: "Save" }).element() as HTMLElement;
-  const focusRingColor = tokenRgb("brand-blue-strong");
+  const focusRingColor = tokenRgb("focus");
 
   await userEvent.tab();
 
@@ -132,8 +132,8 @@ test("renders the secondary variant with a transparent background, earth-toned b
   await expect.element(screen.getByRole("button", { name: "Cancel" })).toBeVisible();
   expect(getComputedStyle(button).backgroundColor).toBe("rgba(0, 0, 0, 0)");
   expect(getComputedStyle(button).borderWidth).toBe("1px");
-  expect(getComputedStyle(button).borderColor).toBe(tokenRgb("brand-earth-ui"));
-  expect(getComputedStyle(button).color).toBe(tokenRgb("ink"));
+  expect(getComputedStyle(button).borderColor).toBe(tokenRgb("border-accent"));
+  expect(getComputedStyle(button).color).toBe(tokenRgb("text"));
 });
 
 test("defaults the primary and secondary variants to the medium size when none is given", async () => {
@@ -247,7 +247,7 @@ test("keeps the primary variant's hover text readable against its background", a
   const button = screen.getByRole("button", { name: "Primary" }).element() as HTMLElement;
 
   await userEvent.hover(button);
-  await expectHoverBackground(button, "brand-blue-strong");
+  await expectHoverBackground(button, "action-strong");
 
   const hovered = getComputedStyle(button);
   const ratio = contrastRatio(rgbToHex(hovered.color), rgbToHex(hovered.backgroundColor));
@@ -259,7 +259,7 @@ test("keeps the secondary variant's hover text readable against its background",
   const button = screen.getByRole("button", { name: "Cancel" }).element() as HTMLElement;
 
   await userEvent.hover(button);
-  await expectHoverBackground(button, "surface-bone");
+  await expectHoverBackground(button, "surface-subtle");
 
   const hovered = getComputedStyle(button);
   const ratio = contrastRatio(rgbToHex(hovered.color), rgbToHex(hovered.backgroundColor));
@@ -270,8 +270,8 @@ test("renders the destructive tone of the primary button with an error backgroun
   const screen = await render(<Button tone="destructive">Void sale</Button>);
   const button = screen.getByRole("button", { name: "Void sale" }).element() as HTMLElement;
 
-  expect(getComputedStyle(button).backgroundColor).toBe(tokenRgb("status-error-ui"));
-  expect(getComputedStyle(button).color).toBe(tokenRgb("surface-white"));
+  expect(getComputedStyle(button).backgroundColor).toBe(tokenRgb("error"));
+  expect(getComputedStyle(button).color).toBe(tokenRgb("text-inverse"));
 });
 
 test("turns the destructive tone's hover background to error-strong, keeping white text readable", async () => {
@@ -279,17 +279,17 @@ test("turns the destructive tone's hover background to error-strong, keeping whi
   const button = screen.getByRole("button", { name: "Void sale" }).element() as HTMLElement;
 
   await userEvent.hover(button);
-  await expectHoverBackground(button, "status-error-strong");
+  await expectHoverBackground(button, "error-strong");
 
   const hovered = getComputedStyle(button);
-  expect(hovered.color).toBe(tokenRgb("surface-white"));
+  expect(hovered.color).toBe(tokenRgb("text-inverse"));
   const ratio = contrastRatio(rgbToHex(hovered.color), rgbToHex(hovered.backgroundColor));
   expect(ratio).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
 });
 
-test("renders the destructive tone of the secondary variant with a white fill and error-ui border and text, as the design draws it", async () => {
+test("renders the destructive tone of the secondary variant with a white fill and error border and text, as the design draws it", async () => {
   const screen = await render(
-    <div style={{ backgroundColor: tokenRgb("surface-white") }}>
+    <div style={{ backgroundColor: tokenRgb("surface") }}>
       <Button variant="secondary" tone="destructive">
         Desactivar
       </Button>
@@ -300,14 +300,14 @@ test("renders the destructive tone of the secondary variant with a white fill an
 
   expect(getComputedStyle(button).backgroundColor).toBe("rgba(0, 0, 0, 0)");
   expect(getComputedStyle(button).borderWidth).toBe("1px");
-  expect(getComputedStyle(button).borderColor).toBe(tokenRgb("status-error-ui"));
-  expect(getComputedStyle(button).color).toBe(tokenRgb("status-error-ui"));
+  expect(getComputedStyle(button).borderColor).toBe(tokenRgb("error"));
+  expect(getComputedStyle(button).color).toBe(tokenRgb("error"));
 
   const ratio = contrastRatio(rgbToHex(getComputedStyle(button).color), rgbToHex(behind));
   expect(ratio).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
 });
 
-test("keeps the destructive secondary variant's hover background at bone, like the default secondary and the text destructive form, and keeps its error-ui border and text readable", async () => {
+test("keeps the destructive secondary variant's hover background at bone, like the default secondary and the text destructive form, and keeps its error border and text readable", async () => {
   const screen = await render(
     <Button variant="secondary" tone="destructive">
       Desactivar
@@ -316,11 +316,11 @@ test("keeps the destructive secondary variant's hover background at bone, like t
   const button = screen.getByRole("button", { name: "Desactivar" }).element() as HTMLElement;
 
   await userEvent.hover(button);
-  await expectHoverBackground(button, "surface-bone");
+  await expectHoverBackground(button, "surface-subtle");
 
   const hovered = getComputedStyle(button);
-  expect(hovered.borderColor).toBe(tokenRgb("status-error-ui"));
-  expect(hovered.color).toBe(tokenRgb("status-error-ui"));
+  expect(hovered.borderColor).toBe(tokenRgb("error"));
+  expect(hovered.color).toBe(tokenRgb("error"));
   const ratio = contrastRatio(rgbToHex(hovered.color), rgbToHex(hovered.backgroundColor));
   expect(ratio).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
 });
@@ -328,7 +328,7 @@ test("keeps the destructive secondary variant's hover background at bone, like t
 test("shows the same focus outline on the destructive tone as on every other tone", async () => {
   const screen = await render(<Button tone="destructive">Void sale</Button>);
   const button = screen.getByRole("button", { name: "Void sale" }).element() as HTMLElement;
-  const focusRingColor = tokenRgb("brand-blue-strong");
+  const focusRingColor = tokenRgb("focus");
 
   await userEvent.tab();
 
@@ -355,7 +355,7 @@ test("places the primary variant's 24px icon after the text with its 12px gap", 
   expect(iconRect.width).toBeLessThan(25);
   expect(iconRect.height).toBeGreaterThan(23);
   expect(iconRect.height).toBeLessThan(25);
-  expect(iconStrokeColor(icon as SVGSVGElement)).toBe(tokenRgb("surface-white"));
+  expect(iconStrokeColor(icon as SVGSVGElement)).toBe(tokenRgb("text-inverse"));
 
   const textRect = textNodeRect(labelWrapper.firstChild as ChildNode);
   const gap = iconRect.left - textRect.right;
@@ -384,7 +384,7 @@ test("places the secondary variant's 18px icon before the text with its 8px gap"
   expect(iconRect.width).toBeLessThan(19);
   expect(iconRect.height).toBeGreaterThan(17);
   expect(iconRect.height).toBeLessThan(19);
-  expect(iconStrokeColor(icon as SVGSVGElement)).toBe(tokenRgb("ink"));
+  expect(iconStrokeColor(icon as SVGSVGElement)).toBe(tokenRgb("text"));
 
   const textRect = textNodeRect(labelWrapper.firstChild as ChildNode);
   const gap = textRect.left - iconRect.right;
@@ -480,7 +480,7 @@ test("renders the text-only destructive form with no background and no border", 
   expect(getComputedStyle(button).borderBottomWidth).toBe("0px");
   expect(getComputedStyle(button).borderLeftWidth).toBe("0px");
   expect(getComputedStyle(button).borderRightWidth).toBe("0px");
-  expect(getComputedStyle(button).color).toBe(tokenRgb("status-error-ui"));
+  expect(getComputedStyle(button).color).toBe(tokenRgb("error"));
 });
 
 test("sizes the text-only destructive form at 40px with a 16px semibold label by default", async () => {
@@ -544,9 +544,7 @@ test("carries its own 18px x icon before the label, with an 8px gap, on both dra
     expect(iconRect.width, `${size} icon width`).toBeLessThan(19);
     expect(iconRect.height, `${size} icon height`).toBeGreaterThan(17);
     expect(iconRect.height, `${size} icon height`).toBeLessThan(19);
-    expect(iconStrokeColor(icon as SVGSVGElement), `${size} icon stroke`).toBe(
-      tokenRgb("status-error-ui"),
-    );
+    expect(iconStrokeColor(icon as SVGSVGElement), `${size} icon stroke`).toBe(tokenRgb("error"));
 
     const textRect = textNodeRect(labelWrapper.firstChild as ChildNode);
     const gap = textRect.left - iconRect.right;
@@ -606,16 +604,16 @@ test("turns the text-only destructive form's background bone on hover, keeping i
   expect(getComputedStyle(button).backgroundColor).toBe("rgba(0, 0, 0, 0)");
 
   await userEvent.hover(button);
-  await expectHoverBackground(button, "surface-bone");
+  await expectHoverBackground(button, "surface-subtle");
 
   const hovered = getComputedStyle(button);
-  expect(hovered.color).toBe(tokenRgb("status-error-ui"));
+  expect(hovered.color).toBe(tokenRgb("error"));
   const ratio = contrastRatio(rgbToHex(hovered.color), rgbToHex(hovered.backgroundColor));
   expect(ratio).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
 });
 
 test("keeps the text-only destructive form's label and icon readable on the surfaces it sits on", async () => {
-  for (const surface of ["surface-white", "surface-bone"] as const) {
+  for (const surface of ["surface", "surface-subtle"] as const) {
     const screen = await render(
       <div style={{ backgroundColor: tokenRgb(surface) }}>
         <Button variant="text" tone="destructive">
@@ -655,9 +653,7 @@ test("shows the shared focus outline on the text-only destructive form", async (
 
   await expect.poll(() => getComputedStyle(button).outlineWidth).toBe("3px");
   await expect.poll(() => getComputedStyle(button).outlineOffset).toBe("3px");
-  await expect
-    .poll(() => getComputedStyle(button).outlineColor)
-    .toBe(tokenRgb("brand-blue-strong"));
+  await expect.poll(() => getComputedStyle(button).outlineColor).toBe(tokenRgb("focus"));
   expect(getComputedStyle(button).backgroundColor).toBe("rgba(0, 0, 0, 0)");
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -1146,7 +1142,7 @@ test("paints its hover background across the whole width it was given", async ()
   const button = screen.getByRole("button", { name: "Cancel sale" }).element() as HTMLElement;
 
   await userEvent.hover(button);
-  await expectHoverBackground(button, "surface-bone");
+  await expectHoverBackground(button, "surface-subtle");
 
   expect(button.getBoundingClientRect().width).toBeCloseTo(500, 0);
   expect(getComputedStyle(button).borderRadius).toBe("6px");

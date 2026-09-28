@@ -330,7 +330,7 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps) 
       >
         Registrar la passkey
       </Button>
-      <p className="text-sm text-ink-secondary">
+      <p className="text-detail text-text-subtle">
         Después conviene agregar una segunda, por ejemplo en el teléfono, desde Mi cuenta.
       </p>
     </AccessLayout>

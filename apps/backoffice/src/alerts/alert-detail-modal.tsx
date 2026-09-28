@@ -418,32 +418,32 @@ export function AlertDetailModal({
                 {levelLabel(alert.level)}
               </StatusIndicator>
             </div>
-            <p className="text-ink text-base">{alertDescription(alert)}</p>
-            <div className="flex flex-col gap-1 rounded-lg border border-line p-3 text-sm">
+            <p className="text-text text-body">{alertDescription(alert)}</p>
+            <div className="flex flex-col gap-1 rounded-lg border border-border p-3 text-detail">
               <div className="flex justify-between gap-2">
-                <span className="text-ink-secondary">Abierta</span>
+                <span className="text-text-subtle">Abierta</span>
                 <span>{alertDateTime(new Date(alert.openedAt))}</span>
               </div>
               <div className="flex justify-between gap-2">
-                <span className="text-ink-secondary">Escaló</span>
+                <span className="text-text-subtle">Escaló</span>
                 <span>
                   {alert.escalatedAt ? alertDateTime(new Date(alert.escalatedAt)) : "Todavía no"}
                 </span>
               </div>
               {alert.scopeDisplay !== null && (
                 <div className="flex justify-between gap-2">
-                  <span className="text-ink-secondary">Alcance</span>
+                  <span className="text-text-subtle">Alcance</span>
                   <span>{alert.scopeDisplay}</span>
                 </div>
               )}
             </div>
             <div className="flex flex-col gap-2">
-              <p className="font-bold text-ink text-sm">Aviso por el backoffice</p>
-              <div className="flex flex-col gap-1 rounded-lg border border-line text-left text-sm">
+              <p className="font-bold text-text text-detail">Aviso por el backoffice</p>
+              <div className="flex flex-col gap-1 rounded-lg border border-border text-left text-detail">
                 {alert.deliveries.map((delivery) => (
                   <div
                     key={delivery.recipient.id}
-                    className="flex items-center justify-between gap-2 border-line border-b px-3 py-2 last:border-b-0"
+                    className="flex items-center justify-between gap-2 border-border border-b px-3 py-2 last:border-b-0"
                   >
                     <span>
                       {delivery.recipient.firstName}
@@ -459,7 +459,7 @@ export function AlertDetailModal({
               </div>
             </div>
             {alert.resolvedAt === null && (
-              <p className="text-ink-secondary text-sm">
+              <p className="text-text-subtle text-detail">
                 No se cierra sola: se cierra a mano después de revisarla.
               </p>
             )}

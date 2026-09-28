@@ -2,6 +2,7 @@ import { expect, test } from "vitest";
 import { render } from "vitest-browser-react";
 import { contrastRatio, NON_TEXT_CONTRAST } from "../styles/contrast";
 import { expectNoAccessibilityViolations } from "../test/axe";
+import { expectFullyRound } from "../test/fully-round";
 import { rgbToHex, tokenRgb } from "../test/token-colors";
 import { ProportionBar } from "./ProportionBar";
 
@@ -15,29 +16,29 @@ function proportionBarFill(screen: Screen): HTMLElement {
   return proportionBarTrack(screen).firstElementChild as HTMLElement;
 }
 
-test("renders a 240x10px, 5px-radius track in the blue message background, clipping its content", async () => {
+test("renders a 240x10px, fully round track in the blue message background, clipping its content", async () => {
   const screen = await render(<ProportionBar value={0.5} />);
   const track = proportionBarTrack(screen);
   const trackRect = track.getBoundingClientRect();
 
   expect(trackRect.width).toBeCloseTo(240, 0);
   expect(trackRect.height).toBeCloseTo(10, 0);
-  expect(getComputedStyle(track).borderRadius).toBe("5px");
-  expect(getComputedStyle(track).backgroundColor).toBe(tokenRgb("brand-blue-message-bg"));
+  expectFullyRound(track);
+  expect(getComputedStyle(track).backgroundColor).toBe(tokenRgb("data-subtle"));
   expect(getComputedStyle(track).overflow).toBe("hidden");
 
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("renders the fill in blue UI, with the track's own 5px radius, sized to the given value", async () => {
+test("renders the fill in blue UI, fully round like the track, sized to the given value", async () => {
   const screen = await render(<ProportionBar value={0.6} />);
   const track = proportionBarTrack(screen);
   const fill = proportionBarFill(screen);
   const trackRect = track.getBoundingClientRect();
   const fillRect = fill.getBoundingClientRect();
 
-  expect(getComputedStyle(fill).backgroundColor).toBe(tokenRgb("brand-blue-ui"));
-  expect(getComputedStyle(fill).borderRadius).toBe("5px");
+  expect(getComputedStyle(fill).backgroundColor).toBe(tokenRgb("data"));
+  expectFullyRound(fill);
   expect(fillRect.left).toBeCloseTo(trackRect.left, 0);
   expect(fillRect.width).toBeCloseTo(trackRect.width * 0.6, 0);
 });

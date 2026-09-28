@@ -86,11 +86,11 @@ test("renders a page button white with a 1px line border and 14px ink text", asy
     .element() as HTMLElement;
   const style = getComputedStyle(page);
 
-  expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
+  expect(style.backgroundColor).toBe(tokenRgb("surface"));
   expect(style.borderWidth).toBe("0px");
-  expect(style.boxShadow).toContain(insetBoundary("line", "1px"));
+  expect(style.boxShadow).toContain(insetBoundary("border", "1px"));
   expect(style.fontSize).toBe("14px");
-  expect(style.color).toBe(tokenRgb("ink"));
+  expect(style.color).toBe(tokenRgb("text"));
   expect(style.fontWeight).toBe("400");
 
   await expectNoAccessibilityViolations(screen.container);
@@ -102,13 +102,13 @@ test("hovers a non-current page button to a bone background", async () => {
     .getByRole("button", { name: "Página 3", exact: true })
     .element() as HTMLElement;
   const restBackground = getComputedStyle(page).backgroundColor;
-  expect(restBackground).toBe(tokenRgb("surface-white"));
+  expect(restBackground).toBe(tokenRgb("surface"));
 
   const rect = page.getBoundingClientRect();
   await hoverAt(rect.left + rect.width / 2, rect.top + rect.height / 2);
 
   expect(page.getAttribute("data-hovered")).toBe("true");
-  expect(getComputedStyle(page).backgroundColor).toBe(tokenRgb("surface-bone"));
+  expect(getComputedStyle(page).backgroundColor).toBe(tokenRgb("surface-subtle"));
 });
 
 test("marks the current page blue UI with bold white text and no border", async () => {
@@ -118,8 +118,8 @@ test("marks the current page blue UI with bold white text and no border", async 
     .element() as HTMLElement;
   const style = getComputedStyle(current);
 
-  expect(style.backgroundColor).toBe(tokenRgb("brand-blue-ui"));
-  expect(style.color).toBe(tokenRgb("surface-white"));
+  expect(style.backgroundColor).toBe(tokenRgb("action"));
+  expect(style.color).toBe(tokenRgb("text-inverse"));
   expect(style.fontWeight).toBe("700");
   expect(paintedBoxShadowLayers(current)).toEqual([]);
   expect(current.getAttribute("aria-current")).toBe("page");
@@ -393,7 +393,7 @@ test("does not paint the hover background while Previous is unavailable at page 
   const nextRect = next.getBoundingClientRect();
   await hoverAt(nextRect.left + nextRect.width / 2, nextRect.top + nextRect.height / 2);
   expect(next.getAttribute("data-hovered")).toBe("true");
-  expect(getComputedStyle(next).backgroundColor).toBe(tokenRgb("surface-bone"));
+  expect(getComputedStyle(next).backgroundColor).toBe(tokenRgb("surface-subtle"));
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -405,7 +405,7 @@ test("keeps the dimmed nav label's real composited contrast at or above 4.5:1, o
   const alpha = Number.parseFloat(style.opacity);
   const labelHex = rgbToHex(style.color);
 
-  for (const surface of ["surface-white", "surface-bone"] as const) {
+  for (const surface of ["surface", "surface-subtle"] as const) {
     const surfaceHex = rgbToHex(tokenRgb(surface));
     const compositedHex = compositeHex(labelHex, surfaceHex, alpha);
 

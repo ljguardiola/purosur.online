@@ -13,8 +13,8 @@ const rowClassName = "flex items-baseline gap-4";
 const labelBaseClassName = "min-w-0 break-words";
 
 const labelTypeClassName: Record<SummaryRowForm, string> = {
-  regular: "text-base font-normal",
-  strong: "text-lg font-bold",
+  regular: "text-body",
+  strong: "text-subheading",
 };
 
 // flex-1's zero basis gives the value only the room the label doesn't need, instead of both
@@ -22,16 +22,16 @@ const labelTypeClassName: Record<SummaryRowForm, string> = {
 const valueBaseClassName = "flex-1 text-right";
 
 const valueTypeClassName: Record<SummaryRowForm, string> = {
-  regular: "text-base font-semibold",
-  strong: "text-lg font-bold",
+  regular: "text-body font-semibold",
+  strong: "text-subheading",
 };
 
 const textColorClassName: Record<SummaryRowForm, string> = {
-  regular: "text-ink-secondary",
-  strong: "text-ink",
+  regular: "text-text-subtle",
+  strong: "text-text",
 };
 
-const savingColorClassName = "text-brand-green-ui";
+const savingColorClassName = "text-success";
 
 export function SummaryRow({ label, value, strong = false, saving = false }: SummaryRowProps) {
   const form: SummaryRowForm = strong ? "strong" : "regular";

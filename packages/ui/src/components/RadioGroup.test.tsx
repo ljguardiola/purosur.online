@@ -100,13 +100,13 @@ test("stacks options vertically, 12px apart", async () => {
   expect(secondGap).toBeLessThan(13);
 });
 
-test("colors an unchecked circle white with a 2px ink-secondary border", async () => {
+test("colors an unchecked circle white with a 2px strong border", async () => {
   const screen = await render(<RadioGroup {...baseProps({ value: "card" })} />);
   const circle = radioCircle(screen, "Cash");
   const style = getComputedStyle(circle);
 
-  expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(style.boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
+  expect(style.backgroundColor).toBe(tokenRgb("surface"));
+  expect(style.boxShadow).toContain(insetBoundary("border-strong", "2px"));
 
   // Checked as a rendered contrast ratio against WCAG's 3:1 non-text minimum, not by token name.
   const boundaryHex = boundaryColorHex(circle);
@@ -119,9 +119,9 @@ test("colors a checked circle white with a 6px blue UI ring and no separate dot"
   const circle = radioCircle(screen, "Cash");
   const style = getComputedStyle(circle);
 
-  expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
+  expect(style.backgroundColor).toBe(tokenRgb("surface"));
   // The 2px border becomes the ring, rather than being layered under it.
-  expect(paintedBoxShadowLayers(circle)).toEqual([insetBoundary("brand-blue-ui", "6px")]);
+  expect(paintedBoxShadowLayers(circle)).toEqual([insetBoundary("action", "6px")]);
   expect(circle.querySelector("svg")).toBeNull();
   expect(circle.children.length).toBe(0);
 });
@@ -138,7 +138,7 @@ test("keeps the circle's size stable between the unchecked and checked states", 
   expect(checkedRect.height).toBeCloseTo(uncheckedRect.height, 0);
 });
 
-test("turns a hovered unchecked circle's fill bone, keeping its 2px ink-secondary boundary", async () => {
+test("turns a hovered unchecked circle's fill bone, keeping its 2px strong boundary", async () => {
   const screen = await render(<RadioGroup {...baseProps({ value: "cash" })} />);
   const uncheckedLabel = radioLabel(screen, "Card");
   const uncheckedCircle = radioCircle(screen, "Card");
@@ -146,9 +146,9 @@ test("turns a hovered unchecked circle's fill bone, keeping its 2px ink-secondar
   await userEvent.hover(uncheckedLabel);
   await expect
     .poll(() => getComputedStyle(uncheckedCircle).backgroundColor)
-    .toBe(tokenRgb("surface-bone"));
+    .toBe(tokenRgb("surface-subtle"));
   expect(getComputedStyle(uncheckedCircle).boxShadow).toContain(
-    insetBoundary("ink-secondary", "2px"),
+    insetBoundary("border-strong", "2px"),
   );
 });
 
@@ -160,8 +160,8 @@ test("darkens a hovered checked circle's ring while keeping its white fill", asy
   await userEvent.hover(checkedLabel);
   await expect
     .poll(() => getComputedStyle(checkedCircle).boxShadow)
-    .toContain(insetBoundary("brand-blue-strong", "6px"));
-  expect(getComputedStyle(checkedCircle).backgroundColor).toBe(tokenRgb("surface-white"));
+    .toContain(insetBoundary("action-strong", "6px"));
+  expect(getComputedStyle(checkedCircle).backgroundColor).toBe(tokenRgb("surface"));
 });
 
 test("chooses an option with a click, unchoosing the previous one", async () => {
@@ -234,9 +234,7 @@ test("shows the package's focus ring on the focused circle", async () => {
 
   await expect.poll(() => getComputedStyle(circle).outlineWidth).toBe("3px");
   await expect.poll(() => getComputedStyle(circle).outlineOffset).toBe("3px");
-  await expect
-    .poll(() => getComputedStyle(circle).outlineColor)
-    .toBe(tokenRgb("brand-blue-strong"));
+  await expect.poll(() => getComputedStyle(circle).outlineColor).toBe(tokenRgb("focus"));
 });
 
 test("dims every option to 45% opacity, drops the pointer cursor and blocks focus when disabled", async () => {

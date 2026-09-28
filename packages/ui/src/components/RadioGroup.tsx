@@ -16,19 +16,18 @@ export type RadioGroupProps<V extends string> = {
 const radioLabelClassName =
   "group flex cursor-pointer items-center gap-3 outline-none " +
   // A disabled option answers no pointer, so it drops the hand cursor that promises it would.
-  "data-[disabled]:cursor-default data-[disabled]:opacity-[0.45]";
+  "data-disabled:cursor-default data-disabled:opacity-disabled";
 
 // The border and the ring are drawn with an inset box-shadow instead of a real border: it never
 // participates in layout, so growing from a 2px border to a 6px ring never resizes the circle.
 const circleClassName =
   "size-5 shrink-0 rounded-full outline-none " +
-  "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-ink-secondary)] " +
-  "group-data-[hovered]:bg-surface-bone " +
-  "group-data-[selected]:shadow-[inset_0_0_0_6px_var(--color-brand-blue-ui)] " +
-  "group-data-[hovered]:group-data-[selected]:bg-surface-white " +
-  "group-data-[hovered]:group-data-[selected]:shadow-[inset_0_0_0_6px_var(--color-brand-blue-strong)] " +
-  "group-data-[focus-visible]:outline-[3px] group-data-[focus-visible]:outline-solid " +
-  "group-data-[focus-visible]:outline-offset-3 group-data-[focus-visible]:outline-brand-blue-strong";
+  "bg-surface inset-ring-2 inset-ring-border-strong " +
+  "group-data-hovered:bg-surface-subtle " +
+  "group-data-selected:inset-ring-6 group-data-selected:inset-ring-action " +
+  "group-data-hovered:group-data-selected:bg-surface " +
+  "group-data-hovered:group-data-selected:inset-ring-action-strong " +
+  "group-data-focus-visible:focus-ring";
 
 function RadioGroupOption<V extends string>({ value, label }: RadioOption<V>) {
   return (

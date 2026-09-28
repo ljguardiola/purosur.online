@@ -15,7 +15,7 @@ test("draws its label at the register scale with no FieldSizeProvider above it",
 
   expect(Math.round(Number.parseFloat(style.fontSize))).toBe(16);
   expect(style.fontWeight).toBe("700");
-  expect(style.color).toBe(tokenRgb("ink"));
+  expect(style.color).toBe(tokenRgb("text"));
 });
 
 test("appends the required asterisk to its label only when required", async () => {

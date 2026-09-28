@@ -150,11 +150,11 @@ test("colors a not-chosen card white with a 1px line border, secondary icon, ink
     .element() as HTMLElement;
   const style = getComputedStyle(card);
 
-  expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(style.boxShadow).toContain(insetBoundary("line", "1px"));
-  expect(getComputedStyle(icon).color).toBe(tokenRgb("ink-secondary"));
-  expect(getComputedStyle(title).color).toBe(tokenRgb("ink"));
-  expect(getComputedStyle(helpText).color).toBe(tokenRgb("ink-secondary"));
+  expect(style.backgroundColor).toBe(tokenRgb("surface"));
+  expect(style.boxShadow).toContain(insetBoundary("border", "1px"));
+  expect(getComputedStyle(icon).color).toBe(tokenRgb("text-subtle"));
+  expect(getComputedStyle(title).color).toBe(tokenRgb("text"));
+  expect(getComputedStyle(helpText).color).toBe(tokenRgb("text-subtle"));
 });
 
 test("turns a hovered not-chosen card's background bone without changing its other colors", async () => {
@@ -164,11 +164,11 @@ test("turns a hovered not-chosen card's background bone without changing its oth
   const title = screen.getByText("Income", { exact: true }).element() as HTMLElement;
 
   await userEvent.hover(card);
-  await expect.poll(() => getComputedStyle(card).backgroundColor).toBe(tokenRgb("surface-bone"));
+  await expect.poll(() => getComputedStyle(card).backgroundColor).toBe(tokenRgb("surface-subtle"));
 
-  expect(getComputedStyle(card).boxShadow).toContain(insetBoundary("line", "1px"));
-  expect(getComputedStyle(icon).color).toBe(tokenRgb("ink-secondary"));
-  expect(getComputedStyle(title).color).toBe(tokenRgb("ink"));
+  expect(getComputedStyle(card).boxShadow).toContain(insetBoundary("border", "1px"));
+  expect(getComputedStyle(icon).color).toBe(tokenRgb("text-subtle"));
+  expect(getComputedStyle(title).color).toBe(tokenRgb("text"));
 });
 
 test("colors the chosen card with the blue message background, a 2px blue border, and blue strong icon and title", async () => {
@@ -181,11 +181,11 @@ test("colors the chosen card with the blue message background, a 2px blue border
     .element() as HTMLElement;
   const style = getComputedStyle(card);
 
-  expect(style.backgroundColor).toBe(tokenRgb("brand-blue-message-bg"));
-  expect(style.boxShadow).toContain(insetBoundary("brand-blue-ui", "2px"));
-  expect(getComputedStyle(icon).color).toBe(tokenRgb("brand-blue-strong"));
-  expect(getComputedStyle(title).color).toBe(tokenRgb("brand-blue-strong"));
-  expect(getComputedStyle(helpText).color).toBe(tokenRgb("ink-secondary"));
+  expect(style.backgroundColor).toBe(tokenRgb("action-subtle"));
+  expect(style.boxShadow).toContain(insetBoundary("action", "2px"));
+  expect(getComputedStyle(icon).color).toBe(tokenRgb("text-accent"));
+  expect(getComputedStyle(title).color).toBe(tokenRgb("text-accent"));
+  expect(getComputedStyle(helpText).color).toBe(tokenRgb("text-subtle"));
 });
 
 test("does not change the chosen card's background on hover", async () => {
@@ -195,7 +195,7 @@ test("does not change the chosen card's background on hover", async () => {
   await userEvent.hover(card);
   await expect.poll(() => card.hasAttribute("data-hovered")).toBe(true);
 
-  expect(getComputedStyle(card).backgroundColor).toBe(tokenRgb("brand-blue-message-bg"));
+  expect(getComputedStyle(card).backgroundColor).toBe(tokenRgb("action-subtle"));
 });
 
 test("keeps the card's size stable when its border grows from 1px to 2px on choosing it", async () => {
@@ -312,7 +312,7 @@ test("shows the package's focus ring on the focused card", async () => {
 
   await expect.poll(() => getComputedStyle(card).outlineWidth).toBe("3px");
   await expect.poll(() => getComputedStyle(card).outlineOffset).toBe("3px");
-  await expect.poll(() => getComputedStyle(card).outlineColor).toBe(tokenRgb("brand-blue-strong"));
+  await expect.poll(() => getComputedStyle(card).outlineColor).toBe(tokenRgb("focus"));
 });
 
 test("exposes the group as a radiogroup named by the caller's label", async () => {
