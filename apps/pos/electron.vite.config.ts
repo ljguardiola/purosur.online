@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
+import reactCompiler from "babel-plugin-react-compiler";
 import { defineConfig } from "electron-vite";
 import type { Plugin } from "vite";
 import { buildContentSecurityPolicy } from "./src/main/content-security-policy";
@@ -67,7 +68,7 @@ export default defineConfig({
       },
     },
     plugins: [
-      react({ babel: { plugins: ["babel-plugin-react-compiler"] } }),
+      react({ babel: { plugins: [reactCompiler] } }),
       tailwindcss(),
       contentSecurityPolicyMeta(),
     ],
