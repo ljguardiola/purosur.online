@@ -6,8 +6,7 @@ import {
   isIssuerIdentificationLegalNameTooLong,
 } from "@purosur/domain";
 import { z } from "zod";
-
-const VERSION_MESSAGE = "version must be the positive integer it was loaded with";
+import { loadedVersionSchema } from "../shared/index.js";
 
 function requiredTextSchema(
   field: string,
@@ -42,7 +41,7 @@ export function issuerIdentificationEditBodySchema(today: Date) {
         (value) => isIssuerIdentificationActivityStartDate(value, today),
         activityStartDateMessage,
       ),
-    version: z.number({ error: VERSION_MESSAGE }).int(VERSION_MESSAGE).min(1, VERSION_MESSAGE),
+    version: loadedVersionSchema,
   });
 }
 

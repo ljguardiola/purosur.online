@@ -7,8 +7,7 @@ import {
   isBranchHoursTime,
 } from "@purosur/domain";
 import { z } from "zod";
-
-const VERSION_MESSAGE = "version must be the positive integer it was loaded with";
+import { loadedVersionSchema } from "../shared/index.js";
 
 function textSchema(field: string) {
   return z
@@ -64,7 +63,7 @@ export const branchSettingsEditBodySchema = z.object({
   expiring_lot_alert_days: daysSchema("expiring_lot_alert_days"),
   unreviewed_price_alert_days: daysSchema("unreviewed_price_alert_days"),
   good_condition_return_days: daysSchema("good_condition_return_days"),
-  version: z.number({ error: VERSION_MESSAGE }).int(VERSION_MESSAGE).min(1, VERSION_MESSAGE),
+  version: loadedVersionSchema,
 });
 
 export type BranchSettingsEditBody = z.input<typeof branchSettingsEditBodySchema>;

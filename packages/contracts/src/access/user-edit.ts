@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import { loadedVersionSchema } from "./loaded-version.js";
+import { loadedVersionSchema } from "../shared/index.js";
 import { userCreationBodySchema } from "./user-creation.js";
 
 export const userEditBodySchema = userCreationBodySchema
