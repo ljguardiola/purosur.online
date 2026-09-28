@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { isAlertKind, isInternalBarcode } from "@purosur/domain";
+import { isAlertKind, isInternalBarcode, SALE_UNITS } from "@purosur/domain";
 import { eq, sql } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -152,8 +152,7 @@ describe("loadSampleData", () => {
 
     const allProducts = await db.select().from(products);
     expect(allProducts.length).toBe(firstOutcome.summary.products);
-    expect(allProducts.some((product) => product.saleUnit === "UNIT")).toBe(true);
-    expect(allProducts.some((product) => product.saleUnit === "KG")).toBe(true);
+    expect(new Set(allProducts.map((product) => product.saleUnit))).toEqual(new Set(SALE_UNITS));
     expect(allProducts.some((product) => !product.active)).toBe(true);
     expect(allProducts.some((product) => product.active)).toBe(true);
 

@@ -1,4 +1,10 @@
-import { isInternalBarcode, isPermissionKey, PRODUCT_NAME_MAX_LENGTH } from "@purosur/domain";
+import {
+  isInternalBarcode,
+  isPermissionKey,
+  PRODUCT_NAME_MAX_LENGTH,
+  SALE_UNITS,
+  type SaleUnit,
+} from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
   SAMPLE_ADMINISTRATOR,
@@ -16,7 +22,7 @@ interface FlatProduct {
   midName: string;
   leafName: string;
   name: string;
-  saleUnit: "UNIT" | "KG";
+  saleUnit: SaleUnit;
   netContent: { quantity: number; unit: string } | null;
   barcode: { kind: "manufacturer"; code: string } | { kind: "internal" };
   active: boolean;
@@ -82,9 +88,9 @@ describe("SAMPLE_CATEGORY_TREE", () => {
     expect(longest).toBeGreaterThanOrEqual(90);
   });
 
-  it("plans both sale units", () => {
+  it("plans every sale unit the domain defines", () => {
     const saleUnits = new Set(flattenProducts().map((product) => product.saleUnit));
-    expect(saleUnits).toEqual(new Set(["UNIT", "KG"]));
+    expect(saleUnits).toEqual(new Set(SALE_UNITS));
   });
 
   it("never plans net content for a product sold by weight", () => {
