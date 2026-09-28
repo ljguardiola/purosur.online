@@ -3,7 +3,7 @@ import { originGuard } from "./route-access.js";
 
 const FOREIGN_ORIGIN_MESSAGE = "the request's Origin does not match the backoffice's own origin";
 
-function rejectAsCrossSite(reply: FastifyReply, message: string): false {
+function rejectForeignRequest(reply: FastifyReply, message: string): false {
   void reply.code(403).send({ code: "origin_rejected", message });
   return false;
 }
@@ -14,7 +14,7 @@ export function requireBackofficeOrigin(
   backofficeOrigin: string,
 ): boolean {
   if (request.headers.origin !== backofficeOrigin) {
-    return rejectAsCrossSite(reply, FOREIGN_ORIGIN_MESSAGE);
+    return rejectForeignRequest(reply, FOREIGN_ORIGIN_MESSAGE);
   }
   return true;
 }
@@ -32,12 +32,12 @@ export function checkRequestIsSameOrigin(
 ): boolean {
   const origin = request.headers.origin;
   if (origin !== undefined && origin !== backofficeOrigin) {
-    return rejectAsCrossSite(reply, FOREIGN_ORIGIN_MESSAGE);
+    return rejectForeignRequest(reply, FOREIGN_ORIGIN_MESSAGE);
   }
 
   const fetchSite = request.headers["sec-fetch-site"];
   if (fetchSite !== undefined && fetchSite !== "same-origin") {
-    return rejectAsCrossSite(reply, "the request did not come from the backoffice itself");
+    return rejectForeignRequest(reply, "the request did not come from the backoffice itself");
   }
 
   return true;
