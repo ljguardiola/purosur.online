@@ -56,8 +56,8 @@ export type CreateRegisterOutcome =
   | { kind: "name_taken" }
   | { kind: "created"; register: CreatedRegister };
 
-// Two concurrent requests can both pass the select check above; the database's own unique index
-// is what actually stops the second insert, so it's caught here too.
+// Two concurrent requests can both pass the transaction's name check below; the database's own unique
+// index is what actually stops the second insert, so its violation is caught too.
 export async function createRegister<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: CreateRegisterInput,
