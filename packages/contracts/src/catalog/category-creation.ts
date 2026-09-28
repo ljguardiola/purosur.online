@@ -4,7 +4,7 @@ import { optionalParentIdSchema } from "./category-parent-id.js";
 
 const NAME_EMPTY_MESSAGE = "name must not be empty";
 
-export const categoryNameSchema = z
+const categoryNameSchema = z
   .string({ error: NAME_EMPTY_MESSAGE })
   .trim()
   .min(1, NAME_EMPTY_MESSAGE)
