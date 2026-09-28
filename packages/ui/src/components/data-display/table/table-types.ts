@@ -9,7 +9,7 @@ export type TableSort<K extends string = string> = { column: K; direction: Table
 type TableColumnCommon<T> = {
   key: string;
   kind?: "data";
-  title: string;
+  header: string;
   align?: TableColumnAlign;
   render: (item: T) => ReactNode;
 };
@@ -42,7 +42,7 @@ export type TableAction<T> = (item: T) =>
 type TableActionsColumn<T> = {
   key: string;
   kind: "actions";
-  srLabel: string;
+  header: string;
   actions: readonly [TableAction<T>] | readonly [TableAction<T>, TableAction<T>];
 };
 
@@ -66,13 +66,13 @@ export type TableRow<T> = {
   state?: TableRowState;
 };
 
-export type TableEmptyStateTone = "blank" | "filtered";
+export type TableEmptyStateVariant = "blank" | "filtered";
 
 export type TableEmptyStateProps = {
   icon: Icon;
   title: string;
   description?: string;
-  tone: TableEmptyStateTone;
+  variant: TableEmptyStateVariant;
   actions?: ReactNode;
 };
 

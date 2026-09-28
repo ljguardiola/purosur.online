@@ -195,14 +195,14 @@ export function AlertsListScreen({
   const columns = [
     {
       key: "level",
-      title: "Nivel",
+      header: "Nivel",
       render: (item: AlertSummary) => (
         <StatusIndicator tone={LEVEL_TONE[item.level]}>{levelLabel(item.level)}</StatusIndicator>
       ),
     },
     {
       key: "alert",
-      title: "Alerta",
+      header: "Alerta",
       render: (item: AlertSummary) => (
         <TableCellText description={listKindDescription(item.kind)}>
           {listKindLabel(item.kind)}
@@ -211,18 +211,18 @@ export function AlertsListScreen({
     },
     {
       key: "scope",
-      title: "Alcance",
+      header: "Alcance",
       render: (item: AlertSummary) => item.scopeDisplay ?? "—",
     },
     {
       key: "openedAt",
-      title: "Abierta",
+      header: "Abierta",
       render: (item: AlertSummary) => alertDateTime(new Date(item.openedAt)),
     },
     {
       key: "actions",
       kind: "actions",
-      srLabel: "Acciones de la alerta",
+      header: "Acciones de la alerta",
       actions: [
         (item: AlertSummary) => ({
           icon: <Eye />,
@@ -323,13 +323,13 @@ export function AlertsListScreen({
                       icon: <Search />,
                       title: "No encontramos alertas",
                       description: "Probá cambiar la búsqueda o los filtros.",
-                      tone: "filtered",
+                      variant: "filtered",
                     }
                   : {
                       icon: <Bell />,
                       title: "Sin alertas abiertas",
                       description: "Cuando algo necesite atención, aparece acá.",
-                      tone: "blank",
+                      variant: "blank",
                     }
               }
               footer={

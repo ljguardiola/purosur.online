@@ -1,8 +1,14 @@
 import { iconSlotClassName } from "../../shared/icon";
 import type { TableEmptyStateProps } from "./table-types";
 
-export function TableEmptyState({ icon, title, description, tone, actions }: TableEmptyStateProps) {
-  const iconColorClassName = tone === "blank" ? "text-text-accent" : "text-text-subtle";
+export function TableEmptyState({
+  icon,
+  title,
+  description,
+  variant,
+  actions,
+}: TableEmptyStateProps) {
+  const iconColorClassName = variant === "blank" ? "text-text-accent" : "text-text-subtle";
 
   return (
     <div className="flex flex-col items-center gap-3 p-8 text-center">

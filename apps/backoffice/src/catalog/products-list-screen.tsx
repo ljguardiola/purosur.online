@@ -1959,24 +1959,24 @@ export function ProductsListScreen({
   const columns = [
     {
       key: "product",
-      title: "PRODUCTO",
+      header: "PRODUCTO",
       sortable: true,
       defaultDirection: "ascending",
       render: (item: ProductSummary) => item.name,
     },
     {
       key: "category",
-      title: "CATEGORÍA",
+      header: "CATEGORÍA",
       render: (item: ProductSummary) => categoryLabels.get(item.categoryId) ?? item.categoryName,
     },
     {
       key: "unit",
-      title: "UNIDAD",
+      header: "UNIDAD",
       render: (item: ProductSummary) => unitLabel(item.saleUnit),
     },
     {
       key: "status",
-      title: "ESTADO",
+      header: "ESTADO",
       render: (item: ProductSummary) =>
         item.active ? (
           <StatusIndicator tone="success">Activo</StatusIndicator>
@@ -1987,7 +1987,7 @@ export function ProductsListScreen({
     {
       key: "actions",
       kind: "actions",
-      srLabel: "Acciones",
+      header: "Acciones",
       actions: [
         (item: ProductSummary) => ({
           icon: <Pencil />,
@@ -2101,13 +2101,13 @@ export function ProductsListScreen({
                   ? {
                       icon: <Package />,
                       ...PRODUCTS_EMPTY_STATE[statusFilter],
-                      tone: "blank",
+                      variant: "blank",
                     }
                   : {
                       icon: <SearchX />,
                       title: "Sin resultados",
                       description: "Probá con otro nombre o código de barras.",
-                      tone: "filtered",
+                      variant: "filtered",
                     }
               }
               footer={

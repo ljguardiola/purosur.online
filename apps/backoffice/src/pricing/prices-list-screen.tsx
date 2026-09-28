@@ -877,7 +877,7 @@ export function PricesListScreen({
   const columns = [
     {
       key: "product",
-      title: "PRODUCTO",
+      header: "PRODUCTO",
       render: (item: PriceProduct) => (
         <div className="flex items-center gap-2">
           <span>{item.name}</span>
@@ -891,18 +891,18 @@ export function PricesListScreen({
     },
     {
       key: "price",
-      title: "PRECIO",
+      header: "PRECIO",
       render: (item: PriceProduct) =>
         item.currentPrice ? formatCentsWithUnit(item.currentPrice.unitPrice, item.saleUnit) : "—",
     },
     {
       key: "reviewed",
-      title: "REVISADO",
+      header: "REVISADO",
       render: (item: PriceProduct) => reviewedCellText(item.lastReviewedAt, loadedAt),
     },
     {
       key: "actions",
-      title: "Acciones",
+      header: "Acciones",
       align: "end" as const,
       render: (item: PriceProduct) => (
         <div className="flex flex-row items-center justify-end gap-2">
@@ -1024,13 +1024,13 @@ export function PricesListScreen({
                       icon: <BadgeCheck />,
                       title: "Precios al día",
                       description: emptyPendingDetail({ days: reviewWindowDays }),
-                      tone: "blank",
+                      variant: "blank",
                     }
                   : {
                       icon: <Search />,
                       title: "Sin resultados",
                       description: "Probá con otro nombre o categoría.",
-                      tone: "filtered",
+                      variant: "filtered",
                     }
               }
               footer={

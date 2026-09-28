@@ -15,7 +15,7 @@ export type {
   TableColumn,
   TableColumnAlign,
   TableEmptyStateProps,
-  TableEmptyStateTone,
+  TableEmptyStateVariant,
   TableLoadingState,
   TableProps,
   TableRow,

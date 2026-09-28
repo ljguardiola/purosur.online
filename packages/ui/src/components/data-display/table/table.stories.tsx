@@ -20,12 +20,12 @@ const products: TableRow<Product>[] = [
 const baseColumns = [
   {
     key: "name",
-    title: "Producto",
+    header: "Producto",
     sortable: true,
     defaultDirection: "ascending",
     render: (item: Product) => item.name,
   },
-  { key: "stock", title: "Stock", align: "end", render: (item: Product) => item.stock },
+  { key: "stock", header: "Stock", align: "end", render: (item: Product) => item.stock },
 ] as const;
 
 function sortableHeader(canvasElement: HTMLElement): HTMLElement {
@@ -73,7 +73,7 @@ const twoSortableColumns = [
   baseColumns[0],
   {
     key: "stock",
-    title: "Stock",
+    header: "Stock",
     align: "end",
     sortable: true,
     defaultDirection: "descending",
@@ -186,7 +186,7 @@ const oneActionColumns = [
   {
     key: "actions",
     kind: "actions",
-    srLabel: "Acciones",
+    header: "Acciones",
     actions: [
       (item: Product) => ({
         icon: <Pencil />,
@@ -214,7 +214,7 @@ const twoActionColumns = [
   {
     key: "actions",
     kind: "actions",
-    srLabel: "Acciones",
+    header: "Acciones",
     actions: [
       (item: Product) => ({
         icon: <Pencil />,
@@ -245,7 +245,7 @@ export const WithTwoActions: Story = {
 const detailColumns = [
   {
     key: "name",
-    title: "Producto",
+    header: "Producto",
     render: (item: Product) => (
       <span className="flex flex-col gap-1">
         <span className="text-body">{item.name}</span>
@@ -253,7 +253,7 @@ const detailColumns = [
       </span>
     ),
   },
-  { key: "stock", title: "Stock", align: "end", render: (item: Product) => item.stock },
+  { key: "stock", header: "Stock", align: "end", render: (item: Product) => item.stock },
 ] as const;
 
 export const WithCellDetail: Story = {
@@ -298,7 +298,7 @@ export const EmptyBlank: Story = {
         icon: <Package />,
         title: "Todavía no hay productos",
         description: "Los productos que cargues van a aparecer acá.",
-        tone: "blank",
+        variant: "blank",
         actions: <Button>Cargar producto</Button>,
       }}
     />
@@ -317,7 +317,7 @@ export const EmptyFiltered: Story = {
         icon: <SearchX />,
         title: "Sin resultados",
         description: "Probá con otro término de búsqueda.",
-        tone: "filtered",
+        variant: "filtered",
       }}
     />
   ),

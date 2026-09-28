@@ -643,7 +643,7 @@ export function CategoriesListScreen({
   const columns = [
     {
       key: "category",
-      title: "Categoría",
+      header: "Categoría",
       sortable: true,
       defaultDirection: "ascending",
       render: pathLabel,
@@ -651,7 +651,7 @@ export function CategoriesListScreen({
     {
       key: "actions",
       kind: "actions",
-      srLabel: "Acciones",
+      header: "Acciones",
       actions: [
         (item: CategorySummary) => ({
           icon: <Pencil />,
@@ -728,13 +728,13 @@ export function CategoriesListScreen({
                       icon: <Tags />,
                       title: "Todavía no hay categorías",
                       description: "Creá la primera para poder darle una a un producto.",
-                      tone: "blank",
+                      variant: "blank",
                     }
                   : {
                       icon: <Search />,
                       title: "Sin resultados",
                       description: "Probá con otro nombre.",
-                      tone: "filtered",
+                      variant: "filtered",
                     }
               }
               footer={

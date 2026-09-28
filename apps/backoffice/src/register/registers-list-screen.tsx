@@ -465,14 +465,14 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
   const columns = [
     {
       key: "register",
-      title: "CAJA",
+      header: "CAJA",
       render: (item: RegisterSummary) => (
         <TableCellText description="Sin instalación">{item.name}</TableCellText>
       ),
     },
     {
       key: "installation",
-      title: "INSTALACIÓN",
+      header: "INSTALACIÓN",
       render: (item: RegisterSummary) => {
         const now = currentTime;
         const pendingCode =
@@ -498,18 +498,18 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
     },
     {
       key: "pointsOfSale",
-      title: "PUNTOS DE VENTA",
+      header: "PUNTOS DE VENTA",
       render: () => <span className="text-text-subtle text-detail">Sin configurar</span>,
     },
     {
       key: "status",
-      title: "ESTADO",
+      header: "ESTADO",
       render: () => <Tag tone="info">Esperando alta</Tag>,
     },
     {
       key: "actions",
       kind: "actions",
-      srLabel: "Acciones",
+      header: "Acciones",
       actions: [
         (item: RegisterSummary) => ({
           icon: <KeySquare />,
@@ -574,7 +574,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
               icon: <Laptop />,
               title: "Todavía no hay cajas registradoras",
               description: "Creá la primera para verla en la lista.",
-              tone: "blank",
+              variant: "blank",
             }}
             footer={
               <p className="text-text-subtle text-detail">

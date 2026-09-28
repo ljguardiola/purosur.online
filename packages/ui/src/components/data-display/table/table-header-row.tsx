@@ -38,7 +38,7 @@ export function TableHeaderRow<T>({
             ].join(" ")}
           >
             {isActions ? (
-              <span className="sr-only">{column.srLabel}</span>
+              <span className="sr-only">{column.header}</span>
             ) : isSortable ? (
               <SortableColumnHeader
                 column={column}
@@ -48,7 +48,7 @@ export function TableHeaderRow<T>({
                 isLast={isLast}
               />
             ) : (
-              <span className="text-text-subtle">{column.title}</span>
+              <span className="text-text-subtle">{column.header}</span>
             )}
           </th>
         );

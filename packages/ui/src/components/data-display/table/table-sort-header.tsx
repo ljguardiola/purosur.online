@@ -59,7 +59,7 @@ export function SortableColumnHeader<T>({
     >
       {/* min-w-0 overrides a flex item's default min-width of its own unwrapped content width,
           which would otherwise keep a long title from using the <th>'s own break-words. */}
-      <span className={["min-w-0", colorClassName].join(" ")}>{column.title}</span>
+      <span className={["min-w-0", colorClassName].join(" ")}>{column.header}</span>
       <Icon aria-hidden="true" className={[sortIconClassName, colorClassName].join(" ")} />
     </AriaButton>
   );

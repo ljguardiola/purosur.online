@@ -9,6 +9,7 @@ import { TableCellText } from "./table-cell-text";
 import type {
   TableAction,
   TableColumn,
+  TableEmptyStateProps,
   TableProps,
   TableRow,
   TableSort,
@@ -19,8 +20,8 @@ import type {
 type Product = { id: string; name: string; sku?: string; stock: string };
 
 const columns = [
-  { key: "name", title: "Producto", render: (p: Product) => p.name },
-  { key: "stock", title: "Stock", align: "end", render: (p: Product) => p.stock },
+  { key: "name", header: "Producto", render: (p: Product) => p.name },
+  { key: "stock", header: "Stock", align: "end", render: (p: Product) => p.stock },
 ] as const;
 
 const rows: TableRow<Product>[] = [
@@ -232,10 +233,10 @@ test("wraps a long, unbreakable plain header title instead of overrunning the ne
   const longColumns = [
     {
       key: "name",
-      title: "Superlongunbreakabletitlethatwouldnotwraponitsown",
+      header: "Superlongunbreakabletitlethatwouldnotwraponitsown",
       render: (p: Product) => p.name,
     },
-    { key: "stock", title: "Stock", align: "end", render: (p: Product) => p.stock },
+    { key: "stock", header: "Stock", align: "end", render: (p: Product) => p.stock },
   ] as const;
   const screen = await render(<Table {...commonProps} columns={longColumns} />);
   const firstHeader = screen
@@ -258,12 +259,12 @@ test("wraps a long, unbreakable sortable header title instead of overrunning the
   const longColumns = [
     {
       key: "name",
-      title: "Superlongunbreakabletitlethatwouldnotwraponitsown",
+      header: "Superlongunbreakabletitlethatwouldnotwraponitsown",
       sortable: true,
       defaultDirection: "ascending",
       render: (p: Product) => p.name,
     },
-    { key: "stock", title: "Stock", align: "end", render: (p: Product) => p.stock },
+    { key: "stock", header: "Stock", align: "end", render: (p: Product) => p.stock },
   ] as const;
   const screen = await render(
     <Table
@@ -318,14 +319,14 @@ test("shows both columns as sorted when they share a key that matches the curren
   const dupColumns = [
     {
       key: "same",
-      title: "Producto",
+      header: "Producto",
       sortable: true,
       defaultDirection: "ascending",
       render: (p: Product) => p.name,
     },
     {
       key: "same",
-      title: "Stock",
+      header: "Stock",
       align: "end",
       sortable: true,
       defaultDirection: "ascending",
@@ -425,7 +426,7 @@ test("grows a row to 64px when a cell renders a detail line under its main text"
   const twoLineColumns = [
     {
       key: "name",
-      title: "Producto",
+      header: "Producto",
       render: (p: Product) => <TableCellText description={p.sku}>{p.name}</TableCellText>,
     },
   ] as const;
@@ -448,7 +449,7 @@ test("grows a row to fit a taller cell, like one holding a form control, beyond 
   const tallColumns = [
     {
       key: "name",
-      title: "Producto",
+      header: "Producto",
       render: () => <div style={{ height: "48px" }}>Control</div>,
     },
   ] as const;
@@ -472,7 +473,7 @@ test("renders a cell's detail line at 14px in secondary text, even in a muted ro
   const twoLineColumns = [
     {
       key: "name",
-      title: "Producto",
+      header: "Producto",
       render: (p: Product) => <TableCellText description={p.sku}>{p.name}</TableCellText>,
     },
   ] as const;
@@ -501,7 +502,7 @@ test("lays out a cell whose render returns several elements with the same 4px ga
   const fragmentColumns = [
     {
       key: "name",
-      title: "Producto",
+      header: "Producto",
       render: () => (
         <>
           <span className="block">Line A</span>
@@ -701,11 +702,11 @@ test("renders every cell of a muted row in secondary text, with its background u
 
 test("renders one IconButton at its own 38x38px in an 82px wide, unnamed-title actions column named for assistive technology", async () => {
   const actionColumns = [
-    { key: "name", title: "Producto", render: (p: Product) => p.name },
+    { key: "name", header: "Producto", render: (p: Product) => p.name },
     {
       key: "actions",
       kind: "actions",
-      srLabel: "Actions",
+      header: "Actions",
       actions: [() => ({ icon: <Pencil />, "aria-label": "Edit", onPress: () => {} })],
     },
   ] as const;
@@ -736,11 +737,11 @@ test("renders one IconButton at its own 38x38px in an 82px wide, unnamed-title a
 
 test("renders two IconButtons at their own 38x38px with an 8px gap, right-aligned, in a 126px actions column", async () => {
   const actionColumns = [
-    { key: "name", title: "Producto", render: (p: Product) => p.name },
+    { key: "name", header: "Producto", render: (p: Product) => p.name },
     {
       key: "actions",
       kind: "actions",
-      srLabel: "Actions",
+      header: "Actions",
       actions: [
         () => ({ icon: <Pencil />, "aria-label": "Edit", onPress: () => {} }),
         () => ({ icon: <Trash2 />, "aria-label": "Delete", onPress: () => {} }),
@@ -779,7 +780,7 @@ test("keeps focus on the action button when its own label changes with the item'
     {
       key: "actions",
       kind: "actions",
-      srLabel: "Actions",
+      header: "Actions",
       actions: [
         (item: ToggleItem) => ({
           icon: <Pencil />,
@@ -822,7 +823,7 @@ test("keeps the second action's own identity untouched when an update makes the 
     {
       key: "actions",
       kind: "actions",
-      srLabel: "Actions",
+      header: "Actions",
       actions: [
         (_item: Item) => ({ icon: <Pencil />, "aria-label": "Modify", onPress: onEdit }),
         (_item: Item) => ({ icon: <Trash2 />, "aria-label": "Edit", onPress: onEditAgain }),
@@ -833,7 +834,7 @@ test("keeps the second action's own identity untouched when an update makes the 
     {
       key: "actions",
       kind: "actions",
-      srLabel: "Actions",
+      header: "Actions",
       actions: [
         (_item: Item) => ({ icon: <Pencil />, "aria-label": "Edit", onPress: onEdit }),
         (_item: Item) => ({ icon: <Trash2 />, "aria-label": "Edit", onPress: onEditAgain }),
@@ -878,11 +879,11 @@ test("renders no button at all for a row whose action reports undefined, keeping
     { id: "2", item: { id: "2", isAdministrator: false } },
   ];
   const hideableColumns = [
-    { key: "name", title: "Rol", render: (item: Item) => item.id },
+    { key: "name", header: "Rol", render: (item: Item) => item.id },
     {
       key: "actions",
       kind: "actions",
-      srLabel: "Actions",
+      header: "Actions",
       actions: [
         (item: Item) =>
           item.isAdministrator
@@ -909,11 +910,11 @@ test("keeps the first action in the same column position across rows even when t
     { id: "2", item: { id: "2", isAdministrator: false } },
   ];
   const twoActionColumns = [
-    { key: "name", title: "Rol", render: (item: Item) => item.id },
+    { key: "name", header: "Rol", render: (item: Item) => item.id },
     {
       key: "actions",
       kind: "actions",
-      srLabel: "Actions",
+      header: "Actions",
       actions: [
         (item: Item) => ({
           icon: <PackageSearch />,
@@ -947,11 +948,11 @@ test("hides a missing action behind an invisible, non-focusable placeholder inst
   type Item = { id: string; isAdministrator: boolean };
   const itemRows: TableRow<Item>[] = [{ id: "1", item: { id: "1", isAdministrator: true } }];
   const twoActionColumns = [
-    { key: "name", title: "Rol", render: (item: Item) => item.id },
+    { key: "name", header: "Rol", render: (item: Item) => item.id },
     {
       key: "actions",
       kind: "actions",
-      srLabel: "Actions",
+      header: "Actions",
       actions: [
         (item: Item) => ({
           icon: <PackageSearch />,
@@ -993,7 +994,7 @@ test("does not accept a column without a title, or an actions column without its
   expectTypeOf<{ key: string; kind: "actions"; render: (item: Product) => string }>().not.toExtend<
     TableColumn<Product>
   >();
-  expectTypeOf<{ key: string; kind: "actions"; srLabel: string }>().not.toExtend<
+  expectTypeOf<{ key: string; kind: "actions"; header: string }>().not.toExtend<
     TableColumn<Product>
   >();
   expectTypeOf<{
@@ -1004,13 +1005,13 @@ test("does not accept a column without a title, or an actions column without its
 });
 
 test("does not accept an actions column with zero or three actions", () => {
-  expectTypeOf<{ key: string; kind: "actions"; srLabel: string; actions: [] }>().not.toExtend<
+  expectTypeOf<{ key: string; kind: "actions"; header: string; actions: [] }>().not.toExtend<
     TableColumn<Product>
   >();
   expectTypeOf<{
     key: string;
     kind: "actions";
-    srLabel: string;
+    header: string;
     actions: [TableAction<Product>, TableAction<Product>, TableAction<Product>];
   }>().not.toExtend<TableColumn<Product>>();
 });
@@ -1018,14 +1019,14 @@ test("does not accept an actions column with zero or three actions", () => {
 const sortableColumns = [
   {
     key: "name",
-    title: "Producto",
+    header: "Producto",
     sortable: true,
     defaultDirection: "ascending",
     render: (p: Product) => p.name,
   },
   {
     key: "stock",
-    title: "Stock",
+    header: "Stock",
     align: "end",
     sortable: true,
     defaultDirection: "descending",
@@ -1035,11 +1036,11 @@ const sortableColumns = [
 
 test("shows the hand cursor on the sortable header button and on each row action", async () => {
   const actionColumns = [
-    { key: "name", title: "Producto", render: (p: Product) => p.name },
+    { key: "name", header: "Producto", render: (p: Product) => p.name },
     {
       key: "actions",
       kind: "actions",
-      srLabel: "Actions",
+      header: "Actions",
       actions: [() => ({ icon: <Pencil />, "aria-label": "Edit", onPress: () => {} })],
     },
   ] as const;
@@ -1085,7 +1086,7 @@ test("does not accept a non-literal boolean sortable value, alone or beside a ge
   type MinimalItem = { id: string; name: string };
   expectTypeOf<{
     key: string;
-    title: string;
+    header: string;
     sortable: boolean;
     defaultDirection: TableSortDirection;
     render: (item: MinimalItem) => string;
@@ -1093,7 +1094,7 @@ test("does not accept a non-literal boolean sortable value, alone or beside a ge
 
   expectTypeOf<{
     key: string;
-    title: string;
+    header: string;
     sortable: true;
     defaultDirection: TableSortDirection;
     render: (item: MinimalItem) => string;
@@ -1103,14 +1104,14 @@ test("does not accept a non-literal boolean sortable value, alone or beside a ge
     [
       {
         key: "name";
-        title: string;
+        header: string;
         sortable: true;
         defaultDirection: TableSortDirection;
         render: (item: MinimalItem) => string;
       },
       {
         key: "other";
-        title: string;
+        header: string;
         sortable: boolean;
         defaultDirection: TableSortDirection;
         render: (item: MinimalItem) => string;
@@ -1128,7 +1129,7 @@ test("infers literal column keys from an inline columns array, without `as const
       columns={[
         {
           key: "value",
-          title: "Value",
+          header: "Value",
           sortable: true,
           defaultDirection: "ascending",
           render: (item: MinimalItem) => item.value,
@@ -1169,12 +1170,12 @@ test("keeps the sortable header's own button matching a wrapped title's grown he
   const wrappedColumns = [
     {
       key: "name",
-      title: "Superlongunbreakabletitlethatwouldwraptotwoormorelines",
+      header: "Superlongunbreakabletitlethatwouldwraptotwoormorelines",
       sortable: true,
       defaultDirection: "ascending",
       render: (p: Product) => p.name,
     },
-    { key: "stock", title: "Stock", align: "end", render: (p: Product) => p.stock },
+    { key: "stock", header: "Stock", align: "end", render: (p: Product) => p.stock },
   ] as const;
   const screen = await render(
     <div style={{ width: "320px" }}>
@@ -1465,7 +1466,7 @@ test("shows nothing sorted when sort.column names a column absent from the curre
 test("does not accept a sortable column without its own first direction", () => {
   expectTypeOf<{
     key: string;
-    title: string;
+    header: string;
     sortable: true;
     render: (item: Product) => string;
   }>().not.toExtend<TableColumn<Product>>();
@@ -1571,11 +1572,11 @@ test("renders each placeholder bar at its own declared width, cycling per column
 
 test("renders one placeholder square, right-aligned, for a one-button actions column", async () => {
   const actionColumns = [
-    { key: "name", title: "Producto", render: (p: Product) => p.name },
+    { key: "name", header: "Producto", render: (p: Product) => p.name },
     {
       key: "actions",
       kind: "actions",
-      srLabel: "Actions",
+      header: "Actions",
       actions: [() => ({ icon: <Pencil />, "aria-label": "Edit", onPress: () => {} })],
     },
   ] as const;
@@ -1601,11 +1602,11 @@ test("renders one placeholder square, right-aligned, for a one-button actions co
 
 test("renders two placeholder squares with an 8px gap, right-aligned, for a two-button actions column", async () => {
   const actionColumns = [
-    { key: "name", title: "Producto", render: (p: Product) => p.name },
+    { key: "name", header: "Producto", render: (p: Product) => p.name },
     {
       key: "actions",
       kind: "actions",
-      srLabel: "Actions",
+      header: "Actions",
       actions: [
         () => ({ icon: <Pencil />, "aria-label": "Edit", onPress: () => {} }),
         () => ({ icon: <Trash2 />, "aria-label": "Delete", onPress: () => {} }),
@@ -2012,7 +2013,7 @@ test("renders the empty state in place of the header and rows, in blue strong wh
         icon: <PackageSearch />,
         title: "No products yet",
         description: "Add your first product to see it here.",
-        tone: "blank",
+        variant: "blank",
       }}
     />,
   );
@@ -2036,7 +2037,7 @@ test("renders the empty state in secondary text when nothing matches the filters
         icon: <PackageSearch />,
         title: "No matches",
         description: "Try a different filter.",
-        tone: "filtered",
+        variant: "filtered",
         actions: <button type="button">Clear filters</button>,
       }}
     />,
@@ -2053,7 +2054,7 @@ test("renders only the title under the icon when the empty state has no detail",
       {...commonProps}
       columns={columns}
       rows={emptyRows}
-      empty={{ icon: <PackageSearch />, title: "No archived products", tone: "filtered" }}
+      empty={{ icon: <PackageSearch />, title: "No archived products", variant: "filtered" }}
     />,
   );
 
@@ -2071,7 +2072,7 @@ test("renders the real rows, not the empty state, when both rows and an empty pr
         icon: <PackageSearch />,
         title: "No products yet",
         description: "Add your first product to see it here.",
-        tone: "blank",
+        variant: "blank",
       }}
     />,
   );
@@ -2107,7 +2108,7 @@ test("drops focus to document.body, cleanly, when a focused header disappears in
         icon: <PackageSearch />,
         title: "No matches",
         description: "Try a different filter.",
-        tone: "filtered",
+        variant: "filtered",
       }}
     />,
   );
@@ -2127,7 +2128,7 @@ test("shows placeholders instead of the empty state while loading is initial, ev
         icon: <PackageSearch />,
         title: "No products yet",
         description: "Add your first product to see it here.",
-        tone: "blank",
+        variant: "blank",
       }}
     />,
   );
@@ -2147,7 +2148,7 @@ test("keeps showing the current (empty) rows under the loading bar while updatin
         icon: <PackageSearch />,
         title: "No products yet",
         description: "Add your first product to see it here.",
-        tone: "blank",
+        variant: "blank",
       }}
     />,
   );
@@ -2212,7 +2213,7 @@ test("keeps showing the footer alongside the empty state", async () => {
         icon: <PackageSearch />,
         title: "No matches",
         description: "Try a different filter.",
-        tone: "filtered",
+        variant: "filtered",
       }}
     />,
   );
@@ -2233,4 +2234,13 @@ test("does not accept a table without an accessible name, its columns or its row
   expectTypeOf<{ "aria-label": string; columns: typeof columns }>().not.toExtend<
     TableProps<Product, typeof columns>
   >();
+});
+
+test("names a column's heading header and an empty state's look variant", () => {
+  expectTypeOf<TableEmptyStateProps>().toHaveProperty("variant");
+  expectTypeOf<TableEmptyStateProps>().not.toHaveProperty("tone");
+  expectTypeOf<Extract<TableColumn<unknown>, { kind?: "data" }>>().toHaveProperty("header");
+  expectTypeOf<Extract<TableColumn<unknown>, { kind?: "data" }>>().not.toHaveProperty("title");
+  expectTypeOf<Extract<TableColumn<unknown>, { kind: "actions" }>>().toHaveProperty("header");
+  expectTypeOf<Extract<TableColumn<unknown>, { kind: "actions" }>>().not.toHaveProperty("srLabel");
 });

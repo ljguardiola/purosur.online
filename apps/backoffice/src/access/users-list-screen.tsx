@@ -439,19 +439,19 @@ export function UsersListScreen({
   const baseColumns = [
     {
       key: "user",
-      title: "Usuario",
+      header: "Usuario",
       render: (item: BranchUser) => (
         <TableCellText description={item.email}>{item.firstName}</TableCellText>
       ),
     },
     {
       key: "role",
-      title: "Rol",
+      header: "Rol",
       render: (item: BranchUser) => roleDisplayName(item.role),
     },
     {
       key: "passkeys",
-      title: "Passkeys",
+      header: "Passkeys",
       render: (item: BranchUser) =>
         item.passkeyCount === 0
           ? "—"
@@ -463,14 +463,14 @@ export function UsersListScreen({
   ] as const;
   const stateColumn = {
     key: "state",
-    title: "Estado",
+    header: "Estado",
     render: (item: BranchUser) =>
       item.active === false ? <Tag tone="neutral">Inactivo</Tag> : null,
   } as const;
   const actionsColumn = {
     key: "actions",
     kind: "actions",
-    srLabel: "Acciones",
+    header: "Acciones",
     actions: [
       (item: BranchUser) => ({
         icon: access.isAdministrator ? <Pencil /> : <Eye />,
