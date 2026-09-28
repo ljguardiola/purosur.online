@@ -903,3 +903,22 @@ test("a workspace package's build output under dist/ is not cruised", async (t) 
   const controlReport = await cruiseFixture(root, ["apps"]);
   assert.equal(violationsFor(controlReport, "no-app-to-app").length, 1);
 });
+
+test("the register's build output under out/ is not cruised", async (t) => {
+  const root = await makeFixture(t, {
+    "apps/pos/out/main/index.js":
+      'import { helper } from "../../../cloud/src/helper.js";\nexport { helper };\n',
+    "apps/cloud/src/helper.ts": "export function helper() {}\n",
+  });
+
+  const report = await cruiseFixture(root, ["apps"]);
+  assert.equal(violationsFor(report, "no-app-to-app").length, 0);
+
+  await writeFixtureFile(
+    root,
+    "apps/pos/src/index.ts",
+    'import { helper } from "../../cloud/src/helper";\nexport { helper };\n',
+  );
+  const controlReport = await cruiseFixture(root, ["apps"]);
+  assert.equal(violationsFor(controlReport, "no-app-to-app").length, 1);
+});
