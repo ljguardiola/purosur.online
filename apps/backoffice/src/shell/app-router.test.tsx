@@ -3,7 +3,7 @@ import { expect, test, vi } from "vitest";
 import { createAppRouter } from "./app-router";
 import { ScreenPending } from "./screen-pending";
 
-test("shows the loading notice while a screen downloads", () => {
+test("makes the loading notice the pending component of every route", () => {
   const router = createAppRouter({
     session: { kind: "signed-out", notice: undefined },
     help: defineHelp("es-AR", { categories: {}, articles: {} }),
