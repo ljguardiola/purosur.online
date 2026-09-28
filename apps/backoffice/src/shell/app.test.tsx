@@ -895,7 +895,7 @@ test("opens the role editor modal for editing, from a role's pencil action, with
   const services = createAppServices();
   const roleEditorModal = services.rolesListScreen.roleEditorModal;
   if (!roleEditorModal) {
-    throw new Error("test setup: createServices always fills roleEditorModal");
+    throw new Error("test setup: createAppServices always fills roleEditorModal");
   }
   vi.mocked(services.rolesListScreen.fetchRoles).mockResolvedValue({
     kind: "ok",
