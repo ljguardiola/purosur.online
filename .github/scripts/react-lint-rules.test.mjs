@@ -39,6 +39,7 @@ function lint(relativeDir, source) {
     return {
       exitCode: result.status,
       categories: report.diagnostics.map((diagnostic) => diagnostic.category),
+      severities: report.diagnostics.map((diagnostic) => diagnostic.severity),
     };
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -121,6 +122,22 @@ const EXPECTED_MISTAKE_CATEGORIES = [
   "lint/correctness/noNestedComponentDefinitions",
 ];
 
+const INFO_BY_DEFAULT_SOURCE = [
+  'import { Component } from "react";',
+  "",
+  "export class Greeting extends Component<{ name: string }> {",
+  "  override render() {",
+  '    return <p>{"Hola, " + this.props.name}</p>;',
+  "  }",
+  "}",
+  "",
+].join("\n");
+
+const INFO_BY_DEFAULT_CATEGORIES = [
+  "lint/style/useReactFunctionComponents",
+  "lint/style/useTemplate",
+];
+
 const ROOTS = [
   { label: "apps/backoffice", relativeDir: "apps/backoffice/src" },
   { label: "apps/pos/src/renderer", relativeDir: "apps/pos/src/renderer" },
@@ -135,7 +152,7 @@ for (const { label, relativeDir } of ROOTS) {
     assert.equal(exitCode, 0);
   });
 
-  test(`${label}: representative React mistakes are reported and fail Biome`, () => {
+  test(`${label}: representative React mistakes are reported and fail under verify's flags`, () => {
     const { exitCode, categories } = lint(relativeDir, MISTAKES_SOURCE);
 
     for (const expected of EXPECTED_MISTAKE_CATEGORIES) {
@@ -143,4 +160,24 @@ for (const { label, relativeDir } of ROOTS) {
     }
     assert.notEqual(exitCode, 0);
   });
+
+  test(`${label}: rules Biome reports as info by default are raised to errors`, () => {
+    const { exitCode, categories, severities } = lint(relativeDir, INFO_BY_DEFAULT_SOURCE);
+
+    assert.deepEqual([...categories].sort(), INFO_BY_DEFAULT_CATEGORIES);
+    assert.deepEqual(severities, ["error", "error"]);
+    assert.notEqual(exitCode, 0);
+  });
 }
+
+test("verify:static runs biome ci with --error-on-warnings so warning-level React rules fail verify", () => {
+  const packageJson = JSON.parse(readFileSync(join(repositoryRoot, "package.json"), "utf8"));
+
+  assert.match(packageJson.scripts["verify:static"], /\bbiome ci \. --error-on-warnings\b/);
+});
+
+test("lint runs biome check with --error-on-warnings so warning-level React rules are caught locally too", () => {
+  const packageJson = JSON.parse(readFileSync(join(repositoryRoot, "package.json"), "utf8"));
+
+  assert.match(packageJson.scripts.lint, /\bbiome check \. --error-on-warnings\b/);
+});
