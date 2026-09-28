@@ -345,7 +345,7 @@ export type TableCellTextProps = {
   detail?: ReactNode;
 };
 
-// The fixed line heights and gap land a two-line row exactly at 64px; the cell's own h-14 floor
+// The fixed line heights and gap land a two-line row exactly at 64px; the cell's own height floor
 // only matters for the single-line case, which would otherwise land under it.
 //
 // A falsy-but-real value like 0 or "" is still content to show: `detail && ...` would instead
