@@ -54,7 +54,7 @@ describe("setPrice", () => {
     ["doesn't exist", undefined],
     ["is inactive", false],
   ])("answers not_found for a product that %s, writing nothing", async (_case, active) => {
-    const store = active === undefined ? storeWithProduct() : storeWithProduct(active);
+    const store = storeWithProduct(active);
     const before = store.snapshot();
 
     const outcome = await change(store, {
