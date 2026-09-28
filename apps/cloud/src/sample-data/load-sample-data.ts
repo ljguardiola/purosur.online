@@ -3,6 +3,7 @@ import {
   createProduct,
   deactivateProduct,
 } from "@purosur/domain/catalog/use-cases";
+import { confirmPrice, setPrice } from "@purosur/domain/pricing/use-cases";
 import { and, eq, like, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { createRole } from "../access/role-creation-route.js";
@@ -17,8 +18,7 @@ import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { allocateInternalBarcode } from "../catalog/internal-barcode-route.js";
 import { branchSettings, locations, roles, userRoles, users } from "../platform/db/schema.js";
 import { branchPriceListId } from "../pricing/branch-price-list.js";
-import { confirmPrice } from "../pricing/price-confirmation-route.js";
-import { setPrice } from "../pricing/price-set-route.js";
+import { DrizzlePricingStore } from "../pricing/drizzle-pricing-store.js";
 import { createRegister } from "../register/register-creation-route.js";
 import { branchSettingsAreAtDefaults } from "./sample-branch-settings.js";
 import {
@@ -162,6 +162,11 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
       const overdueReviewMoment = new Date(recentMoment.getTime() - OVERDUE_PRICE_REVIEW_AGE_MS);
 
       const catalogStore = new DrizzleCatalogStore(tx);
+      const pricingStore = new DrizzlePricingStore(tx);
+      const pricingPortsAt = (moment: Date) => ({
+        store: pricingStore,
+        clock: { now: () => moment },
+      });
       let categoryCount = 0;
       let productCount = 0;
       for (const top of SAMPLE_CATEGORY_TREE) {
@@ -206,21 +211,19 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
               // Priced while still active: `setPrice`/`confirmPrice` only ever act on an active
               // product, so an inactive sample product is priced first and deactivated last.
               if (plan.pricePlan === "current") {
-                const setOutcome = await setPrice(tx, {
+                const setOutcome = await setPrice(pricingPortsAt(recentMoment), {
                   productId: product.product.id,
                   priceListId,
                   unitPrice: plan.unitPriceCents,
                   expectedCurrentPriceId: null,
                   actorId,
-                  now: () => recentMoment,
                 });
                 const applied = expectOutcome(setOutcome, "applied", `pricing "${plan.name}"`);
-                const confirmOutcome = await confirmPrice(tx, {
+                const confirmOutcome = await confirmPrice(pricingPortsAt(recentMoment), {
                   productId: product.product.id,
                   priceListId,
                   expectedCurrentPriceId: applied.price.id,
                   actorId,
-                  now: () => recentMoment,
                 });
                 expectOutcome(
                   confirmOutcome,
@@ -228,13 +231,12 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
                   `confirming the price of "${plan.name}"`,
                 );
               } else {
-                const setOutcome = await setPrice(tx, {
+                const setOutcome = await setPrice(pricingPortsAt(overdueReviewMoment), {
                   productId: product.product.id,
                   priceListId,
                   unitPrice: plan.unitPriceCents,
                   expectedCurrentPriceId: null,
                   actorId,
-                  now: () => overdueReviewMoment,
                 });
                 expectOutcome(setOutcome, "applied", `pricing "${plan.name}"`);
               }

@@ -22,6 +22,10 @@ export type { BranchSettingsEditBody } from "./branch/branch-settings-edit.js";
 export { branchSettingsEditBodySchema } from "./branch/branch-settings-edit.js";
 export type { IssuerIdentificationEditBody } from "./fiscal/issuer-identification-edit.js";
 export { issuerIdentificationEditBodySchema } from "./fiscal/issuer-identification-edit.js";
+export type { PriceConfirmationBody } from "./pricing/price-confirmation.js";
+export { priceConfirmationBodySchema } from "./pricing/price-confirmation.js";
+export type { PriceSetBody } from "./pricing/price-set.js";
+export { priceSetBodySchema } from "./pricing/price-set.js";
 export type {
   CoreStatusMessage,
   MainToCoreMessage,
