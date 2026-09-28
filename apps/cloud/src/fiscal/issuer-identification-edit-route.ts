@@ -1,3 +1,4 @@
+import { issuerIdentificationEditBodySchema } from "@purosur/contracts";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -15,29 +16,23 @@ import {
   ISSUER_IDENTIFICATION_SINGLETON_ID,
   issuerIdentification,
 } from "../platform/db/schema.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
 import type {
   IssuerIdentificationRouteOptions,
   IssuerIdentificationRow,
 } from "./issuer-identification-read-route.js";
 import { toIssuerIdentificationWire } from "./issuer-identification-read-route.js";
-import {
-  type IssuerIdentificationEditInput,
-  type IssuerIdentificationFieldValidationFailure,
-  readIssuerIdentificationEditBody,
-} from "./issuer-identification-validation.js";
 
 const STALE_VERSION_RESPONSE = {
   code: "stale_version",
   message: "the issuer identification was changed since it was loaded",
 } as const;
 
-function isValidationFailure(
-  value: IssuerIdentificationEditInput | IssuerIdentificationFieldValidationFailure,
-): value is IssuerIdentificationFieldValidationFailure {
-  return "field" in value;
-}
-
-export interface EditIssuerIdentificationInput extends IssuerIdentificationEditInput {
+export interface EditIssuerIdentificationInput {
+  legalName: string;
+  grossIncomeRegistration: string;
+  activityStartDate: string;
+  version: number;
   actorId: string;
 }
 
@@ -130,13 +125,12 @@ export function registerIssuerIdentificationEditRoute<TQueryResult extends PgQue
       const attemptedAt = now();
       const openSession = openSessionOf(request);
 
-      const parsedBody = readIssuerIdentificationEditBody(request.body, attemptedAt);
-      if (isValidationFailure(parsedBody)) {
-        await reply.code(400).send({
-          code: "validation_failed",
-          message: parsedBody.message,
-          details: [{ field: parsedBody.field }],
-        });
+      const parsedBody = await readValidatedBody(
+        reply,
+        issuerIdentificationEditBodySchema(attemptedAt),
+        request.body,
+      );
+      if (!parsedBody) {
         return;
       }
 
@@ -145,7 +139,10 @@ export function registerIssuerIdentificationEditRoute<TQueryResult extends PgQue
       }
 
       const outcome = await editIssuerIdentification(options.db, {
-        ...parsedBody,
+        legalName: parsedBody.legal_name,
+        grossIncomeRegistration: parsedBody.gross_income_registration,
+        activityStartDate: parsedBody.activity_start_date,
+        version: parsedBody.version,
         actorId: openSession.userId,
       });
 

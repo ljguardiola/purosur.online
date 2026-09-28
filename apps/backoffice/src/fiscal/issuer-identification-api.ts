@@ -1,3 +1,5 @@
+import type { IssuerIdentificationEditBody } from "@purosur/contracts";
+
 export type IssuerIdentification = {
   legalName: string | null;
   grossIncomeRegistration: string | null;
@@ -98,17 +100,18 @@ export async function fetchIssuerIdentification(): Promise<FetchIssuerIdentifica
 export async function saveIssuerIdentification(
   input: SaveIssuerIdentificationInput,
 ): Promise<SaveIssuerIdentificationOutcome> {
+  const requestBody: IssuerIdentificationEditBody = {
+    legal_name: input.legalName,
+    gross_income_registration: input.grossIncomeRegistration,
+    activity_start_date: input.activityStartDate,
+    version: input.version,
+  };
   let response: Response;
   try {
     response = await fetch("/fiscal-configuration/issuer-identification", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        legal_name: input.legalName,
-        gross_income_registration: input.grossIncomeRegistration,
-        activity_start_date: input.activityStartDate,
-        version: input.version,
-      }),
+      body: JSON.stringify(requestBody),
     });
   } catch {
     return { kind: "failed" };

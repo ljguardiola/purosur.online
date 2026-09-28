@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
+  isIssuerIdentificationActivityStartDate,
   isIssuerIdentificationGrossIncomeRegistrationTooLong,
   isIssuerIdentificationLegalNameTooLong,
 } from "./issuer-identification.js";
@@ -104,6 +105,48 @@ describe("isIssuerIdentificationGrossIncomeRegistrationTooLong", () => {
           codePoints.length > ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
         );
       }),
+    );
+  });
+});
+
+describe("isIssuerIdentificationActivityStartDate", () => {
+  const today = new Date("2026-09-25T12:00:00.000Z");
+
+  it("accepts a past calendar date and today", () => {
+    expect(isIssuerIdentificationActivityStartDate("2020-01-15", today)).toBe(true);
+    expect(isIssuerIdentificationActivityStartDate("2026-09-25", today)).toBe(true);
+  });
+
+  it("rejects a date one day in the future", () => {
+    expect(isIssuerIdentificationActivityStartDate("2026-09-26", today)).toBe(false);
+  });
+
+  it("rejects a date that is not a zero-padded YYYY-MM-DD", () => {
+    expect(isIssuerIdentificationActivityStartDate("2020-1-15", today)).toBe(false);
+    expect(isIssuerIdentificationActivityStartDate("20200115", today)).toBe(false);
+    expect(isIssuerIdentificationActivityStartDate("2020-01-15T00:00", today)).toBe(false);
+    expect(isIssuerIdentificationActivityStartDate("", today)).toBe(false);
+  });
+
+  it("rejects a calendar date that does not exist, such as February 30th", () => {
+    expect(isIssuerIdentificationActivityStartDate("2020-02-30", today)).toBe(false);
+    expect(isIssuerIdentificationActivityStartDate("2021-02-29", today)).toBe(false);
+    expect(isIssuerIdentificationActivityStartDate("2020-13-01", today)).toBe(false);
+    expect(isIssuerIdentificationActivityStartDate("2020-00-10", today)).toBe(false);
+  });
+
+  it("accepts February 29th of a leap year", () => {
+    expect(isIssuerIdentificationActivityStartDate("2020-02-29", today)).toBe(true);
+  });
+
+  it("takes today from Argentina's calendar, not UTC's, late in the evening", () => {
+    const lateEveningInArgentina = new Date("2026-09-25T23:30:00-03:00");
+
+    expect(isIssuerIdentificationActivityStartDate("2026-09-26", lateEveningInArgentina)).toBe(
+      false,
+    );
+    expect(isIssuerIdentificationActivityStartDate("2026-09-25", lateEveningInArgentina)).toBe(
+      true,
     );
   });
 });
