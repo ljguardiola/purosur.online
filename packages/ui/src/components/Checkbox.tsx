@@ -16,16 +16,16 @@ const labelClassName = "group flex cursor-pointer items-center gap-3 outline-non
 // unchecked to checked.
 const boxClassName =
   "inline-flex size-[22px] shrink-0 items-center justify-center rounded-sm outline-none " +
-  "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-ink-secondary)] " +
-  "group-data-[hovered]:bg-surface-bone " +
-  "group-data-[selected]:bg-brand-blue-ui group-data-[selected]:shadow-none " +
+  "bg-surface shadow-[inset_0_0_0_2px_var(--color-border-strong)] " +
+  "group-data-[hovered]:bg-surface-subtle " +
+  "group-data-[selected]:bg-action group-data-[selected]:shadow-none " +
   // Two attribute selectors outrank the single-attribute hover rule above regardless of
   // stylesheet order, guaranteeing the checked box's hover color wins over the unchecked one.
-  "group-data-[hovered]:group-data-[selected]:bg-brand-blue-strong " +
+  "group-data-[hovered]:group-data-[selected]:bg-action-strong " +
   "group-data-[focus-visible]:outline-[3px] group-data-[focus-visible]:outline-solid " +
-  "group-data-[focus-visible]:outline-offset-3 group-data-[focus-visible]:outline-brand-blue-strong";
+  "group-data-[focus-visible]:outline-offset-3 group-data-[focus-visible]:outline-focus";
 
-const checkIconClassName = "size-4 text-surface-white";
+const checkIconClassName = "size-4 text-text-inverse";
 
 export function Checkbox({ isSelected, onChange, children }: CheckboxProps) {
   return (

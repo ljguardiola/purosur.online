@@ -2,9 +2,9 @@ export type ProportionBarProps = {
   value: number;
 };
 
-const trackClassName = "h-[10px] w-[240px] overflow-hidden rounded-[5px] bg-brand-blue-message-bg";
+const trackClassName = "h-[10px] w-[240px] overflow-hidden rounded-[5px] bg-data-subtle";
 
-const fillClassName = "h-full rounded-[5px] bg-brand-blue-ui";
+const fillClassName = "h-full rounded-[5px] bg-data";
 
 function paintedFraction(value: number): number {
   if (!Number.isFinite(value)) {

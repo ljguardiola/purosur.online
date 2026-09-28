@@ -4,9 +4,9 @@ import { NoticeLiveRegion } from "./NoticeLiveRegion";
 export type NoticeTone = "warning" | "info" | "error";
 
 export const noticeToneClassName: Record<NoticeTone, string> = {
-  warning: "bg-status-warning-message-bg text-status-warning-strong",
-  info: "bg-brand-blue-message-bg text-brand-blue-strong",
-  error: "bg-status-error-message-bg text-status-error-strong",
+  warning: "bg-warning-subtle text-warning-strong",
+  info: "bg-info-subtle text-info-strong",
+  error: "bg-error-subtle text-error-strong",
 };
 
 type NoticeContent = { title: string; detail?: string } | { title?: string; detail: string };

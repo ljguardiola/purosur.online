@@ -14,15 +14,15 @@ export type NotificationCardProps = {
 };
 
 const toneBorderClassName: Record<NotificationTone, string> = {
-  success: "border-l-brand-green",
-  warning: "border-l-status-warning-accent",
-  error: "border-l-status-error-accent",
+  success: "border-l-success-soft",
+  warning: "border-l-warning-soft",
+  error: "border-l-error-soft",
 };
 
 const toneCircleClassName: Record<NotificationTone, string> = {
-  success: "bg-brand-green-message-bg text-brand-green-strong",
-  warning: "bg-status-warning-message-bg text-status-warning-strong",
-  error: "bg-status-error-message-bg text-status-error-strong",
+  success: "bg-success-subtle text-success-strong",
+  warning: "bg-warning-subtle text-warning-strong",
+  error: "bg-error-subtle text-error-strong",
 };
 
 const iconWrapperClassName = "inline-flex size-[1.125rem] shrink-0 [&>svg]:h-full [&>svg]:w-full";
@@ -37,9 +37,9 @@ export function NotificationCard({
   floating = false,
 }: NotificationCardProps) {
   const className = [
-    "flex items-start gap-3 rounded-lg border-l-4 bg-surface-white p-4",
+    "flex items-start gap-3 rounded-lg border-l-4 bg-surface p-4",
     toneBorderClassName[tone],
-    floating ? "w-[24.25rem] shadow-[0_6px_20px_var(--color-ink-shadow)]" : "w-full",
+    floating ? "w-[24.25rem] shadow-[0_6px_20px_var(--palette-neutral-900-a12)]" : "w-full",
   ].join(" ");
 
   const circleClassName = [
@@ -55,10 +55,10 @@ export function NotificationCard({
       {/* Hidden from assistive technology so its text isn't announced twice: the live region
           below is its only accessible copy. */}
       <div aria-hidden="true" className="flex flex-col gap-1">
-        <p className="text-base font-bold text-ink">{title}</p>
-        <p className="text-sm text-ink-secondary">{detail}</p>
-        {whatToDo && <p className="text-sm font-semibold text-ink">{whatToDo}</p>}
-        {time && <p className="text-xs text-ink-secondary">{time}</p>}
+        <p className="text-base font-bold text-text">{title}</p>
+        <p className="text-sm text-text-subtle">{detail}</p>
+        {whatToDo && <p className="text-sm font-semibold text-text">{whatToDo}</p>}
+        {time && <p className="text-xs text-text-subtle">{time}</p>}
       </div>
       <NoticeLiveRegion
         assertiveness={tone === "error" ? "assertive" : "polite"}

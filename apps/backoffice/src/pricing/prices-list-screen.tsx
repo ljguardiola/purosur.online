@@ -937,9 +937,9 @@ export function PricesListScreen({
     <>
       <ScreenLayout
         topBar={
-          <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
+          <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
             <div className="flex flex-col justify-center">
-              <p className="text-ink-secondary text-sm">Catálogo</p>
+              <p className="text-text-subtle text-sm">Catálogo</p>
               <ScreenTitle>Precios</ScreenTitle>
             </div>
             {pendingCount > 0 && (
@@ -1037,7 +1037,7 @@ export function PricesListScreen({
                     }
               }
               footer={
-                <p className="text-ink-secondary text-sm">
+                <p className="text-text-subtle text-sm">
                   {reviewFilter === "pending"
                     ? plural(products.length, {
                         one: "1 producto sin revisar, del más viejo al más nuevo",

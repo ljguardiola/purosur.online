@@ -120,17 +120,17 @@ test("actually paints the selected row's left accent and the row divider, not ju
   const rect = row.getBoundingClientRect();
 
   const [ar, ag, ab] = await pixelAt(rect.left + 2, rect.top + 2);
-  expect([ar, ag, ab]).toEqual(rgbTuple(tokenRgb("brand-blue-ui")));
+  expect([ar, ag, ab]).toEqual(rgbTuple(tokenRgb("action")));
 
   const [dr, dg, db] = await pixelAt(rect.left + 80, rect.bottom - 1);
-  expect([dr, dg, db]).toEqual(rgbTuple(tokenRgb("line")));
+  expect([dr, dg, db]).toEqual(rgbTuple(tokenRgb("border")));
 
   const [backgroundControlR, backgroundControlG, backgroundControlB] = await pixelAt(
     rect.left + 80,
     rect.top + 2,
   );
   expect([backgroundControlR, backgroundControlG, backgroundControlB]).toEqual(
-    rgbTuple(tokenRgb("brand-blue-message-bg")),
+    rgbTuple(tokenRgb("action-subtle")),
   );
   expect([backgroundControlR, backgroundControlG, backgroundControlB]).not.toEqual([ar, ag, ab]);
   expect([backgroundControlR, backgroundControlG, backgroundControlB]).not.toEqual([dr, dg, db]);
@@ -156,8 +156,8 @@ test("keeps every corner rounded: no adjacent fill reaches the curve, with a bac
   const container = table.parentElement as HTMLElement;
   const rect = container.getBoundingClientRect();
   // 1.5px lands on the antialiased blend between the backdrop and the container's border.
-  const headerBone = rgbTuple(tokenRgb("surface-bone"));
-  const rowWhite = rgbTuple(tokenRgb("surface-white"));
+  const headerBone = rgbTuple(tokenRgb("surface-subtle"));
+  const rowWhite = rgbTuple(tokenRgb("surface"));
 
   for (const [name, x, y, adjacentFill] of [
     ["topLeft", rect.left + 1.5, rect.top + 1.5, headerBone],
@@ -187,10 +187,10 @@ test("renders a white container with an 8px radius and a 1px line border", async
   const container = screen.getByRole("table").element().parentElement as HTMLElement;
   const style = getComputedStyle(container);
 
-  expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
+  expect(style.backgroundColor).toBe(tokenRgb("surface"));
   expect(style.borderRadius).toBe("8px");
   expect(style.borderWidth).toBe("1px");
-  expect(style.borderColor).toBe(tokenRgb("line"));
+  expect(style.borderColor).toBe(tokenRgb("border"));
   // "hidden" stays scrollable via element.scrollTo(); "clip" doesn't.
   expect(style.overflow).toBe("clip");
 });
@@ -241,7 +241,7 @@ test("renders a 44px header row on a bone background with 16px edge padding and 
 
   expect(rect.height).toBeGreaterThan(43);
   expect(rect.height).toBeLessThan(45);
-  expect(rowStyle.backgroundColor).toBe(tokenRgb("surface-bone"));
+  expect(rowStyle.backgroundColor).toBe(tokenRgb("surface-subtle"));
   expect(firstStyle.paddingLeft).toBe("16px");
   expect(lastStyle.paddingRight).toBe("16px");
   expect(firstStyle.paddingRight).toBe("6px");
@@ -396,7 +396,7 @@ test("keeps the selected row's own left accent on the last row, with no bottom d
   const layers = shadowLayers(getComputedStyle(row).boxShadow);
 
   expect(layers.some((layer) => layer.includes("-1px 0px 0px inset"))).toBe(false);
-  expect(layers[layers.length - 1]).toBe(`${tokenRgb("brand-blue-ui")} 4px 0px 0px 0px inset`);
+  expect(layers[layers.length - 1]).toBe(`${tokenRgb("action")} 4px 0px 0px 0px inset`);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -434,7 +434,7 @@ test("renders every row's cells with 16px edge padding and a 12px gap lined up w
   expect(firstStyle.paddingRight).toBe("6px");
   expect(lastStyle.paddingLeft).toBe("6px");
   const layers = shadowLayers(rowStyle.boxShadow);
-  expect(layers[layers.length - 1]).toBe(`${tokenRgb("line")} 0px -1px 0px 0px inset`);
+  expect(layers[layers.length - 1]).toBe(`${tokenRgb("border")} 0px -1px 0px 0px inset`);
 });
 
 test("renders a 56px row when every cell holds a single line", async () => {
@@ -517,7 +517,7 @@ test("renders a cell's detail line at 14px in secondary text, even in a muted ro
   const detail = screen.getByText("SKU-001", { exact: true }).element() as HTMLElement;
 
   expect(getComputedStyle(detail).fontSize).toBe("14px");
-  expect(getComputedStyle(detail).color).toBe(tokenRgb("ink-secondary"));
+  expect(getComputedStyle(detail).color).toBe(tokenRgb("text-subtle"));
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -528,7 +528,7 @@ test("renders a falsy-but-present detail, like 0, as a real detail line rather t
 
   expect(detail.tagName).toBe("SPAN");
   expect(getComputedStyle(detail).fontSize).toBe("14px");
-  expect(getComputedStyle(detail).color).toBe(tokenRgb("ink-secondary"));
+  expect(getComputedStyle(detail).color).toBe(tokenRgb("text-subtle"));
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -709,11 +709,11 @@ test("renders the selected row state with a blue message background and a 4px bl
   const style = getComputedStyle(row);
   const cellText = screen.getByText("Coffee", { exact: true }).element() as HTMLElement;
 
-  expect(style.backgroundColor).toBe(tokenRgb("brand-blue-message-bg"));
+  expect(style.backgroundColor).toBe(tokenRgb("action-subtle"));
   const layers = shadowLayers(style.boxShadow);
-  expect(layers[layers.length - 2]).toBe(`${tokenRgb("line")} 0px -1px 0px 0px inset`);
-  expect(layers[layers.length - 1]).toBe(`${tokenRgb("brand-blue-ui")} 4px 0px 0px 0px inset`);
-  expect(getComputedStyle(cellText).color).toBe(tokenRgb("ink"));
+  expect(layers[layers.length - 2]).toBe(`${tokenRgb("border")} 0px -1px 0px 0px inset`);
+  expect(layers[layers.length - 1]).toBe(`${tokenRgb("action")} 4px 0px 0px 0px inset`);
+  expect(getComputedStyle(cellText).color).toBe(tokenRgb("text"));
 });
 
 test("renders the warning row state with a warning message background", async () => {
@@ -727,8 +727,8 @@ test("renders the warning row state with a warning message background", async ()
   const row = screen.getByRole("cell", { name: "Coffee" }).element().parentElement as HTMLElement;
   const cellText = screen.getByText("Coffee", { exact: true }).element() as HTMLElement;
 
-  expect(getComputedStyle(row).backgroundColor).toBe(tokenRgb("status-warning-message-bg"));
-  expect(getComputedStyle(cellText).color).toBe(tokenRgb("ink"));
+  expect(getComputedStyle(row).backgroundColor).toBe(tokenRgb("warning-subtle"));
+  expect(getComputedStyle(cellText).color).toBe(tokenRgb("text"));
 });
 
 test("renders the error row state with an error message background", async () => {
@@ -742,8 +742,8 @@ test("renders the error row state with an error message background", async () =>
   const row = screen.getByRole("cell", { name: "Coffee" }).element().parentElement as HTMLElement;
   const cellText = screen.getByText("Coffee", { exact: true }).element() as HTMLElement;
 
-  expect(getComputedStyle(row).backgroundColor).toBe(tokenRgb("status-error-message-bg"));
-  expect(getComputedStyle(cellText).color).toBe(tokenRgb("ink"));
+  expect(getComputedStyle(row).backgroundColor).toBe(tokenRgb("error-subtle"));
+  expect(getComputedStyle(cellText).color).toBe(tokenRgb("text"));
 });
 
 test("renders every cell of a muted row in secondary text, with its background unchanged", async () => {
@@ -758,9 +758,9 @@ test("renders every cell of a muted row in secondary text, with its background u
   const firstCellText = screen.getByText("Coffee", { exact: true }).element() as HTMLElement;
   const secondCellText = screen.getByText("12", { exact: true }).element() as HTMLElement;
 
-  expect(getComputedStyle(row).backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(getComputedStyle(firstCellText).color).toBe(tokenRgb("ink-secondary"));
-  expect(getComputedStyle(secondCellText).color).toBe(tokenRgb("ink-secondary"));
+  expect(getComputedStyle(row).backgroundColor).toBe(tokenRgb("surface"));
+  expect(getComputedStyle(firstCellText).color).toBe(tokenRgb("text-subtle"));
+  expect(getComputedStyle(secondCellText).color).toBe(tokenRgb("text-subtle"));
 });
 
 test("renders one IconButton at its own 38x38px in an 82px wide, unnamed-title actions column named for assistive technology", async () => {
@@ -1141,7 +1141,7 @@ test("renders an unsorted sortable column with a 12px chevrons-up-down icon, bot
   const iconRect = icon.getBoundingClientRect();
   expect(iconRect.width).toBeGreaterThan(11);
   expect(iconRect.width).toBeLessThan(13);
-  expect(getComputedStyle(icon).color).toBe(tokenRgb("ink-secondary"));
+  expect(getComputedStyle(icon).color).toBe(tokenRgb("text-subtle"));
   expect(header.getAttribute("aria-sort")).toBe("none");
 });
 
@@ -1281,14 +1281,12 @@ test("shows a visible focus outline in strong blue when a sortable header is rea
 
   await expect.poll(() => getComputedStyle(button).outlineWidth).toBe("3px");
   await expect.poll(() => getComputedStyle(button).outlineOffset).toBe("-3px");
-  await expect
-    .poll(() => getComputedStyle(button).outlineColor)
-    .toBe(tokenRgb("brand-blue-strong"));
+  await expect.poll(() => getComputedStyle(button).outlineColor).toBe(tokenRgb("focus"));
 
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("hovers a sortable header to surface-sand, since it sits on the header row's own bone background", async () => {
+test("hovers a sortable header to the soft surface, since it sits on the header row's own bone background", async () => {
   interface DispatchableCdpSession {
     send(
       method: "Input.dispatchMouseEvent",
@@ -1308,7 +1306,7 @@ test("hovers a sortable header to surface-sand, since it sits on the header row'
   const rect = button.getBoundingClientRect();
 
   expect(getComputedStyle(button).backgroundColor).toBe("rgba(0, 0, 0, 0)");
-  expect(getComputedStyle(headerRow).backgroundColor).toBe(tokenRgb("surface-bone"));
+  expect(getComputedStyle(headerRow).backgroundColor).toBe(tokenRgb("surface-subtle"));
 
   const session = cdp() as unknown as DispatchableCdpSession;
   await session.send("Input.dispatchMouseEvent", {
@@ -1318,7 +1316,7 @@ test("hovers a sortable header to surface-sand, since it sits on the header row'
   });
 
   expect(button.getAttribute("data-hovered")).toBe("true");
-  expect(getComputedStyle(button).backgroundColor).toBe(tokenRgb("surface-sand"));
+  expect(getComputedStyle(button).backgroundColor).toBe(tokenRgb("surface-soft"));
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -1353,10 +1351,10 @@ test("paints the sortable header's own focus ring inside the container, never pa
   const y = buttonRect.top + buttonRect.height / 2;
 
   const insideRingBand = await pixelAt(rect.left + 1.5, y);
-  expect(insideRingBand.slice(0, 3)).toEqual(rgbTuple(tokenRgb("brand-blue-strong")));
+  expect(insideRingBand.slice(0, 3)).toEqual(rgbTuple(tokenRgb("focus")));
 
   const justOutsideContainer = await pixelAt(rect.left - 1, y);
-  expect(justOutsideContainer.slice(0, 3)).not.toEqual(rgbTuple(tokenRgb("brand-blue-strong")));
+  expect(justOutsideContainer.slice(0, 3)).not.toEqual(rgbTuple(tokenRgb("focus")));
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -1396,8 +1394,8 @@ test("shows the ascending sort with an up chevron, title and icon in ink, expose
 
   expect(header.getAttribute("aria-sort")).toBe("ascending");
   expect(icon.classList.contains("lucide-chevron-up")).toBe(true);
-  expect(getComputedStyle(title).color).toBe(tokenRgb("ink"));
-  expect(getComputedStyle(icon).color).toBe(tokenRgb("ink"));
+  expect(getComputedStyle(title).color).toBe(tokenRgb("text"));
+  expect(getComputedStyle(icon).color).toBe(tokenRgb("text"));
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -1517,8 +1515,8 @@ test("shows nothing sorted when sort.column names a column absent from the curre
   expect(stockHeader.getAttribute("aria-sort")).toBe("none");
   const nameTitle = screen.getByText("Producto", { exact: true }).element() as HTMLElement;
   const stockTitle = screen.getByText("Stock", { exact: true }).element() as HTMLElement;
-  expect(getComputedStyle(nameTitle).color).toBe(tokenRgb("ink-secondary"));
-  expect(getComputedStyle(stockTitle).color).toBe(tokenRgb("ink-secondary"));
+  expect(getComputedStyle(nameTitle).color).toBe(tokenRgb("text-subtle"));
+  expect(getComputedStyle(stockTitle).color).toBe(tokenRgb("text-subtle"));
   const nameIcon = nameHeader.querySelector("svg") as SVGSVGElement;
   expect(nameIcon.classList.contains("lucide-chevrons-up-down")).toBe(true);
 
@@ -1617,8 +1615,8 @@ test("renders each placeholder bar at its own declared width, cycling per column
   );
   const firstRow = screen.container.querySelector('tbody[aria-hidden="true"] tr') as HTMLElement;
   const cells = firstRow.querySelectorAll("td");
-  const nameBar = cells[0]?.querySelector(".bg-surface-sand") as HTMLElement;
-  const stockBar = cells[1]?.querySelector(".bg-surface-sand") as HTMLElement;
+  const nameBar = cells[0]?.querySelector(".bg-surface-soft") as HTMLElement;
+  const stockBar = cells[1]?.querySelector(".bg-surface-soft") as HTMLElement;
 
   const nameTrackWidth = nameBar.parentElement?.getBoundingClientRect().width ?? 0;
   const stockTrackWidth = stockBar.parentElement?.getBoundingClientRect().width ?? 0;
@@ -1650,7 +1648,7 @@ test("renders one placeholder square, right-aligned, for a one-button actions co
   );
   const firstRow = screen.container.querySelector('tbody[aria-hidden="true"] tr') as HTMLElement;
   const actionsCell = firstRow.querySelectorAll("td")[1] as HTMLElement;
-  const squares = actionsCell.querySelectorAll(".bg-surface-sand");
+  const squares = actionsCell.querySelectorAll(".bg-surface-soft");
 
   expect(squares).toHaveLength(1);
   const squareRect = (squares[0] as HTMLElement).getBoundingClientRect();
@@ -1683,7 +1681,7 @@ test("renders two placeholder squares with an 8px gap, right-aligned, for a two-
   );
   const firstRow = screen.container.querySelector('tbody[aria-hidden="true"] tr') as HTMLElement;
   const actionsCell = firstRow.querySelectorAll("td")[1] as HTMLElement;
-  const squares = actionsCell.querySelectorAll(".bg-surface-sand");
+  const squares = actionsCell.querySelectorAll(".bg-surface-soft");
 
   expect(squares).toHaveLength(2);
   const [first, second] = Array.from(squares).map((el) =>
@@ -1790,7 +1788,7 @@ test("keeps the current rows and shows a top loading bar while updating", async 
 
   const bar = table.previousElementSibling as HTMLElement;
   expect(bar).not.toBeNull();
-  expect(getComputedStyle(bar).backgroundColor).toBe(tokenRgb("brand-blue-message-bg"));
+  expect(getComputedStyle(bar).backgroundColor).toBe(tokenRgb("action-subtle"));
   expect(bar.getBoundingClientRect().height).toBe(3);
 });
 
@@ -1868,8 +1866,8 @@ test("keeps a hovered, unfocused header's own hover fill under the updating bar"
     const pixel = await pixelAt(x, barRect.top + 1);
     const control = await pixelAt(x, barRect.bottom + 1);
 
-    expect(pixel.slice(0, 3)).toEqual(rgbTuple(tokenRgb("brand-blue-message-bg")));
-    expect(control.slice(0, 3)).toEqual(rgbTuple(tokenRgb("surface-sand")));
+    expect(pixel.slice(0, 3)).toEqual(rgbTuple(tokenRgb("action-subtle")));
+    expect(control.slice(0, 3)).toEqual(rgbTuple(tokenRgb("surface-soft")));
 
     await expectNoAccessibilityViolations(screen.container);
   } finally {
@@ -1920,7 +1918,7 @@ test("keeps the focused header's own inset ring visible on every edge, even unde
   await settleScroll();
 
   const rect = button.getBoundingClientRect();
-  const ringColor = rgbTuple(tokenRgb("brand-blue-strong"));
+  const ringColor = rgbTuple(tokenRgb("action-strong"));
   const midX = rect.left + rect.width / 2;
   const midY = rect.top + rect.height / 2;
 
@@ -1998,7 +1996,7 @@ test("reads the focused header's own ring color at the same probe point when the
   const midY = rect.top + rect.height / 2;
   const ring = await pixelAt(rect.left + 1.5, midY);
 
-  expect(ring.slice(0, 3)).toEqual(rgbTuple(tokenRgb("brand-blue-strong")));
+  expect(ring.slice(0, 3)).toEqual(rgbTuple(tokenRgb("action-strong")));
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -2085,7 +2083,7 @@ test("renders the empty state in place of the header and rows, in blue strong wh
 
   await expect.element(screen.getByText("No products yet")).toBeVisible();
   const icon = screen.container.querySelector("svg") as SVGSVGElement;
-  expect(getComputedStyle(icon).color).toBe(tokenRgb("brand-blue-strong"));
+  expect(getComputedStyle(icon).color).toBe(tokenRgb("text-accent"));
   expect(icon.closest('[aria-hidden="true"]')).not.toBeNull();
   expect(screen.container.querySelector("table")).toBeNull();
   const section = screen.container.querySelector("section") as HTMLElement;
@@ -2109,7 +2107,7 @@ test("renders the empty state in secondary text when nothing matches the filters
   );
 
   const icon = screen.container.querySelector("svg") as SVGSVGElement;
-  expect(getComputedStyle(icon).color).toBe(tokenRgb("ink-secondary"));
+  expect(getComputedStyle(icon).color).toBe(tokenRgb("text-subtle"));
   await expect.element(screen.getByRole("button", { name: "Clear filters" })).toBeVisible();
 });
 

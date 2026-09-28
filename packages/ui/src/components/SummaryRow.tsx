@@ -27,11 +27,11 @@ const valueTypeClassName: Record<SummaryRowForm, string> = {
 };
 
 const textColorClassName: Record<SummaryRowForm, string> = {
-  regular: "text-ink-secondary",
-  strong: "text-ink",
+  regular: "text-text-subtle",
+  strong: "text-text",
 };
 
-const savingColorClassName = "text-brand-green-ui";
+const savingColorClassName = "text-success";
 
 export function SummaryRow({ label, value, strong = false, saving = false }: SummaryRowProps) {
   const form: SummaryRowForm = strong ? "strong" : "regular";

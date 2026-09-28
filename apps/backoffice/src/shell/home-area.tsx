@@ -24,7 +24,7 @@ function HomeArea() {
       sectionColumnLabel="Inicio"
       sectionColumn={
         <>
-          <h2 className="font-bold text-brand-blue-strong text-xl">Inicio</h2>
+          <h2 className="font-bold text-text-accent text-xl">Inicio</h2>
           <div className="h-2.5" />
           <ul className="flex flex-col gap-1">
             <li>

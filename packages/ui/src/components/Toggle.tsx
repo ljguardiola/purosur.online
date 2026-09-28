@@ -17,19 +17,19 @@ const toggleLabelClassName =
 // would compute an arbitrarily large radius instead of that fixed value.
 const trackClassName =
   "inline-flex h-7 w-12 shrink-0 items-center justify-start rounded-[14px] p-1 outline-none " +
-  "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-ink-secondary)] " +
-  "group-data-[hovered]:bg-surface-bone " +
-  "group-data-[selected]:justify-end group-data-[selected]:bg-brand-green-ui group-data-[selected]:shadow-none " +
-  "group-data-[hovered]:group-data-[selected]:bg-brand-green-strong " +
+  "bg-surface shadow-[inset_0_0_0_2px_var(--color-border-strong)] " +
+  "group-data-[hovered]:bg-surface-subtle " +
+  "group-data-[selected]:justify-end group-data-[selected]:bg-success group-data-[selected]:shadow-none " +
+  "group-data-[hovered]:group-data-[selected]:bg-success-strong " +
   "group-data-[focus-visible]:outline-[3px] group-data-[focus-visible]:outline-solid " +
-  "group-data-[focus-visible]:outline-offset-3 group-data-[focus-visible]:outline-brand-blue-strong";
+  "group-data-[focus-visible]:outline-offset-3 group-data-[focus-visible]:outline-focus";
 
 // A white knob is invisible on the white off-track without its own border; the green on-track
 // already sets it apart, so the border drops there too. An inset box-shadow, not a real border,
 // keeps the knob's size identical across both states.
 const knobClassName =
-  "size-[22px] shrink-0 rounded-full bg-surface-white " +
-  "shadow-[inset_0_0_0_2px_var(--color-ink-secondary)] group-data-[selected]:shadow-none";
+  "size-[22px] shrink-0 rounded-full bg-surface " +
+  "shadow-[inset_0_0_0_2px_var(--color-border-strong)] group-data-[selected]:shadow-none";
 
 export function Toggle({ isSelected, onChange, children, disabled = false }: ToggleProps) {
   return (

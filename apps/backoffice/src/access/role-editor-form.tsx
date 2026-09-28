@@ -165,7 +165,7 @@ function PermissionRow({
   onToggle: (checked: boolean) => void;
 }) {
   return (
-    <div className="flex items-center gap-3 border-line border-b px-4 py-3 last:border-b-0">
+    <div className="flex items-center gap-3 border-border border-b px-4 py-3 last:border-b-0">
       <div className="min-w-0 flex-1">
         <Checkbox isSelected={checked} onChange={onToggle}>
           {PERMISSION_LABELS[definition.key]}
@@ -244,14 +244,14 @@ function AreaRow({
       onClick={onSelect}
       className={[
         "flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm outline-none",
-        "focus-visible:outline-[3px] focus-visible:outline-solid focus-visible:outline-offset-3 focus-visible:outline-brand-blue-strong",
-        active ? "border border-line bg-surface-white" : "border border-transparent",
+        "focus-visible:outline-[3px] focus-visible:outline-solid focus-visible:outline-offset-3 focus-visible:outline-focus",
+        active ? "border border-border bg-surface" : "border border-transparent",
       ].join(" ")}
     >
-      <span className={active ? "font-bold text-brand-blue-strong" : "text-ink"}>
+      <span className={active ? "font-bold text-text-accent" : "text-text"}>
         {AREA_LABELS[area]}
       </span>
-      <span className={count > 0 ? "font-bold text-brand-blue-strong" : "text-ink-secondary"}>
+      <span className={count > 0 ? "font-bold text-text-accent" : "text-text-subtle"}>
         {`${count} de ${total}`}
       </span>
     </button>
@@ -291,7 +291,7 @@ export function RoleEditorForm({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 border-line border-b bg-surface-white px-6 py-4">
+      <div className="shrink-0 border-border border-b bg-surface px-6 py-4">
         <TextField
           kind="plain-text"
           label="Nombre del rol"
@@ -304,7 +304,7 @@ export function RoleEditorForm({
       <div className="flex min-h-0 flex-1">
         <fieldset
           aria-label="Áreas de permisos"
-          className="flex w-70 shrink-0 flex-col gap-1 overflow-y-auto border-line border-r bg-surface-bone p-3"
+          className="flex w-70 shrink-0 flex-col gap-1 overflow-y-auto border-border border-r bg-surface-subtle p-3"
         >
           {PERMISSION_AREAS.map((area) => (
             <AreaRow
@@ -316,11 +316,11 @@ export function RoleEditorForm({
             />
           ))}
         </fieldset>
-        <div className="flex min-h-0 flex-1 flex-col gap-3 bg-surface-white px-6 py-5">
-          <h2 className="shrink-0 font-bold text-brand-blue-strong text-xl">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 bg-surface px-6 py-5">
+          <h2 className="shrink-0 font-bold text-text-accent text-xl">
             {AREA_LABELS[selectedArea]}
           </h2>
-          <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-line">
+          <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border">
             {selectedArea === "alerts" ? (
               <AlertsAreaList selected={selected} onSelectedChange={onSelectedChange} />
             ) : (

@@ -248,7 +248,7 @@ const detailColumns = [
     render: (item: Product) => (
       <span className="flex flex-col gap-1">
         <span className="text-base leading-[24px]">{item.name}</span>
-        <span className="text-sm leading-[20px] text-ink-secondary">{item.sku}</span>
+        <span className="text-sm leading-[20px] text-text-subtle">{item.sku}</span>
       </span>
     ),
   },
@@ -330,7 +330,7 @@ export const WithFooter: Story = {
       rows={products}
       sort={sort}
       onSortChange={onSortChange}
-      footer={<p className="p-4 text-sm text-ink-secondary">3 productos</p>}
+      footer={<p className="p-4 text-sm text-text-subtle">3 productos</p>}
     />
   ),
 };

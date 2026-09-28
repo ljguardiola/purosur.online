@@ -65,7 +65,7 @@ test("renders the caller's content 12px from a 22px, 4px-radius box, vertically 
   expect(gap).toBeLessThan(13);
 });
 
-test("colors an unchecked box white with a 2px ink-secondary border and no check", async () => {
+test("colors an unchecked box white with a 2px strong border and no check", async () => {
   const screen = await render(
     <Checkbox isSelected={false} onChange={() => {}}>
       Return this line
@@ -74,8 +74,8 @@ test("colors an unchecked box white with a 2px ink-secondary border and no check
   const box = checkboxBox(screen, "Return this line");
   const style = getComputedStyle(box);
 
-  expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(style.boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
+  expect(style.backgroundColor).toBe(tokenRgb("surface"));
+  expect(style.boxShadow).toContain(insetBoundary("border-strong", "2px"));
   expect(box.querySelector("svg")).toBeNull();
 
   // Checked as a rendered contrast ratio against WCAG's 3:1 non-text minimum, not by token name.
@@ -94,9 +94,9 @@ test("turns an unchecked box's background bone on hover, keeping its border", as
   const box = checkboxBox(screen, "Return this line");
 
   await userEvent.hover(label);
-  await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-bone"));
+  await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-subtle"));
   const style = getComputedStyle(box);
-  expect(style.boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
+  expect(style.boxShadow).toContain(insetBoundary("border-strong", "2px"));
 
   const boundaryHex = boundaryColorHex(box);
   const fillHex = rgbToHex(style.backgroundColor);
@@ -113,7 +113,7 @@ test("colors a checked box blue UI with a 16px white check and no border", async
   const style = getComputedStyle(box);
   const check = box.querySelector("svg") as SVGSVGElement;
 
-  expect(style.backgroundColor).toBe(tokenRgb("brand-blue-ui"));
+  expect(style.backgroundColor).toBe(tokenRgb("action"));
   expect(paintedBoxShadowLayers(box)).toEqual([]);
   expect(check).not.toBeNull();
 
@@ -122,7 +122,7 @@ test("colors a checked box blue UI with a 16px white check and no border", async
   expect(checkRect.width).toBeLessThan(17);
   expect(checkRect.height).toBeGreaterThan(15);
   expect(checkRect.height).toBeLessThan(17);
-  expect(getComputedStyle(check).color).toBe(tokenRgb("surface-white"));
+  expect(getComputedStyle(check).color).toBe(tokenRgb("text-inverse"));
 });
 
 test("turns a checked box's background blue strong on hover, keeping the white check", async () => {
@@ -135,9 +135,7 @@ test("turns a checked box's background blue strong on hover, keeping the white c
   const box = checkboxBox(screen, "Return this line");
 
   await userEvent.hover(label);
-  await expect
-    .poll(() => getComputedStyle(box).backgroundColor)
-    .toBe(tokenRgb("brand-blue-strong"));
+  await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(tokenRgb("action-strong"));
   expect(box.querySelector("svg")).not.toBeNull();
 });
 
@@ -209,7 +207,7 @@ test("shows the package's focus ring around the box when focused", async () => {
 
   await expect.poll(() => getComputedStyle(box).outlineWidth).toBe("3px");
   await expect.poll(() => getComputedStyle(box).outlineOffset).toBe("3px");
-  await expect.poll(() => getComputedStyle(box).outlineColor).toBe(tokenRgb("brand-blue-strong"));
+  await expect.poll(() => getComputedStyle(box).outlineColor).toBe(tokenRgb("focus"));
 });
 
 test("lets its content fill the remaining width of a wide container", async () => {

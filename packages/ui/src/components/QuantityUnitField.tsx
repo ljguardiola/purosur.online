@@ -57,36 +57,36 @@ const boxBaseClassName = `flex min-w-0 max-w-full items-center rounded-lg outlin
 // back on while open.
 function boxStateClassName(disabled: boolean, invalid: boolean, unitOpen: boolean): string {
   if (disabled) {
-    return "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-line)]";
+    return "bg-surface shadow-[inset_0_0_0_2px_var(--color-border)]";
   }
   if (unitOpen) {
-    return "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-brand-blue-ui)]";
+    return "bg-surface shadow-[inset_0_0_0_2px_var(--color-action)]";
   }
   if (invalid) {
     return (
-      "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-status-error-ui)] " +
-      "hover:not-focus-within:bg-surface-bone " +
-      "focus-within:shadow-[inset_0_0_0_2px_var(--color-brand-blue-ui)]"
+      "bg-surface shadow-[inset_0_0_0_2px_var(--color-error)] " +
+      "hover:not-focus-within:bg-surface-subtle " +
+      "focus-within:shadow-[inset_0_0_0_2px_var(--color-action)]"
     );
   }
   return (
-    "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-line)] " +
-    "hover:not-focus-within:bg-surface-bone " +
-    "focus-within:shadow-[inset_0_0_0_2px_var(--color-brand-blue-ui)]"
+    "bg-surface shadow-[inset_0_0_0_2px_var(--color-border)] " +
+    "hover:not-focus-within:bg-surface-subtle " +
+    "focus-within:shadow-[inset_0_0_0_2px_var(--color-action)]"
   );
 }
 
 const valueClassName =
   `min-w-0 flex-1 bg-transparent text-left ${backofficeFieldValueClassName} ` +
-  "caret-brand-blue-strong outline-none";
+  "caret-focus outline-none";
 
 const unitTriggerClassName = "flex shrink-0 items-center gap-1 outline-none";
-const unitValueClassName = "text-base font-normal text-ink-secondary";
-const chevronClassName = "size-[1.125rem] shrink-0 text-ink-secondary";
+const unitValueClassName = "text-base font-normal text-text-subtle";
+const chevronClassName = "size-[1.125rem] shrink-0 text-text-subtle";
 
 const popoverClassName =
-  "min-w-24 rounded-lg border border-line bg-surface-white p-1.5 " +
-  "shadow-[0_8px_24px_var(--color-ink-menu-shadow)] overflow-y-auto";
+  "min-w-24 rounded-lg border border-border bg-surface p-1.5 " +
+  "shadow-[0_8px_24px_var(--palette-neutral-900-a16)] overflow-y-auto";
 
 // This popover portals to the document body as its own stacking layer, which would otherwise
 // paint below a positive-z-index ancestor (e.g. a modal's overlay) regardless of mount order,
@@ -95,13 +95,13 @@ const POPOVER_Z_INDEX = 100000;
 
 const optionClassName =
   "flex h-10 cursor-pointer items-center justify-between rounded-md px-3 text-sm font-semibold " +
-  "text-ink outline-none data-[hovered]:bg-surface-bone data-[focus-visible]:bg-surface-bone " +
-  "data-[selected]:bg-brand-blue-message-bg data-[selected]:text-brand-blue-strong " +
-  "data-[hovered]:data-[selected]:bg-brand-blue-message-bg " +
-  "data-[focus-visible]:data-[selected]:bg-brand-blue-message-bg";
+  "text-text outline-none data-[hovered]:bg-surface-subtle data-[focus-visible]:bg-surface-subtle " +
+  "data-[selected]:bg-action-subtle data-[selected]:text-text-accent " +
+  "data-[hovered]:data-[selected]:bg-action-subtle " +
+  "data-[focus-visible]:data-[selected]:bg-action-subtle";
 
-const helperClassName = "text-sm font-normal text-ink-secondary";
-const errorClassName = "text-sm font-normal text-status-error-ui";
+const helperClassName = "text-sm font-normal text-text-subtle";
+const errorClassName = "text-sm font-normal text-error";
 
 // react-aria-components' onSelectionChange reports a plain Key (string | number).
 function isOptionValue<U extends string>(
@@ -199,7 +199,7 @@ export function QuantityUnitField<U extends string>(props: QuantityUnitFieldProp
                           {isSelected && (
                             <Check
                               aria-hidden="true"
-                              className="size-[1.125rem] shrink-0 text-brand-blue-strong"
+                              className="size-[1.125rem] shrink-0 text-text-accent"
                             />
                           )}
                         </>

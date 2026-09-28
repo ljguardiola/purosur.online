@@ -17,11 +17,11 @@ export type IconButtonProps = Omit<
 
 const className =
   "inline-flex h-[2.375rem] w-[2.375rem] shrink-0 items-center justify-center rounded-lg " +
-  "border border-line bg-surface-white text-brand-blue-strong " +
+  "border border-border bg-surface text-text-accent " +
   "transition-[background-color,border-color] outline-none " +
   "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
-  "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong " +
-  "data-[hovered]:bg-surface-bone data-[hovered]:border-blue-soft " +
+  "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-focus " +
+  "data-[hovered]:bg-surface-subtle data-[hovered]:border-action-soft " +
   "data-[disabled]:opacity-[0.45]";
 
 export function IconButton({ icon, ...props }: IconButtonProps) {

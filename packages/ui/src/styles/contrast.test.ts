@@ -31,47 +31,74 @@ const stylesheet = readFileSync(stylesheetPath, "utf-8");
 const colors = parseColorTokens(stylesheet);
 
 const backgrounds: Record<string, string> = {
-  white: colors["surface-white"] ?? "",
-  bone: colors["surface-bone"] ?? "",
-  sand: colors["surface-sand"] ?? "",
+  white: colors["surface"] ?? "",
+  bone: colors["surface-subtle"] ?? "",
+  sand: colors["surface-soft"] ?? "",
 };
 
 const textTones = {
-  ink: AA_TEXT_CONTRAST,
-  "ink-secondary": AAA_TEXT_CONTRAST,
-  "brand-blue-ui": AA_TEXT_CONTRAST,
-  "brand-green-ui": AA_TEXT_CONTRAST,
-  "brand-earth-ui": AA_TEXT_CONTRAST,
-  "status-error-ui": AA_TEXT_CONTRAST,
-  "status-warning-ui": AA_TEXT_CONTRAST,
-  "brand-blue-strong": AAA_TEXT_CONTRAST,
-  "brand-green-strong": AAA_TEXT_CONTRAST,
-  "brand-earth-strong": AAA_TEXT_CONTRAST,
-  "status-error-strong": AAA_TEXT_CONTRAST,
-  "status-warning-strong": AAA_TEXT_CONTRAST,
+  text: AA_TEXT_CONTRAST,
+  "text-subtle": AAA_TEXT_CONTRAST,
+  "text-accent": AAA_TEXT_CONTRAST,
+  "text-eyebrow": AA_TEXT_CONTRAST,
+  info: AA_TEXT_CONTRAST,
+  success: AA_TEXT_CONTRAST,
+  warning: AA_TEXT_CONTRAST,
+  error: AA_TEXT_CONTRAST,
+  "info-strong": AAA_TEXT_CONTRAST,
+  "success-strong": AAA_TEXT_CONTRAST,
+  "warning-strong": AAA_TEXT_CONTRAST,
+  "error-strong": AAA_TEXT_CONTRAST,
 } satisfies Record<string, number>;
 
-// The shadow tints here carry an alpha channel, outside contrastRatio()'s opaque 6-digit-hex contract.
+// Text drawn over a dark or saturated fill, so each is checked against the fills it sits on
+// instead of against the light surfaces.
+const inverseTextOnFills: Record<string, Array<{ fill: string; threshold: number }>> = {
+  "text-inverse": [
+    { fill: "surface-inverse", threshold: AAA_TEXT_CONTRAST },
+    { fill: "surface-nav", threshold: AAA_TEXT_CONTRAST },
+    { fill: "action", threshold: AA_TEXT_CONTRAST },
+    { fill: "action-strong", threshold: AA_TEXT_CONTRAST },
+    { fill: "error", threshold: AA_TEXT_CONTRAST },
+    { fill: "error-strong", threshold: AA_TEXT_CONTRAST },
+    { fill: "success", threshold: AA_TEXT_CONTRAST },
+    { fill: "success-strong", threshold: AA_TEXT_CONTRAST },
+  ],
+  "text-inverse-subtle": [{ fill: "surface-nav", threshold: AA_TEXT_CONTRAST }],
+};
+
+// The tints here carry an alpha channel or never carry text, outside contrastRatio()'s opaque
+// 6-digit-hex contract.
 const decorativeTones = [
-  "surface-sand",
-  "surface-bone",
-  "surface-white",
-  "line",
-  "blue-soft",
-  "brand-blue",
-  "brand-blue-message-bg",
-  "brand-green",
-  "brand-green-message-bg",
-  "brand-earth",
-  "status-error-accent",
-  "status-error-message-bg",
-  "status-warning-accent",
-  "status-warning-message-bg",
-  "ink-shadow",
-  "ink-backdrop",
-  "ink-panel-shadow",
-  "ink-menu-shadow",
-  "surface-white-veil",
+  "surface",
+  "surface-subtle",
+  "surface-soft",
+  "surface-inverse",
+  "surface-nav",
+  "surface-nav-subtle",
+  "border",
+  "border-strong",
+  "border-inverse",
+  "border-accent",
+  "action-subtle",
+  "action-soft",
+  "action",
+  "action-strong",
+  "focus",
+  "focus-inverse",
+  "info-subtle",
+  "info-soft",
+  "success-subtle",
+  "success-soft",
+  "warning-subtle",
+  "warning-soft",
+  "error-subtle",
+  "error-soft",
+  "neutral-subtle",
+  "neutral",
+  "data-subtle",
+  "data",
+  "backdrop",
 ];
 
 function itReachesContrastAgainstEverySurface(tones: Record<string, number>) {
@@ -94,17 +121,20 @@ describe("design tokens contrast", () => {
   });
 
   it("classifies every color token in tokens.css as a text tone or a decorative one", () => {
-    const classified = new Set([...Object.keys(textTones), ...decorativeTones]);
+    const classified = new Set([
+      ...Object.keys(textTones),
+      ...Object.keys(inverseTextOnFills),
+      ...decorativeTones,
+    ]);
     const unclassified = Object.keys(colors).filter((name) => !classified.has(name));
 
     expect(unclassified).toEqual([]);
   });
 
   it("classifies each color token only once and only tokens that exist in tokens.css", () => {
-    const inBothLists = decorativeTones.filter((name) => name in textTones);
-    const stale = [...Object.keys(textTones), ...decorativeTones].filter(
-      (name) => !(name in colors),
-    );
+    const textNames = [...Object.keys(textTones), ...Object.keys(inverseTextOnFills)];
+    const inBothLists = decorativeTones.filter((name) => textNames.includes(name));
+    const stale = [...textNames, ...decorativeTones].filter((name) => !(name in colors));
 
     expect(inBothLists).toEqual([]);
     expect(stale).toEqual([]);
@@ -113,12 +143,29 @@ describe("design tokens contrast", () => {
   itReachesContrastAgainstEverySurface(textTones);
 });
 
+describe("inverse text on the fills it sits on contrast", () => {
+  for (const [tone, fills] of Object.entries(inverseTextOnFills)) {
+    for (const { fill, threshold } of fills) {
+      it(`${tone} reaches ${threshold}:1 against ${fill}`, () => {
+        const toneHex = colors[tone];
+        const fillHex = colors[fill];
+
+        expect(toneHex, `${tone} is missing from the stylesheet`).toMatch(/^#[0-9a-f]{6}$/i);
+        expect(fillHex, `${fill} is missing from the stylesheet`).toMatch(/^#[0-9a-f]{6}$/i);
+        expect(contrastRatio(toneHex as string, fillHex as string)).toBeGreaterThanOrEqual(
+          threshold,
+        );
+      });
+    }
+  }
+});
+
 const toneOnMessageBackgroundPairs: Record<string, { text: string; background: string }> = {
-  success: { text: "brand-green-strong", background: "brand-green-message-bg" },
-  warning: { text: "status-warning-strong", background: "status-warning-message-bg" },
-  error: { text: "status-error-strong", background: "status-error-message-bg" },
-  info: { text: "brand-blue-strong", background: "brand-blue-message-bg" },
-  neutral: { text: "ink-secondary", background: "surface-sand" },
+  success: { text: "success-strong", background: "success-subtle" },
+  warning: { text: "warning-strong", background: "warning-subtle" },
+  error: { text: "error-strong", background: "error-subtle" },
+  info: { text: "info-strong", background: "info-subtle" },
+  neutral: { text: "text-subtle", background: "neutral-subtle" },
 };
 
 describe("tone text on its own message background contrast", () => {
@@ -139,9 +186,9 @@ describe("tone text on its own message background contrast", () => {
 });
 
 describe("option card help text on its chosen background contrast", () => {
-  it(`ink-secondary reaches ${AAA_TEXT_CONTRAST}:1 against brand-blue-message-bg`, () => {
-    const textHex = colors["ink-secondary"];
-    const backgroundHex = colors["brand-blue-message-bg"];
+  it(`text-subtle reaches ${AAA_TEXT_CONTRAST}:1 against action-subtle`, () => {
+    const textHex = colors["text-subtle"];
+    const backgroundHex = colors["action-subtle"];
 
     expect(textHex).toMatch(/^#[0-9a-f]{6}$/i);
     expect(backgroundHex).toMatch(/^#[0-9a-f]{6}$/i);
@@ -151,29 +198,10 @@ describe("option card help text on its chosen background contrast", () => {
   });
 });
 
-// contrastRatio is order-independent, so this is the same ink/white pair already checked above,
-// just at the tooltip's AAA threshold instead of AA.
-describe("tooltip text on ink background contrast", () => {
-  it(`surface-white reaches ${AAA_TEXT_CONTRAST}:1 against ink`, () => {
-    const textHex = colors["surface-white"];
-    const backgroundHex = colors["ink"];
-
-    expect(textHex, "surface-white is missing from the stylesheet").toMatch(/^#[0-9a-f]{6}$/i);
-    expect(backgroundHex, "ink is missing from the stylesheet").toMatch(/^#[0-9a-f]{6}$/i);
-    expect(contrastRatio(textHex as string, backgroundHex as string)).toBeGreaterThanOrEqual(
-      AAA_TEXT_CONTRAST,
-    );
-  });
-});
-
-const rowStateBackgroundNames = [
-  "brand-blue-message-bg",
-  "status-warning-message-bg",
-  "status-error-message-bg",
-] as const;
+const rowStateBackgroundNames = ["action-subtle", "warning-subtle", "error-subtle"] as const;
 
 describe("table row state background contrast", () => {
-  for (const tone of ["ink", "ink-secondary"] as const) {
+  for (const tone of ["text", "text-subtle"] as const) {
     for (const backgroundName of rowStateBackgroundNames) {
       it(`${tone} reaches ${textTones[tone]}:1 against ${backgroundName}`, () => {
         const textHex = colors[tone];
@@ -191,21 +219,6 @@ describe("table row state background contrast", () => {
   }
 });
 
-describe("pagination current page background contrast", () => {
-  it(`surface-white reaches ${AA_TEXT_CONTRAST}:1 against brand-blue-ui`, () => {
-    const textHex = colors["surface-white"];
-    const backgroundHex = colors["brand-blue-ui"];
-
-    expect(textHex, "surface-white is missing from the stylesheet").toMatch(/^#[0-9a-f]{6}$/i);
-    expect(backgroundHex, "brand-blue-ui is missing from the stylesheet").toMatch(
-      /^#[0-9a-f]{6}$/i,
-    );
-    expect(contrastRatio(textHex as string, backgroundHex as string)).toBeGreaterThanOrEqual(
-      AA_TEXT_CONTRAST,
-    );
-  });
-});
-
 // A disabled nav button composites its label onto the page behind it, not onto its own faded
 // background, so the check mirrors that compositing instead of comparing two opaque tokens. The
 // alpha is read from the component's own source so this can't drift out of sync with it.
@@ -221,14 +234,14 @@ describe("pagination dimmed nav button text contrast", () => {
   const alpha = Number.parseFloat(opacityMatch?.[1] ?? "0");
 
   for (const backgroundName of ["white", "bone"] as const) {
-    it(`ink at that opacity reaches ${AA_TEXT_CONTRAST}:1 against ${backgroundName}`, () => {
-      const ink = hexToRgb(colors["ink"] as string);
+    it(`text at that opacity reaches ${AA_TEXT_CONTRAST}:1 against ${backgroundName}`, () => {
+      const textRgb = hexToRgb(colors["text"] as string);
       const background = hexToRgb(backgrounds[backgroundName] as string);
       const channel = (fg: number, bg: number) =>
         Math.round(fg * alpha + bg * (1 - alpha))
           .toString(16)
           .padStart(2, "0");
-      const compositedHex = `#${channel(ink.r, background.r)}${channel(ink.g, background.g)}${channel(ink.b, background.b)}`;
+      const compositedHex = `#${channel(textRgb.r, background.r)}${channel(textRgb.g, background.g)}${channel(textRgb.b, background.b)}`;
 
       expect(
         contrastRatio(compositedHex, backgrounds[backgroundName] as string),

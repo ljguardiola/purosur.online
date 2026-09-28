@@ -5,9 +5,9 @@ import { render } from "vitest-browser-react";
 import { tokenBackgroundColor, tokenRgb } from "../test/token-colors";
 import { AreaNavItem, type AreaNavItemProps } from "./AreaNavItem";
 
-// Contrast assertions need the rail's real background, not the page's default surface-bone.
+// Contrast assertions need the rail's real background, not the page's default subtle surface.
 function Rail({ children }: { children: ReactNode }) {
-  return <div className="bg-brand-blue-strong p-2">{children}</div>;
+  return <div className="bg-action-strong p-2">{children}</div>;
 }
 
 function renderItem(props: Omit<AreaNavItemProps, "icon">) {
@@ -31,10 +31,10 @@ test("marks the active item with aria-current and paints it blanco over a transl
 
   const link = screen.getByRole("link", { name: "Ayuda" }).element() as HTMLAnchorElement;
   expect(link.getAttribute("aria-current")).toBe("page");
-  expect(getComputedStyle(link).backgroundColor).toBe(tokenBackgroundColor("surface-white-veil"));
+  expect(getComputedStyle(link).backgroundColor).toBe(tokenBackgroundColor("surface-nav-subtle"));
 
   const label = screen.getByText("Ayuda").element();
-  expect(getComputedStyle(label).color).toBe(tokenRgb("surface-white"));
+  expect(getComputedStyle(label).color).toBe(tokenRgb("text-inverse"));
   expect(getComputedStyle(label).fontWeight).toBe("700");
 });
 
@@ -46,7 +46,7 @@ test("leaves an inactive item with no aria-current, painted azul-tenue with no b
   expect(getComputedStyle(link).backgroundColor).toBe("rgba(0, 0, 0, 0)");
 
   const label = screen.getByText("Ayuda").element();
-  expect(getComputedStyle(label).color).toBe(tokenRgb("blue-soft"));
+  expect(getComputedStyle(label).color).toBe(tokenRgb("text-inverse-subtle"));
   expect(getComputedStyle(label).fontWeight).toBe("400");
 });
 

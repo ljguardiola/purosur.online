@@ -43,7 +43,7 @@ const baseClassName =
   // Excludes outline-color from the transition so the focus ring appears instantly, not mid-fade.
   "transition-[background-color,color,border-color] outline-none " +
   "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
-  "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong " +
+  "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-focus " +
   "data-[disabled]:opacity-[0.45]";
 
 const sizeClassName: Record<ButtonSize, string> = {
@@ -69,19 +69,19 @@ const defaultSize: { primary: ButtonSize; secondary: ButtonSize; text: ButtonTex
 };
 
 const primaryToneClassName: Record<ButtonTone, string> = {
-  default: "bg-brand-blue-ui data-[hovered]:bg-brand-blue-strong",
-  destructive: "bg-status-error-ui data-[hovered]:bg-status-error-strong",
+  default: "bg-action data-[hovered]:bg-action-strong",
+  destructive: "bg-error data-[hovered]:bg-error-strong",
 };
 
 const secondaryToneClassName: Record<ButtonTone, string> = {
-  default: "border-brand-earth-ui text-ink",
-  destructive: "border-status-error-ui text-status-error-ui",
+  default: "border-border-accent text-text",
+  destructive: "border-error text-error",
 };
 
 const variantClassName: Record<ButtonVariant, string> = {
-  primary: "gap-3 rounded-lg font-bold text-surface-white",
-  secondary: "gap-2 rounded-md border bg-transparent font-bold data-[hovered]:bg-surface-bone",
-  text: "gap-2 rounded-md bg-transparent font-semibold text-status-error-ui data-[hovered]:bg-surface-bone",
+  primary: "gap-3 rounded-lg font-bold text-text-inverse",
+  secondary: "gap-2 rounded-md border bg-transparent font-bold data-[hovered]:bg-surface-subtle",
+  text: "gap-2 rounded-md bg-transparent font-semibold text-error data-[hovered]:bg-surface-subtle",
 };
 
 const iconWrapperClassName: Record<ButtonVariant, string> = {

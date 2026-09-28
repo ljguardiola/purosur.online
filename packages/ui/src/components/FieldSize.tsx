@@ -18,8 +18,8 @@ export function useFieldSize(): FieldSize {
 }
 
 export const fieldLabelClassName: Record<FieldSize, string> = {
-  register: "text-base font-bold text-ink",
-  backoffice: "text-sm font-bold text-ink",
+  register: "text-base font-bold text-text",
+  backoffice: "text-sm font-bold text-text",
 };
 export const requiredFieldLabelSuffixClassName = "after:ml-1 after:content-['*']";
 
@@ -30,4 +30,4 @@ export const fieldWrapperGapClassName: Record<FieldSize, string> = {
 
 export const backofficeFieldHeightClassName = "h-12";
 export const backofficeFieldBoxClassName = `${backofficeFieldHeightClassName} gap-2 px-3`;
-export const backofficeFieldValueClassName = "text-base font-semibold text-ink";
+export const backofficeFieldValueClassName = "text-base font-semibold text-text";

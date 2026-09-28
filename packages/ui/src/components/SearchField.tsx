@@ -30,32 +30,32 @@ const frameClassName: Record<SearchFieldVariant, string> = {
 // as it holds a value, and Tailwind's preflight resets ::-webkit-search-decoration only. Neither
 // variant draws a clear affordance, so that button is taken out of the input altogether.
 const inputBaseClassName =
-  "min-w-0 flex-1 bg-transparent caret-brand-blue-strong outline-none " +
-  "placeholder:text-ink-secondary [&::-webkit-search-cancel-button]:hidden";
+  "min-w-0 flex-1 bg-transparent caret-focus outline-none " +
+  "placeholder:text-text-subtle [&::-webkit-search-cancel-button]:hidden";
 
 const valueClassName: Record<SearchFieldVariant, string> = {
-  register: "text-xl font-normal text-ink",
-  backoffice: "text-sm font-normal text-ink",
+  register: "text-xl font-normal text-text",
+  backoffice: "text-sm font-normal text-text",
 };
 
 const chipClassName =
-  "inline-flex size-12 shrink-0 items-center justify-center rounded-md bg-brand-blue-message-bg";
+  "inline-flex size-12 shrink-0 items-center justify-center rounded-md bg-action-subtle";
 
 const registerIconWrapperClassName =
-  "inline-flex size-[1.625rem] shrink-0 text-brand-blue-strong [&>svg]:h-full [&>svg]:w-full";
+  "inline-flex size-[1.625rem] shrink-0 text-text-accent [&>svg]:h-full [&>svg]:w-full";
 const backofficeIconWrapperClassName =
-  "inline-flex size-[1.125rem] shrink-0 text-ink-secondary [&>svg]:h-full [&>svg]:w-full";
+  "inline-flex size-[1.125rem] shrink-0 text-text-subtle [&>svg]:h-full [&>svg]:w-full";
 
 // A disabled field keeps its resting look on the box itself; the wrapper's opacity communicates
 // "disabled", so neither hover nor focus treatment applies here while it is set.
 function boxStateClassName(disabled: boolean): string {
   if (disabled) {
-    return "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-line)]";
+    return "bg-surface shadow-[inset_0_0_0_2px_var(--color-border)]";
   }
   return (
-    "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-line)] " +
-    "hover:not-focus-within:bg-surface-bone " +
-    "focus-within:shadow-[inset_0_0_0_2px_var(--color-brand-blue-ui)]"
+    "bg-surface shadow-[inset_0_0_0_2px_var(--color-border)] " +
+    "hover:not-focus-within:bg-surface-subtle " +
+    "focus-within:shadow-[inset_0_0_0_2px_var(--color-action)]"
   );
 }
 

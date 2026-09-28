@@ -19,7 +19,7 @@ export type SegmentedControlProps<V extends string> = {
 };
 
 const containerClassName =
-  "inline-flex flex-row items-stretch gap-1 rounded-lg border border-line p-1";
+  "inline-flex flex-row items-stretch gap-1 rounded-lg border border-border p-1";
 
 const containerSizeClassName: Record<SegmentedControlSize, string> = {
   large: "h-14",
@@ -33,20 +33,20 @@ const sizeClassName: Record<SegmentedControlSize, string> = {
 
 const iconWrapperClassName: Record<SegmentedControlSize, string> = {
   large:
-    "inline-flex size-[1.125rem] shrink-0 text-ink-secondary [&>svg]:h-full [&>svg]:w-full " +
-    "group-data-[selected]:text-brand-blue-strong",
+    "inline-flex size-[1.125rem] shrink-0 text-text-subtle [&>svg]:h-full [&>svg]:w-full " +
+    "group-data-[selected]:text-text-accent",
   medium:
-    "inline-flex size-4 shrink-0 text-ink-secondary [&>svg]:h-full [&>svg]:w-full " +
-    "group-data-[selected]:text-brand-blue-strong",
+    "inline-flex size-4 shrink-0 text-text-subtle [&>svg]:h-full [&>svg]:w-full " +
+    "group-data-[selected]:text-text-accent",
 };
 
 const optionClassName =
   "group flex cursor-pointer items-center justify-center rounded-md px-4 outline-none " +
-  "data-[hovered]:bg-surface-bone " +
-  "data-[selected]:bg-brand-blue-message-bg " +
-  "data-[hovered]:data-[selected]:bg-brand-blue-message-bg " +
+  "data-[hovered]:bg-surface-subtle " +
+  "data-[selected]:bg-action-subtle " +
+  "data-[hovered]:data-[selected]:bg-action-subtle " +
   "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
-  "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong";
+  "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-focus";
 
 // The label going regular -> bold on choosing an option would otherwise widen that option (and so
 // the whole control), since bold text measures wider than regular text at the same size. A hidden
@@ -63,7 +63,7 @@ function ReservedWidthLabel({ label }: { label: string }) {
       >
         {label}
       </span>
-      <span className="col-start-1 row-start-1 whitespace-nowrap text-base font-normal text-ink group-data-[selected]:font-bold group-data-[selected]:text-brand-blue-strong">
+      <span className="col-start-1 row-start-1 whitespace-nowrap text-base font-normal text-text group-data-[selected]:font-bold group-data-[selected]:text-text-accent">
         {label}
       </span>
     </span>

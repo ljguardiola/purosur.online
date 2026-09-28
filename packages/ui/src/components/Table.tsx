@@ -172,20 +172,20 @@ function headerColumnWidthStyle<T>(
   };
 }
 
-// A muted row's ink-secondary applies to every cell at once, so a column's own render() should
+// A muted row's subtle text applies to every cell at once, so a column's own render() should
 // leave its text color unset to inherit it.
 function rowStateClassName(state: TableRowState | undefined): string {
   switch (state) {
     case "selected":
-      return "bg-brand-blue-message-bg";
+      return "bg-action-subtle";
     case "warning":
-      return "bg-status-warning-message-bg";
+      return "bg-warning-subtle";
     case "error":
-      return "bg-status-error-message-bg";
+      return "bg-error-subtle";
     case "muted":
-      return "bg-surface-white text-ink-secondary";
+      return "bg-surface text-text-subtle";
     default:
-      return "bg-surface-white";
+      return "bg-surface";
   }
 }
 
@@ -197,11 +197,11 @@ function rowStateClassName(state: TableRowState | undefined): string {
 // for names it finds written out in source, never one assembled at runtime.
 function rowBoxShadowClassName(state: TableRowState | undefined, isLast: boolean): string {
   if (isLast) {
-    return state === "selected" ? "shadow-[inset_4px_0_0_0_var(--color-brand-blue-ui)]" : "";
+    return state === "selected" ? "shadow-[inset_4px_0_0_0_var(--color-action)]" : "";
   }
   return state === "selected"
-    ? "shadow-[inset_0_-1px_0_0_var(--color-line),inset_4px_0_0_0_var(--color-brand-blue-ui)]"
-    : "shadow-[inset_0_-1px_0_0_var(--color-line)]";
+    ? "shadow-[inset_0_-1px_0_0_var(--color-border),inset_4px_0_0_0_var(--color-action)]"
+    : "shadow-[inset_0_-1px_0_0_var(--color-border)]";
 }
 
 function oppositeDirection(direction: TableSortDirection): TableSortDirection {
@@ -215,10 +215,10 @@ const sortIconClassName = "size-3 shrink-0";
 // to focus-visible only, since the "updating" bar is positioned above all in-flow content and
 // would otherwise paint over the ring.
 const headerButtonClassName =
-  "flex h-full w-full items-center gap-1 outline-none data-[hovered]:bg-surface-sand " +
+  "flex h-full w-full items-center gap-1 outline-none data-[hovered]:bg-surface-soft " +
   "data-[focus-visible]:relative data-[focus-visible]:z-20 " +
   "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
-  "data-[focus-visible]:outline-offset-[-3px] data-[focus-visible]:outline-brand-blue-strong";
+  "data-[focus-visible]:outline-offset-[-3px] data-[focus-visible]:outline-focus";
 
 function SortableColumnHeader<T>({
   column,
@@ -235,7 +235,7 @@ function SortableColumnHeader<T>({
 }) {
   const isSorted = sort?.column === column.key;
   const direction = isSorted ? sort.direction : undefined;
-  const colorClassName = isSorted ? "text-ink" : "text-ink-secondary";
+  const colorClassName = isSorted ? "text-text" : "text-text-subtle";
   const Icon =
     direction === "ascending"
       ? ChevronUp
@@ -268,14 +268,14 @@ function SortableColumnHeader<T>({
 }
 
 function TableEmptyState({ icon, title, detail, tone, actions }: TableEmptyStateProps) {
-  const iconColorClassName = tone === "blank" ? "text-brand-blue-strong" : "text-ink-secondary";
+  const iconColorClassName = tone === "blank" ? "text-text-accent" : "text-text-subtle";
 
   return (
     <div className="flex flex-col items-center gap-3 p-8 text-center">
       <span
         aria-hidden="true"
         className={[
-          "flex size-[5.5rem] shrink-0 items-center justify-center rounded-full bg-surface-bone",
+          "flex size-[5.5rem] shrink-0 items-center justify-center rounded-full bg-surface-subtle",
           iconColorClassName,
         ].join(" ")}
       >
@@ -283,8 +283,8 @@ function TableEmptyState({ icon, title, detail, tone, actions }: TableEmptyState
           {icon}
         </span>
       </span>
-      <p className="max-w-[32.5rem] text-2xl font-bold text-brand-blue-strong">{title}</p>
-      {detail && <p className="max-w-[32.5rem] text-base text-ink-secondary">{detail}</p>}
+      <p className="max-w-[32.5rem] text-2xl font-bold text-text-accent">{title}</p>
+      {detail && <p className="max-w-[32.5rem] text-base text-text-subtle">{detail}</p>}
       {actions && <div className="flex items-center gap-3">{actions}</div>}
     </div>
   );
@@ -323,9 +323,9 @@ function SkeletonRow<T>({
           >
             {isActions ? (
               <div className="flex flex-row items-center justify-end gap-2">
-                <div className="size-[2.375rem] shrink-0 rounded-lg bg-surface-sand" />
+                <div className="size-[2.375rem] shrink-0 rounded-lg bg-surface-soft" />
                 {column.actions.length === 2 && (
-                  <div className="size-[2.375rem] shrink-0 rounded-lg bg-surface-sand" />
+                  <div className="size-[2.375rem] shrink-0 rounded-lg bg-surface-soft" />
                 )}
               </div>
             ) : (
@@ -333,7 +333,7 @@ function SkeletonRow<T>({
                 className={["flex", align === "end" ? "justify-end" : "justify-start"].join(" ")}
               >
                 <div
-                  className="h-3 rounded-md bg-surface-sand"
+                  className="h-3 rounded-md bg-surface-soft"
                   style={{ width: `${widthPercent}%` }}
                 />
               </div>
@@ -362,7 +362,7 @@ export function TableCellText({ children, detail }: TableCellTextProps) {
   return (
     <div className="flex flex-col gap-1">
       <span className="text-base leading-[24px]">{children}</span>
-      {hasDetail && <span className="text-sm leading-[20px] text-ink-secondary">{detail}</span>}
+      {hasDetail && <span className="text-sm leading-[20px] text-text-subtle">{detail}</span>}
     </div>
   );
 }
@@ -451,15 +451,15 @@ export function Table<T>({
 
   return (
     <>
-      <div className="relative isolate overflow-clip rounded-lg border border-line bg-surface-white">
+      <div className="relative isolate overflow-clip rounded-lg border border-border bg-surface">
         {loading === "updating" && (
           <div
             aria-hidden="true"
             // Without pointer-events-none, this purely visual bar would also physically catch
             // pointer events meant for the header underneath it.
-            className="pointer-events-none absolute inset-x-0 top-0 z-10 h-[3px] overflow-hidden bg-brand-blue-message-bg"
+            className="pointer-events-none absolute inset-x-0 top-0 z-10 h-[3px] overflow-hidden bg-data-subtle"
           >
-            <div className="h-full w-1/3 animate-table-loading-bar bg-brand-blue-ui motion-reduce:animate-none" />
+            <div className="h-full w-1/3 animate-table-loading-bar bg-data motion-reduce:animate-none" />
           </div>
         )}
         {showEmptyState && empty ? (
@@ -475,7 +475,7 @@ export function Table<T>({
             className="w-full table-fixed"
           >
             <thead>
-              <tr className="h-11 bg-surface-bone">
+              <tr className="h-11 bg-surface-subtle">
                 {columns.map((column, index) => {
                   const isActions = column.kind === "actions";
                   const isSortable =
@@ -511,7 +511,7 @@ export function Table<T>({
                           isLast={isLast}
                         />
                       ) : (
-                        <span className="text-ink-secondary">{column.title}</span>
+                        <span className="text-text-subtle">{column.title}</span>
                       )}
                     </th>
                   );

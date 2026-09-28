@@ -27,18 +27,18 @@ test("marks the active item with aria-current, an azul-fondo fill and a bold 16p
 
   const link = screen.getByRole("link", { name: "Primeros pasos" }).element() as HTMLAnchorElement;
   expect(link.getAttribute("aria-current")).toBe("page");
-  expect(getComputedStyle(link).backgroundColor).toBe(tokenRgb("brand-blue-message-bg"));
+  expect(getComputedStyle(link).backgroundColor).toBe(tokenRgb("action-subtle"));
 
   const label = screen.getByText("Primeros pasos").element();
-  expect(getComputedStyle(label).color).toBe(tokenRgb("brand-blue-strong"));
+  expect(getComputedStyle(label).color).toBe(tokenRgb("text-accent"));
   expect(getComputedStyle(label).fontWeight).toBe("700");
   expect(Math.round(Number.parseFloat(getComputedStyle(label).fontSize))).toBe(16);
 
   const icon = link.querySelector("svg") as SVGSVGElement;
-  expect(getComputedStyle(icon).stroke).toBe(tokenRgb("brand-blue-strong"));
+  expect(getComputedStyle(icon).stroke).toBe(tokenRgb("text-accent"));
 });
 
-test("leaves an inactive item with no aria-current, a negro 14px label and an ink-secondary icon", async () => {
+test("leaves an inactive item with no aria-current, a negro 14px label and a subtle-text icon", async () => {
   const screen = await render(
     <SectionNavItem
       label="Primeros pasos"
@@ -53,12 +53,12 @@ test("leaves an inactive item with no aria-current, a negro 14px label and an in
   expect(getComputedStyle(link).backgroundColor).toBe("rgba(0, 0, 0, 0)");
 
   const label = screen.getByText("Primeros pasos").element();
-  expect(getComputedStyle(label).color).toBe(tokenRgb("ink"));
+  expect(getComputedStyle(label).color).toBe(tokenRgb("text"));
   expect(getComputedStyle(label).fontWeight).toBe("400");
   expect(Math.round(Number.parseFloat(getComputedStyle(label).fontSize))).toBe(14);
 
   const icon = link.querySelector("svg") as SVGSVGElement;
-  expect(getComputedStyle(icon).stroke).toBe(tokenRgb("ink-secondary"));
+  expect(getComputedStyle(icon).stroke).toBe(tokenRgb("text-subtle"));
 });
 
 test("turns bone on hover while inactive", async () => {
@@ -74,5 +74,5 @@ test("turns bone on hover while inactive", async () => {
 
   await userEvent.hover(link);
 
-  await expect.poll(() => getComputedStyle(link).backgroundColor).toBe(tokenRgb("surface-bone"));
+  await expect.poll(() => getComputedStyle(link).backgroundColor).toBe(tokenRgb("surface-subtle"));
 });

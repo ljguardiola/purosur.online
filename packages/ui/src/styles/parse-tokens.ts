@@ -1,22 +1,51 @@
-// Reads --color-* custom properties declared in every @theme block, so tests and
-// tooling can check the stylesheet's actual values instead of a duplicated copy.
+const HEX_COLOR = "#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?";
+
+// Reads --color-* custom properties declared in every @theme block, so tests and tooling can
+// check the stylesheet's actual values instead of a duplicated copy. A token written as a
+// var(--palette-*) reference resolves to that palette entry's color, wherever the palette is
+// declared in the stylesheet.
 export function parseColorTokens(css: string): Record<string, string> {
   const tokens: Record<string, string> = {};
+  const palette = parsePalette(stripComments(css));
 
   for (const themeBlock of extractThemeBlocks(css)) {
     // The 2 trailing hex digits are optional, so an 8-digit color that carries its own alpha
     // channel (e.g. a shadow tint) is read the same way as an opaque 6-digit one.
-    for (const match of themeBlock.matchAll(
-      /--color-([a-z0-9-]+):\s*(#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?)\s*;/g,
-    )) {
-      const [, name, hex] = match;
-      if (name && hex) {
+    const declaration = new RegExp(
+      `--color-([a-z0-9-]+):\\s*(?:(${HEX_COLOR})|var\\(--palette-([a-z0-9-]+)\\))\\s*;`,
+      "g",
+    );
+    for (const match of themeBlock.matchAll(declaration)) {
+      const [, name, hex, paletteName] = match;
+      if (!name) {
+        continue;
+      }
+      if (hex) {
         tokens[name] = hex;
+      } else if (paletteName) {
+        const resolved = palette[paletteName];
+        if (!resolved) {
+          throw new Error(
+            `--color-${name} references --palette-${paletteName}, which is not declared`,
+          );
+        }
+        tokens[name] = resolved;
       }
     }
   }
 
   return tokens;
+}
+
+function parsePalette(source: string): Record<string, string> {
+  const palette: Record<string, string> = {};
+  const declaration = new RegExp(`--palette-([a-z0-9-]+):\\s*(${HEX_COLOR})\\s*;`, "g");
+  for (const [, name, hex] of source.matchAll(declaration)) {
+    if (name && hex) {
+      palette[name] = hex;
+    }
+  }
+  return palette;
 }
 
 // Drops /* ... */ comments before any @theme scan, so a mention of "@theme" or a stray brace

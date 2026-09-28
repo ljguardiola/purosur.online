@@ -378,9 +378,9 @@ function EditUserModal({
           )}
           {user.isLastActiveAdministrator ? (
             <div className="flex flex-col gap-1">
-              <p className="font-bold text-ink text-sm">Rol</p>
-              <div className="flex h-12 min-w-0 max-w-full items-center justify-between gap-2 rounded-lg border-2 border-line bg-surface-bone px-3">
-                <span className="min-w-0 flex-1 truncate text-left font-semibold text-base text-ink">
+              <p className="font-bold text-text text-sm">Rol</p>
+              <div className="flex h-12 min-w-0 max-w-full items-center justify-between gap-2 rounded-lg border-2 border-border bg-surface-subtle px-3">
+                <span className="min-w-0 flex-1 truncate text-left font-semibold text-base text-text">
                   {roleDisplayName(user.role)}
                 </span>
                 <Tooltip description="Es el único Administrador activo. Para cambiarle el rol, primero hacé Administrador a otra persona.">
@@ -540,7 +540,7 @@ function RemoveUserPasskeyModal({
       >
         {target && (
           <div className="flex flex-col gap-4">
-            <p className="text-base text-ink">
+            <p className="text-base text-text">
               {`«${target.name}» deja de servir para entrar.`}
               {isOnlyPasskey
                 ? ` Es su única passkey: para volver a entrar, ${userName} va a tener que pedir el enlace de recuperación por correo.`
@@ -688,7 +688,7 @@ function DeactivateUserModal({
         }
       >
         <div className="flex flex-col gap-4">
-          <p className="text-base text-ink">Se puede reactivar más adelante.</p>
+          <p className="text-base text-text">Se puede reactivar más adelante.</p>
           {attemptFailed && (
             <InlineNotice
               tone="error"
@@ -825,7 +825,7 @@ function ReactivateUserModal({
         }
       >
         <div className="flex flex-col gap-4">
-          <p className="text-center text-base text-ink-secondary">
+          <p className="text-center text-base text-text-subtle">
             Vuelve a entrar a la caja y al backoffice con su mismo correo, rol y passkeys.
           </p>
           {attemptFailed && (
@@ -960,9 +960,9 @@ export function UserDetailScreen({
     <>
       <ScreenLayout
         topBar={
-          <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
+          <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
             <div className="flex flex-col justify-center">
-              <p className="text-ink-secondary text-sm">Configuración · Usuarios</p>
+              <p className="text-text-subtle text-sm">Configuración · Usuarios</p>
               <div className="flex items-center gap-3">
                 <ScreenTitle>{heading}</ScreenTitle>
                 {isInactive && <Tag tone="neutral">Inactivo</Tag>}
@@ -1008,9 +1008,9 @@ export function UserDetailScreen({
           </>
         )}
         {state.kind === "loaded" && (
-          <div className="flex flex-col gap-4 rounded-lg border border-line bg-surface-white p-4">
+          <div className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4">
             <div className="flex items-center gap-3">
-              <h2 className="flex-1 font-bold text-lg text-brand-blue-strong">Datos</h2>
+              <h2 className="flex-1 font-bold text-lg text-text-accent">Datos</h2>
               {access.isAdministrator && !isInactive && (
                 <Button
                   variant="secondary"
@@ -1024,22 +1024,22 @@ export function UserDetailScreen({
             </div>
             <div className="flex gap-8">
               <div className="flex flex-col gap-1">
-                <p className="font-bold text-ink-secondary text-sm">Rol</p>
-                <p className="font-semibold text-base text-ink">
+                <p className="font-bold text-text-subtle text-sm">Rol</p>
+                <p className="font-semibold text-base text-text">
                   {roleDisplayName(state.user.role)}
                 </p>
               </div>
               <div className="flex flex-col gap-1">
-                <p className="font-bold text-ink-secondary text-sm">Correo</p>
-                <p className="font-semibold text-base text-ink">{state.user.email}</p>
+                <p className="font-bold text-text-subtle text-sm">Correo</p>
+                <p className="font-semibold text-base text-text">{state.user.email}</p>
               </div>
             </div>
           </div>
         )}
         {state.kind === "loaded" && showsPasskeys && (
-          <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface-white p-4">
+          <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
             <div className="flex items-center gap-3">
-              <h2 className="flex-1 font-bold text-lg text-brand-blue-strong">Passkeys</h2>
+              <h2 className="flex-1 font-bold text-lg text-text-accent">Passkeys</h2>
             </div>
             {passkeysState.kind === "loading" && <p role="status">Cargando las passkeys…</p>}
             {passkeysState.kind === "loadError" && (
@@ -1070,20 +1070,20 @@ export function UserDetailScreen({
             )}
             {passkeysState.kind === "loaded" &&
               (passkeysState.passkeys.length === 0 ? (
-                <p className="text-ink-secondary text-sm">No tiene ninguna passkey registrada.</p>
+                <p className="text-text-subtle text-sm">No tiene ninguna passkey registrada.</p>
               ) : (
                 <ul className="flex flex-col gap-2">
                   {passkeysState.passkeys.map((passkey) => (
                     <li key={passkey.id} className="flex items-center gap-3">
                       <span
                         aria-hidden="true"
-                        className="inline-flex size-5 shrink-0 text-ink-secondary"
+                        className="inline-flex size-5 shrink-0 text-text-subtle"
                       >
                         <Laptop />
                       </span>
                       <div className="flex flex-1 flex-col gap-1">
-                        <p className="font-semibold text-base text-ink">{passkey.name}</p>
-                        <p className="text-ink-secondary text-sm">
+                        <p className="font-semibold text-base text-text">{passkey.name}</p>
+                        <p className="text-text-subtle text-sm">
                           {passkeyRowDetail(passkey, clock())}
                         </p>
                       </div>
@@ -1105,7 +1105,7 @@ export function UserDetailScreen({
           canDeactivateUser(access, state.user.role) &&
           !isOwnAccount && (
             <div className="flex items-center gap-3">
-              <p className="flex-1 text-ink-secondary text-sm">
+              <p className="flex-1 text-text-subtle text-sm">
                 {`Al desactivar a ${state.user.firstName}, deja de poder entrar a la caja y al backoffice; su historial queda igual.`}
               </p>
               <Button
@@ -1121,7 +1121,7 @@ export function UserDetailScreen({
           )}
         {state.kind === "loaded" && isInactive && canReactivateUser(access) && (
           <div className="flex items-center gap-3">
-            <p className="flex-1 text-ink-secondary text-sm">
+            <p className="flex-1 text-text-subtle text-sm">
               {`Al reactivar a ${state.user.firstName}, vuelve a entrar a la caja y al backoffice con su misma cuenta: mismo correo, rol y passkeys.`}
             </p>
             <Button

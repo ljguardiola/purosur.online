@@ -23,7 +23,7 @@ test("renders a 240x10px, 5px-radius track in the blue message background, clipp
   expect(trackRect.width).toBeCloseTo(240, 0);
   expect(trackRect.height).toBeCloseTo(10, 0);
   expect(getComputedStyle(track).borderRadius).toBe("5px");
-  expect(getComputedStyle(track).backgroundColor).toBe(tokenRgb("brand-blue-message-bg"));
+  expect(getComputedStyle(track).backgroundColor).toBe(tokenRgb("data-subtle"));
   expect(getComputedStyle(track).overflow).toBe("hidden");
 
   await expectNoAccessibilityViolations(screen.container);
@@ -36,7 +36,7 @@ test("renders the fill in blue UI, with the track's own 5px radius, sized to the
   const trackRect = track.getBoundingClientRect();
   const fillRect = fill.getBoundingClientRect();
 
-  expect(getComputedStyle(fill).backgroundColor).toBe(tokenRgb("brand-blue-ui"));
+  expect(getComputedStyle(fill).backgroundColor).toBe(tokenRgb("data"));
   expect(getComputedStyle(fill).borderRadius).toBe("5px");
   expect(fillRect.left).toBeCloseTo(trackRect.left, 0);
   expect(fillRect.width).toBeCloseTo(trackRect.width * 0.6, 0);

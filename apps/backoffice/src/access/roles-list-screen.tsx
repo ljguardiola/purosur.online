@@ -129,9 +129,9 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
   return (
     <ScreenLayout
       topBar={
-        <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
+        <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
           <div className="flex flex-col justify-center">
-            <p className="text-ink-secondary text-sm">Configuración</p>
+            <p className="text-text-subtle text-sm">Configuración</p>
             <ScreenTitle>Roles</ScreenTitle>
           </div>
           <Button
@@ -178,7 +178,7 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
           loading={list.kind === "loading" ? "initial" : false}
           rows={roles.map((role) => ({ id: role.id, item: role }))}
           footer={
-            <p className="text-ink-secondary text-sm">
+            <p className="text-text-subtle text-sm">
               {plural(roles.length, { one: "1 rol", other: `${roles.length} roles` })}
             </p>
           }

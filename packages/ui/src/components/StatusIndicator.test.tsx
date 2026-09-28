@@ -12,19 +12,19 @@ import {
 type ToneTokens = { background: string; dot: string; text: string };
 
 const tones: Record<StatusIndicatorTone, ToneTokens> = {
-  success: { background: "brand-green-message-bg", dot: "brand-green", text: "brand-green-strong" },
+  success: { background: "success-subtle", dot: "success-soft", text: "success-strong" },
   warning: {
-    background: "status-warning-message-bg",
-    dot: "status-warning-accent",
-    text: "status-warning-strong",
+    background: "warning-subtle",
+    dot: "warning-soft",
+    text: "warning-strong",
   },
   error: {
-    background: "status-error-message-bg",
-    dot: "status-error-accent",
-    text: "status-error-strong",
+    background: "error-subtle",
+    dot: "error-soft",
+    text: "error-strong",
   },
-  info: { background: "brand-blue-message-bg", dot: "brand-blue", text: "brand-blue-strong" },
-  neutral: { background: "surface-sand", dot: "ink-secondary", text: "ink-secondary" },
+  info: { background: "info-subtle", dot: "info-soft", text: "info-strong" },
+  neutral: { background: "neutral-subtle", dot: "neutral", text: "text-subtle" },
 };
 
 test("renders the caller's text", async () => {
@@ -94,7 +94,7 @@ test("replaces the dot with a 14px spinner in the tone's dot color while busy", 
   expect(rect.width).toBeLessThan(15);
   expect(rect.height).toBeGreaterThan(13);
   expect(rect.height).toBeLessThan(15);
-  expect(getComputedStyle(spinner).color).toBe(tokenRgb("status-warning-accent"));
+  expect(getComputedStyle(spinner).color).toBe(tokenRgb("warning-soft"));
   expect(getComputedStyle(spinner).animationName).not.toBe("none");
 
   await expectNoAccessibilityViolations(screen.container);

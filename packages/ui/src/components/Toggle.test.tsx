@@ -79,7 +79,7 @@ test("renders a 22px round knob in a 48x28px, 14px-radius track, with the conten
   expect(gap).toBeLessThan(13);
 });
 
-test("colors an off track and its knob white, each with a 2px ink-secondary border, the knob at the near end", async () => {
+test("colors an off track and its knob white, each with a 2px strong border, the knob at the near end", async () => {
   const screen = await render(
     <Toggle isSelected={false} onChange={() => {}}>
       Apply discount
@@ -90,11 +90,11 @@ test("colors an off track and its knob white, each with a 2px ink-secondary bord
   const trackRect = track.getBoundingClientRect();
   const knobRect = knob.getBoundingClientRect();
 
-  expect(getComputedStyle(track).backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(getComputedStyle(track).boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
+  expect(getComputedStyle(track).backgroundColor).toBe(tokenRgb("surface"));
+  expect(getComputedStyle(track).boxShadow).toContain(insetBoundary("border-strong", "2px"));
 
-  expect(getComputedStyle(knob).backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(getComputedStyle(knob).boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
+  expect(getComputedStyle(knob).backgroundColor).toBe(tokenRgb("surface"));
+  expect(getComputedStyle(knob).boxShadow).toContain(insetBoundary("border-strong", "2px"));
 
   // Checked as a rendered contrast ratio against WCAG's 3:1 non-text minimum, not by token name.
   const trackBoundaryHex = boundaryColorHex(track);
@@ -119,8 +119,8 @@ test("turns an off track's background bone on hover, keeping its border", async 
   const track = toggleTrack(screen, "Apply discount");
 
   await userEvent.hover(label);
-  await expect.poll(() => getComputedStyle(track).backgroundColor).toBe(tokenRgb("surface-bone"));
-  expect(getComputedStyle(track).boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
+  await expect.poll(() => getComputedStyle(track).backgroundColor).toBe(tokenRgb("surface-subtle"));
+  expect(getComputedStyle(track).boxShadow).toContain(insetBoundary("border-strong", "2px"));
 });
 
 test("colors an on track green UI with no border and a plain white knob at the far end", async () => {
@@ -134,11 +134,11 @@ test("colors an on track green UI with no border and a plain white knob at the f
   const trackRect = track.getBoundingClientRect();
   const knobRect = knob.getBoundingClientRect();
 
-  expect(getComputedStyle(track).backgroundColor).toBe(tokenRgb("brand-green-ui"));
-  // Checks for no boundary in any color, not merely the absence of ink-secondary.
+  expect(getComputedStyle(track).backgroundColor).toBe(tokenRgb("success"));
+  // Checks for no boundary in any color, not merely the absence of the strong border.
   expect(paintedBoxShadowLayers(track)).toEqual([]);
 
-  expect(getComputedStyle(knob).backgroundColor).toBe(tokenRgb("surface-white"));
+  expect(getComputedStyle(knob).backgroundColor).toBe(tokenRgb("surface"));
   expect(paintedBoxShadowLayers(knob)).toEqual([]);
 
   expect(trackRect.right - knobRect.right).toBeCloseTo(4, 0);
@@ -156,10 +156,8 @@ test("turns an on track's background green strong on hover, keeping the white kn
   const knob = toggleKnob(screen, "Apply discount");
 
   await userEvent.hover(label);
-  await expect
-    .poll(() => getComputedStyle(track).backgroundColor)
-    .toBe(tokenRgb("brand-green-strong"));
-  expect(getComputedStyle(knob).backgroundColor).toBe(tokenRgb("surface-white"));
+  await expect.poll(() => getComputedStyle(track).backgroundColor).toBe(tokenRgb("success-strong"));
+  expect(getComputedStyle(knob).backgroundColor).toBe(tokenRgb("surface"));
 });
 
 test("keeps the track's and the knob's size stable between the off and on states", async () => {
@@ -264,7 +262,7 @@ test("shows the package's focus ring around the track when focused", async () =>
 
   await expect.poll(() => getComputedStyle(track).outlineWidth).toBe("3px");
   await expect.poll(() => getComputedStyle(track).outlineOffset).toBe("3px");
-  await expect.poll(() => getComputedStyle(track).outlineColor).toBe(tokenRgb("brand-blue-strong"));
+  await expect.poll(() => getComputedStyle(track).outlineColor).toBe(tokenRgb("focus"));
 });
 
 test("dims the whole toggle to 45% opacity, drops the pointer cursor and blocks focus when disabled", async () => {

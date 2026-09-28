@@ -4,7 +4,7 @@ export type SummaryRowGroupProps = {
   rows: readonly [SummaryRowProps, ...SummaryRowProps[]];
 };
 
-const groupClassName = "flex flex-col gap-2 border-t border-b border-line py-4";
+const groupClassName = "flex flex-col gap-2 border-t border-b border-border py-4";
 
 export function SummaryRowGroup({ rows }: SummaryRowGroupProps) {
   return (

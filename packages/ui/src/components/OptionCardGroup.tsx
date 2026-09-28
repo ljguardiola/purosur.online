@@ -29,26 +29,26 @@ export type OptionCardGroupProps<V extends string> = OptionCardGroupValidityProp
 
 // Icon color reacts to the card's own data-selected state via the `group` class the card sets on itself.
 const iconWrapperClassName =
-  "inline-flex size-5 shrink-0 text-ink-secondary [&>svg]:h-full [&>svg]:w-full " +
-  "group-data-[selected]:text-brand-blue-strong";
+  "inline-flex size-5 shrink-0 text-text-subtle [&>svg]:h-full [&>svg]:w-full " +
+  "group-data-[selected]:text-text-accent";
 
-const titleClassName = "text-base font-bold text-ink group-data-[selected]:text-brand-blue-strong";
+const titleClassName = "text-base font-bold text-text group-data-[selected]:text-text-accent";
 
-const helpTextClassName = "text-xs font-normal text-ink-secondary";
+const helpTextClassName = "text-xs font-normal text-text-subtle";
 
-const errorClassName = "text-sm font-normal text-status-error-ui";
+const errorClassName = "text-sm font-normal text-error";
 
 // The not-chosen/chosen ring is drawn with an inset box-shadow instead of a real border: a real
 // border going from 1px to 2px on choosing a card would add 1px to its rendered size, but a
 // box-shadow never participates in layout, so the ring can grow without shifting the card.
 const cardClassName =
   "group flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg px-4 py-3 outline-none " +
-  "bg-surface-white shadow-[inset_0_0_0_1px_var(--color-line)] " +
-  "data-[hovered]:bg-surface-bone " +
-  "data-[selected]:bg-brand-blue-message-bg data-[selected]:shadow-[inset_0_0_0_2px_var(--color-brand-blue-ui)] " +
-  "data-[hovered]:data-[selected]:bg-brand-blue-message-bg " +
+  "bg-surface shadow-[inset_0_0_0_1px_var(--color-border)] " +
+  "data-[hovered]:bg-surface-subtle " +
+  "data-[selected]:bg-action-subtle data-[selected]:shadow-[inset_0_0_0_2px_var(--color-action)] " +
+  "data-[hovered]:data-[selected]:bg-action-subtle " +
   "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
-  "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong";
+  "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-focus";
 
 function OptionCard<V extends string>({ value, icon, title, helpText }: OptionCardOption<V>) {
   const helpTextId = useId();

@@ -34,18 +34,18 @@ const visualGridClassName =
 // which extend past the plot's grid lines the same way chartBoxClassName's pt-2 does.
 const axisColumnClassName = "-my-2 flex h-[166px] flex-col justify-between";
 // A fixed height, so a tick the caller formats as empty still takes its line and stays aligned.
-const axisTickClassName = "h-4 text-right text-xs font-normal text-ink-secondary";
+const axisTickClassName = "h-4 text-right text-xs font-normal text-text-subtle";
 const plotClassName = "relative h-[150px]";
-const gridLineClassName = "absolute inset-x-0 h-px bg-line";
+const gridLineClassName = "absolute inset-x-0 h-px bg-border";
 // Positioned, so the bars paint over the absolutely positioned grid lines instead of under them.
 const barsRowClassName = "relative flex h-full items-end gap-[11px]";
-const barClassName = "w-5 rounded-t-[4px] bg-brand-blue-ui";
+const barClassName = "w-5 rounded-t-[4px] bg-data";
 const labelsContainerClassName = "flex min-h-4 gap-[11px] pr-[76px]";
 const labelColumnClassName = "flex w-5 justify-center";
 // shrink-0, because a flex item with overflow hidden otherwise gets a min-width of 0, letting the
 // 20px column win over max-w before the truncation cap ever applies.
-const labelTextClassName = "max-w-[172px] shrink-0 truncate text-xs font-normal text-ink-secondary";
-const emptyMessageClassName = "text-xs font-normal text-ink-secondary";
+const labelTextClassName = "max-w-[172px] shrink-0 truncate text-xs font-normal text-text-subtle";
+const emptyMessageClassName = "text-xs font-normal text-text-subtle";
 const announcedListClassName = "sr-only";
 const announcedPartClassName = "block";
 

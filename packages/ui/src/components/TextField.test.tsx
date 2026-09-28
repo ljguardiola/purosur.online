@@ -21,7 +21,7 @@ function fieldWrapper(screen: Screen, name: string): HTMLElement {
   return fieldBox(screen, name).parentElement as HTMLElement;
 }
 
-// The box-shadow string Chromium renders for the focused state: a 2px brand-blue-ui inset with no
+// The box-shadow string Chromium renders for the focused state: a 2px action-color inset with no
 // outer shadow, behind the four transparent layers Tailwind v4 always composes.
 const FOCUSED_SHADOW =
   "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
@@ -75,7 +75,7 @@ test("renders the label 6px above an 8px-radius box", async () => {
   expect(gap).toBeGreaterThan(5);
   expect(gap).toBeLessThan(7);
   expect(getComputedStyle(label).fontWeight).toBe("700");
-  expect(getComputedStyle(label).color).toBe(tokenRgb("ink"));
+  expect(getComputedStyle(label).color).toBe(tokenRgb("text"));
   expect(getComputedStyle(box).borderRadius).toBe("8px");
 });
 
@@ -92,7 +92,7 @@ test("keeps the backoffice plain text value semibold even with a suffix, unlike 
   expect(getComputedStyle(input).fontWeight).toBe("600");
   expect(getComputedStyle(input).textAlign).toBe("right");
   expect(getComputedStyle(suffixElement).fontWeight).toBe("400");
-  expect(getComputedStyle(suffixElement).color).toBe(tokenRgb("ink-secondary"));
+  expect(getComputedStyle(suffixElement).color).toBe(tokenRgb("text-subtle"));
 });
 
 test("keeps a non-plain-text kind at its own register size inside a backoffice FieldSizeProvider", async () => {
@@ -218,13 +218,13 @@ for (const kindCase of kindCases) {
     expect(Math.round(Number.parseFloat(boxStyle.columnGap))).toBe(kindCase.gap);
     expect(inputStyle.textAlign).toBe(kindCase.valueAlign);
     expect(Math.round(Number.parseFloat(inputStyle.fontSize))).toBe(kindCase.valueFontSize);
-    expect(inputStyle.color).toBe(tokenRgb("ink"));
+    expect(inputStyle.color).toBe(tokenRgb("text"));
 
     if (kindCase.affix) {
       const affixElement = screen.getByText(kindCase.affix.content).element() as HTMLElement;
       const affixStyle = getComputedStyle(affixElement);
       expect(Math.round(Number.parseFloat(affixStyle.fontSize))).toBe(kindCase.affix.fontSize);
-      expect(affixStyle.color).toBe(tokenRgb("ink-secondary"));
+      expect(affixStyle.color).toBe(tokenRgb("text-subtle"));
       expect(affixElement.getAttribute("aria-hidden")).toBe("true");
 
       const boxChildren = Array.from(box.children);
@@ -256,8 +256,8 @@ test("shows a white box with a 2px line border at rest", async () => {
   const box = fieldBox(screen, "Reason");
   const style = getComputedStyle(box);
 
-  expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("line", "2px")]);
+  expect(style.backgroundColor).toBe(tokenRgb("surface"));
+  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("border", "2px")]);
 });
 
 test("turns the box bone on hover, keeping the same 2px line border", async () => {
@@ -265,11 +265,11 @@ test("turns the box bone on hover, keeping the same 2px line border", async () =
   const box = fieldBox(screen, "Reason");
 
   await userEvent.hover(box);
-  await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-bone"));
-  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("line", "2px")]);
+  await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-subtle"));
+  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("border", "2px")]);
 });
 
-test("shows a 2px brand-blue-ui border with no outer shadow when focused, as one field in two states", async () => {
+test("shows a 2px action-color border with no outer shadow when focused, as one field in two states", async () => {
   const screen = await render(<PlainTextHarness />);
   const box = fieldBox(screen, "Reason");
 
@@ -312,8 +312,8 @@ test("turns the invalid box bone on hover, keeping its error border", async () =
   const box = fieldBox(screen, "Reason");
 
   await userEvent.hover(box);
-  await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-bone"));
-  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("status-error-ui", "2px")]);
+  await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-subtle"));
+  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("error", "2px")]);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -328,8 +328,8 @@ test("keeps the focused border and white fill instead of the hovered bone one wh
 
   await expect
     .poll(() => getComputedStyle(box).boxShadow)
-    .toContain(insetBoundary("brand-blue-ui", "2px"));
-  expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-white"));
+    .toContain(insetBoundary("action", "2px"));
+  expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface"));
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -347,8 +347,8 @@ test("dims the whole field to 45% opacity and blocks focus when disabled", async
   const nextControl = screen.getByRole("button", { name: "Next control" }).element();
 
   expect(getComputedStyle(wrapper).opacity).toBe("0.45");
-  expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("line", "2px")]);
+  expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface"));
+  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("border", "2px")]);
   expect(input.disabled).toBe(true);
 
   await userEvent.tab();
@@ -377,18 +377,18 @@ test("lets a read-only field be focused and shows it, but is never typed into or
   const restingBackground = getComputedStyle(box).backgroundColor;
 
   expect(input.readOnly).toBe(true);
-  expect(restingBackground).toBe(tokenRgb("surface-bone"));
-  expect(restingShadow).toContain(insetBoundary("line", "2px"));
+  expect(restingBackground).toBe(tokenRgb("surface-subtle"));
+  expect(restingShadow).toContain(insetBoundary("border", "2px"));
 
   await userEvent.hover(controlBox);
   await expect
     .poll(() => getComputedStyle(controlBox).backgroundColor)
-    .toBe(tokenRgb("surface-bone"));
+    .toBe(tokenRgb("surface-subtle"));
 
   await userEvent.hover(box);
   await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(restingBackground);
   expect(getComputedStyle(box).boxShadow).toBe(restingShadow);
-  expect(getComputedStyle(controlBox).backgroundColor).toBe(tokenRgb("surface-white"));
+  expect(getComputedStyle(controlBox).backgroundColor).toBe(tokenRgb("surface"));
 
   await userEvent.click(input);
   expect(document.activeElement).toBe(input);
@@ -419,8 +419,8 @@ test("lets disabled win the box treatment over invalid, while still announcing i
   const input = fieldInput(screen, "Reason");
   const style = getComputedStyle(box);
 
-  expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("line", "2px")]);
+  expect(style.backgroundColor).toBe(tokenRgb("surface"));
+  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("border", "2px")]);
   expect(getComputedStyle(wrapper).opacity).toBe("0.45");
 
   expect(input.getAttribute("aria-invalid")).toBe("true");
@@ -467,8 +467,8 @@ test("lets read-only win the box treatment over invalid, while still announcing 
   const input = fieldInput(screen, "Reason");
   const style = getComputedStyle(box);
 
-  expect(style.backgroundColor).toBe(tokenRgb("surface-bone"));
-  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("line", "2px")]);
+  expect(style.backgroundColor).toBe(tokenRgb("surface-subtle"));
+  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("border", "2px")]);
 
   expect(input.getAttribute("aria-invalid")).toBe("true");
   expect(describedText(input)).toContain("Enter a reason.");
@@ -496,8 +496,8 @@ test("lets disabled win the box treatment over read-only when both apply", async
   const input = fieldInput(screen, "Reason");
   const style = getComputedStyle(box);
 
-  expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("line", "2px")]);
+  expect(style.backgroundColor).toBe(tokenRgb("surface"));
+  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("border", "2px")]);
   expect(getComputedStyle(wrapper).opacity).toBe("0.45");
   expect(input.disabled).toBe(true);
   expect(input.readOnly).toBe(true);
@@ -612,7 +612,7 @@ test("exposes the field as invalid, described by a shared message rendered outsi
   const box = fieldBox(screen, "Opens");
   const input = fieldInput(screen, "Opens");
 
-  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("status-error-ui", "2px")]);
+  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("error", "2px")]);
   expect(input.getAttribute("aria-invalid")).toBe("true");
   expect(describedText(input)).toBe("Enter the time as 9:00.");
   expect(screen.getByText("Should not be visible.").query()).toBeNull();
@@ -657,7 +657,7 @@ test("replaces the helper line with the field's message and exposes it as invali
   const box = fieldBox(screen, "Reason");
   const input = fieldInput(screen, "Reason");
 
-  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("status-error-ui", "2px")]);
+  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("error", "2px")]);
   expect(input.getAttribute("aria-invalid")).toBe("true");
   expect(screen.getByText("Enter a reason.").element()).toBeTruthy();
   expect(screen.getByText("Should not be visible.").query()).toBeNull();
@@ -701,7 +701,7 @@ test("renders an optional suffix on the plain text kind at its own text-base sca
   expect(getComputedStyle(input).textAlign).toBe("right");
   expect(Math.round(Number.parseFloat(getComputedStyle(box).columnGap))).toBe(8);
   expect(Math.round(Number.parseFloat(suffixStyle.fontSize))).toBe(16);
-  expect(suffixStyle.color).toBe(tokenRgb("ink-secondary"));
+  expect(suffixStyle.color).toBe(tokenRgb("text-subtle"));
   expect(suffixElement.getAttribute("aria-hidden")).toBe("true");
   expect(describedText(input)).toContain("días");
 });

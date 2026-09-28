@@ -22,7 +22,7 @@ function renderInRail(props: {
   services: AccountFooterServices;
 }) {
   return render(
-    <nav aria-label="Áreas" className="bg-brand-blue-strong p-2">
+    <nav aria-label="Áreas" className="bg-action-strong p-2">
       <AccountFooter {...props} />
     </nav>,
   );

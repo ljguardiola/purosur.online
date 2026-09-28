@@ -156,7 +156,7 @@ test("renders each bar 20px wide, top-radiused, blue, about 11px apart, meeting 
   for (const bar of bars) {
     const rect = bar.getBoundingClientRect();
     expect(rect.width).toBeCloseTo(20, 0);
-    expect(getComputedStyle(bar).backgroundColor).toBe(tokenRgb("brand-blue-ui"));
+    expect(getComputedStyle(bar).backgroundColor).toBe(tokenRgb("data"));
     expect(getComputedStyle(bar).borderTopLeftRadius).toBe("4px");
     expect(getComputedStyle(bar).borderTopRightRadius).toBe("4px");
     expect(getComputedStyle(bar).borderBottomLeftRadius).toBe("0px");
@@ -383,7 +383,7 @@ test("falls back to the minimum scale when no value at all can be drawn", async 
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("renders 6 full-width, 1px grid lines in the line color, evenly spaced across the 150px plot", async () => {
+test("renders 6 full-width, 1px grid lines in the border color, evenly spaced across the 150px plot", async () => {
   const screen = await render(
     <ColumnChart bars={weekBars} formatValue={formatCurrency} emptyMessage="No data" />,
   );
@@ -405,7 +405,7 @@ test("renders 6 full-width, 1px grid lines in the line color, evenly spaced acro
     const rect = line.getBoundingClientRect();
     expect(rect.height).toBeCloseTo(1, 0);
     expect(rect.width).toBeCloseTo(plotRect.width, 0);
-    expect(getComputedStyle(line).backgroundColor).toBe(tokenRgb("line"));
+    expect(getComputedStyle(line).backgroundColor).toBe(tokenRgb("border"));
   }
 
   await expectNoAccessibilityViolations(screen.container);

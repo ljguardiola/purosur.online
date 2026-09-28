@@ -20,8 +20,8 @@ test("colors the neutral tone bone with secondary ink text, clearing AA text con
   const tag = screen.getByText("Caja").element() as HTMLElement;
   const style = getComputedStyle(tag);
 
-  expect(style.backgroundColor).toBe(tokenRgb("surface-bone"));
-  expect(style.color).toBe(tokenRgb("ink-secondary"));
+  expect(style.backgroundColor).toBe(tokenRgb("surface-subtle"));
+  expect(style.color).toBe(tokenRgb("text-subtle"));
   expect(
     contrastRatio(rgbToHex(style.color), rgbToHex(style.backgroundColor)),
   ).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
@@ -32,8 +32,8 @@ test("colors the info tone blue message background with strong blue text, cleari
   const tag = screen.getByText("PIN").element() as HTMLElement;
   const style = getComputedStyle(tag);
 
-  expect(style.backgroundColor).toBe(tokenRgb("brand-blue-message-bg"));
-  expect(style.color).toBe(tokenRgb("brand-blue-strong"));
+  expect(style.backgroundColor).toBe(tokenRgb("action-subtle"));
+  expect(style.color).toBe(tokenRgb("text-accent"));
   expect(
     contrastRatio(rgbToHex(style.color), rgbToHex(style.backgroundColor)),
   ).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);

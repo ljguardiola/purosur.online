@@ -22,13 +22,13 @@ const radioLabelClassName =
 // participates in layout, so growing from a 2px border to a 6px ring never resizes the circle.
 const circleClassName =
   "size-5 shrink-0 rounded-full outline-none " +
-  "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-ink-secondary)] " +
-  "group-data-[hovered]:bg-surface-bone " +
-  "group-data-[selected]:shadow-[inset_0_0_0_6px_var(--color-brand-blue-ui)] " +
-  "group-data-[hovered]:group-data-[selected]:bg-surface-white " +
-  "group-data-[hovered]:group-data-[selected]:shadow-[inset_0_0_0_6px_var(--color-brand-blue-strong)] " +
+  "bg-surface shadow-[inset_0_0_0_2px_var(--color-border-strong)] " +
+  "group-data-[hovered]:bg-surface-subtle " +
+  "group-data-[selected]:shadow-[inset_0_0_0_6px_var(--color-action)] " +
+  "group-data-[hovered]:group-data-[selected]:bg-surface " +
+  "group-data-[hovered]:group-data-[selected]:shadow-[inset_0_0_0_6px_var(--color-action-strong)] " +
   "group-data-[focus-visible]:outline-[3px] group-data-[focus-visible]:outline-solid " +
-  "group-data-[focus-visible]:outline-offset-3 group-data-[focus-visible]:outline-brand-blue-strong";
+  "group-data-[focus-visible]:outline-offset-3 group-data-[focus-visible]:outline-focus";
 
 function RadioGroupOption<V extends string>({ value, label }: RadioOption<V>) {
   return (

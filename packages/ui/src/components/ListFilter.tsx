@@ -25,19 +25,19 @@ export type ListFilterProps<V extends string> = {
 // A <button>, unlike a block element, doesn't fill its container's width on its own; it sizes to
 // its content, so max-w-full caps it at the container's width instead.
 const triggerClassName =
-  "flex h-11 max-w-full items-center gap-2 rounded-lg border-2 bg-surface-white px-3 outline-none " +
+  "flex h-11 max-w-full items-center gap-2 rounded-lg border-2 bg-surface px-3 outline-none " +
   "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
-  "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong";
+  "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-focus";
 
 // react-aria-components caps the popover's max-height to fit the viewport but leaves overflow
 // handling to the consumer; without overflow-y-auto a tall options list would paint past that cap.
 const popoverClassName =
-  "min-w-[12.5rem] w-[var(--trigger-width)] rounded-lg border border-line bg-surface-white p-1 " +
-  "shadow-[0_8px_24px_var(--color-ink-menu-shadow)] overflow-y-auto";
+  "min-w-[12.5rem] w-[var(--trigger-width)] rounded-lg border border-border bg-surface p-1 " +
+  "shadow-[0_8px_24px_var(--palette-neutral-900-a16)] overflow-y-auto";
 
 const optionClassName =
   "flex h-10 cursor-pointer items-center justify-between rounded-md px-3 text-sm font-semibold " +
-  "text-ink outline-none data-[hovered]:bg-surface-bone data-[focus-visible]:bg-surface-bone";
+  "text-text outline-none data-[hovered]:bg-surface-subtle data-[focus-visible]:bg-surface-subtle";
 
 // react-aria-components' onSelectionChange reports a plain Key (string | number).
 function isOptionValue<V extends string>(
@@ -75,22 +75,20 @@ export function ListFilter<V extends string>({
         <>
           <AriaButton
             aria-labelledby={`${labelId} ${valueId}`}
-            className={[triggerClassName, isOpen ? "border-brand-blue-ui" : "border-line"].join(
-              " ",
-            )}
+            className={[triggerClassName, isOpen ? "border-action" : "border-border"].join(" ")}
           >
-            <span id={labelId} className="shrink truncate text-sm text-ink-secondary">
+            <span id={labelId} className="shrink truncate text-sm text-text-subtle">
               {label}
             </span>
             {/* shrink-[9999] absorbs the shrink pass before the label's plain `shrink` gives way. */}
             <AriaSelectValue
               id={valueId}
-              className="min-w-7 shrink-[9999] truncate text-right text-base font-bold text-ink"
+              className="min-w-7 shrink-[9999] truncate text-right text-base font-bold text-text"
             />
             {isOpen ? (
-              <ChevronUp aria-hidden="true" className="size-4 shrink-0 text-ink-secondary" />
+              <ChevronUp aria-hidden="true" className="size-4 shrink-0 text-text-subtle" />
             ) : (
-              <ChevronDown aria-hidden="true" className="size-4 shrink-0 text-ink-secondary" />
+              <ChevronDown aria-hidden="true" className="size-4 shrink-0 text-text-subtle" />
             )}
           </AriaButton>
           <AriaPopover offset={4} className={popoverClassName}>
@@ -106,10 +104,7 @@ export function ListFilter<V extends string>({
                     <>
                       <span className="truncate">{option.label}</span>
                       {isSelected && (
-                        <Check
-                          aria-hidden="true"
-                          className="size-4 shrink-0 text-brand-blue-strong"
-                        />
+                        <Check aria-hidden="true" className="size-4 shrink-0 text-text-accent" />
                       )}
                     </>
                   )}

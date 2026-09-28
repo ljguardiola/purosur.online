@@ -9,14 +9,14 @@ export type AccessLayoutProps = {
 
 export function AccessLayout({ children }: AccessLayoutProps) {
   return (
-    <div className="flex h-screen w-screen bg-surface-white">
+    <div className="flex h-screen w-screen bg-surface">
       {/* Shrinkable flex-basis, not a fixed width: a non-shrinking panel would force horizontal
           scroll. min-w-80 keeps a usable floor at narrower widths. */}
-      <div className="flex w-[680px] min-w-80 flex-col bg-surface-sand p-8">
+      <div className="flex w-[680px] min-w-80 flex-col bg-surface-soft p-8">
         <div className="flex-1" />
         <PuroSurLogo className="h-auto max-h-[180px] w-full max-w-[460px] self-center object-contain" />
         <div className="flex-1" />
-        <p className="text-sm font-bold text-ink-secondary">Backoffice</p>
+        <p className="text-sm font-bold text-text-subtle">Backoffice</p>
       </div>
       <main className="flex flex-1 flex-col items-center justify-center p-8">
         <div className="flex w-full max-w-[440px] flex-col gap-4">{children}</div>
@@ -35,17 +35,12 @@ export function AccessHeader({ eyebrow, heading, description }: AccessHeaderProp
   return (
     <div className="flex flex-col gap-1.5">
       {eyebrow && (
-        <p className="text-xs font-bold text-brand-earth-ui uppercase tracking-[1.2px]">
-          {eyebrow}
-        </p>
+        <p className="text-xs font-bold text-text-eyebrow uppercase tracking-[1.2px]">{eyebrow}</p>
       )}
-      <h1
-        tabIndex={-1}
-        className={`text-3xl font-bold text-brand-blue-strong ${focusRingClassName}`}
-      >
+      <h1 tabIndex={-1} className={`text-3xl font-bold text-text-accent ${focusRingClassName}`}>
         {heading}
       </h1>
-      {description && <p className="text-base text-ink-secondary">{description}</p>}
+      {description && <p className="text-base text-text-subtle">{description}</p>}
     </div>
   );
 }
@@ -60,7 +55,7 @@ export function AccessFooterLink({ to, icon, label }: AccessFooterLinkProps) {
   return (
     <Link
       to={to}
-      className={`inline-flex items-center gap-2 self-start py-1 font-bold text-base text-brand-blue-strong ${focusRingClassName}`}
+      className={`inline-flex items-center gap-2 self-start py-1 font-bold text-base text-text-accent ${focusRingClassName}`}
     >
       <span
         aria-hidden="true"

@@ -71,48 +71,48 @@ const frameClassName: Record<Exclude<TextFieldValueKind, "plain-text">, string> 
 const registerPlainTextFrameClassName = "h-[3.25rem] gap-2 px-4";
 
 const valueClassName: Record<Exclude<TextFieldValueKind, "plain-text">, string> = {
-  amount: "text-right text-3xl font-bold text-ink",
-  "counted-cash": "text-right text-3xl font-bold text-ink",
-  price: "text-right text-3xl font-bold text-ink",
-  weight: "text-left text-3xl font-bold text-ink",
-  quantity: "text-right text-3xl font-bold text-ink",
+  amount: "text-right text-3xl font-bold text-text",
+  "counted-cash": "text-right text-3xl font-bold text-text",
+  price: "text-right text-3xl font-bold text-text",
+  weight: "text-left text-3xl font-bold text-text",
+  quantity: "text-right text-3xl font-bold text-text",
 };
-const registerPlainTextValueClassName = "text-left text-base font-normal text-ink";
-const registerPlainTextSuffixedValueClassName = "text-right text-base font-normal text-ink";
+const registerPlainTextValueClassName = "text-left text-base font-normal text-text";
+const registerPlainTextSuffixedValueClassName = "text-right text-base font-normal text-text";
 
-const inputBaseClassName = "min-w-0 flex-1 bg-transparent caret-brand-blue-strong outline-none";
+const inputBaseClassName = "min-w-0 flex-1 bg-transparent caret-focus outline-none";
 
-const moneyPrefixClassName = "shrink-0 text-3xl font-normal text-ink-secondary";
-const unitSuffixClassName = "shrink-0 text-xl font-normal text-ink-secondary";
-const plainTextSuffixClassName = "shrink-0 text-base font-normal text-ink-secondary";
+const moneyPrefixClassName = "shrink-0 text-3xl font-normal text-text-subtle";
+const unitSuffixClassName = "shrink-0 text-xl font-normal text-text-subtle";
+const plainTextSuffixClassName = "shrink-0 text-base font-normal text-text-subtle";
 
-const helperClassName = "text-sm font-normal text-ink-secondary";
-const errorClassName = "text-sm font-normal text-status-error-ui";
+const helperClassName = "text-sm font-normal text-text-subtle";
+const errorClassName = "text-sm font-normal text-error";
 
 // Drawn as an inset box-shadow rather than a real border so it never participates in layout.
 // `hover:not-focus-within:` keeps the hovered fill from showing once the field is focused,
 // regardless of the two Tailwind rules' generated order.
 function boxStateClassName(disabled: boolean, readOnly: boolean, invalid: boolean): string {
   if (disabled) {
-    return "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-line)]";
+    return "bg-surface shadow-[inset_0_0_0_2px_var(--color-border)]";
   }
   if (readOnly) {
     return (
-      "bg-surface-bone shadow-[inset_0_0_0_2px_var(--color-line)] " +
-      "focus-within:shadow-[inset_0_0_0_2px_var(--color-brand-blue-ui)]"
+      "bg-surface-subtle shadow-[inset_0_0_0_2px_var(--color-border)] " +
+      "focus-within:shadow-[inset_0_0_0_2px_var(--color-action)]"
     );
   }
   if (invalid) {
     return (
-      "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-status-error-ui)] " +
-      "hover:not-focus-within:bg-surface-bone " +
-      "focus-within:shadow-[inset_0_0_0_2px_var(--color-brand-blue-ui)]"
+      "bg-surface shadow-[inset_0_0_0_2px_var(--color-error)] " +
+      "hover:not-focus-within:bg-surface-subtle " +
+      "focus-within:shadow-[inset_0_0_0_2px_var(--color-action)]"
     );
   }
   return (
-    "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-line)] " +
-    "hover:not-focus-within:bg-surface-bone " +
-    "focus-within:shadow-[inset_0_0_0_2px_var(--color-brand-blue-ui)]"
+    "bg-surface shadow-[inset_0_0_0_2px_var(--color-border)] " +
+    "hover:not-focus-within:bg-surface-subtle " +
+    "focus-within:shadow-[inset_0_0_0_2px_var(--color-action)]"
   );
 }
 

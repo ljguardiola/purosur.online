@@ -368,7 +368,7 @@ function RemovePasskeyModal({
       >
         {target && (
           <div className="flex flex-col gap-4">
-            <p className="text-base text-ink">
+            <p className="text-base text-text">
               {`«${target.name}» deja de servir para entrar.`}
               {isOnlyPasskey
                 ? " Es tu única passkey: para volver a entrar vas a tener que pedir el enlace de recuperación por correo."
@@ -459,16 +459,16 @@ export function MyAccountScreen({
     <>
       <ScreenLayout
         topBar={
-          <div className="flex h-18 shrink-0 flex-col justify-center border-line border-b bg-surface-white px-8">
-            <p className="text-ink-secondary text-sm">{`Configuración · ${displayName}`}</p>
+          <div className="flex h-18 shrink-0 flex-col justify-center border-border border-b bg-surface px-8">
+            <p className="text-text-subtle text-sm">{`Configuración · ${displayName}`}</p>
             <ScreenTitle>Mi cuenta</ScreenTitle>
           </div>
         }
         bodyClassName="gap-4 p-6"
       >
-        <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface-white p-4">
+        <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
           <div className="flex items-center gap-3">
-            <h2 className="flex-1 font-bold text-lg text-brand-blue-strong">Passkeys</h2>
+            <h2 className="flex-1 font-bold text-lg text-text-accent">Passkeys</h2>
             <Button
               variant="secondary"
               icon={<Plus />}
@@ -519,13 +519,13 @@ export function MyAccountScreen({
                   <li key={passkey.id} className="flex items-center gap-3">
                     <span
                       aria-hidden="true"
-                      className="inline-flex size-5 shrink-0 text-ink-secondary"
+                      className="inline-flex size-5 shrink-0 text-text-subtle"
                     >
                       <Laptop />
                     </span>
                     <div className="flex flex-1 flex-col gap-1">
-                      <p className="font-semibold text-base text-ink">{passkey.name}</p>
-                      <p className="text-ink-secondary text-sm">
+                      <p className="font-semibold text-base text-text">{passkey.name}</p>
+                      <p className="text-text-subtle text-sm">
                         {passkeyRowDetail(passkey, clock())}
                       </p>
                     </div>

@@ -13,27 +13,27 @@ const pillClassName =
   "inline-flex h-[1.75rem] items-center gap-2 rounded-[0.875rem] px-3 font-sans text-sm font-semibold";
 
 const toneClassName: Record<StatusIndicatorTone, string> = {
-  success: "bg-brand-green-message-bg text-brand-green-strong",
-  warning: "bg-status-warning-message-bg text-status-warning-strong",
-  error: "bg-status-error-message-bg text-status-error-strong",
-  info: "bg-brand-blue-message-bg text-brand-blue-strong",
-  neutral: "bg-surface-sand text-ink-secondary",
+  success: "bg-success-subtle text-success-strong",
+  warning: "bg-warning-subtle text-warning-strong",
+  error: "bg-error-subtle text-error-strong",
+  info: "bg-info-subtle text-info-strong",
+  neutral: "bg-neutral-subtle text-text-subtle",
 };
 
 const dotClassName: Record<StatusIndicatorTone, string> = {
-  success: "bg-brand-green",
-  warning: "bg-status-warning-accent",
-  error: "bg-status-error-accent",
-  info: "bg-brand-blue",
-  neutral: "bg-ink-secondary",
+  success: "bg-success-soft",
+  warning: "bg-warning-soft",
+  error: "bg-error-soft",
+  info: "bg-info-soft",
+  neutral: "bg-neutral",
 };
 
 const spinnerColorClassName: Record<StatusIndicatorTone, string> = {
-  success: "text-brand-green",
-  warning: "text-status-warning-accent",
-  error: "text-status-error-accent",
-  info: "text-brand-blue",
-  neutral: "text-ink-secondary",
+  success: "text-success-soft",
+  warning: "text-warning-soft",
+  error: "text-error-soft",
+  info: "text-info-soft",
+  neutral: "text-text-subtle",
 };
 
 const spinnerBaseClassName = "size-[0.875rem] shrink-0 animate-spin motion-reduce:animate-none";

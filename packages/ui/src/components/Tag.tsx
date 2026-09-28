@@ -11,11 +11,11 @@ export type TagProps = {
 const tagClassName =
   "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs font-bold whitespace-nowrap " +
   "outline-none focus-visible:outline-[3px] focus-visible:outline-solid focus-visible:outline-offset-3 " +
-  "focus-visible:outline-brand-blue-strong";
+  "focus-visible:outline-focus";
 
 const toneClassName: Record<TagTone, string> = {
-  neutral: "bg-surface-bone text-ink-secondary",
-  info: "bg-brand-blue-message-bg text-brand-blue-strong",
+  neutral: "bg-surface-subtle text-text-subtle",
+  info: "bg-info-subtle text-info-strong",
 };
 
 // The icon's size is fixed by this span's CSS, not by cloning a `size` prop — only lucide icons

@@ -24,11 +24,9 @@ function CashAndFiscalArea() {
       sectionColumnLabel="Caja y fiscal"
       sectionColumn={
         <>
-          <h2 className="font-bold text-brand-blue-strong text-xl">Caja y fiscal</h2>
+          <h2 className="font-bold text-text-accent text-xl">Caja y fiscal</h2>
           <div className="h-2.5" />
-          <p className="px-3 pt-3 pb-1 font-bold text-ink-secondary text-xs tracking-[1px]">
-            FISCAL
-          </p>
+          <p className="px-3 pt-3 pb-1 font-bold text-text-subtle text-xs tracking-[1px]">FISCAL</p>
           <ul className="flex flex-col gap-1">
             <li>
               <SectionLink

@@ -256,13 +256,13 @@ export function AlertsListScreen({
     <>
       <ScreenLayout
         topBar={
-          <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
+          <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
             <div className="flex flex-col justify-center">
-              <p className="text-ink-secondary text-sm">Inicio</p>
+              <p className="text-text-subtle text-sm">Inicio</p>
               <ScreenTitle>Alertas</ScreenTitle>
             </div>
             {openCount > 0 && (
-              <div className="inline-flex h-[1.75rem] items-center gap-2 rounded-[0.875rem] bg-status-warning-message-bg px-3 font-sans text-sm font-semibold text-status-warning-strong">
+              <div className="inline-flex h-[1.75rem] items-center gap-2 rounded-[0.875rem] bg-warning-subtle px-3 font-sans text-sm font-semibold text-warning-strong">
                 <Bell aria-hidden="true" className="size-3.5 shrink-0" />
                 {plural(openCount, {
                   one: "1 alerta abierta",
@@ -353,7 +353,7 @@ export function AlertsListScreen({
               }
               footer={
                 <div className="flex items-center justify-between gap-4">
-                  <p className="text-ink-secondary text-sm">
+                  <p className="text-text-subtle text-sm">
                     {`${plural(openCount, { one: "1 alerta abierta", other: `${openCount} alertas abiertas` })} · ${plural(criticalCount, { one: "1 crítica", other: `${criticalCount} críticas` })}`}
                   </p>
                   <Pagination
