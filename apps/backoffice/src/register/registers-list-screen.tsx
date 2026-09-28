@@ -381,6 +381,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
       services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
     });
   const onSessionEndedRef = useLatestRef(onSessionEnded);
+  const clockRef = useLatestRef(clock);
 
   const latestLoad = useRef(0);
   const latestEmission = useRef(0);
@@ -414,14 +415,14 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
     void load();
   }, [load]);
 
-  const [, setClockTick] = useState(0);
+  const [currentTime, setCurrentTime] = useState(() => clock());
   useEffect(() => {
     const intervalId = window.setInterval(
-      () => setClockTick((tick) => tick + 1),
+      () => setCurrentTime(clockRef.current()),
       PENDING_CODE_REFRESH_MS,
     );
     return () => window.clearInterval(intervalId);
-  }, []);
+  }, [clockRef]);
 
   // Guards a second Enter/Space activation before the first request settles (the modal backdrop
   // blocks other rows).
@@ -490,7 +491,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
       key: "installation",
       title: "INSTALACIÓN",
       render: (item: RegisterSummary) => {
-        const now = clock();
+        const now = currentTime;
         const pendingCode =
           item.pendingCode && new Date(item.pendingCode.expiresAt) > now ? item.pendingCode : null;
         if (!pendingCode) {
