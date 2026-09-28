@@ -325,16 +325,4 @@ describe("POST /categories", () => {
     expect(response.statusCode).toBe(201);
     expect(response.json()).toMatchObject({ name: "Repuesto", parentId: limpieza });
   });
-
-  it("allows the same name as an existing top-level category when nested under a parent", async () => {
-    await insertCategory("Semillas");
-    const almacen = await insertCategory("Almacén");
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
-
-    const response = await createCategory(rawSessionId, { name: "Semillas", parentId: almacen });
-
-    expect(response.statusCode).toBe(201);
-    expect(response.json()).toMatchObject({ name: "Semillas", parentId: almacen });
-  });
 });

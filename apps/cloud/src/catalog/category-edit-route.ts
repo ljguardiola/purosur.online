@@ -1,4 +1,5 @@
-import { eq, sql } from "drizzle-orm";
+import { editCategory } from "@purosur/domain";
+import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
@@ -14,10 +15,6 @@ import {
   CATEGORY_NAME_TAKEN_RESPONSE,
   CATEGORY_PARENT_HAS_PRODUCTS_RESPONSE,
   CATEGORY_PARENT_NOT_FOUND_FAILURE,
-  CategoryNameTaken,
-  isCategoryNameUniqueViolation,
-  lockParentForNewChild,
-  siblingNameTaken,
 } from "./category-creation-route.js";
 import {
   type CategoryFieldValidationFailure,
@@ -26,10 +23,7 @@ import {
   readCategoryName,
   readParentId,
 } from "./category-validation.js";
-
-// Acquired before any row lock, otherwise two concurrent moves could each hold their own row lock
-// and deadlock trying to lock each other's row as the new parent.
-export const CATEGORY_MOVE_LOCK_KEY = "category-move";
+import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
 
 const CATEGORY_MOVE_NOT_ALLOWED_RESPONSE = {
   code: "category_move_not_allowed",
@@ -107,124 +101,13 @@ async function findCategoryById<TQueryResult extends PgQueryResultHKT>(
   return category;
 }
 
-export interface EditCategoryInput {
-  id: string;
-  name: string;
-  parentId: string | null;
-  version: number;
-}
-
-export type EditCategoryOutcome =
-  | { kind: "stale_version" }
-  | { kind: "name_taken" }
-  | { kind: "parent_not_found" }
-  | { kind: "parent_has_products" }
-  | { kind: "move_not_allowed" }
-  | { kind: "applied"; category: CategoryRow };
-
-// A category tree has no cycles, so walking parent_id up from newParentId always terminates.
-async function wouldCreateCycle<TQueryResult extends PgQueryResultHKT>(
-  tx: PgDatabase<TQueryResult>,
-  newParentId: string,
-  movingCategoryId: string,
-): Promise<boolean> {
-  let currentId: string | null = newParentId;
-  while (currentId !== null) {
-    if (currentId === movingCategoryId) {
-      return true;
-    }
-    const [row] = await tx
-      .select({ parentId: categories.parentId })
-      .from(categories)
-      .where(eq(categories.id, currentId));
-    currentId = row?.parentId ?? null;
-  }
-  return false;
-}
-
-export async function editCategory<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  input: EditCategoryInput,
-): Promise<EditCategoryOutcome> {
-  return db
-    .transaction<EditCategoryOutcome>(async (tx) => {
-      if (input.parentId !== null) {
-        await tx.execute(
-          sql`select pg_advisory_xact_lock(hashtextextended(${CATEGORY_MOVE_LOCK_KEY}, 0))`,
-        );
-      }
-
-      // Locks this one row so a concurrent edit against the same category waits instead of racing.
-      const [current] = await tx
-        .select({
-          name: categories.name,
-          version: categories.version,
-          parentId: categories.parentId,
-        })
-        .from(categories)
-        .where(eq(categories.id, input.id))
-        .for("update");
-      if (!current || current.version !== input.version) {
-        return { kind: "stale_version" };
-      }
-
-      const parentChanged = current.parentId !== input.parentId;
-      if (!parentChanged && current.name === input.name) {
-        return {
-          kind: "applied",
-          category: {
-            id: input.id,
-            name: input.name,
-            parentId: input.parentId,
-            version: current.version,
-          },
-        };
-      }
-
-      if (parentChanged && input.parentId !== null) {
-        const parent = await lockParentForNewChild(tx, input.parentId);
-        if (parent !== "locked") {
-          return { kind: parent };
-        }
-        if (await wouldCreateCycle(tx, input.parentId, input.id)) {
-          return { kind: "move_not_allowed" };
-        }
-      }
-
-      if (await siblingNameTaken(tx, input.parentId, input.name, input.id)) {
-        throw new CategoryNameTaken();
-      }
-
-      const nextVersion = current.version + 1;
-      await tx
-        .update(categories)
-        .set({ name: input.name, parentId: input.parentId, version: nextVersion })
-        .where(eq(categories.id, input.id));
-
-      return {
-        kind: "applied",
-        category: {
-          id: input.id,
-          name: input.name,
-          parentId: input.parentId,
-          version: nextVersion,
-        },
-      };
-    })
-    .catch((error: unknown): EditCategoryOutcome => {
-      if (error instanceof CategoryNameTaken || isCategoryNameUniqueViolation(error)) {
-        return { kind: "name_taken" };
-      }
-      throw error;
-    });
-}
-
 export function registerCategoryEditRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: CategoriesRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
   registerRouteAccess(app);
+  const catalogStore = new DrizzleCatalogStore(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
   function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
@@ -264,13 +147,17 @@ export function registerCategoryEditRoute<TQueryResult extends PgQueryResultHKT>
         return;
       }
 
-      const outcome = await editCategory(options.db, {
+      const outcome = await editCategory(catalogStore, {
         id: target.id,
         name: parsedBody.name,
         parentId: parsedBody.parentId,
         version: parsedBody.version,
       });
 
+      if (outcome.kind === "not_found") {
+        await reply.code(404).send(NOT_FOUND_RESPONSE);
+        return;
+      }
       if (outcome.kind === "stale_version") {
         await reply.code(409).send(STALE_VERSION_RESPONSE);
         return;

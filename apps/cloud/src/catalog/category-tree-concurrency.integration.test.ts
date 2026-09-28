@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { createProduct, editProduct } from "@purosur/domain";
+import { createCategory, createProduct, editCategory, editProduct } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -9,9 +9,7 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
-import { createCategory } from "./category-creation-route.js";
-import { CATEGORY_MOVE_LOCK_KEY, editCategory } from "./category-edit-route.js";
-import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
+import { CATEGORY_MOVE_LOCK_KEY, DrizzleCatalogStore } from "./drizzle-catalog-store.js";
 
 // PGlite serializes every query on one connection, so racing writes can only interleave on a real
 // Postgres pool; each test pins that interleaving by holding a lock until both writes queue behind it.
@@ -70,7 +68,10 @@ function holdCategoryRowLock(categoryId: string) {
 }
 
 async function insertTopLevelCategory(name: string) {
-  const created = await createCategory(db, { name: `${name} ${randomUUID()}`, parentId: null });
+  const created = await createCategory(new DrizzleCatalogStore(db), {
+    name: `${name} ${randomUUID()}`,
+    parentId: null,
+  });
   if (created.kind !== "created") {
     throw new Error("test setup: expected the category to be created");
   }
@@ -97,8 +98,20 @@ describe("moving two unrelated categories under each other concurrently on a rea
     const [moveAUnderB, moveBUnderA] = await runQueuedBehindHeldLock(
       (connection) =>
         connection`select pg_advisory_xact_lock(hashtextextended(${CATEGORY_MOVE_LOCK_KEY}, 0))`,
-      () => editCategory(db, { id: a.id, name: a.name, parentId: b.id, version: a.version }),
-      () => editCategory(db, { id: b.id, name: b.name, parentId: a.id, version: b.version }),
+      () =>
+        editCategory(new DrizzleCatalogStore(db), {
+          id: a.id,
+          name: a.name,
+          parentId: b.id,
+          version: a.version,
+        }),
+      () =>
+        editCategory(new DrizzleCatalogStore(db), {
+          id: b.id,
+          name: b.name,
+          parentId: a.id,
+          version: b.version,
+        }),
     );
 
     const kinds = [moveAUnderB.kind, moveBUnderA.kind].sort();
@@ -153,7 +166,11 @@ describe("giving a category a product and a subcategory concurrently on a real P
             barcodes: [randomUUID()],
             netContent: null,
           }),
-        () => createCategory(db, { name: `Infusiones ${randomUUID()}`, parentId: almacen.id }),
+        () =>
+          createCategory(new DrizzleCatalogStore(db), {
+            name: `Infusiones ${randomUUID()}`,
+            parentId: almacen.id,
+          }),
       );
 
       const kinds = [productCreation.kind, subcategoryCreation.kind];
@@ -197,7 +214,7 @@ describe("giving a category a product and a subcategory concurrently on a real P
             version: product.version,
           }),
         () =>
-          editCategory(db, {
+          editCategory(new DrizzleCatalogStore(db), {
             id: infusiones.id,
             name: infusiones.name,
             parentId: almacen.id,

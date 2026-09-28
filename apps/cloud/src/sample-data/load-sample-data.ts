@@ -1,4 +1,4 @@
-import { createProduct, deactivateProduct } from "@purosur/domain";
+import { createCategory, createProduct, deactivateProduct } from "@purosur/domain";
 import { and, eq, like, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { createRole } from "../access/role-creation-route.js";
@@ -9,7 +9,6 @@ import { closeAlert } from "../alerts/alert-close-route.js";
 import { escalateOverdueAlerts } from "../alerts/alert-escalation.js";
 import { openAlert } from "../alerts/open-alert.js";
 import { editBranchSettings } from "../branch/branch-settings-edit-route.js";
-import { createCategory } from "../catalog/category-creation-route.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { allocateInternalBarcode } from "../catalog/internal-barcode-route.js";
 import { branchSettings, locations, roles, userRoles, users } from "../platform/db/schema.js";
@@ -161,12 +160,15 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
       let categoryCount = 0;
       let productCount = 0;
       for (const top of SAMPLE_CATEGORY_TREE) {
-        const topOutcome = await createCategory(tx, { name: top.name, parentId: null });
+        const topOutcome = await createCategory(new DrizzleCatalogStore(tx), {
+          name: top.name,
+          parentId: null,
+        });
         const topCategory = expectOutcome(topOutcome, "created", `category "${top.name}"`);
         categoryCount += 1;
 
         for (const mid of top.mids) {
-          const midOutcome = await createCategory(tx, {
+          const midOutcome = await createCategory(new DrizzleCatalogStore(tx), {
             name: mid.name,
             parentId: topCategory.category.id,
           });
@@ -174,7 +176,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
           categoryCount += 1;
 
           for (const leaf of mid.leaves) {
-            const leafOutcome = await createCategory(tx, {
+            const leafOutcome = await createCategory(new DrizzleCatalogStore(tx), {
               name: leaf.name,
               parentId: midCategory.category.id,
             });

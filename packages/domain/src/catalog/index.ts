@@ -43,9 +43,13 @@ export {
   CatalogBarcodeConflict,
   CatalogCategoryNameConflict,
 } from "./use-cases/catalog-store.js";
+export type { CreateCategoryInput, CreateCategoryOutcome } from "./use-cases/create-category.js";
+export { createCategory } from "./use-cases/create-category.js";
 export type { CreateProductInput, CreateProductOutcome } from "./use-cases/create-product.js";
 export { createProduct } from "./use-cases/create-product.js";
 export type { DeactivateProductOutcome } from "./use-cases/deactivate-product.js";
 export { deactivateProduct } from "./use-cases/deactivate-product.js";
+export type { EditCategoryInput, EditCategoryOutcome } from "./use-cases/edit-category.js";
+export { editCategory } from "./use-cases/edit-category.js";
 export type { EditProductInput, EditProductOutcome } from "./use-cases/edit-product.js";
 export { editProduct } from "./use-cases/edit-product.js";

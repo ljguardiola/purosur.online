@@ -1,5 +1,5 @@
-import { and, eq, isNull, ne, sql } from "drizzle-orm";
-import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { createCategory } from "@purosur/domain";
+import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   originGuard,
@@ -7,15 +7,14 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
-import { categories, products } from "../platform/db/schema.js";
-import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
-import type { CategoriesRouteOptions, CategoryRow } from "./categories-list-route.js";
+import type { CategoriesRouteOptions } from "./categories-list-route.js";
 import {
   type CategoryFieldValidationFailure,
   categoryNameValidationFailure,
   readCategoryName,
   readParentId,
 } from "./category-validation.js";
+import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
 
 export const CATEGORY_NAME_TAKEN_RESPONSE = {
   code: "category_name_taken",
@@ -31,28 +30,6 @@ export const CATEGORY_PARENT_HAS_PRODUCTS_RESPONSE = {
   code: "category_parent_has_products",
   message: "the parent category has products assigned; move them before adding a subcategory",
 } as const;
-
-const UNIQUE_VIOLATION = "23505";
-const CATEGORY_NAME_UNIQUE_INDEX = "categories_name_lower_key";
-
-export class CategoryNameTaken extends Error {}
-
-export function isCategoryNameUniqueViolation(error: unknown): boolean {
-  let current: unknown = error;
-  while (current instanceof Error) {
-    const { code, constraint, constraint_name } = current as {
-      code?: unknown;
-      constraint?: unknown;
-      constraint_name?: unknown;
-    };
-    const index = constraint_name ?? constraint;
-    if (code === UNIQUE_VIOLATION && index === CATEGORY_NAME_UNIQUE_INDEX) {
-      return true;
-    }
-    current = current.cause;
-  }
-  return false;
-}
 
 interface CreationRequestBody {
   name: string;
@@ -82,110 +59,13 @@ function isValidationFailure(
   return "field" in value;
 }
 
-export interface CreateCategoryInput {
-  name: string;
-  parentId: string | null;
-}
-
-export type CreateCategoryOutcome =
-  | { kind: "name_taken" }
-  | { kind: "parent_not_found" }
-  | { kind: "parent_has_products" }
-  | { kind: "created"; category: CategoryRow };
-
-// `FOR UPDATE` row lock, so the "has children"/"has products" checks below can't race a
-// concurrent write on the same category; any assigned product blocks, inactive ones included.
-export async function lockParentForNewChild<TQueryResult extends PgQueryResultHKT>(
-  tx: PgDatabase<TQueryResult>,
-  parentId: string,
-): Promise<"parent_not_found" | "parent_has_products" | "locked"> {
-  if (!UUID_PATTERN.test(parentId)) {
-    return "parent_not_found";
-  }
-  const [parent] = await tx
-    .select({ id: categories.id })
-    .from(categories)
-    .where(eq(categories.id, parentId))
-    .for("update");
-  if (!parent) {
-    return "parent_not_found";
-  }
-  const [product] = await tx
-    .select({ id: products.id })
-    .from(products)
-    .where(eq(products.categoryId, parentId))
-    .limit(1);
-  return product ? "parent_has_products" : "locked";
-}
-
-export async function siblingNameTaken<TQueryResult extends PgQueryResultHKT>(
-  tx: PgDatabase<TQueryResult>,
-  parentId: string | null,
-  name: string,
-  excludingId?: string,
-): Promise<boolean> {
-  const [sibling] = await tx
-    .select({ id: categories.id })
-    .from(categories)
-    .where(
-      and(
-        parentId === null ? isNull(categories.parentId) : eq(categories.parentId, parentId),
-        sql`lower(${categories.name}) = lower(${name})`,
-        excludingId === undefined ? undefined : ne(categories.id, excludingId),
-      ),
-    )
-    .limit(1);
-  return sibling !== undefined;
-}
-
-// The database's own `categories_name_lower_key` unique index (NULLS NOT DISTINCT per parent)
-// backstops a name that lands concurrently; the catch below maps that failure.
-export async function createCategory<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  input: CreateCategoryInput,
-): Promise<CreateCategoryOutcome> {
-  return db
-    .transaction<CreateCategoryOutcome>(async (tx) => {
-      if (input.parentId !== null) {
-        const parent = await lockParentForNewChild(tx, input.parentId);
-        if (parent !== "locked") {
-          return { kind: parent };
-        }
-      }
-
-      if (await siblingNameTaken(tx, input.parentId, input.name)) {
-        throw new CategoryNameTaken();
-      }
-
-      const [newCategory] = await tx
-        .insert(categories)
-        .values({ name: input.name, parentId: input.parentId })
-        .returning({
-          id: categories.id,
-          name: categories.name,
-          version: categories.version,
-          parentId: categories.parentId,
-        });
-      if (!newCategory) {
-        throw new Error("inserting the category returned no row");
-      }
-
-      return { kind: "created", category: newCategory };
-    })
-    .catch((error: unknown): CreateCategoryOutcome => {
-      if (error instanceof CategoryNameTaken || isCategoryNameUniqueViolation(error)) {
-        return { kind: "name_taken" };
-      }
-      throw error;
-    });
-}
-
 export function registerCategoryCreationRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: CategoriesRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
   registerRouteAccess(app);
+  const catalogStore = new DrizzleCatalogStore(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
   function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
@@ -219,7 +99,7 @@ export function registerCategoryCreationRoute<TQueryResult extends PgQueryResult
         return;
       }
 
-      const outcome = await createCategory(options.db, {
+      const outcome = await createCategory(catalogStore, {
         name: parsedBody.name,
         parentId: parsedBody.parentId,
       });

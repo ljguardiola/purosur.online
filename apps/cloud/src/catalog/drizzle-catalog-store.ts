@@ -21,7 +21,7 @@ const UNIQUE_VIOLATION = "23505";
 const BARCODE_UNIQUE_INDEX = "product_barcodes_code_key";
 const CATEGORY_NAME_UNIQUE_INDEX = "categories_name_lower_key";
 
-const CATEGORY_MOVE_LOCK_KEY = "category-move";
+export const CATEGORY_MOVE_LOCK_KEY = "category-move";
 
 function violatesUniqueIndex(error: unknown, index: string): boolean {
   return postgresErrorChain(error).some(
