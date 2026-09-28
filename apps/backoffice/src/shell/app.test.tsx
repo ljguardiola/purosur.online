@@ -2000,7 +2000,7 @@ test("offers to try again when a screen fails to render, reports the failure, an
 
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
-  await expect.element(screen.getByRole("heading", { name: "Alertas", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Alertas", level: 1 })).toHaveFocus();
   expect(screen.getByText("No pudimos mostrar esta pantalla").query()).toBeNull();
   expect(reportError).toHaveBeenCalledTimes(1);
 });
