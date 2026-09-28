@@ -1,10 +1,11 @@
+import { userEditBodySchema } from "@purosur/contracts";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { openAlert } from "../alerts/open-alert.js";
 import { auditLog, recoveryTokens, roles, userRoles, users } from "../platform/db/schema.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
 import { type BranchUserRow, findBranchUser, toBranchUserWire } from "./branch-users.js";
-import { readEmail } from "./email-validation.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import {
   ADMINISTRATOR_ACCESS,
@@ -64,49 +65,6 @@ function isEmailUniqueViolation(error: unknown): boolean {
   return false;
 }
 
-interface ValidationFailure {
-  field: "email" | "role_id" | "version";
-  message: string;
-}
-
-interface EditRequestBody {
-  email: string;
-  roleId: string;
-  version: number;
-}
-
-function readVersion(body: unknown): number | undefined {
-  const raw = (body as { version?: unknown } | undefined)?.version;
-  return typeof raw === "number" && Number.isInteger(raw) && raw >= 1 ? raw : undefined;
-}
-
-function readRoleId(body: unknown): string | undefined {
-  const raw = (body as { role_id?: unknown } | undefined)?.role_id;
-  return typeof raw === "string" && UUID_PATTERN.test(raw) ? raw : undefined;
-}
-
-function readEditBody(body: unknown): EditRequestBody | ValidationFailure {
-  const email = readEmail(body);
-  if (!email) {
-    return { field: "email", message: "email must look like local@domain" };
-  }
-  const roleId = readRoleId(body);
-  if (!roleId) {
-    return { field: "role_id", message: "role_id must be a role's id" };
-  }
-  const version = readVersion(body);
-  if (version === undefined) {
-    return { field: "version", message: "version must be the positive integer it was loaded with" };
-  }
-  return { email, roleId, version };
-}
-
-function isValidationFailure(
-  value: EditRequestBody | ValidationFailure,
-): value is ValidationFailure {
-  return "field" in value;
-}
-
 type EditOutcome =
   | { kind: "stale_version" }
   | { kind: "email_taken" }
@@ -155,13 +113,8 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      const parsedBody = readEditBody(request.body);
-      if (isValidationFailure(parsedBody)) {
-        await reply.code(400).send({
-          code: "validation_failed",
-          message: parsedBody.message,
-          details: [{ field: parsedBody.field }],
-        });
+      const parsedBody = await readValidatedBody(reply, userEditBodySchema, request.body);
+      if (!parsedBody) {
         return;
       }
 
@@ -172,7 +125,7 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
       const [requestedRole] = await options.db
         .select({ id: roles.id })
         .from(roles)
-        .where(eq(roles.id, parsedBody.roleId))
+        .where(eq(roles.id, parsedBody.role_id))
         .limit(1);
       if (!requestedRole) {
         await reply.code(400).send(UNKNOWN_ROLE_RESPONSE);

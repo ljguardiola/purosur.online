@@ -1,3 +1,4 @@
+import { sessionAuthorizationBodySchema } from "@purosur/contracts";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
 import { generateAuthenticationOptions } from "@simplewebauthn/server";
 import { eq } from "drizzle-orm";
@@ -31,13 +32,6 @@ const AUTHENTICATION_FAILED_RESPONSE = {
   code: "authentication_failed",
   message: "the passkey authorization could not be verified",
 } as const;
-
-function readAssertion(body: unknown): AuthenticationResponseJSON | undefined {
-  const assertion = (body as { authorization?: unknown } | undefined)?.authorization as
-    | AuthenticationResponseJSON
-    | undefined;
-  return assertion && typeof assertion.id === "string" ? assertion : undefined;
-}
 
 /** Neither route is itself gated by the passkey-authorization window: an already-open session can always ask to (re)authorize. */
 export function registerSessionAuthorizationRoutes<TQueryResult extends PgQueryResultHKT>(
@@ -107,11 +101,12 @@ export function registerSessionAuthorizationRoutes<TQueryResult extends PgQueryR
       const attemptedAt = now();
       const openSession = openSessionOf(request);
 
-      const assertion = readAssertion(request.body);
-      if (!assertion) {
+      const body = sessionAuthorizationBodySchema.safeParse(request.body);
+      if (!body.success) {
         await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
         return;
       }
+      const assertion = body.data.authorization as AuthenticationResponseJSON;
 
       const pending = await consumePendingPasskeyChallenge(options.db, {
         sessionId: openSession.sessionId,

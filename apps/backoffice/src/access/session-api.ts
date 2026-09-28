@@ -1,3 +1,4 @@
+import type { SessionAuthenticationBody, SessionAuthorizationBody } from "@purosur/contracts";
 import type {
   AuthenticationResponseJSON,
   PublicKeyCredentialRequestOptionsJSON,
@@ -150,9 +151,10 @@ export async function fetchAuthenticationOptions(): Promise<AuthenticationOption
 export async function authenticate(
   assertion: AuthenticationResponseJSON,
 ): Promise<AuthenticateOutcome> {
+  const requestBody: SessionAuthenticationBody = { assertion };
   let response: Response;
   try {
-    response = await postJson("/users/session/authenticate", { assertion });
+    response = await postJson("/users/session/authenticate", requestBody);
   } catch {
     return { kind: "failed" };
   }
@@ -221,9 +223,10 @@ export async function fetchSessionAuthorizationOptions(): Promise<SessionAuthori
 export async function authorizeSession(
   assertion: AuthenticationResponseJSON,
 ): Promise<AuthorizeSessionOutcome> {
+  const requestBody: SessionAuthorizationBody = { authorization: assertion };
   let response: Response;
   try {
-    response = await postJson("/users/session/authorization", { authorization: assertion });
+    response = await postJson("/users/session/authorization", requestBody);
   } catch {
     return { kind: "failed" };
   }

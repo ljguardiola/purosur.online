@@ -1,6 +1,11 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { isRoleNameTooLong, ROLE_NAME_MAX_LENGTH, roleNameLength } from "./role-name.js";
+import {
+  isAdministratorRoleName,
+  isRoleNameTooLong,
+  ROLE_NAME_MAX_LENGTH,
+  roleNameLength,
+} from "./role-name.js";
 
 const fullUnicodeCodePoint = fc
   .integer({ min: 0, max: 0x10ffff })
@@ -47,4 +52,20 @@ describe("isRoleNameTooLong", () => {
       }),
     );
   });
+});
+
+describe("isAdministratorRoleName", () => {
+  it.each(["Administrador", "administrador", "ADMINISTRADOR"])(
+    "recognizes the Administrator role's own name whatever its case: %s",
+    (name) => {
+      expect(isAdministratorRoleName(name)).toBe(true);
+    },
+  );
+
+  it.each(["Cajera", "Administradora", "administrador 2", ""])(
+    "does not recognize another name: %j",
+    (name) => {
+      expect(isAdministratorRoleName(name)).toBe(false);
+    },
+  );
 });

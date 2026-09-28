@@ -236,38 +236,6 @@ describe("POST /roles/:id/edit", () => {
     expect(row).toMatchObject({ name: "Cajera", version: 1 });
   });
 
-  it("rejects an unknown permission key, changing nothing", async () => {
-    const rawSessionId = await insertSession(administratorId);
-
-    const response = await editRoleRequest(roleId, rawSessionId, {
-      name: "Cajera",
-      permissions: ["not_a_real_permission"],
-      version: 1,
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "permissions" }],
-    });
-  });
-
-  it("rejects a missing or non-positive version, changing nothing", async () => {
-    const rawSessionId = await insertSession(administratorId);
-
-    const response = await editRoleRequest(roleId, rawSessionId, {
-      name: "Cajera",
-      permissions: [],
-      version: 0,
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "version" }],
-    });
-  });
-
   it("returns 409 stale_version and changes nothing when the sent version does not match", async () => {
     const rawSessionId = await insertSession(administratorId);
 

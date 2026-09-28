@@ -1,3 +1,27 @@
+export type { PasskeyRegistrationBody } from "./access/passkey-registration.js";
+export { passkeyRegistrationBodySchema } from "./access/passkey-registration.js";
+export type { RecoveryRedemptionBody } from "./access/recovery-redemption.js";
+export { recoveryRedemptionBodySchema } from "./access/recovery-redemption.js";
+export type { RecoveryRequestBody } from "./access/recovery-request.js";
+export { recoveryRequestBodySchema } from "./access/recovery-request.js";
+export type { RecoveryTokenBody } from "./access/recovery-token.js";
+export { recoveryTokenBodySchema } from "./access/recovery-token.js";
+export type { RoleCreationBody } from "./access/role-creation.js";
+export { roleCreationBodySchema } from "./access/role-creation.js";
+export type { RoleEditBody } from "./access/role-edit.js";
+export { roleEditBodySchema } from "./access/role-edit.js";
+export type { SessionAuthenticationBody } from "./access/session-authentication.js";
+export { sessionAuthenticationBodySchema } from "./access/session-authentication.js";
+export type { SessionAuthorizationBody } from "./access/session-authorization.js";
+export { sessionAuthorizationBodySchema } from "./access/session-authorization.js";
+export type { UserCreationBody } from "./access/user-creation.js";
+export { userCreationBodySchema } from "./access/user-creation.js";
+export type { UserEditBody } from "./access/user-edit.js";
+export { userEditBodySchema } from "./access/user-edit.js";
+export type { BranchSettingsEditBody } from "./branch/branch-settings-edit.js";
+export { branchSettingsEditBodySchema } from "./branch/branch-settings-edit.js";
+export type { IssuerIdentificationEditBody } from "./fiscal/issuer-identification-edit.js";
+export { issuerIdentificationEditBodySchema } from "./fiscal/issuer-identification-edit.js";
 export type {
   CoreStatusMessage,
   MainToCoreMessage,
@@ -8,3 +32,5 @@ export {
   mainToCoreMessageSchema,
   rendererToCoreMessageSchema,
 } from "./register/core-messages.js";
+export type { RegisterCreationBody } from "./register/register-creation.js";
+export { registerCreationBodySchema } from "./register/register-creation.js";

@@ -217,3 +217,12 @@ const PERMISSION_KEY_SET: ReadonlySet<string> = new Set(PERMISSION_KEY_LIST);
 export function isPermissionKey(value: unknown): value is PermissionKey {
   return typeof value === "string" && PERMISSION_KEY_SET.has(value);
 }
+
+export function repeatsAPermissionKey(keys: readonly string[]): boolean {
+  return new Set(keys).size !== keys.length;
+}
+
+export function holdsBothAlertViewPermissions(keys: readonly string[]): boolean {
+  const [first, second] = ALERT_VIEW_PERMISSION_KEYS;
+  return keys.includes(first) && keys.includes(second);
+}

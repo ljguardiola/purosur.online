@@ -1,4 +1,4 @@
-import { readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
@@ -11,6 +11,12 @@ function topLevelDirectoryNames(path: string) {
     .map((entry) => entry.name);
 }
 
+function sourceFilesOutsideShared() {
+  return readdirSync(contractsSrc, { recursive: true })
+    .map(String)
+    .filter((path) => path.endsWith(".ts") && !path.startsWith("shared/"));
+}
+
 function topLevelFileNames(path: string) {
   return readdirSync(path, { withFileTypes: true })
     .filter((entry) => entry.isFile())
@@ -19,9 +25,11 @@ function topLevelFileNames(path: string) {
 }
 
 describe("packages/contracts/src shape", () => {
-  it("names every top-level folder after one of packages/domain's concepts", () => {
-    const domainConcepts = topLevelDirectoryNames(domainSrc).filter((name) => name !== "shared");
-    const contractsFolders = topLevelDirectoryNames(contractsSrc);
+  it("names every top-level folder after one of packages/domain's concepts, except shared", () => {
+    const domainConcepts = topLevelDirectoryNames(domainSrc);
+    const contractsFolders = topLevelDirectoryNames(contractsSrc).filter(
+      (name) => name !== "shared",
+    );
 
     const notAConcept = contractsFolders.filter((name) => !domainConcepts.includes(name));
 
@@ -30,5 +38,18 @@ describe("packages/contracts/src shape", () => {
 
   it("keeps only its index and this test at the top level", () => {
     expect(topLevelFileNames(contractsSrc)).toEqual(["index.ts", "structure.test.ts"]);
+  });
+
+  it("reaches shared only through its own index", () => {
+    expect(topLevelFileNames(`${contractsSrc}shared`)).toContain("index.ts");
+
+    const reachingPastTheIndex = sourceFilesOutsideShared().filter((path) =>
+      /from "(\.\.?\/)+shared\/(?!index\.js")/.test(readFileSync(`${contractsSrc}${path}`, "utf8")),
+    );
+
+    expect(
+      reachingPastTheIndex,
+      `not through shared/index: ${reachingPastTheIndex.join(", ")}`,
+    ).toEqual([]);
   });
 });
