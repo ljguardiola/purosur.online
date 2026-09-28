@@ -127,6 +127,40 @@ test("accepts today as the activity start date", async () => {
   );
 });
 
+test("counts today, for refusing a future activity start date, from the time the modal was opened", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({
+    kind: "ok",
+    value: incomplete,
+  });
+  let current = new Date("2020-09-25T15:00:00-03:00");
+  const onSessionEnded = () => {};
+  const screenFor = (now: () => Date) => (
+    <FieldSizeProvider size="backoffice">
+      <main>
+        <FiscalConfigurationScreen services={services} onSessionEnded={onSessionEnded} now={now} />
+      </main>
+    </FieldSizeProvider>
+  );
+  const screen = await render(screenFor(() => current));
+  const dialog = await fillIncompleteModal(screen, "26092020");
+  await expect.element(dialog.getByText("La fecha no puede ser futura.")).toBeVisible();
+
+  current = new Date("2020-09-26T15:00:00-03:00");
+  await screen.rerender(screenFor(() => current));
+  expect(dialog.getByText("La fecha no puede ser futura.").query()).not.toBeNull();
+
+  await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  const reopened = await fillIncompleteModal(screen, "26092020");
+
+  await expect
+    .element(reopened.getByRole("group", { name: /^Inicio de actividades/ }))
+    .toHaveTextContent("26/9/2020");
+  expect(reopened.getByText("La fecha no puede ser futura.").query()).toBeNull();
+  expect(services.fetchIssuerIdentification).toHaveBeenCalledTimes(1);
+});
+
 test("shows the breadcrumb, heading, and the complete issuer identification", async () => {
   const services = createServices();
   vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
