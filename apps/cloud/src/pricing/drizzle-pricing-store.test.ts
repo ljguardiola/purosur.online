@@ -1,3 +1,4 @@
+import { confirmPrice, setPrice } from "@purosur/domain/pricing/use-cases";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   auditLog,
@@ -12,6 +13,7 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { DrizzlePricingStore } from "./drizzle-pricing-store.js";
+import { listPrices } from "./prices-list-route.js";
 
 const MOMENT = new Date("2026-01-05T12:00:00.000Z");
 const EARLIER = new Date("2026-01-01T09:00:00.000Z");
@@ -73,6 +75,10 @@ async function insertOtherPriceList(): Promise<string> {
     throw new Error("test setup: seeding the other price list returned no row");
   }
   return priceList.id;
+}
+
+function pricingPortsAt(moment: Date) {
+  return { store: new DrizzlePricingStore(db), clock: { now: () => moment } };
 }
 
 async function auditRows() {
@@ -223,5 +229,90 @@ describe("DrizzlePricingStore", () => {
         newValue: { priceId: LESSER_ID },
       },
     ]);
+  });
+});
+
+describe("price changes committed by callers whose clocks disagree", () => {
+  it("makes current a change from an earlier clock made over the price it saw", async () => {
+    const priceListId = await seededPriceListId(db);
+    const actorId = await insertUser();
+    const productId = await insertProduct();
+    const laterMoment = new Date("2026-01-05T12:00:05.000Z");
+    const earlierMoment = new Date("2026-01-05T12:00:00.000Z");
+
+    const first = await setPrice(pricingPortsAt(laterMoment), {
+      productId,
+      priceListId,
+      unitPrice: 1000,
+      expectedCurrentPriceId: null,
+      actorId,
+    });
+    if (first.kind !== "applied") {
+      throw new Error("test setup: the first price was not applied");
+    }
+    const earlierClock = await setPrice(pricingPortsAt(earlierMoment), {
+      productId,
+      priceListId,
+      unitPrice: 2000,
+      expectedCurrentPriceId: first.price.id,
+      actorId,
+    });
+    if (earlierClock.kind !== "applied") {
+      throw new Error(`expected the earlier clock's change to apply, got ${earlierClock.kind}`);
+    }
+    expect(earlierClock.price.validFrom.getTime()).toBeGreaterThan(laterMoment.getTime());
+    expect(earlierClock.lastReviewedAt).toEqual(earlierClock.price.validFrom);
+
+    const listed = await listPrices(db, {
+      priceListId,
+      now: earlierMoment,
+      unreviewedPriceAlertDays: 30,
+      review: "all",
+    });
+    expect(listed.products.find((product) => product.id === productId)).toMatchObject({
+      currentPrice: { id: earlierClock.price.id, unitPrice: 2000 },
+      lastReviewedAt: earlierClock.lastReviewedAt,
+    });
+  });
+});
+
+describe("confirmations committed by callers whose clocks disagree", () => {
+  it("records a confirmation from an earlier clock as the product's most recent review", async () => {
+    const priceListId = await seededPriceListId(db);
+    const actorId = await insertUser();
+    const productId = await insertProduct();
+    const laterMoment = new Date("2026-01-05T12:00:05.000Z");
+
+    const first = await setPrice(pricingPortsAt(laterMoment), {
+      productId,
+      priceListId,
+      unitPrice: 1000,
+      expectedCurrentPriceId: null,
+      actorId,
+    });
+    if (first.kind !== "applied") {
+      throw new Error("test setup: the first price was not applied");
+    }
+
+    const confirmation = await confirmPrice(pricingPortsAt(new Date("2026-01-05T12:00:00.000Z")), {
+      productId,
+      priceListId,
+      expectedCurrentPriceId: first.price.id,
+      actorId,
+    });
+    if (confirmation.kind !== "confirmed") {
+      throw new Error(`expected the confirmation to apply, got ${confirmation.kind}`);
+    }
+    expect(confirmation.lastReviewedAt.getTime()).toBeGreaterThan(laterMoment.getTime());
+
+    const listed = await listPrices(db, {
+      priceListId,
+      now: laterMoment,
+      unreviewedPriceAlertDays: 30,
+      review: "all",
+    });
+    expect(listed.products.find((product) => product.id === productId)).toMatchObject({
+      lastReviewedAt: confirmation.lastReviewedAt,
+    });
   });
 });
