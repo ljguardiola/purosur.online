@@ -1,6 +1,7 @@
 import {
   BARCODE_MAX_LENGTH,
   NET_CONTENT_QUANTITY_MAX,
+  NET_CONTENT_QUANTITY_MAX_DECIMALS,
   NET_CONTENT_UNITS,
   PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
@@ -178,12 +179,13 @@ describe("productCreationBodySchema, netContent", () => {
     });
   });
 
-  it.each([0, -1, 1.0001, NET_CONTENT_QUANTITY_MAX + 1])(
-    "reports the quantity %j under netContentQuantity",
+  it.each([0, -1, 1.0001, NET_CONTENT_QUANTITY_MAX + 1, Infinity, -Infinity])(
+    "reports the quantity %s under netContentQuantity",
     (quantity) => {
-      expect(firstFailure(validBody({ netContent: { quantity, unit: "KG" } }))?.field).toBe(
-        "netContentQuantity",
-      );
+      expect(firstFailure(validBody({ netContent: { quantity, unit: "KG" } }))).toEqual({
+        field: "netContentQuantity",
+        message: `netContent's quantity must be a positive number of at most ${NET_CONTENT_QUANTITY_MAX_DECIMALS} decimals, at most ${NET_CONTENT_QUANTITY_MAX}`,
+      });
     },
   );
 

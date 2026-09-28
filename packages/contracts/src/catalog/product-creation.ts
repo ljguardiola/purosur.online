@@ -28,7 +28,11 @@ const BARCODE_PROBLEM_MESSAGES: Record<BarcodeListProblem, string> = {
 const netContentSchema = z
   .object(
     {
-      quantity: z.number({ error: NET_CONTENT_MESSAGE }),
+      // z.number refuses Infinity, which JSON.parse yields for an out-of-range literal such as
+      // 1e400; accepting any number lets the quantity rule report it under netContentQuantity.
+      quantity: z.custom<number>((quantity) => typeof quantity === "number", {
+        error: NET_CONTENT_MESSAGE,
+      }),
       unit: z.custom<NetContentUnit>(isNetContentUnit, { error: NET_CONTENT_MESSAGE }),
     },
     { error: NET_CONTENT_MESSAGE },
