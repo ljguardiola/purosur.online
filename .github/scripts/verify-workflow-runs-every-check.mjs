@@ -13,7 +13,7 @@ const REQUIRED_VERIFY_STATIC_COMMANDS = [
   "pnpm --filter @purosur/cloud build",
   "pnpm --filter @purosur/backoffice build",
   "node .github/scripts/backoffice-download-budget.mjs",
-  "node .github/scripts/register-clean-build.mjs",
+  "pnpm --filter @purosur/pos build",
   "biome ci . --error-on-warnings",
   "pnpm depcruise",
   "knip",

@@ -5,8 +5,11 @@ import reactCompiler from "babel-plugin-react-compiler";
 import { defineConfig } from "electron-vite";
 import type { Plugin } from "vite";
 import { buildContentSecurityPolicy } from "./src/main/content-security-policy";
+import { withoutPackageOutput } from "./src/without-package-output";
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
+
+const repoRoot = r("../../");
 
 // A page loaded from file:// gets no response headers, so the packaged interface can only receive
 // its policy from the page itself.
@@ -29,6 +32,7 @@ function contentSecurityPolicyMeta(): Plugin {
 
 export default defineConfig({
   main: {
+    plugins: [withoutPackageOutput(repoRoot)],
     resolve: {
       // Contracts' and domain's package.json point `main` at their compiled dist/, which the register's
       // build never produces, so it reads their source instead.
@@ -51,6 +55,7 @@ export default defineConfig({
     },
   },
   preload: {
+    plugins: [withoutPackageOutput(repoRoot)],
     build: {
       rollupOptions: {
         // A sandboxed preload can't be an ES module, and a .js file inside a "type": "module"
@@ -69,6 +74,7 @@ export default defineConfig({
       },
     },
     plugins: [
+      withoutPackageOutput(repoRoot),
       react({ babel: { plugins: [reactCompiler] } }),
       tailwindcss(),
       contentSecurityPolicyMeta(),

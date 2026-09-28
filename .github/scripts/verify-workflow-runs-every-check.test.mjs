@@ -146,7 +146,7 @@ function workflow({
 }
 
 const VERIFY_STATIC_SCRIPT =
-  "tsc --noEmit && tsc --noEmit -p apps/backoffice && tsc --noEmit -p apps/pos && pnpm --filter @purosur/cloud build && pnpm --filter @purosur/backoffice build && node .github/scripts/backoffice-download-budget.mjs && node .github/scripts/register-clean-build.mjs && biome ci . --error-on-warnings && pnpm depcruise && knip && node .github/scripts/react-compiler-check.mjs && node --test .github/scripts/*.test.mjs";
+  "tsc --noEmit && tsc --noEmit -p apps/backoffice && tsc --noEmit -p apps/pos && pnpm --filter @purosur/cloud build && pnpm --filter @purosur/backoffice build && node .github/scripts/backoffice-download-budget.mjs && pnpm --filter @purosur/pos build && biome ci . --error-on-warnings && pnpm depcruise && knip && node .github/scripts/react-compiler-check.mjs && node --test .github/scripts/*.test.mjs";
 
 function packageJson({
   verify = "pnpm verify:static && pnpm verify:tests && pnpm verify:visual",
@@ -690,7 +690,7 @@ for (const dropped of [
   "pnpm --filter @purosur/cloud build",
   "pnpm --filter @purosur/backoffice build",
   "node .github/scripts/backoffice-download-budget.mjs",
-  "node .github/scripts/register-clean-build.mjs",
+  "pnpm --filter @purosur/pos build",
   "biome ci . --error-on-warnings",
   "pnpm depcruise",
   "knip",
