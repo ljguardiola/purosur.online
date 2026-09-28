@@ -238,7 +238,6 @@ describe("price changes committed by callers whose clocks disagree", () => {
     const actorId = await insertUser();
     const productId = await insertProduct();
     const laterMoment = new Date("2026-01-05T12:00:05.000Z");
-    const earlierMoment = new Date("2026-01-05T12:00:00.000Z");
 
     const first = await setPrice(pricingPortsAt(laterMoment), {
       productId,
@@ -250,7 +249,7 @@ describe("price changes committed by callers whose clocks disagree", () => {
     if (first.kind !== "applied") {
       throw new Error("test setup: the first price was not applied");
     }
-    const earlierClock = await setPrice(pricingPortsAt(earlierMoment), {
+    const earlierClock = await setPrice(pricingPortsAt(MOMENT), {
       productId,
       priceListId,
       unitPrice: 2000,
@@ -265,7 +264,7 @@ describe("price changes committed by callers whose clocks disagree", () => {
 
     const listed = await listPrices(db, {
       priceListId,
-      now: earlierMoment,
+      now: MOMENT,
       unreviewedPriceAlertDays: 30,
       review: "all",
     });
@@ -294,7 +293,7 @@ describe("confirmations committed by callers whose clocks disagree", () => {
       throw new Error("test setup: the first price was not applied");
     }
 
-    const confirmation = await confirmPrice(pricingPortsAt(new Date("2026-01-05T12:00:00.000Z")), {
+    const confirmation = await confirmPrice(pricingPortsAt(MOMENT), {
       productId,
       priceListId,
       expectedCurrentPriceId: first.price.id,
