@@ -1,6 +1,6 @@
 import { defineHelp } from "@purosur/ui";
 import { expect, test } from "vitest";
-import { canonicalHelpPage, isRequestedPage } from "./help-page";
+import { canonicalHelpPage, isRequestedPage } from "./help-catalog";
 
 const help = defineHelp("es-AR", {
   categories: {

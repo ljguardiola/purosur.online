@@ -1,7 +1,7 @@
 import { createRootRouteWithContext, createRoute, RouterProvider } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { Component } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import type { CoreStatus, RouterContext } from "./router";
 import { createRegisterRouter, routeTree } from "./router";
@@ -28,11 +28,20 @@ function routerAt(path: RoutePath, coreStatus: CoreStatus) {
   return createRegisterRouter(routeTree, { coreStatus }, path);
 }
 
-class OuterErrorBoundary extends Component<{ children: ReactNode }, { error: unknown }> {
+const screenFailure = new Error("screen failed to render");
+
+class OuterErrorBoundary extends Component<
+  { children: ReactNode; onCatch: (error: unknown) => void },
+  { error: unknown }
+> {
   override state = { error: undefined };
 
   static getDerivedStateFromError(error: unknown) {
     return { error };
+  }
+
+  override componentDidCatch(error: unknown) {
+    this.props.onCatch(error);
   }
 
   override render() {
@@ -41,7 +50,7 @@ class OuterErrorBoundary extends Component<{ children: ReactNode }, { error: unk
 }
 
 function FailingScreen(): ReactNode {
-  throw new Error("screen failed to render");
+  throw screenFailure;
 }
 
 describe("the register's router", () => {
@@ -82,13 +91,16 @@ describe("the register's router", () => {
       "/",
     );
 
+    const onCatch = vi.fn();
+
     const screen = await render(
-      <OuterErrorBoundary>
+      <OuterErrorBoundary onCatch={onCatch}>
         <RouterProvider router={router} />
       </OuterErrorBoundary>,
     );
 
     await expect.element(screen.getByText(OUTER_BOUNDARY_TEXT)).toBeVisible();
     await expect.element(screen.getByText(ROUTER_DEFAULT_ERROR_TEXT)).not.toBeInTheDocument();
+    expect(onCatch).toHaveBeenCalledWith(screenFailure);
   });
 });

@@ -5,7 +5,8 @@ import { userEvent } from "vitest/browser";
 import type { BackofficeAccess } from "../access/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import type { AlertDetail, AlertListPage, AlertSummary, FetchAlertsOutcome } from "./alerts-api";
-import { AlertsListScreen, type AlertsListScreenServices } from "./alerts-list-screen";
+import { AlertsListScreen } from "./alerts-list-screen";
+import type { AlertsListScreenServices } from "./alerts-list-services";
 import { type AlertsListFilters, alertsListFilters } from "./routes";
 
 const ADMINISTRATOR_ACCESS: BackofficeAccess = { isAdministrator: true, permissions: [] };

@@ -3,10 +3,8 @@ import { StrictMode } from "react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import {
-  RegisterPasskeyScreen,
-  type RegisterPasskeyScreenServices,
-} from "./register-passkey-screen";
+import { RegisterPasskeyScreen } from "./register-passkey-screen";
+import type { RegisterPasskeyScreenServices } from "./register-passkey-services";
 
 const registrationOptions = { challenge: "abc", rp: { id: "purosur.online" } } as never;
 const registrationResponse = { id: "cred-1" } as never;

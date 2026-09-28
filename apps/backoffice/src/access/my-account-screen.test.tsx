@@ -2,7 +2,8 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { MyAccountScreen, type MyAccountScreenServices } from "./my-account-screen";
+import { MyAccountScreen } from "./my-account-screen";
+import type { MyAccountScreenServices } from "./my-account-services";
 import type { Passkey } from "./passkey-api";
 
 function createServices(overrides: Partial<MyAccountScreenServices> = {}): MyAccountScreenServices {

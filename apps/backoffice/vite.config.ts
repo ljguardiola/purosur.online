@@ -3,6 +3,7 @@ import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { defineConfig, loadEnv, type ProxyOptions } from "vite";
+import { preloadFont } from "./preload-font";
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 const REPO_ROOT = r("../..");
@@ -35,7 +36,12 @@ export default defineConfig(({ mode }) => {
         "@purosur/ui": r("../../packages/ui/src/index.ts"),
       },
     },
-    plugins: [react(), babel({ presets: [reactCompilerPreset()] }), tailwindcss()],
+    plugins: [
+      react(),
+      babel({ presets: [reactCompilerPreset()] }),
+      tailwindcss(),
+      preloadFont("atkinson-hyperlegible-next-latin-wght-normal.woff2"),
+    ],
     build: {
       outDir: "dist",
     },

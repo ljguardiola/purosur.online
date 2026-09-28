@@ -1,10 +1,8 @@
-import { createRoute, stripSearchParams } from "@tanstack/react-router";
+import { createRoute, lazyRouteComponent, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 import { canSeePricesArea } from "../access/backoffice-access";
 import { catalogAreaRoute } from "../shell/catalog-area";
-import { useDocumentTitle } from "../shell/document-title";
 import { refuseWithout } from "../shell/signed-in-route";
-import { PricesListScreen } from "./prices-list-screen";
 
 export const pricesListFilters = z.object({
   search: z.string().default("").catch(""),
@@ -20,20 +18,5 @@ export const pricesListRoute = createRoute({
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeePricesArea),
   validateSearch: pricesListFilters,
   search: { middlewares: [stripSearchParams(pricesListFilters.parse({}))] },
-  component: PricesListPage,
+  component: lazyRouteComponent(() => import("./prices-list-page"), "PricesListPage"),
 });
-
-function PricesListPage() {
-  const { services, sessionActions } = pricesListRoute.useRouteContext();
-  const filters = pricesListRoute.useSearch();
-  const navigate = pricesListRoute.useNavigate();
-  useDocumentTitle("Precios · Puro Sur");
-  return (
-    <PricesListScreen
-      filters={filters}
-      onFiltersChange={(next) => void navigate({ search: next, replace: true })}
-      onSessionEnded={sessionActions.sessionEnded}
-      services={services.pricesListScreen}
-    />
-  );
-}

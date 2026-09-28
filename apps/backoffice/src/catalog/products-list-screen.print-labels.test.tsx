@@ -2,7 +2,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { ProductSummary } from "./products-api";
-import type { ProductsListScreenServices } from "./products-list-screen";
+import type { ProductsListScreenServices } from "./products-list-services";
 import {
   almonds,
   createServices,
