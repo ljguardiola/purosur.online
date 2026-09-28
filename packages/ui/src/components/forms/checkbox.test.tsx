@@ -34,7 +34,7 @@ function checkboxBox(screen: Screen, name: string): HTMLElement {
 function Harness({ initial = false }: { initial?: boolean }) {
   const [checked, setChecked] = useState(initial);
   return (
-    <Checkbox isSelected={checked} onChange={setChecked}>
+    <Checkbox checked={checked} onCheckedChange={setChecked}>
       <span>Return this line</span>
     </Checkbox>
   );
@@ -44,7 +44,7 @@ test("renders the caller's content 12px from a 22px, 4px-radius box, vertically 
   // Wrapped in its own element: raw text has no element of its own, so getByText would resolve to
   // the label instead.
   const screen = await render(
-    <Checkbox isSelected={false} onChange={() => {}}>
+    <Checkbox checked={false} onCheckedChange={() => {}}>
       <span>Return this line</span>
     </Checkbox>,
   );
@@ -67,7 +67,7 @@ test("renders the caller's content 12px from a 22px, 4px-radius box, vertically 
 
 test("colors an unchecked box white with a 2px strong border and no check", async () => {
   const screen = await render(
-    <Checkbox isSelected={false} onChange={() => {}}>
+    <Checkbox checked={false} onCheckedChange={() => {}}>
       Return this line
     </Checkbox>,
   );
@@ -86,7 +86,7 @@ test("colors an unchecked box white with a 2px strong border and no check", asyn
 
 test("turns an unchecked box's background bone on hover, keeping its border", async () => {
   const screen = await render(
-    <Checkbox isSelected={false} onChange={() => {}}>
+    <Checkbox checked={false} onCheckedChange={() => {}}>
       Return this line
     </Checkbox>,
   );
@@ -105,7 +105,7 @@ test("turns an unchecked box's background bone on hover, keeping its border", as
 
 test("colors a checked box blue UI with a 16px white check and no border", async () => {
   const screen = await render(
-    <Checkbox isSelected onChange={() => {}}>
+    <Checkbox checked onCheckedChange={() => {}}>
       Return this line
     </Checkbox>,
   );
@@ -127,7 +127,7 @@ test("colors a checked box blue UI with a 16px white check and no border", async
 
 test("turns a checked box's background blue strong on hover, keeping the white check", async () => {
   const screen = await render(
-    <Checkbox isSelected onChange={() => {}}>
+    <Checkbox checked onCheckedChange={() => {}}>
       Return this line
     </Checkbox>,
   );
@@ -141,7 +141,7 @@ test("turns a checked box's background blue strong on hover, keeping the white c
 
 test("keeps the box's size stable between the unchecked and checked states", async () => {
   const uncheckedScreen = await render(
-    <Checkbox isSelected={false} onChange={() => {}}>
+    <Checkbox checked={false} onCheckedChange={() => {}}>
       Return this line
     </Checkbox>,
   );
@@ -149,7 +149,7 @@ test("keeps the box's size stable between the unchecked and checked states", asy
   await uncheckedScreen.unmount();
 
   const checkedScreen = await render(
-    <Checkbox isSelected onChange={() => {}}>
+    <Checkbox checked onCheckedChange={() => {}}>
       Return this line
     </Checkbox>,
   );
@@ -186,7 +186,7 @@ test("toggles with Space when focused", async () => {
 
 test("exposes the checkbox to assistive technology named by its content, with its checked state", async () => {
   const screen = await render(
-    <Checkbox isSelected onChange={() => {}}>
+    <Checkbox checked onCheckedChange={() => {}}>
       Return this line
     </Checkbox>,
   );
@@ -197,7 +197,7 @@ test("exposes the checkbox to assistive technology named by its content, with it
 
 test("shows the package's focus ring around the box when focused", async () => {
   const screen = await render(
-    <Checkbox isSelected={false} onChange={() => {}}>
+    <Checkbox checked={false} onCheckedChange={() => {}}>
       Return this line
     </Checkbox>,
   );
@@ -213,7 +213,7 @@ test("shows the package's focus ring around the box when focused", async () => {
 test("lets its content fill the remaining width of a wide container", async () => {
   const screen = await render(
     <div style={{ width: "400px" }}>
-      <Checkbox isSelected={false} onChange={() => {}}>
+      <Checkbox checked={false} onCheckedChange={() => {}}>
         <span>Return this line</span>
       </Checkbox>
     </div>,
@@ -231,19 +231,26 @@ test("lets its content fill the remaining width of a wide container", async () =
 
 test("does not accept a checkbox without content", () => {
   expectTypeOf<{
-    isSelected: boolean;
-    onChange: (isSelected: boolean) => void;
+    checked: boolean;
+    onCheckedChange: (checked: boolean) => void;
   }>().not.toExtend<CheckboxProps>();
 });
 
-test("does not accept a checkbox without isSelected or onChange", () => {
+test("does not accept a checkbox without checked or onCheckedChange", () => {
   expectTypeOf<{
-    onChange: (isSelected: boolean) => void;
+    onCheckedChange: (checked: boolean) => void;
     children: ReactNode;
   }>().not.toExtend<CheckboxProps>();
-  expectTypeOf<{ isSelected: boolean; children: ReactNode }>().not.toExtend<CheckboxProps>();
+  expectTypeOf<{ checked: boolean; children: ReactNode }>().not.toExtend<CheckboxProps>();
 });
 
 test("does not accept isIndeterminate, since the design has no indeterminate state", () => {
   expectTypeOf<CheckboxProps>().not.toHaveProperty("isIndeterminate");
+});
+
+test("names its state checked and reports it with onCheckedChange", () => {
+  expectTypeOf<CheckboxProps>().toHaveProperty("checked");
+  expectTypeOf<CheckboxProps>().toHaveProperty("onCheckedChange");
+  expectTypeOf<CheckboxProps>().not.toHaveProperty("isSelected");
+  expectTypeOf<CheckboxProps>().not.toHaveProperty("onChange");
 });

@@ -535,8 +535,8 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           </div>
           <div className={`flex h-control-2xl w-25 shrink-0 items-center`}>
             <Checkbox
-              isSelected={dayValues.closed}
-              onChange={(closed) => setDayClosed(day, closed)}
+              checked={dayValues.closed}
+              onCheckedChange={(closed) => setDayClosed(day, closed)}
             >
               <span aria-hidden="true">Cerrado</span>
               <span className="sr-only">{`${dayLabel} — Cerrado`}</span>

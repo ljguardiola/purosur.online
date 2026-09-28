@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 import { Switch as AriaSwitch } from "react-aria-components";
 
 export type ToggleProps = {
-  isSelected: boolean;
-  onChange: (isSelected: boolean) => void;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
   children: Exclude<ReactNode, null | undefined | boolean>;
   disabled?: boolean;
 };
@@ -29,11 +29,11 @@ const knobClassName =
   "size-control-2xs shrink-0 rounded-full bg-surface " +
   "inset-ring-2 inset-ring-border-strong group-data-selected:inset-ring-0";
 
-export function Toggle({ isSelected, onChange, children, disabled = false }: ToggleProps) {
+export function Toggle({ checked, onCheckedChange, children, disabled = false }: ToggleProps) {
   return (
     <AriaSwitch
-      isSelected={isSelected}
-      onChange={onChange}
+      isSelected={checked}
+      onChange={onCheckedChange}
       isDisabled={disabled}
       className={toggleLabelClassName}
     >

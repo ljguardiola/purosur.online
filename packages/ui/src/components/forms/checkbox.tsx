@@ -3,8 +3,8 @@ import type { ReactNode } from "react";
 import { Checkbox as AriaCheckbox } from "react-aria-components";
 
 export type CheckboxProps = {
-  isSelected: boolean;
-  onChange: (isSelected: boolean) => void;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
   children: Exclude<ReactNode, null | undefined | boolean>;
 };
 
@@ -26,11 +26,11 @@ const boxClassName =
 
 const checkIconClassName = "size-icon-sm text-text-inverse";
 
-export function Checkbox({ isSelected, onChange, children }: CheckboxProps) {
+export function Checkbox({ checked, onCheckedChange, children }: CheckboxProps) {
   return (
-    <AriaCheckbox isSelected={isSelected} onChange={onChange} className={labelClassName}>
+    <AriaCheckbox isSelected={checked} onChange={onCheckedChange} className={labelClassName}>
       <span aria-hidden="true" className={boxClassName}>
-        {isSelected ? <Check className={checkIconClassName} /> : null}
+        {checked ? <Check className={checkIconClassName} /> : null}
       </span>
       <span className="min-w-0 flex-1">{children}</span>
     </AriaCheckbox>

@@ -38,7 +38,7 @@ function toggleKnob(screen: Screen, name: string): HTMLElement {
 function Harness() {
   const [isOn, setIsOn] = useState(false);
   return (
-    <Toggle isSelected={isOn} onChange={setIsOn}>
+    <Toggle checked={isOn} onCheckedChange={setIsOn}>
       Apply discount
     </Toggle>
   );
@@ -46,7 +46,7 @@ function Harness() {
 
 test("renders a 22px round knob in a 48x28px, fully round track, with the content 12px away", async () => {
   const screen = await render(
-    <Toggle isSelected={false} onChange={() => {}}>
+    <Toggle checked={false} onCheckedChange={() => {}}>
       Apply discount
     </Toggle>,
   );
@@ -78,7 +78,7 @@ test("renders a 22px round knob in a 48x28px, fully round track, with the conten
 
 test("colors an off track and its knob white, each with a 2px strong border, the knob at the near end", async () => {
   const screen = await render(
-    <Toggle isSelected={false} onChange={() => {}}>
+    <Toggle checked={false} onCheckedChange={() => {}}>
       Apply discount
     </Toggle>,
   );
@@ -108,7 +108,7 @@ test("colors an off track and its knob white, each with a 2px strong border, the
 
 test("turns an off track's background bone on hover, keeping its border", async () => {
   const screen = await render(
-    <Toggle isSelected={false} onChange={() => {}}>
+    <Toggle checked={false} onCheckedChange={() => {}}>
       Apply discount
     </Toggle>,
   );
@@ -122,7 +122,7 @@ test("turns an off track's background bone on hover, keeping its border", async 
 
 test("colors an on track in the success color with no boundary of any color and a surface-colored knob at the far end", async () => {
   const screen = await render(
-    <Toggle isSelected onChange={() => {}}>
+    <Toggle checked onCheckedChange={() => {}}>
       Apply discount
     </Toggle>,
   );
@@ -143,7 +143,7 @@ test("colors an on track in the success color with no boundary of any color and 
 
 test("turns an on track's background green strong on hover, keeping the white knob", async () => {
   const screen = await render(
-    <Toggle isSelected onChange={() => {}}>
+    <Toggle checked onCheckedChange={() => {}}>
       Apply discount
     </Toggle>,
   );
@@ -158,7 +158,7 @@ test("turns an on track's background green strong on hover, keeping the white kn
 
 test("keeps the track's and the knob's size stable between the off and on states", async () => {
   const offScreen = await render(
-    <Toggle isSelected={false} onChange={() => {}}>
+    <Toggle checked={false} onCheckedChange={() => {}}>
       Apply discount
     </Toggle>,
   );
@@ -167,7 +167,7 @@ test("keeps the track's and the knob's size stable between the off and on states
   await offScreen.unmount();
 
   const onScreen = await render(
-    <Toggle isSelected onChange={() => {}}>
+    <Toggle checked onCheckedChange={() => {}}>
       Apply discount
     </Toggle>,
   );
@@ -210,7 +210,7 @@ test("is a single tab stop", async () => {
   const screen = await render(
     <>
       <button type="button">Before</button>
-      <Toggle isSelected={false} onChange={() => {}}>
+      <Toggle checked={false} onCheckedChange={() => {}}>
         Apply discount
       </Toggle>
       <button type="button">After</button>
@@ -231,7 +231,7 @@ test("is a single tab stop", async () => {
 
 test("exposes the toggle to assistive technology as a switch named by its content, with its on/off state", async () => {
   const offScreen = await render(
-    <Toggle isSelected={false} onChange={() => {}}>
+    <Toggle checked={false} onCheckedChange={() => {}}>
       Apply discount
     </Toggle>,
   );
@@ -239,7 +239,7 @@ test("exposes the toggle to assistive technology as a switch named by its conten
   await offScreen.unmount();
 
   const onScreen = await render(
-    <Toggle isSelected onChange={() => {}}>
+    <Toggle checked onCheckedChange={() => {}}>
       Apply discount
     </Toggle>,
   );
@@ -248,7 +248,7 @@ test("exposes the toggle to assistive technology as a switch named by its conten
 
 test("shows the package's focus ring around the track when focused", async () => {
   const screen = await render(
-    <Toggle isSelected={false} onChange={() => {}}>
+    <Toggle checked={false} onCheckedChange={() => {}}>
       Apply discount
     </Toggle>,
   );
@@ -264,7 +264,7 @@ test("shows the package's focus ring around the track when focused", async () =>
 test("dims the whole toggle to 45% opacity, drops the pointer cursor and blocks focus when disabled", async () => {
   const screen = await render(
     <>
-      <Toggle isSelected={false} onChange={() => {}} disabled>
+      <Toggle checked={false} onCheckedChange={() => {}} disabled>
         Apply discount
       </Toggle>
       <button type="button">Next control</button>
@@ -285,15 +285,22 @@ test("dims the whole toggle to 45% opacity, drops the pointer cursor and blocks 
 
 test("does not accept a toggle without content", () => {
   expectTypeOf<{
-    isSelected: boolean;
-    onChange: (isSelected: boolean) => void;
+    checked: boolean;
+    onCheckedChange: (checked: boolean) => void;
   }>().not.toExtend<ToggleProps>();
 });
 
-test("does not accept a toggle without isSelected or onChange", () => {
+test("does not accept a toggle without checked or onCheckedChange", () => {
   expectTypeOf<{
-    onChange: (isSelected: boolean) => void;
+    onCheckedChange: (checked: boolean) => void;
     children: string;
   }>().not.toExtend<ToggleProps>();
-  expectTypeOf<{ isSelected: boolean; children: string }>().not.toExtend<ToggleProps>();
+  expectTypeOf<{ checked: boolean; children: string }>().not.toExtend<ToggleProps>();
+});
+
+test("names its state checked and reports it with onCheckedChange", () => {
+  expectTypeOf<ToggleProps>().toHaveProperty("checked");
+  expectTypeOf<ToggleProps>().toHaveProperty("onCheckedChange");
+  expectTypeOf<ToggleProps>().not.toHaveProperty("isSelected");
+  expectTypeOf<ToggleProps>().not.toHaveProperty("onChange");
 });

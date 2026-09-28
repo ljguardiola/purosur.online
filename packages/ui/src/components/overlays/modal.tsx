@@ -17,8 +17,8 @@ export type ModalBodyPadding = "default" | "none";
 export type ModalHeaderLayout = "leading" | "centered";
 
 type ModalCommonProps = {
-  isOpen: boolean;
-  onOpenChange: (isOpen: boolean) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   width?: ModalWidth;
   tone: NoticeTone;
   icon: Icon;
@@ -69,7 +69,7 @@ const closeButtonClassName =
 
 export function Modal(props: ModalProps) {
   const {
-    isOpen,
+    open,
     onOpenChange,
     width = "standard",
     tone,
@@ -84,7 +84,7 @@ export function Modal(props: ModalProps) {
 
   return (
     <AriaModalOverlay
-      isOpen={isOpen}
+      isOpen={open}
       onOpenChange={onOpenChange}
       isDismissable={false}
       isKeyboardDismissDisabled={!props.closable}

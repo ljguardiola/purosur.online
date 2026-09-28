@@ -53,7 +53,7 @@ type ListState =
   | { kind: "loaded"; passkeys: Passkey[]; loadedAt: Date };
 
 type RegisterPasskeyModalProps = {
-  isOpen: boolean;
+  open: boolean;
   onClose: () => void;
   onRegistered: () => void;
   onSessionEnded: () => void;
@@ -68,7 +68,7 @@ type RegisterPasskeyModalProps = {
 
 /** The cloud gates the registration-options fetch behind authorization, so this ceremony only ever runs once authorized. */
 function RegisterPasskeyModal({
-  isOpen,
+  open,
   onClose,
   onRegistered,
   onSessionEnded,
@@ -92,14 +92,14 @@ function RegisterPasskeyModal({
   });
 
   useEffect(() => {
-    if (isOpen) {
+    if (open) {
       setName("");
       setNameError(undefined);
       setAttemptFailed(false);
       setRateLimitedSeconds(null);
       setSubmitting(false);
     }
-  }, [isOpen]);
+  }, [open]);
 
   // Redone in full on a retry: the registration challenge shares its session-scoped row with the
   // authorization ceremony's own challenge, so options fetched before authorizing are gone after.
@@ -162,7 +162,7 @@ function RegisterPasskeyModal({
   return (
     <>
       <Modal
-        isOpen={isOpen}
+        open={open}
         onOpenChange={(open) => {
           if (!open) {
             onClose();
@@ -259,7 +259,7 @@ function RemovePasskeyModal({
   authorizeSession,
   startAuthentication,
 }: RemovePasskeyModalProps) {
-  const isOpen = target !== null;
+  const open = target !== null;
   const [attemptFailed, setAttemptFailed] = useState(false);
   const [rateLimitedSeconds, setRateLimitedSeconds] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -270,12 +270,12 @@ function RemovePasskeyModal({
   });
 
   useEffect(() => {
-    if (isOpen) {
+    if (open) {
       setAttemptFailed(false);
       setRateLimitedSeconds(null);
       setSubmitting(false);
     }
-  }, [isOpen]);
+  }, [open]);
 
   async function handleConfirm() {
     if (!target) {
@@ -310,7 +310,7 @@ function RemovePasskeyModal({
   return (
     <>
       <Modal
-        isOpen={isOpen}
+        open={open}
         onOpenChange={(open) => {
           if (!open) {
             onClose();
@@ -523,7 +523,7 @@ export function MyAccountScreen({
         </div>
       </ScreenLayout>
       <RegisterPasskeyModal
-        isOpen={registerModalOpen}
+        open={registerModalOpen}
         onClose={() => setRegisterModalOpen(false)}
         onRegistered={() => {
           setRegisterModalOpen(false);

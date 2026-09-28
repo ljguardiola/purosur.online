@@ -89,7 +89,7 @@ type EditUserModalNotice =
   | { kind: "reloadFailed" };
 
 type EditUserModalProps = {
-  isOpen: boolean;
+  open: boolean;
   user: BranchUser;
   roles: BranchUserRole[];
   onClose: () => void;
@@ -105,7 +105,7 @@ type EditUserModalProps = {
 };
 
 function EditUserModal({
-  isOpen,
+  open,
   user,
   roles,
   onClose,
@@ -134,7 +134,7 @@ function EditUserModal({
   const userRef = useLatestRef(user);
 
   useEffect(() => {
-    if (isOpen) {
+    if (open) {
       setEmail(userRef.current.email);
       setRoleId(userRef.current.role.id);
       setVersion(userRef.current.version);
@@ -142,7 +142,7 @@ function EditUserModal({
       setNotice(null);
       setSubmitting(false);
     }
-  }, [isOpen, userRef]);
+  }, [open, userRef]);
 
   const roleSelectOptions = roles.length > 0 ? roleOptions(roles) : undefined;
 
@@ -252,7 +252,7 @@ function EditUserModal({
   return (
     <>
       <Modal
-        isOpen={isOpen}
+        open={open}
         onOpenChange={(open) => {
           if (!open) {
             onClose();
@@ -421,7 +421,7 @@ function RemoveUserPasskeyModal({
   startAuthentication,
 }: RemoveUserPasskeyModalProps) {
   const sendToMyAccount = useSendToMyAccount();
-  const isOpen = target !== null;
+  const open = target !== null;
   const [attemptFailed, setAttemptFailed] = useState(false);
   const [rateLimitedSeconds, setRateLimitedSeconds] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -432,12 +432,12 @@ function RemoveUserPasskeyModal({
   });
 
   useEffect(() => {
-    if (isOpen) {
+    if (open) {
       setAttemptFailed(false);
       setRateLimitedSeconds(null);
       setSubmitting(false);
     }
-  }, [isOpen]);
+  }, [open]);
 
   async function handleConfirm() {
     if (!target) {
@@ -476,7 +476,7 @@ function RemoveUserPasskeyModal({
   return (
     <>
       <Modal
-        isOpen={isOpen}
+        open={open}
         onOpenChange={(open) => {
           if (!open) {
             onClose();
@@ -545,7 +545,7 @@ function RemoveUserPasskeyModal({
 }
 
 type DeactivateUserModalProps = {
-  isOpen: boolean;
+  open: boolean;
   user: BranchUser;
   onClose: () => void;
   onDeactivated: () => void;
@@ -558,7 +558,7 @@ type DeactivateUserModalProps = {
 };
 
 function DeactivateUserModal({
-  isOpen,
+  open,
   user,
   onClose,
   onDeactivated,
@@ -580,12 +580,12 @@ function DeactivateUserModal({
   });
 
   useEffect(() => {
-    if (isOpen) {
+    if (open) {
       setAttemptFailed(false);
       setRateLimitedSeconds(null);
       setSubmitting(false);
     }
-  }, [isOpen]);
+  }, [open]);
 
   async function handleConfirm() {
     setAttemptFailed(false);
@@ -625,7 +625,7 @@ function DeactivateUserModal({
   return (
     <>
       <Modal
-        isOpen={isOpen}
+        open={open}
         onOpenChange={(open) => {
           if (!open) {
             onClose();
@@ -687,7 +687,7 @@ function DeactivateUserModal({
 }
 
 type ReactivateUserModalProps = {
-  isOpen: boolean;
+  open: boolean;
   user: BranchUser;
   onClose: () => void;
   onReactivated: () => void;
@@ -699,7 +699,7 @@ type ReactivateUserModalProps = {
 };
 
 function ReactivateUserModal({
-  isOpen,
+  open,
   user,
   onClose,
   onReactivated,
@@ -720,12 +720,12 @@ function ReactivateUserModal({
   });
 
   useEffect(() => {
-    if (isOpen) {
+    if (open) {
       setAttemptFailed(false);
       setRateLimitedSeconds(null);
       setSubmitting(false);
     }
-  }, [isOpen]);
+  }, [open]);
 
   async function handleConfirm() {
     setAttemptFailed(false);
@@ -761,7 +761,7 @@ function ReactivateUserModal({
   return (
     <>
       <Modal
-        isOpen={isOpen}
+        open={open}
         onOpenChange={(open) => {
           if (!open) {
             onClose();
@@ -1134,7 +1134,7 @@ export function UserDetailScreen({
       )}
       {state.kind === "loaded" && (
         <EditUserModal
-          isOpen={modalOpen}
+          open={modalOpen}
           user={state.user}
           roles={state.roles}
           onClose={() => setModalOpen(false)}
@@ -1157,7 +1157,7 @@ export function UserDetailScreen({
       )}
       {state.kind === "loaded" && (
         <DeactivateUserModal
-          isOpen={deactivateModalOpen}
+          open={deactivateModalOpen}
           user={state.user}
           onClose={() => setDeactivateModalOpen(false)}
           onDeactivated={() => {
@@ -1177,7 +1177,7 @@ export function UserDetailScreen({
       )}
       {state.kind === "loaded" && (
         <ReactivateUserModal
-          isOpen={reactivateModalOpen}
+          open={reactivateModalOpen}
           user={state.user}
           onClose={() => setReactivateModalOpen(false)}
           onReactivated={() => {

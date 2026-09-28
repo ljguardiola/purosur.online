@@ -20,7 +20,7 @@ beforeEach(async () => {
 
 function baseProps(overrides: Partial<ModalProps> = {}): ModalProps {
   return {
-    isOpen: true,
+    open: true,
     onOpenChange: () => {},
     tone: "info",
     icon: <Info />,
@@ -274,7 +274,7 @@ function ModalOpenedByButton() {
   return (
     <>
       <Button onPress={() => setOpen(true)}>Open</Button>
-      <Modal {...baseProps({ isOpen: open, onOpenChange: setOpen })} />
+      <Modal {...baseProps({ open, onOpenChange: setOpen })} />
     </>
   );
 }
@@ -709,7 +709,7 @@ test("returns focus to the element that opened it, on close", async () => {
         </button>
         <Modal
           {...baseProps({
-            isOpen: open,
+            open,
             onOpenChange: setOpen,
             closable: true,
           })}
@@ -736,7 +736,7 @@ test("opens a second modal over the first with its own backdrop and returns to t
     return (
       <>
         <Modal
-          isOpen={firstOpen}
+          open={firstOpen}
           onOpenChange={setFirstOpen}
           tone="info"
           icon={<Info />}
@@ -747,7 +747,7 @@ test("opens a second modal over the first with its own backdrop and returns to t
           First body
         </Modal>
         <Modal
-          isOpen={secondOpen}
+          open={secondOpen}
           onOpenChange={setSecondOpen}
           tone="warning"
           icon={<AlertTriangle />}
@@ -788,7 +788,7 @@ test("opens a second modal over the first with its own backdrop and returns to t
 // branch's optionality. Omit, not Pick, since Pick's `keyof P` constraint can't typecheck against
 // the not-yet-distributed P.
 type ModalCommonKeys =
-  | "isOpen"
+  | "open"
   | "onOpenChange"
   | "width"
   | "tone"
@@ -823,4 +823,9 @@ test("does not accept a context line, its tone or a flush body in the centered h
     headerLayout: "centered";
     bodyPadding: "none";
   }>().not.toExtend<ModalLayoutFields>();
+});
+
+test("names its visibility open", () => {
+  expectTypeOf<ModalProps>().toHaveProperty("open");
+  expectTypeOf<ModalProps>().not.toHaveProperty("isOpen");
 });

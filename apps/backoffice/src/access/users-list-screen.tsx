@@ -98,7 +98,7 @@ function withFieldError(
 }
 
 type NewUserModalProps = {
-  isOpen: boolean;
+  open: boolean;
   roles: BranchUserRole[];
   onClose: () => void;
   onCreated: () => void;
@@ -111,7 +111,7 @@ type NewUserModalProps = {
 };
 
 function NewUserModal({
-  isOpen,
+  open,
   roles,
   onClose,
   onCreated,
@@ -142,7 +142,7 @@ function NewUserModal({
   });
 
   useEffect(() => {
-    if (isOpen) {
+    if (open) {
       setFirstName("");
       setEmail("");
       setRoleId(optionsRef.current?.[0].value ?? "");
@@ -151,7 +151,7 @@ function NewUserModal({
       setSubmitting(false);
       setDeactivatedConflict(null);
     }
-  }, [isOpen, optionsRef]);
+  }, [open, optionsRef]);
 
   async function handleSubmit() {
     const nameError = validateName(firstName);
@@ -221,7 +221,7 @@ function NewUserModal({
   return (
     <>
       <Modal
-        isOpen={isOpen}
+        open={open}
         onOpenChange={(open) => {
           if (!open) {
             onClose();
@@ -564,7 +564,7 @@ export function UsersListScreen({
         )}
       </ScreenLayout>
       <NewUserModal
-        isOpen={modalOpen}
+        open={modalOpen}
         roles={roles}
         onClose={() => setModalOpen(false)}
         onCreated={() => {

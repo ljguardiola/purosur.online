@@ -581,7 +581,7 @@ function useGenerateInternalBarcode(
 }
 
 type NewProductModalProps = {
-  isOpen: boolean;
+  open: boolean;
   onClose: () => void;
   onCreated: (product: ProductSummary) => void;
   onSessionEnded: () => void;
@@ -591,7 +591,7 @@ type NewProductModalProps = {
 };
 
 function NewProductModal({
-  isOpen,
+  open,
   onClose,
   onCreated,
   onSessionEnded,
@@ -628,7 +628,7 @@ function NewProductModal({
   );
 
   useEffect(() => {
-    if (isOpen) {
+    if (open) {
       setName("");
       setCategoryId(null);
       setSaleUnit(null);
@@ -640,7 +640,7 @@ function NewProductModal({
       setSubmitting(false);
       generate.reset();
     }
-  }, [isOpen, chips.reset, generate.reset]);
+  }, [open, chips.reset, generate.reset]);
 
   const categoryOptions = categorySelectOptions(categories);
 
@@ -734,7 +734,7 @@ function NewProductModal({
 
   return (
     <Modal
-      isOpen={isOpen}
+      open={open}
       onOpenChange={(open) => {
         if (!open) {
           onClose();
@@ -913,7 +913,7 @@ function EditProductModal({
   categories,
 }: EditProductModalProps) {
   const sendToMyAccount = useSendToMyAccount();
-  const isOpen = target !== null;
+  const open = target !== null;
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [saleUnit, setSaleUnit] = useState<ProductSaleUnit>("UNIT");
@@ -941,7 +941,7 @@ function EditProductModal({
   );
 
   useEffect(() => {
-    if (isOpen && target) {
+    if (open && target) {
       setName(target.name);
       setCategoryId(target.categoryId);
       setSaleUnit(target.saleUnit);
@@ -955,7 +955,7 @@ function EditProductModal({
       setSubmitting(false);
       generate.reset();
     }
-  }, [isOpen, target, chips.reset, generate.reset]);
+  }, [open, target, chips.reset, generate.reset]);
 
   const categoryOptions = categorySelectOptions(categories);
 
@@ -1108,7 +1108,7 @@ function EditProductModal({
 
   return (
     <Modal
-      isOpen={isOpen}
+      open={open}
       onOpenChange={(open) => {
         if (!open) {
           onClose();
@@ -1314,19 +1314,19 @@ function DeactivateProductModal({
   deactivateProduct,
 }: DeactivateProductModalProps) {
   const sendToMyAccount = useSendToMyAccount();
-  const isOpen = target !== null;
+  const open = target !== null;
   const [title, setTitle] = useState("");
   const [notice, setNotice] = useState<DeactivateNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const targetRef = useLatestRef(target);
 
   useEffect(() => {
-    if (isOpen && target) {
+    if (open && target) {
       setTitle(`¿Desactivar ${target.name}?`);
       setNotice(null);
       setSubmitting(false);
     }
-  }, [isOpen, target]);
+  }, [open, target]);
 
   async function handleConfirm() {
     const current = targetRef.current;
@@ -1367,7 +1367,7 @@ function DeactivateProductModal({
 
   return (
     <Modal
-      isOpen={isOpen}
+      open={open}
       onOpenChange={(open) => {
         if (!open) {
           onClose();
@@ -1513,7 +1513,7 @@ type PrintNotice =
   | { kind: "rateLimited"; retryAfterSeconds: number };
 
 type PrintLabelsModalProps = {
-  isOpen: boolean;
+  open: boolean;
   onClose: () => void;
   onSessionEnded: () => void;
   products: ProductSummary[];
@@ -1524,7 +1524,7 @@ type PrintLabelsModalProps = {
 };
 
 function PrintLabelsModal({
-  isOpen,
+  open,
   onClose,
   onSessionEnded,
   products,
@@ -1542,13 +1542,13 @@ function PrintLabelsModal({
 
   useEffect(() => {
     printRequestIdRef.current += 1;
-    if (isOpen) {
+    if (open) {
       setCounts({});
       setNotice(null);
       setPrinting(false);
       setReloading(false);
     }
-  }, [isOpen]);
+  }, [open]);
 
   const rows = useMemo(() => labelableProducts(products), [products]);
   const total = rows.reduce((sum, row) => sum + (counts[row.product.id] ?? 0), 0);
@@ -1656,7 +1656,7 @@ function PrintLabelsModal({
 
   return (
     <Modal
-      isOpen={isOpen}
+      open={open}
       onOpenChange={(open) => {
         if (!open) {
           onClose();
@@ -2119,7 +2119,7 @@ export function ProductsListScreen({
         )}
       </ScreenLayout>
       <NewProductModal
-        isOpen={newModalOpen}
+        open={newModalOpen}
         onClose={() => setNewModalOpen(false)}
         onCreated={(product) => {
           setNewModalOpen(false);
@@ -2174,7 +2174,7 @@ export function ProductsListScreen({
         deactivateProduct={deactivateProductService}
       />
       <PrintLabelsModal
-        isOpen={printModalOpen}
+        open={printModalOpen}
         onClose={() => setPrintModalOpen(false)}
         onSessionEnded={onSessionEnded}
         products={products}

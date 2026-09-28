@@ -61,11 +61,11 @@ const triggerBaseClassName = `flex min-w-0 max-w-full items-center rounded-lg bo
 
 // react-aria keeps `data-focused` on the trigger while its menu is open, since focus then sits
 // in the listbox but the trigger is still the field being edited.
-function triggerStateClassName(disabled: boolean, invalid: boolean, isOpen: boolean): string {
+function triggerStateClassName(disabled: boolean, invalid: boolean, open: boolean): string {
   if (disabled) {
     return "bg-surface border-border";
   }
-  if (isOpen) {
+  if (open) {
     return "bg-surface border-action";
   }
   const resting = invalid ? "border-error" : "border-border";

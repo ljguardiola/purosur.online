@@ -175,7 +175,7 @@ function PriceChangeModal({
   confirmPrice,
 }: PriceChangeModalProps) {
   const sendToMyAccount = useSendToMyAccount();
-  const isOpen = target !== null;
+  const open = target !== null;
   const [current, setCurrent] = useState<PriceProduct | null>(null);
   const [shownAt, setShownAt] = useState<Date | null>(null);
   const nowRef = useLatestRef(now);
@@ -396,7 +396,7 @@ function PriceChangeModal({
 
   return (
     <Modal
-      isOpen={isOpen}
+      open={open}
       onOpenChange={(open) => {
         if (!open) {
           onClose();

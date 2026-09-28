@@ -190,7 +190,7 @@ function EditIssuerIdentificationModal({
     authorizeSession,
     startAuthentication,
   } = services;
-  const isOpen = target !== null;
+  const open = target !== null;
   const [values, setValues] = useState<ModalValues>(EMPTY_MODAL_VALUES);
   const [version, setVersion] = useState(1);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -205,7 +205,7 @@ function EditIssuerIdentificationModal({
   });
 
   useEffect(() => {
-    if (isOpen && target) {
+    if (open && target) {
       setValues(valuesFrom(target));
       setToday(todayCalendarDate(nowRef.current()));
       setVersion(target.version);
@@ -213,7 +213,7 @@ function EditIssuerIdentificationModal({
       setNotice(null);
       setSubmitting(false);
     }
-  }, [isOpen, target, nowRef]);
+  }, [open, target, nowRef]);
 
   function clearFieldError(field: FieldErrorKey) {
     if (!errors[field]) {
@@ -309,7 +309,7 @@ function EditIssuerIdentificationModal({
   return (
     <>
       <Modal
-        isOpen={isOpen}
+        open={open}
         onOpenChange={(open) => {
           if (!open) {
             onClose();

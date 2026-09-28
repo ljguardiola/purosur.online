@@ -27,28 +27,28 @@ function toggleRoot(canvasElement: HTMLElement): HTMLElement {
 }
 
 export const Off: Story = {
-  args: { isSelected: false },
+  args: { checked: false },
 };
 
 export const On: Story = {
-  args: { isSelected: true },
+  args: { checked: true },
 };
 
 export const OffHovered: Story = {
-  args: { isSelected: false },
+  args: { checked: false },
   play: playHoverSetsDataHovered(toggleRoot),
 };
 
 export const OnHovered: Story = {
-  args: { isSelected: true },
+  args: { checked: true },
   play: playHoverSetsDataHovered(toggleRoot),
 };
 
 export const FocusVisible: Story = {
-  args: { isSelected: false },
+  args: { checked: false },
   play: playTabReachesFocusVisible(toggleInput, toggleRoot),
 };
 
 export const Disabled: Story = {
-  args: { isSelected: false, disabled: true },
+  args: { checked: false, disabled: true },
 };

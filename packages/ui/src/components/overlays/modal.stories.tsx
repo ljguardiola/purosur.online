@@ -12,7 +12,7 @@ const meta: Meta<typeof Modal> = {
   title: "Components/Modal",
   component: Modal,
   args: {
-    isOpen: true,
+    open: true,
     onOpenChange: () => {},
   },
 };

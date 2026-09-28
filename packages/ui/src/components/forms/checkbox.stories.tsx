@@ -27,24 +27,24 @@ function checkboxRoot(canvasElement: HTMLElement): HTMLElement {
 }
 
 export const Unchecked: Story = {
-  args: { isSelected: false },
+  args: { checked: false },
 };
 
 export const Checked: Story = {
-  args: { isSelected: true },
+  args: { checked: true },
 };
 
 export const UncheckedHovered: Story = {
-  args: { isSelected: false },
+  args: { checked: false },
   play: playHoverSetsDataHovered(checkboxRoot),
 };
 
 export const CheckedHovered: Story = {
-  args: { isSelected: true },
+  args: { checked: true },
   play: playHoverSetsDataHovered(checkboxRoot),
 };
 
 export const FocusVisible: Story = {
-  args: { isSelected: false },
+  args: { checked: false },
   play: playTabReachesFocusVisible(checkboxInput, checkboxRoot),
 };

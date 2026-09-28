@@ -69,7 +69,7 @@ function registerNameError(name: string): string | undefined {
 }
 
 type NewRegisterModalProps = {
-  isOpen: boolean;
+  open: boolean;
   onClose: () => void;
   onCreated: () => void;
   onSessionEnded: () => void;
@@ -80,7 +80,7 @@ type NewRegisterModalProps = {
 };
 
 function NewRegisterModal({
-  isOpen,
+  open,
   onClose,
   onCreated,
   onSessionEnded,
@@ -103,13 +103,13 @@ function NewRegisterModal({
   });
 
   useEffect(() => {
-    if (isOpen) {
+    if (open) {
       setName("");
       setNameError(undefined);
       setNotice(null);
       setSubmitting(false);
     }
-  }, [isOpen]);
+  }, [open]);
 
   async function handleSubmit() {
     const trimmed = name.trim();
@@ -161,7 +161,7 @@ function NewRegisterModal({
   return (
     <>
       <Modal
-        isOpen={isOpen}
+        open={open}
         onOpenChange={(open) => {
           if (!open) {
             onClose();
@@ -253,12 +253,12 @@ type EnrollmentCodeModalProps = {
  * effect here, so React Strict Mode's extra render (or a remount) can't refire the request.
  */
 function EnrollmentCodeModal({ emission, onClose, onDone, onRetry }: EnrollmentCodeModalProps) {
-  const isOpen = emission.kind !== "closed";
+  const open = emission.kind !== "closed";
   const isIssued = emission.kind === "issued";
 
   return (
     <Modal
-      isOpen={isOpen}
+      open={open}
       onOpenChange={(open) => {
         if (!open) {
           onClose();
@@ -585,7 +585,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
         )}
       </ScreenLayout>
       <NewRegisterModal
-        isOpen={newModalOpen}
+        open={newModalOpen}
         onClose={() => setNewModalOpen(false)}
         onCreated={() => {
           setNewModalOpen(false);

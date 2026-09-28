@@ -79,7 +79,7 @@ type FormNotice =
   | { kind: "reloadFailed" };
 
 type RoleSaveConfirmationModalProps = {
-  isOpen: boolean;
+  open: boolean;
   roleName: string;
   assignedUsers: AssignedUser[];
   submitting: boolean;
@@ -88,7 +88,7 @@ type RoleSaveConfirmationModalProps = {
 };
 
 function RoleSaveConfirmationModal({
-  isOpen,
+  open,
   roleName,
   assignedUsers,
   submitting,
@@ -97,7 +97,7 @@ function RoleSaveConfirmationModal({
 }: RoleSaveConfirmationModalProps) {
   return (
     <Modal
-      isOpen={isOpen}
+      open={open}
       onOpenChange={(open) => {
         if (!open) {
           onBack();
@@ -171,7 +171,7 @@ export function RoleEditorModal({
     authorizeSession,
     startAuthentication,
   } = services ?? defaultRoleEditorModalServices;
-  const isOpen = request !== null;
+  const open = request !== null;
   const mode = request?.kind ?? "new";
 
   const [name, setName] = useState("");
@@ -410,7 +410,7 @@ export function RoleEditorModal({
   return (
     <>
       <Modal
-        isOpen={isOpen}
+        open={open}
         onOpenChange={(open) => {
           if (!open && !submitting) {
             onClose();
@@ -552,7 +552,7 @@ export function RoleEditorModal({
         </div>
       </Modal>
       <RoleSaveConfirmationModal
-        isOpen={confirmingSave}
+        open={confirmingSave}
         roleName={loadState.kind === "loaded" ? roleDisplayName(loadState.role) : ""}
         assignedUsers={loadState.kind === "loaded" ? loadState.role.assignedUsers : []}
         submitting={submitting}

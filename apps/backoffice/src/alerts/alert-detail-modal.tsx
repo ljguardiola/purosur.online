@@ -320,7 +320,7 @@ export function AlertDetailModal({
 
   return (
     <Modal
-      isOpen={alertId !== null}
+      open={alertId !== null}
       onOpenChange={(open) => {
         if (!open && !submitting) {
           onClose();

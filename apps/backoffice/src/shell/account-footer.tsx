@@ -69,7 +69,7 @@ export function AccountFooter({ displayName, onSignedOut, services }: AccountFoo
         <span className="text-caption text-text-inverse-subtle">Salir</span>
       </button>
       <Modal
-        isOpen={confirming}
+        open={confirming}
         onOpenChange={setConfirming}
         width="standard"
         tone="info"

@@ -83,7 +83,7 @@ function parentSelectOptions(
 }
 
 type NewCategoryModalProps = {
-  isOpen: boolean;
+  open: boolean;
   onClose: () => void;
   onCreated: (category: CategorySummary) => void;
   onSessionEnded: () => void;
@@ -94,7 +94,7 @@ type NewCategoryModalProps = {
 const NO_PARENT_VALUE = "";
 
 function NewCategoryModal({
-  isOpen,
+  open,
   onClose,
   onCreated,
   onSessionEnded,
@@ -112,7 +112,7 @@ function NewCategoryModal({
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
+    if (open) {
       setName("");
       setParentValue(NO_PARENT_VALUE);
       setNameError(undefined);
@@ -120,7 +120,7 @@ function NewCategoryModal({
       setNotice(null);
       setSubmitting(false);
     }
-  }, [isOpen]);
+  }, [open]);
 
   const parentOptions = parentSelectOptions(categories, new Set());
   const parentId = parentValue === NO_PARENT_VALUE ? null : parentValue;
@@ -187,7 +187,7 @@ function NewCategoryModal({
 
   return (
     <Modal
-      isOpen={isOpen}
+      open={open}
       onOpenChange={(open) => {
         if (!open) {
           onClose();
@@ -299,7 +299,7 @@ function EditCategoryModal({
   categories,
 }: EditCategoryModalProps) {
   const sendToMyAccount = useSendToMyAccount();
-  const isOpen = target !== null;
+  const open = target !== null;
   const [name, setName] = useState("");
   const [parentValue, setParentValue] = useState(NO_PARENT_VALUE);
   const [version, setVersion] = useState(1);
@@ -311,7 +311,7 @@ function EditCategoryModal({
   const targetRef = useLatestRef(target);
 
   useEffect(() => {
-    if (isOpen && target) {
+    if (open && target) {
       setName(target.name);
       setParentValue(target.parentId ?? NO_PARENT_VALUE);
       setVersion(target.version);
@@ -321,7 +321,7 @@ function EditCategoryModal({
       setNotice(null);
       setSubmitting(false);
     }
-  }, [isOpen, target]);
+  }, [open, target]);
 
   const excludeIds = target ? selfAndDescendantIds(categories, target.id) : new Set<string>();
   const parentOptions = parentSelectOptions(categories, excludeIds);
@@ -454,7 +454,7 @@ function EditCategoryModal({
 
   return (
     <Modal
-      isOpen={isOpen}
+      open={open}
       onOpenChange={(open) => {
         if (!open) {
           onClose();
@@ -749,7 +749,7 @@ export function CategoriesListScreen({
         )}
       </ScreenLayout>
       <NewCategoryModal
-        isOpen={newModalOpen}
+        open={newModalOpen}
         onClose={() => setNewModalOpen(false)}
         onCreated={(category) => {
           setNewModalOpen(false);
