@@ -2,12 +2,13 @@ import { defineHelp } from "@purosur/ui";
 import { expect, test, vi } from "vitest";
 import { createAppRouter } from "./app-router";
 import { ScreenPending } from "./screen-pending";
+import { createAppServices } from "./test-support/app-services";
 
 function appRouter() {
   return createAppRouter({
     session: { kind: "signed-out", notice: undefined },
     help: defineHelp("es-AR", { categories: {}, articles: {} }),
-    services: {} as never,
+    services: createAppServices(),
     sessionActions: { signedIn: vi.fn(), signedOut: vi.fn(), sessionEnded: vi.fn() },
   });
 }
