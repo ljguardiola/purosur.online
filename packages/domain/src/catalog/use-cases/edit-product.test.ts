@@ -40,7 +40,7 @@ function decoyProduct(store: FakeCatalogStore): void {
 }
 
 describe("editProduct", () => {
-  it("answers not_found for an id that doesn't exist", async () => {
+  it("answers stale_version for a row that is missing when it is locked", async () => {
     const store = new FakeCatalogStore();
     leafCategory(store);
 
@@ -54,7 +54,7 @@ describe("editProduct", () => {
       version: 1,
     });
 
-    expect(outcome).toEqual({ kind: "not_found" });
+    expect(outcome).toEqual({ kind: "stale_version" });
   });
 
   it("rejects a stale version", async () => {

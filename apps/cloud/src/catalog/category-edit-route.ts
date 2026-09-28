@@ -154,10 +154,6 @@ export function registerCategoryEditRoute<TQueryResult extends PgQueryResultHKT>
         version: parsedBody.version,
       });
 
-      if (outcome.kind === "not_found") {
-        await reply.code(404).send(NOT_FOUND_RESPONSE);
-        return;
-      }
       if (outcome.kind === "stale_version") {
         await reply.code(409).send(STALE_VERSION_RESPONSE);
         return;

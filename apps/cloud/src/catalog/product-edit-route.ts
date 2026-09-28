@@ -143,10 +143,6 @@ export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
 
       const outcome = await editProduct(catalogStore, { id: target.id, ...parsedBody });
 
-      if (outcome.kind === "not_found") {
-        await reply.code(404).send(NOT_FOUND_RESPONSE);
-        return;
-      }
       if (outcome.kind === "stale_version") {
         await reply.code(409).send(STALE_VERSION_RESPONSE);
         return;

@@ -9,7 +9,6 @@ export interface EditCategoryInput {
 }
 
 export type EditCategoryOutcome =
-  | { kind: "not_found" }
   | { kind: "stale_version" }
   | { kind: "name_taken" }
   | { kind: "parent_not_found" }
@@ -45,10 +44,7 @@ export async function editCategory(
 
       // Locks this one row so a concurrent edit against the same category waits instead of racing.
       const locked = await tx.lockCategoryForUpdate(input.id);
-      if (locked.kind === "not_found") {
-        return { kind: "not_found" };
-      }
-      if (locked.category.version !== input.version) {
+      if (locked.kind === "not_found" || locked.category.version !== input.version) {
         return { kind: "stale_version" };
       }
 

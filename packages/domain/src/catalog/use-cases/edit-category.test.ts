@@ -3,7 +3,7 @@ import { editCategory } from "./edit-category.js";
 import { FakeCatalogStore } from "./test-support/fake-catalog-store.js";
 
 describe("editCategory", () => {
-  it("answers not_found for an id that doesn't exist", async () => {
+  it("answers stale_version for a row that is missing when it is locked", async () => {
     const store = new FakeCatalogStore();
     store.seedCategory({ id: "decoy", name: "Decoy", parentId: null, version: 1 });
 
@@ -14,7 +14,7 @@ describe("editCategory", () => {
       version: 1,
     });
 
-    expect(outcome).toEqual({ kind: "not_found" });
+    expect(outcome).toEqual({ kind: "stale_version" });
   });
 
   it("rejects a stale version", async () => {
