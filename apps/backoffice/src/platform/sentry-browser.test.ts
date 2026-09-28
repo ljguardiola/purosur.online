@@ -12,12 +12,17 @@ const configuration = {
 function startWithFakeSentry() {
   const init = vi.fn();
   const captureException = vi.fn();
+  const breadcrumbsIntegration = vi.fn((settings?: object) => ({
+    name: "Breadcrumbs" as const,
+    settings,
+  }));
   const send = startSentryReporting(configuration, {
     init,
     captureException,
+    breadcrumbsIntegration,
   });
   const options = init.mock.calls[0]?.[0] as BrowserOptions;
-  return { init, captureException, send, options };
+  return { init, captureException, breadcrumbsIntegration, send, options };
 }
 
 describe("startSentryReporting", () => {
@@ -38,6 +43,15 @@ describe("startSentryReporting", () => {
     expect(options.tracesSampleRate).toBeUndefined();
     expect(options.replaysSessionSampleRate).toBeUndefined();
     expect(options.replaysOnErrorSampleRate).toBeUndefined();
+  });
+
+  it("records no clicks or key presses, whose element labels can hold personal data", () => {
+    const { options } = startWithFakeSentry();
+
+    expect(options.integrations).toContainEqual({
+      name: "Breadcrumbs",
+      settings: { dom: false },
+    });
   });
 
   it("hands the errors it is given to the reporting library", () => {

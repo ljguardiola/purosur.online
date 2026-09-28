@@ -1,10 +1,10 @@
 import type { ErrorReportingConfiguration } from "@purosur/contracts";
 import { scrubErrorReport } from "@purosur/contracts";
-import { captureException, init } from "@sentry/browser";
+import { breadcrumbsIntegration, captureException, init } from "@sentry/browser";
 
 export function startSentryReporting(
   configuration: Extract<ErrorReportingConfiguration, { enabled: true }>,
-  sentry = { init, captureException },
+  sentry = { init, captureException, breadcrumbsIntegration },
 ): (error: unknown) => void {
   sentry.init({
     dsn: configuration.dsn,
@@ -12,6 +12,8 @@ export function startSentryReporting(
     release: configuration.release,
     sendDefaultPii: false,
     beforeSend: scrubErrorReport,
+    // A click breadcrumb copies the element's aria-label, title, name and alt, which can hold personal data.
+    integrations: [sentry.breadcrumbsIntegration({ dom: false })],
   });
   return (error) => {
     sentry.captureException(error);
