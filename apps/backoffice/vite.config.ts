@@ -3,7 +3,7 @@ import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { defineConfig, loadEnv, type ProxyOptions } from "vite";
-import { preloadFont } from "./src/platform/preload-font";
+import { preloadFont } from "./preload-font";
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 const REPO_ROOT = r("../..");
