@@ -97,7 +97,7 @@ function boxStateClassName(disabled: boolean, readOnly: boolean, invalid: boolea
     return "bg-surface inset-ring-2 inset-ring-border";
   }
   if (readOnly) {
-    return "bg-surface-subtle inset-ring-2 inset-ring-border " + "focus-within:inset-ring-action";
+    return "bg-surface-subtle inset-ring-2 inset-ring-border focus-within:inset-ring-action";
   }
   if (invalid) {
     return (
