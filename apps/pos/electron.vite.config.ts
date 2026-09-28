@@ -29,8 +29,8 @@ function contentSecurityPolicyMeta(): Plugin {
 export default defineConfig({
   main: {
     resolve: {
-      // Contracts' and domain's package.json point `main` at their compiled dist/, and nothing in the
-      // repository builds them automatically any more; the register reads the source directly regardless.
+      // Contracts' and domain's package.json point `main` at their compiled dist/, which the register's
+      // build never produces, so it reads their source instead.
       alias: {
         "@purosur/contracts": r("../../packages/contracts/src/index.ts"),
         "@purosur/domain": r("../../packages/domain/src/index.ts"),
