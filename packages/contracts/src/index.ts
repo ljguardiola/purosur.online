@@ -24,6 +24,8 @@ export type { CategoryCreationBody } from "./catalog/category-creation.js";
 export { categoryCreationBodySchema } from "./catalog/category-creation.js";
 export type { CategoryEditBody } from "./catalog/category-edit.js";
 export { categoryEditBodySchema } from "./catalog/category-edit.js";
+export type { LabelSheetBody } from "./catalog/label-sheet.js";
+export { labelSheetBodySchema } from "./catalog/label-sheet.js";
 export type { ProductCreationBody } from "./catalog/product-creation.js";
 export { productCreationBodySchema } from "./catalog/product-creation.js";
 export type { ProductEditBody } from "./catalog/product-edit.js";
