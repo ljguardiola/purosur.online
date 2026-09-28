@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const biomeBinary = join(dirname(fileURLToPath(import.meta.url)), "../../node_modules/.bin/biome");
 
-export function runCli({ args = process.argv.slice(2), logError = console.error } = {}) {
+function run(args) {
   const reportDir = mkdtempSync(join(tmpdir(), "biome-no-diagnostics-"));
   try {
     const reportPath = join(reportDir, "report.sarif");
@@ -15,13 +15,14 @@ export function runCli({ args = process.argv.slice(2), logError = console.error 
       [...args, "--reporter=default", "--reporter=sarif", `--reporter-file=${reportPath}`],
       { stdio: "inherit" },
     );
+    if (biome.error) throw biome.error;
     if (biome.status !== 0) return biome.status ?? 1;
 
     const report = JSON.parse(readFileSync(reportPath, "utf8"));
-    const diagnostics = report.runs.flatMap((run) => run.results).length;
+    const diagnostics = report.runs.flatMap((sarifRun) => sarifRun.results ?? []).length;
     if (diagnostics === 0) return 0;
 
-    logError(
+    console.error(
       `biome-no-diagnostics: Biome reported ${diagnostics} diagnostic(s); verify fails on every level, info included.`,
     );
     return 1;
@@ -31,5 +32,5 @@ export function runCli({ args = process.argv.slice(2), logError = console.error 
 }
 
 if (import.meta.main) {
-  process.exit(runCli());
+  process.exit(run(process.argv.slice(2)));
 }

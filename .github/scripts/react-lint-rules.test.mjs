@@ -135,7 +135,7 @@ for (const { label, relativeDir } of ROOTS) {
     assert.equal(exitCode, 0);
   });
 
-  test(`${label}: representative React mistakes are reported and fail under verify's flags`, () => {
+  test(`${label}: representative React mistakes are reported and fail Biome`, () => {
     const { exitCode, categories } = lint(relativeDir, MISTAKES_SOURCE);
 
     for (const expected of EXPECTED_MISTAKE_CATEGORIES) {
