@@ -1,16 +1,10 @@
 const HEX_COLOR = "#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?";
 
-// Reads --color-* custom properties declared in every @theme block, so tests and tooling can
-// check the stylesheet's actual values instead of a duplicated copy. A token written as a
-// var(--palette-*) reference resolves to that palette entry's color, wherever the palette is
-// declared in the stylesheet.
 export function parseColorTokens(css: string): Record<string, string> {
   const tokens: Record<string, string> = {};
   const palette = parsePalette(stripComments(css));
 
   for (const themeBlock of extractThemeBlocks(css)) {
-    // The 2 trailing hex digits are optional, so an 8-digit color that carries its own alpha
-    // channel (e.g. a shadow tint) is read the same way as an opaque 6-digit one.
     const declaration = new RegExp(
       `--color-([a-z0-9-]+):\\s*(?:(${HEX_COLOR})|var\\(--palette-([a-z0-9-]+)\\))\\s*;`,
       "g",
