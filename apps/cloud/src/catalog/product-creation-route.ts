@@ -17,14 +17,11 @@ export const CATEGORY_NOT_FOUND_FAILURE = {
   message: "categoryId must be an existing category's id",
 } as const;
 
-// 409, not 400 like `CATEGORY_NOT_FOUND_FAILURE`: a well-formed, existing categoryId that isn't a
-// leaf is a state conflict, not a malformed request.
 export const CATEGORY_NOT_LEAF_RESPONSE = {
   code: "category_not_leaf",
   message: "categoryId must be a leaf category with no subcategories of its own",
 } as const;
 
-// No passkey step-up: creating a product is routine work, not a sensitive account or role change.
 export function registerProductCreationRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: ProductsRouteOptions<TQueryResult>,
