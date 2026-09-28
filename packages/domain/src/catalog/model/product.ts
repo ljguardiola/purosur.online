@@ -50,7 +50,9 @@ const LABEL_SHEETS_MAX = 100;
 const LABELS_PER_SHEET = 24;
 export const LABELS_MAX_TOTAL_COUNT = LABEL_SHEETS_MAX * LABELS_PER_SHEET;
 
-export type SaleUnit = "UNIT" | "KG";
+export const SALE_UNITS = ["UNIT", "KG"] as const;
+
+export type SaleUnit = (typeof SALE_UNITS)[number];
 
 export type NetContentUnit = "G" | "KG" | "ML" | "L" | "UNIT";
 

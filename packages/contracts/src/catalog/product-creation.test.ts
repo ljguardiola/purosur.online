@@ -5,6 +5,7 @@ import {
   NET_CONTENT_UNITS,
   PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
+  SALE_UNITS,
 } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { productCreationBodySchema } from "./product-creation.js";
@@ -68,7 +69,7 @@ describe("productCreationBodySchema, categoryId", () => {
 });
 
 describe("productCreationBodySchema, saleUnit", () => {
-  it.each(["UNIT", "KG"])("accepts %s", (saleUnit) => {
+  it.each(SALE_UNITS)("accepts %s", (saleUnit) => {
     expect(isAccepted(validBody({ saleUnit }))).toBe(true);
   });
 

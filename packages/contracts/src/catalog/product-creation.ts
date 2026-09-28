@@ -10,6 +10,7 @@ import {
   type NetContentUnit,
   PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
+  SALE_UNITS,
 } from "@purosur/domain";
 import { z } from "zod";
 
@@ -53,7 +54,7 @@ export const productCreationBodySchema = z
     categoryId: z
       .string({ error: "categoryId must be an existing category's id" })
       .min(1, "categoryId must be an existing category's id"),
-    saleUnit: z.enum(["UNIT", "KG"], { error: "saleUnit must be UNIT or KG" }),
+    saleUnit: z.enum(SALE_UNITS, { error: "saleUnit must be UNIT or KG" }),
     barcodes: z
       .array(z.string({ error: BARCODES_TYPE_MESSAGE }).trim().min(1, BARCODES_TYPE_MESSAGE), {
         error: BARCODES_TYPE_MESSAGE,
