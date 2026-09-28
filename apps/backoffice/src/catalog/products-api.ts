@@ -1,3 +1,4 @@
+import type { ProductCreationBody, ProductEditBody } from "@purosur/contracts";
 import type { NetContentUnit } from "@purosur/domain";
 
 export type ProductSaleUnit = "UNIT" | "KG";
@@ -146,9 +147,16 @@ export async function fetchProducts(
 }
 
 export async function createProduct(input: CreateProductInput): Promise<CreateProductOutcome> {
+  const requestBody: ProductCreationBody = {
+    name: input.name,
+    categoryId: input.categoryId,
+    saleUnit: input.saleUnit,
+    barcodes: input.barcodes,
+    netContent: input.netContent,
+  };
   let response: Response;
   try {
-    response = await postJson("/products", input);
+    response = await postJson("/products", requestBody);
   } catch {
     return { kind: "failed" };
   }
@@ -268,9 +276,17 @@ export async function editProduct(
   id: string,
   input: EditProductInput,
 ): Promise<EditProductOutcome> {
+  const requestBody: ProductEditBody = {
+    name: input.name,
+    categoryId: input.categoryId,
+    saleUnit: input.saleUnit,
+    barcodes: input.barcodes,
+    netContent: input.netContent,
+    version: input.version,
+  };
   let response: Response;
   try {
-    response = await postJson(`/products/${id}/edit`, input);
+    response = await postJson(`/products/${id}/edit`, requestBody);
   } catch {
     return { kind: "failed" };
   }

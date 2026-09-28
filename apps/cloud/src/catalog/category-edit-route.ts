@@ -1,3 +1,4 @@
+import { categoryEditBodySchema } from "@purosur/contracts";
 import { editCategory } from "@purosur/domain/catalog/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -10,19 +11,13 @@ import {
 } from "../access/route-access.js";
 import { categories } from "../platform/db/schema.js";
 import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
 import type { CategoriesRouteOptions, CategoryRow } from "./categories-list-route.js";
 import {
   CATEGORY_NAME_TAKEN_RESPONSE,
   CATEGORY_PARENT_HAS_PRODUCTS_RESPONSE,
   CATEGORY_PARENT_NOT_FOUND_FAILURE,
 } from "./category-creation-route.js";
-import {
-  type CategoryFieldValidationFailure,
-  categoryNameValidationFailure,
-  hasParentId,
-  readCategoryName,
-  readParentId,
-} from "./category-validation.js";
 import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
 
 const CATEGORY_MOVE_NOT_ALLOWED_RESPONSE = {
@@ -39,48 +34,6 @@ const STALE_VERSION_RESPONSE = {
   code: "stale_version",
   message: "this category was changed since it was loaded",
 } as const;
-
-interface EditRequestBody {
-  name: string;
-  parentId: string | null;
-  version: number;
-}
-
-function readVersion(body: unknown): number | undefined {
-  const raw = (body as { version?: unknown } | undefined)?.version;
-  return typeof raw === "number" && Number.isInteger(raw) && raw >= 1 ? raw : undefined;
-}
-
-function readEditBody(body: unknown): EditRequestBody | CategoryFieldValidationFailure {
-  const name = readCategoryName(body);
-  const nameFailure = categoryNameValidationFailure(name);
-  if (nameFailure) {
-    return nameFailure;
-  }
-  if (!name) {
-    return { field: "name", message: "name must not be empty" };
-  }
-  // A client loaded before nesting existed sends only a name and version; treating a missing
-  // parentId as "top level" would silently un-nest the category it renames.
-  if (!hasParentId(body)) {
-    return { field: "parentId", message: "parentId must be sent, null for top level" };
-  }
-  const parentId = readParentId(body);
-  if (parentId === undefined) {
-    return CATEGORY_PARENT_NOT_FOUND_FAILURE;
-  }
-  const version = readVersion(body);
-  if (version === undefined) {
-    return { field: "version", message: "version must be the positive integer it was loaded with" };
-  }
-  return { name, parentId, version };
-}
-
-function isValidationFailure(
-  value: EditRequestBody | CategoryFieldValidationFailure,
-): value is CategoryFieldValidationFailure {
-  return "field" in value;
-}
 
 async function findCategoryById<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
@@ -137,22 +90,12 @@ export function registerCategoryEditRoute<TQueryResult extends PgQueryResultHKT>
         return;
       }
 
-      const parsedBody = readEditBody(request.body);
-      if (isValidationFailure(parsedBody)) {
-        await reply.code(400).send({
-          code: "validation_failed",
-          message: parsedBody.message,
-          details: [{ field: parsedBody.field }],
-        });
+      const parsedBody = await readValidatedBody(reply, categoryEditBodySchema, request.body);
+      if (!parsedBody) {
         return;
       }
 
-      const outcome = await editCategory(catalogStore, {
-        id: target.id,
-        name: parsedBody.name,
-        parentId: parsedBody.parentId,
-        version: parsedBody.version,
-      });
+      const outcome = await editCategory(catalogStore, { id: target.id, ...parsedBody });
 
       if (outcome.kind === "stale_version") {
         await reply.code(409).send(STALE_VERSION_RESPONSE);

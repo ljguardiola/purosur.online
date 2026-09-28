@@ -9,11 +9,13 @@ export {
   ean13Modules,
   isInternalBarcode,
 } from "./model/ean13.js";
-export type { NetContentUnit, SaleUnit } from "./model/product.js";
+export type { BarcodeListProblem, NetContentUnit, SaleUnit } from "./model/product.js";
 export {
   BARCODE_MAX_LENGTH,
   barcodeLength,
+  barcodeListProblem,
   isBarcodeTooLong,
+  isNetContentUnit,
   isProductNameTooLong,
   isValidNetContentQuantity,
   LABELS_MAX_COUNT_PER_PRODUCT,
@@ -24,4 +26,5 @@ export {
   PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
   productNameLength,
+  SALE_UNITS,
 } from "./model/product.js";

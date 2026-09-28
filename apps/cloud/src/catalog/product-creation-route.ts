@@ -1,5 +1,4 @@
-import type { SaleUnit } from "@purosur/domain";
-import type { CatalogNetContent } from "@purosur/domain/catalog/use-cases";
+import { productCreationBodySchema } from "@purosur/contracts";
 import { createProduct } from "@purosur/domain/catalog/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
@@ -9,22 +8,14 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
 import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
-import {
-  type ProductFieldValidationFailure,
-  readBarcodes,
-  readCategoryId,
-  readNetContent,
-  readProductName,
-  readSaleUnit,
-  validateProductFields,
-} from "./product-validation.js";
 import type { ProductsRouteOptions } from "./products-list-route.js";
 
-export const CATEGORY_NOT_FOUND_FAILURE: ProductFieldValidationFailure = {
+export const CATEGORY_NOT_FOUND_FAILURE = {
   field: "categoryId",
   message: "categoryId must be an existing category's id",
-};
+} as const;
 
 // 409, not 400 like `CATEGORY_NOT_FOUND_FAILURE`: a well-formed, existing categoryId that isn't a
 // leaf is a state conflict, not a malformed request.
@@ -32,40 +23,6 @@ export const CATEGORY_NOT_LEAF_RESPONSE = {
   code: "category_not_leaf",
   message: "categoryId must be a leaf category with no subcategories of its own",
 } as const;
-
-interface CreationRequestBody {
-  name: string;
-  categoryId: string;
-  saleUnit: SaleUnit;
-  barcodes: string[];
-  netContent: CatalogNetContent | null;
-}
-
-function readCreationBody(body: unknown): CreationRequestBody | ProductFieldValidationFailure {
-  const name = readProductName(body);
-  const categoryId = readCategoryId(body);
-  const saleUnit = readSaleUnit(body);
-  const barcodes = readBarcodes(body);
-  const netContent = readNetContent(body);
-  const failure = validateProductFields({ name, categoryId, saleUnit, barcodes, netContent });
-  if (failure) {
-    return failure;
-  }
-  // `validateProductFields` above already guarantees every one of these is defined.
-  return {
-    name: name as string,
-    categoryId: categoryId as string,
-    saleUnit: saleUnit as SaleUnit,
-    barcodes: barcodes as string[],
-    netContent: netContent === undefined ? null : (netContent as CatalogNetContent),
-  };
-}
-
-function isValidationFailure(
-  value: CreationRequestBody | ProductFieldValidationFailure,
-): value is ProductFieldValidationFailure {
-  return "field" in value;
-}
 
 // No passkey step-up: creating a product is routine work, not a sensitive account or role change.
 export function registerProductCreationRoute<TQueryResult extends PgQueryResultHKT>(
@@ -98,13 +55,8 @@ export function registerProductCreationRoute<TQueryResult extends PgQueryResultH
       },
     },
     async (request, reply) => {
-      const parsedBody = readCreationBody(request.body);
-      if (isValidationFailure(parsedBody)) {
-        await reply.code(400).send({
-          code: "validation_failed",
-          message: parsedBody.message,
-          details: [{ field: parsedBody.field }],
-        });
+      const parsedBody = await readValidatedBody(reply, productCreationBodySchema, request.body);
+      if (!parsedBody) {
         return;
       }
 
