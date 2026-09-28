@@ -13,6 +13,10 @@
     "./catalog/use-cases": {
       "types": "./dist/catalog/use-cases/index.d.ts",
       "default": "./dist/catalog/use-cases/index.js"
+    },
+    "./pricing/use-cases": {
+      "types": "./dist/pricing/use-cases/index.d.ts",
+      "default": "./dist/pricing/use-cases/index.js"
     }
   },
   "files": [
