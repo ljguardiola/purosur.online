@@ -3,8 +3,9 @@ import { isAlias, isMap, isScalar, isSeq, parseDocument } from "yaml";
 
 const WORKFLOW_PATH = ".github/workflows/verify.yml";
 const PACKAGE_JSON_PATH = "package.json";
-const EXPECTED_VERIFY_SCRIPT = "pnpm verify:static && pnpm verify:tests";
-const EXPECTED_VERIFY_TESTS_SCRIPT = "vitest run";
+const EXPECTED_VERIFY_SCRIPT = "pnpm verify:static && pnpm verify:tests && pnpm verify:visual";
+const EXPECTED_VERIFY_TESTS_SCRIPT = "vitest run --project='!catalog-visual'";
+const EXPECTED_VERIFY_VISUAL_SCRIPT = "vitest run --project=catalog-visual";
 const REQUIRED_VERIFY_STATIC_COMMANDS = [
   "tsc --noEmit",
   "tsc --noEmit -p apps/backoffice",
@@ -16,6 +17,7 @@ const REQUIRED_VERIFY_STATIC_COMMANDS = [
   "node --test .github/scripts/*.test.mjs",
 ];
 const EXPECTED_RUN_CONDITION = `\${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.docs_only != 'true') }}`;
+const EXPECTED_VISUAL_CONDITION = `\${{ !cancelled() && needs.scope.outputs.catalog_changed != 'false' }}`;
 const EXPECTED_VERIFY_CONDITION = "always()";
 const HISTORY_SCAN_COMMAND = "node --test .github/scripts/no-secrets-in-commit-history.test.mjs";
 const EXPECTED_HISTORY_SCAN_BASE_REF = `\${{ github.event.pull_request.base.sha }}`;
@@ -24,8 +26,10 @@ const EXPECTED_AGGREGATE_ENV = {
   EVENT_NAME: `\${{ github.event_name }}`,
   SCOPE_RESULT: `\${{ needs.scope.result }}`,
   SCOPE_DOCS_ONLY: `\${{ needs.scope.outputs.docs_only }}`,
+  SCOPE_CATALOG_CHANGED: `\${{ needs.scope.outputs.catalog_changed }}`,
   STATIC_RESULT: `\${{ needs.static.result }}`,
   TESTS_RESULT: `\${{ needs.tests.result }}`,
+  VISUAL_RESULT: `\${{ needs.visual.result }}`,
 };
 
 function resolveNode(doc, node) {
@@ -99,13 +103,13 @@ function neededJobs(doc, job) {
   return typeof single === "string" ? [single] : [];
 }
 
-function runnerJobViolations(doc, jobId, job, command) {
+function runnerJobViolations(doc, jobId, job, command, expectedCondition) {
   const violations = [];
 
   const condition = resolveScalar(doc, mapGet(doc, job, "if"));
-  if (condition !== EXPECTED_RUN_CONDITION) {
+  if (condition !== expectedCondition) {
     violations.push(
-      `verify.yml's ${jobId} job runs under \`if: ${condition}\`, expected \`if: ${EXPECTED_RUN_CONDITION}\``,
+      `verify.yml's ${jobId} job runs under \`if: ${condition}\`, expected \`if: ${expectedCondition}\``,
     );
   }
   if (mayContinueOnError(doc, job)) {
@@ -173,7 +177,7 @@ function verifyJobViolations(doc, job) {
   const violations = [];
 
   const needs = neededJobs(doc, job);
-  for (const jobId of ["static", "tests"]) {
+  for (const jobId of ["static", "tests", "visual"]) {
     if (!needs.includes(jobId)) {
       violations.push(`verify.yml's verify job does not need ${jobId}`);
     }
@@ -255,7 +259,15 @@ export function findVerifyWorkflowViolations(workflowSource, packageJsonSource) 
   if (staticJob === undefined) {
     violations.push("verify.yml has no static job");
   } else {
-    violations.push(...runnerJobViolations(doc, "static", staticJob, "pnpm verify:static"));
+    violations.push(
+      ...runnerJobViolations(
+        doc,
+        "static",
+        staticJob,
+        "pnpm verify:static",
+        EXPECTED_RUN_CONDITION,
+      ),
+    );
   }
 
   const testsJob = jobNode(doc, "tests");
@@ -279,9 +291,25 @@ export function findVerifyWorkflowViolations(workflowSource, packageJsonSource) 
           "tests",
           testsJob,
           `pnpm verify:tests --shard=\${{ matrix.shard }}/${shardValues.length}`,
+          EXPECTED_RUN_CONDITION,
         ),
       );
     }
+  }
+
+  const visualJob = jobNode(doc, "visual");
+  if (visualJob === undefined) {
+    violations.push("verify.yml has no visual job");
+  } else {
+    violations.push(
+      ...runnerJobViolations(
+        doc,
+        "visual",
+        visualJob,
+        "pnpm verify:visual",
+        EXPECTED_VISUAL_CONDITION,
+      ),
+    );
   }
 
   const verifyJob = jobNode(doc, "verify");
@@ -305,6 +333,11 @@ export function findVerifyWorkflowViolations(workflowSource, packageJsonSource) 
   if (scripts?.["verify:tests"] !== EXPECTED_VERIFY_TESTS_SCRIPT) {
     violations.push(
       `package.json's "verify:tests" script is "${scripts?.["verify:tests"]}", expected exactly "${EXPECTED_VERIFY_TESTS_SCRIPT}"`,
+    );
+  }
+  if (scripts?.["verify:visual"] !== EXPECTED_VERIFY_VISUAL_SCRIPT) {
+    violations.push(
+      `package.json's "verify:visual" script is "${scripts?.["verify:visual"]}", expected exactly "${EXPECTED_VERIFY_VISUAL_SCRIPT}"`,
     );
   }
 

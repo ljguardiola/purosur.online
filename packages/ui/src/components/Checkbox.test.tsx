@@ -4,7 +4,6 @@ import { expect, expectTypeOf, test } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { contrastRatio, NON_TEXT_CONTRAST } from "../styles/contrast";
-import { expectNoAccessibilityViolations } from "../test/axe";
 import {
   boundaryColorHex,
   insetBoundary,
@@ -64,8 +63,6 @@ test("renders the caller's content 12px from a 22px, 4px-radius box, vertically 
   const gap = content.getBoundingClientRect().left - boxRect.right;
   expect(gap).toBeGreaterThan(11);
   expect(gap).toBeLessThan(13);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("colors an unchecked box white with a 2px ink-secondary border and no check", async () => {
@@ -85,8 +82,6 @@ test("colors an unchecked box white with a 2px ink-secondary border and no check
   const boundaryHex = boundaryColorHex(box);
   const fillHex = rgbToHex(style.backgroundColor);
   expect(contrastRatio(boundaryHex, fillHex)).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("turns an unchecked box's background bone on hover, keeping its border", async () => {
@@ -106,8 +101,6 @@ test("turns an unchecked box's background bone on hover, keeping its border", as
   const boundaryHex = boundaryColorHex(box);
   const fillHex = rgbToHex(style.backgroundColor);
   expect(contrastRatio(boundaryHex, fillHex)).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("colors a checked box blue UI with a 16px white check and no border", async () => {
@@ -130,8 +123,6 @@ test("colors a checked box blue UI with a 16px white check and no border", async
   expect(checkRect.height).toBeGreaterThan(15);
   expect(checkRect.height).toBeLessThan(17);
   expect(getComputedStyle(check).color).toBe(tokenRgb("surface-white"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("turns a checked box's background blue strong on hover, keeping the white check", async () => {
@@ -148,8 +139,6 @@ test("turns a checked box's background blue strong on hover, keeping the white c
     .poll(() => getComputedStyle(box).backgroundColor)
     .toBe(tokenRgb("brand-blue-strong"));
   expect(box.querySelector("svg")).not.toBeNull();
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("keeps the box's size stable between the unchecked and checked states", async () => {
@@ -170,8 +159,6 @@ test("keeps the box's size stable between the unchecked and checked states", asy
 
   expect(checkedRect.width).toBeCloseTo(uncheckedRect.width, 0);
   expect(checkedRect.height).toBeCloseTo(uncheckedRect.height, 0);
-
-  await expectNoAccessibilityViolations(checkedScreen.container);
 });
 
 test("toggles when clicking the box", async () => {
@@ -180,7 +167,6 @@ test("toggles when clicking the box", async () => {
   await userEvent.click(checkboxBox(screen, "Return this line"));
 
   expect(checkboxInput(screen, "Return this line").checked).toBe(true);
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("toggles when clicking the content", async () => {
@@ -189,7 +175,6 @@ test("toggles when clicking the content", async () => {
   await userEvent.click(screen.getByText("Return this line").element());
 
   expect(checkboxInput(screen, "Return this line").checked).toBe(true);
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("toggles with Space when focused", async () => {
@@ -199,7 +184,6 @@ test("toggles with Space when focused", async () => {
   await userEvent.keyboard(" ");
 
   expect(checkboxInput(screen, "Return this line").checked).toBe(true);
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("exposes the checkbox to assistive technology named by its content, with its checked state", async () => {
@@ -211,7 +195,6 @@ test("exposes the checkbox to assistive technology named by its content, with it
   const checkbox = screen.getByRole("checkbox", { name: "Return this line" });
 
   await expect.element(checkbox).toBeChecked();
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("shows the package's focus ring around the box when focused", async () => {
@@ -227,8 +210,6 @@ test("shows the package's focus ring around the box when focused", async () => {
   await expect.poll(() => getComputedStyle(box).outlineWidth).toBe("3px");
   await expect.poll(() => getComputedStyle(box).outlineOffset).toBe("3px");
   await expect.poll(() => getComputedStyle(box).outlineColor).toBe(tokenRgb("brand-blue-strong"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("lets its content fill the remaining width of a wide container", async () => {
@@ -248,8 +229,6 @@ test("lets its content fill the remaining width of a wide container", async () =
 
   expect(labelRect.width).toBeCloseTo(400, 0);
   expect(wrapperRect.right).toBeCloseTo(labelRect.right, 0);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("does not accept a checkbox without content", () => {

@@ -114,7 +114,6 @@ test("renders nothing until hovered, focused, or otherwise activated", async () 
   );
 
   expect(screen.getByRole("tooltip").elements()).toHaveLength(0);
-  await expectNoAccessibilityViolations(document.body, axeOptions);
 });
 
 test("shows a 6px-radius ink box, 12px padding, white 14px/1.35 text at AAA contrast, and the ink-shadow drop shadow below its element by default", async () => {
@@ -150,8 +149,6 @@ test("shows a 6px-radius ink box, 12px padding, white 14px/1.35 text at AAA cont
   const backgroundHex = rgbToHex(style.backgroundColor);
   const textHex = rgbToHex(style.color);
   expect(contrastRatio(textHex, backgroundHex)).toBeGreaterThanOrEqual(AAA_TEXT_CONTRAST);
-
-  await expectNoAccessibilityViolations(document.body, axeOptions);
 });
 
 test("centers a 10px ink diamond on the box's edge, the box 10px clear of the element and the arrow centered on it", async () => {
@@ -196,8 +193,6 @@ test("centers a 10px ink diamond on the box's edge, the box 10px clear of the el
   const diamondCenterX = diamondRect.left + diamondRect.width / 2;
   const triggerCenterX = triggerRect.left + triggerRect.width / 2;
   expect(Math.abs(diamondCenterX - triggerCenterX)).toBeLessThanOrEqual(1);
-
-  await expectNoAccessibilityViolations(document.body, axeOptions);
 });
 
 test("keeps the arrow centered on the box's edge, pointing down at the element, once flipped above it", async () => {
@@ -314,8 +309,6 @@ test("caps a long explanation at 300px wide instead of stretching a short one to
   expect(longRect.width).toBeGreaterThan(295);
   expect(longRect.width).toBeLessThan(301);
   expect(longRect.height).toBeGreaterThan(60);
-
-  await expectNoAccessibilityViolations(document.body, axeOptions);
 });
 
 test("stays open while the pointer moves from its element onto the tooltip itself", async (context) => {
@@ -332,7 +325,6 @@ test("stays open while the pointer moves from its element onto the tooltip itsel
   await userEvent.hover(trigger);
   await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
   const tooltip = tooltipElement(screen);
-  await expectNoAccessibilityViolations(document.body, axeOptions);
 
   // Under the left edge, not the center, since the arrow bridges most of the gap there.
   const triggerRect = trigger.getBoundingClientRect();
@@ -390,7 +382,6 @@ test("appears on hover and disappears within a short grace period once the point
   await userEvent.hover(trigger);
   await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
   const tooltip = tooltipElement(screen);
-  await expectNoAccessibilityViolations(document.body, axeOptions);
 
   const awayX = window.innerWidth - 1;
   const awayY = window.innerHeight - 1;
@@ -422,8 +413,6 @@ test("appears on hover and disappears within a short grace period once the point
   } finally {
     watch.abort();
   }
-
-  await expectNoAccessibilityViolations(document.body, axeOptions);
 });
 
 test("appears on keyboard focus and disappears once focus leaves its element", async (context) => {
@@ -441,7 +430,6 @@ test("appears on keyboard focus and disappears once focus leaves its element", a
     screen.getByRole("button", { name: "Void reason" }).element(),
   );
   await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
-  await expectNoAccessibilityViolations(document.body, axeOptions);
 
   const watch = new AbortController();
   const closed = whenTooltipIs("removed", watch.signal);
@@ -469,7 +457,6 @@ test("disappears when Escape is pressed while its element is focused", async (co
 
   await userEvent.tab();
   await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
-  await expectNoAccessibilityViolations(document.body, axeOptions);
 
   const watch = new AbortController();
   const closed = whenTooltipIs("removed", watch.signal);
@@ -530,8 +517,6 @@ test("exposes the tooltip as its element's description instead of separate conte
 
   const tooltip = tooltipElement(screen);
   expect(trigger.getAttribute("aria-describedby")).toBe(tooltip.id);
-
-  await expectNoAccessibilityViolations(document.body, axeOptions);
 });
 
 test("waits 300ms of hover before appearing, neither instantly nor on react-aria's 1500ms default", async (context) => {

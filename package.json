@@ -13,8 +13,9 @@
     "format": "biome format --write .",
     "depcruise": "depcruise packages apps --config .dependency-cruiser.mjs",
     "verify:static": "tsc --noEmit && tsc --noEmit -p apps/backoffice && tsc --noEmit -p apps/pos && pnpm --filter @purosur/cloud build && biome ci . && pnpm depcruise && knip && node --test .github/scripts/*.test.mjs",
-    "verify:tests": "vitest run",
-    "verify": "pnpm verify:static && pnpm verify:tests",
+    "verify:tests": "vitest run --project='!catalog-visual'",
+    "verify:visual": "vitest run --project=catalog-visual",
+    "verify": "pnpm verify:static && pnpm verify:tests && pnpm verify:visual",
     "mutation": "stryker run stryker.config.mjs",
     "dev:db": "docker compose up -d",
     "dev:migrate": "pnpm --filter @purosur/cloud build && node --env-file=.env apps/cloud/dist/migrate.js",
@@ -23,6 +24,9 @@
     "dev:clear-sample-data": "pnpm --filter @purosur/cloud build && node --env-file=.env apps/cloud/dist/clear-sample-data.js",
     "dev:cloud": "pnpm --filter @purosur/cloud build && node --env-file=.env apps/cloud/dist/server.js",
     "dev:backoffice": "pnpm --filter @purosur/backoffice dev",
+    "catalog": "pnpm --filter @purosur/ui catalog",
+    "catalog:build": "pnpm --filter @purosur/ui catalog:build",
+    "catalog:approve": "vitest run --project=catalog-visual --update",
     "ci:verify-durations": "node .github/scripts/verify-durations.mjs"
   },
   "devDependencies": {

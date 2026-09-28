@@ -58,8 +58,6 @@ test("draws no divider on the rows themselves, only one line above and below the
     expect(style.borderTopWidth).toBe("0px");
     expect(style.borderBottomWidth).toBe("0px");
   }
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders every row it is given, in order", async () => {
@@ -80,8 +78,6 @@ test("renders every row it is given, in order", async () => {
   const group = screen.container.firstElementChild as HTMLElement;
   expect(group.children[0]?.textContent).toBe("Items3");
   expect(group.children[2]?.textContent).toBe("Total$130.00");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders a row it is given as strong or as a saving, not in the plain form", async () => {

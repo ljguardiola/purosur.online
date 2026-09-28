@@ -103,6 +103,7 @@ Each risk has one kind of test that owns it:
 | The tax authority's web services | A fake of each web service and responses recorded from its test environment | `verify`; live calls to its test environment run on a schedule |
 | Hardware: printer, scanner, scale, cash drawer | A fake behind each device's port, and the printed receipt compared with its expected output | `verify`; the real device by a written manual check before a hardware adapter change ships |
 | Design-system components, including accessibility | Component tests in a real browser, in `packages/ui` | `verify` |
+| Design-system components' visual appearance | Each Storybook story's approved screenshot, in `packages/ui` | `verify` |
 | Backoffice screens | Screen tests of how each screen presents its states and outcomes, and its wiring to the cloud | `verify` |
 | Register journeys: sell, sell offline and sync, contingency invoicing, void, sign in | A few end-to-end tests of the packaged register app, each showing that the journey is wired end to end, not every case its use cases own | "Package register", on every pull request that changes the register or a package |
 | Installing the packaged register and updating it in place | An install and update of the packaged build | Per release |
@@ -114,6 +115,10 @@ A new migration must be dated after every migration already on `main`: the migra
 A test's result must not depend on how much real time passes while it runs: it neither waits a fixed real time nor measures real elapsed time to decide its outcome. It controls time with fake timers or an injected clock, or it waits for the condition it actually needs. `pnpm verify` rejects a test that depends on real elapsed time.
 
 A test is removed only when the rule it checks is already verified by its owning test and it verifies nothing beyond that rule.
+
+An approved screenshot of each Storybook story, committed under `packages/ui/src/__screenshots__`, owns that story's visual appearance; `pnpm verify` renders every story again and fails on any difference. A change that alters how a story looks on purpose is approved with `pnpm catalog:approve`, which overwrites the affected screenshots; review the new images before committing them alongside the change in the same pull request.
+
+A new `packages/ui` component or a new state of an existing one is not complete until it has a story rendering it in the catalog. Browse the catalog with `pnpm catalog`.
 
 A CI run that fails because of a flaky test unrelated to the change is rerun only after an issue naming the test and its error has been filed. A rerun hides the instability, and it would equally hide a real failure.
 
