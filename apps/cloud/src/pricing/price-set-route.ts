@@ -2,10 +2,9 @@ import { priceSetBodySchema } from "@purosur/contracts";
 import { setPrice } from "@purosur/domain/pricing/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { checkRequestIsSameOrigin } from "../access/open-session.js";
+import { sameOriginGuard } from "../access/backoffice-origin.js";
 import {
   openSessionOf,
-  originGuard,
   permissionAccess,
   registerRouteAccess,
   routeSessionSource,
@@ -39,9 +38,7 @@ export function registerPriceSetRoute<TQueryResult extends PgQueryResultHKT>(
   app.post<{ Params: { id: string } }>(
     "/products/:id/price",
     {
-      preHandler: originGuard((request, reply) =>
-        checkRequestIsSameOrigin(request, reply, options.backofficeOrigin),
-      ),
+      preHandler: sameOriginGuard(options.backofficeOrigin),
       config: { access: permissionAccess("manage_prices_and_review"), sessionSource },
     },
     async (request, reply) => {

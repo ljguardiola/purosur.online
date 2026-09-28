@@ -1,12 +1,12 @@
 import { and, eq, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyInstance } from "fastify";
 import { auditLog, roles, sessions, userRoles, users } from "../platform/db/schema.js";
+import { backofficeOriginGuard } from "./backoffice-origin.js";
 import { findBranchUser } from "./branch-users.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import {
   openSessionOf,
-  originGuard,
   permissionAccess,
   registerRouteAccess,
   routeSessionSource,
@@ -86,17 +86,6 @@ export function registerUserDeactivationRoutes<TQueryResult extends PgQueryResul
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
-    if (request.headers.origin !== options.backofficeOrigin) {
-      void reply.code(403).send({
-        code: "origin_rejected",
-        message: "the request's Origin does not match the backoffice's own origin",
-      });
-      return false;
-    }
-    return true;
-  }
-
   async function findTarget(locationId: string, actorId: string, targetId: string) {
     if (!UUID_PATTERN.test(targetId)) {
       return undefined;
@@ -111,7 +100,7 @@ export function registerUserDeactivationRoutes<TQueryResult extends PgQueryResul
   app.post<{ Params: { id: string } }>(
     "/users/:id/deactivation",
     {
-      preHandler: originGuard(checkOrigin),
+      preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: { access: permissionAccess("deactivate_users"), sessionSource },
     },
     async (request, reply) => {

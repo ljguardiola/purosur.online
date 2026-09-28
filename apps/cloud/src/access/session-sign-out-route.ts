@@ -1,9 +1,9 @@
 import { and, eq, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyInstance } from "fastify";
 import { sessions } from "../platform/db/schema.js";
+import { backofficeOriginGuard } from "./backoffice-origin.js";
 import {
-  originGuard,
   registerRouteAccess,
   routeSessionSource,
   SESSION_COOKIE_ACCESS,
@@ -26,21 +26,10 @@ export function registerSessionSignOutRoute<TQueryResult extends PgQueryResultHK
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
-    if (request.headers.origin !== options.backofficeOrigin) {
-      void reply.code(403).send({
-        code: "origin_rejected",
-        message: "the request's Origin does not match the backoffice's own origin",
-      });
-      return false;
-    }
-    return true;
-  }
-
   app.post(
     "/users/session/sign-out",
     {
-      preHandler: originGuard(checkOrigin),
+      preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: { access: SESSION_COOKIE_ACCESS, sessionSource },
     },
     async (request, reply) => {

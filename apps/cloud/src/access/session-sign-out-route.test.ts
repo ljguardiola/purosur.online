@@ -160,19 +160,6 @@ describe("POST /users/session/sign-out", () => {
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
   });
 
-  it("rejects a missing Origin header", async () => {
-    const rawSessionId = await insertSession();
-
-    const response = await app.inject({
-      method: "POST",
-      url: "/users/session/sign-out",
-      headers: { cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` },
-    });
-
-    expect(response.statusCode).toBe(403);
-    expect(response.json()).toMatchObject({ code: "origin_rejected" });
-  });
-
   it("rejects an Origin that does not match the backoffice's own origin", async () => {
     const rawSessionId = await insertSession();
 

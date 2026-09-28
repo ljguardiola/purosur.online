@@ -2,9 +2,9 @@ import { productEditBodySchema } from "@purosur/contracts";
 import { editProduct } from "@purosur/domain/catalog/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyInstance } from "fastify";
+import { backofficeOriginGuard } from "../access/backoffice-origin.js";
 import {
-  originGuard,
   permissionAccess,
   registerRouteAccess,
   routeSessionSource,
@@ -49,21 +49,10 @@ export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
   const catalogStore = new DrizzleCatalogStore(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
-    if (request.headers.origin !== options.backofficeOrigin) {
-      void reply.code(403).send({
-        code: "origin_rejected",
-        message: "the request's Origin does not match the backoffice's own origin",
-      });
-      return false;
-    }
-    return true;
-  }
-
   app.post<{ Params: { id: string } }>(
     "/products/:id/edit",
     {
-      preHandler: originGuard(checkOrigin),
+      preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: {
         access: permissionAccess("manage_products_and_categories"),
         sessionSource,

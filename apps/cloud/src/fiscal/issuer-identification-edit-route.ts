@@ -2,11 +2,10 @@ import { issuerIdentificationEditBodySchema } from "@purosur/contracts";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { checkRequestIsSameOrigin } from "../access/open-session.js";
+import { sameOriginGuard } from "../access/backoffice-origin.js";
 import { requirePasskeyAuthorization } from "../access/passkey-authorization-guard.js";
 import {
   openSessionOf,
-  originGuard,
   permissionAccess,
   registerRouteAccess,
   routeSessionSource,
@@ -116,9 +115,7 @@ export function registerIssuerIdentificationEditRoute<TQueryResult extends PgQue
   app.put(
     "/fiscal-configuration/issuer-identification",
     {
-      preHandler: originGuard((request, reply) =>
-        checkRequestIsSameOrigin(request, reply, options.backofficeOrigin),
-      ),
+      preHandler: sameOriginGuard(options.backofficeOrigin),
       config: { access: permissionAccess("change_fiscal_configuration"), sessionSource },
     },
     async (request, reply) => {

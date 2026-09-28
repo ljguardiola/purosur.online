@@ -3,8 +3,9 @@ import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
 import { verifyAuthenticationResponse } from "@simplewebauthn/server";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import { auditLog, passkeys, sessions, users } from "../platform/db/schema.js";
+import { requireBackofficeOrigin } from "./backoffice-origin.js";
 import { reportRecoveryBookkeepingError } from "./recovery-error-reporting.js";
 import { resolveSourceAddress } from "./recovery-source-address.js";
 import { PUBLIC_ACCESS, registerRouteAccess } from "./route-access.js";
@@ -79,17 +80,6 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
     options.confirmRejectedSignInAttempt ?? confirmRejectedSignInAttempt;
   const reportError = options.reportError ?? reportRecoveryBookkeepingError;
 
-  function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
-    if (request.headers.origin !== options.backofficeOrigin) {
-      void reply.code(403).send({
-        code: "origin_rejected",
-        message: "the request's Origin does not match the backoffice's own origin",
-      });
-      return false;
-    }
-    return true;
-  }
-
   async function rejectAuthentication(
     reply: FastifyReply,
     startedAt: number,
@@ -150,7 +140,7 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
     { config: { access: PUBLIC_ACCESS } },
     async (request, reply) => {
       const startedAt = performance.now();
-      if (!checkOrigin(request, reply)) {
+      if (!requireBackofficeOrigin(request, reply, options.backofficeOrigin)) {
         return;
       }
 

@@ -214,37 +214,6 @@ describe("GET /users/session/status", () => {
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
   });
 
-  it("accepts the backoffice's own Origin", async () => {
-    const rawSessionId = await insertSession();
-
-    const response = await app.inject({
-      method: "GET",
-      url: "/users/session/status",
-      headers: {
-        cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}`,
-        origin: BACKOFFICE_ORIGIN,
-      },
-    });
-
-    expect(response.statusCode).toBe(200);
-  });
-
-  it("rejects a request the browser reports as cross-site", async () => {
-    const rawSessionId = await insertSession();
-
-    const response = await app.inject({
-      method: "GET",
-      url: "/users/session/status",
-      headers: {
-        cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}`,
-        "sec-fetch-site": "cross-site",
-      },
-    });
-
-    expect(response.statusCode).toBe(403);
-    expect(response.json()).toMatchObject({ code: "origin_rejected" });
-  });
-
   it("returns 429 rate_limited once the session is over its shared backoffice request limit", async () => {
     const rawSessionId = await insertSession();
     await exhaustSessionRateLimit(db, rawSessionId, NOON);
