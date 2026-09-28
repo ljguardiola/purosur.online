@@ -120,7 +120,7 @@ test("turns an off track's background bone on hover, keeping its border", async 
   expect(getComputedStyle(track).boxShadow).toContain(insetBoundary("border-strong", "2px"));
 });
 
-test("colors an on track green UI with no border and a plain white knob at the far end", async () => {
+test("colors an on track in the success color with no boundary of any color and a surface-colored knob at the far end", async () => {
   const screen = await render(
     <Toggle isSelected onChange={() => {}}>
       Apply discount
@@ -132,7 +132,6 @@ test("colors an on track green UI with no border and a plain white knob at the f
   const knobRect = knob.getBoundingClientRect();
 
   expect(getComputedStyle(track).backgroundColor).toBe(tokenRgb("success"));
-  // Checks for no boundary in any color, not merely the absence of the strong border.
   expect(paintedBoxShadowLayers(track)).toEqual([]);
 
   expect(getComputedStyle(knob).backgroundColor).toBe(tokenRgb("surface"));

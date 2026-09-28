@@ -21,7 +21,6 @@ function fieldWrapper(screen: Screen, name: string): HTMLElement {
   return fieldBox(screen, name).parentElement as HTMLElement;
 }
 
-// The focused state paints exactly one layer, a 2px action-color inset, with no outer shadow beside it.
 function focusedLayers(): string[] {
   return [insetBoundary("action", "2px")];
 }

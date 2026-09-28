@@ -265,7 +265,6 @@ const RANGE_MAX = new CalendarDate(2027, 2, 28);
 const RANGE_MESSAGE = "The date must be 28/02/2027 or earlier.";
 const RANGE_HELPER = "A different expiry for the same product is entered as a separate line.";
 
-// The focused state paints exactly one layer, a 2px action-color inset, with no outer shadow beside it.
 function focusedLayers(): string[] {
   return [insetBoundary("action", "2px")];
 }

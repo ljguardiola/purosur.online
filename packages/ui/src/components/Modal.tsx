@@ -12,7 +12,6 @@ import type { ButtonIcon } from "./Button";
 export type ModalWidth = "confirmation" | "standard" | "wide" | "editor";
 export type ModalTone = "info" | "success" | "warning" | "error";
 
-// Every tone clears AA text contrast against the panel's white background.
 export type ModalContextTone = "default" | "info" | "success" | "warning" | "error";
 
 export type ModalBodyPadding = "default" | "none";

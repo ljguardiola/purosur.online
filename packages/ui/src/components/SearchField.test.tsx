@@ -96,7 +96,6 @@ for (const variantCase of variantCases) {
   });
 }
 
-// The focused state paints exactly one layer, a 2px action-color inset, with no outer shadow beside it.
 function focusedLayers(): string[] {
   return [insetBoundary("action", "2px")];
 }
