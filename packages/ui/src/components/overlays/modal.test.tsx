@@ -168,6 +168,15 @@ test("shows a context line in bold uppercase eyebrow color by default", async ()
   await expectNoAccessibilityViolations(document.body);
 });
 
+test("colors the context line in the eyebrow color for the neutral tone", async () => {
+  const screen = await render(
+    <Modal {...baseProps({ context: "Heads up", contextTone: "neutral" })} />,
+  );
+  const context = screen.getByText("Heads up", { exact: true }).element() as HTMLElement;
+
+  expect(getComputedStyle(context).color).toBe(tokenRgb("text-eyebrow"));
+});
+
 test("lets the caller color the context line with another text tone", async () => {
   const screen = await render(
     <Modal {...baseProps({ context: "Cannot be undone", contextTone: "error" })} />,

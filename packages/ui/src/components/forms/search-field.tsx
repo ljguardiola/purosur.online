@@ -1,16 +1,14 @@
 import { Input as AriaInput, SearchField as AriaSearchField } from "react-aria-components";
-import type { ButtonIcon } from "./button";
+import type { Icon } from "../shared/icon";
 
 export type SearchFieldVariant = "register" | "backoffice";
-
-export type SearchFieldIcon = ButtonIcon;
 
 export type SearchFieldProps = {
   variant: SearchFieldVariant;
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
-  icon: SearchFieldIcon;
+  icon: Icon;
   // No visible label is drawn for this field in either variant: when supplied, it names the
   // field for assistive technology only, the same way the placeholder does when it is not.
   label?: string;

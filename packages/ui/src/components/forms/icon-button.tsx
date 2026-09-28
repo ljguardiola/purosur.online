@@ -1,7 +1,5 @@
 import { Button as AriaButton, type ButtonProps as AriaButtonProps } from "react-aria-components";
-import type { ButtonIcon } from "./button";
-
-const glyphWrapperClassName = "inline-flex size-icon-md shrink-0 *:size-full";
+import { type Icon, iconSlotClassName } from "../shared/icon";
 
 type AccessibleName =
   | { "aria-label": string; "aria-labelledby"?: string }
@@ -12,7 +10,7 @@ export type IconButtonProps = Omit<
   "className" | "children" | "aria-label" | "aria-labelledby"
 > &
   AccessibleName & {
-    icon: ButtonIcon;
+    icon: Icon;
   };
 
 const className =
@@ -26,7 +24,7 @@ const className =
 export function IconButton({ icon, ...props }: IconButtonProps) {
   return (
     <AriaButton {...props} className={className}>
-      <span className={glyphWrapperClassName}>{icon}</span>
+      <span className={iconSlotClassName.md}>{icon}</span>
     </AriaButton>
   );
 }

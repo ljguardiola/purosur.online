@@ -4,7 +4,7 @@ import {
   formatDate,
   InlineNotice,
   Modal,
-  type ModalTone,
+  type NoticeTone,
   plural,
   StatusIndicator,
 } from "@purosur/ui";
@@ -94,7 +94,7 @@ const LEVEL_TONE: Record<AlertLevel, "error" | "warning" | "info"> = {
   informational: "info",
 };
 
-const MODAL_TONE: Record<AlertLevel, ModalTone> = {
+const MODAL_TONE: Record<AlertLevel, NoticeTone> = {
   critical: "error",
   warning: "warning",
   informational: "info",

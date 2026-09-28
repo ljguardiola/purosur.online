@@ -3,16 +3,14 @@ import { expect, expectTypeOf, test } from "vitest";
 import { render } from "vitest-browser-react";
 import { AA_TEXT_CONTRAST, contrastRatio, NON_TEXT_CONTRAST } from "../../styles/contrast";
 import { rgbToHex, tokenRgb } from "../../test/token-colors";
-import type { ButtonIcon } from "../forms/button";
-import {
-  NotificationCard,
-  type NotificationCardProps,
-  type NotificationTone,
-} from "./notification-card";
+import type { Icon } from "../shared/icon";
+import type { NoticeTone } from "../shared/tone";
+import { NotificationCard, type NotificationCardProps } from "./notification-card";
 
 type ToneTokens = { border: string; circle: string; icon: string };
 
-const tones: Record<NotificationTone, ToneTokens> = {
+const tones: Record<NoticeTone, ToneTokens> = {
+  info: { border: "info-soft", circle: "info-subtle", icon: "info-strong" },
   success: { border: "success-soft", circle: "success-subtle", icon: "success-strong" },
   warning: {
     border: "warning-soft",
@@ -44,7 +42,7 @@ test("renders the caller's title, detail and icon", async () => {
 test("does not accept a notification without a title", () => {
   expectTypeOf<{
     tone: "success";
-    icon: ButtonIcon;
+    icon: Icon;
     detail: string;
   }>().not.toExtend<NotificationCardProps>();
 });
@@ -52,7 +50,7 @@ test("does not accept a notification without a title", () => {
 test("does not accept a notification without a detail", () => {
   expectTypeOf<{
     tone: "success";
-    icon: ButtonIcon;
+    icon: Icon;
     title: string;
   }>().not.toExtend<NotificationCardProps>();
 });
@@ -75,7 +73,7 @@ test("exposes the notice's text to assistive technology exactly once", async () 
 });
 
 test("renders every tone's border, circle and icon colors, in white with 8px radius and 16px padding", async () => {
-  for (const [tone, expected] of Object.entries(tones) as [NotificationTone, ToneTokens][]) {
+  for (const [tone, expected] of Object.entries(tones) as [NoticeTone, ToneTokens][]) {
     const screen = await render(
       <NotificationCard
         tone={tone}
@@ -103,7 +101,7 @@ test("renders every tone's border, circle and icon colors, in white with 8px rad
 });
 
 test("keeps every tone's icon readable against its own circle", async () => {
-  for (const [tone] of Object.entries(tones) as [NotificationTone, ToneTokens][]) {
+  for (const [tone] of Object.entries(tones) as [NoticeTone, ToneTokens][]) {
     const screen = await render(
       <NotificationCard
         tone={tone}

@@ -4,13 +4,11 @@ import {
   RadioGroup as AriaRadioGroup,
   Text as AriaText,
 } from "react-aria-components";
-import type { ButtonIcon } from "./button";
-
-export type OptionCardIcon = ButtonIcon;
+import type { Icon } from "../shared/icon";
 
 export type OptionCardOption<V extends string = string> = {
   value: V;
-  icon: OptionCardIcon;
+  icon: Icon;
   title: string;
   helpText: string;
 };

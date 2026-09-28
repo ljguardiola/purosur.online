@@ -3,14 +3,16 @@ import { expect, expectTypeOf, test } from "vitest";
 import { render } from "vitest-browser-react";
 import { AA_TEXT_CONTRAST, contrastRatio } from "../../styles/contrast";
 import { rgbToHex, tokenRgb } from "../../test/token-colors";
-import type { ButtonIcon } from "../forms/button";
-import { InlineNotice, type InlineNoticeProps, type NoticeTone } from "./inline-notice";
+import type { Icon } from "../shared/icon";
+import type { NoticeTone } from "../shared/tone";
+import { InlineNotice, type InlineNoticeProps } from "./inline-notice";
 
 type ToneTokens = { background: string; text: string };
 
 const tones: Record<NoticeTone, ToneTokens> = {
   warning: { background: "warning-subtle", text: "warning-strong" },
   info: { background: "info-subtle", text: "info-strong" },
+  success: { background: "success-subtle", text: "success-strong" },
   error: { background: "error-subtle", text: "error-strong" },
 };
 
@@ -42,7 +44,7 @@ test("renders with only a detail", async () => {
 });
 
 test("does not accept an inline notice without a title or a detail", () => {
-  expectTypeOf<{ tone: "info"; icon: ButtonIcon }>().not.toExtend<InlineNoticeProps>();
+  expectTypeOf<{ tone: "info"; icon: Icon }>().not.toExtend<InlineNoticeProps>();
 });
 
 test("exposes the notice's text to assistive technology exactly once", async () => {
@@ -79,6 +81,21 @@ test("renders every tone's background, text and icon colors", async () => {
     expect(getComputedStyle(title).color, `${tone} title`).toBe(tokenRgb(expected.text));
     expect(getComputedStyle(detail).color, `${tone} detail`).toBe(tokenRgb(expected.text));
   }
+});
+
+test("announces a success notice politely and an error notice assertively", async () => {
+  const success = await render(
+    <InlineNotice tone="success" icon={<Info />} title="Saved" detail="All synced" />,
+  );
+  const politeRegion = success.container.querySelector('[role="status"]') as HTMLElement;
+  await expect.poll(() => politeRegion.textContent).toBe("Saved All synced");
+  await success.unmount();
+
+  const failure = await render(
+    <InlineNotice tone="error" icon={<Info />} title="Not saved" detail="Try again" />,
+  );
+  const assertiveRegion = failure.container.querySelector('[role="alert"]') as HTMLElement;
+  await expect.poll(() => assertiveRegion.textContent).toBe("Not saved Try again");
 });
 
 test("keeps every tone's text readable against its own background", async () => {

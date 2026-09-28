@@ -6,7 +6,7 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { contrastRatio, NON_TEXT_CONTRAST } from "../../styles/contrast";
 import { rgbToHex, tokenRgb } from "../../test/token-colors";
-import type { ButtonIcon } from "./button";
+import type { Icon } from "../shared/icon";
 import { IconButton, type IconButtonProps } from "./icon-button";
 
 test("renders at 38x38px with a white background, an 8px radius and a line border", async () => {
@@ -146,10 +146,10 @@ test("shows the hand cursor when enabled and the arrow cursor when disabled", as
 });
 
 test("does not accept an icon button without an accessible name", () => {
-  expectTypeOf<{ icon: ButtonIcon }>().not.toExtend<IconButtonProps>();
+  expectTypeOf<{ icon: Icon }>().not.toExtend<IconButtonProps>();
 });
 
-function IconButtonWithExternalLabel({ icon }: { icon: ButtonIcon }) {
+function IconButtonWithExternalLabel({ icon }: { icon: Icon }) {
   const labelId = useId();
   return (
     <>

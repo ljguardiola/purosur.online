@@ -1,3 +1,4 @@
+import { iconSlotClassName } from "../../shared/icon";
 import type { TableEmptyStateProps } from "./table-types";
 
 export function TableEmptyState({ icon, title, detail, tone, actions }: TableEmptyStateProps) {
@@ -12,7 +13,7 @@ export function TableEmptyState({ icon, title, detail, tone, actions }: TableEmp
           iconColorClassName,
         ].join(" ")}
       >
-        <span className="inline-flex size-icon-4xl shrink-0 *:size-full">{icon}</span>
+        <span className={iconSlotClassName["4xl"]}>{icon}</span>
       </span>
       <p className="max-w-130 text-title text-text-accent">{title}</p>
       {detail ? <p className="max-w-130 text-body text-text-subtle">{detail}</p> : null}

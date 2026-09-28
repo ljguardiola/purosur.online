@@ -5,7 +5,8 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { tokenRgb } from "../../test/token-colors";
-import type { SegmentedControlIcon, SegmentedControlOption } from "./segmented-control";
+import type { Icon } from "../shared/icon";
+import type { SegmentedControlOption } from "./segmented-control";
 import { SegmentedControl, type SegmentedControlProps } from "./segmented-control";
 
 type EntryMode = "discount" | "newPrice";
@@ -311,11 +312,11 @@ test("exposes each option as a radio button named by its label and its chosen st
 test("does not accept an option without a value or a label", () => {
   expectTypeOf<{
     label: string;
-    icon: SegmentedControlIcon;
+    icon: Icon;
   }>().not.toExtend<SegmentedControlOption>();
   expectTypeOf<{
     value: string;
-    icon: SegmentedControlIcon;
+    icon: Icon;
   }>().not.toExtend<SegmentedControlOption>();
 });
 

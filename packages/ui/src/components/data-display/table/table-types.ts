@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { ButtonIcon } from "../../forms/button";
+import type { Icon } from "../../shared/icon";
 
 export type TableColumnAlign = "start" | "end";
 export type TableRowState = "selected" | "warning" | "error" | "muted";
@@ -33,7 +33,7 @@ type TableDataColumn<T> = TableSortableDataColumn<T> | TableUnsortableDataColumn
 // the other action in the same column keeps its horizontal position on every row.
 export type TableAction<T> = (item: T) =>
   | {
-      icon: ButtonIcon;
+      icon: Icon;
       "aria-label": string;
       onPress: () => void;
     }
@@ -69,7 +69,7 @@ export type TableRow<T> = {
 export type TableEmptyStateTone = "blank" | "filtered";
 
 export type TableEmptyStateProps = {
-  icon: ButtonIcon;
+  icon: Icon;
   title: string;
   detail?: string;
   tone: TableEmptyStateTone;

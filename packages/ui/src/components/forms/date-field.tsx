@@ -21,6 +21,7 @@ import {
   I18nProvider,
 } from "react-aria-components";
 import type { Locale } from "../../messages/formatters";
+import { iconSlotClassName } from "../shared/icon";
 import {
   backofficeFieldBoxClassName,
   backofficeFieldValueClassName,
@@ -83,7 +84,6 @@ const emptySeparatorClassName = "literal:text-text-subtle";
 const iconButtonClassName =
   "inline-flex size-6 shrink-0 -mx-0.75 items-center justify-center text-text-subtle outline-none " +
   "data-focus-visible:focus-ring";
-const iconGlyphClassName = "inline-flex size-icon-md shrink-0 *:size-full";
 
 const helperClassName = "text-detail text-text-subtle";
 const errorClassName = "text-detail text-error";
@@ -116,7 +116,6 @@ const calendarNavButtonClassName =
   "data-hovered:bg-surface-subtle " +
   "data-disabled:opacity-disabled " +
   "data-focus-visible:focus-ring";
-const calendarNavIconClassName = "inline-flex size-icon-md shrink-0 *:size-full";
 // A focused day's outline ring reaches 6px past its cell (3px width + 3px offset); border-collapse
 // would let that ring paint over the neighbouring cell's fill and drop its contrast under 2:1.
 const calendarGridClassName = "border-separate border-spacing-1.5";
@@ -132,7 +131,7 @@ const calendarCellClassName =
 function CalendarToggleButton() {
   return (
     <AriaButton className={iconButtonClassName}>
-      <span aria-hidden="true" className={iconGlyphClassName}>
+      <span aria-hidden="true" className={iconSlotClassName.md}>
         <CalendarIcon />
       </span>
     </AriaButton>
@@ -221,13 +220,13 @@ export function DateField(props: DateFieldProps) {
             <AriaCalendar minValue={minValue} maxValue={maxValue}>
               <header className={calendarHeaderClassName}>
                 <AriaButton slot="previous" className={calendarNavButtonClassName}>
-                  <span aria-hidden="true" className={calendarNavIconClassName}>
+                  <span aria-hidden="true" className={iconSlotClassName.md}>
                     <ChevronLeft />
                   </span>
                 </AriaButton>
                 <AriaHeading id={calendarHeadingId} className={calendarHeadingClassName} />
                 <AriaButton slot="next" className={calendarNavButtonClassName}>
-                  <span aria-hidden="true" className={calendarNavIconClassName}>
+                  <span aria-hidden="true" className={iconSlotClassName.md}>
                     <ChevronRight />
                   </span>
                 </AriaButton>

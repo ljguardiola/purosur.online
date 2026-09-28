@@ -4,15 +4,12 @@ import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { expectFullyRound } from "../../test/fully-round";
 import { tokenRgb } from "../../test/token-colors";
-import {
-  StatusIndicator,
-  type StatusIndicatorProps,
-  type StatusIndicatorTone,
-} from "./status-indicator";
+import type { Tone } from "../shared/tone";
+import { StatusIndicator, type StatusIndicatorProps } from "./status-indicator";
 
 type ToneTokens = { background: string; dot: string; text: string };
 
-const tones: Record<StatusIndicatorTone, ToneTokens> = {
+const tones: Record<Tone, ToneTokens> = {
   success: { background: "success-subtle", dot: "success-soft", text: "success-strong" },
   warning: {
     background: "warning-subtle",
@@ -53,7 +50,7 @@ test("renders the pill's fixed shape regardless of tone", async () => {
 });
 
 test("renders every tone's background, dot and text colors", async () => {
-  for (const [tone, expected] of Object.entries(tones) as [StatusIndicatorTone, ToneTokens][]) {
+  for (const [tone, expected] of Object.entries(tones) as [Tone, ToneTokens][]) {
     const screen = await render(<StatusIndicator tone={tone}>State {tone}</StatusIndicator>);
     const pill = screen.container.firstElementChild as HTMLElement;
     const dot = pill.firstElementChild as HTMLElement;

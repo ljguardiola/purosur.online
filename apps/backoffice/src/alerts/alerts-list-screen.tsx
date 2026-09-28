@@ -7,9 +7,9 @@ import {
   plural,
   SearchField,
   StatusIndicator,
-  type StatusIndicatorTone,
   Table,
   TableCellText,
+  type Tone,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
 import { Bell, Eye, Search, ShieldX, TriangleAlert } from "lucide-react";
@@ -60,7 +60,7 @@ const SEARCH_DELAY_MS = 300;
 type LevelFilter = "all" | AlertLevel;
 type StatusFilter = "open" | "closed";
 
-const LEVEL_TONE: Record<AlertLevel, StatusIndicatorTone> = {
+const LEVEL_TONE: Record<AlertLevel, Tone> = {
   critical: "error",
   warning: "warning",
   informational: "info",

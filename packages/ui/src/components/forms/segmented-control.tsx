@@ -1,13 +1,12 @@
 import { Radio as AriaRadio, RadioGroup as AriaRadioGroup } from "react-aria-components";
-import type { ButtonIcon } from "./button";
+import type { Icon } from "../shared/icon";
 
-export type SegmentedControlIcon = ButtonIcon;
 export type SegmentedControlSize = "large" | "medium";
 
 export type SegmentedControlOption<V extends string = string> = {
   value: V;
   label: string;
-  icon?: SegmentedControlIcon;
+  icon?: Icon;
 };
 
 export type SegmentedControlProps<V extends string> = {

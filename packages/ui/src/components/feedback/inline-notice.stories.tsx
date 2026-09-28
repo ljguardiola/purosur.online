@@ -22,6 +22,10 @@ export const Info: Story = {
   },
 };
 
+export const Success: Story = {
+  args: { tone: "success", title: "Cambios guardados", detail: "Todo quedó sincronizado." },
+};
+
 export const Warning: Story = {
   args: { tone: "warning", title: "Atención", detail: "Revisá los totales antes de cerrar." },
 };

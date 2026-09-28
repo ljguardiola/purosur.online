@@ -18,6 +18,10 @@ export const Info: Story = {
   args: { tone: "info", title: "Turno abierto", detail: "Se abrió con $10.000 en caja." },
 };
 
+export const Success: Story = {
+  args: { tone: "success", title: "Turno cerrado", detail: "La caja cuadró sin diferencias." },
+};
+
 export const Warning: Story = {
   args: { tone: "warning", title: "Stock bajo", detail: "Quedan menos de 5 unidades." },
 };

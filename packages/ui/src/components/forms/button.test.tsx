@@ -6,9 +6,9 @@ import { render } from "vitest-browser-react";
 import { AA_TEXT_CONTRAST, contrastRatio } from "../../styles/contrast";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { rgbToHex, tokenRgb } from "../../test/token-colors";
+import type { Icon } from "../shared/icon";
 import {
   Button,
-  type ButtonIcon,
   type ButtonProps,
   type ButtonSize,
   type ButtonTextSize,
@@ -42,7 +42,7 @@ function textNodeRect(node: ChildNode): DOMRect {
 
 // Every lucide icon renders the same size and color once inside the button, so only the svg's own
 // children (its drawn shape) can tell one icon apart from another.
-async function lucideShape(icon: ButtonIcon): Promise<string> {
+async function lucideShape(icon: Icon): Promise<string> {
   const screen = await render(icon);
   return (screen.container.querySelector("svg") as SVGSVGElement).innerHTML;
 }
@@ -448,7 +448,7 @@ test("keeps a caller's icon at its variant's size across every button size", asy
 });
 
 test("does not accept a button without text, since it would have no accessible name", () => {
-  expectTypeOf<{ icon: ButtonIcon }>().not.toExtend<ButtonProps>();
+  expectTypeOf<{ icon: Icon }>().not.toExtend<ButtonProps>();
 });
 
 test("accepts a destructive tone on the secondary variant, since the design draws it", () => {
@@ -576,7 +576,7 @@ test("does not accept a caller's icon on the text variant, which carries its own
   expectTypeOf<{
     variant: "text";
     tone: "destructive";
-    icon: ButtonIcon;
+    icon: Icon;
   }>().not.toExtend<ButtonPropsWithoutText>();
 });
 
@@ -1288,11 +1288,10 @@ test("keeps one line, its exact height, and nothing painted outside it when the 
 test("keeps its icon at full size while a far too long label shortens next to it", async () => {
   const label =
     "This label is far longer than the button can hold on a single line next to its icon";
-  const cases: Array<{ variant: "primary" | "secondary"; icon: ButtonIcon; expectedSize: number }> =
-    [
-      { variant: "primary", icon: <Check />, expectedSize: 24 },
-      { variant: "secondary", icon: <X />, expectedSize: 18 },
-    ];
+  const cases: Array<{ variant: "primary" | "secondary"; icon: Icon; expectedSize: number }> = [
+    { variant: "primary", icon: <Check />, expectedSize: 24 },
+    { variant: "secondary", icon: <X />, expectedSize: 18 },
+  ];
 
   // Every case shares this label, so each button is read back through its own render's container
   // rather than by role.

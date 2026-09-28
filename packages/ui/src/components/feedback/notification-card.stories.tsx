@@ -1,12 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Info } from "lucide-react";
+import { Info as InfoIcon } from "lucide-react";
 import { NotificationCard } from "./notification-card";
 
 const meta: Meta<typeof NotificationCard> = {
   title: "Components/NotificationCard",
   component: NotificationCard,
   args: {
-    icon: <Info />,
+    icon: <InfoIcon />,
     title: "Venta completada",
     detail: "Se imprimió el comprobante.",
   },
@@ -18,6 +18,14 @@ type Story = StoryObj<typeof NotificationCard>;
 
 export const Success: Story = {
   args: { tone: "success" },
+};
+
+export const Info: Story = {
+  args: {
+    tone: "info",
+    title: "Nueva versión disponible",
+    detail: "Se instalará al cerrar el turno.",
+  },
 };
 
 export const Warning: Story = {

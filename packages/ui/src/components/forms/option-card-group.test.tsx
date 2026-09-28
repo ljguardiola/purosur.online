@@ -5,7 +5,8 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { insetBoundary, tokenRgb } from "../../test/token-colors";
-import type { OptionCardIcon, OptionCardOption } from "./option-card-group";
+import type { Icon } from "../shared/icon";
+import type { OptionCardOption } from "./option-card-group";
 import { OptionCardGroup, type OptionCardGroupProps } from "./option-card-group";
 
 type MovementValue = "income" | "expense" | "withdrawal";
@@ -342,12 +343,12 @@ test("does not accept an option without an icon, title or help text", () => {
   }>().not.toExtend<OptionCardOption>();
   expectTypeOf<{
     value: string;
-    icon: OptionCardIcon;
+    icon: Icon;
     helpText: string;
   }>().not.toExtend<OptionCardOption>();
   expectTypeOf<{
     value: string;
-    icon: OptionCardIcon;
+    icon: Icon;
     title: string;
   }>().not.toExtend<OptionCardOption>();
 });

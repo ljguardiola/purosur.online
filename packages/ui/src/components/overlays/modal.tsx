@@ -7,12 +7,10 @@ import {
   Modal as AriaModal,
   ModalOverlay as AriaModalOverlay,
 } from "react-aria-components";
-import type { ButtonIcon } from "../forms/button";
+import { type Icon, iconSlotClassName } from "../shared/icon";
+import { type NoticeTone, type Tone, toneClassName } from "../shared/tone";
 
 export type ModalWidth = "confirmation" | "standard" | "wide" | "editor";
-export type ModalTone = "info" | "success" | "warning" | "error";
-
-export type ModalContextTone = "default" | "info" | "success" | "warning" | "error";
 
 export type ModalBodyPadding = "default" | "none";
 
@@ -22,8 +20,8 @@ type ModalCommonProps = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   width?: ModalWidth;
-  tone: ModalTone;
-  icon: ButtonIcon;
+  tone: NoticeTone;
+  icon: Icon;
   title: string;
   children?: ReactNode;
   footer: ReactNode;
@@ -32,7 +30,7 @@ type ModalCommonProps = {
 type ModalLeadingProps = {
   headerLayout?: "leading";
   context?: string;
-  contextTone?: ModalContextTone;
+  contextTone?: Tone;
   bodyPadding?: ModalBodyPadding;
 };
 
@@ -53,32 +51,6 @@ const widthClassName: Record<ModalWidth, string> = {
   wide: "w-180",
   editor: "w-260",
 };
-
-const toneMessageBgClassName: Record<ModalTone, string> = {
-  info: "bg-info-subtle",
-  success: "bg-success-subtle",
-  warning: "bg-warning-subtle",
-  error: "bg-error-subtle",
-};
-
-const toneStrongTextClassName: Record<ModalTone, string> = {
-  info: "text-info-strong",
-  success: "text-success-strong",
-  warning: "text-warning-strong",
-  error: "text-error-strong",
-};
-
-const contextToneClassName: Record<ModalContextTone, string> = {
-  default: "text-text-eyebrow",
-  info: "text-info",
-  success: "text-success",
-  warning: "text-warning",
-  error: "text-error",
-};
-
-const headerIconWrapperClassName = "inline-flex size-icon-xl shrink-0 *:size-full";
-const centeredHeaderIconWrapperClassName = "inline-flex size-icon-3xl shrink-0 *:size-full";
-const closeIconWrapperClassName = "inline-flex size-icon-lg shrink-0 *:size-full";
 
 // Children.toArray drops null/undefined/boolean children but keeps a fragment as one child even
 // when everything inside it was dropped, so fragments are looked into.
@@ -103,7 +75,7 @@ export function Modal(props: ModalProps) {
     tone,
     icon,
     context,
-    contextTone = "default",
+    contextTone = "neutral",
     title,
     children,
     bodyPadding = "default",
@@ -134,15 +106,14 @@ export function Modal(props: ModalProps) {
                 aria-hidden="true"
                 className={[
                   "flex size-14 shrink-0 items-center justify-center rounded-full",
-                  toneMessageBgClassName[tone],
-                  toneStrongTextClassName[tone],
+                  toneClassName[tone].surface,
                 ].join(" ")}
               >
-                <span className={centeredHeaderIconWrapperClassName}>{icon}</span>
+                <span className={iconSlotClassName["3xl"]}>{icon}</span>
               </span>
               <AriaHeading
                 slot="title"
-                className={["text-center text-title", toneStrongTextClassName[tone]].join(" ")}
+                className={["text-center text-title", toneClassName[tone].strongText].join(" ")}
               >
                 {title}
               </AriaHeading>
@@ -155,18 +126,17 @@ export function Modal(props: ModalProps) {
                   aria-hidden="true"
                   className={[
                     "flex size-12 shrink-0 items-center justify-center rounded-xl",
-                    toneMessageBgClassName[tone],
-                    toneStrongTextClassName[tone],
+                    toneClassName[tone].surface,
                   ].join(" ")}
                 >
-                  <span className={headerIconWrapperClassName}>{icon}</span>
+                  <span className={iconSlotClassName.xl}>{icon}</span>
                 </span>
                 <div className="flex flex-1 flex-col gap-1">
                   {context ? (
                     <p
                       className={[
                         "text-caption font-bold uppercase",
-                        contextToneClassName[contextTone],
+                        toneClassName[contextTone].text,
                       ].join(" ")}
                     >
                       {context}
@@ -174,7 +144,7 @@ export function Modal(props: ModalProps) {
                   ) : null}
                   <AriaHeading
                     slot="title"
-                    className={["text-title", toneStrongTextClassName[tone]].join(" ")}
+                    className={["text-title", toneClassName[tone].strongText].join(" ")}
                   >
                     {title}
                   </AriaHeading>
@@ -185,7 +155,7 @@ export function Modal(props: ModalProps) {
                     onPress={() => onOpenChange(false)}
                     className={closeButtonClassName}
                   >
-                    <span className={closeIconWrapperClassName}>
+                    <span className={iconSlotClassName.lg}>
                       <X aria-hidden="true" />
                     </span>
                   </AriaButton>

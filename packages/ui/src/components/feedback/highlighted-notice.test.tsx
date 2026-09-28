@@ -3,15 +3,16 @@ import { expect, expectTypeOf, test } from "vitest";
 import { render } from "vitest-browser-react";
 import { AA_TEXT_CONTRAST, contrastRatio } from "../../styles/contrast";
 import { rgbToHex, tokenRgb } from "../../test/token-colors";
-import type { ButtonIcon } from "../forms/button";
+import type { Icon } from "../shared/icon";
+import type { NoticeTone } from "../shared/tone";
 import { HighlightedNotice, type HighlightedNoticeProps } from "./highlighted-notice";
-import type { NoticeTone } from "./inline-notice";
 
 type ToneTokens = { background: string; text: string };
 
 const tones: Record<NoticeTone, ToneTokens> = {
   warning: { background: "warning-subtle", text: "warning-strong" },
   info: { background: "info-subtle", text: "info-strong" },
+  success: { background: "success-subtle", text: "success-strong" },
   error: { background: "error-subtle", text: "error-strong" },
 };
 
@@ -29,7 +30,7 @@ test("renders the caller's title, detail and icon", async () => {
 test("does not accept a highlighted notice without a title", () => {
   expectTypeOf<{
     tone: "error";
-    icon: ButtonIcon;
+    icon: Icon;
     detail: string;
   }>().not.toExtend<HighlightedNoticeProps>();
 });
@@ -37,7 +38,7 @@ test("does not accept a highlighted notice without a title", () => {
 test("does not accept a highlighted notice without a detail", () => {
   expectTypeOf<{
     tone: "error";
-    icon: ButtonIcon;
+    icon: Icon;
     title: string;
   }>().not.toExtend<HighlightedNoticeProps>();
 });

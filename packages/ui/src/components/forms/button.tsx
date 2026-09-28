@@ -1,17 +1,13 @@
 import { X } from "lucide-react";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Button as AriaButton, type ButtonProps as AriaButtonProps } from "react-aria-components";
+import { type Icon, iconSlotClassName } from "../shared/icon";
 
 export type ButtonVariant = "primary" | "secondary" | "text";
 export type ButtonSize = "small" | "medium" | "large" | "sale";
 export type ButtonTone = "default" | "destructive";
 
 export type ButtonTextSize = Extract<ButtonSize, "small" | "large">;
-
-// Only lucide icons interpret a numeric `size` prop; a plain <svg> would ignore it or reject it
-// as an invalid DOM attribute. The button imposes size with CSS instead, so `size` is left out of
-// the type a caller's icon element can declare.
-export type ButtonIcon = ReactElement<{ className?: string }>;
 
 // react-aria-components' AriaButtonProps.children also accepts a render-prop function for
 // hover/focus-driven content, which this button's fixed icon+text layout does not support.
@@ -24,8 +20,8 @@ type ButtonCommonProps = Omit<AriaButtonProps, "className" | "children"> & {
 
 export type ButtonProps = ButtonCommonProps &
   (
-    | { variant?: "primary"; tone?: ButtonTone; size?: ButtonSize; icon?: ButtonIcon }
-    | { variant: "secondary"; tone?: ButtonTone; size?: ButtonSize; icon?: ButtonIcon }
+    | { variant?: "primary"; tone?: ButtonTone; size?: ButtonSize; icon?: Icon }
+    | { variant: "secondary"; tone?: ButtonTone; size?: ButtonSize; icon?: Icon }
     | { variant: "text"; tone: "destructive"; size?: ButtonTextSize; icon?: undefined }
   );
 
@@ -84,9 +80,9 @@ const variantClassName: Record<ButtonVariant, string> = {
 };
 
 const iconWrapperClassName: Record<ButtonVariant, string> = {
-  primary: "inline-flex size-icon-xl shrink-0 *:size-full",
-  secondary: "inline-flex size-icon-md shrink-0 *:size-full",
-  text: "inline-flex size-icon-md shrink-0 *:size-full",
+  primary: iconSlotClassName.xl,
+  secondary: iconSlotClassName.md,
+  text: iconSlotClassName.md,
 };
 
 export function Button({
