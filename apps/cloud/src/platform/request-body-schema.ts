@@ -11,12 +11,16 @@ export interface RequestBodySchema<T> {
   safeParse(value: unknown): SafeParseResult<T>;
 }
 
+function isObjectBody(body: unknown): boolean {
+  return typeof body === "object" && body !== null && !Array.isArray(body);
+}
+
 export async function readValidatedBody<T>(
   reply: FastifyReply,
   schema: RequestBodySchema<T>,
   body: unknown,
 ): Promise<T | undefined> {
-  const result = schema.safeParse(body);
+  const result = schema.safeParse(isObjectBody(body) ? body : {});
   if (result.success) {
     return result.data;
   }

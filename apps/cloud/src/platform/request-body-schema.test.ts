@@ -40,4 +40,27 @@ describe("readValidatedBody", () => {
       details: [{ field: "name" }],
     });
   });
+
+  it.each([
+    ["a missing body", undefined],
+    ["a null body", "null"],
+    ["a string body", '"caja"'],
+    ["a number body", "42"],
+    ["an array body", '["caja"]'],
+  ])("reports the first field for %s", async (_label, raw) => {
+    const app = buildApp();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/",
+      headers: raw === undefined ? {} : { "content-type": "application/json" },
+      ...(raw === undefined ? {} : { payload: raw }),
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "name" }],
+    });
+  });
 });
