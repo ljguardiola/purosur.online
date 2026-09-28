@@ -74,7 +74,7 @@ describe("the backoffice origin guard", () => {
 
 describe("the same-origin guard", () => {
   it("lets a request from the backoffice's own origin reach the handler", async () => {
-    const response = await get({ origin: BACKOFFICE_ORIGIN, "sec-fetch-site": "same-origin" });
+    const response = await get({ origin: BACKOFFICE_ORIGIN });
 
     expect(response.statusCode).toBe(200);
     expect(handlerRuns).toBe(1);
@@ -118,6 +118,20 @@ describe("the same-origin guard", () => {
       expect(handlerRuns).toBe(0);
     },
   );
+
+  it("rejects a request from another origin the browser marks same-origin as coming from another origin", async () => {
+    const response = await get({
+      origin: "https://evil.example.com",
+      "sec-fetch-site": "same-origin",
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      code: "origin_rejected",
+      message: "the request's Origin does not match the backoffice's own origin",
+    });
+    expect(handlerRuns).toBe(0);
+  });
 
   it("rejects a request from the backoffice's origin the browser marks cross-site", async () => {
     const response = await get({ origin: BACKOFFICE_ORIGIN, "sec-fetch-site": "cross-site" });
