@@ -31,11 +31,12 @@
   },
   "include": [
     "packages/*/src",
-    "apps/cloud/src",
+    "packages/ui/.storybook",
     "vitest.config.ts",
     "vitest.mutation.config.ts",
     "apps/cloud/vitest.global-setup.ts",
     "apps/cloud/vitest.global-setup.postgres.ts",
+    "packages/ui/vitest.global-setup.catalog-visual.ts",
     ".railway/railway.ts",
     ".railway/railway.test.ts"
   ]

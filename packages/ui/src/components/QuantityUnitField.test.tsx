@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -85,8 +85,6 @@ test("labels the quantity input with the field's own visible label", async () =>
 
   await expect.element(screen.getByText("Contenido neto")).toBeVisible();
   await expect.element(screen.getByRole("textbox", { name: "Contenido neto" })).toBeVisible();
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("names the unit picker by both its chosen option and the caller's own unitLabel", async () => {
@@ -106,8 +104,6 @@ test("draws the box with an 8px column gap, an 8px radius and a 2px line border"
   expect(style.borderRadius).toBe("8px");
   expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
   expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("line", "2px")]);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("shows the quantity value left-aligned, and the unit beside a chevron-down in ink-secondary", async () => {
@@ -127,8 +123,6 @@ test("shows the quantity value left-aligned, and the unit beside a chevron-down 
   const chevron = trigger.querySelector("svg") as SVGElement;
   expect(chevron).not.toBeNull();
   expect(chevron.getAttribute("aria-hidden")).toBe("true");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 function QuantityHarness({ initial = "" }: { initial?: string }) {
@@ -143,7 +137,6 @@ test("reports exactly what was typed into the quantity input, unformatted", asyn
   await userEvent.keyboard("380,5");
 
   expect(quantityInput(screen).value).toBe("380,5");
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("lists every option on open, with a check on the selected one only", async () => {
@@ -159,8 +152,6 @@ test("lists every option on open, with a check on the selected one only", async 
   const unchosen = screen.getByRole("option", { name: "g" }).element();
   expect(chosen.querySelector("svg")).not.toBeNull();
   expect(unchosen.querySelector("svg")).toBeNull();
-
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("gives the caller the chosen unit's id and closes the menu, on click", async () => {
@@ -231,8 +222,6 @@ test("dims the whole field and blocks focus on both the quantity input and the u
 
   await userEvent.tab();
   expect(document.activeElement).toBe(nextControl);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("shows the error message instead of helper text, describing both the quantity input and the unit trigger", async () => {
@@ -251,8 +240,6 @@ test("shows the error message instead of helper text, describing both the quanti
   expect(describedText(input)).toContain("Ingresá una cantidad válida.");
   expect(describedText(trigger)).toContain("Ingresá una cantidad válida.");
   expect(input.getAttribute("aria-invalid")).toBe("true");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("wires the helper text as both controls' description when the field is not invalid", async () => {
@@ -264,17 +251,20 @@ test("wires the helper text as both controls' description when the field is not 
 
   expect(describedText(input)).toContain("Nunca afecta el precio ni el stock.");
   expect(describedText(trigger)).toContain("Nunca afecta el precio ni el stock.");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
-test("describes the field by a shared message rendered outside it through errorMessageId", async () => {
-  const screen = await render(
+function FieldWithSharedErrorMessage() {
+  const errorId = useId();
+  return (
     <>
-      <QuantityUnitField {...baseProps()} invalid errorMessageId="net-content-error" />
-      <p id="net-content-error">Compartido por otro campo.</p>
-    </>,
+      <QuantityUnitField {...baseProps()} invalid errorMessageId={errorId} />
+      <p id={errorId}>Compartido por otro campo.</p>
+    </>
   );
+}
+
+test("describes the field by a shared message rendered outside it through errorMessageId", async () => {
+  const screen = await render(<FieldWithSharedErrorMessage />);
   const input = quantityInput(screen);
   const trigger = unitTrigger(screen).element() as HTMLElement;
 

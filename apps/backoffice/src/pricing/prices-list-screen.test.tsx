@@ -1404,6 +1404,120 @@ test.each([
   },
 );
 
+test("the review age counts against the time the list was last loaded", async () => {
+  const services = createServices();
+  let current = new Date(2026, 8, 25, 12, 0);
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: {
+      products: [{ ...rice, lastReviewedAt: new Date(2026, 8, 25, 9, 0).toISOString() }],
+      pendingCount: 1,
+      reviewWindowDays: 30,
+      categories: [],
+    },
+  });
+  vi.mocked(services.confirmPrice).mockResolvedValue({
+    kind: "ok",
+    value: { lastReviewedAt: new Date(2026, 8, 25, 9, 0).toISOString() },
+  });
+  const screen = await renderScreen(
+    services,
+    () => {},
+    () => current,
+  );
+  await expect.element(screen.getByText("Hoy", { exact: true })).toBeVisible();
+
+  current = new Date(2026, 8, 26, 12, 0);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Confirmar el precio de Arroz sin cambios" }),
+  );
+
+  await expect.poll(() => vi.mocked(services.fetchPrices).mock.calls.length).toBe(2);
+  await expect.element(screen.getByText("Hace 1 día", { exact: true })).toBeVisible();
+});
+
+test("the review age counts against the time the list was loaded, not the time a re-render draws it", async () => {
+  const services = createServices();
+  let current = new Date(2026, 8, 25, 12, 0);
+  const filters = pricesListFilters.parse({});
+  const onSessionEnded = () => {};
+  const onFiltersChange = () => {};
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: {
+      products: [{ ...rice, lastReviewedAt: new Date(2026, 8, 25, 9, 0).toISOString() }],
+      pendingCount: 1,
+      reviewWindowDays: 30,
+      categories: [],
+    },
+  });
+  const screenFor = (now: () => Date) => (
+    <main>
+      <PricesListScreen
+        services={services}
+        onSessionEnded={onSessionEnded}
+        now={now}
+        filters={filters}
+        onFiltersChange={onFiltersChange}
+      />
+    </main>
+  );
+  const screen = await render(screenFor(() => current));
+  await expect.element(screen.getByText("Hoy", { exact: true })).toBeVisible();
+
+  current = new Date(2026, 8, 26, 12, 0);
+  await screen.rerender(screenFor(() => current));
+
+  expect(screen.getByText("Hoy", { exact: true }).query()).not.toBeNull();
+  expect(services.fetchPrices).toHaveBeenCalledTimes(1);
+});
+
+test("the modal's review age counts against the time the modal was opened", async () => {
+  const services = createServices();
+  let current = new Date(2026, 8, 25, 12, 0);
+  const filters = pricesListFilters.parse({});
+  const onSessionEnded = () => {};
+  const onFiltersChange = () => {};
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: {
+      products: [
+        { ...rice, lastReviewedAt: new Date(2026, 8, 25, 9, 0).toISOString(), pending: false },
+      ],
+      pendingCount: 0,
+      reviewWindowDays: 30,
+      categories: [],
+    },
+  });
+  const screenFor = (now: () => Date) => (
+    <main>
+      <PricesListScreen
+        services={services}
+        onSessionEnded={onSessionEnded}
+        now={now}
+        filters={filters}
+        onFiltersChange={onFiltersChange}
+      />
+    </main>
+  );
+  const screen = await render(screenFor(() => current));
+  await userEvent.click(screen.getByRole("button", { name: "Cambiar el precio de Arroz" }));
+  const dialog = screen.getByRole("dialog");
+  await expect.element(dialog.getByText("REVISADO HOY")).toBeVisible();
+
+  current = new Date(2026, 8, 26, 12, 0);
+  await screen.rerender(screenFor(() => current));
+  expect(dialog.getByText("REVISADO HOY").query()).not.toBeNull();
+
+  await userEvent.click(dialog.getByLabelText("Precio de venta por kilo"));
+  await userEvent.keyboard("{Escape}");
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Cambiar el precio de Arroz" }));
+
+  await expect.element(screen.getByRole("dialog").getByText("REVISADO HACE 1 DÍA")).toBeVisible();
+  expect(services.fetchPrices).toHaveBeenCalledTimes(1);
+});
+
 test("a save rejected for the price it expected is treated as a changed price and offers the reload", async () => {
   const services = createServices();
   vi.mocked(services.setPrice).mockResolvedValue({

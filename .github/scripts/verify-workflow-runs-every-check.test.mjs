@@ -6,6 +6,7 @@ import {
 } from "./verify-workflow-runs-every-check.mjs";
 
 const RUN_CONDITION = `\${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.docs_only != 'true') }}`;
+const VISUAL_CONDITION = `\${{ !cancelled() && needs.scope.outputs.catalog_changed != 'false' }}`;
 
 const AGGREGATE_RUN = "node .github/scripts/aggregate-verify-result.mjs";
 
@@ -13,8 +14,10 @@ const AGGREGATE_ENV = {
   EVENT_NAME: `\${{ github.event_name }}`,
   SCOPE_RESULT: `\${{ needs.scope.result }}`,
   SCOPE_DOCS_ONLY: `\${{ needs.scope.outputs.docs_only }}`,
+  SCOPE_CATALOG_CHANGED: `\${{ needs.scope.outputs.catalog_changed }}`,
   STATIC_RESULT: `\${{ needs.static.result }}`,
   TESTS_RESULT: `\${{ needs.tests.result }}`,
+  VISUAL_RESULT: `\${{ needs.visual.result }}`,
 };
 
 const HISTORY_SCAN_RUN = "node --test .github/scripts/no-secrets-in-commit-history.test.mjs";
@@ -41,7 +44,7 @@ function scopeJobLines({
 }
 
 function verifyJobLines({
-  needs = "[scope, static, tests]",
+  needs = "[scope, static, tests, visual]",
   condition = "always()",
   jobExtra = [],
   run = AGGREGATE_RUN,
@@ -76,7 +79,12 @@ function workflow({
   testsMatrixExtra = [],
   staticStepExtra = [],
   testsStepExtra = [],
-  verifyNeeds = "[scope, static, tests]",
+  visualRun = "pnpm verify:visual",
+  visualIf = VISUAL_CONDITION,
+  visualJobExtra = [],
+  visualStepExtra = [],
+  includeVisual = true,
+  verifyNeeds = "[scope, static, tests, visual]",
   verifyIf = "always()",
   verifyJobExtra = [],
   verifyRun = AGGREGATE_RUN,
@@ -97,6 +105,17 @@ function workflow({
           stepExtra: verifyStepExtra,
           env: verifyEnv,
         });
+  const visualJob = includeVisual
+    ? [
+        "  visual:",
+        `    if: ${visualIf}`,
+        ...visualJobExtra.map((line) => `    ${line}`),
+        "    runs-on: ubuntu-24.04",
+        "    steps:",
+        `      - run: ${visualRun}`,
+        ...visualStepExtra.map((line) => `        ${line}`),
+      ]
+    : [];
   return [
     ...topExtra,
     "jobs:",
@@ -121,20 +140,27 @@ function workflow({
     "    steps:",
     `      - run: ${testsRunLine}`,
     ...testsStepExtra.map((line) => `        ${line}`),
+    ...visualJob,
     ...verifyJob,
   ].join("\n");
 }
 
 const VERIFY_STATIC_SCRIPT =
-  "tsc --noEmit && tsc --noEmit -p apps/backoffice && tsc --noEmit -p apps/pos && pnpm --filter @purosur/cloud build && biome ci . && pnpm depcruise && knip && node --test .github/scripts/*.test.mjs";
+  "tsc --noEmit && tsc --noEmit -p apps/backoffice && tsc --noEmit -p apps/pos && pnpm --filter @purosur/cloud build && biome ci . --error-on-warnings && pnpm depcruise && knip && node .github/scripts/react-compiler-check.mjs && node --test .github/scripts/*.test.mjs";
 
 function packageJson({
-  verify = "pnpm verify:static && pnpm verify:tests",
+  verify = "pnpm verify:static && pnpm verify:tests && pnpm verify:visual",
   verifyStatic = VERIFY_STATIC_SCRIPT,
-  verifyTests = "vitest run",
+  verifyTests = "vitest run --project='!catalog-visual'",
+  verifyVisual = "vitest run --project=catalog-visual",
 } = {}) {
   return JSON.stringify({
-    scripts: { verify, "verify:static": verifyStatic, "verify:tests": verifyTests },
+    scripts: {
+      verify,
+      "verify:static": verifyStatic,
+      "verify:tests": verifyTests,
+      "verify:visual": verifyVisual,
+    },
   });
 }
 
@@ -222,7 +248,11 @@ test("flags a missing static job", () => {
     "          - 2",
     "    steps:",
     `      - run: pnpm verify:tests --shard=\${{ matrix.shard }}/2`,
-    ...verifyJobLines({ needs: "[tests]" }),
+    "  visual:",
+    `    if: ${VISUAL_CONDITION}`,
+    "    steps:",
+    "      - run: pnpm verify:visual",
+    ...verifyJobLines({ needs: "[tests, visual]" }),
   ].join("\n");
 
   const violations = findVerifyWorkflowViolations(source, packageJson());
@@ -250,7 +280,11 @@ test("flags a missing tests job", () => {
     `    if: ${RUN_CONDITION}`,
     "    steps:",
     "      - run: pnpm verify:static",
-    ...verifyJobLines({ needs: "[static]" }),
+    "  visual:",
+    `    if: ${VISUAL_CONDITION}`,
+    "    steps:",
+    "      - run: pnpm verify:visual",
+    ...verifyJobLines({ needs: "[static, visual]" }),
   ].join("\n");
 
   const violations = findVerifyWorkflowViolations(source, packageJson());
@@ -258,6 +292,43 @@ test("flags a missing tests job", () => {
   assert.equal(violations.length, 2, violations.join("\n"));
   assert.match(violations[0], /no tests job/);
   assert.match(violations[1], /verify job does not need tests/);
+});
+
+test("flags a missing visual job", () => {
+  const source = [
+    "jobs:",
+    ...scopeJobLines(),
+    "  static:",
+    `    if: ${RUN_CONDITION}`,
+    "    steps:",
+    "      - run: pnpm verify:static",
+    "  tests:",
+    `    if: ${RUN_CONDITION}`,
+    "    strategy:",
+    "      matrix:",
+    "        shard:",
+    "          - 1",
+    "          - 2",
+    "    steps:",
+    `      - run: pnpm verify:tests --shard=\${{ matrix.shard }}/2`,
+    ...verifyJobLines({ needs: "[static, tests]" }),
+  ].join("\n");
+
+  const violations = findVerifyWorkflowViolations(source, packageJson());
+
+  assert.equal(violations.length, 2, violations.join("\n"));
+  assert.match(violations[0], /no visual job/);
+  assert.match(violations[1], /verify job does not need visual/);
+});
+
+test("flags a visual job that no longer runs verify:visual", () => {
+  const violations = findVerifyWorkflowViolations(
+    workflow({ visualRun: "pnpm lint" }),
+    packageJson(),
+  );
+
+  assert.equal(violations.length, 1);
+  assert.match(violations[0], /verify:visual/);
 });
 
 test("flags shard values that skip a number", () => {
@@ -316,7 +387,7 @@ test("flags a package.json verify script that no longer composes verify:static a
   assert.match(violations[0], /"verify" script/);
 });
 
-for (const job of ["static", "tests"]) {
+for (const job of ["static", "tests", "visual"]) {
   test(`flags a ${job} job whose if can never be true`, () => {
     const violations = findVerifyWorkflowViolations(
       workflow({ [`${job}If`]: "false" }),
@@ -392,7 +463,7 @@ test("flags a missing verify job", () => {
 
 test("flags a verify job that does not wait for the tests job", () => {
   const violations = findVerifyWorkflowViolations(
-    workflow({ verifyNeeds: "[scope, static]" }),
+    workflow({ verifyNeeds: "[scope, static, visual]" }),
     packageJson(),
   );
 
@@ -401,11 +472,20 @@ test("flags a verify job that does not wait for the tests job", () => {
 
 test("flags a verify job whose needs names only the static job", () => {
   const violations = findVerifyWorkflowViolations(
-    workflow({ verifyNeeds: "static" }),
+    workflow({ verifyNeeds: "[static, visual]" }),
     packageJson(),
   );
 
   assertSingleViolation(violations, /verify job does not need tests/);
+});
+
+test("flags a verify job that does not wait for the visual job", () => {
+  const violations = findVerifyWorkflowViolations(
+    workflow({ verifyNeeds: "[scope, static, tests]" }),
+    packageJson(),
+  );
+
+  assertSingleViolation(violations, /verify job does not need visual/);
 });
 
 test("flags a tests matrix that excludes a shard combination", () => {
@@ -565,6 +645,16 @@ for (const [label, options, pattern] of [
     /verify job sets defaults/,
   ],
   [
+    "the visual job's verify:visual step",
+    { visualStepExtra: ["shell: bash -c 'exit 0' {0}"] },
+    /visual job's verify:visual step sets its own shell/,
+  ],
+  [
+    "the visual job's defaults",
+    { visualJobExtra: ["defaults:", "  run:", "    shell: bash -c 'exit 0' {0}"] },
+    /visual job sets defaults/,
+  ],
+  [
     "the workflow's defaults",
     { topExtra: ["defaults:", "  run:", "    shell: bash -c 'exit 0' {0}"] },
     /verify\.yml sets workflow-level defaults/,
@@ -598,9 +688,10 @@ for (const dropped of [
   "tsc --noEmit -p apps/backoffice",
   "tsc --noEmit -p apps/pos",
   "pnpm --filter @purosur/cloud build",
-  "biome ci .",
+  "biome ci . --error-on-warnings",
   "pnpm depcruise",
   "knip",
+  "node .github/scripts/react-compiler-check.mjs",
   "node --test .github/scripts/*.test.mjs",
 ]) {
   test(`flags a verify:static script that no longer runs ${dropped}`, () => {
@@ -643,13 +734,22 @@ test("accepts a verify:static script that adds another check", () => {
   assert.deepEqual(violations, []);
 });
 
-test("flags a verify:tests script that is not exactly vitest run", () => {
+test("flags a verify:tests script that is not exactly the expected composition", () => {
   const violations = findVerifyWorkflowViolations(
     workflow(),
     packageJson({ verifyTests: "vitest run --passWithNoTests || true" }),
   );
 
   assertSingleViolation(violations, /"verify:tests" script/);
+});
+
+test("flags a verify:visual script that is not exactly the expected composition", () => {
+  const violations = findVerifyWorkflowViolations(
+    workflow(),
+    packageJson({ verifyVisual: "vitest run --project=catalog-visual || true" }),
+  );
+
+  assertSingleViolation(violations, /"verify:visual" script/);
 });
 
 test("reports a workflow that does not parse as YAML", () => {

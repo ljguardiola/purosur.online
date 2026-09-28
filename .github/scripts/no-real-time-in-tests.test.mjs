@@ -1256,6 +1256,62 @@ test("finds test-only helpers under src, leaving out node_modules and dist", () 
   }
 });
 
+function writeFixtureRepository(root, paths) {
+  writeFileSync(
+    join(root, "vitest.config.ts"),
+    [
+      "export default defineConfig({",
+      "  test: {",
+      '    projects: [{ test: { include: ["packages/*/src/**/*.visual.tsx"] } }],',
+      "  },",
+      "});",
+    ].join("\n"),
+  );
+  writeFileSync(
+    join(root, "package.json"),
+    JSON.stringify({ scripts: { "verify:static": "node --test .github/scripts/*.test.mjs" } }),
+  );
+  for (const path of paths) {
+    mkdirSync(dirname(join(root, path)), { recursive: true });
+    writeFileSync(join(root, path), "");
+  }
+}
+
+test("scans story files, whose play functions run as tests", () => {
+  const root = mkdtempSync(join(tmpdir(), "no-real-time-in-tests-"));
+  try {
+    writeFixtureRepository(root, [
+      "packages/ui/src/components/button.stories.tsx",
+      "apps/backoffice/src/catalog/products-list.stories.tsx",
+    ]);
+
+    assert.deepEqual(findScannedFiles(root), [
+      "apps/backoffice/src/catalog/products-list.stories.tsx",
+      "packages/ui/src/components/button.stories.tsx",
+    ]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("skips a directory named like a scanned file", () => {
+  const root = mkdtempSync(join(tmpdir(), "no-real-time-in-tests-"));
+  try {
+    writeFixtureRepository(root, ["packages/ui/src/catalog-screenshots.visual.tsx"]);
+    mkdirSync(join(root, "packages/ui/src/__screenshots__/catalog-screenshots.visual.tsx"), {
+      recursive: true,
+    });
+    mkdirSync(join(root, "packages/ui/src/test-support/helper.ts"), { recursive: true });
+
+    const files = findScannedFiles(root);
+
+    assert.deepEqual(files, ["packages/ui/src/catalog-screenshots.visual.tsx"]);
+    assert.deepEqual(checkFiles(files.map((path) => join(root, path))), []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("no scanned test file in the repository depends on real elapsed time", () => {
   const files = findScannedFiles();
   for (const sentinel of [

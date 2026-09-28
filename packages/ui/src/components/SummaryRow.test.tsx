@@ -29,8 +29,6 @@ test("renders the label on the left and the value on the right, both 16px, label
   expect(getComputedStyle(value).fontSize).toBe("16px");
   expect(getComputedStyle(value).fontWeight).toBe("600");
   expect(getComputedStyle(value).color).toBe(tokenRgb("ink-secondary"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders no border of its own, leaving the divider to the group that holds it", async () => {
@@ -40,8 +38,6 @@ test("renders no border of its own, leaving the divider to the group that holds 
 
   expect(style.borderTopWidth).toBe("0px");
   expect(style.borderBottomWidth).toBe("0px");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders a strong row's label and value at 18px bold, in ink", async () => {
@@ -56,8 +52,6 @@ test("renders a strong row's label and value at 18px bold, in ink", async () => 
   expect(getComputedStyle(value).fontSize).toBe("18px");
   expect(getComputedStyle(value).fontWeight).toBe("700");
   expect(getComputedStyle(value).color).toBe(tokenRgb("ink"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders the value in green UI for a saving, in both the regular and the strong form", async () => {
@@ -66,7 +60,6 @@ test("renders the value in green UI for a saving, in both the regular and the st
   expect(getComputedStyle(regularValue).color).toBe(tokenRgb("brand-green-ui"));
   expect(getComputedStyle(regularValue).fontSize).toBe("16px");
   expect(getComputedStyle(regularValue).fontWeight).toBe("600");
-  await expectNoAccessibilityViolations(regularScreen.container);
 
   const strongScreen = await render(
     <SummaryRow label="Total savings" value="-$25.00" strong saving />,
@@ -75,7 +68,6 @@ test("renders the value in green UI for a saving, in both the regular and the st
   expect(getComputedStyle(strongValue).color).toBe(tokenRgb("brand-green-ui"));
   expect(getComputedStyle(strongValue).fontSize).toBe("18px");
   expect(getComputedStyle(strongValue).fontWeight).toBe("700");
-  await expectNoAccessibilityViolations(strongScreen.container);
 });
 
 test("keeps the label in its own color when only the value is a saving", async () => {
@@ -84,7 +76,6 @@ test("keeps the label in its own color when only the value is a saving", async (
     .getByText("Discount", { exact: true })
     .element() as HTMLElement;
   expect(getComputedStyle(regularLabel).color).toBe(tokenRgb("ink-secondary"));
-  await expectNoAccessibilityViolations(regularScreen.container);
 
   const strongScreen = await render(
     <SummaryRow label="Total savings" value="-$25.00" strong saving />,
@@ -93,7 +84,6 @@ test("keeps the label in its own color when only the value is a saving", async (
     .getByText("Total savings", { exact: true })
     .element() as HTMLElement;
   expect(getComputedStyle(strongLabel).color).toBe(tokenRgb("ink"));
-  await expectNoAccessibilityViolations(strongScreen.container);
 });
 
 test("grows with a long label instead of keeping a fixed height", async () => {
@@ -111,8 +101,6 @@ test("grows with a long label instead of keeping a fixed height", async () => {
 
   expect(labelHeight).toBeGreaterThan(lineHeight * 1.5);
   expect(row.getBoundingClientRect().height).toBeGreaterThanOrEqual(labelHeight);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("keeps a long value inside the row, growing it instead of overflowing", async () => {
@@ -130,8 +118,6 @@ test("keeps a long value inside the row, growing it instead of overflowing", asy
   expect(value.getBoundingClientRect().right).toBeLessThanOrEqual(
     row.getBoundingClientRect().right,
   );
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("keeps the label's word on its own line, clear of the value, under a long value", async () => {
@@ -152,8 +138,6 @@ test("keeps the label's word on its own line, clear of the value, under a long v
   for (const lineRect of labelLineRects) {
     expect(lineRect.right).toBeLessThanOrEqual(valueLeft);
   }
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("flushes every line of a wrapped value against the row's right edge", async () => {
@@ -173,8 +157,6 @@ test("flushes every line of a wrapped value against the row's right edge", async
   for (const lineRect of lineRects) {
     expect(lineRect.right).toBeCloseTo(valueRight, 0);
   }
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("keeps an unbreakable value inside the row, narrowing the label past its longest word", async () => {

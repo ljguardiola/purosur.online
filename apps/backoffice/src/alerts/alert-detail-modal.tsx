@@ -23,6 +23,7 @@ import { type ReactElement, useCallback, useEffect, useRef, useState } from "rea
 import { type BackofficeAccess, canCloseAlertsManually } from "../access/backoffice-access";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import { retryAfterDetail } from "../platform/retry-after-detail";
+import { useLatestRef } from "../platform/use-latest-ref";
 import {
   type AlertDetail,
   type AlertLevel,
@@ -224,8 +225,7 @@ export function AlertDetailModal({
   const [submitting, setSubmitting] = useState(false);
 
   const sessionRef = useRef(0);
-  const onSessionEndedRef = useRef(onSessionEnded);
-  onSessionEndedRef.current = onSessionEnded;
+  const onSessionEndedRef = useLatestRef(onSessionEnded);
 
   const load = useCallback(
     async (id: string) => {
@@ -257,7 +257,7 @@ export function AlertDetailModal({
       }
       setLoadState({ kind: "loadError" });
     },
-    [fetchAlert, sendToMyAccount],
+    [fetchAlert, sendToMyAccount, onSessionEndedRef],
   );
 
   useEffect(() => {
@@ -343,7 +343,7 @@ export function AlertDetailModal({
           >
             Volver
           </Button>
-          {canClose && (
+          {canClose ? (
             <Button
               variant="primary"
               size="large"
@@ -354,7 +354,7 @@ export function AlertDetailModal({
             >
               Cerrar la alerta
             </Button>
-          )}
+          ) : null}
         </>
       }
     >
@@ -411,7 +411,7 @@ export function AlertDetailModal({
               </Button>
             </div>
           )}
-        {alert && (
+        {alert ? (
           <>
             <div className="flex items-center gap-2">
               <StatusIndicator tone={LEVEL_TONE[alert.level]}>
@@ -464,7 +464,7 @@ export function AlertDetailModal({
               </p>
             )}
           </>
-        )}
+        ) : null}
       </div>
     </Modal>
   );

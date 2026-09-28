@@ -45,7 +45,7 @@ function Harness({
       >
         Run
       </button>
-      {result && <p>{result}</p>}
+      {result ? <p>{result}</p> : null}
       {modal}
     </div>
   );

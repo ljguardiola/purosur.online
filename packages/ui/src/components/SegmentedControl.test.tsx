@@ -64,8 +64,6 @@ test("renders the container with a 1px line border, 8px radius, 4px padding and 
   expect(style.paddingTop).toBe("4px");
   expect(style.paddingLeft).toBe("4px");
   expect(style.columnGap).toBe("4px");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders each option's label, and its icon when given one", async () => {
@@ -75,8 +73,6 @@ test("renders each option's label, and its icon when given one", async () => {
     expect(segmentLabelText(screen, option.label)).not.toBeUndefined();
     expect(segmentOption(screen, option.label).querySelector("svg")).not.toBeNull();
   }
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("shows the hand cursor on each option", async () => {
@@ -85,8 +81,6 @@ test("shows the hand cursor on each option", async () => {
   for (const option of options) {
     expect(getComputedStyle(segmentOption(screen, option.label)).cursor).toBe("pointer");
   }
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders an option with no icon", async () => {
@@ -97,7 +91,6 @@ test("renders an option with no icon", async () => {
   const screen = await render(<SegmentedControl {...baseProps({ options: noIconOptions })} />);
 
   expect(segmentOption(screen, "Discount").querySelector("svg")).toBeNull();
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("gives every option a 6px radius and 16px horizontal padding, with a 16px label", async () => {
@@ -110,8 +103,6 @@ test("gives every option a 6px radius and 16px horizontal padding, with a 16px l
   expect(style.paddingLeft).toBe("16px");
   expect(style.paddingRight).toBe("16px");
   expect(getComputedStyle(label).fontSize).toBe("16px");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders the large size with a 56px container whose options fill its inner height, and an 18px icon with an 8px icon-to-label gap", async () => {
@@ -133,8 +124,6 @@ test("renders the large size with a 56px container whose options fill its inner 
   const iconRect = icon.getBoundingClientRect();
   expect(iconRect.width).toBeGreaterThan(17);
   expect(iconRect.width).toBeLessThan(19);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders the medium size with a 48px container whose options fill its inner height, and a 16px icon with a 6px icon-to-label gap", async () => {
@@ -156,8 +145,6 @@ test("renders the medium size with a 48px container whose options fill its inner
   const iconRect = icon.getBoundingClientRect();
   expect(iconRect.width).toBeGreaterThan(15);
   expect(iconRect.width).toBeLessThan(17);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("defaults to the medium size when none is given", async () => {
@@ -165,7 +152,6 @@ test("defaults to the medium size when none is given", async () => {
   const container = segmentContainer(screen, "Entry mode");
 
   expect(getComputedStyle(container).height).toBe("48px");
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("colors a not-chosen option with no background, a regular ink label and a secondary icon", async () => {
@@ -178,8 +164,6 @@ test("colors a not-chosen option with no background, a regular ink label and a s
   expect(getComputedStyle(label).fontWeight).toBe("400");
   expect(getComputedStyle(label).color).toBe(tokenRgb("ink"));
   expect(getComputedStyle(icon).color).toBe(tokenRgb("ink-secondary"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("turns a hovered not-chosen option's background bone without changing its other colors", async () => {
@@ -191,7 +175,6 @@ test("turns a hovered not-chosen option's background bone without changing its o
   await expect.poll(() => getComputedStyle(option).backgroundColor).toBe(tokenRgb("surface-bone"));
 
   expect(getComputedStyle(label).fontWeight).toBe("400");
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("colors the chosen option with the blue message background, a bold blue strong label and icon", async () => {
@@ -204,8 +187,6 @@ test("colors the chosen option with the blue message background, a bold blue str
   expect(getComputedStyle(label).fontWeight).toBe("700");
   expect(getComputedStyle(label).color).toBe(tokenRgb("brand-blue-strong"));
   expect(getComputedStyle(icon).color).toBe(tokenRgb("brand-blue-strong"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("does not change the chosen option's background on hover", async () => {
@@ -216,7 +197,6 @@ test("does not change the chosen option's background on hover", async () => {
   await expect.poll(() => option.hasAttribute("data-hovered")).toBe(true);
 
   expect(getComputedStyle(option).backgroundColor).toBe(tokenRgb("brand-blue-message-bg"));
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("keeps the control's width stable when the chosen option changes", async () => {
@@ -250,8 +230,6 @@ test("chooses an option with a click, unchoosing the previous one", async () => 
 
   expect(segmentInput(screen, "New price").checked).toBe(true);
   expect(segmentInput(screen, "Discount").checked).toBe(false);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("clicking the already-chosen option changes nothing", async () => {
@@ -262,8 +240,6 @@ test("clicking the already-chosen option changes nothing", async () => {
 
   expect(onChange).not.toHaveBeenCalled();
   expect(segmentInput(screen, "Discount").checked).toBe(true);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("is a single tab stop landing on the chosen option", async () => {
@@ -317,15 +293,12 @@ test("shows the package's focus ring on the focused option", async () => {
   await expect
     .poll(() => getComputedStyle(option).outlineColor)
     .toBe(tokenRgb("brand-blue-strong"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("exposes the group as a radiogroup named by the caller's label", async () => {
   const screen = await render(<SegmentedControl {...baseProps({ label: "Entry mode" })} />);
 
   await expect.element(screen.getByRole("radiogroup", { name: "Entry mode" })).toBeVisible();
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("exposes each option as a radio button named by its label and its chosen state", async () => {
@@ -333,8 +306,6 @@ test("exposes each option as a radio button named by its label and its chosen st
 
   await expect.element(screen.getByRole("radio", { name: "Discount" })).not.toBeChecked();
   await expect.element(screen.getByRole("radio", { name: "New price" })).toBeChecked();
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("does not accept an option without a value or a label", () => {

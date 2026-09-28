@@ -1,6 +1,5 @@
 import { expect, test } from "vitest";
 import { render } from "vitest-browser-react";
-import { expectNoAccessibilityViolations } from "../test/axe";
 import { tokenRgb } from "../test/token-colors";
 import { DateField } from "./DateField";
 import { FieldGroup } from "./FieldGroup";
@@ -101,6 +100,4 @@ test("draws the label, gap, box and value at the backoffice size, identically fo
   expect(
     selectChevron.getBoundingClientRect().left - selectValueBox.getBoundingClientRect().right,
   ).toBeCloseTo(8, 0);
-
-  await expectNoAccessibilityViolations(screen.container);
 });

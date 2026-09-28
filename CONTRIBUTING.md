@@ -100,6 +100,17 @@ Each level's tests own what only that level can prove:
 - Every screen is reached through its own route, declared in the renderer's router under the root route and added to its route tree, with the screen as the route's component.
 - A screen that must refuse entry before it renders declares that on its own route, as a guard (`beforeLoad`) that redirects instead of letting the screen render.
 
+## React code
+
+The backoffice, the register's renderer and `packages/ui` follow the Rules of React, because the backoffice and the register's renderer are built with the React Compiler, which memoizes every component and hook automatically:
+
+- Rendering is pure: a component neither reads nor writes a ref while rendering, never mutates its props or state, and never reads something that changes outside React, such as the current time or browser storage. A value that changes over time lives in state that the render reads.
+- Hooks are called unconditionally, at the top level of a component or another hook.
+- A new component or hook does not memoize by hand with `useMemo`, `useCallback` or `memo`: the compiler already does.
+- A component receives a ref as an ordinary prop, not through `forwardRef`.
+
+`pnpm verify` fails on a component or hook the React Compiler cannot compile, and on every React-specific mistake the linter detects, such as a hook called conditionally, a missing effect dependency, a list item without a key, a `&&` condition that can render a stray value, `forwardRef`, a hard-coded element id, or a component declared inside another. A render that reads the clock or another outside value is not detected: review catches it.
+
 ## Testing
 
 Every rule is verified once, at the lowest level that can really prove it. Higher levels only verify that the pieces are wired together: a route test shows that the route reaches its validator and its guard, not every case the validator rejects; a screen test shows how the screen presents an outcome, not the rule that produced it. A rule is also defined once, in the package that owns it, and every other level imports it instead of keeping its own copy.
@@ -118,6 +129,7 @@ Each risk has one kind of test that owns it:
 | The tax authority's web services | A fake of each web service and responses recorded from its test environment | `verify`; live calls to its test environment run on a schedule |
 | Hardware: printer, scanner, scale, cash drawer | A fake behind each device's port, and the printed receipt compared with its expected output | `verify`; the real device by a written manual check before a hardware adapter change ships |
 | Design-system components, including accessibility | Component tests in a real browser, in `packages/ui` | `verify` |
+| Design-system components' visual appearance | Each Storybook story's approved screenshot, in `packages/ui` | `verify` |
 | Backoffice screens | Screen tests of how each screen presents its states and outcomes, and its wiring to the cloud | `verify` |
 | Register journeys: sell, sell offline and sync, contingency invoicing, void, sign in | A few end-to-end tests of the packaged register app, each showing that the journey is wired end to end, not every case its use cases own | "Package register", on every pull request that changes the register or a package |
 | Installing the packaged register and updating it in place | An install and update of the packaged build | Per release |
@@ -129,6 +141,10 @@ A new migration must be dated after every migration already on `main`: the migra
 A test's result must not depend on how much real time passes while it runs: it neither waits a fixed real time nor measures real elapsed time to decide its outcome. It controls time with fake timers or an injected clock, or it waits for the condition it actually needs. `pnpm verify` rejects a test that depends on real elapsed time.
 
 A test is removed only when the rule it checks is already verified by its owning test and it verifies nothing beyond that rule.
+
+An approved screenshot of each Storybook story, committed under `packages/ui/src/__screenshots__`, owns that story's visual appearance; `pnpm verify` renders every story again and fails on any difference. A change that alters how a story looks on purpose is approved with `pnpm catalog:approve`, which overwrites the affected screenshots; review the new images before committing them alongside the change in the same pull request.
+
+A new `packages/ui` component or a new state of an existing one is not complete until it has a story rendering it in the catalog. Browse the catalog with `pnpm catalog`.
 
 A CI run that fails because of a flaky test unrelated to the change is rerun only after an issue naming the test and its error has been filed. A rerun hides the instability, and it would equally hide a real failure.
 

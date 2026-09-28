@@ -29,8 +29,6 @@ test("associates the label with the trigger, and names it with both the chosen o
   await expect
     .element(screen.getByRole("button", { name: "Responsable de turno Rol" }))
     .toBeVisible();
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("shows the selected option's own label as the trigger's value", async () => {
@@ -38,8 +36,6 @@ test("shows the selected option's own label as the trigger's value", async () =>
   const trigger = screen.getByRole("button", { name: /Rol/ });
 
   await expect.element(trigger.getByText("Atención de caja", { exact: true })).toBeVisible();
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("shows the hand cursor on the trigger and on each option", async () => {
@@ -50,8 +46,6 @@ test("shows the hand cursor on the trigger and on each option", async () => {
   await screen.getByRole("button", { name: /Rol/ }).click();
   const option = screen.getByRole("option", { name: "Atención de caja" }).element() as HTMLElement;
   expect(getComputedStyle(option).cursor).toBe("pointer");
-
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("lists every option on open, with a check on the selected one only", async () => {
@@ -72,8 +66,6 @@ test("lists every option on open, with a check on the selected one only", async 
   const unchosen = screen.getByRole("option", { name: "Administrador" }).element();
   expect(chosen.querySelector("svg")).not.toBeNull();
   expect(unchosen.querySelector("svg")).toBeNull();
-
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("gives the caller the chosen option's value and closes the menu, on click", async () => {
@@ -89,7 +81,6 @@ test("gives the caller the chosen option's value and closes the menu, on click",
 
   // react-aria-components portals the popover's DOM outside screen.container while open; once
   // closed, nothing of this field is rendered outside the container.
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("opens from the keyboard, moves between options with arrows, picks one with Enter, and returns focus to the trigger", async () => {
@@ -123,8 +114,6 @@ test("closes on Escape without changing anything", async () => {
 
   expect(onChange).not.toHaveBeenCalled();
   await expect.element(screen.getByRole("listbox")).not.toBeInTheDocument();
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("marks a required select with an asterisk that folds into the trigger's own accessible name", async () => {
@@ -137,8 +126,6 @@ test("marks a required select with an asterisk that folds into the trigger's own
   await expect
     .element(screen.getByRole("button", { name: /Responsable de turno Rol\s*\*/ }))
     .toBeVisible();
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("shows the error message instead of the helper text and announces the select as invalid", async () => {
@@ -161,8 +148,6 @@ test("shows the error message instead of the helper text and announces the selec
     .map((id) => document.getElementById(id)?.textContent ?? "")
     .join(" ");
   expect(describedText).toContain("Elegí un rol.");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("dims the field and blocks focus when disabled", async () => {
@@ -182,8 +167,6 @@ test("dims the field and blocks focus when disabled", async () => {
   await userEvent.tab();
   expect(document.activeElement).toBe(nextControl);
   expect(document.activeElement).not.toBe(trigger);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 // The trigger is a real <button>, so its boundary is a real border rather than an inset shadow.
@@ -198,8 +181,6 @@ test("draws a white trigger with a 2px line border at rest, like every other fie
 
   expect(getComputedStyle(trigger).backgroundColor).toBe(tokenRgb("surface-white"));
   expect(borderOf(trigger)).toEqual({ width: "2px", color: tokenRgb("line") });
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("turns the trigger bone on hover, keeping the same 2px line border", async () => {
@@ -227,8 +208,6 @@ test("draws a 2px brand-blue-ui border and no outline ring when reached by keybo
     });
   expect(getComputedStyle(trigger).outlineStyle).toBe("none");
   expect(getComputedStyle(trigger).backgroundColor).toBe(tokenRgb("surface-white"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("keeps the focused border and white fill instead of the hovered bone one when both apply at once", async () => {
@@ -259,8 +238,6 @@ test("switches the border to the error tone while invalid", async () => {
   const trigger = screen.getByRole("button", { name: /Rol/ }).element() as HTMLElement;
 
   expect(borderOf(trigger)).toEqual({ width: "2px", color: tokenRgb("status-error-ui") });
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("turns an invalid trigger bone on hover, keeping its error border", async () => {
@@ -377,8 +354,6 @@ test("shows the caller's placeholder as the trigger's value, styled as inert pla
   const valueEl = trigger.querySelector("[data-placeholder]") as HTMLElement;
   expect(valueEl).not.toBeNull();
   expect(getComputedStyle(valueEl).color).toBe(tokenRgb("ink-secondary"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("does not call onChange or select anything on its own when the value starts out null", async () => {
@@ -389,8 +364,6 @@ test("does not call onChange or select anything on its own when the value starts
 
   await expect.element(screen.getByRole("button", { name: "Elegí un rol Rol" })).toBeVisible();
   expect(onChange).not.toHaveBeenCalled();
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("shows the error message and closes-with-choice still works when the value starts out null", async () => {

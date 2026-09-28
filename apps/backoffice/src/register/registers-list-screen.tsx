@@ -373,6 +373,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
   } = services ?? defaultRegistersListScreenServices;
   const clock = now ?? (() => new Date());
   const [list, setList] = useState<ListState>({ kind: "loading" });
+  const [currentTime, setCurrentTime] = useState(() => clock());
   const [newModalOpen, setNewModalOpen] = useState(false);
   const [emission, setEmission] = useState<EmissionState>({ kind: "closed" });
   const { run: runEmission, modal: emissionAuthModal } =
@@ -382,6 +383,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
       services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
     });
   const onSessionEndedRef = useLatestRef(onSessionEnded);
+  const clockRef = useLatestRef(clock);
 
   const latestLoad = useRef(0);
   const latestEmission = useRef(0);
@@ -399,6 +401,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
       return;
     }
     if (outcome.kind === "ok") {
+      setCurrentTime(clockRef.current());
       setList({ kind: "loaded", registers: outcome.value });
     } else if (outcome.kind === "unauthenticated") {
       onSessionEndedRef.current();
@@ -409,20 +412,19 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchRegisters, onSessionEndedRef, sendToMyAccount]);
+  }, [fetchRegisters, onSessionEndedRef, clockRef, sendToMyAccount]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const [, setClockTick] = useState(0);
   useEffect(() => {
     const intervalId = window.setInterval(
-      () => setClockTick((tick) => tick + 1),
+      () => setCurrentTime(clockRef.current()),
       PENDING_CODE_REFRESH_MS,
     );
     return () => window.clearInterval(intervalId);
-  }, []);
+  }, [clockRef]);
 
   // Guards a second Enter/Space activation before the first request settles (the modal backdrop
   // blocks other rows).
@@ -491,7 +493,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
       key: "installation",
       title: "INSTALACIÓN",
       render: (item: RegisterSummary) => {
-        const now = clock();
+        const now = currentTime;
         const pendingCode =
           item.pendingCode && new Date(item.pendingCode.expiresAt) > now ? item.pendingCode : null;
         if (!pendingCode) {

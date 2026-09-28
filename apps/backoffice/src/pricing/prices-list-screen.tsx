@@ -188,6 +188,8 @@ function PriceChangeModal({
   const sendToMyAccount = useSendToMyAccount();
   const isOpen = target !== null;
   const [current, setCurrent] = useState<PriceProduct | null>(null);
+  const [shownAt, setShownAt] = useState<Date | null>(null);
+  const nowRef = useLatestRef(now);
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [amountError, setAmountError] = useState<string | undefined>(undefined);
@@ -214,6 +216,7 @@ function PriceChangeModal({
   useEffect(() => {
     if (target) {
       setCurrent(target);
+      setShownAt(nowRef.current());
       setTitle(target.name);
       setAmount("");
       setAmountError(undefined);
@@ -221,7 +224,7 @@ function PriceChangeModal({
       setPreviousNotice(previousProductNotice);
       setSubmitting(false);
     }
-  }, [target, previousProductNotice]);
+  }, [target, previousProductNotice, nowRef]);
 
   function validatedAmount(product: PriceProduct): number | undefined {
     if (!amount.trim()) {
@@ -295,17 +298,17 @@ function PriceChangeModal({
     }
     setAmountError(undefined);
     startRequest();
+    const expectedCurrentPriceId = product.currentPrice?.id ?? null;
     try {
       const outcome = await setPrice(product.id, {
         unitPrice: cents,
-        expectedCurrentPriceId: product.currentPrice?.id ?? null,
+        expectedCurrentPriceId,
       });
       handleSetPriceOutcome(product, outcome);
     } catch {
       showNotice({ kind: "attemptFailed" });
-    } finally {
-      setSubmitting(false);
     }
+    setSubmitting(false);
   }
 
   function handleConfirmPriceOutcome(product: PriceProduct, outcome: ConfirmPriceOutcome) {
@@ -348,9 +351,8 @@ function PriceChangeModal({
       handleConfirmPriceOutcome(product, outcome);
     } catch {
       showNotice({ kind: "confirmFailed" });
-    } finally {
-      setSubmitting(false);
     }
+    setSubmitting(false);
   }
 
   async function handleReload() {
@@ -365,9 +367,8 @@ function PriceChangeModal({
       handleReloadOutcome(product, outcome);
     } catch {
       showNotice({ kind: "reloadFailed" });
-    } finally {
-      setSubmitting(false);
     }
+    setSubmitting(false);
   }
 
   function handleReloadOutcome(product: PriceProduct, outcome: FetchPricesOutcome) {
@@ -379,6 +380,7 @@ function PriceChangeModal({
         return;
       }
       setCurrent(fresh);
+      setShownAt(now());
       setNotice(null);
       return;
     }
@@ -414,13 +416,13 @@ function PriceChangeModal({
       width="standard"
       tone="info"
       icon={<Pencil />}
-      context={current ? modalEyebrow(current, now()) : ""}
+      context={current && shownAt ? modalEyebrow(current, shownAt) : ""}
       title={title}
       closable={!submitting}
       footer={
         current && (
           <>
-            {current.currentPrice && (
+            {current.currentPrice ? (
               <Button
                 variant="secondary"
                 size="large"
@@ -430,7 +432,7 @@ function PriceChangeModal({
               >
                 Confirmar sin cambios
               </Button>
-            )}
+            ) : null}
             <Button
               variant="primary"
               size="large"
@@ -445,7 +447,7 @@ function PriceChangeModal({
         )
       }
     >
-      {current && (
+      {current ? (
         <div className="flex flex-col gap-4">
           {previousNotice?.tone === "success" && (
             <NotificationCard
@@ -513,7 +515,7 @@ function PriceChangeModal({
               detail="Probá de nuevo."
             />
           )}
-          {offersReload && (
+          {offersReload ? (
             <Button
               variant="secondary"
               icon={<RotateCcw />}
@@ -522,7 +524,7 @@ function PriceChangeModal({
             >
               Recargar el precio
             </Button>
-          )}
+          ) : null}
           <TextField
             kind="price"
             label={PRICE_LABEL[current.saleUnit]}
@@ -543,7 +545,7 @@ function PriceChangeModal({
             {...(amountError ? { invalid: true, errorMessage: amountError } : {})}
           />
         </div>
-      )}
+      ) : null}
     </Modal>
   );
 }
@@ -564,6 +566,7 @@ export function PricesListScreen({
   const clock = now ?? (() => new Date());
 
   const [list, setList] = useState<ListState>({ kind: "loading" });
+  const [loadedAt, setLoadedAt] = useState(() => clock());
   const [categories, setCategories] = useState<PriceCategory[]>([]);
   const [search, setSearch] = useState(filters.search);
   const [debouncedSearch, setDebouncedSearch] = useState(filters.search.trim());
@@ -578,9 +581,9 @@ export function PricesListScreen({
   const lastNoticeId = useRef(0);
   const [screenRequestInFlight, setScreenRequestInFlight] = useState(false);
 
-  const onSessionEndedRef = useRef(onSessionEnded);
-  onSessionEndedRef.current = onSessionEnded;
+  const onSessionEndedRef = useLatestRef(onSessionEnded);
   const onFiltersChangeRef = useLatestRef(onFiltersChange);
+  const clockRef = useLatestRef(clock);
 
   useEffect(() => {
     const shown: PricesListFilters = { search, category: categoryFilter, review: reviewFilter };
@@ -636,6 +639,7 @@ export function PricesListScreen({
       return;
     }
     if (outcome.kind === "ok") {
+      setLoadedAt(clockRef.current());
       setList({
         kind: "loaded",
         products: outcome.value.products,
@@ -655,16 +659,22 @@ export function PricesListScreen({
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchPricesService, reviewFilter, categoryFilter, debouncedSearch, sendToMyAccount]);
+  }, [
+    fetchPricesService,
+    reviewFilter,
+    categoryFilter,
+    debouncedSearch,
+    sendToMyAccount,
+    onSessionEndedRef,
+    clockRef,
+  ]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const loadRef = useRef(load);
-  loadRef.current = load;
-  const reviewFilterRef = useRef(reviewFilter);
-  reviewFilterRef.current = reviewFilter;
+  const loadRef = useLatestRef(load);
+  const reviewFilterRef = useLatestRef(reviewFilter);
   function reloadWithCurrentFilters() {
     void loadRef.current();
   }
@@ -713,9 +723,8 @@ export function PricesListScreen({
       handleReviewReadOutcome(await fetchPricesService({ review: "pending" }));
     } catch {
       showScreenNotice(reviewStartFailedNotice);
-    } finally {
-      setScreenRequestInFlight(false);
     }
+    setScreenRequestInFlight(false);
   }
 
   function handleReviewReadOutcome(outcome: FetchPricesOutcome) {
@@ -818,9 +827,8 @@ export function PricesListScreen({
       handleRowConfirmOutcome(item, outcome);
     } catch {
       showScreenNotice(rowConfirmFailedNotice(item));
-    } finally {
-      setScreenRequestInFlight(false);
     }
+    setScreenRequestInFlight(false);
   }
 
   function rowConfirmFailedNotice(item: PriceProduct): ScreenNotice {
@@ -901,7 +909,7 @@ export function PricesListScreen({
     {
       key: "reviewed",
       title: "REVISADO",
-      render: (item: PriceProduct) => reviewedCellText(item.lastReviewedAt, clock()),
+      render: (item: PriceProduct) => reviewedCellText(item.lastReviewedAt, loadedAt),
     },
     {
       key: "actions",
@@ -909,7 +917,7 @@ export function PricesListScreen({
       align: "end" as const,
       render: (item: PriceProduct) => (
         <div className="flex flex-row items-center justify-end gap-2">
-          {item.currentPrice && (
+          {item.currentPrice ? (
             <Tooltip description="Confirmar sin cambios: cuenta como revisar el precio.">
               <IconButton
                 icon={<Check />}
@@ -918,7 +926,7 @@ export function PricesListScreen({
                 onPress={() => void handleRowConfirm(item)}
               />
             </Tooltip>
-          )}
+          ) : null}
           <IconButton
             icon={<Pencil />}
             aria-label={`Cambiar el precio de ${item.name}`}
@@ -1065,7 +1073,7 @@ export function PricesListScreen({
         setPrice={setPriceService}
         confirmPrice={confirmPriceService}
       />
-      {notice && (
+      {notice ? (
         <div className="fixed right-6 bottom-6 z-50">
           <NotificationCard
             key={notice.id}
@@ -1076,7 +1084,7 @@ export function PricesListScreen({
             floating
           />
         </div>
-      )}
+      ) : null}
     </>
   );
 }

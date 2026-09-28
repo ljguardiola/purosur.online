@@ -16,16 +16,16 @@ permissions:
 
 jobs:
   # Decides whether a `pull_request` change is docs-only, the one case that may skip static/tests
-  # below. A push never runs this job, so static/tests always run in full on it: a push's success
-  # is what lets the deploy ship it, and the commit before it may not have passed.
-  # It also scans every commit of the change for secrets, which a docs-only net diff can hide: a
-  # failure here fails scope, and a failed scope runs static/tests in full.
+  # below; a push always runs them in full, since its success is what lets the deploy ship it and
+  # the commit before it may not have passed.
+  # It also scans every commit of a `pull_request` change for secrets, which a docs-only net diff
+  # can hide: a failure here fails scope, and a failed scope runs static/tests in full.
   scope:
     name: scope
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
     outputs:
       docs_only: ${{ steps.scope.outputs.docs_only }}
+      catalog_changed: ${{ steps.scope.outputs.catalog_changed }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -45,7 +45,7 @@ jobs:
         id: scope
         run: node .github/scripts/change-scope.mjs
         env:
-          SCOPE_FROM: ${{ github.event.pull_request.base.sha }}
+          SCOPE_FROM: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           SCOPE_TO: ${{ github.sha }}
 
       - name: Scan the change's commits for secrets
@@ -146,13 +146,40 @@ jobs:
 
       - run: pnpm verify:tests --shard=${{ matrix.shard }}/4
 
-  # The required status check named in .github/rulesets/main.json. It runs no check itself; it
-  # only translates scope/static/tests' outcomes into the single pass/fail that check reports.
+  visual:
+    name: visual
+    needs: [scope]
+    if: ${{ !cancelled() && needs.scope.outputs.catalog_changed != 'false' }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm verify:visual
+
+      - name: Upload the actual and diff images for a failed comparison
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: catalog-visual-diff
+          retention-days: 7
+          path: .vitest/attachments
+          if-no-files-found: ignore
+
+  # The required status check named in .github/rulesets/main.json.
   verify:
     name: verify
-    needs: [scope, static, tests]
-    # always(), unlike static/tests: a skipped job reports "Success" to a required check, so a
-    # cancelled run must still reach this job and fail it on the cancelled static/tests results.
+    needs: [scope, static, tests, visual]
     if: always()
     runs-on: ubuntu-24.04
     steps:
@@ -170,5 +197,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           SCOPE_RESULT: ${{ needs.scope.result }}
           SCOPE_DOCS_ONLY: ${{ needs.scope.outputs.docs_only }}
+          SCOPE_CATALOG_CHANGED: ${{ needs.scope.outputs.catalog_changed }}
           STATIC_RESULT: ${{ needs.static.result }}
           TESTS_RESULT: ${{ needs.tests.result }}
+          VISUAL_RESULT: ${{ needs.visual.result }}

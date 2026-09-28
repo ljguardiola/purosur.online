@@ -1,4 +1,4 @@
-import { globSync, readFileSync } from "node:fs";
+import { globSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
 
@@ -1076,6 +1076,8 @@ export function findTestOnlyHelperFiles(cwd = process.cwd()) {
   return files.filter(isTestOnlyHelperPath).sort();
 }
 
+const STORY_GLOBS = ["apps/*/src/**/*.stories.tsx", "packages/*/src/**/*.stories.tsx"];
+
 export function findScannedFiles(cwd = process.cwd()) {
   const projects = readVitestProjects(readFileSync(join(cwd, "vitest.config.ts"), "utf8"));
   const projectFiles = projects.flatMap((project) => [
@@ -1089,7 +1091,14 @@ export function findScannedFiles(cwd = process.cwd()) {
   );
   const verifyStaticFiles = globSync(verifyStaticGlobs, { cwd });
 
-  return [
-    ...new Set([...projectFiles, ...verifyStaticFiles, ...findTestOnlyHelperFiles(cwd)]),
-  ].sort();
+  const storyFiles = globSync(STORY_GLOBS, { cwd, exclude: ["**/node_modules/**"] });
+
+  const scanned = new Set([
+    ...projectFiles,
+    ...verifyStaticFiles,
+    ...findTestOnlyHelperFiles(cwd),
+    ...storyFiles,
+  ]);
+  // Vitest's screenshot folders are directories named after the test file they belong to.
+  return [...scanned].filter((path) => statSync(join(cwd, path)).isFile()).sort();
 }

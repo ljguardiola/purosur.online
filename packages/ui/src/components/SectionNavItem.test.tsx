@@ -2,7 +2,6 @@ import { Flag } from "lucide-react";
 import { expect, test } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { expectNoAccessibilityViolations } from "../test/axe";
 import { tokenRgb } from "../test/token-colors";
 import { SectionNavItem } from "./SectionNavItem";
 
@@ -19,8 +18,6 @@ test("renders as a link naming its own label, with the icon hidden from assistiv
   const link = screen.getByRole("link", { name: "Primeros pasos" }).element() as HTMLAnchorElement;
   expect(link.getAttribute("href")).toBe("/help/getting_started");
   expect(link.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("marks the active item with aria-current, an azul-fondo fill and a bold 16px azul-fuerte label", async () => {
@@ -39,8 +36,6 @@ test("marks the active item with aria-current, an azul-fondo fill and a bold 16p
 
   const icon = link.querySelector("svg") as SVGSVGElement;
   expect(getComputedStyle(icon).stroke).toBe(tokenRgb("brand-blue-strong"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("leaves an inactive item with no aria-current, a negro 14px label and an ink-secondary icon", async () => {
@@ -64,8 +59,6 @@ test("leaves an inactive item with no aria-current, a negro 14px label and an in
 
   const icon = link.querySelector("svg") as SVGSVGElement;
   expect(getComputedStyle(icon).stroke).toBe(tokenRgb("ink-secondary"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("turns bone on hover while inactive", async () => {
@@ -82,6 +75,4 @@ test("turns bone on hover while inactive", async () => {
   await userEvent.hover(link);
 
   await expect.poll(() => getComputedStyle(link).backgroundColor).toBe(tokenRgb("surface-bone"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
