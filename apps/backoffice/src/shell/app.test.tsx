@@ -2005,6 +2005,23 @@ test("offers to try again when a screen fails to render, reports the failure, an
   expect(reportError).toHaveBeenCalledTimes(1);
 });
 
+test("moves focus to the failure's title when a screen opened from the rail fails once its data arrives", async () => {
+  window.history.pushState(null, "", "/help");
+  const services = createAppServices();
+  vi.mocked(services.alertsListScreen.fetchAlerts).mockResolvedValue({
+    kind: "ok",
+    value: { alerts: null, total: 0, pageSize: 25, openCount: 0, openCriticalCount: 0 },
+  } as never);
+  const screen = await render(<App help={emptyHelp} services={services} reportError={vi.fn()} />);
+  await expect.element(screen.getByRole("link", { name: "Inicio" })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("link", { name: "Inicio" }));
+
+  await expect
+    .element(screen.getByRole("heading", { name: "No pudimos mostrar esta pantalla", level: 1 }))
+    .toHaveFocus();
+});
+
 test("keeps focus on the failure's title when trying again fails again", async () => {
   window.history.pushState(null, "", "/home/alerts");
   const services = createAppServices();

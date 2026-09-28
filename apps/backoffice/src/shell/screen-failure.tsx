@@ -1,11 +1,15 @@
 import { Button, InlineNotice } from "@purosur/ui";
 import { useRouter } from "@tanstack/react-router";
 import { TriangleAlert } from "lucide-react";
+import { useEffect } from "react";
 import { ScreenLayout } from "./screen-layout";
 import { focusScreenTitle, ScreenTitle } from "./screen-title";
 
 export function ScreenFailure() {
   const router = useRouter();
+  useEffect(() => {
+    focusScreenTitle();
+  }, []);
   const retry = async () => {
     await router.invalidate();
     focusScreenTitle();
