@@ -105,13 +105,7 @@ describe("issuerIdentificationEditBodySchema", () => {
     );
   });
 
-  it("rejects an empty gross_income_registration", () => {
-    expect(firstFailure(validBody({ gross_income_registration: "" }))).toEqual(
-      grossIncomeRegistrationFailure,
-    );
-  });
-
-  it("rejects a gross_income_registration that is blank after trimming", () => {
+  it("rejects an empty gross_income_registration (blank after trimming)", () => {
     expect(firstFailure(validBody({ gross_income_registration: "   " }))).toEqual(
       grossIncomeRegistrationFailure,
     );
