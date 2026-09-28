@@ -64,7 +64,13 @@
                   "@purosur/contracts": {
                     "message": "packages/ui must not depend on packages/contracts."
                   }
-                }
+                },
+                "patterns": [
+                  {
+                    "group": ["@purosur/domain/**"],
+                    "message": "packages/ui must not depend on packages/domain."
+                  }
+                ]
               }
             }
           }

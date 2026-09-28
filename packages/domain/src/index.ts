@@ -31,7 +31,7 @@ export {
   isBranchHoursRangeOrdered,
   isBranchHoursTime,
 } from "./branch/index.js";
-export type { NetContentUnit } from "./catalog/index.js";
+export type { NetContentUnit, SaleUnit } from "./catalog/index.js";
 export {
   appendEan13CheckDigit,
   BARCODE_MAX_LENGTH,

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { createCategory } from "@purosur/domain/catalog/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -8,7 +9,7 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
-import { createCategory } from "./category-creation-route.js";
+import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
 
 // PGlite can't race two creations for the same name, so this runs on a real postgres-js pool,
 // whose driver reports the violated index as `constraint_name` rather than PGlite's `constraint`.
@@ -33,8 +34,8 @@ describe("creating two categories with the same name concurrently on a real Post
     const name = `Semillas ${suffix}`;
 
     const [first, second] = await Promise.all([
-      createCategory(db, { name, parentId: null }),
-      createCategory(db, { name: name.toUpperCase(), parentId: null }),
+      createCategory(new DrizzleCatalogStore(db), { name, parentId: null }),
+      createCategory(new DrizzleCatalogStore(db), { name: name.toUpperCase(), parentId: null }),
     ]);
 
     const outcomes = [first, second];

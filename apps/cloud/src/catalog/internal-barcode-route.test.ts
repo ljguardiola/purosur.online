@@ -15,7 +15,11 @@ import {
 } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { allocateInternalBarcode, registerInternalBarcodeRoute } from "./internal-barcode-route.js";
+import {
+  allocateInternalBarcode,
+  registerInternalBarcodeRoute,
+  sequenceValueOf,
+} from "./internal-barcode-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
@@ -61,6 +65,41 @@ async function insertBarcodeForNewProduct(code: string): Promise<void> {
   }
   await db.insert(productBarcodes).values({ productId: product.id, code, position: 0 });
 }
+
+describe("sequenceValueOf", () => {
+  it("reads the value from a driver that returns the row array itself", () => {
+    expect(sequenceValueOf([{ value: "41" }])).toBe(41n);
+  });
+
+  it("reads the value from a driver that returns its rows under a rows key", () => {
+    expect(sequenceValueOf({ rows: [{ value: "42" }] })).toBe(42n);
+  });
+
+  it("refuses a result with no row", () => {
+    expect(() => sequenceValueOf([])).toThrow("internal-barcode: nextval returned no row");
+    expect(() => sequenceValueOf({ rows: [] })).toThrow(
+      "internal-barcode: nextval returned no row",
+    );
+    expect(() => sequenceValueOf({})).toThrow("internal-barcode: nextval returned no row");
+  });
+
+  it("reads a value a driver returns as a bigint or an integer number", () => {
+    expect(sequenceValueOf({ rows: [{ value: 43n }] })).toBe(43n);
+    expect(sequenceValueOf({ rows: [{ value: 44 }] })).toBe(44n);
+  });
+
+  it("refuses a row whose value is not an integer", () => {
+    expect(() => sequenceValueOf([{ value: 7.5 }])).toThrow(
+      "internal-barcode: nextval returned a row without an integer value",
+    );
+    expect(() => sequenceValueOf({ rows: [{}] })).toThrow(
+      "internal-barcode: nextval returned a row without an integer value",
+    );
+    expect(() => sequenceValueOf({ rows: [null] })).toThrow(
+      "internal-barcode: nextval returned a row without an integer value",
+    );
+  });
+});
 
 describe("allocateInternalBarcode", () => {
   it("allocates a GS1 restricted-circulation (20-29) EAN-13 code with a valid check digit", async () => {
