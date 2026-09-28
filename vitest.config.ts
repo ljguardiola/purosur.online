@@ -17,6 +17,23 @@ const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
 process.env["TZ"] = "UTC";
 
+function compiledReactProject() {
+  return {
+    plugins: [react(), babel({ presets: [reactCompilerPreset()] }), tailwindcss()],
+    resolve: {
+      // `optimizeDeps.include` entries resolve from the workspace root, which has no react of
+      // its own; this alias gives Vite a resolvable path so the compiler's import gets
+      // pre-bundled instead of served with broken CommonJS interop.
+      alias: {
+        "react/compiler-runtime": createRequire(r("./apps/backoffice/package.json")).resolve(
+          "react/compiler-runtime",
+        ),
+      },
+    },
+    optimizeDeps: { include: ["react/compiler-runtime"] },
+  };
+}
+
 export default defineConfig({
   resolve: {
     dedupe: ["react", "react-dom"],
@@ -67,18 +84,7 @@ export default defineConfig({
         },
       },
       {
-        plugins: [react(), babel({ presets: [reactCompilerPreset()] }), tailwindcss()],
-        resolve: {
-          // `optimizeDeps.include` entries resolve from the workspace root, which has no react of
-          // its own; this alias gives Vite a resolvable path so the compiler's import gets
-          // pre-bundled instead of served with broken CommonJS interop.
-          alias: {
-            "react/compiler-runtime": createRequire(r("./apps/backoffice/package.json")).resolve(
-              "react/compiler-runtime",
-            ),
-          },
-        },
-        optimizeDeps: { include: ["react/compiler-runtime"] },
+        ...compiledReactProject(),
         test: {
           name: "browser",
           include: ["packages/*/src/**/*.test.tsx", "apps/*/src/**/*.test.tsx"],
@@ -94,7 +100,7 @@ export default defineConfig({
         },
       },
       {
-        plugins: [react(), tailwindcss()],
+        ...compiledReactProject(),
         test: {
           name: "catalog-visual",
           include: ["packages/ui/src/**/*.visual.tsx"],

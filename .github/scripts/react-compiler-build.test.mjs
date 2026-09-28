@@ -69,7 +69,7 @@ async function transformWithRendererConfig(url) {
   }
 }
 
-async function transformWithBrowserProjectConfig(url) {
+async function transformWithTestProjectConfig(projectName, url) {
   const vite = await import(requireFrom(backofficeDir).resolve("vite"));
   const loaded = await vite.loadConfigFromFile(
     { command: "serve", mode: "test" },
@@ -79,15 +79,15 @@ async function transformWithBrowserProjectConfig(url) {
     undefined,
     "bundle",
   );
-  const browserProject = loaded.config.test.projects.find(
-    (project) => project.test?.name === "browser",
+  const testProject = loaded.config.test.projects.find(
+    (project) => project.test?.name === projectName,
   );
-  assert.ok(browserProject, 'the root vitest config no longer declares a "browser" project');
+  assert.ok(testProject, `the root vitest config no longer declares a "${projectName}" project`);
 
   const server = await vite.createServer({
     root: repoRoot,
     resolve: loaded.config.resolve,
-    plugins: browserProject.plugins,
+    plugins: testProject.plugins,
     configFile: false,
     logLevel: "silent",
     optimizeDeps: NO_DEPENDENCY_DISCOVERY,
@@ -122,10 +122,21 @@ test("the register renderer's Vite build compiles a real screen component with t
 });
 
 test("the root vitest config's browser project compiles a packages/ui component with the React Compiler", async () => {
-  const result = await transformWithBrowserProjectConfig(
+  const result = await transformWithTestProjectConfig(
+    "browser",
     "/packages/ui/src/components/IconButton.tsx",
   );
 
   assert.ok(result, "the browser project's dev server could not transform the component");
+  assert.ok(result.code.includes(COMPILER_RUNTIME_MARKER));
+});
+
+test("the root vitest config's catalog-visual project compiles a packages/ui component with the React Compiler", async () => {
+  const result = await transformWithTestProjectConfig(
+    "catalog-visual",
+    "/packages/ui/src/components/IconButton.tsx",
+  );
+
+  assert.ok(result, "the catalog-visual project's dev server could not transform the component");
   assert.ok(result.code.includes(COMPILER_RUNTIME_MARKER));
 });
