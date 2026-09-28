@@ -249,7 +249,7 @@ describe("editProduct", () => {
       { productId: "decoy", code: "900", active: true },
       { productId: "product-1", code: "333", active: true },
     ]);
-    expect(store.lockCallOrder).toEqual(["lockProductForUpdate", "lockLeafCategory"]);
+    expect(store.lockCallOrder).toEqual(["lockProduct", "lockLeafCategory"]);
   });
 
   it("maps a barcode race caught by the store's write to barcode_taken, re-reading only the codes another product holds", async () => {

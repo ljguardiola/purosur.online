@@ -75,8 +75,8 @@ export interface CategoryFields {
 export interface CatalogStoreTransaction {
   lockLeafCategory(categoryId: string): Promise<LockLeafCategoryResult>;
   lockParentForNewChild(parentId: string): Promise<LockParentForNewChildResult>;
-  lockProductForUpdate(productId: string): Promise<LockProductResult>;
-  lockCategoryForUpdate(categoryId: string): Promise<LockCategoryResult>;
+  lockProduct(productId: string): Promise<LockProductResult>;
+  lockCategory(categoryId: string): Promise<LockCategoryResult>;
   // Acquired before any row lock, so two concurrent moves can never each hold their own row lock
   // and deadlock trying to lock each other's row as the new parent.
   lockCategoryTreeForMove(): Promise<void>;
@@ -91,11 +91,7 @@ export interface CatalogStoreTransaction {
   insertProduct(fields: NewProductFields): Promise<{ id: string }>;
   insertProductBarcodes(productId: string, barcodes: readonly string[]): Promise<void>;
   updateProduct(productId: string, fields: ProductFields): Promise<void>;
-  replaceProductBarcodes(
-    productId: string,
-    barcodes: readonly string[],
-    active: boolean,
-  ): Promise<void>;
+  replaceProductBarcodes(productId: string, barcodes: readonly string[]): Promise<void>;
   deactivateProduct(productId: string, nextVersion: number): Promise<void>;
   deactivateProductBarcodes(productId: string): Promise<void>;
   insertCategory(name: string, parentId: string | null): Promise<{ id: string }>;

@@ -64,7 +64,7 @@ describe("editCategory", () => {
       kind: "applied",
       category: { id: "category-1", name: "Untables", parentId: "parent", version: 1 },
     });
-    expect(store.lockCallOrder).toEqual(["lockCategoryTreeForMove", "lockCategoryForUpdate"]);
+    expect(store.lockCallOrder).toEqual(["lockCategoryTreeForMove", "lockCategory"]);
     expect(store.snapshot().categories).toContainEqual({
       id: "category-1",
       name: "Untables",
@@ -93,7 +93,7 @@ describe("editCategory", () => {
       { id: "decoy", name: "Decoy", parentId: null, version: 5 },
       { id: "category-1", name: "Almacén General", parentId: null, version: 2 },
     ]);
-    expect(store.lockCallOrder).toEqual(["lockCategoryForUpdate"]);
+    expect(store.lockCallOrder).toEqual(["lockCategory"]);
   });
 
   it("lets a category change only the case of its own name", async () => {
@@ -272,7 +272,7 @@ describe("editCategory", () => {
 
     expect(store.lockCallOrder).toEqual([
       "lockCategoryTreeForMove",
-      "lockCategoryForUpdate",
+      "lockCategory",
       "lockParentForNewChild",
     ]);
   });
@@ -288,7 +288,7 @@ describe("editCategory", () => {
       version: 1,
     });
 
-    expect(store.lockCallOrder).toEqual(["lockCategoryForUpdate"]);
+    expect(store.lockCallOrder).toEqual(["lockCategory"]);
   });
 
   it("runs entirely inside one transaction", async () => {

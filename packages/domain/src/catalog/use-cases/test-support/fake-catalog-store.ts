@@ -99,16 +99,16 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
     return hasProduct ? { kind: "has_products" } : { kind: "locked" };
   }
 
-  async lockProductForUpdate(productId: string): Promise<LockProductResult> {
-    this.store.lockCallOrder.push("lockProductForUpdate");
+  async lockProduct(productId: string): Promise<LockProductResult> {
+    this.store.lockCallOrder.push("lockProduct");
     const product = this.state.products.find((row) => row.id === productId);
     return product
       ? { kind: "locked", product: { version: product.version, active: product.active } }
       : { kind: "not_found" };
   }
 
-  async lockCategoryForUpdate(categoryId: string): Promise<LockCategoryResult> {
-    this.store.lockCallOrder.push("lockCategoryForUpdate");
+  async lockCategory(categoryId: string): Promise<LockCategoryResult> {
+    this.store.lockCallOrder.push("lockCategory");
     const category = this.state.categories.find((row) => row.id === categoryId);
     return category
       ? {
@@ -182,11 +182,8 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
     }
   }
 
-  async replaceProductBarcodes(
-    productId: string,
-    barcodes: readonly string[],
-    active: boolean,
-  ): Promise<void> {
+  async replaceProductBarcodes(productId: string, barcodes: readonly string[]): Promise<void> {
+    const active = this.state.products.find((row) => row.id === productId)?.active === true;
     this.state.barcodes = this.state.barcodes.filter((row) => row.productId !== productId);
     for (const code of barcodes) {
       if (this.store.barcodeConflicts.has(code)) {

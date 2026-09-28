@@ -43,7 +43,7 @@ export async function editCategory(
       }
 
       // Locks this one row so a concurrent edit against the same category waits instead of racing.
-      const locked = await tx.lockCategoryForUpdate(input.id);
+      const locked = await tx.lockCategory(input.id);
       if (locked.kind === "not_found" || locked.category.version !== input.version) {
         return { kind: "stale_version" };
       }

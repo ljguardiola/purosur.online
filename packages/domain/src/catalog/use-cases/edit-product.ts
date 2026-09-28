@@ -26,7 +26,7 @@ export async function editProduct(
   try {
     return await store.transaction(async (tx) => {
       // Locks this one row so a concurrent edit against the same product waits instead of racing.
-      const locked = await tx.lockProductForUpdate(input.id);
+      const locked = await tx.lockProduct(input.id);
       if (locked.kind === "not_found" || locked.product.version !== input.version) {
         return { kind: "stale_version" };
       }
@@ -56,9 +56,7 @@ export async function editProduct(
         netContent: input.netContent,
         version: nextVersion,
       });
-      // Mirrors the product's own `active` flag; writing them active would otherwise reactivate a
-      // deactivated product's barcodes.
-      await tx.replaceProductBarcodes(input.id, input.barcodes, locked.product.active);
+      await tx.replaceProductBarcodes(input.id, input.barcodes);
 
       return {
         kind: "applied",

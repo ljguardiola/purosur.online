@@ -71,7 +71,7 @@ describe("deactivateProduct", () => {
       { productId: "decoy", code: "900", active: true },
       { productId: "product-1", code: "111", active: false },
     ]);
-    expect(store.lockCallOrder).toEqual(["lockProductForUpdate"]);
+    expect(store.lockCallOrder).toEqual(["lockProduct"]);
 
     const secondAttempt = await deactivateProduct(store, "product-1");
     expect(secondAttempt).toEqual({ kind: "not_found" });

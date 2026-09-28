@@ -99,7 +99,7 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
     return product ? { kind: "has_products" } : { kind: "locked" };
   }
 
-  async lockProductForUpdate(productId: string): Promise<LockProductResult> {
+  async lockProduct(productId: string): Promise<LockProductResult> {
     if (!UUID_PATTERN.test(productId)) {
       return { kind: "not_found" };
     }
@@ -111,7 +111,7 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
     return product ? { kind: "locked", product } : { kind: "not_found" };
   }
 
-  async lockCategoryForUpdate(categoryId: string): Promise<LockCategoryResult> {
+  async lockCategory(categoryId: string): Promise<LockCategoryResult> {
     if (!UUID_PATTERN.test(categoryId)) {
       return { kind: "not_found" };
     }
@@ -199,15 +199,22 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
       .where(eq(products.id, productId));
   }
 
-  async replaceProductBarcodes(
-    productId: string,
-    barcodes: readonly string[],
-    active: boolean,
-  ): Promise<void> {
+  async replaceProductBarcodes(productId: string, barcodes: readonly string[]): Promise<void> {
+    // Each barcode row mirrors its product's `active` flag, which the partial unique index on active
+    // codes relies on; writing them active would otherwise reactivate a deactivated product's codes.
+    const [product] = await this.tx
+      .select({ active: products.active })
+      .from(products)
+      .where(eq(products.id, productId));
+    if (!product) {
+      throw new Error("replacing the barcodes found no product row");
+    }
     await this.tx.delete(productBarcodes).where(eq(productBarcodes.productId, productId));
-    await this.writeBarcodes(productId, barcodes, active);
+    await this.writeBarcodes(productId, barcodes, product.active);
   }
 
+  // A database trigger rejects any `DELETE` on `products` outright, so a product is never deleted,
+  // only deactivated.
   async deactivateProduct(productId: string, nextVersion: number): Promise<void> {
     await this.tx
       .update(products)
