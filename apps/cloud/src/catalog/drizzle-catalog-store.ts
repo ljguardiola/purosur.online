@@ -5,6 +5,7 @@ import {
   type CatalogStoreTransaction,
   type CategoryFields,
   type LockCategoryResult,
+  type LockedProduct,
   type LockLeafCategoryResult,
   type LockParentForNewChildResult,
   type LockProductResult,
@@ -104,7 +105,7 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
       return { kind: "not_found" };
     }
     const [product] = await this.tx
-      .select({ version: products.version, active: products.active })
+      .select({ id: products.id, version: products.version, active: products.active })
       .from(products)
       .where(eq(products.id, productId))
       .for("update");
@@ -199,18 +200,11 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
       .where(eq(products.id, productId));
   }
 
-  async replaceProductBarcodes(productId: string, barcodes: readonly string[]): Promise<void> {
+  async replaceProductBarcodes(product: LockedProduct, barcodes: readonly string[]): Promise<void> {
     // Each barcode row mirrors its product's `active` flag, which the partial unique index on active
     // codes relies on; writing them active would otherwise reactivate a deactivated product's codes.
-    const [product] = await this.tx
-      .select({ active: products.active })
-      .from(products)
-      .where(eq(products.id, productId));
-    if (!product) {
-      throw new Error("replacing the barcodes found no product row");
-    }
-    await this.tx.delete(productBarcodes).where(eq(productBarcodes.productId, productId));
-    await this.writeBarcodes(productId, barcodes, product.active);
+    await this.tx.delete(productBarcodes).where(eq(productBarcodes.productId, product.id));
+    await this.writeBarcodes(product.id, barcodes, product.active);
   }
 
   // A database trigger rejects any `DELETE` on `products` outright, so a product is never deleted,

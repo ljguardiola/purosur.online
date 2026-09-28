@@ -4,6 +4,7 @@ import type {
   CatalogStoreTransaction,
   CategoryFields,
   LockCategoryResult,
+  LockedProduct,
   LockLeafCategoryResult,
   LockParentForNewChildResult,
   LockProductResult,
@@ -103,7 +104,10 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
     this.store.lockCallOrder.push("lockProduct");
     const product = this.state.products.find((row) => row.id === productId);
     return product
-      ? { kind: "locked", product: { version: product.version, active: product.active } }
+      ? {
+          kind: "locked",
+          product: { id: product.id, version: product.version, active: product.active },
+        }
       : { kind: "not_found" };
   }
 
@@ -182,14 +186,14 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
     }
   }
 
-  async replaceProductBarcodes(productId: string, barcodes: readonly string[]): Promise<void> {
-    const active = this.state.products.find((row) => row.id === productId)?.active === true;
-    this.state.barcodes = this.state.barcodes.filter((row) => row.productId !== productId);
+  async replaceProductBarcodes(product: LockedProduct, barcodes: readonly string[]): Promise<void> {
+    this.store.barcodeReplacements.push({ product: { ...product }, barcodes: [...barcodes] });
+    this.state.barcodes = this.state.barcodes.filter((row) => row.productId !== product.id);
     for (const code of barcodes) {
       if (this.store.barcodeConflicts.has(code)) {
         throw new CatalogBarcodeConflict();
       }
-      this.state.barcodes.push({ productId, code, active });
+      this.state.barcodes.push({ productId: product.id, code, active: product.active });
     }
   }
 
@@ -247,6 +251,7 @@ export class FakeCatalogStore implements CatalogStore {
   categoryNameConflicts = new Set<string>();
 
   lockCallOrder: string[] = [];
+  barcodeReplacements: { product: LockedProduct; barcodes: string[] }[] = [];
   transactionCount = 0;
 
   seedCategory(category: FakeCategoryRow): void {

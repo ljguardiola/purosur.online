@@ -40,9 +40,13 @@ export type LockParentForNewChildResult =
   | { kind: "has_products" }
   | { kind: "locked" };
 
-export type LockProductResult =
-  | { kind: "not_found" }
-  | { kind: "locked"; product: { version: number; active: boolean } };
+export interface LockedProduct {
+  id: string;
+  version: number;
+  active: boolean;
+}
+
+export type LockProductResult = { kind: "not_found" } | { kind: "locked"; product: LockedProduct };
 
 export type LockCategoryResult =
   | { kind: "not_found" }
@@ -88,7 +92,8 @@ export interface CatalogStoreTransaction {
   insertProduct(fields: NewProductFields): Promise<{ id: string }>;
   insertProductBarcodes(productId: string, barcodes: readonly string[]): Promise<void>;
   updateProduct(productId: string, fields: ProductFields): Promise<void>;
-  replaceProductBarcodes(productId: string, barcodes: readonly string[]): Promise<void>;
+  // Takes the product this transaction locked, since its barcodes follow its active state.
+  replaceProductBarcodes(product: LockedProduct, barcodes: readonly string[]): Promise<void>;
   deactivateProduct(productId: string, nextVersion: number): Promise<void>;
   deactivateProductBarcodes(productId: string): Promise<void>;
   insertCategory(name: string, parentId: string | null): Promise<{ id: string }>;

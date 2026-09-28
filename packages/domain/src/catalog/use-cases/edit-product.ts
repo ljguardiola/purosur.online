@@ -56,7 +56,7 @@ export async function editProduct(
         netContent: input.netContent,
         version: nextVersion,
       });
-      await tx.replaceProductBarcodes(input.id, input.barcodes);
+      await tx.replaceProductBarcodes(locked.product, input.barcodes);
 
       return {
         kind: "applied",

@@ -160,7 +160,7 @@ describe("editProduct", () => {
     expect(outcome.kind).toBe("applied");
   });
 
-  it("skips the active-barcode check for an inactive product, and writes its replaced barcodes inactive", async () => {
+  it("skips the active-barcode check for an inactive product, and hands its replaced barcodes to the store for the product it locked", async () => {
     const store = new FakeCatalogStore();
     leafCategory(store);
     store.seedProduct(
@@ -192,11 +192,9 @@ describe("editProduct", () => {
       product: expect.objectContaining({ active: false, barcodes: ["222"] }),
     });
     expect(await store.activeBarcodesTaken(["222"])).toEqual(["222"]);
-    expect(store.snapshot().barcodes).toContainEqual({
-      productId: "product-1",
-      code: "222",
-      active: false,
-    });
+    expect(store.barcodeReplacements).toEqual([
+      { product: { id: "product-1", version: 1, active: false }, barcodes: ["222"] },
+    ]);
   });
 
   it("applies the edit, bumping the version and moving category", async () => {

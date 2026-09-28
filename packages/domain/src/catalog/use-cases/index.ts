@@ -6,6 +6,7 @@ export type {
   CatalogStoreTransaction,
   CategoryFields,
   LockCategoryResult,
+  LockedProduct,
   LockLeafCategoryResult,
   LockParentForNewChildResult,
   LockProductResult,
