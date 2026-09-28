@@ -9,6 +9,7 @@ import {
   SelectValue as AriaSelectValue,
   type Key,
 } from "react-aria-components";
+import { fieldTriggerHoverClassName } from "./field-styles";
 
 export type ListFilterOption<V extends string = string> = {
   value: V;
@@ -26,7 +27,7 @@ export type ListFilterProps<V extends string> = {
 // its content, so max-w-full caps it at the container's width instead.
 const triggerClassName =
   "flex h-control-xl max-w-full items-center gap-2 rounded-lg border-2 bg-surface px-3 outline-none " +
-  "data-focus-visible:focus-ring";
+  `${fieldTriggerHoverClassName} data-focus-visible:focus-ring`;
 
 // react-aria-components caps the popover's max-height to fit the viewport but leaves overflow
 // handling to the consumer; without overflow-y-auto a tall options list would paint past that cap.

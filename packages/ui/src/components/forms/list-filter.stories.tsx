@@ -4,6 +4,7 @@ import {
   playArrowKeyFocusesListboxOption,
   playClickExpandsTrigger,
   playHoverListboxOption,
+  playHoverSetsDataHovered,
   playTabReachesFocusVisible,
 } from "../../test-support/story-interactions";
 import { ListFilter, type ListFilterOption } from "./list-filter";
@@ -39,6 +40,10 @@ export const Closed: Story = {};
 
 export const Open: Story = {
   play: playClickExpandsTrigger(trigger),
+};
+
+export const Hovered: Story = {
+  play: playHoverSetsDataHovered(trigger),
 };
 
 export const FocusVisible: Story = {

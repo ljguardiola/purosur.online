@@ -52,6 +52,18 @@ test("renders closed at 44px with an 8px radius, a 2px line border and 12px padd
   expect(style.columnGap).toBe("8px");
 });
 
+test("turns the trigger bone on hover, keeping the same 2px line border", async () => {
+  const screen = await render(<ListFilter {...baseProps()} />);
+  const trigger = screen.getByRole("button", { name: /Estado/ }).element() as HTMLElement;
+
+  await userEvent.hover(trigger);
+
+  await expect
+    .poll(() => getComputedStyle(trigger).backgroundColor)
+    .toBe(tokenRgb("surface-subtle"));
+  expect(getComputedStyle(trigger).borderColor).toBe(tokenRgb("border"));
+});
+
 test("shows the label in 14px secondary text and the chosen value in 16px bold ink", async () => {
   const screen = await render(<ListFilter {...baseProps()} />);
   const trigger = screen.getByRole("button", { name: /Estado/ });
