@@ -161,10 +161,11 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
       const recentMoment = deps.now();
       const overdueReviewMoment = new Date(recentMoment.getTime() - OVERDUE_PRICE_REVIEW_AGE_MS);
 
+      const catalogStore = new DrizzleCatalogStore(tx);
       let categoryCount = 0;
       let productCount = 0;
       for (const top of SAMPLE_CATEGORY_TREE) {
-        const topOutcome = await createCategory(new DrizzleCatalogStore(tx), {
+        const topOutcome = await createCategory(catalogStore, {
           name: top.name,
           parentId: null,
         });
@@ -172,7 +173,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
         categoryCount += 1;
 
         for (const mid of top.mids) {
-          const midOutcome = await createCategory(new DrizzleCatalogStore(tx), {
+          const midOutcome = await createCategory(catalogStore, {
             name: mid.name,
             parentId: topCategory.category.id,
           });
@@ -180,7 +181,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
           categoryCount += 1;
 
           for (const leaf of mid.leaves) {
-            const leafOutcome = await createCategory(new DrizzleCatalogStore(tx), {
+            const leafOutcome = await createCategory(catalogStore, {
               name: leaf.name,
               parentId: midCategory.category.id,
             });
@@ -192,7 +193,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
                 plan.barcode.kind === "manufacturer"
                   ? plan.barcode.code
                   : await allocateInternalBarcode(tx);
-              const productOutcome = await createProduct(new DrizzleCatalogStore(tx), {
+              const productOutcome = await createProduct(catalogStore, {
                 name: plan.name,
                 categoryId: leafCategory.category.id,
                 saleUnit: plan.saleUnit,
@@ -239,10 +240,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
               }
 
               if (!plan.active) {
-                const deactivated = await deactivateProduct(
-                  new DrizzleCatalogStore(tx),
-                  product.product.id,
-                );
+                const deactivated = await deactivateProduct(catalogStore, product.product.id);
                 expectOutcome(deactivated, "deactivated", `deactivating product "${plan.name}"`);
               }
             }
