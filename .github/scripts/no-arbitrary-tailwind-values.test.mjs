@@ -50,10 +50,7 @@ test("finds an arbitrary variant or property after a variant", () => {
 });
 
 test("finds an arbitrary modifier and a CSS variable modifier", () => {
-  assert.deepEqual(matchedTexts('"bg-surface/[0.5] text-ink/(--alpha)"'), [
-    "/[0.5]",
-    "/(--alpha)",
-  ]);
+  assert.deepEqual(matchedTexts('"bg-surface/[0.5] text-ink/(--alpha)"'), ["/[0.5]", "/(--alpha)"]);
 });
 
 test("does not flag subtraction, division, indexing or ternaries", () => {
