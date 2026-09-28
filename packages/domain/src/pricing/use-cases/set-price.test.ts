@@ -8,6 +8,7 @@ const LATER = new Date("2026-01-09T09:00:00.000Z");
 
 function storeWithProduct(active = true): FakePricingStore {
   const store = new FakePricingStore();
+  store.seedProduct({ id: "decoy", active: true });
   store.seedProduct({ id: "product-1", active });
   return store;
 }
@@ -28,12 +29,17 @@ function seedPrice(
 
 function change(
   store: FakePricingStore,
-  overrides: { unitPrice?: number; expectedCurrentPriceId?: string | null; now?: Date } = {},
+  overrides: {
+    productId?: string;
+    unitPrice?: number;
+    expectedCurrentPriceId?: string | null;
+    now?: Date;
+  } = {},
 ) {
   return setPrice(
     { store, clock: new FixedClock(overrides.now ?? NOON) },
     {
-      productId: "product-1",
+      productId: overrides.productId ?? "product-1",
       priceListId: "list-1",
       unitPrice: overrides.unitPrice ?? 1500,
       expectedCurrentPriceId:
@@ -48,10 +54,12 @@ describe("setPrice", () => {
     ["doesn't exist", undefined],
     ["is inactive", false],
   ])("answers not_found for a product that %s, writing nothing", async (_case, active) => {
-    const store = active === undefined ? new FakePricingStore() : storeWithProduct(active);
+    const store = active === undefined ? storeWithProduct() : storeWithProduct(active);
     const before = store.snapshot();
 
-    const outcome = await change(store);
+    const outcome = await change(store, {
+      productId: active === undefined ? "missing" : "product-1",
+    });
 
     expect(outcome).toEqual({ kind: "not_found" });
     expect(store.snapshot()).toEqual(before);
@@ -64,6 +72,33 @@ describe("setPrice", () => {
     await change(store);
 
     expect(store.operationOrder.slice(0, 2)).toEqual(["lockActiveProduct", "currentPrice"]);
+  });
+
+  it("reads before it writes, in the order of the rule", async () => {
+    const store = storeWithProduct();
+
+    await change(store);
+
+    expect(store.operationOrder).toEqual([
+      "lockActiveProduct",
+      "currentPrice",
+      "latestReviewedAt",
+      "recordPrice",
+      "recordPriceReview",
+      "recordPriceChange",
+    ]);
+  });
+
+  it("gives each new price its own id", async () => {
+    const store = storeWithProduct();
+
+    const first = await change(store, { unitPrice: 1000 });
+    if (first.kind !== "applied") {
+      throw new Error("test setup: the first price was not applied");
+    }
+    await change(store, { unitPrice: 1100, expectedCurrentPriceId: first.price.id, now: LATER });
+
+    expect(store.snapshot().prices.map((row) => row.id)).toEqual(["price-1", "price-2"]);
   });
 
   it("runs entirely inside one transaction", async () => {

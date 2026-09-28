@@ -78,10 +78,11 @@ class FakePricingStoreTransaction implements PricingStoreTransaction {
 
   async latestReviewedAt(productId: string, priceListId: string): Promise<Date | undefined> {
     this.store.operationOrder.push("latestReviewedAt");
-    const times = this.state.reviews
+    const [latest] = this.state.reviews
       .filter((row) => row.productId === productId && row.priceListId === priceListId)
-      .map((row) => row.reviewedAt.getTime());
-    return times.length === 0 ? undefined : new Date(Math.max(...times));
+      .map((row) => row.reviewedAt)
+      .sort((a, b) => b.getTime() - a.getTime());
+    return latest && new Date(latest);
   }
 
   async recordPrice(price: NewPrice): Promise<CurrentPrice> {

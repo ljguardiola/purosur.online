@@ -8,6 +8,7 @@ const LATER = new Date("2026-01-09T09:00:00.000Z");
 
 function storeWithProduct(active = true): FakePricingStore {
   const store = new FakePricingStore();
+  store.seedProduct({ id: "decoy", active: true });
   store.seedProduct({ id: "product-1", active });
   return store;
 }
@@ -41,10 +42,15 @@ function seedReview(
   });
 }
 
-function confirm(store: FakePricingStore, expectedCurrentPriceId = "price-current", now = NOON) {
+function confirm(
+  store: FakePricingStore,
+  expectedCurrentPriceId = "price-current",
+  now = NOON,
+  productId = "product-1",
+) {
   return confirmPrice(
     { store, clock: new FixedClock(now) },
-    { productId: "product-1", priceListId: "list-1", expectedCurrentPriceId, actorId: "actor-1" },
+    { productId, priceListId: "list-1", expectedCurrentPriceId, actorId: "actor-1" },
   );
 }
 
@@ -53,10 +59,15 @@ describe("confirmPrice", () => {
     ["doesn't exist", undefined],
     ["is inactive", false],
   ])("answers not_found for a product that %s, writing nothing", async (_case, active) => {
-    const store = active === undefined ? new FakePricingStore() : storeWithProduct(active);
+    const store = active === undefined ? storeWithProduct() : storeWithProduct(active);
     const before = store.snapshot();
 
-    const outcome = await confirm(store);
+    const outcome = await confirm(
+      store,
+      "price-current",
+      NOON,
+      active === undefined ? "missing" : "product-1",
+    );
 
     expect(outcome).toEqual({ kind: "not_found" });
     expect(store.snapshot()).toEqual(before);
@@ -70,6 +81,21 @@ describe("confirmPrice", () => {
     await confirm(store);
 
     expect(store.operationOrder.slice(0, 2)).toEqual(["lockActiveProduct", "currentPrice"]);
+  });
+
+  it("reads before it writes, in the order of the rule", async () => {
+    const store = storeWithProduct();
+    seedPrice(store);
+
+    await confirm(store);
+
+    expect(store.operationOrder).toEqual([
+      "lockActiveProduct",
+      "currentPrice",
+      "latestReviewedAt",
+      "recordPriceReview",
+      "recordPriceConfirmation",
+    ]);
   });
 
   it("runs entirely inside one transaction", async () => {
