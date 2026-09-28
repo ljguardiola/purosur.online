@@ -6,7 +6,8 @@ import {
   playTabReachesFocusVisible,
 } from "../../../test-support/story-interactions";
 import { Button } from "../../forms/button";
-import { Table, type TableRow } from "./table";
+import { Table } from "./table";
+import type { TableRow } from "./table-types";
 
 type Product = { id: string; name: string; sku: string; stock: string };
 

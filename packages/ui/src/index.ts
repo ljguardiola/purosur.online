@@ -7,9 +7,11 @@ export type { SummaryRowProps } from "./components/data-display/summary-row";
 export { SummaryRow } from "./components/data-display/summary-row";
 export type { SummaryRowGroupProps } from "./components/data-display/summary-row-group";
 export { SummaryRowGroup } from "./components/data-display/summary-row-group";
+export { Table } from "./components/data-display/table/table";
+export type { TableCellTextProps } from "./components/data-display/table/table-cell-text";
+export { TableCellText } from "./components/data-display/table/table-cell-text";
 export type {
   TableAction,
-  TableCellTextProps,
   TableColumn,
   TableColumnAlign,
   TableEmptyStateProps,
@@ -21,8 +23,7 @@ export type {
   TableSort,
   TableSortableColumnKey,
   TableSortDirection,
-} from "./components/data-display/table/table";
-export { Table, TableCellText } from "./components/data-display/table/table";
+} from "./components/data-display/table/table-types";
 export type { TagProps, TagTone } from "./components/data-display/tag";
 export { Tag } from "./components/data-display/tag";
 export type { HighlightedNoticeProps } from "./components/feedback/highlighted-notice";

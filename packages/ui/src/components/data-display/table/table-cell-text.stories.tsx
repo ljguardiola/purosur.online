@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { TableCellText } from "./table";
+import { TableCellText } from "./table-cell-text";
 
 const meta: Meta<typeof TableCellText> = {
   title: "Components/TableCellText",
