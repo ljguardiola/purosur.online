@@ -6,7 +6,7 @@ const MISSING_MESSAGE = "parentId must be sent, null for top level";
 // Postgres compares `uuid` values case-insensitively but callers compare ids as JS strings;
 // lowercasing keeps an uppercase spelling from slipping past those checks while still matching.
 function topLevelOrCategoryIdSchema(error: (issue: { input?: unknown }) => string) {
-  return z.union([z.null(), z.string({ error }).min(1, { error }).toLowerCase()], { error });
+  return z.union([z.null(), z.string({ error }).min(1).toLowerCase()], { error });
 }
 
 export const optionalParentIdSchema = topLevelOrCategoryIdSchema(() => INVALID_MESSAGE)
