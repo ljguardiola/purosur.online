@@ -15,6 +15,11 @@ permissions:
   contents: read
 
 jobs:
+  # Decides whether a `pull_request` change is docs-only, the one case that may skip static/tests
+  # below; a push always runs them in full, since its success is what lets the deploy ship it and
+  # the commit before it may not have passed.
+  # It also scans every commit of a `pull_request` change for secrets, which a docs-only net diff
+  # can hide: a failure here fails scope, and a failed scope runs static/tests in full.
   scope:
     name: scope
     runs-on: ubuntu-24.04
@@ -27,9 +32,14 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
 
       - name: Decide the change's scope
         id: scope
@@ -37,6 +47,11 @@ jobs:
         env:
           SCOPE_FROM: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           SCOPE_TO: ${{ github.sha }}
+
+      - name: Scan the change's commits for secrets
+        run: node --test .github/scripts/no-secrets-in-commit-history.test.mjs
+        env:
+          CHANGE_BASE_REF: ${{ github.event.pull_request.base.sha }}
 
   # tsc, the cloud's own build, biome, dependency-cruiser and the repository's own automation tests:
   # none of these need Postgres or a browser, so this job carries no Playwright setup.
@@ -50,7 +65,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       # Full history, so the migration guard below can diff the working tree against the commit
-      # this change is built on, not just the single commit checkout otherwise fetches.
+      # this change is built on, and the secret scan can read every commit since it, not just the
+      # single commit checkout otherwise fetches.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
@@ -71,7 +87,7 @@ jobs:
 
       - run: pnpm verify:static
         env:
-          MIGRATIONS_BASE_REF: ${{ github.event_name == 'push' && github.event.before || github.event.pull_request.base.sha }}
+          CHANGE_BASE_REF: ${{ github.event_name == 'push' && github.event.before || github.event.pull_request.base.sha }}
 
   # vitest run, sharded four ways so a slow shard - not the ever-growing total test count - bounds
   # this job's wall time.

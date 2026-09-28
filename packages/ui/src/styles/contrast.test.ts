@@ -88,9 +88,9 @@ function itReachesContrastAgainstEverySurface(tones: Record<string, number>) {
 
 describe("design tokens contrast", () => {
   it("reads the white, bone and sand surface tokens from the stylesheet", () => {
-    expect(backgrounds.white).toMatch(/^#[0-9a-f]{6}$/i);
-    expect(backgrounds.bone).toMatch(/^#[0-9a-f]{6}$/i);
-    expect(backgrounds.sand).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(backgrounds["white"]).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(backgrounds["bone"]).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(backgrounds["sand"]).toMatch(/^#[0-9a-f]{6}$/i);
   });
 
   it("classifies every color token in tokens.css as a text tone or a decorative one", () => {
@@ -156,7 +156,7 @@ describe("option card help text on its chosen background contrast", () => {
 describe("tooltip text on ink background contrast", () => {
   it(`surface-white reaches ${AAA_TEXT_CONTRAST}:1 against ink`, () => {
     const textHex = colors["surface-white"];
-    const backgroundHex = colors.ink;
+    const backgroundHex = colors["ink"];
 
     expect(textHex, "surface-white is missing from the stylesheet").toMatch(/^#[0-9a-f]{6}$/i);
     expect(backgroundHex, "ink is missing from the stylesheet").toMatch(/^#[0-9a-f]{6}$/i);
@@ -222,7 +222,7 @@ describe("pagination dimmed nav button text contrast", () => {
 
   for (const backgroundName of ["white", "bone"] as const) {
     it(`ink at that opacity reaches ${AA_TEXT_CONTRAST}:1 against ${backgroundName}`, () => {
-      const ink = hexToRgb(colors.ink as string);
+      const ink = hexToRgb(colors["ink"] as string);
       const background = hexToRgb(backgrounds[backgroundName] as string);
       const channel = (fg: number, bg: number) =>
         Math.round(fg * alpha + bg * (1 - alpha))

@@ -10,12 +10,14 @@
   },
   "dependencies": {
     "@internationalized/date": "^3.12.4",
-    "@purosur/contracts": "workspace:*",
+    "@purosur/domain": "workspace:*",
     "@purosur/ui": "workspace:*",
     "@simplewebauthn/browser": "^14.0.0",
+    "@tanstack/react-router": "^1.170.39",
     "lucide-react": "^1.47.0",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",

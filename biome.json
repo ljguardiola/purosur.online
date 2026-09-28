@@ -17,7 +17,15 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "preset": "recommended"
+      "preset": "recommended",
+      "complexity": {
+        "useLiteralKeys": "off"
+      },
+      "correctness": {
+        "noUnusedFunctionParameters": "error",
+        "noUnusedImports": "error",
+        "noUnusedVariables": "error"
+      }
     }
   },
   "javascript": {
@@ -58,9 +66,6 @@
       "includes": ["apps/pos/src/renderer/**"],
       "linter": {
         "rules": {
-          "correctness": {
-            "noUnusedImports": "error"
-          },
           "style": {
             "useImportType": {
               "level": "error",

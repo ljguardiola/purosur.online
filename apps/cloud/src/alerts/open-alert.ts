@@ -1,36 +1,26 @@
-import type { AlertKind } from "@purosur/contracts";
+import type { AlertKind } from "@purosur/domain";
 import { and, eq, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { alertDeliveries, alerts, roles, userRoles, users } from "../db/schema.js";
+import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
+import { alertDeliveries, alerts, roles, userRoles, users } from "../platform/db/schema.js";
 import { alertKindDefinition } from "./alert-kind-catalog.js";
 import { visibleToUsersJoinedWithRolesCondition } from "./alert-visibility.js";
 
 const UNIQUE_VIOLATION = "23505";
 const ALERT_OPEN_DEDUP_UNIQUE_INDEX = "alerts_open_dedup_key";
 
-// postgres-js names the field `constraint_name`; PGlite names it `constraint`.
-export function isAlertOpenDedupViolation(error: unknown): boolean {
-  let current: unknown = error;
-  while (current instanceof Error) {
-    const { code, constraint, constraint_name } = current as {
-      code?: unknown;
-      constraint?: unknown;
-      constraint_name?: unknown;
-    };
-    const index = constraint_name ?? constraint;
-    if (code === UNIQUE_VIOLATION && index === ALERT_OPEN_DEDUP_UNIQUE_INDEX) {
-      return true;
-    }
-    current = current.cause;
-  }
-  return false;
+function isAlertOpenDedupViolation(error: unknown): boolean {
+  return postgresErrorChain(error).some(
+    ({ code, constraint }) =>
+      code === UNIQUE_VIOLATION && constraint === ALERT_OPEN_DEDUP_UNIQUE_INDEX,
+  );
 }
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
 >[0];
 
-export type PasskeyChangedDetail =
+type PasskeyChangedDetail =
   | { action: "registered" | "removed"; passkeyName: string; actorId: string; via: "self" }
   | { action: "registered"; passkeyName: string; actorId: string; via: "recovery" }
   | { action: "removed"; passkeyName: string; actorId: string; via: "administrator" };

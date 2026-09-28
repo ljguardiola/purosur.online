@@ -8,14 +8,19 @@ const EXPECTED_VERIFY_TESTS_SCRIPT = "vitest run --project='!catalog-visual'";
 const EXPECTED_VERIFY_VISUAL_SCRIPT = "vitest run --project=catalog-visual";
 const REQUIRED_VERIFY_STATIC_COMMANDS = [
   "tsc --noEmit",
+  "tsc --noEmit -p apps/backoffice",
+  "tsc --noEmit -p apps/pos",
   "pnpm --filter @purosur/cloud build",
   "biome ci .",
   "pnpm depcruise",
+  "knip",
   "node --test .github/scripts/*.test.mjs",
 ];
 const EXPECTED_RUN_CONDITION = `\${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.docs_only != 'true') }}`;
 const EXPECTED_VISUAL_CONDITION = `\${{ !cancelled() && needs.scope.outputs.catalog_changed != 'false' }}`;
 const EXPECTED_VERIFY_CONDITION = "always()";
+const HISTORY_SCAN_COMMAND = "node --test .github/scripts/no-secrets-in-commit-history.test.mjs";
+const EXPECTED_HISTORY_SCAN_BASE_REF = `\${{ github.event.pull_request.base.sha }}`;
 const AGGREGATE_COMMAND = "node .github/scripts/aggregate-verify-result.mjs";
 const EXPECTED_AGGREGATE_ENV = {
   EVENT_NAME: `\${{ github.event_name }}`,
@@ -131,6 +136,43 @@ function runnerJobViolations(doc, jobId, job, command, expectedCondition) {
   return violations;
 }
 
+// Scope runs even when static and tests are skipped for a docs-only change, whose net diff can hide
+// a secret one of its commits added and a later one removed.
+function scopeJobViolations(doc, job) {
+  const violations = [];
+
+  if (mayContinueOnError(doc, job)) {
+    violations.push("verify.yml's scope job sets continue-on-error");
+  }
+  if (mapHas(doc, job, "defaults")) {
+    violations.push("verify.yml's scope job sets defaults");
+  }
+
+  const step = stepRunningExactly(doc, job, HISTORY_SCAN_COMMAND);
+  if (step === undefined) {
+    violations.push(
+      `verify.yml's scope job has no step whose run is exactly \`${HISTORY_SCAN_COMMAND}\``,
+    );
+    return violations;
+  }
+  if (mayContinueOnError(doc, step)) {
+    violations.push("verify.yml's scope job's commit history scan step sets continue-on-error");
+  }
+  if (mapHas(doc, step, "if")) {
+    violations.push("verify.yml's scope job's commit history scan step has its own if");
+  }
+  if (mapHas(doc, step, "shell")) {
+    violations.push("verify.yml's scope job's commit history scan step sets its own shell");
+  }
+  const baseRef = resolveScalar(doc, mapGet(doc, mapGet(doc, step, "env"), "CHANGE_BASE_REF"));
+  if (baseRef !== EXPECTED_HISTORY_SCAN_BASE_REF) {
+    violations.push(
+      `verify.yml's scope job's commit history scan step's CHANGE_BASE_REF is \`${baseRef}\`, expected \`${EXPECTED_HISTORY_SCAN_BASE_REF}\``,
+    );
+  }
+  return violations;
+}
+
 function verifyJobViolations(doc, job) {
   const violations = [];
 
@@ -204,6 +246,13 @@ export function findVerifyWorkflowViolations(workflowSource, packageJsonSource) 
 
   if (mapHas(doc, doc.contents, "defaults")) {
     violations.push("verify.yml sets workflow-level defaults");
+  }
+
+  const scopeJob = jobNode(doc, "scope");
+  if (scopeJob === undefined) {
+    violations.push("verify.yml has no scope job");
+  } else {
+    violations.push(...scopeJobViolations(doc, scopeJob));
   }
 
   const staticJob = jobNode(doc, "static");

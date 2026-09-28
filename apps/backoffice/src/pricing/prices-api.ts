@@ -25,7 +25,7 @@ export type FetchPricesInput = {
 
 export type PriceCategory = { id: string; name: string };
 
-export type PricesList = {
+type PricesList = {
   products: PriceProduct[];
   pendingCount: number;
   reviewWindowDays: number;
@@ -39,7 +39,7 @@ export type FetchPricesOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-export type SetPriceFieldError = "unitPrice" | "expectedCurrentPriceId";
+type SetPriceFieldError = "unitPrice" | "expectedCurrentPriceId";
 
 export type SetPriceInput = {
   unitPrice: number;

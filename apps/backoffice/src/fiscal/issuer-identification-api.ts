@@ -9,7 +9,7 @@ export type IssuerIdentification = {
   version: number;
 };
 
-export type IssuerIdentificationWire = {
+type IssuerIdentificationWire = {
   legal_name: string | null;
   gross_income_registration: string | null;
   activity_start_date: string | null;

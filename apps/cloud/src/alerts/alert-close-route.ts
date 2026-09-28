@@ -1,16 +1,16 @@
-import { isAlertKind } from "@purosur/contracts";
+import { isAlertKind } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { alerts, auditLog } from "../db/schema.js";
 import {
   openSessionOf,
   originGuard,
   permissionAccess,
   registerRouteAccess,
   routeSessionSource,
-} from "../session/route-access.js";
-import { hashSourceAddress } from "../session/sign-in-lockout.js";
+} from "../access/route-access.js";
+import { hashSourceAddress } from "../access/sign-in-lockout.js";
+import { alerts, auditLog } from "../platform/db/schema.js";
 import { alertKindDefinition } from "./alert-kind-catalog.js";
 import {
   ALERT_NOT_FOUND_RESPONSE,

@@ -5,7 +5,7 @@ import {
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
   isIssuerIdentificationGrossIncomeRegistrationTooLong,
   isIssuerIdentificationLegalNameTooLong,
-} from "@purosur/contracts";
+} from "@purosur/domain";
 import { Button, DateField, formatDate, InlineNotice, Modal, TextField } from "@purosur/ui";
 import { startAuthentication } from "@simplewebauthn/browser";
 import {
@@ -20,10 +20,11 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useAuthorization } from "../access/authorization-modal";
-import { sendToMyAccount } from "../access/routes";
+import { useSendToMyAccount } from "../access/send-to-my-account";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "../access/session-api";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
+import { ScreenTitle } from "../shell/screen-title";
 import {
   fetchIssuerIdentification,
   type IssuerIdentification,
@@ -202,6 +203,7 @@ function EditIssuerIdentificationModal({
   services,
   now,
 }: EditIssuerIdentificationModalProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const {
     fetchIssuerIdentification,
     saveIssuerIdentification,
@@ -464,6 +466,7 @@ export function FiscalConfigurationScreen({
   services,
   now,
 }: FiscalConfigurationScreenProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const svc = services ?? defaultFiscalConfigurationScreenServices;
   const clock = now ?? (() => new Date());
   const [state, setState] = useState<LoadState>({ kind: "loading" });
@@ -484,7 +487,7 @@ export function FiscalConfigurationScreen({
     } else {
       setState({ kind: "loadError" });
     }
-  }, [svc.fetchIssuerIdentification, endSession]);
+  }, [svc.fetchIssuerIdentification, endSession, sendToMyAccount]);
 
   useEffect(() => {
     void load();
@@ -502,7 +505,7 @@ export function FiscalConfigurationScreen({
         <div className="flex h-18 shrink-0 items-center border-line border-b bg-surface-white px-8">
           <div className="flex flex-col justify-center">
             <p className="text-ink-secondary text-sm">Caja y fiscal · Fiscal</p>
-            <h1 className="font-bold text-2xl text-brand-blue-strong">Configuración fiscal</h1>
+            <ScreenTitle>Configuración fiscal</ScreenTitle>
           </div>
         </div>
       }

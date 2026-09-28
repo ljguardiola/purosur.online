@@ -1,4 +1,4 @@
-import { NET_CONTENT_QUANTITY_MAX } from "@purosur/contracts";
+import { NET_CONTENT_QUANTITY_MAX } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
   formatNetContentQuantity,

@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import type { SessionOutcome } from "../access/session-api";
 import { useLatestRef } from "../platform/use-latest-ref";
-import { onNavigate } from "./router";
 
 const DEFAULT_THROTTLE_MS = 60_000;
 
@@ -10,6 +9,7 @@ const ACTIVITY_EVENTS = ["pointerdown", "keydown", "wheel", "scroll", "touchstar
 export type SessionActivityReporterOptions = {
   active: boolean;
   touchSession: () => Promise<SessionOutcome>;
+  subscribeToNavigation: (listener: () => void) => () => void;
   onTouched: (session: Extract<SessionOutcome, { kind: "ok" }>) => void;
   onEnded: () => void;
   throttleMs?: number;
@@ -19,12 +19,14 @@ export type SessionActivityReporterOptions = {
 export function useSessionActivityReporter({
   active,
   touchSession,
+  subscribeToNavigation,
   onTouched,
   onEnded,
   throttleMs = DEFAULT_THROTTLE_MS,
   now = () => new Date(),
 }: SessionActivityReporterOptions): void {
   const touchSessionRef = useLatestRef(touchSession);
+  const subscribeToNavigationRef = useLatestRef(subscribeToNavigation);
   const onTouchedRef = useLatestRef(onTouched);
   const onEndedRef = useLatestRef(onEnded);
   const nowRef = useLatestRef(now);
@@ -71,7 +73,7 @@ export function useSessionActivityReporter({
     for (const eventName of ACTIVITY_EVENTS) {
       window.addEventListener(eventName, reportActivity, { passive: true });
     }
-    const stopWatchingNavigation = onNavigate(reportActivity);
+    const stopWatchingNavigation = subscribeToNavigationRef.current(reportActivity);
 
     return () => {
       cancelled = true;
@@ -80,5 +82,13 @@ export function useSessionActivityReporter({
       }
       stopWatchingNavigation();
     };
-  }, [active, throttleMs, touchSessionRef, onTouchedRef, onEndedRef, nowRef]);
+  }, [
+    active,
+    throttleMs,
+    touchSessionRef,
+    subscribeToNavigationRef,
+    onTouchedRef,
+    onEndedRef,
+    nowRef,
+  ]);
 }

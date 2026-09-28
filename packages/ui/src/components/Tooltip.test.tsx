@@ -143,7 +143,7 @@ test("shows a 6px-radius ink box, 12px padding, white 14px/1.35 text at AAA cont
   expect(Number.parseFloat(style.lineHeight)).toBeCloseTo(14 * 1.35, 0);
   expect(style.boxShadow).toContain(tokenBackgroundColor("ink-shadow"));
   expect(style.boxShadow).toContain("6px 16px");
-  expect(tooltip.dataset.placement).toBe("bottom");
+  expect(tooltip.dataset["placement"]).toBe("bottom");
 
   // Checked as a rendered contrast ratio, not by token name, so a token swap can't quietly drop below AAA.
   const backgroundHex = rgbToHex(style.backgroundColor);
@@ -207,7 +207,7 @@ test("keeps the arrow centered on the box's edge, pointing down at the element, 
 
   await userEvent.hover(trigger);
   await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
-  await expect.poll(() => tooltipElement(screen).dataset.placement).toBe("top");
+  await expect.poll(() => tooltipElement(screen).dataset["placement"]).toBe("top");
 
   const tooltip = tooltipElement(screen);
   const arrow = tooltip.querySelector("[data-placement]") as HTMLElement | null;

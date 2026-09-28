@@ -1,17 +1,17 @@
-import type { AlertAudience, AlertLevel } from "@purosur/contracts";
+import type { AlertAudience, AlertLevel } from "@purosur/domain";
 import { and, asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { alertDeliveries, alerts, roles, userRoles, users } from "../db/schema.js";
-import { checkRequestIsSameOrigin } from "../session/open-session.js";
+import { FORBIDDEN_RESPONSE } from "../access/forbidden-response.js";
+import { checkRequestIsSameOrigin } from "../access/open-session.js";
 import {
   OPEN_SESSION_ACCESS,
   openSessionOf,
   originGuard,
   registerRouteAccess,
   routeSessionSource,
-} from "../session/route-access.js";
-import { FORBIDDEN_RESPONSE } from "../users/forbidden-response.js";
+} from "../access/route-access.js";
+import { alertDeliveries, alerts, roles, userRoles, users } from "../platform/db/schema.js";
 import {
   holdsOnlySourceAddressHash,
   loadScopeDisplayNames,
@@ -60,7 +60,7 @@ export interface AlertDeliveryRow {
   recipientRoleIsAdministrator: boolean;
 }
 
-export interface AlertDeliveryWire {
+interface AlertDeliveryWire {
   channel: string;
   status: string;
   error: string | null;
@@ -86,11 +86,11 @@ export interface AlertDetailWire {
   deliveries: AlertDeliveryWire[];
 }
 
-export function detailWithActorName(
+function detailWithActorName(
   detail: Record<string, unknown>,
   namesByUserId: ReadonlyMap<string, string>,
 ): Record<string, unknown> {
-  const actorId = detail.actorId;
+  const actorId = detail["actorId"];
   if (typeof actorId !== "string") {
     return detail;
   }
@@ -98,7 +98,7 @@ export function detailWithActorName(
   return actorName === undefined ? detail : { ...detail, actorName };
 }
 
-export function toAlertDeliveryWire(row: AlertDeliveryRow): AlertDeliveryWire {
+function toAlertDeliveryWire(row: AlertDeliveryRow): AlertDeliveryWire {
   return {
     channel: row.channel,
     status: row.status,
@@ -234,6 +234,6 @@ export function registerAlertReadRoute<TQueryResult extends PgQueryResultHKT>(
 }
 
 export function userIdsToResolve(alert: Pick<AlertDetailRow, "scope" | "detail">): string[] {
-  const actorId = alert.detail.actorId;
+  const actorId = alert.detail["actorId"];
   return typeof actorId === "string" ? [alert.scope, actorId] : [alert.scope];
 }

@@ -1,26 +1,11 @@
 import { expect, test } from "vitest";
-import { MY_ACCOUNT_PATH, matchUserDetailPath, USERS_LIST_PATH, userDetailPath } from "./routes";
+import { usersListFilters } from "./routes";
 
-test("userDetailPath builds the list path with the id appended", () => {
-  expect(userDetailPath("user-1")).toBe("/settings/users/user-1");
+test("opens the users list on users in every state", () => {
+  expect(usersListFilters.parse({})).toEqual({ state: "all" });
 });
 
-test("matchUserDetailPath extracts the id from a detail path", () => {
-  expect(matchUserDetailPath("/settings/users/user-1")).toBe("user-1");
-});
-
-test("matchUserDetailPath returns undefined for the list path itself", () => {
-  expect(matchUserDetailPath(USERS_LIST_PATH)).toBeUndefined();
-});
-
-test('matchUserDetailPath returns undefined for MY_ACCOUNT_PATH, not the literal id "me"', () => {
-  expect(matchUserDetailPath(MY_ACCOUNT_PATH)).toBeUndefined();
-});
-
-test("matchUserDetailPath returns undefined for an unrelated path", () => {
-  expect(matchUserDetailPath("/help")).toBeUndefined();
-});
-
-test("matchUserDetailPath returns undefined for a path nested past the id", () => {
-  expect(matchUserDetailPath("/settings/users/user-1/extra")).toBeUndefined();
+test("keeps the users list state a URL names, falling back for one it does not offer", () => {
+  expect(usersListFilters.parse({ state: "inactive" })).toEqual({ state: "inactive" });
+  expect(usersListFilters.parse({ state: "deleted" })).toEqual({ state: "all" });
 });

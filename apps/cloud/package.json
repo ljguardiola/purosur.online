@@ -13,11 +13,13 @@
     "start": "node dist/server.js",
     "migrate": "node dist/migrate.js",
     "wait-for-ready": "node dist/wait-for-ready.js",
-    "create-first-administrator": "node dist/create-first-administrator.js"
+    "create-first-administrator": "node dist/create-first-administrator.js",
+    "load-sample-data": "node dist/load-sample-data.js",
+    "clear-sample-data": "node dist/clear-sample-data.js"
   },
   "dependencies": {
     "@fastify/static": "^10.1.4",
-    "@purosur/contracts": "workspace:*",
+    "@purosur/domain": "workspace:*",
     "@sentry/node": "^10.75.0",
     "@simplewebauthn/server": "^14.0.2",
     "drizzle-orm": "^0.45.2",
@@ -33,7 +35,6 @@
     "@types/pdfkit": "^0.17.6",
     "@types/pg": "^8.23.1",
     "drizzle-kit": "^0.31.10",
-    "nid-webauthn-emulator": "^0.2.15",
-    "testcontainers": "^12.1.0"
+    "nid-webauthn-emulator": "^0.2.15"
   }
 }

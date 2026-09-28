@@ -3,12 +3,9 @@ import { request as httpRequest } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { PERMISSION_KEYS } from "@purosur/contracts";
+import { PERMISSION_KEYS } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { buildApp as buildRealApp } from "./app.js";
-import { buildTestDatabase, type TestDatabase } from "./db/build-test-database.js";
-import { rolePermissions, roles, sessions, userRoles, users } from "./db/schema.js";
 import {
   ADMINISTRATOR_ACCESS,
   OPEN_SESSION_ACCESS,
@@ -19,13 +16,16 @@ import {
   type RouteAccessEntry,
   routeSessionSource,
   SESSION_COOKIE_ACCESS,
-} from "./session/route-access.js";
-import { SESSION_COOKIE_NAME } from "./session/session-cookie.js";
-import { generateSessionId, hashSessionId } from "./session/session-id.js";
+} from "./access/route-access.js";
+import { SESSION_COOKIE_NAME } from "./access/session-cookie.js";
+import { generateSessionId, hashSessionId } from "./access/session-id.js";
+import { buildApp as buildRealApp } from "./app.js";
+import { rolePermissions, roles, sessions, userRoles, users } from "./platform/db/schema.js";
 import {
   buildTestApp as buildApp,
   TEST_EDGE_ORIGIN_SECRET,
 } from "./test-support/build-test-app.js";
+import { buildTestDatabase, type TestDatabase } from "./test-support/build-test-database.js";
 import { seededLocationId } from "./test-support/seeded-location.js";
 
 let testDatabase: TestDatabase;

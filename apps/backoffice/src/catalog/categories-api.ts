@@ -16,7 +16,7 @@ export type FetchCategoriesOutcome =
 
 export type CreateCategoryInput = { name: string; parentId: string | null };
 
-export type CreateCategoryFieldError = "name" | "parentId";
+type CreateCategoryFieldError = "name" | "parentId";
 
 export type CreateCategoryOutcome =
   | { kind: "ok"; value: CategorySummary }
@@ -30,7 +30,7 @@ export type CreateCategoryOutcome =
 
 export type EditCategoryInput = { name: string; parentId: string | null; version: number };
 
-export type EditCategoryFieldError = "name" | "parentId" | "version";
+type EditCategoryFieldError = "name" | "parentId" | "version";
 
 export type EditCategoryOutcome =
   | { kind: "ok"; value: CategorySummary }

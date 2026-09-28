@@ -1,9 +1,10 @@
+import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
-import { expectNoAccessibilityViolations } from "../../../../packages/ui/src/test/axe";
+import { render } from "../shell/test-support/render-with-router";
 import type { CategorySummary } from "./categories-api";
 import { CategoriesListScreen, type CategoriesListScreenServices } from "./categories-list-screen";
+import { type CategoriesListFilters, categoriesListFilters } from "./routes";
 
 function createServices(
   overrides: Partial<CategoriesListScreenServices> = {},
@@ -39,10 +40,22 @@ const drinks: CategorySummary = { id: "category-4", name: "Bebidas", version: 3,
 function renderScreen(
   services: CategoriesListScreenServices,
   onSessionEnded: () => void = () => {},
+  {
+    filters = categoriesListFilters.parse({}),
+    onFiltersChange = () => {},
+  }: {
+    filters?: CategoriesListFilters;
+    onFiltersChange?: (filters: CategoriesListFilters) => void;
+  } = {},
 ) {
   return render(
     <main>
-      <CategoriesListScreen services={services} onSessionEnded={onSessionEnded} />
+      <CategoriesListScreen
+        services={services}
+        onSessionEnded={onSessionEnded}
+        filters={filters}
+        onFiltersChange={onFiltersChange}
+      />
     </main>,
   );
 }
@@ -273,7 +286,12 @@ test("shows a category created while the list is still loading, even once the ea
   await firstLoad;
   await screen.rerender(
     <main>
-      <CategoriesListScreen services={services} onSessionEnded={() => {}} />
+      <CategoriesListScreen
+        services={services}
+        onSessionEnded={() => {}}
+        filters={categoriesListFilters.parse({})}
+        onFiltersChange={() => {}}
+      />
     </main>,
   );
 
@@ -870,4 +888,38 @@ test("has no accessibility violations once loaded, and with the create modal ope
 
   await openNewCategoryModal(screen);
   await expectNoAccessibilityViolations(document.body);
+});
+
+test("opens with the search and ordering it is given", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchCategories).mockResolvedValue({
+    kind: "ok",
+    value: [groceries, drinks, spreads, jams],
+  });
+
+  const screen = await renderScreen(services, () => {}, {
+    filters: { search: "a", sort: "descending" },
+  });
+
+  await expect.element(screen.getByPlaceholder("Buscar una categoría")).toHaveValue("a");
+  await expect.element(screen.getByText("4 categorías")).toBeVisible();
+  const names = screen
+    .getByRole("row")
+    .all()
+    .slice(1)
+    .map((row) => row.element().textContent ?? "");
+  expect(names[0]).toContain("Bebidas");
+});
+
+test("reports every change to its search and ordering, so they can be kept for a reload", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [groceries, drinks] });
+  const onFiltersChange = vi.fn();
+  const screen = await renderScreen(services, () => {}, { onFiltersChange });
+  await expect.element(screen.getByText("2 categorías")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Categoría" }));
+  await userEvent.fill(screen.getByPlaceholder("Buscar una categoría"), "beb");
+
+  expect(onFiltersChange).toHaveBeenLastCalledWith({ search: "beb", sort: "descending" });
 });

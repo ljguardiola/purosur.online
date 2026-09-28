@@ -1,4 +1,4 @@
-import type { PermissionArea, PermissionKey } from "@purosur/contracts";
+import type { PermissionArea, PermissionKey } from "@purosur/domain";
 import { Button, InlineNotice, Modal, plural } from "@purosur/ui";
 import { startAuthentication } from "@simplewebauthn/browser";
 import {
@@ -30,7 +30,7 @@ import {
   type RoleDetail,
   type RoleSummary,
 } from "./roles-api";
-import { sendToMyAccount } from "./routes";
+import { useSendToMyAccount } from "./send-to-my-account";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./session-api";
 
 export type RoleEditorRequest =
@@ -47,7 +47,7 @@ export type RoleEditorModalServices = {
   startAuthentication: typeof startAuthentication;
 };
 
-export const defaultRoleEditorModalServices: RoleEditorModalServices = {
+const defaultRoleEditorModalServices: RoleEditorModalServices = {
   fetchRole,
   createRole,
   editRole,
@@ -162,6 +162,7 @@ export function RoleEditorModal({
   onSessionEnded,
   services,
 }: RoleEditorModalProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const {
     fetchRole,
     createRole,
@@ -225,7 +226,7 @@ export function RoleEditorModal({
       }
       setLoadState({ kind: "loadError" });
     },
-    [fetchRole, endSession],
+    [fetchRole, endSession, sendToMyAccount],
   );
 
   useEffect(() => {

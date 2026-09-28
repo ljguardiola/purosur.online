@@ -1,4 +1,4 @@
-import { ALERT_KINDS } from "@purosur/contracts";
+import { ALERT_KINDS } from "@purosur/domain";
 import {
   Button,
   InlineNotice,
@@ -11,13 +11,15 @@ import {
   Table,
   TableCellText,
 } from "@purosur/ui";
+import { deepEqual } from "@tanstack/react-router";
 import { Bell, Eye, Search, ShieldX, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { BackofficeAccess } from "../access/backoffice-access";
-import { sendToMyAccount } from "../access/routes";
+import { useSendToMyAccount } from "../access/send-to-my-account";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
+import { ScreenTitle } from "../shell/screen-title";
 import {
   ALERT_LEVEL_LABELS,
   AlertDetailModal,
@@ -31,6 +33,7 @@ import {
   type AlertSummary,
   fetchAlerts as fetchAlertsDefault,
 } from "./alerts-api";
+import type { AlertsListFilters } from "./routes";
 
 const LIST_KIND_LABELS = {
   backoffice_passkey_changed: "Passkey",
@@ -56,6 +59,8 @@ export const defaultAlertsListScreenServices: AlertsListScreenServices = {
 };
 
 export type AlertsListScreenProps = {
+  filters: AlertsListFilters;
+  onFiltersChange: (filters: AlertsListFilters) => void;
   access: BackofficeAccess;
   onSessionEnded: () => void;
   services?: AlertsListScreenServices;
@@ -115,18 +120,33 @@ const STATUS_FILTER_OPTIONS = [
   { value: "closed", label: "Cerradas" },
 ] as const;
 
-export function AlertsListScreen({ access, onSessionEnded, services }: AlertsListScreenProps) {
+export function AlertsListScreen({
+  filters,
+  onFiltersChange,
+  access,
+  onSessionEnded,
+  services,
+}: AlertsListScreenProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const { fetchAlerts, alertDetailModal } = services ?? defaultAlertsListScreenServices;
   const [list, setList] = useState<ListState>({ kind: "loading" });
-  const [levelFilter, setLevelFilter] = useState<LevelFilter>("all");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("open");
-  const [search, setSearch] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [page, setPage] = useState(1);
+  const [levelFilter, setLevelFilter] = useState<LevelFilter>(filters.level);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(filters.status);
+  const [search, setSearch] = useState(filters.search);
+  const [searchQuery, setSearchQuery] = useState(filters.search.trim());
+  const [page, setPage] = useState(filters.page);
   const [selectedAlertId, setSelectedAlertId] = useState<string | null>(null);
 
   const requestRef = useRef(0);
   const onSessionEndedRef = useLatestRef(onSessionEnded);
+  const onFiltersChangeRef = useLatestRef(onFiltersChange);
+
+  useEffect(() => {
+    const shown: AlertsListFilters = { level: levelFilter, status: statusFilter, search, page };
+    if (!deepEqual(shown, filters)) {
+      onFiltersChangeRef.current(shown);
+    }
+  }, [levelFilter, statusFilter, search, page, filters, onFiltersChangeRef]);
 
   useEffect(() => {
     const trimmed = search.trim();
@@ -171,7 +191,15 @@ export function AlertsListScreen({ access, onSessionEnded, services }: AlertsLis
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchAlerts, levelFilter, statusFilter, page, searchQuery, onSessionEndedRef]);
+  }, [
+    fetchAlerts,
+    levelFilter,
+    statusFilter,
+    page,
+    searchQuery,
+    onSessionEndedRef,
+    sendToMyAccount,
+  ]);
 
   useEffect(() => {
     void load();
@@ -231,7 +259,7 @@ export function AlertsListScreen({ access, onSessionEnded, services }: AlertsLis
           <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
             <div className="flex flex-col justify-center">
               <p className="text-ink-secondary text-sm">Inicio</p>
-              <h1 className="font-bold text-2xl text-brand-blue-strong">Alertas</h1>
+              <ScreenTitle>Alertas</ScreenTitle>
             </div>
             {openCount > 0 && (
               <div className="inline-flex h-[1.75rem] items-center gap-2 rounded-[0.875rem] bg-status-warning-message-bg px-3 font-sans text-sm font-semibold text-status-warning-strong">

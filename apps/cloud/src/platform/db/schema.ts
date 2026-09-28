@@ -1,0 +1,606 @@
+import { sql } from "drizzle-orm";
+import {
+  type AnyPgColumn,
+  boolean,
+  check,
+  date,
+  foreignKey,
+  index,
+  integer,
+  jsonb,
+  numeric,
+  pgEnum,
+  pgSequence,
+  pgTable,
+  primaryKey,
+  smallint,
+  text,
+  time,
+  timestamp,
+  unique,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
+
+export const locations = pgTable("locations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+});
+
+export const priceLists = pgTable("price_lists", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+});
+
+export const branchSettings = pgTable("branch_settings", {
+  locationId: uuid("location_id")
+    .primaryKey()
+    .references(() => locations.id),
+  address: text("address").notNull().default(""),
+  whatsappNumber: text("whatsapp_number").notNull().default(""),
+  instagramHandle: text("instagram_handle").notNull().default(""),
+  expiringLotAlertDays: integer("expiring_lot_alert_days").notNull().default(30),
+  unreviewedPriceAlertDays: integer("unreviewed_price_alert_days").notNull().default(30),
+  goodConditionReturnDays: integer("good_condition_return_days").notNull().default(15),
+  priceListId: uuid("price_list_id")
+    .notNull()
+    .references(() => priceLists.id),
+  // Optimistic concurrency: a stale version is rejected, not overwritten; editing branch_hours bumps this too.
+  version: integer("version").notNull().default(1),
+});
+
+// day_of_week: 1 = Monday … 7 = Sunday; a day with no rows here is closed.
+export const branchHours = pgTable(
+  "branch_hours",
+  {
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    dayOfWeek: smallint("day_of_week").notNull(),
+    position: integer("position").notNull(),
+    opensAt: time("opens_at").notNull(),
+    closesAt: time("closes_at").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.locationId, table.dayOfWeek, table.position] }),
+    check("branch_hours_day_of_week_check", sql`${table.dayOfWeek} BETWEEN 1 AND 7`),
+    check("branch_hours_closes_after_opens", sql`${table.closesAt} > ${table.opensAt}`),
+  ],
+);
+
+export const ISSUER_IDENTIFICATION_SINGLETON_ID = "00000000-0000-0000-0000-000000000001";
+
+// `id` is pinned to ISSUER_IDENTIFICATION_SINGLETON_ID by default and CHECK: a different id fails
+// the CHECK, and this one collides on the primary key, together guaranteeing at most one row.
+export const issuerIdentification = pgTable(
+  "issuer_identification",
+  {
+    id: uuid("id").primaryKey().default(sql`'00000000-0000-0000-0000-000000000001'`),
+    legalName: text("legal_name"),
+    grossIncomeRegistration: text("gross_income_registration"),
+    activityStartDate: date("activity_start_date"),
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [
+    check(
+      "issuer_identification_single_row",
+      sql`${table.id} = '00000000-0000-0000-0000-000000000001'::uuid`,
+    ),
+  ],
+);
+
+export const users = pgTable(
+  "users",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    firstName: text("first_name").notNull(),
+    email: text("email").notNull(),
+    active: boolean("active").notNull().default(true),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [uniqueIndex("users_email_key").on(table.email)],
+);
+
+export const roles = pgTable(
+  "roles",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name"),
+    isAdministrator: boolean("is_administrator").notNull().default(false),
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [
+    uniqueIndex("roles_single_administrator_key")
+      .on(table.isAdministrator)
+      .where(sql`${table.isAdministrator} = true`),
+    check(
+      "roles_name_unless_administrator",
+      sql`(${table.isAdministrator} AND ${table.name} IS NULL) OR (NOT ${table.isAdministrator} AND ${table.name} IS NOT NULL)`,
+    ),
+    // Nulls are distinct to Postgres, so every Administrator's null name never conflicts here.
+    uniqueIndex("roles_name_lower_key").on(sql`lower(${table.name})`),
+  ],
+);
+
+// The permission catalog lives in code (@purosur/domain), not here, so a new key needs no
+// migration. Administrator holds every permission implicitly (roles.is_administrator) and gets no rows.
+export const rolePermissions = pgTable(
+  "role_permissions",
+  {
+    roleId: uuid("role_id")
+      .notNull()
+      .references(() => roles.id),
+    permissionKey: text("permission_key").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.roleId, table.permissionKey] })],
+);
+
+export const userRoles = pgTable(
+  "user_roles",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    roleId: uuid("role_id")
+      .notNull()
+      .references(() => roles.id),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.roleId] }),
+    uniqueIndex("user_roles_user_id_key").on(table.userId),
+  ],
+);
+
+// Siblings' names collide case-insensitively even both top-level (null parent), via
+// `NULLS NOT DISTINCT` — Postgres otherwise treats each null as distinct.
+export const categories = pgTable(
+  "categories",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    parentId: uuid("parent_id").references((): AnyPgColumn => categories.id),
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [
+    // NULLS NOT DISTINCT has no builder here in this drizzle-orm version, so the migration SQL is
+    // hand-edited to add it.
+    uniqueIndex("categories_name_lower_key").on(table.parentId, sql`lower(${table.name})`),
+    index("categories_parent_id_idx").on(table.parentId),
+    check("categories_parent_is_not_itself", sql`${table.parentId} <> ${table.id}`),
+  ],
+);
+
+// active is one-way (never deleted): the migration also revokes DELETE on this table, so
+// historical sale lines keep referencing it.
+export const products = pgTable(
+  "products",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    categoryId: uuid("category_id")
+      .notNull()
+      .references(() => categories.id),
+    saleUnit: text("sale_unit").notNull(),
+    active: boolean("active").notNull().default(true),
+    netContentQuantity: numeric("net_content_quantity", {
+      precision: 10,
+      scale: 3,
+      mode: "number",
+    }),
+    netContentUnit: text("net_content_unit"),
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [
+    check("products_sale_unit_check", sql`${table.saleUnit} in ('UNIT', 'KG')`),
+    check(
+      "products_net_content_unit_check",
+      sql`${table.netContentUnit} in ('G', 'KG', 'ML', 'L', 'UNIT')`,
+    ),
+    check(
+      "products_net_content_both_or_neither_check",
+      sql`(${table.netContentQuantity} is null) = (${table.netContentUnit} is null)`,
+    ),
+    check("products_net_content_quantity_positive_check", sql`${table.netContentQuantity} > 0`),
+  ],
+);
+
+// Mirrors products.active (same transaction): a partial index can't read another table's column,
+// so this flag scopes the uniqueness below to active products.
+export const productBarcodes = pgTable(
+  "product_barcodes",
+  {
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    code: text("code").notNull(),
+    position: integer("position").notNull(),
+    active: boolean("active").notNull().default(true),
+  },
+  (table) => [
+    primaryKey({ columns: [table.productId, table.position] }),
+    uniqueIndex("product_barcodes_code_key").on(table.code).where(sql`${table.active} = true`),
+  ],
+);
+
+// unitPrice is in cents. Append-only: the migration revokes UPDATE, DELETE, and TRUNCATE on this
+// table from cloud_app, so a rewrite is refused at the database level, not just by convention.
+export const prices = pgTable(
+  "prices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    priceListId: uuid("price_list_id")
+      .notNull()
+      .references(() => priceLists.id),
+    unitPrice: integer("unit_price").notNull(),
+    validFrom: timestamp("valid_from", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check("prices_unit_price_positive", sql`${table.unitPrice} > 0`),
+    index("prices_product_id_price_list_id_valid_from_idx").on(
+      table.productId,
+      table.priceListId,
+      table.validFrom,
+    ),
+    // Lets price_reviews reference it with a composite foreign key, so a review can point only at
+    // a price of its own product and price list.
+    unique("prices_id_product_id_price_list_id_key").on(
+      table.id,
+      table.productId,
+      table.priceListId,
+    ),
+  ],
+);
+
+// Append-only like prices (same revoked privileges): a product's last review is the newest row
+// here, not a column updated in place.
+export const priceReviews = pgTable(
+  "price_reviews",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    priceListId: uuid("price_list_id")
+      .notNull()
+      .references(() => priceLists.id),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }).notNull().defaultNow(),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => users.id),
+    priceId: uuid("price_id").notNull(),
+  },
+  (table) => [
+    foreignKey({
+      name: "price_reviews_price_product_price_list_fk",
+      columns: [table.priceId, table.productId, table.priceListId],
+      foreignColumns: [prices.id, prices.productId, prices.priceListId],
+    }),
+    index("price_reviews_product_id_price_list_id_reviewed_at_idx").on(
+      table.productId,
+      table.priceListId,
+      table.reviewedAt,
+    ),
+  ],
+);
+
+// A 12-digit EAN-13 body inside GS1's 20-29 restricted-circulation prefix range, for a product
+// with no manufacturer barcode; never cycles back once the range is exhausted.
+export const internalBarcodeSequence = pgSequence("internal_barcode_sequence", {
+  minValue: "200000000001",
+  maxValue: "299999999999",
+  startWith: "200000000001",
+  increment: 1,
+  cycle: false,
+});
+
+export const registers = pgTable(
+  "registers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("registers_location_id_name_lower_key").on(
+      table.locationId,
+      sql`lower(${table.name})`,
+    ),
+  ],
+);
+
+export const registerEnrollmentCodes = pgTable("register_enrollment_codes", {
+  registerId: uuid("register_id")
+    .primaryKey()
+    .references(() => registers.id),
+  codeHash: text("code_hash").notNull(),
+  issuedAt: timestamp("issued_at", { withTimezone: true }).notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  redeemedAt: timestamp("redeemed_at", { withTimezone: true }),
+  failedAttempts: integer("failed_attempts").notNull().default(0),
+});
+
+// `actor_id` is nullable: a null actor reads as "the service itself acted" (e.g. a sign-in
+// lockout, which is keyed by source address and may match no account at all).
+export const auditLog = pgTable("audit_log", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  entity: text("entity").notNull(),
+  entityId: uuid("entity_id").notNull(),
+  actorId: uuid("actor_id").references(() => users.id),
+  at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  previousValue: jsonb("previous_value"),
+  newValue: jsonb("new_value"),
+});
+
+export const passkeys = pgTable(
+  "passkeys",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    credentialId: text("credential_id").notNull(),
+    // Base64url-encoded WebAuthn COSE public key.
+    publicKey: text("public_key").notNull(),
+    counter: integer("counter").notNull(),
+    transports: jsonb("transports").$type<string[]>(),
+    deviceType: text("device_type").notNull(),
+    backedUp: boolean("backed_up").notNull(),
+    name: text("name").notNull(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("passkeys_credential_id_key").on(table.credentialId)],
+);
+
+export const recoveryTokens = pgTable(
+  "recovery_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    tokenHash: text("token_hash").notNull(),
+    // Can be well before issued_at when a retried job reuses the same admitted request.
+    requestedAt: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
+    requestId: uuid("request_id").notNull().defaultRandom(),
+    issuedAt: timestamp("issued_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    voidedAt: timestamp("voided_at", { withTimezone: true }),
+    registrationChallenge: text("registration_challenge"),
+  },
+  (table) => [
+    uniqueIndex("recovery_tokens_token_hash_key").on(table.tokenHash),
+    uniqueIndex("recovery_tokens_one_live_per_user")
+      .on(table.userId)
+      .where(sql`${table.usedAt} IS NULL AND ${table.voidedAt} IS NULL`),
+  ],
+);
+
+export const recoveryRateLimitKeyKind = pgEnum("recovery_rate_limit_key_kind", [
+  "destination_address",
+  "source_address",
+  // No destination address once the recovery token itself identifies the account.
+  "redemption_source_address",
+]);
+
+// A rolling 60-minute window, not a clock hour.
+export const recoveryRateLimitAttempts = pgTable(
+  "recovery_rate_limit_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    keyKind: recoveryRateLimitKeyKind("key_kind").notNull(),
+    keyValue: text("key_value").notNull(),
+    attemptedAt: timestamp("attempted_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index("recovery_rate_limit_attempts_key_idx").on(
+      table.keyKind,
+      table.keyValue,
+      table.attemptedAt,
+    ),
+    index("recovery_rate_limit_attempts_attempted_at_idx").on(table.attemptedAt),
+  ],
+);
+
+export const recoveryRejectedAttemptKind = pgEnum("recovery_rejected_attempt_kind", [
+  "request",
+  "registration_options",
+  "redeem",
+]);
+
+// One row per (kind, key_hash, window): a graphile-worker cron flushes each closed window into
+// one audit_log row, then deletes it.
+export const recoveryRejectedAttemptAccumulator = pgTable(
+  "recovery_rejected_attempt_accumulator",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: recoveryRejectedAttemptKind("kind").notNull(),
+    keyHash: text("key_hash").notNull(),
+    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+    count: integer("count").notNull().default(1),
+    firstAt: timestamp("first_at", { withTimezone: true }).notNull(),
+    lastAt: timestamp("last_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("recovery_rejected_attempt_accumulator_key").on(
+      table.kind,
+      table.keyHash,
+      table.windowStart,
+    ),
+    index("recovery_rejected_attempt_accumulator_window_idx").on(table.windowStart, table.id),
+  ],
+);
+
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    sessionIdHash: text("session_id_hash").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    // Opens a 5-minute step-up window; never itself consumed, and a recovery redemption never sets it.
+    passkeyAuthorizedAt: timestamp("passkey_authorized_at", { withTimezone: true }),
+  },
+  (table) => [uniqueIndex("sessions_session_id_hash_key").on(table.sessionIdHash)],
+);
+
+export const passkeyManagementChallengeKind = pgEnum("passkey_management_challenge_kind", [
+  "registration",
+  "session_authorization",
+]);
+
+// `registration` and `session_authorization` each populate only their own challenge column,
+// not enforced by a check here — only by the routes that write them.
+export const passkeyChallenges = pgTable(
+  "passkey_challenges",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => sessions.id),
+    kind: passkeyManagementChallengeKind("kind").notNull(),
+    reauthenticationChallenge: text("reauthentication_challenge"),
+    registrationChallenge: text("registration_challenge"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("passkey_challenges_session_id_kind_key").on(table.sessionId, table.kind),
+  ],
+);
+
+// No user reference: sign-in is discoverable (no username submitted first), so the challenge
+// value itself is the lookup key when verifying the assertion.
+export const signInChallenges = pgTable(
+  "sign_in_challenges",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    challenge: text("challenge").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("sign_in_challenges_challenge_key").on(table.challenge)],
+);
+
+// Keyed by source address only: without a password there's no "wrong password", and without a
+// username there's no account to lock out.
+export const signInFailures = pgTable(
+  "sign_in_failures",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sourceAddress: text("source_address").notNull(),
+    attemptedAt: timestamp("attempted_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index("sign_in_failures_source_address_idx").on(table.sourceAddress, table.attemptedAt),
+    index("sign_in_failures_attempted_at_idx").on(table.attemptedAt),
+  ],
+);
+
+export const signInLockouts = pgTable(
+  "sign_in_lockouts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sourceAddress: text("source_address").notNull(),
+    blockedUntil: timestamp("blocked_until", { withTimezone: true }).notNull(),
+  },
+  (table) => [uniqueIndex("sign_in_lockouts_source_address_key").on(table.sourceAddress)],
+);
+
+export const backofficeRateLimitKeyKind = pgEnum("backoffice_rate_limit_key_kind", [
+  "session",
+  "source_address",
+]);
+
+export const backofficeRateLimitAttempts = pgTable(
+  "backoffice_rate_limit_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    keyKind: backofficeRateLimitKeyKind("key_kind").notNull(),
+    keyValue: text("key_value").notNull(),
+    attemptedAt: timestamp("attempted_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index("backoffice_rate_limit_attempts_key_idx").on(
+      table.keyKind,
+      table.keyValue,
+      table.attemptedAt,
+    ),
+    index("backoffice_rate_limit_attempts_attempted_at_idx").on(table.attemptedAt),
+  ],
+);
+
+export const alertLevel = pgEnum("alert_level", ["informational", "warning", "critical"]);
+
+export const alertAudience = pgEnum("alert_audience", ["local", "all"]);
+
+// kind and scope are free text: the kind catalog lives in code, so a new kind needs no migration.
+export const alerts = pgTable(
+  "alerts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: text("kind").notNull(),
+    scope: text("scope").notNull(),
+    level: alertLevel("level").notNull(),
+    audience: alertAudience("audience").notNull(),
+    locationId: uuid("location_id").references(() => locations.id),
+    detail: jsonb("detail").$type<Record<string, unknown>>().notNull(),
+    openedAt: timestamp("opened_at", { withTimezone: true }).notNull().defaultNow(),
+    escalateAt: timestamp("escalate_at", { withTimezone: true }),
+    escalatedAt: timestamp("escalated_at", { withTimezone: true }),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    resolvedBy: uuid("resolved_by").references(() => users.id),
+  },
+  (table) => [
+    // Enforces at most one open alert per (kind, scope): a duplicate trigger hits this unique
+    // violation, which the caller treats as a no-op.
+    uniqueIndex("alerts_open_dedup_key")
+      .on(table.kind, table.scope)
+      .where(sql`${table.resolvedAt} IS NULL`),
+    index("alerts_level_idx").on(table.level),
+    index("alerts_resolved_at_idx").on(table.resolvedAt),
+    check(
+      "alerts_location_id_matches_audience",
+      sql`(${table.audience} = 'local' AND ${table.locationId} IS NOT NULL) OR (${table.audience} = 'all' AND ${table.locationId} IS NULL)`,
+    ),
+  ],
+);
+
+export const alertDeliveryChannel = pgEnum("alert_delivery_channel", ["backoffice"]);
+
+export const alertDeliveryStatus = pgEnum("alert_delivery_status", ["sent", "failed"]);
+
+export const alertDeliveries = pgTable(
+  "alert_deliveries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    alertId: uuid("alert_id")
+      .notNull()
+      .references(() => alerts.id),
+    recipientUserId: uuid("recipient_user_id")
+      .notNull()
+      .references(() => users.id),
+    channel: alertDeliveryChannel("channel").notNull().default("backoffice"),
+    status: alertDeliveryStatus("status").notNull().default("sent"),
+    error: text("error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("alert_deliveries_alert_recipient_channel_key").on(
+      table.alertId,
+      table.recipientUserId,
+      table.channel,
+    ),
+  ],
+);

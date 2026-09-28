@@ -1,8 +1,8 @@
+import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
-import { expectNoAccessibilityViolations } from "../../../../packages/ui/src/test/axe";
 import type { BackofficeAccess } from "../access/backoffice-access";
+import { render } from "../shell/test-support/render-with-router";
 import { AlertDetailModal, type AlertDetailModalServices } from "./alert-detail-modal";
 import type { AlertDetail, CloseAlertOutcome, FetchAlertOutcome } from "./alerts-api";
 

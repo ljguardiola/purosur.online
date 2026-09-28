@@ -13,16 +13,16 @@ const CATALOG_VISUAL_WS_ENDPOINT_ENV = "CATALOG_VISUAL_BROWSER_WS_ENDPOINT";
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
-process.env.TZ = "UTC";
+process.env["TZ"] = "UTC";
 
 export default defineConfig({
   resolve: {
     dedupe: ["react", "react-dom"],
-    alias: {
-      "@purosur/domain": r("./packages/domain/src/index.ts"),
-      "@purosur/contracts": r("./packages/contracts/src/index.ts"),
-      "@purosur/ui": r("./packages/ui/src/index.ts"),
-    },
+    alias: [
+      { find: /^@purosur\/domain$/, replacement: r("./packages/domain/src/index.ts") },
+      { find: /^@purosur\/contracts$/, replacement: r("./packages/contracts/src/index.ts") },
+      { find: /^@purosur\/ui$/, replacement: r("./packages/ui/src/index.ts") },
+    ],
   },
   test: {
     passWithNoTests: true,
@@ -42,7 +42,7 @@ export default defineConfig({
         test: {
           name: "node",
           include: ["packages/*/src/**/*.test.ts", "apps/*/src/**/*.test.ts"],
-          exclude: ["apps/cloud/src/*/*.integration.test.ts"],
+          exclude: ["apps/cloud/src/**/*.integration.test.ts"],
           environment: "node",
           globalSetup: [r("./apps/cloud/vitest.global-setup.ts")],
         },
@@ -57,7 +57,7 @@ export default defineConfig({
       {
         test: {
           name: "cloud-integration",
-          include: ["apps/cloud/src/*/*.integration.test.ts"],
+          include: ["apps/cloud/src/**/*.integration.test.ts"],
           environment: "node",
           globalSetup: [r("./apps/cloud/vitest.global-setup.postgres.ts")],
           testTimeout: 30_000,

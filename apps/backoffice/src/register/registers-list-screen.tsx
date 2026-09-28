@@ -1,4 +1,4 @@
-import { isRegisterNameTooLong, REGISTER_NAME_MAX_LENGTH } from "@purosur/contracts";
+import { isRegisterNameTooLong, REGISTER_NAME_MAX_LENGTH } from "@purosur/domain";
 import {
   Button,
   InlineNotice,
@@ -13,11 +13,12 @@ import { startAuthentication } from "@simplewebauthn/browser";
 import { Check, KeySquare, Laptop, Plus, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuthorization } from "../access/authorization-modal";
-import { sendToMyAccount } from "../access/routes";
+import { useSendToMyAccount } from "../access/send-to-my-account";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "../access/session-api";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
+import { ScreenTitle } from "../shell/screen-title";
 import {
   type CreateRegisterOutcome,
   createRegister,
@@ -107,6 +108,7 @@ function NewRegisterModal({
   authorizeSession,
   startAuthentication,
 }: NewRegisterModalProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const [name, setName] = useState("");
   const [nameError, setNameError] = useState<string | undefined>(undefined);
   const [notice, setNotice] = useState<
@@ -360,6 +362,7 @@ function EnrollmentCodeModal({ emission, onClose, onDone, onRetry }: EnrollmentC
 }
 
 export function RegistersListScreen({ onSessionEnded, now, services }: RegistersListScreenProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const {
     fetchRegisters,
     createRegister,
@@ -406,7 +409,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchRegisters, onSessionEndedRef]);
+  }, [fetchRegisters, onSessionEndedRef, sendToMyAccount]);
 
   useEffect(() => {
     void load();
@@ -541,7 +544,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
           <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
             <div className="flex flex-col justify-center">
               <p className="text-ink-secondary text-sm">Configuración</p>
-              <h1 className="font-bold text-2xl text-brand-blue-strong">Cajas registradoras</h1>
+              <ScreenTitle>Cajas registradoras</ScreenTitle>
             </div>
             <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
               Nueva caja

@@ -10,7 +10,7 @@ import {
   type NetContentUnit,
   PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
-} from "@purosur/contracts";
+} from "@purosur/domain";
 import {
   Button,
   FieldGroup,
@@ -30,6 +30,7 @@ import {
   type TableSort,
   TextField,
 } from "@purosur/ui";
+import { deepEqual } from "@tanstack/react-router";
 import {
   Ban,
   Barcode,
@@ -59,9 +60,11 @@ import {
   useRef,
   useState,
 } from "react";
-import { sendToMyAccount } from "../access/routes";
+import { useSendToMyAccount } from "../access/send-to-my-account";
 import { retryAfterDetail } from "../platform/retry-after-detail";
+import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
+import { ScreenTitle } from "../shell/screen-title";
 import { type CategorySummary, fetchCategories } from "./categories-api";
 import { categoriesInTreeOrder, categoryPathLabels, leafCategories } from "./category-path";
 import {
@@ -83,6 +86,7 @@ import {
   type ProductSummary,
   printLabels,
 } from "./products-api";
+import type { ProductsListFilters } from "./routes";
 
 export type ProductsListScreenServices = {
   fetchProducts: typeof fetchProducts;
@@ -105,6 +109,8 @@ export const defaultProductsListScreenServices: ProductsListScreenServices = {
 };
 
 export type ProductsListScreenProps = {
+  filters: ProductsListFilters;
+  onFiltersChange: (filters: ProductsListFilters) => void;
   onSessionEnded: () => void;
   services?: ProductsListScreenServices;
 };
@@ -548,6 +554,7 @@ function useGenerateInternalBarcode(
   clearRateLimited: () => void,
   generateFailedMessage: string,
 ) {
+  const sendToMyAccount = useSendToMyAccount();
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | undefined>(undefined);
   const requestIdRef = useRef(0);
@@ -617,6 +624,7 @@ function NewProductModal({
   generateInternalBarcode,
   categories,
 }: NewProductModalProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [saleUnit, setSaleUnit] = useState<ProductSaleUnit | null>(null);
@@ -929,6 +937,7 @@ function EditProductModal({
   generateInternalBarcode,
   categories,
 }: EditProductModalProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const isOpen = target !== null;
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -1330,6 +1339,7 @@ function DeactivateProductModal({
   onSessionEnded,
   deactivateProduct,
 }: DeactivateProductModalProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const isOpen = target !== null;
   const [title, setTitle] = useState("");
   const [notice, setNotice] = useState<DeactivateNotice | null>(null);
@@ -1550,6 +1560,7 @@ function PrintLabelsModal({
   fetchProducts,
   printLabels,
 }: PrintLabelsModalProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [notice, setNotice] = useState<PrintNotice | null>(null);
   const [printing, setPrinting] = useState(false);
@@ -1821,7 +1832,13 @@ function PrintLabelsModal({
   );
 }
 
-export function ProductsListScreen({ onSessionEnded, services }: ProductsListScreenProps) {
+export function ProductsListScreen({
+  filters,
+  onFiltersChange,
+  onSessionEnded,
+  services,
+}: ProductsListScreenProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const {
     fetchProducts: fetchProductsService,
     createProduct: createProductService,
@@ -1835,13 +1852,13 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
   const listRef = useRef(list);
   listRef.current = list;
   const [categories, setCategories] = useState<CategorySummary[]>([]);
-  const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("ALL");
-  const [unitFilter, setUnitFilter] = useState<UnitFilter>("ALL");
-  const [statusFilter, setStatusFilter] = useState<ProductStatusFilter>("active");
+  const [search, setSearch] = useState(filters.search);
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>(filters.category);
+  const [unitFilter, setUnitFilter] = useState<UnitFilter>(filters.unit);
+  const [statusFilter, setStatusFilter] = useState<ProductStatusFilter>(filters.status);
   const [sort, setSort] = useState<TableSort<"product">>({
     column: "product",
-    direction: "ascending",
+    direction: filters.sort,
   });
   const [newModalOpen, setNewModalOpen] = useState(false);
   const [printModalOpen, setPrintModalOpen] = useState(false);
@@ -1849,6 +1866,28 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
   const [deactivateTarget, setDeactivateTarget] = useState<ProductSummary | null>(null);
   const onSessionEndedRef = useRef(onSessionEnded);
   onSessionEndedRef.current = onSessionEnded;
+  const onFiltersChangeRef = useLatestRef(onFiltersChange);
+
+  useEffect(() => {
+    const shown: ProductsListFilters = {
+      search,
+      category: categoryFilter,
+      unit: unitFilter,
+      status: statusFilter,
+      sort: sort.direction,
+    };
+    if (!deepEqual(shown, filters)) {
+      onFiltersChangeRef.current(shown);
+    }
+  }, [
+    search,
+    categoryFilter,
+    unitFilter,
+    statusFilter,
+    sort.direction,
+    filters,
+    onFiltersChangeRef,
+  ]);
 
   const latestLoad = useRef(0);
 
@@ -1876,12 +1915,14 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
     } else if (outcomes.some((outcome) => outcome.kind === "forbidden")) {
       sendToMyAccount();
     } else if (productsOutcome.kind === "ok" && categoriesOutcome.kind === "ok") {
+      const offeredIds = new Set(leafCategories(categoriesOutcome.value).map(({ id }) => id));
       setCategories(categoriesOutcome.value);
+      setCategoryFilter((shown) => (shown === "ALL" || offeredIds.has(shown) ? shown : "ALL"));
       setList({ kind: "loaded", products: productsOutcome.value });
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchProductsService, fetchCategoriesService, statusFilter]);
+  }, [fetchProductsService, fetchCategoriesService, statusFilter, sendToMyAccount]);
 
   useEffect(() => {
     void load();
@@ -1993,7 +2034,7 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
           <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
             <div className="flex flex-col justify-center">
               <p className="text-ink-secondary text-sm">Catálogo</p>
-              <h1 className="font-bold text-2xl text-brand-blue-strong">Productos</h1>
+              <ScreenTitle>Productos</ScreenTitle>
             </div>
             <div className="flex items-center gap-3">
               <Button

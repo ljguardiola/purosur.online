@@ -9,6 +9,7 @@ import {
   Tooltip,
 } from "@purosur/ui";
 import { startAuthentication } from "@simplewebauthn/browser";
+import { useNavigate } from "@tanstack/react-router";
 import {
   Check,
   Laptop,
@@ -26,15 +27,15 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
-import { navigate } from "../shell/router";
 import { ScreenLayout } from "../shell/screen-layout";
+import { ScreenTitle } from "../shell/screen-title";
 import { useAuthorization } from "./authorization-modal";
 import { type BackofficeAccess, canDeactivateUser, canReactivateUser } from "./backoffice-access";
 import { validateEmail } from "./email-validation";
 import { passkeyRowDetail } from "./passkey-row-detail";
 import { roleDisplayName, roleOptions } from "./role-display";
 import { fetchRoles } from "./roles-api";
-import { sendToMyAccount, USERS_LIST_PATH } from "./routes";
+import { useSendToMyAccount } from "./send-to-my-account";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./session-api";
 import {
   type BranchUser,
@@ -144,6 +145,7 @@ function EditUserModal({
   authorizeSession,
   startAuthentication,
 }: EditUserModalProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const [email, setEmail] = useState(user.email);
   const [roleId, setRoleId] = useState(user.role.id);
   const [version, setVersion] = useState(user.version);
@@ -444,6 +446,7 @@ function RemoveUserPasskeyModal({
   authorizeSession,
   startAuthentication,
 }: RemoveUserPasskeyModalProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const isOpen = target !== null;
   const [attemptFailed, setAttemptFailed] = useState(false);
   const [rateLimitedSeconds, setRateLimitedSeconds] = useState<number | null>(null);
@@ -592,6 +595,7 @@ function DeactivateUserModal({
   authorizeSession,
   startAuthentication,
 }: DeactivateUserModalProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const [attemptFailed, setAttemptFailed] = useState(false);
   const [rateLimitedSeconds, setRateLimitedSeconds] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -731,6 +735,7 @@ function ReactivateUserModal({
   authorizeSession,
   startAuthentication,
 }: ReactivateUserModalProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const [attemptFailed, setAttemptFailed] = useState(false);
   const [rateLimitedSeconds, setRateLimitedSeconds] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -854,6 +859,8 @@ export function UserDetailScreen({
   now,
   services,
 }: UserDetailScreenProps) {
+  const sendToMyAccount = useSendToMyAccount();
+  const navigate = useNavigate();
   const {
     fetchUser,
     editUser,
@@ -890,7 +897,7 @@ export function UserDetailScreen({
     } else {
       setPasskeysState({ kind: "loadError" });
     }
-  }, [userId, endSession, fetchUserPasskeys]);
+  }, [userId, endSession, fetchUserPasskeys, sendToMyAccount]);
 
   const showsPasskeys = access.isAdministrator;
   const needsRoles = access.isAdministrator;
@@ -928,7 +935,16 @@ export function UserDetailScreen({
       return;
     }
     setState({ kind: "loadError" });
-  }, [userId, endSession, fetchUser, fetchRoles, needsRoles, loadPasskeys, showsPasskeys]);
+  }, [
+    userId,
+    endSession,
+    fetchUser,
+    fetchRoles,
+    needsRoles,
+    loadPasskeys,
+    showsPasskeys,
+    sendToMyAccount,
+  ]);
 
   useEffect(() => {
     void load();
@@ -948,7 +964,7 @@ export function UserDetailScreen({
             <div className="flex flex-col justify-center">
               <p className="text-ink-secondary text-sm">Configuración · Usuarios</p>
               <div className="flex items-center gap-3">
-                <h1 className="font-bold text-2xl text-brand-blue-strong">{heading}</h1>
+                <ScreenTitle>{heading}</ScreenTitle>
                 {isInactive && <Tag tone="neutral">Inactivo</Tag>}
               </div>
             </div>
@@ -960,7 +976,7 @@ export function UserDetailScreen({
         {state.kind === "notFound" && (
           <>
             <InlineNotice tone="error" icon={<UserX />} title="No encontramos este usuario" />
-            <Button variant="secondary" onPress={() => navigate(USERS_LIST_PATH)}>
+            <Button variant="secondary" onPress={() => navigate({ to: "/settings/users" })}>
               Volver a Usuarios
             </Button>
           </>
@@ -1171,7 +1187,7 @@ export function UserDetailScreen({
           onClose={() => setDeactivateModalOpen(false)}
           onDeactivated={() => {
             setDeactivateModalOpen(false);
-            navigate(USERS_LIST_PATH);
+            void navigate({ to: "/settings/users" });
           }}
           onVanished={() => {
             setDeactivateModalOpen(false);
