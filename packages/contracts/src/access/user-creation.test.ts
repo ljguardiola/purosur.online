@@ -12,6 +12,12 @@ function firstFailingField(body: unknown): unknown {
   return result.success ? undefined : result.error.issues[0]?.path[0];
 }
 
+function firstFailure(body: unknown): { field: unknown; message: string | undefined } | undefined {
+  const result = userCreationBodySchema.safeParse(body);
+  const issue = result.success ? undefined : result.error.issues[0];
+  return issue && { field: issue.path[0], message: issue.message };
+}
+
 describe("userCreationBodySchema", () => {
   it("accepts a first name, an email and a role id, trimming the name and normalizing the email", () => {
     const result = userCreationBodySchema.safeParse(
@@ -25,11 +31,17 @@ describe("userCreationBodySchema", () => {
   });
 
   it.each([undefined, "", "   ", 42, null])("rejects the first name %j", (first_name) => {
-    expect(firstFailingField(validBody({ first_name }))).toBe("first_name");
+    expect(firstFailure(validBody({ first_name }))).toEqual({
+      field: "first_name",
+      message: "first_name must not be empty",
+    });
   });
 
   it.each([undefined, "", "not-an-email", "ada@", 42, null])("rejects the email %j", (email) => {
-    expect(firstFailingField(validBody({ email }))).toBe("email");
+    expect(firstFailure(validBody({ email }))).toEqual({
+      field: "email",
+      message: "email must look like local@domain",
+    });
   });
 
   it("rejects an email longer than an address can be", () => {
@@ -41,7 +53,10 @@ describe("userCreationBodySchema", () => {
   it.each([undefined, "", "not-a-uuid", 42, null, `${ROLE_ID}0`, ` ${ROLE_ID}`])(
     "rejects the role id %j",
     (role_id) => {
-      expect(firstFailingField(validBody({ role_id }))).toBe("role_id");
+      expect(firstFailure(validBody({ role_id }))).toEqual({
+        field: "role_id",
+        message: "role_id must be a role's id",
+      });
     },
   );
 

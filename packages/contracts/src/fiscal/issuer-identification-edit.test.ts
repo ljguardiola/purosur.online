@@ -23,7 +23,47 @@ function firstFailingField(body: unknown): unknown {
   return result.success ? undefined : result.error.issues[0]?.path[0];
 }
 
+function firstFailure(body: unknown): { field: unknown; message: string | undefined } | undefined {
+  const result = schema.safeParse(body);
+  const issue = result.success ? undefined : result.error.issues[0];
+  return issue && { field: issue.path[0], message: issue.message };
+}
+
 describe("issuerIdentificationEditBodySchema", () => {
+  it.each([
+    {
+      field: "legal_name",
+      maxLength: ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
+    },
+    {
+      field: "gross_income_registration",
+      maxLength: ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
+    },
+  ])(
+    "names $field and its maximum length in the message of every way it is rejected",
+    ({ field, maxLength }) => {
+      const failure = {
+        field,
+        message: `${field} must be a non-empty string of at most ${maxLength} characters`,
+      };
+
+      for (const value of [42, undefined, "   ", "a".repeat(maxLength + 1)]) {
+        expect(firstFailure(validBody({ [field]: value }))).toEqual(failure);
+      }
+    },
+  );
+
+  it.each([20200115, undefined, "2020-02-30", "2026-09-26"])(
+    "explains an activity_start_date of %j",
+    (activity_start_date) => {
+      expect(firstFailure(validBody({ activity_start_date }))).toEqual({
+        field: "activity_start_date",
+        message:
+          "activity_start_date must be a valid ISO calendar date (YYYY-MM-DD), not in the future",
+      });
+    },
+  );
+
   it("accepts a fully valid body", () => {
     expect(schema.safeParse(validBody())).toMatchObject({
       success: true,

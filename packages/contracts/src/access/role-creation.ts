@@ -14,7 +14,7 @@ export const roleCreationBodySchema = z.object({
   name: z
     .string({ error: "name must not be empty" })
     .trim()
-    .min(1, "name must not be empty")
+    .min(1)
     .refine(
       (name) => !isRoleNameTooLong(name),
       `name must be at most ${ROLE_NAME_MAX_LENGTH} characters`,
