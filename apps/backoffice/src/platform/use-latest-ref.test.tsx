@@ -52,10 +52,7 @@ function Harness(props: {
 
 // A child's layout effect runs before its parent's, so if the parent wrote the latest value with
 // its own useLayoutEffect the child would still observe the previous render's value there. This
-// pins the ordering useLatestRef must keep regardless of how it schedules the write. renderCount
-// gives Child a prop that actually changes across the two renders, unlike latestRef or the
-// callbacks, so Child renders again for a real reason instead of relying on an unconditional
-// re-render an optimizing compiler is free to skip.
+// pins the ordering useLatestRef must keep regardless of how it schedules the write.
 test("a child's layout and passive effects read the latest value after the parent re-renders", async () => {
   const layoutValues: string[] = [];
   const effectValues: string[] = [];
