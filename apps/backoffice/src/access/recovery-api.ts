@@ -1,4 +1,10 @@
 import type {
+  RecoveryRedemptionBody,
+  RecoveryRequestBody,
+  RecoveryTokenBody,
+} from "@purosur/contracts";
+
+import type {
   PublicKeyCredentialCreationOptionsJSON,
   RegistrationResponseJSON,
 } from "@simplewebauthn/browser";
@@ -46,9 +52,10 @@ function postJson(path: string, body: unknown): Promise<Response> {
 
 /** The cloud answers identically, with no body, whether or not `email` belongs to a real account. */
 export async function requestRecoveryLink(email: string): Promise<RecoveryRequestOutcome> {
+  const requestBody: RecoveryRequestBody = { email };
   let response: Response;
   try {
-    response = await postJson("/users/recovery/request", { email });
+    response = await postJson("/users/recovery/request", requestBody);
   } catch {
     return { kind: "failed" };
   }
@@ -84,11 +91,10 @@ async function tokenErrorOutcome<Value>(response: Response): Promise<RecoveryTok
 export async function fetchRegistrationOptions(
   recoveryToken: string,
 ): Promise<RecoveryTokenOutcome<RegistrationOptions>> {
+  const requestBody: RecoveryTokenBody = { recovery_token: recoveryToken };
   let response: Response;
   try {
-    response = await postJson("/users/recovery/registration-options", {
-      recovery_token: recoveryToken,
-    });
+    response = await postJson("/users/recovery/registration-options", requestBody);
   } catch {
     return { kind: "failed" };
   }
@@ -111,13 +117,14 @@ export async function redeemRecovery(
   passkeyRegistration: RegistrationResponseJSON,
   passkeyName: string,
 ): Promise<RecoveryTokenOutcome<{ userId: string }>> {
+  const requestBody: RecoveryRedemptionBody = {
+    recovery_token: recoveryToken,
+    passkey_registration: passkeyRegistration,
+    passkey_name: passkeyName,
+  };
   let response: Response;
   try {
-    response = await postJson("/users/recovery/redeem", {
-      recovery_token: recoveryToken,
-      passkey_registration: passkeyRegistration,
-      passkey_name: passkeyName,
-    });
+    response = await postJson("/users/recovery/redeem", requestBody);
   } catch {
     return { kind: "failed" };
   }

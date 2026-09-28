@@ -2,10 +2,12 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
   ALERT_VIEW_PERMISSION_KEYS,
+  holdsBothAlertViewPermissions,
   isPermissionKey,
   PERMISSION_AREAS,
   PERMISSION_CATALOG,
   PERMISSION_KEYS,
+  repeatsAPermissionKey,
 } from "./permission-catalog.js";
 
 const AREA_ORDER_WITH_COUNTS: readonly [string, number][] = [
@@ -113,5 +115,29 @@ describe("isPermissionKey", () => {
         expect(isPermissionKey(value)).toBe(false);
       }),
     );
+  });
+});
+
+describe("repeatsAPermissionKey", () => {
+  it("is false for no keys and for distinct keys", () => {
+    expect(repeatsAPermissionKey([])).toBe(false);
+    expect(repeatsAPermissionKey(["view_stock_balances", "adjust_stock"])).toBe(false);
+  });
+
+  it("is true when any key appears more than once", () => {
+    expect(
+      repeatsAPermissionKey(["view_stock_balances", "adjust_stock", "view_stock_balances"]),
+    ).toBe(true);
+  });
+});
+
+describe("holdsBothAlertViewPermissions", () => {
+  it("is true only when both alert-view permissions are held", () => {
+    const [first, second] = ALERT_VIEW_PERMISSION_KEYS;
+
+    expect(holdsBothAlertViewPermissions([first, "adjust_stock", second])).toBe(true);
+    expect(holdsBothAlertViewPermissions([first])).toBe(false);
+    expect(holdsBothAlertViewPermissions([second, "adjust_stock"])).toBe(false);
+    expect(holdsBothAlertViewPermissions([])).toBe(false);
   });
 });

@@ -87,6 +87,9 @@ importers:
       '@internationalized/date':
         specifier: ^3.12.4
         version: 3.12.4
+      '@purosur/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@purosur/domain':
         specifier: workspace:*
         version: link:../../packages/domain
@@ -145,6 +148,9 @@ importers:
       '@fastify/static':
         specifier: ^10.1.4
         version: 10.1.4
+      '@purosur/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@purosur/domain':
         specifier: workspace:*
         version: link:../../packages/domain
@@ -260,6 +266,9 @@ importers:
 
   packages/contracts:
     dependencies:
+      '@purosur/domain':
+        specifier: workspace:*
+        version: link:../domain
       zod:
         specifier: ^4.6.5
         version: 4.6.5

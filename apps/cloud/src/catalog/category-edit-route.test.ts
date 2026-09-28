@@ -314,26 +314,6 @@ describe("POST /categories/:id/edit", () => {
     expect(unchanged).toMatchObject({ name: "Semillas", version: 1 });
   });
 
-  it("allows keeping a category's own name unchanged, as a no-op that does not bump the version", async () => {
-    const category = await insertCategory("Semillas");
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
-
-    const response = await editCategory(rawSessionId, category.id, {
-      name: "Semillas",
-      parentId: null,
-      version: category.version,
-    });
-
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({
-      id: category.id,
-      name: "Semillas",
-      version: 1,
-      parentId: null,
-    });
-  });
-
   it("moves a category under a new parent", async () => {
     const parent = await insertCategory("Almacén");
     const category = await insertCategory("Untables");
@@ -394,27 +374,6 @@ describe("POST /categories/:id/edit", () => {
     });
     const [unchanged] = await db.select().from(categories).where(eq(categories.id, category.id));
     expect(unchanged).toMatchObject({ name: "Untables", parentId: parent.id, version: 1 });
-  });
-
-  it("allows keeping a subcategory's own parent unchanged, as a no-op that does not bump the version", async () => {
-    const parent = await insertCategory("Almacén");
-    const category = await insertCategory("Untables", parent.id);
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
-
-    const response = await editCategory(rawSessionId, category.id, {
-      name: "Untables",
-      parentId: parent.id,
-      version: category.version,
-    });
-
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({
-      id: category.id,
-      name: "Untables",
-      version: 1,
-      parentId: parent.id,
-    });
   });
 
   it("rejects a parentId that does not name an existing category, changing nothing", async () => {

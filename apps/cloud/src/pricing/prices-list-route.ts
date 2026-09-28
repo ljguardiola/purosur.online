@@ -1,3 +1,4 @@
+import type { SaleUnit } from "@purosur/domain";
 import { desc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -9,7 +10,6 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
-import type { SaleUnit } from "../catalog/product-validation.js";
 import {
   branchSettings,
   categories,

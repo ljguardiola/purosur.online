@@ -545,9 +545,31 @@ describe("POST /users/passkeys", () => {
       );
 
       expect(response.statusCode).toBe(400);
-      expect(response.json()).toMatchObject({ code: "validation_failed" });
+      expect(response.json()).toMatchObject({
+        code: "validation_failed",
+        details: [{ field: "passkey_name" }],
+      });
       const rows = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
       expect(rows).toHaveLength(1);
+    });
+
+    it("rejects a missing passkey_registration as validation_failed, before touching the pending challenge", async () => {
+      const rawSessionId = await insertSession(userId);
+      await requestOptions(rawSessionId);
+
+      const response = await postJson(
+        "/users/passkeys",
+        { passkey_name: "Teléfono" },
+        cookieHeader(rawSessionId),
+      );
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({
+        code: "validation_failed",
+        details: [{ field: "passkey_registration" }],
+      });
+      const [pending] = await db.select().from(passkeyChallenges);
+      expect(pending?.registrationChallenge).toBeTruthy();
     });
 
     it("trims a passkey_name and stores the trimmed value", async () => {

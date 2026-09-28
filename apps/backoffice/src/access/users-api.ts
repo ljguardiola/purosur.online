@@ -1,3 +1,5 @@
+import type { UserCreationBody, UserEditBody } from "@purosur/contracts";
+
 const ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
 
 export type BranchUserRole = { id: string; isAdministrator: boolean; name: string | null };
@@ -225,13 +227,14 @@ async function gatedActionErrorOutcome(response: Response): Promise<GatedActionE
 }
 
 export async function createUser(input: CreateUserInput): Promise<CreateUserOutcome> {
+  const requestBody: UserCreationBody = {
+    first_name: input.firstName,
+    email: input.email,
+    role_id: input.roleId,
+  };
   let response: Response;
   try {
-    response = await postJson("/users", {
-      first_name: input.firstName,
-      email: input.email,
-      role_id: input.roleId,
-    });
+    response = await postJson("/users", requestBody);
   } catch {
     return { kind: "failed" };
   }
@@ -316,13 +319,14 @@ function editFieldFromWire(field: unknown): EditUserFieldError | undefined {
 }
 
 export async function editUser(id: string, input: EditUserInput): Promise<EditUserOutcome> {
+  const requestBody: UserEditBody = {
+    email: input.email,
+    role_id: input.roleId,
+    version: input.version,
+  };
   let response: Response;
   try {
-    response = await postJson(`/users/${id}/edit`, {
-      email: input.email,
-      role_id: input.roleId,
-      version: input.version,
-    });
+    response = await postJson(`/users/${id}/edit`, requestBody);
   } catch {
     return { kind: "failed" };
   }

@@ -1,6 +1,7 @@
+import { recoveryRequestBodySchema } from "@purosur/contracts";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { readEmail } from "./email-validation.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
 import { reportRecoveryBookkeepingError } from "./recovery-error-reporting.js";
 import type { RecoveryJobQueue } from "./recovery-job-queue.js";
 import { hashDestinationAddress, recordRecoveryRequestAttempt } from "./recovery-rate-limiter.js";
@@ -40,15 +41,11 @@ export function registerRecoveryRoutes<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      const email = readEmail(request.body);
-      if (!email) {
-        await reply.code(400).send({
-          code: "validation_failed",
-          message: "email must look like local@domain",
-          details: [{ field: "email" }],
-        });
+      const parsedBody = await readValidatedBody(reply, recoveryRequestBodySchema, request.body);
+      if (!parsedBody) {
         return;
       }
+      const { email } = parsedBody;
 
       const sourceAddress = resolveSourceAddress(request);
       const requestedAt = now();

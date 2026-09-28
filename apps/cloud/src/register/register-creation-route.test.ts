@@ -182,7 +182,10 @@ describe("POST /registers", () => {
     const response = await createRegister(rawSessionId, { name: "   " });
 
     expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({ code: "validation_failed" });
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "name" }],
+    });
   });
 
   it("creates the register in the session's own branch, trimming its name", async () => {

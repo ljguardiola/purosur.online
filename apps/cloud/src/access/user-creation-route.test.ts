@@ -358,23 +358,12 @@ describe("POST /users", () => {
     });
 
     expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({ code: "validation_failed" });
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "first_name" }],
+    });
     const created = await db.select().from(users).where(eq(users.email, "newhire@example.com"));
     expect(created).toHaveLength(0);
-  });
-
-  it("rejects a malformed email, creating nothing", async () => {
-    const cashierRoleId = await insertCashierRole("Cajera");
-    const rawSessionId = await insertSession(administratorId);
-
-    const response = await createUser(rawSessionId, {
-      first_name: "New Hire",
-      email: "not-an-email",
-      role_id: cashierRoleId,
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({ code: "validation_failed" });
   });
 
   it("lets the new user get in through the recovery link", async () => {

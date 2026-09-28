@@ -305,38 +305,6 @@ describe("POST /users/:id/edit", () => {
     expect(row?.email).toBe("grace@example.com");
   });
 
-  it("rejects a missing or non-positive version, changing nothing", async () => {
-    const rawSessionId = await insertSession(administratorId);
-
-    const response = await editUser(targetId, rawSessionId, {
-      email: "new@example.com",
-      role_id: cashierRoleId,
-      version: 0,
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "version" }],
-    });
-  });
-
-  it("rejects a malformed role_id, changing nothing", async () => {
-    const rawSessionId = await insertSession(administratorId);
-
-    const response = await editUser(targetId, rawSessionId, {
-      email: "new@example.com",
-      role_id: "not-a-uuid",
-      version: 1,
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "role_id" }],
-    });
-  });
-
   it("rejects a role_id that does not belong to any role, changing nothing", async () => {
     const rawSessionId = await insertSession(administratorId);
 

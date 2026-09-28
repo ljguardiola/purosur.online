@@ -1,15 +1,10 @@
+import { roleCreationBodySchema } from "@purosur/contracts";
 import { sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { auditLog, rolePermissions, roles } from "../platform/db/schema.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
-import {
-  type RoleFieldValidationFailure,
-  readRoleName,
-  readRolePermissionKeys,
-  roleNameValidationFailure,
-  rolePermissionsValidationFailure,
-} from "./role-validation.js";
 import type { RoleSummaryRow, RolesRouteOptions } from "./roles-list-route.js";
 import { toRoleSummaryWire } from "./roles-list-route.js";
 import {
@@ -46,37 +41,6 @@ export function isRoleNameUniqueViolation(error: unknown): boolean {
     current = current.cause;
   }
   return false;
-}
-
-interface CreationRequestBody {
-  name: string;
-  permissionKeys: string[];
-}
-
-function readCreationBody(body: unknown): CreationRequestBody | RoleFieldValidationFailure {
-  const name = readRoleName(body);
-  const nameFailure = roleNameValidationFailure(name);
-  if (nameFailure) {
-    return nameFailure;
-  }
-  if (!name) {
-    return { field: "name", message: "name must not be empty" };
-  }
-  const permissionKeys = readRolePermissionKeys(body);
-  if (!permissionKeys) {
-    return { field: "permissions", message: "permissions must be an array of permission keys" };
-  }
-  const permissionsFailure = rolePermissionsValidationFailure(permissionKeys);
-  if (permissionsFailure) {
-    return permissionsFailure;
-  }
-  return { name, permissionKeys };
-}
-
-function isValidationFailure(
-  value: CreationRequestBody | RoleFieldValidationFailure,
-): value is RoleFieldValidationFailure {
-  return "field" in value;
 }
 
 export interface CreateRoleInput {
@@ -182,13 +146,8 @@ export function registerRoleCreationRoutes<TQueryResult extends PgQueryResultHKT
       const attemptedAt = now();
       const openSession = openSessionOf(request);
 
-      const parsedBody = readCreationBody(request.body);
-      if (isValidationFailure(parsedBody)) {
-        await reply.code(400).send({
-          code: "validation_failed",
-          message: parsedBody.message,
-          details: [{ field: parsedBody.field }],
-        });
+      const parsedBody = await readValidatedBody(reply, roleCreationBodySchema, request.body);
+      if (!parsedBody) {
         return;
       }
 
@@ -198,7 +157,7 @@ export function registerRoleCreationRoutes<TQueryResult extends PgQueryResultHKT
 
       const outcome = await createRole(options.db, {
         name: parsedBody.name,
-        permissionKeys: parsedBody.permissionKeys,
+        permissionKeys: parsedBody.permissions,
         actorId: openSession.userId,
       });
 
