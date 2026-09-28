@@ -1,4 +1,5 @@
 import { createRequire } from "node:module";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
@@ -9,6 +10,8 @@ import {
   ROOT_SLOW_TEST_THRESHOLD,
   SlowTestsReporter,
 } from "./.github/scripts/slow-tests-reporter.mjs";
+
+const CATALOG_VISUAL_WS_ENDPOINT_ENV = "CATALOG_VISUAL_BROWSER_WS_ENDPOINT";
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
@@ -33,6 +36,7 @@ export default defineConfig({
         "railway-iac": 1000,
         "cloud-integration": 5000,
         browser: 2000,
+        "catalog-visual": 4000,
       }),
     ],
     projects: [
@@ -86,6 +90,60 @@ export default defineConfig({
             // Vitest would otherwise name this project "browser (chromium)", which matches no
             // SlowTestsReporter threshold.
             instances: [{ browser: "chromium", name: "browser" }],
+          },
+        },
+      },
+      {
+        plugins: [react(), tailwindcss()],
+        test: {
+          name: "catalog-visual",
+          include: ["packages/ui/src/**/*.visual.tsx"],
+          setupFiles: [
+            r("./packages/ui/src/test/setup-browser.ts"),
+            r("./packages/ui/src/test-support/setup-catalog-visual.ts"),
+          ],
+          globalSetup: [r("./packages/ui/vitest.global-setup.catalog-visual.ts")],
+          browser: {
+            enabled: true,
+            headless: true,
+            provider: playwright({
+              connectOptions: {
+                // A getter, not a plain value: Vite reads this config once before globalSetup
+                // runs, but the provider only calls it once it actually opens the browser.
+                get wsEndpoint() {
+                  return process.env[CATALOG_VISUAL_WS_ENDPOINT_ENV] ?? "";
+                },
+                exposeNetwork: "<loopback>",
+              },
+              contextOptions: {
+                reducedMotion: "reduce",
+                deviceScaleFactor: 1,
+              },
+            }),
+            viewport: { width: 1280, height: 800 },
+            instances: [{ browser: "chromium", name: "catalog-visual" }],
+            expect: {
+              toMatchScreenshot: {
+                // The rendering environment is this project's container regardless of the host
+                // OS, so a platform suffix in the reference file's name would only ever be noise.
+                resolveScreenshotPath: ({
+                  root,
+                  testFileDirectory,
+                  screenshotDirectory,
+                  testFileName,
+                  arg,
+                  browserName,
+                  ext,
+                }) =>
+                  path.resolve(
+                    root,
+                    testFileDirectory,
+                    screenshotDirectory,
+                    testFileName,
+                    `${arg}-${browserName}${ext}`,
+                  ),
+              },
+            },
           },
         },
       },

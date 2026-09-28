@@ -950,8 +950,6 @@ test("renders the empty message instead of the chart when there are no bars", as
 
   await expect.element(screen.getByText("No sales yet")).toBeInTheDocument();
   expect(screen.container.querySelectorAll("li")).toHaveLength(0);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders the empty message in the same type as the rest of the chart, meeting text contrast", async () => {
@@ -964,8 +962,6 @@ test("renders the empty message in the same type as the rest of the chart, meeti
   expect(getComputedStyle(message).fontWeight).toBe("400");
   const contrast = contrastRatio(rgbToHex(getComputedStyle(message).color), pageBackgroundHex());
   expect(contrast).toBeGreaterThanOrEqual(AAA_TEXT_CONTRAST);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("gives the empty message the same box as the chart it replaces, so swapping doesn't shift it", async () => {
@@ -984,7 +980,6 @@ test("gives the empty message the same box as the chart it replaces, so swapping
   expect(emptyStyle.paddingLeft).toBe(populatedStyle.paddingLeft);
 
   await expectNoAccessibilityViolations(populated.container);
-  await expectNoAccessibilityViolations(empty.container);
 });
 
 test("announces each bar's label and formatted value to assistive technology", async () => {

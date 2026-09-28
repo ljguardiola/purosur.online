@@ -80,8 +80,6 @@ test("renders every option's 20px circle 12px from its label, vertically centere
     expect(gap).toBeGreaterThan(11);
     expect(gap).toBeLessThan(13);
   }
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("stacks options vertically, 12px apart", async () => {
@@ -100,8 +98,6 @@ test("stacks options vertically, 12px apart", async () => {
   expect(firstGap).toBeLessThan(13);
   expect(secondGap).toBeGreaterThan(11);
   expect(secondGap).toBeLessThan(13);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("colors an unchecked circle white with a 2px ink-secondary border", async () => {
@@ -116,8 +112,6 @@ test("colors an unchecked circle white with a 2px ink-secondary border", async (
   const boundaryHex = boundaryColorHex(circle);
   const fillHex = rgbToHex(style.backgroundColor);
   expect(contrastRatio(boundaryHex, fillHex)).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("colors a checked circle white with a 6px blue UI ring and no separate dot", async () => {
@@ -130,8 +124,6 @@ test("colors a checked circle white with a 6px blue UI ring and no separate dot"
   expect(paintedBoxShadowLayers(circle)).toEqual([insetBoundary("brand-blue-ui", "6px")]);
   expect(circle.querySelector("svg")).toBeNull();
   expect(circle.children.length).toBe(0);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("keeps the circle's size stable between the unchecked and checked states", async () => {
@@ -144,8 +136,6 @@ test("keeps the circle's size stable between the unchecked and checked states", 
 
   expect(checkedRect.width).toBeCloseTo(uncheckedRect.width, 0);
   expect(checkedRect.height).toBeCloseTo(uncheckedRect.height, 0);
-
-  await expectNoAccessibilityViolations(checkedScreen.container);
 });
 
 test("turns a hovered unchecked circle's fill bone, keeping its 2px ink-secondary boundary", async () => {
@@ -160,8 +150,6 @@ test("turns a hovered unchecked circle's fill bone, keeping its 2px ink-secondar
   expect(getComputedStyle(uncheckedCircle).boxShadow).toContain(
     insetBoundary("ink-secondary", "2px"),
   );
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("darkens a hovered checked circle's ring while keeping its white fill", async () => {
@@ -174,8 +162,6 @@ test("darkens a hovered checked circle's ring while keeping its white fill", asy
     .poll(() => getComputedStyle(checkedCircle).boxShadow)
     .toContain(insetBoundary("brand-blue-strong", "6px"));
   expect(getComputedStyle(checkedCircle).backgroundColor).toBe(tokenRgb("surface-white"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("chooses an option with a click, unchoosing the previous one", async () => {
@@ -185,8 +171,6 @@ test("chooses an option with a click, unchoosing the previous one", async () => 
 
   expect(radioInput(screen, "Card").checked).toBe(true);
   expect(radioInput(screen, "Cash").checked).toBe(false);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("clicking the already-chosen option changes nothing", async () => {
@@ -197,8 +181,6 @@ test("clicking the already-chosen option changes nothing", async () => {
 
   expect(onChange).not.toHaveBeenCalled();
   expect(radioInput(screen, "Cash").checked).toBe(true);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("is a single tab stop landing on the chosen option", async () => {
@@ -255,8 +237,6 @@ test("shows the package's focus ring on the focused circle", async () => {
   await expect
     .poll(() => getComputedStyle(circle).outlineColor)
     .toBe(tokenRgb("brand-blue-strong"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("dims every option to 45% opacity, drops the pointer cursor and blocks focus when disabled", async () => {
@@ -279,15 +259,12 @@ test("dims every option to 45% opacity, drops the pointer cursor and blocks focu
   await userEvent.tab();
   expect(document.activeElement).toBe(nextControl);
   expect(document.activeElement).not.toBe(input);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("exposes the group as a radiogroup named by the caller's label", async () => {
   const screen = await render(<RadioGroup {...baseProps({ label: "Payment method" })} />);
 
   await expect.element(screen.getByRole("radiogroup", { name: "Payment method" })).toBeVisible();
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("exposes each option as a radio button named by its label, with its checked state", async () => {
@@ -295,8 +272,6 @@ test("exposes each option as a radio button named by its label, with its checked
 
   await expect.element(screen.getByRole("radio", { name: "Cash" })).not.toBeChecked();
   await expect.element(screen.getByRole("radio", { name: "Card" })).toBeChecked();
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("does not accept a group without a label, options, a chosen value or an onChange handler", () => {

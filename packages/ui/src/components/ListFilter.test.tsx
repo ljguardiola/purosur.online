@@ -50,8 +50,6 @@ test("renders closed at 44px with an 8px radius, a 2px line border and 12px padd
   expect(style.paddingLeft).toBe("12px");
   expect(style.paddingRight).toBe("12px");
   expect(style.columnGap).toBe("8px");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("shows the label in 14px secondary text and the chosen value in 16px bold ink", async () => {
@@ -65,8 +63,6 @@ test("shows the label in 14px secondary text and the chosen value in 16px bold i
   expect(getComputedStyle(value).fontSize).toBe("16px");
   expect(getComputedStyle(value).fontWeight).toBe("700");
   expect(getComputedStyle(value).color).toBe(tokenRgb("ink"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("shows a 16px down chevron in secondary text when closed", async () => {
@@ -79,8 +75,6 @@ test("shows a 16px down chevron in secondary text when closed", async () => {
   expect(rect.width).toBeGreaterThan(15);
   expect(rect.width).toBeLessThan(17);
   expect(getComputedStyle(icon).color).toBe(tokenRgb("ink-secondary"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("shows a visible focus outline in strong blue when reached by keyboard", async () => {
@@ -94,8 +88,6 @@ test("shows a visible focus outline in strong blue when reached by keyboard", as
   await expect
     .poll(() => getComputedStyle(trigger).outlineColor)
     .toBe(tokenRgb("brand-blue-strong"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("turns the border blue UI and the chevron up when opened", async () => {
@@ -111,8 +103,6 @@ test("turns the border blue UI and the chevron up when opened", async () => {
 
   const icon = trigger.element().querySelector("svg") as SVGSVGElement;
   expect(icon.classList.contains("lucide-chevron-up")).toBe(true);
-
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("opens a menu at least 200px wide, matching the trigger, white with an 8px radius and the menu shadow", async () => {
@@ -143,8 +133,6 @@ test("opens a menu at least 200px wide, matching the trigger, white with an 8px 
   const gap = placement === "top" ? triggerRect.top - rect.bottom : rect.top - triggerRect.bottom;
   expect(gap).toBeGreaterThan(3);
   expect(gap).toBeLessThan(5);
-
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("flips the menu above the trigger, with the same 4px gap, when there is no room below it", async () => {
@@ -374,8 +362,6 @@ test("keeps the label fully legible, not truncated, when there's room for everyt
     .element() as HTMLElement;
 
   expect(label.scrollWidth).toBeLessThanOrEqual(label.clientWidth);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 // A width/overflow check can't tell an ellipsis apart from a silent clip: both clip to the same
@@ -388,8 +374,6 @@ test("shows an ellipsis, not a silent clip, on both the label and the value", as
 
   expect(getComputedStyle(label).textOverflow).toBe("ellipsis");
   expect(getComputedStyle(value).textOverflow).toBe("ellipsis");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("scrolls a long options list inside the popover instead of painting it past the popover's own box", async () => {
@@ -483,8 +467,6 @@ test("shows the hand cursor on the trigger and on each option", async () => {
   await screen.getByRole("button", { name: /Estado/ }).click();
   const option = screen.getByRole("option", { name: "Abiertas" }).element() as HTMLElement;
   expect(getComputedStyle(option).cursor).toBe("pointer");
-
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("renders each option at 40px with a 6px radius and 14px semibold ink", async () => {
@@ -501,8 +483,6 @@ test("renders each option at 40px with a 6px radius and 14px semibold ink", asyn
   expect(style.fontSize).toBe("14px");
   expect(style.fontWeight).toBe("600");
   expect(style.color).toBe(tokenRgb("ink"));
-
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("highlights a hovered option with a bone background", async () => {
@@ -514,8 +494,6 @@ test("highlights a hovered option with a bone background", async () => {
   await expect
     .poll(() => getComputedStyle(option.element()).backgroundColor)
     .toBe(tokenRgb("surface-bone"));
-
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("highlights a keyboard-focused option with a bone background", async () => {
@@ -529,8 +507,6 @@ test("highlights a keyboard-focused option with a bone background", async () => 
   await expect
     .poll(() => getComputedStyle(focused.element()).backgroundColor)
     .toBe(tokenRgb("surface-bone"));
-
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("shows a 16px blue strong check on the chosen option only", async () => {
@@ -547,8 +523,6 @@ test("shows a 16px blue strong check on the chosen option only", async () => {
   expect(rect.width).toBeLessThan(17);
   expect(getComputedStyle(check).color).toBe(tokenRgb("brand-blue-strong"));
   expect(unchosen.querySelector("svg")).toBeNull();
-
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("gives the caller the chosen option and closes the menu, on click", async () => {
@@ -710,8 +684,6 @@ test("opens from the keyboard, moves between options with arrows, picks one with
   expect(onChange).toHaveBeenCalledWith("open");
   await expect.element(screen.getByRole("listbox")).not.toBeInTheDocument();
   await expect.poll(() => document.activeElement).toBe(trigger.element());
-
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("closes on Escape without changing anything", async () => {

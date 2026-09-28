@@ -8,8 +8,10 @@ export function decideVerifyResult({
   eventName,
   scopeResult,
   scopeDocsOnly,
+  scopeCatalogChanged,
   staticResult,
   testsResult,
+  visualResult,
 }) {
   const isDecisivelyDocsOnly =
     eventName === "pull_request" && scopeResult === "success" && scopeDocsOnly === "true";
@@ -28,6 +30,14 @@ export function decideVerifyResult({
     return { ok: false, reason: `tests: ${testsResult}` };
   }
 
+  const isDecisivelyCatalogUnchanged = scopeResult === "success" && scopeCatalogChanged === "false";
+  const visualOk = isDecisivelyCatalogUnchanged
+    ? NON_FAILING_RESULTS.has(visualResult)
+    : visualResult === "success";
+  if (!visualOk) {
+    return { ok: false, reason: `visual: ${visualResult}` };
+  }
+
   return {
     ok: true,
     reason: isDecisivelyDocsOnly
@@ -41,8 +51,10 @@ export function runCli({ env = process.env, log = console.log, logError = consol
     eventName: env.EVENT_NAME,
     scopeResult: env.SCOPE_RESULT,
     scopeDocsOnly: env.SCOPE_DOCS_ONLY,
+    scopeCatalogChanged: env.SCOPE_CATALOG_CHANGED,
     staticResult: env.STATIC_RESULT,
     testsResult: env.TESTS_RESULT,
+    visualResult: env.VISUAL_RESULT,
   });
 
   if (decision.ok) {

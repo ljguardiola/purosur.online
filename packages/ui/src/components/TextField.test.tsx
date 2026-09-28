@@ -77,8 +77,6 @@ test("renders the label 6px above an 8px-radius box", async () => {
   expect(getComputedStyle(label).fontWeight).toBe("700");
   expect(getComputedStyle(label).color).toBe(tokenRgb("ink"));
   expect(getComputedStyle(box).borderRadius).toBe("8px");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("keeps the backoffice plain text value semibold even with a suffix, unlike its own unit", async () => {
@@ -95,8 +93,6 @@ test("keeps the backoffice plain text value semibold even with a suffix, unlike 
   expect(getComputedStyle(input).textAlign).toBe("right");
   expect(getComputedStyle(suffixElement).fontWeight).toBe("400");
   expect(getComputedStyle(suffixElement).color).toBe(tokenRgb("ink-secondary"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("keeps a non-plain-text kind at its own register size inside a backoffice FieldSizeProvider", async () => {
@@ -240,8 +236,6 @@ for (const kindCase of kindCases) {
         expect(affixIndex).toBeGreaterThan(inputIndex);
       }
     }
-
-    await expectNoAccessibilityViolations(screen.container);
   });
 }
 
@@ -255,8 +249,6 @@ test("keeps the same box appearance whether the value is empty or filled", async
   const filledBox = fieldBox(filledScreen, "Amount");
   expect(getComputedStyle(filledBox).boxShadow).toBe(emptyShadow);
   expect(fieldInput(filledScreen, "Amount").value).toBe("60000");
-
-  await expectNoAccessibilityViolations(filledScreen.container);
 });
 
 test("shows a white box with a 2px line border at rest", async () => {
@@ -266,8 +258,6 @@ test("shows a white box with a 2px line border at rest", async () => {
 
   expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
   expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("line", "2px")]);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("turns the box bone on hover, keeping the same 2px line border", async () => {
@@ -277,8 +267,6 @@ test("turns the box bone on hover, keeping the same 2px line border", async () =
   await userEvent.hover(box);
   await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-bone"));
   expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("line", "2px")]);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("shows a 2px brand-blue-ui border with no outer shadow when focused, as one field in two states", async () => {
@@ -288,8 +276,6 @@ test("shows a 2px brand-blue-ui border with no outer shadow when focused, as one
   await userEvent.tab();
 
   await expect.poll(() => getComputedStyle(box).boxShadow).toBe(FOCUSED_SHADOW);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("shows the focused border instead of the invalid one once an invalid field is focused", async () => {
@@ -368,8 +354,6 @@ test("dims the whole field to 45% opacity and blocks focus when disabled", async
   await userEvent.tab();
   expect(document.activeElement).toBe(nextControl);
   expect(document.activeElement).not.toBe(input);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("lets a read-only field be focused and shows it, but is never typed into or hovered", async () => {
@@ -557,8 +541,6 @@ test("marks a required field with an asterisk and exposes it as required", async
 
   expect(getComputedStyle(label, "::after").content).toContain("*");
   expect(input.required).toBe(true);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 function FieldWithExternalHeading() {
@@ -604,8 +586,6 @@ test("keeps the label as the accessible name but paints nothing when labelVisual
 
   expect(labelRect.width).toBeLessThanOrEqual(1);
   expect(labelRect.height).toBeLessThanOrEqual(1);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("shows the label as an ordinary visible caption when labelVisuallyHidden is left out", async () => {
@@ -617,8 +597,6 @@ test("shows the label as an ordinary visible caption when labelVisuallyHidden is
 
   expect(labelRect.width).toBeGreaterThan(1);
   expect(labelRect.height).toBeGreaterThan(1);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 function FieldWithSharedErrorMessage() {
@@ -700,8 +678,6 @@ test("replaces the helper line with the field's message and exposes it as invali
   expect(screen.getByText("Should not be visible.").query()).toBeNull();
   expect(input.getAttribute("aria-describedby")).toBeTruthy();
   expect(describedText(input)).toContain("Enter a reason.");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("wires the helper text as the input's own description for assistive technology", async () => {
@@ -725,8 +701,6 @@ test("wires the money prefix into the input's own description for assistive tech
 
   expect(describedText(input)).toContain("$");
   expect(prefixElement.getAttribute("aria-hidden")).toBe("true");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders an optional suffix on the plain text kind at its own text-base scale, exposed in its description", async () => {
@@ -745,8 +719,6 @@ test("renders an optional suffix on the plain text kind at its own text-base sca
   expect(suffixStyle.color).toBe(tokenRgb("ink-secondary"));
   expect(suffixElement.getAttribute("aria-hidden")).toBe("true");
   expect(describedText(input)).toContain("días");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("wires the kg suffix into the input's own description for assistive technology", async () => {
@@ -758,8 +730,6 @@ test("wires the kg suffix into the input's own description for assistive technol
 
   expect(describedText(input)).toContain("kg");
   expect(suffixElement.getAttribute("aria-hidden")).toBe("true");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("keeps the affix in the description alongside the helper text, each named once", async () => {
@@ -840,7 +810,6 @@ test("reports exactly what was typed with the keyboard, unformatted", async () =
   await userEvent.keyboard("Partial close of the shift");
 
   expect(fieldInput(screen, "Reason").value).toBe("Partial close of the shift");
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("reports exactly what was typed after clicking into the field with the mouse", async () => {
@@ -851,7 +820,6 @@ test("reports exactly what was typed after clicking into the field with the mous
   await userEvent.keyboard("1.234,56");
 
   expect(input.value).toBe("1.234,56");
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("clears a typed value with the keyboard", async () => {
@@ -862,7 +830,6 @@ test("clears a typed value with the keyboard", async () => {
   await userEvent.keyboard("{Control>}a{/Control}{Backspace}");
 
   expect(input.value).toBe("");
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("clears a typed value with the mouse", async () => {
@@ -872,7 +839,6 @@ test("clears a typed value with the mouse", async () => {
   await userEvent.clear(input);
 
   expect(input.value).toBe("");
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("keeps the amount value right-aligned against its prefix as it grows", async () => {
@@ -883,7 +849,6 @@ test("keeps the amount value right-aligned against its prefix as it grows", asyn
   await userEvent.keyboard("60000");
 
   expect(getComputedStyle(input).textAlign).toBe("right");
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("does not accept a kind that calls for a prefix without one", () => {

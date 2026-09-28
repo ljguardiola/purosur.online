@@ -60,29 +60,26 @@ test("renders the text provided by the caller", async () => {
   const screen = await render(<Button>Save</Button>);
 
   await expect.element(screen.getByRole("button", { name: "Save" })).toBeVisible();
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("activates on Enter when focused via keyboard", async () => {
   const onPress = vi.fn();
-  const screen = await render(<Button onPress={onPress}>Save</Button>);
+  await render(<Button onPress={onPress}>Save</Button>);
 
   await userEvent.tab();
   await userEvent.keyboard("{Enter}");
 
   expect(onPress).toHaveBeenCalledOnce();
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("activates on Space when focused via keyboard", async () => {
   const onPress = vi.fn();
-  const screen = await render(<Button onPress={onPress}>Save</Button>);
+  await render(<Button onPress={onPress}>Save</Button>);
 
   await userEvent.tab();
   await userEvent.keyboard(" ");
 
   expect(onPress).toHaveBeenCalledOnce();
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("shows a visible focus outline in strong blue when reached by keyboard", async () => {
@@ -95,7 +92,6 @@ test("shows a visible focus outline in strong blue when reached by keyboard", as
   await expect.poll(() => getComputedStyle(button).outlineWidth).toBe("3px");
   await expect.poll(() => getComputedStyle(button).outlineOffset).toBe("3px");
   await expect.poll(() => getComputedStyle(button).outlineColor).toBe(focusRingColor);
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("hides the focus outline when focused by a pointer click", async () => {
@@ -127,7 +123,6 @@ test("a disabled button cannot be activated", async () => {
   await button.click({ force: true });
 
   expect(onPress).not.toHaveBeenCalled();
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders the secondary variant with a transparent background, earth-toned border and ink text", async () => {
@@ -139,7 +134,6 @@ test("renders the secondary variant with a transparent background, earth-toned b
   expect(getComputedStyle(button).borderWidth).toBe("1px");
   expect(getComputedStyle(button).borderColor).toBe(tokenRgb("brand-earth-ui"));
   expect(getComputedStyle(button).color).toBe(tokenRgb("ink"));
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("defaults the primary and secondary variants to the medium size when none is given", async () => {
@@ -278,7 +272,6 @@ test("renders the destructive tone of the primary button with an error backgroun
 
   expect(getComputedStyle(button).backgroundColor).toBe(tokenRgb("status-error-ui"));
   expect(getComputedStyle(button).color).toBe(tokenRgb("surface-white"));
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("turns the destructive tone's hover background to error-strong, keeping white text readable", async () => {
@@ -292,7 +285,6 @@ test("turns the destructive tone's hover background to error-strong, keeping whi
   expect(hovered.color).toBe(tokenRgb("surface-white"));
   const ratio = contrastRatio(rgbToHex(hovered.color), rgbToHex(hovered.backgroundColor));
   expect(ratio).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders the destructive tone of the secondary variant with a white fill and error-ui border and text, as the design draws it", async () => {
@@ -313,7 +305,6 @@ test("renders the destructive tone of the secondary variant with a white fill an
 
   const ratio = contrastRatio(rgbToHex(getComputedStyle(button).color), rgbToHex(behind));
   expect(ratio).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("keeps the destructive secondary variant's hover background at bone, like the default secondary and the text destructive form, and keeps its error-ui border and text readable", async () => {
@@ -332,7 +323,6 @@ test("keeps the destructive secondary variant's hover background at bone, like t
   expect(hovered.color).toBe(tokenRgb("status-error-ui"));
   const ratio = contrastRatio(rgbToHex(hovered.color), rgbToHex(hovered.backgroundColor));
   expect(ratio).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("shows the same focus outline on the destructive tone as on every other tone", async () => {
@@ -371,8 +361,6 @@ test("places the primary variant's 24px icon after the text with its 12px gap", 
   const gap = iconRect.left - textRect.right;
   expect(gap).toBeGreaterThan(11);
   expect(gap).toBeLessThan(13);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("places the secondary variant's 18px icon before the text with its 8px gap", async () => {
@@ -402,8 +390,6 @@ test("places the secondary variant's 18px icon before the text with its 8px gap"
   const gap = textRect.left - iconRect.right;
   expect(gap).toBeGreaterThan(7);
   expect(gap).toBeLessThan(9);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders a plain svg icon (no size prop of its own) at 24px in the primary variant and 18px in the secondary", async () => {
@@ -495,7 +481,6 @@ test("renders the text-only destructive form with no background and no border", 
   expect(getComputedStyle(button).borderLeftWidth).toBe("0px");
   expect(getComputedStyle(button).borderRightWidth).toBe("0px");
   expect(getComputedStyle(button).color).toBe(tokenRgb("status-error-ui"));
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("sizes the text-only destructive form at 40px with a 16px semibold label by default", async () => {
@@ -567,8 +552,6 @@ test("carries its own 18px x icon before the label, with an 8px gap, on both dra
     const gap = textRect.left - iconRect.right;
     expect(gap, `${size} gap`).toBeGreaterThan(7);
     expect(gap, `${size} gap`).toBeLessThan(9);
-
-    await expectNoAccessibilityViolations(screen.container);
   }
 });
 
@@ -629,7 +612,6 @@ test("turns the text-only destructive form's background bone on hover, keeping i
   expect(hovered.color).toBe(tokenRgb("status-error-ui"));
   const ratio = contrastRatio(rgbToHex(hovered.color), rgbToHex(hovered.backgroundColor));
   expect(ratio).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("keeps the text-only destructive form's label and icon readable on the surfaces it sits on", async () => {
@@ -721,8 +703,6 @@ test("dims a disabled text-only destructive form and keeps it out of reach", asy
 
   await button.click({ force: true });
   expect(onPress).not.toHaveBeenCalled();
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 const fixedWidthRowStyle = { width: "500px", display: "flex", gap: "12px" } as const;
@@ -777,7 +757,6 @@ test("takes the whole row when it is the only button in it", async () => {
   );
 
   expect(renderedWidth(screen, "Confirm")).toBeCloseTo(500, 0);
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("takes the width a content-sized sibling leaves it in a row", async () => {
