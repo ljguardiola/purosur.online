@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { createProduct } from "@purosur/domain";
+import { createProduct } from "@purosur/domain/catalog/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";

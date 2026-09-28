@@ -1,4 +1,4 @@
-import { createProduct } from "@purosur/domain";
+import { createProduct } from "@purosur/domain/catalog/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {

@@ -10,7 +10,7 @@ import {
   type LockProductResult,
   type NewProductFields,
   type ProductFields,
-} from "@purosur/domain";
+} from "@purosur/domain/catalog/use-cases";
 import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";

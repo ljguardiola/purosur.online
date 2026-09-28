@@ -1,4 +1,4 @@
-import { deactivateProduct } from "@purosur/domain";
+import { deactivateProduct } from "@purosur/domain/catalog/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {

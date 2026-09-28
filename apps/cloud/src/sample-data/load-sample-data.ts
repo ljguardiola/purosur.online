@@ -1,4 +1,8 @@
-import { createCategory, createProduct, deactivateProduct } from "@purosur/domain";
+import {
+  createCategory,
+  createProduct,
+  deactivateProduct,
+} from "@purosur/domain/catalog/use-cases";
 import { and, eq, like, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { createRole } from "../access/role-creation-route.js";
