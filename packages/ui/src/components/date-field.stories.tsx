@@ -5,6 +5,7 @@ import {
   playClickExpandsTrigger,
   playHoverSetsDataHovered,
   playPseudoHoverPaintsBoneFill,
+  playTabReachesFocusVisible,
 } from "../test-support/story-interactions";
 import { DateField } from "./DateField";
 import { FieldSizeProvider } from "./FieldSize";
@@ -75,6 +76,11 @@ export const FocusedSegment: Story = {
     const segment = group.querySelector('[role="spinbutton"]') as HTMLElement;
     await expect(segment).toHaveAttribute("data-focused", "true");
   },
+};
+
+export const CalendarToggleFocusVisible: Story = {
+  args: { value: null },
+  play: playTabReachesFocusVisible(toggle),
 };
 
 export const CalendarOpen: Story = {

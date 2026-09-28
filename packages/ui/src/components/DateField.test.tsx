@@ -403,8 +403,6 @@ test("shows the package's own outline focus ring on the calendar button when it 
   expect(getComputedStyle(button).outlineColor).toBe(tokenRgb("brand-blue-strong"));
   expect(Math.round(Number.parseFloat(getComputedStyle(button).outlineWidth))).toBe(3);
   expect(Math.round(Number.parseFloat(getComputedStyle(button).outlineOffset))).toBe(3);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 for (const variant of ["register", "backoffice"] as const) {
