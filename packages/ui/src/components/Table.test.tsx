@@ -1143,8 +1143,6 @@ test("renders an unsorted sortable column with a 12px chevrons-up-down icon, bot
   expect(iconRect.width).toBeLessThan(13);
   expect(getComputedStyle(icon).color).toBe(tokenRgb("ink-secondary"));
   expect(header.getAttribute("aria-sort")).toBe("none");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("does not accept a non-literal boolean sortable value, alone or beside a genuinely sortable column", () => {

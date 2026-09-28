@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Package, Pencil, SearchX, Trash2 } from "lucide-react";
-import { within } from "storybook/test";
+import { expect, within } from "storybook/test";
 import {
   playHoverSetsDataHovered,
   playTabReachesFocusVisible,
@@ -66,6 +66,41 @@ export const SortedDescending: Story = {
       onSortChange={onSortChange}
     />
   ),
+};
+
+const twoSortableColumns = [
+  baseColumns[0],
+  {
+    key: "stock",
+    title: "Stock",
+    align: "end",
+    sortable: true,
+    defaultDirection: "descending",
+    render: (item: Product) => item.stock,
+  },
+] as const;
+
+export const UnsortedSortableColumn: Story = {
+  render: () => (
+    <Table
+      aria-label="Productos"
+      columns={twoSortableColumns}
+      rows={products}
+      sort={{ column: "stock", direction: "descending" }}
+      onSortChange={onSortChange}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("columnheader", { name: "Producto" })).toHaveAttribute(
+      "aria-sort",
+      "none",
+    );
+    await expect(canvas.getByRole("columnheader", { name: "Stock" })).toHaveAttribute(
+      "aria-sort",
+      "descending",
+    );
+  },
 };
 
 export const SortableHeaderHovered: Story = {
