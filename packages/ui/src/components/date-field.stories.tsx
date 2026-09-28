@@ -103,9 +103,7 @@ export const CalendarMonthControlHovered: Story = {
   args: { value: new CalendarDate(2027, 2, 28) },
   play: async (context) => {
     await userEvent.click(toggle(context.canvasElement));
-    await playHoverSetsDataHovered(
-      () => document.body.querySelector('[slot="next"]') as HTMLElement,
-    )(context);
+    await playHoverSetsDataHovered(() => monthControl("next"))(context);
   },
 };
 
