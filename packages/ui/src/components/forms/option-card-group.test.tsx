@@ -20,19 +20,19 @@ const options: [
     value: "income",
     icon: <Wallet />,
     title: "Income",
-    helpText: "Money coming into the register",
+    description: "Money coming into the register",
   },
   {
     value: "expense",
     icon: <Banknote />,
     title: "Expense",
-    helpText: "Money going out of the register",
+    description: "Money going out of the register",
   },
   {
     value: "withdrawal",
     icon: <CreditCard />,
     title: "Withdrawal",
-    helpText: "Cash taken out for the bank",
+    description: "Cash taken out for the bank",
   },
 ];
 
@@ -93,7 +93,7 @@ test("renders each card's icon, title and help text", async () => {
   for (const option of options) {
     const card = radioCard(screen, option.title);
     expect(card.querySelector("svg")).not.toBeNull();
-    await expect.element(screen.getByText(option.helpText)).toBeVisible();
+    await expect.element(screen.getByText(option.description)).toBeVisible();
   }
 });
 
@@ -114,7 +114,7 @@ test("renders the icon at 20px, the title at 16px bold and the help text at 12px
   const screen = await render(<OptionCardGroup {...baseProps()} />);
   const icon = radioCard(screen, "Income").querySelector("svg") as SVGSVGElement;
   const title = screen.getByText("Income", { exact: true }).element() as HTMLElement;
-  const helpText = screen
+  const description = screen
     .getByText("Money coming into the register", { exact: true })
     .element() as HTMLElement;
 
@@ -126,18 +126,18 @@ test("renders the icon at 20px, the title at 16px bold and the help text at 12px
 
   expect(getComputedStyle(title).fontSize).toBe("16px");
   expect(getComputedStyle(title).fontWeight).toBe("700");
-  expect(getComputedStyle(helpText).fontSize).toBe("12px");
-  expect(getComputedStyle(helpText).fontWeight).toBe("400");
+  expect(getComputedStyle(description).fontSize).toBe("12px");
+  expect(getComputedStyle(description).fontWeight).toBe("400");
 });
 
 test("sits the help text directly under the title, with no gap between them", async () => {
   const screen = await render(<OptionCardGroup {...baseProps()} />);
   const title = screen.getByText("Income", { exact: true }).element() as HTMLElement;
-  const helpText = screen
+  const description = screen
     .getByText("Money coming into the register", { exact: true })
     .element() as HTMLElement;
 
-  const gap = helpText.getBoundingClientRect().top - title.getBoundingClientRect().bottom;
+  const gap = description.getBoundingClientRect().top - title.getBoundingClientRect().bottom;
   expect(gap).toBeCloseTo(0, 0);
 });
 
@@ -146,7 +146,7 @@ test("colors a not-chosen card white with a 1px line border, secondary icon, ink
   const card = radioCard(screen, "Income");
   const icon = card.querySelector("svg") as SVGSVGElement;
   const title = screen.getByText("Income", { exact: true }).element() as HTMLElement;
-  const helpText = screen
+  const description = screen
     .getByText("Money coming into the register", { exact: true })
     .element() as HTMLElement;
   const style = getComputedStyle(card);
@@ -155,7 +155,7 @@ test("colors a not-chosen card white with a 1px line border, secondary icon, ink
   expect(style.boxShadow).toContain(insetBoundary("border", "1px"));
   expect(getComputedStyle(icon).color).toBe(tokenRgb("text-subtle"));
   expect(getComputedStyle(title).color).toBe(tokenRgb("text"));
-  expect(getComputedStyle(helpText).color).toBe(tokenRgb("text-subtle"));
+  expect(getComputedStyle(description).color).toBe(tokenRgb("text-subtle"));
 });
 
 test("turns a hovered not-chosen card's background bone without changing its other colors", async () => {
@@ -177,7 +177,7 @@ test("colors the chosen card with the blue message background, a 2px blue border
   const card = radioCard(screen, "Income");
   const icon = card.querySelector("svg") as SVGSVGElement;
   const title = screen.getByText("Income", { exact: true }).element() as HTMLElement;
-  const helpText = screen
+  const description = screen
     .getByText("Money coming into the register", { exact: true })
     .element() as HTMLElement;
   const style = getComputedStyle(card);
@@ -186,7 +186,7 @@ test("colors the chosen card with the blue message background, a 2px blue border
   expect(style.boxShadow).toContain(insetBoundary("action", "2px"));
   expect(getComputedStyle(icon).color).toBe(tokenRgb("text-accent"));
   expect(getComputedStyle(title).color).toBe(tokenRgb("text-accent"));
-  expect(getComputedStyle(helpText).color).toBe(tokenRgb("text-subtle"));
+  expect(getComputedStyle(description).color).toBe(tokenRgb("text-subtle"));
 });
 
 test("does not change the chosen card's background on hover", async () => {
@@ -216,8 +216,8 @@ test("wraps a long title and a long help text inside the card", async () => {
   const longHelpText =
     "A very long help text that also does not fit on a single line and must wrap onto more than one";
   const longOptions: [OptionCardOption<"long" | "short">, OptionCardOption<"long" | "short">] = [
-    { value: "long", icon: <Wallet />, title: longTitle, helpText: longHelpText },
-    { value: "short", icon: <Banknote />, title: "Short", helpText: "Short help" },
+    { value: "long", icon: <Wallet />, title: longTitle, description: longHelpText },
+    { value: "short", icon: <Banknote />, title: "Short", description: "Short help" },
   ];
   const screen = await render(
     <div style={{ width: "360px" }}>
@@ -230,13 +230,13 @@ test("wraps a long title and a long help text inside the card", async () => {
     </div>,
   );
   const title = screen.getByText(longTitle, { exact: true }).element() as HTMLElement;
-  const helpText = screen.getByText(longHelpText, { exact: true }).element() as HTMLElement;
+  const description = screen.getByText(longHelpText, { exact: true }).element() as HTMLElement;
 
   const titleLineHeight = Number.parseFloat(getComputedStyle(title).lineHeight);
-  const helpLineHeight = Number.parseFloat(getComputedStyle(helpText).lineHeight);
+  const helpLineHeight = Number.parseFloat(getComputedStyle(description).lineHeight);
 
   expect(title.getBoundingClientRect().height).toBeGreaterThan(titleLineHeight * 1.5);
-  expect(helpText.getBoundingClientRect().height).toBeGreaterThan(helpLineHeight * 1.5);
+  expect(description.getBoundingClientRect().height).toBeGreaterThan(helpLineHeight * 1.5);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -339,12 +339,12 @@ test("does not accept an option without an icon, title or help text", () => {
   expectTypeOf<{
     value: string;
     title: string;
-    helpText: string;
+    description: string;
   }>().not.toExtend<OptionCardOption>();
   expectTypeOf<{
     value: string;
     icon: Icon;
-    helpText: string;
+    description: string;
   }>().not.toExtend<OptionCardOption>();
   expectTypeOf<{
     value: string;
@@ -387,7 +387,7 @@ test("does not accept a chosen value outside the group's own options, or an empt
   }>().not.toExtend<OptionCardGroupProps<MovementValue>>();
 });
 
-// `icon`/`title`/`helpText` are left out here because a `ReactElement` field breaks TypeScript's
+// `icon`/`title`/`description` are left out here because a `ReactElement` field breaks TypeScript's
 // overload-based inference below, which would make even a valid call wrongly resolve to the
 // "invalid" branch. A call that fails to compile can't sit in this file as literal code, and
 // `@ts-expect-error` is banned, so the first (generic) overload only matches a call whose
@@ -490,4 +490,8 @@ test("does not accept an invalid group without an error message", () => {
     onChange: (value: MovementValue) => void;
     invalid: true;
   }>().not.toExtend<OptionCardGroupProps<MovementValue>>();
+});
+
+test("does not name its secondary text helpText", () => {
+  expectTypeOf<OptionCardOption>().not.toHaveProperty("helpText");
 });

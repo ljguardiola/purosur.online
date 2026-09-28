@@ -755,21 +755,21 @@ test.each([
   {
     outcome: { kind: "stale_price" as const },
     title: "El precio cambió recién",
-    detail: "Revisá el precio actual de Arroz.",
+    description: "Revisá el precio actual de Arroz.",
   },
   {
     outcome: { kind: "rate_limited" as const, retryAfterSeconds: 60 },
     title: "Demasiadas solicitudes",
-    detail: "Se puede volver a intentar en 1 minuto.",
+    description: "Se puede volver a intentar en 1 minuto.",
   },
   {
     outcome: { kind: "failed" as const },
     title: "No se pudo confirmar el precio de Arroz",
-    detail: "Probá de nuevo.",
+    description: "Probá de nuevo.",
   },
 ])(
   "a row confirm that ends in $outcome.kind shows its notice on the screen, whether or not the list has reloaded yet",
-  async ({ outcome, title, detail }) => {
+  async ({ outcome, title, description }) => {
     const services = createServices();
     vi.mocked(services.fetchPrices)
       .mockResolvedValueOnce({
@@ -786,7 +786,7 @@ test.each([
     );
 
     await expect.element(screen.getByText(title)).toBeVisible();
-    await expect.element(screen.getByText(detail)).toBeVisible();
+    await expect.element(screen.getByText(description)).toBeVisible();
   },
 );
 
@@ -988,16 +988,16 @@ test.each([
   {
     outcome: { kind: "failed" as const },
     title: "No se pudo empezar la revisión",
-    detail: "Probá de nuevo.",
+    description: "Probá de nuevo.",
   },
   {
     outcome: { kind: "rate_limited" as const, retryAfterSeconds: 120 },
     title: "Demasiadas solicitudes",
-    detail: "Se puede volver a intentar en 2 minutos.",
+    description: "Se puede volver a intentar en 2 minutos.",
   },
 ])(
   "a Revisar los N read that ends in $outcome.kind keeps the table and shows its notice",
-  async ({ outcome, title, detail }) => {
+  async ({ outcome, title, description }) => {
     const services = createServices();
     vi.mocked(services.fetchPrices)
       .mockResolvedValueOnce({
@@ -1010,7 +1010,7 @@ test.each([
     await userEvent.click(screen.getByRole("button", { name: "Revisar 1" }));
 
     await expect.element(screen.getByText(title)).toBeVisible();
-    await expect.element(screen.getByText(detail)).toBeVisible();
+    await expect.element(screen.getByText(description)).toBeVisible();
     await expect.element(screen.getByText("Arroz")).toBeVisible();
     expect(screen.getByRole("button", { name: "Reintentar" }).query()).toBeNull();
   },
@@ -1083,7 +1083,7 @@ test.each([
     setUp: (services: PricesListScreenServices) =>
       vi.mocked(services.setPrice).mockResolvedValue({ kind: "failed" }),
     title: "No se pudo guardar el precio",
-    detail: "Probá de nuevo.",
+    description: "Probá de nuevo.",
   },
   {
     action: "save",
@@ -1093,14 +1093,14 @@ test.each([
         retryAfterSeconds: 120,
       }),
     title: "Demasiadas solicitudes",
-    detail: "Se puede volver a intentar en 2 minutos.",
+    description: "Se puede volver a intentar en 2 minutos.",
   },
   {
     action: "confirm",
     setUp: (services: PricesListScreenServices) =>
       vi.mocked(services.confirmPrice).mockResolvedValue({ kind: "failed" }),
     title: "No se pudo confirmar el precio",
-    detail: "Probá de nuevo.",
+    description: "Probá de nuevo.",
   },
   {
     action: "confirm",
@@ -1110,9 +1110,9 @@ test.each([
         retryAfterSeconds: 120,
       }),
     title: "Demasiadas solicitudes",
-    detail: "Se puede volver a intentar en 2 minutos.",
+    description: "Se puede volver a intentar en 2 minutos.",
   },
-])("a modal $action that fails shows $title", async ({ action, setUp, title, detail }) => {
+])("a modal $action that fails shows $title", async ({ action, setUp, title, description }) => {
   const services = createServices();
   setUp(services);
   const screen = await openRicePriceModal(services);
@@ -1126,7 +1126,7 @@ test.each([
   }
 
   await expect.element(dialog.getByText(title)).toBeVisible();
-  await expect.element(dialog.getByText(detail)).toBeVisible();
+  await expect.element(dialog.getByText(description)).toBeVisible();
   await expect.element(dialog.getByRole("button", { name: "Cerrar" })).toBeInTheDocument();
 });
 

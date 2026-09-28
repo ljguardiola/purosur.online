@@ -106,7 +106,7 @@ export function AccountFooter({ displayName, onSignedOut, services }: AccountFoo
             tone="error"
             icon={<ShieldX />}
             title="Demasiadas solicitudes"
-            detail={retryAfterDetail(notice.retryAfterSeconds)}
+            description={retryAfterDetail(notice.retryAfterSeconds)}
           />
         ) : null}
         {notice?.kind === "failed" ? (
@@ -114,7 +114,7 @@ export function AccountFooter({ displayName, onSignedOut, services }: AccountFoo
             tone="error"
             icon={<TriangleAlert />}
             title="No se pudo salir"
-            detail="Probá de nuevo."
+            description="Probá de nuevo."
           />
         ) : null}
       </Modal>

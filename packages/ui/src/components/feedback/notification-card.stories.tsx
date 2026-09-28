@@ -8,7 +8,7 @@ const meta: Meta<typeof NotificationCard> = {
   args: {
     icon: <InfoIcon />,
     title: "Venta completada",
-    detail: "Se imprimió el comprobante.",
+    description: "Se imprimió el comprobante.",
   },
 };
 
@@ -24,16 +24,20 @@ export const Info: Story = {
   args: {
     tone: "info",
     title: "Nueva versión disponible",
-    detail: "Se instalará al cerrar el turno.",
+    description: "Se instalará al cerrar el turno.",
   },
 };
 
 export const Warning: Story = {
-  args: { tone: "warning", title: "Sincronización pendiente", detail: "Se reintentará en breve." },
+  args: {
+    tone: "warning",
+    title: "Sincronización pendiente",
+    description: "Se reintentará en breve.",
+  },
 };
 
 export const ErrorTone: Story = {
-  args: { tone: "error", title: "El pago falló", detail: "Probá de nuevo." },
+  args: { tone: "error", title: "El pago falló", description: "Probá de nuevo." },
 };
 
 export const WithWhatToDo: Story = {

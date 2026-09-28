@@ -618,7 +618,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
             tone="error"
             icon={<TriangleAlert />}
             title="No pudimos abrir la sucursal"
-            detail="Probá de nuevo en unos minutos."
+            description="Probá de nuevo en unos minutos."
           />
           <Button variant="secondary" onPress={() => void load()}>
             Reintentar
@@ -630,7 +630,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           tone="error"
           icon={<TriangleAlert />}
           title="No se pudo guardar la sucursal"
-          detail="Probá de nuevo."
+          description="Probá de nuevo."
         />
       )}
       {notice?.kind === "staleVersion" && (
@@ -638,7 +638,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           tone="error"
           icon={<TriangleAlert />}
           title="La sucursal cambió mientras la editabas"
-          detail="Recargá sus datos y volvé a hacer el cambio."
+          description="Recargá sus datos y volvé a hacer el cambio."
         />
       )}
       {notice?.kind === "reloadFailed" && (
@@ -646,7 +646,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           tone="error"
           icon={<TriangleAlert />}
           title="No se pudieron recargar los datos"
-          detail="Probá de nuevo."
+          description="Probá de nuevo."
         />
       )}
       {offersReload ? (

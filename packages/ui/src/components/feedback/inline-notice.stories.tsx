@@ -18,20 +18,20 @@ export const Info: Story = {
   args: {
     tone: "info",
     title: "Borrador guardado",
-    detail: "Todavía no hay nada para sincronizar.",
+    description: "Todavía no hay nada para sincronizar.",
   },
 };
 
 export const Success: Story = {
-  args: { tone: "success", title: "Cambios guardados", detail: "Todo quedó sincronizado." },
+  args: { tone: "success", title: "Cambios guardados", description: "Todo quedó sincronizado." },
 };
 
 export const Warning: Story = {
-  args: { tone: "warning", title: "Atención", detail: "Revisá los totales antes de cerrar." },
+  args: { tone: "warning", title: "Atención", description: "Revisá los totales antes de cerrar." },
 };
 
 export const ErrorTone: Story = {
-  args: { tone: "error", title: "No se pudo guardar", detail: "Probá de nuevo." },
+  args: { tone: "error", title: "No se pudo guardar", description: "Probá de nuevo." },
 };
 
 export const TitleOnly: Story = {
@@ -39,5 +39,5 @@ export const TitleOnly: Story = {
 };
 
 export const DetailOnly: Story = {
-  args: { tone: "info", detail: "Todavía no hay nada para sincronizar." },
+  args: { tone: "info", description: "Todavía no hay nada para sincronizar." },
 };

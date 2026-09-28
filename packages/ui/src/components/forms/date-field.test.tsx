@@ -40,7 +40,7 @@ beforeEach(async () => {
 type NoRangeHarnessProps = {
   variant: FieldSize;
   label: string;
-  helperText?: string;
+  description?: string;
   disabled?: boolean;
 };
 
@@ -97,7 +97,7 @@ test("shows the helper line under the register field when supplied", async () =>
     <DateFieldHarness
       variant="register"
       label="Expiry"
-      helperText="A different expiry for the same product is entered as a separate line."
+      description="A different expiry for the same product is entered as a separate line."
     />,
   );
 
@@ -179,7 +179,7 @@ test("marks the helper line as disabled too when the field itself is disabled", 
     <DateFieldHarness
       variant="register"
       label="Expiry"
-      helperText="A different expiry for the same product is entered as a separate line."
+      description="A different expiry for the same product is entered as a separate line."
       disabled
     />,
   );
@@ -927,7 +927,7 @@ function BoundedHarness({ value }: { value: CalendarDate }) {
       minValue={RANGE_MIN}
       maxValue={RANGE_MAX}
       rangeMessage={RANGE_MESSAGE}
-      helperText={RANGE_HELPER}
+      description={RANGE_HELPER}
     />
   );
 }
@@ -1132,7 +1132,7 @@ for (const variant of ["register", "backoffice"] as const) {
         label="Start"
         value={null}
         onChange={() => {}}
-        helperText="Should not be visible."
+        description="Should not be visible."
         invalid
         errorMessage="Choose a start date."
       />
@@ -1208,4 +1208,8 @@ test("does not accept an invalid field without the message it shows", () => {
     errorMessage: string;
     required: true;
   }>().toExtend<DateFieldProps>();
+});
+
+test("does not name its secondary text helperText", () => {
+  expectTypeOf<DateFieldProps>().not.toHaveProperty("helperText");
 });

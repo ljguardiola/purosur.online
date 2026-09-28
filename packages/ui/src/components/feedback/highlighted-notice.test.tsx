@@ -16,9 +16,14 @@ const tones: Record<NoticeTone, ToneTokens> = {
   error: { background: "error-subtle", text: "error-strong" },
 };
 
-test("renders the caller's title, detail and icon", async () => {
+test("renders the caller's title, description and icon", async () => {
   const screen = await render(
-    <HighlightedNotice tone="error" icon={<Info />} title="Sale blocked" detail="Card declined" />,
+    <HighlightedNotice
+      tone="error"
+      icon={<Info />}
+      title="Sale blocked"
+      description="Card declined"
+    />,
   );
 
   // The paragraph is aria-hidden, so a role query wouldn't find it; read it directly instead.
@@ -31,11 +36,11 @@ test("does not accept a highlighted notice without a title", () => {
   expectTypeOf<{
     tone: "error";
     icon: Icon;
-    detail: string;
+    description: string;
   }>().not.toExtend<HighlightedNoticeProps>();
 });
 
-test("does not accept a highlighted notice without a detail", () => {
+test("does not accept a highlighted notice without a description", () => {
   expectTypeOf<{
     tone: "error";
     icon: Icon;
@@ -45,7 +50,12 @@ test("does not accept a highlighted notice without a detail", () => {
 
 test("exposes the notice's text to assistive technology exactly once", async () => {
   const screen = await render(
-    <HighlightedNotice tone="error" icon={<Info />} title="Sale blocked" detail="Card declined" />,
+    <HighlightedNotice
+      tone="error"
+      icon={<Info />}
+      title="Sale blocked"
+      description="Card declined"
+    />,
   );
 
   // aria-hidden removes an element from the accessibility tree that getByRole walks.
@@ -62,7 +72,7 @@ test("renders every tone's background, text and icon colors", async () => {
         tone={tone}
         icon={<Info />}
         title={`Title ${tone}`}
-        detail={`Detail ${tone}`}
+        description={`Detail ${tone}`}
       />,
     );
     const container = screen.container.firstElementChild as HTMLElement;
@@ -71,7 +81,7 @@ test("renders every tone's background, text and icon colors", async () => {
       .getByText(`Title ${tone}`, { exact: true })
       .first()
       .element() as HTMLElement;
-    const detail = screen
+    const description = screen
       .getByText(`Detail ${tone}`, { exact: true })
       .first()
       .element() as HTMLElement;
@@ -81,7 +91,9 @@ test("renders every tone's background, text and icon colors", async () => {
     );
     expect(getComputedStyle(icon).color, `${tone} icon`).toBe(tokenRgb(expected.text));
     expect(getComputedStyle(title).color, `${tone} title`).toBe(tokenRgb(expected.text));
-    expect(getComputedStyle(detail).color, `${tone} detail`).toBe(tokenRgb(expected.text));
+    expect(getComputedStyle(description).color, `${tone} description`).toBe(
+      tokenRgb(expected.text),
+    );
   }
 });
 
@@ -92,7 +104,7 @@ test("keeps every tone's text readable against its own background", async () => 
         tone={tone}
         icon={<Info />}
         title={`Title ${tone}`}
-        detail={`Detail ${tone}`}
+        description={`Detail ${tone}`}
       />,
     );
     const container = screen.container.firstElementChild as HTMLElement;
@@ -105,7 +117,7 @@ test("keeps every tone's text readable against its own background", async () => 
 
 test("renders 16px padding on every side, a 20px icon and a 12px icon-to-text gap", async () => {
   const screen = await render(
-    <HighlightedNotice tone="warning" icon={<Info />} title="Title" detail="Detail" />,
+    <HighlightedNotice tone="warning" icon={<Info />} title="Title" description="Detail" />,
   );
   const container = screen.container.firstElementChild as HTMLElement;
   const style = getComputedStyle(container);
@@ -130,29 +142,34 @@ test("renders 16px padding on every side, a 20px icon and a 12px icon-to-text ga
   expect(textRect.left - iconRect.right).toBeLessThan(13);
 });
 
-test("stacks an 18px bold title and a 14px detail 4px apart", async () => {
+test("stacks an 18px bold title and a 14px description 4px apart", async () => {
   const screen = await render(
-    <HighlightedNotice tone="warning" icon={<Info />} title="Title" detail="Detail" />,
+    <HighlightedNotice tone="warning" icon={<Info />} title="Title" description="Detail" />,
   );
   const title = screen.getByText("Title", { exact: true }).first().element() as HTMLElement;
-  const detail = screen.getByText("Detail", { exact: true }).first().element() as HTMLElement;
+  const description = screen.getByText("Detail", { exact: true }).first().element() as HTMLElement;
   const titleStyle = getComputedStyle(title);
-  const detailStyle = getComputedStyle(detail);
+  const descriptionStyle = getComputedStyle(description);
 
   expect(titleStyle.fontSize).toBe("18px");
   expect(titleStyle.fontWeight).toBe("700");
-  expect(detailStyle.fontSize).toBe("14px");
+  expect(descriptionStyle.fontSize).toBe("14px");
 
   const titleRect = title.getBoundingClientRect();
-  const detailRect = detail.getBoundingClientRect();
-  const gap = detailRect.top - titleRect.bottom;
+  const descriptionRect = description.getBoundingClientRect();
+  const gap = descriptionRect.top - titleRect.bottom;
   expect(gap).toBeGreaterThan(3);
   expect(gap).toBeLessThan(5);
 });
 
 test("announces an error notice right away, interrupting current speech", async () => {
   const screen = await render(
-    <HighlightedNotice tone="error" icon={<Info />} title="Sale blocked" detail="Card declined" />,
+    <HighlightedNotice
+      tone="error"
+      icon={<Info />}
+      title="Sale blocked"
+      description="Card declined"
+    />,
   );
 
   const region = screen.container.querySelector('[role="alert"]') as HTMLElement;
@@ -165,7 +182,12 @@ test("announces an error notice right away, interrupting current speech", async 
 test("announces every other tone politely, after the current speech ends", async () => {
   for (const tone of ["warning", "info"] as const) {
     const screen = await render(
-      <HighlightedNotice tone={tone} icon={<Info />} title="Heads up" detail="Check the totals" />,
+      <HighlightedNotice
+        tone={tone}
+        icon={<Info />}
+        title="Heads up"
+        description="Check the totals"
+      />,
     );
 
     expect(screen.container.querySelector('[role="alert"]')).toBeNull();
@@ -175,4 +197,8 @@ test("announces every other tone politely, after the current speech ends", async
     await expect.poll(() => region.textContent).toContain("Heads up");
     await expect.poll(() => region.textContent).toContain("Check the totals");
   }
+});
+
+test("does not name its secondary text detail", () => {
+  expectTypeOf<HighlightedNoticeProps>().not.toHaveProperty("detail");
 });

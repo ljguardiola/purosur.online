@@ -204,7 +204,7 @@ export function AlertsListScreen({
       key: "alert",
       title: "Alerta",
       render: (item: AlertSummary) => (
-        <TableCellText detail={listKindDescription(item.kind)}>
+        <TableCellText description={listKindDescription(item.kind)}>
           {listKindLabel(item.kind)}
         </TableCellText>
       ),
@@ -261,7 +261,7 @@ export function AlertsListScreen({
               tone="error"
               icon={<TriangleAlert />}
               title="No pudimos abrir las alertas"
-              detail="Probá de nuevo en unos minutos."
+              description="Probá de nuevo en unos minutos."
             />
             <Button variant="secondary" onPress={() => void load()}>
               Reintentar
@@ -274,7 +274,7 @@ export function AlertsListScreen({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(list.retryAfterSeconds)}
+              description={retryAfterDetail(list.retryAfterSeconds)}
             />
             <Button variant="secondary" onPress={() => void load()}>
               Reintentar
@@ -322,13 +322,13 @@ export function AlertsListScreen({
                   ? {
                       icon: <Search />,
                       title: "No encontramos alertas",
-                      detail: "Probá cambiar la búsqueda o los filtros.",
+                      description: "Probá cambiar la búsqueda o los filtros.",
                       tone: "filtered",
                     }
                   : {
                       icon: <Bell />,
                       title: "Sin alertas abiertas",
-                      detail: "Cuando algo necesite atención, aparece acá.",
+                      description: "Cuando algo necesite atención, aparece acá.",
                       tone: "blank",
                     }
               }

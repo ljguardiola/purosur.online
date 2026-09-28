@@ -34,7 +34,7 @@ type BaseFieldProps = {
   onUnitChange: (value: Unit) => void;
   options: readonly [QuantityUnitFieldOption<Unit>, ...QuantityUnitFieldOption<Unit>[]];
   unitLabel: string;
-  helperText?: string;
+  description?: string;
   disabled?: boolean;
 };
 
@@ -227,7 +227,7 @@ test("dims the whole field and blocks focus on both the quantity input and the u
 test("shows the error message instead of helper text, describing both the quantity input and the unit trigger", async () => {
   const screen = await render(
     <QuantityUnitField
-      {...baseProps({ helperText: "Should not be visible." })}
+      {...baseProps({ description: "Should not be visible." })}
       invalid
       errorMessage="Ingresá una cantidad válida."
     />,
@@ -244,7 +244,7 @@ test("shows the error message instead of helper text, describing both the quanti
 
 test("wires the helper text as both controls' description when the field is not invalid", async () => {
   const screen = await render(
-    <QuantityUnitField {...baseProps({ helperText: "Nunca afecta el precio ni el stock." })} />,
+    <QuantityUnitField {...baseProps({ description: "Nunca afecta el precio ni el stock." })} />,
   );
   const input = quantityInput(screen);
   const trigger = unitTrigger(screen).element() as HTMLElement;
@@ -430,4 +430,8 @@ test("accepts an invalid field whose message is shared through errorMessageId", 
     invalid: true;
     errorMessageId: string;
   }>().toExtend<QuantityUnitFieldProps<Unit>>();
+});
+
+test("does not name its secondary text helperText", () => {
+  expectTypeOf<QuantityUnitFieldProps<string>>().not.toHaveProperty("helperText");
 });

@@ -113,9 +113,9 @@ const PRODUCT_CATEGORY_NOT_LEAF_ERROR = (params: { category: string }) =>
   `"${params.category}" tiene subcategorías. Elegí una de ellas.`;
 const PRODUCT_NAME_REQUIRED = "Ingresá el nombre del producto.";
 const SALE_UNIT_OPTION_CONTENT = {
-  UNIT: { title: "Por unidad", helpText: "Se vende de a uno" },
-  KG: { title: "Por peso", helpText: "Se pesa en la balanza" },
-} satisfies Record<ProductSaleUnit, { title: string; helpText: string }>;
+  UNIT: { title: "Por unidad", description: "Se vende de a uno" },
+  KG: { title: "Por peso", description: "Se pesa en la balanza" },
+} satisfies Record<ProductSaleUnit, { title: string; description: string }>;
 const PRODUCT_BARCODE_REQUIRED = "Escaneá al menos un código de barras.";
 const PRODUCT_BARCODE_ALREADY_LISTED = "Ese código ya está en la lista.";
 const PRODUCT_BARCODE_HAS_SPACES = "El código de barras no puede tener espacios.";
@@ -149,13 +149,13 @@ const NET_CONTENT_UNIT_OPTION_LABELS = {
 } satisfies Record<NetContentUnit, string>;
 
 const PRODUCTS_EMPTY_STATE = {
-  active: { title: "No hay productos activos", detail: "Creá uno para verlo en la lista." },
+  active: { title: "No hay productos activos", description: "Creá uno para verlo en la lista." },
   inactive: { title: "No hay productos inactivos" },
   all: {
     title: "Todavía no hay productos",
-    detail: "Creá el primero para verlo en la lista.",
+    description: "Creá el primero para verlo en la lista.",
   },
-} satisfies Record<ProductStatusFilter, { title: string; detail?: string }>;
+} satisfies Record<ProductStatusFilter, { title: string; description?: string }>;
 
 function productsCountText(params: { count: number; status: ProductStatusFilter }): string {
   if (params.status === "active") {
@@ -776,7 +776,7 @@ function NewProductModal({
             tone="error"
             icon={<TriangleAlert />}
             title="No se pudo crear el producto"
-            detail="Probá de nuevo."
+            description="Probá de nuevo."
           />
         )}
         {notice?.kind === "rateLimited" && (
@@ -784,7 +784,7 @@ function NewProductModal({
             tone="error"
             icon={<ShieldX />}
             title="Demasiadas solicitudes"
-            detail={retryAfterDetail(notice.retryAfterSeconds)}
+            description={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
         <TextField
@@ -845,13 +845,13 @@ function NewProductModal({
                 value: "UNIT",
                 icon: <Package />,
                 title: SALE_UNIT_OPTION_CONTENT.UNIT.title,
-                helpText: SALE_UNIT_OPTION_CONTENT.UNIT.helpText,
+                description: SALE_UNIT_OPTION_CONTENT.UNIT.description,
               },
               {
                 value: "KG",
                 icon: <Scale />,
                 title: SALE_UNIT_OPTION_CONTENT.KG.title,
-                helpText: SALE_UNIT_OPTION_CONTENT.KG.helpText,
+                description: SALE_UNIT_OPTION_CONTENT.KG.description,
               },
             ]}
             value={saleUnit}
@@ -1164,7 +1164,7 @@ function EditProductModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo guardar el cambio"
-              detail="Probá de nuevo."
+              description="Probá de nuevo."
             />
           )}
           {notice?.kind === "rateLimited" && (
@@ -1172,7 +1172,7 @@ function EditProductModal({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(notice.retryAfterSeconds)}
+              description={retryAfterDetail(notice.retryAfterSeconds)}
             />
           )}
           {notice?.kind === "staleVersion" && (
@@ -1180,7 +1180,7 @@ function EditProductModal({
               tone="error"
               icon={<RotateCcw />}
               title="Otra persona cambió este producto"
-              detail="Mientras lo editabas se guardó otra versión. Tus cambios no se guardaron: recargá el producto para verla y volvé a hacerlos."
+              description="Mientras lo editabas se guardó otra versión. Tus cambios no se guardaron: recargá el producto para verla y volvé a hacerlos."
             />
           )}
           {notice?.kind === "notFound" && (
@@ -1195,7 +1195,7 @@ function EditProductModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudieron recargar los datos"
-              detail="Probá de nuevo."
+              description="Probá de nuevo."
             />
           )}
           <TextField
@@ -1255,13 +1255,13 @@ function EditProductModal({
                   value: "UNIT",
                   icon: <Package />,
                   title: SALE_UNIT_OPTION_CONTENT.UNIT.title,
-                  helpText: SALE_UNIT_OPTION_CONTENT.UNIT.helpText,
+                  description: SALE_UNIT_OPTION_CONTENT.UNIT.description,
                 },
                 {
                   value: "KG",
                   icon: <Scale />,
                   title: SALE_UNIT_OPTION_CONTENT.KG.title,
-                  helpText: SALE_UNIT_OPTION_CONTENT.KG.helpText,
+                  description: SALE_UNIT_OPTION_CONTENT.KG.description,
                 },
               ]}
               value={saleUnit}
@@ -1425,7 +1425,7 @@ function DeactivateProductModal({
             tone="error"
             icon={<TriangleAlert />}
             title="No se pudo desactivar el producto"
-            detail="Probá de nuevo."
+            description="Probá de nuevo."
           />
         )}
         {notice?.kind === "alreadyInactive" && (
@@ -1436,7 +1436,7 @@ function DeactivateProductModal({
             tone="error"
             icon={<ShieldX />}
             title="Demasiadas solicitudes"
-            detail={retryAfterDetail(notice.retryAfterSeconds)}
+            description={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
       </div>
@@ -1692,7 +1692,7 @@ function PrintLabelsModal({
             tone="error"
             icon={<TriangleAlert />}
             title="No se pudo generar la hoja"
-            detail="Probá de nuevo."
+            description="Probá de nuevo."
           />
         )}
         {notice?.kind === "rateLimited" && (
@@ -1700,7 +1700,7 @@ function PrintLabelsModal({
             tone="error"
             icon={<ShieldX />}
             title="Demasiadas solicitudes"
-            detail={retryAfterDetail(notice.retryAfterSeconds)}
+            description={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
         {notice?.kind === "productsChanged" && (
@@ -1708,7 +1708,7 @@ function PrintLabelsModal({
             tone="error"
             icon={<TriangleAlert />}
             title="La lista de productos cambió"
-            detail="Recargá para ver los productos actualizados antes de imprimir."
+            description="Recargá para ver los productos actualizados antes de imprimir."
           />
         )}
         {notice?.kind === "reloadFailed" && (
@@ -1716,7 +1716,7 @@ function PrintLabelsModal({
             tone="error"
             icon={<TriangleAlert />}
             title="No se pudo recargar la lista"
-            detail="Probá de nuevo."
+            description="Probá de nuevo."
           />
         )}
         {offersReload ? (
@@ -2038,7 +2038,7 @@ export function ProductsListScreen({
               tone="error"
               icon={<TriangleAlert />}
               title="No pudimos abrir los productos"
-              detail="Probá de nuevo en unos minutos."
+              description="Probá de nuevo en unos minutos."
             />
             <Button variant="secondary" onPress={() => void load()}>
               Reintentar
@@ -2051,7 +2051,7 @@ export function ProductsListScreen({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(list.retryAfterSeconds)}
+              description={retryAfterDetail(list.retryAfterSeconds)}
             />
             <Button variant="secondary" onPress={() => void load()}>
               Reintentar
@@ -2106,7 +2106,7 @@ export function ProductsListScreen({
                   : {
                       icon: <SearchX />,
                       title: "Sin resultados",
-                      detail: "Probá con otro nombre o código de barras.",
+                      description: "Probá con otro nombre o código de barras.",
                       tone: "filtered",
                     }
               }

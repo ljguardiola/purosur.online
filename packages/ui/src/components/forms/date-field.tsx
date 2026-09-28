@@ -45,7 +45,7 @@ type DateFieldCommonProps = {
   label: string;
   value: CalendarDate | null;
   onChange: (value: CalendarDate | null) => void;
-  helperText?: string;
+  description?: string;
   disabled?: boolean;
   required?: boolean;
 };
@@ -122,7 +122,7 @@ function CalendarToggleButton() {
 }
 
 export function DateField(props: DateFieldProps) {
-  const { label, value, onChange, helperText, disabled = false, required = false } = props;
+  const { label, value, onChange, description, disabled = false, required = false } = props;
   const size = useFieldSize();
   const errorMessage = props.invalid ? props.errorMessage : undefined;
   // react-aria-components' Dialog defaults to the field's own label for its aria-labelledby;
@@ -190,13 +190,13 @@ export function DateField(props: DateFieldProps) {
             {shownError}
           </AriaText>
         ) : (
-          helperText !== undefined && (
+          description !== undefined && (
             <AriaText
               slot="description"
               className={fieldHelperClassName}
               {...disabledTextProps(disabled)}
             >
-              {helperText}
+              {description}
             </AriaText>
           )
         )}

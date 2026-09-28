@@ -203,7 +203,7 @@ function NewRegisterModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo crear la caja"
-              detail="Probá de nuevo."
+              description="Probá de nuevo."
             />
           )}
           {notice?.kind === "rateLimited" && (
@@ -211,7 +211,7 @@ function NewRegisterModal({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(notice.retryAfterSeconds)}
+              description={retryAfterDetail(notice.retryAfterSeconds)}
             />
           )}
           <TextField
@@ -293,7 +293,7 @@ function EnrollmentCodeModal({ emission, onClose, onDone, onRetry }: EnrollmentC
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo emitir el código"
-              detail="Probá de nuevo."
+              description="Probá de nuevo."
             />
             <Button
               variant="secondary"
@@ -310,7 +310,7 @@ function EnrollmentCodeModal({ emission, onClose, onDone, onRetry }: EnrollmentC
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(emission.retryAfterSeconds)}
+              description={retryAfterDetail(emission.retryAfterSeconds)}
             />
             <Button
               variant="secondary"
@@ -467,7 +467,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
       key: "register",
       title: "CAJA",
       render: (item: RegisterSummary) => (
-        <TableCellText detail="Sin instalación">{item.name}</TableCellText>
+        <TableCellText description="Sin instalación">{item.name}</TableCellText>
       ),
     },
     {
@@ -542,7 +542,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
               tone="error"
               icon={<TriangleAlert />}
               title="No pudimos abrir las cajas registradoras"
-              detail="Probá de nuevo en unos minutos."
+              description="Probá de nuevo en unos minutos."
             />
             <Button variant="secondary" onPress={() => void load()}>
               Reintentar
@@ -555,7 +555,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(list.retryAfterSeconds)}
+              description={retryAfterDetail(list.retryAfterSeconds)}
             />
             <Button variant="secondary" onPress={() => void load()}>
               Reintentar
@@ -573,7 +573,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
             empty={{
               icon: <Laptop />,
               title: "Todavía no hay cajas registradoras",
-              detail: "Creá la primera para verla en la lista.",
+              description: "Creá la primera para verla en la lista.",
               tone: "blank",
             }}
             footer={

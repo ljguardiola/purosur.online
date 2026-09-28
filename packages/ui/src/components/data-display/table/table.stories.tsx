@@ -297,7 +297,7 @@ export const EmptyBlank: Story = {
       empty={{
         icon: <Package />,
         title: "Todavía no hay productos",
-        detail: "Los productos que cargues van a aparecer acá.",
+        description: "Los productos que cargues van a aparecer acá.",
         tone: "blank",
         actions: <Button>Cargar producto</Button>,
       }}
@@ -316,7 +316,7 @@ export const EmptyFiltered: Story = {
       empty={{
         icon: <SearchX />,
         title: "Sin resultados",
-        detail: "Probá con otro término de búsqueda.",
+        description: "Probá con otro término de búsqueda.",
         tone: "filtered",
       }}
     />

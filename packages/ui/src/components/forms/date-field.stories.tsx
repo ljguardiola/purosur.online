@@ -207,6 +207,6 @@ export const OutOfRange: Story = {
 export const HelperText: Story = {
   args: {
     value: null,
-    helperText: "Un vencimiento distinto para el mismo producto se carga como otra línea.",
+    description: "Un vencimiento distinto para el mismo producto se carga como otra línea.",
   },
 };

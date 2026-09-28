@@ -92,5 +92,5 @@ export const Disabled: Story = {
 };
 
 export const HelperText: Story = {
-  args: { value: "shift-lead", helperText: "Define qué puede hacer esta persona." },
+  args: { value: "shift-lead", description: "Define qué puede hacer esta persona." },
 };

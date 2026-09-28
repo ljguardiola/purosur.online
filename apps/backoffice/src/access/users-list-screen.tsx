@@ -263,7 +263,7 @@ function NewUserModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo crear el usuario"
-              detail="Probá de nuevo."
+              description="Probá de nuevo."
             />
           )}
           {notice?.kind === "unknownRole" && (
@@ -271,7 +271,7 @@ function NewUserModal({
               tone="error"
               icon={<TriangleAlert />}
               title="Ese rol ya no está disponible"
-              detail="Cerrá esta ventana y volvé a intentarlo."
+              description="Cerrá esta ventana y volvé a intentarlo."
             />
           )}
           {notice?.kind === "rateLimited" && (
@@ -279,7 +279,7 @@ function NewUserModal({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(notice.retryAfterSeconds)}
+              description={retryAfterDetail(notice.retryAfterSeconds)}
             />
           )}
           <TextField
@@ -441,7 +441,7 @@ export function UsersListScreen({
       key: "user",
       title: "Usuario",
       render: (item: BranchUser) => (
-        <TableCellText detail={item.email}>{item.firstName}</TableCellText>
+        <TableCellText description={item.email}>{item.firstName}</TableCellText>
       ),
     },
     {
@@ -514,7 +514,7 @@ export function UsersListScreen({
               tone="error"
               icon={<TriangleAlert />}
               title="No pudimos abrir los usuarios"
-              detail="Probá de nuevo en unos minutos."
+              description="Probá de nuevo en unos minutos."
             />
             <Button variant="secondary" onPress={() => void load()}>
               Reintentar
@@ -527,7 +527,7 @@ export function UsersListScreen({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(list.retryAfterSeconds)}
+              description={retryAfterDetail(list.retryAfterSeconds)}
             />
             <Button variant="secondary" onPress={() => void load()}>
               Reintentar

@@ -53,7 +53,7 @@ export function AccountRecoveryScreen({ services }: AccountRecoveryScreenProps) 
           tone="info"
           icon={<MailCheck />}
           title="Si el correo es de una cuenta, te enviamos el enlace"
-          detail="Vale 15 minutos y se usa una sola vez. Si no aparece, mirá en correo no deseado."
+          description="Vale 15 minutos y se usa una sola vez. Si no aparece, mirá en correo no deseado."
         />
         <AccessFooterLink to="/sign-in" icon={<ArrowLeft />} label="Volver a ingresar" />
       </AccessLayout>
@@ -72,7 +72,7 @@ export function AccountRecoveryScreen({ services }: AccountRecoveryScreenProps) 
           tone="error"
           icon={<ShieldX />}
           title="Demasiados pedidos de recuperación"
-          detail={retryAfterDetail(notice.retryAfterSeconds)}
+          description={retryAfterDetail(notice.retryAfterSeconds)}
         />
       )}
       {notice?.kind === "error" && (
@@ -80,7 +80,7 @@ export function AccountRecoveryScreen({ services }: AccountRecoveryScreenProps) 
           tone="error"
           icon={<TriangleAlert />}
           title="No pudimos enviar el enlace"
-          detail="Probá de nuevo en unos minutos."
+          description="Probá de nuevo en unos minutos."
         />
       )}
       <form className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>

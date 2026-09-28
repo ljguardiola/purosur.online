@@ -456,7 +456,7 @@ export function RoleEditorModal({
                   tone="error"
                   icon={<TriangleAlert />}
                   title="No se pudo guardar el rol"
-                  detail="Probá de nuevo."
+                  description="Probá de nuevo."
                 />
               )}
               {notice?.kind === "rateLimited" && (
@@ -464,7 +464,7 @@ export function RoleEditorModal({
                   tone="error"
                   icon={<ShieldX />}
                   title="Demasiadas solicitudes"
-                  detail={retryAfterDetail(notice.retryAfterSeconds)}
+                  description={retryAfterDetail(notice.retryAfterSeconds)}
                 />
               )}
               {notice?.kind === "staleVersion" && (
@@ -472,7 +472,7 @@ export function RoleEditorModal({
                   tone="error"
                   icon={<TriangleAlert />}
                   title="Este rol cambió mientras lo editabas"
-                  detail="Recargá sus datos y volvé a hacer el cambio."
+                  description="Recargá sus datos y volvé a hacer el cambio."
                 />
               )}
               {notice?.kind === "reloadFailed" && (
@@ -480,7 +480,7 @@ export function RoleEditorModal({
                   tone="error"
                   icon={<TriangleAlert />}
                   title="No se pudieron recargar los datos"
-                  detail="Probá de nuevo."
+                  description="Probá de nuevo."
                 />
               )}
               {offersReload ? (
@@ -503,7 +503,7 @@ export function RoleEditorModal({
                     tone="error"
                     icon={<TriangleAlert />}
                     title="No pudimos abrir este rol"
-                    detail="Probá de nuevo en unos minutos."
+                    description="Probá de nuevo en unos minutos."
                   />
                   <Button
                     variant="secondary"
@@ -519,7 +519,7 @@ export function RoleEditorModal({
                     tone="error"
                     icon={<ShieldX />}
                     title="Demasiadas solicitudes"
-                    detail={retryAfterDetail(loadState.retryAfterSeconds)}
+                    description={retryAfterDetail(loadState.retryAfterSeconds)}
                   />
                   <Button
                     variant="secondary"

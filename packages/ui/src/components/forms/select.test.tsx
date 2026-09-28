@@ -131,7 +131,7 @@ test("marks a required select with an asterisk that folds into the trigger's own
 test("shows the error message instead of the helper text and announces the select as invalid", async () => {
   const screen = await render(
     <Select
-      {...baseProps({ helperText: "Should not be visible." })}
+      {...baseProps({ description: "Should not be visible." })}
       invalid
       errorMessage="Elegí un rol."
     />,
@@ -388,4 +388,8 @@ test("shows the error message and closes-with-choice still works when the value 
   expect(onChange).toHaveBeenCalledWith("cashier");
 
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test("does not name its secondary text helperText", () => {
+  expectTypeOf<SelectProps<string>>().not.toHaveProperty("helperText");
 });

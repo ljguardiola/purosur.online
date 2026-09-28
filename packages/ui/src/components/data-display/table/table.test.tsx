@@ -426,7 +426,7 @@ test("grows a row to 64px when a cell renders a detail line under its main text"
     {
       key: "name",
       title: "Producto",
-      render: (p: Product) => <TableCellText detail={p.sku}>{p.name}</TableCellText>,
+      render: (p: Product) => <TableCellText description={p.sku}>{p.name}</TableCellText>,
     },
   ] as const;
   const screen = await render(
@@ -473,7 +473,7 @@ test("renders a cell's detail line at 14px in secondary text, even in a muted ro
     {
       key: "name",
       title: "Producto",
-      render: (p: Product) => <TableCellText detail={p.sku}>{p.name}</TableCellText>,
+      render: (p: Product) => <TableCellText description={p.sku}>{p.name}</TableCellText>,
     },
   ] as const;
   const screen = await render(
@@ -2011,7 +2011,7 @@ test("renders the empty state in place of the header and rows, in blue strong wh
       empty={{
         icon: <PackageSearch />,
         title: "No products yet",
-        detail: "Add your first product to see it here.",
+        description: "Add your first product to see it here.",
         tone: "blank",
       }}
     />,
@@ -2035,7 +2035,7 @@ test("renders the empty state in secondary text when nothing matches the filters
       empty={{
         icon: <PackageSearch />,
         title: "No matches",
-        detail: "Try a different filter.",
+        description: "Try a different filter.",
         tone: "filtered",
         actions: <button type="button">Clear filters</button>,
       }}
@@ -2070,7 +2070,7 @@ test("renders the real rows, not the empty state, when both rows and an empty pr
       empty={{
         icon: <PackageSearch />,
         title: "No products yet",
-        detail: "Add your first product to see it here.",
+        description: "Add your first product to see it here.",
         tone: "blank",
       }}
     />,
@@ -2106,7 +2106,7 @@ test("drops focus to document.body, cleanly, when a focused header disappears in
       empty={{
         icon: <PackageSearch />,
         title: "No matches",
-        detail: "Try a different filter.",
+        description: "Try a different filter.",
         tone: "filtered",
       }}
     />,
@@ -2126,7 +2126,7 @@ test("shows placeholders instead of the empty state while loading is initial, ev
       empty={{
         icon: <PackageSearch />,
         title: "No products yet",
-        detail: "Add your first product to see it here.",
+        description: "Add your first product to see it here.",
         tone: "blank",
       }}
     />,
@@ -2146,7 +2146,7 @@ test("keeps showing the current (empty) rows under the loading bar while updatin
       empty={{
         icon: <PackageSearch />,
         title: "No products yet",
-        detail: "Add your first product to see it here.",
+        description: "Add your first product to see it here.",
         tone: "blank",
       }}
     />,
@@ -2211,7 +2211,7 @@ test("keeps showing the footer alongside the empty state", async () => {
       empty={{
         icon: <PackageSearch />,
         title: "No matches",
-        detail: "Try a different filter.",
+        description: "Try a different filter.",
         tone: "filtered",
       }}
     />,

@@ -7,7 +7,7 @@ export type NotificationCardProps = {
   tone: NoticeTone;
   icon: Icon;
   title: string;
-  detail: string;
+  description: string;
   whatToDo?: string;
   time?: string;
   floating?: boolean;
@@ -17,7 +17,7 @@ export function NotificationCard({
   tone,
   icon,
   title,
-  detail,
+  description,
   whatToDo,
   time,
   floating = false,
@@ -42,10 +42,10 @@ export function NotificationCard({
           <span className={iconSlotClassName.md}>{icon}</span>
         </span>
       }
-      announcement={[title, detail, whatToDo, time]}
+      announcement={[title, description, whatToDo, time]}
     >
       <p className="text-body font-bold text-text">{title}</p>
-      <p className="text-detail text-text-subtle">{detail}</p>
+      <p className="text-detail text-text-subtle">{description}</p>
       {whatToDo ? <p className="text-detail font-semibold text-text">{whatToDo}</p> : null}
       {time ? <p className="text-caption text-text-subtle">{time}</p> : null}
     </NoticeFrame>

@@ -145,7 +145,7 @@ type ModalNotice =
 type ScreenNotice = {
   tone: "success" | "error";
   title: string;
-  detail: string;
+  description: string;
   retryAfterSeconds?: number;
 };
 
@@ -443,7 +443,7 @@ function PriceChangeModal({
               tone="success"
               icon={<Check />}
               title={previousNotice.title}
-              detail={previousNotice.detail}
+              description={previousNotice.description}
             />
           )}
           {previousNotice?.tone === "error" && (
@@ -451,7 +451,7 @@ function PriceChangeModal({
               tone="error"
               icon={<TriangleAlert />}
               title={previousNotice.title}
-              detail={previousNotice.detail}
+              description={previousNotice.description}
             />
           )}
           {notice?.kind === "attemptFailed" && (
@@ -459,7 +459,7 @@ function PriceChangeModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo guardar el precio"
-              detail="Probá de nuevo."
+              description="Probá de nuevo."
             />
           )}
           {notice?.kind === "confirmFailed" && (
@@ -467,7 +467,7 @@ function PriceChangeModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo confirmar el precio"
-              detail="Probá de nuevo."
+              description="Probá de nuevo."
             />
           )}
           {notice?.kind === "rateLimited" && (
@@ -475,7 +475,7 @@ function PriceChangeModal({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(notice.retryAfterSeconds)}
+              description={retryAfterDetail(notice.retryAfterSeconds)}
             />
           )}
           {notice?.kind === "stale" && (
@@ -483,7 +483,7 @@ function PriceChangeModal({
               tone="error"
               icon={<TriangleAlert />}
               title="Este precio cambió mientras lo mirabas"
-              detail="Recargá el precio actual y volvé a intentarlo."
+              description="Recargá el precio actual y volvé a intentarlo."
             />
           )}
           {notice?.kind === "noPriceToConfirm" && (
@@ -501,7 +501,7 @@ function PriceChangeModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudieron recargar los datos"
-              detail="Probá de nuevo."
+              description="Probá de nuevo."
             />
           )}
           {offersReload ? (
@@ -528,7 +528,7 @@ function PriceChangeModal({
             required
             {...(current.currentPrice
               ? {
-                  helperText: `Precio actual: ${formatCentsWithUnit(current.currentPrice.unitPrice, current.saleUnit)}`,
+                  description: `Precio actual: ${formatCentsWithUnit(current.currentPrice.unitPrice, current.saleUnit)}`,
                 }
               : {})}
             {...(amountError ? { invalid: true, errorMessage: amountError } : {})}
@@ -693,14 +693,14 @@ export function PricesListScreen({
   const reviewStartFailedNotice: ScreenNotice = {
     tone: "error",
     title: "No se pudo empezar la revisión",
-    detail: "Probá de nuevo.",
+    description: "Probá de nuevo.",
   };
 
   function rateLimitedNotice(retryAfterSeconds: number): ScreenNotice {
     return {
       tone: "error",
       title: "Demasiadas solicitudes",
-      detail: retryAfterDetail(retryAfterSeconds),
+      description: retryAfterDetail(retryAfterSeconds),
       retryAfterSeconds,
     };
   }
@@ -725,7 +725,7 @@ export function PricesListScreen({
           showScreenNotice({
             tone: "success",
             title: "No quedan precios por revisar",
-            detail: emptyPendingDetail({ days: outcome.value.reviewWindowDays }),
+            description: emptyPendingDetail({ days: outcome.value.reviewWindowDays }),
           });
         }
         return;
@@ -757,12 +757,12 @@ export function PricesListScreen({
       ? {
           tone: "success",
           title: "Precio confirmado",
-          detail: `${product.name} sigue a ${amount}.`,
+          description: `${product.name} sigue a ${amount}.`,
         }
       : {
           tone: "success",
           title: "Precio actualizado",
-          detail: `${product.name} pasa a ${amount}.`,
+          description: `${product.name} pasa a ${amount}.`,
         };
   }
 
@@ -770,7 +770,7 @@ export function PricesListScreen({
     return {
       tone: "error",
       title: "Producto desactivado",
-      detail: `${product.name} ya no está en el catálogo.`,
+      description: `${product.name} ya no está en el catálogo.`,
     };
   }
 
@@ -824,7 +824,7 @@ export function PricesListScreen({
     return {
       tone: "error",
       title: `No se pudo confirmar el precio de ${item.name}`,
-      detail: "Probá de nuevo.",
+      description: "Probá de nuevo.",
     };
   }
 
@@ -849,7 +849,7 @@ export function PricesListScreen({
       showScreenNotice({
         tone: "error",
         title: "El precio cambió recién",
-        detail: `Revisá el precio actual de ${item.name}.`,
+        description: `Revisá el precio actual de ${item.name}.`,
       });
       return;
     }
@@ -863,7 +863,7 @@ export function PricesListScreen({
       showScreenNotice({
         tone: "error",
         title: "No hay un precio para confirmar",
-        detail: `${item.name} todavía no tiene precio.`,
+        description: `${item.name} todavía no tiene precio.`,
       });
       return;
     }
@@ -959,7 +959,7 @@ export function PricesListScreen({
               tone="error"
               icon={<TriangleAlert />}
               title="No pudimos abrir los precios"
-              detail="Probá de nuevo en unos minutos."
+              description="Probá de nuevo en unos minutos."
             />
             <Button variant="secondary" onPress={handleRetry}>
               Reintentar
@@ -972,7 +972,7 @@ export function PricesListScreen({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(list.retryAfterSeconds)}
+              description={retryAfterDetail(list.retryAfterSeconds)}
             />
             <Button variant="secondary" onPress={handleRetry}>
               Reintentar
@@ -1023,13 +1023,13 @@ export function PricesListScreen({
                   ? {
                       icon: <BadgeCheck />,
                       title: "Precios al día",
-                      detail: emptyPendingDetail({ days: reviewWindowDays }),
+                      description: emptyPendingDetail({ days: reviewWindowDays }),
                       tone: "blank",
                     }
                   : {
                       icon: <Search />,
                       title: "Sin resultados",
-                      detail: "Probá con otro nombre o categoría.",
+                      description: "Probá con otro nombre o categoría.",
                       tone: "filtered",
                     }
               }
@@ -1069,7 +1069,7 @@ export function PricesListScreen({
             tone={notice.tone}
             icon={notice.tone === "success" ? <Check /> : <TriangleAlert />}
             title={notice.title}
-            detail={notice.detail}
+            description={notice.description}
             floating
           />
         </div>

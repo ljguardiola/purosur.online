@@ -71,7 +71,7 @@ export type TableEmptyStateTone = "blank" | "filtered";
 export type TableEmptyStateProps = {
   icon: Icon;
   title: string;
-  detail?: string;
+  description?: string;
   tone: TableEmptyStateTone;
   actions?: ReactNode;
 };

@@ -7,10 +7,10 @@ export type HighlightedNoticeProps = {
   tone: NoticeTone;
   icon: Icon;
   title: string;
-  detail: string;
+  description: string;
 };
 
-export function HighlightedNotice({ tone, icon, title, detail }: HighlightedNoticeProps) {
+export function HighlightedNotice({ tone, icon, title, description }: HighlightedNoticeProps) {
   const className = [
     "flex w-full items-start gap-3 rounded-lg p-4",
     toneClassName[tone].surface,
@@ -25,10 +25,10 @@ export function HighlightedNotice({ tone, icon, title, detail }: HighlightedNoti
           {icon}
         </span>
       }
-      announcement={[title, detail]}
+      announcement={[title, description]}
     >
       <p className="text-subheading">{title}</p>
-      <p className="text-detail leading-sm">{detail}</p>
+      <p className="text-detail leading-sm">{description}</p>
     </NoticeFrame>
   );
 }

@@ -88,7 +88,7 @@ function AuthorizationModal({
             tone="error"
             icon={<TriangleAlert />}
             title="No se pudo confirmar con tu passkey"
-            detail="Probá de nuevo."
+            description="Probá de nuevo."
           />
         )}
         {notice?.kind === "rateLimited" && (
@@ -96,7 +96,7 @@ function AuthorizationModal({
             tone="error"
             icon={<ShieldX />}
             title="Demasiadas solicitudes"
-            detail={retryAfterDetail(notice.retryAfterSeconds)}
+            description={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
       </div>

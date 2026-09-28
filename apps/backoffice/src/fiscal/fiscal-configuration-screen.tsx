@@ -365,7 +365,7 @@ function EditIssuerIdentificationModal({
                 tone="error"
                 icon={<TriangleAlert />}
                 title="No se pudo guardar el cambio"
-                detail="Probá de nuevo."
+                description="Probá de nuevo."
               />
             )}
             {notice?.kind === "staleVersion" && (
@@ -373,7 +373,7 @@ function EditIssuerIdentificationModal({
                 tone="error"
                 icon={<RotateCcw />}
                 title="La identificación del emisor cambió mientras la editabas"
-                detail="Recargá los datos y volvé a hacer el cambio."
+                description="Recargá los datos y volvé a hacer el cambio."
               />
             )}
             {notice?.kind === "reloadFailed" && (
@@ -381,7 +381,7 @@ function EditIssuerIdentificationModal({
                 tone="error"
                 icon={<TriangleAlert />}
                 title="No se pudieron recargar los datos"
-                detail="Probá de nuevo."
+                description="Probá de nuevo."
               />
             )}
             <div className="flex gap-8">
@@ -433,7 +433,7 @@ function EditIssuerIdentificationModal({
             <InlineNotice
               tone="info"
               icon={<Info />}
-              detail="Los comprobantes ya emitidos conservan los datos con los que se imprimieron."
+              description="Los comprobantes ya emitidos conservan los datos con los que se imprimieron."
             />
           </div>
         ) : null}
@@ -500,7 +500,7 @@ export function FiscalConfigurationScreen({
             tone="error"
             icon={<TriangleAlert />}
             title="No pudimos abrir la configuración fiscal"
-            detail="Probá de nuevo en unos minutos."
+            description="Probá de nuevo en unos minutos."
           />
           <Button variant="secondary" onPress={() => void load()}>
             Reintentar
@@ -525,7 +525,7 @@ export function FiscalConfigurationScreen({
               tone="error"
               icon={<CircleAlert />}
               title="Las cajas no están emitiendo facturas ni notas de crédito"
-              detail="Hasta que se carguen los datos que faltan. Las ventas se siguen cobrando."
+              description="Hasta que se carguen los datos que faltan. Las ventas se siguen cobrando."
             />
           ) : null}
           <div className="flex gap-8">

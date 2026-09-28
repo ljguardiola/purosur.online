@@ -42,7 +42,7 @@ type QuantityUnitFieldCommonProps<U extends string> = {
   // The unit picker's own accessible name: a separate control from the quantity input, so it
   // needs its own name rather than sharing the field's visible label.
   unitLabel: string;
-  helperText?: string;
+  description?: string;
   disabled?: boolean;
 };
 
@@ -100,7 +100,7 @@ export function QuantityUnitField<U extends string>(props: QuantityUnitFieldProp
     onUnitChange,
     options,
     unitLabel,
-    helperText,
+    description,
     disabled = false,
   } = props;
   const invalid = props.invalid ?? false;
@@ -116,7 +116,7 @@ export function QuantityUnitField<U extends string>(props: QuantityUnitFieldProp
   const ownMessageId = useId();
   const showOwnMessage =
     explicitMessageId === undefined &&
-    (errorMessage !== undefined || (!invalid && helperText !== undefined));
+    (errorMessage !== undefined || (!invalid && description !== undefined));
   const messageId = explicitMessageId ?? (showOwnMessage ? ownMessageId : undefined);
   const describedByProps = messageId !== undefined ? { "aria-describedby": messageId } : {};
 
@@ -191,9 +191,9 @@ export function QuantityUnitField<U extends string>(props: QuantityUnitFieldProp
           <p id={ownMessageId} className={fieldErrorClassName} {...disabledTextProps(disabled)}>
             {errorMessage}
           </p>
-        ) : helperText !== undefined ? (
+        ) : description !== undefined ? (
           <p id={ownMessageId} className={fieldHelperClassName} {...disabledTextProps(disabled)}>
-            {helperText}
+            {description}
           </p>
         ) : null
       ) : null}

@@ -24,13 +24,13 @@ const tones: Record<NoticeTone, ToneTokens> = {
   },
 };
 
-test("renders the caller's title, detail and icon", async () => {
+test("renders the caller's title, description and icon", async () => {
   const screen = await render(
     <NotificationCard
       tone="success"
       icon={<Info />}
       title="Sale completed"
-      detail="Receipt printed"
+      description="Receipt printed"
     />,
   );
 
@@ -43,11 +43,11 @@ test("does not accept a notification without a title", () => {
   expectTypeOf<{
     tone: "success";
     icon: Icon;
-    detail: string;
+    description: string;
   }>().not.toExtend<NotificationCardProps>();
 });
 
-test("does not accept a notification without a detail", () => {
+test("does not accept a notification without a description", () => {
   expectTypeOf<{
     tone: "success";
     icon: Icon;
@@ -61,7 +61,7 @@ test("exposes the notice's text to assistive technology exactly once", async () 
       tone="success"
       icon={<Info />}
       title="Sale completed"
-      detail="Receipt printed"
+      description="Receipt printed"
     />,
   );
 
@@ -79,7 +79,7 @@ test("renders every tone's border, circle and icon colors, in white with 8px rad
         tone={tone}
         icon={<Info />}
         title={`Title ${tone}`}
-        detail={`Detail ${tone}`}
+        description={`Detail ${tone}`}
       />,
     );
     const container = screen.container.firstElementChild as HTMLElement;
@@ -107,7 +107,7 @@ test("keeps every tone's icon readable against its own circle", async () => {
         tone={tone}
         icon={<Info />}
         title={`Title ${tone}`}
-        detail={`Detail ${tone}`}
+        description={`Detail ${tone}`}
       />,
     );
     const container = screen.container.firstElementChild as HTMLElement;
@@ -122,29 +122,32 @@ test("keeps every tone's icon readable against its own circle", async () => {
   }
 });
 
-test("keeps the title and detail readable against the white background", async () => {
+test("keeps the title and description readable against the white background", async () => {
   const screen = await render(
-    <NotificationCard tone="success" icon={<Info />} title="Title" detail="Detail" />,
+    <NotificationCard tone="success" icon={<Info />} title="Title" description="Detail" />,
   );
   const title = screen.getByText("Title", { exact: true }).first().element() as HTMLElement;
-  const detail = screen.getByText("Detail", { exact: true }).first().element() as HTMLElement;
+  const description = screen.getByText("Detail", { exact: true }).first().element() as HTMLElement;
   const background = tokenRgb("surface");
 
   const titleRatio = contrastRatio(rgbToHex(getComputedStyle(title).color), rgbToHex(background));
-  const detailRatio = contrastRatio(rgbToHex(getComputedStyle(detail).color), rgbToHex(background));
+  const descriptionRatio = contrastRatio(
+    rgbToHex(getComputedStyle(description).color),
+    rgbToHex(background),
+  );
   expect(titleRatio).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
-  expect(detailRatio).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
+  expect(descriptionRatio).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
 });
 
-test("centers an 18px icon in a 32px circle, 12px from the text, in a 16px bold ink title and a 14px secondary detail 4px apart", async () => {
+test("centers an 18px icon in a 32px circle, 12px from the text, in a 16px bold ink title and a 14px secondary description 4px apart", async () => {
   const screen = await render(
-    <NotificationCard tone="success" icon={<Info />} title="Title" detail="Detail" />,
+    <NotificationCard tone="success" icon={<Info />} title="Title" description="Detail" />,
   );
   const container = screen.container.firstElementChild as HTMLElement;
   const icon = container.querySelector("svg") as SVGSVGElement;
   const circle = icon.parentElement?.parentElement as HTMLElement;
   const title = screen.getByText("Title", { exact: true }).first().element() as HTMLElement;
-  const detail = screen.getByText("Detail", { exact: true }).first().element() as HTMLElement;
+  const description = screen.getByText("Detail", { exact: true }).first().element() as HTMLElement;
   const textStack = title.parentElement as HTMLElement;
 
   const circleRect = circle.getBoundingClientRect();
@@ -165,16 +168,16 @@ test("centers an 18px icon in a 32px circle, 12px from the text, in a 16px bold 
   expect(textRect.left - circleRect.right).toBeLessThan(13);
 
   const titleStyle = getComputedStyle(title);
-  const detailStyle = getComputedStyle(detail);
+  const descriptionStyle = getComputedStyle(description);
   expect(titleStyle.fontSize).toBe("16px");
   expect(titleStyle.fontWeight).toBe("700");
   expect(titleStyle.color).toBe(tokenRgb("text"));
-  expect(detailStyle.fontSize).toBe("14px");
-  expect(detailStyle.color).toBe(tokenRgb("text-subtle"));
+  expect(descriptionStyle.fontSize).toBe("14px");
+  expect(descriptionStyle.color).toBe(tokenRgb("text-subtle"));
 
   const titleRect = title.getBoundingClientRect();
-  const detailRect = detail.getBoundingClientRect();
-  const gap = detailRect.top - titleRect.bottom;
+  const descriptionRect = description.getBoundingClientRect();
+  const gap = descriptionRect.top - titleRect.bottom;
   expect(gap).toBeGreaterThan(3);
   expect(gap).toBeLessThan(5);
 });
@@ -185,7 +188,7 @@ test("renders an optional what-to-do line in 14px semibold ink", async () => {
       tone="success"
       icon={<Info />}
       title="Title"
-      detail="Detail"
+      description="Detail"
       whatToDo="Print another receipt"
     />,
   );
@@ -202,7 +205,13 @@ test("renders an optional what-to-do line in 14px semibold ink", async () => {
 
 test("renders an optional time in 12px secondary text", async () => {
   const screen = await render(
-    <NotificationCard tone="success" icon={<Info />} title="Title" detail="Detail" time="14:32" />,
+    <NotificationCard
+      tone="success"
+      icon={<Info />}
+      title="Title"
+      description="Detail"
+      time="14:32"
+    />,
   );
   const time = screen.getByText("14:32", { exact: true }).first().element() as HTMLElement;
   const style = getComputedStyle(time);
@@ -213,7 +222,7 @@ test("renders an optional time in 12px secondary text", async () => {
 
 test("omits the what-to-do and time lines when the caller does not supply them", async () => {
   const screen = await render(
-    <NotificationCard tone="success" icon={<Info />} title="Title" detail="Detail" />,
+    <NotificationCard tone="success" icon={<Info />} title="Title" description="Detail" />,
   );
 
   await expect.poll(() => screen.container.textContent).toBe("TitleDetailTitle Detail");
@@ -222,7 +231,7 @@ test("omits the what-to-do and time lines when the caller does not supply them",
 test("takes its container's width by default", async () => {
   const screen = await render(
     <div style={{ width: "500px" }}>
-      <NotificationCard tone="success" icon={<Info />} title="Title" detail="Detail" />
+      <NotificationCard tone="success" icon={<Info />} title="Title" description="Detail" />
     </div>,
   );
   const container = screen.container.firstElementChild?.firstElementChild as HTMLElement;
@@ -232,7 +241,7 @@ test("takes its container's width by default", async () => {
 
 test("in floating mode renders 388px wide with the ink-at-12%-opacity shadow", async () => {
   const screen = await render(
-    <NotificationCard tone="success" icon={<Info />} title="Title" detail="Detail" floating />,
+    <NotificationCard tone="success" icon={<Info />} title="Title" description="Detail" floating />,
   );
   const container = screen.container.firstElementChild as HTMLElement;
   const rect = container.getBoundingClientRect();
@@ -263,7 +272,12 @@ test("in floating mode renders 388px wide with the ink-at-12%-opacity shadow", a
 
 test("announces an error tone right away, interrupting current speech", async () => {
   const screen = await render(
-    <NotificationCard tone="error" icon={<Info />} title="Payment failed" detail="Try again" />,
+    <NotificationCard
+      tone="error"
+      icon={<Info />}
+      title="Payment failed"
+      description="Try again"
+    />,
   );
 
   const region = screen.container.querySelector('[role="alert"]') as HTMLElement;
@@ -276,7 +290,12 @@ test("announces an error tone right away, interrupting current speech", async ()
 test("announces success and warning tones politely, after the current speech ends", async () => {
   for (const tone of ["success", "warning"] as const) {
     const screen = await render(
-      <NotificationCard tone={tone} icon={<Info />} title="Heads up" detail="Check the totals" />,
+      <NotificationCard
+        tone={tone}
+        icon={<Info />}
+        title="Heads up"
+        description="Check the totals"
+      />,
     );
 
     expect(screen.container.querySelector('[role="alert"]')).toBeNull();
@@ -286,4 +305,8 @@ test("announces success and warning tones politely, after the current speech end
     await expect.poll(() => region.textContent).toContain("Heads up");
     await expect.poll(() => region.textContent).toContain("Check the totals");
   }
+});
+
+test("does not name its secondary text detail", () => {
+  expectTypeOf<NotificationCardProps>().not.toHaveProperty("detail");
 });

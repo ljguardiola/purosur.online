@@ -39,7 +39,7 @@ type TextFieldCommonProps = {
   label: string;
   value: string;
   onChange: (value: string) => void;
-  helperText?: string;
+  description?: string;
   disabled?: boolean;
   readOnly?: boolean;
   required?: boolean;
@@ -95,7 +95,7 @@ export function TextField(props: TextFieldProps) {
     label,
     value,
     onChange,
-    helperText,
+    description,
     disabled = false,
     readOnly = false,
     required = false,
@@ -209,13 +209,13 @@ export function TextField(props: TextFieldProps) {
         </AriaText>
       ) : (
         !invalid &&
-        helperText !== undefined && (
+        description !== undefined && (
           <AriaText
             slot="description"
             className={fieldHelperClassName}
             {...disabledTextProps(disabled)}
           >
-            {helperText}
+            {description}
           </AriaText>
         )
       )}

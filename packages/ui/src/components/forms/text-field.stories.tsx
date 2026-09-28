@@ -136,7 +136,7 @@ export const HelperText: Story = {
     label: "Motivo",
     value: "",
     onChange: () => {},
-    helperText: "No se puede modificar después de guardar.",
+    description: "No se puede modificar después de guardar.",
   },
 };
 

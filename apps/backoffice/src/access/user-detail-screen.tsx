@@ -294,7 +294,7 @@ function EditUserModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo guardar el cambio"
-              detail="Probá de nuevo."
+              description="Probá de nuevo."
             />
           )}
           {notice?.kind === "rateLimited" && (
@@ -302,7 +302,7 @@ function EditUserModal({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(notice.retryAfterSeconds)}
+              description={retryAfterDetail(notice.retryAfterSeconds)}
             />
           )}
           {notice?.kind === "staleVersion" && (
@@ -310,7 +310,7 @@ function EditUserModal({
               tone="error"
               icon={<TriangleAlert />}
               title="Este usuario cambió mientras lo editabas"
-              detail="Recargá sus datos y volvé a hacer el cambio."
+              description="Recargá sus datos y volvé a hacer el cambio."
             />
           )}
           {notice?.kind === "lastAdministrator" && (
@@ -318,7 +318,7 @@ function EditUserModal({
               tone="error"
               icon={<TriangleAlert />}
               title="Ahora es el único Administrador activo"
-              detail="Recargá sus datos: para cambiarle el rol, primero hacé Administrador a otra persona."
+              description="Recargá sus datos: para cambiarle el rol, primero hacé Administrador a otra persona."
             />
           )}
           {notice?.kind === "unknownRole" && (
@@ -326,7 +326,7 @@ function EditUserModal({
               tone="error"
               icon={<TriangleAlert />}
               title="Ese rol ya no está disponible"
-              detail="Cerrá esta ventana y volvé a intentarlo."
+              description="Cerrá esta ventana y volvé a intentarlo."
             />
           )}
           {notice?.kind === "reloadFailed" && (
@@ -334,7 +334,7 @@ function EditUserModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudieron recargar los datos"
-              detail="Probá de nuevo."
+              description="Probá de nuevo."
             />
           )}
           {(notice?.kind === "staleVersion" ||
@@ -525,7 +525,7 @@ function RemoveUserPasskeyModal({
                 tone="error"
                 icon={<TriangleAlert />}
                 title="No se pudo dar de baja la passkey"
-                detail="Probá de nuevo."
+                description="Probá de nuevo."
               />
             ) : null}
             {rateLimitedSeconds !== null && (
@@ -533,7 +533,7 @@ function RemoveUserPasskeyModal({
                 tone="error"
                 icon={<ShieldX />}
                 title="Demasiadas solicitudes"
-                detail={retryAfterDetail(rateLimitedSeconds)}
+                description={retryAfterDetail(rateLimitedSeconds)}
               />
             )}
           </div>
@@ -668,7 +668,7 @@ function DeactivateUserModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo desactivar el usuario"
-              detail="Probá de nuevo."
+              description="Probá de nuevo."
             />
           ) : null}
           {rateLimitedSeconds !== null && (
@@ -676,7 +676,7 @@ function DeactivateUserModal({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(rateLimitedSeconds)}
+              description={retryAfterDetail(rateLimitedSeconds)}
             />
           )}
         </div>
@@ -807,7 +807,7 @@ function ReactivateUserModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo reactivar el usuario"
-              detail="Probá de nuevo."
+              description="Probá de nuevo."
             />
           ) : null}
           {rateLimitedSeconds !== null && (
@@ -815,7 +815,7 @@ function ReactivateUserModal({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(rateLimitedSeconds)}
+              description={retryAfterDetail(rateLimitedSeconds)}
             />
           )}
         </div>
@@ -962,7 +962,7 @@ export function UserDetailScreen({
               tone="error"
               icon={<TriangleAlert />}
               title="No pudimos abrir este usuario"
-              detail="Probá de nuevo en unos minutos."
+              description="Probá de nuevo en unos minutos."
             />
             <Button variant="secondary" onPress={() => void load()}>
               Reintentar
@@ -975,7 +975,7 @@ export function UserDetailScreen({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(state.retryAfterSeconds)}
+              description={retryAfterDetail(state.retryAfterSeconds)}
             />
             <Button variant="secondary" onPress={() => void load()}>
               Reintentar
@@ -1023,7 +1023,7 @@ export function UserDetailScreen({
                   tone="error"
                   icon={<TriangleAlert />}
                   title="No pudimos abrir las passkeys"
-                  detail="Probá de nuevo en unos minutos."
+                  description="Probá de nuevo en unos minutos."
                 />
                 <Button variant="secondary" onPress={() => void loadPasskeys()}>
                   Reintentar
@@ -1036,7 +1036,7 @@ export function UserDetailScreen({
                   tone="error"
                   icon={<ShieldX />}
                   title="Demasiadas solicitudes"
-                  detail={retryAfterDetail(passkeysState.retryAfterSeconds)}
+                  description={retryAfterDetail(passkeysState.retryAfterSeconds)}
                 />
                 <Button variant="secondary" onPress={() => void loadPasskeys()}>
                   Reintentar

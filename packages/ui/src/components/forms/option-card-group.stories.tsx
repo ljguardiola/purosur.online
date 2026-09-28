@@ -14,13 +14,23 @@ const options: [
   OptionCardOption<MovementValue>,
   OptionCardOption<MovementValue>,
 ] = [
-  { value: "income", icon: <Wallet />, title: "Ingreso", helpText: "Dinero que entra a la caja" },
-  { value: "expense", icon: <Banknote />, title: "Gasto", helpText: "Dinero que sale de la caja" },
+  {
+    value: "income",
+    icon: <Wallet />,
+    title: "Ingreso",
+    description: "Dinero que entra a la caja",
+  },
+  {
+    value: "expense",
+    icon: <Banknote />,
+    title: "Gasto",
+    description: "Dinero que sale de la caja",
+  },
   {
     value: "withdrawal",
     icon: <CreditCard />,
     title: "Retiro",
-    helpText: "Efectivo retirado para el banco",
+    description: "Efectivo retirado para el banco",
   },
 ];
 

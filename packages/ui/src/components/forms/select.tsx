@@ -32,7 +32,7 @@ export type SelectOption<V extends string = string> = {
 
 type SelectCommonProps = {
   label: string;
-  helperText?: string;
+  description?: string;
   disabled?: boolean;
   required?: boolean;
 };
@@ -107,7 +107,7 @@ export function Select<V extends string>(props: SelectProps<V>) {
     options,
     value,
     onChange,
-    helperText,
+    description,
     placeholder,
     disabled = false,
     required = false,
@@ -168,13 +168,13 @@ export function Select<V extends string>(props: SelectProps<V>) {
               {errorMessage}
             </AriaText>
           ) : (
-            helperText !== undefined && (
+            description !== undefined && (
               <AriaText
                 slot="description"
                 className={fieldHelperClassName}
                 {...disabledTextProps(disabled)}
               >
-                {helperText}
+                {description}
               </AriaText>
             )
           )}

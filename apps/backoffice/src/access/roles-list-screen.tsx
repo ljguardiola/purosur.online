@@ -139,7 +139,7 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
             tone="error"
             icon={<TriangleAlert />}
             title="No pudimos abrir los roles"
-            detail="Probá de nuevo en unos minutos."
+            description="Probá de nuevo en unos minutos."
           />
           <Button variant="secondary" onPress={() => void load()}>
             Reintentar
@@ -152,7 +152,7 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
             tone="error"
             icon={<ShieldX />}
             title="Demasiadas solicitudes"
-            detail={retryAfterDetail(list.retryAfterSeconds)}
+            description={retryAfterDetail(list.retryAfterSeconds)}
           />
           <Button variant="secondary" onPress={() => void load()}>
             Reintentar

@@ -97,5 +97,5 @@ export const Disabled: Story = {
 };
 
 export const HelperText: Story = {
-  args: { quantity: "", helperText: "Nunca afecta el precio ni el stock." },
+  args: { quantity: "", description: "Nunca afecta el precio ni el stock." },
 };

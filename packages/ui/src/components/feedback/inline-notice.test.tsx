@@ -16,9 +16,14 @@ const tones: Record<NoticeTone, ToneTokens> = {
   error: { background: "error-subtle", text: "error-strong" },
 };
 
-test("renders the caller's title, detail and icon", async () => {
+test("renders the caller's title, description and icon", async () => {
   const screen = await render(
-    <InlineNotice tone="info" icon={<Info />} title="Draft saved" detail="Nothing to sync yet" />,
+    <InlineNotice
+      tone="info"
+      icon={<Info />}
+      title="Draft saved"
+      description="Nothing to sync yet"
+    />,
   );
 
   await expect.element(screen.getByText("Draft saved", { exact: true })).toBeVisible();
@@ -34,22 +39,27 @@ test("renders with only a title", async () => {
   expect(paragraph.textContent).toBe("Draft saved");
 });
 
-test("renders with only a detail", async () => {
+test("renders with only a description", async () => {
   const screen = await render(
-    <InlineNotice tone="info" icon={<Info />} detail="Nothing to sync yet" />,
+    <InlineNotice tone="info" icon={<Info />} description="Nothing to sync yet" />,
   );
 
   const paragraph = screen.container.querySelector("p") as HTMLElement;
   expect(paragraph.textContent).toBe("Nothing to sync yet");
 });
 
-test("does not accept an inline notice without a title or a detail", () => {
+test("does not accept an inline notice without a title or a description", () => {
   expectTypeOf<{ tone: "info"; icon: Icon }>().not.toExtend<InlineNoticeProps>();
 });
 
 test("exposes the notice's text to assistive technology exactly once", async () => {
   const screen = await render(
-    <InlineNotice tone="info" icon={<Info />} title="Draft saved" detail="Nothing to sync yet" />,
+    <InlineNotice
+      tone="info"
+      icon={<Info />}
+      title="Draft saved"
+      description="Nothing to sync yet"
+    />,
   );
 
   // aria-hidden removes an element from the accessibility tree that getByRole walks.
@@ -66,33 +76,37 @@ test("renders every tone's background, text and icon colors", async () => {
         tone={tone}
         icon={<Info />}
         title={`Title ${tone}`}
-        detail={`Detail ${tone}`}
+        description={`Detail ${tone}`}
       />,
     );
     const container = screen.container.firstElementChild as HTMLElement;
     const icon = container.querySelector("svg") as SVGSVGElement;
     const title = screen.getByText(`Title ${tone}`, { exact: true }).element() as HTMLElement;
-    const detail = screen.getByText(`Detail ${tone}`, { exact: true }).element() as HTMLElement;
+    const description = screen
+      .getByText(`Detail ${tone}`, { exact: true })
+      .element() as HTMLElement;
 
     expect(getComputedStyle(container).backgroundColor, `${tone} background`).toBe(
       tokenRgb(expected.background),
     );
     expect(getComputedStyle(icon).color, `${tone} icon`).toBe(tokenRgb(expected.text));
     expect(getComputedStyle(title).color, `${tone} title`).toBe(tokenRgb(expected.text));
-    expect(getComputedStyle(detail).color, `${tone} detail`).toBe(tokenRgb(expected.text));
+    expect(getComputedStyle(description).color, `${tone} description`).toBe(
+      tokenRgb(expected.text),
+    );
   }
 });
 
 test("announces a success notice politely and an error notice assertively", async () => {
   const success = await render(
-    <InlineNotice tone="success" icon={<Info />} title="Saved" detail="All synced" />,
+    <InlineNotice tone="success" icon={<Info />} title="Saved" description="All synced" />,
   );
   const politeRegion = success.container.querySelector('[role="status"]') as HTMLElement;
   await expect.poll(() => politeRegion.textContent).toBe("Saved All synced");
   await success.unmount();
 
   const failure = await render(
-    <InlineNotice tone="error" icon={<Info />} title="Not saved" detail="Try again" />,
+    <InlineNotice tone="error" icon={<Info />} title="Not saved" description="Try again" />,
   );
   const assertiveRegion = failure.container.querySelector('[role="alert"]') as HTMLElement;
   await expect.poll(() => assertiveRegion.textContent).toBe("Not saved Try again");
@@ -105,7 +119,7 @@ test("keeps every tone's text readable against its own background", async () => 
         tone={tone}
         icon={<Info />}
         title={`Title ${tone}`}
-        detail={`Detail ${tone}`}
+        description={`Detail ${tone}`}
       />,
     );
     const container = screen.container.firstElementChild as HTMLElement;
@@ -118,7 +132,7 @@ test("keeps every tone's text readable against its own background", async () => 
 
 test("renders the design's fixed layout regardless of tone", async () => {
   const screen = await render(
-    <InlineNotice tone="warning" icon={<Info />} title="Title" detail="Detail" />,
+    <InlineNotice tone="warning" icon={<Info />} title="Title" description="Detail" />,
   );
   const container = screen.container.firstElementChild as HTMLElement;
   const style = getComputedStyle(container);
@@ -143,23 +157,23 @@ test("renders the design's fixed layout regardless of tone", async () => {
   expect(textRect.left - iconRect.right).toBeLessThan(13);
 });
 
-test("stacks the title and detail 4px apart, in a 16px bold title and a 14px detail with 1.35 line height", async () => {
+test("stacks the title and description 4px apart, in a 16px bold title and a 14px description with 1.35 line height", async () => {
   const screen = await render(
-    <InlineNotice tone="warning" icon={<Info />} title="Title" detail="Detail" />,
+    <InlineNotice tone="warning" icon={<Info />} title="Title" description="Detail" />,
   );
   const title = screen.getByText("Title", { exact: true }).element() as HTMLElement;
-  const detail = screen.getByText("Detail", { exact: true }).element() as HTMLElement;
+  const description = screen.getByText("Detail", { exact: true }).element() as HTMLElement;
   const titleStyle = getComputedStyle(title);
-  const detailStyle = getComputedStyle(detail);
+  const descriptionStyle = getComputedStyle(description);
 
   expect(titleStyle.fontSize).toBe("16px");
   expect(titleStyle.fontWeight).toBe("700");
-  expect(detailStyle.fontSize).toBe("14px");
-  expect(detailStyle.lineHeight).toBe("18.9px");
+  expect(descriptionStyle.fontSize).toBe("14px");
+  expect(descriptionStyle.lineHeight).toBe("18.9px");
 
   const titleRect = title.getBoundingClientRect();
-  const detailRect = detail.getBoundingClientRect();
-  const gap = detailRect.top - titleRect.bottom;
+  const descriptionRect = description.getBoundingClientRect();
+  const gap = descriptionRect.top - titleRect.bottom;
   expect(gap).toBeGreaterThan(3);
   expect(gap).toBeLessThan(5);
 });
@@ -177,7 +191,7 @@ test("takes the width of its container", async () => {
 
 test("announces an error notice right away, interrupting current speech", async () => {
   const screen = await render(
-    <InlineNotice tone="error" icon={<Info />} title="Can't save" detail="Try again" />,
+    <InlineNotice tone="error" icon={<Info />} title="Can't save" description="Try again" />,
   );
 
   const region = screen.container.querySelector('[role="alert"]') as HTMLElement;
@@ -190,7 +204,7 @@ test("announces an error notice right away, interrupting current speech", async 
 test("announces every other tone politely, after the current speech ends", async () => {
   for (const tone of ["warning", "info"] as const) {
     const screen = await render(
-      <InlineNotice tone={tone} icon={<Info />} title="Heads up" detail="Check the totals" />,
+      <InlineNotice tone={tone} icon={<Info />} title="Heads up" description="Check the totals" />,
     );
 
     expect(screen.container.querySelector('[role="alert"]')).toBeNull();
@@ -200,4 +214,8 @@ test("announces every other tone politely, after the current speech ends", async
     await expect.poll(() => region.textContent).toContain("Heads up");
     await expect.poll(() => region.textContent).toContain("Check the totals");
   }
+});
+
+test("does not name its secondary text detail", () => {
+  expectTypeOf<InlineNoticeProps>().not.toHaveProperty("detail");
 });

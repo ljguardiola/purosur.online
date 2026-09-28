@@ -229,7 +229,7 @@ function NewCategoryModal({
             tone="error"
             icon={<TriangleAlert />}
             title="No se pudo crear la categoría"
-            detail="Probá de nuevo."
+            description="Probá de nuevo."
           />
         )}
         {notice?.kind === "rateLimited" && (
@@ -237,7 +237,7 @@ function NewCategoryModal({
             tone="error"
             icon={<ShieldX />}
             title="Demasiadas solicitudes"
-            detail={retryAfterDetail(notice.retryAfterSeconds)}
+            description={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
         <TextField
@@ -263,7 +263,7 @@ function NewCategoryModal({
           }}
           {...(parentError
             ? { invalid: true, errorMessage: parentError }
-            : { helperText: CATEGORY_PARENT_HELPER_TEXT })}
+            : { description: CATEGORY_PARENT_HELPER_TEXT })}
         />
       </div>
     </Modal>
@@ -497,7 +497,7 @@ function EditCategoryModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo guardar el cambio"
-              detail="Probá de nuevo."
+              description="Probá de nuevo."
             />
           )}
           {notice?.kind === "rateLimited" && (
@@ -505,7 +505,7 @@ function EditCategoryModal({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(notice.retryAfterSeconds)}
+              description={retryAfterDetail(notice.retryAfterSeconds)}
             />
           )}
           {notice?.kind === "staleVersion" && (
@@ -513,7 +513,7 @@ function EditCategoryModal({
               tone="error"
               icon={<TriangleAlert />}
               title="Esta categoría cambió mientras la editabas"
-              detail="Recargá sus datos y volvé a hacer el cambio."
+              description="Recargá sus datos y volvé a hacer el cambio."
             />
           )}
           {notice?.kind === "notFound" && (
@@ -528,7 +528,7 @@ function EditCategoryModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudieron recargar los datos"
-              detail="Probá de nuevo."
+              description="Probá de nuevo."
             />
           )}
           {offersReload ? (
@@ -564,7 +564,7 @@ function EditCategoryModal({
             }}
             {...(parentError
               ? { invalid: true, errorMessage: parentError }
-              : { helperText: CATEGORY_PARENT_HELPER_TEXT })}
+              : { description: CATEGORY_PARENT_HELPER_TEXT })}
           />
         </div>
       ) : null}
@@ -684,7 +684,7 @@ export function CategoriesListScreen({
               tone="error"
               icon={<TriangleAlert />}
               title="No pudimos abrir las categorías"
-              detail="Probá de nuevo en unos minutos."
+              description="Probá de nuevo en unos minutos."
             />
             <Button variant="secondary" onPress={() => void load()}>
               Reintentar
@@ -697,7 +697,7 @@ export function CategoriesListScreen({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(list.retryAfterSeconds)}
+              description={retryAfterDetail(list.retryAfterSeconds)}
             />
             <Button variant="secondary" onPress={() => void load()}>
               Reintentar
@@ -727,13 +727,13 @@ export function CategoriesListScreen({
                   ? {
                       icon: <Tags />,
                       title: "Todavía no hay categorías",
-                      detail: "Creá la primera para poder darle una a un producto.",
+                      description: "Creá la primera para poder darle una a un producto.",
                       tone: "blank",
                     }
                   : {
                       icon: <Search />,
                       title: "Sin resultados",
-                      detail: "Probá con otro nombre.",
+                      description: "Probá con otro nombre.",
                       tone: "filtered",
                     }
               }

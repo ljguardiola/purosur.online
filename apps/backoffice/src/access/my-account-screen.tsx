@@ -204,7 +204,7 @@ function RegisterPasskeyModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo registrar la passkey"
-              detail="Probá de nuevo."
+              description="Probá de nuevo."
             />
           ) : null}
           {rateLimitedSeconds !== null && (
@@ -212,7 +212,7 @@ function RegisterPasskeyModal({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(rateLimitedSeconds)}
+              description={retryAfterDetail(rateLimitedSeconds)}
             />
           )}
           <TextField
@@ -225,7 +225,7 @@ function RegisterPasskeyModal({
                 setNameError(validatePasskeyName(value));
               }
             }}
-            helperText="Por ejemplo, Teléfono de Lucía."
+            description="Por ejemplo, Teléfono de Lucía."
             required
             {...(nameError ? { invalid: true, errorMessage: nameError } : {})}
           />
@@ -359,7 +359,7 @@ function RemovePasskeyModal({
                 tone="error"
                 icon={<TriangleAlert />}
                 title="No se pudo dar de baja la passkey"
-                detail="Probá de nuevo."
+                description="Probá de nuevo."
               />
             ) : null}
             {rateLimitedSeconds !== null && (
@@ -367,7 +367,7 @@ function RemovePasskeyModal({
                 tone="error"
                 icon={<ShieldX />}
                 title="Demasiadas solicitudes"
-                detail={retryAfterDetail(rateLimitedSeconds)}
+                description={retryAfterDetail(rateLimitedSeconds)}
               />
             )}
           </div>
@@ -466,7 +466,7 @@ export function MyAccountScreen({
                 tone="error"
                 icon={<TriangleAlert />}
                 title="No pudimos abrir tus passkeys"
-                detail="Probá de nuevo en unos minutos."
+                description="Probá de nuevo en unos minutos."
               />
               <Button variant="secondary" onPress={() => void load()}>
                 Reintentar
@@ -479,7 +479,7 @@ export function MyAccountScreen({
                 tone="error"
                 icon={<ShieldX />}
                 title="Demasiadas solicitudes"
-                detail={retryAfterDetail(list.retryAfterSeconds)}
+                description={retryAfterDetail(list.retryAfterSeconds)}
               />
               <Button variant="secondary" onPress={() => void load()}>
                 Reintentar
@@ -492,7 +492,7 @@ export function MyAccountScreen({
                 <InlineNotice
                   tone="warning"
                   icon={<TriangleAlert />}
-                  detail="No tenés ninguna passkey. Para volver a entrar al backoffice vas a tener que pedir el enlace de recuperación por correo."
+                  description="No tenés ninguna passkey. Para volver a entrar al backoffice vas a tener que pedir el enlace de recuperación por correo."
                 />
               ) : null}
               <ul className="flex flex-col gap-2">

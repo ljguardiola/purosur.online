@@ -51,7 +51,7 @@ function AmountHarness({ initial = "" }: { initial?: string }) {
       value={value}
       onChange={setValue}
       prefix="$"
-      helperText="There is $ 61.900,00 in the register before this withdrawal."
+      description="There is $ 61.900,00 in the register before this withdrawal."
     />
   );
 }
@@ -435,7 +435,7 @@ test("marks the helper text as disabled too when the field itself is disabled", 
       label="Reason"
       value=""
       onChange={() => {}}
-      helperText="No register is open."
+      description="No register is open."
       disabled
     />,
   );
@@ -605,7 +605,7 @@ function FieldWithSharedErrorMessage() {
         label="Opens"
         value=""
         onChange={() => {}}
-        helperText="Should not be visible."
+        description="Should not be visible."
         invalid
         errorMessageId={errorId}
       />
@@ -661,7 +661,7 @@ test("replaces the helper line with the field's message and exposes it as invali
       label="Reason"
       value=""
       onChange={() => {}}
-      helperText="Should not be visible."
+      description="Should not be visible."
       invalid
       errorMessage="Enter a reason."
     />,
@@ -737,7 +737,7 @@ test("keeps the affix in the description alongside the helper text, each named o
       value=""
       onChange={() => {}}
       suffix="kg"
-      helperText="Weigh with the scale empty."
+      description="Weigh with the scale empty."
     />,
   );
   const input = fieldInput(screen, "Weight in kilos");
@@ -763,7 +763,7 @@ test("follows the field's description as it moves from helper text to an error a
             label="Reason"
             value=""
             onChange={() => {}}
-            helperText="Optional."
+            description="Optional."
             invalid
             errorMessage="Enter a reason."
           />
@@ -773,7 +773,7 @@ test("follows the field's description as it moves from helper text to an error a
             label="Reason"
             value=""
             onChange={() => {}}
-            helperText="Optional."
+            description="Optional."
           />
         )}
         <button type="button" onClick={() => setInvalid((current) => !current)}>
@@ -983,4 +983,8 @@ test("does not accept a field without a label, a value or onChange", () => {
     label: string;
     value: string;
   }>().not.toExtend<TextFieldProps>();
+});
+
+test("does not name its secondary text helperText", () => {
+  expectTypeOf<TextFieldProps>().not.toHaveProperty("helperText");
 });

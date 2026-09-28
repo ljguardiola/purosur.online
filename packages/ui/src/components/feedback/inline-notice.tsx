@@ -3,14 +3,16 @@ import { iconSlotClassName } from "../shared/icon";
 import { type NoticeTone, toneClassName } from "../shared/tone";
 import { NoticeFrame } from "./notice-frame";
 
-type NoticeContent = { title: string; detail?: string } | { title?: string; detail: string };
+type NoticeContent =
+  | { title: string; description?: string }
+  | { title?: string; description: string };
 
 export type InlineNoticeProps = {
   tone: NoticeTone;
   icon: Icon;
 } & NoticeContent;
 
-export function InlineNotice({ tone, icon, title, detail }: InlineNoticeProps) {
+export function InlineNotice({ tone, icon, title, description }: InlineNoticeProps) {
   const className = [
     "flex w-full items-start gap-3 rounded-lg py-3 px-4",
     toneClassName[tone].surface,
@@ -25,10 +27,10 @@ export function InlineNotice({ tone, icon, title, detail }: InlineNoticeProps) {
           {icon}
         </span>
       }
-      announcement={[title, detail]}
+      announcement={[title, description]}
     >
       {title ? <p className="text-body font-bold">{title}</p> : null}
-      {detail ? <p className="text-detail leading-sm">{detail}</p> : null}
+      {description ? <p className="text-detail leading-sm">{description}</p> : null}
     </NoticeFrame>
   );
 }

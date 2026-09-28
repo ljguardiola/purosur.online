@@ -10,7 +10,7 @@ export type OptionCardOption<V extends string = string> = {
   value: V;
   icon: Icon;
   title: string;
-  helpText: string;
+  description: string;
 };
 
 type OptionCardGroupValidityProps =
@@ -47,7 +47,7 @@ const cardClassName =
   "data-hovered:data-selected:bg-action-subtle " +
   "data-focus-visible:focus-ring";
 
-function OptionCard<V extends string>({ value, icon, title, helpText }: OptionCardOption<V>) {
+function OptionCard<V extends string>({ value, icon, title, description }: OptionCardOption<V>) {
   const helpTextId = useId();
 
   return (
@@ -63,7 +63,7 @@ function OptionCard<V extends string>({ value, icon, title, helpText }: OptionCa
       <span className="flex min-w-0 flex-col">
         <span className={titleClassName}>{title}</span>
         <span id={helpTextId} className={helpTextClassName}>
-          {helpText}
+          {description}
         </span>
       </span>
     </AriaRadio>
