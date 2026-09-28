@@ -1,3 +1,5 @@
+import type { CategoryCreationBody, CategoryEditBody } from "@purosur/contracts";
+
 const ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
 
 export type CategorySummary = {
@@ -92,9 +94,10 @@ export async function fetchCategories(): Promise<FetchCategoriesOutcome> {
 }
 
 export async function createCategory(input: CreateCategoryInput): Promise<CreateCategoryOutcome> {
+  const requestBody: CategoryCreationBody = { name: input.name, parentId: input.parentId };
   let response: Response;
   try {
-    response = await postJson("/categories", { name: input.name, parentId: input.parentId });
+    response = await postJson("/categories", requestBody);
   } catch {
     return { kind: "failed" };
   }
@@ -139,13 +142,14 @@ export async function editCategory(
   id: string,
   input: EditCategoryInput,
 ): Promise<EditCategoryOutcome> {
+  const requestBody: CategoryEditBody = {
+    name: input.name,
+    parentId: input.parentId,
+    version: input.version,
+  };
   let response: Response;
   try {
-    response = await postJson(`/categories/${id}/edit`, {
-      name: input.name,
-      parentId: input.parentId,
-      version: input.version,
-    });
+    response = await postJson(`/categories/${id}/edit`, requestBody);
   } catch {
     return { kind: "failed" };
   }

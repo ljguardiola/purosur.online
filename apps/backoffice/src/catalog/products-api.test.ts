@@ -122,6 +122,18 @@ test("createProduct posts a given net content and returns it in the created prod
   });
 });
 
+test("editProduct posts only the fields the cloud reads", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, honey));
+  const withExtraFields = { ...editInput, active: false };
+
+  await editProduct("product-1", withExtraFields);
+
+  expect(fetch).toHaveBeenCalledWith(
+    "/products/product-1/edit",
+    expect.objectContaining({ body: JSON.stringify(editInput) }),
+  );
+});
+
 test.each([
   "name",
   "categoryId",
