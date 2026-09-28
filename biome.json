@@ -19,18 +19,49 @@
     "rules": {
       "preset": "recommended",
       "complexity": {
+        "noExtraBooleanCast": "error",
+        "noFlatMapIdentity": "error",
+        "noUselessCatch": "error",
+        "noUselessConstructor": "error",
+        "noUselessContinue": "error",
+        "noUselessEmptyExport": "error",
+        "noUselessEscapeInRegex": "error",
+        "noUselessFragments": "error",
+        "noUselessLabel": "error",
+        "noUselessLoneBlockStatements": "error",
+        "noUselessRename": "error",
+        "noUselessStringRaw": "error",
+        "noUselessSwitchCase": "error",
+        "noUselessTernary": "error",
+        "noUselessThisAlias": "error",
+        "noUselessTypeConstraint": "error",
+        "noUselessUndefinedInitialization": "error",
+        "useFlatMap": "error",
+        "useIndexOf": "error",
         "useLiteralKeys": "off"
       },
       "correctness": {
+        "noReactPropAssignments": "error",
         "noUnusedFunctionParameters": "error",
         "noUnusedImports": "error",
-        "noUnusedVariables": "error"
+        "noUnusedVariables": "error",
+        "useParseIntRadix": "error"
       },
       "performance": {
         "noJsxPropsBind": "off"
       },
       "style": {
-        "useComponentExportOnlyModules": "off"
+        "useArrayLiterals": "error",
+        "useComponentExportOnlyModules": "off",
+        "useExponentiationOperator": "error",
+        "useNodejsImportProtocol": "error",
+        "useReactFunctionComponents": "error",
+        "useShorthandFunctionType": "error",
+        "useTemplate": "error"
+      },
+      "suspicious": {
+        "noDuplicateFields": "error",
+        "noQuickfixBiome": "error"
       }
     },
     "domains": {
@@ -84,11 +115,15 @@
           "style": {
             "useImportType": {
               "level": "error",
-              "options": { "style": "separatedType" }
+              "options": {
+                "style": "separatedType"
+              }
             },
             "useExportType": {
               "level": "error",
-              "options": { "style": "separatedType" }
+              "options": {
+                "style": "separatedType"
+              }
             }
           }
         }
