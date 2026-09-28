@@ -1,3 +1,5 @@
+import type { RoleCreationBody, RoleEditBody } from "@purosur/contracts";
+
 const ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
 
 export type RoleSummary = {
@@ -146,12 +148,13 @@ async function roleActionErrorOutcome(
 }
 
 export async function createRole(input: CreateRoleInput): Promise<CreateRoleOutcome> {
+  const requestBody: RoleCreationBody = {
+    name: input.name,
+    permissions: input.permissionKeys,
+  };
   let response: Response;
   try {
-    response = await postJson("/roles", {
-      name: input.name,
-      permissions: input.permissionKeys,
-    });
+    response = await postJson("/roles", requestBody);
   } catch {
     return { kind: "failed" };
   }
@@ -230,13 +233,14 @@ function editRoleFieldFromWire(field: unknown): EditRoleFieldError | undefined {
 }
 
 export async function editRole(id: string, input: EditRoleInput): Promise<EditRoleOutcome> {
+  const requestBody: RoleEditBody = {
+    name: input.name,
+    permissions: input.permissionKeys,
+    version: input.version,
+  };
   let response: Response;
   try {
-    response = await postJson(`/roles/${id}/edit`, {
-      name: input.name,
-      permissions: input.permissionKeys,
-      version: input.version,
-    });
+    response = await postJson(`/roles/${id}/edit`, requestBody);
   } catch {
     return { kind: "failed" };
   }

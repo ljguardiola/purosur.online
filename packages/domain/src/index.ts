@@ -6,6 +6,8 @@ export type {
 } from "./access/index.js";
 export {
   ALERT_VIEW_PERMISSION_KEYS,
+  holdsBothAlertViewPermissions,
+  isAdministratorRoleName,
   isPasskeyNameTooLong,
   isPermissionKey,
   isRoleNameTooLong,
@@ -15,6 +17,7 @@ export {
   PERMISSION_KEYS,
   passkeyNameLength,
   ROLE_NAME_MAX_LENGTH,
+  repeatsAPermissionKey,
   roleNameLength,
 } from "./access/index.js";
 export type { AlertAudience, AlertKind, AlertLevel } from "./alerts/index.js";

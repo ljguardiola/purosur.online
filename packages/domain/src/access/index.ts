@@ -11,9 +11,16 @@ export type {
 } from "./model/permission-catalog.js";
 export {
   ALERT_VIEW_PERMISSION_KEYS,
+  holdsBothAlertViewPermissions,
   isPermissionKey,
   PERMISSION_AREAS,
   PERMISSION_CATALOG,
   PERMISSION_KEYS,
+  repeatsAPermissionKey,
 } from "./model/permission-catalog.js";
-export { isRoleNameTooLong, ROLE_NAME_MAX_LENGTH, roleNameLength } from "./model/role-name.js";
+export {
+  isAdministratorRoleName,
+  isRoleNameTooLong,
+  ROLE_NAME_MAX_LENGTH,
+  roleNameLength,
+} from "./model/role-name.js";

@@ -1,3 +1,7 @@
+export type { RoleCreationBody } from "./access/role-creation.js";
+export { roleCreationBodySchema } from "./access/role-creation.js";
+export type { RoleEditBody } from "./access/role-edit.js";
+export { roleEditBodySchema } from "./access/role-edit.js";
 export type { BranchSettingsEditBody } from "./branch/branch-settings-edit.js";
 export { branchSettingsEditBodySchema } from "./branch/branch-settings-edit.js";
 export type { IssuerIdentificationEditBody } from "./fiscal/issuer-identification-edit.js";
