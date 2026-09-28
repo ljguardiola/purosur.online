@@ -11,9 +11,10 @@ const REQUIRED_VERIFY_STATIC_COMMANDS = [
   "tsc --noEmit -p apps/backoffice",
   "tsc --noEmit -p apps/pos",
   "pnpm --filter @purosur/cloud build",
-  "biome ci .",
+  "biome ci . --error-on-warnings",
   "pnpm depcruise",
   "knip",
+  "node .github/scripts/react-compiler-check.mjs",
   "node --test .github/scripts/*.test.mjs",
 ];
 const EXPECTED_RUN_CONDITION = `\${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.docs_only != 'true') }}`;

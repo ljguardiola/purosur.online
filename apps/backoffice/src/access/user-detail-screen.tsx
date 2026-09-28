@@ -99,7 +99,7 @@ type PasskeysState =
   | { kind: "loading" }
   | { kind: "loadError" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "loaded"; passkeys: UserPasskey[] };
+  | { kind: "loaded"; passkeys: UserPasskey[]; loadedAt: Date };
 
 const EMAIL_REQUIRED = "Ingresá el correo.";
 const EMAIL_INVALID = "Ingresá un correo válido.";
@@ -538,7 +538,7 @@ function RemoveUserPasskeyModal({
           </>
         }
       >
-        {target && (
+        {target ? (
           <div className="flex flex-col gap-4">
             <p className="text-base text-ink">
               {`«${target.name}» deja de servir para entrar.`}
@@ -546,14 +546,14 @@ function RemoveUserPasskeyModal({
                 ? ` Es su única passkey: para volver a entrar, ${userName} va a tener que pedir el enlace de recuperación por correo.`
                 : ""}
             </p>
-            {attemptFailed && (
+            {attemptFailed ? (
               <InlineNotice
                 tone="error"
                 icon={<TriangleAlert />}
                 title="No se pudo dar de baja la passkey"
                 detail="Probá de nuevo."
               />
-            )}
+            ) : null}
             {rateLimitedSeconds !== null && (
               <InlineNotice
                 tone="error"
@@ -563,7 +563,7 @@ function RemoveUserPasskeyModal({
               />
             )}
           </div>
-        )}
+        ) : null}
       </Modal>
       {modal}
     </>
@@ -689,14 +689,14 @@ function DeactivateUserModal({
       >
         <div className="flex flex-col gap-4">
           <p className="text-base text-ink">Se puede reactivar más adelante.</p>
-          {attemptFailed && (
+          {attemptFailed ? (
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo desactivar el usuario"
               detail="Probá de nuevo."
             />
-          )}
+          ) : null}
           {rateLimitedSeconds !== null && (
             <InlineNotice
               tone="error"
@@ -828,14 +828,14 @@ function ReactivateUserModal({
           <p className="text-center text-base text-ink-secondary">
             Vuelve a entrar a la caja y al backoffice con su mismo correo, rol y passkeys.
           </p>
-          {attemptFailed && (
+          {attemptFailed ? (
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo reactivar el usuario"
               detail="Probá de nuevo."
             />
-          )}
+          ) : null}
           {rateLimitedSeconds !== null && (
             <InlineNotice
               tone="error"
@@ -882,12 +882,13 @@ export function UserDetailScreen({
   const [reactivateModalOpen, setReactivateModalOpen] = useState(false);
   const onSessionEndedRef = useLatestRef(onSessionEnded);
   const endSession = useCallback(() => onSessionEndedRef.current(), [onSessionEndedRef]);
+  const clockRef = useLatestRef(clock);
 
   const loadPasskeys = useCallback(async () => {
     setPasskeysState({ kind: "loading" });
     const outcome = await fetchUserPasskeys(userId);
     if (outcome.kind === "ok") {
-      setPasskeysState({ kind: "loaded", passkeys: outcome.value });
+      setPasskeysState({ kind: "loaded", passkeys: outcome.value, loadedAt: clockRef.current() });
     } else if (outcome.kind === "unauthenticated") {
       endSession();
     } else if (outcome.kind === "forbidden") {
@@ -897,7 +898,7 @@ export function UserDetailScreen({
     } else {
       setPasskeysState({ kind: "loadError" });
     }
-  }, [userId, endSession, fetchUserPasskeys, sendToMyAccount]);
+  }, [userId, endSession, fetchUserPasskeys, sendToMyAccount, clockRef]);
 
   const showsPasskeys = access.isAdministrator;
   const needsRoles = access.isAdministrator;
@@ -965,7 +966,7 @@ export function UserDetailScreen({
               <p className="text-ink-secondary text-sm">Configuración · Usuarios</p>
               <div className="flex items-center gap-3">
                 <ScreenTitle>{heading}</ScreenTitle>
-                {isInactive && <Tag tone="neutral">Inactivo</Tag>}
+                {isInactive ? <Tag tone="neutral">Inactivo</Tag> : null}
               </div>
             </div>
           </div>
@@ -1084,7 +1085,7 @@ export function UserDetailScreen({
                       <div className="flex flex-1 flex-col gap-1">
                         <p className="font-semibold text-base text-ink">{passkey.name}</p>
                         <p className="text-ink-secondary text-sm">
-                          {passkeyRowDetail(passkey, clock())}
+                          {passkeyRowDetail(passkey, passkeysState.loadedAt)}
                         </p>
                       </div>
                       {access.isAdministrator && !isOwnAccount && !isInactive && (
@@ -1146,7 +1147,7 @@ export function UserDetailScreen({
             setRemoveTarget(null);
             setPasskeysState((current) =>
               current.kind === "loaded"
-                ? { kind: "loaded", passkeys: current.passkeys.filter((p) => p.id !== passkeyId) }
+                ? { ...current, passkeys: current.passkeys.filter((p) => p.id !== passkeyId) }
                 : current,
             );
           }}

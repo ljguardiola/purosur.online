@@ -31,7 +31,7 @@ export function Checkbox({ isSelected, onChange, children }: CheckboxProps) {
   return (
     <AriaCheckbox isSelected={isSelected} onChange={onChange} className={labelClassName}>
       <span aria-hidden="true" className={boxClassName}>
-        {isSelected && <Check className={checkIconClassName} />}
+        {isSelected ? <Check className={checkIconClassName} /> : null}
       </span>
       <span className="min-w-0 flex-1">{children}</span>
     </AriaCheckbox>

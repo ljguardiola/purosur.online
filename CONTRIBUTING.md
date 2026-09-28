@@ -86,6 +86,17 @@ This is the structure the repository is organized into. A part that does not fol
 - Every screen is reached through its own route, declared in the renderer's router under the root route and added to its route tree, with the screen as the route's component.
 - A screen that must refuse entry before it renders declares that on its own route, as a guard (`beforeLoad`) that redirects instead of letting the screen render.
 
+## React code
+
+The backoffice, the register's renderer and `packages/ui` follow the Rules of React, because the backoffice and the register's renderer are built with the React Compiler, which memoizes every component and hook automatically:
+
+- Rendering is pure: a component neither reads nor writes a ref while rendering, never mutates its props or state, and never reads something that changes outside React, such as the current time or browser storage. A value that changes over time lives in state that the render reads.
+- Hooks are called unconditionally, at the top level of a component or another hook.
+- A new component or hook does not memoize by hand with `useMemo`, `useCallback` or `memo`: the compiler already does.
+- A component receives a ref as an ordinary prop, not through `forwardRef`.
+
+`pnpm verify` fails on a component or hook the React Compiler cannot compile, and on every React-specific mistake the linter detects, such as a hook called conditionally, a missing effect dependency, a list item without a key, a `&&` condition that can render a stray value, `forwardRef`, a hard-coded element id, or a component declared inside another. A render that reads the clock or another outside value is not detected: review catches it.
+
 ## Testing
 
 Every rule is verified once, at the lowest level that can really prove it. Higher levels only verify that the pieces are wired together: a route test shows that the route reaches its validator and its guard, not every case the validator rejects; a screen test shows how the screen presents an outcome, not the rule that produced it. A rule is also defined once, in the package that owns it, and every other level imports it instead of keeping its own copy.

@@ -83,13 +83,13 @@ function TokenErrorNotice({
         title={title}
         {...(detail ? { detail } : {})}
       />
-      {offerNewLink && (
+      {offerNewLink ? (
         <AccessFooterLink
           to="/account-recovery"
           icon={<ArrowLeft />}
           label="Pedir un enlace nuevo"
         />
-      )}
+      ) : null}
     </>
   );
 }
@@ -314,14 +314,14 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps =
         heading="Registrá una passkey nueva"
         description="Con ella vas a ingresar de ahora en adelante."
       />
-      {phase.attemptFailed && (
+      {phase.attemptFailed ? (
         <InlineNotice
           tone="error"
           icon={<TriangleAlert />}
           title="No se pudo registrar la passkey"
           detail="Podés volver a intentarlo con este mismo enlace."
         />
-      )}
+      ) : null}
       <TextField
         kind="plain-text"
         label="Nombre de la passkey"

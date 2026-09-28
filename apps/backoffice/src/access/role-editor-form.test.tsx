@@ -20,8 +20,10 @@ async function warmUpPointer() {
   await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
 }
 
+const NO_PERMISSIONS_SELECTED: ReadonlySet<PermissionKey> = new Set();
+
 function Harness({
-  initialSelected = new Set<PermissionKey>(),
+  initialSelected = NO_PERMISSIONS_SELECTED,
   initialArea = "cashRegister" as PermissionArea,
 }) {
   const [name, setName] = useState("");
