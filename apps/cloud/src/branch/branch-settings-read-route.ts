@@ -10,10 +10,24 @@ import {
   routeSessionSource,
 } from "../access/route-access.js";
 import { branchHours, branchSettings } from "../platform/db/schema.js";
-import {
-  BRANCH_SETTINGS_DAY_FIELDS,
-  type BranchSettingsDayField,
-} from "./branch-settings-validation.js";
+
+// Monday..Sunday order, matching how `day_of_week` numbers them in `branch_hours` (1 = Monday).
+const BRANCH_SETTINGS_DAY_FIELDS = [
+  "monday_hours",
+  "tuesday_hours",
+  "wednesday_hours",
+  "thursday_hours",
+  "friday_hours",
+  "saturday_hours",
+  "sunday_hours",
+] as const;
+
+type BranchSettingsDayField = (typeof BRANCH_SETTINGS_DAY_FIELDS)[number];
+
+export interface BranchHoursRange {
+  opensAt: string;
+  closesAt: string;
+}
 
 export interface BranchSettingsRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;

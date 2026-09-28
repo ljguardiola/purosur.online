@@ -1,3 +1,5 @@
+import type { RegisterCreationBody } from "@purosur/contracts";
+
 const ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
 
 type PendingEnrollmentCode = { issuedAt: string; expiresAt: string };
@@ -15,7 +17,7 @@ export type FetchRegistersOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-export type CreateRegisterInput = { name: string };
+export type CreateRegisterInput = RegisterCreationBody;
 
 type CreateRegisterFieldError = "name";
 
@@ -128,7 +130,7 @@ export async function fetchRegisters(): Promise<FetchRegistersOutcome> {
 export async function createRegister(input: CreateRegisterInput): Promise<CreateRegisterOutcome> {
   let response: Response;
   try {
-    response = await postJson("/registers", { name: input.name });
+    response = await postJson("/registers", input);
   } catch {
     return { kind: "failed" };
   }

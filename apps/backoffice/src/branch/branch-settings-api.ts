@@ -1,3 +1,5 @@
+import type { BranchSettingsEditBody } from "@purosur/contracts";
+
 export type BranchDay =
   | "monday"
   | "tuesday"
@@ -166,12 +168,13 @@ export async function fetchBranchSettings(): Promise<FetchBranchSettingsOutcome>
 export async function saveBranchSettings(
   settings: BranchSettings,
 ): Promise<SaveBranchSettingsOutcome> {
+  const requestBody: BranchSettingsEditBody = branchSettingsToWire(settings);
   let response: Response;
   try {
     response = await fetch("/branch-settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(branchSettingsToWire(settings)),
+      body: JSON.stringify(requestBody),
     });
   } catch {
     return { kind: "failed" };

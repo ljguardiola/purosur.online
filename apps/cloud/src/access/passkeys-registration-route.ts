@@ -1,3 +1,4 @@
+import { passkeyRegistrationBodySchema } from "@purosur/contracts";
 import type { RegistrationResponseJSON } from "@simplewebauthn/server";
 import { generateRegistrationOptions, verifyRegistrationResponse } from "@simplewebauthn/server";
 import { eq } from "drizzle-orm";
@@ -5,6 +6,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { openAlert } from "../alerts/open-alert.js";
 import { auditLog, passkeys, users } from "../platform/db/schema.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
 import { UNAUTHENTICATED_RESPONSE } from "./open-session.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import {
@@ -12,7 +14,6 @@ import {
   pruneExpiredPasskeyChallenges,
   storePendingPasskeyChallenge,
 } from "./passkey-challenge.js";
-import { readPasskeyName } from "./passkey-name-validation.js";
 import { deriveUserHandle } from "./recovery-user-handle.js";
 import {
   OPEN_SESSION_ACCESS,
@@ -123,26 +124,11 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
       const attemptedAt = now();
       const openSession = openSessionOf(request);
 
-      const passkeyRegistration = (request.body as { passkey_registration?: unknown } | undefined)
-        ?.passkey_registration as RegistrationResponseJSON | undefined;
-      if (!passkeyRegistration) {
-        await reply.code(400).send({
-          code: "validation_failed",
-          message: "passkey_registration is required",
-          details: [{ field: "passkey_registration" }],
-        });
+      const body = await readValidatedBody(reply, passkeyRegistrationBodySchema, request.body);
+      if (!body) {
         return;
       }
-
-      const passkeyName = readPasskeyName(request.body);
-      if (!passkeyName) {
-        await reply.code(400).send({
-          code: "validation_failed",
-          message: "passkey_name is required and must be 1-40 characters once trimmed",
-          details: [{ field: "passkey_name" }],
-        });
-        return;
-      }
+      const { passkey_name: passkeyName } = body;
 
       const pending = await consumePendingPasskeyChallenge(options.db, {
         sessionId: openSession.sessionId,
@@ -155,7 +141,7 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
       }
 
       const verification = await verifyRegistrationResponse({
-        response: passkeyRegistration,
+        response: body.passkey_registration as RegistrationResponseJSON,
         expectedChallenge: pending.registrationChallenge,
         expectedOrigin: webAuthnConfig.expectedOrigin,
         expectedRPID: webAuthnConfig.rpID,

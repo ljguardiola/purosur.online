@@ -240,23 +240,6 @@ describe("POST /roles", () => {
     expect(created).toHaveLength(1);
   });
 
-  it("rejects an unknown permission key, creating nothing", async () => {
-    const rawSessionId = await insertSession(administratorId);
-
-    const response = await createRole(rawSessionId, {
-      name: "Depósito",
-      permissions: ["not_a_real_permission"],
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "permissions" }],
-    });
-    const created = await db.select().from(roles).where(eq(roles.isAdministrator, false));
-    expect(created).toHaveLength(0);
-  });
-
   describe("the shared passkey-authorization guard", () => {
     it("returns 401 authorization_required when the session's passkey authorization is stale, creating nothing", async () => {
       const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);

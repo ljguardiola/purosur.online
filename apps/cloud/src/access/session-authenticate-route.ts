@@ -1,3 +1,4 @@
+import { sessionAuthenticationBodySchema } from "@purosur/contracts";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
 import { verifyAuthenticationResponse } from "@simplewebauthn/server";
 import { eq } from "drizzle-orm";
@@ -154,13 +155,12 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
       }
 
       // Checked before anything is recorded, so a request with nothing to verify never takes a lockout slot.
-      const assertion = (request.body as { assertion?: unknown } | undefined)?.assertion as
-        | AuthenticationResponseJSON
-        | undefined;
-      if (!assertion || typeof assertion.id !== "string") {
+      const body = sessionAuthenticationBodySchema.safeParse(request.body);
+      if (!body.success) {
         await rejectAuthentication(reply, startedAt);
         return;
       }
+      const assertion = body.data.assertion as AuthenticationResponseJSON;
       const challenge = readAssertionChallenge(assertion);
       if (challenge === undefined) {
         await rejectAuthentication(reply, startedAt);

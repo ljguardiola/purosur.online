@@ -1,3 +1,4 @@
+import type { PasskeyRegistrationBody } from "@purosur/contracts";
 import type {
   PublicKeyCredentialCreationOptionsJSON,
   RegistrationResponseJSON,
@@ -126,12 +127,13 @@ export async function registerPasskey(
   passkeyRegistration: RegistrationResponseJSON,
   passkeyName: string,
 ): Promise<RegisterPasskeyOutcome> {
+  const requestBody: PasskeyRegistrationBody = {
+    passkey_registration: passkeyRegistration,
+    passkey_name: passkeyName,
+  };
   let response: Response;
   try {
-    response = await postJson("/users/passkeys", {
-      passkey_registration: passkeyRegistration,
-      passkey_name: passkeyName,
-    });
+    response = await postJson("/users/passkeys", requestBody);
   } catch {
     return { kind: "failed" };
   }

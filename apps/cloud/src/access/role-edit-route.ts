@@ -1,8 +1,10 @@
+import { roleEditBodySchema } from "@purosur/contracts";
 import { PERMISSION_KEYS } from "@purosur/domain";
 import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { auditLog, rolePermissions, roles } from "../platform/db/schema.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import {
   isRoleNameUniqueViolation,
@@ -15,13 +17,6 @@ import {
   listRoleUsers,
   toRoleDetailWire,
 } from "./role-read-route.js";
-import {
-  type RoleFieldValidationFailure,
-  readRoleName,
-  readRolePermissionKeys,
-  roleNameValidationFailure,
-  rolePermissionsValidationFailure,
-} from "./role-validation.js";
 import type { RolesRouteOptions } from "./roles-list-route.js";
 import {
   ADMINISTRATOR_ACCESS,
@@ -40,47 +35,6 @@ const STALE_VERSION_RESPONSE = {
   code: "stale_version",
   message: "this role was changed since it was loaded",
 } as const;
-
-interface EditRequestBody {
-  name: string;
-  permissionKeys: string[];
-  version: number;
-}
-
-function readVersion(body: unknown): number | undefined {
-  const raw = (body as { version?: unknown } | undefined)?.version;
-  return typeof raw === "number" && Number.isInteger(raw) && raw >= 1 ? raw : undefined;
-}
-
-function readEditBody(body: unknown): EditRequestBody | RoleFieldValidationFailure {
-  const name = readRoleName(body);
-  const nameFailure = roleNameValidationFailure(name);
-  if (nameFailure) {
-    return nameFailure;
-  }
-  if (!name) {
-    return { field: "name", message: "name must not be empty" };
-  }
-  const permissionKeys = readRolePermissionKeys(body);
-  if (!permissionKeys) {
-    return { field: "permissions", message: "permissions must be an array of permission keys" };
-  }
-  const permissionsFailure = rolePermissionsValidationFailure(permissionKeys);
-  if (permissionsFailure) {
-    return permissionsFailure;
-  }
-  const version = readVersion(body);
-  if (version === undefined) {
-    return { field: "version", message: "version must be the positive integer it was loaded with" };
-  }
-  return { name, permissionKeys, version };
-}
-
-function isValidationFailure(
-  value: EditRequestBody | RoleFieldValidationFailure,
-): value is RoleFieldValidationFailure {
-  return "field" in value;
-}
 
 export interface EditRoleInput {
   id: string;
@@ -256,13 +210,8 @@ export function registerRoleEditRoutes<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      const parsedBody = readEditBody(request.body);
-      if (isValidationFailure(parsedBody)) {
-        await reply.code(400).send({
-          code: "validation_failed",
-          message: parsedBody.message,
-          details: [{ field: parsedBody.field }],
-        });
+      const parsedBody = await readValidatedBody(reply, roleEditBodySchema, request.body);
+      if (!parsedBody) {
         return;
       }
 
@@ -273,7 +222,7 @@ export function registerRoleEditRoutes<TQueryResult extends PgQueryResultHKT>(
       const outcome = await editRole(options.db, {
         id: target.id,
         name: parsedBody.name,
-        permissionKeys: parsedBody.permissionKeys,
+        permissionKeys: parsedBody.permissions,
         version: parsedBody.version,
         actorId: openSession.userId,
       });

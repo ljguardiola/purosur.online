@@ -5,14 +5,13 @@ import { describe, expect, inject, it } from "vitest";
 
 describe("the built cloud", () => {
   it("runs a module that imports @purosur/domain under plain Node", () => {
-    const registerValidationUrl = pathToFileURL(
-      join(inject("cloudBuildDir"), "register", "register-validation.js"),
+    const rolesListRouteUrl = pathToFileURL(
+      join(inject("cloudBuildDir"), "access", "roles-list-route.js"),
     ).href;
     const script = `
-      const { registerNameValidationFailure } = await import(${JSON.stringify(registerValidationUrl)});
+      const module = await import(${JSON.stringify(rolesListRouteUrl)});
       console.log(JSON.stringify({
-        atLimit: registerNameValidationFailure("😀".repeat(100)) ?? null,
-        overLimit: registerNameValidationFailure("😀".repeat(101)) ?? null,
+        isFunction: typeof module.registerRolesListRoute === "function",
       }));
     `;
 
@@ -22,9 +21,6 @@ describe("the built cloud", () => {
 
     expect(result.stderr).toBe("");
     expect(result.status).toBe(0);
-    expect(JSON.parse(result.stdout)).toEqual({
-      atLimit: null,
-      overLimit: { field: "name", message: "name must be at most 100 characters" },
-    });
+    expect(JSON.parse(result.stdout)).toEqual({ isFunction: true });
   });
 });
