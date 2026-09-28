@@ -408,7 +408,9 @@ test("routes /account-recovery/passkey to the passkey registration screen, readi
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByText("Abriendo el registro…")).toBeVisible();
-  expect(services.registerPasskeyScreen.fetchRegistrationOptions).toHaveBeenCalledWith("the-token");
+  await expect
+    .poll(() => services.registerPasskeyScreen.fetchRegistrationOptions)
+    .toHaveBeenCalledWith("the-token");
   expect(screen.getByRole("navigation", { name: "Áreas" }).query()).toBeNull();
 });
 
@@ -928,7 +930,9 @@ test("opens the role editor modal for editing, from a role's pencil action, with
   await userEvent.click(screen.getByRole("button", { name: "Editar el rol Depósito" }));
 
   await expect.element(screen.getByRole("dialog").getByText("Editar rol")).toBeVisible();
-  expect(services.rolesListScreen.roleEditorModal?.fetchRole).toHaveBeenCalledWith("role-stock");
+  await expect
+    .poll(() => services.rolesListScreen.roleEditorModal?.fetchRole)
+    .toHaveBeenCalledWith("role-stock");
   const rolesItem = screen.getByRole("link", { name: "Roles" }).element() as HTMLAnchorElement;
   expect(rolesItem.getAttribute("aria-current")).toBe("page");
   expect(window.location.pathname).toBe("/settings/roles");
@@ -1733,7 +1737,9 @@ test("reopens the products list with the filters and ordering its URL carries", 
     .element(screen.getByPlaceholder("Buscar por nombre o código de barras"))
     .toHaveValue("miel");
   await expect.element(screen.getByRole("button", { name: "Unidad: Por peso" })).toBeVisible();
-  expect(services.productsListScreen.fetchProducts).toHaveBeenCalledWith("inactive");
+  await expect
+    .poll(() => services.productsListScreen.fetchProducts)
+    .toHaveBeenCalledWith("inactive");
 });
 
 test("reopens the products list searching the barcode its URL carries", async () => {
@@ -1794,7 +1800,7 @@ test("opens a list on its defaults for a filter value its URL carries that the l
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("button", { name: "Estado: Activos" })).toBeVisible();
-  expect(services.productsListScreen.fetchProducts).toHaveBeenCalledWith("active");
+  await expect.poll(() => services.productsListScreen.fetchProducts).toHaveBeenCalledWith("active");
 });
 
 test("reopens the categories list with the search its URL carries", async () => {
@@ -1817,10 +1823,12 @@ test("reopens the prices list with the filters its URL carries", async () => {
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByPlaceholder("Buscar un producto")).toHaveValue("yerba");
-  expect(services.pricesListScreen.fetchPrices).toHaveBeenCalledWith({
-    review: "all",
-    search: "yerba",
-  });
+  await expect
+    .poll(() => services.pricesListScreen.fetchPrices)
+    .toHaveBeenCalledWith({
+      review: "all",
+      search: "yerba",
+    });
 });
 
 test("reopens the users list on the state its URL carries", async () => {
@@ -1841,11 +1849,13 @@ test("reopens the alerts list with the filters and page its URL carries", async 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("heading", { name: "Alertas", level: 1 })).toBeVisible();
-  expect(services.alertsListScreen.fetchAlerts).toHaveBeenCalledWith({
-    level: "critical",
-    open: false,
-    page: 2,
-  });
+  await expect
+    .poll(() => services.alertsListScreen.fetchAlerts)
+    .toHaveBeenCalledWith({
+      level: "critical",
+      open: false,
+      page: 2,
+    });
 });
 
 test("keeps the products list filters in the URL after following its own section link", async () => {
