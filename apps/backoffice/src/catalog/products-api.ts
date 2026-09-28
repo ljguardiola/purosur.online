@@ -1,4 +1,4 @@
-import type { ProductCreationBody, ProductEditBody } from "@purosur/contracts";
+import type { LabelSheetBody, ProductCreationBody, ProductEditBody } from "@purosur/contracts";
 import type { NetContentUnit } from "@purosur/domain";
 
 export type ProductSaleUnit = "UNIT" | "KG";
@@ -225,7 +225,7 @@ export async function generateInternalBarcode(): Promise<GenerateInternalBarcode
   return { kind: "failed" };
 }
 
-export type PrintLabelEntry = { productId: string; count: number };
+export type PrintLabelEntry = LabelSheetBody["labels"][number];
 
 export type PrintLabelsOutcome =
   | { kind: "ok"; blob: Blob }
@@ -238,8 +238,9 @@ export type PrintLabelsOutcome =
 
 export async function printLabels(labels: PrintLabelEntry[]): Promise<PrintLabelsOutcome> {
   let response: Response;
+  const body: LabelSheetBody = { labels };
   try {
-    response = await postJson("/products/labels", { labels });
+    response = await postJson("/products/labels", body);
   } catch {
     return { kind: "failed" };
   }

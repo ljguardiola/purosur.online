@@ -1,8 +1,5 @@
-import {
-  isInternalBarcode,
-  LABELS_MAX_COUNT_PER_PRODUCT,
-  LABELS_MAX_TOTAL_COUNT,
-} from "@purosur/domain";
+import { labelSheetBodySchema } from "@purosur/contracts";
+import { isInternalBarcode } from "@purosur/domain";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
@@ -13,82 +10,9 @@ import {
   routeSessionSource,
 } from "../access/route-access.js";
 import { productBarcodes, products } from "../platform/db/schema.js";
-import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
 import { renderLabelSheetPdf } from "./label-sheet-pdf.js";
 import type { ProductsRouteOptions } from "./products-list-route.js";
-
-interface LabelRequestEntry {
-  productId: string;
-  count: number;
-}
-
-interface LabelsValidationFailure {
-  field: "labels";
-  message: string;
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function readEntry(raw: unknown): LabelRequestEntry | undefined {
-  if (!isPlainObject(raw)) {
-    return undefined;
-  }
-  const { productId, count } = raw as { productId?: unknown; count?: unknown };
-  if (typeof productId !== "string" || !UUID_PATTERN.test(productId)) {
-    return undefined;
-  }
-  if (
-    typeof count !== "number" ||
-    !Number.isInteger(count) ||
-    count < 1 ||
-    count > LABELS_MAX_COUNT_PER_PRODUCT
-  ) {
-    return undefined;
-  }
-  // Postgres stores and compares uuids in lowercase; the pattern above accepts either case.
-  return { productId: productId.toLowerCase(), count };
-}
-
-function readLabelsBody(body: unknown): LabelRequestEntry[] | LabelsValidationFailure {
-  const raw = (body as { labels?: unknown } | undefined)?.labels;
-  if (!Array.isArray(raw) || raw.length === 0) {
-    return { field: "labels", message: "labels must be a non-empty list of { productId, count }" };
-  }
-
-  const entries: LabelRequestEntry[] = [];
-  const seenProductIds = new Set<string>();
-  let total = 0;
-  for (const rawEntry of raw) {
-    const entry = readEntry(rawEntry);
-    if (!entry) {
-      return {
-        field: "labels",
-        message: `each label must have an existing product's id and a count between 1 and ${LABELS_MAX_COUNT_PER_PRODUCT}`,
-      };
-    }
-    if (seenProductIds.has(entry.productId)) {
-      return { field: "labels", message: "the same productId was sent more than once" };
-    }
-    seenProductIds.add(entry.productId);
-    entries.push(entry);
-    total += entry.count;
-  }
-  if (total > LABELS_MAX_TOTAL_COUNT) {
-    return {
-      field: "labels",
-      message: `the total label count must be at most ${LABELS_MAX_TOTAL_COUNT}`,
-    };
-  }
-  return entries;
-}
-
-function isValidationFailure(
-  value: LabelRequestEntry[] | LabelsValidationFailure,
-): value is LabelsValidationFailure {
-  return !Array.isArray(value);
-}
 
 interface LabelableProduct {
   name: string;
@@ -157,23 +81,18 @@ export function registerProductLabelsRoute<TQueryResult extends PgQueryResultHKT
       },
     },
     async (request, reply) => {
-      const parsedBody = readLabelsBody(request.body);
-      if (isValidationFailure(parsedBody)) {
-        await reply.code(400).send({
-          code: "validation_failed",
-          message: parsedBody.message,
-          details: [{ field: parsedBody.field }],
-        });
+      const body = await readValidatedBody(reply, labelSheetBodySchema, request.body);
+      if (!body) {
         return;
       }
 
       const productsById = await labelableProductsById(
         options.db,
-        parsedBody.map((entry) => entry.productId),
+        body.labels.map((entry) => entry.productId),
       );
 
       const items: { name: string; code: string; count: number }[] = [];
-      for (const entry of parsedBody) {
+      for (const entry of body.labels) {
         const product = productsById.get(entry.productId);
         if (!product) {
           await reply.code(400).send({
