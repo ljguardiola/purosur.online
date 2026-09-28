@@ -33,7 +33,6 @@ const AUTHENTICATION_FAILED_RESPONSE = {
   message: "the passkey authorization could not be verified",
 } as const;
 
-/** Neither route is itself gated by the passkey-authorization window: an already-open session can always ask to (re)authorize. */
 export function registerSessionAuthorizationRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: SessionAuthorizationRouteOptions<TQueryResult>,

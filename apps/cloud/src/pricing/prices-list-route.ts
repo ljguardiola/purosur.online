@@ -61,7 +61,6 @@ interface PriceCategoryOption {
 
 export interface ListPricesResult {
   products: PriceProductRow[];
-  /** Read here since a role holding only `manage_prices_and_review` can't call `GET /categories`. */
   categories: PriceCategoryOption[];
   pendingCount: number;
   reviewWindowDays: number;

@@ -38,8 +38,6 @@ const REGISTRATION_FAILED_RESPONSE = {
 
 class CredentialAlreadyRegistered extends Error {}
 
-// Doesn't recheck the passkey-authorization window here: consuming the one-time challenge
-// from registration-options already proves the ceremony started under a valid authorization.
 export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: PasskeyRegistrationRouteOptions<TQueryResult>,

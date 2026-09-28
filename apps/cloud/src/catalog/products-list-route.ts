@@ -58,8 +58,6 @@ interface ProductWithoutBarcodes {
   version: number;
 }
 
-// Both columns are guaranteed both-null-or-both-set by a database check constraint, so reading one
-// as set is enough to trust the other.
 function netContentRow(row: {
   netContentQuantity: number | null;
   netContentUnit: string | null;

@@ -27,7 +27,6 @@ const PRICE_UNCHANGED_RESPONSE = {
   details: [{ field: "unitPrice" }],
 } as const;
 
-// No passkey step-up: pricing is routine daily work, not a sensitive account or role action.
 export function registerPriceSetRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: PricesRouteOptions<TQueryResult>,
