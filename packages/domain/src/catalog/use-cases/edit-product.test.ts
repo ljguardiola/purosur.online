@@ -163,7 +163,6 @@ describe("editProduct", () => {
   it("skips the active-barcode check for an inactive product, and writes its replaced barcodes inactive", async () => {
     const store = new FakeCatalogStore();
     leafCategory(store);
-    activeProduct(store, { active: false });
     store.seedProduct(
       {
         id: "other",
@@ -176,6 +175,7 @@ describe("editProduct", () => {
       },
       [{ code: "222" }],
     );
+    activeProduct(store, { active: false });
 
     const outcome = await editProduct(store, {
       id: "product-1",
@@ -192,6 +192,11 @@ describe("editProduct", () => {
       product: expect.objectContaining({ active: false, barcodes: ["222"] }),
     });
     expect(await store.activeBarcodesTaken(["222"])).toEqual(["222"]);
+    expect(store.snapshot().barcodes).toContainEqual({
+      productId: "product-1",
+      code: "222",
+      active: false,
+    });
   });
 
   it("applies the edit, bumping the version and moving category", async () => {
