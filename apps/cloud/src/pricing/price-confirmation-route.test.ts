@@ -1,3 +1,4 @@
+import { confirmPrice, setPrice } from "@purosur/domain/pricing/use-cases";
 import { and, eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -18,8 +19,8 @@ import {
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
-import { confirmPrice, registerPriceConfirmationRoute } from "./price-confirmation-route.js";
-import { setPrice } from "./price-set-route.js";
+import { DrizzlePricingStore } from "./drizzle-pricing-store.js";
+import { registerPriceConfirmationRoute } from "./price-confirmation-route.js";
 import { listPrices } from "./prices-list-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
@@ -117,6 +118,10 @@ async function insertPrice(productId: string, unitPrice: number, validFrom: Date
     throw new Error("test setup: seeding the price returned no row");
   }
   return price.id;
+}
+
+function pricingPortsAt(moment: Date) {
+  return { store: new DrizzlePricingStore(db), clock: { now: () => moment } };
 }
 
 function cookieHeader(rawSessionId: string): Record<string, string> {
@@ -332,24 +337,22 @@ describe("confirmations committed by callers whose clocks disagree", () => {
     const productId = await insertProduct("Arroz");
     const laterMoment = new Date("2026-01-05T12:00:05.000Z");
 
-    const first = await setPrice(db, {
+    const first = await setPrice(pricingPortsAt(laterMoment), {
       productId,
       priceListId,
       unitPrice: 1000,
       expectedCurrentPriceId: null,
       actorId,
-      now: () => laterMoment,
     });
     if (first.kind !== "applied") {
       throw new Error("test setup: the first price was not applied");
     }
 
-    const confirmation = await confirmPrice(db, {
+    const confirmation = await confirmPrice(pricingPortsAt(new Date("2026-01-05T12:00:00.000Z")), {
       productId,
       priceListId,
       expectedCurrentPriceId: first.price.id,
       actorId,
-      now: () => new Date("2026-01-05T12:00:00.000Z"),
     });
     if (confirmation.kind !== "confirmed") {
       throw new Error(`expected the confirmation to apply, got ${confirmation.kind}`);

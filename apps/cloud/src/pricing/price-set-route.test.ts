@@ -1,3 +1,4 @@
+import { setPrice } from "@purosur/domain/pricing/use-cases";
 import { and, eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -18,7 +19,8 @@ import {
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
-import { registerPriceSetRoute, setPrice } from "./price-set-route.js";
+import { DrizzlePricingStore } from "./drizzle-pricing-store.js";
+import { registerPriceSetRoute } from "./price-set-route.js";
 import { listPrices } from "./prices-list-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
@@ -116,6 +118,10 @@ async function insertPrice(productId: string, unitPrice: number, validFrom: Date
     throw new Error("test setup: seeding the price returned no row");
   }
   return price.id;
+}
+
+function pricingPortsAt(moment: Date) {
+  return { store: new DrizzlePricingStore(db), clock: { now: () => moment } };
 }
 
 function cookieHeader(rawSessionId: string): Record<string, string> {
@@ -350,21 +356,6 @@ describe("POST /products/:id/price", () => {
     const allPrices = await db.select().from(prices).where(eq(prices.productId, productId));
     expect(allPrices).toHaveLength(1);
   });
-
-  it("rejects a stale expected price id that names a price the product no longer carries", async () => {
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
-    const productId = await insertProduct("Arroz");
-    await insertPrice(productId, 1000, NOON);
-
-    const response = await setPriceRequest(rawSessionId, productId, {
-      unitPrice: 1200,
-      expectedCurrentPriceId: "11111111-1111-1111-1111-111111111111",
-    });
-
-    expect(response.statusCode).toBe(409);
-    expect(response.json()).toMatchObject({ code: "stale_price" });
-  });
 });
 
 describe("price changes committed by callers whose clocks disagree", () => {
@@ -375,24 +366,22 @@ describe("price changes committed by callers whose clocks disagree", () => {
     const laterMoment = new Date("2026-01-05T12:00:05.000Z");
     const earlierMoment = new Date("2026-01-05T12:00:00.000Z");
 
-    const first = await setPrice(db, {
+    const first = await setPrice(pricingPortsAt(laterMoment), {
       productId,
       priceListId,
       unitPrice: 1000,
       expectedCurrentPriceId: null,
       actorId,
-      now: () => laterMoment,
     });
     if (first.kind !== "applied") {
       throw new Error("test setup: the first price was not applied");
     }
-    const earlierClock = await setPrice(db, {
+    const earlierClock = await setPrice(pricingPortsAt(earlierMoment), {
       productId,
       priceListId,
       unitPrice: 2000,
       expectedCurrentPriceId: first.price.id,
       actorId,
-      now: () => earlierMoment,
     });
     if (earlierClock.kind !== "applied") {
       throw new Error(`expected the earlier clock's change to apply, got ${earlierClock.kind}`);

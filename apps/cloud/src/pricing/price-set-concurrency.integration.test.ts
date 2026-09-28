@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { confirmPrice, setPrice } from "@purosur/domain/pricing/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -10,8 +11,7 @@ import {
 } from "../test-support/integration-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
-import { confirmPrice } from "./price-confirmation-route.js";
-import { setPrice } from "./price-set-route.js";
+import { DrizzlePricingStore } from "./drizzle-pricing-store.js";
 
 // PGlite serializes all transactions on one connection, so only a real Postgres pool can
 // interleave two writes to the same product; each test holds the row lock and waits for both to queue.
@@ -93,18 +93,21 @@ async function runQueuedBehindProductLock<TFirst, TSecond>(
 
 const NOW = () => new Date("2026-01-05T12:00:00.000Z");
 
+function pricingPorts() {
+  return { store: new DrizzlePricingStore(db), clock: { now: NOW } };
+}
+
 describe("two price changes on the same never-priced product queued behind each other, on a real Postgres", () => {
   it("applies exactly one of them and reports the other as stale_price", async () => {
     const priceListId = await seededPriceListId(db);
     const { actorId, productId } = await seedActorAndProduct();
     const change = (unitPrice: number) => () =>
-      setPrice(db, {
+      setPrice(pricingPorts(), {
         productId,
         priceListId,
         unitPrice,
         expectedCurrentPriceId: null,
         actorId,
-        now: NOW,
       });
 
     const [first, second] = await runQueuedBehindProductLock(productId, change(1000), change(2000));
@@ -131,21 +134,19 @@ describe("a confirmation queued behind a change of the price it confirms, on a r
     const [change, confirmation] = await runQueuedBehindProductLock(
       productId,
       () =>
-        setPrice(db, {
+        setPrice(pricingPorts(), {
           productId,
           priceListId,
           unitPrice: 2000,
           expectedCurrentPriceId: superseded.id,
           actorId,
-          now: NOW,
         }),
       () =>
-        confirmPrice(db, {
+        confirmPrice(pricingPorts(), {
           productId,
           priceListId,
           expectedCurrentPriceId: superseded.id,
           actorId,
-          now: NOW,
         }),
     );
 
