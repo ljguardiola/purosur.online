@@ -1,62 +1,23 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { RouterProvider } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import {
-  type AccountRecoveryScreenServices,
-  defaultAccountRecoveryScreenServices,
-} from "../access/account-recovery-screen";
-import {
-  defaultMyAccountScreenServices,
-  type MyAccountScreenServices,
-} from "../access/my-account-screen";
-import {
-  defaultRegisterPasskeyScreenServices,
-  type RegisterPasskeyScreenServices,
-} from "../access/register-passkey-screen";
-import {
-  defaultRolesListScreenServices,
-  type RolesListScreenServices,
-} from "../access/roles-list-screen";
+import type { AccountRecoveryScreenServices } from "../access/account-recovery-screen";
+import type { MyAccountScreenServices } from "../access/my-account-screen";
+import type { RegisterPasskeyScreenServices } from "../access/register-passkey-screen";
+import type { RolesListScreenServices } from "../access/roles-list-screen";
 import { checkSessionStatus, fetchSession, type SessionOutcome } from "../access/session-api";
-import { defaultSignInScreenServices, type SignInScreenServices } from "../access/sign-in-screen";
-import {
-  defaultUserDetailScreenServices,
-  type UserDetailScreenServices,
-} from "../access/user-detail-screen";
-import {
-  defaultUsersListScreenServices,
-  type UsersListScreenServices,
-} from "../access/users-list-screen";
-import {
-  type AlertsListScreenServices,
-  defaultAlertsListScreenServices,
-} from "../alerts/alerts-list-screen";
-import {
-  type BranchSettingsScreenServices,
-  defaultBranchSettingsScreenServices,
-} from "../branch/branch-settings-screen";
-import {
-  type CategoriesListScreenServices,
-  defaultCategoriesListScreenServices,
-} from "../catalog/categories-list-screen";
-import {
-  defaultProductsListScreenServices,
-  type ProductsListScreenServices,
-} from "../catalog/products-list-screen";
-import {
-  defaultFiscalConfigurationScreenServices,
-  type FiscalConfigurationScreenServices,
-} from "../fiscal/fiscal-configuration-screen";
+import type { SignInScreenServices } from "../access/sign-in-screen";
+import type { UserDetailScreenServices } from "../access/user-detail-screen";
+import type { UsersListScreenServices } from "../access/users-list-screen";
+import type { AlertsListScreenServices } from "../alerts/alerts-list-screen";
+import type { BranchSettingsScreenServices } from "../branch/branch-settings-screen";
+import type { CategoriesListScreenServices } from "../catalog/categories-list-screen";
+import type { ProductsListScreenServices } from "../catalog/products-list-screen";
+import type { FiscalConfigurationScreenServices } from "../fiscal/fiscal-configuration-screen";
 import type { BackofficeHelpCatalog } from "../help/help-page";
 import { useLatestRef } from "../platform/use-latest-ref";
-import {
-  defaultPricesListScreenServices,
-  type PricesListScreenServices,
-} from "../pricing/prices-list-screen";
-import {
-  defaultRegistersListScreenServices,
-  type RegistersListScreenServices,
-} from "../register/registers-list-screen";
+import type { PricesListScreenServices } from "../pricing/prices-list-screen";
+import type { RegistersListScreenServices } from "../register/registers-list-screen";
 import { type AccountFooterServices, defaultAccountFooterServices } from "./account-footer";
 import { createAppRouter } from "./app-router";
 import {
@@ -72,41 +33,27 @@ import { useSessionWatcher } from "./session-watcher";
 export type AppServices = {
   fetchSession: typeof fetchSession;
   checkSessionStatus: typeof checkSessionStatus;
-  signInScreen: SignInScreenServices;
-  accountRecoveryScreen: AccountRecoveryScreenServices;
-  registerPasskeyScreen: RegisterPasskeyScreenServices;
-  myAccountScreen: MyAccountScreenServices;
-  usersListScreen: UsersListScreenServices;
-  userDetailScreen: UserDetailScreenServices;
-  rolesListScreen: RolesListScreenServices;
-  registersListScreen: RegistersListScreenServices;
-  branchSettingsScreen: BranchSettingsScreenServices;
-  categoriesListScreen: CategoriesListScreenServices;
-  productsListScreen: ProductsListScreenServices;
-  pricesListScreen: PricesListScreenServices;
-  fiscalConfigurationScreen: FiscalConfigurationScreenServices;
+  signInScreen?: SignInScreenServices;
+  accountRecoveryScreen?: AccountRecoveryScreenServices;
+  registerPasskeyScreen?: RegisterPasskeyScreenServices;
+  myAccountScreen?: MyAccountScreenServices;
+  usersListScreen?: UsersListScreenServices;
+  userDetailScreen?: UserDetailScreenServices;
+  rolesListScreen?: RolesListScreenServices;
+  registersListScreen?: RegistersListScreenServices;
+  branchSettingsScreen?: BranchSettingsScreenServices;
+  categoriesListScreen?: CategoriesListScreenServices;
+  productsListScreen?: ProductsListScreenServices;
+  pricesListScreen?: PricesListScreenServices;
+  fiscalConfigurationScreen?: FiscalConfigurationScreenServices;
   accountFooter: AccountFooterServices;
-  alertsListScreen: AlertsListScreenServices;
+  alertsListScreen?: AlertsListScreenServices;
 };
 
 const defaultAppServices: AppServices = {
   fetchSession,
   checkSessionStatus,
-  signInScreen: defaultSignInScreenServices,
-  accountRecoveryScreen: defaultAccountRecoveryScreenServices,
-  registerPasskeyScreen: defaultRegisterPasskeyScreenServices,
-  myAccountScreen: defaultMyAccountScreenServices,
-  usersListScreen: defaultUsersListScreenServices,
-  userDetailScreen: defaultUserDetailScreenServices,
-  rolesListScreen: defaultRolesListScreenServices,
-  registersListScreen: defaultRegistersListScreenServices,
-  branchSettingsScreen: defaultBranchSettingsScreenServices,
-  categoriesListScreen: defaultCategoriesListScreenServices,
-  productsListScreen: defaultProductsListScreenServices,
-  pricesListScreen: defaultPricesListScreenServices,
-  fiscalConfigurationScreen: defaultFiscalConfigurationScreenServices,
   accountFooter: defaultAccountFooterServices,
-  alertsListScreen: defaultAlertsListScreenServices,
 };
 
 export type AppProps = {

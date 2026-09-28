@@ -37,7 +37,7 @@ export type RegistersListScreenServices = {
   startAuthentication: typeof startAuthentication;
 };
 
-export const defaultRegistersListScreenServices: RegistersListScreenServices = {
+const defaultRegistersListScreenServices: RegistersListScreenServices = {
   fetchRegisters,
   createRegister,
   emitEnrollmentCode,
@@ -49,7 +49,7 @@ export const defaultRegistersListScreenServices: RegistersListScreenServices = {
 export type RegistersListScreenProps = {
   onSessionEnded: () => void;
   now?: () => Date;
-  services?: RegistersListScreenServices;
+  services?: RegistersListScreenServices | undefined;
 };
 
 type ListState =

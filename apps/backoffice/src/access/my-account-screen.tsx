@@ -48,7 +48,7 @@ export type MyAccountScreenServices = {
   signalUnknownCredential: typeof signalUnknownCredential;
 };
 
-export const defaultMyAccountScreenServices: MyAccountScreenServices = {
+const defaultMyAccountScreenServices: MyAccountScreenServices = {
   fetchPasskeys,
   fetchPasskeyRegistrationChallenge,
   registerPasskey,
@@ -64,7 +64,7 @@ export type MyAccountScreenProps = {
   displayName: string;
   onSessionEnded: () => void;
   now?: () => Date;
-  services?: MyAccountScreenServices;
+  services?: MyAccountScreenServices | undefined;
 };
 
 type ListState =

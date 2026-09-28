@@ -41,7 +41,7 @@ export type FiscalConfigurationScreenServices = {
   startAuthentication: typeof startAuthentication;
 };
 
-export const defaultFiscalConfigurationScreenServices: FiscalConfigurationScreenServices = {
+const defaultFiscalConfigurationScreenServices: FiscalConfigurationScreenServices = {
   fetchIssuerIdentification,
   saveIssuerIdentification,
   fetchSessionAuthorizationOptions,
@@ -51,7 +51,7 @@ export const defaultFiscalConfigurationScreenServices: FiscalConfigurationScreen
 
 export type FiscalConfigurationScreenProps = {
   onSessionEnded: () => void;
-  services?: FiscalConfigurationScreenServices;
+  services?: FiscalConfigurationScreenServices | undefined;
   now?: () => Date;
 };
 

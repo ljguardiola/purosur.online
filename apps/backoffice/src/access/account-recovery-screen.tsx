@@ -12,12 +12,12 @@ export type AccountRecoveryScreenServices = {
   requestRecoveryLink: typeof requestRecoveryLink;
 };
 
-export const defaultAccountRecoveryScreenServices: AccountRecoveryScreenServices = {
+const defaultAccountRecoveryScreenServices: AccountRecoveryScreenServices = {
   requestRecoveryLink,
 };
 
 export type AccountRecoveryScreenProps = {
-  services?: AccountRecoveryScreenServices;
+  services?: AccountRecoveryScreenServices | undefined;
 };
 
 const EMAIL_ERRORS = {

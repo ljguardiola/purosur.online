@@ -50,7 +50,7 @@ export type RegisterPasskeyScreenServices = {
   signalUnknownCredential: typeof signalUnknownCredential;
 };
 
-export const defaultRegisterPasskeyScreenServices: RegisterPasskeyScreenServices = {
+const defaultRegisterPasskeyScreenServices: RegisterPasskeyScreenServices = {
   fetchRegistrationOptions,
   redeemRecovery,
   startRegistration,
@@ -58,7 +58,7 @@ export const defaultRegisterPasskeyScreenServices: RegisterPasskeyScreenServices
 };
 
 export type RegisterPasskeyScreenProps = {
-  services?: RegisterPasskeyScreenServices;
+  services?: RegisterPasskeyScreenServices | undefined;
 };
 
 function readToken(): string | null {

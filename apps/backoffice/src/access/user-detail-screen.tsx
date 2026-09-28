@@ -66,7 +66,7 @@ export type UserDetailScreenServices = {
   startAuthentication: typeof startAuthentication;
 };
 
-export const defaultUserDetailScreenServices: UserDetailScreenServices = {
+const defaultUserDetailScreenServices: UserDetailScreenServices = {
   fetchUser,
   editUser,
   fetchRoles,
@@ -85,7 +85,7 @@ export type UserDetailScreenProps = {
   access: BackofficeAccess;
   onSessionEnded: () => void;
   now?: () => Date;
-  services?: UserDetailScreenServices;
+  services?: UserDetailScreenServices | undefined;
 };
 
 type DetailState =

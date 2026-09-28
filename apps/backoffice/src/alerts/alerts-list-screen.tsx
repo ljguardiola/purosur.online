@@ -54,7 +54,7 @@ export type AlertsListScreenServices = {
   alertDetailModal?: AlertDetailModalServices;
 };
 
-export const defaultAlertsListScreenServices: AlertsListScreenServices = {
+const defaultAlertsListScreenServices: AlertsListScreenServices = {
   fetchAlerts: fetchAlertsDefault,
 };
 
@@ -63,7 +63,7 @@ export type AlertsListScreenProps = {
   onFiltersChange: (filters: AlertsListFilters) => void;
   access: BackofficeAccess;
   onSessionEnded: () => void;
-  services?: AlertsListScreenServices;
+  services?: AlertsListScreenServices | undefined;
 };
 
 type ListState =

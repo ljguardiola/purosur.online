@@ -20,7 +20,7 @@ export type SignInScreenServices = {
   signalUnknownCredential: typeof signalUnknownCredential;
 };
 
-export const defaultSignInScreenServices: SignInScreenServices = {
+const defaultSignInScreenServices: SignInScreenServices = {
   fetchAuthenticationOptions,
   authenticate,
   startAuthentication,
@@ -30,7 +30,7 @@ export const defaultSignInScreenServices: SignInScreenServices = {
 export type SignInScreenProps = {
   openingNotice?: SignInOpeningNotice | undefined;
   onSignedIn: () => void;
-  services?: SignInScreenServices;
+  services?: SignInScreenServices | undefined;
 };
 
 type Notice =

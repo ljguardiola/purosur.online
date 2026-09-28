@@ -32,14 +32,14 @@ export type BranchSettingsScreenServices = {
   saveBranchSettings: typeof saveBranchSettings;
 };
 
-export const defaultBranchSettingsScreenServices: BranchSettingsScreenServices = {
+const defaultBranchSettingsScreenServices: BranchSettingsScreenServices = {
   fetchBranchSettings,
   saveBranchSettings,
 };
 
 export type BranchSettingsScreenProps = {
   onSessionEnded: () => void;
-  services?: BranchSettingsScreenServices;
+  services?: BranchSettingsScreenServices | undefined;
 };
 
 type LoadState = { kind: "loading" } | { kind: "loadError" } | { kind: "loaded" };

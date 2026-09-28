@@ -44,7 +44,7 @@ export type CategoriesListScreenServices = {
   editCategory: typeof editCategory;
 };
 
-export const defaultCategoriesListScreenServices: CategoriesListScreenServices = {
+const defaultCategoriesListScreenServices: CategoriesListScreenServices = {
   fetchCategories,
   createCategory,
   editCategory,
@@ -54,7 +54,7 @@ export type CategoriesListScreenProps = {
   filters: CategoriesListFilters;
   onFiltersChange: (filters: CategoriesListFilters) => void;
   onSessionEnded: () => void;
-  services?: CategoriesListScreenServices;
+  services?: CategoriesListScreenServices | undefined;
 };
 
 type ListState =

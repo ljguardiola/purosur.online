@@ -98,7 +98,7 @@ export type ProductsListScreenServices = {
   printLabels: typeof printLabels;
 };
 
-export const defaultProductsListScreenServices: ProductsListScreenServices = {
+const defaultProductsListScreenServices: ProductsListScreenServices = {
   fetchProducts,
   createProduct,
   editProduct,
@@ -112,7 +112,7 @@ export type ProductsListScreenProps = {
   filters: ProductsListFilters;
   onFiltersChange: (filters: ProductsListFilters) => void;
   onSessionEnded: () => void;
-  services?: ProductsListScreenServices;
+  services?: ProductsListScreenServices | undefined;
 };
 
 type ListState =

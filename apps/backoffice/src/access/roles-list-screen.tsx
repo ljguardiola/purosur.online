@@ -20,13 +20,13 @@ export type RolesListScreenServices = {
   roleEditorModal?: RoleEditorModalServices;
 };
 
-export const defaultRolesListScreenServices: RolesListScreenServices = {
+const defaultRolesListScreenServices: RolesListScreenServices = {
   fetchRoles,
 };
 
 export type RolesListScreenProps = {
   onSessionEnded: () => void;
-  services?: RolesListScreenServices;
+  services?: RolesListScreenServices | undefined;
 };
 
 type ListState =

@@ -54,7 +54,7 @@ export type UsersListScreenServices = {
   startAuthentication: typeof startAuthentication;
 };
 
-export const defaultUsersListScreenServices: UsersListScreenServices = {
+const defaultUsersListScreenServices: UsersListScreenServices = {
   fetchUsers,
   fetchRoles,
   createUser,
@@ -68,7 +68,7 @@ export type UsersListScreenProps = {
   onFiltersChange: (filters: UsersListFilters) => void;
   access: BackofficeAccess;
   onSessionEnded: () => void;
-  services?: UsersListScreenServices;
+  services?: UsersListScreenServices | undefined;
 };
 
 type ListState =

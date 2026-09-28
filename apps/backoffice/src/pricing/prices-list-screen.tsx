@@ -52,7 +52,7 @@ export type PricesListScreenServices = {
   confirmPrice: typeof confirmPrice;
 };
 
-export const defaultPricesListScreenServices: PricesListScreenServices = {
+const defaultPricesListScreenServices: PricesListScreenServices = {
   fetchPrices,
   setPrice,
   confirmPrice,
@@ -62,7 +62,7 @@ export type PricesListScreenProps = {
   filters: PricesListFilters;
   onFiltersChange: (filters: PricesListFilters) => void;
   onSessionEnded: () => void;
-  services?: PricesListScreenServices;
+  services?: PricesListScreenServices | undefined;
   now?: () => Date;
 };
 
