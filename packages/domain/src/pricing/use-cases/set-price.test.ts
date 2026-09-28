@@ -89,16 +89,34 @@ describe("setPrice", () => {
     ]);
   });
 
-  it("gives each new price its own id", async () => {
+  it("records each change against the id the store gave its new price", async () => {
     const store = storeWithProduct();
 
     const first = await change(store, { unitPrice: 1000 });
-    if (first.kind !== "applied") {
-      throw new Error("test setup: the first price was not applied");
-    }
-    await change(store, { unitPrice: 1100, expectedCurrentPriceId: first.price.id, now: LATER });
+    const second = await change(store, {
+      unitPrice: 1100,
+      expectedCurrentPriceId: "price-1",
+      now: LATER,
+    });
 
-    expect(store.snapshot().prices.map((row) => row.id)).toEqual(["price-1", "price-2"]);
+    expect(first).toMatchObject({ kind: "applied", price: { id: "price-1" } });
+    expect(second).toMatchObject({ kind: "applied", price: { id: "price-2" } });
+    const after = store.snapshot();
+    expect(after.reviews.map((row) => row.priceId)).toEqual(["price-1", "price-2"]);
+    expect(after.priceChanges).toEqual([
+      {
+        productId: "product-1",
+        actorId: "actor-1",
+        previous: null,
+        next: { priceId: "price-1", unitPrice: 1000 },
+      },
+      {
+        productId: "product-1",
+        actorId: "actor-1",
+        previous: { priceId: "price-1", unitPrice: 1000 },
+        next: { priceId: "price-2", unitPrice: 1100 },
+      },
+    ]);
   });
 
   it("runs entirely inside one transaction", async () => {
