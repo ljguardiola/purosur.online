@@ -35,13 +35,17 @@ async function readJson(response: Response): Promise<unknown> {
 // timed out, or that a proxy in front of the cloud failed, may already have taken effect.
 type Attempt = { response: CloudResponse; refusedByCloud: boolean };
 
-async function postOnce(deps: CloudClientDeps, path: string, body: unknown): Promise<Attempt> {
+type CloudRequest = Pick<RequestInit, "method" | "headers" | "body">;
+
+async function requestOnce(
+  deps: CloudClientDeps,
+  path: string,
+  request: CloudRequest,
+): Promise<Attempt> {
   let response: Response;
   try {
     response = await deps.fetch(new URL(path, deps.cloudUrl).href, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
+      ...request,
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
   } catch {
@@ -71,17 +75,37 @@ function retryWaitMs({ response, refusedByCloud }: Attempt, attempt: number): nu
   return retryAfterSeconds === undefined ? BACKOFF_MS[attempt - 1] : retryAfterSeconds * 1000;
 }
 
-export async function postToCloud(
+async function requestWithRetries(
   deps: CloudClientDeps,
   path: string,
-  body: unknown,
+  request: CloudRequest,
 ): Promise<CloudResponse> {
   for (let attempt = 1; ; attempt += 1) {
-    const sent = await postOnce(deps, path, body);
+    const sent = await requestOnce(deps, path, request);
     const waitMs = retryWaitMs(sent, attempt);
     if (attempt === MAX_ATTEMPTS || waitMs === undefined || waitMs > MAX_WAIT_MS) {
       return sent.response;
     }
     await deps.sleep(waitMs);
   }
+}
+
+export function postToCloud(
+  deps: CloudClientDeps,
+  path: string,
+  body: unknown,
+): Promise<CloudResponse> {
+  return requestWithRetries(deps, path, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function getFromCloud(
+  deps: CloudClientDeps,
+  path: string,
+  headers: Record<string, string>,
+): Promise<CloudResponse> {
+  return requestWithRetries(deps, path, { method: "GET", headers });
 }

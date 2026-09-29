@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type CloudClientDeps, postToCloud } from "./cloud-client";
+import { type CloudClientDeps, getFromCloud, postToCloud } from "./cloud-client";
 
 const CLOUD_URL = "https://staging.purosur.online";
 
@@ -155,5 +155,52 @@ describe("postToCloud", () => {
       kind: "ok",
       body: undefined,
     });
+  });
+});
+
+describe("getFromCloud", () => {
+  it("gets the path on the channel's cloud with the given headers and no body", async () => {
+    const { deps, requests } = clientAnswering(jsonResponse(200, { ok: true }));
+
+    const response = await getFromCloud(deps, "/sync/pull?since=4", {
+      authorization: "Bearer token",
+    });
+
+    expect(response).toEqual({ kind: "ok", body: { ok: true } });
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.url).toBe(`${CLOUD_URL}/sync/pull?since=4`);
+    expect(requests[0]?.method).toBe("GET");
+    expect(requests[0]?.headers.get("authorization")).toBe("Bearer token");
+    expect(requests[0]?.body).toBeNull();
+  });
+
+  it("retries a retryable refusal the same way a post does", async () => {
+    const { deps, requests, waits } = clientAnswering(
+      jsonResponse(429, envelope("rate_limited", [{ retry_after_seconds: 3 }])),
+      jsonResponse(200, { ok: true }),
+    );
+
+    const response = await getFromCloud(deps, "/sync/pull?since=0", {});
+
+    expect(response).toEqual({ kind: "ok", body: { ok: true } });
+    expect(requests).toHaveLength(2);
+    expect(waits).toEqual([3000]);
+  });
+
+  it("answers a refusal marked as not retryable at once", async () => {
+    const { deps, requests } = clientAnswering(
+      jsonResponse(401, envelope("device_token_rejected")),
+    );
+
+    const response = await getFromCloud(deps, "/sync/pull?since=0", {});
+
+    expect(response).toEqual({ kind: "error", error: envelope("device_token_rejected") });
+    expect(requests).toHaveLength(1);
+  });
+
+  it("answers an unreachable cloud as unreachable", async () => {
+    const { deps } = clientAnswering(new TypeError("fetch failed"));
+
+    expect(await getFromCloud(deps, "/sync/pull?since=0", {})).toEqual({ kind: "unreachable" });
   });
 });
