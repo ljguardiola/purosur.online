@@ -1,3 +1,4 @@
+import { type AlertSummary, alertListPageSchema } from "@purosur/contracts";
 import { type AlertAudience, type AlertKind, type AlertLevel, isAlertKind } from "@purosur/domain";
 import {
   and,
@@ -47,40 +48,20 @@ interface AlertSummaryRow {
   resolvedAt: Date | null;
 }
 
-interface AlertSummaryWire {
-  id: string;
-  kind: string;
-  scope: string | null;
-  scope_display: string | null;
-  level: AlertLevel;
-  audience: AlertAudience;
-  opened_at: string;
-  escalated_at: string | null;
-  resolved_at: string | null;
-}
-
-interface AlertListWire {
-  alerts: AlertSummaryWire[];
-  total: number;
-  page_size: number;
-  open_count: number;
-  open_critical_count: number;
-}
-
-function toAlertSummaryWire(
+function toAlertSummary(
   row: AlertSummaryRow,
   namesByUserId: ReadonlyMap<string, string>,
-): AlertSummaryWire {
+): AlertSummary {
   return {
     id: row.id,
     kind: row.kind,
     scope: wireScope(row),
-    scope_display: scopeDisplay(row, namesByUserId),
+    scopeDisplay: scopeDisplay(row, namesByUserId),
     level: row.level,
     audience: row.audience,
-    opened_at: row.openedAt.toISOString(),
-    escalated_at: row.escalatedAt?.toISOString() ?? null,
-    resolved_at: row.resolvedAt?.toISOString() ?? null,
+    openedAt: row.openedAt.toISOString(),
+    escalatedAt: row.escalatedAt?.toISOString() ?? null,
+    resolvedAt: row.resolvedAt?.toISOString() ?? null,
   };
 }
 
@@ -268,13 +249,13 @@ export function registerAlertsListRoute<TQueryResult extends PgQueryResultHKT>(
         options.db,
         rows.map((row) => row.scope),
       );
-      const body: AlertListWire = {
-        alerts: rows.map((row) => toAlertSummaryWire(row, namesByUserId)),
+      const body = alertListPageSchema.parse({
+        alerts: rows.map((row) => toAlertSummary(row, namesByUserId)),
         total,
-        page_size: ALERTS_PAGE_SIZE,
-        open_count: openCounts.openCount,
-        open_critical_count: openCounts.openCriticalCount,
-      };
+        pageSize: ALERTS_PAGE_SIZE,
+        openCount: openCounts.openCount,
+        openCriticalCount: openCounts.openCriticalCount,
+      });
       await reply.code(200).send(body);
     },
   );

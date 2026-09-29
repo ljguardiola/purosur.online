@@ -17,7 +17,7 @@ import {
   type AlertDetailRow,
   findAlertById,
   listAlertDeliveries,
-  toAlertDetailWire,
+  toAlertDetailBody,
   userIdsToResolve,
 } from "./alert-read-route.js";
 import { loadScopeDisplayNames } from "./alert-scope-display.js";
@@ -136,7 +136,7 @@ export function registerAlertCloseRoute<TQueryResult extends PgQueryResultHKT>(
         options.db,
         userIdsToResolve(outcome.alert),
       );
-      await reply.code(200).send(toAlertDetailWire(outcome.alert, deliveries, namesByUserId));
+      await reply.code(200).send(toAlertDetailBody(outcome.alert, deliveries, namesByUserId));
     },
   );
 }
