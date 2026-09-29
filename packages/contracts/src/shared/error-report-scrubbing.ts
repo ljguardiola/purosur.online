@@ -51,16 +51,26 @@ const USERINFO_PATTERN = /^[^/]*@/;
 const BEARER_TOKEN_PATTERN = /\bBearer\s+[A-Za-z0-9\-_.]+/g;
 // The domain must end in letters, so a package or release name such as `purosur-pos@1.2.3` is kept.
 const EMAIL_PATTERN = /(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]+@(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}/g;
-// A home folder is only matched where a path starts, so a URL's own `/home/` segment is kept.
-const UNIX_HOME_ACCOUNT_PATTERN = /(?<![\w.-])(\/(?:home|Users)\/)[^/\s]+(?=\/)/g;
+// A home folder is matched where a path starts, under `/var` (ostree systems), `/mnt/<drive>`
+// (WSL) or Vite's `/@fs`, so a URL's own `/home/` segment is kept. An account at the end of a path
+// is only recognized before a space, quote or parenthesis, so a backoffice route such as
+// `/home/alerts` is kept.
+const UNIX_HOME_ACCOUNT_PATTERN =
+  /((?:(?<![\w.-])(?:\/var|\/mnt\/[a-z])?|\/@fs)\/(?:home|Users)\/)[^/\s:"'`()<>]+(?=[/\s"'`)])/g;
+// A Windows account name can contain spaces, which only a following folder separator bounds.
 const WINDOWS_HOME_ACCOUNT_PATTERN =
-  /(?<![A-Za-z0-9])([A-Z]:(?:\\+|\/)Users(?:\\+|\/))[^\\/\s]+(?=[\\/])/gi;
-// A stack frame writes the line and column right after the URL, inside the same word.
+  /(?<![A-Za-z0-9])([A-Z]:(?:\\+|\/)Users(?:\\+|\/))(?:[^\\/\n:"'`()<>]+(?=[\\/])|[^\\/\s:"'`()<>]+(?=[\s"'`)]|$))/gi;
+// A stack frame writes the line and column right after the script's URL, inside the same word.
 const FRAME_POSITION_PATTERN = /:\d+:\d+\)?$/;
+const SCRIPT_FILE_PATTERN = /\.[cm]?[jt]sx?$/;
 
 // Only a closing bracket/parenthesis/angle-bracket/quote/backtick is trusted as wrapping a path
 // rather than part of it; sentence punctuation stays inside the redaction instead of being guessed at.
 const TRAILING_DELIMITER_PATTERN = /[\])>"'`]$/;
+
+function framePosition(path: string, query: string): string {
+  return SCRIPT_FILE_PATTERN.test(path) ? (FRAME_POSITION_PATTERN.exec(query)?.[0] ?? "") : "";
+}
 
 function redactPathToken(token: string): string {
   const queryIndex = token.search(/[?#]/);
@@ -69,14 +79,14 @@ function redactPathToken(token: string): string {
   }
 
   const queryPart = token.slice(queryIndex + 1);
-  const framePosition = FRAME_POSITION_PATTERN.exec(queryPart)?.[0] ?? "";
-  if (queryPart.slice(0, queryPart.length - framePosition.length) === REDACTED) {
+  const position = framePosition(token.slice(0, queryIndex), queryPart);
+  if (queryPart.slice(0, queryPart.length - position.length) === REDACTED) {
     // Already scrubbed by URL_PATTERN above, or by this same pass on an earlier call: redacting
     // again would misread the placeholder's own closing "]" as a delimiter to preserve.
     return token;
   }
 
-  const kept = framePosition || (TRAILING_DELIMITER_PATTERN.exec(queryPart)?.[0] ?? "");
+  const kept = position || (TRAILING_DELIMITER_PATTERN.exec(queryPart)?.[0] ?? "");
   return `${token.slice(0, queryIndex)}?${REDACTED}${kept}`;
 }
 
@@ -101,8 +111,8 @@ function redactUrl(url: string): string {
   if (queryStart === -1) {
     return url;
   }
-  const framePosition = FRAME_POSITION_PATTERN.exec(url)?.[0] ?? "";
-  return `${url.slice(0, queryStart)}?${REDACTED}${framePosition}`;
+  const path = url.slice(0, queryStart);
+  return `${path}?${REDACTED}${framePosition(path, url.slice(queryStart))}`;
 }
 
 function redactString(value: string): string {

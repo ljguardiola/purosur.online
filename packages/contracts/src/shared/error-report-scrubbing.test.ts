@@ -339,7 +339,7 @@ describe("scrubErrorReportBreadcrumb", () => {
     );
     error.stack =
       "Error: connect redis://default:secret@cache.internal:6379 failed for ana.perez@example.com\n" +
-      "    at fetch (https://cloud.purosur.online/sales?token=abc123:1:1)\n" +
+      "    at fetch (https://cloud.purosur.online/assets/index.js?token=abc123:1:1)\n" +
       "    at authorize (Bearer eyJhbGciOi.payload.sig)";
     const breadcrumb = { data: { arguments: [error] } };
 
@@ -350,7 +350,7 @@ describe("scrubErrorReportBreadcrumb", () => {
           message: "customer [redacted] with CUIT [redacted] and DNI [redacted] rejected",
           stack:
             "Error: connect [redacted] failed for [redacted]\n" +
-            "    at fetch (https://cloud.purosur.online/sales?[redacted]:1:1)\n" +
+            "    at fetch (https://cloud.purosur.online/assets/index.js?[redacted]:1:1)\n" +
             "    at authorize ([redacted])",
         },
       ],
@@ -616,6 +616,66 @@ describe("personal data in text", () => {
     }
   });
 
+  it("redacts a Windows account name that has a space", () => {
+    for (const { frame, expected } of [
+      {
+        frame: String.raw`at start (C:\Users\Juan Perez\AppData\Local\purosur\main.js:10:5)`,
+        expected: String.raw`at start (C:\Users\[redacted]\AppData\Local\purosur\main.js:10:5)`,
+      },
+      {
+        frame: String.raw`at start (C:\\Users\\Juan Perez\\AppData\\main.js:10:5)`,
+        expected: String.raw`at start (C:\\Users\\[redacted]\\AppData\\main.js:10:5)`,
+      },
+    ]) {
+      expect(scrubErrorReport({ message: frame }).message).toBe(expected);
+    }
+  });
+
+  it("redacts the account name in a home folder nested under another folder", () => {
+    for (const { frame, expected } of [
+      {
+        frame: "at start (/var/home/ana/purosur/main.js:10:5)",
+        expected: "at start (/var/home/[redacted]/purosur/main.js:10:5)",
+      },
+      {
+        frame: "at start (/mnt/c/Users/ana/purosur/main.js:10:5)",
+        expected: "at start (/mnt/c/Users/[redacted]/purosur/main.js:10:5)",
+      },
+      {
+        frame: "at render (http://localhost:5173/@fs/home/ana/purosur/button.tsx?t=1:10:5)",
+        expected:
+          "at render (http://localhost:5173/@fs/home/[redacted]/purosur/button.tsx?[redacted]:10:5)",
+      },
+    ]) {
+      expect(scrubErrorReport({ message: frame }).message).toBe(expected);
+    }
+  });
+
+  it("redacts the account name at the end of a home folder path", () => {
+    for (const { message, expected } of [
+      {
+        message: "ENOENT: no such file or directory, scandir '/home/ana'",
+        expected: "ENOENT: no such file or directory, scandir '/home/[redacted]'",
+      },
+      { message: String.raw`C:\Users\ana`, expected: String.raw`C:\Users\[redacted]` },
+      {
+        message: String.raw`cannot write C:\Users\ana now`,
+        expected: String.raw`cannot write C:\Users\[redacted] now`,
+      },
+    ]) {
+      expect(scrubErrorReport({ message }).message).toBe(expected);
+    }
+  });
+
+  it("keeps a backoffice route under the home area", () => {
+    const breadcrumb = { category: "navigation", data: { from: "/home", to: "/home/alerts" } };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
+      from: "/home",
+      to: "/home/alerts",
+    });
+  });
+
   it("keeps a URL whose path has a home or Users folder", () => {
     const message = "GET https://cloud.purosur.online/home/banner and /api/Users/42/roles failed";
 
@@ -628,6 +688,35 @@ describe("personal data in text", () => {
     expect(scrubErrorReport({ message }).message).toBe(
       "at render (/src/sales/sale-screen.tsx?[redacted]:10:5)",
     );
+  });
+
+  it("hides a query that merely ends in two numbers when the path is not a script", () => {
+    for (const { message, expected } of [
+      {
+        message: "GET /events?since=2026-09-28T10:30:00 failed",
+        expected: "GET /events?[redacted] failed",
+      },
+      {
+        message: "GET https://cloud.purosur.online/sales?at=10:30:45 failed",
+        expected: "GET https://cloud.purosur.online/sales?[redacted] failed",
+      },
+    ]) {
+      expect(scrubErrorReport({ message }).message).toBe(expected);
+    }
+  });
+
+  it("gives the same text when an already scrubbed stack is scrubbed again", () => {
+    const stack = [
+      "Error: no customer for ana.perez@example.com",
+      "    at render (http://localhost:5173/src/sale-screen.tsx?t=1:10:5)",
+      "    at load (/src/sales/load.ts?t=1:3:7)",
+      "    at start (/home/ana/purosur/main.js:10:5)",
+      String.raw`    at start (C:\Users\Juan Perez\AppData\main.js:10:5)`,
+    ].join("\n");
+
+    const once = scrubErrorReport({ message: stack }).message;
+
+    expect(scrubErrorReport({ message: once }).message).toBe(once);
   });
 
   it("keeps a stack frame's line and column after redacting its URL's query", () => {
