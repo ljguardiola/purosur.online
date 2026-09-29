@@ -1,3 +1,4 @@
+import type { PriceCategory, PriceProduct } from "@purosur/contracts";
 import {
   Button,
   FloatingNotification,
@@ -38,9 +39,6 @@ import type {
   confirmPrice,
   FetchPricesOutcome,
   fetchPrices,
-  PriceCategory,
-  PriceProduct,
-  PriceRow,
   PricesReviewFilter,
   SetPriceOutcome,
   setPrice,
@@ -129,9 +127,7 @@ function emptyPendingDetail(params: { days: number }): string {
   });
 }
 
-type PriceModalOutcome =
-  | { kind: "confirmed"; lastReviewedAt: string }
-  | { kind: "saved"; price: PriceRow; lastReviewedAt: string };
+type PriceModalOutcome = { kind: "confirmed" } | { kind: "saved"; unitPrice: number };
 
 type ModalNotice =
   | { kind: "attemptFailed" }
@@ -241,13 +237,13 @@ function PriceChangeModal({
     return cents;
   }
 
-  function handleSetPriceOutcome(product: PriceProduct, outcome: SetPriceOutcome) {
+  function handleSetPriceOutcome(
+    product: PriceProduct,
+    unitPrice: number,
+    outcome: SetPriceOutcome,
+  ) {
     if (outcome.kind === "ok") {
-      onSaved(product, {
-        kind: "saved",
-        price: outcome.value.price,
-        lastReviewedAt: outcome.value.lastReviewedAt,
-      });
+      onSaved(product, { kind: "saved", unitPrice });
       return;
     }
     if (outcome.kind === "unauthenticated") {
@@ -293,7 +289,7 @@ function PriceChangeModal({
         unitPrice: cents,
         expectedCurrentPriceId,
       });
-      handleSetPriceOutcome(product, outcome);
+      handleSetPriceOutcome(product, cents, outcome);
     } catch {
       showNotice({ kind: "attemptFailed" });
     }
@@ -302,7 +298,7 @@ function PriceChangeModal({
 
   function handleConfirmPriceOutcome(product: PriceProduct, outcome: ConfirmPriceOutcome) {
     if (outcome.kind === "ok") {
-      onSaved(product, { kind: "confirmed", lastReviewedAt: outcome.value.lastReviewedAt });
+      onSaved(product, { kind: "confirmed" });
       return;
     }
     if (outcome.kind === "unauthenticated") {
@@ -736,8 +732,7 @@ export function PricesListScreen({
   }
 
   function reviewedNotice(product: PriceProduct, outcome: PriceModalOutcome): ScreenNotice {
-    const cents =
-      outcome.kind === "saved" ? outcome.price.unitPrice : product.currentPrice?.unitPrice;
+    const cents = outcome.kind === "saved" ? outcome.unitPrice : product.currentPrice?.unitPrice;
     const amount = cents !== undefined ? formatCentsWithUnit(cents, product.saleUnit) : "";
     return outcome.kind === "confirmed"
       ? {
@@ -817,9 +812,7 @@ export function PricesListScreen({
   function handleRowConfirmOutcome(item: PriceProduct, outcome: ConfirmPriceOutcome) {
     if (outcome.kind === "ok") {
       reloadWithCurrentFilters();
-      showScreenNotice(
-        reviewedNotice(item, { kind: "confirmed", lastReviewedAt: outcome.value.lastReviewedAt }),
-      );
+      showScreenNotice(reviewedNotice(item, { kind: "confirmed" }));
       return;
     }
     if (outcome.kind === "unauthenticated") {

@@ -1,19 +1,11 @@
-import type { PriceConfirmationBody, PriceSetBody } from "@purosur/contracts";
-import type { ProductSaleUnit } from "../catalog/products-api";
+import {
+  type PriceConfirmationBody,
+  type PriceList,
+  type PriceSetBody,
+  priceListSchema,
+} from "@purosur/contracts";
+import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { retryAfterSeconds } from "../platform/retry-after-seconds";
-
-export type PriceRow = { id: string; unitPrice: number; validFrom: string };
-
-export type PriceProduct = {
-  id: string;
-  name: string;
-  categoryId: string;
-  categoryName: string;
-  saleUnit: ProductSaleUnit;
-  currentPrice: PriceRow | null;
-  lastReviewedAt: string | null;
-  pending: boolean;
-};
 
 export type PricesReviewFilter = "pending" | "all";
 
@@ -23,28 +15,14 @@ export type FetchPricesInput = {
   search?: string;
 };
 
-export type PriceCategory = { id: string; name: string };
-
-type PricesList = {
-  products: PriceProduct[];
-  pendingCount: number;
-  reviewWindowDays: number;
-  categories: PriceCategory[];
-};
-
-export type FetchPricesOutcome =
-  | { kind: "ok"; value: PricesList }
-  | { kind: "forbidden" }
-  | { kind: "unauthenticated" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "failed" };
+export type FetchPricesOutcome = CloudReadOutcome<PriceList>;
 
 type SetPriceFieldError = "unitPrice" | "expectedCurrentPriceId";
 
 export type SetPriceInput = PriceSetBody;
 
 export type SetPriceOutcome =
-  | { kind: "ok"; value: { price: PriceRow; lastReviewedAt: string } }
+  | { kind: "ok" }
   | { kind: "validation_failed"; field: SetPriceFieldError }
   | { kind: "price_unchanged" }
   | { kind: "stale_price" }
@@ -57,7 +35,7 @@ export type SetPriceOutcome =
 export type ConfirmPriceInput = PriceConfirmationBody;
 
 export type ConfirmPriceOutcome =
-  | { kind: "ok"; value: { lastReviewedAt: string } }
+  | { kind: "ok" }
   | { kind: "validation_failed" }
   | { kind: "no_price_to_confirm" }
   | { kind: "stale_price" }
@@ -106,11 +84,8 @@ export async function fetchPrices(input: FetchPricesInput): Promise<FetchPricesO
   if (!response.ok) {
     return { kind: "failed" };
   }
-  const body = (await response.json().catch(() => undefined)) as PricesList | undefined;
-  if (!body || !Array.isArray(body.products) || !Array.isArray(body.categories)) {
-    return { kind: "failed" };
-  }
-  return { kind: "ok", value: body };
+  const list = priceListSchema.safeParse(await response.json().catch(() => undefined));
+  return list.success ? { kind: "ok", value: list.data } : { kind: "failed" };
 }
 
 export async function setPrice(productId: string, input: SetPriceInput): Promise<SetPriceOutcome> {
@@ -121,13 +96,7 @@ export async function setPrice(productId: string, input: SetPriceInput): Promise
     return { kind: "failed" };
   }
   if (response.ok) {
-    const body = (await response.json().catch(() => undefined)) as
-      | { price: PriceRow; lastReviewedAt: string }
-      | undefined;
-    if (!body) {
-      return { kind: "failed" };
-    }
-    return { kind: "ok", value: body };
+    return { kind: "ok" };
   }
   if (response.status === 400) {
     const body = (await response.json().catch(() => undefined)) as
@@ -171,13 +140,7 @@ export async function confirmPrice(
     return { kind: "failed" };
   }
   if (response.ok) {
-    const body = (await response.json().catch(() => undefined)) as
-      | { lastReviewedAt: string }
-      | undefined;
-    if (!body) {
-      return { kind: "failed" };
-    }
-    return { kind: "ok", value: body };
+    return { kind: "ok" };
   }
   if (response.status === 400) {
     const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;

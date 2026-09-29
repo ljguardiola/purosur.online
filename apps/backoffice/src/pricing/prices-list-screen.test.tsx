@@ -1,9 +1,9 @@
+import type { PriceCategory, PriceProduct } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import type { PriceCategory, PriceProduct } from "./prices-api";
 import { PricesListScreen } from "./prices-list-screen";
 import type { PricesListScreenServices } from "./prices-list-services";
 import { type PricesListFilters, pricesListFilters } from "./routes";
@@ -166,10 +166,7 @@ test("confirming a priced product's price without a change shows a confirmed not
       kind: "ok",
       value: { products: [], pendingCount: 0, reviewWindowDays: 30, categories: [] },
     });
-  vi.mocked(services.confirmPrice).mockResolvedValue({
-    kind: "ok",
-    value: { lastReviewedAt: "2026-09-25T12:00:00.000Z" },
-  });
+  vi.mocked(services.confirmPrice).mockResolvedValue({ kind: "ok" });
 
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Arroz")).toBeVisible();
@@ -219,13 +216,7 @@ test("changing a product's price sends the current price id as expectedCurrentPr
       kind: "ok",
       value: { products: [], pendingCount: 0, reviewWindowDays: 30, categories: [] },
     });
-  vi.mocked(services.setPrice).mockResolvedValue({
-    kind: "ok",
-    value: {
-      price: { id: "price-2", unitPrice: 800000, validFrom: "2026-09-25T12:00:00.000Z" },
-      lastReviewedAt: "2026-09-25T12:00:00.000Z",
-    },
-  });
+  vi.mocked(services.setPrice).mockResolvedValue({ kind: "ok" });
 
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Arroz")).toBeVisible();
@@ -454,17 +445,8 @@ test("Revisar los N walks the pending products one by one, opening the next afte
       categories: [],
     },
   }));
-  vi.mocked(services.setPrice).mockResolvedValue({
-    kind: "ok",
-    value: {
-      price: { id: "price-3", unitPrice: 100, validFrom: "2026-09-25T12:00:00.000Z" },
-      lastReviewedAt: "2026-09-25T12:00:00.000Z",
-    },
-  });
-  vi.mocked(services.confirmPrice).mockResolvedValue({
-    kind: "ok",
-    value: { lastReviewedAt: "2026-09-25T12:00:00.000Z" },
-  });
+  vi.mocked(services.setPrice).mockResolvedValue({ kind: "ok" });
+  vi.mocked(services.confirmPrice).mockResolvedValue({ kind: "ok" });
 
   const screen = await renderScreen(services);
   await expect.element(screen.getByRole("button", { name: "Revisar los 2" })).toBeVisible();
@@ -495,13 +477,7 @@ test("during Revisar los N, a saved price's notice shows inside the next product
       categories: [],
     },
   }));
-  vi.mocked(services.setPrice).mockResolvedValue({
-    kind: "ok",
-    value: {
-      price: { id: "price-3", unitPrice: 100, validFrom: "2026-09-25T12:00:00.000Z" },
-      lastReviewedAt: "2026-09-25T12:00:00.000Z",
-    },
-  });
+  vi.mocked(services.setPrice).mockResolvedValue({ kind: "ok" });
 
   const screen = await renderScreen(services);
   await userEvent.click(screen.getByRole("button", { name: "Revisar los 2" }));
@@ -804,13 +780,7 @@ test("a notice about a previous product leaves the modal once the modal shows it
       categories: [],
     },
   }));
-  vi.mocked(services.setPrice).mockResolvedValue({
-    kind: "ok",
-    value: {
-      price: { id: "price-3", unitPrice: 100, validFrom: "2026-09-25T12:00:00.000Z" },
-      lastReviewedAt: "2026-09-25T12:00:00.000Z",
-    },
-  });
+  vi.mocked(services.setPrice).mockResolvedValue({ kind: "ok" });
   vi.mocked(services.confirmPrice).mockResolvedValue({ kind: "failed" });
 
   const screen = await renderScreen(services);
@@ -1287,7 +1257,7 @@ test("an error notice does not leave with time, only with the person's next acti
   });
   vi.mocked(services.confirmPrice)
     .mockResolvedValueOnce({ kind: "failed" })
-    .mockResolvedValue({ kind: "ok", value: { lastReviewedAt: "2026-09-25T12:00:00.000Z" } });
+    .mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
   const confirm = screen.getByRole("button", { name: "Confirmar el precio de Arroz sin cambios" });
   await expect.element(confirm).toBeVisible();
@@ -1315,10 +1285,7 @@ test("a success notice leaves the screen on its own after a few seconds", async 
     kind: "ok",
     value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
   });
-  vi.mocked(services.confirmPrice).mockResolvedValue({
-    kind: "ok",
-    value: { lastReviewedAt: "2026-09-25T12:00:00.000Z" },
-  });
+  vi.mocked(services.confirmPrice).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
   const confirm = screen.getByRole("button", { name: "Confirmar el precio de Arroz sin cambios" });
   await expect.element(confirm).toBeVisible();
@@ -1420,10 +1387,7 @@ test("the review age counts against the time the list was last loaded", async ()
       categories: [],
     },
   });
-  vi.mocked(services.confirmPrice).mockResolvedValue({
-    kind: "ok",
-    value: { lastReviewedAt: new Date(2026, 8, 25, 9, 0).toISOString() },
-  });
+  vi.mocked(services.confirmPrice).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(
     services,
     () => {},

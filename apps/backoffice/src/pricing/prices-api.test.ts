@@ -1,5 +1,6 @@
+import type { PriceProduct } from "@purosur/contracts";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { confirmPrice, fetchPrices, type PriceProduct, setPrice } from "./prices-api";
+import { confirmPrice, fetchPrices, setPrice } from "./prices-api";
 
 function jsonResponse(status: number, body?: unknown, headers?: Record<string, string>): Response {
   return new Response(
@@ -87,27 +88,40 @@ test("fetchPrices returns failed on a body without its categories", async () => 
   expect(await fetchPrices({ review: "pending" })).toEqual({ kind: "failed" });
 });
 
+test("fetchPrices returns failed on a product whose shape does not match", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, {
+      products: [{ ...rice, lastReviewedAt: "yesterday" }],
+      pendingCount: 1,
+      reviewWindowDays: 30,
+      categories: [],
+    }),
+  );
+
+  expect(await fetchPrices({ review: "pending" })).toEqual({ kind: "failed" });
+});
+
+test("fetchPrices returns failed on a body that is not JSON", async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response("<html>", { status: 200 }));
+
+  expect(await fetchPrices({ review: "pending" })).toEqual({ kind: "failed" });
+});
+
 test("fetchPrices returns failed on a malformed body", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { products: "not an array" }));
 
   expect(await fetchPrices({ review: "pending" })).toEqual({ kind: "failed" });
 });
 
-test("setPrice posts the unit price and expected current price id, returning the new price on 200", async () => {
-  const newPrice = { id: "price-2", unitPrice: 800000, validFrom: "2026-02-01T12:00:00.000Z" };
-  vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(200, { price: newPrice, lastReviewedAt: "2026-02-01T12:00:00.000Z" }),
-  );
+test("setPrice posts the unit price and expected current price id, returning ok on 200", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
 
   const outcome = await setPrice("product-1", {
     unitPrice: 800000,
     expectedCurrentPriceId: "price-1",
   });
 
-  expect(outcome).toEqual({
-    kind: "ok",
-    value: { price: newPrice, lastReviewedAt: "2026-02-01T12:00:00.000Z" },
-  });
+  expect(outcome).toEqual({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith("/products/product-1/price", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -116,12 +130,7 @@ test("setPrice posts the unit price and expected current price id, returning the
 });
 
 test("setPrice sends a null expectedCurrentPriceId for a product with no price yet", async () => {
-  vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(200, {
-      price: { id: "price-1", unitPrice: 500, validFrom: "2026-01-01T00:00:00.000Z" },
-      lastReviewedAt: "2026-01-01T00:00:00.000Z",
-    }),
-  );
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
 
   await setPrice("product-1", { unitPrice: 500, expectedCurrentPriceId: null });
 
@@ -206,14 +215,12 @@ test("setPrice returns failed when the request throws", async () => {
   });
 });
 
-test("confirmPrice posts the expected current price id, returning the review moment on 200", async () => {
-  vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(200, { lastReviewedAt: "2026-02-01T12:00:00.000Z" }),
-  );
+test("confirmPrice posts the expected current price id, returning ok on 200", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
 
   const outcome = await confirmPrice("product-1", { expectedCurrentPriceId: "price-1" });
 
-  expect(outcome).toEqual({ kind: "ok", value: { lastReviewedAt: "2026-02-01T12:00:00.000Z" } });
+  expect(outcome).toEqual({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith("/products/product-1/price-confirmation", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
