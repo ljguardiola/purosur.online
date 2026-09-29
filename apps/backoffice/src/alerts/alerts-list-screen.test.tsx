@@ -1,6 +1,7 @@
 import type { AlertDetail, AlertListPage, AlertSummary } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { notifyManager } from "@tanstack/react-query";
 import { act } from "react";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -243,24 +244,31 @@ test("pages through the alerts, going back to the first page when a filter chang
 });
 
 test("keeps a page chosen right after opening once the untouched search settles", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchAlerts).mockResolvedValue(ok([passkeyAlert], { total: 30 }));
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Lucía Pérez")).toBeVisible();
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  notifyManager.setScheduler(queueMicrotask);
+  try {
+    const services = createServices();
+    vi.mocked(services.fetchAlerts).mockResolvedValue(ok([passkeyAlert], { total: 30 }));
+    const screen = await renderScreen(services);
+    await expect.element(screen.getByText("Lucía Pérez")).toBeVisible();
 
-  await userEvent.click(screen.getByRole("button", { name: "Página 2" }));
-  await expect
-    .poll(() => vi.mocked(services.fetchAlerts).mock.calls)
-    .toContainEqual([{ open: true, page: 2 }]);
-  await new Promise((resolve) => setTimeout(resolve, 400));
+    await userEvent.click(screen.getByRole("button", { name: "Página 2" }));
+    await expect
+      .poll(() => vi.mocked(services.fetchAlerts).mock.calls)
+      .toContainEqual([{ open: true, page: 2 }]);
+    await vi.advanceTimersByTimeAsync(300);
 
-  await expect
-    .element(screen.getByRole("button", { name: "Página 2" }))
-    .toHaveAttribute("aria-current", "page");
-  expect(vi.mocked(services.fetchAlerts).mock.calls).toEqual([
-    [{ open: true, page: 1 }],
-    [{ open: true, page: 2 }],
-  ]);
+    await expect
+      .element(screen.getByRole("button", { name: "Página 2" }))
+      .toHaveAttribute("aria-current", "page");
+    expect(vi.mocked(services.fetchAlerts).mock.calls).toEqual([
+      [{ open: true, page: 1 }],
+      [{ open: true, page: 2 }],
+    ]);
+  } finally {
+    notifyManager.setScheduler((callback) => setTimeout(callback, 0));
+    vi.useRealTimers();
+  }
 });
 
 test("drops a late response once the filters have changed since it was sent, still refreshing on a later filter change", async () => {
