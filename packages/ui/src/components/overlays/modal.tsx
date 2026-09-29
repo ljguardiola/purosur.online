@@ -143,9 +143,7 @@ export function Modal(props: ModalProps) {
                     {title}
                   </AriaHeading>
                 </div>
-                {props.closable ? (
-                  <CloseButton onPress={() => onOpenChange(false)} />
-                ) : null}
+                {props.closable ? <CloseButton onPress={() => onOpenChange(false)} /> : null}
               </div>
               {hasContent(children) && (
                 <div

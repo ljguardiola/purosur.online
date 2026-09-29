@@ -1,11 +1,12 @@
 import { useEffect, useEffectEvent, useState } from "react";
+import { Group } from "react-aria-components";
 import { createPortal } from "react-dom";
 import type { NoticeTone } from "../shared/tone";
 import { NotificationCard, type NotificationCardProps } from "./notification-card";
 
 export type FloatingNotificationProps = Omit<NotificationCardProps, "onClose"> & {
   onDismiss: () => void;
-  expiresAfterSeconds?: number;
+  expiresAfterSeconds?: number | undefined;
 };
 
 const DEFAULT_LIFETIME_SECONDS = 5;
@@ -36,9 +37,8 @@ export function FloatingNotification({
   }, [lifetimeSeconds, paused]);
 
   return createPortal(
-    <div
-      onPointerEnter={() => setHovered(true)}
-      onPointerLeave={() => setHovered(false)}
+    <Group
+      onHoverChange={setHovered}
       onFocus={() => setFocused(true)}
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false);
@@ -46,7 +46,7 @@ export function FloatingNotification({
       className="fixed right-6 bottom-6 z-overlay w-97 rounded-lg shadow-md"
     >
       <NotificationCard {...card} onClose={onDismiss} />
-    </div>,
+    </Group>,
     document.body,
   );
 }

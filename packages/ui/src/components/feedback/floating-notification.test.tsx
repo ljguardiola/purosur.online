@@ -84,22 +84,21 @@ test("is 388px wide and lifted off the page by the ink-at-12%-opacity shadow", a
   expect(inkLayer).toMatch(/0px 6px 20px/);
 });
 
-test.each([
-  "success",
-  "info",
-  "warning",
-] as const satisfies readonly NoticeTone[])("dismisses a %s notification after 5 seconds", async (tone) => {
-  const onDismiss = vi.fn();
-  await whileTimersFrozen(async () => {
-    await render(notification({ tone, onDismiss }));
+test.each(["success", "info", "warning"] as const satisfies readonly NoticeTone[])(
+  "dismisses a %s notification after 5 seconds",
+  async (tone) => {
+    const onDismiss = vi.fn();
+    await whileTimersFrozen(async () => {
+      await render(notification({ tone, onDismiss }));
 
-    vi.advanceTimersByTime(DEFAULT_LIFETIME_MS - 1);
-    expect(onDismiss, "dismissed early").not.toHaveBeenCalled();
+      vi.advanceTimersByTime(DEFAULT_LIFETIME_MS - 1);
+      expect(onDismiss, "dismissed early").not.toHaveBeenCalled();
 
-    vi.advanceTimersByTime(1);
-    expect(onDismiss).toHaveBeenCalledTimes(1);
-  });
-});
+      vi.advanceTimersByTime(1);
+      expect(onDismiss).toHaveBeenCalledTimes(1);
+    });
+  },
+);
 
 test("never dismisses an error notification by itself", async () => {
   const onDismiss = vi.fn();
