@@ -72,6 +72,7 @@ import type { PricesRouteOptions } from "./pricing/prices-list-route.js";
 import { registerPricesListRoute } from "./pricing/prices-list-route.js";
 import type { DeviceEnrollmentRouteOptions } from "./register/device-enrollment-route.js";
 import { registerDeviceEnrollmentRoute } from "./register/device-enrollment-route.js";
+import { registerRegisterCoverageRoute } from "./register/register-coverage-route.js";
 import { registerRegisterCreationRoute } from "./register/register-creation-route.js";
 import { registerRegisterEnrollmentCodeRoute } from "./register/register-enrollment-code-route.js";
 import type { RegistersRouteOptions } from "./register/registers-list-route.js";
@@ -260,6 +261,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
   if (options.registers) {
     registerRegistersListRoute(app, options.registers);
     registerRegisterCreationRoute(app, options.registers);
+    registerRegisterCoverageRoute(app, options.registers);
     registerRegisterEnrollmentCodeRoute(app, options.registers);
   }
 
