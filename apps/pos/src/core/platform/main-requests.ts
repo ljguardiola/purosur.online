@@ -9,6 +9,7 @@ export interface MainRequests {
   canStoreCredentials(): Promise<boolean>;
   storeCredentials(credentials: DeviceCredentials): Promise<boolean>;
   credentialsPresent(): Promise<boolean>;
+  readCredentials(): Promise<DeviceCredentials | undefined>;
   receive(message: unknown): boolean;
 }
 
@@ -56,6 +57,14 @@ export function createMainRequests(deps: {
         (requestId) => ({ type: "device-credentials-request", request_id: requestId }),
         (answer) => (answer.type === "device-credentials-presence" ? answer.present : undefined),
       );
+    },
+    async readCredentials() {
+      const { credentials } = await ask(
+        (requestId) => ({ type: "device-credentials-read-request", request_id: requestId }),
+        (answer) =>
+          answer.type === "device-credentials" ? { credentials: answer.credentials } : undefined,
+      );
+      return credentials ?? undefined;
     },
     receive(message) {
       const answer = readDeviceCredentialsAnswer(message);

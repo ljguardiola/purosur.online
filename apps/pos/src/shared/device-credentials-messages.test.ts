@@ -23,6 +23,12 @@ describe("readDeviceCredentialsRequest", () => {
     expect(readDeviceCredentialsRequest(message)).toEqual(message);
   });
 
+  it("reads the core's request for the stored credentials", () => {
+    const message = { type: "device-credentials-read-request", request_id: "r4" };
+
+    expect(readDeviceCredentialsRequest(message)).toEqual(message);
+  });
+
   it("reads the core's question of whether credentials are stored", () => {
     const message = { type: "device-credentials-request", request_id: "r2" };
 
@@ -89,7 +95,32 @@ describe("readDeviceCredentialsAnswer", () => {
     expect(readDeviceCredentialsAnswer(message)).toEqual(message);
   });
 
+  it("reads the stored credentials main hands back", () => {
+    const message = {
+      type: "device-credentials",
+      request_id: "r4",
+      credentials: {
+        device_id: "5f2b7e0c-1d1b-4c43-9c55-0d8e3a1f2b44",
+        device_token: "prefix.secret",
+        pepper: "cGVwcGVy",
+      },
+    };
+
+    expect(readDeviceCredentialsAnswer(message)).toEqual(message);
+  });
+
+  it("reads that main holds no credentials", () => {
+    const message = { type: "device-credentials", request_id: "r4", credentials: null };
+
+    expect(readDeviceCredentialsAnswer(message)).toEqual(message);
+  });
+
   it.each([
+    [
+      "credentials missing a field",
+      { type: "device-credentials", request_id: "r", credentials: { device_id: "a" } },
+    ],
+    ["credentials that are left out", { type: "device-credentials", request_id: "r" }],
     ["an answer without its id", { type: "device-credentials-stored", stored: true }],
     [
       "a stored answer that isn't a boolean",

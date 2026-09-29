@@ -10,12 +10,14 @@ export interface DeviceCredentials {
 export type DeviceCredentialsRequest =
   | { type: "store-device-credentials"; request_id: string; credentials: DeviceCredentials }
   | { type: "device-credentials-request"; request_id: string }
-  | { type: "device-credentials-storable-request"; request_id: string };
+  | { type: "device-credentials-storable-request"; request_id: string }
+  | { type: "device-credentials-read-request"; request_id: string };
 
 export type DeviceCredentialsAnswer =
   | { type: "device-credentials-stored"; request_id: string; stored: boolean }
   | { type: "device-credentials-presence"; request_id: string; present: boolean }
-  | { type: "device-credentials-storable"; request_id: string; storable: boolean };
+  | { type: "device-credentials-storable"; request_id: string; storable: boolean }
+  | { type: "device-credentials"; request_id: string; credentials: DeviceCredentials | null };
 
 type Fields = Record<string, unknown>;
 
@@ -50,6 +52,9 @@ export function readDeviceCredentialsRequest(
   if (fields?.["type"] === "device-credentials-storable-request") {
     return { type: "device-credentials-storable-request", request_id: requestId };
   }
+  if (fields?.["type"] === "device-credentials-read-request") {
+    return { type: "device-credentials-read-request", request_id: requestId };
+  }
   const credentials = readDeviceCredentials(fields?.["credentials"]);
   if (fields?.["type"] === "store-device-credentials" && credentials !== undefined) {
     return { type: "store-device-credentials", request_id: requestId, credentials };
@@ -74,6 +79,11 @@ export function readDeviceCredentialsAnswer(message: unknown): DeviceCredentials
   const storable = fields?.["storable"];
   if (fields?.["type"] === "device-credentials-storable" && typeof storable === "boolean") {
     return { type: "device-credentials-storable", request_id: requestId, storable };
+  }
+  const handedCredentials = fields?.["credentials"];
+  const credentials = handedCredentials === null ? null : readDeviceCredentials(handedCredentials);
+  if (fields?.["type"] === "device-credentials" && credentials !== undefined) {
+    return { type: "device-credentials", request_id: requestId, credentials };
   }
   return undefined;
 }

@@ -23,6 +23,7 @@ export interface DeviceCredentialsStore {
   canStore(): boolean;
   store(credentials: DeviceCredentials): boolean;
   isPresent(): boolean;
+  read(): DeviceCredentials | undefined;
 }
 
 export function credentialsFileAt(path: string): CredentialsFile {
@@ -47,6 +48,18 @@ export function createDeviceCredentialsStore(deps: {
   encryption: SecretEncryption;
   file: CredentialsFile;
 }): DeviceCredentialsStore {
+  function read(): DeviceCredentials | undefined {
+    const contents = deps.file.read();
+    if (contents === undefined) {
+      return undefined;
+    }
+    try {
+      return readDeviceCredentials(JSON.parse(deps.encryption.decryptString(contents)));
+    } catch {
+      return undefined;
+    }
+  }
+
   return {
     canStore() {
       return deps.encryption.isEncryptionAvailable();
@@ -63,18 +76,9 @@ export function createDeviceCredentialsStore(deps: {
       }
     },
     isPresent() {
-      const contents = deps.file.read();
-      if (contents === undefined) {
-        return false;
-      }
-      try {
-        return (
-          readDeviceCredentials(JSON.parse(deps.encryption.decryptString(contents))) !== undefined
-        );
-      } catch {
-        return false;
-      }
+      return read() !== undefined;
     },
+    read,
   };
 }
 
@@ -87,6 +91,13 @@ export function answerCoreCredentialsRequest(
       type: "device-credentials-stored",
       request_id: message.request_id,
       stored: store.store(message.credentials),
+    };
+  }
+  if (message.type === "device-credentials-read-request") {
+    return {
+      type: "device-credentials",
+      request_id: message.request_id,
+      credentials: store.read() ?? null,
     };
   }
   if (message.type === "device-credentials-storable-request") {
