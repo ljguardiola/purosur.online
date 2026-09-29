@@ -65,6 +65,7 @@ import {
   type SettledSession,
   type SignedInSession,
 } from "./root-route";
+import { defaultScreenFailureServices, type ScreenFailureServices } from "./screen-failure";
 import { useSessionActivityReporter } from "./session-activity-reporter";
 import { clearSignedInMarker, markSignedIn, wasSignedIn } from "./session-marker";
 import { useSessionWatcher } from "./session-watcher";
@@ -86,6 +87,7 @@ export type AppServices = {
   pricesListScreen: PricesListScreenServices;
   fiscalConfigurationScreen: FiscalConfigurationScreenServices;
   accountFooter: AccountFooterServices;
+  screenFailure: ScreenFailureServices;
   alertsListScreen: AlertsListScreenServices;
 };
 
@@ -106,6 +108,7 @@ const defaultAppServices: AppServices = {
   pricesListScreen: defaultPricesListScreenServices,
   fiscalConfigurationScreen: defaultFiscalConfigurationScreenServices,
   accountFooter: defaultAccountFooterServices,
+  screenFailure: defaultScreenFailureServices,
   alertsListScreen: defaultAlertsListScreenServices,
 };
 
