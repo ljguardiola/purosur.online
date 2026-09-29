@@ -7,14 +7,28 @@ import {
   scrubErrorReportLog,
 } from "@purosur/contracts";
 import * as Sentry from "@sentry/electron/main";
-import { app, BrowserWindow, dialog, MessageChannelMain, session, utilityProcess } from "electron";
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  MessageChannelMain,
+  safeStorage,
+  session,
+  utilityProcess,
+} from "electron";
 import { type ChannelSettings, coreArgumentsFor } from "../shared/channel";
+import { readDeviceCredentialsRequest } from "../shared/device-credentials-messages";
 import { loadChannelSettings } from "./channel-settings";
 import { buildContentSecurityPolicy } from "./content-security-policy";
 import { establishCoreConnection } from "./core-connection";
 import { forwardCoreOutput } from "./core-output";
 import { broadcastCoreStatus, type CoreStatus } from "./core-status-broadcast";
 import { createCoreSupervisor, type SupervisedProcess } from "./core-supervisor";
+import {
+  answerCoreCredentialsRequest,
+  createDeviceCredentialsStore,
+  credentialsFileAt,
+} from "./device-credentials";
 import {
   CHILD_PROCESS_EVENT_REASONS,
   withoutReplacedDefaultIntegrations,
@@ -146,6 +160,11 @@ function startRegister(settings: ChannelSettings): void {
       },
     );
 
+    const deviceCredentials = createDeviceCredentialsStore({
+      encryption: safeStorage,
+      file: credentialsFileAt(join(app.getPath("userData"), "device-credentials.bin")),
+    });
+
     // Set inside `fork` itself (before `onProcessStarted` below runs) and cleared on exit, so a
     // renderer reload while the core is down gets no port until the restarted core hands one.
     let currentCoreProcess: Electron.UtilityProcess | undefined;
@@ -186,6 +205,12 @@ function startRegister(settings: ChannelSettings): void {
           stdio: ["ignore", "pipe", "pipe"],
         });
         forwardCoreOutput(child, process.stdout, process.stderr);
+        child.on("message", (message) => {
+          const request = readDeviceCredentialsRequest(message);
+          if (request !== undefined) {
+            child.postMessage(answerCoreCredentialsRequest(deviceCredentials, request));
+          }
+        });
         currentCoreProcess = child;
         return child;
       },
