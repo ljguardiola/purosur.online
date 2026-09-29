@@ -48,6 +48,17 @@ export type { IssuerIdentificationEditBody } from "./fiscal/issuer-identificatio
 export { issuerIdentificationEditBodySchema } from "./fiscal/issuer-identification-edit.js";
 export type { PriceConfirmationBody } from "./pricing/price-confirmation.js";
 export { priceConfirmationBodySchema } from "./pricing/price-confirmation.js";
+export type {
+  PriceCategory,
+  PriceList,
+  PriceProduct,
+  PriceRow,
+} from "./pricing/price-list.js";
+export {
+  priceCategorySchema,
+  priceListSchema,
+  priceProductSchema,
+} from "./pricing/price-list.js";
 export type { PriceSetBody } from "./pricing/price-set.js";
 export { priceSetBodySchema } from "./pricing/price-set.js";
 export type {
