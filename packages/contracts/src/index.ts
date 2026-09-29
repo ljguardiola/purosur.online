@@ -91,11 +91,14 @@ export {
 } from "./register/cloud-error.js";
 export type {
   CoreStatusMessage,
+  CoreToRendererMessage,
+  EnrollmentOutcome,
   MainToCoreMessage,
   RendererToCoreMessage,
 } from "./register/core-messages.js";
 export {
   coreStatusMessageSchema,
+  coreToRendererMessageSchema,
   mainToCoreMessageSchema,
   rendererToCoreMessageSchema,
 } from "./register/core-messages.js";
