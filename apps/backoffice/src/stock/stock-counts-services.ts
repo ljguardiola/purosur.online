@@ -1,6 +1,5 @@
 import {
   fetchExpectedBalance,
-  fetchStockBalances,
   fetchStockCounts,
   fetchStockProducts,
   registerCount,
@@ -9,7 +8,6 @@ import {
 export type StockCountsScreenServices = {
   fetchStockCounts: typeof fetchStockCounts;
   fetchStockProducts: typeof fetchStockProducts;
-  fetchStockBalances: typeof fetchStockBalances;
   fetchExpectedBalance: typeof fetchExpectedBalance;
   registerCount: typeof registerCount;
 };
@@ -17,7 +15,6 @@ export type StockCountsScreenServices = {
 export const defaultStockCountsScreenServices: StockCountsScreenServices = {
   fetchStockCounts,
   fetchStockProducts,
-  fetchStockBalances,
   fetchExpectedBalance,
   registerCount,
 };
