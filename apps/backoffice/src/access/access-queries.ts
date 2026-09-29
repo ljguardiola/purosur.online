@@ -63,6 +63,8 @@ function readRole(
   };
 }
 
+// The editor seeds its form, and whether saving asks to confirm for the assigned people, from the
+// read made when it opens, so a closed editor leaves no role behind for the next opening.
 export function useRoleQuery(params: {
   roleId: string;
   fetchRole: typeof fetchRole;
@@ -72,6 +74,7 @@ export function useRoleQuery(params: {
   return useCloudQuery<RoleRead>({
     queryKey: accessKeys.role(params.roleId),
     read: readRole(params.fetchRole, params.roleId),
+    gcTime: 0,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

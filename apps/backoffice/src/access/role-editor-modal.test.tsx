@@ -958,3 +958,68 @@ test("a save that finds the role gone reads it again and shows the not-found not
   await expect.element(screen.getByText("No encontramos este rol").first()).toBeVisible();
   expect(services.fetchRole).toHaveBeenCalledTimes(2);
 });
+
+function reopenAfterTheRoleGainedPeople(opened: FetchRoleOutcome[]) {
+  const fresh = deferredFetch();
+  const services = createServices();
+  for (const outcome of opened) {
+    vi.mocked(services.fetchRole).mockResolvedValueOnce(outcome);
+  }
+  vi.mocked(services.fetchRole).mockReturnValueOnce(fresh.promise);
+  return { services, fresh };
+}
+
+async function expectTheFreshRoleAsksToConfirm(
+  screen: Screen,
+  services: RoleEditorModalServices,
+  fresh: ReturnType<typeof deferredFetch>,
+) {
+  const savesBefore = vi.mocked(services.editRole).mock.calls.length;
+  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
+  await expect.element(screen.getByRole("button", { name: "Guardar los cambios" })).toBeDisabled();
+
+  fresh.resolve({ kind: "ok", value: stockDetailWithPeople });
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(screen.getByText("¿Guardar los cambios?")).toBeVisible();
+  await expect.element(screen.getByText("Amara Ortiz")).toBeVisible();
+  expect(services.editRole).toHaveBeenCalledTimes(savesBefore);
+}
+
+test("reopening the editor for a role read before shows loading, then the role as read again, confirming for its assigned people", async () => {
+  const { services, fresh } = reopenAfterTheRoleGainedPeople([{ kind: "ok", value: stockDetail }]);
+  const screen = await render(modalFor({ kind: "edit", roleId: "role-stock" }, services));
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+  await screen.rerender(modalFor(null, services));
+  await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+
+  await screen.rerender(modalFor({ kind: "edit", roleId: "role-stock" }, services));
+
+  await expectTheFreshRoleAsksToConfirm(screen, services, fresh);
+});
+
+test("reopening the editor after a Recargar also reads the role again before showing it", async () => {
+  const { services, fresh } = reopenAfterTheRoleGainedPeople([
+    { kind: "ok", value: stockDetail },
+    { kind: "ok", value: stockDetail },
+  ]);
+  vi.mocked(services.editRole).mockResolvedValueOnce({ kind: "stale_version" });
+  const screen = await render(modalFor({ kind: "edit", roleId: "role-stock" }, services));
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+  await userEvent.click(screen.getByRole("button", { name: "Recargar" }));
+  await expect.element(screen.getByRole("button", { name: "Recargar" })).not.toBeInTheDocument();
+  await screen.rerender(modalFor(null, services));
+  await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+
+  await screen.rerender(modalFor({ kind: "edit", roleId: "role-stock" }, services));
+
+  await expectTheFreshRoleAsksToConfirm(screen, services, fresh);
+});
