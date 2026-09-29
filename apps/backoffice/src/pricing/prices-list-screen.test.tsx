@@ -1046,6 +1046,19 @@ test("keeps the filters on screen while the list failed to load, and a retry sho
   await expect.element(screen.getByText("Arroz")).toBeVisible();
 });
 
+test("the Revisar action is disabled while the list loads, and after it fails to load", async () => {
+  const services = createServices();
+  const firstLoad = deferred<Awaited<ReturnType<PricesListScreenServices["fetchPrices"]>>>();
+  vi.mocked(services.fetchPrices).mockReturnValueOnce(firstLoad.promise);
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByRole("button", { name: "Revisar", exact: true })).toBeDisabled();
+
+  firstLoad.resolve({ kind: "failed" });
+  await expect.element(screen.getByText("No pudimos abrir los precios")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Revisar", exact: true })).toBeDisabled();
+});
+
 test.each([
   { filter: "under Por revisar", empty: "Precios al día", search: "" },
   { filter: "for a search", empty: "Sin resultados", search: "zzz" },

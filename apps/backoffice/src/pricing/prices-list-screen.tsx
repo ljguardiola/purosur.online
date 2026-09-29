@@ -882,7 +882,7 @@ export function PricesListScreen({
               <p className="text-text-subtle text-detail">Catálogo</p>
               <ScreenTitle>Precios</ScreenTitle>
             </div>
-            {pendingCount > 0 && (
+            {loaded && pendingCount === 0 ? null : (
               <Button
                 variant="primary"
                 icon={<ListChecks />}
@@ -890,7 +890,9 @@ export function PricesListScreen({
                 disabled={screenRequestInFlight}
                 onPress={() => void handleReviewButton()}
               >
-                {plural(pendingCount, { one: "Revisar 1", other: `Revisar los ${pendingCount}` })}
+                {loaded
+                  ? plural(pendingCount, { one: "Revisar 1", other: `Revisar los ${pendingCount}` })
+                  : "Revisar"}
               </Button>
             )}
           </div>
