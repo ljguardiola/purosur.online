@@ -22,8 +22,6 @@ import { parseCuit } from "./fiscal/cuit.js";
 import { runShutdownSteps } from "./platform/run-shutdown-steps.js";
 import { initSentry } from "./platform/sentry.js";
 
-export type { RecoveryEmailSenderEnv };
-
 export interface ServerEnv {
   PORT?: string | undefined;
   APP_VERSION?: string | undefined;
@@ -71,9 +69,7 @@ export function resolveStaticDir(env: ServerEnv, defaultDir: string): string | u
   return holdsBackofficeBuild(defaultDir) ? defaultDir : undefined;
 }
 
-export function resolveBackofficeErrorReporting(
-  env: ServerEnv,
-): BackofficeErrorReporting | undefined {
+function resolveBackofficeErrorReporting(env: ServerEnv): BackofficeErrorReporting | undefined {
   if (!env.BACKOFFICE_SENTRY_DSN) {
     return undefined;
   }
@@ -100,7 +96,7 @@ function requireRecoveryEnvVar(env: ServerEnv, name: keyof ServerEnv & string): 
 }
 
 /** Required unconditionally: the edge guard applies to every route (`GET /health` excepted). */
-export function requireEdgeOriginSecret(env: ServerEnv): string {
+function requireEdgeOriginSecret(env: ServerEnv): string {
   const value = env.EDGE_ORIGIN_SECRET;
   if (!value) {
     throw new Error("EDGE_ORIGIN_SECRET must be set");
@@ -176,7 +172,7 @@ function isLocalBackofficeOrigin(backofficeOrigin: string | undefined): boolean 
  * Fails closed to `resend`: an unset or misspelled `RECOVERY_EMAIL_TRANSPORT` must never silently
  * stop sending real recovery email, so a stray "log" value crashes startup instead of going dark.
  */
-export function resolveRecoveryEmailSenderEnv(env: ServerEnv): RecoveryEmailSenderEnv {
+function resolveRecoveryEmailSenderEnv(env: ServerEnv): RecoveryEmailSenderEnv {
   if (env.RECOVERY_EMAIL_TRANSPORT === LOG_RECOVERY_EMAIL_TRANSPORT_VALUE) {
     if (!isLocalBackofficeOrigin(env.BACKOFFICE_ORIGIN)) {
       throw new Error(
