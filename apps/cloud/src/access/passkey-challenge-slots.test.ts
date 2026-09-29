@@ -1,7 +1,8 @@
 import Fastify, { type FastifyInstance } from "fastify";
-import WebAuthnEmulator, {
+import {
   AuthenticatorEmulator,
   PasskeysCredentialsMemoryRepository,
+  WebAuthnEmulator,
 } from "nid-webauthn-emulator";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { recoveryTokens, sessions, users } from "../platform/db/schema.js";

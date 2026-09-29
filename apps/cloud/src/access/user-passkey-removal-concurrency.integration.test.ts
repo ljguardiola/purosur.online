@@ -2,9 +2,10 @@ import { randomUUID } from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import Fastify, { type FastifyInstance, type LightMyRequestResponse } from "fastify";
-import WebAuthnEmulator, {
+import {
   AuthenticatorEmulator,
   PasskeysCredentialsMemoryRepository,
+  WebAuthnEmulator,
 } from "nid-webauthn-emulator";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
