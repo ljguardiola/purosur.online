@@ -7,6 +7,7 @@ import { render } from "../shell/test-support/render-with-router";
 import { CategoriesListScreen } from "./categories-list-screen";
 import type { CategoriesListScreenServices } from "./categories-list-services";
 import { type CategoriesListFilters, categoriesListFilters } from "./routes";
+import { drinks, groceries, jams, spreads } from "./test-support/categories";
 
 function createServices(
   overrides: Partial<CategoriesListScreenServices> = {},
@@ -18,26 +19,6 @@ function createServices(
     ...overrides,
   };
 }
-
-const groceries: CategorySummary = {
-  id: "category-1",
-  name: "Almacén",
-  version: 1,
-  parentId: null,
-};
-const spreads: CategorySummary = {
-  id: "category-2",
-  name: "Untables",
-  version: 1,
-  parentId: "category-1",
-};
-const jams: CategorySummary = {
-  id: "category-3",
-  name: "Mermeladas",
-  version: 1,
-  parentId: "category-2",
-};
-const drinks: CategorySummary = { id: "category-4", name: "Bebidas", version: 3, parentId: null };
 
 function deferred<T>() {
   let resolve: (value: T) => void = () => {};
@@ -327,80 +308,6 @@ test("the create action stays available while a refresh of the shown categories 
   refresh.resolve({ kind: "ok", value: [groceries] });
 });
 
-test("rejects a name longer than 100 characters in the create modal, without calling the API", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [] });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay categorías")).toBeVisible();
-  const dialog = await openNewCategoryModal(screen);
-
-  await userEvent.fill(
-    dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }),
-    "a".repeat(101),
-  );
-  await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
-
-  await expect
-    .element(dialog.getByText("El nombre puede tener hasta 100 caracteres."))
-    .toBeVisible();
-  expect(services.createCategory).not.toHaveBeenCalled();
-});
-
-test("sends the typed name trimmed from the create modal", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [] });
-  vi.mocked(services.createCategory).mockResolvedValue({ kind: "ok" });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay categorías")).toBeVisible();
-  const dialog = await openNewCategoryModal(screen);
-
-  await userEvent.fill(
-    dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }),
-    "  Limpieza  ",
-  );
-  await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
-
-  await expect.poll(() => vi.mocked(services.createCategory).mock.calls.length).toBe(1);
-  expect(services.createCategory).toHaveBeenCalledWith({ name: "Limpieza", parentId: null });
-});
-
-test("requires a name before submitting the create modal, without calling the API", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [] });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay categorías")).toBeVisible();
-  const dialog = await openNewCategoryModal(screen);
-
-  await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
-
-  await expect.element(dialog.getByText("Ingresá el nombre de la categoría.")).toBeVisible();
-  expect(services.createCategory).not.toHaveBeenCalled();
-});
-
-test("opens the create modal with a parent select offering every category by its path label", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchCategories).mockResolvedValue({
-    kind: "ok",
-    value: [groceries, spreads],
-  });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("2 categorías")).toBeVisible();
-
-  const dialog = await openNewCategoryModal(screen);
-
-  await expect.element(dialog.getByRole("heading", { name: "Nueva categoría" })).toBeVisible();
-  await expect
-    .element(dialog.getByRole("button", { name: /Categoría superior/ }))
-    .toHaveTextContent("Ninguna (categoría de primer nivel)");
-  await expect
-    .element(dialog.getByText("Opcional. Vacío para una categoría de primer nivel."))
-    .toBeVisible();
-
-  await userEvent.click(dialog.getByRole("button", { name: /Categoría superior/ }));
-  await expect.element(dialog.getByRole("option", { name: "Almacén" })).toBeVisible();
-  await expect.element(dialog.getByRole("option", { name: "Almacén › Untables" })).toBeVisible();
-});
-
 test("creates a top-level category and shows it in the list", async () => {
   const services = createServices();
   const newCategory: CategorySummary = {
@@ -429,147 +336,6 @@ test("creates a top-level category and shows it in the list", async () => {
   await expect.element(screen.getByText("Limpieza")).toBeVisible();
   await expect.element(screen.getByText("3 categorías")).toBeVisible();
   expect(services.fetchCategories).toHaveBeenCalledTimes(2);
-});
-
-test("creates a subcategory under the chosen parent", async () => {
-  const services = createServices();
-  const newCategory: CategorySummary = {
-    id: "category-5",
-    name: "Snacks",
-    version: 1,
-    parentId: "category-1",
-  };
-  vi.mocked(services.fetchCategories)
-    .mockResolvedValueOnce({ kind: "ok", value: [groceries] })
-    .mockResolvedValueOnce({ kind: "ok", value: [groceries, newCategory] });
-  vi.mocked(services.createCategory).mockResolvedValue({ kind: "ok" });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("1 categoría")).toBeVisible();
-  const dialog = await openNewCategoryModal(screen);
-
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }), "Snacks");
-  await userEvent.click(dialog.getByRole("button", { name: /Categoría superior/ }));
-  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
-  await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
-
-  await expect.poll(() => vi.mocked(services.createCategory).mock.calls.length).toBe(1);
-  expect(services.createCategory).toHaveBeenCalledWith({
-    name: "Snacks",
-    parentId: "category-1",
-  });
-  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await expect.element(screen.getByText("Almacén › Snacks")).toBeVisible();
-});
-
-test("shows the parent-has-products error on create, naming the chosen parent", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [groceries] });
-  vi.mocked(services.createCategory).mockResolvedValue({ kind: "parent_has_products" });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("1 categoría")).toBeVisible();
-  const dialog = await openNewCategoryModal(screen);
-
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }), "Snacks");
-  await userEvent.click(dialog.getByRole("button", { name: /Categoría superior/ }));
-  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
-  await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
-
-  await expect
-    .element(
-      dialog.getByText(
-        '"Almacén" tiene productos asignados. Movelos a otra categoría antes de crear una subcategoría.',
-      ),
-    )
-    .toBeVisible();
-});
-
-test("shows the name-taken-under-parent error on create, naming the entered name and the parent", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [groceries] });
-  vi.mocked(services.createCategory).mockResolvedValue({ kind: "name_taken" });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("1 categoría")).toBeVisible();
-  const dialog = await openNewCategoryModal(screen);
-
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }), "Snacks");
-  await userEvent.click(dialog.getByRole("button", { name: /Categoría superior/ }));
-  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
-  await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
-
-  await expect
-    .element(dialog.getByText('Ya existe una categoría "Snacks" en Almacén.'))
-    .toBeVisible();
-});
-
-test("shows the plain name-taken error on create when the category is top-level", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [groceries] });
-  vi.mocked(services.createCategory).mockResolvedValue({ kind: "name_taken" });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("1 categoría")).toBeVisible();
-  const dialog = await openNewCategoryModal(screen);
-
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }), "Almacén");
-  await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
-
-  await expect.element(dialog.getByText("Ya existe una categoría con este nombre.")).toBeVisible();
-});
-
-test("shows a field error under the parent select when the chosen parent has vanished", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [groceries] });
-  vi.mocked(services.createCategory).mockResolvedValue({
-    kind: "validation_failed",
-    field: "parentId",
-  });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("1 categoría")).toBeVisible();
-  const dialog = await openNewCategoryModal(screen);
-
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }), "Snacks");
-  await userEvent.click(dialog.getByRole("button", { name: /Categoría superior/ }));
-  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
-  await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
-
-  await expect
-    .element(dialog.getByText("La categoría superior elegida ya no existe."))
-    .toBeVisible();
-});
-
-test("asks to review the name when the cloud refuses a name that passes every local check", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [] });
-  vi.mocked(services.createCategory).mockResolvedValue({
-    kind: "validation_failed",
-    field: "name",
-  });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay categorías")).toBeVisible();
-  const dialog = await openNewCategoryModal(screen);
-
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }), "Snacks");
-  await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
-
-  await expect.element(dialog.getByText("Revisá el nombre de la categoría.")).toBeVisible();
-  expect(dialog.getByText("Ingresá el nombre de la categoría.").query()).toBeNull();
-});
-
-test("shows the generic failure notice on create when the cloud refuses a field the form does not have", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [] });
-  vi.mocked(services.createCategory).mockResolvedValue({
-    kind: "validation_failed",
-    field: "version",
-  });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay categorías")).toBeVisible();
-  const dialog = await openNewCategoryModal(screen);
-
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }), "Snacks");
-  await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
-
-  await expect.element(dialog.getByText("No se pudo crear la categoría")).toBeVisible();
-  expect(dialog.getByText("Ingresá el nombre de la categoría.").query()).toBeNull();
 });
 
 test("the row action opens the edit modal preselecting the category's current parent", async () => {
