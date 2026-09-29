@@ -73,6 +73,7 @@ export function ScreenFailure({ error }: ErrorComponentProps) {
   const retry = async () => {
     if (downloadFailure !== null) {
       if (isOnline()) {
+        claimReloadFor(downloadFailure.module);
         reloadPage();
       } else {
         setOfflineOnRetry(true);

@@ -121,3 +121,21 @@ test("shows the failure, instead of reloading again, when the screen's code stil
   expect(reportError).toHaveBeenCalledTimes(1);
   expect(reportError).toHaveBeenCalledWith(expect.any(ScreenDownloadFailure));
 });
+
+test("shows the failure, instead of reloading again, when the screen's code still cannot download after trying again once back online", async () => {
+  window.history.pushState(null, "", "/home/alerts");
+  const services = createAppServices();
+  vi.mocked(services.screenFailure.isOnline).mockReturnValue(false);
+  const first = await render(<App help={emptyHelp} services={services} reportError={vi.fn()} />);
+  await expect.element(first.getByRole("button", { name: "Reintentar" })).toBeVisible();
+  vi.mocked(services.screenFailure.isOnline).mockReturnValue(true);
+  await userEvent.click(first.getByRole("button", { name: "Reintentar" }));
+  await first.unmount();
+
+  const screen = await render(<App help={emptyHelp} services={services} reportError={vi.fn()} />);
+
+  await expect
+    .element(screen.getByRole("heading", { name: "No pudimos mostrar esta pantalla", level: 1 }))
+    .toBeVisible();
+  expect(services.screenFailure.reloadPage).toHaveBeenCalledTimes(1);
+});
