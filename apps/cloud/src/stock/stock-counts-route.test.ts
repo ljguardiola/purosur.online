@@ -379,8 +379,8 @@ function expectedBalanceRequest(headers: Record<string, string>, productId: stri
 }
 
 describe("GET /stock/products/:id/expected-balance", () => {
-  it("rejects a user without perform_stock_counts", async () => {
-    const { headers } = await signedInWith(db, ["view_stock_balances"], NOW);
+  it("rejects a user who may count but not view balances", async () => {
+    const { headers } = await signedInWith(db, ["perform_stock_counts"], NOW);
     const { productId } = await insertProduct(db);
 
     const response = await expectedBalanceRequest(headers, productId, COUNTED_AT.toISOString());
@@ -389,7 +389,7 @@ describe("GET /stock/products/:id/expected-balance", () => {
   });
 
   it("answers the balance left after undoing what the branch applied after the moment", async () => {
-    const { headers, locationId, userId } = await signedInWith(db, ["perform_stock_counts"], NOW);
+    const { headers, locationId, userId } = await signedInWith(db, ["view_stock_balances"], NOW);
     const otherLocationId = await insertLocation(db);
     const { productId } = await insertProduct(db);
     await insertBalance(db, { productId, locationId, quantity: 16_000 });
@@ -419,7 +419,7 @@ describe("GET /stock/products/:id/expected-balance", () => {
   });
 
   it("answers zero for a product with no movement in the branch", async () => {
-    const { headers } = await signedInWith(db, ["perform_stock_counts"], NOW);
+    const { headers } = await signedInWith(db, ["view_stock_balances"], NOW);
     const { productId } = await insertProduct(db);
 
     const response = await expectedBalanceRequest(headers, productId, COUNTED_AT.toISOString());
@@ -430,7 +430,7 @@ describe("GET /stock/products/:id/expected-balance", () => {
   it.each(["not-a-uuid", "00000000-0000-4000-8000-000000000000"])(
     "answers 404 for the product id %s",
     async (productId) => {
-      const { headers } = await signedInWith(db, ["perform_stock_counts"], NOW);
+      const { headers } = await signedInWith(db, ["view_stock_balances"], NOW);
 
       const response = await expectedBalanceRequest(headers, productId, COUNTED_AT.toISOString());
 
@@ -439,7 +439,7 @@ describe("GET /stock/products/:id/expected-balance", () => {
   );
 
   it("answers 404 for a deactivated product", async () => {
-    const { headers } = await signedInWith(db, ["perform_stock_counts"], NOW);
+    const { headers } = await signedInWith(db, ["view_stock_balances"], NOW);
     const { productId } = await insertProduct(db, { active: false });
 
     const response = await expectedBalanceRequest(headers, productId, COUNTED_AT.toISOString());
@@ -448,7 +448,7 @@ describe("GET /stock/products/:id/expected-balance", () => {
   });
 
   it.each(["", "yesterday", "2026-09-15"])("refuses the moment %j", async (at) => {
-    const { headers } = await signedInWith(db, ["perform_stock_counts"], NOW);
+    const { headers } = await signedInWith(db, ["view_stock_balances"], NOW);
     const { productId } = await insertProduct(db);
 
     const response = await expectedBalanceRequest(headers, productId, at);

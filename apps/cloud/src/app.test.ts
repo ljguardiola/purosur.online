@@ -933,6 +933,7 @@ describe("wiring the prices routes", () => {
 describe("wiring the stock routes", () => {
   const stockRequests = [
     { method: "GET", url: "/stock/balances" },
+    { method: "GET", url: "/stock/products" },
     { method: "GET", url: "/stock/counts" },
     { method: "POST", url: "/stock/counts" },
     {

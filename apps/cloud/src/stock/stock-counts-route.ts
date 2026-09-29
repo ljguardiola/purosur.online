@@ -154,7 +154,10 @@ export function registerStockCountsRoutes<TQueryResult extends PgQueryResultHKT>
 
   app.get<{ Params: { id: string }; Querystring: { at?: string } }>(
     "/stock/products/:id/expected-balance",
-    routeConfig,
+    {
+      preHandler: routeConfig.preHandler,
+      config: { access: permissionAccess("view_stock_balances"), sessionSource },
+    },
     async (request, reply) => {
       const productId = request.params.id;
       if (!(await isActiveProduct(options.db, productId))) {

@@ -235,6 +235,14 @@ async function seedLossAndAdjustment(locationId: string, actorId: string) {
     delta: -1000,
     occurredAt: new Date(NOW.getTime() - DAY),
   });
+  const laterCount = await insertMovement(db, {
+    productId: peanut.productId,
+    locationId,
+    actorId,
+    kind: "count",
+    delta: 0,
+    occurredAt: new Date(NOW.getTime() - DAY),
+  });
   const adjustment = await insertMovement(db, {
     productId: peanut.productId,
     locationId,
@@ -243,6 +251,7 @@ async function seedLossAndAdjustment(locationId: string, actorId: string) {
     reason: "purchase_correction",
     delta: 12_000,
     occurredAt: new Date(NOW.getTime() - 2 * DAY),
+    supersededByCountId: laterCount,
   });
   await insertMovement(db, {
     productId: honey.productId,
@@ -315,6 +324,7 @@ describe("GET /stock/movements", () => {
           reason: "broken_or_spilled",
           delta: -1000,
           occurredAt: new Date(NOW.getTime() - DAY).toISOString(),
+          superseded: false,
         },
         {
           id: adjustment,
@@ -326,6 +336,7 @@ describe("GET /stock/movements", () => {
           reason: "purchase_correction",
           delta: 12_000,
           occurredAt: new Date(NOW.getTime() - 2 * DAY).toISOString(),
+          superseded: true,
         },
       ],
     });

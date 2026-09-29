@@ -59,6 +59,7 @@ async function listStockMovements<TQueryResult extends PgQueryResultHKT>(
       reason: stockMovements.reason,
       delta: stockMovements.delta,
       occurredAt: stockMovements.occurredAt,
+      supersededByCountId: stockMovements.supersededByCountId,
     })
     .from(stockMovements)
     .innerJoin(products, eq(products.id, stockMovements.productId))
@@ -72,10 +73,11 @@ async function listStockMovements<TQueryResult extends PgQueryResultHKT>(
     )
     .orderBy(desc(stockMovements.occurredAt), desc(stockMovements.id));
   return stockMovementListSchema.parse({
-    movements: rows.map((row) => ({
+    movements: rows.map(({ supersededByCountId, ...row }) => ({
       ...row,
       saleUnit: row.saleUnit as SaleUnit,
       occurredAt: row.occurredAt.toISOString(),
+      superseded: supersededByCountId !== null,
     })),
   });
 }

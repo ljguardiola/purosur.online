@@ -71,6 +71,7 @@ import { registerRegistersListRoute } from "./register/registers-list-route.js";
 import { registerStockBalancesRoute } from "./stock/stock-balances-route.js";
 import { registerStockCountsRoutes } from "./stock/stock-counts-route.js";
 import { registerStockMovementsRoutes } from "./stock/stock-movements-route.js";
+import { registerStockProductsRoute } from "./stock/stock-products-route.js";
 import type { StockRouteOptions } from "./stock/stock-route-options.js";
 
 export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = PostgresJsQueryResultHKT> {
@@ -246,6 +247,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
   if (options.stock) {
     registerStockBalancesRoute(app, options.stock);
+    registerStockProductsRoute(app, options.stock);
     registerStockCountsRoutes(app, options.stock);
     registerStockMovementsRoutes(app, options.stock);
   }

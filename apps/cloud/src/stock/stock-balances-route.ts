@@ -49,16 +49,7 @@ export function registerStockBalancesRoute<TQueryResult extends PgQueryResultHKT
     "/stock/balances",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
-      config: {
-        // The count and movement forms show the balance of the product they are about to change.
-        access: permissionAccess([
-          "view_stock_balances",
-          "perform_stock_counts",
-          "adjust_stock",
-          "record_stock_losses",
-        ]),
-        sessionSource,
-      },
+      config: { access: permissionAccess("view_stock_balances"), sessionSource },
     },
     async (request, reply) => {
       const { locationId } = openSessionOf(request);

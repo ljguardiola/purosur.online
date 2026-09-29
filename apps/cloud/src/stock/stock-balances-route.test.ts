@@ -63,18 +63,24 @@ describe("GET /stock/balances", () => {
     expect(response.statusCode).toBe(403);
   });
 
-  it.each([
-    "view_stock_balances",
-    "perform_stock_counts",
-    "adjust_stock",
-    "record_stock_losses",
-  ] as const)("answers a user holding %s", async (permission) => {
-    const { headers } = await signedInWith(db, [permission], NOON);
+  it("answers a user holding view_stock_balances", async () => {
+    const { headers } = await signedInWith(db, ["view_stock_balances"], NOON);
 
     const response = await listBalances(headers);
 
     expect(response.statusCode).toBe(200);
   });
+
+  it.each(["record_stock_losses", "adjust_stock", "perform_stock_counts"] as const)(
+    "rejects a user holding %s but not view_stock_balances",
+    async (permission) => {
+      const { headers } = await signedInWith(db, [permission], NOON);
+
+      const response = await listBalances(headers);
+
+      expect(response.statusCode).toBe(403);
+    },
+  );
 
   it("lists every active product with its balance in the user's branch, by name", async () => {
     const { headers, locationId } = await signedInWith(db, ["view_stock_balances"], NOON);
