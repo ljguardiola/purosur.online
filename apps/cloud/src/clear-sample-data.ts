@@ -1,4 +1,3 @@
-import { fileURLToPath } from "node:url";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { describeDatabaseFailure } from "./platform/db/describe-database-failure.js";
@@ -31,11 +30,7 @@ function describeClearSampleDataOutcome(outcome: ClearSampleDataOutcome): string
   }
 }
 
-function isMainModule(): boolean {
-  return process.argv[1] !== undefined && process.argv[1] === fileURLToPath(import.meta.url);
-}
-
-if (isMainModule()) {
+if (import.meta.main) {
   const databaseUrl = process.env["DATABASE_URL"];
   const target = resolveSampleDataTarget({
     databaseUrl,

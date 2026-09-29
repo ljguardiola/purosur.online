@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { pathToFileURL } from "node:url";
 import postgres from "postgres";
 import {
   isRetryableConnectionError,
@@ -203,9 +203,7 @@ function logWaiting(error: unknown, elapsedMs: number): void {
   );
 }
 
-const isMainModule =
-  process.argv[1] !== undefined && process.argv[1] === fileURLToPath(import.meta.url);
-if (isMainModule) {
+if (import.meta.main) {
   const databaseUrl = process.env["DATABASE_URL"];
   if (!databaseUrl) {
     console.error("wait-for-ready: DATABASE_URL is not set");

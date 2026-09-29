@@ -1,5 +1,4 @@
 import { createHash, createHmac, pbkdf2Sync, randomBytes } from "node:crypto";
-import { fileURLToPath } from "node:url";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { makeWorkerUtils } from "graphile-worker";
@@ -246,9 +245,7 @@ export async function runMigrations(
   }
 }
 
-const isMainModule =
-  process.argv[1] !== undefined && process.argv[1] === fileURLToPath(import.meta.url);
-if (isMainModule) {
+if (import.meta.main) {
   const databaseUrl = process.env["DATABASE_URL"];
   const cloudAppPassword = process.env["CLOUD_APP_DATABASE_PASSWORD"];
   if (!databaseUrl) {
