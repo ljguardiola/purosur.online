@@ -1,12 +1,18 @@
 import { deviceTokenRotationSchema } from "@purosur/contracts";
 import { isDeviceTokenRotationDue } from "@purosur/domain";
-import type { DeviceCredentials } from "../../shared/device-credentials-messages";
+import type {
+  CredentialsReplacement,
+  DeviceCredentials,
+} from "../../shared/device-credentials-messages";
 import type { CloudResponse } from "../platform/cloud-client";
 
 export interface DeviceTokenRotationDeps {
   readCredentials: () => Promise<DeviceCredentials | undefined>;
   postToCloud: (path: string, bearerToken: string) => Promise<CloudResponse>;
-  storeCredentials: (credentials: DeviceCredentials) => Promise<boolean>;
+  replaceCredentials: (
+    expectedDeviceToken: string,
+    credentials: DeviceCredentials,
+  ) => Promise<CredentialsReplacement>;
   now: () => Date;
 }
 
@@ -17,6 +23,7 @@ type DeviceTokenRotationOutcome =
   | { kind: "rejected" }
   | { kind: "unreachable" }
   | { kind: "unavailable" }
+  | { kind: "superseded" }
   | { kind: "not_stored" };
 
 function isDue(credentials: DeviceCredentials, now: Date): boolean {
@@ -52,11 +59,11 @@ export async function rotateDeviceToken(
     return { kind: "unavailable" };
   }
 
-  const stored = await deps.storeCredentials({
+  const replacement = await deps.replaceCredentials(credentials.device_token, {
     device_id: credentials.device_id,
     pepper: credentials.pepper,
     device_token: rotation.data.device_token,
     token_received_at: deps.now().toISOString(),
   });
-  return stored ? { kind: "rotated" } : { kind: "not_stored" };
+  return replacement === "replaced" ? { kind: "rotated" } : { kind: replacement };
 }

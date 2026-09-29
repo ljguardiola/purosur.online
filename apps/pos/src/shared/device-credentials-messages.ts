@@ -8,8 +8,16 @@ export interface DeviceCredentials {
   token_received_at?: string;
 }
 
+export type CredentialsReplacement = "replaced" | "superseded" | "not_stored";
+
 export type DeviceCredentialsRequest =
   | { type: "store-device-credentials"; request_id: string; credentials: DeviceCredentials }
+  | {
+      type: "replace-device-credentials";
+      request_id: string;
+      expected_device_token: string;
+      credentials: DeviceCredentials;
+    }
   | { type: "device-credentials-request"; request_id: string }
   | { type: "device-credentials-read-request"; request_id: string }
   | { type: "device-credentials-storable-request"; request_id: string };
@@ -17,6 +25,7 @@ export type DeviceCredentialsRequest =
 export type DeviceCredentialsAnswer =
   | { type: "device-credentials-stored"; request_id: string; stored: boolean }
   | { type: "device-credentials-presence"; request_id: string; present: boolean }
+  | { type: "device-credentials-replaced"; request_id: string; outcome: CredentialsReplacement }
   | { type: "device-credentials-read"; request_id: string; credentials?: DeviceCredentials }
   | { type: "device-credentials-storable"; request_id: string; storable: boolean };
 
@@ -65,6 +74,19 @@ export function readDeviceCredentialsRequest(
   if (fields?.["type"] === "store-device-credentials" && credentials !== undefined) {
     return { type: "store-device-credentials", request_id: requestId, credentials };
   }
+  const expectedDeviceToken = fields?.["expected_device_token"];
+  if (
+    fields?.["type"] === "replace-device-credentials" &&
+    credentials !== undefined &&
+    typeof expectedDeviceToken === "string"
+  ) {
+    return {
+      type: "replace-device-credentials",
+      request_id: requestId,
+      expected_device_token: expectedDeviceToken,
+      credentials,
+    };
+  }
   return undefined;
 }
 
@@ -81,6 +103,13 @@ export function readDeviceCredentialsAnswer(message: unknown): DeviceCredentials
   const present = fields?.["present"];
   if (fields?.["type"] === "device-credentials-presence" && typeof present === "boolean") {
     return { type: "device-credentials-presence", request_id: requestId, present };
+  }
+  const outcome = fields?.["outcome"];
+  if (
+    fields?.["type"] === "device-credentials-replaced" &&
+    (outcome === "replaced" || outcome === "superseded" || outcome === "not_stored")
+  ) {
+    return { type: "device-credentials-replaced", request_id: requestId, outcome };
   }
   if (fields?.["type"] === "device-credentials-read") {
     const credentials = readDeviceCredentials(fields["credentials"]);

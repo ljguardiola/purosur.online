@@ -1,4 +1,5 @@
 import {
+  type CredentialsReplacement,
   type DeviceCredentials,
   type DeviceCredentialsAnswer,
   type DeviceCredentialsRequest,
@@ -8,6 +9,10 @@ import {
 export interface MainRequests {
   canStoreCredentials(): Promise<boolean>;
   storeCredentials(credentials: DeviceCredentials): Promise<boolean>;
+  replaceCredentials(
+    expectedDeviceToken: string,
+    credentials: DeviceCredentials,
+  ): Promise<CredentialsReplacement>;
   credentialsPresent(): Promise<boolean>;
   readCredentials(): Promise<DeviceCredentials | undefined>;
   receive(message: unknown): boolean;
@@ -50,6 +55,17 @@ export function createMainRequests(deps: {
       return ask(
         (requestId) => ({ type: "store-device-credentials", request_id: requestId, credentials }),
         (answer) => (answer.type === "device-credentials-stored" ? answer.stored : undefined),
+      );
+    },
+    replaceCredentials(expectedDeviceToken, credentials) {
+      return ask(
+        (requestId) => ({
+          type: "replace-device-credentials",
+          request_id: requestId,
+          expected_device_token: expectedDeviceToken,
+          credentials,
+        }),
+        (answer) => (answer.type === "device-credentials-replaced" ? answer.outcome : undefined),
       );
     },
     credentialsPresent() {

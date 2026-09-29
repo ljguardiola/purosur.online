@@ -28,6 +28,34 @@ describe("readDeviceCredentialsRequest", () => {
     expect(readDeviceCredentialsRequest(message)).toEqual(message);
   });
 
+  it("reads credentials the core asks main to swap in for the ones holding a given token", () => {
+    const message = {
+      type: "replace-device-credentials",
+      request_id: "r5",
+      expected_device_token: "old.token",
+      credentials: CREDENTIALS,
+    };
+
+    expect(readDeviceCredentialsRequest(message)).toEqual(message);
+  });
+
+  it.each([
+    ["without the token it expects", { credentials: CREDENTIALS }],
+    [
+      "with an expected token that isn't a string",
+      { expected_device_token: 7, credentials: CREDENTIALS },
+    ],
+    ["without credentials", { expected_device_token: "old.token" }],
+  ])("reads nothing from a replace request %s", (_case, fields) => {
+    expect(
+      readDeviceCredentialsRequest({
+        type: "replace-device-credentials",
+        request_id: "r5",
+        ...fields,
+      }),
+    ).toBeUndefined();
+  });
+
   it("reads the core's question for the stored credentials", () => {
     const message = { type: "device-credentials-read-request", request_id: "r4" };
 
@@ -115,6 +143,25 @@ describe("readDeviceCredentialsAnswer", () => {
     const message = { type: "device-credentials-presence", request_id: "r2", present };
 
     expect(readDeviceCredentialsAnswer(message)).toEqual(message);
+  });
+
+  it.each(["replaced", "superseded", "not_stored"])(
+    "reads how main answered a replace request: %s",
+    (outcome) => {
+      const message = { type: "device-credentials-replaced", request_id: "r5", outcome };
+
+      expect(readDeviceCredentialsAnswer(message)).toEqual(message);
+    },
+  );
+
+  it("reads nothing from a replace answer with an outcome it doesn't know", () => {
+    expect(
+      readDeviceCredentialsAnswer({
+        type: "device-credentials-replaced",
+        request_id: "r5",
+        outcome: "maybe",
+      }),
+    ).toBeUndefined();
   });
 
   it("reads the credentials main holds", () => {

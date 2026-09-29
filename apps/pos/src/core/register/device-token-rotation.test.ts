@@ -18,23 +18,28 @@ function rotationWith(options: {
   credentials?: DeviceCredentials | undefined;
   now?: Date;
   response?: CloudResponse;
-  stored?: boolean;
+  replacement?: "replaced" | "superseded" | "not_stored";
 }) {
   const posted: { path: string; bearerToken: string }[] = [];
   const storedCredentials: DeviceCredentials[] = [];
+  const replacedTokens: string[] = [];
   const deps: DeviceTokenRotationDeps = {
     readCredentials: async () => ("credentials" in options ? options.credentials : CREDENTIALS),
     postToCloud: async (path, bearerToken) => {
       posted.push({ path, bearerToken });
       return options.response ?? { kind: "ok", body: { device_token: "new-prefix.new-secret" } };
     },
-    storeCredentials: async (credentials) => {
-      storedCredentials.push(credentials);
-      return options.stored ?? true;
+    replaceCredentials: async (expectedDeviceToken, credentials) => {
+      replacedTokens.push(expectedDeviceToken);
+      const outcome = options.replacement ?? "replaced";
+      if (outcome === "replaced") {
+        storedCredentials.push(credentials);
+      }
+      return outcome;
     },
     now: () => options.now ?? DUE_AT,
   };
-  return { deps, posted, storedCredentials };
+  return { deps, posted, storedCredentials, replacedTokens };
 }
 
 function refusal(code: string): CloudResponse {
@@ -121,8 +126,23 @@ describe("rotateDeviceToken", () => {
   });
 
   it("says the new token wasn't kept when it can't be stored", async () => {
-    const { deps } = rotationWith({ stored: false });
+    const { deps } = rotationWith({ replacement: "not_stored" });
 
     expect(await rotateDeviceToken(deps)).toEqual({ kind: "not_stored" });
+  });
+
+  it("replaces only the credentials still holding the token it rotated", async () => {
+    const { deps, replacedTokens } = rotationWith({});
+
+    await rotateDeviceToken(deps);
+
+    expect(replacedTokens).toEqual(["old-prefix.old-secret"]);
+  });
+
+  it("says it was superseded, writing nothing, when the register enrolled again meanwhile", async () => {
+    const { deps, storedCredentials } = rotationWith({ replacement: "superseded" });
+
+    expect(await rotateDeviceToken(deps)).toEqual({ kind: "superseded" });
+    expect(storedCredentials).toEqual([]);
   });
 });

@@ -90,7 +90,8 @@ if (cloudClient !== undefined) {
       rotateDeviceToken({
         readCredentials: () => mainRequests.readCredentials(),
         postToCloud: (path, bearerToken) => postToCloudWithBearer(cloudClient, path, bearerToken),
-        storeCredentials: (credentials) => mainRequests.storeCredentials(credentials),
+        replaceCredentials: (expectedDeviceToken, credentials) =>
+          mainRequests.replaceCredentials(expectedDeviceToken, credentials),
         now: () => new Date(),
       }),
     schedule: (run, delayMs) => {

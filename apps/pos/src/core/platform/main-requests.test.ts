@@ -63,6 +63,27 @@ describe("createMainRequests", () => {
     expect(await credentials).toBeUndefined();
   });
 
+  it("asks main to replace the credentials holding a token and resolves with how it went", async () => {
+    const { requests, posted } = requestsWithSequentialIds();
+
+    const outcome = requests.replaceCredentials("old.token", CREDENTIALS);
+    requests.receive({
+      type: "device-credentials-replaced",
+      request_id: "request-1",
+      outcome: "superseded",
+    });
+
+    expect(await outcome).toBe("superseded");
+    expect(posted).toEqual([
+      {
+        type: "replace-device-credentials",
+        request_id: "request-1",
+        expected_device_token: "old.token",
+        credentials: CREDENTIALS,
+      },
+    ]);
+  });
+
   it("asks main whether credentials can be stored and resolves with its answer", async () => {
     const { requests, posted } = requestsWithSequentialIds();
 

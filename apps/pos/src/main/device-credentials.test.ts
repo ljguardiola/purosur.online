@@ -6,6 +6,7 @@ import {
   answerCoreCredentialsRequest,
   createDeviceCredentialsStore,
   credentialsFileAt,
+  type DurableFileSystem,
   type SecretEncryption,
 } from "./device-credentials";
 
@@ -151,7 +152,65 @@ describe("createDeviceCredentialsStore", () => {
   });
 });
 
+describe("replace", () => {
+  const NEXT = { ...CREDENTIALS, device_token: "next.token" };
+
+  it("swaps in the new credentials when the stored token is the one expected", () => {
+    const folder = temporaryFolder();
+    storeIn(folder).store(CREDENTIALS);
+
+    expect(storeIn(folder).replace(CREDENTIALS.device_token, NEXT)).toBe("replaced");
+    expect(storeIn(folder).read()).toEqual(NEXT);
+  });
+
+  it("leaves the credentials of a newer enrollment untouched when the token expected is gone", () => {
+    const folder = temporaryFolder();
+    const enrolledMeanwhile = { ...CREDENTIALS, device_id: "other", device_token: "other.token" };
+    storeIn(folder).store(enrolledMeanwhile);
+
+    expect(storeIn(folder).replace(CREDENTIALS.device_token, NEXT)).toBe("superseded");
+    expect(storeIn(folder).read()).toEqual(enrolledMeanwhile);
+  });
+
+  it("counts absent credentials as superseded and stores nothing", () => {
+    const folder = temporaryFolder();
+
+    expect(storeIn(folder).replace(CREDENTIALS.device_token, NEXT)).toBe("superseded");
+    expect(storeIn(folder).isPresent()).toBe(false);
+  });
+
+  it("says nothing was stored when the operating system can't encrypt", () => {
+    const folder = temporaryFolder();
+    storeIn(folder).store(CREDENTIALS);
+    const store = storeIn(folder, { ...reversingEncryption, isEncryptionAvailable: () => false });
+
+    expect(store.replace(CREDENTIALS.device_token, NEXT)).toBe("not_stored");
+  });
+});
+
 describe("answerCoreCredentialsRequest", () => {
+  it("answers a replace request with how it went, leaving newer credentials alone", () => {
+    const store = storeIn(temporaryFolder());
+    store.store(CREDENTIALS);
+    const request = {
+      type: "replace-device-credentials",
+      request_id: "r6",
+      expected_device_token: CREDENTIALS.device_token,
+      credentials: { ...CREDENTIALS, device_token: "next.token" },
+    } as const;
+
+    expect(answerCoreCredentialsRequest(store, request)).toEqual({
+      type: "device-credentials-replaced",
+      request_id: "r6",
+      outcome: "replaced",
+    });
+    expect(answerCoreCredentialsRequest(store, request)).toEqual({
+      type: "device-credentials-replaced",
+      request_id: "r6",
+      outcome: "superseded",
+    });
+  });
+
   it("stores the credentials the core hands over and says whether it did", () => {
     const store = storeIn(temporaryFolder());
 
@@ -211,4 +270,91 @@ describe("answerCoreCredentialsRequest", () => {
       ).toEqual({ type: "device-credentials-storable", request_id: "r3", storable: available });
     },
   );
+});
+
+describe("credentialsFileAt durability", () => {
+  function recordingFileSystem(failOn?: string) {
+    const calls: string[] = [];
+    let nextDescriptor = 10;
+    const descriptorPaths = new Map<number, string>();
+    function record(call: string): void {
+      calls.push(call);
+      if (call === failOn) {
+        throw new Error(`${call} failed`);
+      }
+    }
+    const fileSystem: DurableFileSystem = {
+      openSync: (path) => {
+        const descriptor = nextDescriptor++;
+        descriptorPaths.set(descriptor, path);
+        record(`open ${path}`);
+        return descriptor;
+      },
+      writeSync: (descriptor) => record(`write ${descriptorPaths.get(descriptor)}`),
+      fsyncSync: (descriptor) => record(`fsync ${descriptorPaths.get(descriptor)}`),
+      closeSync: (descriptor) => record(`close ${descriptorPaths.get(descriptor)}`),
+      renameSync: (from, to) => record(`rename ${from} ${to}`),
+    };
+    return { fileSystem, calls };
+  }
+
+  it("flushes the temporary file before renaming it and the folder after, on Linux", () => {
+    const { fileSystem, calls } = recordingFileSystem();
+
+    credentialsFileAt("/data/device-credentials.bin", {
+      fileSystem,
+      platform: "linux",
+    }).write(Buffer.from("secret"));
+
+    expect(calls).toEqual([
+      "open /data/device-credentials.bin.partial",
+      "write /data/device-credentials.bin.partial",
+      "fsync /data/device-credentials.bin.partial",
+      "close /data/device-credentials.bin.partial",
+      "rename /data/device-credentials.bin.partial /data/device-credentials.bin",
+      "open /data",
+      "fsync /data",
+      "close /data",
+    ]);
+  });
+
+  it("flushes the temporary file before renaming it but never opens the folder on Windows", () => {
+    const { fileSystem, calls } = recordingFileSystem();
+
+    credentialsFileAt("C:\\data\\device-credentials.bin", {
+      fileSystem,
+      platform: "win32",
+    }).write(Buffer.from("secret"));
+
+    expect(calls.map((call) => call.split(" ")[0])).toEqual([
+      "open",
+      "write",
+      "fsync",
+      "close",
+      "rename",
+    ]);
+  });
+
+  it("never renames a temporary file it failed to flush, and closes it", () => {
+    const { fileSystem, calls } = recordingFileSystem("fsync /data/device-credentials.bin.partial");
+    const file = credentialsFileAt("/data/device-credentials.bin", {
+      fileSystem,
+      platform: "linux",
+    });
+
+    expect(() => file.write(Buffer.from("secret"))).toThrow();
+    expect(calls.some((call) => call.startsWith("rename"))).toBe(false);
+    expect(calls.at(-1)).toBe("close /data/device-credentials.bin.partial");
+  });
+
+  it("fails the write when the folder can't be flushed off Windows, and closes it", () => {
+    const { fileSystem, calls } = recordingFileSystem("fsync /data");
+    const file = credentialsFileAt("/data/device-credentials.bin", {
+      fileSystem,
+      platform: "linux",
+    });
+
+    expect(() => file.write(Buffer.from("secret"))).toThrow();
+    expect(calls.at(-1)).toBe("close /data");
+  });
 });
