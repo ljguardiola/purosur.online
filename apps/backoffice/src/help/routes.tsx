@@ -1,5 +1,6 @@
-import { createRoute, lazyRouteComponent, redirect } from "@tanstack/react-router";
+import { createRoute, redirect } from "@tanstack/react-router";
 import { helpAreaRoute } from "../shell/help-area";
+import { lazyScreen } from "../shell/lazy-screen";
 import {
   type BackofficeHelpCatalog,
   canonicalHelpPage,
@@ -24,7 +25,7 @@ function refuseNonCanonical(help: BackofficeHelpCatalog, requested: RequestedHel
   throw redirect({ to: "/help" });
 }
 
-const helpPage = lazyRouteComponent(() => import("./help-page"), "HelpPage");
+const helpPage = lazyScreen(() => import("./help-page"), "HelpPage");
 
 export const helpHomeRoute = createRoute({
   getParentRoute: () => helpAreaRoute,

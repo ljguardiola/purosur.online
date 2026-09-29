@@ -1,7 +1,8 @@
-import { createRoute, lazyRouteComponent, stripSearchParams } from "@tanstack/react-router";
+import { createRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 import { canManageProductsAndCategories } from "../access/backoffice-access";
 import { catalogAreaRoute } from "../shell/catalog-area";
+import { lazyScreen } from "../shell/lazy-screen";
 import { refuseWithout } from "../shell/signed-in-route";
 
 export const productsListFilters = z.object({
@@ -20,7 +21,7 @@ export const productsListRoute = createRoute({
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canManageProductsAndCategories),
   validateSearch: productsListFilters,
   search: { middlewares: [stripSearchParams(productsListFilters.parse({}))] },
-  component: lazyRouteComponent(() => import("./products-list-page"), "ProductsListPage"),
+  component: lazyScreen(() => import("./products-list-page"), "ProductsListPage"),
 });
 
 export const categoriesListFilters = z.object({
@@ -36,5 +37,5 @@ export const categoriesListRoute = createRoute({
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canManageProductsAndCategories),
   validateSearch: categoriesListFilters,
   search: { middlewares: [stripSearchParams(categoriesListFilters.parse({}))] },
-  component: lazyRouteComponent(() => import("./categories-list-page"), "CategoriesListPage"),
+  component: lazyScreen(() => import("./categories-list-page"), "CategoriesListPage"),
 });

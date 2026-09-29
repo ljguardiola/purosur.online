@@ -1,7 +1,8 @@
-import { createRoute, lazyRouteComponent, stripSearchParams } from "@tanstack/react-router";
+import { createRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 import { canSeeAlertsArea } from "../access/backoffice-access";
 import { homeAreaRoute } from "../shell/home-area";
+import { lazyScreen } from "../shell/lazy-screen";
 import { refuseWithout } from "../shell/signed-in-route";
 
 export const alertsListFilters = z.object({
@@ -19,5 +20,5 @@ export const alertsListRoute = createRoute({
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeAlertsArea),
   validateSearch: alertsListFilters,
   search: { middlewares: [stripSearchParams(alertsListFilters.parse({}))] },
-  component: lazyRouteComponent(() => import("./alerts-list-page"), "AlertsListPage"),
+  component: lazyScreen(() => import("./alerts-list-page"), "AlertsListPage"),
 });

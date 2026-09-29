@@ -1,7 +1,8 @@
-import { createRoute, lazyRouteComponent, stripSearchParams } from "@tanstack/react-router";
+import { createRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 import { canSeePricesArea } from "../access/backoffice-access";
 import { catalogAreaRoute } from "../shell/catalog-area";
+import { lazyScreen } from "../shell/lazy-screen";
 import { refuseWithout } from "../shell/signed-in-route";
 
 export const pricesListFilters = z.object({
@@ -18,5 +19,5 @@ export const pricesListRoute = createRoute({
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeePricesArea),
   validateSearch: pricesListFilters,
   search: { middlewares: [stripSearchParams(pricesListFilters.parse({}))] },
-  component: lazyRouteComponent(() => import("./prices-list-page"), "PricesListPage"),
+  component: lazyScreen(() => import("./prices-list-page"), "PricesListPage"),
 });

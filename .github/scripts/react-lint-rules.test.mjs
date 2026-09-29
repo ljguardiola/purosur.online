@@ -22,12 +22,12 @@ function projectRoot() {
   return root;
 }
 
-function lint(relativeDir, source) {
+function lint(relativeDir, source, fileName = "lint-fixture.tsx") {
   const root = projectRoot();
   try {
     const dir = join(root, relativeDir);
     mkdirSync(dir, { recursive: true });
-    const filePath = join(dir, "lint-fixture.tsx");
+    const filePath = join(dir, fileName);
     writeFileSync(filePath, source);
 
     const result = spawnSync(
@@ -208,6 +208,31 @@ for (const { name, specifiers } of UI_FORBIDDEN_PACKAGES) {
     });
   }
 }
+
+const LAZY_ROUTE_COMPONENT_SOURCE =
+  'import { lazyRouteComponent } from "@tanstack/react-router";\n\nexport const screen = lazyRouteComponent(() => import("./page"), "Page");\n';
+
+test("apps/backoffice: importing lazyRouteComponent fails and points to lazyScreen", () => {
+  const { exitCode, categories, messages } = lint(
+    "apps/backoffice/src/alerts",
+    LAZY_ROUTE_COMPONENT_SOURCE,
+  );
+
+  assert.deepEqual(categories, ["lint/style/noRestrictedImports"]);
+  assert.match(messages[0], /lazyScreen/);
+  assert.notEqual(exitCode, 0);
+});
+
+test("apps/backoffice: shell/lazy-screen.ts may import lazyRouteComponent", () => {
+  const { exitCode, categories } = lint(
+    "apps/backoffice/src/shell",
+    LAZY_ROUTE_COMPONENT_SOURCE,
+    "lazy-screen.ts",
+  );
+
+  assert.deepEqual(categories, []);
+  assert.equal(exitCode, 0);
+});
 
 test("verify:static runs biome ci with --error-on-warnings so warning-level React rules fail verify", () => {
   const packageJson = JSON.parse(readFileSync(join(repositoryRoot, "package.json"), "utf8"));
