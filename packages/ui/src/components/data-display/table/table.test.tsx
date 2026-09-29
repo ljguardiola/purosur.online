@@ -301,7 +301,7 @@ test("renders 12px bold capital column titles, whether or not the column is sort
         sortableColumns[0],
         { key: "stock", header: "Stock", align: "end", render: (p: Product) => p.stock },
       ]}
-      sort={undefined}
+      sort={{ column: "name", direction: "ascending" }}
       onSortChange={() => {}}
     />,
   );
