@@ -26,7 +26,7 @@ export function ScreenFailure() {
       <InlineNotice
         tone="error"
         icon={<TriangleAlert />}
-        detail="Probá de nuevo en unos minutos."
+        description="Probá de nuevo en unos minutos."
       />
       <Button variant="secondary" onPress={() => void retry()}>
         Reintentar
