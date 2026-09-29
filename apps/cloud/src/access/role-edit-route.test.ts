@@ -313,7 +313,7 @@ describe("POST /roles/:id/edit", () => {
 
     const response = await editRoleRequest(roleId, rawSessionId, {
       name: "Cajera senior",
-      permissions: ["sell_and_charge", "adjust_stock"],
+      permissions: ["sell_and_charge", "configure_branch"],
       version: 1,
     });
 
@@ -322,7 +322,7 @@ describe("POST /roles/:id/edit", () => {
       id: roleId,
       name: "Cajera senior",
       is_administrator: false,
-      permissions: ["sell_and_charge", "adjust_stock"],
+      permissions: ["sell_and_charge", "configure_branch"],
       user_count: 1,
       version: 2,
       assigned_users: [{ id: graceId, name: "Grace Hopper" }],
@@ -335,7 +335,7 @@ describe("POST /roles/:id/edit", () => {
       .from(rolePermissions)
       .where(eq(rolePermissions.roleId, roleId));
     expect(storedPermissions.map((r) => r.permissionKey).sort()).toEqual(
-      ["adjust_stock", "sell_and_charge"].sort(),
+      ["configure_branch", "sell_and_charge"].sort(),
     );
 
     const audited = await db.select().from(auditLog).where(eq(auditLog.entity, "role"));
@@ -343,7 +343,7 @@ describe("POST /roles/:id/edit", () => {
     expect(editAudit).toMatchObject({
       actorId: administratorId,
       previousValue: { name: "Cajera", permissions: ["sell_and_charge"] },
-      newValue: { name: "Cajera senior", permissions: ["sell_and_charge", "adjust_stock"] },
+      newValue: { name: "Cajera senior", permissions: ["sell_and_charge", "configure_branch"] },
     });
   });
 
@@ -484,14 +484,14 @@ describe("POST /roles/:id/edit and the alert for increased access", () => {
       locationId: await seededLocationId(db),
     });
 
-    const response = await editPermissions(["sell_and_charge", "adjust_stock"]);
+    const response = await editPermissions(["sell_and_charge", "configure_branch"]);
 
     expect(response.statusCode).toBe(200);
     const opened = await accessIncreasedAlerts();
     expect(opened).toHaveLength(1);
     expect(opened[0]).toMatchObject({
       scope: graceId,
-      detail: { addedPermissionKeys: ["adjust_stock"] },
+      detail: { addedPermissionKeys: ["configure_branch"] },
     });
   });
 
@@ -539,7 +539,7 @@ describe("POST /roles/:id/edit and the alert for increased access", () => {
     });
     await db.update(users).set({ active: false }).where(eq(users.id, deactivatedId));
 
-    const response = await editPermissions(["sell_and_charge", "void_sale", "adjust_stock"]);
+    const response = await editPermissions(["sell_and_charge", "void_sale", "configure_branch"]);
 
     expect(response.statusCode).toBe(200);
     const opened = await accessIncreasedAlerts();

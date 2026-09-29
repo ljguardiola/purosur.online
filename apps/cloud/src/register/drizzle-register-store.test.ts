@@ -1,7 +1,10 @@
 import { enrollInstallation } from "@purosur/domain/register/use-cases";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { escalateOverdueAlerts } from "../alerts/alert-escalation.js";
+import { openAlert } from "../alerts/open-alert.js";
 import {
+  alerts,
   registerEnrollmentAttempts,
   registerEnrollmentCodes,
   registerInstallations,
@@ -87,6 +90,23 @@ async function insertInstallation(registerId: string, prefix: string): Promise<s
 
 function adapterStore() {
   return new DrizzleRegisterStore(db);
+}
+
+function enrollWithCode(code: string, now = NOW) {
+  return enrollInstallation(
+    {
+      store: adapterStore(),
+      clock: { now: () => now },
+      tokens: { issue: issueDeviceToken },
+      codes: { matches: registerEnrollmentCodeMatches },
+    },
+    {
+      code,
+      sourceAddress: "203.0.113.7",
+      hostname: "CAJA-MOSTRADOR",
+      windowsVersion: "Windows 11 Pro 10.0.26100",
+    },
+  );
 }
 
 describe("DrizzleRegisterStore", () => {
@@ -228,5 +248,128 @@ describe("DrizzleRegisterStore", () => {
       .from(registerEnrollmentCodes)
       .where(eq(registerEnrollmentCodes.registerId, registerId));
     expect(code?.redeemedAt).toEqual(NOW);
+  });
+
+  it("opens the register's enrollment alert: a Warning escalating in 24 hours, of All audience, that no one has closed", async () => {
+    const registerId = await insertRegister("Caja 1");
+    await insertCode(registerId, CODE);
+    await insertInstallation(registerId, "previous");
+
+    const outcome = await enrollWithCode(CODE);
+
+    if (outcome.kind !== "enrolled") {
+      throw new Error(`expected an enrollment, got ${outcome.kind}`);
+    }
+    expect(await db.select().from(alerts)).toEqual([
+      expect.objectContaining({
+        kind: "register_enrolled",
+        scope: registerId,
+        level: "warning",
+        audience: "all",
+        locationId: null,
+        detail: {
+          deviceId: outcome.deviceId,
+          hostname: "CAJA-MOSTRADOR",
+          windowsVersion: "Windows 11 Pro 10.0.26100",
+          replacedInstallation: true,
+        },
+        openedAt: NOW,
+        escalateAt: new Date(NOW.getTime() + 24 * 60 * 60 * 1000),
+        escalatedAt: null,
+        resolvedAt: null,
+      }),
+    ]);
+  });
+
+  it("tells the alert when the register had no installation to replace", async () => {
+    const registerId = await insertRegister("Caja 1");
+    await insertCode(registerId, CODE);
+
+    await enrollWithCode(CODE);
+
+    const [alert] = await db.select({ detail: alerts.detail }).from(alerts);
+    expect(alert?.detail).toMatchObject({ replacedInstallation: false });
+  });
+
+  it("opens a second alert when the register enrolls again while its first is open, leaving the first as it was", async () => {
+    const registerId = await insertRegister("Caja 1");
+    await insertCode(registerId, CODE);
+    const first = await enrollWithCode(CODE);
+    const [firstAlert] = await db.select().from(alerts);
+    if (!firstAlert) {
+      throw new Error("expected the first enrollment to open an alert");
+    }
+    const secondCode = "P4NXAAAAAAAAAAAA";
+    await db
+      .delete(registerEnrollmentCodes)
+      .where(eq(registerEnrollmentCodes.registerId, registerId));
+    await insertCode(registerId, secondCode);
+    const later = minutesAgo(-1);
+
+    const second = await enrollWithCode(secondCode, later);
+
+    if (first.kind !== "enrolled" || second.kind !== "enrolled") {
+      throw new Error("expected both enrollments to succeed");
+    }
+    const alertsAfter = await db.select().from(alerts);
+    expect(alertsAfter).toHaveLength(2);
+    expect(alertsAfter.find((alert) => alert.id === firstAlert.id)).toEqual(firstAlert);
+    expect(alertsAfter.find((alert) => alert.id !== firstAlert.id)).toMatchObject({
+      kind: "register_enrolled",
+      scope: registerId,
+      level: "warning",
+      detail: {
+        deviceId: second.deviceId,
+        hostname: "CAJA-MOSTRADOR",
+        windowsVersion: "Windows 11 Pro 10.0.26100",
+        replacedInstallation: true,
+      },
+      openedAt: later,
+      resolvedAt: null,
+    });
+  });
+
+  it("opens a separate alert for each register that enrolls", async () => {
+    const firstRegisterId = await insertRegister("Caja 1");
+    const secondRegisterId = await insertRegister("Caja 2");
+    const secondCode = "Q7RTAAAAAAAAAAAA";
+    await insertCode(firstRegisterId, CODE);
+    await insertCode(secondRegisterId, secondCode);
+
+    await enrollWithCode(CODE);
+    await enrollWithCode(secondCode);
+
+    const scopes = (await db.select({ scope: alerts.scope }).from(alerts)).map((row) => row.scope);
+    expect(scopes.sort()).toEqual([firstRegisterId, secondRegisterId].sort());
+  });
+
+  it("keeps a passkey change as its own alert while the enrollment alert is open, even under the same scope, and resolves neither on its own", async () => {
+    const registerId = await insertRegister("Caja 1");
+    await insertCode(registerId, CODE);
+    await enrollWithCode(CODE);
+    const later = minutesAgo(-60);
+    const afterADay = new Date(later.getTime() + 24 * 60 * 60 * 1000);
+
+    const passkeyChange = await db.transaction((tx) =>
+      openAlert(
+        tx,
+        {
+          kind: "backoffice_passkey_changed",
+          scope: registerId,
+          detail: { action: "registered", passkeyName: "Teléfono", actorId: "a", via: "self" },
+        },
+        { now: () => later },
+      ),
+    );
+    await escalateOverdueAlerts(db, { now: () => afterADay });
+
+    expect(passkeyChange.kind).toBe("opened");
+    const open = await db
+      .select({ kind: alerts.kind, level: alerts.level, resolvedAt: alerts.resolvedAt })
+      .from(alerts);
+    expect(open.sort((a, b) => a.kind.localeCompare(b.kind))).toEqual([
+      { kind: "backoffice_passkey_changed", level: "critical", resolvedAt: null },
+      { kind: "register_enrolled", level: "critical", resolvedAt: null },
+    ]);
   });
 });

@@ -393,6 +393,10 @@ export async function startServer(
             db: database.recovery.db,
             backofficeOrigin: database.recovery.backofficeOrigin,
           },
+          stock: {
+            db: database.recovery.db,
+            backofficeOrigin: database.recovery.backofficeOrigin,
+          },
           devices: { db: database.recovery.db, rotationKey: database.deviceTokenRotationKey },
         }
       : {}),

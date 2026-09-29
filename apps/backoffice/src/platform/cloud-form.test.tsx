@@ -952,3 +952,42 @@ test("a schema issue on a key the request type does not declare shows on the fie
 
   await expect.element(screen.getByText("Revisá el contenido.")).toBeVisible();
 });
+
+const DIRECTION_OPTIONS = [
+  { value: "add", label: "Suma" },
+  { value: "subtract", label: "Resta" },
+] as const;
+
+function SegmentProbe({ onSubmit }: { onSubmit: (direction: string) => Promise<void> }) {
+  const { form, submit } = useCloudForm({
+    defaultValues: { direction: "add" as "add" | "subtract" },
+    request: {
+      schema: z.object({ direction: z.enum(["add", "subtract"]) }),
+      from: ({ direction }) => ({ direction }),
+    },
+    fields: { direction: "direction" },
+    messages: { direction: "Elegí el sentido." },
+    onSubmit: (request) => onSubmit(request.direction),
+  });
+  return (
+    <>
+      <form.AppField name="direction">
+        {(field) => <field.SegmentedControl label="Sentido" options={DIRECTION_OPTIONS} />}
+      </form.AppField>
+      <button type="button" onClick={() => void submit()}>
+        Enviar
+      </button>
+    </>
+  );
+}
+
+test("a segmented control submits the segment that was chosen", async () => {
+  const onSubmit = vi.fn<(direction: string) => Promise<void>>(() => Promise.resolve());
+  const screen = await render(<SegmentProbe onSubmit={onSubmit} />);
+
+  await userEvent.click(cardLabel(screen, "Resta"));
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+  await expect.poll(() => onSubmit.mock.calls.length).toBe(1);
+  expect(onSubmit).toHaveBeenCalledWith("subtract");
+});

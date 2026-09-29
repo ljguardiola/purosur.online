@@ -12,6 +12,7 @@ export type {
   Clock,
   DeviceTokenIssuer,
   DeviceTokenRotator,
+  EnrollmentAlert,
   EnrollmentAttemptKey,
   EnrollmentCodeVerifier,
   EnrollmentPorts,

@@ -1,5 +1,6 @@
 import { enrollmentAttemptWindowStart } from "@purosur/domain";
 import type {
+  EnrollmentAlert,
   EnrollmentAttemptKey,
   LockedEnrollmentCode,
   LockedInstallation,
@@ -10,11 +11,16 @@ import type {
 } from "@purosur/domain/register/use-cases";
 import { and, asc, desc, eq, gt, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { openAlert } from "../alerts/open-alert.js";
 import {
   registerEnrollmentAttempts,
   registerEnrollmentCodes,
   registerInstallations,
 } from "../platform/db/schema.js";
+
+type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
+  Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
+>[0];
 
 function attemptKeyCondition(key: EnrollmentAttemptKey) {
   return and(
@@ -26,9 +32,9 @@ function attemptKeyCondition(key: EnrollmentAttemptKey) {
 class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements RegisterStoreTransaction
 {
-  private readonly tx: PgDatabase<TQueryResult>;
+  private readonly tx: Transaction<TQueryResult>;
 
-  constructor(tx: PgDatabase<TQueryResult>) {
+  constructor(tx: Transaction<TQueryResult>) {
     this.tx = tx;
   }
 
@@ -86,8 +92,11 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
       .where(inArray(registerEnrollmentCodes.registerId, [...registerIds]));
   }
 
-  async revokeActiveInstallation(registerId: string, revokedAt: Date): Promise<void> {
-    await this.tx
+  async revokeActiveInstallation(
+    registerId: string,
+    revokedAt: Date,
+  ): Promise<{ revoked: boolean }> {
+    const revoked = await this.tx
       .update(registerInstallations)
       .set({ revokedAt })
       .where(
@@ -95,7 +104,9 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
           eq(registerInstallations.registerId, registerId),
           isNull(registerInstallations.revokedAt),
         ),
-      );
+      )
+      .returning({ id: registerInstallations.id });
+    return { revoked: revoked.length > 0 };
   }
 
   async recordInstallation(installation: NewInstallation): Promise<{ deviceId: string }> {
@@ -186,6 +197,23 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
       .update(registerEnrollmentCodes)
       .set({ redeemedAt })
       .where(eq(registerEnrollmentCodes.registerId, registerId));
+  }
+
+  async openEnrollmentAlert(alert: EnrollmentAlert): Promise<void> {
+    await openAlert(
+      this.tx,
+      {
+        kind: "register_enrolled",
+        scope: alert.registerId,
+        detail: {
+          deviceId: alert.deviceId,
+          hostname: alert.hostname,
+          windowsVersion: alert.windowsVersion,
+          replacedInstallation: alert.replacedInstallation,
+        },
+      },
+      { now: () => alert.enrolledAt },
+    );
   }
 }
 

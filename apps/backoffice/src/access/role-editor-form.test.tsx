@@ -184,6 +184,50 @@ test("the Alertas area keeps its radio and separate dismiss checkbox, counted to
     .not.toBeChecked();
 });
 
+test("checking a permission checks what it requires, which then can't be unchecked and says what requires it", async () => {
+  const screen = await render(<Harness initialArea="stock" />);
+
+  await userEvent.click(screen.getByText("Recuentos").element());
+
+  const balances = screen.getByRole("checkbox", { name: "Ver saldos" });
+  await expect.element(balances).toBeChecked();
+  await expect.element(balances).toBeDisabled();
+  await expect.element(balances).toHaveAccessibleDescription("Lo requiere «Recuentos».");
+  await expect.element(screen.getByRole("button", { name: /^Stock.*2 de 5$/ })).toBeVisible();
+});
+
+test("a required permission names every checked permission that requires it", async () => {
+  const screen = await render(
+    <Harness
+      initialArea="stock"
+      initialSelected={new Set(["view_stock_balances", "perform_stock_counts", "adjust_stock"])}
+    />,
+  );
+
+  await expect
+    .element(screen.getByRole("checkbox", { name: "Ver saldos" }))
+    .toHaveAccessibleDescription("Lo requieren «Recuentos» y «Ajustes».");
+});
+
+test("unchecking the last permission that required another leaves it checked and free to uncheck", async () => {
+  const screen = await render(
+    <Harness
+      initialArea="stock"
+      initialSelected={new Set(["view_stock_balances", "perform_stock_counts"])}
+    />,
+  );
+
+  await userEvent.click(screen.getByText("Recuentos").element());
+
+  const balances = screen.getByRole("checkbox", { name: "Ver saldos" });
+  await expect.element(balances).toBeChecked();
+  await expect.element(balances).toBeEnabled();
+  expect(screen.getByText(/^Lo requiere/).elements()).toHaveLength(0);
+
+  await userEvent.click(screen.getByText("Ver saldos").element());
+  await expect.element(balances).not.toBeChecked();
+});
+
 test("areaSelectedCount counts only the permissions selected in that area", () => {
   const selected = new Set<PermissionKey>(["sell_and_charge", "view_stock_balances"]);
 
@@ -193,5 +237,17 @@ test("areaSelectedCount counts only the permissions selected in that area", () =
 test("has no accessibility violations", async () => {
   const screen = await render(<Harness />);
 
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("has no accessibility violations while a permission is required", async () => {
+  const screen = await render(
+    <Harness
+      initialArea="stock"
+      initialSelected={new Set(["view_stock_balances", "record_stock_losses"])}
+    />,
+  );
+
+  await expect.element(screen.getByText("Lo requiere «Pérdidas».")).toBeVisible();
   await expectNoAccessibilityViolations(screen.container);
 });

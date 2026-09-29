@@ -784,3 +784,73 @@ test("shows the description of a user created as Administrator", async () => {
     .element(screen.getByText("El Administrador Ada creó a Lucía Pérez como Administrador."))
     .toBeVisible();
 });
+
+test("shows a register's enrollment, telling that the installation it had before stopped working", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "register_enrolled",
+        scope: "register-1",
+        scopeDisplay: "Caja 1",
+        detail: {
+          deviceId: "device-1",
+          hostname: "CAJA-MOSTRADOR",
+          windowsVersion: "Windows 11 Pro 10.0.26100",
+          replacedInstallation: true,
+        },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText("Se dio de alta una caja")).toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "La caja «Caja 1» se dio de alta en el equipo «CAJA-MOSTRADOR» (Windows 11 Pro 10.0.26100). La instalación que tenía antes dejó de funcionar. Si no se reconoce esta alta, conviene revisarla desde Cajas registradoras.",
+      ),
+    )
+    .toBeVisible();
+});
+
+test("describes a register that had no installation before without a replaced one", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "register_enrolled",
+        scopeDisplay: "Caja 1",
+        detail: { hostname: "CAJA-MOSTRADOR", windowsVersion: "11", replacedInstallation: false },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(
+      screen.getByText(
+        "La caja «Caja 1» se dio de alta en el equipo «CAJA-MOSTRADOR» (11). Si no se reconoce esta alta, conviene revisarla desde Cajas registradoras.",
+      ),
+    )
+    .toBeVisible();
+});
+
+test("describes no enrollment it can't read", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValueOnce(
+    ok(
+      baseDetail({
+        kind: "register_enrolled",
+        scopeDisplay: "Caja 1",
+        detail: { hostname: "CAJA-MOSTRADOR" },
+      }),
+    ),
+  );
+  const screen = await renderModal(services);
+  await expect.element(screen.getByText("Se dio de alta una caja")).toBeVisible();
+
+  expect(screen.getByText(/CAJA-MOSTRADOR/).query()).toBeNull();
+});

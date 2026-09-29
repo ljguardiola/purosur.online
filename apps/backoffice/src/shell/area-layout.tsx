@@ -1,11 +1,14 @@
 import { AreaNavItem, SectionNavItem } from "@purosur/ui";
 import { createLink, useMatchRoute } from "@tanstack/react-router";
-import { Home, LifeBuoy, Package, Settings, Wallet } from "lucide-react";
+import { Boxes, Home, LifeBuoy, Package, Settings, Wallet } from "lucide-react";
 import type { ReactNode } from "react";
 import {
   canManageProductsAndCategories,
+  canPerformStockCounts,
   canSeeCashArea,
   canSeeCatalogArea,
+  canSeeStockArea,
+  canSeeStockBalances,
 } from "../access/backoffice-access";
 import { AccountFooter } from "./account-footer";
 import { Shell } from "./shell";
@@ -15,7 +18,7 @@ const AreaLink = createLink(AreaNavItem);
 
 export const SectionLink = createLink(SectionNavItem);
 
-type Area = "home" | "catalog" | "cash-and-fiscal" | "settings" | "help";
+type Area = "home" | "catalog" | "stock" | "cash-and-fiscal" | "settings" | "help";
 
 export type AreaLayoutProps = {
   area: Area;
@@ -31,6 +34,12 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
     ? "/catalog/products"
     : "/catalog/prices";
   const catalogTargetShown = Boolean(matchRoute({ to: catalogTarget }));
+  const stockTarget = canSeeStockBalances(session)
+    ? "/stock/balances"
+    : canPerformStockCounts(session)
+      ? "/stock/counts"
+      : "/stock/adjustments-and-losses";
+  const stockTargetShown = Boolean(matchRoute({ to: stockTarget }));
   return (
     <Shell
       sectionColumnLabel={sectionColumnLabel}
@@ -44,6 +53,15 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
               label="Catálogo"
               icon={<Package />}
               active={area === "catalog"}
+            />
+          )}
+          {canSeeStockArea(session) && (
+            <AreaLink
+              to={stockTarget}
+              search={stockTargetShown ? true : {}}
+              label="Stock"
+              icon={<Boxes />}
+              active={area === "stock"}
             />
           )}
           {canSeeCashArea(session) && (

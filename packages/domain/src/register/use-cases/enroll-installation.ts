@@ -61,7 +61,7 @@ export async function enrollInstallation(
       return { kind: "code_rejected" };
     }
 
-    await tx.revokeActiveInstallation(matched.registerId, now);
+    const { revoked } = await tx.revokeActiveInstallation(matched.registerId, now);
     const issued = tokens.issue();
     const { deviceId } = await tx.recordInstallation({
       registerId: matched.registerId,
@@ -73,6 +73,14 @@ export async function enrollInstallation(
       enrolledAt: now,
     });
     await tx.markEnrollmentCodeRedeemed(matched.registerId, now);
+    await tx.openEnrollmentAlert({
+      registerId: matched.registerId,
+      deviceId,
+      hostname: input.hostname,
+      windowsVersion: input.windowsVersion,
+      replacedInstallation: revoked,
+      enrolledAt: now,
+    });
 
     return {
       kind: "enrolled",

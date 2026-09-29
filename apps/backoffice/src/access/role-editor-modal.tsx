@@ -4,7 +4,7 @@ import {
   roleCreationBodySchema,
   roleEditBodySchema,
 } from "@purosur/contracts";
-import type { PermissionArea, PermissionKey } from "@purosur/domain";
+import { type PermissionArea, type PermissionKey, withRequiredPermissions } from "@purosur/domain";
 import {
   Button,
   InlineNotice,
@@ -89,9 +89,11 @@ function seededName(seed: RoleSeed): string {
 
 function seededPermissions(seed: RoleSeed): ReadonlySet<PermissionKey> {
   if (seed.kind === "duplicate") {
-    return withOneAlertView(seed.source.permissionKeys as PermissionKey[]);
+    return withRequiredPermissions(withOneAlertView(seed.source.permissionKeys as PermissionKey[]));
   }
-  return new Set(seed.kind === "edit" ? (seed.role.permissionKeys as PermissionKey[]) : []);
+  return withRequiredPermissions(
+    seed.kind === "edit" ? (seed.role.permissionKeys as PermissionKey[]) : [],
+  );
 }
 
 type RoleEditorFrameProps = {
@@ -294,7 +296,7 @@ function RoleEditorSession({
       setStored(fresh);
       reset({
         name: fresh.name ?? "",
-        permissions: new Set(fresh.permissionKeys as PermissionKey[]),
+        permissions: withRequiredPermissions(fresh.permissionKeys as PermissionKey[]),
       });
       setNotice(null);
     }

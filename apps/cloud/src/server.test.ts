@@ -605,6 +605,10 @@ describe("startServer", () => {
         db: fakeRecovery.db,
         backofficeOrigin: fakeRecovery.backofficeOrigin,
       },
+      stock: {
+        db: fakeRecovery.db,
+        backofficeOrigin: fakeRecovery.backofficeOrigin,
+      },
       devices: { db: fakeRecovery.db, rotationKey: ROTATION_KEY_BYTES },
     });
 

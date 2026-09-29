@@ -282,27 +282,26 @@ describe("openAlert", () => {
     expect(openAlerts).toHaveLength(2);
   });
 
-  it.each(ALERT_KINDS.filter((kind) => kind !== "user_access_increased"))(
-    "opens %s once while it is open, whatever triggers it again",
-    async (kind) => {
-      const input: OpenAlertInput =
-        kind === "backoffice_passkey_changed"
-          ? {
-              kind,
-              scope: "a-scope",
-              detail: { action: "registered", passkeyName: "Teléfono", actorId: "a", via: "self" },
-            }
-          : { kind, scope: "a-scope", detail: {} };
-      const first = await db.transaction((tx) => openAlert(tx, input, { now: () => NOON }));
-      const second = await db.transaction((tx) => openAlert(tx, input, { now: () => NOON }));
+  it.each(
+    ALERT_KINDS.filter((kind) => kind !== "user_access_increased" && kind !== "register_enrolled"),
+  )("opens %s once while it is open, whatever triggers it again", async (kind) => {
+    const input: OpenAlertInput =
+      kind === "backoffice_passkey_changed"
+        ? {
+            kind,
+            scope: "a-scope",
+            detail: { action: "registered", passkeyName: "Teléfono", actorId: "a", via: "self" },
+          }
+        : { kind, scope: "a-scope", detail: {} };
+    const first = await db.transaction((tx) => openAlert(tx, input, { now: () => NOON }));
+    const second = await db.transaction((tx) => openAlert(tx, input, { now: () => NOON }));
 
-      expect(first.kind).toBe("opened");
-      expect(second).toEqual({
-        kind: "already_open",
-        alertId: (first as { alertId: string }).alertId,
-      });
-    },
-  );
+    expect(first.kind).toBe("opened");
+    expect(second).toEqual({
+      kind: "already_open",
+      alertId: (first as { alertId: string }).alertId,
+    });
+  });
 
   it("opens every increase of someone's access as its own alert, leaving the one already open as it was", async () => {
     const roleId = await insertRole({ name: "Supervisor", permissionKeys: ["view_all_alerts"] });

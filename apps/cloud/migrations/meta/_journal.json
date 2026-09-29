@@ -250,8 +250,15 @@
     {
       "idx": 35,
       "version": "7",
-      "when": 1790722815777,
-      "tag": "0035_device_token_rotation",
+      "when": 1790718099155,
+      "tag": "0035_stock_ledger",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1790726244188,
+      "tag": "0036_device_token_rotation",
       "breakpoints": true
     }
   ]

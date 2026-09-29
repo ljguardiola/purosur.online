@@ -2,6 +2,7 @@ import type {
   Clock,
   DeviceTokenIssuer,
   DeviceTokenRotator,
+  EnrollmentAlert,
   EnrollmentAttemptKey,
   EnrollmentCodeVerifier,
   IssuedDeviceToken,
@@ -33,6 +34,7 @@ export interface FakeRegisterState {
   codes: FakeEnrollmentCode[];
   attempts: FakeEnrollmentAttempt[];
   installations: FakeInstallation[];
+  enrollmentAlerts: EnrollmentAlert[];
   nextId: number;
 }
 
@@ -43,7 +45,8 @@ type WriteOperation =
   | "recordInstallation"
   | "promotePendingDeviceToken"
   | "recordPendingDeviceToken"
-  | "markEnrollmentCodeRedeemed";
+  | "markEnrollmentCodeRedeemed"
+  | "openEnrollmentAlert";
 
 function cloneState(state: FakeRegisterState): FakeRegisterState {
   return structuredClone(state);
@@ -100,13 +103,19 @@ class FakeRegisterStoreTransaction implements RegisterStoreTransaction {
     }
   }
 
-  async revokeActiveInstallation(registerId: string, revokedAt: Date): Promise<void> {
+  async revokeActiveInstallation(
+    registerId: string,
+    revokedAt: Date,
+  ): Promise<{ revoked: boolean }> {
     this.beforeWrite("revokeActiveInstallation");
+    let revoked = false;
     for (const installation of this.state.installations) {
       if (installation.registerId === registerId && installation.revokedAt === null) {
         installation.revokedAt = new Date(revokedAt);
+        revoked = true;
       }
     }
+    return { revoked };
   }
 
   async recordInstallation(installation: NewInstallation): Promise<{ deviceId: string }> {
@@ -171,6 +180,11 @@ class FakeRegisterStoreTransaction implements RegisterStoreTransaction {
     }
   }
 
+  async openEnrollmentAlert(alert: EnrollmentAlert): Promise<void> {
+    this.beforeWrite("openEnrollmentAlert");
+    this.state.enrollmentAlerts.push(structuredClone(alert));
+  }
+
   private installation(deviceId: string): FakeInstallation {
     const installation = this.state.installations.find((row) => row.deviceId === deviceId);
     if (!installation) {
@@ -188,7 +202,13 @@ class FakeRegisterStoreTransaction implements RegisterStoreTransaction {
 }
 
 export class FakeRegisterStore implements RegisterStore {
-  private state: FakeRegisterState = { codes: [], attempts: [], installations: [], nextId: 1 };
+  private state: FakeRegisterState = {
+    codes: [],
+    attempts: [],
+    installations: [],
+    enrollmentAlerts: [],
+    nextId: 1,
+  };
 
   failingWrites = new Set<WriteOperation>();
   operationOrder: string[] = [];

@@ -148,16 +148,99 @@ describe("enrollInstallation", () => {
     expect(installations.find((row) => row.deviceId === "device-1")?.revokedAt).toBeNull();
   });
 
-  it("revokes the previous installation before it records the new one", async () => {
+  it("revokes the previous installation before it records the new one, and opens the alert last", async () => {
     const store = storeWithCode();
 
     await enroll(store);
 
-    expect(store.operationOrder.slice(-3)).toEqual([
+    expect(store.operationOrder.slice(-4)).toEqual([
       "revokeActiveInstallation",
       "recordInstallation",
       "markEnrollmentCodeRedeemed",
+      "openEnrollmentAlert",
     ]);
+  });
+
+  it("opens the register's enrollment alert for the new installation, on a register nothing held before", async () => {
+    const store = storeWithCode();
+
+    await enroll(store);
+
+    expect(store.snapshot().enrollmentAlerts).toEqual([
+      {
+        registerId: "register-1",
+        deviceId: "device-1",
+        hostname: "CAJA-MOSTRADOR",
+        windowsVersion: "Windows 11 Pro 10.0.26100",
+        replacedInstallation: false,
+        enrolledAt: NOW,
+      },
+    ]);
+  });
+
+  it("tells the enrollment alert that the new installation replaced the one that held the register", async () => {
+    const store = storeWithCode();
+    store.seedInstallation({
+      registerId: "register-1",
+      tokenLookupPrefix: "old",
+      tokenHash: "old-hash",
+      hostname: "VIEJA",
+      windowsVersion: "Windows 10 Pro 10.0.19045",
+      enrolledAt: EARLIER,
+      tokenIssuedAt: EARLIER,
+      pendingToken: null,
+      deviceId: "device-old",
+      revokedAt: null,
+    });
+
+    await enroll(store);
+
+    expect(store.snapshot().enrollmentAlerts).toEqual([
+      expect.objectContaining({ registerId: "register-1", replacedInstallation: true }),
+    ]);
+  });
+
+  it("does not count an installation already revoked, or one of another register, as replaced", async () => {
+    const store = storeWithCode();
+    const previous = {
+      tokenLookupPrefix: "old",
+      tokenHash: "old-hash",
+      hostname: "VIEJA",
+      windowsVersion: "Windows 10 Pro 10.0.19045",
+      enrolledAt: EARLIER,
+      tokenIssuedAt: EARLIER,
+      pendingToken: null,
+    };
+    store.seedInstallation({
+      ...previous,
+      registerId: "register-1",
+      deviceId: "device-revoked",
+      revokedAt: EARLIER,
+    });
+    store.seedInstallation({
+      ...previous,
+      registerId: "register-2",
+      deviceId: "device-other-register",
+      revokedAt: null,
+    });
+
+    await enroll(store);
+
+    expect(store.snapshot().enrollmentAlerts).toEqual([
+      expect.objectContaining({ registerId: "register-1", replacedInstallation: false }),
+    ]);
+  });
+
+  it("opens no enrollment alert when the code is refused or the attempt is rate limited", async () => {
+    const refused = storeWithCode({ redeemedAt: EARLIER });
+    const limited = storeWithCode();
+    seedAttempts(limited, { kind: "source_address", value: SOURCE }, [...NINE, 10]);
+
+    expect(await enroll(refused)).toEqual({ kind: "code_rejected" });
+    expect((await enroll(limited)).kind).toBe("rate_limited");
+
+    expect(refused.snapshot().enrollmentAlerts).toEqual([]);
+    expect(limited.snapshot().enrollmentAlerts).toEqual([]);
   });
 
   it.each([
@@ -394,6 +477,7 @@ describe("enrollInstallation", () => {
     "revokeActiveInstallation",
     "recordInstallation",
     "markEnrollmentCodeRedeemed",
+    "openEnrollmentAlert",
   ] as const)("leaves everything as it was when %s fails", async (operation) => {
     const store = storeWithCode();
     store.failingWrites.add(operation);

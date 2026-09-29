@@ -15,15 +15,18 @@ export {
   isPasskeyNameTooLong,
   isPermissionKey,
   isRoleNameTooLong,
+  lacksARequiredPermission,
   PASSKEY_NAME_MAX_LENGTH,
   PERMISSION_AREAS,
   PERMISSION_CATALOG,
   PERMISSION_KEYS,
   passkeyNameLength,
+  permissionsRequiring,
   ROLE_NAME_MAX_LENGTH,
   repeatsAPermissionKey,
   roleNameLength,
   uncoveredRegisterPermissions,
+  withRequiredPermissions,
 } from "./access/index.js";
 export type { AlertAudience, AlertKind, AlertLevel } from "./alerts/index.js";
 export {
@@ -92,3 +95,18 @@ export {
   registerNameLength,
 } from "./register/index.js";
 export { ARGENTINA_TIME_ZONE, argentinaCalendarDay } from "./shared/index.js";
+export type { AdjustmentReason, LossReason, StockDirection } from "./stock/index.js";
+export {
+  ADJUSTMENT_REASONS,
+  adjustmentDirections,
+  countResult,
+  expectedBalance,
+  isCountedQuantity,
+  isMovementQuantity,
+  LOSS_REASONS,
+  lossDelta,
+  MAX_STOCK_QUANTITY,
+  STOCK_DIRECTIONS,
+  STOCK_QUANTITY_PER_UNIT,
+  signedDelta,
+} from "./stock/index.js";
