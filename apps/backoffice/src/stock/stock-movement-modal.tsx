@@ -1,6 +1,6 @@
 import {
-  type StockBalance,
   type StockMovementResult,
+  type StockProduct,
   stockAdjustmentBodySchema,
   stockLossBodySchema,
 } from "@purosur/contracts";
@@ -44,7 +44,7 @@ import type { RecordMovementOutcome } from "./stock-api";
 import { productOptions, quantityFieldKind, quantityMessage } from "./stock-movement-form";
 import type { StockMovementsScreenServices } from "./stock-movements-services";
 import { formatStockChange, formatStockQuantity, parseStockQuantity } from "./stock-quantity";
-import { useRefreshStock, useStockBalancesQuery } from "./stock-queries";
+import { useRefreshStock, useStockBalancesQuery, useStockProductsQuery } from "./stock-queries";
 import { ADJUSTMENT_REASON_LABELS, LOSS_REASON_LABELS } from "./stock-reason-labels";
 
 export type MovementKind = "loss" | "adjustment";
@@ -104,10 +104,31 @@ function soleDirection(reason: AdjustmentReason | null): StockDirection | undefi
   return others.length === 0 ? only : undefined;
 }
 
-function BalanceChange({ product, delta }: { product: StockBalance; delta: number | undefined }) {
+function BalanceChange({
+  product,
+  delta,
+  services,
+  onSessionEnded,
+}: {
+  product: StockProduct;
+  delta: number | undefined;
+  services: StockMovementsScreenServices;
+  onSessionEnded: () => void;
+}) {
+  const balances = useStockBalancesQuery({
+    fetchStockBalances: services.fetchStockBalances,
+    onSessionEnded,
+  });
+  if (balances.status === "loading") {
+    return <LoadingPlaceholder variant="card" lines={3} />;
+  }
+  if (balances.status === "failed") {
+    return <LoadFailure {...cloudLoadFailure(balances, "el saldo")} />;
+  }
+  const balance = balances.value.products.find((listed) => listed.id === product.id)?.balance ?? 0;
   const current = {
     label: "Saldo actual",
-    value: formatStockQuantity(product.balance, product.saleUnit),
+    value: formatStockQuantity(balance, product.saleUnit),
   };
   return (
     <SummaryRowGroup
@@ -119,7 +140,7 @@ function BalanceChange({ product, delta }: { product: StockBalance; delta: numbe
               { label: "Cambio", value: formatStockChange(delta, product.saleUnit) },
               {
                 label: "Saldo después",
-                value: formatStockQuantity(product.balance + delta, product.saleUnit),
+                value: formatStockQuantity(balance + delta, product.saleUnit),
                 strong: true,
               },
             ]
@@ -134,12 +155,14 @@ export type StockMovementModalProps = {
   services: StockMovementsScreenServices;
   onClose: () => void;
   onSessionEnded: () => void;
-  onRegistered: (product: StockBalance, result: StockMovementResult) => void;
+  showsBalance: boolean;
+  onRegistered: (product: StockProduct, result: StockMovementResult, delta: number) => void;
 };
 
 export function StockMovementModal({
   title,
   kinds,
+  showsBalance,
   services,
   onClose,
   onSessionEnded,
@@ -149,8 +172,8 @@ export function StockMovementModal({
   const refreshStock = useRefreshStock();
   const [kind, setKind] = useState<MovementKind>(kinds[0]);
   const [notice, setNotice] = useState<Notice | null>(null);
-  const products = useStockBalancesQuery({
-    fetchStockBalances: services.fetchStockBalances,
+  const products = useStockProductsQuery({
+    fetchStockProducts: services.fetchStockProducts,
     onSessionEnded,
   });
   const listed = products.status === "loaded" ? products.value.products : [];
@@ -165,12 +188,13 @@ export function StockMovementModal({
       : quantityMessage(unitOf(values.productId));
 
   function handleOutcome(
-    product: StockBalance,
+    product: StockProduct,
+    delta: number,
     outcome: RecordMovementOutcome,
     showWireFieldError: (field: string) => boolean,
   ) {
     if (outcome.kind === "ok") {
-      onRegistered(product, outcome.value);
+      onRegistered(product, outcome.value, delta);
     } else if (outcome.kind === "unauthenticated") {
       onSessionEnded();
     } else if (outcome.kind === "forbidden") {
@@ -187,6 +211,7 @@ export function StockMovementModal({
 
   async function send(
     productId: string,
+    delta: number,
     record: () => Promise<RecordMovementOutcome>,
     showWireFieldError: (field: string) => boolean,
   ) {
@@ -196,7 +221,7 @@ export function StockMovementModal({
     }
     setNotice(null);
     try {
-      handleOutcome(product, await record(), showWireFieldError);
+      handleOutcome(product, delta, await record(), showWireFieldError);
     } catch {
       setNotice({ kind: "attemptFailed" });
     }
@@ -220,7 +245,12 @@ export function StockMovementModal({
     },
     onSubmit: async (_request, { parsed, showWireFieldError }) => {
       if (parsed) {
-        await send(parsed.productId, () => services.recordLoss(parsed), showWireFieldError);
+        await send(
+          parsed.productId,
+          signedDelta("subtract", parsed.quantity),
+          () => services.recordLoss(parsed),
+          showWireFieldError,
+        );
       }
     },
   });
@@ -255,7 +285,12 @@ export function StockMovementModal({
     },
     onSubmit: async (_request, { parsed, showWireFieldError }) => {
       if (parsed) {
-        await send(parsed.productId, () => services.recordAdjustment(parsed), showWireFieldError);
+        await send(
+          parsed.productId,
+          signedDelta(parsed.direction, parsed.quantity),
+          () => services.recordAdjustment(parsed),
+          showWireFieldError,
+        );
       }
     },
   });
@@ -388,8 +423,10 @@ export function StockMovementModal({
                   />
                 )}
               </loss.form.AppField>
-              {lossProduct ? (
+              {showsBalance && lossProduct ? (
                 <BalanceChange
+                  services={services}
+                  onSessionEnded={onSessionEnded}
                   product={lossProduct}
                   delta={
                     lossQuantity === undefined ? undefined : signedDelta("subtract", lossQuantity)
@@ -446,8 +483,10 @@ export function StockMovementModal({
                 icon={<Info />}
                 title="Si lo que hay en el local no coincide con el sistema, se corrige con un recuento."
               />
-              {adjustmentProduct ? (
+              {showsBalance && adjustmentProduct ? (
                 <BalanceChange
+                  services={services}
+                  onSessionEnded={onSessionEnded}
                   product={adjustmentProduct}
                   delta={
                     adjustmentQuantity === undefined

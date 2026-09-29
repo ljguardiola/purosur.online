@@ -4,6 +4,7 @@ import {
   fetchStockBalances,
   fetchStockCounts,
   fetchStockMovements,
+  fetchStockProducts,
   recordAdjustment,
   recordLoss,
   registerCount,
@@ -195,4 +196,23 @@ test.each([
   vi.mocked(fetch).mockResolvedValue(response);
 
   expect(await registerCount(countBody)).toEqual(outcome);
+});
+
+test("fetchStockProducts reads the products a movement can be registered for", async () => {
+  const products = { products: [{ ...balances.products[0], balance: undefined }] };
+  const listed = {
+    products: [
+      {
+        id: PRODUCT_ID,
+        name: "Almendras peladas",
+        categoryId: "category-1",
+        categoryName: "Frutos secos",
+        saleUnit: "KG",
+      },
+    ],
+  };
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, products));
+
+  expect(await fetchStockProducts()).toEqual({ kind: "ok", value: listed });
+  expect(fetch).toHaveBeenCalledWith("/stock/products");
 });

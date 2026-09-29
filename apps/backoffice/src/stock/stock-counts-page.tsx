@@ -6,12 +6,13 @@ import { StockCountsScreen } from "./stock-counts-screen";
 const route = getRouteApi("/signed-in/stock/counts");
 
 export function StockCountsPage(): ReactElement {
-  const { services, sessionActions } = route.useRouteContext();
+  const { services, session, sessionActions } = route.useRouteContext();
   const filters = route.useSearch();
   const navigate = route.useNavigate();
   useDocumentTitle("Recuentos · Puro Sur");
   return (
     <StockCountsScreen
+      access={session}
       filters={filters}
       onFiltersChange={(next) => void navigate({ search: next, replace: true })}
       onSessionEnded={sessionActions.sessionEnded}

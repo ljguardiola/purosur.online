@@ -4,6 +4,7 @@ import type {
   StockExpectedBalance,
   StockMovementList,
   StockPeriodDays,
+  StockProductList,
 } from "@purosur/contracts";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSendToMyAccount } from "../access/send-to-my-account";
@@ -13,12 +14,14 @@ import type {
   fetchStockBalances,
   fetchStockCounts,
   fetchStockMovements,
+  fetchStockProducts,
 } from "./stock-api";
 
 export const stockKey = ["stock"] as const;
 
 export const stockKeys = {
   balances: [...stockKey, "balances"] as const,
+  products: [...stockKey, "products"] as const,
   counts: (days: StockPeriodDays) => [...stockKey, "counts", days] as const,
   movements: (days: StockPeriodDays) => [...stockKey, "movements", days] as const,
   expectedBalance: (productId: string, at: string) =>
@@ -34,6 +37,18 @@ export function useStockBalancesQuery(
   return useCloudQuery<StockBalanceList>({
     queryKey: stockKeys.balances,
     read: params.fetchStockBalances,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useStockProductsQuery(
+  params: ReadParams & { fetchStockProducts: typeof fetchStockProducts },
+) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<StockProductList>({
+    queryKey: stockKeys.products,
+    read: params.fetchStockProducts,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

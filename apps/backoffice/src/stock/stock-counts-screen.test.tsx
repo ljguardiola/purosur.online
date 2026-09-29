@@ -14,13 +14,25 @@ import {
   honeyCount,
   supersededCount,
   tea,
+  withoutBalance,
 } from "./test-support/stock-fixtures";
+
+type Access = { isAdministrator: boolean; permissions: string[] };
+
+const COUNTER_WHO_VIEWS: Access = {
+  isAdministrator: false,
+  permissions: ["perform_stock_counts", "view_stock_balances"],
+};
 
 const NOW = () => new Date("2026-09-15T21:40:30.000Z");
 
 function createServices(counts = [almondsCount, honeyCount]): StockCountsScreenServices {
   return {
     fetchStockCounts: vi.fn().mockResolvedValue({ kind: "ok", value: { counts } }),
+    fetchStockProducts: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: { products: [almonds, crackers, honey, tea].map(withoutBalance) },
+    }),
     fetchStockBalances: vi.fn().mockResolvedValue({
       kind: "ok",
       value: { products: [almonds, crackers, honey, { ...tea, balance: 17_000 }] },
@@ -33,10 +45,12 @@ function createServices(counts = [almondsCount, honeyCount]): StockCountsScreenS
 function renderScreen(
   services: StockCountsScreenServices,
   {
+    access = COUNTER_WHO_VIEWS,
     filters = stockCountsFilters.parse({}),
     onFiltersChange = () => {},
     onSessionEnded = () => {},
   }: {
+    access?: Access;
     filters?: StockCountsFilters;
     onFiltersChange?: (filters: StockCountsFilters) => void;
     onSessionEnded?: () => void;
@@ -46,6 +60,7 @@ function renderScreen(
     <FieldSizeProvider size="backoffice">
       <main>
         <StockCountsScreen
+          access={access}
           services={services}
           filters={filters}
           onFiltersChange={onFiltersChange}
@@ -292,9 +307,9 @@ test("ends the session when registering finds it over", async () => {
 
 test("shows a failed load of the products with a retry inside the modal", async () => {
   const services = createServices();
-  vi.mocked(services.fetchStockBalances)
+  vi.mocked(services.fetchStockProducts)
     .mockResolvedValueOnce({ kind: "failed" })
-    .mockResolvedValueOnce({ kind: "ok", value: { products: [almonds] } });
+    .mockResolvedValueOnce({ kind: "ok", value: { products: [withoutBalance(almonds)] } });
   const screen = await renderScreen(services);
   await userEvent.click(screen.getByRole("button", { name: "Nuevo recuento" }));
   const dialog = screen.getByRole("dialog", { name: "Nuevo recuento" });
@@ -335,4 +350,29 @@ test("registers a count left at its default moment at the exact instant the moda
       counted: 16_000,
       occurredAt: "2026-09-15T21:40:30.000Z",
     });
+});
+
+test("registers a count for a user who may not view balances, showing no expected balance", async () => {
+  const services = createServices();
+  vi.mocked(services.registerCount).mockResolvedValue({
+    kind: "ok",
+    value: { expected: 17_000, delta: -1000, balance: 16_000, superseded: false },
+  });
+  const screen = await renderScreen(services, {
+    access: { isAdministrator: false, permissions: ["perform_stock_counts"] },
+  });
+  const dialog = await openNewCount(screen);
+  await chooseProduct(screen, "Té verde en hebras 100 g");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad contada/ }), "16");
+
+  expect(dialog.getByText("Saldo esperado").query()).toBeNull();
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar el recuento" }));
+
+  await expect
+    .element(
+      screen.getByRole("status").getByText("Saldo corregido Té verde en hebras 100 g: − 1 u."),
+    )
+    .toBeInTheDocument();
+  expect(services.fetchExpectedBalance).not.toHaveBeenCalled();
+  expect(services.fetchStockBalances).not.toHaveBeenCalled();
 });

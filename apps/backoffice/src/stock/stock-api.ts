@@ -9,12 +9,14 @@ import {
   type StockMovementList,
   type StockMovementResult,
   type StockPeriodDays,
+  type StockProductList,
   stockBalanceListSchema,
   stockCountListSchema,
   stockCountResultSchema,
   stockExpectedBalanceSchema,
   stockMovementListSchema,
   stockMovementResultSchema,
+  stockProductListSchema,
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { retryAfterSeconds } from "../platform/retry-after-seconds";
@@ -73,6 +75,10 @@ async function readList<T>(path: string, schema: Schema<T>): Promise<CloudReadOu
 
 export function fetchStockBalances(): Promise<CloudReadOutcome<StockBalanceList>> {
   return readList("/stock/balances", stockBalanceListSchema);
+}
+
+export function fetchStockProducts(): Promise<CloudReadOutcome<StockProductList>> {
+  return readList("/stock/products", stockProductListSchema);
 }
 
 export function fetchStockCounts(days: StockPeriodDays): Promise<CloudReadOutcome<StockCountList>> {

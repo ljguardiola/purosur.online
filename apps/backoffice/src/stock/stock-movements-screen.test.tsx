@@ -12,18 +12,23 @@ import {
   crackers,
   honey,
   honeyLoss,
+  withoutBalance,
 } from "./test-support/stock-fixtures";
 
 type Access = { isAdministrator: boolean; permissions: string[] };
 
 const BOTH: Access = {
   isAdministrator: false,
-  permissions: ["record_stock_losses", "adjust_stock"],
+  permissions: ["record_stock_losses", "adjust_stock", "view_stock_balances"],
 };
 
 function createServices(movements = [honeyLoss, almondsAdjustment]): StockMovementsScreenServices {
   return {
     fetchStockMovements: vi.fn().mockResolvedValue({ kind: "ok", value: { movements } }),
+    fetchStockProducts: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: { products: [almonds, crackers, honey].map(withoutBalance) },
+    }),
     fetchStockBalances: vi.fn().mockResolvedValue({
       kind: "ok",
       value: { products: [almonds, crackers, honey] },
@@ -125,9 +130,72 @@ test("says there are no losses nor adjustments in the period when there are none
   await expect
     .element(screen.getByText("Sin pérdidas ni ajustes en los últimos 30 días"))
     .toBeVisible();
+  expect(screen.getByText("Las bajas por vencimiento también aparecen acá.").query()).toBeNull();
+});
+
+test("marks a movement a later count superseded", async () => {
+  const screen = await renderScreen(
+    createServices([honeyLoss, { ...almondsAdjustment, superseded: true }]),
+  );
+
+  const table = screen.getByRole("table", { name: "Ajustes y pérdidas" });
+  await expect.element(table.getByText("Superado por un recuento posterior")).toBeVisible();
+  expect(table.getByText("Superado por un recuento posterior").elements()).toHaveLength(1);
+});
+
+test("says when a later count leaves the balance as it was", async () => {
+  const services = createServices();
+  vi.mocked(services.recordLoss).mockResolvedValue({
+    kind: "ok",
+    value: { balance: 24_000, superseded: true },
+  });
+  const screen = await renderScreen(services);
+  const dialog = await openModal(screen);
+  await chooseProduct(screen, "Miel pura de abeja 1 kg");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad perdida/ }), "1");
+  await userEvent.click(cardLabel(screen, "Robo"));
+
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar la pérdida" }));
+
   await expect
-    .element(screen.getByText("Las bajas por vencimiento también aparecen acá."))
-    .toBeVisible();
+    .element(
+      screen
+        .getByRole("status")
+        .getByText(
+          "El movimiento no cambió el saldo Hay un recuento posterior de Miel pura de abeja 1 kg: el saldo sigue en 24 u.",
+        ),
+    )
+    .toBeInTheDocument();
+});
+
+test("registers a loss for a user who may not view balances, showing no balance", async () => {
+  const services = createServices();
+  vi.mocked(services.recordLoss).mockResolvedValue({
+    kind: "ok",
+    value: { balance: 23_000, superseded: false },
+  });
+  const screen = await renderScreen(services, {
+    access: { isAdministrator: false, permissions: ["record_stock_losses"] },
+  });
+  const dialog = await openModal(screen, "Cargar pérdida");
+  await chooseProduct(screen, "Miel pura de abeja 1 kg");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad perdida/ }), "1");
+  await userEvent.click(cardLabel(screen, "Robo"));
+
+  expect(dialog.getByText("Saldo actual").query()).toBeNull();
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar la pérdida" }));
+
+  await expect
+    .element(
+      screen.getByRole("status").getByText("Saldo actualizado Miel pura de abeja 1 kg: − 1 u."),
+    )
+    .toBeInTheDocument();
+  expect(services.recordLoss).toHaveBeenCalledWith({
+    productId: honey.id,
+    reason: "theft",
+    quantity: 1000,
+  });
+  expect(services.fetchStockBalances).not.toHaveBeenCalled();
 });
 
 test("shows a failed load with a retry that loads the movements again", async () => {
@@ -314,3 +382,21 @@ test.each([
 
   await expect.element(dialog.getByText(message)).toBeVisible();
 });
+
+test.each([
+  ["count", ["record_stock_losses", "adjust_stock"]],
+  ["theft", ["adjust_stock"]],
+])(
+  "falls back to every reason for the reason %s it does not offer",
+  async (reason, permissions) => {
+    const onFiltersChange = vi.fn();
+    const screen = await renderScreen(createServices(), {
+      access: { isAdministrator: false, permissions },
+      filters: stockMovementsFilters.parse({ reason }),
+      onFiltersChange,
+    });
+
+    await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
+    await expect.poll(() => onFiltersChange.mock.lastCall?.[0]).toMatchObject({ reason: "ALL" });
+  },
+);

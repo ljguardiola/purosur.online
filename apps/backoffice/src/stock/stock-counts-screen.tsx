@@ -1,4 +1,4 @@
-import type { StockBalance, StockCount, StockCountResult } from "@purosur/contracts";
+import type { StockCount, StockCountResult, StockProduct } from "@purosur/contracts";
 import {
   Button,
   FloatingNotification,
@@ -13,6 +13,7 @@ import {
 import { deepEqual } from "@tanstack/react-router";
 import { Check, ClipboardCheck, Plus, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { type BackofficeAccess, canSeeStockBalances } from "../access/backoffice-access";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { ScreenLayout } from "../shell/screen-layout";
 import { countMomentNow } from "./count-moment";
@@ -31,6 +32,7 @@ import { useRefreshStock, useStockCountsQuery } from "./stock-queries";
 import { categoryFilterOptions, StockTopBar } from "./stock-screen-parts";
 
 export type StockCountsScreenProps = {
+  access: BackofficeAccess;
   filters: StockCountsFilters;
   onFiltersChange: (filters: StockCountsFilters) => void;
   onSessionEnded: () => void;
@@ -92,20 +94,34 @@ const columns = [
   },
 ] as const;
 
-function registeredNotice(product: StockBalance, result: StockCountResult) {
+function registeredNotice(product: StockProduct, result: StockCountResult, showsBalance: boolean) {
   const balance = formatStockQuantity(result.balance, product.saleUnit);
   if (result.superseded) {
     return {
       title: "El recuento no cambió el saldo",
-      description: `Hay un recuento posterior de ${product.name}: el saldo sigue en ${balance}.`,
+      description: showsBalance
+        ? `Hay un recuento posterior de ${product.name}: el saldo sigue en ${balance}.`
+        : `Hay un recuento posterior de ${product.name}.`,
     };
   }
-  return result.delta === 0
-    ? { title: "Sin diferencia", description: `${product.name} sigue en ${balance}.` }
-    : { title: "Saldo corregido", description: `${product.name} queda en ${balance}.` };
+  if (result.delta === 0) {
+    return {
+      title: "Sin diferencia",
+      description: showsBalance
+        ? `${product.name} sigue en ${balance}.`
+        : `${product.name} sigue igual.`,
+    };
+  }
+  return {
+    title: "Saldo corregido",
+    description: showsBalance
+      ? `${product.name} queda en ${balance}.`
+      : `${product.name}: ${formatStockChange(result.delta, product.saleUnit)}.`,
+  };
 }
 
 export function StockCountsScreen({
+  access,
   filters,
   onFiltersChange,
   onSessionEnded,
@@ -113,6 +129,7 @@ export function StockCountsScreen({
   now,
 }: StockCountsScreenProps) {
   const clock = now ?? (() => new Date());
+  const showsBalance = canSeeStockBalances(access);
   const [search, setSearch] = useState(filters.search);
   const [category, setCategory] = useState(filters.category);
   const [period, setPeriod] = useState<StockPeriod>(filters.period);
@@ -159,10 +176,10 @@ export function StockCountsScreen({
     setNotice({ ...shown, id: lastNoticeId.current });
   }
 
-  function handleRegistered(product: StockBalance, result: StockCountResult) {
+  function handleRegistered(product: StockProduct, result: StockCountResult) {
     setNewCount(null);
     void refreshStock();
-    showNotice(registeredNotice(product, result));
+    showNotice(registeredNotice(product, result, showsBalance));
   }
 
   return (
@@ -244,6 +261,7 @@ export function StockCountsScreen({
       {newCount ? (
         <NewCountModal
           startMoment={newCount}
+          showsBalance={showsBalance}
           services={services}
           onClose={() => setNewCount(null)}
           onSessionEnded={onSessionEnded}

@@ -1,4 +1,4 @@
-import type { StockBalance, StockCount, StockMovement } from "@purosur/contracts";
+import type { StockBalance, StockCount, StockMovement, StockProduct } from "@purosur/contracts";
 
 export const almonds: StockBalance = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -84,6 +84,7 @@ export const honeyLoss: StockMovement = {
   reason: "broken_or_spilled",
   delta: -1000,
   occurredAt: "2026-09-16T15:50:00.000Z",
+  superseded: false,
 };
 
 export const almondsAdjustment: StockMovement = {
@@ -96,4 +97,9 @@ export const almondsAdjustment: StockMovement = {
   reason: "batch_correction",
   delta: 1200,
   occurredAt: "2026-09-14T13:00:00.000Z",
+  superseded: false,
 };
+
+export function withoutBalance({ balance: _balance, ...product }: StockBalance): StockProduct {
+  return product;
+}

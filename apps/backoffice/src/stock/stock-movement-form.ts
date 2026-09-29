@@ -1,13 +1,13 @@
-import type { StockBalance } from "@purosur/contracts";
+import type { StockProduct } from "@purosur/contracts";
 import type { SaleUnit } from "@purosur/domain";
 import { sortedItems, textOrder } from "@purosur/ui";
 
-const productNameOrder = textOrder((product: StockBalance) => product.name);
+const productNameOrder = textOrder((product: StockProduct) => product.name);
 
 type ProductOption = { value: string; label: string };
 
 export function productOptions(
-  products: readonly StockBalance[],
+  products: readonly StockProduct[],
 ): [ProductOption, ...ProductOption[]] | undefined {
   const [first, ...rest] = sortedItems(products, {
     order: productNameOrder,

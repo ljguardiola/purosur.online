@@ -1,7 +1,14 @@
-import { fetchStockBalances, fetchStockMovements, recordAdjustment, recordLoss } from "./stock-api";
+import {
+  fetchStockBalances,
+  fetchStockMovements,
+  fetchStockProducts,
+  recordAdjustment,
+  recordLoss,
+} from "./stock-api";
 
 export type StockMovementsScreenServices = {
   fetchStockMovements: typeof fetchStockMovements;
+  fetchStockProducts: typeof fetchStockProducts;
   fetchStockBalances: typeof fetchStockBalances;
   recordLoss: typeof recordLoss;
   recordAdjustment: typeof recordAdjustment;
@@ -9,6 +16,7 @@ export type StockMovementsScreenServices = {
 
 export const defaultStockMovementsScreenServices: StockMovementsScreenServices = {
   fetchStockMovements,
+  fetchStockProducts,
   fetchStockBalances,
   recordLoss,
   recordAdjustment,

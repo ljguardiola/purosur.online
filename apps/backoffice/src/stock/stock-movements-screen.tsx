@@ -1,4 +1,4 @@
-import type { StockBalance, StockMovement, StockMovementResult } from "@purosur/contracts";
+import type { StockMovement, StockMovementResult, StockProduct } from "@purosur/contracts";
 import { ADJUSTMENT_REASONS, LOSS_REASONS } from "@purosur/domain";
 import {
   Button,
@@ -18,6 +18,7 @@ import {
   type BackofficeAccess,
   canAdjustStock,
   canRecordStockLosses,
+  canSeeStockBalances,
 } from "../access/backoffice-access";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { ScreenLayout } from "../shell/screen-layout";
@@ -88,9 +89,42 @@ const columns = [
     key: "quantity",
     header: "Cantidad",
     align: "end" as const,
-    render: (movement: StockMovement) => formatStockChange(movement.delta, movement.saleUnit),
+    render: (movement: StockMovement) => {
+      const change = formatStockChange(movement.delta, movement.saleUnit);
+      return movement.superseded ? (
+        <div className="flex flex-col items-end gap-1">
+          <span>{change}</span>
+          <Tag tone="neutral">Superado por un recuento posterior</Tag>
+        </div>
+      ) : (
+        change
+      );
+    },
   },
 ] as const;
+
+function registeredNotice(
+  product: StockProduct,
+  result: StockMovementResult,
+  delta: number,
+  showsBalance: boolean,
+) {
+  const balance = formatStockQuantity(result.balance, product.saleUnit);
+  if (result.superseded) {
+    return {
+      title: "El movimiento no cambió el saldo",
+      description: showsBalance
+        ? `Hay un recuento posterior de ${product.name}: el saldo sigue en ${balance}.`
+        : `Hay un recuento posterior de ${product.name}.`,
+    };
+  }
+  return {
+    title: "Saldo actualizado",
+    description: showsBalance
+      ? `${product.name} queda en ${balance}.`
+      : `${product.name}: ${formatStockChange(delta, product.saleUnit)}.`,
+  };
+}
 
 function allowedKinds(access: BackofficeAccess): readonly MovementKind[] {
   return [
@@ -122,6 +156,7 @@ export function StockMovementsScreen({
   const reportFilters = useEffectEvent(onFiltersChange);
   const refreshStock = useRefreshStock();
   const kinds = allowedKinds(access);
+  const showsBalance = canSeeStockBalances(access);
   const [firstKind] = kinds;
 
   const reasonOptions: [
@@ -170,13 +205,10 @@ export function StockMovementsScreen({
     setNotice({ ...shown, id: lastNoticeId.current });
   }
 
-  function handleRegistered(product: StockBalance, result: StockMovementResult) {
+  function handleRegistered(product: StockProduct, result: StockMovementResult, delta: number) {
     setModalOpen(false);
     void refreshStock();
-    showNotice({
-      title: "Saldo actualizado",
-      description: `${product.name} queda en ${formatStockQuantity(result.balance, product.saleUnit)}.`,
-    });
+    showNotice(registeredNotice(product, result, delta, showsBalance));
   }
 
   return (
@@ -233,7 +265,6 @@ export function StockMovementsScreen({
               ? {
                   icon: <ArrowDownUp />,
                   title: `Sin pérdidas ni ajustes en los últimos ${days} días`,
-                  description: "Las bajas por vencimiento también aparecen acá.",
                   variant: "blank",
                 }
               : {
@@ -256,6 +287,7 @@ export function StockMovementsScreen({
         <StockMovementModal
           title={actionLabel(kinds)}
           kinds={[firstKind, ...kinds.slice(1)]}
+          showsBalance={showsBalance}
           services={services}
           onClose={() => setModalOpen(false)}
           onSessionEnded={onSessionEnded}

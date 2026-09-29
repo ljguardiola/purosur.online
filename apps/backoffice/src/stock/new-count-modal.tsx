@@ -1,5 +1,5 @@
 import type { CalendarDate } from "@internationalized/date";
-import { type StockBalance, type StockCountResult, stockCountBodySchema } from "@purosur/contracts";
+import { type StockCountResult, type StockProduct, stockCountBodySchema } from "@purosur/contracts";
 import type { SaleUnit } from "@purosur/domain";
 import {
   Button,
@@ -25,7 +25,7 @@ import type { RegisterCountOutcome } from "./stock-api";
 import type { StockCountsScreenServices } from "./stock-counts-services";
 import { productOptions, quantityFieldKind, quantityMessage } from "./stock-movement-form";
 import { formatStockChange, formatStockQuantity, parseStockQuantity } from "./stock-quantity";
-import { useExpectedBalanceQuery, useRefreshStock, useStockBalancesQuery } from "./stock-queries";
+import { useExpectedBalanceQuery, useRefreshStock, useStockProductsQuery } from "./stock-queries";
 
 type CountFormValues = { productId: string | null; moment: CountMoment; counted: string };
 
@@ -86,7 +86,7 @@ function ExpectedBalance({
   services,
   onSessionEnded,
 }: {
-  product: StockBalance;
+  product: StockProduct;
   at: string;
   counted: number | undefined;
   services: StockCountsScreenServices;
@@ -119,14 +119,16 @@ function ExpectedBalance({
 
 export type NewCountModalProps = {
   startMoment: CountStart;
+  showsBalance: boolean;
   services: StockCountsScreenServices;
   onClose: () => void;
   onSessionEnded: () => void;
-  onRegistered: (product: StockBalance, result: StockCountResult) => void;
+  onRegistered: (product: StockProduct, result: StockCountResult) => void;
 };
 
 export function NewCountModal({
   startMoment,
+  showsBalance,
   services,
   onClose,
   onSessionEnded,
@@ -135,8 +137,8 @@ export function NewCountModal({
   const sendToMyAccount = useSendToMyAccount();
   const refreshStock = useRefreshStock();
   const [notice, setNotice] = useState<Notice | null>(null);
-  const products = useStockBalancesQuery({
-    fetchStockBalances: services.fetchStockBalances,
+  const products = useStockProductsQuery({
+    fetchStockProducts: services.fetchStockProducts,
     onSessionEnded,
   });
   const listed = products.status === "loaded" ? products.value.products : [];
@@ -182,7 +184,7 @@ export function NewCountModal({
   });
 
   function handleOutcome(
-    product: StockBalance,
+    product: StockProduct,
     outcome: RegisterCountOutcome,
     { showFieldError, showWireFieldError }: CloudSubmission<CountFormValues>,
   ) {
@@ -301,7 +303,7 @@ export function NewCountModal({
               />
             )}
           </form.AppField>
-          {product && at !== undefined ? (
+          {showsBalance && product && at !== undefined ? (
             <ExpectedBalance
               product={product}
               at={at}
