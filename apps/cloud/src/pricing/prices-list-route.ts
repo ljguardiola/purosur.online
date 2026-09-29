@@ -1,3 +1,4 @@
+import { priceListSchema } from "@purosur/contracts";
 import type { SaleUnit } from "@purosur/domain";
 import { desc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -211,6 +212,20 @@ export async function listPrices<TQueryResult extends PgQueryResultHKT>(
   };
 }
 
+function toPriceListBody(result: ListPricesResult) {
+  return priceListSchema.parse({
+    ...result,
+    products: result.products.map((product) => ({
+      ...product,
+      currentPrice: product.currentPrice && {
+        ...product.currentPrice,
+        validFrom: product.currentPrice.validFrom.toISOString(),
+      },
+      lastReviewedAt: product.lastReviewedAt?.toISOString() ?? null,
+    })),
+  });
+}
+
 function readReviewFilter(value: unknown): ReviewFilter {
   return value === "pending" ? "pending" : "all";
 }
@@ -264,7 +279,7 @@ export function registerPricesListRoute<TQueryResult extends PgQueryResultHKT>(
         ...(search !== undefined ? { search } : {}),
       });
 
-      await reply.code(200).send(result);
+      await reply.code(200).send(toPriceListBody(result));
     },
   );
 }

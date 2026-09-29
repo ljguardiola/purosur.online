@@ -1,12 +1,12 @@
-import { type QueryClient, type QueryKey, useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { keepPreviousData, type QueryClient, type QueryKey, useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import type { CloudReadOutcome } from "./cloud-read-outcome";
 import { useLatestRef } from "./use-latest-ref";
 
 export type CloudData<T> =
-  | { status: "loading" }
+  | { status: "loading"; lastValue?: T }
   | { status: "loaded"; value: T; refreshing: boolean }
-  | { status: "failed"; retryAfterSeconds?: number; retry: () => void };
+  | { status: "failed"; retryAfterSeconds?: number; retry: () => void; lastValue?: T };
 
 type RefusedRead = Exclude<CloudReadOutcome<unknown>, { kind: "ok" }>;
 
@@ -55,11 +55,13 @@ export async function fetchCloudQuery<T>(
 
 export function useCloudQuery<T>({
   queryKey,
+  keepPreviousData: keepsPreviousData = false,
   read,
   gcTime,
   onSessionEnded,
   onForbidden,
 }: CloudQuery<T> & {
+  keepPreviousData?: boolean | undefined;
   onSessionEnded: () => void;
   onForbidden: () => void;
 }): CloudData<T> {
@@ -69,7 +71,13 @@ export function useCloudQuery<T>({
     queryKey,
     queryFn: cloudQueryFn(read),
     ...(gcTime === undefined ? {} : { gcTime }),
+    ...(keepsPreviousData ? { placeholderData: keepPreviousData } : {}),
   });
+  const [lastLoaded, setLastLoaded] = useState<{ value: T } | undefined>(undefined);
+  if (keepsPreviousData && query.isSuccess && query.data !== lastLoaded?.value) {
+    setLastLoaded({ value: query.data });
+  }
+  const kept = lastLoaded === undefined ? {} : { lastValue: lastLoaded.value };
   const refusal = query.error instanceof CloudReadRefused ? query.error.refusal : undefined;
   const refusalReadWhileShown = query.isFetchedAfterMount ? refusal : undefined;
 
@@ -87,10 +95,12 @@ export function useCloudQuery<T>({
       status: "failed",
       ...(refusal?.kind === "rate_limited" ? { retryAfterSeconds: refusal.retryAfterSeconds } : {}),
       retry: () => void query.refetch(),
+      ...kept,
     };
   }
-  if (query.isSuccess) {
+  const rereadingFailure = query.isPlaceholderData && query.errorUpdateCount > 0;
+  if (query.isSuccess && !rereadingFailure) {
     return { status: "loaded", value: query.data, refreshing: query.isFetching };
   }
-  return { status: "loading" };
+  return { status: "loading", ...kept };
 }
