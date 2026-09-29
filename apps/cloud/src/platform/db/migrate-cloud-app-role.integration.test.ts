@@ -186,6 +186,56 @@ describe("the cloud_app role runMigrations creates", () => {
     await expectPermissionDenied(cloudApp`delete from price_reviews where id = ${review.id}`);
   });
 
+  async function insertCountedMovement(): Promise<{ movementId: string }> {
+    const { priceId } = await insertPricedRow();
+    const [product] = await cloudApp<{ productId: string }[]>`
+      select product_id as "productId" from prices where id = ${priceId}
+    `;
+    const [location] = await cloudApp<{ id: string }[]>`select id from locations limit 1`;
+    if (!product || !location) {
+      throw new Error("test setup: reading the product or the seeded location returned no row");
+    }
+    const [user] = await cloudApp<{ id: string }[]>`
+      insert into users (first_name, email, location_id)
+      values ('Cloud App Role Test', ${`cloud-app-role-test-${randomUUID()}@example.com`}, ${location.id})
+      returning id
+    `;
+    if (!user) {
+      throw new Error("test setup: seeding the user returned no row");
+    }
+    const [movement] = await cloudApp<{ id: string }[]>`
+      insert into stock_movements (product_id, location_id, kind, delta, occurred_at, actor_id)
+      values (${product.productId}, ${location.id}, 'count', 0, now(), ${user.id}) returning id
+    `;
+    if (!movement) {
+      throw new Error("test setup: seeding the stock movement returned no row");
+    }
+    await cloudApp`
+      insert into stock_counts (movement_id, counted, expected) values (${movement.id}, 0, 0)
+    `;
+    return { movementId: movement.id };
+  }
+
+  it("cannot update, delete or truncate a stock movement", async () => {
+    const { movementId } = await insertCountedMovement();
+    await expectPermissionDenied(
+      cloudApp`update stock_movements set delta = 999 where id = ${movementId}`,
+    );
+    await expectPermissionDenied(cloudApp`delete from stock_movements where id = ${movementId}`);
+    await expectPermissionDenied(cloudApp`truncate stock_movements`);
+  });
+
+  it("cannot update, delete or truncate a stock count", async () => {
+    const { movementId } = await insertCountedMovement();
+    await expectPermissionDenied(
+      cloudApp`update stock_counts set counted = 999 where movement_id = ${movementId}`,
+    );
+    await expectPermissionDenied(
+      cloudApp`delete from stock_counts where movement_id = ${movementId}`,
+    );
+    await expectPermissionDenied(cloudApp`truncate stock_counts`);
+  });
+
   it("updates and deletes a row of a table whose write privileges are not revoked", async () => {
     const [role] = await cloudApp<{ id: string }[]>`
       insert into roles (name, is_administrator) values ('cloud_app_role_test', false) returning id
