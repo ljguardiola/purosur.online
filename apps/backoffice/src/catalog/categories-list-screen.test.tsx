@@ -39,6 +39,14 @@ const jams: CategorySummary = {
 };
 const drinks: CategorySummary = { id: "category-4", name: "Bebidas", version: 3, parentId: null };
 
+function deferred<T>() {
+  let resolve: (value: T) => void = () => {};
+  const promise = new Promise<T>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
+
 function renderScreen(
   services: CategoriesListScreenServices,
   onSessionEnded: () => void = () => {},
@@ -180,6 +188,7 @@ test("shows an empty state when there are no categories yet", async () => {
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByText("Todavía no hay categorías")).toBeVisible();
+  await expect.element(screen.getByText("0 categorías")).not.toBeInTheDocument();
 });
 
 test("shows a filtered empty state when the search matches nothing", async () => {
@@ -191,6 +200,7 @@ test("shows a filtered empty state when the search matches nothing", async () =>
   await userEvent.fill(screen.getByPlaceholder("Buscar una categoría"), "zzz");
 
   await expect.element(screen.getByText("Sin resultados")).toBeVisible();
+  await expect.element(screen.getByText("0 categorías")).not.toBeInTheDocument();
 });
 
 test("shows a load error with a retry action when the categories fail to load", async () => {
@@ -206,7 +216,26 @@ test("shows a load error with a retry action when the categories fail to load", 
   await expect.element(screen.getByText("1 categoría")).toBeVisible();
 });
 
-test("shows the rate-limited notice with a retry action", async () => {
+test("retrying a failed load starts again from the loading placeholder", async () => {
+  const services = createServices();
+  const retry = deferred<Awaited<ReturnType<typeof services.fetchCategories>>>();
+  vi.mocked(services.fetchCategories)
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockReturnValueOnce(retry.promise);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No pudimos abrir las categorías")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText("No pudimos abrir las categorías")).not.toBeInTheDocument();
+  await expect
+    .element(screen.getByRole("table", { name: "Categorías" }))
+    .toHaveAttribute("aria-busy", "true");
+  retry.resolve({ kind: "ok", value: [groceries] });
+  await expect.element(screen.getByText("Almacén")).toBeVisible();
+});
+
+test("shows the rate-limited notice with the time to wait and a retry action", async () => {
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({
     kind: "rate_limited",
@@ -216,6 +245,7 @@ test("shows the rate-limited notice with a retry action", async () => {
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
+  await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
 });
 
@@ -256,80 +286,41 @@ test("opens the create modal, and cancel closes it without calling the API", asy
   expect(services.createCategory).not.toHaveBeenCalled();
 });
 
-test("shows a category created while the list is still loading, even once the earlier load finishes", async () => {
+test("the create action is disabled while the categories load, and after they fail to load", async () => {
   const services = createServices();
-  const newCategory: CategorySummary = {
-    id: "category-5",
-    name: "Limpieza",
-    version: 1,
-    parentId: null,
-  };
-  let finishFirstLoad: (outcome: Awaited<ReturnType<typeof services.fetchCategories>>) => void =
-    () => {};
-  const firstLoad: ReturnType<typeof services.fetchCategories> = new Promise((resolve) => {
-    finishFirstLoad = resolve;
-  });
+  const firstLoad = deferred<Awaited<ReturnType<typeof services.fetchCategories>>>();
   vi.mocked(services.fetchCategories)
-    .mockReturnValueOnce(firstLoad)
-    .mockResolvedValueOnce({ kind: "ok", value: [groceries, newCategory] });
-  vi.mocked(services.createCategory).mockResolvedValue({ kind: "ok", value: newCategory });
+    .mockReturnValueOnce(firstLoad.promise)
+    .mockResolvedValueOnce({ kind: "failed" });
   const screen = await renderScreen(services);
-  const dialog = await openNewCategoryModal(screen);
 
-  await userEvent.fill(
-    dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }),
-    "Limpieza",
-  );
-  await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
-  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await expect.element(screen.getByText("Limpieza")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Nueva categoría" })).toBeDisabled();
 
-  finishFirstLoad({ kind: "ok", value: [groceries] });
-  // Awaiting the same promise the screen awaited lets its handling run first; re-rendering then
-  // commits whatever state that handling scheduled.
-  await firstLoad;
-  await screen.rerender(
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <CategoriesListScreen
-          services={services}
-          onSessionEnded={() => {}}
-          filters={categoriesListFilters.parse({})}
-          onFiltersChange={() => {}}
-        />
-      </main>
-    </FieldSizeProvider>,
-  );
-
-  expect(screen.getByText("2 categorías").query()).not.toBeNull();
-  expect(screen.getByText("Limpieza").query()).not.toBeNull();
+  firstLoad.resolve({ kind: "failed" });
+  await expect.element(screen.getByText("No pudimos abrir las categorías")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Nueva categoría" })).toBeDisabled();
 });
 
-test("shows a category created while the list failed to load", async () => {
+test("the create action stays available while a refresh of the shown categories runs", async () => {
   const services = createServices();
-  const newCategory: CategorySummary = {
-    id: "category-5",
-    name: "Limpieza",
-    version: 1,
-    parentId: null,
-  };
+  const refresh = deferred<Awaited<ReturnType<typeof services.fetchCategories>>>();
   vi.mocked(services.fetchCategories)
-    .mockResolvedValueOnce({ kind: "failed" })
-    .mockResolvedValueOnce({ kind: "ok", value: [groceries, newCategory] });
-  vi.mocked(services.createCategory).mockResolvedValue({ kind: "ok", value: newCategory });
+    .mockResolvedValueOnce({ kind: "ok", value: [groceries] })
+    .mockReturnValueOnce(refresh.promise);
+  vi.mocked(services.editCategory).mockResolvedValue({ kind: "ok", value: groceries });
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("No pudimos abrir las categorías")).toBeVisible();
-  const dialog = await openNewCategoryModal(screen);
-
-  await userEvent.fill(
-    dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }),
-    "Limpieza",
+  await expect.element(screen.getByText("Almacén")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Editar la categoría Almacén" }));
+  await userEvent.click(
+    screen.getByRole("dialog").getByRole("button", { name: "Guardar los cambios" }),
   );
-  await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
 
-  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await expect.element(screen.getByText("Limpieza")).toBeVisible();
-  await expect.element(screen.getByText("2 categorías")).toBeVisible();
+  await expect
+    .element(screen.getByRole("table", { name: "Categorías" }))
+    .toHaveAttribute("aria-busy", "true");
+  expect(screen.getByText("Almacén").query()).not.toBeNull();
+  await expect.element(screen.getByRole("button", { name: "Nueva categoría" })).toBeEnabled();
+  refresh.resolve({ kind: "ok", value: [groceries] });
 });
 
 test("rejects a name longer than 100 characters in the create modal, without calling the API", async () => {
@@ -411,13 +402,15 @@ test("opens the create modal with a parent select offering every category by its
 
 test("creates a top-level category and shows it in the list", async () => {
   const services = createServices();
-  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [groceries] });
   const newCategory: CategorySummary = {
     id: "category-5",
     name: "Limpieza",
     version: 1,
     parentId: null,
   };
+  vi.mocked(services.fetchCategories)
+    .mockResolvedValueOnce({ kind: "ok", value: [groceries] })
+    .mockResolvedValueOnce({ kind: "ok", value: [groceries, newCategory, drinks] });
   vi.mocked(services.createCategory).mockResolvedValue({ kind: "ok", value: newCategory });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("1 categoría")).toBeVisible();
@@ -433,18 +426,21 @@ test("creates a top-level category and shows it in the list", async () => {
   expect(services.createCategory).toHaveBeenCalledWith({ name: "Limpieza", parentId: null });
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.element(screen.getByText("Limpieza")).toBeVisible();
-  await expect.element(screen.getByText("2 categorías")).toBeVisible();
+  await expect.element(screen.getByText("3 categorías")).toBeVisible();
+  expect(services.fetchCategories).toHaveBeenCalledTimes(2);
 });
 
 test("creates a subcategory under the chosen parent", async () => {
   const services = createServices();
-  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [groceries] });
   const newCategory: CategorySummary = {
     id: "category-5",
     name: "Snacks",
     version: 1,
     parentId: "category-1",
   };
+  vi.mocked(services.fetchCategories)
+    .mockResolvedValueOnce({ kind: "ok", value: [groceries] })
+    .mockResolvedValueOnce({ kind: "ok", value: [groceries, newCategory] });
   vi.mocked(services.createCategory).mockResolvedValue({ kind: "ok", value: newCategory });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("1 categoría")).toBeVisible();
@@ -597,11 +593,10 @@ test("the edit modal's parent select excludes the category itself and its own de
 
 test("moves a category to a new parent and shows its updated path in the list", async () => {
   const services = createServices();
-  vi.mocked(services.fetchCategories).mockResolvedValue({
-    kind: "ok",
-    value: [groceries, drinks],
-  });
   const moved: CategorySummary = { ...drinks, parentId: "category-1", version: 4 };
+  vi.mocked(services.fetchCategories)
+    .mockResolvedValueOnce({ kind: "ok", value: [groceries, drinks] })
+    .mockResolvedValueOnce({ kind: "ok", value: [groceries, moved] });
   vi.mocked(services.editCategory).mockResolvedValue({ kind: "ok", value: moved });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Bebidas")).toBeVisible();
@@ -791,7 +786,7 @@ test("a stale-version reload on edit discards the typed name and saves again ove
     .toBeVisible();
 
   const freshened: CategorySummary = { ...drinks, parentId: "category-1", version: 4 };
-  vi.mocked(services.fetchCategories).mockResolvedValueOnce({
+  vi.mocked(services.fetchCategories).mockResolvedValue({
     kind: "ok",
     value: [groceries, freshened],
   });
@@ -833,7 +828,7 @@ test("a stale-version reload on edit also retitles the dialog with the fresh nam
     .toBeVisible();
 
   const renamed: CategorySummary = { ...drinks, name: "Bebidas frías", version: 4 };
-  vi.mocked(services.fetchCategories).mockResolvedValueOnce({
+  vi.mocked(services.fetchCategories).mockResolvedValue({
     kind: "ok",
     value: [groceries, renamed],
   });
@@ -866,7 +861,7 @@ test("a stale-version reload on edit refreshes the categories too, so a parent t
     parentId: null,
   };
   const freshened: CategorySummary = { ...drinks, parentId: freshProduce.id, version: 4 };
-  vi.mocked(services.fetchCategories).mockResolvedValueOnce({
+  vi.mocked(services.fetchCategories).mockResolvedValue({
     kind: "ok",
     value: [groceries, freshened, freshProduce],
   });
