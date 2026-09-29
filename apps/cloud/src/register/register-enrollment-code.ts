@@ -24,7 +24,6 @@ export function base32EncodeUnpadded(bytes: Buffer): string {
 
 // 10 bytes is a multiple of 5 bits, so the base32 encoding below needs no padding.
 const REGISTER_ENROLLMENT_CODE_BYTES = 10;
-export const REGISTER_ENROLLMENT_CODE_LENGTH = 16;
 
 // The only place the raw code exists outside the backoffice screen; only its hash is ever stored.
 export function generateRegisterEnrollmentCode(): string {

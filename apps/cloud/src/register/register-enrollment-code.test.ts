@@ -1,10 +1,10 @@
 import { createHash } from "node:crypto";
+import { ENROLLMENT_CODE_LENGTH } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
   base32EncodeUnpadded,
   generateRegisterEnrollmentCode,
   hashRegisterEnrollmentCode,
-  REGISTER_ENROLLMENT_CODE_LENGTH,
   registerEnrollmentCodeMatches,
 } from "./register-enrollment-code.js";
 
@@ -34,8 +34,8 @@ describe("generateRegisterEnrollmentCode", () => {
   it("generates exactly 16 base32 characters, carrying 80 bits (10 bytes) of CSPRNG entropy", () => {
     const code = generateRegisterEnrollmentCode();
 
-    expect(REGISTER_ENROLLMENT_CODE_LENGTH).toBe(16);
-    expect(code).toHaveLength(REGISTER_ENROLLMENT_CODE_LENGTH);
+    expect(ENROLLMENT_CODE_LENGTH).toBe(16);
+    expect(code).toHaveLength(ENROLLMENT_CODE_LENGTH);
     expect(code).toMatch(BASE32_CHARACTER_PATTERN);
   });
 });

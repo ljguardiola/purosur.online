@@ -3,7 +3,7 @@ export const ENROLLMENT_CODE_VALIDITY_MS = 15 * 60 * 1000;
 export const ENROLLMENT_CODE_MAX_FAILED_ATTEMPTS = 5;
 
 const ENROLLMENT_CODE_LOOKUP_LENGTH = 4;
-const WELL_FORMED_ENROLLMENT_CODE = /^[A-Z2-7]{16}$/;
+const WELL_FORMED_ENROLLMENT_CODE = new RegExp(`^[A-Z2-7]{${ENROLLMENT_CODE_LENGTH}}$`);
 
 export interface EnrollmentCodeState {
   expiresAt: Date;
