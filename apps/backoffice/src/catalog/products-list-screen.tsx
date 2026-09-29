@@ -344,12 +344,13 @@ function BarcodeChips({ chips, onGenerate, generateDisabled, generateError }: Ba
           {codes.map((code) => (
             <div
               key={code}
-              className="flex h-control-xl items-center gap-2 rounded-lg bg-surface-subtle px-3"
+              className="flex h-control-xl items-center gap-2 rounded-lg bg-surface-subtle pr-1.5 pl-3"
             >
               <span className="min-w-0 flex-1 truncate font-mono text-detail text-text">
                 {code}
               </span>
               <IconButton
+                variant="subtle"
                 icon={<X />}
                 aria-label={`Quitar el código ${code}`}
                 onPress={() => chips.remove(code)}
