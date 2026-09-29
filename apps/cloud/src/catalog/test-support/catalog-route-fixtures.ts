@@ -5,9 +5,11 @@ import {
   brands,
   categories,
   products,
+  productTags,
   rolePermissions,
   roles,
   sessions,
+  tags,
   userRoles,
   users,
 } from "../../platform/db/schema.js";
@@ -110,4 +112,49 @@ export async function insertProductOfBrand(
     saleUnit: "UNIT",
     active: input.active ?? true,
   });
+}
+
+export async function insertTag(
+  db: Db,
+  input: { name: string; active?: boolean; version?: number },
+): Promise<{ id: string; version: number }> {
+  const [tag] = await db
+    .insert(tags)
+    .values(input)
+    .returning({ id: tags.id, version: tags.version });
+  if (!tag) {
+    throw new Error("test setup: seeding the tag returned no row");
+  }
+  return tag;
+}
+
+export async function insertProductWithTags(
+  db: Db,
+  input: { name: string; tagIds: readonly string[]; active?: boolean },
+): Promise<{ id: string }> {
+  const [category] = await db
+    .insert(categories)
+    .values({ name: `Categoría de ${input.name}` })
+    .returning({ id: categories.id });
+  if (!category) {
+    throw new Error("test setup: seeding the category returned no row");
+  }
+  const [product] = await db
+    .insert(products)
+    .values({
+      name: input.name,
+      categoryId: category.id,
+      saleUnit: "UNIT",
+      active: input.active ?? true,
+    })
+    .returning({ id: products.id });
+  if (!product) {
+    throw new Error("test setup: seeding the product returned no row");
+  }
+  if (input.tagIds.length > 0) {
+    await db
+      .insert(productTags)
+      .values(input.tagIds.map((tagId) => ({ productId: product.id, tagId })));
+  }
+  return product;
 }

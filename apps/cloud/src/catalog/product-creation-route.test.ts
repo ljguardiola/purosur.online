@@ -8,6 +8,7 @@ import {
   categories,
   productBarcodes,
   products,
+  productTags,
   rolePermissions,
   roles,
   sessions,
@@ -17,6 +18,7 @@ import {
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerProductCreationRoute } from "./product-creation-route.js";
+import { insertTag } from "./test-support/catalog-route-fixtures.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
@@ -500,5 +502,88 @@ describe("POST /products", () => {
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({ code: "brand_inactive" });
     expect(await db.select().from(products)).toHaveLength(0);
+  });
+
+  it("creates the product with the active tags it was given, answering them as sent", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const veganoId = (await insertTag(db, { name: "Vegano" })).id;
+    const sinTaccId = (await insertTag(db, { name: "Sin TACC" })).id;
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await createProduct(rawSessionId, {
+      name: "Galletitas de salvado",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      tagIds: [veganoId, sinTaccId],
+    });
+
+    expect(response.statusCode).toBe(201);
+    const body = response.json();
+    expect(body.tagIds).toEqual([veganoId, sinTaccId]);
+    const stored = await db.select().from(productTags).where(eq(productTags.productId, body.id));
+    expect(stored.map((row) => row.tagId).sort()).toEqual([sinTaccId, veganoId].sort());
+  });
+
+  it("creates the product with no tags when the field is absent", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await createProduct(rawSessionId, {
+      name: "Dátiles sueltos",
+      categoryId,
+      saleUnit: "KG",
+      barcodes: ["111"],
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({ tagIds: [] });
+    expect(await db.select().from(productTags)).toHaveLength(0);
+  });
+
+  it.each(["00000000-0000-0000-0000-000000000000", "not-a-uuid"])(
+    "rejects the tag id %s that does not name an existing tag, creating nothing",
+    async (tagId) => {
+      const categoryId = await insertCategory("Almacén");
+      const userId = await insertUserWithPermission();
+      const rawSessionId = await insertSession(userId);
+
+      const response = await createProduct(rawSessionId, {
+        name: "Galletitas",
+        categoryId,
+        saleUnit: "UNIT",
+        barcodes: ["111"],
+        tagIds: [tagId],
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({
+        code: "validation_failed",
+        details: [{ field: "tagIds" }],
+      });
+      expect(await db.select().from(products)).toHaveLength(0);
+    },
+  );
+
+  it("rejects a deactivated tag with 409 tag_inactive, creating nothing", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const tagId = (await insertTag(db, { name: "Kosher", active: false })).id;
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await createProduct(rawSessionId, {
+      name: "Yerba",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      tagIds: [tagId],
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "tag_inactive" });
+    expect(await db.select().from(products)).toHaveLength(0);
+    expect(await db.select().from(productTags)).toHaveLength(0);
   });
 });

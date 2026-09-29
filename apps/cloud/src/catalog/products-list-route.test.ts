@@ -8,6 +8,7 @@ import {
   categories,
   productBarcodes,
   products,
+  productTags,
   rolePermissions,
   roles,
   sessions,
@@ -17,6 +18,7 @@ import {
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerProductsListRoute } from "./products-list-route.js";
+import { insertTag } from "./test-support/catalog-route-fixtures.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
@@ -240,6 +242,38 @@ describe("GET /products", () => {
     const response = await getProducts(rawSessionId);
 
     expect(response.json()).toMatchObject([{ brandId: brand.id }]);
+  });
+
+  it("returns the tags of each product, deactivated ones included, in tag name order", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const veganoId = (await insertTag(db, { name: "Vegano" })).id;
+    const sinTaccId = (await insertTag(db, { name: "Sin TACC" })).id;
+    const kosherId = (await insertTag(db, { name: "Kosher", active: false })).id;
+    const [tagged, bare] = await db
+      .insert(products)
+      .values([
+        { name: "Galletitas", categoryId, saleUnit: "UNIT" },
+        { name: "Dátiles", categoryId, saleUnit: "KG" },
+      ])
+      .returning({ id: products.id });
+    if (!tagged || !bare) {
+      throw new Error("test setup: seeding the products returned no row");
+    }
+    await db.insert(productTags).values([
+      { productId: tagged.id, tagId: veganoId },
+      { productId: tagged.id, tagId: kosherId },
+      { productId: tagged.id, tagId: sinTaccId },
+    ]);
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await getProducts(rawSessionId);
+
+    const byId = new Map(
+      (response.json() as { id: string; tagIds: string[] }[]).map((row) => [row.id, row.tagIds]),
+    );
+    expect(byId.get(tagged.id)).toEqual([kosherId, sinTaccId, veganoId]);
+    expect(byId.get(bare.id)).toEqual([]);
   });
 
   it("returns the net content of a product that has one", async () => {

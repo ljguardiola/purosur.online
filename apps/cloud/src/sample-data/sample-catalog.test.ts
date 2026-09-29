@@ -14,6 +14,7 @@ import {
   SAMPLE_LOCKOUT_SOURCE_ADDRESSES,
   SAMPLE_REGISTER_NAMES,
   SAMPLE_ROLES,
+  SAMPLE_TAGS,
   sampleEmail,
 } from "./sample-catalog.js";
 
@@ -28,6 +29,7 @@ interface FlatProduct {
   active: boolean;
   unitPriceCents: number;
   pricePlan: "current" | "due_for_review";
+  tagNames: readonly string[];
 }
 
 function flattenProducts(): FlatProduct[] {
@@ -147,6 +149,37 @@ describe("SAMPLE_CATEGORY_TREE", () => {
       expect(product.unitPriceCents).toBeGreaterThanOrEqual(300_000);
       expect(product.unitPriceCents).toBeLessThanOrEqual(3_000_000);
     }
+  });
+});
+
+describe("SAMPLE_TAGS", () => {
+  it("names every tag uniquely ignoring letter case", () => {
+    const names = SAMPLE_TAGS.map((tag) => tag.name.toLowerCase());
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  it("plans both active and deactivated tags", () => {
+    expect(new Set(SAMPLE_TAGS.map((tag) => tag.active))).toEqual(new Set([true, false]));
+  });
+
+  it("plans only tags the tag list defines on each product, never repeating one on a product", () => {
+    const known = new Set(SAMPLE_TAGS.map((tag) => tag.name));
+    for (const product of flattenProducts()) {
+      expect(product.tagNames.every((name) => known.has(name))).toBe(true);
+      expect(new Set(product.tagNames).size).toBe(product.tagNames.length);
+    }
+  });
+
+  it("plans products with no tag, with one and with several", () => {
+    const counts = new Set(
+      flattenProducts().map((product) => Math.min(product.tagNames.length, 2)),
+    );
+    expect(counts).toEqual(new Set([0, 1, 2]));
+  });
+
+  it("puts every tag on at least one product, the deactivated ones too", () => {
+    const used = new Set(flattenProducts().flatMap((product) => product.tagNames));
+    expect(used).toEqual(new Set(SAMPLE_TAGS.map((tag) => tag.name)));
   });
 });
 

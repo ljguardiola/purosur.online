@@ -10,7 +10,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
-import { categories, productBarcodes, products } from "../platform/db/schema.js";
+import { categories, productBarcodes, products, productTags, tags } from "../platform/db/schema.js";
 
 type ProductStatusFilter = "active" | "inactive" | "all";
 
@@ -82,6 +82,32 @@ async function barcodesByProductId<TQueryResult extends PgQueryResultHKT>(
   return grouped;
 }
 
+async function tagIdsByProductId<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  productIds: string[],
+): Promise<Map<string, string[]>> {
+  if (productIds.length === 0) {
+    return new Map();
+  }
+  const rows = await db
+    .select({ productId: productTags.productId, tagId: productTags.tagId })
+    .from(productTags)
+    .innerJoin(tags, eq(tags.id, productTags.tagId))
+    .where(inArray(productTags.productId, productIds))
+    .orderBy(asc(tags.name));
+
+  const grouped = new Map<string, string[]>();
+  for (const row of rows) {
+    const existing = grouped.get(row.productId);
+    if (existing) {
+      existing.push(row.tagId);
+    } else {
+      grouped.set(row.productId, [row.tagId]);
+    }
+  }
+  return grouped;
+}
+
 async function listProducts<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   status: ProductStatusFilter = "active",
@@ -109,6 +135,11 @@ async function listProducts<TQueryResult extends PgQueryResultHKT>(
     rows.map((row) => row.id),
   );
 
+  const tagIds = await tagIdsByProductId(
+    db,
+    rows.map((row) => row.id),
+  );
+
   return rows.map((row) => ({
     id: row.id,
     name: row.name,
@@ -117,7 +148,7 @@ async function listProducts<TQueryResult extends PgQueryResultHKT>(
     brandId: row.brandId,
     saleUnit: row.saleUnit as SaleUnit,
     barcodes: barcodes.get(row.id) ?? [],
-    tagIds: [],
+    tagIds: tagIds.get(row.id) ?? [],
     netContent: netContentRow(row),
     active: row.active,
     version: row.version,

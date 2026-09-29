@@ -8,6 +8,7 @@ import {
   categories,
   productBarcodes,
   products,
+  productTags,
   rolePermissions,
   roles,
   sessions,
@@ -17,6 +18,7 @@ import {
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerProductEditRoute } from "./product-edit-route.js";
+import { insertTag } from "./test-support/catalog-route-fixtures.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
@@ -119,6 +121,7 @@ async function insertProduct(input: {
   netContentQuantity?: number;
   netContentUnit?: string;
   brandId?: string;
+  tagIds?: string[];
 }): Promise<{ id: string; version: number }> {
   const [product] = await db
     .insert(products)
@@ -137,6 +140,11 @@ async function insertProduct(input: {
   await db
     .insert(productBarcodes)
     .values(input.barcodes.map((code, position) => ({ productId: product.id, code, position })));
+  if (input.tagIds && input.tagIds.length > 0) {
+    await db
+      .insert(productTags)
+      .values(input.tagIds.map((tagId) => ({ productId: product.id, tagId })));
+  }
   return product;
 }
 
@@ -902,4 +910,145 @@ describe("POST /products/:id/edit", () => {
     });
     expect(await db.select().from(products)).toMatchObject([{ brandId: null, version: 1 }]);
   });
+
+  async function storedTagIds(productId: string): Promise<string[]> {
+    const rows = await db.select().from(productTags).where(eq(productTags.productId, productId));
+    return rows.map((row) => row.tagId).sort();
+  }
+
+  async function editWithTags(
+    product: { id: string; version: number },
+    categoryId: string,
+    tagIds: unknown,
+  ) {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+    return editProduct(rawSessionId, product.id, {
+      name: "Galletitas",
+      categoryId,
+      brandId: null,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      tagIds,
+      version: product.version,
+    });
+  }
+
+  it("replaces the product's tags with the ones sent, answering them as sent", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const sinTaccId = (await insertTag(db, { name: "Sin TACC" })).id;
+    const veganoId = (await insertTag(db, { name: "Vegano" })).id;
+    const kosherId = (await insertTag(db, { name: "Kosher" })).id;
+    const product = await insertProduct({
+      name: "Galletitas",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      tagIds: [sinTaccId, kosherId],
+    });
+
+    const response = await editWithTags(product, categoryId, [veganoId, sinTaccId]);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().tagIds).toEqual([veganoId, sinTaccId]);
+    expect(await storedTagIds(product.id)).toEqual([sinTaccId, veganoId].sort());
+  });
+
+  it("removes every tag when sent an empty list", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const tagId = (await insertTag(db, { name: "Sin TACC" })).id;
+    const product = await insertProduct({
+      name: "Galletitas",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      tagIds: [tagId],
+    });
+
+    const response = await editWithTags(product, categoryId, []);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ tagIds: [] });
+    expect(await storedTagIds(product.id)).toEqual([]);
+  });
+
+  it("refuses a body without the tagIds key, keeping the product's tags", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const tagId = (await insertTag(db, { name: "Sin TACC" })).id;
+    const product = await insertProduct({
+      name: "Galletitas",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      tagIds: [tagId],
+    });
+
+    const response = await editWithTags(product, categoryId, undefined);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "tagIds" }],
+    });
+    expect(await storedTagIds(product.id)).toEqual([tagId]);
+  });
+
+  it("lets the product keep a deactivated tag it already carries", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const tagId = (await insertTag(db, { name: "Kosher", active: false })).id;
+    const product = await insertProduct({
+      name: "Galletitas",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      tagIds: [tagId],
+    });
+
+    const response = await editWithTags(product, categoryId, [tagId]);
+
+    expect(response.statusCode).toBe(200);
+    expect(await storedTagIds(product.id)).toEqual([tagId]);
+  });
+
+  it("rejects a deactivated tag the product does not carry with 409 tag_inactive, changing nothing", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const carriedId = (await insertTag(db, { name: "Sin TACC" })).id;
+    const inactiveId = (await insertTag(db, { name: "Kosher", active: false })).id;
+    const product = await insertProduct({
+      name: "Galletitas",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      tagIds: [carriedId],
+    });
+
+    const response = await editWithTags(product, categoryId, [carriedId, inactiveId]);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "tag_inactive" });
+    expect(await storedTagIds(product.id)).toEqual([carriedId]);
+    expect(await db.select().from(products)).toMatchObject([{ version: 1 }]);
+  });
+
+  it.each(["00000000-0000-0000-0000-000000000000", "not-a-uuid"])(
+    "rejects the tag id %s that does not name an existing tag, changing nothing",
+    async (tagId) => {
+      const categoryId = await insertCategory("Almacén");
+      const product = await insertProduct({
+        name: "Galletitas",
+        categoryId,
+        saleUnit: "UNIT",
+        barcodes: ["111"],
+      });
+
+      const response = await editWithTags(product, categoryId, [tagId]);
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({
+        code: "validation_failed",
+        details: [{ field: "tagIds" }],
+      });
+      expect(await db.select().from(products)).toMatchObject([{ version: 1 }]);
+    },
+  );
 });

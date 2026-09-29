@@ -13,8 +13,10 @@ import {
   priceReviews,
   productBarcodes,
   products,
+  productTags,
   registers,
   roles,
+  tags,
   userRoles,
   users,
 } from "../platform/db/schema.js";
@@ -29,6 +31,7 @@ import {
   SAMPLE_EMAIL_DOMAIN,
   SAMPLE_REGISTER_NAMES,
   SAMPLE_ROLES,
+  SAMPLE_TAGS,
 } from "./sample-catalog.js";
 
 const PRODUCIBLE_ALERT_LEVELS = new Set(
@@ -157,6 +160,19 @@ describe("loadSampleData", () => {
     expect(allProducts.some((product) => !product.active)).toBe(true);
     expect(allProducts.some((product) => product.active)).toBe(true);
 
+    const storedTags = await db.select({ name: tags.name, active: tags.active }).from(tags);
+    expect([...storedTags].sort((a, b) => a.name.localeCompare(b.name))).toEqual(
+      [...SAMPLE_TAGS].sort((a, b) => a.name.localeCompare(b.name)),
+    );
+    const assignments = await db.select().from(productTags);
+    const tagCountByProduct = new Map<string, number>();
+    for (const row of assignments) {
+      tagCountByProduct.set(row.productId, (tagCountByProduct.get(row.productId) ?? 0) + 1);
+    }
+    expect(tagCountByProduct.size).toBeGreaterThan(0);
+    expect(tagCountByProduct.size).toBeLessThan(allProducts.length);
+    expect(Math.max(...tagCountByProduct.values())).toBeGreaterThan(1);
+
     const allBarcodes = await db.select({ code: productBarcodes.code }).from(productBarcodes);
     expect(allBarcodes.some((barcode) => barcode.code.startsWith("04"))).toBe(true);
     expect(allBarcodes.some((barcode) => isInternalBarcode(barcode.code))).toBe(true);
@@ -197,6 +213,8 @@ describe("loadSampleData", () => {
       categories: await tableCount(db, "categories"),
       products: await tableCount(db, "products"),
       productBarcodes: await tableCount(db, "product_barcodes"),
+      tags: await tableCount(db, "tags"),
+      productTags: await tableCount(db, "product_tags"),
       prices: await tableCount(db, "prices"),
       priceReviews: await tableCount(db, "price_reviews"),
       registers: await tableCount(db, "registers"),
@@ -215,6 +233,8 @@ describe("loadSampleData", () => {
       categories: await tableCount(db, "categories"),
       products: await tableCount(db, "products"),
       productBarcodes: await tableCount(db, "product_barcodes"),
+      tags: await tableCount(db, "tags"),
+      productTags: await tableCount(db, "product_tags"),
       prices: await tableCount(db, "prices"),
       priceReviews: await tableCount(db, "price_reviews"),
       registers: await tableCount(db, "registers"),
