@@ -1142,6 +1142,48 @@ test.each([
   },
 );
 
+test.each([
+  {
+    applied: "no filter",
+    filters: {},
+    empty: "Todavía no hay productos",
+    absent: "Sin resultados",
+  },
+  {
+    applied: "a category filter",
+    filters: { category: "cat-1" },
+    empty: "Sin resultados",
+    absent: "Todavía no hay productos",
+  },
+  {
+    applied: "a search",
+    filters: { search: "zzz" },
+    empty: "Sin resultados",
+    absent: "Todavía no hay productos",
+  },
+])(
+  "an empty list of every product with $applied shows $empty",
+  async ({ filters, empty, absent }) => {
+    const services = createServices();
+    vi.mocked(services.fetchPrices).mockResolvedValue({
+      kind: "ok",
+      value: {
+        products: [],
+        pendingCount: 0,
+        reviewWindowDays: 30,
+        categories: [{ id: "cat-1", name: "Almacén" }],
+      },
+    });
+
+    const screen = await renderScreen(services, undefined, undefined, {
+      filters: pricesListFilters.parse({ review: "all", ...filters }),
+    });
+
+    await expect.element(screen.getByText(empty)).toBeVisible();
+    expect(screen.getByText(absent).query()).toBeNull();
+  },
+);
+
 test("a price modal open when the list fails to load closes, and does not open again when the list returns", async () => {
   const services = createServices();
   let listReads = 0;

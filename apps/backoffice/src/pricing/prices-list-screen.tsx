@@ -20,6 +20,7 @@ import {
   Ban,
   Check,
   ListChecks,
+  Package,
   Pencil,
   RotateCcw,
   Search,
@@ -945,12 +946,19 @@ export function PricesListScreen({
                   description: emptyPendingDetail({ days: reviewWindowDays }),
                   variant: "blank",
                 }
-              : {
-                  icon: <Search />,
-                  title: "Sin resultados",
-                  description: "Probá con otro nombre o categoría.",
-                  variant: "filtered",
-                }
+              : reviewFilter === "all" && categoryFilter === "ALL" && !debouncedSearch
+                ? {
+                    icon: <Package />,
+                    title: "Todavía no hay productos",
+                    description: "Creá el primero en Productos para ponerle precio.",
+                    variant: "blank",
+                  }
+                : {
+                    icon: <Search />,
+                    title: "Sin resultados",
+                    description: "Probá con otro nombre o categoría.",
+                    variant: "filtered",
+                  }
           }
           footer={
             products.length === 0 ? undefined : (
