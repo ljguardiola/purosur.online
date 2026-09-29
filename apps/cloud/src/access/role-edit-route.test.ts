@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
+  alerts,
   auditLog,
   locations,
   rolePermissions,
@@ -412,5 +413,128 @@ describe("POST /roles/:id/edit", () => {
       const audited = await db.select().from(auditLog).where(eq(auditLog.entityId, roleId));
       expect(audited).toHaveLength(0);
     });
+  });
+});
+
+describe("POST /roles/:id/edit and the alert for increased access", () => {
+  let roleId: string;
+
+  async function accessIncreasedAlerts() {
+    return db.select().from(alerts).where(eq(alerts.kind, "user_access_increased"));
+  }
+
+  function editPermissions(permissions: string[], name = "Cajera") {
+    return insertSession(administratorId).then((rawSessionId) =>
+      editRoleRequest(roleId, rawSessionId, { name, permissions, version: 1 }),
+    );
+  }
+
+  beforeEach(async () => {
+    roleId = await insertRole("Cajera", ["sell_and_charge", "void_sale"]);
+  });
+
+  it("opens one Critical, All-audience alert per active holder when a permission is added, never resolving on its own", async () => {
+    const locationId = await seededLocationId(db);
+    const graceId = await insertUser({
+      firstName: "Grace Hopper",
+      email: "grace@example.com",
+      roleId,
+      locationId,
+    });
+    const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
+    if (!otherLocation) {
+      throw new Error("test setup: seeding the other branch returned no row");
+    }
+    const katherineId = await insertUser({
+      firstName: "Katherine Johnson",
+      email: "katherine@example.com",
+      roleId,
+      locationId: otherLocation.id,
+    });
+
+    const response = await editPermissions(
+      ["adjust_stock", "sell_and_charge", "void_sale", "view_stock_balances"],
+      "Cajera senior",
+    );
+
+    expect(response.statusCode).toBe(200);
+    const opened = await accessIncreasedAlerts();
+    expect(opened.map((alert) => alert.scope).sort()).toEqual([graceId, katherineId].sort());
+    for (const alert of opened) {
+      expect(alert).toMatchObject({
+        level: "critical",
+        audience: "all",
+        escalateAt: null,
+        resolvedAt: null,
+        detail: {
+          cause: "role_permissions_added",
+          roleName: "Cajera senior",
+          addedPermissionKeys: ["view_stock_balances", "adjust_stock"],
+          actorId: administratorId,
+        },
+      });
+    }
+  });
+
+  it("opens the alert when a permission is added even as another one is removed", async () => {
+    const graceId = await insertUser({
+      firstName: "Grace Hopper",
+      email: "grace@example.com",
+      roleId,
+      locationId: await seededLocationId(db),
+    });
+
+    const response = await editPermissions(["sell_and_charge", "adjust_stock"]);
+
+    expect(response.statusCode).toBe(200);
+    const opened = await accessIncreasedAlerts();
+    expect(opened).toHaveLength(1);
+    expect(opened[0]).toMatchObject({
+      scope: graceId,
+      detail: { addedPermissionKeys: ["adjust_stock"] },
+    });
+  });
+
+  it("opens no alert when permissions are only removed", async () => {
+    await insertUser({
+      firstName: "Grace Hopper",
+      email: "grace@example.com",
+      roleId,
+      locationId: await seededLocationId(db),
+    });
+
+    const response = await editPermissions(["void_sale"]);
+
+    expect(response.statusCode).toBe(200);
+    expect(await accessIncreasedAlerts()).toHaveLength(0);
+  });
+
+  it("opens no alert when only the name changes", async () => {
+    await insertUser({
+      firstName: "Grace Hopper",
+      email: "grace@example.com",
+      roleId,
+      locationId: await seededLocationId(db),
+    });
+
+    const response = await editPermissions(["sell_and_charge", "void_sale"], "Cajera senior");
+
+    expect(response.statusCode).toBe(200);
+    expect(await accessIncreasedAlerts()).toHaveLength(0);
+  });
+
+  it("opens no alert for a deactivated holder, who can't use the added permission", async () => {
+    const graceId = await insertUser({
+      firstName: "Grace Hopper",
+      email: "grace@example.com",
+      roleId,
+      locationId: await seededLocationId(db),
+    });
+    await db.update(users).set({ active: false }).where(eq(users.id, graceId));
+
+    const response = await editPermissions(["sell_and_charge", "void_sale", "adjust_stock"]);
+
+    expect(response.statusCode).toBe(200);
+    expect(await accessIncreasedAlerts()).toHaveLength(0);
   });
 });

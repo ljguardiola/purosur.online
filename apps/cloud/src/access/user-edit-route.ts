@@ -1,9 +1,17 @@
 import { userEditBodySchema } from "@purosur/contracts";
+import { increasesAccess } from "@purosur/domain";
 import { and, eq, isNull, sql } from "drizzle-orm";
-import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { openAlert } from "../alerts/open-alert.js";
-import { auditLog, recoveryTokens, roles, userRoles, users } from "../platform/db/schema.js";
+import {
+  auditLog,
+  recoveryTokens,
+  rolePermissions,
+  roles,
+  userRoles,
+  users,
+} from "../platform/db/schema.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
 import { type BranchUserRow, findBranchUser, toBranchUserWire } from "./branch-users.js";
@@ -63,6 +71,38 @@ function isEmailUniqueViolation(error: unknown): boolean {
     current = current.cause;
   }
   return false;
+}
+
+type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
+  Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
+>[0];
+
+interface RoleWithPermissions {
+  name: string | null;
+  isAdministrator: boolean;
+  permissionKeys: string[];
+}
+
+// Shares the role's row lock so an edit of that role's permissions, which locks it for update,
+// either commits before this read or waits for this assignment and then sees the user among its
+// holders: a permission added meanwhile can't reach the user without an alert.
+async function lockRoleWithPermissions<TQueryResult extends PgQueryResultHKT>(
+  tx: Transaction<TQueryResult>,
+  roleId: string,
+): Promise<RoleWithPermissions> {
+  const [role] = await tx
+    .select({ name: roles.name, isAdministrator: roles.isAdministrator })
+    .from(roles)
+    .where(eq(roles.id, roleId))
+    .for("share");
+  if (!role) {
+    throw new Error("an assigned role no longer exists");
+  }
+  const permissionRows = await tx
+    .select({ permissionKey: rolePermissions.permissionKey })
+    .from(rolePermissions)
+    .where(eq(rolePermissions.roleId, roleId));
+  return { ...role, permissionKeys: permissionRows.map((row) => row.permissionKey) };
 }
 
 type EditOutcome =
@@ -221,6 +261,9 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
           }
 
           if (roleChanged) {
+            const previousRole = await lockRoleWithPermissions(tx, currentUserRole.roleId);
+            const newRole = await lockRoleWithPermissions(tx, requestedRole.id);
+
             await tx
               .update(userRoles)
               .set({ roleId: requestedRole.id })
@@ -233,6 +276,26 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
               previousValue: { roleId: currentUserRole.roleId },
               newValue: { roleId: requestedRole.id },
             });
+
+            if (increasesAccess(previousRole, newRole)) {
+              await openAlert(
+                tx,
+                {
+                  kind: "user_access_increased",
+                  scope: target.id,
+                  detail: {
+                    cause: "role_assigned",
+                    previousRole: {
+                      name: previousRole.name,
+                      isAdministrator: previousRole.isAdministrator,
+                    },
+                    newRole: { name: newRole.name, isAdministrator: newRole.isAdministrator },
+                    actorId: openSession.userId,
+                  },
+                },
+                { now },
+              );
+            }
           }
 
           // Read under the locks this transaction still holds, so a deactivation waiting on this

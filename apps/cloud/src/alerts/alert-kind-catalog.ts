@@ -41,6 +41,13 @@ export const ALERT_KIND_CATALOG: readonly AlertKindDefinition[] = [
     audience: "all",
     scopeKind: "sourceAddress",
   },
+  {
+    kind: "user_access_increased",
+    level: "critical",
+    escalatesAfterMs: null,
+    audience: "all",
+    scopeKind: "user",
+  },
 ];
 
 const ALERT_KIND_CATALOG_BY_KIND: ReadonlyMap<AlertKind, AlertKindDefinition> = new Map(

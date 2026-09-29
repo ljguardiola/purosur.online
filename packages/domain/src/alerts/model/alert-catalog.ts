@@ -3,6 +3,7 @@ const ALERT_KIND_LIST = [
   "backoffice_recovery_requested",
   "user_email_changed",
   "backoffice_sign_in_lockout",
+  "user_access_increased",
 ] as const;
 
 export type AlertKind = (typeof ALERT_KIND_LIST)[number];
