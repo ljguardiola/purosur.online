@@ -9,6 +9,7 @@ import {
   SelectValue as AriaSelectValue,
   Text as AriaText,
 } from "react-aria-components";
+import { Tag } from "../data-display/tag";
 import { type FieldErrorProps, fieldError } from "./field-error";
 import {
   backofficeFieldBoxClassName,
@@ -38,7 +39,7 @@ type SelectCommonProps = {
 
 export type SelectProps<V extends string> = SelectCommonProps &
   FieldErrorProps &
-  OptionalOptionChoiceProps<V, NarrowedOption<V>> & {
+  OptionalOptionChoiceProps<V, NarrowedOption<V, never, "status">> & {
     placeholder?: string;
   };
 
@@ -66,6 +67,8 @@ const valueClassName =
   `min-w-0 flex-1 truncate text-left ${backofficeFieldValueClassName} ` +
   "data-placeholder:font-normal data-placeholder:text-text-subtle";
 
+const valueWithStatusClassName = `flex min-w-0 flex-1 items-center gap-2 ${backofficeFieldValueClassName}`;
+
 const chevronClassName = "size-icon-md shrink-0 text-text-subtle";
 
 // react-aria-components caps the popover's max-height to the viewport but leaves overflow
@@ -84,6 +87,7 @@ export function Select<V extends string>(props: SelectProps<V>) {
     required = false,
   } = props;
   const { invalid, errorMessage, errorMessageId } = fieldError(props);
+  const chosenStatus = options.find((option) => option.value === value)?.status;
 
   // Left out entirely rather than set to `undefined`: AriaSelect's `placeholder` prop type doesn't
   // accept `undefined` under `exactOptionalPropertyTypes`.
@@ -123,7 +127,20 @@ export function Select<V extends string>(props: SelectProps<V>) {
           <AriaButton
             className={`${triggerBaseClassName} ${triggerStateClassName(disabled, invalid, isOpen)}`}
           >
-            <AriaSelectValue className={valueClassName} />
+            {chosenStatus === undefined ? (
+              <AriaSelectValue className={valueClassName} />
+            ) : (
+              <AriaSelectValue className={valueWithStatusClassName}>
+                {({ selectedText }) => (
+                  <>
+                    <span className="min-w-0 truncate">{selectedText}</span>
+                    <Tag tone="neutral" variant="status">
+                      {chosenStatus}
+                    </Tag>
+                  </>
+                )}
+              </AriaSelectValue>
+            )}
             {isOpen ? (
               <ChevronUp aria-hidden="true" className={chevronClassName} />
             ) : (
@@ -161,7 +178,14 @@ export function Select<V extends string>(props: SelectProps<V>) {
                 >
                   {({ isSelected }) => (
                     <>
-                      <span className="truncate">{option.label}</span>
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="truncate">{option.label}</span>
+                        {option.status !== undefined ? (
+                          <Tag tone="neutral" variant="status">
+                            {option.status}
+                          </Tag>
+                        ) : null}
+                      </span>
                       {isSelected ? (
                         <Check
                           aria-hidden="true"
