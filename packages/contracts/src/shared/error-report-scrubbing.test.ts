@@ -19,10 +19,11 @@ describe("scrubErrorReport", () => {
     expect(scrubErrorReport(event).request).toBeUndefined();
   });
 
-  it("drops the HTTP response entirely, including its body", () => {
+  it("drops the HTTP request and response contexts entirely, including their bodies", () => {
     const event = {
       message: "unhandled error",
       contexts: {
+        request: { url: "https://cloud.purosur.online/fiscal/authorize", data: { cuit: "x" } },
         response: { status_code: 500, data: { secret: "leaked" } },
       },
     };
@@ -175,10 +176,41 @@ describe("scrubErrorReport", () => {
     expect(scrubErrorReport(event).extra).toEqual(event.extra);
   });
 
-  it("redacts a bearer token or cookie value found in a string", () => {
-    const event = { message: "rejected with authorization: Bearer abc.def.ghi" };
+  it("redacts a bearer token found in a string", () => {
+    for (const message of [
+      "rejected with authorization: Bearer abc.def.ghi",
+      "rejected with authorization: Bearer   abc.def.ghi",
+    ]) {
+      expect(scrubErrorReport({ message }).message).toBe("rejected with authorization: [redacted]");
+    }
+  });
 
-    expect(scrubErrorReport(event).message).toBe("rejected with authorization: [redacted]");
+  it("redacts the whole URL when its authority carries a credential, even without a path", () => {
+    const event = { message: "cache at redis://default:secret@cache.internal:6379 refused" };
+
+    expect(scrubErrorReport(event).message).toBe("cache at [redacted] refused");
+  });
+
+  it("keeps a URL whose path, not its authority, has an at sign", () => {
+    const event = { message: "GET https://registry.npmjs.org/@sentry/node failed" };
+
+    expect(scrubErrorReport(event).message).toBe(
+      "GET https://registry.npmjs.org/@sentry/node failed",
+    );
+  });
+
+  it("redacts the query of a URL that follows a question mark in the same word", () => {
+    const event = { message: "callback?next=https://bucket.example.com/x.db?X-Amz-Signature=abc" };
+
+    expect(scrubErrorReport(event).message).toBe(
+      "callback?next=https://bucket.example.com/x.db?[redacted]",
+    );
+  });
+
+  it("keeps null values", () => {
+    const event = { extra: { reason: null }, contexts: { device: { model: null } } };
+
+    expect(scrubErrorReport(event)).toEqual(event);
   });
 
   it("keeps opaque ids and passes through fields it does not touch", () => {
@@ -341,6 +373,11 @@ describe("identifiers in text", () => {
       { message: "DNI 1234567.", expected: "DNI [redacted]." },
       { message: "cliente 12.345.678", expected: "cliente [redacted]" },
       { message: "cliente 1.234.567.", expected: "cliente [redacted]." },
+      {
+        message: "CUIT 20304050607 y 27304050607",
+        expected: "CUIT [redacted] y [redacted]",
+      },
+      { message: "DNI 12345678 y 87654321", expected: "DNI [redacted] y [redacted]" },
     ]) {
       expect(scrubErrorReport({ message }).message).toBe(expected);
     }
@@ -439,11 +476,13 @@ describe("identifiers stored as numbers", () => {
     });
   });
 
-  it("redacts an identifier number placed under an SDK section name by anything but the SDK", () => {
-    const contexts = { device: { memory_size: 17179869184, number: 20304050607 } };
+  it("redacts an identifier placed under an SDK section name by anything but the SDK", () => {
+    const contexts = {
+      device: { memory_size: 17179869184, free_memory: "DNI 12345678", number: 20304050607 },
+    };
 
     expect(scrubErrorReport({ contexts }).contexts).toEqual({
-      device: { memory_size: 17179869184, number: "[redacted]" },
+      device: { memory_size: 17179869184, free_memory: "DNI [redacted]", number: "[redacted]" },
     });
   });
 

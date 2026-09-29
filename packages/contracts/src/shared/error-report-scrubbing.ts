@@ -43,6 +43,7 @@ const SDK_LOG_ATTRIBUTE_DIAGNOSTICS: ReadonlySet<string> = new Set(
 );
 
 const URL_PATTERN = /\b[a-zA-Z][a-zA-Z0-9+.-]*:\/\/[^\s"'<>]+/g;
+const USERINFO_PATTERN = /^[^/]*@/;
 const BEARER_TOKEN_PATTERN = /\bBearer\s+[A-Za-z0-9\-_.]+/g;
 
 // Only a closing bracket/parenthesis/angle-bracket/quote/backtick is trusted as wrapping a path
@@ -50,12 +51,8 @@ const BEARER_TOKEN_PATTERN = /\bBearer\s+[A-Za-z0-9\-_.]+/g;
 const TRAILING_DELIMITER_PATTERN = /[\])>"'`]$/;
 
 function redactPathToken(token: string): string {
-  const slashIndex = token.indexOf("/");
-  if (slashIndex === -1) {
-    return token;
-  }
   const queryIndex = token.search(/[?#]/);
-  if (queryIndex === -1 || queryIndex < slashIndex) {
+  if (queryIndex === -1 || token.lastIndexOf("/", queryIndex) === -1) {
     return token;
   }
 
@@ -74,7 +71,7 @@ function toSnakeCase(key: string): string {
   return key
     .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_");
+    .replace(/[^a-z0-9]/g, "_");
 }
 
 function isSensitiveKey(key: string): boolean {
@@ -84,10 +81,7 @@ function isSensitiveKey(key: string): boolean {
 // A URL whose authority carries userinfo (`scheme://user:pass@host`) embeds a credential, as a
 // Postgres connection string does; the whole URL is redacted rather than only its query string.
 function redactUrl(url: string): string {
-  const schemeEnd = url.indexOf("://") + 3;
-  const authorityEnd = url.indexOf("/", schemeEnd);
-  const authority = authorityEnd === -1 ? url.slice(schemeEnd) : url.slice(schemeEnd, authorityEnd);
-  if (authority.includes("@")) {
+  if (USERINFO_PATTERN.test(url.slice(url.indexOf("://") + 3))) {
     return REDACTED;
   }
   const queryStart = url.search(/[?#]/);
