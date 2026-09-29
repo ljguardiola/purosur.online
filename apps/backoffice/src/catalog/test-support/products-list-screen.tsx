@@ -89,22 +89,3 @@ export async function openDeactivateProductModal(screen: Screen, product: Produc
   );
   return screen.getByRole("dialog");
 }
-
-// Rerendering drives React's async `act()`, which flushes the already-resolved response's continuation before returning.
-export async function settleLateResponse(
-  screen: Screen,
-  services: ProductsListScreenServices,
-): Promise<void> {
-  await screen.rerender(
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <ProductsListScreen
-          services={services}
-          onSessionEnded={() => {}}
-          filters={productsListFilters.parse({})}
-          onFiltersChange={() => {}}
-        />
-      </main>
-    </FieldSizeProvider>,
-  );
-}
