@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   checkRepository,
+  findCatalogVisualImageViolations,
   findCloudPostgresImageViolations,
   findVerifyWorkflowViolations,
 } from "./verify-workflow-runs-every-check.mjs";
@@ -768,48 +769,81 @@ test("reports a workflow that does not parse as YAML", () => {
 
 const PINNED_POSTGRES_IMAGE =
   "postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873";
+const PINNED_PLAYWRIGHT_IMAGE =
+  "mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27";
+const INSTALLED_PLAYWRIGHT_VERSION = "1.63.0";
 
-const PULL_WITH_RETRIES_LINES = [
-  "for delay in 0 15 30 60; do",
-  '  sleep "$delay"',
-  '  timeout 120 docker pull "$POSTGRES_IMAGE" && exit 0',
-  "done",
-  "exit 1",
+function pullWithRetriesLines(imageEnv) {
+  return [
+    "for delay in 0 15 30 60; do",
+    '  sleep "$delay"',
+    `  timeout 120 docker pull "$${imageEnv}" && exit 0`,
+    "done",
+    "exit 1",
+  ];
+}
+
+const PRE_PULLED_IMAGES = [
+  {
+    label: "the cloud's Postgres image",
+    job: "tests",
+    testsRun: `pnpm verify:tests --shard=\${{ matrix.shard }}/4`,
+    testsScript: "verify:tests",
+    constant: "POSTGRES_IMAGE",
+    image: PINNED_POSTGRES_IMAGE,
+    tagOnly: "postgres:18-alpine",
+    findViolations: (workflowSource, setupSource) =>
+      findCloudPostgresImageViolations(workflowSource, setupSource),
+  },
+  {
+    label: "the catalog's Playwright image",
+    job: "visual",
+    testsRun: "pnpm verify:visual",
+    testsScript: "verify:visual",
+    constant: "PLAYWRIGHT_SERVER_IMAGE",
+    image: PINNED_PLAYWRIGHT_IMAGE,
+    tagOnly: "mcr.microsoft.com/playwright:v1.63.0-noble",
+    findViolations: (workflowSource, setupSource) =>
+      findCatalogVisualImageViolations(workflowSource, setupSource, INSTALLED_PLAYWRIGHT_VERSION),
+  },
 ];
 
-function postgresSetup(image = PINNED_POSTGRES_IMAGE) {
+function setupDeclaring(constant, image) {
   return [
-    'import { PostgreSqlContainer } from "@testcontainers/postgresql";',
+    'import { GenericContainer } from "testcontainers";',
     "",
-    "const POSTGRES_IMAGE =",
+    `const ${constant} =`,
     `  "${image}";`,
   ].join("\n");
 }
 
-function testsJobWithPull({
-  pullLines = PULL_WITH_RETRIES_LINES,
-  pulledImage = PINNED_POSTGRES_IMAGE,
-  pullAfterTests = false,
-  pullStepExtra = [],
-  testsEnv = { TESTCONTAINERS_RYUK_DISABLED: '"true"' },
-} = {}) {
+function jobWithPull(
+  spec,
+  {
+    pullLines = pullWithRetriesLines(spec.constant),
+    pulledImage = spec.image,
+    pullAfterTests = false,
+    pullStepExtra = [],
+    testsEnv = { TESTCONTAINERS_RYUK_DISABLED: '"true"' },
+  } = {},
+) {
   const pullStep = [
-    "      - name: Pull the cloud's Postgres image",
+    `      - name: Pull ${spec.label}`,
     ...pullStepExtra.map((line) => `        ${line}`),
     "        run: |",
     ...pullLines.map((line) => `          ${line}`),
     "        env:",
-    `          POSTGRES_IMAGE: ${pulledImage}`,
+    `          ${spec.constant}: ${pulledImage}`,
   ];
   const testsStep = [
-    `      - run: pnpm verify:tests --shard=\${{ matrix.shard }}/4`,
+    `      - run: ${spec.testsRun}`,
     ...(Object.keys(testsEnv).length === 0
       ? []
       : ["        env:", ...Object.entries(testsEnv).map(([k, v]) => `          ${k}: ${v}`)]),
   ];
   return [
     "jobs:",
-    "  tests:",
+    `  ${spec.job}:`,
     "    runs-on: ubuntu-24.04",
     "    steps:",
     "      - run: pnpm install --frozen-lockfile",
@@ -817,99 +851,117 @@ function testsJobWithPull({
   ].join("\n");
 }
 
-test("passes when the tests job pulls the cloud's digest-pinned Postgres image with retries before its tests", () => {
-  const violations = findCloudPostgresImageViolations(testsJobWithPull(), postgresSetup());
+for (const spec of PRE_PULLED_IMAGES) {
+  const setup = (image = spec.image) => setupDeclaring(spec.constant, image);
 
-  assert.deepEqual(violations, []);
-});
+  test(`passes when the ${spec.job} job pulls ${spec.label}, pinned by digest, with retries before its tests`, () => {
+    const violations = spec.findViolations(jobWithPull(spec), setup());
 
-test("flags a cloud Postgres image referenced by a tag alone, which can move to other bytes", () => {
-  const image = "postgres:18-alpine";
+    assert.deepEqual(violations, []);
+  });
 
-  const violations = findCloudPostgresImageViolations(
-    testsJobWithPull({ pulledImage: image }),
-    postgresSetup(image),
-  );
-
-  assertSingleViolation(violations, /not pinned by digest/);
-});
-
-test("flags a cloud global setup whose Postgres image cannot be read", () => {
-  const violations = findCloudPostgresImageViolations(
-    testsJobWithPull(),
-    'const IMAGE = "postgres";',
-  );
-
-  assertSingleViolation(violations, /no POSTGRES_IMAGE/);
-});
-
-test("flags a tests job that pulls a different image from the one the cloud's tests start", () => {
-  const violations = findCloudPostgresImageViolations(
-    testsJobWithPull({ pulledImage: "postgres:18-alpine" }),
-    postgresSetup(),
-  );
-
-  assertSingleViolation(violations, /pulls `postgres:18-alpine`/);
-});
-
-test("flags a tests job that pulls the Postgres image only after running its tests", () => {
-  const violations = findCloudPostgresImageViolations(
-    testsJobWithPull({ pullAfterTests: true }),
-    postgresSetup(),
-  );
-
-  assertSingleViolation(violations, /before its verify:tests step/);
-});
-
-test("flags a tests job that pulls the Postgres image once, without retrying", () => {
-  const violations = findCloudPostgresImageViolations(
-    testsJobWithPull({ pullLines: ['docker pull "$POSTGRES_IMAGE"'] }),
-    postgresSetup(),
-  );
-
-  assertSingleViolation(violations, /before its verify:tests step/);
-});
-
-test("flags a tests job whose Postgres pull attempt can stall without a time limit", () => {
-  const violations = findCloudPostgresImageViolations(
-    testsJobWithPull({
-      pullLines: PULL_WITH_RETRIES_LINES.map((line) => line.replace("timeout 120 ", "")),
-    }),
-    postgresSetup(),
-  );
-
-  assertSingleViolation(violations, /before its verify:tests step/);
-});
-
-for (const [label, extra, pattern] of [
-  ["only runs under its own condition", "if: false", /pull step has its own if/],
-  ["is allowed to fail", "continue-on-error: true", /pull step sets continue-on-error/],
-  ["runs under its own shell", "shell: sh", /pull step sets its own shell/],
-]) {
-  test(`flags a Postgres pull step that ${label}`, () => {
-    const violations = findCloudPostgresImageViolations(
-      testsJobWithPull({ pullStepExtra: [extra] }),
-      postgresSetup(),
+  test(`flags ${spec.label} referenced by a tag alone, which can move to other bytes`, () => {
+    const violations = spec.findViolations(
+      jobWithPull(spec, { pulledImage: spec.tagOnly }),
+      setup(spec.tagOnly),
     );
 
-    assertSingleViolation(violations, pattern);
+    assertSingleViolation(violations, /not pinned by digest/);
+  });
+
+  test(`flags a global setup whose ${spec.constant} cannot be read`, () => {
+    const violations = spec.findViolations(jobWithPull(spec), 'const IMAGE = "postgres";');
+
+    assertSingleViolation(violations, new RegExp(`no ${spec.constant}`));
+  });
+
+  test(`flags a ${spec.job} job that pulls a different image from ${spec.label}`, () => {
+    const violations = spec.findViolations(
+      jobWithPull(spec, { pulledImage: spec.tagOnly }),
+      setup(),
+    );
+
+    assertSingleViolation(violations, new RegExp(`pulls \`${spec.tagOnly}\``));
+  });
+
+  test(`flags a ${spec.job} job that pulls ${spec.label} only after running its tests`, () => {
+    const violations = spec.findViolations(jobWithPull(spec, { pullAfterTests: true }), setup());
+
+    assertSingleViolation(violations, new RegExp(`before its ${spec.testsScript} step`));
+  });
+
+  test(`flags a ${spec.job} job that pulls ${spec.label} once, without retrying`, () => {
+    const violations = spec.findViolations(
+      jobWithPull(spec, { pullLines: [`docker pull "$${spec.constant}"`] }),
+      setup(),
+    );
+
+    assertSingleViolation(violations, new RegExp(`before its ${spec.testsScript} step`));
+  });
+
+  test(`flags a ${spec.job} job whose pull attempt of ${spec.label} can stall without a time limit`, () => {
+    const violations = spec.findViolations(
+      jobWithPull(spec, {
+        pullLines: pullWithRetriesLines(spec.constant).map((line) =>
+          line.replace("timeout 120 ", ""),
+        ),
+      }),
+      setup(),
+    );
+
+    assertSingleViolation(violations, new RegExp(`before its ${spec.testsScript} step`));
+  });
+
+  for (const [label, extra, pattern] of [
+    ["only runs under its own condition", "if: false", /in a step that has its own if/],
+    ["is allowed to fail", "continue-on-error: true", /in a step that sets continue-on-error/],
+    ["runs under its own shell", "shell: sh", /in a step that sets its own shell/],
+  ]) {
+    test(`flags a pull step of ${spec.label} that ${label}`, () => {
+      const violations = spec.findViolations(
+        jobWithPull(spec, { pullStepExtra: [extra] }),
+        setup(),
+      );
+
+      assertSingleViolation(violations, pattern);
+    });
+  }
+
+  test(`flags a ${spec.testsScript} step that still needs Testcontainers' Ryuk image from Docker Hub`, () => {
+    const violations = spec.findViolations(jobWithPull(spec, { testsEnv: {} }), setup());
+
+    assertSingleViolation(violations, /TESTCONTAINERS_RYUK_DISABLED/);
   });
 }
 
-test("flags a tests step that still needs Testcontainers' Ryuk image from Docker Hub", () => {
-  const violations = findCloudPostgresImageViolations(
-    testsJobWithPull({ testsEnv: {} }),
-    postgresSetup(),
+test("flags a catalog Playwright image whose tag is not the installed Playwright version", () => {
+  const [, visual] = PRE_PULLED_IMAGES;
+  const image =
+    "mcr.microsoft.com/playwright:v1.62.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27";
+
+  const violations = visual.findViolations(
+    jobWithPull(visual, { pulledImage: image }),
+    setupDeclaring(visual.constant, image),
   );
 
-  assertSingleViolation(violations, /TESTCONTAINERS_RYUK_DISABLED/);
+  assertSingleViolation(violations, /not the installed Playwright version 1\.63\.0/);
 });
 
-test("checkRepository reads the real workflow file, package.json and the cloud's Postgres setup", () => {
+test("checkRepository reads the real workflow file, package.json, both image setups and the installed Playwright version", () => {
   const files = {
-    ".github/workflows/verify.yml": testsJobWithPull(),
+    ".github/workflows/verify.yml": jobWithPull(PRE_PULLED_IMAGES[0]),
     "package.json": packageJson(),
-    "apps/cloud/vitest.global-setup.postgres.ts": postgresSetup(),
+    "apps/cloud/vitest.global-setup.postgres.ts": setupDeclaring(
+      "POSTGRES_IMAGE",
+      PINNED_POSTGRES_IMAGE,
+    ),
+    "packages/ui/vitest.global-setup.catalog-visual.ts": setupDeclaring(
+      "PLAYWRIGHT_SERVER_IMAGE",
+      PINNED_PLAYWRIGHT_IMAGE,
+    ),
+    "packages/ui/node_modules/playwright/package.json": JSON.stringify({
+      version: INSTALLED_PLAYWRIGHT_VERSION,
+    }),
   };
   const read = [];
 

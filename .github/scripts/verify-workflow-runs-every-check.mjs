@@ -3,14 +3,32 @@ import { isAlias, isMap, isScalar, isSeq, parseDocument } from "yaml";
 
 const WORKFLOW_PATH = ".github/workflows/verify.yml";
 const PACKAGE_JSON_PATH = "package.json";
-const CLOUD_POSTGRES_SETUP_PATH = "apps/cloud/vitest.global-setup.postgres.ts";
-const PULL_WITH_RETRIES_COMMAND = [
-  "for delay in 0 15 30 60; do",
-  '  sleep "$delay"',
-  '  timeout 120 docker pull "$POSTGRES_IMAGE" && exit 0',
-  "done",
-  "exit 1",
-].join("\n");
+const INSTALLED_PLAYWRIGHT_PACKAGE_JSON_PATH = "packages/ui/node_modules/playwright/package.json";
+const CLOUD_POSTGRES_IMAGE = {
+  label: "the cloud's Postgres image",
+  setupPath: "apps/cloud/vitest.global-setup.postgres.ts",
+  constant: "POSTGRES_IMAGE",
+  job: "tests",
+  testsScript: "verify:tests",
+};
+const CATALOG_VISUAL_IMAGE = {
+  label: "the catalog's Playwright image",
+  setupPath: "packages/ui/vitest.global-setup.catalog-visual.ts",
+  constant: "PLAYWRIGHT_SERVER_IMAGE",
+  job: "visual",
+  testsScript: "verify:visual",
+};
+
+function pullWithRetriesCommand(imageEnv) {
+  return [
+    "for delay in 0 15 30 60; do",
+    '  sleep "$delay"',
+    `  timeout 120 docker pull "$${imageEnv}" && exit 0`,
+    "done",
+    "exit 1",
+  ].join("\n");
+}
+
 const EXPECTED_VERIFY_SCRIPT = "pnpm verify:static && pnpm verify:tests && pnpm verify:visual";
 const EXPECTED_VERIFY_TESTS_SCRIPT = "vitest run --project='!catalog-visual'";
 const EXPECTED_VERIFY_VISUAL_SCRIPT = "vitest run --project=catalog-visual";
@@ -358,49 +376,49 @@ export function findVerifyWorkflowViolations(workflowSource, packageJsonSource) 
 }
 
 // Testcontainers pulls an image the runner does not have yet with a single attempt, so a slow
-// registry would fail the whole shard; the tests job pulls it first, retrying.
-export function findCloudPostgresImageViolations(workflowSource, postgresSetupSource) {
-  const image = /const POSTGRES_IMAGE =\s*"([^"]+)";/.exec(postgresSetupSource)?.[1];
+// registry would fail the whole job; the job pulls it first, retrying.
+function findPrePulledImageViolations(workflowSource, setupSource, spec) {
+  const image = new RegExp(`const ${spec.constant} =\\s*"([^"]+)";`).exec(setupSource)?.[1];
   if (image === undefined) {
-    return [`${CLOUD_POSTGRES_SETUP_PATH} declares no POSTGRES_IMAGE`];
+    return { violations: [`${spec.setupPath} declares no ${spec.constant}`] };
   }
 
   const violations = [];
   if (!/@sha256:[0-9a-f]{64}$/.test(image)) {
-    violations.push(`the cloud's Postgres image \`${image}\` is not pinned by digest`);
+    violations.push(`${spec.label} \`${image}\` is not pinned by digest`);
   }
 
   const doc = parseDocument(workflowSource);
-  const testsJob = jobNode(doc, "tests");
-  const testsSteps = steps(doc, testsJob);
-  const testsIndex = testsSteps.findIndex((step) => {
+  const jobSteps = steps(doc, jobNode(doc, spec.job));
+  const testsIndex = jobSteps.findIndex((step) => {
     const run = resolveScalar(doc, mapGet(doc, step, "run"));
-    return typeof run === "string" && run.trim().startsWith("pnpm verify:tests");
+    return typeof run === "string" && run.trim().startsWith(`pnpm ${spec.testsScript}`);
   });
-  const pullStep = testsSteps.slice(0, Math.max(testsIndex, 0)).find((step) => {
+  const pullStep = jobSteps.slice(0, Math.max(testsIndex, 0)).find((step) => {
     const run = resolveScalar(doc, mapGet(doc, step, "run"));
-    return typeof run === "string" && run.trim() === PULL_WITH_RETRIES_COMMAND;
+    return typeof run === "string" && run.trim() === pullWithRetriesCommand(spec.constant);
   });
 
+  const pullStepName = `verify.yml's ${spec.job} job pulls ${spec.label} in a step that`;
   if (pullStep === undefined) {
     violations.push(
-      "verify.yml's tests job has no step that pulls the cloud's Postgres image with retries before its verify:tests step",
+      `verify.yml's ${spec.job} job has no step that pulls ${spec.label} with retries before its ${spec.testsScript} step`,
     );
   } else {
-    const pulled = resolveScalar(doc, mapGet(doc, mapGet(doc, pullStep, "env"), "POSTGRES_IMAGE"));
+    const pulled = resolveScalar(doc, mapGet(doc, mapGet(doc, pullStep, "env"), spec.constant));
     if (pulled !== image) {
       violations.push(
-        `verify.yml's tests job pulls \`${pulled}\`, but the cloud's tests start \`${image}\``,
+        `verify.yml's ${spec.job} job pulls \`${pulled}\`, but ${spec.setupPath} starts \`${image}\``,
       );
     }
     if (mayContinueOnError(doc, pullStep)) {
-      violations.push("verify.yml's tests job's Postgres pull step sets continue-on-error");
+      violations.push(`${pullStepName} sets continue-on-error`);
     }
     if (mapHas(doc, pullStep, "if")) {
-      violations.push("verify.yml's tests job's Postgres pull step has its own if");
+      violations.push(`${pullStepName} has its own if`);
     }
     if (mapHas(doc, pullStep, "shell")) {
-      violations.push("verify.yml's tests job's Postgres pull step sets its own shell");
+      violations.push(`${pullStepName} sets its own shell`);
     }
   }
 
@@ -408,11 +426,34 @@ export function findCloudPostgresImageViolations(workflowSource, postgresSetupSo
   // job, so there is nothing left for it to clean up.
   const ryukDisabled = resolveScalar(
     doc,
-    mapGet(doc, mapGet(doc, testsSteps[testsIndex], "env"), "TESTCONTAINERS_RYUK_DISABLED"),
+    mapGet(doc, mapGet(doc, jobSteps[testsIndex], "env"), "TESTCONTAINERS_RYUK_DISABLED"),
   );
   if (String(ryukDisabled) !== "true") {
     violations.push(
-      "verify.yml's tests job's verify:tests step does not set TESTCONTAINERS_RYUK_DISABLED to true",
+      `verify.yml's ${spec.job} job's ${spec.testsScript} step does not set TESTCONTAINERS_RYUK_DISABLED to true`,
+    );
+  }
+  return { image, violations };
+}
+
+export function findCloudPostgresImageViolations(workflowSource, postgresSetupSource) {
+  return findPrePulledImageViolations(workflowSource, postgresSetupSource, CLOUD_POSTGRES_IMAGE)
+    .violations;
+}
+
+export function findCatalogVisualImageViolations(
+  workflowSource,
+  catalogVisualSetupSource,
+  installedPlaywrightVersion,
+) {
+  const { image, violations } = findPrePulledImageViolations(
+    workflowSource,
+    catalogVisualSetupSource,
+    CATALOG_VISUAL_IMAGE,
+  );
+  if (image !== undefined && !image.includes(`:v${installedPlaywrightVersion}-`)) {
+    violations.push(
+      `${CATALOG_VISUAL_IMAGE.label} \`${image}\` is not the installed Playwright version ${installedPlaywrightVersion}`,
     );
   }
   return violations;
@@ -422,11 +463,18 @@ export function checkRepository({
   readFile = (path) => readFileSync(path, "utf8"),
   workflowPath = WORKFLOW_PATH,
   packageJsonPath = PACKAGE_JSON_PATH,
-  postgresSetupPath = CLOUD_POSTGRES_SETUP_PATH,
 } = {}) {
   const workflowSource = readFile(workflowPath);
+  const installedPlaywrightVersion = JSON.parse(
+    readFile(INSTALLED_PLAYWRIGHT_PACKAGE_JSON_PATH),
+  ).version;
   return [
     ...findVerifyWorkflowViolations(workflowSource, readFile(packageJsonPath)),
-    ...findCloudPostgresImageViolations(workflowSource, readFile(postgresSetupPath)),
+    ...findCloudPostgresImageViolations(workflowSource, readFile(CLOUD_POSTGRES_IMAGE.setupPath)),
+    ...findCatalogVisualImageViolations(
+      workflowSource,
+      readFile(CATALOG_VISUAL_IMAGE.setupPath),
+      installedPlaywrightVersion,
+    ),
   ];
 }
