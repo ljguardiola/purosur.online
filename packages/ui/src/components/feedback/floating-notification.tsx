@@ -46,6 +46,7 @@ export function FloatingNotification({
 
   return createPortal(
     <Group
+      role="presentation"
       onHoverChange={setHovered}
       onFocus={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) {

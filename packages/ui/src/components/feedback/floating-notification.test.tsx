@@ -299,6 +299,12 @@ test("leaving on its own while focus is inside, gives focus back to where it was
   });
 });
 
+test("adds no container of its own to what assistive tech reads", async () => {
+  await render(notification({ onDismiss: () => {} }));
+
+  expect(floatingElement().getAttribute("role")).toBe("presentation");
+});
+
 test("does not take focus when it appears", async () => {
   const screen = await render(<button type="button">Elsewhere</button>);
   const elsewhere = screen.getByRole("button", { name: "Elsewhere" }).element() as HTMLElement;
