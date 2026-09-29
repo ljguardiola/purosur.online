@@ -105,7 +105,7 @@
   --transition-property-background-text-border: background-color, color, border-color;
 
   --animate-spin: spin 1s linear infinite;
-  --animate-table-placeholder-reveal: table-placeholder-reveal 0s 300ms both;
+  --animate-placeholder-reveal: placeholder-reveal 0s 300ms both;
   --animate-table-loading-bar: table-loading-bar 1.2s linear infinite;
 
   @keyframes spin {
@@ -114,7 +114,7 @@
     }
   }
 
-  @keyframes table-placeholder-reveal {
+  @keyframes placeholder-reveal {
     from {
       opacity: 0;
     }

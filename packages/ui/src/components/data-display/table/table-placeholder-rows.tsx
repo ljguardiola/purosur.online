@@ -1,4 +1,9 @@
 import {
+  PlaceholderLine,
+  PlaceholderSquare,
+  placeholderLineWidthPercent,
+} from "../../feedback/placeholder-shapes";
+import {
   alignClassName,
   cellHorizontalPaddingClassName,
   rowBoxShadowClassName,
@@ -12,8 +17,6 @@ const PLACEHOLDER_ROW_IDS = [
   "placeholder-4",
   "placeholder-5",
 ];
-// Cycled per column so every placeholder bar gets a varied width without shifting on re-render.
-const PLACEHOLDER_WIDTHS_PERCENT = [72, 48, 64, 56, 80, 40];
 
 function PlaceholderRow<T>({
   columns,
@@ -27,13 +30,12 @@ function PlaceholderRow<T>({
       className={[
         "h-control-4xl",
         rowBoxShadowClassName(undefined, lastRow),
-        "animate-table-placeholder-reveal",
+        "animate-placeholder-reveal",
       ].join(" ")}
     >
       {columns.map((column, index) => {
         const actionsColumn = column.kind === "actions";
         const align = actionsColumn ? "start" : column.align;
-        const widthPercent = PLACEHOLDER_WIDTHS_PERCENT[index % PLACEHOLDER_WIDTHS_PERCENT.length];
         const first = index === 0;
         const last = index === columns.length - 1;
 
@@ -48,19 +50,14 @@ function PlaceholderRow<T>({
           >
             {actionsColumn ? (
               <div className="flex flex-row items-center justify-end gap-2">
-                <div className="size-control-md shrink-0 rounded-lg bg-surface-soft" />
-                {column.actions.length === 2 && (
-                  <div className="size-control-md shrink-0 rounded-lg bg-surface-soft" />
-                )}
+                <PlaceholderSquare />
+                {column.actions.length === 2 && <PlaceholderSquare />}
               </div>
             ) : (
               <div
                 className={["flex", align === "end" ? "justify-end" : "justify-start"].join(" ")}
               >
-                <div
-                  className="h-3 rounded-md bg-surface-soft"
-                  style={{ width: `${widthPercent}%` }}
-                />
+                <PlaceholderLine widthPercent={placeholderLineWidthPercent(index)} />
               </div>
             )}
           </td>
