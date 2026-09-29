@@ -2,7 +2,7 @@ import { Button, Modal, plural } from "@purosur/ui";
 import { ArrowLeft, Check, User, Users } from "lucide-react";
 import type { AssignedUser } from "./roles-api";
 
-type RoleSaveConfirmationModalProps = {
+type ConfirmRoleSaveModalProps = {
   open: boolean;
   roleName: string;
   assignedUsers: AssignedUser[];
@@ -11,14 +11,14 @@ type RoleSaveConfirmationModalProps = {
   onConfirm: () => void;
 };
 
-export function RoleSaveConfirmationModal({
+export function ConfirmRoleSaveModal({
   open,
   roleName,
   assignedUsers,
   submitting,
   onBack,
   onConfirm,
-}: RoleSaveConfirmationModalProps) {
+}: ConfirmRoleSaveModalProps) {
   return (
     <Modal
       open={open}

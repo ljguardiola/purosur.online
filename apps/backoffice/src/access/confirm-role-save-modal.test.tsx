@@ -2,7 +2,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import { RoleSaveConfirmationModal } from "./role-save-confirmation-modal";
+import { ConfirmRoleSaveModal } from "./confirm-role-save-modal";
 
 const assignedUsers = [
   { id: "user-amara", name: "Amara Ortiz" },
@@ -12,7 +12,7 @@ const assignedUsers = [
 function renderModal(handlers: { onBack?: () => void; onConfirm?: () => void } = {}) {
   return render(
     <main>
-      <RoleSaveConfirmationModal
+      <ConfirmRoleSaveModal
         open
         roleName="Depósito"
         assignedUsers={assignedUsers}

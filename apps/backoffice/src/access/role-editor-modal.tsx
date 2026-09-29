@@ -22,11 +22,11 @@ import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useRefreshAccess, useReloadRole, useRoleQuery } from "./access-queries";
 import { useAuthorization } from "./authorization-modal";
+import { ConfirmRoleSaveModal } from "./confirm-role-save-modal";
 import { roleDisplayName } from "./role-display";
 import { RoleEditorForm } from "./role-editor-form";
 import { roleNameMessage } from "./role-name-message";
 import { withOneAlertView } from "./role-permissions";
-import { RoleSaveConfirmationModal } from "./role-save-confirmation-modal";
 import {
   type CreateRoleOutcome,
   createRole,
@@ -375,7 +375,7 @@ function RoleEditorSession({
           />
         </div>
       </RoleEditorFrame>
-      <RoleSaveConfirmationModal
+      <ConfirmRoleSaveModal
         open={confirmingSave}
         roleName={stored ? roleDisplayName(stored) : ""}
         assignedUsers={stored?.assignedUsers ?? []}
