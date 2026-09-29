@@ -57,6 +57,7 @@ import { userEmailMessage } from "./email-field-message";
 import type { Passkey } from "./passkey-api";
 import { passkeyRowDetail } from "./passkey-row-detail";
 import { roleDisplayName, roleOptions } from "./role-display";
+import { roleFieldMessage } from "./role-field-message";
 import { useSendToMyAccount } from "./send-to-my-account";
 import type { authorizeSession, fetchSessionAuthorizationOptions } from "./session-api";
 import type { UserDetailScreenServices } from "./user-detail-services";
@@ -81,8 +82,6 @@ export type UserDetailScreenProps = {
   now?: () => Date;
   services: UserDetailScreenServices;
 };
-
-const ROLE_REQUIRED = "Elegí un rol.";
 
 type EditUserModalNotice =
   | { kind: "attemptFailed" }
@@ -136,7 +135,7 @@ function EditUserModal({
       }),
     },
     fields: { email: "email", role_id: "roleId", version: null },
-    messages: { email: userEmailMessage, roleId: ROLE_REQUIRED },
+    messages: { email: userEmailMessage, roleId: roleFieldMessage },
     onSubmit: async (request, { showWireFieldError, showFieldError }) => {
       setNotice(null);
       const outcome = await run(() => editUser(user.id, request));

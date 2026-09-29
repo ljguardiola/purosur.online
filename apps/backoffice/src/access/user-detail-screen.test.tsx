@@ -316,7 +316,9 @@ test("shows the role the cloud refused on Rol, not as a notice", async () => {
 
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
-  await expect.element(dialog.getByText("Elegí un rol.")).toBeVisible();
+  await expect
+    .element(dialog.getByText("Ese rol ya no está disponible. Elegí otro."))
+    .toBeVisible();
   expect(dialog.getByText("No se pudo guardar el cambio").query()).toBeNull();
 });
 

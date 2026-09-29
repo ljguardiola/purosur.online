@@ -638,7 +638,9 @@ test("shows a server validation_failed error for the role on Rol", async () => {
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
 
-  await expect.element(dialog.getByText("Elegí un rol.")).toBeVisible();
+  await expect
+    .element(dialog.getByText("Ese rol ya no está disponible. Elegí otro."))
+    .toBeVisible();
   await expect.element(screen.getByRole("dialog")).toBeVisible();
 });
 

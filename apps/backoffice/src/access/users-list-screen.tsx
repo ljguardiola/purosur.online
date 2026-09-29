@@ -38,6 +38,7 @@ import { useAuthorization } from "./authorization-modal";
 import { type BackofficeAccess, canReactivateUser } from "./backoffice-access";
 import { userEmailMessage } from "./email-field-message";
 import { roleDisplayName, roleOptions } from "./role-display";
+import { roleFieldMessage } from "./role-field-message";
 import type { UsersListFilters } from "./routes";
 import { useSendToMyAccount } from "./send-to-my-account";
 import type { authorizeSession, fetchSessionAuthorizationOptions } from "./session-api";
@@ -56,7 +57,6 @@ const NO_USERS: BranchUser[] = [];
 const NO_ROLES: BranchUserRole[] = [];
 
 const NAME_REQUIRED = "Ingresá el nombre.";
-const ROLE_REQUIRED = "Elegí un rol.";
 
 type FormNotice =
   | { kind: "attemptFailed" }
@@ -113,7 +113,7 @@ function NewUserModal({
       }),
     },
     fields: { first_name: "firstName", email: "email", role_id: "roleId" },
-    messages: { firstName: NAME_REQUIRED, email: userEmailMessage, roleId: ROLE_REQUIRED },
+    messages: { firstName: NAME_REQUIRED, email: userEmailMessage, roleId: roleFieldMessage },
     onSubmit: async (request, { values, showWireFieldError, showFieldError }) => {
       setNotice(null);
       setDeactivatedConflict(null);
