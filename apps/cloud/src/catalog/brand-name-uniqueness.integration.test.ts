@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { createBrand } from "@purosur/domain/catalog/use-cases";
+import { createBrand, editBrand } from "@purosur/domain/catalog/use-cases";
 import { sql as rawSql } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -44,5 +44,37 @@ describe("creating two brands with the same name concurrently on a real Postgres
       .from(brands)
       .where(rawSql`lower(${brands.name}) = lower(${name})`);
     expect(matching).toHaveLength(1);
+  });
+});
+
+describe("renaming two brands to the same name concurrently on a real Postgres through postgres-js", () => {
+  it("renames exactly one of them and reports the other as name_taken", async () => {
+    const created = await Promise.all(
+      ["Vitaco", "Cabrales"].map((name) =>
+        createBrand(new DrizzleCatalogStore(db), { name: `${name} ${randomUUID()}` }),
+      ),
+    );
+    const [first, second] = created.map((outcome) => {
+      if (outcome.kind !== "created") {
+        throw new Error("test setup: expected both brands to be created");
+      }
+      return outcome.brand;
+    });
+    if (!first || !second) {
+      throw new Error("test setup: expected two brands");
+    }
+    const name = `Dulcor ${randomUUID()}`;
+
+    const outcomes = await Promise.all([
+      editBrand(new DrizzleCatalogStore(db), { id: first.id, name, version: 1 }),
+      editBrand(new DrizzleCatalogStore(db), {
+        id: second.id,
+        name: name.toUpperCase(),
+        version: 1,
+      }),
+    ]);
+
+    expect(outcomes.filter((outcome) => outcome.kind === "applied")).toHaveLength(1);
+    expect(outcomes.filter((outcome) => outcome.kind === "name_taken")).toHaveLength(1);
   });
 });
