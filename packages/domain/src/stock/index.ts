@@ -1,4 +1,4 @@
-export { countResult } from "./model/stock-count.js";
+export { countResult, expectedBalance } from "./model/stock-count.js";
 export type {
   AdjustmentReason,
   LossReason,

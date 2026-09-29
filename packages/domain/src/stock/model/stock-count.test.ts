@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { countResult } from "./stock-count.js";
+import { countResult, expectedBalance } from "./stock-count.js";
 
 describe("countResult", () => {
   it("expects the current balance when nothing was applied after the count", () => {
@@ -43,5 +43,15 @@ describe("countResult", () => {
         },
       ),
     );
+  });
+});
+
+describe("expectedBalance", () => {
+  it("is the balance left after undoing what was applied after the moment", () => {
+    expect(expectedBalance({ balance: 11_400, appliedAfterCount: -1000 })).toBe(12_400);
+  });
+
+  it("is the current balance when nothing was applied after the moment", () => {
+    expect(expectedBalance({ balance: -4000, appliedAfterCount: 0 })).toBe(-4000);
   });
 });

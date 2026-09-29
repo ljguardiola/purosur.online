@@ -82,6 +82,7 @@ export {
   ADJUSTMENT_REASONS,
   adjustmentDirections,
   countResult,
+  expectedBalance,
   isCountedQuantity,
   isMovementQuantity,
   LOSS_REASONS,
