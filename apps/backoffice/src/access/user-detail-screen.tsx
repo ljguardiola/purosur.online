@@ -1,7 +1,10 @@
 import {
   Button,
+  EmptyState,
   IconButton,
   InlineNotice,
+  LoadFailure,
+  LoadingPlaceholder,
   Modal,
   Select,
   Tag,
@@ -12,6 +15,7 @@ import type { startAuthentication } from "@simplewebauthn/browser";
 import { useNavigate } from "@tanstack/react-router";
 import {
   Check,
+  KeyRound,
   Laptop,
   Lock,
   Pencil,
@@ -24,17 +28,35 @@ import {
   UserX,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import { combineCloudData } from "../platform/combine-cloud-data";
 import { retryAfterDetail } from "../platform/retry-after-detail";
+import type { CloudData } from "../platform/use-cloud-query";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
+import {
+  type PasskeyList,
+  type UserRead,
+  useRefreshAccess,
+  useReloadUser,
+  useRolesQuery,
+  useUserPasskeysQuery,
+  useUserQuery,
+} from "./access-queries";
 import { useAuthorization } from "./authorization-modal";
-import { type BackofficeAccess, canDeactivateUser, canReactivateUser } from "./backoffice-access";
+import {
+  type BackofficeAccess,
+  canDeactivateUser,
+  canReactivateUser,
+  canSeeUsersArea,
+} from "./backoffice-access";
 import { validateEmail } from "./email-validation";
+import type { Passkey } from "./passkey-api";
 import { passkeyRowDetail } from "./passkey-row-detail";
 import { roleDisplayName, roleOptions } from "./role-display";
-import type { fetchRoles } from "./roles-api";
 import { useSendToMyAccount } from "./send-to-my-account";
 import type { authorizeSession, fetchSessionAuthorizationOptions } from "./session-api";
 import type { UserDetailScreenServices } from "./user-detail-services";
@@ -45,12 +67,10 @@ import type {
   deactivateUser,
   EditUserOutcome,
   editUser,
-  fetchUser,
   ReactivateUserOutcome,
   RemoveUserPasskeyOutcome,
   reactivateUser,
   removeUserPasskey,
-  UserPasskey,
 } from "./users-api";
 
 export type UserDetailScreenProps = {
@@ -62,19 +82,6 @@ export type UserDetailScreenProps = {
   services: UserDetailScreenServices;
 };
 
-type DetailState =
-  | { kind: "loading" }
-  | { kind: "notFound" }
-  | { kind: "loadError" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "loaded"; user: BranchUser; roles: BranchUserRole[] };
-
-type PasskeysState =
-  | { kind: "loading" }
-  | { kind: "loadError" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "loaded"; passkeys: UserPasskey[]; loadedAt: Date };
-
 const EMAIL_REQUIRED = "Ingresá el correo.";
 const EMAIL_INVALID = "Ingresá un correo válido.";
 
@@ -82,22 +89,19 @@ const EMAIL_ERRORS = { required: EMAIL_REQUIRED, invalid: EMAIL_INVALID };
 
 type EditUserModalNotice =
   | { kind: "attemptFailed" }
-  | { kind: "rateLimited"; retryAfterSeconds: number; offersReload: boolean }
+  | { kind: "rateLimited"; retryAfterSeconds: number }
   | { kind: "staleVersion" }
   | { kind: "lastAdministrator" }
-  | { kind: "unknownRole" }
-  | { kind: "reloadFailed" };
+  | { kind: "unknownRole" };
 
 type EditUserModalProps = {
   open: boolean;
   user: BranchUser;
   roles: BranchUserRole[];
   onClose: () => void;
-  onSaved: (user: BranchUser) => void;
-  onReloaded: (user: BranchUser) => void;
-  onReloadRejected: (state: "notFound") => void;
+  onSaved: () => void;
   onSessionEnded: () => void;
-  fetchUser: typeof fetchUser;
+  reload: (userId: string) => Promise<CloudReadOutcome<UserRead>>;
   editUser: typeof editUser;
   fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
   authorizeSession: typeof authorizeSession;
@@ -110,10 +114,8 @@ function EditUserModal({
   roles,
   onClose,
   onSaved,
-  onReloaded,
-  onReloadRejected,
   onSessionEnded,
-  fetchUser,
+  reload,
   editUser,
   fetchSessionAuthorizationOptions,
   authorizeSession,
@@ -161,7 +163,7 @@ function EditUserModal({
       return;
     }
     if (outcome.kind === "ok") {
-      onSaved(outcome.value);
+      onSaved();
       return;
     }
     if (outcome.kind === "unauthenticated") {
@@ -199,11 +201,7 @@ function EditUserModal({
       return;
     }
     if (outcome.kind === "rate_limited") {
-      setNotice({
-        kind: "rateLimited",
-        retryAfterSeconds: outcome.retryAfterSeconds,
-        offersReload: false,
-      });
+      setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
       setSubmitting(false);
       return;
     }
@@ -213,39 +211,14 @@ function EditUserModal({
 
   async function handleReload() {
     setSubmitting(true);
-    const outcome = await fetchUser(user.id);
-    if (outcome.kind === "ok") {
-      setEmail(outcome.value.email);
-      setRoleId(outcome.value.role.id);
-      setVersion(outcome.value.version);
+    const outcome = await reload(user.id);
+    if (outcome.kind === "ok" && outcome.value.kind === "found") {
+      const fresh = outcome.value.user;
+      setEmail(fresh.email);
+      setRoleId(fresh.role.id);
+      setVersion(fresh.version);
       setNotice(null);
-      setSubmitting(false);
-      onReloaded(outcome.value);
-      return;
     }
-    if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
-      return;
-    }
-    if (outcome.kind === "not_found") {
-      onReloadRejected("notFound");
-      return;
-    }
-    if (outcome.kind === "forbidden") {
-      onClose();
-      sendToMyAccount();
-      return;
-    }
-    if (outcome.kind === "rate_limited") {
-      setNotice({
-        kind: "rateLimited",
-        retryAfterSeconds: outcome.retryAfterSeconds,
-        offersReload: true,
-      });
-      setSubmitting(false);
-      return;
-    }
-    setNotice({ kind: "reloadFailed" });
     setSubmitting(false);
   }
 
@@ -329,18 +302,7 @@ function EditUserModal({
               description="Cerrá esta ventana y volvé a intentarlo."
             />
           )}
-          {notice?.kind === "reloadFailed" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudieron recargar los datos"
-              description="Probá de nuevo."
-            />
-          )}
-          {(notice?.kind === "staleVersion" ||
-            notice?.kind === "lastAdministrator" ||
-            notice?.kind === "reloadFailed" ||
-            (notice?.kind === "rateLimited" && notice.offersReload)) && (
+          {(notice?.kind === "staleVersion" || notice?.kind === "lastAdministrator") && (
             <Button
               variant="secondary"
               icon={<RotateCcw />}
@@ -394,7 +356,7 @@ function EditUserModal({
 }
 
 type RemoveUserPasskeyModalProps = {
-  target: UserPasskey | null;
+  target: Passkey | null;
   userId: string;
   userName: string;
   isOnlyPasskey: boolean;
@@ -825,21 +787,70 @@ function ReactivateUserModal({
   );
 }
 
-export function UserDetailScreen({
+const NO_ROLES: BranchUserRole[] = [];
+
+export function UserDetailScreen(props: UserDetailScreenProps) {
+  return props.access.isAdministrator ? (
+    <AdministratorUserDetail {...props} />
+  ) : (
+    <ReaderUserDetail {...props} />
+  );
+}
+
+function AdministratorUserDetail(props: UserDetailScreenProps) {
+  const { userId, onSessionEnded, now } = props;
+  const { fetchUser, fetchRoles, fetchUserPasskeys } = props.services;
+  const data = combineCloudData(
+    useUserQuery({ userId, fetchUser, onSessionEnded }),
+    useRolesQuery({ fetchRoles, onSessionEnded }),
+  );
+  const passkeys = useUserPasskeysQuery({
+    userId,
+    fetchUserPasskeys,
+    now: now ?? (() => new Date()),
+    onSessionEnded,
+  });
+  const [userRead, roles] = data.status === "loaded" ? data.value : [undefined, NO_ROLES];
+  return (
+    <UserDetailView {...props} data={data} userRead={userRead} roles={roles} passkeys={passkeys} />
+  );
+}
+
+function ReaderUserDetail(props: UserDetailScreenProps) {
+  const { userId, onSessionEnded } = props;
+  const data = useUserQuery({ userId, fetchUser: props.services.fetchUser, onSessionEnded });
+  return (
+    <UserDetailView
+      {...props}
+      data={data}
+      userRead={data.status === "loaded" ? data.value : undefined}
+      roles={NO_ROLES}
+    />
+  );
+}
+
+type UserDetailViewProps = UserDetailScreenProps & {
+  data: CloudData<unknown>;
+  userRead: UserRead | undefined;
+  roles: BranchUserRole[];
+  passkeys?: CloudData<PasskeyList>;
+};
+
+function UserDetailView({
   userId,
   signedInUserId,
   access,
   onSessionEnded,
-  now,
   services,
-}: UserDetailScreenProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  data,
+  userRead,
+  roles,
+  passkeys,
+}: UserDetailViewProps) {
   const navigate = useNavigate();
   const {
     fetchUser,
     editUser,
-    fetchRoles,
-    fetchUserPasskeys,
     removeUserPasskey,
     deactivateUser,
     reactivateUser,
@@ -847,89 +858,27 @@ export function UserDetailScreen({
     authorizeSession,
     startAuthentication,
   } = services;
-  const clock = now ?? (() => new Date());
-  const [state, setState] = useState<DetailState>({ kind: "loading" });
-  const [passkeysState, setPasskeysState] = useState<PasskeysState>({ kind: "loading" });
-  const [removeTarget, setRemoveTarget] = useState<UserPasskey | null>(null);
+  const refreshAccess = useRefreshAccess();
+  const reloadUser = useReloadUser({ fetchUser });
+  const [removeTarget, setRemoveTarget] = useState<Passkey | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [deactivateModalOpen, setDeactivateModalOpen] = useState(false);
   const [reactivateModalOpen, setReactivateModalOpen] = useState(false);
-  const onSessionEndedRef = useLatestRef(onSessionEnded);
-  const endSession = useCallback(() => onSessionEndedRef.current(), [onSessionEndedRef]);
-  const clockRef = useLatestRef(clock);
 
-  const loadPasskeys = useCallback(async () => {
-    setPasskeysState({ kind: "loading" });
-    const outcome = await fetchUserPasskeys(userId);
-    if (outcome.kind === "ok") {
-      setPasskeysState({ kind: "loaded", passkeys: outcome.value, loadedAt: clockRef.current() });
-    } else if (outcome.kind === "unauthenticated") {
-      endSession();
-    } else if (outcome.kind === "forbidden") {
-      sendToMyAccount();
-    } else if (outcome.kind === "rate_limited") {
-      setPasskeysState({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
-    } else {
-      setPasskeysState({ kind: "loadError" });
-    }
-  }, [userId, endSession, fetchUserPasskeys, sendToMyAccount, clockRef]);
-
-  const showsPasskeys = access.isAdministrator;
-  const needsRoles = access.isAdministrator;
-  const load = useCallback(async () => {
-    setState({ kind: "loading" });
-    const noRolesNeeded: Awaited<ReturnType<typeof fetchRoles>> = { kind: "ok", value: [] };
-    const [userOutcome, rolesOutcome] = await Promise.all([
-      fetchUser(userId),
-      needsRoles ? fetchRoles() : Promise.resolve(noRolesNeeded),
-    ]);
-    if (userOutcome.kind === "unauthenticated" || rolesOutcome.kind === "unauthenticated") {
-      endSession();
-      return;
-    }
-    if (userOutcome.kind === "not_found") {
-      setState({ kind: "notFound" });
-      return;
-    }
-    const rateLimited = [userOutcome, rolesOutcome].flatMap((outcome) =>
-      outcome.kind === "rate_limited" ? [outcome.retryAfterSeconds] : [],
-    );
-    if (rateLimited.length > 0) {
-      setState({ kind: "rate_limited", retryAfterSeconds: Math.max(...rateLimited) });
-      return;
-    }
-    if (userOutcome.kind === "forbidden" || rolesOutcome.kind === "forbidden") {
-      sendToMyAccount();
-      return;
-    }
-    if (userOutcome.kind === "ok" && rolesOutcome.kind === "ok") {
-      setState({ kind: "loaded", user: userOutcome.value, roles: rolesOutcome.value });
-      if (showsPasskeys) {
-        void loadPasskeys();
-      }
-      return;
-    }
-    setState({ kind: "loadError" });
-  }, [
-    userId,
-    endSession,
-    fetchUser,
-    fetchRoles,
-    needsRoles,
-    loadPasskeys,
-    showsPasskeys,
-    sendToMyAccount,
-  ]);
+  const user = userRead?.kind === "found" ? userRead.user : undefined;
+  const notFound = userRead?.kind === "not_found";
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (!user) {
+      setModalOpen(false);
+    }
+  }, [user]);
 
-  const heading = state.kind === "loaded" ? state.user.firstName : "Usuario";
+  const heading = user ? user.firstName : "Usuario";
   // The cloud accepts a user id in any letter case, so the URL's id may differ in case from the
   // session's own.
   const isOwnAccount = signedInUserId.toLowerCase() === userId.toLowerCase();
-  const isInactive = state.kind === "loaded" && state.user.active === false;
+  const isInactive = user?.active === false;
 
   return (
     <>
@@ -947,250 +896,216 @@ export function UserDetailScreen({
         }
         bodyClassName="gap-4 p-6"
       >
-        {state.kind === "loading" && <p role="status">Cargando…</p>}
-        {state.kind === "notFound" && (
+        {notFound ? (
           <>
             <InlineNotice tone="error" icon={<UserX />} title="No encontramos este usuario" />
             <Button variant="secondary" onPress={() => navigate({ to: "/settings/users" })}>
               Volver a Usuarios
             </Button>
           </>
-        )}
-        {state.kind === "loadError" && (
+        ) : (
           <>
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No pudimos abrir este usuario"
-              description="Probá de nuevo en unos minutos."
-            />
-            <Button variant="secondary" onPress={() => void load()}>
-              Reintentar
-            </Button>
-          </>
-        )}
-        {state.kind === "rate_limited" && (
-          <>
-            <InlineNotice
-              tone="error"
-              icon={<ShieldX />}
-              title="Demasiadas solicitudes"
-              description={retryAfterDetail(state.retryAfterSeconds)}
-            />
-            <Button variant="secondary" onPress={() => void load()}>
-              Reintentar
-            </Button>
-          </>
-        )}
-        {state.kind === "loaded" && (
-          <div className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4">
-            <div className="flex items-center gap-3">
-              <h2 className="flex-1 text-subheading text-text-accent">Datos</h2>
-              {access.isAdministrator && !isInactive && (
+            <div className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4">
+              <div className="flex items-center gap-3">
+                <h2 className="flex-1 text-subheading text-text-accent">Datos</h2>
+                {access.isAdministrator && !isInactive && (
+                  <Button
+                    variant="secondary"
+                    size="small"
+                    icon={<Pencil />}
+                    dataStatus={data.status}
+                    onPress={() => setModalOpen(true)}
+                  >
+                    Editar
+                  </Button>
+                )}
+              </div>
+              {data.status === "loading" && <LoadingPlaceholder variant="form" fields={2} />}
+              {data.status === "failed" && (
+                <LoadFailure {...cloudLoadFailure(data, "este usuario")} />
+              )}
+              {user ? (
+                <div className="flex gap-8">
+                  <div className="flex flex-col gap-1">
+                    <p className="font-bold text-text-subtle text-detail">Rol</p>
+                    <p className="font-semibold text-body text-text">
+                      {roleDisplayName(user.role)}
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <p className="font-bold text-text-subtle text-detail">Correo</p>
+                    <p className="font-semibold text-body text-text">{user.email}</p>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+            {passkeys ? (
+              <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+                <div className="flex items-center gap-3">
+                  <h2 className="flex-1 text-subheading text-text-accent">Passkeys</h2>
+                </div>
+                {passkeys.status === "loading" && <LoadingPlaceholder variant="list" items={2} />}
+                {passkeys.status === "failed" && (
+                  <LoadFailure {...cloudLoadFailure(passkeys, "las passkeys")} />
+                )}
+                {passkeys.status === "loaded" &&
+                  (passkeys.value.passkeys.length === 0 ? (
+                    <EmptyState
+                      icon={<KeyRound />}
+                      title="No tiene ninguna passkey registrada."
+                      variant="blank"
+                    />
+                  ) : (
+                    <ul className="flex flex-col gap-2">
+                      {passkeys.value.passkeys.map((passkey) => (
+                        <li key={passkey.id} className="flex items-center gap-3">
+                          <span
+                            aria-hidden="true"
+                            className="inline-flex size-icon-lg shrink-0 text-text-subtle"
+                          >
+                            <Laptop />
+                          </span>
+                          <div className="flex flex-1 flex-col gap-1">
+                            <p className="font-semibold text-body text-text">{passkey.name}</p>
+                            <p className="text-text-subtle text-detail">
+                              {passkeyRowDetail(passkey, passkeys.value.loadedAt)}
+                            </p>
+                          </div>
+                          {user && access.isAdministrator && !isOwnAccount && !isInactive && (
+                            <IconButton
+                              icon={<Trash2 />}
+                              aria-label={`Dar de baja la passkey «${passkey.name}»`}
+                              onPress={() => setRemoveTarget(passkey)}
+                            />
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  ))}
+              </div>
+            ) : null}
+            {!user && canSeeUsersArea(access) && !isOwnAccount && (
+              <div className="flex items-center justify-end">
                 <Button
                   variant="secondary"
                   size="small"
-                  icon={<Pencil />}
-                  onPress={() => setModalOpen(true)}
+                  destructive
+                  icon={<UserX />}
+                  dataStatus={data.status}
                 >
-                  Editar
+                  Desactivar
                 </Button>
-              )}
-            </div>
-            <div className="flex gap-8">
-              <div className="flex flex-col gap-1">
-                <p className="font-bold text-text-subtle text-detail">Rol</p>
-                <p className="font-semibold text-body text-text">
-                  {roleDisplayName(state.user.role)}
+              </div>
+            )}
+            {user && !isInactive && canDeactivateUser(access, user.role) && !isOwnAccount && (
+              <div className="flex items-center gap-3">
+                <p className="flex-1 text-text-subtle text-detail">
+                  {`Al desactivar a ${user.firstName}, deja de poder entrar a la caja y al backoffice; su historial queda igual.`}
                 </p>
-              </div>
-              <div className="flex flex-col gap-1">
-                <p className="font-bold text-text-subtle text-detail">Correo</p>
-                <p className="font-semibold text-body text-text">{state.user.email}</p>
-              </div>
-            </div>
-          </div>
-        )}
-        {state.kind === "loaded" && showsPasskeys && (
-          <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
-            <div className="flex items-center gap-3">
-              <h2 className="flex-1 text-subheading text-text-accent">Passkeys</h2>
-            </div>
-            {passkeysState.kind === "loading" && <p role="status">Cargando las passkeys…</p>}
-            {passkeysState.kind === "loadError" && (
-              <>
-                <InlineNotice
-                  tone="error"
-                  icon={<TriangleAlert />}
-                  title="No pudimos abrir las passkeys"
-                  description="Probá de nuevo en unos minutos."
-                />
-                <Button variant="secondary" onPress={() => void loadPasskeys()}>
-                  Reintentar
+                <Button
+                  variant="secondary"
+                  size="small"
+                  destructive
+                  icon={<UserX />}
+                  dataStatus={data.status}
+                  onPress={() => setDeactivateModalOpen(true)}
+                >
+                  {`Desactivar a ${user.firstName}`}
                 </Button>
-              </>
+              </div>
             )}
-            {passkeysState.kind === "rate_limited" && (
-              <>
-                <InlineNotice
-                  tone="error"
-                  icon={<ShieldX />}
-                  title="Demasiadas solicitudes"
-                  description={retryAfterDetail(passkeysState.retryAfterSeconds)}
-                />
-                <Button variant="secondary" onPress={() => void loadPasskeys()}>
-                  Reintentar
+            {user && isInactive && canReactivateUser(access) && (
+              <div className="flex items-center gap-3">
+                <p className="flex-1 text-text-subtle text-detail">
+                  {`Al reactivar a ${user.firstName}, vuelve a entrar a la caja y al backoffice con su misma cuenta: mismo correo, rol y passkeys.`}
+                </p>
+                <Button
+                  variant="secondary"
+                  size="small"
+                  icon={<UserCheck />}
+                  dataStatus={data.status}
+                  onPress={() => setReactivateModalOpen(true)}
+                >
+                  {`Reactivar a ${user.firstName}`}
                 </Button>
-              </>
+              </div>
             )}
-            {passkeysState.kind === "loaded" &&
-              (passkeysState.passkeys.length === 0 ? (
-                <p className="text-text-subtle text-detail">No tiene ninguna passkey registrada.</p>
-              ) : (
-                <ul className="flex flex-col gap-2">
-                  {passkeysState.passkeys.map((passkey) => (
-                    <li key={passkey.id} className="flex items-center gap-3">
-                      <span
-                        aria-hidden="true"
-                        className="inline-flex size-icon-lg shrink-0 text-text-subtle"
-                      >
-                        <Laptop />
-                      </span>
-                      <div className="flex flex-1 flex-col gap-1">
-                        <p className="font-semibold text-body text-text">{passkey.name}</p>
-                        <p className="text-text-subtle text-detail">
-                          {passkeyRowDetail(passkey, passkeysState.loadedAt)}
-                        </p>
-                      </div>
-                      {access.isAdministrator && !isOwnAccount && !isInactive && (
-                        <IconButton
-                          icon={<Trash2 />}
-                          aria-label={`Dar de baja la passkey «${passkey.name}»`}
-                          onPress={() => setRemoveTarget(passkey)}
-                        />
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              ))}
-          </div>
-        )}
-        {state.kind === "loaded" &&
-          !isInactive &&
-          canDeactivateUser(access, state.user.role) &&
-          !isOwnAccount && (
-            <div className="flex items-center gap-3">
-              <p className="flex-1 text-text-subtle text-detail">
-                {`Al desactivar a ${state.user.firstName}, deja de poder entrar a la caja y al backoffice; su historial queda igual.`}
-              </p>
-              <Button
-                variant="secondary"
-                size="small"
-                destructive
-                icon={<UserX />}
-                onPress={() => setDeactivateModalOpen(true)}
-              >
-                {`Desactivar a ${state.user.firstName}`}
-              </Button>
-            </div>
-          )}
-        {state.kind === "loaded" && isInactive && canReactivateUser(access) && (
-          <div className="flex items-center gap-3">
-            <p className="flex-1 text-text-subtle text-detail">
-              {`Al reactivar a ${state.user.firstName}, vuelve a entrar a la caja y al backoffice con su misma cuenta: mismo correo, rol y passkeys.`}
-            </p>
-            <Button
-              variant="secondary"
-              size="small"
-              icon={<UserCheck />}
-              onPress={() => setReactivateModalOpen(true)}
-            >
-              {`Reactivar a ${state.user.firstName}`}
-            </Button>
-          </div>
+          </>
         )}
       </ScreenLayout>
-      {state.kind === "loaded" && (
+      {user ? (
         <RemoveUserPasskeyModal
           target={removeTarget}
           userId={userId}
-          userName={state.user.firstName}
-          isOnlyPasskey={passkeysState.kind === "loaded" && passkeysState.passkeys.length === 1}
+          userName={user.firstName}
+          isOnlyPasskey={passkeys?.status === "loaded" && passkeys.value.passkeys.length === 1}
           onClose={() => setRemoveTarget(null)}
-          onRemoved={(passkeyId) => {
+          onRemoved={() => {
             setRemoveTarget(null);
-            setPasskeysState((current) =>
-              current.kind === "loaded"
-                ? { ...current, passkeys: current.passkeys.filter((p) => p.id !== passkeyId) }
-                : current,
-            );
+            void refreshAccess();
           }}
-          onSessionEnded={endSession}
+          onSessionEnded={onSessionEnded}
           removeUserPasskey={removeUserPasskey}
           fetchSessionAuthorizationOptions={fetchSessionAuthorizationOptions}
           authorizeSession={authorizeSession}
           startAuthentication={startAuthentication}
         />
-      )}
-      {state.kind === "loaded" && (
+      ) : null}
+      {user ? (
         <EditUserModal
           open={modalOpen}
-          user={state.user}
-          roles={state.roles}
+          user={user}
+          roles={roles}
           onClose={() => setModalOpen(false)}
-          onSaved={(user) => {
-            setState({ kind: "loaded", user, roles: state.roles });
+          onSaved={() => {
             setModalOpen(false);
+            void refreshAccess();
           }}
-          onReloaded={(user) => setState({ kind: "loaded", user, roles: state.roles })}
-          onReloadRejected={(kind) => {
-            setState({ kind });
-            setModalOpen(false);
-          }}
-          onSessionEnded={endSession}
-          fetchUser={fetchUser}
+          onSessionEnded={onSessionEnded}
+          reload={reloadUser}
           editUser={editUser}
           fetchSessionAuthorizationOptions={fetchSessionAuthorizationOptions}
           authorizeSession={authorizeSession}
           startAuthentication={startAuthentication}
         />
-      )}
-      {state.kind === "loaded" && (
+      ) : null}
+      {user ? (
         <DeactivateUserModal
           open={deactivateModalOpen}
-          user={state.user}
+          user={user}
           onClose={() => setDeactivateModalOpen(false)}
           onDeactivated={() => {
             setDeactivateModalOpen(false);
+            void refreshAccess();
             void navigate({ to: "/settings/users" });
           }}
           onVanished={() => {
             setDeactivateModalOpen(false);
-            setState({ kind: "notFound" });
+            void refreshAccess();
           }}
-          onSessionEnded={endSession}
+          onSessionEnded={onSessionEnded}
           deactivateUser={deactivateUser}
           fetchSessionAuthorizationOptions={fetchSessionAuthorizationOptions}
           authorizeSession={authorizeSession}
           startAuthentication={startAuthentication}
         />
-      )}
-      {state.kind === "loaded" && (
+      ) : null}
+      {user ? (
         <ReactivateUserModal
           open={reactivateModalOpen}
-          user={state.user}
+          user={user}
           onClose={() => setReactivateModalOpen(false)}
           onReactivated={() => {
             setReactivateModalOpen(false);
-            void load();
+            void refreshAccess();
           }}
-          onSessionEnded={endSession}
+          onSessionEnded={onSessionEnded}
           reactivateUser={reactivateUser}
           fetchSessionAuthorizationOptions={fetchSessionAuthorizationOptions}
           authorizeSession={authorizeSession}
           startAuthentication={startAuthentication}
         />
-      )}
+      ) : null}
     </>
   );
 }

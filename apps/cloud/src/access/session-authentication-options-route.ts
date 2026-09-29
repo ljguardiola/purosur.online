@@ -1,3 +1,4 @@
+import { sessionAuthenticationOptionsSchema } from "@purosur/contracts";
 import { generateAuthenticationOptions } from "@simplewebauthn/server";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -45,7 +46,11 @@ export function registerSessionAuthenticationOptionsRoute<TQueryResult extends P
         now: issuedAt,
       });
 
-      await reply.code(200).send({ passkey_authentication_options: authenticationOptions });
+      await reply.code(200).send(
+        sessionAuthenticationOptionsSchema.parse({
+          passkey_authentication_options: authenticationOptions,
+        }),
+      );
     },
   );
 }

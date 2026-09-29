@@ -1,3 +1,4 @@
+import { type RoleSummaryWire, roleSummarySchema } from "@purosur/contracts";
 import { PERMISSION_KEYS } from "@purosur/domain";
 import { asc, desc, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -20,22 +21,14 @@ export interface RoleSummaryRow {
   userCount: number;
 }
 
-export interface RoleSummaryWire {
-  id: string;
-  name: string | null;
-  is_administrator: boolean;
-  permissions: string[];
-  user_count: number;
-}
-
 export function toRoleSummaryWire(row: RoleSummaryRow): RoleSummaryWire {
-  return {
+  return roleSummarySchema.parse({
     id: row.id,
     name: row.name,
     is_administrator: row.isAdministrator,
     permissions: row.permissionKeys,
     user_count: row.userCount,
-  };
+  });
 }
 
 async function listRoles<TQueryResult extends PgQueryResultHKT>(

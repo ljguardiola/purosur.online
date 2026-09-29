@@ -1,27 +1,22 @@
 import { PERMISSION_KEYS } from "@purosur/domain";
-import { Button, InlineNotice, plural, Table } from "@purosur/ui";
-import { Copy, Lock, Pencil, Plus, ShieldX, TriangleAlert } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
-import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useLatestRef } from "../platform/use-latest-ref";
+import { Button, plural, Table } from "@purosur/ui";
+import { Copy, Lock, Pencil, Plus, Shield } from "lucide-react";
+import { useEffect, useState } from "react";
+import { cloudTableState } from "../platform/cloud-table-state";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
+import { useRefreshAccess, useRolesQuery } from "./access-queries";
 import { roleDisplayName } from "./role-display";
 import { RoleEditorModal, type RoleEditorRequest } from "./role-editor-modal";
 import type { RoleSummary } from "./roles-api";
 import type { RolesListScreenServices } from "./roles-list-services";
-import { useSendToMyAccount } from "./send-to-my-account";
 
 export type RolesListScreenProps = {
   onSessionEnded: () => void;
   services: RolesListScreenServices;
 };
 
-type ListState =
-  | { kind: "loading" }
-  | { kind: "loadError" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "loaded"; roles: RoleSummary[] };
+const NO_ROLES: RoleSummary[] = [];
 
 function permissionsCellContent(role: RoleSummary) {
   return role.isAdministrator
@@ -84,34 +79,18 @@ function columnsFor(openEditor: (request: RoleEditorRequest) => void) {
 }
 
 export function RolesListScreen({ onSessionEnded, services }: RolesListScreenProps) {
-  const sendToMyAccount = useSendToMyAccount();
   const { fetchRoles, roleEditorModal } = services;
-  const [list, setList] = useState<ListState>({ kind: "loading" });
+  const data = useRolesQuery({ fetchRoles, onSessionEnded });
+  const refreshAccess = useRefreshAccess();
   const [editorRequest, setEditorRequest] = useState<RoleEditorRequest | null>(null);
 
-  const onSessionEndedRef = useLatestRef(onSessionEnded);
-
-  const load = useCallback(async () => {
-    setList({ kind: "loading" });
-    const outcome = await fetchRoles();
-    if (outcome.kind === "ok") {
-      setList({ kind: "loaded", roles: outcome.value });
-    } else if (outcome.kind === "unauthenticated") {
-      onSessionEndedRef.current();
-    } else if (outcome.kind === "rate_limited") {
-      setList({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
-    } else if (outcome.kind === "forbidden") {
-      sendToMyAccount();
-    } else {
-      setList({ kind: "loadError" });
-    }
-  }, [fetchRoles, onSessionEndedRef, sendToMyAccount]);
-
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (data.status === "failed") {
+      setEditorRequest((request) => (request?.kind === "new" ? request : null));
+    }
+  }, [data.status]);
 
-  const roles = list.kind === "loaded" ? list.roles : [];
+  const roles = data.status === "loaded" ? data.value : NO_ROLES;
   const columns = columnsFor(setEditorRequest);
 
   return (
@@ -133,51 +112,31 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
       }
       bodyClassName="gap-4 p-6"
     >
-      {list.kind === "loadError" && (
-        <>
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title="No pudimos abrir los roles"
-            description="Probá de nuevo en unos minutos."
-          />
-          <Button variant="secondary" onPress={() => void load()}>
-            Reintentar
-          </Button>
-        </>
-      )}
-      {list.kind === "rate_limited" && (
-        <>
-          <InlineNotice
-            tone="error"
-            icon={<ShieldX />}
-            title="Demasiadas solicitudes"
-            description={retryAfterDetail(list.retryAfterSeconds)}
-          />
-          <Button variant="secondary" onPress={() => void load()}>
-            Reintentar
-          </Button>
-        </>
-      )}
-      {(list.kind === "loading" || list.kind === "loaded") && (
-        <Table
-          aria-label="Roles"
-          columns={columns}
-          loading={list.kind === "loading" ? "initial" : false}
-          rows={roles.map((role) => ({ id: role.id, item: role }))}
-          footer={
+      <Table
+        aria-label="Roles"
+        columns={columns}
+        {...cloudTableState(data, "los roles")}
+        rows={roles.map((role) => ({ id: role.id, item: role }))}
+        empty={{
+          icon: <Shield />,
+          title: "Todavía no hay roles",
+          description: "Creá el primero para poder asignárselo a un usuario.",
+          variant: "blank",
+        }}
+        footer={
+          roles.length === 0 ? undefined : (
             <p className="text-text-subtle text-detail">
               {plural(roles.length, { one: "1 rol", other: `${roles.length} roles` })}
             </p>
-          }
-        />
-      )}
+          )
+        }
+      />
       <RoleEditorModal
         request={editorRequest}
         onClose={() => setEditorRequest(null)}
         onSaved={() => {
           setEditorRequest(null);
-          void load();
+          void refreshAccess();
         }}
         onSessionEnded={onSessionEnded}
         {...(roleEditorModal ? { services: roleEditorModal } : {})}

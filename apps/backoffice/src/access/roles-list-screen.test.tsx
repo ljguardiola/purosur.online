@@ -1,12 +1,14 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { RoleSummary } from "./roles-api";
 import { RolesListScreen } from "./roles-list-screen";
 import type { RolesListScreenServices } from "./roles-list-services";
 
-function createServices(overrides: Partial<RolesListScreenServices> = {}): RolesListScreenServices {
+function createServices(
+  overrides: Partial<RolesListScreenServices> = {},
+): RolesListScreenServices & Required<Pick<RolesListScreenServices, "roleEditorModal">> {
   return {
     fetchRoles: vi.fn(),
     roleEditorModal: {
@@ -44,6 +46,14 @@ const cashier: RoleSummary = {
   permissionKeys: ["sell_and_charge"],
   userCount: 3,
 };
+
+function deferred<T>() {
+  let resolve: (value: T) => void = () => {};
+  const promise = new Promise<T>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
 
 function renderScreen(services: RolesListScreenServices, onSessionEnded: () => void = () => {}) {
   return render(
@@ -198,6 +208,27 @@ test("the Nuevo rol button opens the editor modal, empty, over the list", async 
   await expect.element(screen.getByRole("textbox", { name: /^Nombre del rol/ })).toHaveValue("");
 });
 
+test("shows the roles table loading while the roles are on their way", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRoles).mockReturnValue(new Promise(() => {}));
+
+  const screen = await renderScreen(services);
+
+  await expect
+    .element(screen.getByRole("table", { name: "Roles" }))
+    .toHaveAttribute("aria-busy", "true");
+});
+
+test("shows an empty state when there are no roles yet", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("Todavía no hay roles")).toBeVisible();
+  await expect.element(screen.getByText("0 roles")).not.toBeInTheDocument();
+});
+
 test("shows a load error with a retry action when the roles fail to load", async () => {
   const services = createServices();
   vi.mocked(services.fetchRoles).mockResolvedValueOnce({ kind: "failed" });
@@ -211,7 +242,26 @@ test("shows a load error with a retry action when the roles fail to load", async
   await expect.element(screen.getByText("1 rol")).toBeVisible();
 });
 
-test("shows a rate-limited notice with a retry action", async () => {
+test("retrying a failed load starts again from the loading placeholder", async () => {
+  const services = createServices();
+  const retry = deferred<Awaited<ReturnType<typeof services.fetchRoles>>>();
+  vi.mocked(services.fetchRoles)
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockReturnValueOnce(retry.promise);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No pudimos abrir los roles")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText("No pudimos abrir los roles")).not.toBeInTheDocument();
+  await expect
+    .element(screen.getByRole("table", { name: "Roles" }))
+    .toHaveAttribute("aria-busy", "true");
+  retry.resolve({ kind: "ok", value: [administrator] });
+  await expect.element(screen.getByText("1 rol")).toBeVisible();
+});
+
+test("shows the rate-limited notice with the time to wait and a retry action", async () => {
   const services = createServices();
   vi.mocked(services.fetchRoles).mockResolvedValueOnce({
     kind: "rate_limited",
@@ -220,11 +270,52 @@ test("shows a rate-limited notice with a retry action", async () => {
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
+  await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
 
   vi.mocked(services.fetchRoles).mockResolvedValueOnce({ kind: "ok", value: [administrator] });
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
   await expect.element(screen.getByText("1 rol")).toBeVisible();
+});
+
+test("Nuevo rol stays available while the roles load and after they fail to load", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRoles).mockResolvedValueOnce({ kind: "failed" });
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByRole("button", { name: "Nuevo rol" })).toBeEnabled();
+  await expect.element(screen.getByText("No pudimos abrir los roles")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Nuevo rol" })).toBeEnabled();
+});
+
+test("saving a role reads the roles again from the server, keeping the shown rows while it does", async () => {
+  await page.viewport(1280, 900);
+  const services = createServices();
+  const refresh = deferred<Awaited<ReturnType<typeof services.fetchRoles>>>();
+  vi.mocked(services.fetchRoles)
+    .mockResolvedValueOnce({ kind: "ok", value: [administrator, stock] })
+    .mockReturnValueOnce(refresh.promise);
+  vi.mocked(services.roleEditorModal.createRole).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("2 roles")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Duplicar el rol Depósito" }));
+
+  await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Guardar el rol" }));
+
+  await expect
+    .element(screen.getByRole("table", { name: "Roles" }))
+    .toHaveAttribute("aria-busy", "true");
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  expect(screen.getByText("Depósito").query()).not.toBeNull();
+  await expect
+    .element(screen.getByRole("button", { name: "Duplicar el rol Depósito" }))
+    .toBeEnabled();
+  refresh.resolve({
+    kind: "ok",
+    value: [administrator, stock, { ...stock, id: "role-copy", name: "Copia de Depósito" }],
+  });
+  await expect.element(screen.getByText("3 roles")).toBeVisible();
+  expect(services.fetchRoles).toHaveBeenCalledTimes(2);
 });
 
 test("ends the session when the roles request finds no open session", async () => {
@@ -255,4 +346,33 @@ test("has no accessibility violations once loaded", async () => {
 
   await expect.element(screen.getByText("2 roles")).toBeVisible();
   await expectNoAccessibilityViolations(document.body);
+});
+
+test("the editor modal closes when the roles fail to load again, and never reopens by itself", async () => {
+  await page.viewport(1280, 900);
+  const services = createServices();
+  vi.mocked(services.fetchRoles)
+    .mockResolvedValueOnce({ kind: "ok", value: [administrator, stock] })
+    .mockResolvedValueOnce({ kind: "failed" });
+  vi.mocked(services.roleEditorModal.fetchRole).mockResolvedValue({
+    kind: "ok",
+    value: { ...stock, version: 1, assignedUsers: [] },
+  });
+  vi.mocked(services.roleEditorModal.editRole).mockResolvedValue({ kind: "stale_version" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("2 roles")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Editar el rol Depósito" }));
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await userEvent.click(screen.getByRole("button", { name: "Recargar" }));
+
+  await expect.element(screen.getByText("No pudimos abrir los roles")).toBeVisible();
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  vi.mocked(services.fetchRoles).mockResolvedValueOnce({
+    kind: "ok",
+    value: [administrator, stock],
+  });
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+  await expect.element(screen.getByText("2 roles")).toBeVisible();
+  expect(screen.getByRole("dialog").query()).toBeNull();
 });

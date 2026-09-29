@@ -1,14 +1,23 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { StrictMode } from "react";
+import { StrictMode, useState } from "react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { RegisterPasskeyScreen } from "./register-passkey-screen";
 import type { RegisterPasskeyScreenServices } from "./register-passkey-services";
+import { creationOptions } from "./test-support/creation-options";
 
-const registrationOptions = { challenge: "abc", rp: { id: "purosur.online" } } as never;
+const registrationOptions = creationOptions;
 const registrationResponse = { id: "cred-1" } as never;
 const PASSKEY_NAME = "Notebook del local";
+
+function deferred<T>() {
+  let resolve: (value: T) => void = () => {};
+  const promise = new Promise<T>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
 
 function createServices(
   overrides: Partial<RegisterPasskeyScreenServices> = {},
@@ -55,7 +64,7 @@ test("keeps the token across React StrictMode's double-mount effects, in dev", a
       value: { displayName: "Lucía Pérez", options: registrationOptions },
     }),
     startRegistration: vi.fn().mockResolvedValue(registrationResponse),
-    redeemRecovery: vi.fn().mockResolvedValue({ kind: "ok", value: { userId: "user-1" } }),
+    redeemRecovery: vi.fn().mockResolvedValue({ kind: "ok" }),
   });
 
   const screen = await render(
@@ -90,14 +99,18 @@ test("shows the invalid-link state without calling the API when there is no toke
   expect(services.fetchRegistrationOptions).not.toHaveBeenCalled();
 });
 
-test("shows a loading state before the registration options resolve", async () => {
+test("shows the design system's loading placeholder before the registration options resolve", async () => {
   const services = createServices({
     fetchRegistrationOptions: vi.fn().mockResolvedValue(new Promise(() => {}) as never),
   });
 
   const screen = await render(<RegisterPasskeyScreen services={services} />);
 
-  await expect.element(screen.getByText("Abriendo el registro…")).toBeVisible();
+  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
+  await expect
+    .element(screen.getByRole("heading", { name: "Registrá una passkey nueva", level: 1 }))
+    .toBeVisible();
+  expect(screen.getByRole("button", { name: "Registrar la passkey" }).query()).toBeNull();
 });
 
 test("shows the register-passkey heading and copy with the account's display name, without claiming open sessions were closed", async () => {
@@ -150,7 +163,7 @@ test.each([
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("shows a rate-limited state naming when to retry, without a new-link offer", async () => {
+test("shows a rate-limited read as a load failure naming when to retry, without a new-link offer", async () => {
   const services = createServices({
     fetchRegistrationOptions: vi.fn().mockResolvedValue({
       kind: "rate_limited",
@@ -160,26 +173,32 @@ test("shows a rate-limited state naming when to retry, without a new-link offer"
 
   const screen = await render(<RegisterPasskeyScreen services={services} />);
 
-  await expect.element(screen.getByText("Demasiados intentos desde esta conexión")).toBeVisible();
+  await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
   await expect.element(screen.getByText("Se puede volver a intentar en 60 minutos.")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
   expect(screen.getByRole("link", { name: "Pedir un enlace nuevo" }).query()).toBeNull();
 });
 
-test("shows a generic load error with a retry action", async () => {
+test("shows a generic load error whose retry starts over from the loading placeholder", async () => {
+  const second = deferred<unknown>();
   const fetchRegistrationOptions = vi
     .fn()
     .mockResolvedValueOnce({ kind: "failed" })
-    .mockResolvedValueOnce({
-      kind: "ok",
-      value: { displayName: "Lucía Pérez", options: registrationOptions },
-    });
+    .mockReturnValueOnce(second.promise);
   const services = createServices({ fetchRegistrationOptions });
 
   const screen = await render(<RegisterPasskeyScreen services={services} />);
   await expect.element(screen.getByText("No pudimos abrir el registro")).toBeVisible();
+  await expect.element(screen.getByText("Probá de nuevo en unos minutos.")).toBeVisible();
+  expect(screen.getByRole("link", { name: "Pedir un enlace nuevo" }).query()).toBeNull();
 
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
+  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
+  second.resolve({
+    kind: "ok",
+    value: { displayName: "Lucía Pérez", options: registrationOptions },
+  });
   await expect
     .element(screen.getByRole("heading", { name: "Registrá una passkey nueva", level: 1 }))
     .toBeVisible();
@@ -193,7 +212,7 @@ test("registers the passkey and shows the success state, naming that open sessio
       value: { displayName: "Lucía Pérez", options: registrationOptions },
     }),
     startRegistration: vi.fn().mockResolvedValue(registrationResponse),
-    redeemRecovery: vi.fn().mockResolvedValue({ kind: "ok", value: { userId: "user-1" } }),
+    redeemRecovery: vi.fn().mockResolvedValue({ kind: "ok" }),
   });
 
   const screen = await render(<RegisterPasskeyScreen services={services} />);
@@ -299,7 +318,7 @@ test("never signals the device when the registration options carry no rp id", as
       kind: "ok",
       value: {
         displayName: "Lucía Pérez",
-        options: { challenge: "abc", rp: {} } as never,
+        options: { ...creationOptions, rp: { name: "Puro Sur" } },
       },
     }),
     startRegistration: vi.fn().mockResolvedValue(registrationResponse),
@@ -371,8 +390,8 @@ test("behaves exactly like any other rejected attempt when the credential is alr
 });
 
 test("retries with fresh options after another tab replaced this link's challenge", async () => {
-  const staleOptions = { challenge: "from-this-tab", rp: { id: "purosur.online" } } as never;
-  const freshOptions = { challenge: "fetched-again", rp: { id: "purosur.online" } } as never;
+  const staleOptions = { ...creationOptions, challenge: "from-this-tab" };
+  const freshOptions = { ...creationOptions, challenge: "fetched-again" };
   const fetchRegistrationOptions = vi
     .fn()
     .mockResolvedValueOnce({
@@ -391,7 +410,7 @@ test("retries with fresh options after another tab replaced this link's challeng
   const redeemRecovery = vi
     .fn()
     .mockResolvedValueOnce({ kind: "validation_failed" })
-    .mockResolvedValueOnce({ kind: "ok", value: { userId: "user-1" } });
+    .mockResolvedValueOnce({ kind: "ok" });
   const services = createServices({
     fetchRegistrationOptions,
     startRegistration,
@@ -425,7 +444,7 @@ test("keeps the current options after the browser cancels, without fetching them
       value: { displayName: "Lucía Pérez", options: registrationOptions },
     }),
     startRegistration,
-    redeemRecovery: vi.fn().mockResolvedValue({ kind: "ok", value: { userId: "user-1" } }),
+    redeemRecovery: vi.fn().mockResolvedValue({ kind: "ok" }),
   });
 
   const screen = await render(<RegisterPasskeyScreen services={services} />);
@@ -501,7 +520,7 @@ test("sends the trimmed passkey name", async () => {
       value: { displayName: "Lucía Pérez", options: registrationOptions },
     }),
     startRegistration: vi.fn().mockResolvedValue(registrationResponse),
-    redeemRecovery: vi.fn().mockResolvedValue({ kind: "ok", value: { userId: "user-1" } }),
+    redeemRecovery: vi.fn().mockResolvedValue({ kind: "ok" }),
   });
 
   const screen = await render(<RegisterPasskeyScreen services={services} />);
@@ -514,4 +533,145 @@ test("sends the trimmed passkey name", async () => {
     registrationResponse,
     "Notebook del local",
   );
+});
+
+test("shows the rate limit a redeem hit, naming when to retry, without a new-link offer", async () => {
+  const services = createServices({
+    fetchRegistrationOptions: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: { displayName: "Lucía Pérez", options: registrationOptions },
+    }),
+    startRegistration: vi.fn().mockResolvedValue(registrationResponse),
+    redeemRecovery: vi.fn().mockResolvedValue({ kind: "rate_limited", retryAfterSeconds: 3600 }),
+  });
+
+  const screen = await render(<RegisterPasskeyScreen services={services} />);
+  await fillName(screen, PASSKEY_NAME);
+  await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
+
+  await expect.element(screen.getByText("Demasiados intentos desde esta conexión")).toBeVisible();
+  await expect.element(screen.getByText("Se puede volver a intentar en 60 minutos.")).toBeVisible();
+  expect(screen.getByRole("link", { name: "Pedir un enlace nuevo" }).query()).toBeNull();
+});
+
+test.each([
+  ["invalid" as const, "Este enlace no es válido"],
+  ["expired" as const, "Este enlace venció"],
+])(
+  "moves to the %s state when redeem discovers the token changed meanwhile",
+  async (kind, title) => {
+    const services = createServices({
+      fetchRegistrationOptions: vi.fn().mockResolvedValue({
+        kind: "ok",
+        value: { displayName: "Lucía Pérez", options: registrationOptions },
+      }),
+      startRegistration: vi.fn().mockResolvedValue(registrationResponse),
+      redeemRecovery: vi.fn().mockResolvedValue({ kind }),
+    });
+
+    const screen = await render(<RegisterPasskeyScreen services={services} />);
+    await fillName(screen, PASSKEY_NAME);
+    await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
+
+    await expect.element(screen.getByText(title)).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: "Pedir un enlace nuevo" }).element().getAttribute("href"),
+    ).toBe("/account-recovery");
+  },
+);
+
+test("keeps the form disabled while the options are read again after a rejected attempt", async () => {
+  const reread = deferred<unknown>();
+  const fetchRegistrationOptions = vi
+    .fn()
+    .mockResolvedValueOnce({
+      kind: "ok",
+      value: { displayName: "Lucía Pérez", options: registrationOptions },
+    })
+    .mockReturnValueOnce(reread.promise);
+  const services = createServices({
+    fetchRegistrationOptions,
+    startRegistration: vi.fn().mockResolvedValue(registrationResponse),
+    redeemRecovery: vi.fn().mockResolvedValue({ kind: "validation_failed" }),
+  });
+
+  const screen = await render(<RegisterPasskeyScreen services={services} />);
+  await fillName(screen, PASSKEY_NAME);
+  await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
+
+  await expect.element(screen.getByText("No se pudo registrar la passkey")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Registrar la passkey" })).toBeDisabled();
+  reread.resolve({
+    kind: "ok",
+    value: { displayName: "Lucía Pérez", options: registrationOptions },
+  });
+  await expect
+    .element(screen.getByRole("button", { name: "Registrar la passkey" }))
+    .not.toBeDisabled();
+});
+
+test.each([
+  ["burned", { kind: "burned" }, "Este enlace ya no se puede usar"],
+  ["invalid", { kind: "invalid" }, "Este enlace no es válido"],
+  ["expired", { kind: "expired" }, "Este enlace venció"],
+  ["rate limited", { kind: "rate_limited", retryAfterSeconds: 120 }, "Demasiadas solicitudes"],
+  ["failed", { kind: "failed" }, "No pudimos abrir el registro"],
+] as const)(
+  "shows the outcome of reading the options again after a rejected attempt: %s",
+  async (_, outcome, title) => {
+    const fetchRegistrationOptions = vi
+      .fn()
+      .mockResolvedValueOnce({
+        kind: "ok",
+        value: { displayName: "Lucía Pérez", options: registrationOptions },
+      })
+      .mockResolvedValueOnce(outcome);
+    const services = createServices({
+      fetchRegistrationOptions,
+      startRegistration: vi.fn().mockResolvedValue(registrationResponse),
+      redeemRecovery: vi.fn().mockResolvedValue({ kind: "validation_failed" }),
+    });
+
+    const screen = await render(<RegisterPasskeyScreen services={services} />);
+    await fillName(screen, PASSKEY_NAME);
+    await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
+
+    await expect.element(screen.getByText(title)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Registrar la passkey" }).query()).toBeNull();
+  },
+);
+
+function Visits({ services }: { services: RegisterPasskeyScreenServices }) {
+  const [open, setOpen] = useState(true);
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(!open)}>
+        alternar
+      </button>
+      {open ? <RegisterPasskeyScreen services={services} /> : null}
+    </>
+  );
+}
+
+test("a later visit reads a new challenge instead of showing the one of the earlier visit", async () => {
+  const secondVisit = deferred<unknown>();
+  const fetchRegistrationOptions = vi
+    .fn()
+    .mockResolvedValueOnce({
+      kind: "ok",
+      value: { displayName: "Lucía Pérez", options: registrationOptions },
+    })
+    .mockReturnValueOnce(secondVisit.promise);
+  const services = createServices({ fetchRegistrationOptions });
+
+  const screen = await render(<Visits services={services} />);
+  await expect.element(screen.getByRole("button", { name: "Registrar la passkey" })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "alternar" }));
+  window.history.pushState(null, "", "/account-recovery/passkey#the-token");
+  await userEvent.click(screen.getByRole("button", { name: "alternar" }));
+
+  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
+  expect(screen.getByRole("button", { name: "Registrar la passkey" }).query()).toBeNull();
+  expect(fetchRegistrationOptions).toHaveBeenCalledTimes(2);
 });
