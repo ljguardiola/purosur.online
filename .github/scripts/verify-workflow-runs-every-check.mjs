@@ -3,6 +3,14 @@ import { isAlias, isMap, isScalar, isSeq, parseDocument } from "yaml";
 
 const WORKFLOW_PATH = ".github/workflows/verify.yml";
 const PACKAGE_JSON_PATH = "package.json";
+const CLOUD_POSTGRES_SETUP_PATH = "apps/cloud/vitest.global-setup.postgres.ts";
+const PULL_WITH_RETRIES_COMMAND = [
+  "for delay in 0 15 30 60; do",
+  '  sleep "$delay"',
+  '  timeout 120 docker pull "$POSTGRES_IMAGE" && exit 0',
+  "done",
+  "exit 1",
+].join("\n");
 const EXPECTED_VERIFY_SCRIPT = "pnpm verify:static && pnpm verify:tests && pnpm verify:visual";
 const EXPECTED_VERIFY_TESTS_SCRIPT = "vitest run --project='!catalog-visual'";
 const EXPECTED_VERIFY_VISUAL_SCRIPT = "vitest run --project=catalog-visual";
@@ -349,10 +357,76 @@ export function findVerifyWorkflowViolations(workflowSource, packageJsonSource) 
   return violations;
 }
 
+// Testcontainers pulls an image the runner does not have yet with a single attempt, so a slow
+// registry would fail the whole shard; the tests job pulls it first, retrying.
+export function findCloudPostgresImageViolations(workflowSource, postgresSetupSource) {
+  const image = /const POSTGRES_IMAGE =\s*"([^"]+)";/.exec(postgresSetupSource)?.[1];
+  if (image === undefined) {
+    return [`${CLOUD_POSTGRES_SETUP_PATH} declares no POSTGRES_IMAGE`];
+  }
+
+  const violations = [];
+  if (!/@sha256:[0-9a-f]{64}$/.test(image)) {
+    violations.push(`the cloud's Postgres image \`${image}\` is not pinned by digest`);
+  }
+
+  const doc = parseDocument(workflowSource);
+  const testsJob = jobNode(doc, "tests");
+  const testsSteps = steps(doc, testsJob);
+  const testsIndex = testsSteps.findIndex((step) => {
+    const run = resolveScalar(doc, mapGet(doc, step, "run"));
+    return typeof run === "string" && run.trim().startsWith("pnpm verify:tests");
+  });
+  const pullStep = testsSteps.slice(0, Math.max(testsIndex, 0)).find((step) => {
+    const run = resolveScalar(doc, mapGet(doc, step, "run"));
+    return typeof run === "string" && run.trim() === PULL_WITH_RETRIES_COMMAND;
+  });
+
+  if (pullStep === undefined) {
+    violations.push(
+      "verify.yml's tests job has no step that pulls the cloud's Postgres image with retries before its verify:tests step",
+    );
+  } else {
+    const pulled = resolveScalar(doc, mapGet(doc, mapGet(doc, pullStep, "env"), "POSTGRES_IMAGE"));
+    if (pulled !== image) {
+      violations.push(
+        `verify.yml's tests job pulls \`${pulled}\`, but the cloud's tests start \`${image}\``,
+      );
+    }
+    if (mayContinueOnError(doc, pullStep)) {
+      violations.push("verify.yml's tests job's Postgres pull step sets continue-on-error");
+    }
+    if (mapHas(doc, pullStep, "if")) {
+      violations.push("verify.yml's tests job's Postgres pull step has its own if");
+    }
+    if (mapHas(doc, pullStep, "shell")) {
+      violations.push("verify.yml's tests job's Postgres pull step sets its own shell");
+    }
+  }
+
+  // Ryuk is another image Testcontainers pulls from Docker Hub; a runner is discarded after its
+  // job, so there is nothing left for it to clean up.
+  const ryukDisabled = resolveScalar(
+    doc,
+    mapGet(doc, mapGet(doc, testsSteps[testsIndex], "env"), "TESTCONTAINERS_RYUK_DISABLED"),
+  );
+  if (String(ryukDisabled) !== "true") {
+    violations.push(
+      "verify.yml's tests job's verify:tests step does not set TESTCONTAINERS_RYUK_DISABLED to true",
+    );
+  }
+  return violations;
+}
+
 export function checkRepository({
   readFile = (path) => readFileSync(path, "utf8"),
   workflowPath = WORKFLOW_PATH,
   packageJsonPath = PACKAGE_JSON_PATH,
+  postgresSetupPath = CLOUD_POSTGRES_SETUP_PATH,
 } = {}) {
-  return findVerifyWorkflowViolations(readFile(workflowPath), readFile(packageJsonPath));
+  const workflowSource = readFile(workflowPath);
+  return [
+    ...findVerifyWorkflowViolations(workflowSource, readFile(packageJsonPath)),
+    ...findCloudPostgresImageViolations(workflowSource, readFile(postgresSetupPath)),
+  ];
 }
