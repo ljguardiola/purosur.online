@@ -18,6 +18,8 @@ export type { UserCreationBody } from "./access/user-creation.js";
 export { userCreationBodySchema } from "./access/user-creation.js";
 export type { UserEditBody } from "./access/user-edit.js";
 export { userEditBodySchema } from "./access/user-edit.js";
+export type { BranchSettingsBody } from "./branch/branch-settings.js";
+export { branchSettingsSchema } from "./branch/branch-settings.js";
 export type { BranchSettingsEditBody } from "./branch/branch-settings-edit.js";
 export { branchSettingsEditBodySchema } from "./branch/branch-settings-edit.js";
 export type { CategoryCreationBody } from "./catalog/category-creation.js";

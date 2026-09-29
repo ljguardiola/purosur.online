@@ -1,10 +1,8 @@
+import type { BranchSettingsBody } from "@purosur/contracts";
 import { asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { BranchHoursRange } from "../branch/branch-settings-read-route.js";
-import {
-  type BranchSettingsWire,
-  toBranchSettingsWire,
-} from "../branch/branch-settings-read-route.js";
+import { toBranchSettingsWire } from "../branch/branch-settings-read-route.js";
 import { branchHours, branchSettings } from "../platform/db/schema.js";
 import { SAMPLE_BRANCH_SETTINGS } from "./sample-catalog.js";
 
@@ -117,7 +115,7 @@ export async function branchSettingsEqualSampleValues<TQueryResult extends PgQue
   );
 }
 
-export function sampleBranchSettingsAuditValue(): Omit<BranchSettingsWire, "version"> {
+export function sampleBranchSettingsAuditValue(): Omit<BranchSettingsBody, "version"> {
   const { version: _version, ...value } = toBranchSettingsWire({
     ...SAMPLE_BRANCH_SETTINGS,
     version: 0,
