@@ -4,5 +4,5 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext"
   },
-  "include": ["src/**/*.ts", "vitest.global-setup.ts", "vitest.global-setup.postgres.ts"]
+  "include": ["src/**/*.ts", "*.ts"]
 }
