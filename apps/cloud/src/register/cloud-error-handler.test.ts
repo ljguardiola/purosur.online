@@ -63,6 +63,22 @@ describe("answerErrorsWithCloudEnvelope", () => {
     expect(response.json()).toMatchObject({ code: "validation_failed" });
   });
 
+  it("logs an unexpected failure it answers for", async () => {
+    const lines: string[] = [];
+    const logged = Fastify({ logger: { stream: { write: (line: string) => lines.push(line) } } });
+    await logged.register(async (scope) => {
+      answerErrorsWithCloudEnvelope(scope);
+      scope.post("/contract/failing", async () => {
+        throw new Error("database connection lost");
+      });
+    });
+
+    await logged.inject({ method: "POST", url: "/contract/failing" });
+    await logged.close();
+
+    expect(lines.join("")).toContain("database connection lost");
+  });
+
   it("leaves routes outside the contract to Fastify's own answer", async () => {
     const response = await app.inject({ method: "POST", url: "/outside" });
 
