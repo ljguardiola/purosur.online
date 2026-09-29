@@ -10,7 +10,7 @@ const session = {
 };
 
 describe("openSessionSchema", () => {
-  it("accepts the body the cloud sends, with or without permissions", () => {
+  it("accepts the body the cloud sends, with permissions or an empty list", () => {
     expect(openSessionSchema.safeParse(session).data).toEqual(session);
     expect(openSessionSchema.safeParse({ ...session, permissions: [] }).data).toEqual({
       ...session,
