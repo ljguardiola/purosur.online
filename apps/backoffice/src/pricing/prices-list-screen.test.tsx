@@ -1531,6 +1531,18 @@ test("the review age counts against the time the list was loaded, not the time a
   expect(services.fetchPrices).toHaveBeenCalledTimes(1);
 });
 
+test("drawing the screen before the list arrives does not read the clock", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockReturnValue(new Promise(() => {}));
+  const now = vi.fn(NOW);
+
+  const screen = await renderScreen(services, undefined, now);
+  await expect.element(screen.getByRole("heading", { name: "Precios", level: 1 })).toBeVisible();
+  await screen.commitScheduledUpdates();
+
+  expect(now).not.toHaveBeenCalled();
+});
+
 test("the modal's review age counts against the time the modal was opened", async () => {
   const services = createServices();
   let current = new Date(2026, 8, 25, 12, 0);

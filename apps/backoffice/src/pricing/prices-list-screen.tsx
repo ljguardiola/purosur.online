@@ -614,7 +614,7 @@ export function PricesListScreen({
   const products = loaded?.products ?? NO_PRODUCTS;
   const pendingCount = loaded?.pendingCount ?? 0;
   const reviewWindowDays = loaded?.reviewWindowDays ?? 30;
-  const readAt = loaded?.readAt ?? clock();
+  const readAt = loaded?.readAt;
 
   const shownData =
     data.status === "failed"
@@ -841,7 +841,8 @@ export function PricesListScreen({
     {
       key: "reviewed",
       header: "Revisado",
-      render: (item: PriceProduct) => reviewedCellText(item.lastReviewedAt, readAt),
+      render: (item: PriceProduct) =>
+        readAt ? reviewedCellText(item.lastReviewedAt, readAt) : null,
     },
     {
       key: "actions",
