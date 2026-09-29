@@ -29,10 +29,16 @@ type ProbeProps = {
   queryKey?: readonly string[];
   read: () => Promise<CloudReadOutcome<string>>;
   onSessionEnded?: () => void;
+  onForbidden?: () => void;
 };
 
-function Probe({ queryKey = ["probe"], read, onSessionEnded = () => {} }: ProbeProps) {
-  const data = useCloudQuery({ queryKey, read, onSessionEnded });
+function Probe({
+  queryKey = ["probe"],
+  read,
+  onSessionEnded = () => {},
+  onForbidden = () => {},
+}: ProbeProps) {
+  const data = useCloudQuery({ queryKey, read, onSessionEnded, onForbidden });
   const client = useQueryClient();
   return (
     <>
@@ -173,8 +179,10 @@ test("an unauthenticated read ends the session once, however often the screen re
   expect(onSessionEnded).toHaveBeenCalledTimes(1);
 });
 
-test("a forbidden read sends the person to Mi cuenta", async () => {
-  await render(<Probe read={() => Promise.resolve({ kind: "forbidden" })} />);
+test("a forbidden read is handed to its forbidden handler", async () => {
+  const onForbidden = vi.fn();
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await render(<Probe read={() => Promise.resolve({ kind: "forbidden" })} onForbidden={onForbidden} />);
+
+  await expect.poll(() => onForbidden.mock.calls.length).toBe(1);
 });
