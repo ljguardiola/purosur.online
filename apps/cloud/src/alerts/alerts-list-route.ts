@@ -1,5 +1,11 @@
 import { type AlertSummary, alertListPageSchema } from "@purosur/contracts";
-import { type AlertAudience, type AlertKind, type AlertLevel, isAlertKind } from "@purosur/domain";
+import {
+  ALERT_LEVELS,
+  type AlertAudience,
+  type AlertKind,
+  type AlertLevel,
+  isAlertKind,
+} from "@purosur/domain";
 import {
   and,
   count,
@@ -64,8 +70,6 @@ function toAlertSummary(
     resolvedAt: row.resolvedAt?.toISOString() ?? null,
   };
 }
-
-const ALERT_LEVELS: readonly AlertLevel[] = ["informational", "warning", "critical"];
 
 function isAlertLevel(value: unknown): value is AlertLevel {
   return typeof value === "string" && (ALERT_LEVELS as readonly string[]).includes(value);

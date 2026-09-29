@@ -1,7 +1,8 @@
+import { ALERT_AUDIENCES, ALERT_LEVELS } from "@purosur/domain";
 import { z } from "zod";
 
-export const alertLevelSchema = z.enum(["informational", "warning", "critical"]);
-export const alertAudienceSchema = z.enum(["local", "all"]);
+export const alertLevelSchema = z.enum(ALERT_LEVELS);
+export const alertAudienceSchema = z.enum(ALERT_AUDIENCES);
 
 export const alertSummarySchema = z.object({
   id: z.string(),

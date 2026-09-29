@@ -15,8 +15,12 @@ export function isAlertKind(value: unknown): value is AlertKind {
   return typeof value === "string" && ALERT_KIND_SET.has(value);
 }
 
-export type AlertLevel = "informational" | "warning" | "critical";
+export const ALERT_LEVELS = ["informational", "warning", "critical"] as const;
+
+export type AlertLevel = (typeof ALERT_LEVELS)[number];
 
 // Who can see an alert: every alert-view permission holder ("all"), or only a branch's own
 // `view_branch_alerts` holders ("local").
-export type AlertAudience = "local" | "all";
+export const ALERT_AUDIENCES = ["local", "all"] as const;
+
+export type AlertAudience = (typeof ALERT_AUDIENCES)[number];

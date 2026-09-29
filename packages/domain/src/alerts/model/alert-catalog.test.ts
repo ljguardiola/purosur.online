@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { ALERT_KINDS, isAlertKind } from "./alert-catalog.js";
+import { ALERT_AUDIENCES, ALERT_KINDS, ALERT_LEVELS, isAlertKind } from "./alert-catalog.js";
 
 describe("ALERT_KINDS", () => {
   it("lists exactly the four security-fact kinds a backoffice account can raise", () => {
@@ -28,5 +28,17 @@ describe("isAlertKind", () => {
         expect(isAlertKind(value)).toBe(false);
       }),
     );
+  });
+});
+
+describe("ALERT_LEVELS", () => {
+  it("lists every level an alert can have, from the least to the most urgent", () => {
+    expect(ALERT_LEVELS).toEqual(["informational", "warning", "critical"]);
+  });
+});
+
+describe("ALERT_AUDIENCES", () => {
+  it("lists who an alert can be for: a branch's own holders or every holder", () => {
+    expect(ALERT_AUDIENCES).toEqual(["local", "all"]);
   });
 });
