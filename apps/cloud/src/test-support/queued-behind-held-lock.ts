@@ -24,17 +24,20 @@ export async function runQueuedBehindHeldLock<First, Second>(
   const holder = await sql.reserve();
   let firstOutcome: Promise<First> | undefined;
   let secondOutcome: Promise<Second> | undefined;
+  let settled: Promise<unknown> = Promise.resolve();
   try {
     await holder`begin`;
     await holdLock(holder);
     firstOutcome = first();
+    settled = Promise.allSettled([firstOutcome]);
     await waitForLockWaiters(sql, 1);
     secondOutcome = second();
+    settled = Promise.allSettled([firstOutcome, secondOutcome]);
     await waitForLockWaiters(sql, 2);
   } finally {
     await holder`rollback`;
     holder.release();
-    await Promise.allSettled([firstOutcome, secondOutcome]);
+    await settled;
   }
   return Promise.all([firstOutcome, secondOutcome]);
 }

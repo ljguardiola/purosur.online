@@ -57,4 +57,26 @@ describe("running two writes queued behind a held row lock on a real Postgres", 
       select arrivals from queue_probe where id = 1 for update nowait`;
     expect(unlocked).toEqual([{ arrivals: ["first"] }]);
   });
+
+  it("observes a write that fails while it waits for the queue, instead of leaving its rejection unhandled", async () => {
+    const unhandled: unknown[] = [];
+    const recordUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", recordUnhandled);
+    try {
+      await expect(
+        runQueuedBehindHeldLock(
+          sql,
+          holdProbeRowLock,
+          async () => {
+            throw new Error("the first write failed");
+          },
+          arriveAtProbe("second"),
+        ),
+      ).rejects.toThrow("1 queries never queued behind the held lock");
+    } finally {
+      process.off("unhandledRejection", recordUnhandled);
+    }
+
+    expect(unhandled).toEqual([]);
+  });
 });
