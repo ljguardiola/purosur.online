@@ -8,6 +8,7 @@ export interface AlertKindDefinition {
   escalatesAfterMs: number | null;
   audience: AlertAudience;
   scopeKind: AlertScopeKind;
+  deduplicates: boolean;
 }
 
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
@@ -19,6 +20,7 @@ export const ALERT_KIND_CATALOG: readonly AlertKindDefinition[] = [
     escalatesAfterMs: TWENTY_FOUR_HOURS_MS,
     audience: "all",
     scopeKind: "user",
+    deduplicates: true,
   },
   {
     kind: "backoffice_recovery_requested",
@@ -26,6 +28,7 @@ export const ALERT_KIND_CATALOG: readonly AlertKindDefinition[] = [
     escalatesAfterMs: TWENTY_FOUR_HOURS_MS,
     audience: "all",
     scopeKind: "user",
+    deduplicates: true,
   },
   {
     kind: "user_email_changed",
@@ -33,6 +36,7 @@ export const ALERT_KIND_CATALOG: readonly AlertKindDefinition[] = [
     escalatesAfterMs: TWENTY_FOUR_HOURS_MS,
     audience: "all",
     scopeKind: "user",
+    deduplicates: true,
   },
   {
     kind: "backoffice_sign_in_lockout",
@@ -40,6 +44,15 @@ export const ALERT_KIND_CATALOG: readonly AlertKindDefinition[] = [
     escalatesAfterMs: TWENTY_FOUR_HOURS_MS,
     audience: "all",
     scopeKind: "sourceAddress",
+    deduplicates: true,
+  },
+  {
+    kind: "user_access_increased",
+    level: "critical",
+    escalatesAfterMs: null,
+    audience: "all",
+    scopeKind: "user",
+    deduplicates: false,
   },
 ];
 

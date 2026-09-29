@@ -3,10 +3,13 @@ export type {
   PermissionDefinition,
   PermissionKey,
   PermissionRegisterMarker,
+  RoleAccess,
 } from "./access/index.js";
 export {
   ALERT_VIEW_PERMISSION_KEYS,
+  grantedPermissionKeys,
   holdsBothAlertViewPermissions,
+  increasesAccess,
   isAdministratorRoleName,
   isEmailAddress,
   isPasskeyNameTooLong,

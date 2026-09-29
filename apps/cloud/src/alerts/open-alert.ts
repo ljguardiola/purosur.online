@@ -91,6 +91,7 @@ export async function openAlert<TQueryResult extends PgQueryResultHKT>(
           detail: input.detail,
           openedAt,
           escalateAt,
+          deduplicates: definition.deduplicates,
         })
         .returning({ id: alerts.id }),
     );

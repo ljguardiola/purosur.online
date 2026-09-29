@@ -53,7 +53,7 @@ async function freshDatabase(): Promise<PostgresJsDatabase<Record<string, never>
 
 async function seedActiveAdministrator(
   db: PostgresJsDatabase<Record<string, never>>,
-): Promise<void> {
+): Promise<string> {
   const [administratorRole] = await db
     .select({ id: roles.id })
     .from(roles)
@@ -74,6 +74,7 @@ async function seedActiveAdministrator(
     throw new Error("test setup: inserting the bootstrap administrator returned no row");
   }
   await db.insert(userRoles).values({ userId: administrator.id, roleId: administratorRole.id });
+  return administrator.id;
 }
 
 async function tableCount(
@@ -256,7 +257,7 @@ describe("loadSampleData", () => {
   }, 120_000);
   it("writes every sample alert with a catalog kind, the level that kind reaches, and the detail shape its real producer writes", async () => {
     const db = await freshDatabase();
-    await seedActiveAdministrator(db);
+    const bootstrapAdministratorId = await seedActiveAdministrator(db);
     expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
     const [sampleAdministrator] = await db
       .select({ id: users.id })
@@ -291,5 +292,14 @@ describe("loadSampleData", () => {
         actorId: sampleAdministrator?.id,
       });
     }
+    const accessIncreasedAlerts = alertRows.filter(
+      (alert) => alert.kind === "user_access_increased",
+    );
+    expect(accessIncreasedAlerts.map((alert) => [alert.scope, alert.detail])).toEqual([
+      [
+        sampleAdministrator?.id,
+        { cause: "created_as_administrator", actorId: bootstrapAdministratorId },
+      ],
+    ]);
   }, 120_000);
 });
