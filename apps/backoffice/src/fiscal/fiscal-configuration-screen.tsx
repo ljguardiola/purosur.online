@@ -316,7 +316,7 @@ function EditIssuerIdentificationModal({
         width="standard"
         tone="info"
         icon={<Landmark />}
-        context="CONFIGURACIÓN FISCAL"
+        context="Configuración fiscal"
         title="Identificación del emisor"
         closable
         footer={

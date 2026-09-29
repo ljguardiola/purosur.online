@@ -293,14 +293,29 @@ test("wraps a long, unbreakable sortable header title instead of overrunning the
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("renders 12px bold capital column titles", async () => {
-  const screen = await render(<Table {...commonProps} columns={columns} />);
-  const title = screen.getByRole("columnheader", { name: "Producto" }).element() as HTMLElement;
-  const style = getComputedStyle(title);
+test("renders 12px bold capital column titles, whether or not the column is sortable", async () => {
+  const screen = await render(
+    <Table
+      {...commonProps}
+      columns={[
+        sortableColumns[0],
+        { key: "stock", header: "Stock", align: "end", render: (p: Product) => p.stock },
+      ]}
+      sort={{ column: "name", direction: "ascending" }}
+      onSortChange={() => {}}
+    />,
+  );
 
-  expect(style.fontSize).toBe("12px");
-  expect(style.fontWeight).toBe("700");
-  expect(style.textTransform).toBe("uppercase");
+  for (const name of ["Producto", "Stock"]) {
+    const header = screen.getByRole("columnheader", { name }).element() as HTMLElement;
+    const title = header.querySelector("span") as HTMLElement;
+    expect(title.textContent).toBe(name);
+    const style = getComputedStyle(title);
+
+    expect(style.fontSize).toBe("12px");
+    expect(style.fontWeight).toBe("700");
+    expect(style.textTransform).toBe("uppercase");
+  }
 });
 
 test("still renders every row, each with its own content, when two rows share the same id", async () => {
