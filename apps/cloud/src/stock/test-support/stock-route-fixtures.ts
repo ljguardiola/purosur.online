@@ -30,7 +30,7 @@ export async function insertLocation(db: Db): Promise<string> {
   return location.id;
 }
 
-export async function insertUserWith(
+async function insertUserWith(
   db: Db,
   permissionKeys: readonly PermissionKey[],
   overrides: { isAdministrator?: boolean; locationId?: string } = {},
@@ -61,7 +61,7 @@ export async function insertUserWith(
   return { userId: user.id, locationId };
 }
 
-export async function insertSession(db: Db, userId: string, at: Date): Promise<string> {
+async function insertSession(db: Db, userId: string, at: Date): Promise<string> {
   const rawSessionId = generateSessionId();
   await db.insert(sessions).values({
     userId,

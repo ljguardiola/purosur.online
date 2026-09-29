@@ -13,7 +13,7 @@ import {
 import { categories, products, stockBalances } from "../platform/db/schema.js";
 import type { StockRouteOptions } from "./stock-route-options.js";
 
-export async function listStockBalances<TQueryResult extends PgQueryResultHKT>(
+async function listStockBalances<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   locationId: string,
 ): Promise<StockBalanceList> {
