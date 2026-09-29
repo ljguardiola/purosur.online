@@ -225,6 +225,13 @@
       "when": 1790401211520,
       "tag": "0031_alerts",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1790704479802,
+      "tag": "0032_register_installations",
+      "breakpoints": true
     }
   ]
 }
