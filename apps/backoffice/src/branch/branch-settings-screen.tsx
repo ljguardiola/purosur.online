@@ -32,7 +32,7 @@ export type BranchSettingsScreenProps = {
 
 type PointerType = Parameters<NonNullable<IconButtonProps["onPress"]>>[0]["pointerType"];
 
-type FormNotice = { kind: "attemptFailed" } | { kind: "staleVersion" } | { kind: "reloadFailed" };
+type FormNotice = { kind: "attemptFailed" } | { kind: "staleVersion" };
 
 type DaysFieldName =
   | "expiringLotAlertDays"
@@ -299,15 +299,17 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [notice, setNotice] = useState<FormNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [reseedOnNextLoad, setReseedOnNextLoad] = useState(false);
   const hoursErrorIdPrefix = useId();
 
   const settings = data.status === "loaded" ? data.value : null;
   const hasUnsavedEdits = shownSettings !== null && !matchesSettings(values, shownSettings);
-  if (settings !== null && settings !== shownSettings && !hasUnsavedEdits) {
+  if (settings !== null && settings !== shownSettings && (reseedOnNextLoad || !hasUnsavedEdits)) {
     setShownSettings(settings);
     setValues(valuesFrom(settings));
     setFieldErrors({});
     setNotice(null);
+    setReseedOnNextLoad(false);
   }
 
   function showServerSettings(reloaded: BranchSettings) {
@@ -341,7 +343,8 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
     if (outcome.kind === "unauthenticated" || outcome.kind === "forbidden") {
       return;
     }
-    setNotice({ kind: "reloadFailed" });
+    setNotice(null);
+    setReseedOnNextLoad(true);
     setSubmitting(false);
   }
 
@@ -445,6 +448,8 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
       const reloaded = await reloadBranchSettings();
       if (reloaded.kind === "ok") {
         showServerSettings(reloaded.value);
+      } else {
+        setReseedOnNextLoad(true);
       }
       setSubmitting(false);
       return;
@@ -476,7 +481,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
     setSubmitting(false);
   }
 
-  const offersReload = notice?.kind === "staleVersion" || notice?.kind === "reloadFailed";
+  const offersReload = notice?.kind === "staleVersion";
 
   function textField(field: TextFieldName, label: string) {
     const error = fieldErrors[field];
@@ -639,14 +644,6 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           icon={<TriangleAlert />}
           title="La sucursal cambió mientras la editabas"
           description="Recargá sus datos y volvé a hacer el cambio."
-        />
-      )}
-      {notice?.kind === "reloadFailed" && (
-        <InlineNotice
-          tone="error"
-          icon={<TriangleAlert />}
-          title="No se pudieron recargar los datos"
-          description="Probá de nuevo."
         />
       )}
       {offersReload ? (

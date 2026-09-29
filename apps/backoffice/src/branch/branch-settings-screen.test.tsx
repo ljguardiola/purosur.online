@@ -230,6 +230,73 @@ test("shows a failure instead of the form when reading the branch again after a 
   expect(screen.getByRole("textbox", { name: "Dirección" }).query()).toBeNull();
 });
 
+test("once Reintentar loads the branch a failed read after a save could not, the next save sends its version", async () => {
+  const services = createServices();
+  const saved: BranchSettings = { ...loaded, address: "Av. Belgrano 1500, CABA", version: 2 };
+  vi.mocked(services.fetchBranchSettings)
+    .mockResolvedValueOnce({ kind: "ok", value: loaded })
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockResolvedValue({ kind: "ok", value: saved });
+  vi.mocked(services.saveBranchSettings)
+    .mockResolvedValueOnce({ kind: "ok" })
+    .mockImplementation(async (settings) =>
+      settings.version === saved.version ? { kind: "ok" } : { kind: "stale_version" },
+    );
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Dirección" }))
+    .toHaveValue("Av. Belgrano 1450, CABA");
+  await userEvent.fill(screen.getByRole("textbox", { name: "Dirección" }), "Av. Belgrano 1500 ");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+  await expect.element(screen.getByText("No pudimos abrir la sucursal")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect
+    .element(screen.getByRole("textbox", { name: "Dirección" }))
+    .toHaveValue("Av. Belgrano 1500, CABA");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+  await expect.poll(() => vi.mocked(services.saveBranchSettings).mock.calls.length).toBe(2);
+  expect(services.saveBranchSettings).toHaveBeenLastCalledWith(saved);
+  await expect.poll(() => vi.mocked(services.fetchBranchSettings).mock.calls.length).toBe(4);
+  expect(screen.getByText("La sucursal cambió mientras la editabas").query()).toBeNull();
+});
+
+test("shows only the load failure when Recargar cannot read the branch, and the branch it loads next once Reintentar succeeds", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings)
+    .mockResolvedValueOnce({ kind: "ok", value: loaded })
+    .mockResolvedValueOnce({ kind: "failed" });
+  vi.mocked(services.saveBranchSettings).mockResolvedValueOnce({ kind: "stale_version" });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Dirección" }))
+    .toHaveValue("Av. Belgrano 1450, CABA");
+  await userEvent.fill(
+    screen.getByRole("textbox", { name: "Dirección" }),
+    "Av. Belgrano 1500, CABA",
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+  await expect.element(screen.getByText("La sucursal cambió mientras la editabas")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Recargar" }));
+
+  await expect.element(screen.getByText("No pudimos abrir la sucursal")).toBeVisible();
+  expect(screen.getByText("No se pudieron recargar los datos").query()).toBeNull();
+  expect(screen.getByText("La sucursal cambió mientras la editabas").query()).toBeNull();
+  expect(screen.getByRole("button", { name: "Recargar" }).query()).toBeNull();
+
+  const reloaded: BranchSettings = { ...loaded, address: "Av. Belgrano 1600, CABA", version: 5 };
+  vi.mocked(services.fetchBranchSettings).mockResolvedValueOnce({ kind: "ok", value: reloaded });
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect
+    .element(screen.getByRole("textbox", { name: "Dirección" }))
+    .toHaveValue("Av. Belgrano 1600, CABA");
+  expect(screen.getByText("La sucursal cambió mientras la editabas").query()).toBeNull();
+  expect(screen.getByRole("button", { name: "Recargar" }).query()).toBeNull();
+});
+
 test("ends the session when the load finds it closed", async () => {
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "unauthenticated" });
