@@ -40,6 +40,22 @@ describe("createMainRequests", () => {
     expect(posted).toEqual([{ type: "device-credentials-request", request_id: "request-1" }]);
   });
 
+  it("asks main whether credentials can be stored and resolves with its answer", async () => {
+    const { requests, posted } = requestsWithSequentialIds();
+
+    const storable = requests.canStoreCredentials();
+    requests.receive({
+      type: "device-credentials-storable",
+      request_id: "request-1",
+      storable: true,
+    });
+
+    expect(await storable).toBe(true);
+    expect(posted).toEqual([
+      { type: "device-credentials-storable-request", request_id: "request-1" },
+    ]);
+  });
+
   it("matches each answer to its own request, whatever order they arrive in", async () => {
     const { requests } = requestsWithSequentialIds();
 

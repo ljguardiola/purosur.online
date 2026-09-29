@@ -9,11 +9,13 @@ export interface DeviceCredentials {
 
 export type DeviceCredentialsRequest =
   | { type: "store-device-credentials"; request_id: string; credentials: DeviceCredentials }
-  | { type: "device-credentials-request"; request_id: string };
+  | { type: "device-credentials-request"; request_id: string }
+  | { type: "device-credentials-storable-request"; request_id: string };
 
 export type DeviceCredentialsAnswer =
   | { type: "device-credentials-stored"; request_id: string; stored: boolean }
-  | { type: "device-credentials-presence"; request_id: string; present: boolean };
+  | { type: "device-credentials-presence"; request_id: string; present: boolean }
+  | { type: "device-credentials-storable"; request_id: string; storable: boolean };
 
 type Fields = Record<string, unknown>;
 
@@ -45,6 +47,9 @@ export function readDeviceCredentialsRequest(
   if (fields?.["type"] === "device-credentials-request") {
     return { type: "device-credentials-request", request_id: requestId };
   }
+  if (fields?.["type"] === "device-credentials-storable-request") {
+    return { type: "device-credentials-storable-request", request_id: requestId };
+  }
   const credentials = readDeviceCredentials(fields?.["credentials"]);
   if (fields?.["type"] === "store-device-credentials" && credentials !== undefined) {
     return { type: "store-device-credentials", request_id: requestId, credentials };
@@ -65,6 +70,10 @@ export function readDeviceCredentialsAnswer(message: unknown): DeviceCredentials
   const present = fields?.["present"];
   if (fields?.["type"] === "device-credentials-presence" && typeof present === "boolean") {
     return { type: "device-credentials-presence", request_id: requestId, present };
+  }
+  const storable = fields?.["storable"];
+  if (fields?.["type"] === "device-credentials-storable" && typeof storable === "boolean") {
+    return { type: "device-credentials-storable", request_id: requestId, storable };
   }
   return undefined;
 }

@@ -9,7 +9,7 @@ function envelope(code: string, details: unknown[] = []): CloudResponse {
   return { kind: "error", error: { code, message: "x", details } } as CloudResponse;
 }
 
-function depsAnswering(response: CloudResponse, stored = true) {
+function depsAnswering(response: CloudResponse, stored = true, storable = true) {
   const posted: { path: string; body: unknown }[] = [];
   const storedCredentials: unknown[] = [];
   let peppers = 0;
@@ -22,6 +22,7 @@ function depsAnswering(response: CloudResponse, stored = true) {
       hostname: "CAJA-MOSTRADOR",
       windowsVersion: "Windows 10 Pro 10.0.26100",
     }),
+    canStoreCredentials: async () => storable,
     generatePepper: () => `pepper-${++peppers}`,
     storeCredentials: async (credentials) => {
       storedCredentials.push(credentials);
@@ -56,6 +57,13 @@ describe("enroll", () => {
 
     expect(outcome).toEqual({ kind: "enrolled" });
     expect(storedCredentials).toEqual([{ ...ENROLLED_BODY, pepper: "pepper-1" }]);
+  });
+
+  it("doesn't redeem the code when this machine can't store credentials", async () => {
+    const { deps, posted } = depsAnswering({ kind: "ok", body: ENROLLED_BODY }, true, false);
+
+    expect(await enroll(deps, TYPED_CODE)).toEqual({ kind: "not_stored" });
+    expect(posted).toEqual([]);
   });
 
   it("says the enrollment wasn't kept when the credentials can't be stored", async () => {

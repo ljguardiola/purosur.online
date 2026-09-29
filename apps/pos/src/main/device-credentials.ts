@@ -20,6 +20,7 @@ export interface CredentialsFile {
 }
 
 export interface DeviceCredentialsStore {
+  canStore(): boolean;
   store(credentials: DeviceCredentials): boolean;
   isPresent(): boolean;
 }
@@ -47,6 +48,9 @@ export function createDeviceCredentialsStore(deps: {
   file: CredentialsFile;
 }): DeviceCredentialsStore {
   return {
+    canStore() {
+      return deps.encryption.isEncryptionAvailable();
+    },
     store(credentials) {
       if (!deps.encryption.isEncryptionAvailable()) {
         return false;
@@ -83,6 +87,13 @@ export function answerCoreCredentialsRequest(
       type: "device-credentials-stored",
       request_id: message.request_id,
       stored: store.store(message.credentials),
+    };
+  }
+  if (message.type === "device-credentials-storable-request") {
+    return {
+      type: "device-credentials-storable",
+      request_id: message.request_id,
+      storable: store.canStore(),
     };
   }
   return {

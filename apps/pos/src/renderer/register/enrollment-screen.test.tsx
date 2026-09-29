@@ -170,7 +170,7 @@ describe("EnrollmentScreen", () => {
       .element(screen.getByText("No se pudo guardar el alta en esta notebook"))
       .toBeVisible();
     await expect
-      .element(screen.getByText("Pedí un código nuevo en el backoffice y probá de nuevo."))
+      .element(screen.getByText("Avisá al Administrador.", { exact: true }))
       .toBeVisible();
   });
 

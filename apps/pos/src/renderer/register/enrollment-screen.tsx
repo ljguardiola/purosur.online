@@ -48,7 +48,7 @@ function noticeFor(outcome: EnrollmentOutcome): Notice | undefined {
       return {
         icon: <TriangleAlert />,
         title: "No se pudo guardar el alta en esta notebook",
-        description: "Pedí un código nuevo en el backoffice y probá de nuevo.",
+        description: "Avisá al Administrador.",
       };
   }
 }

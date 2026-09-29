@@ -19,6 +19,7 @@ export interface InstallationReport {
 export interface EnrollmentDeps {
   postToCloud: ((path: string, body: unknown) => Promise<CloudResponse>) | undefined;
   installationReport: () => InstallationReport;
+  canStoreCredentials: () => Promise<boolean>;
   generatePepper: () => string;
   storeCredentials: (credentials: DeviceCredentials) => Promise<boolean>;
 }
@@ -63,6 +64,11 @@ export async function enroll(deps: EnrollmentDeps, typedCode: string): Promise<E
   }
   if (deps.postToCloud === undefined) {
     return { kind: "unavailable" };
+  }
+  // Redeeming revokes the register's previous installation, so it only happens once this machine
+  // is known to be able to keep the token it gets back.
+  if (!(await deps.canStoreCredentials())) {
+    return { kind: "not_stored" };
   }
 
   const response = await deps.postToCloud("/devices/enroll", request.data);

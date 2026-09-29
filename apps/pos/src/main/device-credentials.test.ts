@@ -140,4 +140,21 @@ describe("answerCoreCredentialsRequest", () => {
       answerCoreCredentialsRequest(store, { type: "device-credentials-request", request_id: "r2" }),
     ).toEqual({ type: "device-credentials-presence", request_id: "r2", present: true });
   });
+
+  it.each([true, false])(
+    "tells the core whether the operating system can encrypt credentials: %s",
+    (available) => {
+      const store = storeIn(temporaryFolder(), {
+        ...reversingEncryption,
+        isEncryptionAvailable: () => available,
+      });
+
+      expect(
+        answerCoreCredentialsRequest(store, {
+          type: "device-credentials-storable-request",
+          request_id: "r3",
+        }),
+      ).toEqual({ type: "device-credentials-storable", request_id: "r3", storable: available });
+    },
+  );
 });

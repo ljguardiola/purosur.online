@@ -17,6 +17,12 @@ describe("readDeviceCredentialsRequest", () => {
     expect(readDeviceCredentialsRequest(message)).toEqual(message);
   });
 
+  it("reads the core's question of whether credentials can be stored at all", () => {
+    const message = { type: "device-credentials-storable-request", request_id: "r3" };
+
+    expect(readDeviceCredentialsRequest(message)).toEqual(message);
+  });
+
   it("reads the core's question of whether credentials are stored", () => {
     const message = { type: "device-credentials-request", request_id: "r2" };
 
@@ -71,6 +77,12 @@ describe("readDeviceCredentialsAnswer", () => {
     expect(readDeviceCredentialsAnswer(message)).toEqual(message);
   });
 
+  it.each([true, false])("reads whether credentials can be stored: %s", (storable) => {
+    const message = { type: "device-credentials-storable", request_id: "r3", storable };
+
+    expect(readDeviceCredentialsAnswer(message)).toEqual(message);
+  });
+
   it.each([true, false])("reads whether credentials are present: %s", (present) => {
     const message = { type: "device-credentials-presence", request_id: "r2", present };
 
@@ -86,6 +98,10 @@ describe("readDeviceCredentialsAnswer", () => {
     [
       "a presence answer without presence",
       { type: "device-credentials-presence", request_id: "r" },
+    ],
+    [
+      "a storable answer without whether it can store",
+      { type: "device-credentials-storable", request_id: "r" },
     ],
     ["a health check", { type: "health-check" }],
     ["undefined", undefined],

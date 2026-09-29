@@ -73,6 +73,7 @@ const rendererRequestDeps = {
                   body,
                 ),
         installationReport: () => installationReportFrom({ hostname, version, release }),
+        canStoreCredentials: () => mainRequests.canStoreCredentials(),
         generatePepper,
         storeCredentials: (credentials) => mainRequests.storeCredentials(credentials),
       },

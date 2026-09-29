@@ -6,6 +6,7 @@ import {
 } from "../../shared/device-credentials-messages";
 
 export interface MainRequests {
+  canStoreCredentials(): Promise<boolean>;
   storeCredentials(credentials: DeviceCredentials): Promise<boolean>;
   credentialsPresent(): Promise<boolean>;
   receive(message: unknown): boolean;
@@ -38,6 +39,12 @@ export function createMainRequests(deps: {
   }
 
   return {
+    canStoreCredentials() {
+      return ask(
+        (requestId) => ({ type: "device-credentials-storable-request", request_id: requestId }),
+        (answer) => (answer.type === "device-credentials-storable" ? answer.storable : undefined),
+      );
+    },
     storeCredentials(credentials) {
       return ask(
         (requestId) => ({ type: "store-device-credentials", request_id: requestId, credentials }),
