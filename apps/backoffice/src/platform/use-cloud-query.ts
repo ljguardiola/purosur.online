@@ -22,6 +22,7 @@ class CloudReadRefused extends Error {
 type CloudQuery<T> = {
   queryKey: QueryKey;
   read: () => Promise<CloudReadOutcome<T>>;
+  gcTime?: number;
 };
 
 function cloudQueryFn<T>(read: () => Promise<CloudReadOutcome<T>>): () => Promise<T> {
@@ -36,12 +37,16 @@ function cloudQueryFn<T>(read: () => Promise<CloudReadOutcome<T>>): () => Promis
 
 export async function fetchCloudQuery<T>(
   queryClient: QueryClient,
-  { queryKey, read }: CloudQuery<T>,
+  { queryKey, read, gcTime }: CloudQuery<T>,
 ): Promise<CloudReadOutcome<T>> {
   try {
     return {
       kind: "ok",
-      value: await queryClient.fetchQuery({ queryKey, queryFn: cloudQueryFn(read) }),
+      value: await queryClient.fetchQuery({
+        queryKey,
+        queryFn: cloudQueryFn(read),
+        ...(gcTime === undefined ? {} : { gcTime }),
+      }),
     };
   } catch (error) {
     return error instanceof CloudReadRefused ? error.refusal : { kind: "failed" };
@@ -51,6 +56,7 @@ export async function fetchCloudQuery<T>(
 export function useCloudQuery<T>({
   queryKey,
   read,
+  gcTime,
   onSessionEnded,
   onForbidden,
 }: CloudQuery<T> & {
@@ -59,7 +65,11 @@ export function useCloudQuery<T>({
 }): CloudData<T> {
   const onSessionEndedRef = useLatestRef(onSessionEnded);
   const onForbiddenRef = useLatestRef(onForbidden);
-  const query = useQuery({ queryKey, queryFn: cloudQueryFn(read) });
+  const query = useQuery({
+    queryKey,
+    queryFn: cloudQueryFn(read),
+    ...(gcTime === undefined ? {} : { gcTime }),
+  });
   const refusal = query.error instanceof CloudReadRefused ? query.error.refusal : undefined;
   const refusalReadWhileShown = query.isFetchedAfterMount ? refusal : undefined;
 
