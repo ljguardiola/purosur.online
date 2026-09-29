@@ -80,6 +80,7 @@ import { registerRegisterCreationRoute } from "./register/register-creation-rout
 import { registerRegisterEnrollmentCodeRoute } from "./register/register-enrollment-code-route.js";
 import type { RegistersRouteOptions } from "./register/registers-list-route.js";
 import { registerRegistersListRoute } from "./register/registers-list-route.js";
+import { registerSyncPullRoute } from "./sync/sync-pull-route.js";
 
 export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = PostgresJsQueryResultHKT> {
   version: string;
@@ -274,6 +275,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
   if (options.devices) {
     registerDeviceEnrollmentRoute(app, options.devices);
+    registerSyncPullRoute(app, options.devices);
   }
 
   const staticDir = options.staticDir;

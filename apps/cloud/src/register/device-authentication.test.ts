@@ -26,31 +26,31 @@ describe("authenticateDevice", () => {
   });
 
   it("identifies the installation that holds the presented device token", async () => {
-    const { deviceId, deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceId, registerId, locationId, deviceToken } = await insertEnrolledInstallation(db);
 
     expect(await authenticateDevice(db, `Bearer ${deviceToken}`)).toEqual({
       kind: "installation",
-      installation: { deviceId, revoked: false },
+      installation: { deviceId, registerId, locationId, revoked: false },
     });
   });
 
   it("still identifies a revoked installation by its token, telling it that it is revoked", async () => {
-    const { deviceId, deviceToken } = await insertEnrolledInstallation(db, {
+    const { deviceId, registerId, locationId, deviceToken } = await insertEnrolledInstallation(db, {
       revokedAt: new Date("2026-09-29T09:00:00.000Z"),
     });
 
     expect(await authenticateDevice(db, `Bearer ${deviceToken}`)).toEqual({
       kind: "installation",
-      installation: { deviceId, revoked: true },
+      installation: { deviceId, registerId, locationId, revoked: true },
     });
   });
 
   it("reads the Bearer scheme regardless of its case", async () => {
-    const { deviceId, deviceToken } = await insertEnrolledInstallation(db);
+    const { deviceId, registerId, locationId, deviceToken } = await insertEnrolledInstallation(db);
 
     expect(await authenticateDevice(db, `bearer ${deviceToken}`)).toEqual({
       kind: "installation",
-      installation: { deviceId, revoked: false },
+      installation: { deviceId, registerId, locationId, revoked: false },
     });
   });
 

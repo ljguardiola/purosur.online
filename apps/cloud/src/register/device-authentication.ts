@@ -1,10 +1,12 @@
 import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { registerInstallations } from "../platform/db/schema.js";
+import { registerInstallations, registers } from "../platform/db/schema.js";
 import { hashDeviceToken } from "./device-token.js";
 
-interface AuthenticatedInstallation {
+export interface AuthenticatedInstallation {
   deviceId: string;
+  registerId: string;
+  locationId: string;
   revoked: boolean;
 }
 
@@ -30,8 +32,14 @@ export async function authenticateDevice<TQueryResult extends PgQueryResultHKT>(
     return REJECTED;
   }
   const [installation] = await db
-    .select({ deviceId: registerInstallations.id, revokedAt: registerInstallations.revokedAt })
+    .select({
+      deviceId: registerInstallations.id,
+      registerId: registers.id,
+      locationId: registers.locationId,
+      revokedAt: registerInstallations.revokedAt,
+    })
     .from(registerInstallations)
+    .innerJoin(registers, eq(registers.id, registerInstallations.registerId))
     .where(
       and(
         eq(registerInstallations.tokenLookupPrefix, lookupPrefix),
@@ -43,6 +51,11 @@ export async function authenticateDevice<TQueryResult extends PgQueryResultHKT>(
   }
   return {
     kind: "installation",
-    installation: { deviceId: installation.deviceId, revoked: installation.revokedAt !== null },
+    installation: {
+      deviceId: installation.deviceId,
+      registerId: installation.registerId,
+      locationId: installation.locationId,
+      revoked: installation.revokedAt !== null,
+    },
   };
 }

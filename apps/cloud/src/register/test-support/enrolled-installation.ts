@@ -5,6 +5,8 @@ import { issueDeviceToken } from "../device-token.js";
 
 export interface EnrolledInstallation {
   deviceId: string;
+  registerId: string;
+  locationId: string;
   deviceToken: string;
 }
 
@@ -12,9 +14,10 @@ export async function insertEnrolledInstallation<TQueryResult extends PgQueryRes
   db: PgDatabase<TQueryResult>,
   options: { revokedAt?: Date } = {},
 ): Promise<EnrolledInstallation> {
+  const locationId = await seededLocationId(db);
   const [register] = await db
     .insert(registers)
-    .values({ locationId: await seededLocationId(db), name: "Caja 1" })
+    .values({ locationId, name: "Caja 1" })
     .returning({ id: registers.id });
   if (!register) {
     throw new Error("test setup: seeding the register returned no row");
@@ -35,5 +38,5 @@ export async function insertEnrolledInstallation<TQueryResult extends PgQueryRes
   if (!installation) {
     throw new Error("test setup: seeding the installation returned no row");
   }
-  return { deviceId: installation.id, deviceToken };
+  return { deviceId: installation.id, registerId: register.id, locationId, deviceToken };
 }
