@@ -1339,3 +1339,61 @@ test("names its destructive intent and disabled state as booleans of its own", (
   expectTypeOf<ButtonProps>().not.toHaveProperty("tone");
   expectTypeOf<ButtonProps>().not.toHaveProperty("isDisabled");
 });
+
+test("stays disabled while the data it works on loads and after loading fails", async () => {
+  const onPress = vi.fn();
+  const screen = await render(
+    <Button onPress={onPress} dataStatus="loading">
+      Save
+    </Button>,
+  );
+  const button = screen.getByRole("button", { name: "Save" });
+  await expect.element(button).toBeDisabled();
+
+  await screen.rerender(
+    <Button onPress={onPress} dataStatus="failed">
+      Save
+    </Button>,
+  );
+  await expect.element(button).toBeDisabled();
+
+  await button.click({ force: true });
+  expect(onPress).not.toHaveBeenCalled();
+});
+
+test("becomes available once the data it works on has loaded", async () => {
+  const onPress = vi.fn();
+  const screen = await render(
+    <Button onPress={onPress} dataStatus="loaded">
+      Save
+    </Button>,
+  );
+  const button = screen.getByRole("button", { name: "Save" });
+
+  await expect.element(button).toBeEnabled();
+  await button.click();
+
+  expect(onPress).toHaveBeenCalledTimes(1);
+});
+
+test("stays disabled with loaded data when it is disabled for its own reason", async () => {
+  const screen = await render(
+    <Button dataStatus="loaded" disabled>
+      Save
+    </Button>,
+  );
+
+  await expect.element(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+});
+
+test("stays available in every state when it takes no data status", async () => {
+  const screen = await render(<Button>Save</Button>);
+
+  await expect.element(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+});
+
+test("takes only the three load statuses", () => {
+  expectTypeOf<ButtonProps["dataStatus"]>().toEqualTypeOf<
+    "loading" | "failed" | "loaded" | undefined
+  >();
+});

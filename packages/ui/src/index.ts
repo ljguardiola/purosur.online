@@ -101,6 +101,7 @@ export { Modal } from "./components/overlays/modal";
 export type { TooltipProps } from "./components/overlays/tooltip";
 export { Tooltip } from "./components/overlays/tooltip";
 export type { Icon } from "./components/shared/icon";
+export type { LoadStatus } from "./components/shared/load-status";
 export type { NoticeTone, Tone } from "./components/shared/tone";
 export type { Locale, PluralForms } from "./messages/formatters";
 export { formatDate, formatNumber, plural } from "./messages/formatters";
