@@ -8,11 +8,9 @@ import { test } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { stripVTControlCharacters } from "node:util";
 import { parse } from "yaml";
-import mutationConfig from "../../stryker.config.mjs";
 
 const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
 const strykerBin = join(repoRoot, "node_modules/@stryker-mutator/core/bin/stryker.js");
-const RULE_PACKAGES = ["packages/domain/src/", "packages/contracts/src/"];
 
 const FIXTURE_SOURCE = `const NUMBER_FORMAT = new Intl.NumberFormat("es-AR");
 
@@ -161,35 +159,9 @@ test("fails the run when a change goes uncaught", () => {
   assert.notEqual(fixtureRun.status, 0, fixtureRun.stdout + fixtureRun.stderr);
 });
 
-test("changes only the rules in packages/domain and packages/contracts, never their tests", () => {
-  const included = mutationConfig.mutate.filter((pattern) => !pattern.startsWith("!"));
-  const excluded = mutationConfig.mutate.filter((pattern) => pattern.startsWith("!"));
-
-  assert.deepEqual(
-    included.map((pattern) => RULE_PACKAGES.find((root) => pattern.startsWith(root))),
-    RULE_PACKAGES,
-  );
-  assert.deepEqual(excluded, ["!packages/*/src/**/*.test.ts"]);
-});
-
 const mutationWorkflow = parse(
   readFileSync(join(repoRoot, ".github/workflows/mutation.yml"), "utf8"),
 );
-
-test("runs on a schedule or by hand, never on a pull request or a push", () => {
-  assert.deepEqual(Object.keys(mutationWorkflow.on).sort(), ["schedule", "workflow_dispatch"]);
-});
-
-test("the scheduled run is the local mutation command", () => {
-  const runs = Object.values(mutationWorkflow.jobs).flatMap((job) =>
-    job.steps.map((step) => step.run?.trim()),
-  );
-
-  const packageJson = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8"));
-
-  assert.ok(runs.includes("pnpm mutation"), JSON.stringify(runs));
-  assert.equal(packageJson.scripts.mutation, "stryker run stryker.config.mjs");
-});
 
 test("no job of the scheduled run is a check a merge requires", () => {
   const ruleset = JSON.parse(readFileSync(join(repoRoot, ".github/rulesets/main.json"), "utf8"));

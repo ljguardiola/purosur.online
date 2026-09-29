@@ -1,4 +1,5 @@
 import { readdirSync } from "node:fs";
+import { relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
@@ -54,13 +55,24 @@ describe("apps/cloud/src shape", () => {
     expect(sources).toEqual(ENTRY_POINTS);
   });
 
-  it("keeps every test-only helper in a test-support folder, the only source left out of the build", () => {
-    const tsconfig = ts.readConfigFile(
+  it("builds every source file except the tests and the helpers kept in test-support folders", () => {
+    const build = ts.getParsedCommandLineOfConfigFile(
       fileURLToPath(new URL("../tsconfig.json", import.meta.url)),
-      ts.sys.readFile,
+      {},
+      {
+        ...ts.sys,
+        onUnRecoverableConfigFileDiagnostic: (diagnostic) => {
+          throw new Error(ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n"));
+        },
+      },
     );
+    const built = build?.fileNames.map((path) => relative(src, path)).sort();
+    const nonTestSources = readdirSync(src, { recursive: true, encoding: "utf8" })
+      .filter((path) => path.endsWith(".ts") && !path.endsWith(".test.ts"))
+      .filter((path) => !path.split(sep).includes("test-support"))
+      .sort();
 
-    expect(tsconfig.config.exclude).toEqual(["src/**/*.test.ts", "src/**/test-support/**"]);
+    expect(built).toEqual(nonTestSources);
   });
 
   it("names every file and folder in kebab-case", () => {

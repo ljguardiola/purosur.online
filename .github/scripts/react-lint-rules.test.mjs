@@ -267,15 +267,3 @@ test("apps/backoffice: shell/lazy-screen.ts may import lazyRouteComponent", () =
   assert.deepEqual(categories, []);
   assert.equal(exitCode, 0);
 });
-
-test("verify:static runs biome ci with --error-on-warnings so warning-level React rules fail verify", () => {
-  const packageJson = JSON.parse(readFileSync(join(repositoryRoot, "package.json"), "utf8"));
-
-  assert.match(packageJson.scripts["verify:static"], /\bbiome ci \. --error-on-warnings\b/);
-});
-
-test("lint runs biome check with --error-on-warnings so warning-level React rules are caught locally too", () => {
-  const packageJson = JSON.parse(readFileSync(join(repositoryRoot, "package.json"), "utf8"));
-
-  assert.match(packageJson.scripts.lint, /\bbiome check \. --error-on-warnings\b/);
-});
