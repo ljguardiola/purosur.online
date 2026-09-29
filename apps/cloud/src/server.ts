@@ -368,6 +368,10 @@ export async function startServer(
             db: database.recovery.db,
             backofficeOrigin: database.recovery.backofficeOrigin,
           },
+          stock: {
+            db: database.recovery.db,
+            backofficeOrigin: database.recovery.backofficeOrigin,
+          },
         }
       : {}),
   });

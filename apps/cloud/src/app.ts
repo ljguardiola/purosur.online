@@ -68,6 +68,10 @@ import { registerRegisterCreationRoute } from "./register/register-creation-rout
 import { registerRegisterEnrollmentCodeRoute } from "./register/register-enrollment-code-route.js";
 import type { RegistersRouteOptions } from "./register/registers-list-route.js";
 import { registerRegistersListRoute } from "./register/registers-list-route.js";
+import { registerStockBalancesRoute } from "./stock/stock-balances-route.js";
+import { registerStockCountsRoutes } from "./stock/stock-counts-route.js";
+import { registerStockMovementsRoutes } from "./stock/stock-movements-route.js";
+import type { StockRouteOptions } from "./stock/stock-route-options.js";
 
 export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = PostgresJsQueryResultHKT> {
   version: string;
@@ -87,6 +91,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   alerts?: AlertsRouteOptions<TQueryResult>;
   prices?: PricesRouteOptions<TQueryResult>;
   registers?: RegistersRouteOptions<TQueryResult>;
+  stock?: StockRouteOptions<TQueryResult>;
 }
 
 const STRICT_TRANSPORT_SECURITY = "max-age=63072000; includeSubDomains";
@@ -237,6 +242,12 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     registerPricesListRoute(app, options.prices);
     registerPriceSetRoute(app, options.prices);
     registerPriceConfirmationRoute(app, options.prices);
+  }
+
+  if (options.stock) {
+    registerStockBalancesRoute(app, options.stock);
+    registerStockCountsRoutes(app, options.stock);
+    registerStockMovementsRoutes(app, options.stock);
   }
 
   if (options.registers) {

@@ -930,6 +930,45 @@ describe("wiring the prices routes", () => {
   });
 });
 
+describe("wiring the stock routes", () => {
+  const stockRequests = [
+    { method: "GET", url: "/stock/balances" },
+    { method: "GET", url: "/stock/counts" },
+    { method: "POST", url: "/stock/counts" },
+    {
+      method: "GET",
+      url: "/stock/products/00000000-0000-0000-0000-000000000000/expected-balance",
+    },
+    { method: "GET", url: "/stock/movements" },
+    { method: "POST", url: "/stock/losses" },
+    { method: "POST", url: "/stock/adjustments" },
+  ] as const;
+
+  async function statusCodes(app: ReturnType<typeof buildApp>): Promise<number[]> {
+    const responses = await Promise.all(
+      stockRequests.map((request) =>
+        app.inject({ ...request, headers: { origin: "https://staging.purosur.online" } }),
+      ),
+    );
+    return responses.map((response) => response.statusCode);
+  }
+
+  it("does not register the stock routes when no stock option is given", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    expect(await statusCodes(app)).toEqual(stockRequests.map(() => 404));
+  });
+
+  it("registers the stock routes when a stock option is given", async () => {
+    const app = buildApp({
+      version: "abc1234",
+      stock: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+    });
+
+    expect(await statusCodes(app)).toEqual(stockRequests.map(() => 401));
+  });
+});
+
 describe("wiring the registers routes", () => {
   it("does not register the registers routes when no registers option is given", async () => {
     const app = buildApp({ version: "abc1234" });

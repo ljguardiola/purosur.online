@@ -554,6 +554,10 @@ describe("startServer", () => {
         db: fakeRecovery.db,
         backofficeOrigin: fakeRecovery.backofficeOrigin,
       },
+      stock: {
+        db: fakeRecovery.db,
+        backofficeOrigin: fakeRecovery.backofficeOrigin,
+      },
     });
 
     expect(onCloseHooks).toHaveLength(1);
