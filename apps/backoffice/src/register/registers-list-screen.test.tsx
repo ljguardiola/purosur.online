@@ -1,74 +1,19 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { useIsFetching, useQueryClient } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import { registerKey } from "./register-queries";
 import type { RegisterSummary } from "./registers-api";
 import { RegistersListScreen } from "./registers-list-screen";
 import type { RegistersListScreenServices } from "./registers-list-services";
-
-function createServices(
-  overrides: Partial<RegistersListScreenServices> = {},
-): RegistersListScreenServices {
-  return {
-    fetchRegisters: vi.fn(),
-    createRegister: vi.fn(),
-    emitEnrollmentCode: vi.fn(),
-    fetchSessionAuthorizationOptions: vi.fn(),
-    authorizeSession: vi.fn(),
-    startAuthentication: vi.fn(),
-    ...overrides,
-  };
-}
-
-const register1: RegisterSummary = { id: "register-1", name: "Caja 1", pendingCode: null };
-const register2: RegisterSummary = {
-  id: "register-2",
-  name: "Caja 2",
-  pendingCode: { issuedAt: "2026-09-25T11:56:00.000Z", expiresAt: "2026-09-25T12:11:00.000Z" },
-};
-
-const NOW = () => new Date("2026-09-25T12:00:00.000Z");
-
-const authorizationOptions = { challenge: "session-auth" } as never;
-const assertion = { id: "existing-cred" } as never;
-
-function grantAuthorization(services: RegistersListScreenServices) {
-  vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
-    kind: "ok",
-    value: authorizationOptions,
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(assertion);
-  vi.mocked(services.authorizeSession).mockResolvedValue({ kind: "ok" });
-}
-
-function FetchesInFlight() {
-  return <output aria-label="Lecturas en curso">{useIsFetching()}</output>;
-}
-
-function RefreshRegisters() {
-  const client = useQueryClient();
-  return (
-    <button type="button" onClick={() => void client.invalidateQueries({ queryKey: registerKey })}>
-      Refrescar
-    </button>
-  );
-}
-
-function renderScreen(
-  services: RegistersListScreenServices,
-  onSessionEnded: () => void = () => {},
-) {
-  return render(
-    <main>
-      <RegistersListScreen services={services} onSessionEnded={onSessionEnded} now={NOW} />
-      <FetchesInFlight />
-      <RefreshRegisters />
-    </main>,
-  );
-}
+import {
+  createServices,
+  grantAuthorization,
+  NOW,
+  register1,
+  register2,
+  renderScreen,
+} from "./test-support/registers-list-screen";
 
 test("shows the breadcrumb, heading, each register's name and count", async () => {
   const services = createServices();

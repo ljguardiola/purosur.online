@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
   createRegister,
   emitEnrollmentCode,
+  fetchRegisterCoverage,
   fetchRegisters,
   type RegisterSummary,
 } from "./registers-api";
@@ -266,4 +267,46 @@ test("emitEnrollmentCode returns failed when the request throws", async () => {
   vi.mocked(fetch).mockRejectedValue(new Error("network down"));
 
   expect(await emitEnrollmentCode("register-2")).toEqual({ kind: "failed" });
+});
+
+test("fetchRegisterCoverage lists the permissions nobody active at the branch holds", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, { uncovered_permissions: ["void_sale", "correct_register_clock"] }),
+  );
+
+  const outcome = await fetchRegisterCoverage();
+
+  expect(outcome).toEqual({ kind: "ok", value: ["void_sale", "correct_register_clock"] });
+  expect(fetch).toHaveBeenCalledWith("/registers/coverage");
+});
+
+test.each([
+  [401, { kind: "unauthenticated" }],
+  [403, { kind: "forbidden" }],
+  [500, { kind: "failed" }],
+])("fetchRegisterCoverage answers a %i as %j", async (status, outcome) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+  expect(await fetchRegisterCoverage()).toEqual(outcome);
+});
+
+test("fetchRegisterCoverage returns rate_limited with the Retry-After header on 429", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "45" }));
+
+  expect(await fetchRegisterCoverage()).toEqual({ kind: "rate_limited", retryAfterSeconds: 45 });
+});
+
+test("fetchRegisterCoverage returns failed when the request throws", async () => {
+  vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+  expect(await fetchRegisterCoverage()).toEqual({ kind: "failed" });
+});
+
+test.each([
+  ["a body without the uncovered permissions", {}],
+  ["an unknown permission", { uncovered_permissions: ["void_a_sale"] }],
+])("fetchRegisterCoverage returns failed on %s", async (_name, body) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, body));
+
+  expect(await fetchRegisterCoverage()).toEqual({ kind: "failed" });
 });
