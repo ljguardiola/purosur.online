@@ -17,7 +17,7 @@ import { registerUserDeactivationRoutes } from "./user-deactivation-route.js";
 import { registerUserEditRoutes } from "./user-edit-route.js";
 
 // PGlite serializes every transaction, so racing requests can only interleave on a real Postgres
-// pool; these tests pin the order by holding a row lock until both requests queue behind it.
+// pool; these tests pin the order by holding the target's row lock until both requests are waiting.
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 
 let integrationDb: IntegrationDatabase;
@@ -128,6 +128,8 @@ describe("deactivating the same target twice at once on a real Postgres", () => 
 
     const statusCodes = [firstResponse.statusCode, secondResponse.statusCode].sort();
     expect(statusCodes).toEqual([200, 404]);
+    const refused = [firstResponse, secondResponse].find((response) => response.statusCode === 404);
+    expect(refused?.json()).toMatchObject({ code: "not_found" });
 
     const [row] = await db
       .select({ active: users.active, version: users.version })
@@ -190,6 +192,7 @@ describe("deactivating a target while it is promoted to Administrator on a real 
 
     expect(promotion.statusCode).toBe(200);
     expect(deactivation.statusCode).toBe(404);
+    expect(deactivation.json()).toMatchObject({ code: "not_found" });
     expect(await targetState(targetId)).toEqual({ active: true, roleId: administratorRoleId });
   });
 
@@ -199,6 +202,7 @@ describe("deactivating a target while it is promoted to Administrator on a real 
 
     expect(deactivation.statusCode).toBe(200);
     expect(promotion.statusCode).toBe(409);
+    expect(promotion.json()).toMatchObject({ code: "stale_version" });
     expect(await targetState(targetId)).toEqual({ active: false, roleId: cashierRoleId });
   });
 });
