@@ -1,9 +1,9 @@
+import type { CategorySummary } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import type { CategorySummary } from "./categories-api";
 import { CategoriesListScreen } from "./categories-list-screen";
 import type { CategoriesListScreenServices } from "./categories-list-services";
 import { type CategoriesListFilters, categoriesListFilters } from "./routes";

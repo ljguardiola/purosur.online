@@ -1,3 +1,4 @@
+import type { CategorySummary } from "@purosur/contracts";
 import {
   Button,
   InlineNotice,
@@ -29,12 +30,7 @@ import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
-import type {
-  CategorySummary,
-  createCategory,
-  editCategory,
-  fetchCategories,
-} from "./categories-api";
+import type { createCategory, editCategory, fetchCategories } from "./categories-api";
 import type { CategoriesListScreenServices } from "./categories-list-services";
 import { categoryNameError } from "./category-name";
 import { categoriesInTreeOrder, categoryPathLabels, selfAndDescendantIds } from "./category-path";

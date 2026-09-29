@@ -1,4 +1,8 @@
-import { categoryEditBodySchema } from "@purosur/contracts";
+import {
+  type CategorySummary,
+  categoryEditBodySchema,
+  categorySummarySchema,
+} from "@purosur/contracts";
 import { editCategory } from "@purosur/domain/catalog/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -12,7 +16,7 @@ import {
 import { categories } from "../platform/db/schema.js";
 import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
-import type { CategoriesRouteOptions, CategoryRow } from "./categories-list-route.js";
+import type { CategoriesRouteOptions } from "./categories-list-route.js";
 import {
   CATEGORY_NAME_TAKEN_RESPONSE,
   CATEGORY_PARENT_HAS_PRODUCTS_RESPONSE,
@@ -38,7 +42,7 @@ const STALE_VERSION_RESPONSE = {
 async function findCategoryById<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   id: string,
-): Promise<CategoryRow | undefined> {
+): Promise<CategorySummary | undefined> {
   if (!UUID_PATTERN.test(id)) {
     return undefined;
   }
@@ -111,7 +115,7 @@ export function registerCategoryEditRoute<TQueryResult extends PgQueryResultHKT>
         return;
       }
 
-      await reply.code(200).send(outcome.category);
+      await reply.code(200).send(categorySummarySchema.parse(outcome.category));
     },
   );
 }

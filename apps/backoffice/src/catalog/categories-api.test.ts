@@ -1,10 +1,6 @@
+import type { CategorySummary } from "@purosur/contracts";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import {
-  type CategorySummary,
-  createCategory,
-  editCategory,
-  fetchCategories,
-} from "./categories-api";
+import { createCategory, editCategory, fetchCategories } from "./categories-api";
 
 function jsonResponse(status: number, body?: unknown, headers?: Record<string, string>): Response {
   return new Response(
@@ -333,6 +329,26 @@ test("editCategory returns rate_limited with the Retry-After header on 429", asy
 
 test("editCategory returns failed when the request throws", async () => {
   vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+  expect(
+    await editCategory("category-1", { name: "Semillas", parentId: null, version: 1 }),
+  ).toEqual({ kind: "failed" });
+});
+
+test("fetchCategories returns failed when a listed category does not have the expected shape", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [seeds, { ...groceries, version: "3" }]));
+
+  expect(await fetchCategories()).toEqual({ kind: "failed" });
+});
+
+test("createCategory returns failed when the created category does not have the expected shape", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(201, { id: "category-1" }));
+
+  expect(await createCategory({ name: "Semillas", parentId: null })).toEqual({ kind: "failed" });
+});
+
+test("editCategory returns failed when the applied category does not have the expected shape", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { ...seeds, parentId: undefined }));
 
   expect(
     await editCategory("category-1", { name: "Semillas", parentId: null, version: 1 }),

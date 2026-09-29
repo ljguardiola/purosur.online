@@ -1,6 +1,6 @@
+import type { ProductSummary } from "@purosur/contracts";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import type { ProductSummary } from "./products-api";
 import {
   createServices,
   honey,

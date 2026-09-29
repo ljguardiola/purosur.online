@@ -1,4 +1,12 @@
-import type { LabelSheetBody, ProductCreationBody, ProductEditBody } from "@purosur/contracts";
+import {
+  internalBarcodeSchema,
+  type LabelSheetBody,
+  type ProductCreationBody,
+  type ProductEditBody,
+  type ProductSummary,
+  productListSchema,
+  productSummarySchema,
+} from "@purosur/contracts";
 import type { NetContentUnit } from "@purosur/domain";
 import { retryAfterSeconds } from "../platform/retry-after-seconds";
 
@@ -7,18 +15,6 @@ export type ProductSaleUnit = "UNIT" | "KG";
 export type NetContent = { quantity: number; unit: NetContentUnit };
 
 export type ProductStatusFilter = "active" | "inactive" | "all";
-
-export type ProductSummary = {
-  id: string;
-  name: string;
-  categoryId: string;
-  categoryName: string;
-  saleUnit: ProductSaleUnit;
-  barcodes: string[];
-  netContent: NetContent | null;
-  active: boolean;
-  version: number;
-};
 
 export type FetchProductsOutcome =
   | { kind: "ok"; value: ProductSummary[] }
@@ -130,11 +126,11 @@ export async function fetchProducts(
   if (!response.ok) {
     return { kind: "failed" };
   }
-  const body = (await response.json().catch(() => undefined)) as ProductSummary[] | undefined;
-  if (!Array.isArray(body)) {
+  const parsed = productListSchema.safeParse(await response.json().catch(() => undefined));
+  if (!parsed.success) {
     return { kind: "failed" };
   }
-  return { kind: "ok", value: body };
+  return { kind: "ok", value: parsed.data };
 }
 
 export async function createProduct(input: CreateProductInput): Promise<CreateProductOutcome> {
@@ -152,11 +148,11 @@ export async function createProduct(input: CreateProductInput): Promise<CreatePr
     return { kind: "failed" };
   }
   if (response.ok) {
-    const body = (await response.json().catch(() => undefined)) as ProductSummary | undefined;
-    if (!body) {
+    const parsed = productSummarySchema.safeParse(await response.json().catch(() => undefined));
+    if (!parsed.success) {
       return { kind: "failed" };
     }
-    return { kind: "ok", value: body };
+    return { kind: "ok", value: parsed.data };
   }
   if (response.status === 400) {
     const body = (await response.json().catch(() => undefined)) as
@@ -198,11 +194,11 @@ export async function generateInternalBarcode(): Promise<GenerateInternalBarcode
     return { kind: "failed" };
   }
   if (response.ok) {
-    const body = (await response.json().catch(() => undefined)) as { code?: unknown } | undefined;
-    if (typeof body?.code !== "string") {
+    const parsed = internalBarcodeSchema.safeParse(await response.json().catch(() => undefined));
+    if (!parsed.success) {
       return { kind: "failed" };
     }
-    return { kind: "ok", code: body.code };
+    return { kind: "ok", code: parsed.data.code };
   }
   if (response.status === 401) {
     return { kind: "unauthenticated" };
@@ -283,11 +279,11 @@ export async function editProduct(
     return { kind: "failed" };
   }
   if (response.ok) {
-    const body = (await response.json().catch(() => undefined)) as ProductSummary | undefined;
-    if (!body) {
+    const parsed = productSummarySchema.safeParse(await response.json().catch(() => undefined));
+    if (!parsed.success) {
       return { kind: "failed" };
     }
-    return { kind: "ok", value: body };
+    return { kind: "ok", value: parsed.data };
   }
   if (response.status === 400) {
     const body = (await response.json().catch(() => undefined)) as

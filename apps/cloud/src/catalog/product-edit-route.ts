@@ -1,4 +1,4 @@
-import { productEditBodySchema } from "@purosur/contracts";
+import { productEditBodySchema, productSummarySchema } from "@purosur/contracts";
 import { editProduct } from "@purosur/domain/catalog/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -93,7 +93,7 @@ export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      await reply.code(200).send(outcome.product);
+      await reply.code(200).send(productSummarySchema.parse(outcome.product));
     },
   );
 }

@@ -1,3 +1,4 @@
+import type { CategorySummary, ProductSummary } from "@purosur/contracts";
 import {
   BARCODE_MAX_LENGTH,
   ean13Modules,
@@ -65,7 +66,6 @@ import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
-import type { CategorySummary } from "./categories-api";
 import { categoriesInTreeOrder, categoryPathLabels, leafCategories } from "./category-path";
 import {
   formatNetContentQuantity,
@@ -83,7 +83,6 @@ import type {
   NetContent,
   ProductSaleUnit,
   ProductStatusFilter,
-  ProductSummary,
   printLabels,
 } from "./products-api";
 import type { ProductsListScreenServices } from "./products-list-services";

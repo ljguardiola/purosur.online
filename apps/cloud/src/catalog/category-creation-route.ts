@@ -1,4 +1,4 @@
-import { categoryCreationBodySchema } from "@purosur/contracts";
+import { categoryCreationBodySchema, categorySummarySchema } from "@purosur/contracts";
 import { createCategory } from "@purosur/domain/catalog/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -70,7 +70,7 @@ export function registerCategoryCreationRoute<TQueryResult extends PgQueryResult
         return;
       }
 
-      await reply.code(201).send(outcome.category);
+      await reply.code(201).send(categorySummarySchema.parse(outcome.category));
     },
   );
 }

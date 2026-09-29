@@ -1,3 +1,4 @@
+import type { ProductSummary } from "@purosur/contracts";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
   createProduct,
@@ -5,7 +6,6 @@ import {
   editProduct,
   fetchProducts,
   generateInternalBarcode,
-  type ProductSummary,
   printLabels,
 } from "./products-api";
 
@@ -453,4 +453,28 @@ test("deactivateProduct returns failed when the request throws", async () => {
   vi.mocked(fetch).mockRejectedValue(new Error("network down"));
 
   expect(await deactivateProduct("product-1")).toEqual({ kind: "failed" });
+});
+
+test("fetchProducts returns failed when a listed product does not have the expected shape", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [honey, { ...honey, saleUnit: "BOX" }]));
+
+  expect(await fetchProducts()).toEqual({ kind: "failed" });
+});
+
+test("createProduct returns failed when the created product does not have the expected shape", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(201, { id: "product-1" }));
+
+  expect(await createProduct(createInput)).toEqual({ kind: "failed" });
+});
+
+test("editProduct returns failed when the applied product does not have the expected shape", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { ...honey, barcodes: "7790987000015" }));
+
+  expect(await editProduct("product-1", editInput)).toEqual({ kind: "failed" });
+});
+
+test("generateInternalBarcode returns failed when the body has no code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { code: 7790987000015 }));
+
+  expect(await generateInternalBarcode()).toEqual({ kind: "failed" });
 });

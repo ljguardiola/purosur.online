@@ -1,12 +1,11 @@
-import type { CategoryCreationBody, CategoryEditBody } from "@purosur/contracts";
+import {
+  type CategoryCreationBody,
+  type CategoryEditBody,
+  type CategorySummary,
+  categoryListSchema,
+  categorySummarySchema,
+} from "@purosur/contracts";
 import { retryAfterSeconds } from "../platform/retry-after-seconds";
-
-export type CategorySummary = {
-  id: string;
-  name: string;
-  version: number;
-  parentId: string | null;
-};
 
 export type FetchCategoriesOutcome =
   | { kind: "ok"; value: CategorySummary[] }
@@ -77,11 +76,11 @@ export async function fetchCategories(): Promise<FetchCategoriesOutcome> {
   if (!response.ok) {
     return { kind: "failed" };
   }
-  const body = (await response.json().catch(() => undefined)) as CategorySummary[] | undefined;
-  if (!Array.isArray(body)) {
+  const parsed = categoryListSchema.safeParse(await response.json().catch(() => undefined));
+  if (!parsed.success) {
     return { kind: "failed" };
   }
-  return { kind: "ok", value: body };
+  return { kind: "ok", value: parsed.data };
 }
 
 export async function createCategory(input: CreateCategoryInput): Promise<CreateCategoryOutcome> {
@@ -93,11 +92,11 @@ export async function createCategory(input: CreateCategoryInput): Promise<Create
     return { kind: "failed" };
   }
   if (response.ok) {
-    const body = (await response.json().catch(() => undefined)) as CategorySummary | undefined;
-    if (!body) {
+    const parsed = categorySummarySchema.safeParse(await response.json().catch(() => undefined));
+    if (!parsed.success) {
       return { kind: "failed" };
     }
-    return { kind: "ok", value: body };
+    return { kind: "ok", value: parsed.data };
   }
   if (response.status === 400) {
     const body = (await response.json().catch(() => undefined)) as
@@ -145,11 +144,11 @@ export async function editCategory(
     return { kind: "failed" };
   }
   if (response.ok) {
-    const body = (await response.json().catch(() => undefined)) as CategorySummary | undefined;
-    if (!body) {
+    const parsed = categorySummarySchema.safeParse(await response.json().catch(() => undefined));
+    if (!parsed.success) {
       return { kind: "failed" };
     }
-    return { kind: "ok", value: body };
+    return { kind: "ok", value: parsed.data };
   }
   if (response.status === 400) {
     const body = (await response.json().catch(() => undefined)) as

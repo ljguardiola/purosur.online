@@ -1,8 +1,7 @@
+import type { CategorySummary, ProductSummary } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import type { CategorySummary } from "./categories-api";
-import type { ProductSummary } from "./products-api";
 import { productsListFilters } from "./routes";
 import {
   almonds,

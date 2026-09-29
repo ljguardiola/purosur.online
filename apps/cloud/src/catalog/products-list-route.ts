@@ -1,3 +1,4 @@
+import { type ProductSummary, productListSchema } from "@purosur/contracts";
 import type { NetContentUnit, SaleUnit } from "@purosur/domain";
 import type { CatalogNetContent } from "@purosur/domain/catalog/use-cases";
 import { asc, eq, inArray } from "drizzle-orm";
@@ -31,18 +32,6 @@ export interface ProductsRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
   now?: () => Date;
-}
-
-interface ProductRow {
-  id: string;
-  name: string;
-  categoryId: string;
-  categoryName: string;
-  saleUnit: SaleUnit;
-  barcodes: string[];
-  netContent: CatalogNetContent | null;
-  active: boolean;
-  version: number;
 }
 
 interface ProductWithoutBarcodes {
@@ -95,7 +84,7 @@ async function barcodesByProductId<TQueryResult extends PgQueryResultHKT>(
 async function listProducts<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   status: ProductStatusFilter = "active",
-): Promise<ProductRow[]> {
+): Promise<ProductSummary[]> {
   const rows: ProductWithoutBarcodes[] = await db
     .select({
       id: products.id,
@@ -160,7 +149,7 @@ export function registerProductsListRoute<TQueryResult extends PgQueryResultHKT>
       }
 
       const rows = await listProducts(options.db, status);
-      await reply.code(200).send(rows);
+      await reply.code(200).send(productListSchema.parse(rows));
     },
   );
 }
