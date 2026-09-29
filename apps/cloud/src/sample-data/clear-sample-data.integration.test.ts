@@ -420,6 +420,7 @@ describe("clearSampleData", () => {
       registerId: sampleRegister.id,
       tokenLookupPrefix: randomUUID(),
       tokenHash: "hash",
+      tokenIssuedAt: NOW,
       hostname: "CAJA",
       windowsVersion: "Windows 11",
       enrolledAt: NOW,

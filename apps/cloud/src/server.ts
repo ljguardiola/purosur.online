@@ -30,6 +30,7 @@ export interface ServerEnv {
   BACKOFFICE_SENTRY_DSN?: string | undefined;
   BACKOFFICE_STATIC_DIR?: string | undefined;
   DATABASE_URL?: string | undefined;
+  DEVICE_TOKEN_ROTATION_KEY?: string | undefined;
   RESEND_API_KEY?: string | undefined;
   RECOVERY_EMAIL_FROM?: string | undefined;
   RECOVERY_EMAIL_REPLY_TO?: string | undefined;
@@ -102,6 +103,22 @@ function requireEdgeOriginSecret(env: ServerEnv): string {
     throw new Error("EDGE_ORIGIN_SECRET must be set");
   }
   return value;
+}
+
+const DEVICE_TOKEN_ROTATION_KEY_MIN_BYTES = 32;
+
+export function requireDeviceTokenRotationKey(env: ServerEnv): Buffer {
+  const encoded = env.DEVICE_TOKEN_ROTATION_KEY;
+  if (!encoded) {
+    throw new Error("DEVICE_TOKEN_ROTATION_KEY must be set once DATABASE_URL is configured");
+  }
+  const key = Buffer.from(encoded, "base64");
+  if (key.length < DEVICE_TOKEN_ROTATION_KEY_MIN_BYTES) {
+    throw new Error(
+      `DEVICE_TOKEN_ROTATION_KEY must hold at least ${DEVICE_TOKEN_ROTATION_KEY_MIN_BYTES} bytes`,
+    );
+  }
+  return key;
 }
 
 const CUIT_SERIAL_NUMBER_PATTERN = /^CUIT (?<cuitDigits>\d{11})$/;
@@ -308,7 +325,11 @@ export async function startServer(
   const errorReporting = resolveBackofficeErrorReporting(env);
   const recoveryEnv = resolveRecoveryEnv(env);
   const database = recoveryEnv
-    ? { authorizedCuit: requireAuthorizedCuit(env), recovery: await doSetUpRecovery(recoveryEnv) }
+    ? {
+        authorizedCuit: requireAuthorizedCuit(env),
+        deviceTokenRotationKey: requireDeviceTokenRotationKey(env),
+        recovery: await doSetUpRecovery(recoveryEnv),
+      }
     : undefined;
 
   const app = doBuildApp({
@@ -372,7 +393,7 @@ export async function startServer(
             db: database.recovery.db,
             backofficeOrigin: database.recovery.backofficeOrigin,
           },
-          devices: { db: database.recovery.db },
+          devices: { db: database.recovery.db, rotationKey: database.deviceTokenRotationKey },
         }
       : {}),
   });

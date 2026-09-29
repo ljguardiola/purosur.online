@@ -73,8 +73,12 @@ import { registerPriceSetRoute } from "./pricing/price-set-route.js";
 import type { PricesRouteOptions } from "./pricing/prices-list-route.js";
 import { registerPricesListRoute } from "./pricing/prices-list-route.js";
 import { authenticateDevice } from "./register/device-authentication.js";
-import type { DeviceEnrollmentRouteOptions } from "./register/device-enrollment-route.js";
 import { registerDeviceEnrollmentRoute } from "./register/device-enrollment-route.js";
+import { registerDeviceTokenRotationRoute } from "./register/device-token-rotation-route.js";
+import {
+  type DeviceTokensOptions,
+  installationTokenPorts,
+} from "./register/installation-token-ports.js";
 import { registerRegisterCoverageRoute } from "./register/register-coverage-route.js";
 import { registerRegisterCreationRoute } from "./register/register-creation-route.js";
 import { registerRegisterEnrollmentCodeRoute } from "./register/register-enrollment-code-route.js";
@@ -100,7 +104,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   alerts?: AlertsRouteOptions<TQueryResult>;
   prices?: PricesRouteOptions<TQueryResult>;
   registers?: RegistersRouteOptions<TQueryResult>;
-  devices?: DeviceEnrollmentRouteOptions<TQueryResult>;
+  devices?: DeviceTokensOptions<TQueryResult>;
 }
 
 const STRICT_TRANSPORT_SECURITY = "max-age=63072000; includeSubDomains";
@@ -172,7 +176,8 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
   registerHealthRoute(app, {
     version: options.version,
     ...(devices && {
-      authenticateDevice: (authorization) => authenticateDevice(devices.db, authorization),
+      authenticateDevice: (authorization) =>
+        authenticateDevice(installationTokenPorts(devices), authorization),
     }),
   });
 
@@ -274,6 +279,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
   if (options.devices) {
     registerDeviceEnrollmentRoute(app, options.devices);
+    registerDeviceTokenRotationRoute(app, options.devices);
   }
 
   const staticDir = options.staticDir;

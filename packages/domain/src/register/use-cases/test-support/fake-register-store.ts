@@ -254,7 +254,7 @@ export const plainCodeHashes: EnrollmentCodeVerifier = {
   matches: (code, codeHash) => hashOfCode(code) === codeHash,
 };
 
-export const hashOfToken = (deviceToken: string): string => `hash-of-${deviceToken}`;
+const hashOfToken = (deviceToken: string): string => `hash-of-${deviceToken}`;
 
 function readToken(deviceToken: string): PresentedDeviceToken | undefined {
   const [lookupPrefix, secret, ...rest] = deviceToken.split(".");

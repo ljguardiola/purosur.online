@@ -75,6 +75,7 @@ async function insertInstallation(registerId: string, prefix: string): Promise<s
       tokenHash: `hash-${prefix}`,
       hostname: "VIEJA",
       windowsVersion: "Windows 10 Pro 10.0.19045",
+      tokenIssuedAt: minutesAgo(60 * 24),
       enrolledAt: minutesAgo(60 * 24),
     })
     .returning({ id: registerInstallations.id });
