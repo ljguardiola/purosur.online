@@ -131,6 +131,23 @@ test("createCategory returns validation_failed on the parentId field for a vanis
   });
 });
 
+test("createCategory reports the wire name of any field the cloud refused", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(400, { code: "validation_failed", details: [{ field: "version" }] }),
+  );
+
+  expect(await createCategory({ name: "Semillas", parentId: null })).toEqual({
+    kind: "validation_failed",
+    field: "version",
+  });
+});
+
+test("createCategory returns failed on a 400 that is not a validation failure", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(400, { code: "something_else" }));
+
+  expect(await createCategory({ name: "Semillas", parentId: null })).toEqual({ kind: "failed" });
+});
+
 test("createCategory returns name_taken on a 409 carrying that code", async () => {
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse(409, {
@@ -261,6 +278,16 @@ test("editCategory returns validation_failed on the parentId field for a vanishe
   expect(
     await editCategory("category-1", { name: "Semillas", parentId: "gone", version: 1 }),
   ).toEqual({ kind: "validation_failed", field: "parentId" });
+});
+
+test("editCategory reports the wire name of any field the cloud refused", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(400, { code: "validation_failed", details: [{ field: "something_new" }] }),
+  );
+
+  expect(
+    await editCategory("category-1", { name: "Semillas", parentId: null, version: 1 }),
+  ).toEqual({ kind: "validation_failed", field: "something_new" });
 });
 
 test("editCategory returns not_found on 404", async () => {

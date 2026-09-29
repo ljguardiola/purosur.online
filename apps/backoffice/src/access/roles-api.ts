@@ -8,18 +8,15 @@ import {
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { retryAfterSeconds } from "../platform/retry-after-seconds";
+import { readValidationFailedField } from "../platform/validation-failed-field";
 
 export type RoleSummary = ReturnType<typeof roleSummaryFromWire>;
 
 export type FetchRolesOutcome = CloudReadOutcome<RoleSummary[]>;
 
-export type CreateRoleInput = { name: string; permissionKeys: string[] };
-
-export type CreateRoleFieldError = "name" | "permissions";
-
 export type CreateRoleOutcome =
   | { kind: "ok" }
-  | { kind: "validation_failed"; field: CreateRoleFieldError }
+  | { kind: "validation_failed"; field: string }
   | { kind: "name_taken" }
   | { kind: "forbidden" }
   | { kind: "unauthenticated" }
@@ -33,13 +30,9 @@ export type AssignedUser = RoleDetail["assignedUsers"][number];
 
 export type FetchRoleOutcome = CloudReadOutcome<RoleDetail> | { kind: "not_found" };
 
-export type EditRoleInput = { name: string; permissionKeys: string[]; version: number };
-
-export type EditRoleFieldError = "name" | "permissions" | "version";
-
 export type EditRoleOutcome =
   | { kind: "ok" }
-  | { kind: "validation_failed"; field: EditRoleFieldError }
+  | { kind: "validation_failed"; field: string }
   | { kind: "name_taken" }
   | { kind: "stale_version" }
   | { kind: "not_found" }
@@ -93,10 +86,6 @@ export async function fetchRoles(): Promise<FetchRolesOutcome> {
   return { kind: "ok", value: parsed.data.map(roleSummaryFromWire) };
 }
 
-function roleFieldFromWire(field: unknown): CreateRoleFieldError | undefined {
-  return field === "name" || field === "permissions" ? field : undefined;
-}
-
 async function roleActionErrorOutcome(
   response: Response,
 ): Promise<
@@ -121,14 +110,10 @@ async function roleActionErrorOutcome(
   return { kind: "failed" };
 }
 
-export async function createRole(input: CreateRoleInput): Promise<CreateRoleOutcome> {
-  const requestBody: RoleCreationBody = {
-    name: input.name,
-    permissions: input.permissionKeys,
-  };
+export async function createRole(input: RoleCreationBody): Promise<CreateRoleOutcome> {
   let response: Response;
   try {
-    response = await postJson("/roles", requestBody);
+    response = await postJson("/roles", input);
   } catch {
     return { kind: "failed" };
   }
@@ -136,16 +121,8 @@ export async function createRole(input: CreateRoleInput): Promise<CreateRoleOutc
     return { kind: "ok" };
   }
   if (response.status === 400) {
-    const body = (await response.json().catch(() => undefined)) as
-      | { code?: string; details?: Array<{ field?: string }> }
-      | undefined;
-    if (body?.code === "validation_failed") {
-      const field = roleFieldFromWire(body.details?.[0]?.field);
-      if (field) {
-        return { kind: "validation_failed", field };
-      }
-    }
-    return { kind: "failed" };
+    const field = await readValidationFailedField(response);
+    return field === undefined ? { kind: "failed" } : { kind: "validation_failed", field };
   }
   if (response.status === 409) {
     return { kind: "name_taken" };
@@ -186,19 +163,10 @@ export async function fetchRole(id: string): Promise<FetchRoleOutcome> {
   return { kind: "ok", value: roleDetailFromWire(parsed.data) };
 }
 
-function editRoleFieldFromWire(field: unknown): EditRoleFieldError | undefined {
-  return field === "name" || field === "permissions" || field === "version" ? field : undefined;
-}
-
-export async function editRole(id: string, input: EditRoleInput): Promise<EditRoleOutcome> {
-  const requestBody: RoleEditBody = {
-    name: input.name,
-    permissions: input.permissionKeys,
-    version: input.version,
-  };
+export async function editRole(id: string, input: RoleEditBody): Promise<EditRoleOutcome> {
   let response: Response;
   try {
-    response = await postJson(`/roles/${id}/edit`, requestBody);
+    response = await postJson(`/roles/${id}/edit`, input);
   } catch {
     return { kind: "failed" };
   }
@@ -206,16 +174,8 @@ export async function editRole(id: string, input: EditRoleInput): Promise<EditRo
     return { kind: "ok" };
   }
   if (response.status === 400) {
-    const body = (await response.json().catch(() => undefined)) as
-      | { code?: string; details?: Array<{ field?: string }> }
-      | undefined;
-    if (body?.code === "validation_failed") {
-      const field = editRoleFieldFromWire(body.details?.[0]?.field);
-      if (field) {
-        return { kind: "validation_failed", field };
-      }
-    }
-    return { kind: "failed" };
+    const field = await readValidationFailedField(response);
+    return field === undefined ? { kind: "failed" } : { kind: "validation_failed", field };
   }
   if (response.status === 404) {
     return { kind: "not_found" };

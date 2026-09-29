@@ -1,16 +1,16 @@
-import type { CategorySummary, ProductSummary } from "@purosur/contracts";
 import {
-  BARCODE_MAX_LENGTH,
+  type CategorySummary,
+  type ProductSummary,
+  productCreationBodySchema,
+  productEditBodySchema,
+} from "@purosur/contracts";
+import {
+  barcodeListProblem,
   ean13Modules,
-  isBarcodeTooLong,
   isInternalBarcode,
-  isProductNameTooLong,
-  isValidNetContentQuantity,
   LABELS_MAX_COUNT_PER_PRODUCT,
   LABELS_MAX_TOTAL_COUNT,
   type NetContentUnit,
-  PRODUCT_BARCODES_MAX_COUNT,
-  PRODUCT_NAME_MAX_LENGTH,
 } from "@purosur/domain";
 import {
   Button,
@@ -21,17 +21,13 @@ import {
   ListFilter,
   Modal,
   type Option,
-  OptionCardGroup,
   type Options,
   plural,
-  QuantityUnitField,
   SearchField,
-  Select,
   StatusIndicator,
   sortedItems,
   Table,
   type TableSort,
-  TextField,
   tableRows,
   textOrder,
 } from "@purosur/ui";
@@ -66,6 +62,9 @@ import {
   useState,
 } from "react";
 import { useSendToMyAccount } from "../access/send-to-my-account";
+import { useCloudForm } from "../platform/cloud-form";
+import { useFieldContext } from "../platform/cloud-form-context";
+import { fieldErrorMessage, SharedFieldError } from "../platform/cloud-form-fields";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { combineCloudData } from "../platform/combine-cloud-data";
 import { retryAfterDetail } from "../platform/retry-after-detail";
@@ -81,18 +80,21 @@ import {
 } from "./catalog-queries";
 import { categoriesInTreeOrder, categoryPathLabels, leafCategories } from "./category-path";
 import {
-  formatNetContentQuantity,
-  NET_CONTENT_QUANTITY_INVALID,
-  netContentQuantityError,
-  parseNetContentQuantity,
-} from "./net-content-quantity";
+  type BarcodeListValue,
+  barcodeProblemMessage,
+  EMPTY_PRODUCT_FORM,
+  PRODUCT_EDIT_FIELDS,
+  PRODUCT_FIELDS,
+  PRODUCT_MESSAGES,
+  productEditRequestFrom,
+  productFormValues,
+  productRequestFrom,
+} from "./product-form";
 import type {
-  CreateProductInput,
   createProduct,
   deactivateProduct,
   editProduct,
   generateInternalBarcode,
-  NetContent,
   ProductSaleUnit,
   ProductStatusFilter,
   printLabels,
@@ -113,27 +115,27 @@ const NO_CATEGORIES: CategorySummary[] = [];
 type CategoryFilter = "ALL" | string;
 type UnitFilter = "ALL" | ProductSaleUnit;
 
-const PRODUCT_NAME_TOO_LONG = `El nombre puede tener hasta ${PRODUCT_NAME_MAX_LENGTH} caracteres.`;
-const PRODUCT_CATEGORY_REQUIRED = "Elegí una categoría.";
 // Only reachable by a race: the category gains a subcategory of its own between loading this
 // form and submitting it.
 const PRODUCT_CATEGORY_NOT_LEAF_ERROR = (params: { category: string }) =>
   `"${params.category}" tiene subcategorías. Elegí una de ellas.`;
-const PRODUCT_NAME_REQUIRED = "Ingresá el nombre del producto.";
-const SALE_UNIT_OPTION_CONTENT = {
-  UNIT: { label: "Por unidad", description: "Se vende de a uno" },
-  KG: { label: "Por peso", description: "Se pesa en la balanza" },
-} satisfies Record<ProductSaleUnit, { label: string; description: string }>;
-const PRODUCT_BARCODE_REQUIRED = "Escaneá al menos un código de barras.";
-const PRODUCT_BARCODE_ALREADY_LISTED = "Ese código ya está en la lista.";
-const PRODUCT_BARCODE_HAS_SPACES = "El código de barras no puede tener espacios.";
-const PRODUCT_BARCODE_TOO_LONG = `El código de barras puede tener hasta ${BARCODE_MAX_LENGTH} caracteres.`;
-const PRODUCT_BARCODE_LIMIT_REACHED = `El producto puede tener hasta ${PRODUCT_BARCODES_MAX_COUNT} códigos de barras.`;
-const PRODUCT_BARCODE_INVALID = "Alguno de los códigos de barras no es válido.";
+const SALE_UNIT_OPTIONS = [
+  {
+    value: "UNIT",
+    icon: <Package />,
+    label: "Por unidad",
+    description: "Se vende de a uno",
+  },
+  {
+    value: "KG",
+    icon: <Scale />,
+    label: "Por peso",
+    description: "Se pesa en la balanza",
+  },
+] as const;
 const PRODUCT_BARCODE_TAKEN_UNNAMED = "Alguno de los códigos ya es de otro producto.";
 const PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED =
   "No se pudo generar el código interno. Probá de nuevo.";
-const PRODUCT_NET_CONTENT_INVALID = "Revisá el contenido neto.";
 
 function barcodeTakenText(params: { codes: string[] }): string {
   const list = params.codes.join(", ");
@@ -193,23 +195,6 @@ const NET_CONTENT_UNIT_OPTIONS: Options<Option<NetContentUnit>> = [
   { value: "UNIT", label: NET_CONTENT_UNIT_OPTION_LABELS.UNIT },
 ];
 
-const NET_CONTENT_DEFAULT_UNIT: NetContentUnit = "G";
-
-function netContentToSend(quantity: string, unit: NetContentUnit): NetContent | null {
-  const parsed = parseNetContentQuantity(quantity);
-  return parsed !== undefined && isValidNetContentQuantity(parsed)
-    ? { quantity: parsed, unit }
-    : null;
-}
-
-function netContentQuantityText(netContent: NetContent | null): string {
-  return netContent ? formatNetContentQuantity(netContent.quantity) : "";
-}
-
-function netContentUnitOf(netContent: NetContent | null): NetContentUnit {
-  return netContent ? netContent.unit : NET_CONTENT_DEFAULT_UNIT;
-}
-
 const productNameOrder = textOrder((product: ProductSummary) => product.name);
 
 // Full paths disambiguate leaves that share a name under different parents.
@@ -230,17 +215,6 @@ function categorySelectOptions(categories: CategorySummary[]): Options<Option<st
   return [first, ...rest];
 }
 
-function productNameError(name: string): string | undefined {
-  const trimmed = name.trim();
-  if (!trimmed) {
-    return PRODUCT_NAME_REQUIRED;
-  }
-  if (isProductNameTooLong(trimmed)) {
-    return PRODUCT_NAME_TOO_LONG;
-  }
-  return undefined;
-}
-
 const barcodeActionClassName =
   "flex h-control-xl flex-1 items-center justify-center gap-2 rounded-lg px-3 text-body font-bold " +
   "text-text-accent inset-ring-2 inset-ring-action " +
@@ -255,42 +229,119 @@ const generateButtonClassName =
   `${barcodeActionClassName} enabled:hover:bg-surface-subtle ` +
   "focus-visible:focus-ring disabled:opacity-disabled";
 
+type BarcodeListControl = {
+  list: BarcodeListValue;
+  latest: () => BarcodeListValue;
+  setList: (next: BarcodeListValue) => void;
+};
+
+function scanProblemMessage(code: string, listed: string[]): string | undefined {
+  return barcodeProblemMessage(barcodeListProblem([...listed, code]));
+}
+
+function barcodeTakenError(codes: string[]): string {
+  return codes.length > 0 ? barcodeTakenText({ codes }) : PRODUCT_BARCODE_TAKEN_UNNAMED;
+}
+
+function hasInternalBarcode(barcodes: string[]): boolean {
+  return barcodes.some(isInternalBarcode);
+}
+
+function useBarcodeChips({ list, latest, setList }: BarcodeListControl) {
+  const [scanError, setScanError] = useState<string | undefined>(undefined);
+
+  const reset = useCallback(() => setScanError(undefined), []);
+
+  function changeScanInput(value: string) {
+    setList({ ...list, scan: value });
+    setScanError(undefined);
+  }
+
+  function remove(code: string) {
+    const codes = list.codes.filter((existing) => existing !== code);
+    setList({ ...list, codes });
+    setScanError((current) =>
+      current === undefined ? undefined : scanProblemMessage(list.scan.trim(), codes),
+    );
+  }
+
+  function handleScanKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== "Enter") {
+      return;
+    }
+    event.preventDefault();
+    const code = list.scan.trim();
+    if (code === "") {
+      return;
+    }
+    const problem = scanProblemMessage(code, list.codes);
+    if (problem) {
+      setScanError(problem);
+      return;
+    }
+    setList({ codes: [...list.codes, code], scan: "" });
+    setScanError(undefined);
+  }
+
+  // Checked before allocating a code from the cloud, so a full list never wastes one.
+  function refuseWhenFull(): boolean {
+    const problem = scanProblemMessage("", list.codes);
+    if (problem === undefined) {
+      return false;
+    }
+    setScanError(problem);
+    return true;
+  }
+
+  // The cloud already allocated and confirmed this code unique, so unlike a scanned one it
+  // skips the spaces/length checks.
+  function addGenerated(code: string): boolean {
+    const current = latest();
+    const problem = scanProblemMessage("", current.codes);
+    if (problem !== undefined) {
+      setScanError(problem);
+      return false;
+    }
+    if (!current.codes.includes(code)) {
+      setList({ ...current, codes: [...current.codes, code] });
+    }
+    return true;
+  }
+
+  return {
+    codes: list.codes,
+    scanError,
+    reset,
+    changeScanInput,
+    remove,
+    handleScanKeyDown,
+    refuseWhenFull,
+    addGenerated,
+  };
+}
+
+type BarcodeChipsState = ReturnType<typeof useBarcodeChips>;
+
 type BarcodeChipsProps = {
-  barcodes: string[];
-  onRemove: (code: string) => void;
-  scanInput: string;
-  onScanInputChange: (value: string) => void;
-  onScanKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void;
+  chips: BarcodeChipsState;
   onGenerate: () => void;
   generateDisabled: boolean;
-  error: string | undefined;
-  scanError: string | undefined;
   generateError: string | undefined;
 };
 
-function BarcodeChips({
-  barcodes,
-  onRemove,
-  scanInput,
-  onScanInputChange,
-  onScanKeyDown,
-  onGenerate,
-  generateDisabled,
-  error,
-  scanError,
-  generateError,
-}: BarcodeChipsProps) {
-  const scanErrorId = useId();
+function BarcodeChips({ chips, onGenerate, generateDisabled, generateError }: BarcodeChipsProps) {
+  const field = useFieldContext<BarcodeListValue>();
+  const { codes, scan } = field.state.value;
+  const error = fieldErrorMessage(field.state.meta.errors) ?? chips.scanError;
   const errorId = useId();
   const generateErrorId = useId();
   const [scanFocused, setScanFocused] = useState(false);
-  const describedBy = [scanError && scanErrorId, error && errorId].filter(Boolean).join(" ");
 
   return (
     <FieldGroup label="Códigos de barras" required>
-      {barcodes.length > 0 && (
+      {codes.length > 0 && (
         <div className="flex flex-col gap-1">
-          {barcodes.map((code) => (
+          {codes.map((code) => (
             <div
               key={code}
               className="flex h-control-xl items-center gap-2 rounded-lg bg-surface-subtle px-3"
@@ -301,7 +352,7 @@ function BarcodeChips({
               <IconButton
                 icon={<X />}
                 aria-label={`Quitar el código ${code}`}
-                onPress={() => onRemove(code)}
+                onPress={() => chips.remove(code)}
               />
             </div>
           ))}
@@ -309,7 +360,7 @@ function BarcodeChips({
       )}
       <div className="flex gap-3">
         <label className={scanControlClassName}>
-          {!scanInput && !scanFocused && (
+          {!scan && !scanFocused && (
             <span
               aria-hidden="true"
               className="pointer-events-none flex min-w-0 items-center justify-center gap-2"
@@ -320,14 +371,14 @@ function BarcodeChips({
           )}
           <input
             className="absolute inset-0 size-full rounded-lg bg-transparent px-3 text-center outline-none"
-            value={scanInput}
-            onChange={(event) => onScanInputChange(event.target.value)}
-            onKeyDown={onScanKeyDown}
+            value={scan}
+            onChange={(event) => chips.changeScanInput(event.target.value)}
+            onKeyDown={chips.handleScanKeyDown}
             onFocus={() => setScanFocused(true)}
             onBlur={() => setScanFocused(false)}
             aria-label="Escanear otro código"
-            aria-invalid={describedBy ? true : undefined}
-            aria-describedby={describedBy || undefined}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? errorId : undefined}
           />
         </label>
         <button
@@ -346,11 +397,6 @@ function BarcodeChips({
           {generateError}
         </span>
       ) : null}
-      {scanError ? (
-        <span id={scanErrorId} className="text-detail text-error">
-          {scanError}
-        </span>
-      ) : null}
       {error ? (
         <span id={errorId} className="text-detail text-error">
           {error}
@@ -360,165 +406,10 @@ function BarcodeChips({
   );
 }
 
-type ProductFieldErrors = {
-  name?: string;
-  category?: string;
-  unit?: string;
-  barcodes?: string;
-  netContent?: string;
-};
-type ProductFieldErrorKey = keyof ProductFieldErrors;
-
-// Deletes the key instead of setting `undefined`: `exactOptionalPropertyTypes` treats an
-// explicit `undefined` as different from an absent key.
-function withFieldError(
-  current: ProductFieldErrors,
-  field: ProductFieldErrorKey,
-  message: string | undefined,
-): ProductFieldErrors {
-  const rest = { ...current };
-  delete rest[field];
-  return message !== undefined ? { ...rest, [field]: message } : rest;
-}
-
-function productFieldErrors(
-  name: string | undefined,
-  category: string | undefined,
-  unit: string | undefined,
-  barcodes: string | undefined,
-  netContent: string | undefined,
-): ProductFieldErrors {
-  let next: ProductFieldErrors = {};
-  next = withFieldError(next, "name", name);
-  next = withFieldError(next, "category", category);
-  next = withFieldError(next, "unit", unit);
-  next = withFieldError(next, "barcodes", barcodes);
-  next = withFieldError(next, "netContent", netContent);
-  return next;
-}
-
-type PendingCodeResult = { ok: true; barcodes: string[]; added: boolean } | { ok: false };
-
-function scanErrorFor(code: string, listed: string[]): string | undefined {
-  if (/\s/.test(code)) {
-    return PRODUCT_BARCODE_HAS_SPACES;
-  }
-  if (isBarcodeTooLong(code)) {
-    return PRODUCT_BARCODE_TOO_LONG;
-  }
-  if (listed.includes(code)) {
-    return PRODUCT_BARCODE_ALREADY_LISTED;
-  }
-  if (listed.length >= PRODUCT_BARCODES_MAX_COUNT) {
-    return PRODUCT_BARCODE_LIMIT_REACHED;
-  }
-  return undefined;
-}
-
-function barcodesRejectedError(sent: string[]): string {
-  return sent.length > 0 ? PRODUCT_BARCODE_INVALID : PRODUCT_BARCODE_REQUIRED;
-}
-
-function barcodeTakenError(codes: string[]): string {
-  return codes.length > 0 ? barcodeTakenText({ codes }) : PRODUCT_BARCODE_TAKEN_UNNAMED;
-}
-
-function hasInternalBarcode(barcodes: string[]): boolean {
-  return barcodes.some(isInternalBarcode);
-}
-
-function useBarcodeChips(initial: string[]) {
-  const [barcodes, setBarcodes] = useState<string[]>(initial);
-  const barcodesRef = useLatestRef(barcodes);
-  const [scanInput, setScanInput] = useState("");
-  const [scanError, setScanError] = useState<string | undefined>(undefined);
-
-  const reset = useCallback((next: string[]) => {
-    setBarcodes(next);
-    setScanInput("");
-    setScanError(undefined);
-  }, []);
-
-  function changeScanInput(value: string) {
-    setScanInput(value);
-    setScanError(undefined);
-  }
-
-  function remove(code: string) {
-    const next = barcodes.filter((existing) => existing !== code);
-    setBarcodes(next);
-    setScanError((current) =>
-      current === undefined ? undefined : scanErrorFor(scanInput.trim(), next),
-    );
-  }
-
-  function commitPending(): PendingCodeResult {
-    const trimmed = scanInput.trim();
-    if (!trimmed) {
-      return { ok: true, barcodes, added: false };
-    }
-    const error = scanErrorFor(trimmed, barcodes);
-    if (error) {
-      setScanError(error);
-      return { ok: false };
-    }
-    const next = [...barcodes, trimmed];
-    setBarcodes(next);
-    setScanInput("");
-    setScanError(undefined);
-    return { ok: true, barcodes: next, added: true };
-  }
-
-  function handleScanKeyDown(event: KeyboardEvent<HTMLInputElement>, onAdded: () => void) {
-    if (event.key !== "Enter") {
-      return;
-    }
-    event.preventDefault();
-    const result = commitPending();
-    if (result.ok && result.added) {
-      onAdded();
-    }
-  }
-
-  // Checked before allocating a code from the cloud, so a full list never wastes one.
-  function refuseWhenFull(): boolean {
-    if (barcodes.length < PRODUCT_BARCODES_MAX_COUNT) {
-      return false;
-    }
-    setScanError(PRODUCT_BARCODE_LIMIT_REACHED);
-    return true;
-  }
-
-  // The cloud already allocated and confirmed this code unique, so unlike a scanned one it
-  // skips the spaces/length checks.
-  function addGenerated(code: string): boolean {
-    if (barcodesRef.current.length >= PRODUCT_BARCODES_MAX_COUNT) {
-      setScanError(PRODUCT_BARCODE_LIMIT_REACHED);
-      return false;
-    }
-    setBarcodes((current) => (current.includes(code) ? current : [...current, code]));
-    return true;
-  }
-
-  return {
-    barcodes,
-    scanInput,
-    changeScanInput,
-    scanError,
-    reset,
-    remove,
-    commitPending,
-    handleScanKeyDown,
-    refuseWhenFull,
-    addGenerated,
-  };
-}
-
 function useGenerateInternalBarcode(
-  chips: Pick<ReturnType<typeof useBarcodeChips>, "barcodes" | "refuseWhenFull" | "addGenerated">,
+  chips: Pick<BarcodeChipsState, "codes" | "refuseWhenFull" | "addGenerated">,
   generateInternalBarcodeService: typeof generateInternalBarcode,
   onSessionEnded: () => void,
-  clearBarcodesFieldError: () => void,
   onRateLimited: (retryAfterSeconds: number) => void,
   clearRateLimited: () => void,
   generateFailedMessage: string,
@@ -549,9 +440,7 @@ function useGenerateInternalBarcode(
     }
     setGenerating(false);
     if (outcome.kind === "ok") {
-      if (chips.addGenerated(outcome.code)) {
-        clearBarcodesFieldError();
-      }
+      chips.addGenerated(outcome.code);
       return;
     }
     if (outcome.kind === "unauthenticated") {
@@ -569,9 +458,13 @@ function useGenerateInternalBarcode(
     setGenerateError(generateFailedMessage);
   }
 
-  const disabled = generating || hasInternalBarcode(chips.barcodes);
+  const disabled = generating || hasInternalBarcode(chips.codes);
 
   return { generating, generateError, disabled, reset, handleGenerate };
+}
+
+function categoryNameOf(categories: CategorySummary[], id: string): string {
+  return categories.find((category) => category.id === id)?.name ?? "";
 }
 
 type NewProductModalProps = {
@@ -594,24 +487,67 @@ function NewProductModal({
   categories,
 }: NewProductModalProps) {
   const sendToMyAccount = useSendToMyAccount();
-  const [name, setName] = useState("");
-  const [categoryId, setCategoryId] = useState<string | null>(null);
-  const [saleUnit, setSaleUnit] = useState<ProductSaleUnit | null>(null);
-  const [netContentQuantity, setNetContentQuantity] = useState("");
-  const [netContentUnit, setNetContentUnit] = useState<NetContentUnit>(NET_CONTENT_DEFAULT_UNIT);
-  const chips = useBarcodeChips([]);
-  const [errors, setErrors] = useState<ProductFieldErrors>({});
   const [notice, setNotice] = useState<
     | { kind: "attemptFailed" }
     | { kind: "rateLimited"; retryAfterSeconds: number; raisedByGenerate?: true }
     | null
   >(null);
-  const [submitting, setSubmitting] = useState(false);
+  const { form, submit, submitting, values, reset } = useCloudForm({
+    defaultValues: EMPTY_PRODUCT_FORM,
+    request: { schema: productCreationBodySchema, from: productRequestFrom },
+    fields: PRODUCT_FIELDS,
+    messages: PRODUCT_MESSAGES,
+    onSubmit: async (_request, { parsed, showFieldError, showWireFieldError }) => {
+      if (!parsed) {
+        setNotice({ kind: "attemptFailed" });
+        return;
+      }
+      setNotice(null);
+      const outcome = await createProduct(parsed);
+      if (outcome.kind === "ok") {
+        onCreated();
+        return;
+      }
+      if (outcome.kind === "unauthenticated") {
+        onSessionEnded();
+        return;
+      }
+      if (outcome.kind === "forbidden") {
+        sendToMyAccount();
+        return;
+      }
+      if (outcome.kind === "validation_failed" && showWireFieldError(outcome.field)) {
+        return;
+      }
+      if (outcome.kind === "barcode_taken") {
+        showFieldError("barcodes", barcodeTakenError(outcome.codes));
+        return;
+      }
+      if (outcome.kind === "category_not_leaf") {
+        showFieldError(
+          "categoryId",
+          PRODUCT_CATEGORY_NOT_LEAF_ERROR({
+            category: categoryNameOf(categories, parsed.categoryId),
+          }),
+        );
+        return;
+      }
+      if (outcome.kind === "rate_limited") {
+        setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
+        return;
+      }
+      setNotice({ kind: "attemptFailed" });
+    },
+  });
+  const chips = useBarcodeChips({
+    list: values.barcodes,
+    latest: () => form.state.values.barcodes,
+    setList: (next) => form.setFieldValue("barcodes", next),
+  });
   const generate = useGenerateInternalBarcode(
     chips,
     generateInternalBarcode,
     onSessionEnded,
-    () => setErrors((current) => withFieldError(current, "barcodes", undefined)),
     (retryAfterSeconds) =>
       setNotice({ kind: "rateLimited", retryAfterSeconds, raisedByGenerate: true }),
     () =>
@@ -623,108 +559,14 @@ function NewProductModal({
 
   useEffect(() => {
     if (open) {
-      setName("");
-      setCategoryId(null);
-      setSaleUnit(null);
-      setNetContentQuantity("");
-      setNetContentUnit(NET_CONTENT_DEFAULT_UNIT);
-      chips.reset([]);
-      setErrors({});
+      reset();
+      chips.reset();
       setNotice(null);
-      setSubmitting(false);
       generate.reset();
     }
-  }, [open, chips.reset, generate.reset]);
+  }, [open, reset, chips.reset, generate.reset]);
 
   const categoryOptions = categorySelectOptions(categories);
-
-  async function handleSubmit() {
-    const nameError = productNameError(name);
-    const categoryError = categoryId ? undefined : PRODUCT_CATEGORY_REQUIRED;
-    const unitError = saleUnit ? undefined : "Elegí la unidad de venta.";
-    const pending = chips.commitPending();
-    const barcodesError =
-      pending.ok && pending.barcodes.length === 0 ? PRODUCT_BARCODE_REQUIRED : undefined;
-    const netContentError = netContentQuantityError(netContentQuantity);
-    setErrors(
-      productFieldErrors(nameError, categoryError, unitError, barcodesError, netContentError),
-    );
-    if (!pending.ok || !categoryId || !saleUnit || nameError || barcodesError || netContentError) {
-      return;
-    }
-    setNotice(null);
-    setSubmitting(true);
-
-    const input: CreateProductInput = {
-      name: name.trim(),
-      categoryId,
-      saleUnit,
-      barcodes: pending.barcodes,
-      netContent: netContentToSend(netContentQuantity, netContentUnit),
-    };
-    const outcome = await createProduct(input);
-    if (outcome.kind === "ok") {
-      onCreated();
-      return;
-    }
-    if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
-      return;
-    }
-    if (outcome.kind === "forbidden") {
-      sendToMyAccount();
-      return;
-    }
-    if (outcome.kind === "validation_failed") {
-      if (outcome.field === "name") {
-        setErrors((current) => withFieldError(current, "name", PRODUCT_NAME_REQUIRED));
-      } else if (outcome.field === "categoryId") {
-        setErrors((current) => withFieldError(current, "category", PRODUCT_CATEGORY_REQUIRED));
-      } else if (outcome.field === "saleUnit") {
-        setErrors((current) => withFieldError(current, "unit", "Elegí la unidad de venta."));
-      } else if (outcome.field === "barcodes") {
-        setErrors((current) =>
-          withFieldError(current, "barcodes", barcodesRejectedError(input.barcodes)),
-        );
-      } else if (outcome.field === "netContentQuantity") {
-        setErrors((current) => withFieldError(current, "netContent", NET_CONTENT_QUANTITY_INVALID));
-      } else if (outcome.field === "netContent") {
-        setErrors((current) => withFieldError(current, "netContent", PRODUCT_NET_CONTENT_INVALID));
-      } else {
-        setNotice({ kind: "attemptFailed" });
-      }
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "barcode_taken") {
-      setErrors((current) => ({
-        ...current,
-        barcodes: barcodeTakenError(outcome.codes),
-      }));
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "category_not_leaf") {
-      const chosenCategoryName =
-        categories.find((category) => category.id === input.categoryId)?.name ?? "";
-      setErrors((current) =>
-        withFieldError(
-          current,
-          "category",
-          PRODUCT_CATEGORY_NOT_LEAF_ERROR({ category: chosenCategoryName }),
-        ),
-      );
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "rate_limited") {
-      setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
-      setSubmitting(false);
-      return;
-    }
-    setNotice({ kind: "attemptFailed" });
-    setSubmitting(false);
-  }
 
   return (
     <Modal
@@ -757,7 +599,7 @@ function NewProductModal({
             icon={<Check />}
             fullWidth
             disabled={submitting}
-            onPress={() => void handleSubmit()}
+            onPress={() => void submit()}
           >
             Crear el producto
           </Button>
@@ -781,98 +623,51 @@ function NewProductModal({
             description={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
-        <TextField
-          kind="plain-text"
-          label="Nombre"
-          value={name}
-          onChange={(value) => {
-            setName(value);
-            if (errors.name) {
-              setErrors((current) => withFieldError(current, "name", productNameError(value)));
-            }
-          }}
-          required
-          errorMessage={errors.name}
-        />
-        {categoryOptions ? (
-          <Select
-            label="Categoría"
-            placeholder="Elegí una categoría"
-            options={categoryOptions}
-            value={categoryId}
-            onChange={(value) => {
-              setCategoryId(value);
-              setErrors((current) => withFieldError(current, "category", undefined));
-            }}
-            required
-            errorMessage={errors.category}
-          />
-        ) : (
-          <FieldGroup label="Categoría" required>
-            {errors.category ? (
-              <span className="text-detail text-error">{errors.category}</span>
-            ) : null}
-          </FieldGroup>
-        )}
-        <QuantityUnitField
-          label="Contenido neto"
-          quantity={netContentQuantity}
-          onQuantityChange={(value) => {
-            setNetContentQuantity(value);
-            if (errors.netContent) {
-              setErrors((current) =>
-                withFieldError(current, "netContent", netContentQuantityError(value)),
-              );
-            }
-          }}
-          unit={netContentUnit}
-          onUnitChange={setNetContentUnit}
-          options={NET_CONTENT_UNIT_OPTIONS}
-          unitLabel="Unidad"
-          errorMessage={errors.netContent}
-        />
-        <FieldGroup label="Unidad de venta" required>
-          <OptionCardGroup
-            label="Unidad de venta"
-            options={[
-              {
-                value: "UNIT",
-                icon: <Package />,
-                label: SALE_UNIT_OPTION_CONTENT.UNIT.label,
-                description: SALE_UNIT_OPTION_CONTENT.UNIT.description,
-              },
-              {
-                value: "KG",
-                icon: <Scale />,
-                label: SALE_UNIT_OPTION_CONTENT.KG.label,
-                description: SALE_UNIT_OPTION_CONTENT.KG.description,
-              },
-            ]}
-            value={saleUnit}
-            onChange={(value) => {
-              setSaleUnit(value);
-              setErrors((current) => withFieldError(current, "unit", undefined));
-            }}
-            required
-            errorMessage={errors.unit}
-          />
-        </FieldGroup>
-        <BarcodeChips
-          barcodes={chips.barcodes}
-          onRemove={chips.remove}
-          scanInput={chips.scanInput}
-          onScanInputChange={chips.changeScanInput}
-          onScanKeyDown={(event) =>
-            chips.handleScanKeyDown(event, () =>
-              setErrors((current) => withFieldError(current, "barcodes", undefined)),
+        <form.AppField name="name">
+          {(field) => <field.TextField kind="plain-text" label="Nombre" required />}
+        </form.AppField>
+        <form.AppField name="categoryId">
+          {(field) =>
+            categoryOptions ? (
+              <field.Select
+                label="Categoría"
+                placeholder="Elegí una categoría"
+                options={categoryOptions}
+                required
+              />
+            ) : (
+              <FieldGroup label="Categoría" required>
+                <SharedFieldError>{() => null}</SharedFieldError>
+              </FieldGroup>
             )
           }
-          onGenerate={() => void generate.handleGenerate()}
-          generateDisabled={generate.disabled}
-          error={errors.barcodes}
-          scanError={chips.scanError}
-          generateError={generate.generateError}
-        />
+        </form.AppField>
+        <form.AppField name="netContent">
+          {(field) => (
+            <field.QuantityUnitField
+              label="Contenido neto"
+              options={NET_CONTENT_UNIT_OPTIONS}
+              unitLabel="Unidad"
+            />
+          )}
+        </form.AppField>
+        <FieldGroup label="Unidad de venta" required>
+          <form.AppField name="saleUnit">
+            {(field) => (
+              <field.OptionCardGroup label="Unidad de venta" options={SALE_UNIT_OPTIONS} required />
+            )}
+          </form.AppField>
+        </FieldGroup>
+        <form.AppField name="barcodes">
+          {() => (
+            <BarcodeChips
+              chips={chips}
+              onGenerate={() => void generate.handleGenerate()}
+              generateDisabled={generate.disabled}
+              generateError={generate.generateError}
+            />
+          )}
+        </form.AppField>
       </div>
     </Modal>
   );
@@ -908,23 +703,78 @@ function EditProductModal({
 }: EditProductModalProps) {
   const sendToMyAccount = useSendToMyAccount();
   const open = target !== null;
-  const [name, setName] = useState("");
-  const [categoryId, setCategoryId] = useState("");
-  const [saleUnit, setSaleUnit] = useState<ProductSaleUnit>("UNIT");
-  const [netContentQuantity, setNetContentQuantity] = useState("");
-  const [netContentUnit, setNetContentUnit] = useState<NetContentUnit>(NET_CONTENT_DEFAULT_UNIT);
-  const [version, setVersion] = useState(1);
   const [title, setTitle] = useState("");
-  const chips = useBarcodeChips([]);
-  const [errors, setErrors] = useState<ProductFieldErrors>({});
   const [notice, setNotice] = useState<EditNotice | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [reloading, setReloading] = useState(false);
   const targetRef = useLatestRef(target);
+  const { form, submit, submitting, values, reset } = useCloudForm({
+    defaultValues: { ...EMPTY_PRODUCT_FORM, version: 1 },
+    request: { schema: productEditBodySchema, from: productEditRequestFrom },
+    fields: PRODUCT_EDIT_FIELDS,
+    messages: PRODUCT_MESSAGES,
+    onSubmit: async (_request, { parsed, showFieldError, showWireFieldError }) => {
+      const current = targetRef.current;
+      if (!current) {
+        return;
+      }
+      if (!parsed) {
+        setNotice({ kind: "attemptFailed" });
+        return;
+      }
+      setNotice(null);
+      const outcome = await editProduct(current.id, parsed);
+      if (outcome.kind === "ok") {
+        onSaved();
+        return;
+      }
+      if (outcome.kind === "unauthenticated") {
+        onSessionEnded();
+        return;
+      }
+      if (outcome.kind === "forbidden") {
+        sendToMyAccount();
+        return;
+      }
+      if (outcome.kind === "not_found") {
+        setNotice({ kind: "notFound" });
+        return;
+      }
+      if (outcome.kind === "stale_version") {
+        setNotice({ kind: "staleVersion" });
+        return;
+      }
+      if (outcome.kind === "validation_failed" && showWireFieldError(outcome.field)) {
+        return;
+      }
+      if (outcome.kind === "barcode_taken") {
+        showFieldError("barcodes", barcodeTakenError(outcome.codes));
+        return;
+      }
+      if (outcome.kind === "category_not_leaf") {
+        showFieldError(
+          "categoryId",
+          PRODUCT_CATEGORY_NOT_LEAF_ERROR({
+            category: categoryNameOf(categories, parsed.categoryId),
+          }),
+        );
+        return;
+      }
+      if (outcome.kind === "rate_limited") {
+        setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
+        return;
+      }
+      setNotice({ kind: "attemptFailed" });
+    },
+  });
+  const chips = useBarcodeChips({
+    list: values.barcodes,
+    latest: () => form.state.values.barcodes,
+    setList: (next) => form.setFieldValue("barcodes", next),
+  });
   const generate = useGenerateInternalBarcode(
     chips,
     generateInternalBarcode,
     onSessionEnded,
-    () => setErrors((current) => withFieldError(current, "barcodes", undefined)),
     (retryAfterSeconds) =>
       setNotice({ kind: "rateLimited", retryAfterSeconds, raisedByGenerate: true }),
     () =>
@@ -936,153 +786,40 @@ function EditProductModal({
 
   useEffect(() => {
     if (open && target) {
-      setName(target.name);
-      setCategoryId(target.categoryId);
-      setSaleUnit(target.saleUnit);
-      setNetContentQuantity(netContentQuantityText(target.netContent));
-      setNetContentUnit(netContentUnitOf(target.netContent));
-      setVersion(target.version);
+      reset(productFormValues(target));
       setTitle(target.name);
-      chips.reset(target.barcodes);
-      setErrors({});
+      chips.reset();
       setNotice(null);
-      setSubmitting(false);
+      setReloading(false);
       generate.reset();
     }
-  }, [open, target, chips.reset, generate.reset]);
+  }, [open, target, reset, chips.reset, generate.reset]);
 
   const categoryOptions = categorySelectOptions(categories);
-
-  async function handleSubmit() {
-    const current = targetRef.current;
-    if (!current) {
-      return;
-    }
-    const nameError = productNameError(name);
-    const categoryError = categoryId ? undefined : PRODUCT_CATEGORY_REQUIRED;
-    const pending = chips.commitPending();
-    const barcodesError =
-      pending.ok && pending.barcodes.length === 0 ? PRODUCT_BARCODE_REQUIRED : undefined;
-    const netContentError = netContentQuantityError(netContentQuantity);
-    setErrors(
-      productFieldErrors(nameError, categoryError, undefined, barcodesError, netContentError),
-    );
-    if (!pending.ok || nameError || categoryError || barcodesError || netContentError) {
-      return;
-    }
-    setNotice(null);
-    setSubmitting(true);
-
-    const sentBarcodes = pending.barcodes;
-    const outcome = await editProduct(current.id, {
-      name: name.trim(),
-      categoryId,
-      saleUnit,
-      barcodes: sentBarcodes,
-      netContent: netContentToSend(netContentQuantity, netContentUnit),
-      version,
-    });
-    if (outcome.kind === "ok") {
-      onSaved();
-      return;
-    }
-    if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
-      return;
-    }
-    if (outcome.kind === "forbidden") {
-      sendToMyAccount();
-      return;
-    }
-    if (outcome.kind === "not_found") {
-      setNotice({ kind: "notFound" });
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "stale_version") {
-      setNotice({ kind: "staleVersion" });
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "validation_failed") {
-      if (outcome.field === "name") {
-        setErrors((current) => withFieldError(current, "name", PRODUCT_NAME_REQUIRED));
-      } else if (outcome.field === "categoryId") {
-        setErrors((current) => withFieldError(current, "category", PRODUCT_CATEGORY_REQUIRED));
-      } else if (outcome.field === "barcodes") {
-        setErrors((current) =>
-          withFieldError(current, "barcodes", barcodesRejectedError(sentBarcodes)),
-        );
-      } else if (outcome.field === "netContentQuantity") {
-        setErrors((current) => withFieldError(current, "netContent", NET_CONTENT_QUANTITY_INVALID));
-      } else if (outcome.field === "netContent") {
-        setErrors((current) => withFieldError(current, "netContent", PRODUCT_NET_CONTENT_INVALID));
-      } else {
-        setNotice({ kind: "attemptFailed" });
-      }
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "barcode_taken") {
-      setErrors((current) => ({
-        ...current,
-        barcodes: barcodeTakenError(outcome.codes),
-      }));
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "category_not_leaf") {
-      const chosenCategoryName =
-        categories.find((category) => category.id === categoryId)?.name ?? "";
-      setErrors((current) =>
-        withFieldError(
-          current,
-          "category",
-          PRODUCT_CATEGORY_NOT_LEAF_ERROR({ category: chosenCategoryName }),
-        ),
-      );
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "rate_limited") {
-      setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
-      setSubmitting(false);
-      return;
-    }
-    setNotice({ kind: "attemptFailed" });
-    setSubmitting(false);
-  }
 
   async function handleReload() {
     const current = targetRef.current;
     if (!current) {
       return;
     }
-    setSubmitting(true);
+    setReloading(true);
     const outcome = await reload(current.id);
     if (outcome.kind === "found") {
-      const fresh = outcome.product;
-      setName(fresh.name);
-      setTitle(fresh.name);
-      setCategoryId(fresh.categoryId);
-      setSaleUnit(fresh.saleUnit);
-      setNetContentQuantity(netContentQuantityText(fresh.netContent));
-      setNetContentUnit(netContentUnitOf(fresh.netContent));
-      setVersion(fresh.version);
-      chips.reset(fresh.barcodes);
-      setErrors({});
+      reset(productFormValues(outcome.product));
+      setTitle(outcome.product.name);
+      chips.reset();
       setNotice(null);
-      setSubmitting(false);
+      setReloading(false);
       generate.reset();
       return;
     }
     if (outcome.kind === "not_found") {
       setNotice({ kind: "notFound" });
-      setSubmitting(false);
+      setReloading(false);
       return;
     }
     if (outcome.kind === "list_failed") {
-      setSubmitting(false);
+      setReloading(false);
       return;
     }
     if (outcome.kind === "unauthenticated") {
@@ -1095,14 +832,15 @@ function EditProductModal({
     }
     if (outcome.kind === "rate_limited") {
       setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
-      setSubmitting(false);
+      setReloading(false);
       return;
     }
     setNotice({ kind: "reloadFailed" });
-    setSubmitting(false);
+    setReloading(false);
   }
 
   const offersReload = notice?.kind === "staleVersion" || notice?.kind === "reloadFailed";
+  const busy = submitting || reloading;
 
   return (
     <Modal
@@ -1120,13 +858,7 @@ function EditProductModal({
       closable
       footer={
         <>
-          <Button
-            variant="secondary"
-            size="large"
-            icon={<X />}
-            disabled={submitting}
-            onPress={onClose}
-          >
+          <Button variant="secondary" size="large" icon={<X />} disabled={busy} onPress={onClose}>
             Cancelar
           </Button>
           {offersReload ? (
@@ -1135,7 +867,7 @@ function EditProductModal({
               size="large"
               icon={<RotateCcw />}
               fullWidth
-              disabled={submitting}
+              disabled={busy}
               onPress={() => void handleReload()}
             >
               Recargar el producto
@@ -1146,8 +878,8 @@ function EditProductModal({
               size="large"
               icon={<Check />}
               fullWidth
-              disabled={submitting}
-              onPress={() => void handleSubmit()}
+              disabled={busy}
+              onPress={() => void submit()}
             >
               Guardar los cambios
             </Button>
@@ -1196,93 +928,50 @@ function EditProductModal({
               description="Probá de nuevo."
             />
           )}
-          <TextField
-            kind="plain-text"
-            label="Nombre"
-            value={name}
-            onChange={(value) => {
-              setName(value);
-              if (errors.name) {
-                setErrors((current) => withFieldError(current, "name", productNameError(value)));
-              }
-            }}
-            required
-            errorMessage={errors.name}
-          />
-          {categoryOptions ? (
-            <Select
-              label="Categoría"
-              options={categoryOptions}
-              value={categoryId}
-              onChange={(value) => {
-                setCategoryId(value);
-                setErrors((current) => withFieldError(current, "category", undefined));
-              }}
-              required
-              errorMessage={errors.category}
-            />
-          ) : (
-            <FieldGroup label="Categoría" required>
-              {errors.category ? (
-                <span className="text-detail text-error">{errors.category}</span>
-              ) : null}
-            </FieldGroup>
-          )}
-          <QuantityUnitField
-            label="Contenido neto"
-            quantity={netContentQuantity}
-            onQuantityChange={(value) => {
-              setNetContentQuantity(value);
-              if (errors.netContent) {
-                setErrors((current) =>
-                  withFieldError(current, "netContent", netContentQuantityError(value)),
-                );
-              }
-            }}
-            unit={netContentUnit}
-            onUnitChange={setNetContentUnit}
-            options={NET_CONTENT_UNIT_OPTIONS}
-            unitLabel="Unidad"
-            errorMessage={errors.netContent}
-          />
-          <FieldGroup label="Unidad de venta" required>
-            <OptionCardGroup
-              label="Unidad de venta"
-              options={[
-                {
-                  value: "UNIT",
-                  icon: <Package />,
-                  label: SALE_UNIT_OPTION_CONTENT.UNIT.label,
-                  description: SALE_UNIT_OPTION_CONTENT.UNIT.description,
-                },
-                {
-                  value: "KG",
-                  icon: <Scale />,
-                  label: SALE_UNIT_OPTION_CONTENT.KG.label,
-                  description: SALE_UNIT_OPTION_CONTENT.KG.description,
-                },
-              ]}
-              value={saleUnit}
-              onChange={setSaleUnit}
-              required
-            />
-          </FieldGroup>
-          <BarcodeChips
-            barcodes={chips.barcodes}
-            onRemove={chips.remove}
-            scanInput={chips.scanInput}
-            onScanInputChange={chips.changeScanInput}
-            onScanKeyDown={(event) =>
-              chips.handleScanKeyDown(event, () =>
-                setErrors((current) => withFieldError(current, "barcodes", undefined)),
+          <form.AppField name="name">
+            {(field) => <field.TextField kind="plain-text" label="Nombre" required />}
+          </form.AppField>
+          <form.AppField name="categoryId">
+            {(field) =>
+              categoryOptions ? (
+                <field.Select label="Categoría" options={categoryOptions} required />
+              ) : (
+                <FieldGroup label="Categoría" required>
+                  <SharedFieldError>{() => null}</SharedFieldError>
+                </FieldGroup>
               )
             }
-            onGenerate={() => void generate.handleGenerate()}
-            generateDisabled={generate.disabled}
-            error={errors.barcodes}
-            scanError={chips.scanError}
-            generateError={generate.generateError}
-          />
+          </form.AppField>
+          <form.AppField name="netContent">
+            {(field) => (
+              <field.QuantityUnitField
+                label="Contenido neto"
+                options={NET_CONTENT_UNIT_OPTIONS}
+                unitLabel="Unidad"
+              />
+            )}
+          </form.AppField>
+          <FieldGroup label="Unidad de venta" required>
+            <form.AppField name="saleUnit">
+              {(field) => (
+                <field.OptionCardGroup
+                  label="Unidad de venta"
+                  options={SALE_UNIT_OPTIONS}
+                  required
+                />
+              )}
+            </form.AppField>
+          </FieldGroup>
+          <form.AppField name="barcodes">
+            {() => (
+              <BarcodeChips
+                chips={chips}
+                onGenerate={() => void generate.handleGenerate()}
+                generateDisabled={generate.disabled}
+                generateError={generate.generateError}
+              />
+            )}
+          </form.AppField>
         </div>
       ) : null}
     </Modal>

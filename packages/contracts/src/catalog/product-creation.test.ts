@@ -26,6 +26,11 @@ function firstFailure(body: unknown): { field: unknown; message: unknown } | und
   return issue && { field: issue.path[0], message: issue.message };
 }
 
+function failingFields(body: unknown): unknown[] {
+  const result = productCreationBodySchema.safeParse(body);
+  return result.success ? [] : result.error.issues.map((issue) => issue.path[0]);
+}
+
 function isAccepted(body: unknown): boolean {
   return productCreationBodySchema.safeParse(body).success;
 }
@@ -190,6 +195,22 @@ describe("productCreationBodySchema, netContent", () => {
     },
   );
 
+  it.each([undefined, "unit", null])(
+    "reports the quantity under netContentQuantity also when the saleUnit %j fails",
+    (saleUnit) => {
+      expect(
+        failingFields(validBody({ saleUnit, netContent: { quantity: 0, unit: "KG" } })),
+      ).toEqual(["saleUnit", "netContentQuantity"]);
+    },
+  );
+
+  it.each(["1 KG", { quantity: "0", unit: "KG" }, { quantity: 0, unit: "LB" }])(
+    "reports the malformed net content %j only once, never under netContentQuantity",
+    (netContent) => {
+      expect(failingFields(validBody({ netContent }))).toEqual(["netContent"]);
+    },
+  );
+
   it("accepts the largest quantity", () => {
     expect(
       isAccepted(validBody({ netContent: { quantity: NET_CONTENT_QUANTITY_MAX, unit: "G" } })),
@@ -227,5 +248,9 @@ describe("productCreationBodySchema, order and unknown keys", () => {
 
   it("reads a body without any field as failing on the name", () => {
     expect(firstFailure({})?.field).toBe("name");
+  });
+
+  it.each([null, undefined, "Maceta", 1, []])("rejects the body %j as not an object", (body) => {
+    expect(isAccepted(body)).toBe(false);
   });
 });

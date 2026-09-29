@@ -149,9 +149,80 @@ test("shows the server's net content error inline on edit", async () => {
 
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
-  await expect
-    .element(dialog.getByText("Ingresá una cantidad mayor que cero, con hasta 3 decimales."))
-    .toBeVisible();
+  await expect.element(dialog.getByText("Revisá el contenido neto.")).toBeVisible();
+});
+
+test("asks to review the name when the cloud refuses a name that passes every local check", async () => {
+  const services = createServices();
+  mockLoaded(services, [honey]);
+  vi.mocked(services.editProduct).mockResolvedValue({ kind: "validation_failed", field: "name" });
+  const screen = await renderScreen(services);
+  const dialog = await openEditProductModal(screen, honey);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(dialog.getByText("Revisá el nombre del producto.")).toBeVisible();
+  expect(dialog.getByText("Ingresá el nombre del producto.").query()).toBeNull();
+});
+
+test("asks to review the category when the cloud refuses the one chosen", async () => {
+  const services = createServices();
+  mockLoaded(services, [honey]);
+  vi.mocked(services.editProduct).mockResolvedValue({
+    kind: "validation_failed",
+    field: "categoryId",
+  });
+  const screen = await renderScreen(services);
+  const dialog = await openEditProductModal(screen, honey);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(dialog.getByText("Revisá la categoría.")).toBeVisible();
+  expect(dialog.getByText("Elegí una categoría.").query()).toBeNull();
+});
+
+test("shows the sale unit the cloud refuses on its own field, as on create", async () => {
+  const services = createServices();
+  mockLoaded(services, [honey]);
+  vi.mocked(services.editProduct).mockResolvedValue({
+    kind: "validation_failed",
+    field: "saleUnit",
+  });
+  const screen = await renderScreen(services);
+  const dialog = await openEditProductModal(screen, honey);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(dialog.getByText("Revisá la unidad de venta.")).toBeVisible();
+  expect(dialog.getByText("No se pudo guardar el cambio").query()).toBeNull();
+});
+
+test("shows the generic failure notice on edit when the cloud refuses the version", async () => {
+  const services = createServices();
+  mockLoaded(services, [honey]);
+  vi.mocked(services.editProduct).mockResolvedValue({
+    kind: "validation_failed",
+    field: "version",
+  });
+  const screen = await renderScreen(services);
+  const dialog = await openEditProductModal(screen, honey);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(dialog.getByText("No se pudo guardar el cambio")).toBeVisible();
+});
+
+test("shows the generic failure notice on edit when the loaded version is not one the request accepts", async () => {
+  const services = createServices();
+  const unversioned = { ...honey, version: 0 };
+  mockLoaded(services, [unversioned]);
+  const screen = await renderScreen(services);
+  const dialog = await openEditProductModal(screen, unversioned);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(dialog.getByText("No se pudo guardar el cambio")).toBeVisible();
+  expect(services.editProduct).not.toHaveBeenCalled();
 });
 
 test("shows the server's rejection of the whole net content inline on edit", async () => {

@@ -7,6 +7,7 @@ import {
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { retryAfterSeconds } from "../platform/retry-after-seconds";
+import { readValidationFailedField } from "../platform/validation-failed-field";
 import { type Passkey, passkeyListFromWire } from "./passkey-api";
 
 export type BranchUser = ReturnType<typeof userFromWire>;
@@ -47,13 +48,9 @@ export type FetchUsersOutcome = CloudReadOutcome<BranchUser[]>;
 
 export type FetchUserOutcome = CloudReadOutcome<BranchUser> | { kind: "not_found" };
 
-export type EditUserInput = { email: string; roleId: string; version: number };
-
-type EditUserFieldError = "email" | "roleId" | "version";
-
 export type EditUserOutcome =
   | { kind: "ok" }
-  | { kind: "validation_failed"; field: EditUserFieldError }
+  | { kind: "validation_failed"; field: string }
   | { kind: "email_taken" }
   | { kind: "stale_version" }
   | { kind: "last_administrator" }
@@ -64,13 +61,9 @@ export type EditUserOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-export type CreateUserInput = { firstName: string; email: string; roleId: string };
-
-export type CreateUserFieldError = "firstName" | "email" | "roleId";
-
 export type CreateUserOutcome =
   | { kind: "ok" }
-  | { kind: "validation_failed"; field: CreateUserFieldError }
+  | { kind: "validation_failed"; field: string }
   | { kind: "unknown_role" }
   | { kind: "email_taken" }
   // Distinct from `email_taken`: this account can be reactivated instead of created anew.
@@ -134,19 +127,6 @@ export async function fetchUsers(): Promise<FetchUsersOutcome> {
   return { kind: "ok", value: parsed.data.map(userFromWire) };
 }
 
-function fieldFromWire(field: unknown): CreateUserFieldError | undefined {
-  if (field === "first_name") {
-    return "firstName";
-  }
-  if (field === "email") {
-    return "email";
-  }
-  if (field === "role_id") {
-    return "roleId";
-  }
-  return undefined;
-}
-
 type GatedActionErrorOutcome =
   | { kind: "unauthenticated" }
   | { kind: "authorization_required" }
@@ -172,15 +152,10 @@ async function gatedActionErrorOutcome(response: Response): Promise<GatedActionE
   return { kind: "failed" };
 }
 
-export async function createUser(input: CreateUserInput): Promise<CreateUserOutcome> {
-  const requestBody: UserCreationBody = {
-    first_name: input.firstName,
-    email: input.email,
-    role_id: input.roleId,
-  };
+export async function createUser(input: UserCreationBody): Promise<CreateUserOutcome> {
   let response: Response;
   try {
-    response = await postJson("/users", requestBody);
+    response = await postJson("/users", input);
   } catch {
     return { kind: "failed" };
   }
@@ -188,15 +163,11 @@ export async function createUser(input: CreateUserInput): Promise<CreateUserOutc
     return { kind: "ok" };
   }
   if (response.status === 400) {
-    const body = (await response.json().catch(() => undefined)) as
-      | { code?: string; details?: Array<{ field?: string }> }
-      | undefined;
-    if (body?.code === "validation_failed") {
-      const field = fieldFromWire(body.details?.[0]?.field);
-      if (field) {
-        return { kind: "validation_failed", field };
-      }
+    const field = await readValidationFailedField(response.clone());
+    if (field !== undefined) {
+      return { kind: "validation_failed", field };
     }
+    const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
     if (body?.code === "unknown_role") {
       return { kind: "unknown_role" };
     }
@@ -243,28 +214,10 @@ export async function fetchUser(id: string): Promise<FetchUserOutcome> {
   return { kind: "ok", value: userFromWire(parsed.data) };
 }
 
-function editFieldFromWire(field: unknown): EditUserFieldError | undefined {
-  if (field === "email") {
-    return "email";
-  }
-  if (field === "role_id") {
-    return "roleId";
-  }
-  if (field === "version") {
-    return "version";
-  }
-  return undefined;
-}
-
-export async function editUser(id: string, input: EditUserInput): Promise<EditUserOutcome> {
-  const requestBody: UserEditBody = {
-    email: input.email,
-    role_id: input.roleId,
-    version: input.version,
-  };
+export async function editUser(id: string, input: UserEditBody): Promise<EditUserOutcome> {
   let response: Response;
   try {
-    response = await postJson(`/users/${id}/edit`, requestBody);
+    response = await postJson(`/users/${id}/edit`, input);
   } catch {
     return { kind: "failed" };
   }
@@ -272,16 +225,8 @@ export async function editUser(id: string, input: EditUserInput): Promise<EditUs
     return { kind: "ok" };
   }
   if (response.status === 400) {
-    const body = (await response.json().catch(() => undefined)) as
-      | { code?: string; details?: Array<{ field?: string }> }
-      | undefined;
-    if (body?.code === "validation_failed") {
-      const field = editFieldFromWire(body.details?.[0]?.field);
-      if (field) {
-        return { kind: "validation_failed", field };
-      }
-    }
-    return { kind: "failed" };
+    const field = await readValidationFailedField(response);
+    return field === undefined ? { kind: "failed" } : { kind: "validation_failed", field };
   }
   if (response.status === 404) {
     return { kind: "not_found" };

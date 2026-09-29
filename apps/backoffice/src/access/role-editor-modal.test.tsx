@@ -223,6 +223,61 @@ test("requires a non-empty name, without calling the API", async () => {
   expect(services.createRole).not.toHaveBeenCalled();
 });
 
+test("rejects the Administrator role's own name, without calling the API", async () => {
+  const services = createServices();
+  const screen = await renderModal({ kind: "new" }, services);
+
+  await userEvent.fill(screen.getByRole("textbox", { name: /^Nombre del rol/ }), "administrador");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar el rol" }));
+
+  await expect
+    .element(screen.getByText("Ese nombre es del Administrador; elegí otro."))
+    .toBeVisible();
+  expect(services.createRole).not.toHaveBeenCalled();
+});
+
+test("rejects a name over 100 characters once trimmed, without calling the API", async () => {
+  const services = createServices();
+  const screen = await renderModal({ kind: "new" }, services);
+
+  await userEvent.fill(
+    screen.getByRole("textbox", { name: /^Nombre del rol/ }),
+    `  ${"a".repeat(101)}  `,
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Guardar el rol" }));
+
+  await expect
+    .element(screen.getByText("El nombre puede tener hasta 100 caracteres."))
+    .toBeVisible();
+  expect(services.createRole).not.toHaveBeenCalled();
+});
+
+test("shows the name the cloud refused on Nombre del rol", async () => {
+  const services = createServices();
+  vi.mocked(services.createRole).mockResolvedValue({ kind: "validation_failed", field: "name" });
+  const screen = await renderModal({ kind: "new" }, services);
+
+  await userEvent.fill(screen.getByRole("textbox", { name: /^Nombre del rol/ }), "Depósito");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar el rol" }));
+
+  await expect.element(screen.getByText("Revisá el nombre del rol.")).toBeVisible();
+  expect(screen.getByText("No se pudo guardar el rol").query()).toBeNull();
+});
+
+test("shows the generic failure notice when the cloud refuses a field the form does not have", async () => {
+  const services = createServices();
+  vi.mocked(services.createRole).mockResolvedValue({
+    kind: "validation_failed",
+    field: "permissions",
+  });
+  const screen = await renderModal({ kind: "new" }, services);
+
+  await userEvent.fill(screen.getByRole("textbox", { name: /^Nombre del rol/ }), "Depósito");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar el rol" }));
+
+  await expect.element(screen.getByText("No se pudo guardar el rol")).toBeVisible();
+});
+
 test("creates the role directly, without the authorization modal, when the session already has one", async () => {
   const services = createServices();
   vi.mocked(services.createRole).mockResolvedValue({ kind: "ok" });
@@ -237,7 +292,7 @@ test("creates the role directly, without the authorization modal, when the sessi
   await expect.poll(() => vi.mocked(services.createRole).mock.calls.length).toBe(1);
   expect(services.createRole).toHaveBeenCalledWith({
     name: "Depósito",
-    permissionKeys: ["view_stock_balances"],
+    permissions: ["view_stock_balances"],
   });
   await expect.poll(() => onSaved.mock.calls.length).toBe(1);
 });
@@ -305,7 +360,7 @@ test("edits the role with its id, name, permissions, and the version it was load
   await expect.poll(() => vi.mocked(services.editRole).mock.calls.length).toBe(1);
   expect(services.editRole).toHaveBeenCalledWith("role-stock", {
     name: "Depósito",
-    permissionKeys: ["view_stock_balances"],
+    permissions: ["view_stock_balances"],
     version: 3,
   });
   await expect.poll(() => onSaved.mock.calls.length).toBe(1);
@@ -403,7 +458,7 @@ test("confirming the confirmation step proceeds with the normal save", async () 
   await expect.poll(() => vi.mocked(services.editRole).mock.calls.length).toBe(1);
   expect(services.editRole).toHaveBeenCalledWith("role-stock", {
     name: "Depósito",
-    permissionKeys: ["view_stock_balances"],
+    permissions: ["view_stock_balances"],
     version: 3,
   });
   await expect.poll(() => onSaved.mock.calls.length).toBe(1);
@@ -518,7 +573,7 @@ test("ignores a role that arrives late for an edit already replaced by editing a
   await expect.poll(() => vi.mocked(services.editRole).mock.calls.length).toBe(1);
   expect(services.editRole).toHaveBeenCalledWith("role-cash", {
     name: "Caja",
-    permissionKeys: ["sell_and_charge", "view_sales_history"],
+    permissions: ["sell_and_charge", "view_sales_history"],
     version: 8,
   });
 });
@@ -869,7 +924,7 @@ test("a refresh of the role in the background never overwrites what is being typ
   await expect.poll(() => vi.mocked(services.editRole).mock.calls.length).toBe(1);
   expect(services.editRole).toHaveBeenCalledWith("role-stock", {
     name: "Depósito nuevo",
-    permissionKeys: ["view_stock_balances"],
+    permissions: ["view_stock_balances"],
     version: 3,
   });
 });
@@ -899,7 +954,7 @@ test("Recargar reads the role again through the cache once and reseeds the form"
   await expect.poll(() => vi.mocked(services.editRole).mock.calls.length).toBe(2);
   expect(services.editRole).toHaveBeenLastCalledWith("role-stock", {
     name: "Depósito recargado",
-    permissionKeys: ["view_stock_balances"],
+    permissions: ["view_stock_balances"],
     version: 5,
   });
 });

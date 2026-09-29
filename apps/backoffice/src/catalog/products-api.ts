@@ -9,23 +9,15 @@ import {
 import type { NetContentUnit } from "@purosur/domain";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { retryAfterSeconds } from "../platform/retry-after-seconds";
+import { readValidationFailedField } from "../platform/validation-failed-field";
 
 export type ProductSaleUnit = "UNIT" | "KG";
 
-export type NetContent = { quantity: number; unit: NetContentUnit };
+type NetContent = { quantity: number; unit: NetContentUnit };
 
 export type ProductStatusFilter = "active" | "inactive" | "all";
 
 export type FetchProductsOutcome = CloudReadOutcome<ProductSummary[]>;
-
-type ProductFieldError =
-  | "name"
-  | "categoryId"
-  | "saleUnit"
-  | "barcodes"
-  | "version"
-  | "netContent"
-  | "netContentQuantity";
 
 export type CreateProductInput = {
   name: string;
@@ -37,7 +29,7 @@ export type CreateProductInput = {
 
 export type CreateProductOutcome =
   | { kind: "ok" }
-  | { kind: "validation_failed"; field: ProductFieldError }
+  | { kind: "validation_failed"; field: string }
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "category_not_leaf" }
   | { kind: "forbidden" }
@@ -56,7 +48,7 @@ export type EditProductInput = {
 
 export type EditProductOutcome =
   | { kind: "ok" }
-  | { kind: "validation_failed"; field: ProductFieldError }
+  | { kind: "validation_failed"; field: string }
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "category_not_leaf" }
   | { kind: "stale_version" }
@@ -79,18 +71,6 @@ function postJson(path: string, body?: unknown): Promise<Response> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body ?? {}),
   });
-}
-
-function productFieldFromWire(field: unknown): ProductFieldError | undefined {
-  return field === "name" ||
-    field === "categoryId" ||
-    field === "saleUnit" ||
-    field === "barcodes" ||
-    field === "version" ||
-    field === "netContent" ||
-    field === "netContentQuantity"
-    ? field
-    : undefined;
 }
 
 async function readBarcodeTakenCodes(response: Response): Promise<string[]> {
@@ -146,16 +126,8 @@ export async function createProduct(input: CreateProductInput): Promise<CreatePr
     return { kind: "ok" };
   }
   if (response.status === 400) {
-    const body = (await response.json().catch(() => undefined)) as
-      | { code?: string; details?: Array<{ field?: string }> }
-      | undefined;
-    if (body?.code === "validation_failed") {
-      const field = productFieldFromWire(body.details?.[0]?.field);
-      if (field) {
-        return { kind: "validation_failed", field };
-      }
-    }
-    return { kind: "failed" };
+    const field = await readValidationFailedField(response);
+    return field === undefined ? { kind: "failed" } : { kind: "validation_failed", field };
   }
   if (response.status === 409) {
     const cloned = response.clone();
@@ -273,16 +245,8 @@ export async function editProduct(
     return { kind: "ok" };
   }
   if (response.status === 400) {
-    const body = (await response.json().catch(() => undefined)) as
-      | { code?: string; details?: Array<{ field?: string }> }
-      | undefined;
-    if (body?.code === "validation_failed") {
-      const field = productFieldFromWire(body.details?.[0]?.field);
-      if (field) {
-        return { kind: "validation_failed", field };
-      }
-    }
-    return { kind: "failed" };
+    const field = await readValidationFailedField(response);
+    return field === undefined ? { kind: "failed" } : { kind: "validation_failed", field };
   }
   if (response.status === 404) {
     return { kind: "not_found" };

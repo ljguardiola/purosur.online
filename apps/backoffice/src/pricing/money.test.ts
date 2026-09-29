@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCents, MAX_UNIT_PRICE_CENTS, parseAmountInput } from "./money";
+import { formatCents, MAX_UNIT_PRICE_CENTS, parseAmountCents } from "./money";
 
 /** A small seeded generator (mulberry32), so every run checks the same generated cases. */
 function seededRandom(seed: number): () => number {
@@ -18,7 +18,7 @@ function randomInt(random: () => number, min: number, max: number): number {
 
 const GENERATED_CASES = 2000;
 
-describe("parseAmountInput", () => {
+describe("parseAmountCents", () => {
   it("reads a comma as the decimal separator and a dot only as a thousands separator", () => {
     const accepted: [string, number][] = [
       ["7.500,50", 750050],
@@ -31,41 +31,36 @@ describe("parseAmountInput", () => {
       ["  8000  ", 800000],
     ];
     for (const [typed, cents] of accepted) {
-      expect(parseAmountInput(typed), typed).toEqual({ kind: "ok", cents });
+      expect(parseAmountCents(typed), typed).toBe(cents);
     }
   });
 
   it("reads leading zeros without a thousands dot as the plain amount they spell", () => {
-    expect(parseAmountInput("007")).toEqual({ kind: "ok", cents: 700 });
-    expect(parseAmountInput("007,50")).toEqual({ kind: "ok", cents: 750 });
+    expect(parseAmountCents("007")).toBe(700);
+    expect(parseAmountCents("007,50")).toBe(750);
   });
 
   it("rejects a dot used as a decimal separator or a malformed group", () => {
     for (const typed of ["12.50", "1.5", "7500.50", "1.50,00", "1..000", ".5", "1,", "abc", "-5"]) {
-      expect(parseAmountInput(typed), typed).toEqual({ kind: "malformed" });
+      expect(parseAmountCents(typed), typed).toBeUndefined();
     }
   });
 
   it("rejects more than two decimals", () => {
-    expect(parseAmountInput("12,505")).toEqual({ kind: "malformed" });
+    expect(parseAmountCents("12,505")).toBeUndefined();
   });
 
   it("rejects a first thousands group that starts with a zero", () => {
     for (const typed of ["0.500", "00.500", "000.001", "0.000,50"]) {
-      expect(parseAmountInput(typed), typed).toEqual({ kind: "malformed" });
+      expect(parseAmountCents(typed), typed).toBeUndefined();
     }
   });
 
-  it("rejects a zero amount as not positive", () => {
-    expect(parseAmountInput("0")).toEqual({ kind: "notPositive" });
-    expect(parseAmountInput("0,00")).toEqual({ kind: "notPositive" });
-  });
-
-  it("accepts the largest storable price and rejects one cent more", () => {
-    expect(parseAmountInput("21.474.836,47")).toEqual({ kind: "ok", cents: MAX_UNIT_PRICE_CENTS });
-    expect(parseAmountInput("21474836,47")).toEqual({ kind: "ok", cents: MAX_UNIT_PRICE_CENTS });
-    expect(parseAmountInput("21.474.836,48")).toEqual({ kind: "tooLarge" });
-    expect(parseAmountInput("999.999.999.999")).toEqual({ kind: "tooLarge" });
+  it("reads amounts outside the storable range as the cents they spell, leaving the range to the request's schema", () => {
+    expect(parseAmountCents("0")).toBe(0);
+    expect(parseAmountCents("0,00")).toBe(0);
+    expect(parseAmountCents("21.474.836,48")).toBe(MAX_UNIT_PRICE_CENTS + 1);
+    expect(parseAmountCents("999.999.999.999")).toBe(99_999_999_999_900);
   });
 
   it("reads back every formatted amount as the cents it was formatted from", () => {
@@ -73,7 +68,7 @@ describe("parseAmountInput", () => {
     for (let i = 0; i < GENERATED_CASES; i += 1) {
       const cents = randomInt(random, 1, MAX_UNIT_PRICE_CENTS);
       const typed = formatCents(cents).replace(/^\$ /, "");
-      expect(parseAmountInput(typed), typed).toEqual({ kind: "ok", cents });
+      expect(parseAmountCents(typed), typed).toBe(cents);
     }
   });
 
@@ -86,7 +81,7 @@ describe("parseAmountInput", () => {
       );
       const fraction = random() < 0.5 ? "" : `,${randomInt(random, 0, 99)}`;
       const typed = `${[firstGroup, ...groups].join(".")}${fraction}`;
-      expect(parseAmountInput(typed), typed).toEqual({ kind: "malformed" });
+      expect(parseAmountCents(typed), typed).toBeUndefined();
     }
   });
 });

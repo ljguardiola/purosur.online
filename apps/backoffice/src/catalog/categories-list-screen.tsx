@@ -1,4 +1,8 @@
-import type { CategorySummary } from "@purosur/contracts";
+import {
+  type CategorySummary,
+  categoryCreationBodySchema,
+  categoryEditBodySchema,
+} from "@purosur/contracts";
 import {
   Button,
   InlineNotice,
@@ -7,10 +11,8 @@ import {
   type Options,
   plural,
   SearchField,
-  Select,
   Table,
   type TableSort,
-  TextField,
   tableRows,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
@@ -27,6 +29,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSendToMyAccount } from "../access/send-to-my-account";
+import { useCloudForm } from "../platform/cloud-form";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
@@ -40,7 +43,7 @@ import {
 } from "./catalog-queries";
 import type { createCategory, editCategory } from "./categories-api";
 import type { CategoriesListScreenServices } from "./categories-list-services";
-import { categoryNameError } from "./category-name";
+import { categoryNameMessage } from "./category-name";
 import {
   categoriesInTreeOrder,
   categoryNameOrder,
@@ -59,7 +62,6 @@ export type CategoriesListScreenProps = {
 
 const NO_CATEGORIES: CategorySummary[] = [];
 
-const CATEGORY_NAME_REQUIRED = "Ingresá el nombre de la categoría.";
 const CATEGORY_NAME_TAKEN = "Ya existe una categoría con este nombre.";
 const CATEGORY_PARENT_NOT_FOUND_ERROR = "La categoría superior elegida ya no existe.";
 const CATEGORY_PARENT_HELPER_TEXT = "Opcional. Vacío para una categoría de primer nivel.";
@@ -100,6 +102,14 @@ type NewCategoryModalProps = {
 
 const NO_PARENT_VALUE = "";
 
+function parentIdOf(parentValue: string): string | null {
+  return parentValue === NO_PARENT_VALUE ? null : parentValue;
+}
+
+function categoryName(categories: CategorySummary[], id: string | null | undefined): string {
+  return categories.find((category) => category.id === id)?.name ?? "";
+}
+
 function NewCategoryModal({
   open,
   onClose,
@@ -109,88 +119,74 @@ function NewCategoryModal({
   categories,
 }: NewCategoryModalProps) {
   const sendToMyAccount = useSendToMyAccount();
-  const [name, setName] = useState("");
-  const [parentValue, setParentValue] = useState(NO_PARENT_VALUE);
-  const [nameError, setNameError] = useState<string | undefined>(undefined);
-  const [parentError, setParentError] = useState<string | undefined>(undefined);
   const [notice, setNotice] = useState<
     { kind: "attemptFailed" } | { kind: "rateLimited"; retryAfterSeconds: number } | null
   >(null);
-  const [submitting, setSubmitting] = useState(false);
+  const { form, submit, submitting, reset } = useCloudForm({
+    defaultValues: { name: "", parentValue: NO_PARENT_VALUE },
+    request: {
+      schema: categoryCreationBodySchema,
+      from: ({ name, parentValue }) => ({
+        name: name.trim(),
+        parentId: parentIdOf(parentValue),
+      }),
+    },
+    fields: { name: "name", parentId: "parentValue" },
+    messages: { name: categoryNameMessage, parentValue: CATEGORY_PARENT_NOT_FOUND_ERROR },
+    onSubmit: async (request, { showWireFieldError, showFieldError }) => {
+      setNotice(null);
+      const parentName = categoryName(categories, request.parentId);
+      const outcome = await createCategory({
+        name: request.name,
+        parentId: request.parentId ?? null,
+      });
+      if (outcome.kind === "ok") {
+        onCreated();
+        return;
+      }
+      if (outcome.kind === "unauthenticated") {
+        onSessionEnded();
+        return;
+      }
+      if (outcome.kind === "forbidden") {
+        sendToMyAccount();
+        return;
+      }
+      if (outcome.kind === "name_taken") {
+        showFieldError(
+          "name",
+          request.parentId
+            ? nameTakenUnderParentError({ name: request.name, parent: parentName })
+            : CATEGORY_NAME_TAKEN,
+        );
+        return;
+      }
+      if (outcome.kind === "parent_has_products") {
+        showFieldError(
+          "parentValue",
+          `"${parentName}" tiene productos asignados. Movelos a otra categoría antes de crear una subcategoría.`,
+        );
+        return;
+      }
+      if (outcome.kind === "validation_failed" && showWireFieldError(outcome.field)) {
+        return;
+      }
+      if (outcome.kind === "rate_limited") {
+        setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
+        return;
+      }
+      setNotice({ kind: "attemptFailed" });
+    },
+  });
 
   useEffect(() => {
     if (open) {
-      setName("");
-      setParentValue(NO_PARENT_VALUE);
-      setNameError(undefined);
-      setParentError(undefined);
+      reset();
       setNotice(null);
-      setSubmitting(false);
     }
-  }, [open]);
+  }, [open, reset]);
 
   const parentOptions = parentSelectOptions(categories, new Set());
-  const parentId = parentValue === NO_PARENT_VALUE ? null : parentValue;
-  const parentName = categories.find((category) => category.id === parentValue)?.name ?? "";
-
-  async function handleSubmit() {
-    const trimmed = name.trim();
-    const invalidName = categoryNameError(name);
-    if (invalidName) {
-      setNameError(invalidName);
-      return;
-    }
-    setNameError(undefined);
-    setParentError(undefined);
-    setNotice(null);
-    setSubmitting(true);
-
-    const outcome = await createCategory({ name: trimmed, parentId });
-    if (outcome.kind === "ok") {
-      onCreated();
-      return;
-    }
-    if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
-      return;
-    }
-    if (outcome.kind === "forbidden") {
-      sendToMyAccount();
-      return;
-    }
-    if (outcome.kind === "name_taken") {
-      setNameError(
-        parentId === null
-          ? CATEGORY_NAME_TAKEN
-          : nameTakenUnderParentError({ name: trimmed, parent: parentName }),
-      );
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "parent_has_products") {
-      setParentError(
-        `"${parentName}" tiene productos asignados. Movelos a otra categoría antes de crear una subcategoría.`,
-      );
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "validation_failed") {
-      if (outcome.field === "parentId") {
-        setParentError(CATEGORY_PARENT_NOT_FOUND_ERROR);
-      } else {
-        setNameError(CATEGORY_NAME_REQUIRED);
-      }
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "rate_limited") {
-      setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
-      setSubmitting(false);
-      return;
-    }
-    setNotice({ kind: "attemptFailed" });
-    setSubmitting(false);
-  }
 
   return (
     <Modal
@@ -223,7 +219,7 @@ function NewCategoryModal({
             icon={<Check />}
             fullWidth
             disabled={submitting}
-            onPress={() => void handleSubmit()}
+            onPress={() => void submit()}
           >
             Crear la categoría
           </Button>
@@ -247,30 +243,18 @@ function NewCategoryModal({
             description={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
-        <TextField
-          kind="plain-text"
-          label="Nombre de la categoría"
-          value={name}
-          onChange={(value) => {
-            setName(value);
-            if (nameError) {
-              setNameError(categoryNameError(value));
-            }
-          }}
-          required
-          errorMessage={nameError}
-        />
-        <Select
-          label="Categoría superior"
-          options={parentOptions}
-          value={parentValue}
-          onChange={(value) => {
-            setParentValue(value);
-            setParentError(undefined);
-          }}
-          description={CATEGORY_PARENT_HELPER_TEXT}
-          errorMessage={parentError}
-        />
+        <form.AppField name="name">
+          {(field) => <field.TextField kind="plain-text" label="Nombre de la categoría" required />}
+        </form.AppField>
+        <form.AppField name="parentValue">
+          {(field) => (
+            <field.Select
+              label="Categoría superior"
+              options={parentOptions}
+              description={CATEGORY_PARENT_HELPER_TEXT}
+            />
+          )}
+        </form.AppField>
       </div>
     </Modal>
   );
@@ -292,6 +276,14 @@ type EditNotice =
   | { kind: "staleVersion" }
   | { kind: "notFound" };
 
+function categoryFormValues(category: CategorySummary) {
+  return {
+    name: category.name,
+    parentValue: category.parentId ?? NO_PARENT_VALUE,
+    version: category.version,
+  };
+}
+
 function EditCategoryModal({
   target,
   onClose,
@@ -303,137 +295,113 @@ function EditCategoryModal({
 }: EditCategoryModalProps) {
   const sendToMyAccount = useSendToMyAccount();
   const open = target !== null;
-  const [name, setName] = useState("");
-  const [parentValue, setParentValue] = useState(NO_PARENT_VALUE);
-  const [version, setVersion] = useState(1);
   const [title, setTitle] = useState("");
-  const [nameError, setNameError] = useState<string | undefined>(undefined);
-  const [parentError, setParentError] = useState<string | undefined>(undefined);
   const [notice, setNotice] = useState<EditNotice | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [reloading, setReloading] = useState(false);
   const targetRef = useLatestRef(target);
+  const { form, submit, submitting, reset } = useCloudForm({
+    defaultValues: { name: "", parentValue: NO_PARENT_VALUE, version: 1 },
+    request: {
+      schema: categoryEditBodySchema,
+      from: ({ name, parentValue, version }) => ({
+        name: name.trim(),
+        parentId: parentIdOf(parentValue),
+        version,
+      }),
+    },
+    fields: { name: "name", parentId: "parentValue", version: null },
+    messages: { name: categoryNameMessage, parentValue: CATEGORY_PARENT_NOT_FOUND_ERROR },
+    onSubmit: async (request, { showWireFieldError, showFieldError }) => {
+      const current = targetRef.current;
+      if (!current) {
+        return;
+      }
+      setNotice(null);
+      const parentName = categoryName(categories, request.parentId);
+      const outcome = await editCategory(current.id, request);
+      if (outcome.kind === "ok") {
+        onSaved();
+        return;
+      }
+      if (outcome.kind === "unauthenticated") {
+        onSessionEnded();
+        return;
+      }
+      if (outcome.kind === "forbidden") {
+        sendToMyAccount();
+        return;
+      }
+      if (outcome.kind === "not_found") {
+        setNotice({ kind: "notFound" });
+        return;
+      }
+      if (outcome.kind === "name_taken") {
+        showFieldError(
+          "name",
+          request.parentId
+            ? nameTakenUnderParentError({ name: request.name, parent: parentName })
+            : CATEGORY_NAME_TAKEN,
+        );
+        return;
+      }
+      if (outcome.kind === "parent_has_products") {
+        showFieldError(
+          "parentValue",
+          `"${parentName}" tiene productos asignados. Movelos a otra categoría antes de convertirla en categoría superior.`,
+        );
+        return;
+      }
+      if (outcome.kind === "move_not_allowed") {
+        showFieldError(
+          "parentValue",
+          `No se puede mover "${current.name}" bajo "${parentName}": es una de sus subcategorías.`,
+        );
+        return;
+      }
+      if (outcome.kind === "stale_version") {
+        setNotice({ kind: "staleVersion" });
+        return;
+      }
+      if (outcome.kind === "validation_failed" && showWireFieldError(outcome.field)) {
+        return;
+      }
+      if (outcome.kind === "rate_limited") {
+        setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
+        return;
+      }
+      setNotice({ kind: "attemptFailed" });
+    },
+  });
 
   useEffect(() => {
-    if (open && target) {
-      setName(target.name);
-      setParentValue(target.parentId ?? NO_PARENT_VALUE);
-      setVersion(target.version);
-      setTitle(target.name);
-      setNameError(undefined);
-      setParentError(undefined);
+    const current = targetRef.current;
+    if (open && current) {
+      reset(categoryFormValues(current));
+      setTitle(current.name);
       setNotice(null);
-      setSubmitting(false);
+      setReloading(false);
     }
-  }, [open, target]);
+  }, [open, reset, targetRef]);
 
   const excludeIds = target ? selfAndDescendantIds(categories, target.id) : new Set<string>();
   const parentOptions = parentSelectOptions(categories, excludeIds);
-  const parentId = parentValue === NO_PARENT_VALUE ? null : parentValue;
-  const parentName = categories.find((category) => category.id === parentValue)?.name ?? "";
-
-  async function handleSubmit() {
-    const current = targetRef.current;
-    if (!current) {
-      return;
-    }
-    const trimmed = name.trim();
-    const invalidName = categoryNameError(name);
-    if (invalidName) {
-      setNameError(invalidName);
-      return;
-    }
-    setNameError(undefined);
-    setParentError(undefined);
-    setNotice(null);
-    setSubmitting(true);
-
-    const outcome = await editCategory(current.id, { name: trimmed, parentId, version });
-    if (outcome.kind === "ok") {
-      onSaved();
-      return;
-    }
-    if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
-      return;
-    }
-    if (outcome.kind === "forbidden") {
-      sendToMyAccount();
-      return;
-    }
-    if (outcome.kind === "not_found") {
-      setNotice({ kind: "notFound" });
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "name_taken") {
-      setNameError(
-        parentId === null
-          ? CATEGORY_NAME_TAKEN
-          : nameTakenUnderParentError({ name: trimmed, parent: parentName }),
-      );
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "parent_has_products") {
-      setParentError(
-        `"${parentName}" tiene productos asignados. Movelos a otra categoría antes de convertirla en categoría superior.`,
-      );
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "move_not_allowed") {
-      setParentError(
-        `No se puede mover "${current.name}" bajo "${parentName}": es una de sus subcategorías.`,
-      );
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "stale_version") {
-      setNotice({ kind: "staleVersion" });
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "validation_failed") {
-      if (outcome.field === "parentId") {
-        setParentError(CATEGORY_PARENT_NOT_FOUND_ERROR);
-      } else {
-        setNameError(CATEGORY_NAME_REQUIRED);
-      }
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "rate_limited") {
-      setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
-      setSubmitting(false);
-      return;
-    }
-    setNotice({ kind: "attemptFailed" });
-    setSubmitting(false);
-  }
 
   async function handleReload() {
     const current = targetRef.current;
     if (!current) {
       return;
     }
-    setSubmitting(true);
+    setReloading(true);
     const outcome = await reload(current.id);
     if (outcome.kind === "found") {
-      const fresh = outcome.category;
-      setName(fresh.name);
-      setTitle(fresh.name);
-      setParentValue(fresh.parentId ?? NO_PARENT_VALUE);
-      setVersion(fresh.version);
-      setNameError(undefined);
-      setParentError(undefined);
+      reset(categoryFormValues(outcome.category));
+      setTitle(outcome.category.name);
       setNotice(null);
-      setSubmitting(false);
-      return;
     }
     if (outcome.kind === "not_found") {
       setNotice({ kind: "notFound" });
     }
-    setSubmitting(false);
+    setReloading(false);
   }
 
   const offersReload = notice?.kind === "staleVersion";
@@ -468,8 +436,8 @@ function EditCategoryModal({
             size="large"
             icon={<Check />}
             fullWidth
-            disabled={submitting}
-            onPress={() => void handleSubmit()}
+            disabled={submitting || reloading}
+            onPress={() => void submit()}
           >
             Guardar los cambios
           </Button>
@@ -513,36 +481,26 @@ function EditCategoryModal({
             <Button
               variant="secondary"
               icon={<RotateCcw />}
-              disabled={submitting}
+              disabled={submitting || reloading}
               onPress={() => void handleReload()}
             >
               Recargar
             </Button>
           ) : null}
-          <TextField
-            kind="plain-text"
-            label="Nombre de la categoría"
-            value={name}
-            onChange={(value) => {
-              setName(value);
-              if (nameError) {
-                setNameError(categoryNameError(value));
-              }
-            }}
-            required
-            errorMessage={nameError}
-          />
-          <Select
-            label="Categoría superior"
-            options={parentOptions}
-            value={parentValue}
-            onChange={(value) => {
-              setParentValue(value);
-              setParentError(undefined);
-            }}
-            description={CATEGORY_PARENT_HELPER_TEXT}
-            errorMessage={parentError}
-          />
+          <form.AppField name="name">
+            {(field) => (
+              <field.TextField kind="plain-text" label="Nombre de la categoría" required />
+            )}
+          </form.AppField>
+          <form.AppField name="parentValue">
+            {(field) => (
+              <field.Select
+                label="Categoría superior"
+                options={parentOptions}
+                description={CATEGORY_PARENT_HELPER_TEXT}
+              />
+            )}
+          </form.AppField>
         </div>
       ) : null}
     </Modal>

@@ -180,6 +180,25 @@ test("setPrice returns validation_failed on the named field for a 400", async ()
   });
 });
 
+test("setPrice reports the wire name of any field the cloud refused", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(400, { code: "validation_failed", details: [{ field: "something_new" }] }),
+  );
+
+  expect(await setPrice("product-1", { unitPrice: 500, expectedCurrentPriceId: null })).toEqual({
+    kind: "validation_failed",
+    field: "something_new",
+  });
+});
+
+test("setPrice returns failed on a 400 that is neither a validation failure nor an unchanged price", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(400, { code: "something_else" }));
+
+  expect(await setPrice("product-1", { unitPrice: 500, expectedCurrentPriceId: null })).toEqual({
+    kind: "failed",
+  });
+});
+
 test("setPrice returns price_unchanged on a 400 with that code", async () => {
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse(400, { code: "price_unchanged", details: [{ field: "unitPrice" }] }),

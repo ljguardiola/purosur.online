@@ -63,6 +63,17 @@ test("requestRecoveryLink reports failed on any other status, including validati
   });
 });
 
+test("requestRecoveryLink reports the field the cloud refused as validation_failed", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(400, { code: "validation_failed", details: [{ field: "email" }] }),
+  );
+
+  await expect(requestRecoveryLink("bad")).resolves.toEqual({
+    kind: "validation_failed",
+    field: "email",
+  });
+});
+
 test("requestRecoveryLink reports failed when the network call itself rejects", async () => {
   vi.mocked(fetch).mockRejectedValue(new TypeError("network down"));
 
@@ -186,6 +197,17 @@ test.each([
     });
   },
 );
+
+test("redeemRecovery reports the field the cloud refused with the validation failure", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(400, { code: "validation_failed", details: [{ field: "passkey_name" }] }),
+  );
+
+  await expect(redeemRecovery("the-token", registration, "Notebook del local")).resolves.toEqual({
+    kind: "validation_failed",
+    field: "passkey_name",
+  });
+});
 
 test("redeemRecovery maps an unrecognized code at a known status to failed", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(400, { code: "something_unexpected" }));

@@ -1,10 +1,5 @@
-import { NET_CONTENT_QUANTITY_MAX } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
-import {
-  formatNetContentQuantity,
-  netContentQuantityError,
-  parseNetContentQuantity,
-} from "./net-content-quantity";
+import { formatNetContentQuantity, parseNetContentQuantity } from "./net-content-quantity";
 
 describe("parseNetContentQuantity", () => {
   it("reads a comma as the decimal separator", () => {
@@ -53,32 +48,6 @@ describe("parseNetContentQuantity", () => {
 
   it("reads a blank value as unparsable, leaving the blank-means-no-content decision to the caller", () => {
     expect(parseNetContentQuantity("")).toBeUndefined();
-  });
-});
-
-describe("netContentQuantityError", () => {
-  const invalid = "Ingresá una cantidad mayor que cero, con hasta 3 decimales.";
-  const tooLarge = "Ingresá una cantidad de hasta 100.000.";
-
-  it("is undefined for a blank quantity", () => {
-    expect(netContentQuantityError("")).toBeUndefined();
-    expect(netContentQuantityError("   ")).toBeUndefined();
-  });
-
-  it("is undefined for a valid quantity, up to and including the maximum", () => {
-    expect(netContentQuantityError("1,5")).toBeUndefined();
-    expect(netContentQuantityError(String(NET_CONTENT_QUANTITY_MAX))).toBeUndefined();
-  });
-
-  it("reports the format message for an unparsable or non-positive quantity", () => {
-    expect(netContentQuantityError("abc")).toBe(invalid);
-    expect(netContentQuantityError("0")).toBe(invalid);
-    expect(netContentQuantityError("1.5")).toBe(invalid);
-  });
-
-  it("reports the too-large message once the quantity parses over the maximum", () => {
-    expect(netContentQuantityError(String(NET_CONTENT_QUANTITY_MAX + 1))).toBe(tooLarge);
-    expect(netContentQuantityError("1.000.000")).toBe(tooLarge);
   });
 });
 

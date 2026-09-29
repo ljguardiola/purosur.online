@@ -1,3 +1,4 @@
+import { registerCreationBodySchema } from "@purosur/contracts";
 import { isRegisterNameTooLong, REGISTER_NAME_MAX_LENGTH } from "@purosur/domain";
 import {
   Button,
@@ -7,7 +8,6 @@ import {
   Table,
   TableCellText,
   Tag,
-  TextField,
   tableRows,
 } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
@@ -16,6 +16,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuthorization } from "../access/authorization-modal";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import type { authorizeSession, fetchSessionAuthorizationOptions } from "../access/session-api";
+import { useCloudForm } from "../platform/cloud-form";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
@@ -41,6 +42,16 @@ const NO_REGISTERS: RegisterSummary[] = [];
 const NEW_REGISTER_NAME_REQUIRED = "Ingresá el nombre de la caja.";
 const NEW_REGISTER_NAME_TOO_LONG = `El nombre puede tener hasta ${REGISTER_NAME_MAX_LENGTH} caracteres.`;
 
+function registerNameMessage({ name }: { name: string }): string {
+  const trimmed = name.trim();
+  if (trimmed === "") {
+    return NEW_REGISTER_NAME_REQUIRED;
+  }
+  return isRegisterNameTooLong(trimmed)
+    ? NEW_REGISTER_NAME_TOO_LONG
+    : "Revisá el nombre de la caja.";
+}
+
 const PENDING_CODE_REFRESH_MS = 30_000;
 
 function minutesElapsed(issuedAt: string, now: Date): number {
@@ -53,17 +64,6 @@ function minutesRemaining(expiresAt: string, now: Date): number {
 
 function groupedCode(code: string): string {
   return (code.match(/.{1,4}/g) ?? [code]).join(" ");
-}
-
-function registerNameError(name: string): string | undefined {
-  const trimmed = name.trim();
-  if (!trimmed) {
-    return NEW_REGISTER_NAME_REQUIRED;
-  }
-  if (isRegisterNameTooLong(trimmed)) {
-    return NEW_REGISTER_NAME_TOO_LONG;
-  }
-  return undefined;
 }
 
 type NewRegisterModalProps = {
@@ -88,73 +88,58 @@ function NewRegisterModal({
   startAuthentication,
 }: NewRegisterModalProps) {
   const sendToMyAccount = useSendToMyAccount();
-  const [name, setName] = useState("");
-  const [nameError, setNameError] = useState<string | undefined>(undefined);
   const [notice, setNotice] = useState<
     { kind: "attemptFailed" } | { kind: "rateLimited"; retryAfterSeconds: number } | null
   >(null);
-  const [submitting, setSubmitting] = useState(false);
   const { run, modal } = useAuthorization<CreateRegisterOutcome>({
     actionName: "Crear una caja",
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
+  const { form, submit, submitting, reset } = useCloudForm({
+    defaultValues: { name: "" },
+    request: { schema: registerCreationBodySchema, from: ({ name }) => ({ name }) },
+    fields: { name: "name" },
+    messages: { name: registerNameMessage },
+    onSubmit: async (request, { showWireFieldError, showFieldError }) => {
+      setNotice(null);
+      const outcome = await run(() => createRegister(request));
+      if (outcome.kind === "cancelled") {
+        return;
+      }
+      if (outcome.kind === "ok") {
+        onCreated();
+        return;
+      }
+      if (outcome.kind === "unauthenticated") {
+        onSessionEnded();
+        return;
+      }
+      if (outcome.kind === "forbidden") {
+        sendToMyAccount();
+        return;
+      }
+      if (outcome.kind === "name_taken") {
+        showFieldError("name", "Ya existe una caja con este nombre.");
+        return;
+      }
+      if (outcome.kind === "validation_failed" && showWireFieldError(outcome.field)) {
+        return;
+      }
+      if (outcome.kind === "rate_limited") {
+        setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
+        return;
+      }
+      setNotice({ kind: "attemptFailed" });
+    },
+  });
 
   useEffect(() => {
     if (open) {
-      setName("");
-      setNameError(undefined);
+      reset();
       setNotice(null);
-      setSubmitting(false);
     }
-  }, [open]);
-
-  async function handleSubmit() {
-    const trimmed = name.trim();
-    const invalidName = registerNameError(name);
-    if (invalidName) {
-      setNameError(invalidName);
-      return;
-    }
-    setNameError(undefined);
-    setNotice(null);
-    setSubmitting(true);
-
-    const outcome = await run(() => createRegister({ name: trimmed }));
-    if (outcome.kind === "cancelled") {
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "ok") {
-      onCreated();
-      return;
-    }
-    if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
-      return;
-    }
-    if (outcome.kind === "forbidden") {
-      sendToMyAccount();
-      return;
-    }
-    if (outcome.kind === "name_taken") {
-      setNameError("Ya existe una caja con este nombre.");
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "validation_failed") {
-      setNameError(NEW_REGISTER_NAME_REQUIRED);
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "rate_limited") {
-      setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
-      setSubmitting(false);
-      return;
-    }
-    setNotice({ kind: "attemptFailed" });
-    setSubmitting(false);
-  }
+  }, [open, reset]);
 
   return (
     <>
@@ -188,7 +173,7 @@ function NewRegisterModal({
               icon={<Check />}
               fullWidth
               disabled={submitting}
-              onPress={() => void handleSubmit()}
+              onPress={() => void submit()}
             >
               Crear la caja
             </Button>
@@ -212,19 +197,9 @@ function NewRegisterModal({
               description={retryAfterDetail(notice.retryAfterSeconds)}
             />
           )}
-          <TextField
-            kind="plain-text"
-            label="Nombre de la caja"
-            value={name}
-            onChange={(value) => {
-              setName(value);
-              if (nameError) {
-                setNameError(registerNameError(value));
-              }
-            }}
-            required
-            errorMessage={nameError}
-          />
+          <form.AppField name="name">
+            {(field) => <field.TextField kind="plain-text" label="Nombre de la caja" required />}
+          </form.AppField>
         </div>
       </Modal>
       {modal}

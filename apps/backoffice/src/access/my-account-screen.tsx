@@ -1,3 +1,4 @@
+import { passkeyRegistrationBodySchema } from "@purosur/contracts";
 import {
   Button,
   EmptyState,
@@ -6,7 +7,6 @@ import {
   LoadFailure,
   LoadingPlaceholder,
   Modal,
-  TextField,
 } from "@purosur/ui";
 import type {
   RegistrationResponseJSON,
@@ -15,6 +15,7 @@ import type {
 } from "@simplewebauthn/browser";
 import { KeyRound, Laptop, Plus, ShieldX, Trash2, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useCloudForm } from "../platform/cloud-form";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { ScreenLayout } from "../shell/screen-layout";
@@ -30,10 +31,12 @@ import type {
   registerPasskey,
   removePasskey,
 } from "./passkey-api";
-import { validatePasskeyName } from "./passkey-name";
+import { passkeyNameMessage } from "./passkey-name-message";
 import { passkeyRowDetail } from "./passkey-row-detail";
 import type { authorizeSession, fetchSessionAuthorizationOptions } from "./session-api";
 import type { signalUnknownCredential } from "./signal-unknown-credential";
+
+const PASSKEY_NAME_REQUEST = passkeyRegistrationBodySchema.pick({ passkey_name: true });
 
 function isDefinitiveRejection(outcome: RegisterPasskeyOutcome): boolean {
   switch (outcome.kind) {
@@ -84,30 +87,63 @@ function RegisterPasskeyModal({
   startAuthentication,
   signalUnknownCredential,
 }: RegisterPasskeyModalProps) {
-  const [name, setName] = useState("");
-  const [nameError, setNameError] = useState<string | undefined>(undefined);
   const [attemptFailed, setAttemptFailed] = useState(false);
   const [rateLimitedSeconds, setRateLimitedSeconds] = useState<number | null>(null);
-  const [submitting, setSubmitting] = useState(false);
   const { run, modal } = useAuthorization<RegisterPasskeyOutcome>({
     actionName: "Agregar una passkey",
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
+  const { form, submit, submitting, reset } = useCloudForm({
+    defaultValues: { name: "" },
+    request: {
+      schema: PASSKEY_NAME_REQUEST,
+      from: ({ name }) => ({ passkey_name: name.trim() }),
+    },
+    fields: { passkey_name: "name" },
+    messages: { name: passkeyNameMessage },
+    onSubmit: async ({ passkey_name }, { showWireFieldError }) => {
+      setAttemptFailed(false);
+      setRateLimitedSeconds(null);
+
+      const outcome = await run(() => attemptRegistration(passkey_name));
+      if (outcome.kind === "cancelled") {
+        return;
+      }
+      if (outcome.kind === "ok") {
+        onRegistered();
+        return;
+      }
+      if (outcome.kind === "unauthenticated") {
+        onSessionEnded();
+        return;
+      }
+      if (outcome.kind === "rate_limited") {
+        setRateLimitedSeconds(outcome.retryAfterSeconds);
+        return;
+      }
+      if (
+        outcome.kind === "validation_failed" &&
+        outcome.field !== undefined &&
+        showWireFieldError(outcome.field)
+      ) {
+        return;
+      }
+      setAttemptFailed(true);
+    },
+  });
 
   useEffect(() => {
     if (open) {
-      setName("");
-      setNameError(undefined);
+      reset();
       setAttemptFailed(false);
       setRateLimitedSeconds(null);
-      setSubmitting(false);
     }
-  }, [open]);
+  }, [open, reset]);
 
   // Redone in full on a retry: the registration challenge shares its session-scoped row with the
   // authorization ceremony's own challenge, so options fetched before authorizing are gone after.
-  async function attemptRegistration(trimmedName: string): Promise<RegisterPasskeyOutcome> {
+  async function attemptRegistration(passkeyName: string): Promise<RegisterPasskeyOutcome> {
     const challenge = await fetchPasskeyRegistrationChallenge();
     if (challenge.kind !== "ok") {
       return challenge;
@@ -118,7 +154,7 @@ function RegisterPasskeyModal({
     if (!passkeyRegistration) {
       return { kind: "failed" };
     }
-    const outcome = await registerPasskey(passkeyRegistration, trimmedName);
+    const outcome = await registerPasskey(passkeyRegistration, passkeyName);
     // Every definitive rejection but "already registered" means the credential was never saved,
     // so the device should forget it; an ambiguous outcome never signals, since it may have landed.
     if (isDefinitiveRejection(outcome)) {
@@ -128,39 +164,6 @@ function RegisterPasskeyModal({
       }
     }
     return outcome;
-  }
-
-  async function handleSubmit() {
-    const validationError = validatePasskeyName(name);
-    setNameError(validationError);
-    if (validationError) {
-      return;
-    }
-    setAttemptFailed(false);
-    setRateLimitedSeconds(null);
-    setSubmitting(true);
-
-    const trimmedName = name.trim();
-    const outcome = await run(() => attemptRegistration(trimmedName));
-    if (outcome.kind === "cancelled") {
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "ok") {
-      onRegistered();
-      return;
-    }
-    if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
-      return;
-    }
-    if (outcome.kind === "rate_limited") {
-      setRateLimitedSeconds(outcome.retryAfterSeconds);
-      setSubmitting(false);
-      return;
-    }
-    setAttemptFailed(true);
-    setSubmitting(false);
   }
 
   return (
@@ -195,7 +198,7 @@ function RegisterPasskeyModal({
               icon={<KeyRound />}
               fullWidth
               disabled={submitting}
-              onPress={() => void handleSubmit()}
+              onPress={() => void submit()}
             >
               Registrar la passkey
             </Button>
@@ -219,20 +222,16 @@ function RegisterPasskeyModal({
               description={retryAfterDetail(rateLimitedSeconds)}
             />
           )}
-          <TextField
-            kind="plain-text"
-            label="Nombre de la passkey"
-            value={name}
-            onChange={(value) => {
-              setName(value);
-              if (nameError) {
-                setNameError(validatePasskeyName(value));
-              }
-            }}
-            description="Por ejemplo, Teléfono de Lucía."
-            required
-            errorMessage={nameError}
-          />
+          <form.AppField name="name">
+            {(field) => (
+              <field.TextField
+                kind="plain-text"
+                label="Nombre de la passkey"
+                description="Por ejemplo, Teléfono de Lucía."
+                required
+              />
+            )}
+          </form.AppField>
         </div>
       </Modal>
       {modal}

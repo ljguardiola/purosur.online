@@ -1,20 +1,20 @@
 import { type CalendarDate, parseDate } from "@internationalized/date";
+import { issuerIdentificationEditBodySchema } from "@purosur/contracts";
 import {
   argentinaCalendarDay,
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
+  isIssuerIdentificationActivityStartDate,
   isIssuerIdentificationGrossIncomeRegistrationTooLong,
   isIssuerIdentificationLegalNameTooLong,
 } from "@purosur/domain";
 import {
   Button,
-  DateField,
   formatDate,
   InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
   Modal,
-  TextField,
 } from "@purosur/ui";
 import {
   Check,
@@ -29,6 +29,7 @@ import {
 import { useEffect, useState } from "react";
 import { useAuthorization } from "../access/authorization-modal";
 import { useSendToMyAccount } from "../access/send-to-my-account";
+import { useCloudForm } from "../platform/cloud-form";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { useLatestRef } from "../platform/use-latest-ref";
@@ -38,7 +39,6 @@ import type { FiscalConfigurationScreenServices } from "./fiscal-configuration-s
 import { useIssuerIdentificationQuery, useReloadIssuerIdentification } from "./fiscal-queries";
 import type {
   IssuerIdentification,
-  IssuerIdentificationField,
   SaveIssuerIdentificationOutcome,
 } from "./issuer-identification-api";
 
@@ -93,21 +93,20 @@ function fixedPair(label: string, value: string) {
   );
 }
 
-type FieldErrorKey = "legalName" | "grossIncomeRegistration" | "activityStartDate";
-type FieldErrors = Partial<Record<FieldErrorKey, string>>;
-
 type ModalNotice = { kind: "attemptFailed" } | { kind: "staleVersion" };
 
 type ModalValues = {
   legalName: string;
   grossIncomeRegistration: string;
   activityStartDate: CalendarDate | null;
+  version: number;
 };
 
 const EMPTY_MODAL_VALUES: ModalValues = {
   legalName: "",
   grossIncomeRegistration: "",
   activityStartDate: null,
+  version: 0,
 };
 
 function valuesFrom(value: IssuerIdentification): ModalValues {
@@ -115,65 +114,39 @@ function valuesFrom(value: IssuerIdentification): ModalValues {
     legalName: value.legalName ?? "",
     grossIncomeRegistration: value.grossIncomeRegistration ?? "",
     activityStartDate: dateOf(value.activityStartDate),
+    version: value.version,
   };
 }
 
-function matchesIssuerIdentification(values: ModalValues, value: IssuerIdentification): boolean {
-  return (
-    values.legalName === (value.legalName ?? "") &&
-    values.grossIncomeRegistration === (value.grossIncomeRegistration ?? "") &&
-    (values.activityStartDate?.toString() ?? null) === value.activityStartDate
-  );
+function legalNameMessage({ legalName }: ModalValues): string {
+  const trimmed = legalName.trim();
+  if (trimmed === "") {
+    return "Ingresá la razón social.";
+  }
+  return isIssuerIdentificationLegalNameTooLong(trimmed)
+    ? LEGAL_NAME_TOO_LONG_ERROR
+    : "Revisá la razón social.";
 }
 
-type CompleteModalValues = {
-  legalName: string;
-  grossIncomeRegistration: string;
-  activityStartDate: CalendarDate;
-};
-
-type ModalValidation =
-  | { kind: "valid"; values: CompleteModalValues }
-  | { kind: "invalid"; errors: FieldErrors };
-
-function validateModal(values: ModalValues, today: CalendarDate): ModalValidation {
-  const errors: FieldErrors = {};
-  const legalName = values.legalName.trim();
-  if (!legalName) {
-    errors.legalName = "Ingresá la razón social.";
-  } else if (isIssuerIdentificationLegalNameTooLong(legalName)) {
-    errors.legalName = LEGAL_NAME_TOO_LONG_ERROR;
+function grossIncomeRegistrationMessage({ grossIncomeRegistration }: ModalValues): string {
+  const trimmed = grossIncomeRegistration.trim();
+  if (trimmed === "") {
+    return "Ingresá el número de Ingresos Brutos.";
   }
-  const grossIncomeRegistration = values.grossIncomeRegistration.trim();
-  if (!grossIncomeRegistration) {
-    errors.grossIncomeRegistration = "Ingresá el número de Ingresos Brutos.";
-  } else if (isIssuerIdentificationGrossIncomeRegistrationTooLong(grossIncomeRegistration)) {
-    errors.grossIncomeRegistration = GROSS_INCOME_REGISTRATION_TOO_LONG_ERROR;
-  }
-  const activityStartDate = values.activityStartDate;
-  if (activityStartDate === null) {
-    errors.activityStartDate = "Elegí la fecha de inicio de actividades.";
-  } else if (activityStartDate.compare(today) > 0) {
-    errors.activityStartDate = ACTIVITY_START_DATE_FUTURE_ERROR;
-  }
-  if (activityStartDate === null || Object.keys(errors).length > 0) {
-    return { kind: "invalid", errors };
-  }
-  return { kind: "valid", values: { legalName, grossIncomeRegistration, activityStartDate } };
+  return isIssuerIdentificationGrossIncomeRegistrationTooLong(trimmed)
+    ? GROSS_INCOME_REGISTRATION_TOO_LONG_ERROR
+    : "Revisá el número de Ingresos Brutos.";
 }
 
-/** `version` never maps to a field error here: a stale version already has its own notice. */
-function serverFieldErrors(field: IssuerIdentificationField): FieldErrors | undefined {
-  if (field === "legal_name") {
-    return { legalName: LEGAL_NAME_TOO_LONG_ERROR };
-  }
-  if (field === "gross_income_registration") {
-    return { grossIncomeRegistration: GROSS_INCOME_REGISTRATION_TOO_LONG_ERROR };
-  }
-  if (field === "activity_start_date") {
-    return { activityStartDate: ACTIVITY_START_DATE_FUTURE_ERROR };
-  }
-  return undefined;
+function activityStartDateMessage(today: Date) {
+  return ({ activityStartDate }: ModalValues): string => {
+    if (activityStartDate === null) {
+      return "Elegí la fecha de inicio de actividades.";
+    }
+    return isIssuerIdentificationActivityStartDate(activityStartDate.toString(), today)
+      ? "Revisá la fecha de inicio de actividades."
+      : ACTIVITY_START_DATE_FUTURE_ERROR;
+  };
 }
 
 type EditIssuerIdentificationModalProps = {
@@ -205,119 +178,99 @@ function EditIssuerIdentificationModal({
     startAuthentication,
   } = services;
   const open = target !== null;
-  const [shownValue, setShownValue] = useState<IssuerIdentification | null>(null);
-  const [values, setValues] = useState<ModalValues>(EMPTY_MODAL_VALUES);
-  const [errors, setErrors] = useState<FieldErrors>({});
+  const [seededFrom, setSeededFrom] = useState<IssuerIdentification | null>(null);
   const [notice, setNotice] = useState<ModalNotice | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [today, setToday] = useState(() => todayCalendarDate(now()));
+  const [reloading, setReloading] = useState(false);
+  const [openedAt, setOpenedAt] = useState(now);
   const nowRef = useLatestRef(now);
   const { run, modal } = useAuthorization<SaveIssuerIdentificationOutcome>({
     actionName: "Guardar la identificación del emisor",
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
+  const { form, submit, submitting, dirty, reset } = useCloudForm({
+    defaultValues: EMPTY_MODAL_VALUES,
+    request: {
+      schema: issuerIdentificationEditBodySchema(openedAt),
+      from: ({ legalName, grossIncomeRegistration, activityStartDate, version }) => ({
+        legal_name: legalName.trim(),
+        gross_income_registration: grossIncomeRegistration.trim(),
+        activity_start_date: activityStartDate?.toString() ?? "",
+        version,
+      }),
+    },
+    fields: {
+      legal_name: "legalName",
+      gross_income_registration: "grossIncomeRegistration",
+      activity_start_date: "activityStartDate",
+      version: null,
+    },
+    messages: {
+      legalName: legalNameMessage,
+      grossIncomeRegistration: grossIncomeRegistrationMessage,
+      activityStartDate: activityStartDateMessage(openedAt),
+    },
+    onSubmit: async (request, { showWireFieldError }) => {
+      setNotice(null);
+      const outcome = await run(() => saveIssuerIdentification(request));
+      if (outcome.kind === "cancelled") {
+        return;
+      }
+      if (outcome.kind === "ok") {
+        await reload();
+        onSaved();
+        return;
+      }
+      if (outcome.kind === "unauthenticated") {
+        onSessionEnded();
+        return;
+      }
+      if (outcome.kind === "forbidden") {
+        sendToMyAccount();
+        return;
+      }
+      if (outcome.kind === "stale_version") {
+        setNotice({ kind: "staleVersion" });
+        return;
+      }
+      if (outcome.kind === "validation_failed" && showWireFieldError(outcome.field)) {
+        return;
+      }
+      setNotice({ kind: "attemptFailed" });
+    },
+  });
 
   useEffect(() => {
     if (open) {
-      setToday(todayCalendarDate(nowRef.current()));
+      setOpenedAt(nowRef.current());
     }
   }, [open, nowRef]);
 
-  function showServerValue(value: IssuerIdentification) {
-    setShownValue(value);
-    setValues(valuesFrom(value));
-    setErrors({});
-    setNotice(null);
-    setSubmitting(false);
-  }
-
-  const hasUnsavedEdits = shownValue !== null && !matchesIssuerIdentification(values, shownValue);
-  if (target === null) {
-    if (shownValue !== null) {
-      setShownValue(null);
-    }
-  } else if (target !== shownValue && !hasUnsavedEdits) {
-    showServerValue(target);
-  }
-
-  function clearFieldError(field: FieldErrorKey) {
-    if (!errors[field]) {
-      return;
-    }
-    setErrors((current) => {
-      const next = { ...current };
-      delete next[field];
-      return next;
-    });
-  }
-
-  async function handleSubmit() {
-    if (target === null || shownValue === null) {
-      return;
-    }
-    const validation = validateModal(values, todayCalendarDate(now()));
-    if (validation.kind === "invalid") {
-      setErrors(validation.errors);
-      return;
-    }
-    setErrors({});
-    setNotice(null);
-    setSubmitting(true);
-
-    const { legalName, grossIncomeRegistration, activityStartDate } = validation.values;
-    const outcome = await run(() =>
-      saveIssuerIdentification({
-        legalName,
-        grossIncomeRegistration,
-        activityStartDate: activityStartDate.toString(),
-        version: shownValue.version,
-      }),
-    );
-    if (outcome.kind === "cancelled") {
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "ok") {
-      await reload();
-      onSaved();
-      return;
-    }
-    if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
-      return;
-    }
-    if (outcome.kind === "forbidden") {
-      sendToMyAccount();
-      return;
-    }
-    if (outcome.kind === "stale_version") {
-      setNotice({ kind: "staleVersion" });
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "validation_failed") {
-      const fieldErrors = serverFieldErrors(outcome.field);
-      if (fieldErrors) {
-        setErrors((current) => ({ ...current, ...fieldErrors }));
-      } else {
-        setNotice({ kind: "attemptFailed" });
+  useEffect(() => {
+    if (target === null) {
+      if (seededFrom !== null) {
+        reset();
+        setSeededFrom(null);
       }
-      setSubmitting(false);
-      return;
+    } else if (target !== seededFrom && !dirty) {
+      reset(valuesFrom(target));
+      setSeededFrom(target);
+      setNotice(null);
     }
-    setNotice({ kind: "attemptFailed" });
-    setSubmitting(false);
-  }
+  }, [target, seededFrom, dirty, reset]);
 
   async function handleReload() {
-    setSubmitting(true);
+    setReloading(true);
     const outcome = await reload();
     if (outcome.kind === "ok") {
-      showServerValue(outcome.value);
+      reset(valuesFrom(outcome.value));
+      setSeededFrom(outcome.value);
+      setNotice(null);
     }
+    setReloading(false);
   }
 
+  const busy = submitting || reloading;
   const offersReload = notice?.kind === "staleVersion";
 
   return (
@@ -337,13 +290,7 @@ function EditIssuerIdentificationModal({
         closable
         footer={
           <>
-            <Button
-              variant="secondary"
-              size="large"
-              icon={<X />}
-              disabled={submitting}
-              onPress={onClose}
-            >
+            <Button variant="secondary" size="large" icon={<X />} disabled={busy} onPress={onClose}>
               Cancelar
             </Button>
             {offersReload ? (
@@ -352,7 +299,7 @@ function EditIssuerIdentificationModal({
                 size="large"
                 icon={<RotateCcw />}
                 fullWidth
-                disabled={submitting}
+                disabled={busy}
                 onPress={() => void handleReload()}
               >
                 Recargar
@@ -363,8 +310,8 @@ function EditIssuerIdentificationModal({
                 size="large"
                 icon={<Check />}
                 fullWidth
-                disabled={submitting}
-                onPress={() => void handleSubmit()}
+                disabled={busy}
+                onPress={() => void submit()}
               >
                 Guardar los cambios
               </Button>
@@ -394,44 +341,28 @@ function EditIssuerIdentificationModal({
               {fixedPair("CUIT", target.authorizedCuit)}
               {fixedPair("Condición frente al IVA", target.taxStatus)}
             </div>
-            <TextField
-              kind="plain-text"
-              label="Razón social"
-              value={values.legalName}
-              onChange={(value) => {
-                setValues((current) => ({ ...current, legalName: value }));
-                clearFieldError("legalName");
-              }}
-              required
-              errorMessage={errors.legalName}
-            />
+            <form.AppField name="legalName">
+              {(field) => <field.TextField kind="plain-text" label="Razón social" required />}
+            </form.AppField>
             <div className="flex gap-3">
               <div className="flex-1">
-                <TextField
-                  kind="plain-text"
-                  label="Ingresos Brutos"
-                  value={values.grossIncomeRegistration}
-                  onChange={(value) => {
-                    setValues((current) => ({ ...current, grossIncomeRegistration: value }));
-                    clearFieldError("grossIncomeRegistration");
-                  }}
-                  required
-                  errorMessage={errors.grossIncomeRegistration}
-                />
+                <form.AppField name="grossIncomeRegistration">
+                  {(field) => (
+                    <field.TextField kind="plain-text" label="Ingresos Brutos" required />
+                  )}
+                </form.AppField>
               </div>
               <div className="flex-1">
-                <DateField
-                  label="Inicio de actividades"
-                  value={values.activityStartDate}
-                  onChange={(value) => {
-                    setValues((current) => ({ ...current, activityStartDate: value }));
-                    clearFieldError("activityStartDate");
-                  }}
-                  required
-                  maxValue={today}
-                  rangeMessage={ACTIVITY_START_DATE_FUTURE_ERROR}
-                  errorMessage={errors.activityStartDate}
-                />
+                <form.AppField name="activityStartDate">
+                  {(field) => (
+                    <field.DateField
+                      label="Inicio de actividades"
+                      required
+                      maxValue={todayCalendarDate(openedAt)}
+                      rangeMessage={ACTIVITY_START_DATE_FUTURE_ERROR}
+                    />
+                  )}
+                </form.AppField>
               </div>
             </div>
             <InlineNotice

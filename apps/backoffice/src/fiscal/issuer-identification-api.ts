@@ -5,6 +5,7 @@ import {
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { retryAfterSeconds } from "../platform/retry-after-seconds";
+import { readValidationFailedField } from "../platform/validation-failed-field";
 
 export type IssuerIdentification = {
   legalName: string | null;
@@ -17,25 +18,11 @@ export type IssuerIdentification = {
   version: number;
 };
 
-export type IssuerIdentificationField =
-  | "legal_name"
-  | "gross_income_registration"
-  | "activity_start_date"
-  | "version";
-
 export type FetchIssuerIdentificationOutcome = CloudReadOutcome<IssuerIdentification>;
-
-export type SaveIssuerIdentificationInput = {
-  legalName: string;
-  grossIncomeRegistration: string;
-  /** A zero-padded ISO calendar date (YYYY-MM-DD), never in the future. */
-  activityStartDate: string;
-  version: number;
-};
 
 export type SaveIssuerIdentificationOutcome =
   | { kind: "ok" }
-  | { kind: "validation_failed"; field: IssuerIdentificationField }
+  | { kind: "validation_failed"; field: string }
   | { kind: "stale_version" }
   | { kind: "forbidden" }
   | { kind: "unauthenticated" }
@@ -51,16 +38,6 @@ function issuerIdentificationFromWire(row: IssuerIdentificationBody): IssuerIden
     taxStatus: row.tax_status,
     version: row.version,
   };
-}
-
-function issuerIdentificationFieldFromWire(field: unknown): IssuerIdentificationField | undefined {
-  const fields: readonly IssuerIdentificationField[] = [
-    "legal_name",
-    "gross_income_registration",
-    "activity_start_date",
-    "version",
-  ];
-  return fields.find((candidate) => candidate === field);
 }
 
 export async function fetchIssuerIdentification(): Promise<FetchIssuerIdentificationOutcome> {
@@ -92,14 +69,8 @@ export async function fetchIssuerIdentification(): Promise<FetchIssuerIdentifica
 // The authorized CUIT and tax status are never sent: they are deployment configuration and a
 // fixed value, never client input.
 export async function saveIssuerIdentification(
-  input: SaveIssuerIdentificationInput,
+  requestBody: IssuerIdentificationEditBody,
 ): Promise<SaveIssuerIdentificationOutcome> {
-  const requestBody: IssuerIdentificationEditBody = {
-    legal_name: input.legalName,
-    gross_income_registration: input.grossIncomeRegistration,
-    activity_start_date: input.activityStartDate,
-    version: input.version,
-  };
   let response: Response;
   try {
     response = await fetch("/fiscal-configuration/issuer-identification", {
@@ -114,16 +85,8 @@ export async function saveIssuerIdentification(
     return { kind: "ok" };
   }
   if (response.status === 400) {
-    const body = (await response.json().catch(() => undefined)) as
-      | { code?: string; details?: Array<{ field?: string }> }
-      | undefined;
-    if (body?.code === "validation_failed") {
-      const field = issuerIdentificationFieldFromWire(body.details?.[0]?.field);
-      if (field) {
-        return { kind: "validation_failed", field };
-      }
-    }
-    return { kind: "failed" };
+    const field = await readValidationFailedField(response);
+    return field === undefined ? { kind: "failed" } : { kind: "validation_failed", field };
   }
   if (response.status === 409) {
     return { kind: "stale_version" };

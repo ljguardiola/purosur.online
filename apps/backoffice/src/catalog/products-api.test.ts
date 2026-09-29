@@ -161,6 +161,17 @@ test.each([
   expect(await createProduct(createInput)).toEqual({ kind: "validation_failed", field });
 });
 
+test("createProduct reports the wire name of any field the cloud refused", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(400, { code: "validation_failed", details: [{ field: "something_new" }] }),
+  );
+
+  expect(await createProduct(createInput)).toEqual({
+    kind: "validation_failed",
+    field: "something_new",
+  });
+});
+
 test("createProduct returns barcode_taken with the taken codes on 409", async () => {
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse(409, { code: "barcode_taken", codes: ["7790987000015"] }),
@@ -234,6 +245,17 @@ test.each([
   expect(await editProduct("product-1", editInput)).toEqual({
     kind: "validation_failed",
     field,
+  });
+});
+
+test("editProduct reports the wire name of any field the cloud refused", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(400, { code: "validation_failed", details: [{ field: "something_new" }] }),
+  );
+
+  expect(await editProduct("product-1", editInput)).toEqual({
+    kind: "validation_failed",
+    field: "something_new",
   });
 });
 

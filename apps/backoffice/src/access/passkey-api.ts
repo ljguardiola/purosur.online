@@ -10,6 +10,7 @@ import type {
 } from "@simplewebauthn/browser";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { retryAfterSeconds } from "../platform/retry-after-seconds";
+import { readValidationFailedField } from "../platform/validation-failed-field";
 
 export type Passkey = ReturnType<typeof passkeyFromWire>;
 
@@ -33,7 +34,7 @@ type GatedActionErrorOutcome =
 
 export type RegisterPasskeyOutcome =
   | { kind: "ok" }
-  | { kind: "validation_failed" }
+  | { kind: "validation_failed"; field?: string }
   | { kind: "already_registered" }
   | GatedActionErrorOutcome;
 
@@ -130,13 +131,17 @@ export async function registerPasskey(
     return { kind: "ok" };
   }
   if (response.status === 400) {
+    const field = await readValidationFailedField(response.clone());
     const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
     if (!body) {
       return { kind: "failed" };
     }
-    return body.code === "passkey_already_registered"
-      ? { kind: "already_registered" }
-      : { kind: "validation_failed" };
+    if (body.code === "passkey_already_registered") {
+      return { kind: "already_registered" };
+    }
+    return field === undefined
+      ? { kind: "validation_failed" }
+      : { kind: "validation_failed", field };
   }
   return gatedActionErrorOutcome(response);
 }

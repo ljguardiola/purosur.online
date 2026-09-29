@@ -532,6 +532,42 @@ test("shows a field error under the parent select when the chosen parent has van
     .toBeVisible();
 });
 
+test("asks to review the name when the cloud refuses a name that passes every local check", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.createCategory).mockResolvedValue({
+    kind: "validation_failed",
+    field: "name",
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay categorías")).toBeVisible();
+  const dialog = await openNewCategoryModal(screen);
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }), "Snacks");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
+
+  await expect.element(dialog.getByText("Revisá el nombre de la categoría.")).toBeVisible();
+  expect(dialog.getByText("Ingresá el nombre de la categoría.").query()).toBeNull();
+});
+
+test("shows the generic failure notice on create when the cloud refuses a field the form does not have", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.createCategory).mockResolvedValue({
+    kind: "validation_failed",
+    field: "version",
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay categorías")).toBeVisible();
+  const dialog = await openNewCategoryModal(screen);
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }), "Snacks");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
+
+  await expect.element(dialog.getByText("No se pudo crear la categoría")).toBeVisible();
+  expect(dialog.getByText("Ingresá el nombre de la categoría.").query()).toBeNull();
+});
+
 test("the row action opens the edit modal preselecting the category's current parent", async () => {
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({
@@ -742,6 +778,42 @@ test("shows the plain name-taken error on rename when the category stays top-lev
 
   await expect.element(dialog.getByText("Ya existe una categoría con este nombre.")).toBeVisible();
   await expect.element(screen.getByRole("cell", { name: "Almacén" })).toBeVisible();
+});
+
+test("shows the generic failure notice on edit when the cloud refuses the version, leaving the name untouched", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [groceries] });
+  vi.mocked(services.editCategory).mockResolvedValue({
+    kind: "validation_failed",
+    field: "version",
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Almacén")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Editar la categoría Almacén" }));
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(dialog.getByText("No se pudo guardar el cambio")).toBeVisible();
+  expect(dialog.getByText("Ingresá el nombre de la categoría.").query()).toBeNull();
+  expect(dialog.getByText("Revisá el nombre de la categoría.").query()).toBeNull();
+});
+
+test("asks to review the name on edit when the cloud refuses a name that passes every local check", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [groceries] });
+  vi.mocked(services.editCategory).mockResolvedValue({
+    kind: "validation_failed",
+    field: "name",
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Almacén")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Editar la categoría Almacén" }));
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(dialog.getByText("Revisá el nombre de la categoría.")).toBeVisible();
 });
 
 test("shows a not-found notice on edit when the category no longer exists", async () => {

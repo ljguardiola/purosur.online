@@ -66,14 +66,21 @@ export const productCreationBodySchema = z
       }),
     netContent: netContentSchema,
   })
-  .superRefine((product, context) => {
-    if (product.netContent && !isValidNetContentQuantity(product.netContent.quantity)) {
-      context.addIssue({
-        code: "custom",
-        path: ["netContentQuantity"],
-        message: `netContent's quantity must be a positive number of at most ${NET_CONTENT_QUANTITY_MAX_DECIMALS} decimals, at most ${NET_CONTENT_QUANTITY_MAX}`,
-      });
-    }
-  });
+  .superRefine(
+    (product, context) => {
+      if (product.netContent && !isValidNetContentQuantity(product.netContent.quantity)) {
+        context.addIssue({
+          code: "custom",
+          path: ["netContentQuantity"],
+          message: `netContent's quantity must be a positive number of at most ${NET_CONTENT_QUANTITY_MAX_DECIMALS} decimals, at most ${NET_CONTENT_QUANTITY_MAX}`,
+        });
+      }
+    },
+    {
+      // zod records a body that is not an object with no path, and keeps checking it.
+      when: ({ issues }) =>
+        issues.every((issue) => issue.path !== undefined && issue.path[0] !== "netContent"),
+    },
+  );
 
 export type ProductCreationBody = z.input<typeof productCreationBodySchema>;
