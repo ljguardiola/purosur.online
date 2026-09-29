@@ -3,9 +3,11 @@ import { test } from "node:test";
 import {
   decideCatalogScope,
   decideScope,
+  decideTestsScope,
   diffChangedPaths,
   isCatalogInput,
   isDocumentationOnly,
+  isUnreadByTests,
   runCli,
 } from "./change-scope.mjs";
 
@@ -64,6 +66,67 @@ test("keeps the full verification when git could not produce the diff", () => {
   const decision = decideScope(null);
 
   assert.equal(decision.docsOnly, false);
+});
+
+for (const path of [
+  "README.md",
+  ".claude/settings.json",
+  ".claude/hooks/pretool.mjs",
+  ".claude/skills/check/SKILL.md",
+]) {
+  test(`treats ${path} as unread by the test shards`, () => {
+    assert.equal(isUnreadByTests(path), true);
+  });
+}
+
+for (const path of [
+  ".claude",
+  ".claude-settings.json",
+  ".github/scripts/guard-command.mjs",
+  ".github/pull_request_template.md",
+  "apps/cloud/src/server.ts",
+  "packages/ui/README.md",
+  ".railway/railway.ts",
+  "biome.json",
+  "package.json",
+]) {
+  test(`treats ${path} as read by the test shards`, () => {
+    assert.equal(isUnreadByTests(path), false);
+  });
+}
+
+test("decideTestsScope skips the test shards when every changed path is documentation or under .claude/", () => {
+  const decision = decideTestsScope([
+    "README.md",
+    ".claude/settings.json",
+    ".claude/hooks/pretool.mjs",
+  ]);
+
+  assert.equal(decision.testsNeeded, false);
+});
+
+test("decideTestsScope keeps the test shards when a changed path is read by them, naming it", () => {
+  const decision = decideTestsScope([".claude/settings.json", "apps/cloud/src/server.ts"]);
+
+  assert.equal(decision.testsNeeded, true);
+  assert.match(decision.reason, /^apps\/cloud\/src\/server\.ts/);
+});
+
+test("decideTestsScope keeps the test shards when the changed path list is empty", () => {
+  const decision = decideTestsScope([]);
+
+  assert.equal(decision.testsNeeded, true);
+});
+
+test("decideTestsScope keeps the test shards when git could not produce the diff", () => {
+  const decision = decideTestsScope(null);
+
+  assert.equal(decision.testsNeeded, true);
+});
+
+test("does not treat .claude/settings.json or the hook as documentation-only", () => {
+  assert.equal(decideScope([".claude/settings.json"]).docsOnly, false);
+  assert.equal(decideScope([".claude/hooks/pretool.mjs"]).docsOnly, false);
 });
 
 for (const path of [
@@ -199,6 +262,7 @@ test("runs the full verification and the catalog job without calling git when SC
   assert.deepEqual(calls.outputs, [
     { path: "/output", line: "docs_only=false\n" },
     { path: "/output", line: "catalog_changed=true\n" },
+    { path: "/output", line: "tests_needed=true\n" },
   ]);
 });
 
@@ -212,6 +276,7 @@ test("runs the full verification and the catalog job without calling git when SC
   assert.deepEqual(calls.outputs, [
     { path: "/output", line: "docs_only=false\n" },
     { path: "/output", line: "catalog_changed=true\n" },
+    { path: "/output", line: "tests_needed=true\n" },
   ]);
 });
 
@@ -225,6 +290,7 @@ test("runs the full verification and the catalog job without calling git when a 
   assert.deepEqual(calls.outputs, [
     { path: "/output", line: "docs_only=false\n" },
     { path: "/output", line: "catalog_changed=true\n" },
+    { path: "/output", line: "tests_needed=true\n" },
   ]);
 });
 
@@ -241,6 +307,7 @@ test("writes docs_only=true and catalog_changed=false when every changed path is
   assert.deepEqual(calls.outputs, [
     { path: "/output", line: "docs_only=true\n" },
     { path: "/output", line: "catalog_changed=false\n" },
+    { path: "/output", line: "tests_needed=false\n" },
   ]);
 });
 
@@ -257,6 +324,7 @@ test("writes docs_only=false and catalog_changed=true when a changed path needs 
   assert.deepEqual(calls.outputs, [
     { path: "/output", line: "docs_only=false\n" },
     { path: "/output", line: "catalog_changed=true\n" },
+    { path: "/output", line: "tests_needed=true\n" },
   ]);
 });
 
@@ -273,6 +341,7 @@ test("writes docs_only=false and catalog_changed=false when a changed path needs
   assert.deepEqual(calls.outputs, [
     { path: "/output", line: "docs_only=false\n" },
     { path: "/output", line: "catalog_changed=false\n" },
+    { path: "/output", line: "tests_needed=true\n" },
   ]);
 });
 
@@ -289,5 +358,23 @@ test("writes docs_only=false and catalog_changed=true when git could not produce
   assert.deepEqual(calls.outputs, [
     { path: "/output", line: "docs_only=false\n" },
     { path: "/output", line: "catalog_changed=true\n" },
+    { path: "/output", line: "tests_needed=true\n" },
+  ]);
+});
+
+test("writes tests_needed=false when every changed path is documentation or under .claude/", async () => {
+  const { deps, calls } = fakeCli();
+  deps.runGit = async (args) => {
+    calls.git.push(args);
+    return ".claude/settings.json\n.claude/hooks/pretool.mjs\nREADME.md\n";
+  };
+
+  const exitCode = await runCli(deps);
+
+  assert.equal(exitCode, 0);
+  assert.deepEqual(calls.outputs, [
+    { path: "/output", line: "docs_only=false\n" },
+    { path: "/output", line: "catalog_changed=false\n" },
+    { path: "/output", line: "tests_needed=false\n" },
   ]);
 });

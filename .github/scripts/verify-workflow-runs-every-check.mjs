@@ -48,6 +48,7 @@ const REQUIRED_VERIFY_STATIC_COMMANDS = [
   "node --test .github/scripts/*.test.mjs",
 ];
 const EXPECTED_RUN_CONDITION = `\${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.docs_only != 'true') }}`;
+const EXPECTED_TESTS_CONDITION = `\${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.tests_needed != 'false') }}`;
 const EXPECTED_VISUAL_CONDITION = `\${{ !cancelled() && needs.scope.outputs.catalog_changed != 'false' }}`;
 const EXPECTED_VERIFY_CONDITION = "always()";
 const HISTORY_SCAN_COMMAND = "node --test .github/scripts/no-secrets-in-commit-history.test.mjs";
@@ -57,6 +58,7 @@ const EXPECTED_AGGREGATE_ENV = {
   EVENT_NAME: `\${{ github.event_name }}`,
   SCOPE_RESULT: `\${{ needs.scope.result }}`,
   SCOPE_DOCS_ONLY: `\${{ needs.scope.outputs.docs_only }}`,
+  SCOPE_TESTS_NEEDED: `\${{ needs.scope.outputs.tests_needed }}`,
   SCOPE_CATALOG_CHANGED: `\${{ needs.scope.outputs.catalog_changed }}`,
   STATIC_RESULT: `\${{ needs.static.result }}`,
   TESTS_RESULT: `\${{ needs.tests.result }}`,
@@ -322,7 +324,7 @@ export function findVerifyWorkflowViolations(workflowSource, packageJsonSource) 
           "tests",
           testsJob,
           `pnpm verify:tests --shard=\${{ matrix.shard }}/${shardValues.length}`,
-          EXPECTED_RUN_CONDITION,
+          EXPECTED_TESTS_CONDITION,
         ),
       );
     }
