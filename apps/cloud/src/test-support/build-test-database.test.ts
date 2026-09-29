@@ -10,6 +10,7 @@ import {
   backofficeRateLimitAttempts,
   branchHours,
   branchSettings,
+  brands,
   categories,
   issuerIdentification,
   locations,
@@ -23,7 +24,9 @@ import {
   recoveryRateLimitAttempts,
   recoveryRejectedAttemptAccumulator,
   recoveryTokens,
+  registerEnrollmentAttempts,
   registerEnrollmentCodes,
+  registerInstallations,
   registers,
   rolePermissions,
   roles,
@@ -161,9 +164,13 @@ describe("buildTestDatabase", () => {
     if (!category) {
       throw new Error("seeding categories returned no row");
     }
+    const [brand] = await db.insert(brands).values({ name: "Granix" }).returning({ id: brands.id });
+    if (!brand) {
+      throw new Error("seeding brands returned no row");
+    }
     const [product] = await db
       .insert(products)
-      .values({ name: "Alpiste", categoryId: category.id, saleUnit: "KG" })
+      .values({ name: "Alpiste", categoryId: category.id, brandId: brand.id, saleUnit: "KG" })
       .returning({ id: products.id });
     if (!product) {
       throw new Error("seeding products returned no row");
@@ -198,9 +205,23 @@ describe("buildTestDatabase", () => {
     }
     await db.insert(registerEnrollmentCodes).values({
       registerId: register.id,
+      codeLookup: "ABCD",
       codeHash: "code-hash",
       issuedAt: new Date("2026-01-05T12:00:00.000Z"),
       expiresAt: new Date("2026-01-05T12:15:00.000Z"),
+    });
+    await db.insert(registerInstallations).values({
+      registerId: register.id,
+      tokenLookupPrefix: "token-prefix",
+      tokenHash: "token-hash",
+      hostname: "CAJA",
+      windowsVersion: "Windows 11",
+      enrolledAt: new Date("2026-01-05T12:00:00.000Z"),
+    });
+    await db.insert(registerEnrollmentAttempts).values({
+      keyKind: "source_address",
+      keyValue: "203.0.113.10",
+      attemptedAt: new Date("2026-01-05T12:00:00.000Z"),
     });
     await db.insert(auditLog).values({ entity: "users", entityId: user.id });
     await db.insert(passkeys).values({

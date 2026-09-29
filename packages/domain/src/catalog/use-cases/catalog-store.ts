@@ -10,9 +10,17 @@ export interface CatalogProduct {
   name: string;
   categoryId: string;
   categoryName: string;
+  brandId: string | null;
   saleUnit: SaleUnit;
   barcodes: string[];
   netContent: CatalogNetContent | null;
+  active: boolean;
+  version: number;
+}
+
+export interface CatalogBrand {
+  id: string;
+  name: string;
   active: boolean;
   version: number;
 }
@@ -30,6 +38,9 @@ export class CatalogBarcodeConflict extends Error {}
 // Thrown by a write that races a category's per-parent name uniqueness.
 export class CatalogCategoryNameConflict extends Error {}
 
+// Thrown by a write that races the brand name uniqueness.
+export class CatalogBrandNameConflict extends Error {}
+
 export type LockLeafCategoryResult =
   | { kind: "not_found" }
   | { kind: "not_leaf" }
@@ -44,6 +55,7 @@ export interface LockedProduct {
   id: string;
   version: number;
   active: boolean;
+  brandId: string | null;
 }
 
 export type LockProductResult = { kind: "not_found" } | { kind: "locked"; product: LockedProduct };
@@ -52,9 +64,20 @@ export type LockCategoryResult =
   | { kind: "not_found" }
   | { kind: "locked"; category: { name: string; parentId: string | null; version: number } };
 
+export type LockBrandResult =
+  | { kind: "not_found" }
+  | { kind: "locked"; brand: { name: string; active: boolean; version: number } };
+
+export interface BrandFields {
+  name: string;
+  active: boolean;
+  version: number;
+}
+
 export interface NewProductFields {
   name: string;
   categoryId: string;
+  brandId: string | null;
   saleUnit: SaleUnit;
   netContent: CatalogNetContent | null;
 }
@@ -62,6 +85,7 @@ export interface NewProductFields {
 export interface ProductFields {
   name: string;
   categoryId: string;
+  brandId: string | null;
   saleUnit: SaleUnit;
   netContent: CatalogNetContent | null;
   version: number;
@@ -98,6 +122,11 @@ export interface CatalogStoreTransaction {
   deactivateProductBarcodes(productId: string): Promise<void>;
   insertCategory(name: string, parentId: string | null): Promise<{ id: string }>;
   updateCategory(categoryId: string, fields: CategoryFields): Promise<void>;
+  lockBrand(brandId: string): Promise<LockBrandResult>;
+  // Every brand counts, deactivated ones included, and letter case is ignored.
+  brandNameTaken(name: string, excludingBrandId?: string): Promise<boolean>;
+  insertBrand(name: string): Promise<{ id: string }>;
+  updateBrand(brandId: string, fields: BrandFields): Promise<void>;
 }
 
 export interface CatalogStore {

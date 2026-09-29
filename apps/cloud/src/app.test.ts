@@ -816,6 +816,37 @@ describe("wiring the categories routes", () => {
   });
 });
 
+describe("wiring the brands routes", () => {
+  const ORIGIN = { origin: "https://staging.purosur.online" };
+  const ID = "00000000-0000-0000-0000-000000000000";
+
+  async function brandsResponses(app: ReturnType<typeof buildApp>): Promise<number[]> {
+    const responses = await Promise.all([
+      app.inject({ method: "GET", url: "/brands" }),
+      app.inject({ method: "POST", url: "/brands", headers: ORIGIN }),
+      app.inject({ method: "POST", url: `/brands/${ID}/edit`, headers: ORIGIN }),
+      app.inject({ method: "POST", url: `/brands/${ID}/deactivation`, headers: ORIGIN }),
+      app.inject({ method: "POST", url: `/brands/${ID}/reactivation`, headers: ORIGIN }),
+    ]);
+    return responses.map((response) => response.statusCode);
+  }
+
+  it("does not register the brands routes when no brands option is given", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    expect(await brandsResponses(app)).toEqual([404, 404, 404, 404, 404]);
+  });
+
+  it("registers the brands routes when a brands option is given", async () => {
+    const app = buildApp({
+      version: "abc1234",
+      brands: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+    });
+
+    expect(await brandsResponses(app)).toEqual([401, 401, 401, 401, 401]);
+  });
+});
+
 describe("wiring the products routes", () => {
   it("does not register the products routes when no products option is given", async () => {
     const app = buildApp({ version: "abc1234" });
@@ -972,6 +1003,25 @@ describe("wiring the registers routes", () => {
     expect(list.statusCode).toBe(401);
     expect(create.statusCode).toBe(401);
     expect(emitCode.statusCode).toBe(401);
+  });
+});
+
+describe("wiring the device enrollment route", () => {
+  it("does not register POST /devices/enroll when no devices option is given", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    const response = await app.inject({ method: "POST", url: "/devices/enroll", payload: {} });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("registers POST /devices/enroll, answering without a session, when a devices option is given", async () => {
+    const app = buildApp({ version: "abc1234", devices: { db: testDatabase.db } });
+
+    const response = await app.inject({ method: "POST", url: "/devices/enroll", payload: {} });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
   });
 });
 
@@ -1185,10 +1235,12 @@ function productionWiredApp() {
       authorizedCuit: "20-12345678-6",
     },
     categories: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
+    brands: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     products: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     alerts: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     prices: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     registers: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
+    devices: { db: testDatabase.db },
   });
 }
 
@@ -1283,6 +1335,31 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/brands",
+        access: permissionAccess("manage_products_and_categories"),
+      },
+      {
+        method: "POST",
+        url: "/brands",
+        access: permissionAccess("manage_products_and_categories"),
+      },
+      {
+        method: "POST",
+        url: "/brands/:id/edit",
+        access: permissionAccess("manage_products_and_categories"),
+      },
+      {
+        method: "POST",
+        url: "/brands/:id/deactivation",
+        access: permissionAccess("manage_products_and_categories"),
+      },
+      {
+        method: "POST",
+        url: "/brands/:id/reactivation",
+        access: permissionAccess("manage_products_and_categories"),
+      },
+      {
+        method: "GET",
         url: "/products",
         access: permissionAccess("manage_products_and_categories"),
       },
@@ -1348,6 +1425,7 @@ describe("the route access inventory", () => {
         url: "/registers/:id/enrollment-code",
         access: permissionAccess("enroll_register_devices"),
       },
+      { method: "POST", url: "/devices/enroll", access: PUBLIC_ACCESS },
       { method: "HEAD", url: "/*", access: PUBLIC_ACCESS },
       { method: "GET", url: "/*", access: PUBLIC_ACCESS },
     ]);

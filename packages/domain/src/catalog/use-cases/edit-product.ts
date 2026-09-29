@@ -6,6 +6,7 @@ export interface EditProductInput {
   id: string;
   name: string;
   categoryId: string;
+  brandId: string | null;
   saleUnit: SaleUnit;
   barcodes: string[];
   netContent: CatalogNetContent | null;
@@ -16,6 +17,8 @@ export type EditProductOutcome =
   | { kind: "stale_version" }
   | { kind: "category_not_found" }
   | { kind: "category_not_leaf" }
+  | { kind: "brand_not_found" }
+  | { kind: "brand_inactive" }
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "applied"; product: CatalogProduct };
 
@@ -39,6 +42,19 @@ export async function editProduct(
         return { kind: "category_not_leaf" };
       }
 
+      if (input.brandId !== null) {
+        // Locks the brand, so a concurrent deactivation can't slip in between this check and the
+        // product's update.
+        const brand = await tx.lockBrand(input.brandId);
+        if (brand.kind === "not_found") {
+          return { kind: "brand_not_found" };
+        }
+        // A deactivated brand is only kept by the product that already carries it.
+        if (!brand.brand.active && input.brandId !== locked.product.brandId) {
+          return { kind: "brand_inactive" };
+        }
+      }
+
       // Skipped for an inactive product: its barcodes stay inactive, so none can conflict under
       // the active-only uniqueness rule.
       if (locked.product.active) {
@@ -52,6 +68,7 @@ export async function editProduct(
       await tx.updateProduct(input.id, {
         name: input.name,
         categoryId: input.categoryId,
+        brandId: input.brandId,
         saleUnit: input.saleUnit,
         netContent: input.netContent,
         version: nextVersion,
@@ -65,6 +82,7 @@ export async function editProduct(
           name: input.name,
           categoryId: input.categoryId,
           categoryName: lockedCategory.category.name,
+          brandId: input.brandId,
           saleUnit: input.saleUnit,
           barcodes: input.barcodes,
           netContent: input.netContent,

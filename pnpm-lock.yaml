@@ -257,6 +257,9 @@ importers:
       lightningcss:
         specifier: ^1.33.0
         version: 1.33.0
+      lucide-react:
+        specifier: ^1.47.0
+        version: 1.47.0(react@19.3.0)
       playwright:
         specifier: ^1.63.0
         version: 1.63.0

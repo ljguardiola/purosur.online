@@ -183,6 +183,7 @@ describe("GET /registers", () => {
     const expiresAt = new Date(NOON.getTime() + 14 * 60_000);
     await db.insert(registerEnrollmentCodes).values({
       registerId,
+      codeLookup: "ABCD",
       codeHash: "irrelevant-hash",
       issuedAt,
       expiresAt,
@@ -207,6 +208,7 @@ describe("GET /registers", () => {
     const registerId = await insertRegister(locationId, "Caja 1");
     await db.insert(registerEnrollmentCodes).values({
       registerId,
+      codeLookup: "ABCD",
       codeHash: "irrelevant-hash",
       issuedAt: new Date(NOON.getTime() - 20 * 60_000),
       expiresAt: new Date(NOON.getTime() - 5 * 60_000),
@@ -224,6 +226,7 @@ describe("GET /registers", () => {
     const registerId = await insertRegister(locationId, "Caja 1");
     await db.insert(registerEnrollmentCodes).values({
       registerId,
+      codeLookup: "ABCD",
       codeHash: "irrelevant-hash",
       issuedAt: new Date(NOON.getTime() - 15 * 60_000),
       expiresAt: NOON,
@@ -241,6 +244,7 @@ describe("GET /registers", () => {
     const registerId = await insertRegister(locationId, "Caja 1");
     await db.insert(registerEnrollmentCodes).values({
       registerId,
+      codeLookup: "ABCD",
       codeHash: "irrelevant-hash",
       issuedAt: new Date(NOON.getTime() - 60_000),
       expiresAt: new Date(NOON.getTime() + 14 * 60_000),

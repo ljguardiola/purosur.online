@@ -118,6 +118,7 @@ test("creating includes a code typed in the scan input but not yet confirmed wit
   expect(services.createProduct).toHaveBeenCalledWith({
     name: "Producto nuevo",
     categoryId: "category-1",
+    brandId: null,
     saleUnit: "UNIT",
     barcodes: ["7790000000099"],
     netContent: null,
@@ -155,6 +156,7 @@ test("saving an edit includes a code typed in the scan input but not yet confirm
   expect(services.editProduct).toHaveBeenCalledWith("product-1", {
     name: "Miel pura de abeja 1 kg",
     categoryId: "category-1",
+    brandId: null,
     saleUnit: "UNIT",
     barcodes: ["7790987000015", "7790000000099"],
     netContent: null,

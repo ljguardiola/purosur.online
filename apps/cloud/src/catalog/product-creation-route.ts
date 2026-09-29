@@ -22,6 +22,16 @@ export const CATEGORY_NOT_LEAF_RESPONSE = {
   message: "categoryId must be a leaf category with no subcategories of its own",
 } as const;
 
+export const BRAND_NOT_FOUND_FAILURE = {
+  field: "brandId",
+  message: "brandId must be an existing brand's id, or null for none",
+} as const;
+
+export const BRAND_INACTIVE_RESPONSE = {
+  code: "brand_inactive",
+  message: "a deactivated brand can only stay on a product that already carries it",
+} as const;
+
 export function registerProductCreationRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: ProductsRouteOptions<TQueryResult>,
@@ -58,6 +68,18 @@ export function registerProductCreationRoute<TQueryResult extends PgQueryResultH
       }
       if (outcome.kind === "category_not_leaf") {
         await reply.code(409).send(CATEGORY_NOT_LEAF_RESPONSE);
+        return;
+      }
+      if (outcome.kind === "brand_not_found") {
+        await reply.code(400).send({
+          code: "validation_failed",
+          message: BRAND_NOT_FOUND_FAILURE.message,
+          details: [{ field: BRAND_NOT_FOUND_FAILURE.field }],
+        });
+        return;
+      }
+      if (outcome.kind === "brand_inactive") {
+        await reply.code(409).send(BRAND_INACTIVE_RESPONSE);
         return;
       }
       if (outcome.kind === "barcode_taken") {

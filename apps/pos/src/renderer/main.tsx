@@ -7,6 +7,7 @@ import * as Sentry from "@sentry/electron/renderer";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "@purosur/ui/tokens.css";
+import { createCoreClient } from "./platform/core-client";
 import type { PortEventSource } from "./platform/incoming-port";
 import { attachIncomingPort } from "./platform/incoming-port";
 import { App } from "./shell/app";
@@ -33,14 +34,15 @@ const windowPortSource: PortEventSource<MessagePort> = {
   },
 };
 
-attachIncomingPort(windowPortSource, window, (_port) => {});
+const core = createCoreClient({ newRequestId: () => crypto.randomUUID() });
+attachIncomingPort(windowPortSource, window, (port) => core.connect(port));
 
 const root = document.getElementById("root");
 if (root) {
   createRoot(root).render(
     <StrictMode>
       <RenderFailureRecovery reportFailure={(error) => Sentry.captureException(error)}>
-        <App />
+        <App core={core} />
       </RenderFailureRecovery>
     </StrictMode>,
   );

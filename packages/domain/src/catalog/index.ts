@@ -1,3 +1,4 @@
+export { BRAND_NAME_MAX_LENGTH, isBrandNameTooLong } from "./model/brand-name.js";
 export {
   CATEGORY_NAME_MAX_LENGTH,
   categoryNameLength,

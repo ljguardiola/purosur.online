@@ -17,13 +17,11 @@ import {
 } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import {
-  REGISTER_ENROLLMENT_CODE_WINDOW_MS,
-  registerRegisterEnrollmentCodeRoute,
-} from "./register-enrollment-code-route.js";
+import { registerRegisterEnrollmentCodeRoute } from "./register-enrollment-code-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
+const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -255,9 +253,7 @@ describe("POST /registers/:id/enrollment-code", () => {
     expect(response.statusCode).toBe(200);
     const body = response.json();
     expect(body.code).toMatch(/^[A-Z2-7]{16}$/);
-    expect(body.expires_at).toBe(
-      new Date(NOON.getTime() + REGISTER_ENROLLMENT_CODE_WINDOW_MS).toISOString(),
-    );
+    expect(body.expires_at).toBe(new Date(NOON.getTime() + FIFTEEN_MINUTES_MS).toISOString());
   });
 
   it("stores only the SHA-256 hash of the code, never the code itself", async () => {
@@ -279,8 +275,23 @@ describe("POST /registers/:id/enrollment-code", () => {
       redeemedAt: null,
       failedAttempts: 0,
       issuedAt: NOON,
-      expiresAt: new Date(NOON.getTime() + REGISTER_ENROLLMENT_CODE_WINDOW_MS),
+      expiresAt: new Date(NOON.getTime() + FIFTEEN_MINUTES_MS),
     });
+  });
+
+  it("stores the code's first group in plain text, so a mistyped code still finds its row", async () => {
+    const locationId = await seededLocationId(db);
+    const registerId = await insertRegister(locationId, "Caja 1");
+    const userId = await insertUserWithPermission(locationId);
+    const rawSessionId = await insertSession(userId);
+
+    const response = await emitCode(registerId, rawSessionId);
+
+    const [stored] = await db
+      .select({ codeLookup: registerEnrollmentCodes.codeLookup })
+      .from(registerEnrollmentCodes)
+      .where(eq(registerEnrollmentCodes.registerId, registerId));
+    expect(stored?.codeLookup).toBe(response.json().code.slice(0, 4));
   });
 
   it("audits the actor and the register, without the code or its hash", async () => {
@@ -298,7 +309,7 @@ describe("POST /registers/:id/enrollment-code", () => {
       entityId: registerId,
       actorId: userId,
       newValue: {
-        expires_at: new Date(NOON.getTime() + REGISTER_ENROLLMENT_CODE_WINDOW_MS).toISOString(),
+        expires_at: new Date(NOON.getTime() + FIFTEEN_MINUTES_MS).toISOString(),
       },
     });
     const serialized = JSON.stringify(entry);
@@ -314,8 +325,9 @@ describe("POST /registers/:id/enrollment-code", () => {
   ): Promise<void> {
     await db.insert(registerEnrollmentCodes).values({
       registerId,
+      codeLookup: "PREV",
       codeHash: createHash("sha256").update("PREVIOUSCODE2345").digest("base64url"),
-      issuedAt: new Date(previous.expiresAt.getTime() - REGISTER_ENROLLMENT_CODE_WINDOW_MS),
+      issuedAt: new Date(previous.expiresAt.getTime() - FIFTEEN_MINUTES_MS),
       expiresAt: previous.expiresAt,
       redeemedAt: previous.redeemedAt,
       failedAttempts: 0,

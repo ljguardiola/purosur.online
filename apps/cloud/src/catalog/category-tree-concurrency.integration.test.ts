@@ -141,6 +141,7 @@ describe("giving a category a product and a subcategory concurrently on a real P
           createProduct(new DrizzleCatalogStore(db), {
             name: "Yerba mate",
             categoryId: almacen.id,
+            brandId: null,
             saleUnit: "UNIT",
             barcodes: [randomUUID()],
             netContent: null,
@@ -170,6 +171,7 @@ describe("giving a category a product and a subcategory concurrently on a real P
       const seeded = await createProduct(new DrizzleCatalogStore(db), {
         name: "Yerba mate",
         categoryId: bebidas.id,
+        brandId: null,
         saleUnit: "UNIT",
         barcodes: [randomUUID()],
         netContent: null,
@@ -187,6 +189,7 @@ describe("giving a category a product and a subcategory concurrently on a real P
             id: product.id,
             name: product.name,
             categoryId: almacen.id,
+            brandId: null,
             saleUnit: product.saleUnit,
             barcodes: product.barcodes,
             netContent: null,
