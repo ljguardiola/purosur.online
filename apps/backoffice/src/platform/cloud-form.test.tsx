@@ -282,6 +282,38 @@ test("a schema issue outside every declared field blocks the submit", async () =
   expect(onSubmit).not.toHaveBeenCalled();
 });
 
+test("refuses a request schema that can only validate asynchronously", async () => {
+  const onSubmit = vi.fn<() => Promise<void>>(() => Promise.resolve());
+  const refused = vi.fn<(error: unknown) => void>();
+  const asyncSchema = z.object({ name: z.string() }).refine(async () => true);
+  function AsyncProbe() {
+    const { form, submit } = useCloudForm({
+      defaultValues: { name: "Ana" },
+      request: { schema: asyncSchema, from: (values) => values },
+      fields: { name: "name" },
+      messages: { name: "Nombre inválido." },
+      onSubmit,
+    });
+    return (
+      <>
+        <form.AppField name="name">
+          {(field) => <field.TextField kind="plain-text" label="Nombre" />}
+        </form.AppField>
+        <button type="button" onClick={() => void submit().catch(refused)}>
+          Enviar
+        </button>
+      </>
+    );
+  }
+  const screen = await render(<AsyncProbe />);
+
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+  await expect.poll(() => refused.mock.calls.length).toBe(1);
+  expect(refused.mock.calls[0]?.[0]).toBeInstanceOf(TypeError);
+  expect(onSubmit).not.toHaveBeenCalled();
+});
+
 test("reset returns the fields to their defaults with no errors", async () => {
   const onSubmit = vi.fn<SubmitHandler>(noop);
   const screen = await render(<Probe onSubmit={onSubmit} />);

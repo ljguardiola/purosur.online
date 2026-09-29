@@ -56,6 +56,8 @@ type CloudFormOptions<
   onSubmit: (request: Request, submission: CloudSubmission<Values, Parsed>) => Promise<void>;
 };
 
+const NOTHING_STARTED: { started: Promise<void> | undefined } = { started: undefined };
+
 function issueWireField(issue: StandardSchemaV1Issue): string | undefined {
   const [first] = issue.path ?? [];
   const key = typeof first === "object" ? first?.key : first;
@@ -79,43 +81,41 @@ export function useCloudForm<
     return typeof message === "function" ? message(values) : message;
   };
 
+  const validate = (body: Request) => {
+    const result = request.schema["~standard"].validate(body);
+    if (result instanceof Promise) {
+      throw new TypeError("A form's request schema must validate synchronously.");
+    }
+    return result;
+  };
+  const failuresOf = (values: Values) => {
+    const { issues } = validate(request.from(values));
+    if (!issues) {
+      return undefined;
+    }
+    const failures: Partial<Record<Field, string>> = {};
+    let outsideFields = false;
+    for (const issue of issues) {
+      const field = fieldOf(issueWireField(issue));
+      if (field === undefined) {
+        outsideFields = true;
+      } else {
+        failures[field] = failures[field] ?? messageFor(field, values);
+      }
+    }
+    return { form: outsideFields ? "invalid" : undefined, fields: failures };
+  };
+
   const [defaultValues] = useState(() => options.defaultValues);
   const form = useAppForm({
     defaultValues,
     validationLogic: revalidateLogic({ mode: "submit", modeAfterSubmission: "change" }),
     validators: {
-      onDynamicAsync: async ({ value }) => {
-        const result = await request.schema["~standard"].validate(request.from(value));
-        if (!result.issues) {
-          return undefined;
-        }
-        const failures: Partial<Record<Field, string>> = {};
-        let outsideFields = false;
-        for (const issue of result.issues) {
-          const field = fieldOf(issueWireField(issue));
-          if (field === undefined) {
-            outsideFields = true;
-          } else {
-            failures[field] = failures[field] ?? messageFor(field, value);
-          }
-        }
-        return { form: outsideFields ? "invalid" : undefined, fields: failures };
-      },
+      onDynamic: ({ value }) => failuresOf(value),
     },
     listeners: { onChange: ({ fieldApi }) => clearFieldError(fieldApi.name) },
-    onSubmit: async ({ value }) => {
-      const body = request.from(value);
-      const result = await request.schema["~standard"].validate(body);
-      if (result.issues) {
-        return;
-      }
-      await options.onSubmit(body, {
-        values: value,
-        parsed: result.value,
-        showWireFieldError,
-        showFieldError,
-      });
-    },
+    onSubmitMeta: NOTHING_STARTED,
+    onSubmit: ({ meta }) => meta.started,
   });
 
   function showFieldError(field: keyof Values & string, message: string) {
@@ -147,7 +147,18 @@ export function useCloudForm<
         clearFieldError(field);
       }
     }
-    await form.handleSubmit();
+    const values = form.state.values;
+    const body = request.from(values);
+    const result = validate(body);
+    const started = result.issues
+      ? undefined
+      : options.onSubmit(body, {
+          values,
+          parsed: result.value,
+          showWireFieldError,
+          showFieldError,
+        });
+    await form.handleSubmit({ started });
   }
 
   const [loaded, setLoaded] = useState(defaultValues);

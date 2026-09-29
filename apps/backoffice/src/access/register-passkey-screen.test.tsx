@@ -240,6 +240,27 @@ test("registers the passkey and shows the success state, naming that open sessio
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("starts WebAuthn within the click itself, before anything else runs", async () => {
+  const services = createServices({
+    fetchRegistrationOptions: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: { displayName: "Lucía Pérez", options: registrationOptions },
+    }),
+    startRegistration: vi.fn().mockResolvedValue(registrationResponse),
+    redeemRecovery: vi.fn().mockResolvedValue({ kind: "ok" }),
+  });
+  const screen = await render(<RegisterPasskeyScreen services={services} />);
+  await fillName(screen, PASSKEY_NAME);
+
+  screen
+    .getByRole("button", { name: "Registrar la passkey" })
+    .element()
+    .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+  expect(services.startRegistration).toHaveBeenCalledWith({ optionsJSON: registrationOptions });
+  await expect.element(screen.getByText("Registraste la passkey")).toBeVisible();
+});
+
 test("lets the person retry, without a new link, after the browser cancels registration", async () => {
   const services = createServices({
     fetchRegistrationOptions: vi.fn().mockResolvedValue({
