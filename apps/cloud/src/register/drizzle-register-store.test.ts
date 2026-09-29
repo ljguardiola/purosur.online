@@ -295,6 +295,9 @@ describe("DrizzleRegisterStore", () => {
     await insertCode(registerId, CODE);
     const first = await enrollWithCode(CODE);
     const [firstAlert] = await db.select().from(alerts);
+    if (!firstAlert) {
+      throw new Error("expected the first enrollment to open an alert");
+    }
     const secondCode = "P4NXAAAAAAAAAAAA";
     await db
       .delete(registerEnrollmentCodes)
@@ -309,8 +312,8 @@ describe("DrizzleRegisterStore", () => {
     }
     const alertsAfter = await db.select().from(alerts);
     expect(alertsAfter).toHaveLength(2);
-    expect(alertsAfter.find((alert) => alert.id === firstAlert?.id)).toEqual(firstAlert);
-    expect(alertsAfter.find((alert) => alert.id !== firstAlert?.id)).toMatchObject({
+    expect(alertsAfter.find((alert) => alert.id === firstAlert.id)).toEqual(firstAlert);
+    expect(alertsAfter.find((alert) => alert.id !== firstAlert.id)).toMatchObject({
       kind: "register_enrolled",
       scope: registerId,
       level: "warning",
