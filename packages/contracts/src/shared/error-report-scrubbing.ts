@@ -1,4 +1,5 @@
 const REDACTED = "[redacted]";
+const CIRCULAR = "[circular]";
 
 const SENSITIVE_KEY_PATTERN =
   /token|key|secret|password|authorization|cookie|credential|query|fragment/i;
@@ -107,7 +108,34 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function readableError(
+  error: Error,
+  enclosingErrors: ReadonlySet<Error> = new Set(),
+): Record<string, unknown> {
+  const readable: Record<string, unknown> = {
+    ...error,
+    name: error.name,
+    message: error.message,
+    stack: error.stack,
+  };
+  if (error.cause instanceof Error) {
+    const chain = new Set(enclosingErrors).add(error);
+    readable["cause"] = chain.has(error.cause) ? CIRCULAR : readableError(error.cause, chain);
+  }
+  return readable;
+}
+
+function readableDate(date: Date): string {
+  return Number.isNaN(date.getTime()) ? String(date) : date.toISOString();
+}
+
 function redactValue(value: unknown): unknown {
+  if (value instanceof Error) {
+    return redactRecord(readableError(value));
+  }
+  if (value instanceof Date) {
+    return readableDate(value);
+  }
   if (typeof value === "string") {
     return redactString(value);
   }

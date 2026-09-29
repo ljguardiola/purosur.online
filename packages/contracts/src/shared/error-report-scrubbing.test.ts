@@ -315,6 +315,142 @@ describe("scrubErrorReportBreadcrumb", () => {
       status_code: 403,
     });
   });
+
+  it("keeps the name, message and stack of an error logged to the console", () => {
+    const error = new TypeError("sale sync failed");
+    error.stack = "TypeError: sale sync failed\n    at syncSales (sync.ts:10:5)";
+    const breadcrumb = { category: "console", data: { logger: "console", arguments: [error] } };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
+      logger: "console",
+      arguments: [
+        {
+          name: "TypeError",
+          message: "sale sync failed",
+          stack: "TypeError: sale sync failed\n    at syncSales (sync.ts:10:5)",
+        },
+      ],
+    });
+  });
+
+  it("redacts personal data and credentials in an error's message and stack", () => {
+    const error = new Error("customer with CUIT 20-30405060-7 and DNI 12.345.678 rejected");
+    error.stack =
+      "Error: connect redis://default:secret@cache.internal:6379 failed\n" +
+      "    at fetch (https://cloud.purosur.online/sales?token=abc123:1:1)\n" +
+      "    at authorize (Bearer eyJhbGciOi.payload.sig)";
+    const breadcrumb = { data: { arguments: [error] } };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
+      arguments: [
+        {
+          name: "Error",
+          message: "customer with CUIT [redacted] and DNI [redacted] rejected",
+          stack:
+            "Error: connect [redacted] failed\n" +
+            "    at fetch (https://cloud.purosur.online/sales?[redacted]\n" +
+            "    at authorize ([redacted])",
+        },
+      ],
+    });
+  });
+
+  it("keeps an error's cause, scrubbed by the same rules", () => {
+    const cause = new Error("DNI 12345678 not found");
+    cause.stack = "Error: DNI 12345678 not found";
+    const error = new Error("lookup failed", { cause });
+    error.stack = "Error: lookup failed";
+    const breadcrumb = { data: { error } };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
+      error: {
+        name: "Error",
+        message: "lookup failed",
+        stack: "Error: lookup failed",
+        cause: {
+          name: "Error",
+          message: "DNI [redacted] not found",
+          stack: "Error: DNI [redacted] not found",
+        },
+      },
+    });
+  });
+
+  it("keeps an error's own fields, scrubbed by the same rules", () => {
+    const error = Object.assign(new Error("duplicate key"), {
+      code: "23505",
+      constraint: "sales_pkey",
+      token: "abc123",
+    });
+    error.stack = "Error: duplicate key";
+    const breadcrumb = { data: { error } };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
+      error: {
+        code: "23505",
+        constraint: "sales_pkey",
+        token: "[redacted]",
+        name: "Error",
+        message: "duplicate key",
+        stack: "Error: duplicate key",
+      },
+    });
+  });
+
+  it("marks a cause that loops back to an error already in the chain instead of following it", () => {
+    const first = new Error("first");
+    first.stack = "Error: first";
+    const second = new Error("second", { cause: first });
+    second.stack = "Error: second";
+    Object.defineProperty(first, "cause", { value: second });
+    const breadcrumb = { data: { error: first } };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
+      error: {
+        name: "Error",
+        message: "first",
+        stack: "Error: first",
+        cause: { name: "Error", message: "second", stack: "Error: second", cause: "[circular]" },
+      },
+    });
+  });
+
+  it("marks an error that is its own cause", () => {
+    const error = new Error("retry");
+    error.stack = "Error: retry";
+    error.cause = error;
+    const breadcrumb = { data: { error } };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
+      error: { name: "Error", message: "retry", stack: "Error: retry", cause: "[circular]" },
+    });
+  });
+
+  it("keeps hidden a cause that is not an error", () => {
+    const error = new Error("sync failed", {
+      cause: { response: { data: { customer: { name: "Ana" } } } },
+    });
+    error.stack = "Error: sync failed";
+    const breadcrumb = { data: { error } };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
+      error: { name: "Error", message: "sync failed", stack: "Error: sync failed" },
+    });
+  });
+
+  it("keeps a date as its ISO value", () => {
+    const breadcrumb = { data: { at: new Date("2026-09-28T13:45:00.000Z") } };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
+      at: "2026-09-28T13:45:00.000Z",
+    });
+  });
+
+  it("keeps an invalid date readable instead of failing", () => {
+    const breadcrumb = { data: { at: new Date("not a date") } };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({ at: "Invalid Date" });
+  });
 });
 
 describe("scrubErrorReportLog", () => {
