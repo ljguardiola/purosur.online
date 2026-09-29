@@ -38,6 +38,8 @@ export type { ProductEditBody } from "./catalog/product-edit.js";
 export { productEditBodySchema } from "./catalog/product-edit.js";
 export type { ProductSummary } from "./catalog/product-summary.js";
 export { productListSchema, productSummarySchema } from "./catalog/product-summary.js";
+export type { IssuerIdentificationBody } from "./fiscal/issuer-identification.js";
+export { issuerIdentificationSchema } from "./fiscal/issuer-identification.js";
 export type { IssuerIdentificationEditBody } from "./fiscal/issuer-identification-edit.js";
 export { issuerIdentificationEditBodySchema } from "./fiscal/issuer-identification-edit.js";
 export type { PriceConfirmationBody } from "./pricing/price-confirmation.js";
