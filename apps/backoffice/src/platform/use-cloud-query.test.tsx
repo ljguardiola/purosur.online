@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
@@ -29,6 +29,7 @@ function describeData(data: CloudData<string>): string {
 
 type ProbeProps = {
   queryKey?: readonly string[];
+  gcTime?: number;
   keepPreviousData?: boolean;
   read: () => Promise<CloudReadOutcome<string>>;
   onSessionEnded?: () => void;
@@ -37,12 +38,20 @@ type ProbeProps = {
 
 function Probe({
   queryKey = ["probe"],
+  gcTime,
   keepPreviousData,
   read,
   onSessionEnded = () => {},
   onForbidden = () => {},
 }: ProbeProps) {
-  const data = useCloudQuery({ queryKey, keepPreviousData, read, onSessionEnded, onForbidden });
+  const data = useCloudQuery({
+    queryKey,
+    keepPreviousData,
+    read,
+    onSessionEnded,
+    onForbidden,
+    ...(gcTime === undefined ? {} : { gcTime }),
+  });
   const client = useQueryClient();
   return (
     <>
@@ -513,4 +522,69 @@ test("a read through the cache while the same key is already being read sends no
 
   expect(await Promise.all([first, second])).toEqual([ok("one"), ok("one")]);
   expect(read).toHaveBeenCalledTimes(1);
+});
+
+function Toggle({ children }: { children: ReactNode }) {
+  const [shown, setShown] = useState(true);
+  return (
+    <>
+      <button type="button" onClick={() => setShown(!shown)}>
+        toggle
+      </button>
+      {shown ? children : null}
+    </>
+  );
+}
+
+test("data nobody shows anymore is kept for a later visit by default", async () => {
+  const later = deferred<CloudReadOutcome<string>>();
+  const read = vi
+    .fn<() => Promise<CloudReadOutcome<string>>>()
+    .mockResolvedValueOnce(ok("one"))
+    .mockReturnValueOnce(later.promise);
+  const screen = await render(
+    <Toggle>
+      <Probe read={read} />
+    </Toggle>,
+  );
+  await expect.element(screen.getByText("loaded:one")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "toggle" }));
+  await userEvent.click(screen.getByRole("button", { name: "toggle" }));
+
+  await expect.element(screen.getByText("loaded:one:refreshing")).toBeVisible();
+});
+
+test("a read that asks for no keeping starts over on a later visit", async () => {
+  const later = deferred<CloudReadOutcome<string>>();
+  const read = vi
+    .fn<() => Promise<CloudReadOutcome<string>>>()
+    .mockResolvedValueOnce(ok("one"))
+    .mockReturnValueOnce(later.promise);
+  const screen = await render(
+    <Toggle>
+      <Probe read={read} gcTime={0} />
+    </Toggle>,
+  );
+  await expect.element(screen.getByText("loaded:one")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "toggle" }));
+  await userEvent.click(screen.getByRole("button", { name: "toggle" }));
+
+  await expect.element(screen.getByText("loading")).toBeVisible();
+  later.resolve(ok("two"));
+  await expect.element(screen.getByText("loaded:two")).toBeVisible();
+});
+
+test("a read through the cache that asks for no keeping leaves nothing cached once nobody shows the key", async () => {
+  const client = createQueryClient();
+
+  const outcome = await fetchCloudQuery(client, {
+    queryKey: ["probe"],
+    read: () => Promise.resolve(ok("one")),
+    gcTime: 0,
+  });
+
+  expect(outcome).toEqual(ok("one"));
+  await vi.waitFor(() => expect(client.getQueryData(["probe"])).toBeUndefined());
 });

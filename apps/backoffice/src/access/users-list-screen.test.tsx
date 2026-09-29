@@ -93,6 +93,14 @@ afterEach(() => {
   window.history.pushState(null, "", "/");
 });
 
+function deferred<T>() {
+  let resolve: (value: T) => void = () => {};
+  const promise = new Promise<T>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
+
 function renderScreen(
   services: UsersListScreenServices,
   onSessionEnded: () => void = () => {},
@@ -187,7 +195,7 @@ test("shows a load error with a retry action when the users fail to load", async
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
 });
 
-test("shows a load error when the roles fail to load, and Reintentar reloads both users and roles", async () => {
+test("shows a load error when the roles fail to load, and Reintentar reads again the roles that failed", async () => {
   const services = createServices({
     fetchRoles: vi.fn().mockResolvedValueOnce({ kind: "failed" }),
   });
@@ -206,7 +214,7 @@ test("shows a load error when the roles fail to load, and Reintentar reloads bot
 
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Nuevo usuario" })).toBeEnabled();
-  expect(services.fetchUsers).toHaveBeenCalledTimes(2);
+  expect(services.fetchUsers).toHaveBeenCalledTimes(1);
   expect(services.fetchRoles).toHaveBeenCalledTimes(2);
 });
 
@@ -218,6 +226,7 @@ test("shows the rate-limited notice with a retry action when the roles request i
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
+  await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
 });
 
@@ -241,6 +250,100 @@ test("ends the session when the users request finds no open session", async () =
   await renderScreen(services, onSessionEnded);
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("shows the users table loading while the users are on their way", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUsers).mockReturnValue(new Promise(() => {}));
+
+  const screen = await renderScreen(services);
+
+  await expect
+    .element(screen.getByRole("table", { name: "Usuarios" }))
+    .toHaveAttribute("aria-busy", "true");
+});
+
+test("shows an empty state when there are no users yet", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [] });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("Todavía no hay usuarios")).toBeVisible();
+  await expect.element(screen.getByText("0 usuarios")).not.toBeInTheDocument();
+});
+
+test("shows a filtered empty state when the Estado filter hides every user", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("1 usuario")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: /^Estado/ }));
+  await userEvent.click(screen.getByRole("option", { name: "Inactivos" }));
+
+  await expect.element(screen.getByText("Sin resultados")).toBeVisible();
+  await expect.element(screen.getByText("Todavía no hay usuarios")).not.toBeInTheDocument();
+  await expect.element(screen.getByText("0 usuarios")).not.toBeInTheDocument();
+});
+
+test("retrying a failed load starts again from the loading placeholder", async () => {
+  const services = createServices();
+  const retry = deferred<Awaited<ReturnType<typeof services.fetchUsers>>>();
+  vi.mocked(services.fetchUsers)
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockReturnValueOnce(retry.promise);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No pudimos abrir los usuarios")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText("No pudimos abrir los usuarios")).not.toBeInTheDocument();
+  await expect
+    .element(screen.getByRole("table", { name: "Usuarios" }))
+    .toHaveAttribute("aria-busy", "true");
+  retry.resolve({ kind: "ok", value: [administrator] });
+  await expect.element(screen.getByText("1 usuario")).toBeVisible();
+});
+
+test("Nuevo usuario is disabled while the list loads and after it fails to load", async () => {
+  const services = createServices();
+  const firstLoad = deferred<Awaited<ReturnType<typeof services.fetchUsers>>>();
+  vi.mocked(services.fetchUsers).mockReturnValueOnce(firstLoad.promise);
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByRole("button", { name: "Nuevo usuario" })).toBeDisabled();
+
+  firstLoad.resolve({ kind: "failed" });
+  await expect.element(screen.getByText("No pudimos abrir los usuarios")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Nuevo usuario" })).toBeDisabled();
+});
+
+test("creating a user reads users and roles again from the server, keeping the shown rows and Nuevo usuario available while it does", async () => {
+  const services = createServices();
+  const refresh = deferred<Awaited<ReturnType<typeof services.fetchUsers>>>();
+  vi.mocked(services.fetchUsers)
+    .mockResolvedValueOnce({ kind: "ok", value: [administrator] })
+    .mockReturnValueOnce(refresh.promise);
+  vi.mocked(services.createUser).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("1 usuario")).toBeVisible();
+  const dialog = await openNewUserModal(screen);
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
+
+  await expect
+    .element(screen.getByRole("table", { name: "Usuarios" }))
+    .toHaveAttribute("aria-busy", "true");
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  expect(screen.getByText("Lucas Guardiola").query()).not.toBeNull();
+  await expect.element(screen.getByRole("button", { name: "Nuevo usuario" })).toBeEnabled();
+  refresh.resolve({ kind: "ok", value: [administrator, martina] });
+  await expect.element(screen.getByText("2 usuarios")).toBeVisible();
+  expect(services.fetchUsers).toHaveBeenCalledTimes(2);
+  expect(services.fetchRoles).toHaveBeenCalledTimes(2);
 });
 
 async function openNewUserModal(screen: Awaited<ReturnType<typeof renderScreen>>) {
@@ -312,7 +415,7 @@ test("creates a user directly, without the authorization modal, when the session
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
 
-  vi.mocked(services.createUser).mockResolvedValue({ kind: "ok", value: martina });
+  vi.mocked(services.createUser).mockResolvedValue({ kind: "ok" });
   vi.mocked(services.fetchUsers).mockResolvedValueOnce({
     kind: "ok",
     value: [administrator, martina],
@@ -342,7 +445,7 @@ test("opens the authorization modal on authorization_required, then authorizes a
 
   vi.mocked(services.createUser).mockResolvedValueOnce({ kind: "authorization_required" });
   grantAuthorization(services);
-  vi.mocked(services.createUser).mockResolvedValueOnce({ kind: "ok", value: martina });
+  vi.mocked(services.createUser).mockResolvedValueOnce({ kind: "ok" });
   vi.mocked(services.fetchUsers).mockResolvedValueOnce({
     kind: "ok",
     value: [administrator, martina],
@@ -486,7 +589,7 @@ test("keeps the loaded list and an open create modal when the parent re-renders 
   await expect.element(dialog.getByRole("button", { name: /^Administrador Rol/ })).toBeVisible();
   expect(services.fetchUsers).toHaveBeenCalledTimes(1);
 
-  vi.mocked(services.createUser).mockResolvedValue({ kind: "ok", value: martina });
+  vi.mocked(services.createUser).mockResolvedValue({ kind: "ok" });
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
 
   await expect.poll(() => vi.mocked(services.createUser).mock.calls.length).toBe(1);

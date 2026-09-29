@@ -1,8 +1,9 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import type { ReactElement } from "react";
+import { type ReactElement, useEffect } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
+import { useRefreshAccess } from "./access-queries";
 import {
   RoleEditorModal,
   type RoleEditorModalServices,
@@ -224,16 +225,7 @@ test("requires a non-empty name, without calling the API", async () => {
 
 test("creates the role directly, without the authorization modal, when the session already has one", async () => {
   const services = createServices();
-  vi.mocked(services.createRole).mockResolvedValue({
-    kind: "ok",
-    value: {
-      id: "role-new",
-      name: "Depósito",
-      isAdministrator: false,
-      permissionKeys: [],
-      userCount: 0,
-    },
-  });
+  vi.mocked(services.createRole).mockResolvedValue({ kind: "ok" });
   const onSaved = vi.fn();
   const screen = await renderModal({ kind: "new" }, services, { onSaved });
 
@@ -254,16 +246,7 @@ test("opens the nested authorization modal on authorization_required, then autho
   const services = createServices();
   vi.mocked(services.createRole).mockResolvedValueOnce({ kind: "authorization_required" });
   grantAuthorization(services);
-  vi.mocked(services.createRole).mockResolvedValueOnce({
-    kind: "ok",
-    value: {
-      id: "role-new",
-      name: "Depósito",
-      isAdministrator: false,
-      permissionKeys: [],
-      userCount: 0,
-    },
-  });
+  vi.mocked(services.createRole).mockResolvedValueOnce({ kind: "ok" });
   const onSaved = vi.fn();
   const screen = await renderModal({ kind: "new" }, services, { onSaved });
 
@@ -310,10 +293,7 @@ test("ends the session when saving finds it already ended", async () => {
 test("edits the role with its id, name, permissions, and the version it was loaded with", async () => {
   const services = createServices();
   vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stockDetail });
-  vi.mocked(services.editRole).mockResolvedValue({
-    kind: "ok",
-    value: { ...stockDetail, version: 4 },
-  });
+  vi.mocked(services.editRole).mockResolvedValue({ kind: "ok" });
   const onSaved = vi.fn();
   const screen = await renderModal({ kind: "edit", roleId: "role-stock" }, services, { onSaved });
   await expect
@@ -405,10 +385,7 @@ test("Volver returns to the editor with edits intact, without saving", async () 
 test("confirming the confirmation step proceeds with the normal save", async () => {
   const services = createServices();
   vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stockDetailWithPeople });
-  vi.mocked(services.editRole).mockResolvedValue({
-    kind: "ok",
-    value: { ...stockDetailWithPeople, version: 4 },
-  });
+  vi.mocked(services.editRole).mockResolvedValue({ kind: "ok" });
   const onSaved = vi.fn();
   const screen = await renderModal({ kind: "edit", roleId: "role-stock" }, services, { onSaved });
   await expect
@@ -435,10 +412,7 @@ test("confirming the confirmation step proceeds with the normal save", async () 
 test("editing a role with nobody assigned saves directly, without the confirmation step", async () => {
   const services = createServices();
   vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stockDetail });
-  vi.mocked(services.editRole).mockResolvedValue({
-    kind: "ok",
-    value: { ...stockDetail, version: 4 },
-  });
+  vi.mocked(services.editRole).mockResolvedValue({ kind: "ok" });
   const onSaved = vi.fn();
   const screen = await renderModal({ kind: "edit", roleId: "role-stock" }, services, { onSaved });
   await expect
@@ -453,16 +427,7 @@ test("editing a role with nobody assigned saves directly, without the confirmati
 
 test("creating a role never shows the confirmation step", async () => {
   const services = createServices();
-  vi.mocked(services.createRole).mockResolvedValue({
-    kind: "ok",
-    value: {
-      id: "role-new",
-      name: "Depósito",
-      isAdministrator: false,
-      permissionKeys: [],
-      userCount: 0,
-    },
-  });
+  vi.mocked(services.createRole).mockResolvedValue({ kind: "ok" });
   const onSaved = vi.fn();
   const screen = await renderModal({ kind: "new" }, services, { onSaved });
 
@@ -533,7 +498,7 @@ test("ignores a role that arrives late for an edit already replaced by editing a
   vi.mocked(services.fetchRole)
     .mockReturnValueOnce(first.promise)
     .mockReturnValueOnce(second.promise);
-  vi.mocked(services.editRole).mockResolvedValue({ kind: "ok", value: cashDetail });
+  vi.mocked(services.editRole).mockResolvedValue({ kind: "ok" });
   const screen = await render(modalFor({ kind: "edit", roleId: "role-stock" }, services));
   const ui = modalFor({ kind: "edit", roleId: "role-cash" }, services);
   await screen.rerender(ui);
@@ -746,16 +711,7 @@ test("a save that succeeds after the editor moved on to another request never re
   const ui = modalSavingTo({ kind: "duplicate", source: stockSummary }, services, onSaved);
   await screen.rerender(ui);
 
-  pendingSave.resolve({
-    kind: "ok",
-    value: {
-      id: "role-new",
-      name: "Depósito",
-      isAdministrator: false,
-      permissionKeys: [],
-      userCount: 0,
-    },
-  });
+  pendingSave.resolve({ kind: "ok" });
   await flushPendingWork(screen, ui);
 
   expect(onSaved).not.toHaveBeenCalled();
@@ -810,20 +766,260 @@ test("ignores a passkey-authorized retry that resolves late after the editor mov
   const ui = modalSavingTo({ kind: "duplicate", source: stockSummary }, services, onSaved);
   await screen.rerender(ui);
 
-  retry.resolve({
-    kind: "ok",
-    value: {
-      id: "role-new",
-      name: "Depósito",
-      isAdministrator: false,
-      permissionKeys: [],
-      userCount: 0,
-    },
-  });
+  retry.resolve({ kind: "ok" });
   await flushPendingWork(screen, ui);
 
   expect(onSaved).not.toHaveBeenCalled();
   await expect
     .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
     .toHaveValue("Copia de Depósito");
+});
+
+function RefreshProbe({ onReady }: { onReady: (refresh: () => Promise<void>) => void }) {
+  const refreshAccess = useRefreshAccess();
+  useEffect(() => onReady(refreshAccess));
+  return null;
+}
+
+function modalWithRefresh(
+  request: RoleEditorRequest,
+  services: RoleEditorModalServices,
+  onReady: (refresh: () => Promise<void>) => void,
+) {
+  return (
+    <main>
+      <RefreshProbe onReady={onReady} />
+      <RoleEditorModal
+        request={request}
+        onClose={() => {}}
+        onSaved={() => {}}
+        onSessionEnded={() => {}}
+        services={services}
+      />
+    </main>
+  );
+}
+
+test("while the role loads, shows the form's loading placeholder and keeps saving disabled", async () => {
+  const services = createServices();
+  const screen = await renderModal({ kind: "edit", roleId: "role-stock" }, services);
+
+  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
+  await expect.element(screen.getByRole("button", { name: "Guardar los cambios" })).toBeDisabled();
+  await expect.element(screen.getByRole("button", { name: "Cancelar" })).toBeEnabled();
+});
+
+test("a load that fails keeps saving disabled and Reintentar starts again from the loading placeholder", async () => {
+  const retry = deferred<FetchRoleOutcome>();
+  const services = createServices();
+  vi.mocked(services.fetchRole)
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockReturnValueOnce(retry.promise);
+  const screen = await renderModal({ kind: "edit", roleId: "role-stock" }, services);
+  await expect.element(screen.getByText("No pudimos abrir este rol")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Guardar los cambios" })).toBeDisabled();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
+  await expect.element(screen.getByText("No pudimos abrir este rol")).not.toBeInTheDocument();
+  retry.resolve({ kind: "ok", value: stockDetail });
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+});
+
+test("a rate-limited load shows the time to wait", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRole).mockResolvedValue({ kind: "rate_limited", retryAfterSeconds: 120 });
+  const screen = await renderModal({ kind: "edit", roleId: "role-stock" }, services);
+
+  await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
+  await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
+});
+
+test("a refresh of the role in the background never overwrites what is being typed", async () => {
+  const refresh = deferred<FetchRoleOutcome>();
+  const services = createServices();
+  vi.mocked(services.fetchRole)
+    .mockResolvedValueOnce({ kind: "ok", value: stockDetail })
+    .mockReturnValueOnce(refresh.promise);
+  let refreshAccess: () => Promise<void> = () => Promise.resolve();
+  const screen = await render(
+    modalWithRefresh({ kind: "edit", roleId: "role-stock" }, services, (refresh) => {
+      refreshAccess = refresh;
+    }),
+  );
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+  await userEvent.fill(screen.getByRole("textbox", { name: /^Nombre del rol/ }), "Depósito nuevo");
+
+  void refreshAccess();
+  await expect.poll(() => vi.mocked(services.fetchRole).mock.calls.length).toBe(2);
+  await expect.element(screen.getByRole("button", { name: "Guardar los cambios" })).toBeEnabled();
+  refresh.resolve({ kind: "ok", value: { ...stockDetail, name: "Otro nombre", version: 9 } });
+
+  await expect.poll(() => vi.mocked(services.fetchRole).mock.calls.length).toBe(2);
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito nuevo");
+  vi.mocked(services.editRole).mockResolvedValue({ kind: "ok" });
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+  await expect.poll(() => vi.mocked(services.editRole).mock.calls.length).toBe(1);
+  expect(services.editRole).toHaveBeenCalledWith("role-stock", {
+    name: "Depósito nuevo",
+    permissionKeys: ["view_stock_balances"],
+    version: 3,
+  });
+});
+
+test("Recargar reads the role again through the cache once and reseeds the form", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRole)
+    .mockResolvedValueOnce({ kind: "ok", value: stockDetail })
+    .mockResolvedValueOnce({
+      kind: "ok",
+      value: { ...stockDetail, name: "Depósito recargado", version: 5 },
+    });
+  vi.mocked(services.editRole).mockResolvedValueOnce({ kind: "stale_version" });
+  const screen = await renderModal({ kind: "edit", roleId: "role-stock" }, services);
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+  await userEvent.click(screen.getByRole("button", { name: "Recargar" }));
+
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito recargado");
+  expect(services.fetchRole).toHaveBeenCalledTimes(2);
+  vi.mocked(services.editRole).mockResolvedValueOnce({ kind: "ok" });
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+  await expect.poll(() => vi.mocked(services.editRole).mock.calls.length).toBe(2);
+  expect(services.editRole).toHaveBeenLastCalledWith("role-stock", {
+    name: "Depósito recargado",
+    permissionKeys: ["view_stock_balances"],
+    version: 5,
+  });
+});
+
+test("a Recargar that fails to read the role shows the load failure with Reintentar", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRole)
+    .mockResolvedValueOnce({ kind: "ok", value: stockDetail })
+    .mockResolvedValueOnce({ kind: "failed" });
+  vi.mocked(services.editRole).mockResolvedValueOnce({ kind: "stale_version" });
+  const screen = await renderModal({ kind: "edit", roleId: "role-stock" }, services);
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+  await userEvent.click(screen.getByRole("button", { name: "Recargar" }));
+
+  await expect.element(screen.getByText("No pudimos abrir este rol")).toBeVisible();
+  vi.mocked(services.fetchRole).mockResolvedValueOnce({ kind: "ok", value: stockDetail });
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+});
+
+test("a Recargar that finds the role gone shows the not-found notice", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRole)
+    .mockResolvedValueOnce({ kind: "ok", value: stockDetail })
+    .mockResolvedValueOnce({ kind: "not_found" });
+  vi.mocked(services.editRole).mockResolvedValueOnce({ kind: "stale_version" });
+  const screen = await renderModal({ kind: "edit", roleId: "role-stock" }, services);
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+  await userEvent.click(screen.getByRole("button", { name: "Recargar" }));
+
+  await expect.element(screen.getByText("No encontramos este rol").first()).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Guardar los cambios" })).toBeDisabled();
+});
+
+test("a save that finds the role gone reads it again and shows the not-found notice", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRole)
+    .mockResolvedValueOnce({ kind: "ok", value: stockDetail })
+    .mockResolvedValueOnce({ kind: "not_found" });
+  vi.mocked(services.editRole).mockResolvedValue({ kind: "not_found" });
+  const screen = await renderModal({ kind: "edit", roleId: "role-stock" }, services);
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(screen.getByText("No encontramos este rol").first()).toBeVisible();
+  expect(services.fetchRole).toHaveBeenCalledTimes(2);
+});
+
+function reopenAfterTheRoleGainedPeople(opened: FetchRoleOutcome[]) {
+  const fresh = deferredFetch();
+  const services = createServices();
+  for (const outcome of opened) {
+    vi.mocked(services.fetchRole).mockResolvedValueOnce(outcome);
+  }
+  vi.mocked(services.fetchRole).mockReturnValueOnce(fresh.promise);
+  return { services, fresh };
+}
+
+async function expectTheFreshRoleAsksToConfirm(
+  screen: Screen,
+  services: RoleEditorModalServices,
+  fresh: ReturnType<typeof deferredFetch>,
+) {
+  const savesBefore = vi.mocked(services.editRole).mock.calls.length;
+  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
+  await expect.element(screen.getByRole("button", { name: "Guardar los cambios" })).toBeDisabled();
+
+  fresh.resolve({ kind: "ok", value: stockDetailWithPeople });
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(screen.getByText("¿Guardar los cambios?")).toBeVisible();
+  await expect.element(screen.getByText("Amara Ortiz")).toBeVisible();
+  expect(services.editRole).toHaveBeenCalledTimes(savesBefore);
+}
+
+test("reopening the editor for a role read before shows loading, then the role as read again, confirming for its assigned people", async () => {
+  const { services, fresh } = reopenAfterTheRoleGainedPeople([{ kind: "ok", value: stockDetail }]);
+  const screen = await render(modalFor({ kind: "edit", roleId: "role-stock" }, services));
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+  await screen.rerender(modalFor(null, services));
+  await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+
+  await screen.rerender(modalFor({ kind: "edit", roleId: "role-stock" }, services));
+
+  await expectTheFreshRoleAsksToConfirm(screen, services, fresh);
+});
+
+test("reopening the editor after a Recargar also reads the role again before showing it", async () => {
+  const { services, fresh } = reopenAfterTheRoleGainedPeople([
+    { kind: "ok", value: stockDetail },
+    { kind: "ok", value: stockDetail },
+  ]);
+  vi.mocked(services.editRole).mockResolvedValueOnce({ kind: "stale_version" });
+  const screen = await render(modalFor({ kind: "edit", roleId: "role-stock" }, services));
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+  await userEvent.click(screen.getByRole("button", { name: "Recargar" }));
+  await expect.element(screen.getByRole("button", { name: "Recargar" })).not.toBeInTheDocument();
+  await screen.rerender(modalFor(null, services));
+  await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+
+  await screen.rerender(modalFor({ kind: "edit", roleId: "role-stock" }, services));
+
+  await expectTheFreshRoleAsksToConfirm(screen, services, fresh);
 });

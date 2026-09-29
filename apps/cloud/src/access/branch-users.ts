@@ -1,3 +1,4 @@
+import { type BranchUserWire, branchUserSchema } from "@purosur/contracts";
 import { and, asc, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { passkeys, roles, userRoles, users } from "../platform/db/schema.js";
@@ -23,23 +24,11 @@ export interface BranchUserRow {
   isLastActiveAdministrator: boolean;
 }
 
-export interface BranchUserWire {
-  id: string;
-  first_name: string;
-  email: string;
-  version: number;
-  // Included only when the caller may see deactivated users, so its absence never reveals one exists.
-  active?: boolean;
-  role: { id: string; is_administrator: boolean; name: string | null };
-  passkey_count: number;
-  is_last_active_administrator: boolean;
-}
-
 export function toBranchUserWire(
   row: BranchUserRow,
   options: { includeActive?: boolean } = {},
 ): BranchUserWire {
-  return {
+  return branchUserSchema.parse({
     id: row.id,
     first_name: row.firstName,
     email: row.email,
@@ -48,7 +37,7 @@ export function toBranchUserWire(
     role: { id: row.roleId, is_administrator: row.roleIsAdministrator, name: row.roleName },
     passkey_count: row.passkeyCount,
     is_last_active_administrator: row.isLastActiveAdministrator,
-  };
+  });
 }
 
 export type BranchUserActiveScope = "active" | "inactive" | "any";

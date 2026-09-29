@@ -1,4 +1,8 @@
-import { recoveryRedemptionBodySchema, recoveryTokenBodySchema } from "@purosur/contracts";
+import {
+  recoveryRedemptionBodySchema,
+  recoveryRegistrationOptionsSchema,
+  recoveryTokenBodySchema,
+} from "@purosur/contracts";
 import type { RegistrationResponseJSON } from "@simplewebauthn/server";
 import { generateRegistrationOptions, verifyRegistrationResponse } from "@simplewebauthn/server";
 import { and, eq, gt, isNull } from "drizzle-orm";
@@ -212,10 +216,12 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
         .set({ registrationChallenge: registrationOptions.challenge })
         .where(eq(recoveryTokens.id, token.id));
 
-      await reply.code(200).send({
-        passkey_registration_options: registrationOptions,
-        display_name: account.firstName,
-      });
+      await reply.code(200).send(
+        recoveryRegistrationOptionsSchema.parse({
+          passkey_registration_options: registrationOptions,
+          display_name: account.firstName,
+        }),
+      );
     },
   );
 

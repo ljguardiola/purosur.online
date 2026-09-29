@@ -53,6 +53,7 @@ describe("POST /users/session/authentication-options", () => {
       rpId: "staging.purosur.online",
       userVerification: "required",
       allowCredentials: [],
+      timeout: 60000,
     });
     expect(typeof body.passkey_authentication_options.challenge).toBe("string");
   });

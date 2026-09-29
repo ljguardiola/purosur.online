@@ -182,6 +182,22 @@ test("fetchAuthenticationOptions posts with no body and returns the WebAuthn opt
   );
 });
 
+test.each([
+  ["a body with no options", {}],
+  ["options with no challenge", { passkey_authentication_options: { rpId: "purosur.online" } }],
+  ["options that are not an object", { passkey_authentication_options: "options" }],
+])("fetchAuthenticationOptions reports failed on %s", async (_, body) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, body));
+
+  await expect(fetchAuthenticationOptions()).resolves.toEqual({ kind: "failed" });
+});
+
+test("fetchAuthenticationOptions reports failed on a body that is not JSON", async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response("<html>", { status: 200 }));
+
+  await expect(fetchAuthenticationOptions()).resolves.toEqual({ kind: "failed" });
+});
+
 test("fetchAuthenticationOptions reports failed on any non-2xx status or a network failure", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(403, { code: "origin_rejected" }));
   await expect(fetchAuthenticationOptions()).resolves.toEqual({ kind: "failed" });
@@ -287,6 +303,22 @@ test("fetchSessionAuthorizationOptions posts with no body and returns the WebAut
     "/users/session/authorization-options",
     expect.objectContaining({ method: "POST" }),
   );
+});
+
+test.each([
+  ["a body with no options", {}],
+  ["options with no challenge", { authorization_options: { rpId: "purosur.online" } }],
+  ["options that are not an object", { authorization_options: "options" }],
+])("fetchSessionAuthorizationOptions reports failed on %s", async (_, body) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, body));
+
+  await expect(fetchSessionAuthorizationOptions()).resolves.toEqual({ kind: "failed" });
+});
+
+test("fetchSessionAuthorizationOptions reports failed on a body that is not JSON", async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response("<html>", { status: 200 }));
+
+  await expect(fetchSessionAuthorizationOptions()).resolves.toEqual({ kind: "failed" });
 });
 
 test("fetchSessionAuthorizationOptions reports unauthenticated on 401", async () => {

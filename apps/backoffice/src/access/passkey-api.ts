@@ -1,18 +1,19 @@
-import type { PasskeyRegistrationBody } from "@purosur/contracts";
+import {
+  type PasskeyRegistrationBody,
+  type PasskeySummaryWire,
+  passkeyListSchema,
+  passkeyRegistrationChallengeSchema,
+} from "@purosur/contracts";
 import type {
   PublicKeyCredentialCreationOptionsJSON,
   RegistrationResponseJSON,
 } from "@simplewebauthn/browser";
+import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { retryAfterSeconds } from "../platform/retry-after-seconds";
 
-export type Passkey = {
-  id: string;
-  name: string;
-  createdAt: string;
-  lastUsedAt: string | null;
-};
+export type Passkey = ReturnType<typeof passkeyFromWire>;
 
-export type FetchPasskeysOutcome = { kind: "ok"; value: Passkey[] } | ErrorOutcome;
+export type FetchPasskeysOutcome = CloudReadOutcome<Passkey[]>;
 
 type RegistrationChallenge = {
   registrationOptions: PublicKeyCredentialCreationOptionsJSON;
@@ -22,10 +23,6 @@ export type FetchPasskeyRegistrationChallengeOutcome =
   | { kind: "ok"; value: RegistrationChallenge }
   | GatedActionErrorOutcome;
 
-type ErrorOutcome =
-  | { kind: "unauthenticated" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "failed" };
 // Gated by the shared passkey-authorization window instead of a per-action step-up, so a 401
 // here means either the session ended or that window has lapsed, never a rejected assertion.
 type GatedActionErrorOutcome =
@@ -35,7 +32,7 @@ type GatedActionErrorOutcome =
   | { kind: "failed" };
 
 export type RegisterPasskeyOutcome =
-  | { kind: "ok"; value: Passkey }
+  | { kind: "ok" }
   | { kind: "validation_failed" }
   | { kind: "already_registered" }
   | GatedActionErrorOutcome;
@@ -50,13 +47,13 @@ function postJson(path: string, body?: unknown): Promise<Response> {
   });
 }
 
-function passkeyFromRow(row: {
-  id: string;
-  name: string;
-  created_at: string;
-  last_used_at: string | null;
-}): Passkey {
+function passkeyFromWire(row: PasskeySummaryWire) {
   return { id: row.id, name: row.name, createdAt: row.created_at, lastUsedAt: row.last_used_at };
+}
+
+export function passkeyListFromWire(body: unknown): Passkey[] | undefined {
+  const parsed = passkeyListSchema.safeParse(body);
+  return parsed.success ? parsed.data.map(passkeyFromWire) : undefined;
 }
 
 // Oldest first.
@@ -76,13 +73,11 @@ export async function fetchPasskeys(): Promise<FetchPasskeysOutcome> {
   if (!response.ok) {
     return { kind: "failed" };
   }
-  const body = (await response.json()) as Array<{
-    id: string;
-    name: string;
-    created_at: string;
-    last_used_at: string | null;
-  }>;
-  return { kind: "ok", value: body.map(passkeyFromRow) };
+  const passkeys = passkeyListFromWire(await response.json().catch(() => undefined));
+  if (!passkeys) {
+    return { kind: "failed" };
+  }
+  return { kind: "ok", value: passkeys };
 }
 
 export async function fetchPasskeyRegistrationChallenge(): Promise<FetchPasskeyRegistrationChallengeOutcome> {
@@ -95,10 +90,13 @@ export async function fetchPasskeyRegistrationChallenge(): Promise<FetchPasskeyR
   if (!response.ok) {
     return gatedActionErrorOutcome(response);
   }
-  const body = (await response.json()) as {
-    passkey_registration_options: PublicKeyCredentialCreationOptionsJSON;
-  };
-  return { kind: "ok", value: { registrationOptions: body.passkey_registration_options } };
+  const body = passkeyRegistrationChallengeSchema.safeParse(
+    await response.json().catch(() => undefined),
+  );
+  if (!body.success) {
+    return { kind: "failed" };
+  }
+  return { kind: "ok", value: { registrationOptions: body.data.passkey_registration_options } };
 }
 
 async function gatedActionErrorOutcome(response: Response): Promise<GatedActionErrorOutcome> {
@@ -129,13 +127,7 @@ export async function registerPasskey(
     return { kind: "failed" };
   }
   if (response.ok) {
-    const body = (await response.json()) as {
-      id: string;
-      name: string;
-      created_at: string;
-      last_used_at: string | null;
-    };
-    return { kind: "ok", value: passkeyFromRow(body) };
+    return { kind: "ok" };
   }
   if (response.status === 400) {
     const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;

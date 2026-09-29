@@ -1,4 +1,9 @@
-import type { SessionAuthenticationBody, SessionAuthorizationBody } from "@purosur/contracts";
+import {
+  type SessionAuthenticationBody,
+  type SessionAuthorizationBody,
+  sessionAuthenticationOptionsSchema,
+  sessionAuthorizationOptionsSchema,
+} from "@purosur/contracts";
 import type {
   AuthenticationResponseJSON,
   PublicKeyCredentialRequestOptionsJSON,
@@ -135,10 +140,13 @@ export async function fetchAuthenticationOptions(): Promise<AuthenticationOption
   if (!response.ok) {
     return { kind: "failed" };
   }
-  const body = (await response.json()) as {
-    passkey_authentication_options: PublicKeyCredentialRequestOptionsJSON;
-  };
-  return { kind: "ok", value: body.passkey_authentication_options };
+  const body = sessionAuthenticationOptionsSchema.safeParse(
+    await response.json().catch(() => undefined),
+  );
+  if (!body.success) {
+    return { kind: "failed" };
+  }
+  return { kind: "ok", value: body.data.passkey_authentication_options };
 }
 
 // The cloud only distinguishes an unrecognized credential id (`unknown_passkey`) from every other rejection.
@@ -208,10 +216,13 @@ export async function fetchSessionAuthorizationOptions(): Promise<SessionAuthori
   if (!response.ok) {
     return { kind: "failed" };
   }
-  const body = (await response.json()) as {
-    authorization_options: PublicKeyCredentialRequestOptionsJSON;
-  };
-  return { kind: "ok", value: body.authorization_options };
+  const body = sessionAuthorizationOptionsSchema.safeParse(
+    await response.json().catch(() => undefined),
+  );
+  if (!body.success) {
+    return { kind: "failed" };
+  }
+  return { kind: "ok", value: body.data.authorization_options };
 }
 
 export async function authorizeSession(

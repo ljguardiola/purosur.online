@@ -1,15 +1,25 @@
-import { Button, IconButton, InlineNotice, Modal, TextField } from "@purosur/ui";
+import {
+  Button,
+  EmptyState,
+  IconButton,
+  InlineNotice,
+  LoadFailure,
+  LoadingPlaceholder,
+  Modal,
+  TextField,
+} from "@purosur/ui";
 import type {
   RegistrationResponseJSON,
   startAuthentication,
   startRegistration,
 } from "@simplewebauthn/browser";
 import { KeyRound, Laptop, Plus, ShieldX, Trash2, TriangleAlert, X } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
+import { useOwnPasskeysQuery, useRefreshAccess } from "./access-queries";
 import { useAuthorization } from "./authorization-modal";
 import type { MyAccountScreenServices } from "./my-account-services";
 import type {
@@ -45,12 +55,6 @@ export type MyAccountScreenProps = {
   now?: () => Date;
   services: MyAccountScreenServices;
 };
-
-type ListState =
-  | { kind: "loading" }
-  | { kind: "loadError" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "loaded"; passkeys: Passkey[]; loadedAt: Date };
 
 type RegisterPasskeyModalProps = {
   open: boolean;
@@ -378,6 +382,8 @@ function RemovePasskeyModal({
   );
 }
 
+const NO_PASSKEYS: Passkey[] = [];
+
 export function MyAccountScreen({
   displayName,
   onSessionEnded,
@@ -395,46 +401,18 @@ export function MyAccountScreen({
     startRegistration,
     signalUnknownCredential,
   } = services;
-  const clock = now ?? (() => new Date());
-  const [list, setList] = useState<ListState>({ kind: "loading" });
-  const clockRef = useLatestRef(clock);
+  const data = useOwnPasskeysQuery({
+    fetchPasskeys,
+    now: now ?? (() => new Date()),
+    onSessionEnded,
+  });
+  const refreshAccess = useRefreshAccess();
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<Passkey | null>(null);
 
-  const load = useCallback(async () => {
-    setList({ kind: "loading" });
-    const outcome = await fetchPasskeys();
-    if (outcome.kind === "ok") {
-      setList({ kind: "loaded", passkeys: outcome.value, loadedAt: clockRef.current() });
-    } else if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
-    } else if (outcome.kind === "rate_limited") {
-      setList({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
-    } else {
-      setList({ kind: "loadError" });
-    }
-  }, [onSessionEnded, fetchPasskeys, clockRef]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  async function refreshList() {
-    const outcome = await fetchPasskeys();
-    if (outcome.kind === "ok") {
-      setList({ kind: "loaded", passkeys: outcome.value, loadedAt: clockRef.current() });
-    } else if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
-    } else if (outcome.kind === "rate_limited") {
-      setList({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
-    } else {
-      setList({ kind: "loadError" });
-    }
-  }
-
-  const passkeys = list.kind === "loaded" ? list.passkeys : [];
+  const passkeys = data.status === "loaded" ? data.value.passkeys : NO_PASSKEYS;
   const isOnlyPasskey = passkeys.length === 1;
-  const hasNoPasskeys = list.kind === "loaded" && passkeys.length === 0;
+  const hasNoPasskeys = data.status === "loaded" && passkeys.length === 0;
 
   return (
     <>
@@ -453,48 +431,24 @@ export function MyAccountScreen({
             <Button
               variant="secondary"
               icon={<Plus />}
-              disabled={list.kind === "loading" || hasNoPasskeys}
+              dataStatus={data.status}
+              disabled={hasNoPasskeys}
               onPress={() => setRegisterModalOpen(true)}
             >
               Registrar otra passkey
             </Button>
           </div>
-          {list.kind === "loading" && <p role="status">Cargando tus passkeys…</p>}
-          {list.kind === "loadError" && (
-            <>
-              <InlineNotice
-                tone="error"
-                icon={<TriangleAlert />}
-                title="No pudimos abrir tus passkeys"
-                description="Probá de nuevo en unos minutos."
+          {data.status === "loading" && <LoadingPlaceholder variant="list" items={2} />}
+          {data.status === "failed" && <LoadFailure {...cloudLoadFailure(data, "tus passkeys")} />}
+          {data.status === "loaded" &&
+            (hasNoPasskeys ? (
+              <EmptyState
+                icon={<KeyRound />}
+                title="No tenés ninguna passkey"
+                description="Para volver a entrar al backoffice vas a tener que pedir el enlace de recuperación por correo."
+                variant="blank"
               />
-              <Button variant="secondary" onPress={() => void load()}>
-                Reintentar
-              </Button>
-            </>
-          )}
-          {list.kind === "rate_limited" && (
-            <>
-              <InlineNotice
-                tone="error"
-                icon={<ShieldX />}
-                title="Demasiadas solicitudes"
-                description={retryAfterDetail(list.retryAfterSeconds)}
-              />
-              <Button variant="secondary" onPress={() => void load()}>
-                Reintentar
-              </Button>
-            </>
-          )}
-          {list.kind === "loaded" && (
-            <>
-              {hasNoPasskeys ? (
-                <InlineNotice
-                  tone="warning"
-                  icon={<TriangleAlert />}
-                  description="No tenés ninguna passkey. Para volver a entrar al backoffice vas a tener que pedir el enlace de recuperación por correo."
-                />
-              ) : null}
+            ) : (
               <ul className="flex flex-col gap-2">
                 {passkeys.map((passkey) => (
                   <li key={passkey.id} className="flex items-center gap-3">
@@ -507,7 +461,7 @@ export function MyAccountScreen({
                     <div className="flex flex-1 flex-col gap-1">
                       <p className="font-semibold text-body text-text">{passkey.name}</p>
                       <p className="text-text-subtle text-detail">
-                        {passkeyRowDetail(passkey, list.loadedAt)}
+                        {passkeyRowDetail(passkey, data.value.loadedAt)}
                       </p>
                     </div>
                     <IconButton
@@ -518,8 +472,7 @@ export function MyAccountScreen({
                   </li>
                 ))}
               </ul>
-            </>
-          )}
+            ))}
         </div>
       </ScreenLayout>
       <RegisterPasskeyModal
@@ -527,7 +480,7 @@ export function MyAccountScreen({
         onClose={() => setRegisterModalOpen(false)}
         onRegistered={() => {
           setRegisterModalOpen(false);
-          void refreshList();
+          void refreshAccess();
         }}
         onSessionEnded={onSessionEnded}
         fetchPasskeyRegistrationChallenge={fetchPasskeyRegistrationChallenge}
@@ -544,7 +497,7 @@ export function MyAccountScreen({
         onClose={() => setRemoveTarget(null)}
         onRemoved={() => {
           setRemoveTarget(null);
-          void refreshList();
+          void refreshAccess();
         }}
         onSessionEnded={onSessionEnded}
         removePasskey={removePasskey}
