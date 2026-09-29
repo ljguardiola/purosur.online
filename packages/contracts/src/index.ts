@@ -112,6 +112,8 @@ export type {
   StockMovement,
   StockMovementList,
   StockPeriodDays,
+  StockProduct,
+  StockProductList,
 } from "./stock/stock-lists.js";
 export {
   STOCK_PERIOD_DAYS,
@@ -119,6 +121,7 @@ export {
   stockCountListSchema,
   stockExpectedBalanceSchema,
   stockMovementListSchema,
+  stockProductListSchema,
 } from "./stock/stock-lists.js";
 export type {
   StockAdjustmentBody,

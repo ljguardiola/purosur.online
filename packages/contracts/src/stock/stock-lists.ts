@@ -5,14 +5,20 @@ export const STOCK_PERIOD_DAYS = [7, 30, 90] as const;
 
 export type StockPeriodDays = (typeof STOCK_PERIOD_DAYS)[number];
 
-const stockBalanceSchema = z.object({
+const stockProductSchema = z.object({
   id: z.string(),
   name: z.string(),
   categoryId: z.string(),
   categoryName: z.string(),
   saleUnit: z.enum(SALE_UNITS),
-  balance: z.int(),
 });
+
+export const stockProductListSchema = z.object({ products: z.array(stockProductSchema) });
+
+export type StockProduct = z.output<typeof stockProductSchema>;
+export type StockProductList = z.output<typeof stockProductListSchema>;
+
+const stockBalanceSchema = stockProductSchema.extend({ balance: z.int() });
 
 export const stockBalanceListSchema = z.object({ products: z.array(stockBalanceSchema) });
 
@@ -48,6 +54,7 @@ const stockMovementSchema = z.object({
   reason: z.enum([...LOSS_REASONS, ...ADJUSTMENT_REASONS]),
   delta: z.int(),
   occurredAt: z.iso.datetime(),
+  superseded: z.boolean(),
 });
 
 export const stockMovementListSchema = z.object({ movements: z.array(stockMovementSchema) });

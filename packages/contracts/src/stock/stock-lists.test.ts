@@ -5,6 +5,7 @@ import {
   stockCountListSchema,
   stockExpectedBalanceSchema,
   stockMovementListSchema,
+  stockProductListSchema,
 } from "./stock-lists.js";
 
 const at = "2026-09-15T21:32:00.000Z";
@@ -42,6 +43,7 @@ const movement = {
   reason: "broken_or_spilled",
   delta: -1000,
   occurredAt: at,
+  superseded: false,
 };
 
 describe("STOCK_PERIOD_DAYS", () => {
@@ -104,6 +106,7 @@ describe("stockMovementListSchema", () => {
     ["kind", "count"],
     ["reason", "whatever"],
     ["delta", "1"],
+    ["superseded", "no"],
   ])("refuses %s as %j", (field, value) => {
     expect(
       stockMovementListSchema.safeParse({ movements: [{ ...movement, [field]: value }] }).success,
@@ -120,5 +123,33 @@ describe("stockExpectedBalanceSchema", () => {
 
   it("refuses a fraction of a thousandth", () => {
     expect(stockExpectedBalanceSchema.safeParse({ expected: 0.5 }).success).toBe(false);
+  });
+});
+
+describe("stockProductListSchema", () => {
+  const product = {
+    id: "product-1",
+    name: "Almendras peladas",
+    categoryId: "category-1",
+    categoryName: "Frutos secos",
+    saleUnit: "KG",
+  };
+
+  it("accepts the products a movement can be registered for, without their balance", () => {
+    expect(stockProductListSchema.safeParse({ products: [product] }).data).toEqual({
+      products: [product],
+    });
+    expect(
+      stockProductListSchema.safeParse({ products: [{ ...product, balance: 12_150 }] }).data,
+    ).toEqual({ products: [product] });
+  });
+
+  it.each([
+    ["saleUnit", "LITRE"],
+    ["name", null],
+  ])("refuses %s as %j", (field, value) => {
+    expect(
+      stockProductListSchema.safeParse({ products: [{ ...product, [field]: value }] }).success,
+    ).toBe(false);
   });
 });
