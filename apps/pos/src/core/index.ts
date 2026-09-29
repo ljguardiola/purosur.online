@@ -82,11 +82,14 @@ function openLocalReplica(): SqliteLocalReplica | undefined {
     return undefined;
   }
   try {
-    return new SqliteLocalReplica(
+    const replica = new SqliteLocalReplica(
       openLocalDatabase(join(localDataFolder, LOCAL_DATABASE_FILE), LOCAL_MIGRATIONS),
     );
+    console.info("core: the local database is ready");
+    return replica;
   } catch (error) {
     console.error("core: the local database could not be opened, so it can't pull", error);
+    Sentry.captureException(error);
     return undefined;
   }
 }
