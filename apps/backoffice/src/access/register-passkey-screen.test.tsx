@@ -240,6 +240,27 @@ test("registers the passkey and shows the success state, naming that open sessio
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("starts WebAuthn within the click itself, before anything else runs", async () => {
+  const services = createServices({
+    fetchRegistrationOptions: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: { displayName: "Lucía Pérez", options: registrationOptions },
+    }),
+    startRegistration: vi.fn().mockResolvedValue(registrationResponse),
+    redeemRecovery: vi.fn().mockResolvedValue({ kind: "ok" }),
+  });
+  const screen = await render(<RegisterPasskeyScreen services={services} />);
+  await fillName(screen, PASSKEY_NAME);
+
+  screen
+    .getByRole("button", { name: "Registrar la passkey" })
+    .element()
+    .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+  expect(services.startRegistration).toHaveBeenCalledWith({ optionsJSON: registrationOptions });
+  await expect.element(screen.getByText("Registraste la passkey")).toBeVisible();
+});
+
 test("lets the person retry, without a new link, after the browser cancels registration", async () => {
   const services = createServices({
     fetchRegistrationOptions: vi.fn().mockResolvedValue({
@@ -511,6 +532,30 @@ test("rejects a passkey name over 40 characters once trimmed, without calling th
     .element(screen.getByText("El nombre no puede superar los 40 caracteres."))
     .toBeVisible();
   expect(services.redeemRecovery).not.toHaveBeenCalled();
+});
+
+test("shows the passkey name the cloud refused on the name field, still reading fresh options and signaling the device", async () => {
+  const fetchRegistrationOptions = vi.fn().mockResolvedValue({
+    kind: "ok",
+    value: { displayName: "Lucía Pérez", options: registrationOptions },
+  });
+  const services = createServices({
+    fetchRegistrationOptions,
+    startRegistration: vi.fn().mockResolvedValue(registrationResponse),
+    redeemRecovery: vi.fn().mockResolvedValue({ kind: "validation_failed", field: "passkey_name" }),
+  });
+
+  const screen = await render(<RegisterPasskeyScreen services={services} />);
+  await fillName(screen, PASSKEY_NAME);
+  await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
+
+  await expect.element(screen.getByText("Revisá el nombre de la passkey.")).toBeVisible();
+  expect(screen.getByText("No se pudo registrar la passkey").query()).toBeNull();
+  await expect.poll(() => fetchRegistrationOptions.mock.calls.length).toBe(2);
+  expect(services.signalUnknownCredential).toHaveBeenCalledWith({
+    rpId: "purosur.online",
+    credentialId: "cred-1",
+  });
 });
 
 test("sends the trimmed passkey name", async () => {

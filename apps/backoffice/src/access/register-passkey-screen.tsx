@@ -1,12 +1,13 @@
-import { Button, InlineNotice, LoadFailure, LoadingPlaceholder, TextField } from "@purosur/ui";
-import type { PublicKeyCredentialCreationOptionsJSON } from "@simplewebauthn/browser";
+import { recoveryRedemptionBodySchema } from "@purosur/contracts";
+import { Button, InlineNotice, LoadFailure, LoadingPlaceholder } from "@purosur/ui";
 import { ArrowLeft, KeyRound, ShieldCheck, ShieldX, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useCloudForm } from "../platform/cloud-form";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { AccessFooterLink, AccessHeader, AccessLayout } from "./access-layout";
 import { useRegistrationOptionsQuery, useReloadRegistrationOptions } from "./access-queries";
-import { validatePasskeyName } from "./passkey-name";
+import { passkeyNameMessage } from "./passkey-name-message";
 import type { RedeemRecoveryOutcome } from "./recovery-api";
 import type { RegisterPasskeyScreenServices } from "./register-passkey-services";
 
@@ -24,6 +25,8 @@ function isDefinitiveRejection(outcome: RedeemRecoveryOutcome): boolean {
       return false;
   }
 }
+
+const PASSKEY_NAME_REQUEST = recoveryRedemptionBodySchema.pick({ passkey_name: true });
 
 type TokenState = "invalid" | "burned" | "expired";
 
@@ -121,66 +124,72 @@ function RegistrationOfToken({
     services;
   const data = useRegistrationOptionsQuery({ token, fetchRegistrationOptions });
   const readOptionsAgain = useReloadRegistrationOptions({ fetchRegistrationOptions });
-  const [name, setName] = useState("");
-  const [nameError, setNameError] = useState<string | undefined>(undefined);
   const [attemptFailed, setAttemptFailed] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<RedeemResult | null>(null);
+  const { form, submit, submitting } = useCloudForm({
+    defaultValues: { name: "" },
+    request: {
+      schema: PASSKEY_NAME_REQUEST,
+      from: ({ name }) => ({ passkey_name: name.trim() }),
+    },
+    fields: { passkey_name: "name" },
+    messages: { name: passkeyNameMessage },
+    onSubmit: async ({ passkey_name }, { showWireFieldError }) => {
+      if (data.status !== "loaded" || data.value.kind !== "ready") {
+        return;
+      }
+      const { options } = data.value;
+      setAttemptFailed(false);
+
+      const registration = await startRegistration({ optionsJSON: options }).catch(() => null);
+      if (!registration) {
+        setAttemptFailed(true);
+        return;
+      }
+
+      const outcome = await redeemRecovery(token, registration, passkey_name);
+      // Every definitive rejection but "already registered" means the credential was never saved,
+      // so the device should forget it; an ambiguous outcome never signals, since it may have landed.
+      if (isDefinitiveRejection(outcome)) {
+        const rpId = options.rp.id;
+        if (rpId) {
+          signalUnknownCredential({ rpId, credentialId: registration.id });
+        }
+      }
+      switch (outcome.kind) {
+        case "ok":
+          setResult({ kind: "registered" });
+          return;
+        case "invalid":
+        case "burned":
+        case "expired":
+          setResult({ kind: outcome.kind });
+          return;
+        case "rate_limited":
+          setResult({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
+          return;
+        case "validation_failed":
+          if (outcome.field !== undefined && showWireFieldError(outcome.field)) {
+            await readOptionsAgain(token);
+            return;
+          }
+          await refreshAfterRejectedAttempt();
+          return;
+        case "already_registered":
+          await refreshAfterRejectedAttempt();
+          return;
+        case "failed":
+          setAttemptFailed(true);
+          return;
+      }
+    },
+  });
 
   // A rejected attempt needs fresh options before retrying; read now so the next click still
   // starts WebAuthn synchronously, within the browser's required user activation.
   async function refreshAfterRejectedAttempt() {
     setAttemptFailed(true);
     await readOptionsAgain(token);
-    setSubmitting(false);
-  }
-
-  async function handleRegister(options: PublicKeyCredentialCreationOptionsJSON) {
-    const validationError = validatePasskeyName(name);
-    setNameError(validationError);
-    if (validationError) {
-      return;
-    }
-    setAttemptFailed(false);
-    setSubmitting(true);
-
-    const registration = await startRegistration({ optionsJSON: options }).catch(() => null);
-    if (!registration) {
-      setAttemptFailed(true);
-      setSubmitting(false);
-      return;
-    }
-
-    const outcome = await redeemRecovery(token, registration, name.trim());
-    // Every definitive rejection but "already registered" means the credential was never saved,
-    // so the device should forget it; an ambiguous outcome never signals, since it may have landed.
-    if (isDefinitiveRejection(outcome)) {
-      const rpId = options.rp.id;
-      if (rpId) {
-        signalUnknownCredential({ rpId, credentialId: registration.id });
-      }
-    }
-    switch (outcome.kind) {
-      case "ok":
-        setResult({ kind: "registered" });
-        return;
-      case "invalid":
-      case "burned":
-      case "expired":
-        setResult({ kind: outcome.kind });
-        return;
-      case "rate_limited":
-        setResult({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
-        return;
-      case "validation_failed":
-      case "already_registered":
-        await refreshAfterRejectedAttempt();
-        return;
-      case "failed":
-        setAttemptFailed(true);
-        setSubmitting(false);
-        return;
-    }
   }
 
   if (result?.kind === "registered") {
@@ -238,7 +247,7 @@ function RegistrationOfToken({
     return <TokenStateNotice state={data.value.kind} />;
   }
 
-  const { displayName, options } = data.value;
+  const { displayName } = data.value;
   return (
     <AccessLayout>
       <AccessHeader
@@ -254,27 +263,23 @@ function RegistrationOfToken({
           description="Podés volver a intentarlo con este mismo enlace."
         />
       ) : null}
-      <TextField
-        kind="plain-text"
-        label="Nombre de la passkey"
-        value={name}
-        onChange={(value) => {
-          setName(value);
-          if (nameError) {
-            setNameError(validatePasskeyName(value));
-          }
-        }}
-        description="Por ejemplo, Notebook del local."
-        required
-        errorMessage={nameError}
-      />
+      <form.AppField name="name">
+        {(field) => (
+          <field.TextField
+            kind="plain-text"
+            label="Nombre de la passkey"
+            description="Por ejemplo, Notebook del local."
+            required
+          />
+        )}
+      </form.AppField>
       <Button
         variant="primary"
         size="large"
         fullWidth
         icon={<KeyRound />}
         disabled={submitting}
-        onPress={() => void handleRegister(options)}
+        onPress={() => void submit()}
       >
         Registrar la passkey
       </Button>

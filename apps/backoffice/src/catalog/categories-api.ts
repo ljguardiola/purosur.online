@@ -6,16 +6,15 @@ import {
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { retryAfterSeconds } from "../platform/retry-after-seconds";
+import { readValidationFailedField } from "../platform/validation-failed-field";
 
 export type FetchCategoriesOutcome = CloudReadOutcome<CategorySummary[]>;
 
 export type CreateCategoryInput = { name: string; parentId: string | null };
 
-type CreateCategoryFieldError = "name" | "parentId";
-
 export type CreateCategoryOutcome =
   | { kind: "ok" }
-  | { kind: "validation_failed"; field: CreateCategoryFieldError }
+  | { kind: "validation_failed"; field: string }
   | { kind: "name_taken" }
   | { kind: "parent_has_products" }
   | { kind: "forbidden" }
@@ -25,11 +24,9 @@ export type CreateCategoryOutcome =
 
 export type EditCategoryInput = { name: string; parentId: string | null; version: number };
 
-type EditCategoryFieldError = "name" | "parentId" | "version";
-
 export type EditCategoryOutcome =
   | { kind: "ok" }
-  | { kind: "validation_failed"; field: EditCategoryFieldError }
+  | { kind: "validation_failed"; field: string }
   | { kind: "name_taken" }
   | { kind: "parent_has_products" }
   | { kind: "move_not_allowed" }
@@ -46,10 +43,6 @@ function postJson(path: string, body?: unknown): Promise<Response> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body ?? {}),
   });
-}
-
-function categoryFieldFromWire(field: unknown): "name" | "parentId" | "version" | undefined {
-  return field === "name" || field === "parentId" || field === "version" ? field : undefined;
 }
 
 export async function fetchCategories(): Promise<FetchCategoriesOutcome> {
@@ -90,16 +83,8 @@ export async function createCategory(input: CreateCategoryInput): Promise<Create
     return { kind: "ok" };
   }
   if (response.status === 400) {
-    const body = (await response.json().catch(() => undefined)) as
-      | { code?: string; details?: Array<{ field?: string }> }
-      | undefined;
-    if (body?.code === "validation_failed") {
-      const field = categoryFieldFromWire(body.details?.[0]?.field);
-      if (field === "name" || field === "parentId") {
-        return { kind: "validation_failed", field };
-      }
-    }
-    return { kind: "failed" };
+    const field = await readValidationFailedField(response);
+    return field === undefined ? { kind: "failed" } : { kind: "validation_failed", field };
   }
   if (response.status === 409) {
     const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
@@ -138,16 +123,8 @@ export async function editCategory(
     return { kind: "ok" };
   }
   if (response.status === 400) {
-    const body = (await response.json().catch(() => undefined)) as
-      | { code?: string; details?: Array<{ field?: string }> }
-      | undefined;
-    if (body?.code === "validation_failed") {
-      const field = categoryFieldFromWire(body.details?.[0]?.field);
-      if (field) {
-        return { kind: "validation_failed", field };
-      }
-    }
-    return { kind: "failed" };
+    const field = await readValidationFailedField(response);
+    return field === undefined ? { kind: "failed" } : { kind: "validation_failed", field };
   }
   if (response.status === 404) {
     return { kind: "not_found" };

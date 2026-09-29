@@ -6,6 +6,7 @@ import {
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { retryAfterSeconds } from "../platform/retry-after-seconds";
+import { readValidationFailedField } from "../platform/validation-failed-field";
 
 type PendingEnrollmentCode = { issuedAt: string; expiresAt: string };
 
@@ -19,11 +20,9 @@ export type FetchRegistersOutcome = CloudReadOutcome<RegisterSummary[]>;
 
 export type CreateRegisterInput = RegisterCreationBody;
 
-type CreateRegisterFieldError = "name";
-
 export type CreateRegisterOutcome =
   | { kind: "ok" }
-  | { kind: "validation_failed"; field: CreateRegisterFieldError }
+  | { kind: "validation_failed"; field: string }
   | { kind: "name_taken" }
   | { kind: "forbidden" }
   | { kind: "unauthenticated" }
@@ -122,13 +121,8 @@ export async function createRegister(input: CreateRegisterInput): Promise<Create
     return { kind: "ok" };
   }
   if (response.status === 400) {
-    const body = (await response.json().catch(() => undefined)) as
-      | { code?: string; details?: Array<{ field?: string }> }
-      | undefined;
-    if (body?.code === "validation_failed" && body.details?.[0]?.field === "name") {
-      return { kind: "validation_failed", field: "name" };
-    }
-    return { kind: "failed" };
+    const field = await readValidationFailedField(response);
+    return field === undefined ? { kind: "failed" } : { kind: "validation_failed", field };
   }
   if (response.status === 409) {
     return { kind: "name_taken" };

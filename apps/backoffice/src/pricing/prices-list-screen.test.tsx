@@ -42,7 +42,7 @@ const rice: PriceProduct = {
   categoryName: "Almacén",
   saleUnit: "KG",
   currentPrice: {
-    id: "price-1",
+    id: "00000000-0000-4000-8000-000000000001",
     unitPrice: 750000,
     validFrom: new Date(NOW().getTime() - 40 * DAY_MS).toISOString(),
   },
@@ -196,7 +196,7 @@ test("confirming a priced product's price without a change shows a confirmed not
   );
 
   expect(services.confirmPrice).toHaveBeenCalledWith("product-2", {
-    expectedCurrentPriceId: "price-1",
+    expectedCurrentPriceId: "00000000-0000-4000-8000-000000000001",
   });
   await expect.element(screen.getByText("Precio confirmado")).toBeVisible();
   await expect.element(screen.getByText("Arroz sigue a $ 7.500,00 / kg.")).toBeVisible();
@@ -265,10 +265,12 @@ test("changing a product's price sends the current price id as expectedCurrentPr
   await userEvent.fill(screen.getByLabelText("Precio de venta por kilo"), "8000");
   await userEvent.click(screen.getByRole("button", { name: "Guardar el precio nuevo" }));
 
-  expect(services.setPrice).toHaveBeenCalledWith("product-2", {
-    unitPrice: 800000,
-    expectedCurrentPriceId: "price-1",
-  });
+  await expect
+    .poll(() => vi.mocked(services.setPrice).mock.lastCall)
+    .toEqual([
+      "product-2",
+      { unitPrice: 800000, expectedCurrentPriceId: "00000000-0000-4000-8000-000000000001" },
+    ]);
   await expect.element(screen.getByText("Precio actualizado")).toBeVisible();
   await expect.element(screen.getByText("Arroz pasa a $ 8.000,00 / kg.")).toBeVisible();
 });
@@ -309,12 +311,14 @@ test("shows each reason a typed price can't be saved without calling the server"
 
   await userEvent.fill(priceField, "0");
   await userEvent.click(save);
-  await expect.element(screen.getByText("Ingresá un precio válido, mayor a cero.")).toBeVisible();
+  await expect
+    .element(screen.getByText("Ingresá un precio mayor a cero, de hasta $ 21.474.836,47."))
+    .toBeVisible();
 
   await userEvent.fill(priceField, "21.474.836,48");
   await userEvent.click(save);
   await expect
-    .element(screen.getByText("Ingresá un precio de hasta $ 21.474.836,47."))
+    .element(screen.getByText("Ingresá un precio mayor a cero, de hasta $ 21.474.836,47."))
     .toBeVisible();
 
   expect(services.setPrice).not.toHaveBeenCalled();
@@ -351,7 +355,7 @@ test("shows a stale-price notice on a 409 and offers to reload the row's current
           {
             ...rice,
             currentPrice: {
-              id: "price-9",
+              id: "00000000-0000-4000-8000-000000000009",
               unitPrice: 900000,
               validFrom: "2026-09-25T00:00:00.000Z",
             },
@@ -794,7 +798,11 @@ const yerbaMate: PriceProduct = {
   ...rice,
   id: "product-3",
   name: "Yerba",
-  currentPrice: { id: "price-3", unitPrice: 300000, validFrom: "2026-08-16T12:00:00.000Z" },
+  currentPrice: {
+    id: "00000000-0000-4000-8000-000000000003",
+    unitPrice: 300000,
+    validFrom: "2026-08-16T12:00:00.000Z",
+  },
 };
 
 function expectRowActionsDisabled(screen: Awaited<ReturnType<typeof renderScreen>>) {
@@ -945,7 +953,11 @@ const riceStaleReload = {
     products: [
       {
         ...rice,
-        currentPrice: { id: "price-9", unitPrice: 900000, validFrom: "2026-09-25T00:00:00.000Z" },
+        currentPrice: {
+          id: "00000000-0000-4000-8000-000000000009",
+          unitPrice: 900000,
+          validFrom: "2026-09-25T00:00:00.000Z",
+        },
       },
     ],
     pendingCount: 1,
@@ -1589,8 +1601,9 @@ test.each([
   await expect.element(dialog.getByRole("button", { name: "Cerrar" })).toBeInTheDocument();
 });
 
-test("the current price typed again is rejected as unchanged without calling the server", async () => {
+test("the current price typed again is sent to the server, which decides it is unchanged", async () => {
   const services = createServices();
+  vi.mocked(services.setPrice).mockResolvedValue({ kind: "price_unchanged" });
   const screen = await openRicePriceModal(services);
   const dialog = screen.getByRole("dialog");
 
@@ -1600,7 +1613,7 @@ test("the current price typed again is rejected as unchanged without calling the
   await expect
     .element(dialog.getByText("Es el precio actual: confirmalo sin cambios en vez de guardarlo."))
     .toBeVisible();
-  expect(services.setPrice).not.toHaveBeenCalled();
+  await expect.poll(() => vi.mocked(services.setPrice).mock.calls.length).toBe(1);
 });
 
 test("the server answering that the price is unchanged shows the same unchanged-price error", async () => {
@@ -1652,12 +1665,12 @@ test("a reloaded price is shown and becomes the one the next save and confirmati
   await userEvent.click(dialog.getByRole("button", { name: "Guardar el precio nuevo" }));
   await expect
     .poll(() => vi.mocked(services.setPrice).mock.lastCall?.[1])
-    .toEqual({ unitPrice: 800000, expectedCurrentPriceId: "price-9" });
+    .toEqual({ unitPrice: 800000, expectedCurrentPriceId: "00000000-0000-4000-8000-000000000009" });
 
   await userEvent.click(dialog.getByRole("button", { name: "Confirmar sin cambios" }));
   await expect
     .poll(() => vi.mocked(services.confirmPrice).mock.lastCall)
-    .toEqual(["product-2", { expectedCurrentPriceId: "price-9" }]);
+    .toEqual(["product-2", { expectedCurrentPriceId: "00000000-0000-4000-8000-000000000009" }]);
 });
 
 test("the modal offers no confirm-without-change action for a product with no price", async () => {
@@ -2054,10 +2067,10 @@ test("a save rejected for the price it expected is treated as a changed price an
 
   await expect.element(dialog.getByText("Este precio cambió mientras lo mirabas")).toBeVisible();
   await expect.element(dialog.getByRole("button", { name: "Recargar el precio" })).toBeVisible();
-  expect(dialog.getByText("Ingresá un precio válido, mayor a cero.").query()).toBeNull();
+  expect(dialog.getByText("Revisá el precio.").query()).toBeNull();
 });
 
-test("a save rejected for its amount shows the amount error", async () => {
+test("a save rejected for an amount that passes every local check asks to review the price", async () => {
   const services = createServices();
   vi.mocked(services.setPrice).mockResolvedValue({ kind: "validation_failed", field: "unitPrice" });
   const screen = await openRicePriceModal(services);
@@ -2066,7 +2079,23 @@ test("a save rejected for its amount shows the amount error", async () => {
   await userEvent.fill(dialog.getByLabelText("Precio de venta por kilo"), "8000");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar el precio nuevo" }));
 
-  await expect.element(dialog.getByText("Ingresá un precio válido, mayor a cero.")).toBeVisible();
+  await expect.element(dialog.getByText("Revisá el precio.")).toBeVisible();
+});
+
+test("a save rejected for a field the form does not have shows the save-failed notice", async () => {
+  const services = createServices();
+  vi.mocked(services.setPrice).mockResolvedValue({
+    kind: "validation_failed",
+    field: "something_new",
+  });
+  const screen = await openRicePriceModal(services);
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.fill(dialog.getByLabelText("Precio de venta por kilo"), "8000");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar el precio nuevo" }));
+
+  await expect.element(dialog.getByText("No se pudo guardar el precio")).toBeVisible();
+  expect(dialog.getByText("Revisá el precio.").query()).toBeNull();
 });
 
 test("a confirmation answered that there is no price to confirm offers the reload", async () => {

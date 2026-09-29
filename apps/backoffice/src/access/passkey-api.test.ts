@@ -206,6 +206,16 @@ test("registerPasskey reports validation_failed on 400", async () => {
   });
 });
 
+test("registerPasskey reports the field the cloud refused with the validation failure", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(400, { code: "validation_failed", details: [{ field: "passkey_name" }] }),
+  );
+  await expect(registerPasskey(passkeyRegistration, "Nombre")).resolves.toEqual({
+    kind: "validation_failed",
+    field: "passkey_name",
+  });
+});
+
 test("registerPasskey reports already_registered on a 400 carrying that code, discriminating it from any other validation failure", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(400, { code: "passkey_already_registered" }));
   await expect(registerPasskey(passkeyRegistration, "Nombre")).resolves.toEqual({

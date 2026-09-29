@@ -10,21 +10,19 @@ import type {
   RegistrationResponseJSON,
 } from "@simplewebauthn/browser";
 import { retryAfterSeconds } from "../platform/retry-after-seconds";
+import { readValidationFailedField } from "../platform/validation-failed-field";
 
 export type RecoveryRequestOutcome =
   | { kind: "sent" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
+  | { kind: "validation_failed"; field: string }
   | { kind: "failed" };
 
-type RecoveryTokenErrorKind =
-  | "invalid"
-  | "burned"
-  | "expired"
-  | "validation_failed"
-  | "already_registered";
+type RecoveryTokenErrorKind = "invalid" | "burned" | "expired" | "already_registered";
 
 type RecoveryTokenRefusal =
   | { kind: RecoveryTokenErrorKind }
+  | { kind: "validation_failed"; field?: string }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
@@ -62,6 +60,10 @@ export async function requestRecoveryLink(email: string): Promise<RecoveryReques
   if (response.status === 429) {
     return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
   }
+  if (response.status === 400) {
+    const field = await readValidationFailedField(response);
+    return field === undefined ? { kind: "failed" } : { kind: "validation_failed", field };
+  }
   return { kind: "failed" };
 }
 
@@ -71,7 +73,6 @@ const TOKEN_ERROR_KIND_BY_CODE: Record<string, RecoveryTokenErrorKind> = {
   recovery_token_invalid: "invalid",
   recovery_token_burned: "burned",
   recovery_token_expired: "expired",
-  validation_failed: "validation_failed",
   passkey_already_registered: "already_registered",
 };
 
@@ -79,7 +80,13 @@ async function tokenErrorOutcome(response: Response): Promise<RecoveryTokenRefus
   if (response.status === 429) {
     return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
   }
+  const field = await readValidationFailedField(response.clone());
   const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
+  if (body?.code === "validation_failed") {
+    return field === undefined
+      ? { kind: "validation_failed" }
+      : { kind: "validation_failed", field };
+  }
   const kind = body?.code ? TOKEN_ERROR_KIND_BY_CODE[body.code] : undefined;
   return kind ? { kind } : { kind: "failed" };
 }

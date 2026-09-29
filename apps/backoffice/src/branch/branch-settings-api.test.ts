@@ -120,7 +120,7 @@ test("fetchBranchSettings returns failed on an unexpected status", async () => {
 test("saveBranchSettings PUTs every field, each day's ranges in order, and the version", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { ...wireRow, version: 2 }));
 
-  const outcome = await saveBranchSettings(settings);
+  const outcome = await saveBranchSettings(wireRow);
 
   expect(outcome).toEqual({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith("/branch-settings", {
@@ -137,7 +137,7 @@ test.each([
 ])("saveBranchSettings returns ok on any 2xx, even with %s", async (_name, response) => {
   vi.mocked(fetch).mockResolvedValue(response);
 
-  expect(await saveBranchSettings(settings)).toEqual({ kind: "ok" });
+  expect(await saveBranchSettings(wireRow)).toEqual({ kind: "ok" });
 });
 
 test("saveBranchSettings maps a 400 validation_failed to its day field", async () => {
@@ -150,32 +150,56 @@ test("saveBranchSettings maps a 400 validation_failed to its day field", async (
     }),
   );
 
-  expect(await saveBranchSettings(settings)).toEqual({
+  expect(await saveBranchSettings(wireRow)).toEqual({
     kind: "validation_failed",
     field: "monday_hours",
   });
 });
 
+test("saveBranchSettings reports the wire name of whichever field the cloud refused", async () => {
+  vi.mocked(fetch).mockResolvedValueOnce(
+    jsonResponse(400, { code: "validation_failed", details: [{ field: "address" }] }),
+  );
+  expect(await saveBranchSettings(wireRow)).toEqual({
+    kind: "validation_failed",
+    field: "address",
+  });
+
+  vi.mocked(fetch).mockResolvedValueOnce(
+    jsonResponse(400, { code: "validation_failed", details: [{ field: "branch_id" }] }),
+  );
+  expect(await saveBranchSettings(wireRow)).toEqual({
+    kind: "validation_failed",
+    field: "branch_id",
+  });
+});
+
+test("saveBranchSettings returns failed on a 400 that names no field", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(400, { code: "validation_failed" }));
+
+  expect(await saveBranchSettings(wireRow)).toEqual({ kind: "failed" });
+});
+
 test("saveBranchSettings returns stale_version on 409", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "stale_version" }));
 
-  expect(await saveBranchSettings(settings)).toEqual({ kind: "stale_version" });
+  expect(await saveBranchSettings(wireRow)).toEqual({ kind: "stale_version" });
 });
 
 test("saveBranchSettings returns forbidden on 403", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(403));
 
-  expect(await saveBranchSettings(settings)).toEqual({ kind: "forbidden" });
+  expect(await saveBranchSettings(wireRow)).toEqual({ kind: "forbidden" });
 });
 
 test("saveBranchSettings returns unauthenticated on 401", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(401));
 
-  expect(await saveBranchSettings(settings)).toEqual({ kind: "unauthenticated" });
+  expect(await saveBranchSettings(wireRow)).toEqual({ kind: "unauthenticated" });
 });
 
 test("saveBranchSettings returns failed when the network call throws", async () => {
   vi.mocked(fetch).mockRejectedValue(new Error("offline"));
 
-  expect(await saveBranchSettings(settings)).toEqual({ kind: "failed" });
+  expect(await saveBranchSettings(wireRow)).toEqual({ kind: "failed" });
 });

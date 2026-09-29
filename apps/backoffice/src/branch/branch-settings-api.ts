@@ -5,6 +5,7 @@ import {
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { retryAfterSeconds } from "../platform/retry-after-seconds";
+import { readValidationFailedField } from "../platform/validation-failed-field";
 
 export type BranchDay =
   | "monday"
@@ -25,7 +26,7 @@ export const BRANCH_DAYS: readonly BranchDay[] = [
   "sunday",
 ];
 
-export type BranchHoursRange = { opensAt: string; closesAt: string };
+type BranchHoursRange = { opensAt: string; closesAt: string };
 
 export type BranchSettings = {
   address: string;
@@ -40,7 +41,7 @@ export type BranchSettings = {
 
 type BranchHoursRangeWire = BranchSettingsBody["monday_hours"][number];
 
-export type BranchSettingsDayField =
+type BranchSettingsDayField =
   | "monday_hours"
   | "tuesday_hours"
   | "wednesday_hours"
@@ -49,27 +50,17 @@ export type BranchSettingsDayField =
   | "saturday_hours"
   | "sunday_hours";
 
-export type BranchSettingsField =
-  | "address"
-  | "whatsapp_number"
-  | "instagram_handle"
-  | BranchSettingsDayField
-  | "expiring_lot_alert_days"
-  | "unreviewed_price_alert_days"
-  | "good_condition_return_days"
-  | "version";
-
 export type FetchBranchSettingsOutcome = CloudReadOutcome<BranchSettings>;
 
 export type SaveBranchSettingsOutcome =
   | { kind: "ok" }
-  | { kind: "validation_failed"; field: BranchSettingsField }
+  | { kind: "validation_failed"; field: string }
   | { kind: "stale_version" }
   | { kind: "forbidden" }
   | { kind: "unauthenticated" }
   | { kind: "failed" };
 
-export const DAY_FIELD_OF: Record<BranchDay, BranchSettingsDayField> = {
+const DAY_FIELD_OF: Record<BranchDay, BranchSettingsDayField> = {
   monday: "monday_hours",
   tuesday: "tuesday_hours",
   wednesday: "wednesday_hours",
@@ -81,10 +72,6 @@ export const DAY_FIELD_OF: Record<BranchDay, BranchSettingsDayField> = {
 
 function rangesFromWire(ranges: BranchHoursRangeWire[]): BranchHoursRange[] {
   return ranges.map((range) => ({ opensAt: range.opens_at, closesAt: range.closes_at }));
-}
-
-function rangesToWire(ranges: BranchHoursRange[]): BranchHoursRangeWire[] {
-  return ranges.map((range) => ({ opens_at: range.opensAt, closes_at: range.closesAt }));
 }
 
 function branchSettingsFromWire(row: BranchSettingsBody): BranchSettings {
@@ -102,36 +89,6 @@ function branchSettingsFromWire(row: BranchSettingsBody): BranchSettings {
     goodConditionReturnDays: row.good_condition_return_days,
     version: row.version,
   };
-}
-
-function branchSettingsToWire(settings: BranchSettings): BranchSettingsBody {
-  const wire = {
-    address: settings.address,
-    whatsapp_number: settings.whatsappNumber,
-    instagram_handle: settings.instagramHandle,
-    expiring_lot_alert_days: settings.expiringLotAlertDays,
-    unreviewed_price_alert_days: settings.unreviewedPriceAlertDays,
-    good_condition_return_days: settings.goodConditionReturnDays,
-    version: settings.version,
-  } as BranchSettingsBody;
-  for (const day of BRANCH_DAYS) {
-    wire[DAY_FIELD_OF[day]] = rangesToWire(settings.hours[day]);
-  }
-  return wire;
-}
-
-function branchSettingsFieldFromWire(field: unknown): BranchSettingsField | undefined {
-  const fields: readonly BranchSettingsField[] = [
-    "address",
-    "whatsapp_number",
-    "instagram_handle",
-    ...BRANCH_DAYS.map((day) => DAY_FIELD_OF[day]),
-    "expiring_lot_alert_days",
-    "unreviewed_price_alert_days",
-    "good_condition_return_days",
-    "version",
-  ];
-  return fields.find((candidate) => candidate === field);
 }
 
 export async function fetchBranchSettings(): Promise<FetchBranchSettingsOutcome> {
@@ -161,9 +118,8 @@ export async function fetchBranchSettings(): Promise<FetchBranchSettingsOutcome>
 }
 
 export async function saveBranchSettings(
-  settings: BranchSettings,
+  requestBody: BranchSettingsEditBody,
 ): Promise<SaveBranchSettingsOutcome> {
-  const requestBody: BranchSettingsEditBody = branchSettingsToWire(settings);
   let response: Response;
   try {
     response = await fetch("/branch-settings", {
@@ -178,16 +134,8 @@ export async function saveBranchSettings(
     return { kind: "ok" };
   }
   if (response.status === 400) {
-    const body = (await response.json().catch(() => undefined)) as
-      | { code?: string; details?: Array<{ field?: string }> }
-      | undefined;
-    if (body?.code === "validation_failed") {
-      const field = branchSettingsFieldFromWire(body.details?.[0]?.field);
-      if (field) {
-        return { kind: "validation_failed", field };
-      }
-    }
-    return { kind: "failed" };
+    const field = await readValidationFailedField(response);
+    return field === undefined ? { kind: "failed" } : { kind: "validation_failed", field };
   }
   if (response.status === 409) {
     return { kind: "stale_version" };

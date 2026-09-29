@@ -6,6 +6,7 @@ import {
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { retryAfterSeconds } from "../platform/retry-after-seconds";
+import { readValidationFailedField } from "../platform/validation-failed-field";
 
 export type PricesReviewFilter = "pending" | "all";
 
@@ -17,13 +18,11 @@ export type FetchPricesInput = {
 
 export type FetchPricesOutcome = CloudReadOutcome<PriceList>;
 
-type SetPriceFieldError = "unitPrice" | "expectedCurrentPriceId";
-
 export type SetPriceInput = PriceSetBody;
 
 export type SetPriceOutcome =
   | { kind: "ok" }
-  | { kind: "validation_failed"; field: SetPriceFieldError }
+  | { kind: "validation_failed"; field: string }
   | { kind: "price_unchanged" }
   | { kind: "stale_price" }
   | { kind: "not_found" }
@@ -51,10 +50,6 @@ function postJson(path: string, body: unknown): Promise<Response> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-}
-
-function setPriceFieldFromWire(field: unknown): SetPriceFieldError | undefined {
-  return field === "unitPrice" || field === "expectedCurrentPriceId" ? field : undefined;
 }
 
 export async function fetchPrices(input: FetchPricesInput): Promise<FetchPricesOutcome> {
@@ -99,17 +94,12 @@ export async function setPrice(productId: string, input: SetPriceInput): Promise
     return { kind: "ok" };
   }
   if (response.status === 400) {
-    const body = (await response.json().catch(() => undefined)) as
-      | { code?: string; details?: Array<{ field?: string }> }
-      | undefined;
-    if (body?.code === "price_unchanged") {
-      return { kind: "price_unchanged" };
-    }
-    const field = setPriceFieldFromWire(body?.details?.[0]?.field);
-    if (field) {
+    const field = await readValidationFailedField(response.clone());
+    if (field !== undefined) {
       return { kind: "validation_failed", field };
     }
-    return { kind: "failed" };
+    const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
+    return body?.code === "price_unchanged" ? { kind: "price_unchanged" } : { kind: "failed" };
   }
   if (response.status === 404) {
     return { kind: "not_found" };

@@ -1,16 +1,12 @@
 import type { PermissionArea, PermissionKey } from "@purosur/domain";
+import { TextField } from "@purosur/ui";
 import type { DispatchableCdpSession } from "@purosur/ui/test";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
 import { expect, test, vi } from "vitest";
 import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import {
-  areaSelectedCount,
-  RoleEditorForm,
-  roleFieldErrorMessage,
-  validateRoleName,
-} from "./role-editor-form";
+import { areaSelectedCount, RoleEditorForm } from "./role-editor-form";
 
 // React Aria opens a tooltip only after a real pointer move; the first hover on a fresh page
 // fires before that move and is silently dropped, so this throwaway move supplies it.
@@ -31,8 +27,15 @@ function Harness({
   const [selectedArea, setSelectedArea] = useState<PermissionArea>(initialArea);
   return (
     <RoleEditorForm
-      name={name}
-      onNameChange={setName}
+      nameField={
+        <TextField
+          kind="plain-text"
+          label="Nombre del rol"
+          value={name}
+          onChange={setName}
+          required
+        />
+      }
       selected={selected}
       onSelectedChange={setSelected}
       selectedArea={selectedArea}
@@ -185,19 +188,6 @@ test("areaSelectedCount counts only the permissions selected in that area", () =
   const selected = new Set<PermissionKey>(["sell_and_charge", "view_stock_balances"]);
 
   expect(areaSelectedCount("cashRegister", selected)).toEqual({ count: 1, total: 7 });
-});
-
-test("validateRoleName rejects empty, too long, and the Administrator's own name", () => {
-  expect(validateRoleName("")).toBe("Ingresá el nombre del rol.");
-  expect(validateRoleName("a".repeat(101))).toBe("El nombre puede tener hasta 100 caracteres.");
-  expect(validateRoleName("administrador")).toBe("Ese nombre es del Administrador; elegí otro.");
-  expect(validateRoleName("Cajera")).toBeUndefined();
-});
-
-test("roleFieldErrorMessage only carries a message for the name field", () => {
-  expect(roleFieldErrorMessage("name")).toBe("Revisá el nombre del rol.");
-  expect(roleFieldErrorMessage("permissions")).toBeUndefined();
-  expect(roleFieldErrorMessage("version")).toBeUndefined();
 });
 
 test("has no accessibility violations", async () => {

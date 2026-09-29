@@ -1,16 +1,13 @@
 import {
-  isRoleNameTooLong,
   PERMISSION_AREAS,
   PERMISSION_CATALOG,
   type PermissionArea,
   type PermissionDefinition,
   type PermissionKey,
-  ROLE_NAME_MAX_LENGTH,
 } from "@purosur/domain";
-import { Checkbox, Focusable, RadioGroup, Tag, TextField, Tooltip } from "@purosur/ui";
+import { Checkbox, Focusable, RadioGroup, Tag, Tooltip } from "@purosur/ui";
 import { KeyRound } from "lucide-react";
-import { ADMINISTRATOR_ROLE_NAME } from "./role-display";
-import type { CreateRoleFieldError, EditRoleFieldError } from "./roles-api";
+import type { ReactNode } from "react";
 
 const AREA_LABELS = {
   cashRegister: "Caja",
@@ -95,26 +92,6 @@ const ALERTS_RADIO_OPTIONS: readonly [
 
 function definitionsByArea(area: PermissionArea): PermissionDefinition[] {
   return PERMISSION_CATALOG.filter((definition) => definition.area === area);
-}
-
-export function validateRoleName(value: string): string | undefined {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return "Ingresá el nombre del rol.";
-  }
-  if (isRoleNameTooLong(trimmed)) {
-    return `El nombre puede tener hasta ${ROLE_NAME_MAX_LENGTH} caracteres.`;
-  }
-  if (trimmed.toLowerCase() === ADMINISTRATOR_ROLE_NAME.toLowerCase()) {
-    return "Ese nombre es del Administrador; elegí otro.";
-  }
-  return undefined;
-}
-
-export function roleFieldErrorMessage(
-  field: CreateRoleFieldError | EditRoleFieldError,
-): string | undefined {
-  return field === "name" ? "Revisá el nombre del rol." : undefined;
 }
 
 export function areaSelectedCount(
@@ -259,9 +236,7 @@ function AreaRow({
 }
 
 export type RoleEditorFormProps = {
-  name: string;
-  onNameChange: (value: string) => void;
-  nameError?: string;
+  nameField: ReactNode;
   selected: ReadonlySet<PermissionKey>;
   onSelectedChange: (next: ReadonlySet<PermissionKey>) => void;
   selectedArea: PermissionArea;
@@ -269,9 +244,7 @@ export type RoleEditorFormProps = {
 };
 
 export function RoleEditorForm({
-  name,
-  onNameChange,
-  nameError,
+  nameField,
   selected,
   onSelectedChange,
   selectedArea,
@@ -291,16 +264,7 @@ export function RoleEditorForm({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 border-border border-b bg-surface px-6 py-4">
-        <TextField
-          kind="plain-text"
-          label="Nombre del rol"
-          value={name}
-          onChange={onNameChange}
-          required
-          errorMessage={nameError}
-        />
-      </div>
+      <div className="shrink-0 border-border border-b bg-surface px-6 py-4">{nameField}</div>
       <div className="flex min-h-0 flex-1">
         <fieldset
           aria-label="Áreas de permisos"

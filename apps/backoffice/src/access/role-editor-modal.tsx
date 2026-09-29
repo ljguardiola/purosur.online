@@ -1,4 +1,16 @@
-import type { PermissionArea, PermissionKey } from "@purosur/domain";
+import {
+  type RoleCreationBody,
+  type RoleEditBody,
+  roleCreationBodySchema,
+  roleEditBodySchema,
+} from "@purosur/contracts";
+import {
+  isAdministratorRoleName,
+  isRoleNameTooLong,
+  type PermissionArea,
+  type PermissionKey,
+  ROLE_NAME_MAX_LENGTH,
+} from "@purosur/domain";
 import {
   Button,
   InlineNotice,
@@ -22,12 +34,13 @@ import {
   X,
 } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { useCloudForm } from "../platform/cloud-form";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useRefreshAccess, useReloadRole, useRoleQuery } from "./access-queries";
 import { useAuthorization } from "./authorization-modal";
 import { roleDisplayName } from "./role-display";
-import { RoleEditorForm, roleFieldErrorMessage, validateRoleName } from "./role-editor-form";
+import { RoleEditorForm } from "./role-editor-form";
 import { withOneAlertView } from "./role-permissions";
 import {
   type AssignedUser,
@@ -72,6 +85,20 @@ export type RoleEditorModalProps = {
   onSessionEnded: () => void;
   services?: RoleEditorModalServices;
 };
+
+function roleNameMessage({ name }: { name: string }): string {
+  const trimmed = name.trim();
+  if (trimmed === "") {
+    return "Ingresá el nombre del rol.";
+  }
+  if (isRoleNameTooLong(trimmed)) {
+    return `El nombre puede tener hasta ${ROLE_NAME_MAX_LENGTH} caracteres.`;
+  }
+  if (isAdministratorRoleName(trimmed)) {
+    return "Ese nombre es del Administrador; elegí otro.";
+  }
+  return "Revisá el nombre del rol.";
+}
 
 type FormNotice =
   | { kind: "attemptFailed" }
@@ -277,13 +304,11 @@ function RoleEditorSession({
   const reloadRole = useReloadRole({ fetchRole });
 
   const [stored, setStored] = useState(seed.kind === "edit" ? seed.role : null);
-  const [name, setName] = useState(seededName(seed));
-  const [selected, setSelected] = useState(seededPermissions(seed));
   const [selectedArea, setSelectedArea] = useState<PermissionArea>("cashRegister");
-  const [nameError, setNameError] = useState<string | undefined>(undefined);
   const [notice, setNotice] = useState<FormNotice | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [reloading, setReloading] = useState(false);
   const [confirmingSave, setConfirmingSave] = useState(false);
+  const saveConfirmed = useRef(false);
 
   const mounted = useRef(true);
   useEffect(() => {
@@ -298,12 +323,75 @@ function RoleEditorSession({
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
+  const { form, submit, submitting, reset, values } = useCloudForm({
+    defaultValues: { name: seededName(seed), permissions: seededPermissions(seed) },
+    request: {
+      schema: stored ? roleEditBodySchema : roleCreationBodySchema,
+      from: ({ name, permissions }): RoleCreationBody | RoleEditBody => ({
+        name: name.trim(),
+        permissions: Array.from(permissions),
+        ...(stored ? { version: stored.version } : {}),
+      }),
+    },
+    fields: { name: "name", permissions: null },
+    messages: { name: roleNameMessage },
+    onSubmit: async (request, { showWireFieldError, showFieldError }) => {
+      if (stored && stored.assignedUsers.length > 0 && !saveConfirmed.current) {
+        setConfirmingSave(true);
+        return;
+      }
+      setNotice(null);
+
+      const outcome = await run(() =>
+        stored && "version" in request ? editRole(stored.id, request) : createRole(request),
+      );
+      if (!mounted.current) {
+        return;
+      }
+      if (outcome.kind === "cancelled") {
+        return;
+      }
+      if (outcome.kind === "ok") {
+        onSaved();
+        return;
+      }
+      if (outcome.kind === "unauthenticated") {
+        onSessionEnded();
+        return;
+      }
+      if (outcome.kind === "not_found") {
+        void refreshAccess();
+        return;
+      }
+      if (outcome.kind === "forbidden") {
+        sendToMyAccount();
+        return;
+      }
+      if (outcome.kind === "name_taken") {
+        showFieldError("name", "Ya existe un rol con este nombre.");
+        return;
+      }
+      if (outcome.kind === "stale_version") {
+        setNotice({ kind: "staleVersion" });
+        return;
+      }
+      if (outcome.kind === "validation_failed" && showWireFieldError(outcome.field)) {
+        return;
+      }
+      if (outcome.kind === "rate_limited") {
+        setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
+        return;
+      }
+      setNotice({ kind: "attemptFailed" });
+    },
+  });
+  const busy = submitting || reloading;
 
   async function handleReload() {
     if (!stored) {
       return;
     }
-    setSubmitting(true);
+    setReloading(true);
     const outcome = await reloadRole(stored.id);
     if (!mounted.current) {
       return;
@@ -311,94 +399,20 @@ function RoleEditorSession({
     if (outcome.kind === "ok" && outcome.value.kind === "found") {
       const fresh = outcome.value.role;
       setStored(fresh);
-      setName(fresh.name ?? "");
-      setSelected(new Set(fresh.permissionKeys as PermissionKey[]));
-      setNameError(undefined);
+      reset({
+        name: fresh.name ?? "",
+        permissions: new Set(fresh.permissionKeys as PermissionKey[]),
+      });
       setNotice(null);
     }
-    setSubmitting(false);
-  }
-
-  async function save() {
-    setNotice(null);
-    setSubmitting(true);
-
-    const outcome = await run(() =>
-      stored
-        ? editRole(stored.id, {
-            name: name.trim(),
-            permissionKeys: Array.from(selected),
-            version: stored.version,
-          })
-        : createRole({ name: name.trim(), permissionKeys: Array.from(selected) }),
-    );
-    if (!mounted.current) {
-      return;
-    }
-    if (outcome.kind === "cancelled") {
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "ok") {
-      onSaved();
-      return;
-    }
-    if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
-      return;
-    }
-    if (outcome.kind === "not_found") {
-      void refreshAccess();
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "forbidden") {
-      sendToMyAccount();
-      return;
-    }
-    if (outcome.kind === "name_taken") {
-      setNameError("Ya existe un rol con este nombre.");
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "stale_version") {
-      setNotice({ kind: "staleVersion" });
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "validation_failed") {
-      setNameError(roleFieldErrorMessage(outcome.field));
-      if (roleFieldErrorMessage(outcome.field) === undefined) {
-        setNotice({ kind: "attemptFailed" });
-      }
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "rate_limited") {
-      setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
-      setSubmitting(false);
-      return;
-    }
-    setNotice({ kind: "attemptFailed" });
-    setSubmitting(false);
-  }
-
-  async function handleSubmit() {
-    const error = validateRoleName(name);
-    setNameError(error);
-    if (error) {
-      return;
-    }
-    if (stored && stored.assignedUsers.length > 0) {
-      setConfirmingSave(true);
-      return;
-    }
-    await save();
+    setReloading(false);
   }
 
   async function confirmSave() {
     setConfirmingSave(false);
-    await save();
+    saveConfirmed.current = true;
+    await submit();
+    saveConfirmed.current = false;
   }
 
   const heading =
@@ -410,11 +424,11 @@ function RoleEditorSession({
       <RoleEditorFrame
         heading={heading}
         saveLabel={saveLabel}
-        selectedCount={selected.size}
-        saveDisabled={submitting}
-        busy={submitting}
+        selectedCount={values.permissions.size}
+        saveDisabled={busy}
+        busy={busy}
         onClose={onClose}
-        onSave={() => void handleSubmit()}
+        onSave={() => void submit()}
       >
         {notice ? (
           <NoticeSlot>
@@ -445,7 +459,7 @@ function RoleEditorSession({
                 <Button
                   variant="secondary"
                   icon={<RotateCcw />}
-                  disabled={submitting}
+                  disabled={busy}
                   onPress={() => void handleReload()}
                 >
                   Recargar
@@ -456,16 +470,13 @@ function RoleEditorSession({
         ) : null}
         <div className="flex min-h-0 flex-1 flex-col">
           <RoleEditorForm
-            name={name}
-            onNameChange={(value) => {
-              setName(value);
-              if (nameError) {
-                setNameError(validateRoleName(value));
-              }
-            }}
-            {...(nameError ? { nameError } : {})}
-            selected={selected}
-            onSelectedChange={setSelected}
+            nameField={
+              <form.AppField name="name">
+                {(field) => <field.TextField kind="plain-text" label="Nombre del rol" required />}
+              </form.AppField>
+            }
+            selected={values.permissions}
+            onSelectedChange={(next) => form.setFieldValue("permissions", next)}
             selectedArea={selectedArea}
             onSelectedAreaChange={setSelectedArea}
           />
@@ -475,7 +486,7 @@ function RoleEditorSession({
         open={confirmingSave}
         roleName={stored ? roleDisplayName(stored) : ""}
         assignedUsers={stored?.assignedUsers ?? []}
-        submitting={submitting}
+        submitting={busy}
         onBack={() => setConfirmingSave(false)}
         onConfirm={() => void confirmSave()}
       />

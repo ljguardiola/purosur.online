@@ -1,14 +1,13 @@
+import { userCreationBodySchema } from "@purosur/contracts";
 import {
   Button,
   InlineNotice,
   ListFilter,
   Modal,
   plural,
-  Select,
   Table,
   TableCellText,
   Tag,
-  TextField,
   tableRows,
 } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
@@ -27,6 +26,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useCloudForm } from "../platform/cloud-form";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { combineCloudData } from "../platform/combine-cloud-data";
 import { retryAfterDetail } from "../platform/retry-after-detail";
@@ -37,18 +37,13 @@ import { ScreenTitle } from "../shell/screen-title";
 import { useRefreshAccess, useRolesQuery, useUsersQuery } from "./access-queries";
 import { useAuthorization } from "./authorization-modal";
 import { type BackofficeAccess, canReactivateUser } from "./backoffice-access";
-import { validateEmail } from "./email-validation";
+import { userEmailMessage } from "./email-field-message";
 import { roleDisplayName, roleOptions } from "./role-display";
+import { roleFieldMessage } from "./role-field-message";
 import type { UsersListFilters } from "./routes";
 import { useSendToMyAccount } from "./send-to-my-account";
 import type { authorizeSession, fetchSessionAuthorizationOptions } from "./session-api";
-import type {
-  BranchUser,
-  BranchUserRole,
-  CreateUserFieldError,
-  CreateUserOutcome,
-  createUser,
-} from "./users-api";
+import type { BranchUser, BranchUserRole, CreateUserOutcome, createUser } from "./users-api";
 import type { UsersListScreenServices } from "./users-list-services";
 
 export type UsersListScreenProps = {
@@ -62,43 +57,14 @@ export type UsersListScreenProps = {
 const NO_USERS: BranchUser[] = [];
 const NO_ROLES: BranchUserRole[] = [];
 
-const NAME_REQUIRED = "Ingresá el nombre.";
-const EMAIL_REQUIRED = "Ingresá el correo.";
-const EMAIL_INVALID = "Ingresá un correo válido.";
-
-function validateName(value: string): string | undefined {
-  return value.trim() ? undefined : NAME_REQUIRED;
-}
-
-const EMAIL_ERRORS = { required: EMAIL_REQUIRED, invalid: EMAIL_INVALID };
-
-function fieldErrorMessage(field: CreateUserFieldError): string {
-  if (field === "firstName") {
-    return NAME_REQUIRED;
-  }
-  if (field === "email") {
-    return EMAIL_INVALID;
-  }
-  return "Elegí un rol.";
+function firstNameMessage({ firstName }: { firstName: string }): string {
+  return firstName.trim() === "" ? "Ingresá el nombre." : "Revisá el nombre.";
 }
 
 type FormNotice =
   | { kind: "attemptFailed" }
   | { kind: "unknownRole" }
   | { kind: "rateLimited"; retryAfterSeconds: number };
-
-type FieldErrors = { firstName?: string; email?: string; roleId?: string };
-type FieldErrorKey = keyof FieldErrors;
-
-function withFieldError(
-  current: FieldErrors,
-  field: FieldErrorKey,
-  message: string | undefined,
-): FieldErrors {
-  const rest = { ...current };
-  delete rest[field];
-  return message !== undefined ? { ...rest, [field]: message } : rest;
-}
 
 type NewUserModalProps = {
   open: boolean;
@@ -128,98 +94,80 @@ function NewUserModal({
   const sendToMyAccount = useSendToMyAccount();
   const options = roles.length > 0 ? roleOptions(roles) : undefined;
   const optionsRef = useLatestRef(options);
-  const [firstName, setFirstName] = useState("");
-  const [email, setEmail] = useState("");
-  const [roleId, setRoleId] = useState(options?.[0].value ?? "");
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [notice, setNotice] = useState<FormNotice | null>(null);
-  const [submitting, setSubmitting] = useState(false);
   const [deactivatedConflict, setDeactivatedConflict] = useState<{
     id: string;
     name: string;
+    email: string;
   } | null>(null);
   const { run, modal } = useAuthorization<CreateUserOutcome>({
     actionName: "Crear un usuario",
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
+  const { form, submit, submitting, reset, values } = useCloudForm({
+    defaultValues: { firstName: "", email: "", roleId: options?.[0].value ?? "" },
+    request: {
+      schema: userCreationBodySchema,
+      from: ({ firstName, email, roleId }) => ({
+        first_name: firstName.trim(),
+        email: email.trim(),
+        role_id: roleId,
+      }),
+    },
+    fields: { first_name: "firstName", email: "email", role_id: "roleId" },
+    messages: { firstName: firstNameMessage, email: userEmailMessage, roleId: roleFieldMessage },
+    onSubmit: async (request, { values, showWireFieldError, showFieldError }) => {
+      setNotice(null);
+      setDeactivatedConflict(null);
+      const outcome = await run(() => createUser(request));
+      if (outcome.kind === "cancelled") {
+        return;
+      }
+      if (outcome.kind === "ok") {
+        onCreated();
+        return;
+      }
+      if (outcome.kind === "unauthenticated") {
+        onSessionEnded();
+        return;
+      }
+      if (outcome.kind === "forbidden") {
+        sendToMyAccount();
+        return;
+      }
+      if (outcome.kind === "validation_failed" && showWireFieldError(outcome.field)) {
+        return;
+      }
+      if (outcome.kind === "email_taken") {
+        showFieldError("email", "Ya existe un usuario con este correo.");
+        return;
+      }
+      if (outcome.kind === "email_belongs_to_deactivated_user") {
+        setDeactivatedConflict({ id: outcome.id, name: outcome.name, email: values.email });
+        showFieldError("email", `Ese correo pertenece a la cuenta desactivada de ${outcome.name}.`);
+        return;
+      }
+      if (outcome.kind === "unknown_role") {
+        setNotice({ kind: "unknownRole" });
+        return;
+      }
+      if (outcome.kind === "rate_limited") {
+        setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
+        return;
+      }
+      setNotice({ kind: "attemptFailed" });
+    },
+  });
+  const conflict = deactivatedConflict?.email === values.email ? deactivatedConflict : null;
 
   useEffect(() => {
     if (open) {
-      setFirstName("");
-      setEmail("");
-      setRoleId(optionsRef.current?.[0].value ?? "");
-      setFieldErrors({});
+      reset({ firstName: "", email: "", roleId: optionsRef.current?.[0].value ?? "" });
       setNotice(null);
-      setSubmitting(false);
       setDeactivatedConflict(null);
     }
-  }, [open, optionsRef]);
-
-  async function handleSubmit() {
-    const nameError = validateName(firstName);
-    const emailError = validateEmail(email, EMAIL_ERRORS);
-    const roleError = roleId ? undefined : "Elegí un rol.";
-    setFieldErrors({
-      ...(nameError ? { firstName: nameError } : {}),
-      ...(emailError ? { email: emailError } : {}),
-      ...(roleError ? { roleId: roleError } : {}),
-    });
-    if (nameError || emailError || roleError) {
-      return;
-    }
-    setNotice(null);
-    setDeactivatedConflict(null);
-    setSubmitting(true);
-
-    const outcome = await run(() =>
-      createUser({ firstName: firstName.trim(), email: email.trim(), roleId }),
-    );
-    if (outcome.kind === "cancelled") {
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "ok") {
-      onCreated();
-      return;
-    }
-    if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
-      return;
-    }
-    if (outcome.kind === "forbidden") {
-      sendToMyAccount();
-      return;
-    }
-    if (outcome.kind === "validation_failed") {
-      const message = fieldErrorMessage(outcome.field);
-      setFieldErrors((current) => ({ ...current, [outcome.field]: message }));
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "email_taken") {
-      setFieldErrors((current) => ({ ...current, email: "Ya existe un usuario con este correo." }));
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "email_belongs_to_deactivated_user") {
-      setDeactivatedConflict({ id: outcome.id, name: outcome.name });
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "unknown_role") {
-      setNotice({ kind: "unknownRole" });
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "rate_limited") {
-      setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
-      setSubmitting(false);
-      return;
-    }
-    setNotice({ kind: "attemptFailed" });
-    setSubmitting(false);
-  }
+  }, [open, optionsRef, reset]);
 
   return (
     <>
@@ -252,8 +200,8 @@ function NewUserModal({
               size="large"
               icon={<KeyRound />}
               fullWidth
-              disabled={submitting || deactivatedConflict !== null}
-              onPress={() => void handleSubmit()}
+              disabled={submitting || conflict !== null}
+              onPress={() => void submit()}
             >
               Crear el usuario
             </Button>
@@ -285,65 +233,25 @@ function NewUserModal({
               description={retryAfterDetail(notice.retryAfterSeconds)}
             />
           )}
-          <TextField
-            kind="plain-text"
-            label="Nombre"
-            value={firstName}
-            onChange={(value) => {
-              setFirstName(value);
-              if (fieldErrors.firstName) {
-                setFieldErrors((current) =>
-                  withFieldError(current, "firstName", validateName(value)),
-                );
-              }
-            }}
-            required
-            errorMessage={fieldErrors.firstName}
-          />
+          <form.AppField name="firstName">
+            {(field) => <field.TextField kind="plain-text" label="Nombre" required />}
+          </form.AppField>
           {options ? (
-            <Select
-              label="Rol"
-              options={options}
-              value={roleId}
-              onChange={(value) => {
-                setRoleId(value);
-                setFieldErrors((current) => withFieldError(current, "roleId", undefined));
-              }}
-              required
-              errorMessage={fieldErrors.roleId}
-            />
+            <form.AppField name="roleId">
+              {(field) => <field.Select label="Rol" options={options} required />}
+            </form.AppField>
           ) : null}
-          <TextField
-            kind="plain-text"
-            label="Correo"
-            value={email}
-            onChange={(value) => {
-              setEmail(value);
-              if (fieldErrors.email) {
-                setFieldErrors((current) =>
-                  withFieldError(current, "email", validateEmail(value, EMAIL_ERRORS)),
-                );
-              }
-              if (deactivatedConflict) {
-                setDeactivatedConflict(null);
-              }
-            }}
-            required
-            errorMessage={
-              fieldErrors.email ||
-              (deactivatedConflict
-                ? `Ese correo pertenece a la cuenta desactivada de ${deactivatedConflict.name}.`
-                : undefined)
-            }
-          />
-          {deactivatedConflict ? (
+          <form.AppField name="email">
+            {(field) => <field.TextField kind="plain-text" label="Correo" required />}
+          </form.AppField>
+          {conflict ? (
             <Button
               variant="secondary"
               size="small"
               icon={<UserCheck />}
-              onPress={() => onReactivate({ id: deactivatedConflict.id })}
+              onPress={() => onReactivate({ id: conflict.id })}
             >
-              {`Reactivar a ${deactivatedConflict.name}`}
+              {`Reactivar a ${conflict.name}`}
             </Button>
           ) : null}
         </div>

@@ -129,7 +129,38 @@ test("rejects an invalid net content quantity, without calling the API", async (
   await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
 
   await expect
-    .element(dialog.getByText("Ingresá una cantidad mayor que cero, con hasta 3 decimales."))
+    .element(
+      dialog.getByText(
+        "Ingresá una cantidad mayor que cero, de hasta 100.000 y con hasta 3 decimales.",
+      ),
+    )
+    .toBeVisible();
+  expect(services.createProduct).not.toHaveBeenCalled();
+});
+
+test("reports an invalid net content quantity on the first submit even without a sale unit", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Producto nuevo");
+  await userEvent.click(dialog.getByRole("button", { name: /^Elegí una categoría/ }));
+  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Contenido neto" }), "abc");
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Escanear otro código" }), "12345");
+  await userEvent.keyboard("{Enter}");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect.element(dialog.getByText("Elegí la unidad de venta.")).toBeVisible();
+  await expect
+    .element(
+      dialog.getByText(
+        "Ingresá una cantidad mayor que cero, de hasta 100.000 y con hasta 3 decimales.",
+      ),
+    )
     .toBeVisible();
   expect(services.createProduct).not.toHaveBeenCalled();
 });
@@ -151,9 +182,7 @@ test("shows the server's net content error inline on create", async () => {
 
   await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
 
-  await expect
-    .element(dialog.getByText("Ingresá una cantidad mayor que cero, con hasta 3 decimales."))
-    .toBeVisible();
+  await expect.element(dialog.getByText("Revisá el contenido neto.")).toBeVisible();
 });
 
 test("rejects a net content quantity above the maximum, stating the limit, without calling the API", async () => {
@@ -170,7 +199,13 @@ test("rejects a net content quantity above the maximum, stating the limit, witho
 
   await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
 
-  await expect.element(dialog.getByText("Ingresá una cantidad de hasta 100.000.")).toBeVisible();
+  await expect
+    .element(
+      dialog.getByText(
+        "Ingresá una cantidad mayor que cero, de hasta 100.000 y con hasta 3 decimales.",
+      ),
+    )
+    .toBeVisible();
   expect(services.createProduct).not.toHaveBeenCalled();
 });
 
@@ -192,6 +227,82 @@ test("shows the server's rejection of the whole net content inline on create", a
   await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
 
   await expect.element(dialog.getByText("Revisá el contenido neto.")).toBeVisible();
+});
+
+test("asks to review the name when the cloud refuses a name that passes every local check", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  vi.mocked(services.createProduct).mockResolvedValue({ kind: "validation_failed", field: "name" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
+  const dialog = await openNewProductModal(screen);
+  await fillNewProductFieldsExceptBarcodes(dialog);
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Escanear otro código" }), "12345");
+  await userEvent.keyboard("{Enter}");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect.element(dialog.getByText("Revisá el nombre del producto.")).toBeVisible();
+  expect(dialog.getByText("Ingresá el nombre del producto.").query()).toBeNull();
+});
+
+test("asks to review the category when the cloud refuses the one chosen", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  vi.mocked(services.createProduct).mockResolvedValue({
+    kind: "validation_failed",
+    field: "categoryId",
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
+  const dialog = await openNewProductModal(screen);
+  await fillNewProductFieldsExceptBarcodes(dialog);
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Escanear otro código" }), "12345");
+  await userEvent.keyboard("{Enter}");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect.element(dialog.getByText("Revisá la categoría.")).toBeVisible();
+  expect(dialog.getByText("Elegí una categoría.").query()).toBeNull();
+});
+
+test("asks to review the sale unit when the cloud refuses the one chosen", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  vi.mocked(services.createProduct).mockResolvedValue({
+    kind: "validation_failed",
+    field: "saleUnit",
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
+  const dialog = await openNewProductModal(screen);
+  await fillNewProductFieldsExceptBarcodes(dialog);
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Escanear otro código" }), "12345");
+  await userEvent.keyboard("{Enter}");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect.element(dialog.getByText("Revisá la unidad de venta.")).toBeVisible();
+  expect(dialog.getByText("Elegí la unidad de venta.").query()).toBeNull();
+});
+
+test("shows the generic failure notice on create when the cloud refuses a field the form does not have", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  vi.mocked(services.createProduct).mockResolvedValue({
+    kind: "validation_failed",
+    field: "version",
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
+  const dialog = await openNewProductModal(screen);
+  await fillNewProductFieldsExceptBarcodes(dialog);
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Escanear otro código" }), "12345");
+  await userEvent.keyboard("{Enter}");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect.element(dialog.getByText("No se pudo crear el producto")).toBeVisible();
 });
 
 test("a product created while only inactive products are listed stays out of the list", async () => {

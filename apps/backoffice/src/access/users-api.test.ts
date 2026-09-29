@@ -150,9 +150,9 @@ test("fetchUsers reports failed on a 200 whose users do not match the contract",
 });
 
 const creationInput = {
-  firstName: "Martina Gómez",
+  first_name: "Martina Gómez",
   email: "martina@example.com",
-  roleId: "role-admin",
+  role_id: "role-admin",
 };
 
 test("createUser posts the wire shape and returns ok on 201", async () => {
@@ -191,13 +191,13 @@ test("createUser reports a validation_failed field on 400", async () => {
   });
 });
 
-test("createUser maps every validation field to its camelCase name", async () => {
+test("createUser reports the wire name of the field the cloud refused", async () => {
   vi.mocked(fetch).mockResolvedValueOnce(
     jsonResponse(400, { code: "validation_failed", details: [{ field: "first_name" }] }),
   );
   await expect(createUser(creationInput)).resolves.toEqual({
     kind: "validation_failed",
-    field: "firstName",
+    field: "first_name",
   });
 
   vi.mocked(fetch).mockResolvedValueOnce(
@@ -205,7 +205,7 @@ test("createUser maps every validation field to its camelCase name", async () =>
   );
   await expect(createUser(creationInput)).resolves.toEqual({
     kind: "validation_failed",
-    field: "roleId",
+    field: "role_id",
   });
 });
 
@@ -343,7 +343,7 @@ test("fetchUser reports failed on a 200 whose body does not match the contract",
   await expect(fetchUser("user-1")).resolves.toEqual({ kind: "failed" });
 });
 
-const editInput = { email: "new@example.com", roleId: "role-shift", version: 1 };
+const editInput = { email: "new@example.com", role_id: "role-shift", version: 1 };
 
 test("editUser posts the wire shape and returns ok on 200", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, {}));
@@ -377,22 +377,18 @@ test("editUser reports a validation_failed field on 400", async () => {
   });
 });
 
-test("editUser maps the role_id validation field to its camelCase name", async () => {
-  vi.mocked(fetch).mockResolvedValue(
+test("editUser reports the wire name of the field the cloud refused", async () => {
+  vi.mocked(fetch).mockResolvedValueOnce(
     jsonResponse(400, { code: "validation_failed", details: [{ field: "role_id" }] }),
   );
-
   await expect(editUser("user-1", editInput)).resolves.toEqual({
     kind: "validation_failed",
-    field: "roleId",
+    field: "role_id",
   });
-});
 
-test("editUser maps the version validation field to its camelCase name", async () => {
-  vi.mocked(fetch).mockResolvedValue(
+  vi.mocked(fetch).mockResolvedValueOnce(
     jsonResponse(400, { code: "validation_failed", details: [{ field: "version" }] }),
   );
-
   await expect(editUser("user-1", editInput)).resolves.toEqual({
     kind: "validation_failed",
     field: "version",
