@@ -5,6 +5,7 @@ import {
   Text as AriaText,
 } from "react-aria-components";
 import { type FieldErrorProps, fieldError } from "./field-error";
+import { fieldErrorClassName } from "./field-styles";
 import { isOptionValue, type NarrowedOption, type OptionalOptionChoiceProps } from "./option";
 
 type OptionCard<V extends string> = NarrowedOption<V, "description" | "icon">;
@@ -23,8 +24,6 @@ const iconWrapperClassName =
 const labelClassName = "text-body font-bold text-text group-data-selected:text-text-accent";
 
 const descriptionClassName = "text-caption text-text-subtle";
-
-const errorClassName = "text-detail text-error";
 
 // The not-chosen/chosen ring is drawn with an inset box-shadow instead of a real border: a real
 // border going from 1px to 2px on choosing a card would add 1px to its rendered size, but a
@@ -86,7 +85,7 @@ export function OptionCardGroup<V extends string>(props: OptionCardGroupProps<V>
         ))}
       </div>
       {errorMessage !== undefined ? (
-        <AriaText slot="errorMessage" className={errorClassName}>
+        <AriaText slot="errorMessage" className={fieldErrorClassName}>
           {errorMessage}
         </AriaText>
       ) : null}
