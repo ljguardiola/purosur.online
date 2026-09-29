@@ -1,4 +1,9 @@
-import type { IssuerIdentificationEditBody } from "@purosur/contracts";
+import {
+  type IssuerIdentificationBody,
+  type IssuerIdentificationEditBody,
+  issuerIdentificationSchema,
+} from "@purosur/contracts";
+import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 
 export type IssuerIdentification = {
   legalName: string | null;
@@ -11,26 +16,13 @@ export type IssuerIdentification = {
   version: number;
 };
 
-type IssuerIdentificationWire = {
-  legal_name: string | null;
-  gross_income_registration: string | null;
-  activity_start_date: string | null;
-  authorized_cuit: string;
-  tax_status: string;
-  version: number;
-};
-
 export type IssuerIdentificationField =
   | "legal_name"
   | "gross_income_registration"
   | "activity_start_date"
   | "version";
 
-export type FetchIssuerIdentificationOutcome =
-  | { kind: "ok"; value: IssuerIdentification }
-  | { kind: "forbidden" }
-  | { kind: "unauthenticated" }
-  | { kind: "failed" };
+export type FetchIssuerIdentificationOutcome = CloudReadOutcome<IssuerIdentification>;
 
 export type SaveIssuerIdentificationInput = {
   legalName: string;
@@ -41,7 +33,7 @@ export type SaveIssuerIdentificationInput = {
 };
 
 export type SaveIssuerIdentificationOutcome =
-  | { kind: "ok"; value: IssuerIdentification }
+  | { kind: "ok" }
   | { kind: "validation_failed"; field: IssuerIdentificationField }
   | { kind: "stale_version" }
   | { kind: "forbidden" }
@@ -49,7 +41,7 @@ export type SaveIssuerIdentificationOutcome =
   | { kind: "authorization_required" }
   | { kind: "failed" };
 
-function issuerIdentificationFromWire(row: IssuerIdentificationWire): IssuerIdentification {
+function issuerIdentificationFromWire(row: IssuerIdentificationBody): IssuerIdentification {
   return {
     legalName: row.legal_name,
     grossIncomeRegistration: row.gross_income_registration,
@@ -86,13 +78,11 @@ export async function fetchIssuerIdentification(): Promise<FetchIssuerIdentifica
   if (!response.ok) {
     return { kind: "failed" };
   }
-  const body = (await response.json().catch(() => undefined)) as
-    | IssuerIdentificationWire
-    | undefined;
-  if (!body) {
+  const parsed = issuerIdentificationSchema.safeParse(await response.json().catch(() => undefined));
+  if (!parsed.success) {
     return { kind: "failed" };
   }
-  return { kind: "ok", value: issuerIdentificationFromWire(body) };
+  return { kind: "ok", value: issuerIdentificationFromWire(parsed.data) };
 }
 
 // The authorized CUIT and tax status are never sent: they are deployment configuration and a
@@ -117,13 +107,7 @@ export async function saveIssuerIdentification(
     return { kind: "failed" };
   }
   if (response.ok) {
-    const body = (await response.json().catch(() => undefined)) as
-      | IssuerIdentificationWire
-      | undefined;
-    if (!body) {
-      return { kind: "failed" };
-    }
-    return { kind: "ok", value: issuerIdentificationFromWire(body) };
+    return { kind: "ok" };
   }
   if (response.status === 400) {
     const body = (await response.json().catch(() => undefined)) as

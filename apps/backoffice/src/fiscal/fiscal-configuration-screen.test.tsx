@@ -1,10 +1,12 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { useIsFetching, useQueryClient } from "@tanstack/react-query";
 import { expect, test, vi } from "vitest";
 import { type Locator, page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { FiscalConfigurationScreen } from "./fiscal-configuration-screen";
 import type { FiscalConfigurationScreenServices } from "./fiscal-configuration-services";
+import { fiscalKey } from "./fiscal-queries";
 import type { IssuerIdentification } from "./issuer-identification-api";
 
 function createServices(
@@ -18,6 +20,35 @@ function createServices(
     startAuthentication: vi.fn(),
     ...overrides,
   };
+}
+
+function deferred<T>() {
+  let resolve: (value: T) => void = () => {};
+  const promise = new Promise<T>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
+
+type FetchOutcome = Awaited<
+  ReturnType<FiscalConfigurationScreenServices["fetchIssuerIdentification"]>
+>;
+
+function FetchesInFlight() {
+  return <output aria-label="Lecturas en curso">{useIsFetching()}</output>;
+}
+
+function RefreshFiscal() {
+  const client = useQueryClient();
+  return (
+    <button type="button" onClick={() => void client.invalidateQueries({ queryKey: fiscalKey })}>
+      Refrescar
+    </button>
+  );
+}
+
+function refreshFiscal(screen: Awaited<ReturnType<typeof renderScreen>>) {
+  (screen.getByRole("button", { name: "Refrescar" }).element() as HTMLElement).click();
 }
 
 const authorizationOptions = { challenge: "session-auth" } as never;
@@ -63,6 +94,8 @@ function renderScreen(
           onSessionEnded={onSessionEnded}
           {...(now ? { now } : {})}
         />
+        <FetchesInFlight />
+        <RefreshFiscal />
       </main>
     </FieldSizeProvider>,
   );
@@ -110,10 +143,7 @@ test("accepts today as the activity start date", async () => {
     kind: "ok",
     value: incomplete,
   });
-  vi.mocked(services.saveIssuerIdentification).mockResolvedValue({
-    kind: "ok",
-    value: { ...complete, activityStartDate: "2020-09-25", version: 2 },
-  });
+  vi.mocked(services.saveIssuerIdentification).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services, () => {}, afternoonInArgentina);
   const dialog = await fillIncompleteModal(screen, "25092020");
 
@@ -205,19 +235,68 @@ test("shows the incomplete notice and Sin cargar for each missing value", async 
   await expect.element(screen.getByText("Responsable Monotributo")).toBeVisible();
 });
 
-test("shows a load error, and Reintentar loads again", async () => {
+test("shows a placeholder instead of a loading line while the issuer identification loads", async () => {
   const services = createServices();
-  vi.mocked(services.fetchIssuerIdentification).mockResolvedValueOnce({ kind: "failed" });
+  const firstLoad = deferred<FetchOutcome>();
+  vi.mocked(services.fetchIssuerIdentification).mockReturnValue(firstLoad.promise);
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("Cargando…")).toHaveTextContent("Cargando…");
+  expect(screen.container.querySelector('[aria-hidden="true"]')?.children.length).toBeGreaterThan(
+    0,
+  );
+  expect(screen.container.querySelector("p[role=status]")).toBeNull();
+  expect(screen.getByText("Sin cargar").query()).toBeNull();
+  firstLoad.resolve({ kind: "ok", value: complete });
+  await expect.element(screen.getByText("María Laura Fernández")).toBeVisible();
+});
+
+test("shows a load failure, and Reintentar goes back to the placeholder before loading again", async () => {
+  const services = createServices();
+  const retry = deferred<FetchOutcome>();
+  vi.mocked(services.fetchIssuerIdentification)
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockReturnValueOnce(retry.promise);
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("No pudimos abrir la configuración fiscal")).toBeVisible();
+  await expect.element(screen.getByText("Probá de nuevo en unos minutos.")).toBeVisible();
 
-  vi.mocked(services.fetchIssuerIdentification).mockResolvedValueOnce({
-    kind: "ok",
-    value: complete,
-  });
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
+  await expect
+    .element(screen.getByText("No pudimos abrir la configuración fiscal"))
+    .not.toBeInTheDocument();
+  await expect.element(screen.getByText("Cargando…")).toHaveTextContent("Cargando…");
+  retry.resolve({ kind: "ok", value: complete });
   await expect.element(screen.getByText("María Laura Fernández")).toBeVisible();
+});
+
+test("shows the rate-limited notice with the time to wait and a retry action", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({
+    kind: "rate_limited",
+    retryAfterSeconds: 120,
+  });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
+  await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
+});
+
+test("Editar is disabled while the issuer identification loads and after it fails to load", async () => {
+  const services = createServices();
+  const firstLoad = deferred<FetchOutcome>();
+  vi.mocked(services.fetchIssuerIdentification).mockReturnValueOnce(firstLoad.promise);
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByRole("button", { name: "Editar" })).toBeDisabled();
+
+  firstLoad.resolve({ kind: "failed" });
+  await expect.element(screen.getByText("No pudimos abrir la configuración fiscal")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Editar" })).toBeDisabled();
 });
 
 test("sends to Mi cuenta when the load comes back forbidden", async () => {
@@ -421,13 +500,15 @@ test("offers no day after Argentina's today in the activity start date's calenda
   expect(dayButton("26").getAttribute("aria-disabled")).toBe("true");
 });
 
-test("saves the edit directly, without the authorization modal, when the session already has one, and updates the screen", async () => {
+test("saves the edit directly, without the authorization modal, when the session already has one, and shows what the read after it returns", async () => {
   const services = createServices();
-  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
-  vi.mocked(services.saveIssuerIdentification).mockResolvedValue({
-    kind: "ok",
-    value: { ...complete, legalName: "Nueva Razón Social SRL", version: 2 },
-  });
+  vi.mocked(services.fetchIssuerIdentification)
+    .mockResolvedValueOnce({ kind: "ok", value: complete })
+    .mockResolvedValueOnce({
+      kind: "ok",
+      value: { ...complete, legalName: "Nueva Razón Social SRL", version: 2 },
+    });
+  vi.mocked(services.saveIssuerIdentification).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
   await userEvent.click(screen.getByRole("button", { name: "Editar" }));
   const dialog = screen.getByRole("dialog");
@@ -447,6 +528,69 @@ test("saves the edit directly, without the authorization modal, when the session
   });
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.element(screen.getByText("Nueva Razón Social SRL")).toBeVisible();
+  expect(services.fetchIssuerIdentification).toHaveBeenCalledTimes(2);
+});
+
+test("keeps the modal open and Guardar disabled while the issuer identification is read again after a save", async () => {
+  const services = createServices();
+  const refresh = deferred<FetchOutcome>();
+  vi.mocked(services.fetchIssuerIdentification)
+    .mockResolvedValueOnce({ kind: "ok", value: complete })
+    .mockReturnValueOnce(refresh.promise);
+  vi.mocked(services.saveIssuerIdentification).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => vi.mocked(services.fetchIssuerIdentification).mock.calls.length).toBe(2);
+  await expect.element(dialog.getByRole("button", { name: "Guardar los cambios" })).toBeDisabled();
+  await expect.element(dialog).toBeVisible();
+  refresh.resolve({ kind: "ok", value: { ...complete, legalName: "Leída SRL", version: 2 } });
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.element(screen.getByText("Leída SRL")).toBeVisible();
+});
+
+test("shows a load failure instead of the data when reading the issuer identification again after a save fails", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification)
+    .mockResolvedValueOnce({ kind: "ok", value: complete })
+    .mockResolvedValueOnce({ kind: "failed" });
+  vi.mocked(services.saveIssuerIdentification).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(screen.getByText("No pudimos abrir la configuración fiscal")).toBeVisible();
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  expect(screen.getByText("María Laura Fernández").query()).toBeNull();
+});
+
+test("a second save sends the version the read after the first save returned", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification)
+    .mockResolvedValueOnce({ kind: "ok", value: complete })
+    .mockResolvedValueOnce({ kind: "ok", value: { ...complete, version: 2 } });
+  vi.mocked(services.saveIssuerIdentification).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  await userEvent.click(
+    screen.getByRole("dialog").getByRole("button", { name: "Guardar los cambios" }),
+  );
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  await userEvent.click(
+    screen.getByRole("dialog").getByRole("button", { name: "Guardar los cambios" }),
+  );
+
+  await expect.poll(() => vi.mocked(services.saveIssuerIdentification).mock.calls.length).toBe(2);
+  expect(services.saveIssuerIdentification).toHaveBeenLastCalledWith(
+    expect.objectContaining({ version: 2 }),
+  );
 });
 
 test("opens the authorization modal on authorization_required, then authorizes and retries the save", async () => {
@@ -456,10 +600,7 @@ test("opens the authorization modal on authorization_required, then authorizes a
     kind: "authorization_required",
   });
   grantAuthorization(services);
-  vi.mocked(services.saveIssuerIdentification).mockResolvedValueOnce({
-    kind: "ok",
-    value: { ...complete, version: 2 },
-  });
+  vi.mocked(services.saveIssuerIdentification).mockResolvedValueOnce({ kind: "ok" });
   const screen = await renderScreen(services);
   await userEvent.click(screen.getByRole("button", { name: "Editar" }));
   const dialog = screen.getByRole("dialog");
@@ -523,10 +664,11 @@ test("shows a stale_version notice, and Recargar refetches so the second save se
     .element(dialog.getByRole("textbox", { name: /^Razón social/ }))
     .toHaveValue("Recargado SRL");
 
-  vi.mocked(services.saveIssuerIdentification).mockResolvedValueOnce({
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({
     kind: "ok",
     value: { ...reloaded, version: 6 },
   });
+  vi.mocked(services.saveIssuerIdentification).mockResolvedValueOnce({ kind: "ok" });
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.saveIssuerIdentification).mock.calls.length).toBe(2);
@@ -536,6 +678,26 @@ test("shows a stale_version notice, and Recargar refetches so the second save se
     activityStartDate: "2019-03-01",
     version: 5,
   });
+});
+
+test("shows a load failure instead of the modal when Recargar cannot read the issuer identification", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification)
+    .mockResolvedValueOnce({ kind: "ok", value: complete })
+    .mockResolvedValueOnce({ kind: "failed" });
+  vi.mocked(services.saveIssuerIdentification).mockResolvedValueOnce({ kind: "stale_version" });
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+  await expect
+    .element(dialog.getByText("La identificación del emisor cambió mientras la editabas"))
+    .toBeVisible();
+
+  await userEvent.click(dialog.getByRole("button", { name: "Recargar" }));
+
+  await expect.element(screen.getByText("No pudimos abrir la configuración fiscal")).toBeVisible();
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
 });
 
 test("keeps what Recargar brought on the screen after Cancelar, so reopening saves with the reloaded version", async () => {
@@ -567,10 +729,11 @@ test("keeps what Recargar brought on the screen after Cancelar, so reopening sav
 
   await expect.element(screen.getByText("Recargado SRL")).toBeVisible();
 
-  vi.mocked(services.saveIssuerIdentification).mockResolvedValueOnce({
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({
     kind: "ok",
     value: { ...reloaded, version: 6 },
   });
+  vi.mocked(services.saveIssuerIdentification).mockResolvedValueOnce({ kind: "ok" });
   await userEvent.click(screen.getByRole("button", { name: "Editar" }));
   await userEvent.click(
     screen.getByRole("dialog").getByRole("button", { name: "Guardar los cambios" }),
@@ -584,6 +747,72 @@ test("keeps what Recargar brought on the screen after Cancelar, so reopening sav
     version: 5,
   });
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+});
+
+test("keeps the person's unsaved edit when a refresh lands with different data, and takes the refresh for the fields not edited", async () => {
+  const services = createServices();
+  const refresh = deferred<FetchOutcome>();
+  vi.mocked(services.fetchIssuerIdentification)
+    .mockResolvedValueOnce({ kind: "ok", value: complete })
+    .mockReturnValueOnce(refresh.promise);
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  const dialog = screen.getByRole("dialog");
+  const legalName = dialog.getByRole("textbox", { name: /^Razón social/ });
+  await userEvent.fill(legalName, "Editada SRL");
+  refreshFiscal(screen);
+  await expect.element(screen.getByLabelText("Lecturas en curso")).toHaveTextContent("1");
+
+  refresh.resolve({
+    kind: "ok",
+    value: { ...complete, grossIncomeRegistration: "999", version: 2 },
+  });
+
+  await expect.element(screen.getByLabelText("Lecturas en curso")).toHaveTextContent("0");
+  await expect.element(legalName).toHaveValue("Editada SRL");
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Ingresos Brutos/ }))
+    .toHaveValue("1284531-06");
+});
+
+test("shows the refreshed data in the modal over values the person has not edited", async () => {
+  const services = createServices();
+  const refresh = deferred<FetchOutcome>();
+  vi.mocked(services.fetchIssuerIdentification)
+    .mockResolvedValueOnce({ kind: "ok", value: complete })
+    .mockReturnValueOnce(refresh.promise);
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  const dialog = screen.getByRole("dialog");
+  refreshFiscal(screen);
+
+  refresh.resolve({ kind: "ok", value: { ...complete, legalName: "Refrescada SRL", version: 2 } });
+
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Razón social/ }))
+    .toHaveValue("Refrescada SRL");
+});
+
+test("after an unsaved edit and a refresh, the save sends the version the form was last seeded from", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification)
+    .mockResolvedValueOnce({ kind: "ok", value: complete })
+    .mockResolvedValueOnce({ kind: "ok", value: { ...complete, version: 2 } });
+  vi.mocked(services.saveIssuerIdentification).mockResolvedValueOnce({ kind: "stale_version" });
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Razón social/ }), "Editada SRL");
+  refreshFiscal(screen);
+  await expect.poll(() => vi.mocked(services.fetchIssuerIdentification).mock.calls.length).toBe(2);
+  await expect.element(screen.getByLabelText("Lecturas en curso")).toHaveTextContent("0");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => vi.mocked(services.saveIssuerIdentification).mock.calls.length).toBe(1);
+  expect(services.saveIssuerIdentification).toHaveBeenCalledWith(
+    expect.objectContaining({ legalName: "Editada SRL", version: 1 }),
+  );
 });
 
 test("sends to Mi cuenta when saving comes back forbidden", async () => {
