@@ -115,3 +115,7 @@ test("does not accept a tag without content", () => {
 test("does not accept a tag without a tone", () => {
   expectTypeOf<{ children: ReactNode }>().not.toExtend<TagProps>();
 });
+
+test("accepts only an icon element, not text, as its icon", () => {
+  expectTypeOf<{ tone: "info"; icon: string; children: string }>().not.toExtend<TagProps>();
+});
