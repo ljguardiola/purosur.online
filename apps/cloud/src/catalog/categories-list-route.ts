@@ -1,3 +1,4 @@
+import { type CategorySummary, categoryListSchema } from "@purosur/contracts";
 import { asc } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -15,16 +16,9 @@ export interface CategoriesRouteOptions<TQueryResult extends PgQueryResultHKT> {
   now?: () => Date;
 }
 
-export interface CategoryRow {
-  id: string;
-  name: string;
-  version: number;
-  parentId: string | null;
-}
-
 async function listCategories<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-): Promise<CategoryRow[]> {
+): Promise<CategorySummary[]> {
   return db
     .select({
       id: categories.id,
@@ -55,7 +49,7 @@ export function registerCategoriesListRoute<TQueryResult extends PgQueryResultHK
     },
     async (_request, reply) => {
       const rows = await listCategories(options.db);
-      await reply.code(200).send(rows);
+      await reply.code(200).send(categoryListSchema.parse(rows));
     },
   );
 }

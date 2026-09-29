@@ -1,8 +1,7 @@
+import type { CategorySummary, ProductSummary } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import type { CategorySummary } from "./categories-api";
-import type { ProductSummary } from "./products-api";
 import { productsListFilters } from "./routes";
 import {
   almonds,
@@ -208,6 +207,7 @@ test("shows a blank empty state naming active products when there are none", asy
 
   await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
   await expect.element(screen.getByText("Creá uno para verlo en la lista.")).toBeVisible();
+  await expect.element(screen.getByText("0 productos activos")).not.toBeInTheDocument();
 });
 
 test("shows an empty state naming inactive products, with no create prompt, when there are none", async () => {
@@ -246,6 +246,7 @@ test("shows a filtered empty state when the search matches nothing", async () =>
   await userEvent.fill(screen.getByPlaceholder("Buscar por nombre o código de barras"), "zzz");
 
   await expect.element(screen.getByText("Sin resultados")).toBeVisible();
+  await expect.element(screen.getByText("0 productos activos")).not.toBeInTheDocument();
 });
 
 test("shows a load error with a retry action when the products fail to load", async () => {
@@ -262,7 +263,84 @@ test("shows a load error with a retry action when the products fail to load", as
   await expect.element(screen.getByText("1 producto activo")).toBeVisible();
 });
 
-test("shows the rate-limited notice with a retry action", async () => {
+test("retrying a failed load starts again from the loading placeholder", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [groceries] });
+  let finishRetry: (outcome: Awaited<ReturnType<typeof services.fetchProducts>>) => void = () => {};
+  vi.mocked(services.fetchProducts)
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishRetry = resolve;
+      }),
+    );
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No pudimos abrir los productos")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText("No pudimos abrir los productos")).not.toBeInTheDocument();
+  await expect
+    .element(screen.getByRole("table", { name: "Productos" }))
+    .toHaveAttribute("aria-busy", "true");
+  finishRetry({ kind: "ok", value: [honey] });
+  await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
+});
+
+test("a failed categories load fails the screen too, and retrying reads only what failed", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchProducts).mockResolvedValue({ kind: "ok", value: [honey] });
+  vi.mocked(services.fetchCategories).mockResolvedValueOnce({ kind: "failed" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No pudimos abrir los productos")).toBeVisible();
+
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [groceries] });
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
+  expect(services.fetchProducts).toHaveBeenCalledTimes(1);
+  expect(services.fetchCategories).toHaveBeenCalledTimes(2);
+});
+
+test("the create and print actions are disabled while the data loads and after it fails to load", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [groceries] });
+  let finishLoad: (outcome: Awaited<ReturnType<typeof services.fetchProducts>>) => void = () => {};
+  vi.mocked(services.fetchProducts).mockReturnValueOnce(
+    new Promise((resolve) => {
+      finishLoad = resolve;
+    }),
+  );
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByRole("button", { name: "Nuevo producto" })).toBeDisabled();
+  await expect.element(screen.getByRole("button", { name: "Imprimir etiquetas" })).toBeDisabled();
+
+  finishLoad({ kind: "failed" });
+  await expect.element(screen.getByText("No pudimos abrir los productos")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Nuevo producto" })).toBeDisabled();
+  await expect.element(screen.getByRole("button", { name: "Imprimir etiquetas" })).toBeDisabled();
+});
+
+test("the create and print actions stay available while the shown products refresh", async () => {
+  const services = createServices();
+  mockLoaded(services, [honey]);
+  vi.mocked(services.deactivateProduct).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  const dialog = await openDeactivateProductModal(screen, honey);
+  vi.mocked(services.fetchProducts).mockReturnValueOnce(new Promise(() => {}));
+
+  await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
+
+  await expect
+    .element(screen.getByRole("table", { name: "Productos" }))
+    .toHaveAttribute("aria-busy", "true");
+  expect(screen.getByText("Miel pura de abeja 1 kg").query()).not.toBeNull();
+  await expect.element(screen.getByRole("button", { name: "Nuevo producto" })).toBeEnabled();
+  await expect.element(screen.getByRole("button", { name: "Imprimir etiquetas" })).toBeEnabled();
+});
+
+test("shows the rate-limited notice with the time to wait and a retry action", async () => {
   const services = createServices();
   vi.mocked(services.fetchProducts).mockResolvedValue({
     kind: "rate_limited",
@@ -273,6 +351,7 @@ test("shows the rate-limited notice with a retry action", async () => {
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
+  await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
 });
 
@@ -377,6 +456,33 @@ test("falls back to every category when the category it is given is not one the 
   await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Categoría: Todas" })).toBeVisible();
   expect(onFiltersChange).toHaveBeenLastCalledWith(productsListFilters.parse({}));
+});
+
+test("keeps the category it is given while the categories are still loading, and drops it once they load without it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchProducts).mockResolvedValue({ kind: "ok", value: [honey] });
+  let finishCategories: (outcome: Awaited<ReturnType<typeof services.fetchCategories>>) => void =
+    () => {};
+  vi.mocked(services.fetchCategories).mockReturnValue(
+    new Promise((resolve) => {
+      finishCategories = resolve;
+    }),
+  );
+  const onFiltersChange = vi.fn();
+  const screen = await renderScreen(services, () => {}, {
+    filters: { ...productsListFilters.parse({}), category: "deleted-category" },
+    onFiltersChange,
+  });
+  await expect
+    .element(screen.getByRole("table", { name: "Productos" }))
+    .toHaveAttribute("aria-busy", "true");
+  expect(onFiltersChange).not.toHaveBeenCalled();
+
+  finishCategories({ kind: "ok", value: [groceries] });
+
+  await expect.poll(() => onFiltersChange.mock.calls.length).toBe(1);
+  expect(onFiltersChange).toHaveBeenCalledWith(productsListFilters.parse({}));
+  await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
 });
 
 test("reports every change to its filters, so they can be kept for a reload", async () => {

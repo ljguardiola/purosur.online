@@ -1,6 +1,5 @@
 import type { UserCreationBody, UserEditBody } from "@purosur/contracts";
-
-const ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
+import { retryAfterSeconds } from "../platform/retry-after-seconds";
 
 export type BranchUserRole = { id: string; isAdministrator: boolean; name: string | null };
 
@@ -9,11 +8,11 @@ export type BranchUser = {
   firstName: string;
   email: string;
   version: number;
-  /** Wire omits this field entirely unless the caller may see a deactivated user. */
+  // Wire omits this field entirely unless the caller may see a deactivated user.
   active?: boolean;
   role: BranchUserRole;
   passkeyCount: number;
-  /** The server refuses to change the role regardless, so callers lock that field on this. */
+  // The server refuses to change the role regardless, so callers lock that field on this.
   isLastActiveAdministrator: boolean;
 };
 
@@ -101,21 +100,13 @@ export type CreateUserOutcome =
   | { kind: "validation_failed"; field: CreateUserFieldError }
   | { kind: "unknown_role" }
   | { kind: "email_taken" }
-  /** Distinct from `email_taken`: this account can be reactivated instead of created anew. */
+  // Distinct from `email_taken`: this account can be reactivated instead of created anew.
   | { kind: "email_belongs_to_deactivated_user"; id: string; name: string }
   | { kind: "forbidden" }
   | { kind: "unauthenticated" }
   | { kind: "authorization_required" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
-
-function retryAfterSeconds(response: Response): number {
-  const header = response.headers.get("Retry-After");
-  const seconds = header ? Number(header) : Number.NaN;
-  return Number.isFinite(seconds) && seconds > 0
-    ? seconds
-    : ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS;
-}
 
 function postJson(path: string, body?: unknown): Promise<Response> {
   return fetch(path, {
@@ -374,7 +365,7 @@ async function forbiddenOrOwnAccount(
   return body?.code === "own_account" ? { kind: "own_account" } : { kind: "forbidden" };
 }
 
-/** Oldest first. */
+// Oldest first.
 export async function fetchUserPasskeys(id: string): Promise<FetchUserPasskeysOutcome> {
   let response: Response;
   try {
@@ -406,7 +397,7 @@ export async function fetchUserPasskeys(id: string): Promise<FetchUserPasskeysOu
   return { kind: "ok", value: body.map(userPasskeyFromRow) };
 }
 
-/** Authorization runs against the Administrator's own passkeys, never the target's. */
+// Authorization runs against the Administrator's own passkeys, never the target's.
 export async function removeUserPasskey(
   id: string,
   passkeyId: string,
@@ -429,7 +420,7 @@ export async function removeUserPasskey(
   return gatedActionErrorOutcome(response);
 }
 
-/** The cloud answers the same `not_found` for a malformed, missing, other-branch, already-inactive, or Administrator target. */
+// The cloud answers the same `not_found` for a malformed, missing, other-branch, already-inactive, or Administrator target.
 export async function deactivateUser(id: string): Promise<DeactivateUserOutcome> {
   let response: Response;
   try {
@@ -446,7 +437,7 @@ export async function deactivateUser(id: string): Promise<DeactivateUserOutcome>
   return gatedActionErrorOutcome(response);
 }
 
-/** The cloud answers the same `not_found` for a malformed, missing, other-branch, or already-active target. */
+// The cloud answers the same `not_found` for a malformed, missing, other-branch, or already-active target.
 export async function reactivateUser(id: string): Promise<ReactivateUserOutcome> {
   let response: Response;
   try {

@@ -1,9 +1,8 @@
+import type { CategorySummary, ProductSummary } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expect, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../../shell/test-support/render-with-router";
-import type { CategorySummary } from "../categories-api";
-import type { ProductSummary } from "../products-api";
 import { ProductsListScreen } from "../products-list-screen";
 import type { ProductsListScreenServices } from "../products-list-services";
 import { type ProductsListFilters, productsListFilters } from "../routes";
@@ -141,7 +140,7 @@ export function scanInputOf(dialog: ScreenLocator) {
   return dialog.getByRole("textbox", { name: "Escanear otro código" });
 }
 
-/** Rerendering drives React's async `act()`, which flushes the already-resolved response's continuation before returning. */
+// Rerendering drives React's async `act()`, which flushes the already-resolved response's continuation before returning.
 export async function settleLateResponse(
   screen: Screen,
   services: ProductsListScreenServices,

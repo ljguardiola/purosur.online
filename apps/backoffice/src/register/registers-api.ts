@@ -1,6 +1,5 @@
 import type { RegisterCreationBody } from "@purosur/contracts";
-
-const ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
+import { retryAfterSeconds } from "../platform/retry-after-seconds";
 
 type PendingEnrollmentCode = { issuedAt: string; expiresAt: string };
 
@@ -43,14 +42,6 @@ export type EmitEnrollmentCodeOutcome =
   | { kind: "authorization_required" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
-
-function retryAfterSeconds(response: Response): number {
-  const header = response.headers.get("Retry-After");
-  const seconds = header ? Number(header) : Number.NaN;
-  return Number.isFinite(seconds) && seconds > 0
-    ? seconds
-    : ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS;
-}
 
 function postJson(path: string, body?: unknown): Promise<Response> {
   return fetch(path, {

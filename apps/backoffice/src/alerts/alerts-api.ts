@@ -1,6 +1,5 @@
 import type { AlertAudience, AlertKind, AlertLevel } from "@purosur/domain";
-
-const ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
+import { retryAfterSeconds } from "../platform/retry-after-seconds";
 
 export type { AlertKind, AlertLevel };
 
@@ -8,8 +7,8 @@ export type AlertSummary = {
   id: string;
   kind: AlertKind;
   scope: string | null;
-  /** `scope` as a person reads it (a user's first name, or the raw scope); `null` for a closed
-   * lockout alert, which no longer holds its source address. */
+  // `scope` as a person reads it (a user's first name, or the raw scope); `null` for a closed
+  // lockout alert, which no longer holds its source address.
   scopeDisplay: string | null;
   level: AlertLevel;
   audience: AlertAudience;
@@ -39,7 +38,7 @@ export type AlertDetail = {
   scopeDisplay: string | null;
   level: AlertLevel;
   audience: AlertAudience;
-  /** The kind's own fact payload, passed through untyped exactly as the cloud sends it. */
+  // The kind's own fact payload, passed through untyped exactly as the cloud sends it.
   detail: Record<string, unknown>;
   openedAt: string;
   escalatedAt: string | null;
@@ -50,9 +49,9 @@ export type AlertDetail = {
 export type AlertListQuery = {
   level?: AlertLevel;
   open?: boolean;
-  /** 1-based. */
+  // 1-based.
   page?: number;
-  /** `kinds` lists the kinds whose own title matched `text`: those titles exist only in this app, so the cloud cannot match them itself. */
+  // `kinds` lists the kinds whose own title matched `text`: those titles exist only in this app, so the cloud cannot match them itself.
   search?: { text: string; kinds: readonly string[] };
 };
 
@@ -87,14 +86,6 @@ export type CloseAlertOutcome =
   | { kind: "unauthenticated" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
-
-function retryAfterSeconds(response: Response): number {
-  const header = response.headers.get("Retry-After");
-  const seconds = header ? Number(header) : Number.NaN;
-  return Number.isFinite(seconds) && seconds > 0
-    ? seconds
-    : ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS;
-}
 
 function alertSummaryFromWire(row: {
   id: string;

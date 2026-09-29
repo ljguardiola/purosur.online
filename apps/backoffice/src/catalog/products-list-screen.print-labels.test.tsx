@@ -1,7 +1,7 @@
+import type { ProductSummary } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import type { ProductSummary } from "./products-api";
 import type { ProductsListScreenServices } from "./products-list-services";
 import {
   almonds,
@@ -103,7 +103,7 @@ test("reloading the changed product list keeps the screen's own status filter", 
   expect(services.fetchProducts).toHaveBeenLastCalledWith("all");
 });
 
-test("shows an empty state when no product has an internal barcode", async () => {
+test("shows only the empty state when no product has an internal barcode", async () => {
   const services = createServices();
   mockLoaded(services, [withoutInternalBarcode]);
   const screen = await renderScreen(services);
@@ -113,6 +113,7 @@ test("shows an empty state when no product has an internal barcode", async () =>
   await expect
     .element(dialog.getByText("No hay productos activos con código interno"))
     .toBeVisible();
+  expect(dialog.getByText(/Elegí cuántas etiquetas/).query()).toBeNull();
   await expect
     .element(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }))
     .toBeDisabled();
@@ -608,17 +609,47 @@ test("ignores a reload success that arrives after the modal was closed and opene
   await expect.element(dialog.getByText("1 etiqueta")).toBeVisible();
 });
 
-test("ignores a reload failure that arrives after the modal was closed and opened again", async () => {
+test("a reload that fails leaves the list failed, with its retry, instead of the print modal", async () => {
   const services = createServices();
   mockLoaded(services, [honeyWithInternalBarcode]);
   vi.mocked(services.printLabels).mockResolvedValue({ kind: "product_not_found" });
   const screen = await renderScreen(services);
-  const { dialog, resolveReload } = await startReloadThenCloseAndReopen(screen, services);
+  const dialog = await openPrintLabelsModal(screen);
+  await userEvent.click(
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
+  );
+  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
+  await expect.element(dialog.getByText("La lista de productos cambió")).toBeVisible();
 
-  resolveReload({ kind: "failed" });
-  await settleLateResponse(screen, services);
+  vi.mocked(services.fetchProducts).mockResolvedValueOnce({ kind: "failed" });
+  await userEvent.click(dialog.getByRole("button", { name: "Recargar la lista" }));
 
-  expect(dialog.getByText("No se pudo recargar la lista").query()).toBeNull();
+  await expect.element(screen.getByText("No pudimos abrir los productos")).toBeVisible();
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+});
+
+test("the print modal a failed reload closed stays closed once the list loads again", async () => {
+  const services = createServices();
+  mockLoaded(services, [honeyWithInternalBarcode]);
+  vi.mocked(services.printLabels).mockResolvedValue({ kind: "product_not_found" });
+  const screen = await renderScreen(services);
+  const dialog = await openPrintLabelsModal(screen);
+  await userEvent.click(
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
+  );
+  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
+  vi.mocked(services.fetchProducts).mockResolvedValueOnce({ kind: "failed" });
+  await userEvent.click(dialog.getByRole("button", { name: "Recargar la lista" }));
+  await expect.element(screen.getByText("No pudimos abrir los productos")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect
+    .element(
+      screen.getByRole("table", { name: "Productos" }).getByText(honeyWithInternalBarcode.name),
+    )
+    .toBeVisible();
+  expect(screen.getByRole("dialog").query()).toBeNull();
 });
 
 test("ignores a print failure that arrives after the modal was closed and opened again", async () => {

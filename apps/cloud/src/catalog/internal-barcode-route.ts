@@ -1,3 +1,4 @@
+import { internalBarcodeSchema } from "@purosur/contracts";
 import { appendEan13CheckDigit } from "@purosur/domain";
 import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -86,7 +87,7 @@ export function registerInternalBarcodeRoute<TQueryResult extends PgQueryResultH
     },
     async (_request, reply) => {
       const code = await allocateInternalBarcode(options.db);
-      await reply.code(200).send({ code });
+      await reply.code(200).send(internalBarcodeSchema.parse({ code }));
     },
   );
 }

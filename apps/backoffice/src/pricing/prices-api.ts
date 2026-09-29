@@ -1,7 +1,6 @@
 import type { PriceConfirmationBody, PriceSetBody } from "@purosur/contracts";
 import type { ProductSaleUnit } from "../catalog/products-api";
-
-const ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
+import { retryAfterSeconds } from "../platform/retry-after-seconds";
 
 export type PriceRow = { id: string; unitPrice: number; validFrom: string };
 
@@ -67,14 +66,6 @@ export type ConfirmPriceOutcome =
   | { kind: "unauthenticated" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
-
-function retryAfterSeconds(response: Response): number {
-  const header = response.headers.get("Retry-After");
-  const seconds = header ? Number(header) : Number.NaN;
-  return Number.isFinite(seconds) && seconds > 0
-    ? seconds
-    : ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS;
-}
 
 function postJson(path: string, body: unknown): Promise<Response> {
   return fetch(path, {

@@ -1,4 +1,4 @@
-import { productCreationBodySchema } from "@purosur/contracts";
+import { productCreationBodySchema, productSummarySchema } from "@purosur/contracts";
 import { createProduct } from "@purosur/domain/catalog/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -65,7 +65,7 @@ export function registerProductCreationRoute<TQueryResult extends PgQueryResultH
         return;
       }
 
-      await reply.code(201).send(outcome.product);
+      await reply.code(201).send(productSummarySchema.parse(outcome.product));
     },
   );
 }

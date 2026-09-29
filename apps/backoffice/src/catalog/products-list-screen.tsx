@@ -1,3 +1,4 @@
+import type { CategorySummary, ProductSummary } from "@purosur/contracts";
 import {
   BARCODE_MAX_LENGTH,
   ean13Modules,
@@ -13,6 +14,7 @@ import {
 } from "@purosur/domain";
 import {
   Button,
+  EmptyState,
   FieldGroup,
   IconButton,
   InlineNotice,
@@ -61,11 +63,19 @@ import {
   useState,
 } from "react";
 import { useSendToMyAccount } from "../access/send-to-my-account";
+import { cloudTableState } from "../platform/cloud-table-state";
+import { combineCloudData } from "../platform/combine-cloud-data";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
-import type { CategorySummary } from "./categories-api";
+import {
+  type ProductReload,
+  useCategoriesQuery,
+  useProductsQuery,
+  useRefreshCatalog,
+  useReloadProduct,
+} from "./catalog-queries";
 import { categoriesInTreeOrder, categoryPathLabels, leafCategories } from "./category-path";
 import {
   formatNetContentQuantity,
@@ -78,12 +88,10 @@ import type {
   createProduct,
   deactivateProduct,
   editProduct,
-  fetchProducts,
   generateInternalBarcode,
   NetContent,
   ProductSaleUnit,
   ProductStatusFilter,
-  ProductSummary,
   printLabels,
 } from "./products-api";
 import type { ProductsListScreenServices } from "./products-list-services";
@@ -96,11 +104,8 @@ export type ProductsListScreenProps = {
   services: ProductsListScreenServices;
 };
 
-type ListState =
-  | { kind: "loading" }
-  | { kind: "loadError" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "loaded"; products: ProductSummary[] };
+const NO_PRODUCTS: ProductSummary[] = [];
+const NO_CATEGORIES: CategorySummary[] = [];
 
 type CategoryFilter = "ALL" | string;
 type UnitFilter = "ALL" | ProductSaleUnit;
@@ -578,7 +583,7 @@ function useGenerateInternalBarcode(
 type NewProductModalProps = {
   open: boolean;
   onClose: () => void;
-  onCreated: (product: ProductSummary) => void;
+  onCreated: () => void;
   onSessionEnded: () => void;
   createProduct: typeof createProduct;
   generateInternalBarcode: typeof generateInternalBarcode;
@@ -665,7 +670,7 @@ function NewProductModal({
     };
     const outcome = await createProduct(input);
     if (outcome.kind === "ok") {
-      onCreated(outcome.value);
+      onCreated();
       return;
     }
     if (outcome.kind === "unauthenticated") {
@@ -882,9 +887,9 @@ function NewProductModal({
 type EditProductModalProps = {
   target: ProductSummary | null;
   onClose: () => void;
-  onSaved: (product: ProductSummary) => void;
+  onSaved: () => void;
   onSessionEnded: () => void;
-  fetchProducts: typeof fetchProducts;
+  reload: (id: string) => Promise<ProductReload>;
   editProduct: typeof editProduct;
   generateInternalBarcode: typeof generateInternalBarcode;
   categories: CategorySummary[];
@@ -902,7 +907,7 @@ function EditProductModal({
   onClose,
   onSaved,
   onSessionEnded,
-  fetchProducts,
+  reload,
   editProduct,
   generateInternalBarcode,
   categories,
@@ -984,7 +989,7 @@ function EditProductModal({
       version,
     });
     if (outcome.kind === "ok") {
-      onSaved(outcome.value);
+      onSaved();
       return;
     }
     if (outcome.kind === "unauthenticated") {
@@ -1060,14 +1065,9 @@ function EditProductModal({
       return;
     }
     setSubmitting(true);
-    const outcome = await fetchProducts("all");
-    if (outcome.kind === "ok") {
-      const fresh = outcome.value.find((product) => product.id === current.id);
-      if (!fresh) {
-        setNotice({ kind: "notFound" });
-        setSubmitting(false);
-        return;
-      }
+    const outcome = await reload(current.id);
+    if (outcome.kind === "found") {
+      const fresh = outcome.product;
       setName(fresh.name);
       setTitle(fresh.name);
       setCategoryId(fresh.categoryId);
@@ -1080,6 +1080,15 @@ function EditProductModal({
       setNotice(null);
       setSubmitting(false);
       generate.reset();
+      return;
+    }
+    if (outcome.kind === "not_found") {
+      setNotice({ kind: "notFound" });
+      setSubmitting(false);
+      return;
+    }
+    if (outcome.kind === "list_failed") {
+      setSubmitting(false);
       return;
     }
     if (outcome.kind === "unauthenticated") {
@@ -1504,7 +1513,6 @@ const DOWNLOAD_URL_LIFETIME_MS = 60_000;
 type PrintNotice =
   | { kind: "attemptFailed" }
   | { kind: "productsChanged" }
-  | { kind: "reloadFailed" }
   | { kind: "rateLimited"; retryAfterSeconds: number };
 
 type PrintLabelsModalProps = {
@@ -1512,9 +1520,7 @@ type PrintLabelsModalProps = {
   onClose: () => void;
   onSessionEnded: () => void;
   products: ProductSummary[];
-  onProductsReloaded: (products: ProductSummary[]) => void;
-  status: ProductStatusFilter;
-  fetchProducts: typeof fetchProducts;
+  onReload: () => Promise<void>;
   printLabels: typeof printLabels;
 };
 
@@ -1523,9 +1529,7 @@ function PrintLabelsModal({
   onClose,
   onSessionEnded,
   products,
-  onProductsReloaded,
-  status,
-  fetchProducts,
+  onReload,
   printLabels,
 }: PrintLabelsModalProps) {
   const sendToMyAccount = useSendToMyAccount();
@@ -1619,35 +1623,16 @@ function PrintLabelsModal({
   async function handleReload() {
     setReloading(true);
     const requestId = printRequestIdRef.current;
-    const outcome = await fetchProducts(status);
+    await onReload();
     if (requestId !== printRequestIdRef.current) {
       return;
     }
-    if (outcome.kind === "ok") {
-      onProductsReloaded(outcome.value);
-      setCounts({});
-      setNotice(null);
-      setReloading(false);
-      return;
-    }
-    if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
-      return;
-    }
-    if (outcome.kind === "forbidden") {
-      sendToMyAccount();
-      return;
-    }
-    if (outcome.kind === "rate_limited") {
-      setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
-      setReloading(false);
-      return;
-    }
-    setNotice({ kind: "reloadFailed" });
+    setCounts({});
+    setNotice(null);
     setReloading(false);
   }
 
-  const offersReload = notice?.kind === "productsChanged" || notice?.kind === "reloadFailed";
+  const offersReload = notice?.kind === "productsChanged";
 
   return (
     <Modal
@@ -1706,34 +1691,23 @@ function PrintLabelsModal({
             description="Recargá para ver los productos actualizados antes de imprimir."
           />
         )}
-        {notice?.kind === "reloadFailed" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title="No se pudo recargar la lista"
-            description="Probá de nuevo."
-          />
-        )}
         {offersReload ? (
           <Button variant="secondary" disabled={reloading} onPress={() => void handleReload()}>
             Recargar la lista
           </Button>
         ) : null}
-        <p className="text-body text-text">
-          Productos con código interno. Elegí cuántas etiquetas va a llevar cada uno.
-        </p>
         {rows.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 rounded-lg bg-surface-subtle px-4 py-8 text-center">
-            <Package aria-hidden="true" className="size-icon-xl text-text-subtle" />
-            <p className="text-body font-bold text-text">
-              No hay productos activos con código interno
-            </p>
-            <p className="text-detail text-text-subtle">
-              Generá uno desde el formulario de un producto activo.
-            </p>
-          </div>
+          <EmptyState
+            variant="blank"
+            icon={<Package />}
+            title="No hay productos activos con código interno"
+            description="Generá uno desde el formulario de un producto activo."
+          />
         ) : (
           <>
+            <p className="text-body text-text">
+              Productos con código interno. Elegí cuántas etiquetas va a llevar cada uno.
+            </p>
             <div className="flex max-h-64 flex-col gap-1 overflow-y-auto">
               {rows.map(({ product, code }) => {
                 const count = counts[product.id] ?? 0;
@@ -1808,7 +1782,6 @@ export function ProductsListScreen({
   onSessionEnded,
   services,
 }: ProductsListScreenProps) {
-  const sendToMyAccount = useSendToMyAccount();
   const {
     fetchProducts: fetchProductsService,
     createProduct: createProductService,
@@ -1818,11 +1791,10 @@ export function ProductsListScreen({
     generateInternalBarcode: generateInternalBarcodeService,
     printLabels: printLabelsService,
   } = services;
-  const [list, setList] = useState<ListState>({ kind: "loading" });
-  const listRef = useLatestRef(list);
-  const [categories, setCategories] = useState<CategorySummary[]>([]);
   const [search, setSearch] = useState(filters.search);
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>(filters.category);
+  const [chosenCategoryFilter, setChosenCategoryFilter] = useState<CategoryFilter>(
+    filters.category,
+  );
   const [unitFilter, setUnitFilter] = useState<UnitFilter>(filters.unit);
   const [statusFilter, setStatusFilter] = useState<ProductStatusFilter>(filters.status);
   const [sort, setSort] = useState<TableSort<"product">>({
@@ -1833,8 +1805,40 @@ export function ProductsListScreen({
   const [printModalOpen, setPrintModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ProductSummary | null>(null);
   const [deactivateTarget, setDeactivateTarget] = useState<ProductSummary | null>(null);
-  const onSessionEndedRef = useLatestRef(onSessionEnded);
   const onFiltersChangeRef = useLatestRef(onFiltersChange);
+  const refreshCatalog = useRefreshCatalog();
+  const reloadProduct = useReloadProduct({
+    status: statusFilter,
+    fetchProducts: fetchProductsService,
+  });
+
+  const productsData = useProductsQuery({
+    status: statusFilter,
+    fetchProducts: fetchProductsService,
+    onSessionEnded,
+  });
+  const categoriesData = useCategoriesQuery({
+    fetchCategories: fetchCategoriesService,
+    onSessionEnded,
+  });
+  const data = combineCloudData(productsData, categoriesData);
+  const [products, categories] =
+    data.status === "loaded" ? data.value : [NO_PRODUCTS, NO_CATEGORIES];
+
+  useEffect(() => {
+    if (data.status === "failed") {
+      setPrintModalOpen(false);
+      setEditTarget(null);
+    }
+  }, [data.status]);
+
+  const offeredCategoryIds = new Set(leafCategories(categories).map(({ id }) => id));
+  const categoryFilter =
+    data.status === "loaded" &&
+    chosenCategoryFilter !== "ALL" &&
+    !offeredCategoryIds.has(chosenCategoryFilter)
+      ? "ALL"
+      : chosenCategoryFilter;
 
   useEffect(() => {
     const shown: ProductsListFilters = {
@@ -1857,68 +1861,17 @@ export function ProductsListScreen({
     onFiltersChangeRef,
   ]);
 
-  const latestLoad = useRef(0);
+  const categoryLabels = categoryPathLabels(categories);
 
-  const load = useCallback(async () => {
-    latestLoad.current += 1;
-    const thisLoad = latestLoad.current;
-    setList({ kind: "loading" });
-    const [productsOutcome, categoriesOutcome] = await Promise.all([
-      fetchProductsService(statusFilter),
-      fetchCategoriesService(),
-    ]);
-    if (thisLoad !== latestLoad.current) {
-      return;
-    }
-    const outcomes = [productsOutcome, categoriesOutcome];
-    if (outcomes.some((outcome) => outcome.kind === "unauthenticated")) {
-      onSessionEndedRef.current();
-      return;
-    }
-    const rateLimited = outcomes.flatMap((outcome) =>
-      outcome.kind === "rate_limited" ? [outcome.retryAfterSeconds] : [],
-    );
-    if (rateLimited.length > 0) {
-      setList({ kind: "rate_limited", retryAfterSeconds: Math.max(...rateLimited) });
-    } else if (outcomes.some((outcome) => outcome.kind === "forbidden")) {
-      sendToMyAccount();
-    } else if (productsOutcome.kind === "ok" && categoriesOutcome.kind === "ok") {
-      const offeredIds = new Set(leafCategories(categoriesOutcome.value).map(({ id }) => id));
-      setCategories(categoriesOutcome.value);
-      setCategoryFilter((shown) => (shown === "ALL" || offeredIds.has(shown) ? shown : "ALL"));
-      setList({ kind: "loaded", products: productsOutcome.value });
-    } else {
-      setList({ kind: "loadError" });
-    }
-  }, [
-    fetchProductsService,
-    fetchCategoriesService,
-    statusFilter,
-    sendToMyAccount,
-    onSessionEndedRef,
-  ]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  const products = list.kind === "loaded" ? list.products : [];
-
-  const categoryLabels = useMemo(() => categoryPathLabels(categories), [categories]);
-
-  const categoryFilterOptions = useMemo(() => {
-    const leafIds = new Set(leafCategories(categories).map((category) => category.id));
-    const leaves = categoriesInTreeOrder(categories, "ascending").filter((category) =>
-      leafIds.has(category.id),
-    );
-    return [
-      { value: "ALL" as const, label: "Todas" },
-      ...leaves.map((category) => ({
+  const categoryFilterOptions = [
+    { value: "ALL" as const, label: "Todas" },
+    ...categoriesInTreeOrder(categories, "ascending")
+      .filter((category) => offeredCategoryIds.has(category.id))
+      .map((category) => ({
         value: category.id,
         label: categoryLabels.get(category.id) ?? category.name,
       })),
-    ] as [{ value: CategoryFilter; label: string }, ...{ value: CategoryFilter; label: string }[]];
-  }, [categories, categoryLabels]);
+  ] as [{ value: CategoryFilter; label: string }, ...{ value: CategoryFilter; label: string }[]];
 
   const unitFilterOptions = [
     { value: "ALL" as const, label: "Todas" },
@@ -1932,24 +1885,18 @@ export function ProductsListScreen({
     { value: "all" as const, label: "Todos" },
   ] as const;
 
-  const filtered = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    let matching = products;
-    if (query) {
-      matching = matching.filter(
-        (product) =>
+  const query = search.trim().toLowerCase();
+  const filtered = sortedByName(
+    products.filter(
+      (product) =>
+        (!query ||
           product.name.toLowerCase().includes(query) ||
-          product.barcodes.some((code) => code.toLowerCase().includes(query)),
-      );
-    }
-    if (categoryFilter !== "ALL") {
-      matching = matching.filter((product) => product.categoryId === categoryFilter);
-    }
-    if (unitFilter !== "ALL") {
-      matching = matching.filter((product) => product.saleUnit === unitFilter);
-    }
-    return sortedByName(matching, sort.direction);
-  }, [products, search, categoryFilter, unitFilter, sort.direction]);
+          product.barcodes.some((code) => code.toLowerCase().includes(query))) &&
+        (categoryFilter === "ALL" || product.categoryId === categoryFilter) &&
+        (unitFilter === "ALL" || product.saleUnit === unitFilter),
+    ),
+    sort.direction,
+  );
 
   const columns = [
     {
@@ -2001,6 +1948,11 @@ export function ProductsListScreen({
     },
   ] as const;
 
+  function closeDeactivationAndRefresh() {
+    setDeactivateTarget(null);
+    void refreshCatalog();
+  }
+
   return (
     <>
       <ScreenLayout
@@ -2014,12 +1966,17 @@ export function ProductsListScreen({
               <Button
                 variant="secondary"
                 icon={<Printer />}
-                disabled={list.kind !== "loaded"}
+                dataStatus={data.status}
                 onPress={() => setPrintModalOpen(true)}
               >
                 Imprimir etiquetas
               </Button>
-              <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
+              <Button
+                variant="primary"
+                icon={<Plus />}
+                dataStatus={data.status}
+                onPress={() => setNewModalOpen(true)}
+              >
                 Nuevo producto
               </Button>
             </div>
@@ -2027,155 +1984,105 @@ export function ProductsListScreen({
         }
         bodyClassName="gap-4 p-6"
       >
-        {list.kind === "loadError" && (
-          <>
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No pudimos abrir los productos"
-              description="Probá de nuevo en unos minutos."
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="w-105">
+            <SearchField
+              value={search}
+              onChange={setSearch}
+              placeholder="Buscar por nombre o código de barras"
+              icon={<Search />}
             />
-            <Button variant="secondary" onPress={() => void load()}>
-              Reintentar
-            </Button>
-          </>
-        )}
-        {list.kind === "rate_limited" && (
-          <>
-            <InlineNotice
-              tone="error"
-              icon={<ShieldX />}
-              title="Demasiadas solicitudes"
-              description={retryAfterDetail(list.retryAfterSeconds)}
-            />
-            <Button variant="secondary" onPress={() => void load()}>
-              Reintentar
-            </Button>
-          </>
-        )}
-        {(list.kind === "loading" || list.kind === "loaded") && (
-          <>
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="w-105">
-                <SearchField
-                  value={search}
-                  onChange={setSearch}
-                  placeholder="Buscar por nombre o código de barras"
-                  icon={<Search />}
-                />
-              </div>
-              <ListFilter
-                label="Categoría:"
-                options={categoryFilterOptions}
-                value={categoryFilter}
-                onChange={setCategoryFilter}
-              />
-              <ListFilter
-                label="Unidad:"
-                options={unitFilterOptions}
-                value={unitFilter}
-                onChange={setUnitFilter}
-              />
-              <ListFilter
-                label="Estado:"
-                options={statusFilterOptions}
-                value={statusFilter}
-                onChange={setStatusFilter}
-              />
-            </div>
-            <Table
-              aria-label="Productos"
-              columns={columns}
-              sort={sort}
-              onSortChange={setSort}
-              loading={list.kind === "loading" ? "initial" : false}
-              rows={filtered.map((product) => ({ id: product.id, item: product }))}
-              empty={
-                products.length === 0
-                  ? {
-                      icon: <Package />,
-                      ...PRODUCTS_EMPTY_STATE[statusFilter],
-                      variant: "blank",
-                    }
-                  : {
-                      icon: <SearchX />,
-                      title: "Sin resultados",
-                      description: "Probá con otro nombre o código de barras.",
-                      variant: "filtered",
-                    }
-              }
-              footer={
-                <p className="text-text-subtle text-detail">
-                  {productsCountText({ count: filtered.length, status: statusFilter })}
-                </p>
-              }
-            />
-          </>
-        )}
+          </div>
+          <ListFilter
+            label="Categoría:"
+            options={categoryFilterOptions}
+            value={categoryFilter}
+            onChange={setChosenCategoryFilter}
+          />
+          <ListFilter
+            label="Unidad:"
+            options={unitFilterOptions}
+            value={unitFilter}
+            onChange={setUnitFilter}
+          />
+          <ListFilter
+            label="Estado:"
+            options={statusFilterOptions}
+            value={statusFilter}
+            onChange={setStatusFilter}
+          />
+        </div>
+        <Table
+          aria-label="Productos"
+          columns={columns}
+          sort={sort}
+          onSortChange={setSort}
+          {...cloudTableState(data, "los productos")}
+          rows={filtered.map((product) => ({ id: product.id, item: product }))}
+          empty={
+            products.length === 0
+              ? {
+                  icon: <Package />,
+                  ...PRODUCTS_EMPTY_STATE[statusFilter],
+                  variant: "blank",
+                }
+              : {
+                  icon: <SearchX />,
+                  title: "Sin resultados",
+                  description: "Probá con otro nombre o código de barras.",
+                  variant: "filtered",
+                }
+          }
+          footer={
+            filtered.length === 0 ? undefined : (
+              <p className="text-text-subtle text-detail">
+                {productsCountText({ count: filtered.length, status: statusFilter })}
+              </p>
+            )
+          }
+        />
       </ScreenLayout>
       <NewProductModal
         open={newModalOpen}
         onClose={() => setNewModalOpen(false)}
-        onCreated={(product) => {
+        onCreated={() => {
           setNewModalOpen(false);
-          const current = listRef.current;
-          if (current.kind === "loaded") {
-            if (statusFilter !== "inactive") {
-              setList({ kind: "loaded", products: [...current.products, product] });
-            }
-          } else {
-            void load();
-          }
+          void refreshCatalog();
         }}
         onSessionEnded={onSessionEnded}
         createProduct={createProductService}
         generateInternalBarcode={generateInternalBarcodeService}
         categories={categories}
       />
-      <EditProductModal
-        target={editTarget}
-        onClose={() => setEditTarget(null)}
-        onSaved={(product) => {
-          setEditTarget(null);
-          setList((current) =>
-            current.kind === "loaded"
-              ? {
-                  kind: "loaded",
-                  products: current.products.map((existing) =>
-                    existing.id === product.id ? product : existing,
-                  ),
-                }
-              : current,
-          );
-        }}
-        onSessionEnded={onSessionEnded}
-        fetchProducts={fetchProductsService}
-        editProduct={editProductService}
-        generateInternalBarcode={generateInternalBarcodeService}
-        categories={categories}
-      />
+      {data.status === "loaded" ? (
+        <EditProductModal
+          target={editTarget}
+          onClose={() => setEditTarget(null)}
+          onSaved={() => {
+            setEditTarget(null);
+            void refreshCatalog();
+          }}
+          onSessionEnded={onSessionEnded}
+          reload={reloadProduct}
+          editProduct={editProductService}
+          generateInternalBarcode={generateInternalBarcodeService}
+          categories={data.value[1]}
+        />
+      ) : null}
       <DeactivateProductModal
         target={deactivateTarget}
         onClose={() => setDeactivateTarget(null)}
-        onDeactivated={() => {
-          setDeactivateTarget(null);
-          void load();
-        }}
-        onVanished={() => {
-          setDeactivateTarget(null);
-          void load();
-        }}
+        onDeactivated={closeDeactivationAndRefresh}
+        onVanished={closeDeactivationAndRefresh}
         onSessionEnded={onSessionEnded}
         deactivateProduct={deactivateProductService}
       />
       <PrintLabelsModal
-        open={printModalOpen}
+        open={printModalOpen && data.status === "loaded"}
         onClose={() => setPrintModalOpen(false)}
         onSessionEnded={onSessionEnded}
         products={products}
-        onProductsReloaded={(reloaded) => setList({ kind: "loaded", products: reloaded })}
-        status={statusFilter}
-        fetchProducts={fetchProductsService}
+        onReload={refreshCatalog}
         printLabels={printLabelsService}
       />
     </>

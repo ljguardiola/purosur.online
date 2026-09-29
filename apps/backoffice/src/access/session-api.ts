@@ -3,11 +3,11 @@ import type {
   AuthenticationResponseJSON,
   PublicKeyCredentialRequestOptionsJSON,
 } from "@simplewebauthn/browser";
+import { retryAfterSeconds } from "../platform/retry-after-seconds";
 
 // The sign-in lockout blocks for a fixed 15 minutes once tripped, unlike the rolling one-hour
 // window other rate limits use.
 const LOCKOUT_FALLBACK_SECONDS = 15 * 60;
-const ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
 
 export type SessionOutcome =
   | {
@@ -16,7 +16,7 @@ export type SessionOutcome =
       displayName: string;
       isAdministrator: boolean;
       expiresAt?: string;
-      /** In catalog order. An Administrator holds every key implicitly. */
+      // In catalog order. An Administrator holds every key implicitly.
       permissions?: string[];
     }
   | { kind: "unauthenticated" }
@@ -57,12 +57,6 @@ export type AuthorizeSessionOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-function retryAfterSeconds(response: Response, fallbackSeconds: number): number {
-  const header = response.headers.get("Retry-After");
-  const seconds = header ? Number(header) : Number.NaN;
-  return Number.isFinite(seconds) && seconds > 0 ? seconds : fallbackSeconds;
-}
-
 function postJson(path: string, body?: unknown): Promise<Response> {
   return fetch(path, {
     method: "POST",
@@ -84,7 +78,7 @@ export async function fetchSession(): Promise<SessionOutcome> {
   if (response.status === 429) {
     return {
       kind: "rate_limited",
-      retryAfterSeconds: retryAfterSeconds(response, ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS),
+      retryAfterSeconds: retryAfterSeconds(response),
     };
   }
   if (!response.ok) {
@@ -107,7 +101,7 @@ export async function fetchSession(): Promise<SessionOutcome> {
   };
 }
 
-/** Unlike `fetchSession`, doesn't touch `last_seen_at`, so a probing tab can't keep an idle session alive. */
+// Unlike `fetchSession`, doesn't touch `last_seen_at`, so a probing tab can't keep an idle session alive.
 export async function checkSessionStatus(): Promise<SessionStatusOutcome> {
   let response: Response;
   try {
@@ -121,7 +115,7 @@ export async function checkSessionStatus(): Promise<SessionStatusOutcome> {
   if (response.status === 429) {
     return {
       kind: "rate_limited",
-      retryAfterSeconds: retryAfterSeconds(response, ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS),
+      retryAfterSeconds: retryAfterSeconds(response),
     };
   }
   if (!response.ok) {
@@ -147,7 +141,7 @@ export async function fetchAuthenticationOptions(): Promise<AuthenticationOption
   return { kind: "ok", value: body.passkey_authentication_options };
 }
 
-/** The cloud only distinguishes an unrecognized credential id (`unknown_passkey`) from every other rejection. */
+// The cloud only distinguishes an unrecognized credential id (`unknown_passkey`) from every other rejection.
 export async function authenticate(
   assertion: AuthenticationResponseJSON,
 ): Promise<AuthenticateOutcome> {
@@ -189,7 +183,7 @@ export async function signOut(): Promise<SignOutOutcome> {
   if (response.status === 429) {
     return {
       kind: "rate_limited",
-      retryAfterSeconds: retryAfterSeconds(response, ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS),
+      retryAfterSeconds: retryAfterSeconds(response),
     };
   }
   return { kind: "failed" };
@@ -208,7 +202,7 @@ export async function fetchSessionAuthorizationOptions(): Promise<SessionAuthori
   if (response.status === 429) {
     return {
       kind: "rate_limited",
-      retryAfterSeconds: retryAfterSeconds(response, ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS),
+      retryAfterSeconds: retryAfterSeconds(response),
     };
   }
   if (!response.ok) {
@@ -242,7 +236,7 @@ export async function authorizeSession(
   if (response.status === 429) {
     return {
       kind: "rate_limited",
-      retryAfterSeconds: retryAfterSeconds(response, ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS),
+      retryAfterSeconds: retryAfterSeconds(response),
     };
   }
   return { kind: "failed" };

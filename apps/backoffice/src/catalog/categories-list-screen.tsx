@@ -1,3 +1,4 @@
+import type { CategorySummary } from "@purosur/contracts";
 import {
   Button,
   InlineNotice,
@@ -23,18 +24,20 @@ import {
   TriangleAlert,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSendToMyAccount } from "../access/send-to-my-account";
+import { cloudTableState } from "../platform/cloud-table-state";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
-import type {
-  CategorySummary,
-  createCategory,
-  editCategory,
-  fetchCategories,
-} from "./categories-api";
+import {
+  type CategoryReload,
+  useCategoriesQuery,
+  useRefreshCatalog,
+  useReloadCategory,
+} from "./catalog-queries";
+import type { createCategory, editCategory } from "./categories-api";
 import type { CategoriesListScreenServices } from "./categories-list-services";
 import { categoryNameError } from "./category-name";
 import { categoriesInTreeOrder, categoryPathLabels, selfAndDescendantIds } from "./category-path";
@@ -47,11 +50,7 @@ export type CategoriesListScreenProps = {
   services: CategoriesListScreenServices;
 };
 
-type ListState =
-  | { kind: "loading" }
-  | { kind: "loadError" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "loaded"; categories: CategorySummary[] };
+const NO_CATEGORIES: CategorySummary[] = [];
 
 const CATEGORY_NAME_REQUIRED = "Ingresá el nombre de la categoría.";
 const CATEGORY_NAME_TAKEN = "Ya existe una categoría con este nombre.";
@@ -86,7 +85,7 @@ function parentSelectOptions(
 type NewCategoryModalProps = {
   open: boolean;
   onClose: () => void;
-  onCreated: (category: CategorySummary) => void;
+  onCreated: () => void;
   onSessionEnded: () => void;
   createCategory: typeof createCategory;
   categories: CategorySummary[];
@@ -141,7 +140,7 @@ function NewCategoryModal({
 
     const outcome = await createCategory({ name: trimmed, parentId });
     if (outcome.kind === "ok") {
-      onCreated(outcome.value);
+      onCreated();
       return;
     }
     if (outcome.kind === "unauthenticated") {
@@ -273,10 +272,9 @@ function NewCategoryModal({
 type EditCategoryModalProps = {
   target: CategorySummary | null;
   onClose: () => void;
-  onSaved: (category: CategorySummary) => void;
-  onCategoriesReloaded: (categories: CategorySummary[]) => void;
+  onSaved: () => void;
   onSessionEnded: () => void;
-  fetchCategories: typeof fetchCategories;
+  reload: (id: string) => Promise<CategoryReload>;
   editCategory: typeof editCategory;
   categories: CategorySummary[];
 };
@@ -285,16 +283,14 @@ type EditNotice =
   | { kind: "attemptFailed" }
   | { kind: "rateLimited"; retryAfterSeconds: number }
   | { kind: "staleVersion" }
-  | { kind: "notFound" }
-  | { kind: "reloadFailed" };
+  | { kind: "notFound" };
 
 function EditCategoryModal({
   target,
   onClose,
   onSaved,
-  onCategoriesReloaded,
   onSessionEnded,
-  fetchCategories,
+  reload,
   editCategory,
   categories,
 }: EditCategoryModalProps) {
@@ -346,7 +342,7 @@ function EditCategoryModal({
 
     const outcome = await editCategory(current.id, { name: trimmed, parentId, version });
     if (outcome.kind === "ok") {
-      onSaved(outcome.value);
+      onSaved();
       return;
     }
     if (outcome.kind === "unauthenticated") {
@@ -414,15 +410,9 @@ function EditCategoryModal({
       return;
     }
     setSubmitting(true);
-    const outcome = await fetchCategories();
-    if (outcome.kind === "ok") {
-      onCategoriesReloaded(outcome.value);
-      const fresh = outcome.value.find((category) => category.id === current.id);
-      if (!fresh) {
-        setNotice({ kind: "notFound" });
-        setSubmitting(false);
-        return;
-      }
+    const outcome = await reload(current.id);
+    if (outcome.kind === "found") {
+      const fresh = outcome.category;
       setName(fresh.name);
       setTitle(fresh.name);
       setParentValue(fresh.parentId ?? NO_PARENT_VALUE);
@@ -433,24 +423,13 @@ function EditCategoryModal({
       setSubmitting(false);
       return;
     }
-    if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
-      return;
+    if (outcome.kind === "not_found") {
+      setNotice({ kind: "notFound" });
     }
-    if (outcome.kind === "forbidden") {
-      sendToMyAccount();
-      return;
-    }
-    if (outcome.kind === "rate_limited") {
-      setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
-      setSubmitting(false);
-      return;
-    }
-    setNotice({ kind: "reloadFailed" });
     setSubmitting(false);
   }
 
-  const offersReload = notice?.kind === "staleVersion" || notice?.kind === "reloadFailed";
+  const offersReload = notice?.kind === "staleVersion";
 
   return (
     <Modal
@@ -523,14 +502,6 @@ function EditCategoryModal({
               title="Esta categoría ya no existe"
             />
           )}
-          {notice?.kind === "reloadFailed" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudieron recargar los datos"
-              description="Probá de nuevo."
-            />
-          )}
           {offersReload ? (
             <Button
               variant="secondary"
@@ -577,10 +548,10 @@ export function CategoriesListScreen({
   onSessionEnded,
   services,
 }: CategoriesListScreenProps) {
-  const sendToMyAccount = useSendToMyAccount();
   const { fetchCategories, createCategory, editCategory } = services;
-  const [list, setList] = useState<ListState>({ kind: "loading" });
-  const listRef = useLatestRef(list);
+  const data = useCategoriesQuery({ fetchCategories, onSessionEnded });
+  const refreshCatalog = useRefreshCatalog();
+  const reloadCategory = useReloadCategory({ fetchCategories });
   const [search, setSearch] = useState(filters.search);
   const [sort, setSort] = useState<TableSort<"category">>({
     column: "category",
@@ -588,7 +559,6 @@ export function CategoriesListScreen({
   });
   const [newModalOpen, setNewModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<CategorySummary | null>(null);
-  const onSessionEndedRef = useLatestRef(onSessionEnded);
   const onFiltersChangeRef = useLatestRef(onFiltersChange);
 
   useEffect(() => {
@@ -598,46 +568,20 @@ export function CategoriesListScreen({
     }
   }, [search, sort.direction, filters, onFiltersChangeRef]);
 
-  const latestLoad = useRef(0);
-
-  const load = useCallback(async () => {
-    latestLoad.current += 1;
-    const thisLoad = latestLoad.current;
-    setList({ kind: "loading" });
-    const outcome = await fetchCategories();
-    if (thisLoad !== latestLoad.current) {
-      return;
-    }
-    if (outcome.kind === "ok") {
-      setList({ kind: "loaded", categories: outcome.value });
-    } else if (outcome.kind === "unauthenticated") {
-      onSessionEndedRef.current();
-    } else if (outcome.kind === "rate_limited") {
-      setList({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
-    } else if (outcome.kind === "forbidden") {
-      sendToMyAccount();
-    } else {
-      setList({ kind: "loadError" });
-    }
-  }, [fetchCategories, onSessionEndedRef, sendToMyAccount]);
-
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (data.status === "failed") {
+      setEditTarget(null);
+    }
+  }, [data.status]);
 
-  const categories = list.kind === "loaded" ? list.categories : [];
-  const labels = useMemo(() => categoryPathLabels(categories), [categories]);
-  const pathLabel = useCallback(
-    (category: CategorySummary) => labels.get(category.id) ?? category.name,
-    [labels],
-  );
-  const filtered = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    const ordered = categoriesInTreeOrder(categories, sort.direction);
-    return query
-      ? ordered.filter((category) => pathLabel(category).toLowerCase().includes(query))
-      : ordered;
-  }, [categories, search, sort.direction, pathLabel]);
+  const categories = data.status === "loaded" ? data.value : NO_CATEGORIES;
+  const labels = categoryPathLabels(categories);
+  const pathLabel = (category: CategorySummary) => labels.get(category.id) ?? category.name;
+  const query = search.trim().toLowerCase();
+  const ordered = categoriesInTreeOrder(categories, sort.direction);
+  const filtered = query
+    ? ordered.filter((category) => pathLabel(category).toLowerCase().includes(query))
+    : ordered;
 
   const columns = [
     {
@@ -670,124 +614,85 @@ export function CategoriesListScreen({
               <p className="text-text-subtle text-detail">Catálogo</p>
               <ScreenTitle>Categorías</ScreenTitle>
             </div>
-            <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
+            <Button
+              variant="primary"
+              icon={<Plus />}
+              dataStatus={data.status}
+              onPress={() => setNewModalOpen(true)}
+            >
               Nueva categoría
             </Button>
           </div>
         }
         bodyClassName="gap-4 p-6"
       >
-        {list.kind === "loadError" && (
-          <>
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No pudimos abrir las categorías"
-              description="Probá de nuevo en unos minutos."
-            />
-            <Button variant="secondary" onPress={() => void load()}>
-              Reintentar
-            </Button>
-          </>
-        )}
-        {list.kind === "rate_limited" && (
-          <>
-            <InlineNotice
-              tone="error"
-              icon={<ShieldX />}
-              title="Demasiadas solicitudes"
-              description={retryAfterDetail(list.retryAfterSeconds)}
-            />
-            <Button variant="secondary" onPress={() => void load()}>
-              Reintentar
-            </Button>
-          </>
-        )}
-        {(list.kind === "loading" || list.kind === "loaded") && (
-          <>
-            <div className="w-105">
-              <SearchField
-                value={search}
-                onChange={setSearch}
-                placeholder="Buscar una categoría"
-                icon={<Search />}
-              />
-            </div>
-            <Table
-              aria-label="Categorías"
-              columns={columns}
-              sort={sort}
-              onSortChange={setSort}
-              loading={list.kind === "loading" ? "initial" : false}
-              rows={filtered.map((category) => ({ id: category.id, item: category }))}
-              empty={
-                categories.length === 0
-                  ? {
-                      icon: <Tags />,
-                      title: "Todavía no hay categorías",
-                      description: "Creá la primera para poder darle una a un producto.",
-                      variant: "blank",
-                    }
-                  : {
-                      icon: <Search />,
-                      title: "Sin resultados",
-                      description: "Probá con otro nombre.",
-                      variant: "filtered",
-                    }
-              }
-              footer={
-                <p className="text-text-subtle text-detail">
-                  {plural(filtered.length, {
-                    one: "1 categoría",
-                    other: `${filtered.length} categorías`,
-                  })}
-                </p>
-              }
-            />
-          </>
-        )}
+        <div className="w-105">
+          <SearchField
+            value={search}
+            onChange={setSearch}
+            placeholder="Buscar una categoría"
+            icon={<Search />}
+          />
+        </div>
+        <Table
+          aria-label="Categorías"
+          columns={columns}
+          sort={sort}
+          onSortChange={setSort}
+          {...cloudTableState(data, "las categorías")}
+          rows={filtered.map((category) => ({ id: category.id, item: category }))}
+          empty={
+            categories.length === 0
+              ? {
+                  icon: <Tags />,
+                  title: "Todavía no hay categorías",
+                  description: "Creá la primera para poder darle una a un producto.",
+                  variant: "blank",
+                }
+              : {
+                  icon: <Search />,
+                  title: "Sin resultados",
+                  description: "Probá con otro nombre.",
+                  variant: "filtered",
+                }
+          }
+          footer={
+            filtered.length === 0 ? undefined : (
+              <p className="text-text-subtle text-detail">
+                {plural(filtered.length, {
+                  one: "1 categoría",
+                  other: `${filtered.length} categorías`,
+                })}
+              </p>
+            )
+          }
+        />
       </ScreenLayout>
       <NewCategoryModal
         open={newModalOpen}
         onClose={() => setNewModalOpen(false)}
-        onCreated={(category) => {
+        onCreated={() => {
           setNewModalOpen(false);
-          const current = listRef.current;
-          if (current.kind === "loaded") {
-            setList({ kind: "loaded", categories: [...current.categories, category] });
-          } else {
-            void load();
-          }
+          void refreshCatalog();
         }}
         onSessionEnded={onSessionEnded}
         createCategory={createCategory}
         categories={categories}
       />
-      <EditCategoryModal
-        target={editTarget}
-        onClose={() => setEditTarget(null)}
-        onSaved={(category) => {
-          setEditTarget(null);
-          setList((current) =>
-            current.kind === "loaded"
-              ? {
-                  kind: "loaded",
-                  categories: current.categories.map((existing) =>
-                    existing.id === category.id ? category : existing,
-                  ),
-                }
-              : current,
-          );
-        }}
-        onCategoriesReloaded={(categories) => {
-          latestLoad.current += 1;
-          setList({ kind: "loaded", categories });
-        }}
-        onSessionEnded={onSessionEnded}
-        fetchCategories={fetchCategories}
-        editCategory={editCategory}
-        categories={categories}
-      />
+      {data.status === "loaded" ? (
+        <EditCategoryModal
+          target={editTarget}
+          onClose={() => setEditTarget(null)}
+          onSaved={() => {
+            setEditTarget(null);
+            void refreshCatalog();
+          }}
+          onSessionEnded={onSessionEnded}
+          reload={reloadCategory}
+          editCategory={editCategory}
+          categories={data.value}
+        />
+      ) : null}
     </>
   );
 }

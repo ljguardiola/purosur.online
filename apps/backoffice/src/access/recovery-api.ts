@@ -8,8 +8,7 @@ import type {
   PublicKeyCredentialCreationOptionsJSON,
   RegistrationResponseJSON,
 } from "@simplewebauthn/browser";
-
-const ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
+import { retryAfterSeconds } from "../platform/retry-after-seconds";
 
 export type RecoveryRequestOutcome =
   | { kind: "sent" }
@@ -34,14 +33,6 @@ export type RegistrationOptions = {
   options: PublicKeyCredentialCreationOptionsJSON;
 };
 
-function retryAfterSeconds(response: Response): number {
-  const header = response.headers.get("Retry-After");
-  const seconds = header ? Number(header) : Number.NaN;
-  return Number.isFinite(seconds) && seconds > 0
-    ? seconds
-    : ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS;
-}
-
 function postJson(path: string, body: unknown): Promise<Response> {
   return fetch(path, {
     method: "POST",
@@ -50,7 +41,7 @@ function postJson(path: string, body: unknown): Promise<Response> {
   });
 }
 
-/** The cloud answers identically, with no body, whether or not `email` belongs to a real account. */
+// The cloud answers identically, with no body, whether or not `email` belongs to a real account.
 export async function requestRecoveryLink(email: string): Promise<RecoveryRequestOutcome> {
   const requestBody: RecoveryRequestBody = { email };
   let response: Response;
@@ -87,7 +78,7 @@ async function tokenErrorOutcome<Value>(response: Response): Promise<RecoveryTok
   return kind ? { kind } : { kind: "failed" };
 }
 
-/** Hands back a still-live token's WebAuthn creation options and the account's display name; doesn't touch the token itself. */
+// Leaves the still-live token untouched.
 export async function fetchRegistrationOptions(
   recoveryToken: string,
 ): Promise<RecoveryTokenOutcome<RegistrationOptions>> {
@@ -111,7 +102,7 @@ export async function fetchRegistrationOptions(
   };
 }
 
-/** Burns the token; never opens a session. */
+// Burns the token; never opens a session.
 export async function redeemRecovery(
   recoveryToken: string,
   passkeyRegistration: RegistrationResponseJSON,

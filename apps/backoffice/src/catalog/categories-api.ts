@@ -1,27 +1,20 @@
-import type { CategoryCreationBody, CategoryEditBody } from "@purosur/contracts";
+import {
+  type CategoryCreationBody,
+  type CategoryEditBody,
+  type CategorySummary,
+  categoryListSchema,
+} from "@purosur/contracts";
+import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import { retryAfterSeconds } from "../platform/retry-after-seconds";
 
-const ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
-
-export type CategorySummary = {
-  id: string;
-  name: string;
-  version: number;
-  parentId: string | null;
-};
-
-export type FetchCategoriesOutcome =
-  | { kind: "ok"; value: CategorySummary[] }
-  | { kind: "forbidden" }
-  | { kind: "unauthenticated" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "failed" };
+export type FetchCategoriesOutcome = CloudReadOutcome<CategorySummary[]>;
 
 export type CreateCategoryInput = { name: string; parentId: string | null };
 
 type CreateCategoryFieldError = "name" | "parentId";
 
 export type CreateCategoryOutcome =
-  | { kind: "ok"; value: CategorySummary }
+  | { kind: "ok" }
   | { kind: "validation_failed"; field: CreateCategoryFieldError }
   | { kind: "name_taken" }
   | { kind: "parent_has_products" }
@@ -35,7 +28,7 @@ export type EditCategoryInput = { name: string; parentId: string | null; version
 type EditCategoryFieldError = "name" | "parentId" | "version";
 
 export type EditCategoryOutcome =
-  | { kind: "ok"; value: CategorySummary }
+  | { kind: "ok" }
   | { kind: "validation_failed"; field: EditCategoryFieldError }
   | { kind: "name_taken" }
   | { kind: "parent_has_products" }
@@ -46,14 +39,6 @@ export type EditCategoryOutcome =
   | { kind: "unauthenticated" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
-
-function retryAfterSeconds(response: Response): number {
-  const header = response.headers.get("Retry-After");
-  const seconds = header ? Number(header) : Number.NaN;
-  return Number.isFinite(seconds) && seconds > 0
-    ? seconds
-    : ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS;
-}
 
 function postJson(path: string, body?: unknown): Promise<Response> {
   return fetch(path, {
@@ -86,11 +71,11 @@ export async function fetchCategories(): Promise<FetchCategoriesOutcome> {
   if (!response.ok) {
     return { kind: "failed" };
   }
-  const body = (await response.json().catch(() => undefined)) as CategorySummary[] | undefined;
-  if (!Array.isArray(body)) {
+  const parsed = categoryListSchema.safeParse(await response.json().catch(() => undefined));
+  if (!parsed.success) {
     return { kind: "failed" };
   }
-  return { kind: "ok", value: body };
+  return { kind: "ok", value: parsed.data };
 }
 
 export async function createCategory(input: CreateCategoryInput): Promise<CreateCategoryOutcome> {
@@ -102,11 +87,7 @@ export async function createCategory(input: CreateCategoryInput): Promise<Create
     return { kind: "failed" };
   }
   if (response.ok) {
-    const body = (await response.json().catch(() => undefined)) as CategorySummary | undefined;
-    if (!body) {
-      return { kind: "failed" };
-    }
-    return { kind: "ok", value: body };
+    return { kind: "ok" };
   }
   if (response.status === 400) {
     const body = (await response.json().catch(() => undefined)) as
@@ -154,11 +135,7 @@ export async function editCategory(
     return { kind: "failed" };
   }
   if (response.ok) {
-    const body = (await response.json().catch(() => undefined)) as CategorySummary | undefined;
-    if (!body) {
-      return { kind: "failed" };
-    }
-    return { kind: "ok", value: body };
+    return { kind: "ok" };
   }
   if (response.status === 400) {
     const body = (await response.json().catch(() => undefined)) as

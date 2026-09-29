@@ -516,6 +516,41 @@ test("shows the signed-in user's name in the rail footer, and Salir signs back o
   expect(window.location.pathname).toBe("/sign-in");
 });
 
+test("a list the previous person had open is read again from the loading placeholder after signing out and back in", async () => {
+  await page.viewport(1280, 900);
+  window.history.pushState(null, "", "/catalog/products");
+  const services = createAppServices();
+  vi.mocked(services.productsListScreen.fetchProducts).mockResolvedValue({
+    kind: "ok",
+    value: [honey],
+  });
+  vi.mocked(services.productsListScreen.fetchCategories).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
+  vi.mocked(services.signInScreen.fetchAuthenticationOptions).mockResolvedValue({
+    kind: "ok",
+    value: { challenge: "challenge" },
+  });
+  vi.mocked(services.signInScreen.startAuthentication).mockResolvedValue(
+    {} as Awaited<ReturnType<AppServices["signInScreen"]["startAuthentication"]>>,
+  );
+  vi.mocked(services.signInScreen.authenticate).mockResolvedValue({ kind: "ok" });
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByText(honey.name)).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Salir" }));
+  await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Salir" }));
+  vi.mocked(services.productsListScreen.fetchProducts).mockReturnValue(new Promise(() => {}));
+  await userEvent.click(screen.getByRole("button", { name: "Ingresar con passkey" }));
+
+  await userEvent.click(screen.getByRole("link", { name: "Catálogo" }));
+
+  await expect
+    .element(screen.getByRole("table", { name: "Productos" }))
+    .toHaveAttribute("aria-busy", "true");
+  expect(screen.getByText(honey.name).query()).toBeNull();
+});
+
 test("shows a focus ring on the page heading it focuses after a keyboard navigation", async () => {
   window.history.pushState(null, "", "/help/getting_started");
   const screen = await render(<App help={help} services={createAppServices()} />);
