@@ -12,8 +12,7 @@ export interface LoggedChange {
   originDeviceId?: string;
 }
 
-// Arbitrary, but fixed: every writer of the changes log takes this same lock.
-const CHANGE_LOG_LOCK_KEY = 628_001;
+const CHANGE_LOG_LOCK_KEY = "changes_log";
 
 // A sequence value is handed out when the insert runs, not when it commits, so two writers could
 // commit out of order and a pull taken in between would move its cursor past the one still
@@ -23,7 +22,7 @@ export async function logChange<TQueryResult extends PgQueryResultHKT>(
   tx: PgDatabase<TQueryResult>,
   change: LoggedChange,
 ): Promise<void> {
-  await tx.execute(sql`select pg_advisory_xact_lock(${CHANGE_LOG_LOCK_KEY})`);
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${CHANGE_LOG_LOCK_KEY}, 0))`);
   await tx.insert(changes).values({
     entity: change.entity,
     entityId: change.entityId,

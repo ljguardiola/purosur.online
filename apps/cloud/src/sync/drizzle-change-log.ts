@@ -5,7 +5,7 @@ import {
   type BranchSettingsRow,
   readBranchSettings,
 } from "../branch/branch-settings-read-route.js";
-import { changes, deviceState } from "../platform/db/schema.js";
+import { branchSettings, changes, deviceState } from "../platform/db/schema.js";
 
 export interface PulledBranchSettingsChange {
   changeSeq: number;
@@ -57,6 +57,11 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
     for (const { changeSeq, entityId } of logged) {
       let row = rows.get(entityId);
       if (row === undefined) {
+        await this.tx
+          .select({ locationId: branchSettings.locationId })
+          .from(branchSettings)
+          .where(eq(branchSettings.locationId, entityId))
+          .for("share");
         row = await readBranchSettings(this.tx, entityId);
         rows.set(entityId, row);
       }
@@ -75,13 +80,12 @@ export class DrizzleChangeLog<TQueryResult extends PgQueryResultHKT>
     this.db = db;
   }
 
-  // Repeatable read: a branch's settings and its hours are read in two queries, which must not
-  // straddle a save committing between them.
+  // Read committed, so a device's overlapping pulls wait on its state row instead of failing; a
+  // branch's settings and hours still come from one save, since every save locks the settings row
+  // before touching either and the share lock above waits for it.
   transaction<TOutcome>(
     work: (tx: ChangeLogTransaction<PulledBranchSettingsChange>) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    return this.db.transaction((tx) => work(new DrizzleChangeLogTransaction(tx)), {
-      isolationLevel: "repeatable read",
-    });
+    return this.db.transaction((tx) => work(new DrizzleChangeLogTransaction(tx)));
   }
 }
