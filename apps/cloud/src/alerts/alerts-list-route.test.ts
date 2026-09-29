@@ -130,11 +130,11 @@ function getAlerts(rawSessionId: string | undefined, query = "") {
 }
 
 interface ListBody {
-  alerts: { id: string; kind: string; scope: string | null; scope_display: string | null }[];
+  alerts: { id: string; kind: string; scope: string | null; scopeDisplay: string | null }[];
   total: number;
-  page_size: number;
-  open_count: number;
-  open_critical_count: number;
+  pageSize: number;
+  openCount: number;
+  openCriticalCount: number;
 }
 
 function listBody(response: { json: () => unknown }): ListBody {
@@ -233,7 +233,7 @@ describe("GET /alerts", () => {
     expect(listBody(closedResponse).alerts.map((row) => row.id)).not.toContain(openId);
   });
 
-  it("shows a user-scoped alert's scope_display as that user's first name", async () => {
+  it("shows a user-scoped alert's scopeDisplay as that user's first name", async () => {
     const roleId = await insertRole(["view_all_alerts"]);
     const viewerId = await insertUserWithRole(roleId);
     const rawSessionId = await insertSession(viewerId);
@@ -249,7 +249,7 @@ describe("GET /alerts", () => {
       expect.objectContaining({
         kind: "user_email_changed",
         scope: targetId,
-        scope_display: "Ada",
+        scopeDisplay: "Ada",
       }),
     ]);
   });
@@ -268,7 +268,7 @@ describe("GET /alerts", () => {
 
     expect(response.statusCode).toBe(200);
     const body = listBody(response).alerts;
-    expect(body).toEqual([expect.objectContaining({ scope_display: "203.0.113.5" })]);
+    expect(body).toEqual([expect.objectContaining({ scopeDisplay: "203.0.113.5" })]);
   });
 
   it("never sends a closed lockout alert's stored address hash", async () => {
@@ -286,7 +286,7 @@ describe("GET /alerts", () => {
     expect(response.statusCode).toBe(200);
     expect(response.body).not.toContain(hashedAddress);
     expect(listBody(response).alerts).toEqual([
-      expect.objectContaining({ scope: null, scope_display: null }),
+      expect.objectContaining({ scope: null, scopeDisplay: null }),
     ]);
   });
 
@@ -307,7 +307,7 @@ describe("GET /alerts", () => {
     const firstPage = listBody(await getAlerts(rawSessionId));
     const secondPage = listBody(await getAlerts(rawSessionId, "?page=2"));
 
-    expect(firstPage.page_size).toBe(25);
+    expect(firstPage.pageSize).toBe(25);
     expect(firstPage.total).toBe(30);
     expect(firstPage.alerts.map((row) => row.id)).toEqual(ids.slice(0, 25));
     expect(secondPage.alerts.map((row) => row.id)).toEqual(ids.slice(25));
@@ -344,8 +344,8 @@ describe("GET /alerts", () => {
 
     const body = listBody(await getAlerts(rawSessionId, "?open=false&level=informational&page=3"));
 
-    expect(body.open_count).toBe(2);
-    expect(body.open_critical_count).toBe(1);
+    expect(body.openCount).toBe(2);
+    expect(body.openCriticalCount).toBe(1);
   });
 
   it("searches by a user-scoped alert's first name", async () => {

@@ -2015,15 +2015,20 @@ test.each([
 test("offers to try again when a screen fails to render, reports the failure, and shows the screen once it works", async () => {
   window.history.pushState(null, "", "/home/alerts");
   const services = createAppServices();
-  vi.mocked(services.alertsListScreen.fetchAlerts)
-    .mockResolvedValueOnce({
-      kind: "ok",
-      value: { alerts: null, total: 0, pageSize: 25, openCount: 0, openCriticalCount: 0 },
-    } as never)
-    .mockResolvedValue({
-      kind: "ok",
-      value: { alerts: [], total: 0, pageSize: 25, openCount: 0, openCriticalCount: 0 },
-    });
+  const unreadable = { active: true };
+  const page = {
+    get alerts(): never[] {
+      if (unreadable.active) {
+        throw new TypeError("the alerts cannot be read");
+      }
+      return [];
+    },
+    total: 0,
+    pageSize: 25,
+    openCount: 0,
+    openCriticalCount: 0,
+  };
+  vi.mocked(services.alertsListScreen.fetchAlerts).mockResolvedValue({ kind: "ok", value: page });
   const reportError = vi.fn();
   const screen = await render(
     <App help={emptyHelp} services={services} reportError={reportError} />,
@@ -2033,6 +2038,7 @@ test("offers to try again when a screen fails to render, reports the failure, an
   expect(reportError).toHaveBeenCalledTimes(1);
   expect(reportError).toHaveBeenCalledWith(expect.any(TypeError));
 
+  unreadable.active = false;
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
   await expect.element(screen.getByRole("heading", { name: "Alertas", level: 1 })).toHaveFocus();

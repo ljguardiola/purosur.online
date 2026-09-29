@@ -1,8 +1,12 @@
-import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
+import type { AlertDetail } from "@purosur/contracts";
+import { type AlertLevel, ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import {
   Button,
+  EmptyState,
   formatDate,
   InlineNotice,
+  LoadFailure,
+  LoadingPlaceholder,
   Modal,
   type NoticeTone,
   plural,
@@ -19,17 +23,13 @@ import {
   ShieldX,
   TriangleAlert,
 } from "lucide-react";
-import { type ReactElement, useCallback, useEffect, useRef, useState } from "react";
+import { type ReactElement, useState } from "react";
 import { type BackofficeAccess, canCloseAlertsManually } from "../access/backoffice-access";
 import { useSendToMyAccount } from "../access/send-to-my-account";
+import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useLatestRef } from "../platform/use-latest-ref";
-import {
-  type AlertDetail,
-  type AlertLevel,
-  closeAlert as closeAlertDefault,
-  fetchAlert as fetchAlertDefault,
-} from "./alerts-api";
+import { closeAlert as closeAlertDefault, fetchAlert as fetchAlertDefault } from "./alerts-api";
+import { useAlertQuery, useRefreshAlerts, useRefreshAlertsAfterClosing } from "./alerts-queries";
 
 type Icon = ReactElement<{ className?: string }>;
 
@@ -74,14 +74,6 @@ export type AlertDetailModalProps = {
   onSessionEnded: () => void;
   services?: AlertDetailModalServices;
 };
-
-type LoadState =
-  | { kind: "idle" }
-  | { kind: "loading" }
-  | { kind: "loaded"; alert: AlertDetail }
-  | { kind: "notFound" }
-  | { kind: "loadError" }
-  | { kind: "rate_limited"; retryAfterSeconds: number };
 
 type FormNotice =
   | { kind: "alreadyClosed" }
@@ -210,117 +202,72 @@ function alertDescription(alert: AlertDetail): string {
   }
 }
 
-export function AlertDetailModal({
+export function AlertDetailModal(props: AlertDetailModalProps) {
+  const { alertId, ...rest } = props;
+  return alertId === null ? null : (
+    <OpenAlertDetailModal key={alertId} alertId={alertId} {...rest} />
+  );
+}
+
+function OpenAlertDetailModal({
   alertId,
   access,
   onClose,
   onClosed,
   onSessionEnded,
   services,
-}: AlertDetailModalProps) {
+}: Omit<AlertDetailModalProps, "alertId"> & { alertId: string }) {
   const sendToMyAccount = useSendToMyAccount();
   const { fetchAlert, closeAlert } = services ?? defaultAlertDetailModalServices;
-  const [loadState, setLoadState] = useState<LoadState>({ kind: "idle" });
+  const data = useAlertQuery({ id: alertId, fetchAlert, onSessionEnded });
+  const refreshAlerts = useRefreshAlerts();
+  const refreshAlertsAfterClosing = useRefreshAlertsAfterClosing();
   const [notice, setNotice] = useState<FormNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const sessionRef = useRef(0);
-  const onSessionEndedRef = useLatestRef(onSessionEnded);
-
-  const load = useCallback(
-    async (id: string) => {
-      const session = sessionRef.current;
-      setLoadState({ kind: "loading" });
-      const outcome = await fetchAlert(id);
-      if (session !== sessionRef.current) {
-        return;
-      }
-      if (outcome.kind === "ok") {
-        setLoadState({ kind: "loaded", alert: outcome.value });
-        return;
-      }
-      if (outcome.kind === "unauthenticated") {
-        onSessionEndedRef.current();
-        return;
-      }
-      if (outcome.kind === "forbidden") {
-        sendToMyAccount();
-        return;
-      }
-      if (outcome.kind === "not_found") {
-        setLoadState({ kind: "notFound" });
-        return;
-      }
-      if (outcome.kind === "rate_limited") {
-        setLoadState({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
-        return;
-      }
-      setLoadState({ kind: "loadError" });
-    },
-    [fetchAlert, sendToMyAccount, onSessionEndedRef],
-  );
-
-  useEffect(() => {
-    sessionRef.current += 1;
-    setNotice(null);
-    setSubmitting(false);
-    if (alertId) {
-      void load(alertId);
-    } else {
-      setLoadState({ kind: "idle" });
-    }
-  }, [alertId, load]);
-
   async function handleCloseAlert() {
-    if (!alertId) {
-      return;
-    }
-    const session = sessionRef.current;
     setNotice(null);
     setSubmitting(true);
     const outcome = await closeAlert(alertId);
-    if (session !== sessionRef.current) {
-      return;
-    }
     if (outcome.kind === "ok") {
       onClosed();
+      void refreshAlertsAfterClosing(alertId);
       return;
     }
     if (outcome.kind === "unauthenticated") {
-      onSessionEndedRef.current();
+      onSessionEnded();
       return;
     }
     if (outcome.kind === "forbidden") {
       sendToMyAccount();
       return;
     }
+    setSubmitting(false);
     if (outcome.kind === "not_found") {
-      setLoadState({ kind: "notFound" });
-      setSubmitting(false);
+      void refreshAlerts();
       return;
     }
     if (outcome.kind === "already_closed") {
       setNotice({ kind: "alreadyClosed" });
-      setSubmitting(false);
-      void load(alertId);
+      void refreshAlerts();
       return;
     }
     if (outcome.kind === "rate_limited") {
       setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
-      setSubmitting(false);
       return;
     }
     setNotice({ kind: "attemptFailed" });
-    setSubmitting(false);
   }
 
-  const alert = loadState.kind === "loaded" ? loadState.alert : undefined;
-  const canClose =
-    alert !== undefined && alert.resolvedAt === null && canCloseAlertsManually(access);
+  const alert =
+    data.status === "loaded" && data.value.kind === "found" ? data.value.alert : undefined;
+  const isKnownClosed = alert !== undefined && alert.resolvedAt !== null;
+  const isKnownMissing = data.status === "loaded" && alert === undefined;
+  const offersClose = canCloseAlertsManually(access) && !isKnownClosed && !isKnownMissing;
 
   return (
     <Modal
-      open={alertId !== null}
+      open
       onOpenChange={(open) => {
         if (!open && !submitting) {
           onClose();
@@ -343,12 +290,13 @@ export function AlertDetailModal({
           >
             Volver
           </Button>
-          {canClose ? (
+          {offersClose ? (
             <Button
               variant="primary"
               size="large"
               icon={<Check />}
               fullWidth
+              dataStatus={data.status}
               disabled={submitting}
               onPress={() => void handleCloseAlert()}
             >
@@ -383,34 +331,11 @@ export function AlertDetailModal({
             description={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
-        {loadState.kind === "loading" && <p role="status">Cargando la alerta…</p>}
-        {loadState.kind === "notFound" && (
-          <InlineNotice tone="error" icon={<ShieldX />} title="No encontramos esa alerta" />
-        )}
-        {loadState.kind === "loadError" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title="No pudimos abrir la alerta"
-            description="Probá de nuevo en unos minutos."
-          />
-        )}
-        {loadState.kind === "rate_limited" && (
-          <InlineNotice
-            tone="error"
-            icon={<ShieldX />}
-            title="Demasiadas solicitudes"
-            description={retryAfterDetail(loadState.retryAfterSeconds)}
-          />
-        )}
-        {alertId !== null &&
-          (loadState.kind === "loadError" || loadState.kind === "rate_limited") && (
-            <div>
-              <Button variant="secondary" onPress={() => void load(alertId)}>
-                Reintentar
-              </Button>
-            </div>
-          )}
+        {data.status === "loading" && <LoadingPlaceholder variant="card" lines={4} />}
+        {data.status === "failed" && <LoadFailure {...cloudLoadFailure(data, "la alerta")} />}
+        {isKnownMissing ? (
+          <EmptyState icon={<ShieldX />} title="No encontramos esa alerta" variant="blank" />
+        ) : null}
         {alert ? (
           <>
             <div className="flex items-center gap-2">

@@ -195,8 +195,8 @@ describe("POST /alerts/:id/close", () => {
     const response = await closeAlertRequest(rawSessionId, alertId);
 
     expect(response.statusCode).toBe(200);
-    const body = response.json() as { resolved_at: string | null };
-    expect(body.resolved_at).toBe(NOON.toISOString());
+    const body = response.json() as { resolvedAt: string | null };
+    expect(body.resolvedAt).toBe(NOON.toISOString());
     const [row] = await db.select().from(alerts).where(eq(alerts.id, alertId));
     expect(row).toMatchObject({ resolvedAt: NOON, resolvedBy: userId });
     const [auditRow] = await db.select().from(auditLog).where(eq(auditLog.entityId, alertId));
@@ -231,7 +231,7 @@ describe("POST /alerts/:id/close", () => {
     expect(response.body).not.toContain(hashSourceAddress(SOURCE_ADDRESS));
     expect(response.json()).toMatchObject({
       scope: null,
-      scope_display: null,
+      scopeDisplay: null,
       detail: { failureCount: 6 },
     });
     expect(response.json()).not.toHaveProperty("detail.sourceAddress");
