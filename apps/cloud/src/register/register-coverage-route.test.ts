@@ -218,8 +218,6 @@ describe("GET /registers/coverage", () => {
     const response = await getCoverage(rawSessionId);
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({
-      uncovered_permissions: expect.arrayContaining(["void_sale"]),
-    });
+    expect(response.json()).toEqual({ uncovered_permissions: REGISTER_PERMISSION_KEYS });
   });
 });
