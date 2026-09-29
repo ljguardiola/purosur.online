@@ -1,4 +1,10 @@
-import type { RegisterCreationBody } from "@purosur/contracts";
+import {
+  type RegisterCreationBody,
+  type RegisterSummaryBody,
+  registerEnrollmentCodeSchema,
+  registerListSchema,
+} from "@purosur/contracts";
+import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { retryAfterSeconds } from "../platform/retry-after-seconds";
 
 type PendingEnrollmentCode = { issuedAt: string; expiresAt: string };
@@ -9,21 +15,14 @@ export type RegisterSummary = {
   pendingCode: PendingEnrollmentCode | null;
 };
 
-export type FetchRegistersOutcome =
-  | { kind: "ok"; value: RegisterSummary[] }
-  | { kind: "forbidden" }
-  | { kind: "unauthenticated" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "failed" };
+export type FetchRegistersOutcome = CloudReadOutcome<RegisterSummary[]>;
 
 export type CreateRegisterInput = RegisterCreationBody;
 
 type CreateRegisterFieldError = "name";
 
-type CreatedRegister = { id: string; name: string };
-
 export type CreateRegisterOutcome =
-  | { kind: "ok"; value: CreatedRegister }
+  | { kind: "ok" }
   | { kind: "validation_failed"; field: CreateRegisterFieldError }
   | { kind: "name_taken" }
   | { kind: "forbidden" }
@@ -51,11 +50,7 @@ function postJson(path: string, body?: unknown): Promise<Response> {
   });
 }
 
-function registerFromWire(row: {
-  id: string;
-  name: string;
-  pending_code: { issued_at: string; expires_at: string } | null;
-}): RegisterSummary {
+function registerFromWire(row: RegisterSummaryBody): RegisterSummary {
   return {
     id: row.id,
     name: row.name,
@@ -109,13 +104,11 @@ export async function fetchRegisters(): Promise<FetchRegistersOutcome> {
   if (!response.ok) {
     return { kind: "failed" };
   }
-  const body = (await response.json().catch(() => undefined)) as
-    | Parameters<typeof registerFromWire>[0][]
-    | undefined;
-  if (!Array.isArray(body)) {
+  const parsed = registerListSchema.safeParse(await response.json().catch(() => undefined));
+  if (!parsed.success) {
     return { kind: "failed" };
   }
-  return { kind: "ok", value: body.map(registerFromWire) };
+  return { kind: "ok", value: parsed.data.map(registerFromWire) };
 }
 
 export async function createRegister(input: CreateRegisterInput): Promise<CreateRegisterOutcome> {
@@ -126,11 +119,7 @@ export async function createRegister(input: CreateRegisterInput): Promise<Create
     return { kind: "failed" };
   }
   if (response.ok) {
-    const body = (await response.json().catch(() => undefined)) as CreatedRegister | undefined;
-    if (!body) {
-      return { kind: "failed" };
-    }
-    return { kind: "ok", value: body };
+    return { kind: "ok" };
   }
   if (response.status === 400) {
     const body = (await response.json().catch(() => undefined)) as
@@ -155,13 +144,13 @@ export async function emitEnrollmentCode(id: string): Promise<EmitEnrollmentCode
     return { kind: "failed" };
   }
   if (response.ok) {
-    const body = (await response.json().catch(() => undefined)) as
-      | { code?: unknown; expires_at?: unknown }
-      | undefined;
-    if (typeof body?.code !== "string" || typeof body.expires_at !== "string") {
+    const parsed = registerEnrollmentCodeSchema.safeParse(
+      await response.json().catch(() => undefined),
+    );
+    if (!parsed.success) {
       return { kind: "failed" };
     }
-    return { kind: "ok", value: { code: body.code, expiresAt: body.expires_at } };
+    return { kind: "ok", value: { code: parsed.data.code, expiresAt: parsed.data.expires_at } };
   }
   if (response.status === 404) {
     return { kind: "not_found" };
