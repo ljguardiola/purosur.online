@@ -13,7 +13,7 @@ export async function waitForLockWaiters(sql: postgres.Sql, count: number): Prom
   throw new Error(`test setup: ${count} queries never queued behind the held lock`);
 }
 
-// Postgres grants waiters on the same row lock in the order they queued. Both are settled even when
+// Postgres grants waiters on the same lock in the order they queued. Both are settled even when
 // one never queues, so no leftover waiter inflates the next test's count.
 export async function runQueuedBehindHeldLock<First, Second>(
   sql: postgres.Sql,
