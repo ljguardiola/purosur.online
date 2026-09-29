@@ -21,6 +21,7 @@ export {
   PERMISSION_KEYS,
   repeatsAPermissionKey,
 } from "./model/permission-catalog.js";
+export { uncoveredRegisterPermissions } from "./model/register-coverage.js";
 export {
   isAdministratorRoleName,
   isRoleNameTooLong,
