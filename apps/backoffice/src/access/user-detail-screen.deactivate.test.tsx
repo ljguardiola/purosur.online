@@ -187,3 +187,31 @@ test("treats a deactivation 404 as an already-vanished target, reading the user 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.element(screen.getByRole("alert")).toHaveTextContent("No encontramos este usuario");
 });
+
+test("Desactivar opens the deactivate modal, and Cancelar closes it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+  const dialog = await openDeactivateModal(screen);
+  await expect.element(dialog).toBeVisible();
+
+  await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  expect(services.deactivateUser).not.toHaveBeenCalled();
+});
+
+test("ends the session when the deactivate modal's deactivation finds it closed", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  vi.mocked(services.deactivateUser).mockResolvedValue({ kind: "unauthenticated" });
+  const onSessionEnded = vi.fn();
+  const screen = await renderScreen(services, onSessionEnded);
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+  const dialog = await openDeactivateModal(screen);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});

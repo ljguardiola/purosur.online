@@ -430,3 +430,40 @@ test("a failed roles read fails the Datos section too, and Reintentar reads the 
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
   expect(services.fetchUser).toHaveBeenCalledTimes(1);
 });
+
+test("a passkey's remove action opens the remove modal, without the only-passkey sentence when the user has more, and Cancelar closes it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [notebook, phone],
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
+
+  const dialog = await openRemoveModal(screen, "Notebook del local");
+
+  await expect
+    .element(dialog.getByText("«Notebook del local» deja de servir para entrar."))
+    .toBeVisible();
+  expect(dialog.getByText(/Es su única passkey/).query()).toBeNull();
+  await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  expect(services.removeUserPasskey).not.toHaveBeenCalled();
+});
+
+test("ends the session when the remove modal's removal finds it closed", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
+  vi.mocked(services.removeUserPasskey).mockResolvedValue({ kind: "unauthenticated" });
+  const onSessionEnded = vi.fn();
+  const screen = await renderScreen(services, onSessionEnded);
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+  const dialog = await openRemoveModal(screen, "Notebook del local");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});

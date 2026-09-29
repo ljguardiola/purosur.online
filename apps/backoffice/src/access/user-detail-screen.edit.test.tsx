@@ -198,3 +198,34 @@ test("a refresh of the user in the background does not overwrite what is typed i
     .element(dialog.getByRole("textbox", { name: /^Correo/ }))
     .toHaveValue("escrito@purosur.online");
 });
+
+test("Editar opens the edit modal offering the roles the screen read, and Cancelar closes it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+  const dialog = await openEditModal(screen);
+
+  await userEvent.click(dialog.getByRole("button", { name: /^Responsable de turno Rol/ }));
+  await expect.element(screen.getByRole("option", { name: "Administrador" })).toBeVisible();
+  await expect.element(screen.getByRole("option", { name: "Cajero" })).toBeVisible();
+  await userEvent.keyboard("{Escape}");
+  await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  expect(services.editUser).not.toHaveBeenCalled();
+});
+
+test("ends the session when the edit modal's change finds it closed", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  vi.mocked(services.editUser).mockResolvedValue({ kind: "unauthenticated" });
+  const onSessionEnded = vi.fn();
+  const screen = await renderScreen(services, onSessionEnded);
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+  const dialog = await openEditModal(screen);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});

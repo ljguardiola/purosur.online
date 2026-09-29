@@ -1,3 +1,4 @@
+import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { afterEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import {
@@ -124,4 +125,43 @@ test("reactivating reads the user, the roles and the passkeys again from the ser
   await expect.poll(() => vi.mocked(services.fetchUser).mock.calls.length).toBe(2);
   await expect.poll(() => vi.mocked(services.fetchRoles).mock.calls.length).toBe(2);
   await expect.poll(() => vi.mocked(services.fetchUserPasskeys).mock.calls.length).toBe(2);
+});
+
+test("Reactivar opens the reactivate modal, and Cancelar closes it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: sofia });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByRole("heading", { name: "Sofía Díaz", level: 1 })).toBeVisible();
+  const dialog = await openReactivateModal(screen);
+  await expect.element(dialog).toBeVisible();
+
+  await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  expect(services.reactivateUser).not.toHaveBeenCalled();
+});
+
+test("ends the session when the reactivate modal's reactivation finds it closed", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: sofia });
+  vi.mocked(services.reactivateUser).mockResolvedValue({ kind: "unauthenticated" });
+  const onSessionEnded = vi.fn();
+  const screen = await renderScreen(services, onSessionEnded);
+  await expect.element(screen.getByRole("heading", { name: "Sofía Díaz", level: 1 })).toBeVisible();
+  const dialog = await openReactivateModal(screen);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Reactivar" }));
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("has no accessibility violations for an inactive user, and with the reactivate modal open", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: sofia });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByRole("heading", { name: "Sofía Díaz", level: 1 })).toBeVisible();
+  await expectNoAccessibilityViolations(document.body);
+
+  await openReactivateModal(screen);
+  await expectNoAccessibilityViolations(document.body);
 });
