@@ -3,7 +3,8 @@ import { _electron as electron } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { APP_DIR, appEnv, E2E_CHANNEL_FILE, platformArgs, writeChannelFile } from "./launch-app";
 
-const SHELL_READY_TEXT = "Puro Sur está listo";
+// A fresh data folder holds no enrollment, so a core that is up shows the enrollment screen.
+const CORE_UP_TEXT = "Dar de alta esta caja";
 const CORE_DOWN_TITLE = "Esperá un momento";
 const CORE_DOWN_BODY = "La caja vuelve a funcionar sola en unos minutos.";
 
@@ -97,7 +98,7 @@ describe("the register's own recovery once the core's bounded restarts run out",
     app.process().stderr?.on("data", (chunk: Buffer) => logs.push(chunk.toString()));
     page = await app.firstWindow();
     await page.waitForLoadState("domcontentloaded");
-    await page.getByText(SHELL_READY_TEXT).waitFor({ state: "visible", timeout: 10_000 });
+    await page.getByText(CORE_UP_TEXT).waitFor({ state: "visible", timeout: 10_000 });
 
     await page.evaluate(() => {
       const probe = window as unknown as NoticeProbe;
@@ -145,7 +146,7 @@ describe("the register's own recovery once the core's bounded restarts run out",
     });
 
     await expect
-      .poll(() => page.getByText(SHELL_READY_TEXT).isVisible(), { timeout: 10_000 })
+      .poll(() => page.getByText(CORE_UP_TEXT).isVisible(), { timeout: 10_000 })
       .toBe(true);
     expect(await page.getByText(CORE_DOWN_TITLE).count()).toBe(0);
 
