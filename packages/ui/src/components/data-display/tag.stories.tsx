@@ -26,3 +26,7 @@ export const WithIcon: Story = {
     children: "PIN",
   },
 };
+
+export const Status: Story = {
+  args: { tone: "neutral", variant: "status", children: "Inactiva" },
+};
