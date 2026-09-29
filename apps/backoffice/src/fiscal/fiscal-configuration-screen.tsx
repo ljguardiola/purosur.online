@@ -190,7 +190,7 @@ function EditIssuerIdentificationModal({
     authorizeSession,
     startAuthentication,
   } = services;
-  const isOpen = target !== null;
+  const open = target !== null;
   const [values, setValues] = useState<ModalValues>(EMPTY_MODAL_VALUES);
   const [version, setVersion] = useState(1);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -205,7 +205,7 @@ function EditIssuerIdentificationModal({
   });
 
   useEffect(() => {
-    if (isOpen && target) {
+    if (open && target) {
       setValues(valuesFrom(target));
       setToday(todayCalendarDate(nowRef.current()));
       setVersion(target.version);
@@ -213,7 +213,7 @@ function EditIssuerIdentificationModal({
       setNotice(null);
       setSubmitting(false);
     }
-  }, [isOpen, target, nowRef]);
+  }, [open, target, nowRef]);
 
   function clearFieldError(field: FieldErrorKey) {
     if (!errors[field]) {
@@ -303,13 +303,11 @@ function EditIssuerIdentificationModal({
   }
 
   const offersReload = notice?.kind === "staleVersion" || notice?.kind === "reloadFailed";
-  const activityStartDateValidity: { invalid: true; errorMessage: string } | { invalid?: false } =
-    errors.activityStartDate ? { invalid: true, errorMessage: errors.activityStartDate } : {};
 
   return (
     <>
       <Modal
-        isOpen={isOpen}
+        open={open}
         onOpenChange={(open) => {
           if (!open) {
             onClose();
@@ -327,7 +325,7 @@ function EditIssuerIdentificationModal({
               variant="secondary"
               size="large"
               icon={<X />}
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={onClose}
             >
               Cancelar
@@ -338,7 +336,7 @@ function EditIssuerIdentificationModal({
                 size="large"
                 icon={<RotateCcw />}
                 fullWidth
-                isDisabled={submitting}
+                disabled={submitting}
                 onPress={() => void handleReload()}
               >
                 Recargar
@@ -349,7 +347,7 @@ function EditIssuerIdentificationModal({
                 size="large"
                 icon={<Check />}
                 fullWidth
-                isDisabled={submitting}
+                disabled={submitting}
                 onPress={() => void handleSubmit()}
               >
                 Guardar los cambios
@@ -365,7 +363,7 @@ function EditIssuerIdentificationModal({
                 tone="error"
                 icon={<TriangleAlert />}
                 title="No se pudo guardar el cambio"
-                detail="Probá de nuevo."
+                description="Probá de nuevo."
               />
             )}
             {notice?.kind === "staleVersion" && (
@@ -373,7 +371,7 @@ function EditIssuerIdentificationModal({
                 tone="error"
                 icon={<RotateCcw />}
                 title="La identificación del emisor cambió mientras la editabas"
-                detail="Recargá los datos y volvé a hacer el cambio."
+                description="Recargá los datos y volvé a hacer el cambio."
               />
             )}
             {notice?.kind === "reloadFailed" && (
@@ -381,7 +379,7 @@ function EditIssuerIdentificationModal({
                 tone="error"
                 icon={<TriangleAlert />}
                 title="No se pudieron recargar los datos"
-                detail="Probá de nuevo."
+                description="Probá de nuevo."
               />
             )}
             <div className="flex gap-8">
@@ -397,7 +395,7 @@ function EditIssuerIdentificationModal({
                 clearFieldError("legalName");
               }}
               required
-              {...(errors.legalName ? { invalid: true, errorMessage: errors.legalName } : {})}
+              errorMessage={errors.legalName}
             />
             <div className="flex gap-3">
               <div className="flex-1">
@@ -410,9 +408,7 @@ function EditIssuerIdentificationModal({
                     clearFieldError("grossIncomeRegistration");
                   }}
                   required
-                  {...(errors.grossIncomeRegistration
-                    ? { invalid: true, errorMessage: errors.grossIncomeRegistration }
-                    : {})}
+                  errorMessage={errors.grossIncomeRegistration}
                 />
               </div>
               <div className="flex-1">
@@ -426,14 +422,14 @@ function EditIssuerIdentificationModal({
                   required
                   maxValue={today}
                   rangeMessage={ACTIVITY_START_DATE_FUTURE_ERROR}
-                  {...activityStartDateValidity}
+                  errorMessage={errors.activityStartDate}
                 />
               </div>
             </div>
             <InlineNotice
               tone="info"
               icon={<Info />}
-              detail="Los comprobantes ya emitidos conservan los datos con los que se imprimieron."
+              description="Los comprobantes ya emitidos conservan los datos con los que se imprimieron."
             />
           </div>
         ) : null}
@@ -500,7 +496,7 @@ export function FiscalConfigurationScreen({
             tone="error"
             icon={<TriangleAlert />}
             title="No pudimos abrir la configuración fiscal"
-            detail="Probá de nuevo en unos minutos."
+            description="Probá de nuevo en unos minutos."
           />
           <Button variant="secondary" onPress={() => void load()}>
             Reintentar
@@ -525,7 +521,7 @@ export function FiscalConfigurationScreen({
               tone="error"
               icon={<CircleAlert />}
               title="Las cajas no están emitiendo facturas ni notas de crédito"
-              detail="Hasta que se carguen los datos que faltan. Las ventas se siguen cobrando."
+              description="Hasta que se carguen los datos que faltan. Las ventas se siguen cobrando."
             />
           ) : null}
           <div className="flex gap-8">

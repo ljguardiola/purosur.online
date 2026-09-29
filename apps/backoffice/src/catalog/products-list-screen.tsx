@@ -18,13 +18,13 @@ import {
   InlineNotice,
   ListFilter,
   Modal,
+  type Option,
   OptionCardGroup,
+  type Options,
   plural,
   QuantityUnitField,
-  type QuantityUnitFieldOption,
   SearchField,
   Select,
-  type SelectOption,
   StatusIndicator,
   Table,
   type TableSort,
@@ -113,9 +113,9 @@ const PRODUCT_CATEGORY_NOT_LEAF_ERROR = (params: { category: string }) =>
   `"${params.category}" tiene subcategorías. Elegí una de ellas.`;
 const PRODUCT_NAME_REQUIRED = "Ingresá el nombre del producto.";
 const SALE_UNIT_OPTION_CONTENT = {
-  UNIT: { title: "Por unidad", helpText: "Se vende de a uno" },
-  KG: { title: "Por peso", helpText: "Se pesa en la balanza" },
-} satisfies Record<ProductSaleUnit, { title: string; helpText: string }>;
+  UNIT: { label: "Por unidad", description: "Se vende de a uno" },
+  KG: { label: "Por peso", description: "Se pesa en la balanza" },
+} satisfies Record<ProductSaleUnit, { label: string; description: string }>;
 const PRODUCT_BARCODE_REQUIRED = "Escaneá al menos un código de barras.";
 const PRODUCT_BARCODE_ALREADY_LISTED = "Ese código ya está en la lista.";
 const PRODUCT_BARCODE_HAS_SPACES = "El código de barras no puede tener espacios.";
@@ -149,13 +149,13 @@ const NET_CONTENT_UNIT_OPTION_LABELS = {
 } satisfies Record<NetContentUnit, string>;
 
 const PRODUCTS_EMPTY_STATE = {
-  active: { title: "No hay productos activos", detail: "Creá uno para verlo en la lista." },
+  active: { title: "No hay productos activos", description: "Creá uno para verlo en la lista." },
   inactive: { title: "No hay productos inactivos" },
   all: {
     title: "Todavía no hay productos",
-    detail: "Creá el primero para verlo en la lista.",
+    description: "Creá el primero para verlo en la lista.",
   },
-} satisfies Record<ProductStatusFilter, { title: string; detail?: string }>;
+} satisfies Record<ProductStatusFilter, { title: string; description?: string }>;
 
 function productsCountText(params: { count: number; status: ProductStatusFilter }): string {
   if (params.status === "active") {
@@ -177,15 +177,12 @@ function unitLabel(saleUnit: ProductSaleUnit): string {
   return UNIT_OPTION_LABELS[saleUnit];
 }
 
-const NET_CONTENT_UNIT_OPTIONS: [
-  QuantityUnitFieldOption<NetContentUnit>,
-  ...QuantityUnitFieldOption<NetContentUnit>[],
-] = [
-  { id: "G", label: NET_CONTENT_UNIT_OPTION_LABELS.G },
-  { id: "KG", label: NET_CONTENT_UNIT_OPTION_LABELS.KG },
-  { id: "ML", label: NET_CONTENT_UNIT_OPTION_LABELS.ML },
-  { id: "L", label: NET_CONTENT_UNIT_OPTION_LABELS.L },
-  { id: "UNIT", label: NET_CONTENT_UNIT_OPTION_LABELS.UNIT },
+const NET_CONTENT_UNIT_OPTIONS: Options<Option<NetContentUnit>> = [
+  { value: "G", label: NET_CONTENT_UNIT_OPTION_LABELS.G },
+  { value: "KG", label: NET_CONTENT_UNIT_OPTION_LABELS.KG },
+  { value: "ML", label: NET_CONTENT_UNIT_OPTION_LABELS.ML },
+  { value: "L", label: NET_CONTENT_UNIT_OPTION_LABELS.L },
+  { value: "UNIT", label: NET_CONTENT_UNIT_OPTION_LABELS.UNIT },
 ];
 
 const NET_CONTENT_DEFAULT_UNIT: NetContentUnit = "G";
@@ -215,9 +212,7 @@ function sortedByName(products: ProductSummary[], direction: "ascending" | "desc
 }
 
 // Full paths disambiguate leaves that share a name under different parents.
-function categorySelectOptions(
-  categories: CategorySummary[],
-): [SelectOption<string>, ...SelectOption<string>[]] | undefined {
+function categorySelectOptions(categories: CategorySummary[]): Options<Option<string>> | undefined {
   const leafIds = new Set(leafCategories(categories).map((category) => category.id));
   if (leafIds.size === 0) {
     return undefined;
@@ -581,7 +576,7 @@ function useGenerateInternalBarcode(
 }
 
 type NewProductModalProps = {
-  isOpen: boolean;
+  open: boolean;
   onClose: () => void;
   onCreated: (product: ProductSummary) => void;
   onSessionEnded: () => void;
@@ -591,7 +586,7 @@ type NewProductModalProps = {
 };
 
 function NewProductModal({
-  isOpen,
+  open,
   onClose,
   onCreated,
   onSessionEnded,
@@ -628,7 +623,7 @@ function NewProductModal({
   );
 
   useEffect(() => {
-    if (isOpen) {
+    if (open) {
       setName("");
       setCategoryId(null);
       setSaleUnit(null);
@@ -640,7 +635,7 @@ function NewProductModal({
       setSubmitting(false);
       generate.reset();
     }
-  }, [isOpen, chips.reset, generate.reset]);
+  }, [open, chips.reset, generate.reset]);
 
   const categoryOptions = categorySelectOptions(categories);
 
@@ -734,7 +729,7 @@ function NewProductModal({
 
   return (
     <Modal
-      isOpen={isOpen}
+      open={open}
       onOpenChange={(open) => {
         if (!open) {
           onClose();
@@ -752,7 +747,7 @@ function NewProductModal({
             variant="secondary"
             size="large"
             icon={<X />}
-            isDisabled={submitting}
+            disabled={submitting}
             onPress={onClose}
           >
             Cancelar
@@ -762,7 +757,7 @@ function NewProductModal({
             size="large"
             icon={<Check />}
             fullWidth
-            isDisabled={submitting}
+            disabled={submitting}
             onPress={() => void handleSubmit()}
           >
             Crear el producto
@@ -776,7 +771,7 @@ function NewProductModal({
             tone="error"
             icon={<TriangleAlert />}
             title="No se pudo crear el producto"
-            detail="Probá de nuevo."
+            description="Probá de nuevo."
           />
         )}
         {notice?.kind === "rateLimited" && (
@@ -784,7 +779,7 @@ function NewProductModal({
             tone="error"
             icon={<ShieldX />}
             title="Demasiadas solicitudes"
-            detail={retryAfterDetail(notice.retryAfterSeconds)}
+            description={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
         <TextField
@@ -798,7 +793,7 @@ function NewProductModal({
             }
           }}
           required
-          {...(errors.name ? { invalid: true, errorMessage: errors.name } : {})}
+          errorMessage={errors.name}
         />
         {categoryOptions ? (
           <Select
@@ -811,7 +806,7 @@ function NewProductModal({
               setErrors((current) => withFieldError(current, "category", undefined));
             }}
             required
-            {...(errors.category ? { invalid: true, errorMessage: errors.category } : {})}
+            errorMessage={errors.category}
           />
         ) : (
           <FieldGroup label="Categoría" required>
@@ -835,7 +830,7 @@ function NewProductModal({
           onUnitChange={setNetContentUnit}
           options={NET_CONTENT_UNIT_OPTIONS}
           unitLabel="Unidad"
-          {...(errors.netContent ? { invalid: true, errorMessage: errors.netContent } : {})}
+          errorMessage={errors.netContent}
         />
         <FieldGroup label="Unidad de venta" required>
           <OptionCardGroup
@@ -844,14 +839,14 @@ function NewProductModal({
               {
                 value: "UNIT",
                 icon: <Package />,
-                title: SALE_UNIT_OPTION_CONTENT.UNIT.title,
-                helpText: SALE_UNIT_OPTION_CONTENT.UNIT.helpText,
+                label: SALE_UNIT_OPTION_CONTENT.UNIT.label,
+                description: SALE_UNIT_OPTION_CONTENT.UNIT.description,
               },
               {
                 value: "KG",
                 icon: <Scale />,
-                title: SALE_UNIT_OPTION_CONTENT.KG.title,
-                helpText: SALE_UNIT_OPTION_CONTENT.KG.helpText,
+                label: SALE_UNIT_OPTION_CONTENT.KG.label,
+                description: SALE_UNIT_OPTION_CONTENT.KG.description,
               },
             ]}
             value={saleUnit}
@@ -860,7 +855,7 @@ function NewProductModal({
               setErrors((current) => withFieldError(current, "unit", undefined));
             }}
             required
-            {...(errors.unit ? { invalid: true, errorMessage: errors.unit } : {})}
+            errorMessage={errors.unit}
           />
         </FieldGroup>
         <BarcodeChips
@@ -913,7 +908,7 @@ function EditProductModal({
   categories,
 }: EditProductModalProps) {
   const sendToMyAccount = useSendToMyAccount();
-  const isOpen = target !== null;
+  const open = target !== null;
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [saleUnit, setSaleUnit] = useState<ProductSaleUnit>("UNIT");
@@ -941,7 +936,7 @@ function EditProductModal({
   );
 
   useEffect(() => {
-    if (isOpen && target) {
+    if (open && target) {
       setName(target.name);
       setCategoryId(target.categoryId);
       setSaleUnit(target.saleUnit);
@@ -955,7 +950,7 @@ function EditProductModal({
       setSubmitting(false);
       generate.reset();
     }
-  }, [isOpen, target, chips.reset, generate.reset]);
+  }, [open, target, chips.reset, generate.reset]);
 
   const categoryOptions = categorySelectOptions(categories);
 
@@ -1108,7 +1103,7 @@ function EditProductModal({
 
   return (
     <Modal
-      isOpen={isOpen}
+      open={open}
       onOpenChange={(open) => {
         if (!open) {
           onClose();
@@ -1126,7 +1121,7 @@ function EditProductModal({
             variant="secondary"
             size="large"
             icon={<X />}
-            isDisabled={submitting}
+            disabled={submitting}
             onPress={onClose}
           >
             Cancelar
@@ -1137,7 +1132,7 @@ function EditProductModal({
               size="large"
               icon={<RotateCcw />}
               fullWidth
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={() => void handleReload()}
             >
               Recargar el producto
@@ -1148,7 +1143,7 @@ function EditProductModal({
               size="large"
               icon={<Check />}
               fullWidth
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={() => void handleSubmit()}
             >
               Guardar los cambios
@@ -1164,7 +1159,7 @@ function EditProductModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo guardar el cambio"
-              detail="Probá de nuevo."
+              description="Probá de nuevo."
             />
           )}
           {notice?.kind === "rateLimited" && (
@@ -1172,7 +1167,7 @@ function EditProductModal({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(notice.retryAfterSeconds)}
+              description={retryAfterDetail(notice.retryAfterSeconds)}
             />
           )}
           {notice?.kind === "staleVersion" && (
@@ -1180,7 +1175,7 @@ function EditProductModal({
               tone="error"
               icon={<RotateCcw />}
               title="Otra persona cambió este producto"
-              detail="Mientras lo editabas se guardó otra versión. Tus cambios no se guardaron: recargá el producto para verla y volvé a hacerlos."
+              description="Mientras lo editabas se guardó otra versión. Tus cambios no se guardaron: recargá el producto para verla y volvé a hacerlos."
             />
           )}
           {notice?.kind === "notFound" && (
@@ -1195,7 +1190,7 @@ function EditProductModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudieron recargar los datos"
-              detail="Probá de nuevo."
+              description="Probá de nuevo."
             />
           )}
           <TextField
@@ -1209,7 +1204,7 @@ function EditProductModal({
               }
             }}
             required
-            {...(errors.name ? { invalid: true, errorMessage: errors.name } : {})}
+            errorMessage={errors.name}
           />
           {categoryOptions ? (
             <Select
@@ -1221,7 +1216,7 @@ function EditProductModal({
                 setErrors((current) => withFieldError(current, "category", undefined));
               }}
               required
-              {...(errors.category ? { invalid: true, errorMessage: errors.category } : {})}
+              errorMessage={errors.category}
             />
           ) : (
             <FieldGroup label="Categoría" required>
@@ -1245,7 +1240,7 @@ function EditProductModal({
             onUnitChange={setNetContentUnit}
             options={NET_CONTENT_UNIT_OPTIONS}
             unitLabel="Unidad"
-            {...(errors.netContent ? { invalid: true, errorMessage: errors.netContent } : {})}
+            errorMessage={errors.netContent}
           />
           <FieldGroup label="Unidad de venta" required>
             <OptionCardGroup
@@ -1254,14 +1249,14 @@ function EditProductModal({
                 {
                   value: "UNIT",
                   icon: <Package />,
-                  title: SALE_UNIT_OPTION_CONTENT.UNIT.title,
-                  helpText: SALE_UNIT_OPTION_CONTENT.UNIT.helpText,
+                  label: SALE_UNIT_OPTION_CONTENT.UNIT.label,
+                  description: SALE_UNIT_OPTION_CONTENT.UNIT.description,
                 },
                 {
                   value: "KG",
                   icon: <Scale />,
-                  title: SALE_UNIT_OPTION_CONTENT.KG.title,
-                  helpText: SALE_UNIT_OPTION_CONTENT.KG.helpText,
+                  label: SALE_UNIT_OPTION_CONTENT.KG.label,
+                  description: SALE_UNIT_OPTION_CONTENT.KG.description,
                 },
               ]}
               value={saleUnit}
@@ -1314,19 +1309,19 @@ function DeactivateProductModal({
   deactivateProduct,
 }: DeactivateProductModalProps) {
   const sendToMyAccount = useSendToMyAccount();
-  const isOpen = target !== null;
+  const open = target !== null;
   const [title, setTitle] = useState("");
   const [notice, setNotice] = useState<DeactivateNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const targetRef = useLatestRef(target);
 
   useEffect(() => {
-    if (isOpen && target) {
+    if (open && target) {
       setTitle(`¿Desactivar ${target.name}?`);
       setNotice(null);
       setSubmitting(false);
     }
-  }, [isOpen, target]);
+  }, [open, target]);
 
   async function handleConfirm() {
     const current = targetRef.current;
@@ -1367,7 +1362,7 @@ function DeactivateProductModal({
 
   return (
     <Modal
-      isOpen={isOpen}
+      open={open}
       onOpenChange={(open) => {
         if (!open) {
           onClose();
@@ -1384,7 +1379,7 @@ function DeactivateProductModal({
             variant="secondary"
             size="large"
             icon={<X />}
-            isDisabled={submitting}
+            disabled={submitting}
             onPress={onClose}
           >
             Cancelar
@@ -1395,7 +1390,7 @@ function DeactivateProductModal({
               size="large"
               icon={<RotateCcw />}
               fullWidth
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={onVanished}
             >
               Actualizar la lista
@@ -1403,11 +1398,11 @@ function DeactivateProductModal({
           ) : (
             <Button
               variant="primary"
-              tone="destructive"
+              destructive
               size="large"
               icon={<Ban />}
               fullWidth
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={() => void handleConfirm()}
             >
               Desactivar
@@ -1425,7 +1420,7 @@ function DeactivateProductModal({
             tone="error"
             icon={<TriangleAlert />}
             title="No se pudo desactivar el producto"
-            detail="Probá de nuevo."
+            description="Probá de nuevo."
           />
         )}
         {notice?.kind === "alreadyInactive" && (
@@ -1436,7 +1431,7 @@ function DeactivateProductModal({
             tone="error"
             icon={<ShieldX />}
             title="Demasiadas solicitudes"
-            detail={retryAfterDetail(notice.retryAfterSeconds)}
+            description={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
       </div>
@@ -1513,7 +1508,7 @@ type PrintNotice =
   | { kind: "rateLimited"; retryAfterSeconds: number };
 
 type PrintLabelsModalProps = {
-  isOpen: boolean;
+  open: boolean;
   onClose: () => void;
   onSessionEnded: () => void;
   products: ProductSummary[];
@@ -1524,7 +1519,7 @@ type PrintLabelsModalProps = {
 };
 
 function PrintLabelsModal({
-  isOpen,
+  open,
   onClose,
   onSessionEnded,
   products,
@@ -1542,13 +1537,13 @@ function PrintLabelsModal({
 
   useEffect(() => {
     printRequestIdRef.current += 1;
-    if (isOpen) {
+    if (open) {
       setCounts({});
       setNotice(null);
       setPrinting(false);
       setReloading(false);
     }
-  }, [isOpen]);
+  }, [open]);
 
   const rows = useMemo(() => labelableProducts(products), [products]);
   const total = rows.reduce((sum, row) => sum + (counts[row.product.id] ?? 0), 0);
@@ -1656,7 +1651,7 @@ function PrintLabelsModal({
 
   return (
     <Modal
-      isOpen={isOpen}
+      open={open}
       onOpenChange={(open) => {
         if (!open) {
           onClose();
@@ -1670,7 +1665,7 @@ function PrintLabelsModal({
       closable
       footer={
         <>
-          <Button variant="secondary" size="large" icon={<X />} isDisabled={busy} onPress={onClose}>
+          <Button variant="secondary" size="large" icon={<X />} disabled={busy} onPress={onClose}>
             Cancelar
           </Button>
           <Button
@@ -1678,7 +1673,7 @@ function PrintLabelsModal({
             size="large"
             icon={<Download />}
             fullWidth
-            isDisabled={busy || total === 0}
+            disabled={busy || total === 0}
             onPress={() => void handleDownload()}
           >
             Descargar la hoja para imprimir
@@ -1692,7 +1687,7 @@ function PrintLabelsModal({
             tone="error"
             icon={<TriangleAlert />}
             title="No se pudo generar la hoja"
-            detail="Probá de nuevo."
+            description="Probá de nuevo."
           />
         )}
         {notice?.kind === "rateLimited" && (
@@ -1700,7 +1695,7 @@ function PrintLabelsModal({
             tone="error"
             icon={<ShieldX />}
             title="Demasiadas solicitudes"
-            detail={retryAfterDetail(notice.retryAfterSeconds)}
+            description={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
         {notice?.kind === "productsChanged" && (
@@ -1708,7 +1703,7 @@ function PrintLabelsModal({
             tone="error"
             icon={<TriangleAlert />}
             title="La lista de productos cambió"
-            detail="Recargá para ver los productos actualizados antes de imprimir."
+            description="Recargá para ver los productos actualizados antes de imprimir."
           />
         )}
         {notice?.kind === "reloadFailed" && (
@@ -1716,11 +1711,11 @@ function PrintLabelsModal({
             tone="error"
             icon={<TriangleAlert />}
             title="No se pudo recargar la lista"
-            detail="Probá de nuevo."
+            description="Probá de nuevo."
           />
         )}
         {offersReload ? (
-          <Button variant="secondary" isDisabled={reloading} onPress={() => void handleReload()}>
+          <Button variant="secondary" disabled={reloading} onPress={() => void handleReload()}>
             Recargar la lista
           </Button>
         ) : null}
@@ -1757,14 +1752,14 @@ function PrintLabelsModal({
                       <IconButton
                         icon={<Minus />}
                         aria-label={`Restar una etiqueta de ${product.name}`}
-                        isDisabled={count === 0}
+                        disabled={count === 0}
                         onPress={() => changeCount(product.id, -1)}
                       />
                       <span className="w-8 text-center font-mono text-body text-text">{count}</span>
                       <IconButton
                         icon={<Plus />}
                         aria-label={`Sumar una etiqueta a ${product.name}`}
-                        isDisabled={
+                        disabled={
                           count === LABELS_MAX_COUNT_PER_PRODUCT || total >= LABELS_MAX_TOTAL_COUNT
                         }
                         onPress={() => changeCount(product.id, 1)}
@@ -1959,24 +1954,24 @@ export function ProductsListScreen({
   const columns = [
     {
       key: "product",
-      title: "PRODUCTO",
+      header: "PRODUCTO",
       sortable: true,
       defaultDirection: "ascending",
       render: (item: ProductSummary) => item.name,
     },
     {
       key: "category",
-      title: "CATEGORÍA",
+      header: "CATEGORÍA",
       render: (item: ProductSummary) => categoryLabels.get(item.categoryId) ?? item.categoryName,
     },
     {
       key: "unit",
-      title: "UNIDAD",
+      header: "UNIDAD",
       render: (item: ProductSummary) => unitLabel(item.saleUnit),
     },
     {
       key: "status",
-      title: "ESTADO",
+      header: "ESTADO",
       render: (item: ProductSummary) =>
         item.active ? (
           <StatusIndicator tone="success">Activo</StatusIndicator>
@@ -1987,7 +1982,7 @@ export function ProductsListScreen({
     {
       key: "actions",
       kind: "actions",
-      srLabel: "Acciones",
+      header: "Acciones",
       actions: [
         (item: ProductSummary) => ({
           icon: <Pencil />,
@@ -2019,7 +2014,7 @@ export function ProductsListScreen({
               <Button
                 variant="secondary"
                 icon={<Printer />}
-                isDisabled={list.kind !== "loaded"}
+                disabled={list.kind !== "loaded"}
                 onPress={() => setPrintModalOpen(true)}
               >
                 Imprimir etiquetas
@@ -2038,7 +2033,7 @@ export function ProductsListScreen({
               tone="error"
               icon={<TriangleAlert />}
               title="No pudimos abrir los productos"
-              detail="Probá de nuevo en unos minutos."
+              description="Probá de nuevo en unos minutos."
             />
             <Button variant="secondary" onPress={() => void load()}>
               Reintentar
@@ -2051,7 +2046,7 @@ export function ProductsListScreen({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(list.retryAfterSeconds)}
+              description={retryAfterDetail(list.retryAfterSeconds)}
             />
             <Button variant="secondary" onPress={() => void load()}>
               Reintentar
@@ -2063,7 +2058,6 @@ export function ProductsListScreen({
             <div className="flex flex-wrap items-center gap-3">
               <div className="w-105">
                 <SearchField
-                  variant="backoffice"
                   value={search}
                   onChange={setSearch}
                   placeholder="Buscar por nombre o código de barras"
@@ -2101,13 +2095,13 @@ export function ProductsListScreen({
                   ? {
                       icon: <Package />,
                       ...PRODUCTS_EMPTY_STATE[statusFilter],
-                      tone: "blank",
+                      variant: "blank",
                     }
                   : {
                       icon: <SearchX />,
                       title: "Sin resultados",
-                      detail: "Probá con otro nombre o código de barras.",
-                      tone: "filtered",
+                      description: "Probá con otro nombre o código de barras.",
+                      variant: "filtered",
                     }
               }
               footer={
@@ -2120,7 +2114,7 @@ export function ProductsListScreen({
         )}
       </ScreenLayout>
       <NewProductModal
-        isOpen={newModalOpen}
+        open={newModalOpen}
         onClose={() => setNewModalOpen(false)}
         onCreated={(product) => {
           setNewModalOpen(false);
@@ -2175,7 +2169,7 @@ export function ProductsListScreen({
         deactivateProduct={deactivateProductService}
       />
       <PrintLabelsModal
-        isOpen={printModalOpen}
+        open={printModalOpen}
         onClose={() => setPrintModalOpen(false)}
         onSessionEnded={onSessionEnded}
         products={products}

@@ -1,4 +1,4 @@
-import type { SelectOption } from "@purosur/ui";
+import type { Option, Options } from "@purosur/ui";
 import type { RoleSummary } from "./roles-api";
 import type { BranchUserRole } from "./users-api";
 
@@ -9,9 +9,7 @@ export function roleDisplayName(role: Pick<RoleSummary, "isAdministrator" | "nam
   return role.isAdministrator ? ADMINISTRATOR_ROLE_NAME : (role.name ?? "");
 }
 
-export function roleOptions(
-  roles: BranchUserRole[],
-): [SelectOption<string>, ...SelectOption<string>[]] {
+export function roleOptions(roles: BranchUserRole[]): Options<Option<string>> {
   const [first, ...rest] = roles.map((role) => ({ value: role.id, label: roleDisplayName(role) }));
   if (!first) {
     throw new Error("no role to offer: the signed-in Administrator is always in the list");

@@ -33,7 +33,7 @@ function columnsFor(openEditor: (request: RoleEditorRequest) => void) {
   return [
     {
       key: "role",
-      title: "Rol",
+      header: "Rol",
       render: (item: RoleSummary) =>
         item.isAdministrator ? (
           <span className="flex items-center gap-1.5">
@@ -46,12 +46,12 @@ function columnsFor(openEditor: (request: RoleEditorRequest) => void) {
     },
     {
       key: "permissions",
-      title: "Permisos",
+      header: "Permisos",
       render: (item: RoleSummary) => permissionsCellContent(item),
     },
     {
       key: "users",
-      title: "Usuarios",
+      header: "Usuarios",
       render: (item: RoleSummary) =>
         item.userCount === 0
           ? "Sin usuarios"
@@ -60,7 +60,7 @@ function columnsFor(openEditor: (request: RoleEditorRequest) => void) {
     {
       key: "actions",
       kind: "actions",
-      srLabel: "Acciones",
+      header: "Acciones",
       actions: [
         // Administrator included: duplicating it is how an ordinary role starts from every
         // permission in the catalog.
@@ -139,7 +139,7 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
             tone="error"
             icon={<TriangleAlert />}
             title="No pudimos abrir los roles"
-            detail="Probá de nuevo en unos minutos."
+            description="Probá de nuevo en unos minutos."
           />
           <Button variant="secondary" onPress={() => void load()}>
             Reintentar
@@ -152,7 +152,7 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
             tone="error"
             icon={<ShieldX />}
             title="Demasiadas solicitudes"
-            detail={retryAfterDetail(list.retryAfterSeconds)}
+            description={retryAfterDetail(list.retryAfterSeconds)}
           />
           <Button variant="secondary" onPress={() => void load()}>
             Reintentar

@@ -1,95 +1,21 @@
 export { Focusable } from "react-aria-components";
-export type { AreaNavItemIcon, AreaNavItemProps } from "./components/AreaNavItem";
-export { AreaNavItem } from "./components/AreaNavItem";
-export type {
-  ButtonIcon,
-  ButtonProps,
-  ButtonSize,
-  ButtonTextSize,
-  ButtonTone,
-  ButtonVariant,
-} from "./components/Button";
-export { Button } from "./components/Button";
-export type { CheckboxProps } from "./components/Checkbox";
-export { Checkbox } from "./components/Checkbox";
-export type { ColumnChartBar, ColumnChartProps } from "./components/ColumnChart";
-export { ColumnChart } from "./components/ColumnChart";
-export type { DateFieldProps } from "./components/DateField";
-export { DateField } from "./components/DateField";
-export type { FieldGroupProps } from "./components/FieldGroup";
-export { FieldGroup } from "./components/FieldGroup";
-export type { FieldSize, FieldSizeProviderProps } from "./components/FieldSize";
-export { backofficeFieldHeightClassName, FieldSizeProvider } from "./components/FieldSize";
-export type { HighlightedNoticeProps } from "./components/HighlightedNotice";
-export { HighlightedNotice } from "./components/HighlightedNotice";
-export type { IconButtonProps } from "./components/IconButton";
-export { IconButton } from "./components/IconButton";
-export type { InlineNoticeProps, NoticeTone } from "./components/InlineNotice";
-export { InlineNotice } from "./components/InlineNotice";
-export type { ListFilterOption, ListFilterProps } from "./components/ListFilter";
-export { ListFilter } from "./components/ListFilter";
-export type {
-  ModalBodyPadding,
-  ModalContextTone,
-  ModalHeaderLayout,
-  ModalProps,
-  ModalTone,
-  ModalWidth,
-} from "./components/Modal";
-export { Modal } from "./components/Modal";
-export type { NotificationCardProps, NotificationTone } from "./components/NotificationCard";
-export { NotificationCard } from "./components/NotificationCard";
-export type {
-  OptionCardGroupProps,
-  OptionCardIcon,
-  OptionCardOption,
-} from "./components/OptionCardGroup";
-export { OptionCardGroup } from "./components/OptionCardGroup";
-export type { PaginationProps } from "./components/Pagination";
-export { Pagination } from "./components/Pagination";
-export type { ProportionBarProps } from "./components/ProportionBar";
-export { ProportionBar } from "./components/ProportionBar";
-export type { PuroSurIsotypeProps } from "./components/PuroSurIsotype";
-export { PuroSurIsotype } from "./components/PuroSurIsotype";
-export type { PuroSurLogoProps } from "./components/PuroSurLogo";
-export { PuroSurLogo } from "./components/PuroSurLogo";
-export type {
-  QuantityUnitFieldOption,
-  QuantityUnitFieldProps,
-} from "./components/QuantityUnitField";
-export { QuantityUnitField } from "./components/QuantityUnitField";
-export type { RadioGroupProps, RadioOption } from "./components/RadioGroup";
-export { RadioGroup } from "./components/RadioGroup";
-export type {
-  SearchFieldIcon,
-  SearchFieldProps,
-  SearchFieldVariant,
-} from "./components/SearchField";
-export { SearchField } from "./components/SearchField";
-export type { SectionNavItemIcon, SectionNavItemProps } from "./components/SectionNavItem";
-export { SectionNavItem } from "./components/SectionNavItem";
-export type {
-  SegmentedControlIcon,
-  SegmentedControlOption,
-  SegmentedControlProps,
-  SegmentedControlSize,
-} from "./components/SegmentedControl";
-export { SegmentedControl } from "./components/SegmentedControl";
-export type { SelectOption, SelectProps } from "./components/Select";
-export { Select } from "./components/Select";
-export type { StatusIndicatorProps, StatusIndicatorTone } from "./components/StatusIndicator";
-export { StatusIndicator } from "./components/StatusIndicator";
-export type { SummaryRowProps } from "./components/SummaryRow";
-export { SummaryRow } from "./components/SummaryRow";
-export type { SummaryRowGroupProps } from "./components/SummaryRowGroup";
-export { SummaryRowGroup } from "./components/SummaryRowGroup";
+export type { ColumnChartBar, ColumnChartProps } from "./components/data-display/column-chart";
+export { ColumnChart } from "./components/data-display/column-chart";
+export type { ProportionBarProps } from "./components/data-display/proportion-bar";
+export { ProportionBar } from "./components/data-display/proportion-bar";
+export type { SummaryRowProps } from "./components/data-display/summary-row";
+export { SummaryRow } from "./components/data-display/summary-row";
+export type { SummaryRowGroupProps } from "./components/data-display/summary-row-group";
+export { SummaryRowGroup } from "./components/data-display/summary-row-group";
+export { Table } from "./components/data-display/table/table";
+export type { TableCellTextProps } from "./components/data-display/table/table-cell-text";
+export { TableCellText } from "./components/data-display/table/table-cell-text";
 export type {
   TableAction,
-  TableCellTextProps,
   TableColumn,
   TableColumnAlign,
   TableEmptyStateProps,
-  TableEmptyStateTone,
+  TableEmptyStateVariant,
   TableLoadingState,
   TableProps,
   TableRow,
@@ -97,20 +23,81 @@ export type {
   TableSort,
   TableSortableColumnKey,
   TableSortDirection,
-} from "./components/Table";
-export { Table, TableCellText } from "./components/Table";
-export type { TagProps, TagTone } from "./components/Tag";
-export { Tag } from "./components/Tag";
+} from "./components/data-display/table/table-types";
+export type { TagProps } from "./components/data-display/tag";
+export { Tag } from "./components/data-display/tag";
+export type { HighlightedNoticeProps } from "./components/feedback/highlighted-notice";
+export { HighlightedNotice } from "./components/feedback/highlighted-notice";
+export type { InlineNoticeProps } from "./components/feedback/inline-notice";
+export { InlineNotice } from "./components/feedback/inline-notice";
+export type { NotificationCardProps } from "./components/feedback/notification-card";
+export { NotificationCard } from "./components/feedback/notification-card";
+export type { StatusIndicatorProps } from "./components/feedback/status-indicator";
+export { StatusIndicator } from "./components/feedback/status-indicator";
+export type {
+  ButtonProps,
+  ButtonSize,
+  ButtonTextSize,
+  ButtonVariant,
+} from "./components/forms/button";
+export { Button } from "./components/forms/button";
+export type { CheckboxProps } from "./components/forms/checkbox";
+export { Checkbox } from "./components/forms/checkbox";
+export type { DateFieldProps } from "./components/forms/date-field";
+export { DateField } from "./components/forms/date-field";
+export type { FieldGroupProps } from "./components/forms/field-group";
+export { FieldGroup } from "./components/forms/field-group";
+export type { FieldSize, FieldSizeProviderProps } from "./components/forms/field-size";
+export { FieldSizeProvider } from "./components/forms/field-size";
+export type { IconButtonProps } from "./components/forms/icon-button";
+export { IconButton } from "./components/forms/icon-button";
+export type { ListFilterProps } from "./components/forms/list-filter";
+export { ListFilter } from "./components/forms/list-filter";
+export type { NarrowedOption, Option, Options } from "./components/forms/option";
+export type { OptionCardGroupProps } from "./components/forms/option-card-group";
+export { OptionCardGroup } from "./components/forms/option-card-group";
+export type { QuantityUnitFieldProps } from "./components/forms/quantity-unit-field";
+export { QuantityUnitField } from "./components/forms/quantity-unit-field";
+export type { RadioGroupProps } from "./components/forms/radio-group";
+export { RadioGroup } from "./components/forms/radio-group";
+export type { SearchFieldProps } from "./components/forms/search-field";
+export { SearchField } from "./components/forms/search-field";
+export type {
+  SegmentedControlProps,
+  SegmentedControlSize,
+} from "./components/forms/segmented-control";
+export { SegmentedControl } from "./components/forms/segmented-control";
+export type { SelectProps } from "./components/forms/select";
+export { Select } from "./components/forms/select";
 export type {
   TextFieldAffix,
   TextFieldProps,
   TextFieldValueKind,
-} from "./components/TextField";
-export { TextField } from "./components/TextField";
-export type { ToggleProps } from "./components/Toggle";
-export { Toggle } from "./components/Toggle";
-export type { TooltipProps } from "./components/Tooltip";
-export { Tooltip } from "./components/Tooltip";
+} from "./components/forms/text-field";
+export { TextField } from "./components/forms/text-field";
+export type { ToggleProps } from "./components/forms/toggle";
+export { Toggle } from "./components/forms/toggle";
+export type { PuroSurIsotypeProps } from "./components/layout/puro-sur-isotype";
+export { PuroSurIsotype } from "./components/layout/puro-sur-isotype";
+export type { PuroSurLogoProps } from "./components/layout/puro-sur-logo";
+export { PuroSurLogo } from "./components/layout/puro-sur-logo";
+export type { AreaNavItemProps } from "./components/navigation/area-nav-item";
+export { AreaNavItem } from "./components/navigation/area-nav-item";
+export type { PaginationProps } from "./components/navigation/pagination";
+export { Pagination } from "./components/navigation/pagination";
+export type { SectionNavItemProps } from "./components/navigation/section-nav-item";
+export { SectionNavItem } from "./components/navigation/section-nav-item";
+export type {
+  ModalBodyPadding,
+  ModalHeaderLayout,
+  ModalProps,
+  ModalWidth,
+} from "./components/overlays/modal";
+export { Modal } from "./components/overlays/modal";
+export type { TooltipProps } from "./components/overlays/tooltip";
+export { Tooltip } from "./components/overlays/tooltip";
+export type { Icon } from "./components/shared/icon";
+export type { NoticeTone, Tone } from "./components/shared/tone";
 export type { Locale, PluralForms } from "./messages/formatters";
 export { formatDate, formatNumber, plural } from "./messages/formatters";
 export type {

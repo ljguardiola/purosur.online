@@ -69,7 +69,7 @@ function registerNameError(name: string): string | undefined {
 }
 
 type NewRegisterModalProps = {
-  isOpen: boolean;
+  open: boolean;
   onClose: () => void;
   onCreated: () => void;
   onSessionEnded: () => void;
@@ -80,7 +80,7 @@ type NewRegisterModalProps = {
 };
 
 function NewRegisterModal({
-  isOpen,
+  open,
   onClose,
   onCreated,
   onSessionEnded,
@@ -103,13 +103,13 @@ function NewRegisterModal({
   });
 
   useEffect(() => {
-    if (isOpen) {
+    if (open) {
       setName("");
       setNameError(undefined);
       setNotice(null);
       setSubmitting(false);
     }
-  }, [isOpen]);
+  }, [open]);
 
   async function handleSubmit() {
     const trimmed = name.trim();
@@ -161,7 +161,7 @@ function NewRegisterModal({
   return (
     <>
       <Modal
-        isOpen={isOpen}
+        open={open}
         onOpenChange={(open) => {
           if (!open) {
             onClose();
@@ -179,7 +179,7 @@ function NewRegisterModal({
               variant="secondary"
               size="large"
               icon={<X />}
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={onClose}
             >
               Cancelar
@@ -189,7 +189,7 @@ function NewRegisterModal({
               size="large"
               icon={<Check />}
               fullWidth
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={() => void handleSubmit()}
             >
               Crear la caja
@@ -203,7 +203,7 @@ function NewRegisterModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo crear la caja"
-              detail="Probá de nuevo."
+              description="Probá de nuevo."
             />
           )}
           {notice?.kind === "rateLimited" && (
@@ -211,7 +211,7 @@ function NewRegisterModal({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(notice.retryAfterSeconds)}
+              description={retryAfterDetail(notice.retryAfterSeconds)}
             />
           )}
           <TextField
@@ -225,7 +225,7 @@ function NewRegisterModal({
               }
             }}
             required
-            {...(nameError ? { invalid: true, errorMessage: nameError } : {})}
+            errorMessage={nameError}
           />
         </div>
       </Modal>
@@ -253,12 +253,12 @@ type EnrollmentCodeModalProps = {
  * effect here, so React Strict Mode's extra render (or a remount) can't refire the request.
  */
 function EnrollmentCodeModal({ emission, onClose, onDone, onRetry }: EnrollmentCodeModalProps) {
-  const isOpen = emission.kind !== "closed";
+  const open = emission.kind !== "closed";
   const isIssued = emission.kind === "issued";
 
   return (
     <Modal
-      isOpen={isOpen}
+      open={open}
       onOpenChange={(open) => {
         if (!open) {
           onClose();
@@ -278,7 +278,7 @@ function EnrollmentCodeModal({ emission, onClose, onDone, onRetry }: EnrollmentC
           size="large"
           icon={<Check />}
           fullWidth
-          isDisabled={!isIssued}
+          disabled={!isIssued}
           onPress={onDone}
         >
           Listo
@@ -293,7 +293,7 @@ function EnrollmentCodeModal({ emission, onClose, onDone, onRetry }: EnrollmentC
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo emitir el código"
-              detail="Probá de nuevo."
+              description="Probá de nuevo."
             />
             <Button
               variant="secondary"
@@ -310,7 +310,7 @@ function EnrollmentCodeModal({ emission, onClose, onDone, onRetry }: EnrollmentC
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(emission.retryAfterSeconds)}
+              description={retryAfterDetail(emission.retryAfterSeconds)}
             />
             <Button
               variant="secondary"
@@ -465,14 +465,14 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
   const columns = [
     {
       key: "register",
-      title: "CAJA",
+      header: "CAJA",
       render: (item: RegisterSummary) => (
-        <TableCellText detail="Sin instalación">{item.name}</TableCellText>
+        <TableCellText description="Sin instalación">{item.name}</TableCellText>
       ),
     },
     {
       key: "installation",
-      title: "INSTALACIÓN",
+      header: "INSTALACIÓN",
       render: (item: RegisterSummary) => {
         const now = currentTime;
         const pendingCode =
@@ -498,18 +498,18 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
     },
     {
       key: "pointsOfSale",
-      title: "PUNTOS DE VENTA",
+      header: "PUNTOS DE VENTA",
       render: () => <span className="text-text-subtle text-detail">Sin configurar</span>,
     },
     {
       key: "status",
-      title: "ESTADO",
+      header: "ESTADO",
       render: () => <Tag tone="info">Esperando alta</Tag>,
     },
     {
       key: "actions",
       kind: "actions",
-      srLabel: "Acciones",
+      header: "Acciones",
       actions: [
         (item: RegisterSummary) => ({
           icon: <KeySquare />,
@@ -542,7 +542,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
               tone="error"
               icon={<TriangleAlert />}
               title="No pudimos abrir las cajas registradoras"
-              detail="Probá de nuevo en unos minutos."
+              description="Probá de nuevo en unos minutos."
             />
             <Button variant="secondary" onPress={() => void load()}>
               Reintentar
@@ -555,7 +555,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(list.retryAfterSeconds)}
+              description={retryAfterDetail(list.retryAfterSeconds)}
             />
             <Button variant="secondary" onPress={() => void load()}>
               Reintentar
@@ -573,8 +573,8 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
             empty={{
               icon: <Laptop />,
               title: "Todavía no hay cajas registradoras",
-              detail: "Creá la primera para verla en la lista.",
-              tone: "blank",
+              description: "Creá la primera para verla en la lista.",
+              variant: "blank",
             }}
             footer={
               <p className="text-text-subtle text-detail">
@@ -585,7 +585,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
         )}
       </ScreenLayout>
       <NewRegisterModal
-        isOpen={newModalOpen}
+        open={newModalOpen}
         onClose={() => setNewModalOpen(false)}
         onCreated={() => {
           setNewModalOpen(false);

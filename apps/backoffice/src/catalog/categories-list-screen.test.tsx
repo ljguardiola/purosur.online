@@ -1,3 +1,4 @@
+import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -50,14 +51,16 @@ function renderScreen(
   } = {},
 ) {
   return render(
-    <main>
-      <CategoriesListScreen
-        services={services}
-        onSessionEnded={onSessionEnded}
-        filters={filters}
-        onFiltersChange={onFiltersChange}
-      />
-    </main>,
+    <FieldSizeProvider size="backoffice">
+      <main>
+        <CategoriesListScreen
+          services={services}
+          onSessionEnded={onSessionEnded}
+          filters={filters}
+          onFiltersChange={onFiltersChange}
+        />
+      </main>
+    </FieldSizeProvider>,
   );
 }
 
@@ -286,14 +289,16 @@ test("shows a category created while the list is still loading, even once the ea
   // commits whatever state that handling scheduled.
   await firstLoad;
   await screen.rerender(
-    <main>
-      <CategoriesListScreen
-        services={services}
-        onSessionEnded={() => {}}
-        filters={categoriesListFilters.parse({})}
-        onFiltersChange={() => {}}
-      />
-    </main>,
+    <FieldSizeProvider size="backoffice">
+      <main>
+        <CategoriesListScreen
+          services={services}
+          onSessionEnded={() => {}}
+          filters={categoriesListFilters.parse({})}
+          onFiltersChange={() => {}}
+        />
+      </main>
+    </FieldSizeProvider>,
   );
 
   expect(screen.getByText("2 categorías").query()).not.toBeNull();
