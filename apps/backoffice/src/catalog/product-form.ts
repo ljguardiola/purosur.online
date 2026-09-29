@@ -1,4 +1,4 @@
-import type { ProductCreationBody, ProductSummary } from "@purosur/contracts";
+import type { CategorySummary, ProductCreationBody, ProductSummary } from "@purosur/contracts";
 import {
   BARCODE_MAX_LENGTH,
   type BarcodeListProblem,
@@ -9,6 +9,10 @@ import {
   PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
 } from "@purosur/domain";
+import { type Option, type Options, plural } from "@purosur/ui";
+import { Package, Scale } from "lucide-react";
+import { createElement } from "react";
+import { categoriesInTreeOrder, categoryPathLabels, leafCategories } from "./category-path";
 import {
   formatNetContentQuantity,
   NET_CONTENT_QUANTITY_INVALID,
@@ -171,3 +175,82 @@ export const PRODUCT_MESSAGES = {
   netContent: netContentMessage,
   barcodes: barcodeListMessage,
 };
+
+// Typed by hand: inferred from lucide, an icon's optional className fails the design system's Icon
+// type under exactOptionalPropertyTypes.
+export const SALE_UNIT_OPTIONS = [
+  {
+    value: "UNIT",
+    icon: createElement<{ className?: string }>(Package),
+    label: "Por unidad",
+    description: "Se vende de a uno",
+  },
+  {
+    value: "KG",
+    icon: createElement<{ className?: string }>(Scale),
+    label: "Por peso",
+    description: "Se pesa en la balanza",
+  },
+] as const;
+
+const NET_CONTENT_UNIT_OPTION_LABELS = {
+  G: "g",
+  KG: "kg",
+  ML: "ml",
+  L: "l",
+  UNIT: "u",
+} satisfies Record<NetContentUnit, string>;
+
+export const NET_CONTENT_UNIT_OPTIONS: Options<Option<NetContentUnit>> = [
+  { value: "G", label: NET_CONTENT_UNIT_OPTION_LABELS.G },
+  { value: "KG", label: NET_CONTENT_UNIT_OPTION_LABELS.KG },
+  { value: "ML", label: NET_CONTENT_UNIT_OPTION_LABELS.ML },
+  { value: "L", label: NET_CONTENT_UNIT_OPTION_LABELS.L },
+  { value: "UNIT", label: NET_CONTENT_UNIT_OPTION_LABELS.UNIT },
+];
+
+// Full paths disambiguate leaves that share a name under different parents.
+export function categorySelectOptions(
+  categories: CategorySummary[],
+): Options<Option<string>> | undefined {
+  const leafIds = new Set(leafCategories(categories).map((category) => category.id));
+  if (leafIds.size === 0) {
+    return undefined;
+  }
+  const labels = categoryPathLabels(categories);
+  const leaves = categoriesInTreeOrder(categories).filter((category) => leafIds.has(category.id));
+  const [first, ...rest] = leaves.map((category) => ({
+    value: category.id,
+    label: labels.get(category.id) ?? category.name,
+  }));
+  if (!first) {
+    throw new Error("no category to offer: leaves.length > 0 was already checked");
+  }
+  return [first, ...rest];
+}
+
+// Only reachable by a race: the category gains a subcategory of its own between loading this
+// form and submitting it.
+export const PRODUCT_CATEGORY_NOT_LEAF_ERROR = (params: { category: string }) =>
+  `"${params.category}" tiene subcategorías. Elegí una de ellas.`;
+
+export function categoryNameOf(categories: CategorySummary[], id: string): string {
+  return categories.find((category) => category.id === id)?.name ?? "";
+}
+
+export const PRODUCT_BRAND_INACTIVE_ERROR =
+  "La marca elegida se dio de baja. Elegí otra o dejala sin marca.";
+
+const PRODUCT_BARCODE_TAKEN_UNNAMED = "Alguno de los códigos ya es de otro producto.";
+
+function barcodeTakenText(params: { codes: string[] }): string {
+  const list = params.codes.join(", ");
+  return plural(params.codes.length, {
+    one: `El código ${list} ya es de otro producto.`,
+    other: `Los códigos ${list} ya son de otro producto.`,
+  });
+}
+
+export function barcodeTakenError(codes: string[]): string {
+  return codes.length > 0 ? barcodeTakenText({ codes }) : PRODUCT_BARCODE_TAKEN_UNNAMED;
+}

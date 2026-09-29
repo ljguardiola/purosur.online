@@ -3,6 +3,7 @@ import { request as httpRequest } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { healthCheckSchema } from "@purosur/contracts";
 import { PERMISSION_KEYS } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -21,6 +22,7 @@ import { SESSION_COOKIE_NAME } from "./access/session-cookie.js";
 import { generateSessionId, hashSessionId } from "./access/session-id.js";
 import { buildApp as buildRealApp } from "./app.js";
 import { rolePermissions, roles, sessions, userRoles, users } from "./platform/db/schema.js";
+import { insertEnrolledInstallation } from "./register/test-support/enrolled-installation.js";
 import {
   buildTestApp as buildApp,
   TEST_EDGE_ORIGIN_SECRET,
@@ -50,6 +52,20 @@ describe("GET /health", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ status: "ok", version: "abc1234" });
+  });
+
+  it("reaches the enrolled installations when the device routes are wired", async () => {
+    const { deviceToken } = await insertEnrolledInstallation(testDatabase.db);
+    const app = buildApp({ version: "abc1234", devices: { db: testDatabase.db } });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/health",
+      headers: { authorization: `Bearer ${deviceToken}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(healthCheckSchema.parse(response.json()).installation).toEqual({ revoked: false });
   });
 });
 
@@ -977,9 +993,12 @@ describe("wiring the registers routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
 
+    const coverage = await app.inject({ method: "GET", url: "/registers/coverage" });
+
     expect(list.statusCode).toBe(404);
     expect(create.statusCode).toBe(404);
     expect(emitCode.statusCode).toBe(404);
+    expect(coverage.statusCode).toBe(404);
   });
 
   it("registers the registers routes when a registers option is given", async () => {
@@ -1000,9 +1019,12 @@ describe("wiring the registers routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
 
+    const coverage = await app.inject({ method: "GET", url: "/registers/coverage" });
+
     expect(list.statusCode).toBe(401);
     expect(create.statusCode).toBe(401);
     expect(emitCode.statusCode).toBe(401);
+    expect(coverage.statusCode).toBe(401);
   });
 });
 
@@ -1250,7 +1272,6 @@ describe("the route access inventory", () => {
     await app.ready();
 
     expect(app.routeAccessInventory()).toEqual([
-      { method: "GET", url: "/health", access: PUBLIC_ACCESS },
       { method: "GET", url: "/error-reporting", access: PUBLIC_ACCESS },
       { method: "POST", url: "/users/recovery/request", access: PUBLIC_ACCESS },
       { method: "POST", url: "/users/recovery/registration-options", access: PUBLIC_ACCESS },
@@ -1389,6 +1410,7 @@ describe("the route access inventory", () => {
         access: permissionAccess("manage_products_and_categories"),
       },
       { method: "GET", url: "/alerts", access: OPEN_SESSION_ACCESS },
+      { method: "GET", url: "/alerts/overview", access: OPEN_SESSION_ACCESS },
       { method: "GET", url: "/alerts/:id", access: OPEN_SESSION_ACCESS },
       {
         method: "POST",
@@ -1421,10 +1443,16 @@ describe("the route access inventory", () => {
         access: permissionAccess("enroll_register_devices"),
       },
       {
+        method: "GET",
+        url: "/registers/coverage",
+        access: permissionAccess("enroll_register_devices"),
+      },
+      {
         method: "POST",
         url: "/registers/:id/enrollment-code",
         access: permissionAccess("enroll_register_devices"),
       },
+      { method: "GET", url: "/health", access: PUBLIC_ACCESS },
       { method: "POST", url: "/devices/enroll", access: PUBLIC_ACCESS },
       { method: "HEAD", url: "/*", access: PUBLIC_ACCESS },
       { method: "GET", url: "/*", access: PUBLIC_ACCESS },

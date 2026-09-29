@@ -115,7 +115,7 @@ const calendarPickerOptionClassName = `${menuOptionClassName} data-disabled:curs
 const calendarGridClassName = "border-separate border-spacing-1";
 const calendarWeekdayClassName = "h-8 text-detail font-bold text-text-subtle";
 const calendarCellClassName =
-  "size-control-lg rounded-md text-center align-middle text-body text-text outline-none " +
+  "flex size-control-lg items-center justify-center rounded-md text-body text-text outline-none " +
   "data-hovered:bg-surface-subtle " +
   "data-today:font-bold data-today:inset-ring-2 data-today:inset-ring-action " +
   "data-selected:bg-action data-selected:text-text-inverse data-selected:font-bold " +

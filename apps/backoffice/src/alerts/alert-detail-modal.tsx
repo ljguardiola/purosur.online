@@ -14,7 +14,6 @@ import {
   LoadFailure,
   LoadingPlaceholder,
   Modal,
-  type NoticeTone,
   plural,
   StatusIndicator,
 } from "@purosur/ui";
@@ -38,6 +37,7 @@ import { roleDisplayName } from "../access/role-display";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { retryAfterDetail } from "../platform/retry-after-detail";
+import { ALERT_LEVEL_TONE } from "./alert-level-tone";
 import { closeAlert as closeAlertDefault, fetchAlert as fetchAlertDefault } from "./alerts-api";
 import { useAlertQuery, useRefreshAlerts, useRefreshAlertsAfterClosing } from "./alerts-queries";
 
@@ -89,18 +89,6 @@ type FormNotice =
   | { kind: "alreadyClosed" }
   | { kind: "attemptFailed" }
   | { kind: "rateLimited"; retryAfterSeconds: number };
-
-const LEVEL_TONE: Record<AlertLevel, "error" | "warning" | "info"> = {
-  critical: "error",
-  warning: "warning",
-  informational: "info",
-};
-
-const MODAL_TONE: Record<AlertLevel, NoticeTone> = {
-  critical: "error",
-  warning: "warning",
-  informational: "info",
-};
 
 function levelLabel(level: AlertLevel): string {
   return ALERT_LEVEL_LABELS[level];
@@ -371,7 +359,7 @@ function OpenAlertDetailModal({
         }
       }}
       width="standard"
-      tone={alert ? MODAL_TONE[alert.level] : "info"}
+      tone={alert ? ALERT_LEVEL_TONE[alert.level] : "info"}
       icon={alertIcon(alert?.kind ?? "")}
       context="Alerta de seguridad"
       title={alert ? alertTitle(alert) : "Alertas"}
@@ -436,7 +424,7 @@ function OpenAlertDetailModal({
         {alert ? (
           <>
             <div className="flex items-center gap-2">
-              <StatusIndicator tone={LEVEL_TONE[alert.level]}>
+              <StatusIndicator tone={ALERT_LEVEL_TONE[alert.level]}>
                 {levelLabel(alert.level)}
               </StatusIndicator>
             </div>

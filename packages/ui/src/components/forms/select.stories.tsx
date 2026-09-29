@@ -19,6 +19,12 @@ const options: [Option<Role>, Option<Role>, Option<Role>] = [
   { value: "cashier", label: "Atención de caja" },
 ];
 
+const optionsWithStatus: [Option<Role>, Option<Role>, Option<Role>] = [
+  { value: "administrator", label: "Administrador" },
+  { value: "shift-lead", label: "Responsable de turno" },
+  { value: "cashier", label: "Atención de caja", status: "Inactivo" },
+];
+
 const meta: Meta<typeof Select<Role>> = {
   title: "Components/Select",
   component: Select<Role>,
@@ -118,4 +124,34 @@ export const Disabled: Story = {
 
 export const HelperText: Story = {
   args: { value: "shift-lead", description: "Define qué puede hacer esta persona." },
+};
+
+export const SelectedWithStatus: Story = {
+  args: { options: optionsWithStatus, value: "cashier" },
+};
+
+export const OpenWithStatus: Story = {
+  args: { options: optionsWithStatus, value: "cashier" },
+  play: playClickExpandsTrigger(trigger),
+};
+
+export const LongLabelWithStatus: Story = {
+  args: {
+    options: [
+      {
+        value: "cashier",
+        label: "Atención de caja en el turno de la tarde y de la noche",
+        status: "Inactivo",
+      },
+    ],
+    value: "cashier",
+  },
+};
+
+export const DisabledWithStatus: Story = {
+  args: { options: optionsWithStatus, value: "cashier", disabled: true },
+};
+
+export const InvalidWithStatus: Story = {
+  args: { options: optionsWithStatus, value: "cashier", errorMessage: "Elegí un rol." },
 };

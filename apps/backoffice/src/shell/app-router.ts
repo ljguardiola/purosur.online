@@ -8,7 +8,7 @@ import {
   userDetailRoute,
   usersListRoute,
 } from "../access/routes";
-import { alertsListRoute } from "../alerts/routes";
+import { alertsListRoute, alertsOverviewRoute } from "../alerts/routes";
 import { branchSettingsRoute } from "../branch/routes";
 import { brandsListRoute, categoriesListRoute, productsListRoute } from "../catalog/routes";
 import { fiscalConfigurationRoute } from "../fiscal/routes";
@@ -18,7 +18,7 @@ import { registersListRoute } from "../register/routes";
 import { cashAndFiscalAreaIndexRoute, cashAndFiscalAreaRoute } from "./cash-and-fiscal-area";
 import { catalogAreaIndexRoute, catalogAreaRoute } from "./catalog-area";
 import { helpAreaRoute } from "./help-area";
-import { homeAreaIndexRoute, homeAreaRoute } from "./home-area";
+import { homeAreaRoute } from "./home-area";
 import { ScreenDownloadFailure } from "./lazy-screen";
 import { publicRoute } from "./public-route";
 import { type RouterContext, rootRoute } from "./root-route";
@@ -33,7 +33,7 @@ const landingRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
   beforeLoad: () => {
-    throw redirect({ to: "/help" });
+    throw redirect({ to: "/home" });
   },
 });
 
@@ -50,7 +50,7 @@ const routeTree = rootRoute.addChildren([
   unknownPathRoute,
   publicRoute.addChildren([signInRoute, accountRecoveryRoute, registerPasskeyRoute]),
   signedInRoute.addChildren([
-    homeAreaRoute.addChildren([homeAreaIndexRoute, alertsListRoute]),
+    homeAreaRoute.addChildren([alertsOverviewRoute, alertsListRoute]),
     catalogAreaRoute.addChildren([
       catalogAreaIndexRoute,
       productsListRoute,
