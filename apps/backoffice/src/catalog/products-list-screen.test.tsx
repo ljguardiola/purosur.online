@@ -46,6 +46,26 @@ test("the search field filters by name or barcode, case-insensitively", async ()
   expect(screen.getByText("Almendras peladas").query()).toBeNull();
 });
 
+test("the Producto header reverses the alphabetical order of the products", async () => {
+  const services = createServices();
+  mockLoaded(services, [honey, almonds]);
+  const screen = await renderScreen(services);
+  const productNames = () =>
+    screen
+      .getByRole("row")
+      .elements()
+      .map((row) => row.textContent ?? "")
+      .filter((text) => text.includes("Miel") || text.includes("Almendras"));
+  await expect.poll(productNames).toHaveLength(2);
+  expect(productNames()[0]).toContain("Almendras peladas");
+  expect(productNames()[1]).toContain("Miel pura de abeja 1 kg");
+
+  await userEvent.click(screen.getByRole("button", { name: "Producto" }));
+
+  await expect.poll(() => productNames()[0]).toContain("Miel pura de abeja 1 kg");
+  expect(productNames()[1]).toContain("Almendras peladas");
+});
+
 test("the category filter narrows the list", async () => {
   const services = createServices();
   mockLoaded(services, [honey, almonds]);

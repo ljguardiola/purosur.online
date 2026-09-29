@@ -1,5 +1,5 @@
 import { PERMISSION_KEYS } from "@purosur/domain";
-import { Button, plural, Table } from "@purosur/ui";
+import { Button, plural, Table, tableRows } from "@purosur/ui";
 import { Copy, Lock, Pencil, Plus, Shield } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
@@ -116,7 +116,7 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
         aria-label="Roles"
         columns={columns}
         {...cloudTableState(data, "los roles")}
-        rows={roles.map((role) => ({ id: role.id, item: role }))}
+        rows={tableRows({ items: roles, id: (role) => role.id }).rows}
         empty={{
           icon: <Shield />,
           title: "Todavía no hay roles",

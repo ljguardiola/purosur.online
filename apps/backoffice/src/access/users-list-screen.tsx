@@ -9,6 +9,7 @@ import {
   TableCellText,
   Tag,
   TextField,
+  tableRows,
 } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { deepEqual, useNavigate } from "@tanstack/react-router";
@@ -423,12 +424,14 @@ function UsersListView({
     }
   }, [stateFilter, filters, onFiltersChangeRef]);
 
-  const filteredUsers =
-    !showsState || stateFilter === "all"
-      ? users
-      : users.filter((user) =>
-          stateFilter === "active" ? user.active !== false : user.active === false,
-        );
+  const { rows, matchCount } = tableRows({
+    items: users,
+    id: (user) => user.id,
+    filter: (user) =>
+      !showsState ||
+      stateFilter === "all" ||
+      (stateFilter === "active" ? user.active !== false : user.active === false),
+  });
 
   const baseColumns = [
     {
@@ -516,7 +519,7 @@ function UsersListView({
           aria-label="Usuarios"
           columns={columns}
           {...cloudTableState(data, "los usuarios")}
-          rows={filteredUsers.map((user) => ({ id: user.id, item: user }))}
+          rows={rows}
           empty={
             users.length === 0
               ? {
@@ -533,11 +536,11 @@ function UsersListView({
                 }
           }
           footer={
-            filteredUsers.length === 0 ? undefined : (
+            matchCount === 0 ? undefined : (
               <p className="text-text-subtle text-detail">
-                {plural(filteredUsers.length, {
+                {plural(matchCount, {
                   one: "1 usuario",
-                  other: `${filteredUsers.length} usuarios`,
+                  other: `${matchCount} usuarios`,
                 })}
               </p>
             )

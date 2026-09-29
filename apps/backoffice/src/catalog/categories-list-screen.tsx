@@ -11,6 +11,7 @@ import {
   Table,
   type TableSort,
   TextField,
+  tableRows,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
 import {
@@ -40,7 +41,13 @@ import {
 import type { createCategory, editCategory } from "./categories-api";
 import type { CategoriesListScreenServices } from "./categories-list-services";
 import { categoryNameError } from "./category-name";
-import { categoriesInTreeOrder, categoryPathLabels, selfAndDescendantIds } from "./category-path";
+import {
+  categoriesInTreeOrder,
+  categoryNameOrder,
+  categoryParentId,
+  categoryPathLabels,
+  selfAndDescendantIds,
+} from "./category-path";
 import type { CategoriesListFilters } from "./routes";
 
 export type CategoriesListScreenProps = {
@@ -66,7 +73,7 @@ function parentSelectOptions(
   excludeIds: ReadonlySet<string>,
 ): Options<Option<string>> {
   const labels = categoryPathLabels(categories);
-  const sorted = categoriesInTreeOrder(categories, "ascending").filter(
+  const sorted = categoriesInTreeOrder(categories).filter(
     (category) => !excludeIds.has(category.id),
   );
   const noneOption: Option<string> = {
@@ -577,11 +584,16 @@ export function CategoriesListScreen({
   const categories = data.status === "loaded" ? data.value : NO_CATEGORIES;
   const labels = categoryPathLabels(categories);
   const pathLabel = (category: CategorySummary) => labels.get(category.id) ?? category.name;
-  const query = search.trim().toLowerCase();
-  const ordered = categoriesInTreeOrder(categories, sort.direction);
-  const filtered = query
-    ? ordered.filter((category) => pathLabel(category).toLowerCase().includes(query))
-    : ordered;
+  const { rows, matchCount } = tableRows({
+    items: categories,
+    id: (category) => category.id,
+    search: { text: search, in: (category) => [pathLabel(category)] },
+    sort: {
+      by: sort,
+      orders: { category: categoryNameOrder },
+      parentId: categoryParentId,
+    },
+  });
 
   const columns = [
     {
@@ -640,7 +652,7 @@ export function CategoriesListScreen({
           sort={sort}
           onSortChange={setSort}
           {...cloudTableState(data, "las categorías")}
-          rows={filtered.map((category) => ({ id: category.id, item: category }))}
+          rows={rows}
           empty={
             categories.length === 0
               ? {
@@ -657,11 +669,11 @@ export function CategoriesListScreen({
                 }
           }
           footer={
-            filtered.length === 0 ? undefined : (
+            matchCount === 0 ? undefined : (
               <p className="text-text-subtle text-detail">
-                {plural(filtered.length, {
+                {plural(matchCount, {
                   one: "1 categoría",
-                  other: `${filtered.length} categorías`,
+                  other: `${matchCount} categorías`,
                 })}
               </p>
             )

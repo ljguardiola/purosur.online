@@ -28,9 +28,12 @@ import {
   SearchField,
   Select,
   StatusIndicator,
+  sortedItems,
   Table,
   type TableSort,
   TextField,
+  tableRows,
+  textOrder,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
 import {
@@ -207,14 +210,7 @@ function netContentUnitOf(netContent: NetContent | null): NetContentUnit {
   return netContent ? netContent.unit : NET_CONTENT_DEFAULT_UNIT;
 }
 
-function nameCollator(a: ProductSummary, b: ProductSummary): number {
-  return a.name.localeCompare(b.name, "es");
-}
-
-function sortedByName(products: ProductSummary[], direction: "ascending" | "descending") {
-  const sorted = [...products].sort(nameCollator);
-  return direction === "ascending" ? sorted : sorted.reverse();
-}
+const productNameOrder = textOrder((product: ProductSummary) => product.name);
 
 // Full paths disambiguate leaves that share a name under different parents.
 function categorySelectOptions(categories: CategorySummary[]): Options<Option<string>> | undefined {
@@ -223,9 +219,7 @@ function categorySelectOptions(categories: CategorySummary[]): Options<Option<st
     return undefined;
   }
   const labels = categoryPathLabels(categories);
-  const leaves = categoriesInTreeOrder(categories, "ascending").filter((category) =>
-    leafIds.has(category.id),
-  );
+  const leaves = categoriesInTreeOrder(categories).filter((category) => leafIds.has(category.id));
   const [first, ...rest] = leaves.map((category) => ({
     value: category.id,
     label: labels.get(category.id) ?? category.name,
@@ -1451,15 +1445,17 @@ function DeactivateProductModal({
 type LabelableProduct = { product: ProductSummary; code: string };
 
 function labelableProducts(products: ProductSummary[]): LabelableProduct[] {
-  return products
-    .flatMap((product) => {
-      if (!product.active) {
-        return [];
-      }
-      const code = product.barcodes.find(isInternalBarcode);
-      return code ? [{ product, code }] : [];
-    })
-    .sort((a, b) => nameCollator(a.product, b.product));
+  const labelable = products.flatMap((product) => {
+    if (!product.active) {
+      return [];
+    }
+    const code = product.barcodes.find(isInternalBarcode);
+    return code ? [{ product, code }] : [];
+  });
+  return sortedItems(labelable, {
+    order: textOrder((labelableProduct) => labelableProduct.product.name),
+    direction: "ascending",
+  });
 }
 
 // The standard EAN-13 human-readable layout: first digit alone, then two halves of six digits.
@@ -1865,7 +1861,7 @@ export function ProductsListScreen({
 
   const categoryFilterOptions = [
     { value: "ALL" as const, label: "Todas" },
-    ...categoriesInTreeOrder(categories, "ascending")
+    ...categoriesInTreeOrder(categories)
       .filter((category) => offeredCategoryIds.has(category.id))
       .map((category) => ({
         value: category.id,
@@ -1885,18 +1881,15 @@ export function ProductsListScreen({
     { value: "all" as const, label: "Todos" },
   ] as const;
 
-  const query = search.trim().toLowerCase();
-  const filtered = sortedByName(
-    products.filter(
-      (product) =>
-        (!query ||
-          product.name.toLowerCase().includes(query) ||
-          product.barcodes.some((code) => code.toLowerCase().includes(query))) &&
-        (categoryFilter === "ALL" || product.categoryId === categoryFilter) &&
-        (unitFilter === "ALL" || product.saleUnit === unitFilter),
-    ),
-    sort.direction,
-  );
+  const { rows, matchCount } = tableRows({
+    items: products,
+    id: (product) => product.id,
+    search: { text: search, in: (product) => [product.name, ...product.barcodes] },
+    filter: (product) =>
+      (categoryFilter === "ALL" || product.categoryId === categoryFilter) &&
+      (unitFilter === "ALL" || product.saleUnit === unitFilter),
+    sort: { by: sort, orders: { product: productNameOrder } },
+  });
 
   const columns = [
     {
@@ -2018,7 +2011,7 @@ export function ProductsListScreen({
           sort={sort}
           onSortChange={setSort}
           {...cloudTableState(data, "los productos")}
-          rows={filtered.map((product) => ({ id: product.id, item: product }))}
+          rows={rows}
           empty={
             products.length === 0
               ? {
@@ -2034,9 +2027,9 @@ export function ProductsListScreen({
                 }
           }
           footer={
-            filtered.length === 0 ? undefined : (
+            matchCount === 0 ? undefined : (
               <p className="text-text-subtle text-detail">
-                {productsCountText({ count: filtered.length, status: statusFilter })}
+                {productsCountText({ count: matchCount, status: statusFilter })}
               </p>
             )
           }

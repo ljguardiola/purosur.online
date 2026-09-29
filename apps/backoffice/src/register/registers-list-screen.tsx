@@ -8,6 +8,7 @@ import {
   TableCellText,
   Tag,
   TextField,
+  tableRows,
 } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { Check, KeySquare, Laptop, Plus, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
@@ -512,7 +513,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
           aria-label="Cajas registradoras"
           columns={columns}
           {...cloudTableState(data, "las cajas registradoras")}
-          rows={registers.map((register) => ({ id: register.id, item: register }))}
+          rows={tableRows({ items: registers, id: (register) => register.id }).rows}
           empty={{
             icon: <Laptop />,
             title: "Todavía no hay cajas registradoras",
