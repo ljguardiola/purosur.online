@@ -44,6 +44,9 @@ test("creates a product and shows it in the list", async () => {
     version: 1,
   };
   vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok", value: created });
+  vi.mocked(services.fetchProducts)
+    .mockResolvedValueOnce({ kind: "ok", value: [] })
+    .mockResolvedValueOnce({ kind: "ok", value: [created, honey] });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
@@ -71,6 +74,8 @@ test("creates a product and shows it in the list", async () => {
   });
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.element(screen.getByText("Pasta de maní 380 g")).toBeVisible();
+  await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
+  expect(services.fetchProducts).toHaveBeenCalledTimes(2);
 });
 
 test("creates a product with a net content", async () => {

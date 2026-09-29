@@ -608,17 +608,23 @@ test("ignores a reload success that arrives after the modal was closed and opene
   await expect.element(dialog.getByText("1 etiqueta")).toBeVisible();
 });
 
-test("ignores a reload failure that arrives after the modal was closed and opened again", async () => {
+test("a reload that fails leaves the list failed, with its retry, instead of the print modal", async () => {
   const services = createServices();
   mockLoaded(services, [honeyWithInternalBarcode]);
   vi.mocked(services.printLabels).mockResolvedValue({ kind: "product_not_found" });
   const screen = await renderScreen(services);
-  const { dialog, resolveReload } = await startReloadThenCloseAndReopen(screen, services);
+  const dialog = await openPrintLabelsModal(screen);
+  await userEvent.click(
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
+  );
+  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
+  await expect.element(dialog.getByText("La lista de productos cambió")).toBeVisible();
 
-  resolveReload({ kind: "failed" });
-  await settleLateResponse(screen, services);
+  vi.mocked(services.fetchProducts).mockResolvedValueOnce({ kind: "failed" });
+  await userEvent.click(dialog.getByRole("button", { name: "Recargar la lista" }));
 
-  expect(dialog.getByText("No se pudo recargar la lista").query()).toBeNull();
+  await expect.element(screen.getByText("No pudimos abrir los productos")).toBeVisible();
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
 });
 
 test("ignores a print failure that arrives after the modal was closed and opened again", async () => {

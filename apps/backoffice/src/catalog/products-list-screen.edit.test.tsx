@@ -64,6 +64,9 @@ test("edits a product and shows the updated data in the list", async () => {
   mockLoaded(services, [honey]);
   const updated: ProductSummary = { ...honey, name: "Miel pura de abeja 500 g", version: 2 };
   vi.mocked(services.editProduct).mockResolvedValue({ kind: "ok", value: updated });
+  vi.mocked(services.fetchProducts)
+    .mockResolvedValueOnce({ kind: "ok", value: [honey] })
+    .mockResolvedValueOnce({ kind: "ok", value: [updated] });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
   await userEvent.click(
