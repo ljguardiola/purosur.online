@@ -1,10 +1,11 @@
+import type { AlertDetail } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { BackofficeAccess } from "../access/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import { AlertDetailModal, type AlertDetailModalServices } from "./alert-detail-modal";
-import type { AlertDetail, CloseAlertOutcome, FetchAlertOutcome } from "./alerts-api";
+import type { FetchAlertOutcome } from "./alerts-api";
 
 const ADMINISTRATOR_ACCESS: BackofficeAccess = { isAdministrator: true, permissions: [] };
 const NO_ALERT_PERMISSIONS_ACCESS: BackofficeAccess = { isAdministrator: false, permissions: [] };
@@ -413,14 +414,10 @@ test("hides Cerrar la alerta for an alert that's already closed", async () => {
 test("Cerrar la alerta closes the alert and reports it back through onClosed", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(ok(baseDetail()));
-  const closeOutcome: CloseAlertOutcome = {
-    kind: "ok",
-    value: baseDetail({ resolvedAt: "2026-01-05T13:00:00.000Z" }),
-  };
-  vi.mocked(services.closeAlert).mockResolvedValue(closeOutcome);
+  vi.mocked(services.closeAlert).mockResolvedValue({ kind: "ok" });
   const onClosed = vi.fn();
   const screen = await renderModal(services, { onClosed });
-  await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeEnabled();
 
   await userEvent.click(screen.getByRole("button", { name: "Cerrar la alerta" }));
 
@@ -434,12 +431,19 @@ test("shows a notice when someone else already closed it, instead of reporting s
   vi.mocked(services.closeAlert).mockResolvedValue({ kind: "already_closed" });
   const onClosed = vi.fn();
   const screen = await renderModal(services, { onClosed });
-  await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeEnabled();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(baseDetail({ resolvedAt: "2026-01-05T13:00:00.000Z" })),
+  );
 
   await userEvent.click(screen.getByRole("button", { name: "Cerrar la alerta" }));
 
   await expect.element(screen.getByText("Esta alerta ya estaba cerrada")).toBeVisible();
   expect(onClosed).not.toHaveBeenCalled();
+  expect(services.fetchAlert).toHaveBeenCalledTimes(2);
+  await expect
+    .element(screen.getByRole("button", { name: "Cerrar la alerta" }))
+    .not.toBeInTheDocument();
 });
 
 test("Volver calls onClose without closing the alert", async () => {
@@ -480,4 +484,118 @@ test("shows a rate-limited notice with a retry action that reads the alert again
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
   await expect.element(screen.getByText("Se registró una passkey")).toBeVisible();
+});
+
+test("shows the load placeholder while the alert loads, with Cerrar la alerta disabled", async () => {
+  const services = createServices();
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
+  await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeDisabled();
+});
+
+test("shows the failure with a disabled Cerrar la alerta, and the wait when rate limited", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValueOnce({
+    kind: "rate_limited",
+    retryAfterSeconds: 120,
+  });
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeDisabled();
+});
+
+test("retrying a failed read starts again from the load placeholder", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert)
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockReturnValueOnce(new Promise<never>(() => {}));
+  const screen = await renderModal(services);
+  await expect.element(screen.getByText("No pudimos abrir la alerta")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText("No pudimos abrir la alerta")).not.toBeInTheDocument();
+  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
+});
+
+test("shows only the not-found state for an alert that no longer exists", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue({ kind: "not_found" });
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText("No encontramos esa alerta")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Cerrar la alerta" }).query()).toBeNull();
+  expect(screen.getByRole("button", { name: "Reintentar" }).query()).toBeNull();
+});
+
+test("shows the not-found state when closing finds the alert gone", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValueOnce(ok(baseDetail()));
+  vi.mocked(services.closeAlert).mockResolvedValue({ kind: "not_found" });
+  const screen = await renderModal(services);
+  await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeEnabled();
+  vi.mocked(services.fetchAlert).mockResolvedValue({ kind: "not_found" });
+
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar la alerta" }));
+
+  await expect.element(screen.getByText("No encontramos esa alerta")).toBeVisible();
+});
+
+test("shows a notice, and keeps the alert open, when closing is rate limited or fails", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(ok(baseDetail()));
+  vi.mocked(services.closeAlert)
+    .mockResolvedValueOnce({ kind: "rate_limited", retryAfterSeconds: 120 })
+    .mockResolvedValueOnce({ kind: "failed" });
+  const onClosed = vi.fn();
+  const screen = await renderModal(services, { onClosed });
+  await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeEnabled();
+
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar la alerta" }));
+  await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar la alerta" }));
+  await expect.element(screen.getByText("No se pudo cerrar la alerta")).toBeVisible();
+  expect(onClosed).not.toHaveBeenCalled();
+});
+
+test("ends the session when the alert read or the close comes back unauthenticated", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue({ kind: "unauthenticated" });
+  const onSessionEnded = vi.fn();
+
+  await renderModal(services, { onSessionEnded });
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("ends the session when closing the alert comes back unauthenticated", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(ok(baseDetail()));
+  vi.mocked(services.closeAlert).mockResolvedValue({ kind: "unauthenticated" });
+  const onSessionEnded = vi.fn();
+  const screen = await renderModal(services, { onSessionEnded });
+  await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeEnabled();
+
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar la alerta" }));
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("navigates to Mi cuenta when the alert read or the close comes back forbidden", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(ok(baseDetail()));
+  vi.mocked(services.closeAlert).mockResolvedValue({ kind: "forbidden" });
+  const screen = await renderModal(services);
+  await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeEnabled();
+
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar la alerta" }));
+
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  window.history.pushState(null, "", "/");
 });
