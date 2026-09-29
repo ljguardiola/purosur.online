@@ -29,9 +29,8 @@ export type TableRows<T> = {
   pageCount: number;
 };
 
-const collator = new Intl.Collator("es-AR");
-
 export function textOrder<T>(text: (item: T) => string): TableItemOrder<T> {
+  const collator = new Intl.Collator("es-AR");
   return (a, b) => collator.compare(text(a), text(b));
 }
 
