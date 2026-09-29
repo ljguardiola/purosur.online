@@ -68,6 +68,21 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       setPrice: vi.fn(),
       confirmPrice: vi.fn(),
     },
+    stockBalancesScreen: {
+      fetchStockBalances: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
+    stockCountsScreen: {
+      fetchStockCounts: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchStockBalances: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchExpectedBalance: vi.fn().mockReturnValue(new Promise(() => {})),
+      registerCount: vi.fn(),
+    },
+    stockMovementsScreen: {
+      fetchStockMovements: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchStockBalances: vi.fn().mockReturnValue(new Promise(() => {})),
+      recordLoss: vi.fn(),
+      recordAdjustment: vi.fn(),
+    },
     userDetailScreen: {
       fetchUser: vi.fn().mockReturnValue(new Promise(() => {})),
       editUser: vi.fn(),
