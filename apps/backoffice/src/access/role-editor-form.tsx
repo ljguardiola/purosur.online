@@ -4,11 +4,13 @@ import {
   type PermissionArea,
   type PermissionDefinition,
   type PermissionKey,
+  withRequiredPermissions,
 } from "@purosur/domain";
 import { Checkbox, Focusable, RadioGroup, Tag, Tooltip } from "@purosur/ui";
 import { KeyRound } from "lucide-react";
 import type { ReactNode } from "react";
 import { AREA_LABELS, PERMISSION_LABELS } from "./permission-labels";
+import { permissionRequirementNote } from "./permission-requirement-note";
 
 type AlertsViewOption = "none" | "view_branch_alerts" | "view_all_alerts";
 const ALERTS_RADIO_OPTIONS: readonly [
@@ -66,16 +68,23 @@ function PermissionTags({ definition }: { definition: PermissionDefinition }) {
 function PermissionRow({
   definition,
   checked,
+  requirementNote,
   onToggle,
 }: {
   definition: PermissionDefinition;
   checked: boolean;
+  requirementNote: string | undefined;
   onToggle: (checked: boolean) => void;
 }) {
   return (
     <div className="flex items-center gap-3 border-border border-b px-4 py-3 last:border-b-0">
       <div className="min-w-0 flex-1">
-        <Checkbox checked={checked} onCheckedChange={onToggle}>
+        <Checkbox
+          checked={checked}
+          onCheckedChange={onToggle}
+          disabled={requirementNote !== undefined}
+          {...(requirementNote !== undefined ? { description: requirementNote } : {})}
+        >
           {PERMISSION_LABELS[definition.key]}
         </Checkbox>
       </div>
@@ -181,6 +190,10 @@ export function RoleEditorForm({
   selectedArea,
   onSelectedAreaChange,
 }: RoleEditorFormProps) {
+  function changeSelected(next: ReadonlySet<PermissionKey>) {
+    onSelectedChange(withRequiredPermissions(next));
+  }
+
   function togglePermission(key: PermissionKey, checked: boolean) {
     const next = new Set(selected);
     if (checked) {
@@ -188,7 +201,7 @@ export function RoleEditorForm({
     } else {
       next.delete(key);
     }
-    onSelectedChange(next);
+    changeSelected(next);
   }
 
   const definitions = definitionsByArea(selectedArea);
@@ -215,13 +228,14 @@ export function RoleEditorForm({
           <h2 className="shrink-0 text-text-accent text-heading">{AREA_LABELS[selectedArea]}</h2>
           <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border">
             {selectedArea === "alerts" ? (
-              <AlertsAreaList selected={selected} onSelectedChange={onSelectedChange} />
+              <AlertsAreaList selected={selected} onSelectedChange={changeSelected} />
             ) : (
               definitions.map((definition) => (
                 <PermissionRow
                   key={definition.key}
                   definition={definition}
                   checked={selected.has(definition.key)}
+                  requirementNote={permissionRequirementNote(definition.key, selected)}
                   onToggle={(checked) => togglePermission(definition.key, checked)}
                 />
               ))

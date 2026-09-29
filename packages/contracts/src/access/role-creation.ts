@@ -3,6 +3,7 @@ import {
   isAdministratorRoleName,
   isPermissionKey,
   isRoleNameTooLong,
+  lacksARequiredPermission,
   ROLE_NAME_MAX_LENGTH,
   repeatsAPermissionKey,
 } from "@purosur/domain";
@@ -30,6 +31,10 @@ export const roleCreationBodySchema = z.object({
     .refine(
       (keys) => !holdsBothAlertViewPermissions(keys),
       "a role can hold at most one of the alert-view permissions",
+    )
+    .refine(
+      (keys) => !lacksARequiredPermission(keys),
+      "permissions must include every permission they require",
     ),
 });
 
