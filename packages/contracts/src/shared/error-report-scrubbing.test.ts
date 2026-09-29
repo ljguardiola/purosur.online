@@ -207,6 +207,23 @@ describe("scrubErrorReport", () => {
     );
   });
 
+  it("redacts an authorization value whatever its scheme, and a credential", () => {
+    const event = {
+      extra: { authorization: "Basic dXNlcjpwYXNz", smtp_credential: "hunter2" },
+    };
+
+    expect(scrubErrorReport(event).extra).toEqual({
+      authorization: "[redacted]",
+      smtp_credential: "[redacted]",
+    });
+  });
+
+  it("scrubs a megabyte-long dotted word without stalling", () => {
+    const message = "a.".repeat(500_000);
+
+    expect(scrubErrorReport({ message }).message).toBe(message);
+  });
+
   it("keeps null values", () => {
     const event = { extra: { reason: null }, contexts: { device: { model: null } } };
 

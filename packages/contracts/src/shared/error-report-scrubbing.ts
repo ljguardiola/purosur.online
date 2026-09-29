@@ -3,7 +3,7 @@ const REDACTED = "[redacted]";
 const SENSITIVE_KEY_PATTERN =
   /token|key|secret|password|authorization|cookie|credential|query|fragment/i;
 // Matched only at the start of a word, since these are short enough to appear inside an unrelated
-// word (`circuit`, `admin`).
+// word (`circuit`, `midnight`).
 const SENSITIVE_KEY_WORD_PATTERN = /(?:^|_)(?:session|cuit|dni|documento)/;
 // Dropped entirely rather than redacted field-by-field: a request/response body can carry an
 // arbitrary business payload, which no key-based scrub can enumerate safely.
@@ -42,7 +42,9 @@ const SDK_LOG_ATTRIBUTE_DIAGNOSTICS: ReadonlySet<string> = new Set(
   ),
 );
 
-const URL_PATTERN = /\b[a-zA-Z][a-zA-Z0-9+.-]*:\/\/[^\s"'<>]+/g;
+// Starts only where a run of scheme characters starts: a start inside the run would rescan it to
+// its end each time, which is quadratic on a long dotted word.
+const URL_PATTERN = /(?<![a-zA-Z0-9+.-])[a-zA-Z0-9+.-]+:\/\/[^\s"'<>]+/g;
 const USERINFO_PATTERN = /^[^/]*@/;
 const BEARER_TOKEN_PATTERN = /\bBearer\s+[A-Za-z0-9\-_.]+/g;
 
