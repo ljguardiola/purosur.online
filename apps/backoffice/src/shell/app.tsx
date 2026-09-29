@@ -128,8 +128,8 @@ function signedInSessionOf(outcome: Extract<SessionOutcome, { kind: "ok" }>): Si
     userId: outcome.userId,
     displayName: outcome.displayName,
     isAdministrator: outcome.isAdministrator,
-    permissions: outcome.permissions ?? [],
-    ...(outcome.expiresAt !== undefined ? { expiresAt: outcome.expiresAt } : {}),
+    permissions: outcome.permissions,
+    expiresAt: outcome.expiresAt,
   };
 }
 
@@ -261,9 +261,7 @@ function AppContent({ help, services = defaultAppServices, reportError = () => {
     active: session.kind === "signed-in",
     checkStatus: services.checkSessionStatus,
     onEnded: handleSessionEnded,
-    ...(session.kind === "signed-in" && session.expiresAt !== undefined
-      ? { initialExpiresAt: session.expiresAt }
-      : {}),
+    ...(session.kind === "signed-in" ? { initialExpiresAt: session.expiresAt } : {}),
   });
 
   useSessionActivityReporter({
@@ -276,8 +274,8 @@ function AppContent({ help, services = defaultAppServices, reportError = () => {
         void settle({
           ...current,
           isAdministrator: touched.isAdministrator,
-          permissions: touched.permissions ?? [],
-          ...(touched.expiresAt !== undefined ? { expiresAt: touched.expiresAt } : {}),
+          permissions: touched.permissions,
+          expiresAt: touched.expiresAt,
         });
       }
     },

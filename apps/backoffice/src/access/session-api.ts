@@ -22,9 +22,9 @@ export type SessionOutcome =
       userId: string;
       displayName: string;
       isAdministrator: boolean;
-      expiresAt?: string;
+      expiresAt: string;
       // In catalog order. An Administrator holds every key implicitly.
-      permissions?: string[];
+      permissions: string[];
     }
   | { kind: "unauthenticated" }
   | { kind: "rate_limited"; retryAfterSeconds: number }

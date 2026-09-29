@@ -1,3 +1,5 @@
+import { sortedItems, textOrder } from "@purosur/ui";
+
 export type CategoryNode = { id: string; name: string; parentId: string | null };
 
 const PATH_SEPARATOR = " › ";
@@ -33,50 +35,19 @@ export function categoryPathLabels<T extends CategoryNode>(
   return labels;
 }
 
-function collator(a: string, b: string): number {
-  return a.localeCompare(b, "es");
+export const categoryNameOrder = textOrder((category: CategoryNode) => category.name);
+
+export function categoryParentId(category: CategoryNode): string | null {
+  return category.parentId;
 }
 
-export function categoriesInTreeOrder<T extends CategoryNode>(
-  categories: readonly T[],
-  direction: "ascending" | "descending" = "ascending",
-): T[] {
-  const ids = new Set(categories.map((category) => category.id));
-  const sign = direction === "ascending" ? 1 : -1;
-  const byName = (a: T, b: T) => sign * collator(a.name, b.name);
-
-  const roots: T[] = [];
-  const childrenByParent = new Map<string, T[]>();
-  for (const category of categories) {
-    if (category.parentId && ids.has(category.parentId)) {
-      const siblings = childrenByParent.get(category.parentId) ?? [];
-      siblings.push(category);
-      childrenByParent.set(category.parentId, siblings);
-    } else {
-      roots.push(category);
-    }
-  }
-
-  const ordered: T[] = [];
-  const visited = new Set<string>();
-  function walk(category: T): void {
-    if (visited.has(category.id)) {
-      return;
-    }
-    visited.add(category.id);
-    ordered.push(category);
-    for (const child of [...(childrenByParent.get(category.id) ?? [])].sort(byName)) {
-      walk(child);
-    }
-  }
-
-  for (const root of roots.sort(byName)) {
-    walk(root);
-  }
-  for (const unreached of [...categories].sort(byName)) {
-    walk(unreached);
-  }
-  return ordered;
+export function categoriesInTreeOrder<T extends CategoryNode>(categories: readonly T[]): T[] {
+  return sortedItems(categories, {
+    order: categoryNameOrder,
+    direction: "ascending",
+    id: (category) => category.id,
+    parentId: categoryParentId,
+  });
 }
 
 export function leafCategories<T extends CategoryNode>(categories: readonly T[]): T[] {

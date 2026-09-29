@@ -9,6 +9,7 @@ import {
   Table,
   TableCellText,
   type Tone,
+  tableRows,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
 import { Bell, Eye, Search } from "lucide-react";
@@ -258,7 +259,7 @@ export function AlertsListScreen({
           aria-label="Alertas"
           columns={columns}
           {...cloudTableState(data, "las alertas")}
-          rows={alerts.map((alert) => ({ id: alert.id, item: alert }))}
+          rows={tableRows({ items: alerts, id: (alert) => alert.id }).rows}
           empty={
             isFiltered
               ? {
