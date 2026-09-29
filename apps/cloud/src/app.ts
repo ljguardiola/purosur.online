@@ -42,6 +42,7 @@ import { registerAlertCloseRoute } from "./alerts/alert-close-route.js";
 import { registerAlertReadRoute } from "./alerts/alert-read-route.js";
 import type { AlertsRouteOptions } from "./alerts/alerts-list-route.js";
 import { registerAlertsListRoute } from "./alerts/alerts-list-route.js";
+import { registerAlertsOverviewRoute } from "./alerts/alerts-overview-route.js";
 import { registerBranchSettingsEditRoute } from "./branch/branch-settings-edit-route.js";
 import type { BranchSettingsRouteOptions } from "./branch/branch-settings-read-route.js";
 import { registerBranchSettingsReadRoute } from "./branch/branch-settings-read-route.js";
@@ -252,6 +253,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
   if (options.alerts) {
     registerAlertsListRoute(app, options.alerts);
+    registerAlertsOverviewRoute(app, options.alerts);
     registerAlertReadRoute(app, options.alerts);
     registerAlertCloseRoute(app, options.alerts);
   }

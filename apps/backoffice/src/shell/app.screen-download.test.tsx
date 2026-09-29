@@ -10,16 +10,16 @@ import { createAppServices } from "./test-support/app-services";
 
 const emptyHelp = defineHelp("es-AR", { categories: {}, articles: {} });
 
-async function blockDownloadsMatching(pattern: string) {
+async function blockDownloadsMatching(...patterns: string[]) {
   const session = cdp();
   await session.send("Network.enable");
-  await session.send("Network.setBlockedURLs", { urls: [pattern] });
+  await session.send("Network.setBlockedURLs", { urls: patterns });
 }
 
 beforeEach(async () => {
   window.history.pushState(null, "", "/");
   window.sessionStorage.clear();
-  await blockDownloadsMatching("*alerts-list-page*");
+  await blockDownloadsMatching("*alerts-list-page*", "*alerts-overview-page*");
 });
 
 afterEach(async () => {

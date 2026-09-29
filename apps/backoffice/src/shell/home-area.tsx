@@ -1,5 +1,6 @@
-import { createRoute, Outlet, redirect } from "@tanstack/react-router";
-import { Bell } from "lucide-react";
+import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
+import { Bell, LayoutDashboard } from "lucide-react";
+import { canSeeAlertsArea } from "../access/backoffice-access";
 import { AreaLayout, SectionLink } from "./area-layout";
 import { signedInRoute } from "./signed-in-route";
 
@@ -9,15 +10,10 @@ export const homeAreaRoute = createRoute({
   component: HomeArea,
 });
 
-export const homeAreaIndexRoute = createRoute({
-  getParentRoute: () => homeAreaRoute,
-  path: "/",
-  beforeLoad: () => {
-    throw redirect({ to: "/help" });
-  },
-});
-
 function HomeArea() {
+  const { session } = homeAreaRoute.useRouteContext();
+  const matchRoute = useMatchRoute();
+  const alertsShown = Boolean(matchRoute({ to: "/home/alerts" }));
   return (
     <AreaLayout
       area="home"
@@ -28,8 +24,24 @@ function HomeArea() {
           <div className="h-2.5" />
           <ul className="flex flex-col gap-1">
             <li>
-              <SectionLink to="/home/alerts" search label="Alertas" icon={<Bell />} active />
+              <SectionLink
+                to="/home"
+                label="Resumen"
+                icon={<LayoutDashboard />}
+                active={Boolean(matchRoute({ to: "/home" }))}
+              />
             </li>
+            {canSeeAlertsArea(session) && (
+              <li>
+                <SectionLink
+                  to="/home/alerts"
+                  search={alertsShown ? true : {}}
+                  label="Alertas"
+                  icon={<Bell />}
+                  active={alertsShown}
+                />
+              </li>
+            )}
           </ul>
         </>
       }
