@@ -2,12 +2,16 @@ import type postgres from "postgres";
 
 // A write queued behind another write waits on that write's tuple lock, not on the holder, so
 // pg_blocking_pids of the holder never lists it; counting the database's lock waiters does.
+export async function countLockWaiters(sql: postgres.Sql): Promise<number> {
+  const [row] = await sql<{ waiting: number }[]>`
+    select count(*)::int as waiting from pg_stat_activity
+    where datname = current_database() and wait_event_type = 'Lock'`;
+  return row?.waiting ?? 0;
+}
+
 export async function waitForLockWaiters(sql: postgres.Sql, count: number): Promise<void> {
   for (let attempt = 0; attempt < 500; attempt += 1) {
-    const [row] = await sql<{ waiting: number }[]>`
-      select count(*)::int as waiting from pg_stat_activity
-      where datname = current_database() and wait_event_type = 'Lock'`;
-    if ((row?.waiting ?? 0) >= count) return;
+    if ((await countLockWaiters(sql)) >= count) return;
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
   throw new Error(`test setup: ${count} queries never queued behind the held lock`);
