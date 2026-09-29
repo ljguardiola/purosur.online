@@ -42,9 +42,9 @@ export default {
     output: `release/${channel}`,
   },
   files: ["out/**/*"],
-  // electron-vite has already bundled everything the app runs, and nothing has native bindings to
-  // rebuild.
-  npmRebuild: false,
+  // electron-vite has bundled everything the app runs except better-sqlite3, whose native binding
+  // is rebuilt here for Electron's own Node ABI.
+  npmRebuild: true,
   forceCodeSigning: false,
   win: {
     target: [{ target: "nsis", arch: ["x64"] }],
