@@ -1,18 +1,12 @@
 import { CalendarDate } from "@internationalized/date";
 import { useId, useState } from "react";
-import { beforeEach, expect, expectTypeOf, test } from "vitest";
+import { afterEach, beforeEach, expect, expectTypeOf, test, vi } from "vitest";
 import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { AA_TEXT_CONTRAST, contrastRatio, NON_TEXT_CONTRAST } from "../../styles/contrast";
+import { AA_TEXT_CONTRAST, contrastRatio } from "../../styles/contrast";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import type { DispatchableCdpSession } from "../../test/setup-browser";
-import {
-  boundaryColorHex,
-  insetBoundary,
-  paintedBoxShadowLayers,
-  rgbToHex,
-  tokenRgb,
-} from "../../test/token-colors";
+import { insetBoundary, paintedBoxShadowLayers, rgbToHex, tokenRgb } from "../../test/token-colors";
 import { DateField, type DateFieldProps } from "./date-field";
 import { type FieldSize, FieldSizeProvider } from "./field-size";
 
@@ -467,39 +461,263 @@ async function openCalendar(screen: Screen, name: string): Promise<HTMLElement> 
   return screen.getByRole("dialog").element() as HTMLElement;
 }
 
-test("opens a white 8px-radius panel with a 1px secondary boundary clearing 3:1 against white", async () => {
+function calendarPanel(dialog: HTMLElement): HTMLElement {
+  return dialog.parentElement as HTMLElement;
+}
+
+test("floats the calendar on the dropdown menus' surface: white, light border, 8px radius, large drop shadow, above other layers", async () => {
+  const screen = await render(<DateFieldHarness variant="register" label="Expiry" />);
+  const dialog = await openCalendar(screen, "Expiry");
+  const panel = calendarPanel(dialog);
+  const style = getComputedStyle(panel);
+
+  expect(style.backgroundColor).toBe(tokenRgb("surface"));
+  expect(style.borderRadius).toBe("8px");
+  expect(style.borderTopWidth).toBe("1px");
+  expect(style.borderTopColor).toBe(tokenRgb("border"));
+  expect(paintedBoxShadowLayers(panel)).toHaveLength(1);
+  expect(style.boxShadow).toContain("0px 8px 24px");
+  expect(style.zIndex).toBe(
+    getComputedStyle(document.documentElement).getPropertyValue("--z-index-popover").trim(),
+  );
+  expect(paintedBoxShadowLayers(dialog)).toEqual([]);
+});
+
+test("pads the calendar 16px and stacks its header, weekdays and days 12px apart", async () => {
   const screen = await render(<DateFieldHarness variant="register" label="Expiry" />);
   const dialog = await openCalendar(screen, "Expiry");
   const style = getComputedStyle(dialog);
 
-  expect(style.backgroundColor).toBe(tokenRgb("surface"));
-  expect(style.borderRadius).toBe("8px");
-  expect(paintedBoxShadowLayers(dialog)).toEqual([insetBoundary("border-strong", "1px")]);
-
-  const boundaryHex = boundaryColorHex(dialog);
-  const fillHex = rgbToHex(style.backgroundColor);
-  expect(contrastRatio(boundaryHex, fillHex)).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
+  expect(style.paddingTop).toBe("16px");
+  expect(style.paddingLeft).toBe("16px");
+  expect(style.rowGap).toBe("12px");
 });
 
-test("shows the month and year heading with previous and next controls, each with a real accessible name", async () => {
-  function ControlledHarness() {
-    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 28));
-    return <DateField label="Expiry" value={value} onChange={setValue} />;
-  }
-  const screen = await render(<ControlledHarness />);
+function ControlledFebruary2027() {
+  const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 28));
+  return <DateField label="Expiry" value={value} onChange={setValue} />;
+}
+
+function pickerTrigger(screen: Screen, name: "Mes" | "Año"): HTMLElement {
+  return screen.getByRole("button", { name: new RegExp(`${name}$`) }).element() as HTMLElement;
+}
+
+function shownHeading(dialog: HTMLElement): string {
+  const titleId = dialog.getAttribute("aria-labelledby") as string;
+  return (document.getElementById(titleId) as HTMLElement).textContent ?? "";
+}
+
+test("names the calendar by its month and year without a connector, with no visible heading", async () => {
+  const screen = await render(<ControlledFebruary2027 />);
   const dialog = await openCalendar(screen, "Expiry");
 
-  const heading = dialog.querySelector("h2") as HTMLElement;
-  expect(heading.textContent).toContain("2027");
-  expect(heading.textContent?.toLowerCase()).toContain("febrero");
-
-  const previous = document.body.querySelector('[slot="previous"]') as HTMLElement;
-  const next = document.body.querySelector('[slot="next"]') as HTMLElement;
-  expect(previous.getAttribute("aria-label")).toBeTruthy();
-  expect(next.getAttribute("aria-label")).toBeTruthy();
+  expect(shownHeading(dialog)).toBe("Febrero 2027");
+  const title = document.getElementById(dialog.getAttribute("aria-labelledby") as string);
+  const rect = (title as HTMLElement).getBoundingClientRect();
+  expect(rect.width * rect.height).toBeLessThanOrEqual(1);
 });
 
-test("draws the calendar's weekday row in the package's own supporting tone and scale", async () => {
+test("shows the previous and next month controls as 40px chevron buttons, each with a real accessible name", async () => {
+  const screen = await render(<ControlledFebruary2027 />);
+  const dialog = await openCalendar(screen, "Expiry");
+
+  for (const slot of ["previous", "next"]) {
+    const control = dialog.querySelector(`[slot="${slot}"]`) as HTMLElement;
+    expect(control.getAttribute("aria-label")).toBeTruthy();
+    const rect = control.getBoundingClientRect();
+    expect(rect.width).toBeCloseTo(40, 0);
+    expect(rect.height).toBeCloseTo(40, 0);
+    expect(getComputedStyle(control).borderRadius).toBe("6px");
+    expect(getComputedStyle(control).color).toBe(tokenRgb("text-subtle"));
+  }
+});
+
+test("moves the calendar one month with the previous and next controls", async () => {
+  const screen = await render(<ControlledFebruary2027 />);
+  const dialog = await openCalendar(screen, "Expiry");
+
+  await userEvent.click(dialog.querySelector('[slot="next"]') as HTMLElement);
+  await expect.poll(() => shownHeading(dialog)).toBe("Marzo 2027");
+  await userEvent.click(dialog.querySelector('[slot="previous"]') as HTMLElement);
+  await userEvent.click(dialog.querySelector('[slot="previous"]') as HTMLElement);
+  await expect.poll(() => shownHeading(dialog)).toBe("Enero 2027");
+});
+
+test("shows the month and the year in two pickers of bold ink values with a chevron, 40px tall, next to each other", async () => {
+  const screen = await render(<ControlledFebruary2027 />);
+  await openCalendar(screen, "Expiry");
+
+  const month = pickerTrigger(screen, "Mes");
+  const year = pickerTrigger(screen, "Año");
+  expect(month.textContent).toBe("Febrero");
+  expect(year.textContent).toBe("2027");
+
+  for (const trigger of [month, year]) {
+    const style = getComputedStyle(trigger);
+    expect(trigger.getBoundingClientRect().height).toBeCloseTo(40, 0);
+    expect(style.borderRadius).toBe("6px");
+    expect(style.fontWeight).toBe("700");
+    expect(style.color).toBe(tokenRgb("text"));
+    expect(style.paddingLeft).toBe("8px");
+    const chevron = trigger.querySelector("svg") as SVGSVGElement;
+    expect(getComputedStyle(chevron).color).toBe(tokenRgb("text-subtle"));
+  }
+  const gap = year.getBoundingClientRect().left - month.getBoundingClientRect().right;
+  expect(gap).toBeCloseTo(4, 0);
+
+  await userEvent.hover(month);
+  await expect.poll(() => getComputedStyle(month).backgroundColor).toBe(tokenRgb("surface-subtle"));
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("lists the twelve months of the year, capitalised, and moves the calendar to the chosen one without choosing a date", async () => {
+  const chosen: (CalendarDate | null)[] = [];
+  function Harness() {
+    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 1, 31));
+    return (
+      <DateField
+        label="Expiry"
+        value={value}
+        onChange={(next) => {
+          chosen.push(next);
+          setValue(next);
+        }}
+      />
+    );
+  }
+  const screen = await render(<Harness />);
+  const dialog = await openCalendar(screen, "Expiry");
+
+  await userEvent.click(pickerTrigger(screen, "Mes"));
+  await expect.poll(() => screen.getByRole("option").elements().length).toBe(12);
+  const names = screen
+    .getByRole("option")
+    .elements()
+    .map((option) => option.textContent);
+  expect(names).toEqual([
+    "Enero",
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre",
+  ]);
+  await expectNoAccessibilityViolations(document.body);
+
+  await userEvent.click(screen.getByRole("option", { name: "Febrero" }));
+  await expect.poll(() => shownHeading(dialog)).toBe("Febrero 2027");
+  expect(pickerTrigger(screen, "Mes").textContent).toBe("Febrero");
+  expect(chosen).toEqual([]);
+});
+
+test("reaches a date years away in two choices with the year picker and the month picker", async () => {
+  const screen = await render(<ControlledFebruary2027 />);
+  const dialog = await openCalendar(screen, "Expiry");
+
+  await userEvent.click(pickerTrigger(screen, "Año"));
+  await userEvent.click(screen.getByRole("option", { name: "2019" }));
+  await expect.poll(() => shownHeading(dialog)).toBe("Febrero 2019");
+  await userEvent.click(pickerTrigger(screen, "Mes"));
+  await userEvent.click(screen.getByRole("option", { name: "Septiembre" }));
+  await expect.poll(() => shownHeading(dialog)).toBe("Septiembre 2019");
+
+  const days = Array.from(dialog.querySelectorAll("td [role='button']")) as HTMLElement[];
+  await userEvent.click(days.find((cell) => cell.textContent?.trim() === "15") as HTMLElement);
+  await expect
+    .poll(() => segmentsOf(fieldGroup(screen, "Expiry")).map((segment) => segment.textContent))
+    .toEqual(["15", "9", "2019"]);
+});
+
+test("lists a hundred years either side of the shown year when the field has no range, marking the shown one", async () => {
+  const screen = await render(<ControlledFebruary2027 />);
+  await openCalendar(screen, "Expiry");
+
+  await userEvent.click(pickerTrigger(screen, "Año"));
+  const options = screen.getByRole("option").elements() as HTMLElement[];
+  expect(options).toHaveLength(201);
+  expect(options[0]?.textContent).toBe("1927");
+  expect(options[200]?.textContent).toBe("2127");
+  const selected = options.filter((option) => option.getAttribute("aria-selected") === "true");
+  expect(selected.map((option) => option.textContent)).toEqual(["2027"]);
+  expect(getComputedStyle(selected[0] as HTMLElement).backgroundColor).toBe(
+    tokenRgb("action-subtle"),
+  );
+});
+
+test("offers only the years of the allowed range and disables the months outside it", async () => {
+  function Harness() {
+    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 3, 15));
+    return (
+      <DateField
+        label="Expiry"
+        value={value}
+        onChange={setValue}
+        minValue={new CalendarDate(2027, 2, 10)}
+        maxValue={new CalendarDate(2027, 4, 20)}
+        rangeMessage="The date must be between 10/02/2027 and 20/04/2027."
+      />
+    );
+  }
+  const screen = await render(<Harness />);
+  const dialog = await openCalendar(screen, "Expiry");
+
+  await userEvent.click(pickerTrigger(screen, "Mes"));
+  const months = screen.getByRole("option").elements() as HTMLElement[];
+  const enabled = months
+    .filter((option) => option.getAttribute("aria-disabled") !== "true")
+    .map((option) => option.textContent);
+  expect(enabled).toEqual(["Febrero", "Marzo", "Abril"]);
+  await userEvent.click(screen.getByRole("option", { name: "Abril" }));
+  await expect.poll(() => shownHeading(dialog)).toBe("Abril 2027");
+
+  await userEvent.click(pickerTrigger(screen, "Año"));
+  expect(
+    screen
+      .getByRole("option")
+      .elements()
+      .map((option) => option.textContent),
+  ).toEqual(["2027"]);
+});
+
+test("limits the year picker to the years between the range's bounds", async () => {
+  function Harness() {
+    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 3, 15));
+    return (
+      <DateField
+        label="Expiry"
+        value={value}
+        onChange={setValue}
+        minValue={new CalendarDate(2025, 6, 1)}
+        maxValue={new CalendarDate(2028, 1, 31)}
+        rangeMessage="The date must be between 01/06/2025 and 31/01/2028."
+      />
+    );
+  }
+  const screen = await render(<Harness />);
+  await openCalendar(screen, "Expiry");
+
+  await userEvent.click(pickerTrigger(screen, "Año"));
+  expect(
+    screen
+      .getByRole("option")
+      .elements()
+      .map((option) => option.textContent),
+  ).toEqual(["2025", "2026", "2027", "2028"]);
+  await userEvent.click(screen.getByRole("option", { name: "2028" }));
+  await userEvent.click(pickerTrigger(screen, "Mes"));
+  const enabled = (screen.getByRole("option").elements() as HTMLElement[])
+    .filter((option) => option.getAttribute("aria-disabled") !== "true")
+    .map((option) => option.textContent);
+  expect(enabled).toEqual(["Enero"]);
+});
+
+test("draws the calendar's weekday initials bold in the package's own supporting tone and scale", async () => {
   const screen = await render(<DateFieldHarness variant="register" label="Expiry" />);
   const dialog = await openCalendar(screen, "Expiry");
 
@@ -510,10 +728,13 @@ test("draws the calendar's weekday row in the package's own supporting tone and 
     expect(weekday.textContent?.trim()).not.toBe("");
     const style = getComputedStyle(weekday);
     expect(Math.round(Number.parseFloat(style.fontSize))).toBe(14);
-    expect(style.fontWeight).toBe("400");
+    expect(style.fontWeight).toBe("700");
     expect(style.color).toBe(tokenRgb("text-subtle"));
     expect(
-      contrastRatio(rgbToHex(style.color), rgbToHex(getComputedStyle(dialog).backgroundColor)),
+      contrastRatio(
+        rgbToHex(style.color),
+        rgbToHex(getComputedStyle(calendarPanel(dialog)).backgroundColor),
+      ),
     ).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
   }
 
@@ -624,6 +845,8 @@ test("shows the hand cursor on a selectable day and the arrow on a day outside t
 
   expect(getComputedStyle(selectable).cursor).toBe("pointer");
   expect(getComputedStyle(outOfRange).cursor).toBe("default");
+  expect(getComputedStyle(outOfRange).opacity).toBe("0.45");
+  expect(getComputedStyle(selectable).opacity).toBe("1");
 });
 
 test("shows the package's own outline focus ring on the focused day", async () => {
@@ -647,7 +870,7 @@ test("shows the package's own outline focus ring on the focused day", async () =
   const style = getComputedStyle(focused);
   expect(style.outlineStyle).toBe("solid");
   expect(style.outlineColor).toBe(tokenRgb("focus"));
-  expect(Math.round(Number.parseFloat(style.outlineOffset))).toBe(3);
+  expect(Math.round(Number.parseFloat(style.outlineOffset))).toBe(2);
 });
 
 test("keeps the focused day's outline ring inside the calendar panel", async () => {
@@ -694,53 +917,78 @@ test("keeps the focused day's outline ring inside the calendar panel", async () 
   await expectNoAccessibilityViolations(document.body);
 });
 
-test("keeps at least the focus ring's own reach as a real gap between adjacent day cells, horizontally and vertically", async () => {
-  function ControlledHarness() {
-    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 17));
-    return <DateField label="Expiry" value={value} onChange={setValue} />;
-  }
-  const screen = await render(<ControlledHarness />);
-  const group = fieldGroup(screen, "Expiry");
-  const toggle = group.querySelector("button") as HTMLElement;
+test("spaces adjacent day cells 4px apart, horizontally and vertically", async () => {
+  const screen = await render(<ControlledFebruary2027 />);
+  const dialog = await openCalendar(screen, "Expiry");
 
-  toggle.focus();
-  await userEvent.keyboard("{Enter}");
-  await expect.poll(() => screen.getByRole("dialog").elements().length).toBe(1);
-  const dialog = screen.getByRole("dialog").element() as HTMLElement;
+  const cell = dialog.querySelector("td") as HTMLElement;
+  const row = cell.parentElement as HTMLElement;
+  const rightNeighbour = row.children[1] as HTMLElement;
+  expect(
+    rightNeighbour.getBoundingClientRect().left - cell.getBoundingClientRect().right,
+  ).toBeCloseTo(4, 0);
 
-  const focused = dialog.querySelector('[data-focus-visible="true"]') as HTMLElement;
-  const ringExtent =
-    Number.parseFloat(getComputedStyle(focused).outlineWidth) +
-    Number.parseFloat(getComputedStyle(focused).outlineOffset);
+  const belowNeighbour = (row.nextElementSibling as HTMLElement).children[0] as HTMLElement;
+  expect(
+    belowNeighbour.getBoundingClientRect().top - cell.getBoundingClientRect().bottom,
+  ).toBeCloseTo(4, 0);
+});
 
-  const focusedTd = focused.closest("td") as HTMLElement;
-  const row = focusedTd.parentElement as HTMLElement;
-  const rowCells = Array.from(row.children) as HTMLElement[];
-  const focusedIndex = rowCells.indexOf(focusedTd);
-  const rightNeighbour = rowCells[focusedIndex + 1];
-  if (!rightNeighbour) {
-    throw new Error("no cell to the right of the focused day in the same week");
-  }
-  const horizontalGap =
-    rightNeighbour.getBoundingClientRect().left - focusedTd.getBoundingClientRect().right;
-  expect(horizontalGap, "gap between horizontally adjacent day cells").toBeGreaterThanOrEqual(
-    ringExtent,
-  );
+test("draws each day as a 40px rounded square with its number in body scale", async () => {
+  const screen = await render(<ControlledFebruary2027 />);
+  const dialog = await openCalendar(screen, "Expiry");
 
-  const rows = Array.from((row.parentElement as HTMLElement).children) as HTMLElement[];
-  const rowIndex = rows.indexOf(row);
-  const belowRow = rows[rowIndex + 1];
-  if (!belowRow) {
-    throw new Error("no week below the focused day's own week");
-  }
-  const belowNeighbour = belowRow.children[focusedIndex] as HTMLElement;
-  const verticalGap =
-    belowNeighbour.getBoundingClientRect().top - focusedTd.getBoundingClientRect().bottom;
-  expect(verticalGap, "gap between vertically adjacent day cells").toBeGreaterThanOrEqual(
-    ringExtent,
-  );
+  const days = Array.from(dialog.querySelectorAll("td [role='button']")) as HTMLElement[];
+  const day = days.find((cell) => cell.textContent?.trim() === "15") as HTMLElement;
+  const rect = day.getBoundingClientRect();
+  expect(rect.width).toBeCloseTo(40, 0);
+  expect(rect.height).toBeCloseTo(40, 0);
+  expect(getComputedStyle(day).borderRadius).toBe("6px");
+  expect(Math.round(Number.parseFloat(getComputedStyle(day).fontSize))).toBe(16);
+});
 
-  await expectNoAccessibilityViolations(document.body);
+test("shows the chosen day in bold", async () => {
+  const screen = await render(<ControlledFebruary2027 />);
+  const dialog = await openCalendar(screen, "Expiry");
+
+  const chosen = dialog.querySelector('[data-selected="true"]') as HTMLElement;
+  expect(getComputedStyle(chosen).fontWeight).toBe("700");
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+test("rings today in brand blue and bolds its number, leaving other days plain", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2027-02-10T12:00:00Z"));
+  const screen = await render(<ControlledFebruary2027 />);
+  const dialog = await openCalendar(screen, "Expiry");
+
+  const marked = Array.from(dialog.querySelectorAll("[data-today]")) as HTMLElement[];
+  expect(marked.map((cell) => cell.textContent?.trim())).toEqual(["10"]);
+  const todayCell = marked[0] as HTMLElement;
+  expect(getComputedStyle(todayCell).fontWeight).toBe("700");
+  expect(paintedBoxShadowLayers(todayCell)).toEqual([insetBoundary("action", "2px")]);
+  expect(getComputedStyle(todayCell).backgroundColor).not.toBe(tokenRgb("action"));
+
+  const days = Array.from(dialog.querySelectorAll("td [role='button']")) as HTMLElement[];
+  const other = days.find((cell) => cell.textContent?.trim() === "11") as HTMLElement;
+  expect(paintedBoxShadowLayers(other)).toEqual([]);
+  expect(getComputedStyle(other).fontWeight).toBe("400");
+});
+
+test("keeps today's number legible when today is also the chosen day", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2027-02-28T12:00:00Z"));
+  const screen = await render(<ControlledFebruary2027 />);
+  const dialog = await openCalendar(screen, "Expiry");
+
+  const todayCell = dialog.querySelector("[data-today]") as HTMLElement;
+  const style = getComputedStyle(todayCell);
+  expect(style.backgroundColor).toBe(tokenRgb("action"));
+  expect(style.color).toBe(tokenRgb("text-inverse"));
+  expect(style.fontWeight).toBe("700");
 });
 
 async function openCalendarWithKeyboard(screen: Screen, name: string): Promise<HTMLElement> {
@@ -1097,8 +1345,7 @@ test("announces the open calendar as a dialog named by the month and year it sho
         .join(" ") ?? "")
     : accessibleName;
 
-  expect(composedName.toLowerCase()).toContain("febrero");
-  expect(composedName).toContain("2027");
+  expect(composedName).toBe("Febrero 2027");
 });
 
 test("announces the chosen day's button as selected", async () => {
