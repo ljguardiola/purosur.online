@@ -1,15 +1,21 @@
 import { expect, test } from "vitest";
 import {
+  canAdjustStock,
   canCloseAlertsManually,
   canDeactivateUser,
   canManageProductsAndCategories,
+  canPerformStockCounts,
   canReactivateUser,
+  canRecordStockLosses,
   canSeeAlertsArea,
   canSeeBranchArea,
   canSeeCatalogArea,
   canSeePricesArea,
   canSeeRegistersArea,
   canSeeRolesArea,
+  canSeeStockArea,
+  canSeeStockBalances,
+  canSeeStockMovements,
   canSeeUsersArea,
 } from "./backoffice-access";
 
@@ -210,4 +216,52 @@ test("canSeeRegistersArea is false for a non-Administrator without enroll_regist
   expect(canSeeRegistersArea({ isAdministrator: false, permissions: ["view_reports"] })).toBe(
     false,
   );
+});
+
+test.each([
+  ["canSeeStockBalances", canSeeStockBalances, "view_stock_balances"],
+  ["canPerformStockCounts", canPerformStockCounts, "perform_stock_counts"],
+  ["canRecordStockLosses", canRecordStockLosses, "record_stock_losses"],
+  ["canAdjustStock", canAdjustStock, "adjust_stock"],
+] as const)(
+  "%s holds for an Administrator and for %s's own permission only",
+  (_name, can, permission) => {
+    expect(can({ isAdministrator: true, permissions: [] })).toBe(true);
+    expect(can({ isAdministrator: false, permissions: [permission] })).toBe(true);
+    const others = [
+      "view_stock_balances",
+      "perform_stock_counts",
+      "record_stock_losses",
+      "adjust_stock",
+    ].filter((key) => key !== permission);
+    expect(can({ isAdministrator: false, permissions: others })).toBe(false);
+  },
+);
+
+test.each([
+  ["record_stock_losses", true],
+  ["adjust_stock", true],
+  ["view_stock_balances", false],
+  ["perform_stock_counts", false],
+])("canSeeStockMovements with only %s is %s", (permission, expected) => {
+  expect(canSeeStockMovements({ isAdministrator: false, permissions: [permission] })).toBe(
+    expected,
+  );
+});
+
+test.each(["view_stock_balances", "perform_stock_counts", "record_stock_losses", "adjust_stock"])(
+  "canSeeStockArea is true for a non-Administrator holding only %s",
+  (permission) => {
+    expect(canSeeStockArea({ isAdministrator: false, permissions: [permission] })).toBe(true);
+  },
+);
+
+test("canSeeStockArea is false for a non-Administrator without a stock permission", () => {
+  expect(
+    canSeeStockArea({ isAdministrator: false, permissions: ["record_initial_inventory"] }),
+  ).toBe(false);
+});
+
+test("canSeeStockArea is true for an Administrator", () => {
+  expect(canSeeStockArea({ isAdministrator: true, permissions: [] })).toBe(true);
 });
