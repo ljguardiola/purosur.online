@@ -47,6 +47,7 @@ function Probe({
   return (
     <>
       <p>{describeData(data)}</p>
+      {data.status === "failed" && "lastValue" in data ? <p>{`last:${data.lastValue}`}</p> : null}
       <button type="button" onClick={() => void client.invalidateQueries({ queryKey: ["probe"] })}>
         refresh
       </button>
@@ -215,6 +216,38 @@ test("a key change that fails is reported as failed, not as the previous value, 
 
   await expect.element(screen.getByText("failed", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("loaded:for a")).not.toBeInTheDocument();
+});
+
+test("a key change that fails carries the last value loaded when the previous value is kept", async () => {
+  const screen = await render(
+    <Probe keepPreviousData queryKey={["probe", "a"]} read={() => Promise.resolve(ok("for a"))} />,
+  );
+  await expect.element(screen.getByText("loaded:for a")).toBeVisible();
+
+  await screen.rerender(
+    <Probe
+      keepPreviousData
+      queryKey={["probe", "b"]}
+      read={() => Promise.resolve({ kind: "failed" })}
+    />,
+  );
+
+  await expect.element(screen.getByText("failed", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("last:for a")).toBeVisible();
+});
+
+test("a failed read carries no last value unless the previous value is kept", async () => {
+  const read = vi
+    .fn<() => Promise<CloudReadOutcome<string>>>()
+    .mockResolvedValueOnce(ok("one"))
+    .mockResolvedValueOnce({ kind: "failed" });
+  const screen = await render(<Probe read={read} />);
+  await expect.element(screen.getByText("loaded:one")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "refresh" }));
+
+  await expect.element(screen.getByText("failed", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("last:one")).not.toBeInTheDocument();
 });
 
 test("an older key's response never replaces a newer key's when the previous value is kept", async () => {
