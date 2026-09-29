@@ -48,3 +48,11 @@ export const FocusVisible: Story = {
   args: { checked: false },
   play: playTabReachesFocusVisible(checkboxInput, checkboxRoot),
 };
+
+export const Described: Story = {
+  args: { checked: false, description: "Lo requiere Hacer recuentos." },
+};
+
+export const DisabledChecked: Story = {
+  args: { checked: true, disabled: true, description: "Lo requiere Hacer recuentos." },
+};
