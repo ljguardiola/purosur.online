@@ -28,8 +28,17 @@ const HISTORY_SCAN_RUN = "node --test .github/scripts/no-secrets-in-commit-histo
 
 const HISTORY_SCAN_BASE_REF = `\${{ github.event.pull_request.base.sha }}`;
 
+const SCOPE_OUTPUTS = {
+  docs_only: `\${{ steps.scope.outputs.docs_only }}`,
+  tests_needed: `\${{ steps.scope.outputs.tests_needed }}`,
+  catalog_changed: `\${{ steps.scope.outputs.catalog_changed }}`,
+};
+
 function scopeJobLines({
   jobExtra = [],
+  outputs = SCOPE_OUTPUTS,
+  scopeStepId = "scope",
+  scopeRun = "node .github/scripts/change-scope.mjs",
   run = HISTORY_SCAN_RUN,
   stepExtra = [],
   baseRef = HISTORY_SCAN_BASE_REF,
@@ -39,8 +48,11 @@ function scopeJobLines({
     "    if: github.event_name == 'pull_request'",
     ...jobExtra.map((line) => `    ${line}`),
     "    runs-on: ubuntu-24.04",
+    "    outputs:",
+    ...Object.entries(outputs).map(([name, value]) => `      ${name}: ${value}`),
     "    steps:",
-    "      - run: node .github/scripts/change-scope.mjs",
+    `      - id: ${scopeStepId}`,
+    `        run: ${scopeRun}`,
     `      - run: ${run}`,
     ...stepExtra.map((line) => `        ${line}`),
     ...(baseRef === null ? [] : ["        env:", `          CHANGE_BASE_REF: ${baseRef}`]),
@@ -230,6 +242,51 @@ for (const [label, scope, pattern] of [
     "overrides its steps' shell",
     { jobExtra: ["defaults:", "  run:", "    shell: bash -c 'exit 0' {0}"] },
     /scope job sets defaults/,
+  ],
+  [
+    "takes the test shards' decision from the docs-only output",
+    { outputs: { ...SCOPE_OUTPUTS, tests_needed: SCOPE_OUTPUTS.docs_only } },
+    /scope job's tests_needed output is .*steps\.scope\.outputs\.docs_only.*, expected .*steps\.scope\.outputs\.tests_needed/,
+  ],
+  [
+    "takes the docs-only decision from the catalog output",
+    { outputs: { ...SCOPE_OUTPUTS, docs_only: SCOPE_OUTPUTS.catalog_changed } },
+    /scope job's docs_only output is/,
+  ],
+  [
+    "takes the catalog decision from another step",
+    {
+      outputs: {
+        ...SCOPE_OUTPUTS,
+        catalog_changed: `\${{ steps.other.outputs.catalog_changed }}`,
+      },
+    },
+    /scope job's catalog_changed output is/,
+  ],
+  [
+    "hard-codes a decision instead of taking it from the scope step",
+    { outputs: { ...SCOPE_OUTPUTS, tests_needed: "false" } },
+    /scope job's tests_needed output is/,
+  ],
+  [
+    "does not publish the catalog decision",
+    { outputs: { docs_only: SCOPE_OUTPUTS.docs_only, tests_needed: SCOPE_OUTPUTS.tests_needed } },
+    /scope job's catalog_changed output is/,
+  ],
+  [
+    "publishes another value that is not the scope step's output of the same name",
+    { outputs: { ...SCOPE_OUTPUTS, skip_all: SCOPE_OUTPUTS.docs_only } },
+    /scope job's skip_all output is/,
+  ],
+  [
+    "decides its scope in a step without the id its outputs read",
+    { scopeStepId: "decide" },
+    /scope job has no step with id scope whose run is exactly/,
+  ],
+  [
+    "names another step scope",
+    { scopeRun: 'echo docs_only=true >> "$GITHUB_OUTPUT"' },
+    /scope job has no step with id scope whose run is exactly/,
   ],
 ]) {
   test(`flags a scope job that ${label}`, () => {

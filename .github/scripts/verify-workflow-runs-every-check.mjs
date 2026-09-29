@@ -51,6 +51,9 @@ const EXPECTED_RUN_CONDITION = `\${{ !cancelled() && (github.event_name != 'pull
 const EXPECTED_TESTS_CONDITION = `\${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.tests_needed != 'false') }}`;
 const EXPECTED_VISUAL_CONDITION = `\${{ !cancelled() && needs.scope.outputs.catalog_changed != 'false' }}`;
 const EXPECTED_VERIFY_CONDITION = "always()";
+const SCOPE_STEP_ID = "scope";
+const SCOPE_COMMAND = "node .github/scripts/change-scope.mjs";
+const SCOPE_DECISIONS = ["docs_only", "tests_needed", "catalog_changed"];
 const HISTORY_SCAN_COMMAND = "node --test .github/scripts/no-secrets-in-commit-history.test.mjs";
 const EXPECTED_HISTORY_SCAN_BASE_REF = `\${{ github.event.pull_request.base.sha }}`;
 const AGGREGATE_COMMAND = "node .github/scripts/aggregate-verify-result.mjs";
@@ -179,6 +182,30 @@ function scopeJobViolations(doc, job) {
   }
   if (mapHas(doc, job, "defaults")) {
     violations.push("verify.yml's scope job sets defaults");
+  }
+
+  const scopeStep = steps(doc, job).find(
+    (step) => resolveScalar(doc, mapGet(doc, step, "id")) === SCOPE_STEP_ID,
+  );
+  const scopeRun = resolveScalar(doc, mapGet(doc, scopeStep, "run"));
+  if (typeof scopeRun !== "string" || scopeRun.trim() !== SCOPE_COMMAND) {
+    violations.push(
+      `verify.yml's scope job has no step with id ${SCOPE_STEP_ID} whose run is exactly \`${SCOPE_COMMAND}\``,
+    );
+  }
+
+  const outputsNode = resolveNode(doc, mapGet(doc, job, "outputs"));
+  const published = isMap(outputsNode)
+    ? outputsNode.items.map((pair) => String(resolveScalar(doc, pair.key)))
+    : [];
+  for (const name of new Set([...SCOPE_DECISIONS, ...published])) {
+    const actual = resolveScalar(doc, mapGet(doc, outputsNode, name));
+    const expected = `\${{ steps.${SCOPE_STEP_ID}.outputs.${name} }}`;
+    if (actual !== expected) {
+      violations.push(
+        `verify.yml's scope job's ${name} output is \`${actual}\`, expected \`${expected}\``,
+      );
+    }
   }
 
   const step = stepRunningExactly(doc, job, HISTORY_SCAN_COMMAND);
