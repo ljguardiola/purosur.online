@@ -1,3 +1,4 @@
+import type { CalendarDate } from "@internationalized/date";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { z } from "zod";
@@ -428,4 +429,112 @@ test("a select submits the option that was chosen", async () => {
 
   await expect.poll(() => onSubmit.mock.calls.length).toBe(1);
   expect(onSubmit).toHaveBeenCalledWith("stock");
+});
+
+function DirtyProbe() {
+  const { form, dirty, reset } = useCloudForm({
+    defaultValues: { name: "Ana" },
+    request: { schema: z.object({ name: z.string() }), from: (values) => values },
+    fields: { name: "name" },
+    messages: { name: "Nombre inválido." },
+    onSubmit: () => Promise.resolve(),
+  });
+  return (
+    <>
+      <form.AppField name="name">
+        {(field) => <field.TextField kind="plain-text" label="Nombre" />}
+      </form.AppField>
+      <button type="button" onClick={() => reset({ name: "Beto" })}>
+        Cargar
+      </button>
+      <button type="button" onClick={() => reset()}>
+        Vaciar
+      </button>
+      <output aria-label="Estado">{dirty ? "editado" : "sin cambios"}</output>
+    </>
+  );
+}
+
+test("the form is not dirty until a value differs from the one it started with", async () => {
+  const screen = await render(<DirtyProbe />);
+  await expect.element(screen.getByLabelText("Estado")).toHaveTextContent("sin cambios");
+
+  await userEvent.fill(screen.getByRole("textbox", { name: "Nombre" }), "Ana B");
+  await expect.element(screen.getByLabelText("Estado")).toHaveTextContent("editado");
+
+  await userEvent.fill(screen.getByRole("textbox", { name: "Nombre" }), "Ana");
+  await expect.element(screen.getByLabelText("Estado")).toHaveTextContent("sin cambios");
+});
+
+test("values loaded with reset become the ones the form is compared with", async () => {
+  const screen = await render(<DirtyProbe />);
+  await userEvent.click(screen.getByRole("button", { name: "Cargar" }));
+  await expect.element(screen.getByLabelText("Estado")).toHaveTextContent("sin cambios");
+
+  await userEvent.fill(screen.getByRole("textbox", { name: "Nombre" }), "Carla");
+  await expect.element(screen.getByLabelText("Estado")).toHaveTextContent("editado");
+
+  await userEvent.fill(screen.getByRole("textbox", { name: "Nombre" }), "Beto");
+  await expect.element(screen.getByLabelText("Estado")).toHaveTextContent("sin cambios");
+});
+
+test("a reset without values goes back to the values the form started with", async () => {
+  const screen = await render(<DirtyProbe />);
+  await userEvent.click(screen.getByRole("button", { name: "Cargar" }));
+
+  await userEvent.click(screen.getByRole("button", { name: "Vaciar" }));
+
+  await expect.element(screen.getByRole("textbox", { name: "Nombre" })).toHaveValue("Ana");
+  await expect.element(screen.getByLabelText("Estado")).toHaveTextContent("sin cambios");
+});
+
+function DateProbe({ onSubmit }: { onSubmit: (date: string) => Promise<void> }) {
+  const { form, submit } = useCloudForm({
+    defaultValues: { day: null as CalendarDate | null },
+    request: {
+      schema: z.object({ day: z.string().min(1) }),
+      from: ({ day }) => ({ day: day?.toString() ?? "" }),
+    },
+    fields: { day: "day" },
+    messages: { day: (values) => (values.day === null ? "Elegí el día." : "Ese día no sirve.") },
+    onSubmit: ({ day }) => onSubmit(day),
+  });
+  return (
+    <>
+      <form.AppField name="day">
+        {(field) => <field.DateField label="Día" required />}
+      </form.AppField>
+      <button type="button" onClick={() => void submit()}>
+        Enviar
+      </button>
+    </>
+  );
+}
+
+async function typeDay(screen: Awaited<ReturnType<typeof render>>, digits: string) {
+  await userEvent.click(
+    screen.getByRole("group", { name: /^Día/ }).getByRole("spinbutton").first(),
+  );
+  await userEvent.keyboard(digits);
+}
+
+test("a date field shows its field's message after a failed submit and clears it once a date is typed", async () => {
+  const screen = await render(<DateProbe onSubmit={() => Promise.resolve()} />);
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+  await expect.element(screen.getByText("Elegí el día.")).toBeVisible();
+
+  await typeDay(screen, "01032020");
+
+  await expect.element(screen.getByText("Elegí el día.")).not.toBeInTheDocument();
+});
+
+test("a date field submits the date that was typed", async () => {
+  const onSubmit = vi.fn<(date: string) => Promise<void>>(() => Promise.resolve());
+  const screen = await render(<DateProbe onSubmit={onSubmit} />);
+
+  await typeDay(screen, "01032020");
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+  await expect.poll(() => onSubmit.mock.calls.length).toBe(1);
+  expect(onSubmit).toHaveBeenCalledWith("2020-03-01");
 });

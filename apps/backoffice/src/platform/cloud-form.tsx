@@ -1,5 +1,6 @@
 import {
   createFormHook,
+  evaluate,
   revalidateLogic,
   type StandardSchemaV1,
   type StandardSchemaV1Issue,
@@ -7,12 +8,16 @@ import {
 } from "@tanstack/react-form";
 import { useState } from "react";
 import { fieldContext, formContext } from "./cloud-form-context";
-import { BoundSelect, BoundTextField } from "./cloud-form-fields";
+import { BoundDateField, BoundSelect, BoundTextField } from "./cloud-form-fields";
 
 const { useAppForm } = createFormHook({
   fieldContext,
   formContext,
-  fieldComponents: { TextField: BoundTextField, Select: BoundSelect },
+  fieldComponents: {
+    TextField: BoundTextField,
+    Select: BoundSelect,
+    DateField: BoundDateField,
+  },
   formComponents: {},
 });
 
@@ -125,15 +130,19 @@ export function useCloudForm<
     await form.handleSubmit();
   }
 
-  const [reset] = useState(
-    () => (values?: Values) => form.reset(values, { keepDefaultValues: true }),
-  );
+  const [loaded, setLoaded] = useState(defaultValues);
+  const [reset] = useState(() => (values?: Values) => {
+    setLoaded(values ?? defaultValues);
+    form.reset(values, { keepDefaultValues: true });
+  });
+  const currentValues = useStore(form.store, (state) => state.values);
 
   return {
     form,
     submit,
     submitting: useStore(form.store, (state) => state.isSubmitting),
-    values: useStore(form.store, (state) => state.values),
+    values: currentValues,
+    dirty: !evaluate(currentValues, loaded),
     reset,
   };
 }

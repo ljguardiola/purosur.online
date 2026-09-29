@@ -1,4 +1,12 @@
-import { Select, type SelectProps, TextField, type TextFieldProps } from "@purosur/ui";
+import type { CalendarDate } from "@internationalized/date";
+import {
+  DateField,
+  type DateFieldProps,
+  Select,
+  type SelectProps,
+  TextField,
+  type TextFieldProps,
+} from "@purosur/ui";
 import { useFieldContext } from "./cloud-form-context";
 
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
@@ -26,6 +34,18 @@ export function BoundSelect(props: DistributiveOmit<SelectProps<string>, FieldVa
   const field = useFieldContext<string>();
   return (
     <Select
+      {...props}
+      value={field.state.value}
+      onChange={field.handleChange}
+      errorMessage={fieldErrorMessage(field.state.meta.errors)}
+    />
+  );
+}
+
+export function BoundDateField(props: DistributiveOmit<DateFieldProps, FieldValueProps>) {
+  const field = useFieldContext<CalendarDate | null>();
+  return (
+    <DateField
       {...props}
       value={field.state.value}
       onChange={field.handleChange}

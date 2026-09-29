@@ -151,7 +151,7 @@ test("accepts today as the activity start date", async () => {
 
   await expect.poll(() => vi.mocked(services.saveIssuerIdentification).mock.calls.length).toBe(1);
   expect(services.saveIssuerIdentification).toHaveBeenCalledWith(
-    expect.objectContaining({ activityStartDate: "2020-09-25" }),
+    expect.objectContaining({ activity_start_date: "2020-09-25" }),
   );
 });
 
@@ -521,9 +521,9 @@ test("saves the edit directly, without the authorization modal, when the session
 
   await expect.poll(() => vi.mocked(services.saveIssuerIdentification).mock.calls.length).toBe(1);
   expect(services.saveIssuerIdentification).toHaveBeenCalledWith({
-    legalName: "Nueva Razón Social SRL",
-    grossIncomeRegistration: "1284531-06",
-    activityStartDate: "2019-03-01",
+    legal_name: "Nueva Razón Social SRL",
+    gross_income_registration: "1284531-06",
+    activity_start_date: "2019-03-01",
     version: 1,
   });
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
@@ -636,6 +636,77 @@ test("shows a field error from the server and keeps the modal open", async () =>
   await expect.element(dialog.getByText("Ingresá como mucho 200 caracteres.")).toBeVisible();
 });
 
+test("shows a cloud error on the activity start date's field with the future-date wording", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+  vi.mocked(services.saveIssuerIdentification).mockResolvedValue({
+    kind: "validation_failed",
+    field: "activity_start_date",
+  });
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(dialog.getByText("La fecha no puede ser futura.")).toBeVisible();
+});
+
+test("a cloud error on a field clears as soon as that field is edited", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+  vi.mocked(services.saveIssuerIdentification).mockResolvedValue({
+    kind: "validation_failed",
+    field: "gross_income_registration",
+  });
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+  await expect.element(dialog.getByText("Ingresá como mucho 100 caracteres.")).toBeVisible();
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Ingresos Brutos/ }), "1284531-07");
+
+  await expect
+    .element(dialog.getByText("Ingresá como mucho 100 caracteres."))
+    .not.toBeInTheDocument();
+});
+
+test("shows the attempt-failed notice, and no field error, when the cloud names a field the form does not show", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+  vi.mocked(services.saveIssuerIdentification).mockResolvedValue({
+    kind: "validation_failed",
+    field: "version",
+  });
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(dialog.getByText("No se pudo guardar el cambio")).toBeVisible();
+  expect(dialog.getByText(/Ingresá como mucho/).query()).toBeNull();
+});
+
+test("after a refused save, editing a field checks it again on every change", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({
+    kind: "ok",
+    value: incomplete,
+  });
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+  await expect.element(dialog.getByText("Ingresá la razón social.")).toBeVisible();
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Razón social/ }), "a".repeat(201));
+
+  await expect.element(dialog.getByText("Ingresá como mucho 200 caracteres.")).toBeVisible();
+  expect(dialog.getByText("Ingresá la razón social.").query()).toBeNull();
+});
+
 test("shows a stale_version notice, and Recargar refetches so the second save sends the new version", async () => {
   const services = createServices();
   vi.mocked(services.fetchIssuerIdentification).mockResolvedValueOnce({
@@ -673,9 +744,9 @@ test("shows a stale_version notice, and Recargar refetches so the second save se
 
   await expect.poll(() => vi.mocked(services.saveIssuerIdentification).mock.calls.length).toBe(2);
   expect(services.saveIssuerIdentification).toHaveBeenLastCalledWith({
-    legalName: "Recargado SRL",
-    grossIncomeRegistration: "1284531-06",
-    activityStartDate: "2019-03-01",
+    legal_name: "Recargado SRL",
+    gross_income_registration: "1284531-06",
+    activity_start_date: "2019-03-01",
     version: 5,
   });
 });
@@ -764,9 +835,9 @@ test("keeps what Recargar brought on the screen after Cancelar, so reopening sav
 
   await expect.poll(() => vi.mocked(services.saveIssuerIdentification).mock.calls.length).toBe(2);
   expect(services.saveIssuerIdentification).toHaveBeenLastCalledWith({
-    legalName: "Recargado SRL",
-    grossIncomeRegistration: "1284531-06",
-    activityStartDate: "2019-03-01",
+    legal_name: "Recargado SRL",
+    gross_income_registration: "1284531-06",
+    activity_start_date: "2019-03-01",
     version: 5,
   });
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
@@ -834,7 +905,7 @@ test("after an unsaved edit and a refresh, the save sends the version the form w
 
   await expect.poll(() => vi.mocked(services.saveIssuerIdentification).mock.calls.length).toBe(1);
   expect(services.saveIssuerIdentification).toHaveBeenCalledWith(
-    expect.objectContaining({ legalName: "Editada SRL", version: 1 }),
+    expect.objectContaining({ legal_name: "Editada SRL", version: 1 }),
   );
 });
 

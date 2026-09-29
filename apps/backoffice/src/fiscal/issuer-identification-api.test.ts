@@ -36,9 +36,9 @@ const issuerIdentification: IssuerIdentification = {
 };
 
 const saveInput = {
-  legalName: "María Laura Fernández",
-  grossIncomeRegistration: "1284531-06",
-  activityStartDate: "2019-03-01",
+  legal_name: "María Laura Fernández",
+  gross_income_registration: "1284531-06",
+  activity_start_date: "2019-03-01",
   version: 1,
 };
 
@@ -168,6 +168,30 @@ test("saveIssuerIdentification maps a 400 validation_failed to its field", async
     kind: "validation_failed",
     field: "legal_name",
   });
+});
+
+test("saveIssuerIdentification reports the wire name of whichever field the cloud refused", async () => {
+  vi.mocked(fetch).mockResolvedValueOnce(
+    jsonResponse(400, { code: "validation_failed", details: [{ field: "activity_start_date" }] }),
+  );
+  expect(await saveIssuerIdentification(saveInput)).toEqual({
+    kind: "validation_failed",
+    field: "activity_start_date",
+  });
+
+  vi.mocked(fetch).mockResolvedValueOnce(
+    jsonResponse(400, { code: "validation_failed", details: [{ field: "branch_id" }] }),
+  );
+  expect(await saveIssuerIdentification(saveInput)).toEqual({
+    kind: "validation_failed",
+    field: "branch_id",
+  });
+});
+
+test("saveIssuerIdentification returns failed on a 400 that names no field", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(400, { code: "validation_failed" }));
+
+  expect(await saveIssuerIdentification(saveInput)).toEqual({ kind: "failed" });
 });
 
 test("saveIssuerIdentification returns stale_version on 409", async () => {
