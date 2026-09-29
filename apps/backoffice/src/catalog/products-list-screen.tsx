@@ -52,16 +52,7 @@ import {
   TriangleAlert,
   X,
 } from "lucide-react";
-import {
-  type KeyboardEvent,
-  useCallback,
-  useEffect,
-  useEffectEvent,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type KeyboardEvent, useEffect, useEffectEvent, useId, useRef, useState } from "react";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import { useCloudForm } from "../platform/cloud-form";
 import { useFieldContext } from "../platform/cloud-form-context";
@@ -250,7 +241,7 @@ function hasInternalBarcode(barcodes: string[]): boolean {
 function useBarcodeChips({ list, latest, setList }: BarcodeListControl) {
   const [scanError, setScanError] = useState<string | undefined>(undefined);
 
-  const reset = useCallback(() => setScanError(undefined), []);
+  const reset = () => setScanError(undefined);
 
   function changeScanInput(value: string) {
     setList({ ...list, scan: value });
@@ -420,11 +411,11 @@ function useGenerateInternalBarcode(
   const [generateError, setGenerateError] = useState<string | undefined>(undefined);
   const requestIdRef = useRef(0);
 
-  const reset = useCallback(() => {
+  const reset = () => {
     requestIdRef.current += 1;
     setGenerating(false);
     setGenerateError(undefined);
-  }, []);
+  };
 
   async function handleGenerate() {
     setGenerateError(undefined);
@@ -1230,7 +1221,7 @@ function PrintLabelsModal({
     }
   }, [open]);
 
-  const rows = useMemo(() => labelableProducts(products), [products]);
+  const rows = labelableProducts(products);
   const total = rows.reduce((sum, row) => sum + (counts[row.product.id] ?? 0), 0);
   const previewRow = rows.find((row) => (counts[row.product.id] ?? 0) > 0) ?? rows[0];
   const busy = printing || reloading;
