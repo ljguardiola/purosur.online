@@ -1,14 +1,10 @@
 import { vi } from "vitest";
+import { openSession } from "../../access/test-support/open-session";
 import type { AppServices } from "../app";
 
 export function createAppServices(overrides: Partial<AppServices> = {}): AppServices {
   return {
-    fetchSession: vi.fn().mockResolvedValue({
-      kind: "ok",
-      userId: "user-1",
-      displayName: "Lucas Guardiola",
-      isAdministrator: true,
-    }),
+    fetchSession: vi.fn().mockResolvedValue(openSession()),
     checkSessionStatus: vi.fn().mockReturnValue(new Promise(() => {})),
     signInScreen: {
       fetchAuthenticationOptions: vi.fn(),

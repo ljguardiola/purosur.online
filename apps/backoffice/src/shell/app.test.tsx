@@ -3,6 +3,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { openSession } from "../access/test-support/open-session";
 import { almonds, honey } from "../catalog/test-support/products-list-screen";
 import { App, type AppServices } from "./app";
 import { createAppServices } from "./test-support/app-services";
@@ -268,12 +269,10 @@ test("moves focus to the new screen's title after following a link between the s
 test("moves focus to the first screen's title after signing in", async () => {
   window.history.pushState(null, "", "/sign-in");
   const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValueOnce({ kind: "unauthenticated" }).mockResolvedValue({
-      kind: "ok",
-      userId: "user-1",
-      displayName: "Lucas Guardiola",
-      isAdministrator: true,
-    }),
+    fetchSession: vi
+      .fn()
+      .mockResolvedValueOnce({ kind: "unauthenticated" })
+      .mockResolvedValue(openSession()),
   });
   vi.mocked(services.signInScreen.fetchAuthenticationOptions).mockResolvedValue({
     kind: "ok",
@@ -704,12 +703,11 @@ test("shows the Roles item in the rail, only for an Administrator, linking to th
 
 test("hides the Roles item in the rail for a non-Administrator", async () => {
   const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue({
-      kind: "ok",
-      userId: "user-2",
-      displayName: "Grace Hopper",
-      isAdministrator: false,
-    }),
+    fetchSession: vi
+      .fn()
+      .mockResolvedValue(
+        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+      ),
   });
   window.history.pushState(null, "", "/help");
 
@@ -740,13 +738,14 @@ test("following the sidebar's Roles item opens the roles list, with Config and R
 test("shows the Cajas registradoras item in the rail for a user holding enroll_register_devices, linking to its screen", async () => {
   window.history.pushState(null, "", "/settings/users/me");
   const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue({
-      kind: "ok",
-      userId: "user-2",
-      displayName: "Grace Hopper",
-      isAdministrator: false,
-      permissions: ["enroll_register_devices"],
-    }),
+    fetchSession: vi.fn().mockResolvedValue(
+      openSession({
+        userId: "user-2",
+        displayName: "Grace Hopper",
+        isAdministrator: false,
+        permissions: ["enroll_register_devices"],
+      }),
+    ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -757,13 +756,11 @@ test("shows the Cajas registradoras item in the rail for a user holding enroll_r
 
 test("hides the Cajas registradoras item in the rail for a user without enroll_register_devices", async () => {
   const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue({
-      kind: "ok",
-      userId: "user-2",
-      displayName: "Grace Hopper",
-      isAdministrator: false,
-      permissions: [],
-    }),
+    fetchSession: vi
+      .fn()
+      .mockResolvedValue(
+        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+      ),
   });
   window.history.pushState(null, "", "/help");
 
@@ -800,13 +797,11 @@ test("following the sidebar's Cajas registradoras item opens the registers list,
 
 test("redirects a typed /settings/registers to Mi cuenta for a user without enroll_register_devices, without calling its API", async () => {
   const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue({
-      kind: "ok",
-      userId: "user-2",
-      displayName: "Grace Hopper",
-      isAdministrator: false,
-      permissions: [],
-    }),
+    fetchSession: vi
+      .fn()
+      .mockResolvedValue(
+        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+      ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   window.history.pushState(null, "", "/settings/registers");
@@ -821,13 +816,14 @@ test("redirects a typed /settings/registers to Mi cuenta for a user without enro
 test("shows the Sucursal item in the rail for a user holding configure_branch, linking to its screen", async () => {
   window.history.pushState(null, "", "/settings/users/me");
   const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue({
-      kind: "ok",
-      userId: "user-2",
-      displayName: "Grace Hopper",
-      isAdministrator: false,
-      permissions: ["configure_branch"],
-    }),
+    fetchSession: vi.fn().mockResolvedValue(
+      openSession({
+        userId: "user-2",
+        displayName: "Grace Hopper",
+        isAdministrator: false,
+        permissions: ["configure_branch"],
+      }),
+    ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -838,13 +834,11 @@ test("shows the Sucursal item in the rail for a user holding configure_branch, l
 
 test("hides the Sucursal item in the rail for a user without configure_branch", async () => {
   const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue({
-      kind: "ok",
-      userId: "user-2",
-      displayName: "Grace Hopper",
-      isAdministrator: false,
-      permissions: [],
-    }),
+    fetchSession: vi
+      .fn()
+      .mockResolvedValue(
+        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+      ),
   });
   window.history.pushState(null, "", "/help");
 
@@ -894,13 +888,11 @@ test("following the sidebar's Sucursal item opens the branch settings screen, wi
 
 test("redirects a typed /settings/branch to Mi cuenta for a user without configure_branch, without calling its API", async () => {
   const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue({
-      kind: "ok",
-      userId: "user-2",
-      displayName: "Grace Hopper",
-      isAdministrator: false,
-      permissions: [],
-    }),
+    fetchSession: vi
+      .fn()
+      .mockResolvedValue(
+        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+      ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   window.history.pushState(null, "", "/settings/branch");
@@ -1006,13 +998,11 @@ test("opens the role editor modal for duplicating, pre-filled from the source ro
 
 test("redirects a non-Administrator's typed /settings/roles to Mi cuenta, without listing roles", async () => {
   const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue({
-      kind: "ok",
-      userId: "user-2",
-      displayName: "Grace Hopper",
-      isAdministrator: false,
-      permissions: [],
-    }),
+    fetchSession: vi
+      .fn()
+      .mockResolvedValue(
+        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+      ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   window.history.pushState(null, "", "/settings/roles");
@@ -1026,13 +1016,11 @@ test("redirects a non-Administrator's typed /settings/roles to Mi cuenta, withou
 
 test("redirects a non-Administrator's typed /settings/users to Mi cuenta, without listing users", async () => {
   const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue({
-      kind: "ok",
-      userId: "user-2",
-      displayName: "Grace Hopper",
-      isAdministrator: false,
-      permissions: [],
-    }),
+    fetchSession: vi
+      .fn()
+      .mockResolvedValue(
+        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+      ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   window.history.pushState(null, "", "/settings/users");
@@ -1046,13 +1034,11 @@ test("redirects a non-Administrator's typed /settings/users to Mi cuenta, withou
 
 test("shows Mi cuenta's own sidebar entry instead of Usuarios for a non-Administrator", async () => {
   const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue({
-      kind: "ok",
-      userId: "user-2",
-      displayName: "Grace Hopper",
-      isAdministrator: false,
-      permissions: [],
-    }),
+    fetchSession: vi
+      .fn()
+      .mockResolvedValue(
+        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+      ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   window.history.pushState(null, "", "/settings/users/me");
@@ -1070,13 +1056,14 @@ test("shows Mi cuenta's own sidebar entry instead of Usuarios for a non-Administ
 
 test("lets a non-Administrator holding deactivate_users open Usuarios, without Nuevo usuario", async () => {
   const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue({
-      kind: "ok",
-      userId: "user-2",
-      displayName: "Grace Hopper",
-      isAdministrator: false,
-      permissions: ["deactivate_users"],
-    }),
+    fetchSession: vi.fn().mockResolvedValue(
+      openSession({
+        userId: "user-2",
+        displayName: "Grace Hopper",
+        isAdministrator: false,
+        permissions: ["deactivate_users"],
+      }),
+    ),
   });
   vi.mocked(services.usersListScreen.fetchUsers).mockResolvedValue({
     kind: "ok",
@@ -1107,13 +1094,14 @@ test("lets a non-Administrator holding deactivate_users open Usuarios, without N
 
 test("opens a user's detail for a non-Administrator holding deactivate_users, offering only Desactivar", async () => {
   const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue({
-      kind: "ok",
-      userId: "user-2",
-      displayName: "Grace Hopper",
-      isAdministrator: false,
-      permissions: ["deactivate_users"],
-    }),
+    fetchSession: vi.fn().mockResolvedValue(
+      openSession({
+        userId: "user-2",
+        displayName: "Grace Hopper",
+        isAdministrator: false,
+        permissions: ["deactivate_users"],
+      }),
+    ),
   });
   vi.mocked(services.userDetailScreen.fetchUser).mockResolvedValue({
     kind: "ok",
@@ -1154,13 +1142,11 @@ test.each([
   "redirects a non-Administrator's typed $path to Mi cuenta, without calling its API",
   async ({ path, adminOnlyCalls }) => {
     const services = createAppServices({
-      fetchSession: vi.fn().mockResolvedValue({
-        kind: "ok",
-        userId: "user-2",
-        displayName: "Grace Hopper",
-        isAdministrator: false,
-        permissions: [],
-      }),
+      fetchSession: vi
+        .fn()
+        .mockResolvedValue(
+          openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+        ),
     });
     vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
     window.history.pushState(null, "", path);
@@ -1186,13 +1172,7 @@ test("follows a demotion reported by real use of the open tab: Usuarios and Role
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("link", { name: "Roles" })).toBeVisible();
 
-  vi.mocked(services.fetchSession).mockResolvedValue({
-    kind: "ok",
-    userId: "user-1",
-    displayName: "Lucas Guardiola",
-    isAdministrator: false,
-    permissions: [],
-  });
+  vi.mocked(services.fetchSession).mockResolvedValue(openSession({ isAdministrator: false }));
   vi.setSystemTime(Date.now() + PAST_ACTIVITY_THROTTLE_WINDOW_MS);
   try {
     window.dispatchEvent(new KeyboardEvent("keydown"));
@@ -1210,13 +1190,11 @@ test("follows a demotion reported by real use of the open tab: Usuarios and Role
 
 test("follows a promotion reported by real use of the open tab: Usuarios and Roles join the rail", async () => {
   const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue({
-      kind: "ok",
-      userId: "user-2",
-      displayName: "Grace Hopper",
-      isAdministrator: false,
-      permissions: [],
-    }),
+    fetchSession: vi
+      .fn()
+      .mockResolvedValue(
+        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+      ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   window.history.pushState(null, "", "/settings/users/me");
@@ -1224,13 +1202,9 @@ test("follows a promotion reported by real use of the open tab: Usuarios and Rol
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
   expect(screen.getByRole("link", { name: "Roles" }).query()).toBeNull();
 
-  vi.mocked(services.fetchSession).mockResolvedValue({
-    kind: "ok",
-    userId: "user-2",
-    displayName: "Grace Hopper",
-    isAdministrator: true,
-    permissions: [],
-  });
+  vi.mocked(services.fetchSession).mockResolvedValue(
+    openSession({ userId: "user-2", displayName: "Grace Hopper" }),
+  );
   vi.setSystemTime(Date.now() + PAST_ACTIVITY_THROTTLE_WINDOW_MS);
   try {
     window.dispatchEvent(new KeyboardEvent("keydown"));
@@ -1289,13 +1263,14 @@ test("ends the session with the expired notice when real use of the open tab fin
 
 test("shows the Catálogo item in the rail for a user holding manage_products_and_categories, linking to the products list", async () => {
   const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue({
-      kind: "ok",
-      userId: "user-2",
-      displayName: "Grace Hopper",
-      isAdministrator: false,
-      permissions: ["manage_products_and_categories"],
-    }),
+    fetchSession: vi.fn().mockResolvedValue(
+      openSession({
+        userId: "user-2",
+        displayName: "Grace Hopper",
+        isAdministrator: false,
+        permissions: ["manage_products_and_categories"],
+      }),
+    ),
   });
   window.history.pushState(null, "", "/help");
 
@@ -1306,13 +1281,11 @@ test("shows the Catálogo item in the rail for a user holding manage_products_an
 
 test("hides the Catálogo item in the rail for a user without the permission", async () => {
   const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue({
-      kind: "ok",
-      userId: "user-2",
-      displayName: "Grace Hopper",
-      isAdministrator: false,
-      permissions: [],
-    }),
+    fetchSession: vi
+      .fn()
+      .mockResolvedValue(
+        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+      ),
   });
   window.history.pushState(null, "", "/help");
 
@@ -1324,13 +1297,14 @@ test("hides the Catálogo item in the rail for a user without the permission", a
 
 test("shows the Inicio item in the rail for a user holding view_branch_alerts, linking to Alertas", async () => {
   const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue({
-      kind: "ok",
-      userId: "user-2",
-      displayName: "Grace Hopper",
-      isAdministrator: false,
-      permissions: ["view_branch_alerts"],
-    }),
+    fetchSession: vi.fn().mockResolvedValue(
+      openSession({
+        userId: "user-2",
+        displayName: "Grace Hopper",
+        isAdministrator: false,
+        permissions: ["view_branch_alerts"],
+      }),
+    ),
   });
   window.history.pushState(null, "", "/help");
 
@@ -1341,13 +1315,11 @@ test("shows the Inicio item in the rail for a user holding view_branch_alerts, l
 
 test("hides the Inicio item in the rail for a user without either alert-view permission", async () => {
   const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue({
-      kind: "ok",
-      userId: "user-2",
-      displayName: "Grace Hopper",
-      isAdministrator: false,
-      permissions: [],
-    }),
+    fetchSession: vi
+      .fn()
+      .mockResolvedValue(
+        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+      ),
   });
   window.history.pushState(null, "", "/help");
 
@@ -1483,13 +1455,11 @@ test("navigating directly to /catalog/categories opens the categories list, with
 
 test("redirects a non-permitted user's typed /catalog/categories to Mi cuenta, without listing categories", async () => {
   const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue({
-      kind: "ok",
-      userId: "user-2",
-      displayName: "Grace Hopper",
-      isAdministrator: false,
-      permissions: [],
-    }),
+    fetchSession: vi
+      .fn()
+      .mockResolvedValue(
+        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+      ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   window.history.pushState(null, "", "/catalog/categories");
@@ -1503,13 +1473,11 @@ test("redirects a non-permitted user's typed /catalog/categories to Mi cuenta, w
 
 test("redirects a non-permitted user's typed /catalog/products to Mi cuenta, without listing products", async () => {
   const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue({
-      kind: "ok",
-      userId: "user-2",
-      displayName: "Grace Hopper",
-      isAdministrator: false,
-      permissions: [],
-    }),
+    fetchSession: vi
+      .fn()
+      .mockResolvedValue(
+        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+      ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   window.history.pushState(null, "", "/catalog/products");
@@ -1523,13 +1491,11 @@ test("redirects a non-permitted user's typed /catalog/products to Mi cuenta, wit
 
 test("redirects a non-permitted user's typed /catalog/prices to Mi cuenta, without listing prices", async () => {
   const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue({
-      kind: "ok",
-      userId: "user-2",
-      displayName: "Grace Hopper",
-      isAdministrator: false,
-      permissions: [],
-    }),
+    fetchSession: vi
+      .fn()
+      .mockResolvedValue(
+        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+      ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   window.history.pushState(null, "", "/catalog/prices");
@@ -1543,13 +1509,14 @@ test("redirects a non-permitted user's typed /catalog/prices to Mi cuenta, witho
 
 test("redirects a user holding only manage_products_and_categories away from a typed /catalog/prices", async () => {
   const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue({
-      kind: "ok",
-      userId: "user-2",
-      displayName: "Grace Hopper",
-      isAdministrator: false,
-      permissions: ["manage_products_and_categories"],
-    }),
+    fetchSession: vi.fn().mockResolvedValue(
+      openSession({
+        userId: "user-2",
+        displayName: "Grace Hopper",
+        isAdministrator: false,
+        permissions: ["manage_products_and_categories"],
+      }),
+    ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   window.history.pushState(null, "", "/catalog/prices");
@@ -1562,13 +1529,14 @@ test("redirects a user holding only manage_products_and_categories away from a t
 
 test("redirects a user holding only manage_prices_and_review away from a typed /catalog/products", async () => {
   const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue({
-      kind: "ok",
-      userId: "user-2",
-      displayName: "Grace Hopper",
-      isAdministrator: false,
-      permissions: ["manage_prices_and_review"],
-    }),
+    fetchSession: vi.fn().mockResolvedValue(
+      openSession({
+        userId: "user-2",
+        displayName: "Grace Hopper",
+        isAdministrator: false,
+        permissions: ["manage_prices_and_review"],
+      }),
+    ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   window.history.pushState(null, "", "/catalog/products");
@@ -1581,13 +1549,14 @@ test("redirects a user holding only manage_prices_and_review away from a typed /
 
 test("shows the Precios section, and only it, for a user holding only manage_prices_and_review, opening it by default from the rail's Catálogo item", async () => {
   const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue({
-      kind: "ok",
-      userId: "user-2",
-      displayName: "Grace Hopper",
-      isAdministrator: false,
-      permissions: ["manage_prices_and_review"],
-    }),
+    fetchSession: vi.fn().mockResolvedValue(
+      openSession({
+        userId: "user-2",
+        displayName: "Grace Hopper",
+        isAdministrator: false,
+        permissions: ["manage_prices_and_review"],
+      }),
+    ),
   });
   vi.mocked(services.pricesListScreen.fetchPrices).mockResolvedValue({
     kind: "ok",
@@ -1613,13 +1582,14 @@ test("shows the Precios section, and only it, for a user holding only manage_pri
 
 test("hides the Precios section item for a user holding only manage_products_and_categories", async () => {
   const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue({
-      kind: "ok",
-      userId: "user-2",
-      displayName: "Grace Hopper",
-      isAdministrator: false,
-      permissions: ["manage_products_and_categories"],
-    }),
+    fetchSession: vi.fn().mockResolvedValue(
+      openSession({
+        userId: "user-2",
+        displayName: "Grace Hopper",
+        isAdministrator: false,
+        permissions: ["manage_products_and_categories"],
+      }),
+    ),
   });
   window.history.pushState(null, "", "/catalog/products");
 
@@ -1631,13 +1601,14 @@ test("hides the Precios section item for a user holding only manage_products_and
 
 test("shows the Caja item in the rail for a user holding change_fiscal_configuration, linking to Configuración fiscal", async () => {
   const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue({
-      kind: "ok",
-      userId: "user-2",
-      displayName: "Grace Hopper",
-      isAdministrator: false,
-      permissions: ["change_fiscal_configuration"],
-    }),
+    fetchSession: vi.fn().mockResolvedValue(
+      openSession({
+        userId: "user-2",
+        displayName: "Grace Hopper",
+        isAdministrator: false,
+        permissions: ["change_fiscal_configuration"],
+      }),
+    ),
   });
   window.history.pushState(null, "", "/help");
 
@@ -1648,13 +1619,11 @@ test("shows the Caja item in the rail for a user holding change_fiscal_configura
 
 test("hides the Caja item in the rail for a user without change_fiscal_configuration", async () => {
   const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue({
-      kind: "ok",
-      userId: "user-2",
-      displayName: "Grace Hopper",
-      isAdministrator: false,
-      permissions: [],
-    }),
+    fetchSession: vi
+      .fn()
+      .mockResolvedValue(
+        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+      ),
   });
   window.history.pushState(null, "", "/help");
 
@@ -1707,13 +1676,14 @@ test.each([
 test("following the rail's Caja item opens Configuración fiscal, with Caja and Configuración fiscal active", async () => {
   window.history.pushState(null, "", "/help");
   const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue({
-      kind: "ok",
-      userId: "user-2",
-      displayName: "Grace Hopper",
-      isAdministrator: false,
-      permissions: ["change_fiscal_configuration"],
-    }),
+    fetchSession: vi.fn().mockResolvedValue(
+      openSession({
+        userId: "user-2",
+        displayName: "Grace Hopper",
+        isAdministrator: false,
+        permissions: ["change_fiscal_configuration"],
+      }),
+    ),
   });
   vi.mocked(services.fiscalConfigurationScreen.fetchIssuerIdentification).mockResolvedValue({
     kind: "ok",
@@ -1745,13 +1715,11 @@ test("following the rail's Caja item opens Configuración fiscal, with Caja and 
 
 test("redirects a non-permitted user's typed /cash-and-fiscal/fiscal-configuration to Mi cuenta, without loading it", async () => {
   const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue({
-      kind: "ok",
-      userId: "user-2",
-      displayName: "Grace Hopper",
-      isAdministrator: false,
-      permissions: [],
-    }),
+    fetchSession: vi
+      .fn()
+      .mockResolvedValue(
+        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+      ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   window.history.pushState(null, "", "/cash-and-fiscal/fiscal-configuration");
