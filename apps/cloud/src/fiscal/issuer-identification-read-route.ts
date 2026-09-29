@@ -1,9 +1,8 @@
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { checkRequestIsSameOrigin } from "../access/open-session.js";
+import { sameOriginGuard } from "../access/backoffice-origin.js";
 import {
-  originGuard,
   permissionAccess,
   registerRouteAccess,
   routeSessionSource,
@@ -79,9 +78,7 @@ export function registerIssuerIdentificationReadRoute<TQueryResult extends PgQue
   app.get(
     "/fiscal-configuration/issuer-identification",
     {
-      preHandler: originGuard((request, reply) =>
-        checkRequestIsSameOrigin(request, reply, options.backofficeOrigin),
-      ),
+      preHandler: sameOriginGuard(options.backofficeOrigin),
       config: { access: permissionAccess("change_fiscal_configuration"), sessionSource },
     },
     async (_request, reply) => {

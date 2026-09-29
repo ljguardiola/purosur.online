@@ -2,6 +2,7 @@ import { recoveryRequestBodySchema } from "@purosur/contracts";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { readValidatedBody } from "../platform/request-body-schema.js";
+import { requireBackofficeOrigin } from "./backoffice-origin.js";
 import { reportRecoveryBookkeepingError } from "./recovery-error-reporting.js";
 import type { RecoveryJobQueue } from "./recovery-job-queue.js";
 import { hashDestinationAddress, recordRecoveryRequestAttempt } from "./recovery-rate-limiter.js";
@@ -33,11 +34,7 @@ export function registerRecoveryRoutes<TQueryResult extends PgQueryResultHKT>(
     "/users/recovery/request",
     { config: { access: PUBLIC_ACCESS } },
     async (request, reply) => {
-      if (request.headers.origin !== options.backofficeOrigin) {
-        await reply.code(403).send({
-          code: "origin_rejected",
-          message: "the request's Origin does not match the backoffice's own origin",
-        });
+      if (!requireBackofficeOrigin(request, reply, options.backofficeOrigin)) {
         return;
       }
 

@@ -23,7 +23,13 @@ describe("sessionAuthenticationBodySchema", () => {
     { id: null },
     { response: {} },
   ])("rejects the assertion %j", (assertion) => {
-    expect(sessionAuthenticationBodySchema.safeParse({ assertion }).success).toBe(false);
+    const result = sessionAuthenticationBodySchema.safeParse({ assertion });
+    const issue = result.success ? undefined : result.error.issues[0];
+
+    expect({ field: issue?.path[0], message: issue?.message }).toEqual({
+      field: "assertion",
+      message: "the assertion must carry the credential's id",
+    });
   });
 
   it.each([undefined, null, "assertion", 42, []])("rejects the body %j", (body) => {

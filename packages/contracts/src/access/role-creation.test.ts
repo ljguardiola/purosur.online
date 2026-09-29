@@ -11,6 +11,12 @@ function isAccepted(body: unknown): boolean {
   return roleCreationBodySchema.safeParse(body).success;
 }
 
+function firstFailure(body: unknown): { field: unknown; message: string | undefined } | undefined {
+  const result = roleCreationBodySchema.safeParse(body);
+  const issue = result.success ? undefined : result.error.issues[0];
+  return issue && { field: issue.path[0], message: issue.message };
+}
+
 describe("roleCreationBodySchema, name", () => {
   it("accepts a name and trims it", () => {
     const result = roleCreationBodySchema.safeParse({ name: "  Depósito  ", permissions: [] });
@@ -19,7 +25,10 @@ describe("roleCreationBodySchema, name", () => {
   });
 
   it.each([undefined, "", "   ", 42, null])("rejects the name %j", (name) => {
-    expect(firstFailingField({ name, permissions: [] })).toBe("name");
+    expect(firstFailure({ name, permissions: [] })).toEqual({
+      field: "name",
+      message: "name must not be empty",
+    });
   });
 
   it("accepts a name of exactly the domain's maximum length", () => {
@@ -30,15 +39,19 @@ describe("roleCreationBodySchema, name", () => {
     expect(isAccepted({ name: `  ${"a".repeat(ROLE_NAME_MAX_LENGTH)}  `, permissions: [] })).toBe(
       true,
     );
-    expect(firstFailingField({ name: "a".repeat(ROLE_NAME_MAX_LENGTH + 1), permissions: [] })).toBe(
-      "name",
-    );
+    expect(firstFailure({ name: "a".repeat(ROLE_NAME_MAX_LENGTH + 1), permissions: [] })).toEqual({
+      field: "name",
+      message: `name must be at most ${ROLE_NAME_MAX_LENGTH} characters`,
+    });
   });
 
   it.each(["Administrador", "administrador", "ADMINISTRADOR", "  Administrador  "])(
     "rejects the Administrator role's own name: %j",
     (name) => {
-      expect(firstFailingField({ name, permissions: [] })).toBe("name");
+      expect(firstFailure({ name, permissions: [] })).toEqual({
+        field: "name",
+        message: "name must not be the Administrator role's own name",
+      });
     },
   );
 });
@@ -65,29 +78,36 @@ describe("roleCreationBodySchema, permissions", () => {
   it.each([undefined, null, "view_stock_balances", { 0: "view_stock_balances" }, [42], [null]])(
     "rejects permissions that are not a list of strings: %j",
     (permissions) => {
-      expect(firstFailingField({ name: "Depósito", permissions })).toBe("permissions");
+      expect(firstFailure({ name: "Depósito", permissions })).toEqual({
+        field: "permissions",
+        message: "permissions must be an array of permission keys",
+      });
     },
   );
 
   it("rejects an unknown permission key", () => {
-    expect(firstFailingField({ name: "Depósito", permissions: ["not_a_real_permission"] })).toBe(
-      "permissions",
-    );
+    expect(firstFailure({ name: "Depósito", permissions: ["not_a_real_permission"] })).toEqual({
+      field: "permissions",
+      message: "permissions must all be known permission keys",
+    });
   });
 
   it("rejects a repeated permission key", () => {
     expect(
-      firstFailingField({
+      firstFailure({
         name: "Depósito",
         permissions: ["view_stock_balances", "view_stock_balances"],
       }),
-    ).toBe("permissions");
+    ).toEqual({ field: "permissions", message: "permissions must not repeat a key" });
   });
 
   it("rejects both alert-view permissions together", () => {
     expect(
-      firstFailingField({ name: "Depósito", permissions: [...ALERT_VIEW_PERMISSION_KEYS] }),
-    ).toBe("permissions");
+      firstFailure({ name: "Depósito", permissions: [...ALERT_VIEW_PERMISSION_KEYS] }),
+    ).toEqual({
+      field: "permissions",
+      message: "a role can hold at most one of the alert-view permissions",
+    });
   });
 });
 

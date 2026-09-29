@@ -1,14 +1,14 @@
 import { and, eq, isNull } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyInstance } from "fastify";
 import { openAlert } from "../alerts/open-alert.js";
 import { auditLog, passkeys, sessions } from "../platform/db/schema.js";
+import { backofficeOriginGuard } from "./backoffice-origin.js";
 import { findBranchUser } from "./branch-users.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import {
   ADMINISTRATOR_ACCESS,
   openSessionOf,
-  originGuard,
   registerRouteAccess,
   routeSessionSource,
 } from "./route-access.js";
@@ -39,17 +39,6 @@ export function registerUserPasskeyRemovalRoutes<TQueryResult extends PgQueryRes
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
-    if (request.headers.origin !== options.backofficeOrigin) {
-      void reply.code(403).send({
-        code: "origin_rejected",
-        message: "the request's Origin does not match the backoffice's own origin",
-      });
-      return false;
-    }
-    return true;
-  }
-
   async function findTarget(locationId: string, targetId: string) {
     if (!UUID_PATTERN.test(targetId)) {
       return undefined;
@@ -60,7 +49,7 @@ export function registerUserPasskeyRemovalRoutes<TQueryResult extends PgQueryRes
   app.post<{ Params: { id: string; passkeyId: string } }>(
     "/users/:id/passkeys/:passkeyId/remove",
     {
-      preHandler: originGuard(checkOrigin),
+      preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: { access: ADMINISTRATOR_ACCESS, sessionSource },
     },
     async (request, reply) => {

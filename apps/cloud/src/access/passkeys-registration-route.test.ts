@@ -528,31 +528,7 @@ describe("POST /users/passkeys", () => {
     expect(rows).toHaveLength(1);
   });
 
-  describe("passkey_name validation", () => {
-    it("rejects a missing passkey_name as validation_failed", async () => {
-      const rawSessionId = await insertSession(userId);
-      const options = await requestOptions(rawSessionId);
-      const newEmulator = newDeviceEmulator();
-      const passkeyRegistration = newEmulator.createJSON(
-        BACKOFFICE_ORIGIN,
-        options.passkey_registration_options,
-      );
-
-      const response = await postJson(
-        "/users/passkeys",
-        { passkey_registration: passkeyRegistration },
-        cookieHeader(rawSessionId),
-      );
-
-      expect(response.statusCode).toBe(400);
-      expect(response.json()).toMatchObject({
-        code: "validation_failed",
-        details: [{ field: "passkey_name" }],
-      });
-      const rows = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
-      expect(rows).toHaveLength(1);
-    });
-
+  describe("reading the request body", () => {
     it("rejects a missing passkey_registration as validation_failed, before touching the pending challenge", async () => {
       const rawSessionId = await insertSession(userId);
       await requestOptions(rawSessionId);

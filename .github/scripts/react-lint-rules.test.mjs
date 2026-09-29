@@ -40,6 +40,7 @@ function lint(relativeDir, source) {
       exitCode: result.status,
       categories: report.diagnostics.map((diagnostic) => diagnostic.category),
       severities: report.diagnostics.map((diagnostic) => diagnostic.severity),
+      messages: report.diagnostics.map((diagnostic) => diagnostic.message),
     };
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -168,6 +169,44 @@ for (const { label, relativeDir } of ROOTS) {
     assert.deepEqual(severities, ["error", "error"]);
     assert.notEqual(exitCode, 0);
   });
+}
+
+const UI_FORBIDDEN_PACKAGES = [
+  {
+    name: "domain",
+    specifiers: ["@purosur/domain", "@purosur/domain/money", "@purosur/domain/catalog/sale-unit"],
+  },
+  {
+    name: "contracts",
+    specifiers: [
+      "@purosur/contracts",
+      "@purosur/contracts/catalog",
+      "@purosur/contracts/catalog/product-creation",
+    ],
+  },
+];
+
+function importing(specifier) {
+  return `import { rule } from "${specifier}";\n\nexport const used = rule;\n`;
+}
+
+for (const { name, specifiers } of UI_FORBIDDEN_PACKAGES) {
+  for (const specifier of specifiers) {
+    test(`packages/ui: importing ${specifier} fails under verify's flags`, () => {
+      const { exitCode, categories, messages } = lint("packages/ui/src", importing(specifier));
+
+      assert.deepEqual(categories, ["lint/style/noRestrictedImports"]);
+      assert.deepEqual(messages, [`packages/ui must not depend on packages/${name}.`]);
+      assert.notEqual(exitCode, 0);
+    });
+
+    test(`apps/backoffice: importing ${specifier} is not restricted`, () => {
+      const { exitCode, categories } = lint("apps/backoffice/src", importing(specifier));
+
+      assert.deepEqual(categories, []);
+      assert.equal(exitCode, 0);
+    });
+  }
 }
 
 test("verify:static runs biome ci with --error-on-warnings so warning-level React rules fail verify", () => {

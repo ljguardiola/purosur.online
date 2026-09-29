@@ -3,10 +3,11 @@ import type { RegistrationResponseJSON } from "@simplewebauthn/server";
 import { generateRegistrationOptions, verifyRegistrationResponse } from "@simplewebauthn/server";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyInstance } from "fastify";
 import { openAlert } from "../alerts/open-alert.js";
 import { auditLog, passkeys, users } from "../platform/db/schema.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
+import { backofficeOriginGuard } from "./backoffice-origin.js";
 import { UNAUTHENTICATED_RESPONSE } from "./open-session.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import {
@@ -18,7 +19,6 @@ import { deriveUserHandle } from "./recovery-user-handle.js";
 import {
   OPEN_SESSION_ACCESS,
   openSessionOf,
-  originGuard,
   registerRouteAccess,
   routeSessionSource,
 } from "./route-access.js";
@@ -38,8 +38,6 @@ const REGISTRATION_FAILED_RESPONSE = {
 
 class CredentialAlreadyRegistered extends Error {}
 
-// Doesn't recheck the passkey-authorization window here: consuming the one-time challenge
-// from registration-options already proves the ceremony started under a valid authorization.
 export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: PasskeyRegistrationRouteOptions<TQueryResult>,
@@ -49,21 +47,10 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
   const sessionSource = routeSessionSource({ db: options.db, now });
   const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
 
-  function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
-    if (request.headers.origin !== options.backofficeOrigin) {
-      void reply.code(403).send({
-        code: "origin_rejected",
-        message: "the request's Origin does not match the backoffice's own origin",
-      });
-      return false;
-    }
-    return true;
-  }
-
   app.post(
     "/users/passkeys/registration-options",
     {
-      preHandler: originGuard(checkOrigin),
+      preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: { access: OPEN_SESSION_ACCESS, sessionSource },
     },
     async (request, reply) => {
@@ -117,7 +104,7 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
   app.post(
     "/users/passkeys",
     {
-      preHandler: originGuard(checkOrigin),
+      preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: { access: OPEN_SESSION_ACCESS, sessionSource },
     },
     async (request, reply) => {

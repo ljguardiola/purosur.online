@@ -11,6 +11,10 @@ describe("recoveryTokenBodySchema", () => {
   it.each([undefined, "", 42, null, {}])("rejects the recovery token %j", (recovery_token) => {
     const result = recoveryTokenBodySchema.safeParse({ recovery_token });
 
-    expect(result.success ? undefined : result.error.issues[0]?.path[0]).toBe("recovery_token");
+    const issue = result.success ? undefined : result.error.issues[0];
+    expect({ field: issue?.path[0], message: issue?.message }).toEqual({
+      field: "recovery_token",
+      message: "recovery_token is required",
+    });
   });
 });

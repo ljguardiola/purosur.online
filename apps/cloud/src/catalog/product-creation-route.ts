@@ -1,9 +1,9 @@
 import { productCreationBodySchema } from "@purosur/contracts";
 import { createProduct } from "@purosur/domain/catalog/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyInstance } from "fastify";
+import { backofficeOriginGuard } from "../access/backoffice-origin.js";
 import {
-  originGuard,
   permissionAccess,
   registerRouteAccess,
   routeSessionSource,
@@ -17,14 +17,11 @@ export const CATEGORY_NOT_FOUND_FAILURE = {
   message: "categoryId must be an existing category's id",
 } as const;
 
-// 409, not 400 like `CATEGORY_NOT_FOUND_FAILURE`: a well-formed, existing categoryId that isn't a
-// leaf is a state conflict, not a malformed request.
 export const CATEGORY_NOT_LEAF_RESPONSE = {
   code: "category_not_leaf",
   message: "categoryId must be a leaf category with no subcategories of its own",
 } as const;
 
-// No passkey step-up: creating a product is routine work, not a sensitive account or role change.
 export function registerProductCreationRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: ProductsRouteOptions<TQueryResult>,
@@ -34,21 +31,10 @@ export function registerProductCreationRoute<TQueryResult extends PgQueryResultH
   const catalogStore = new DrizzleCatalogStore(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
-    if (request.headers.origin !== options.backofficeOrigin) {
-      void reply.code(403).send({
-        code: "origin_rejected",
-        message: "the request's Origin does not match the backoffice's own origin",
-      });
-      return false;
-    }
-    return true;
-  }
-
   app.post(
     "/products",
     {
-      preHandler: originGuard(checkOrigin),
+      preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: {
         access: permissionAccess("manage_products_and_categories"),
         sessionSource,

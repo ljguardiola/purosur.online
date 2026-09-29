@@ -128,6 +128,11 @@ describe("isIssuerIdentificationActivityStartDate", () => {
     expect(isIssuerIdentificationActivityStartDate("", today)).toBe(false);
   });
 
+  it("rejects anything before the four-digit year", () => {
+    expect(isIssuerIdentificationActivityStartDate("12020-01-15", today)).toBe(false);
+    expect(isIssuerIdentificationActivityStartDate(" 2020-01-15", today)).toBe(false);
+  });
+
   it("rejects a calendar date that does not exist, such as February 30th", () => {
     expect(isIssuerIdentificationActivityStartDate("2020-02-30", today)).toBe(false);
     expect(isIssuerIdentificationActivityStartDate("2021-02-29", today)).toBe(false);

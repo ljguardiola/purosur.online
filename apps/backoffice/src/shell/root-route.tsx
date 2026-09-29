@@ -29,6 +29,7 @@ export type RouterContext = {
   help: BackofficeHelpCatalog;
   services: AppServices;
   sessionActions: SessionActions;
+  reportError: (error: unknown) => void;
 };
 
 export const SessionCheckPendingContext = createContext(false);

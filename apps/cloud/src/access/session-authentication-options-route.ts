@@ -1,6 +1,7 @@
 import { generateAuthenticationOptions } from "@simplewebauthn/server";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyInstance } from "fastify";
+import { requireBackofficeOrigin } from "./backoffice-origin.js";
 import { PUBLIC_ACCESS, registerRouteAccess } from "./route-access.js";
 import { pruneExpiredSignInChallenges, storeSignInChallenge } from "./sign-in-challenge.js";
 import { resolveWebAuthnConfig } from "./webauthn-config.js";
@@ -22,22 +23,11 @@ export function registerSessionAuthenticationOptionsRoute<TQueryResult extends P
   registerRouteAccess(app);
   const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
 
-  function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
-    if (request.headers.origin !== options.backofficeOrigin) {
-      void reply.code(403).send({
-        code: "origin_rejected",
-        message: "the request's Origin does not match the backoffice's own origin",
-      });
-      return false;
-    }
-    return true;
-  }
-
   app.post(
     "/users/session/authentication-options",
     { config: { access: PUBLIC_ACCESS } },
     async (request, reply) => {
-      if (!checkOrigin(request, reply)) {
+      if (!requireBackofficeOrigin(request, reply, options.backofficeOrigin)) {
         return;
       }
 

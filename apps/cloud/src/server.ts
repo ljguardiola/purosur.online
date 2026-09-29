@@ -17,7 +17,7 @@ import {
   type RecoveryEmailSenderEnv,
   selectRecoveryEmailSender,
 } from "./access/select-recovery-email-sender.js";
-import { type BuildAppOptions, buildApp } from "./app.js";
+import { type BackofficeErrorReporting, type BuildAppOptions, buildApp } from "./app.js";
 import { parseCuit } from "./fiscal/cuit.js";
 import { runShutdownSteps } from "./platform/run-shutdown-steps.js";
 import { initSentry } from "./platform/sentry.js";
@@ -29,6 +29,7 @@ export interface ServerEnv {
   APP_VERSION?: string | undefined;
   SENTRY_DSN?: string | undefined;
   SENTRY_ENVIRONMENT?: string | undefined;
+  BACKOFFICE_SENTRY_DSN?: string | undefined;
   BACKOFFICE_STATIC_DIR?: string | undefined;
   DATABASE_URL?: string | undefined;
   RESEND_API_KEY?: string | undefined;
@@ -68,6 +69,18 @@ export function resolveStaticDir(env: ServerEnv, defaultDir: string): string | u
     return explicitDir;
   }
   return holdsBackofficeBuild(defaultDir) ? defaultDir : undefined;
+}
+
+export function resolveBackofficeErrorReporting(
+  env: ServerEnv,
+): BackofficeErrorReporting | undefined {
+  if (!env.BACKOFFICE_SENTRY_DSN) {
+    return undefined;
+  }
+  if (!env.SENTRY_ENVIRONMENT) {
+    throw new Error("SENTRY_ENVIRONMENT must be set when BACKOFFICE_SENTRY_DSN is");
+  }
+  return { dsn: env.BACKOFFICE_SENTRY_DSN, environment: env.SENTRY_ENVIRONMENT };
 }
 
 export interface RecoveryEnv {
@@ -292,18 +305,21 @@ export async function startServer(
   const doBuildApp = deps.buildApp ?? buildApp;
   const doSetUpRecovery = deps.setUpRecovery ?? setUpRecovery;
 
-  doInitSentry({ dsn: env.SENTRY_DSN, environment: env.SENTRY_ENVIRONMENT });
+  const version = resolveVersion(env);
+  doInitSentry({ dsn: env.SENTRY_DSN, environment: env.SENTRY_ENVIRONMENT, release: version });
 
   const edgeOriginSecret = requireEdgeOriginSecret(env);
+  const errorReporting = resolveBackofficeErrorReporting(env);
   const recoveryEnv = resolveRecoveryEnv(env);
   const database = recoveryEnv
     ? { authorizedCuit: requireAuthorizedCuit(env), recovery: await doSetUpRecovery(recoveryEnv) }
     : undefined;
 
   const app = doBuildApp({
-    version: resolveVersion(env),
+    version,
     edgeOriginSecret,
     staticDir: resolveStaticDir(env, DEFAULT_STATIC_DIR),
+    ...(errorReporting ? { errorReporting } : {}),
     ...(database
       ? {
           recovery: {

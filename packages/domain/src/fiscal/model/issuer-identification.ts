@@ -14,24 +14,14 @@ export function isIssuerIdentificationGrossIncomeRegistrationTooLong(value: stri
   return codePointLength(value) > ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH;
 }
 
-const ACTIVITY_START_DATE_PATTERN = /^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})$/;
-
-// Rejects e.g. "2020-02-30", which `Date` would otherwise roll over instead of rejecting.
-function isRealCalendarDate(year: number, month: number, day: number): boolean {
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return (
-    date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
-  );
-}
-
 export function isIssuerIdentificationActivityStartDate(value: string, today: Date): boolean {
-  const groups = ACTIVITY_START_DATE_PATTERN.exec(value)?.groups;
-  if (!groups?.["year"] || !groups["month"] || !groups["day"]) {
-    return false;
-  }
-  const { year, month, day } = groups;
+  const [year, month, day] = value.split("-");
+  // Date.UTC rolls an out-of-range day or month over (2020-02-30 becomes 2020-03-01) instead of
+  // rejecting it.
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
   return (
-    isRealCalendarDate(Number(year), Number(month), Number(day)) &&
+    !Number.isNaN(date.getTime()) &&
+    date.toISOString().slice(0, 10) === value &&
     value <= argentinaCalendarDay(today)
   );
 }

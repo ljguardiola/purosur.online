@@ -6,6 +6,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { openAlert } from "../alerts/open-alert.js";
 import { auditLog, passkeys, recoveryTokens, sessions, users } from "../platform/db/schema.js";
+import { requireBackofficeOrigin } from "./backoffice-origin.js";
 import { reportRecoveryBookkeepingError } from "./recovery-error-reporting.js";
 import { recordRedemptionAttempt } from "./recovery-rate-limiter.js";
 import {
@@ -51,17 +52,6 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
   const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
   const doRecordRejectedAttempt = options.recordRejectedAttempt ?? recordRejectedAttempt;
   const reportError = options.reportError ?? reportRecoveryBookkeepingError;
-
-  function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
-    if (request.headers.origin !== options.backofficeOrigin) {
-      void reply.code(403).send({
-        code: "origin_rejected",
-        message: "the request's Origin does not match the backoffice's own origin",
-      });
-      return false;
-    }
-    return true;
-  }
 
   async function checkRedemptionRateLimit(
     request: FastifyRequest,
@@ -149,7 +139,7 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
     "/users/recovery/registration-options",
     { config: { access: PUBLIC_ACCESS } },
     async (request, reply) => {
-      if (!checkOrigin(request, reply)) {
+      if (!requireBackofficeOrigin(request, reply, options.backofficeOrigin)) {
         return;
       }
       if (!(await checkRedemptionRateLimit(request, reply, "registration_options"))) {
@@ -233,7 +223,7 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
     "/users/recovery/redeem",
     { config: { access: PUBLIC_ACCESS } },
     async (request, reply) => {
-      if (!checkOrigin(request, reply)) {
+      if (!requireBackofficeOrigin(request, reply, options.backofficeOrigin)) {
         return;
       }
       if (!(await checkRedemptionRateLimit(request, reply, "redeem"))) {

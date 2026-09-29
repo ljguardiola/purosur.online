@@ -112,6 +112,7 @@ const defaultAppServices: AppServices = {
 export type AppProps = {
   help: BackofficeHelpCatalog;
   services?: AppServices;
+  reportError?: (error: unknown) => void;
 };
 
 type SessionState = { kind: "loading" } | SettledSession;
@@ -148,7 +149,7 @@ export function App(props: AppProps) {
   );
 }
 
-function AppContent({ help, services = defaultAppServices }: AppProps) {
+function AppContent({ help, services = defaultAppServices, reportError = () => {} }: AppProps) {
   const [session, setSession] = useState<SessionState>({ kind: "loading" });
   const [routerStarted, setRouterStarted] = useState(false);
   const actions = useLatestRef<SessionActions>({
@@ -161,6 +162,7 @@ function AppContent({ help, services = defaultAppServices }: AppProps) {
       session: BEFORE_SESSION_CHECK,
       help,
       services,
+      reportError,
       sessionActions: {
         signedIn: () => actions.current.signedIn(),
         signedOut: () => actions.current.signedOut(),

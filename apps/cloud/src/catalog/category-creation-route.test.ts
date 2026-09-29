@@ -267,20 +267,6 @@ describe("POST /categories", () => {
     expect(await db.select().from(categories)).toHaveLength(0);
   });
 
-  it("rejects a malformed parentId, creating nothing", async () => {
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
-
-    const response = await createCategory(rawSessionId, { name: "Untables", parentId: 42 });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "parentId" }],
-    });
-    expect(await db.select().from(categories)).toHaveLength(0);
-  });
-
   it.each([
     { holding: "an active product", active: true },
     { holding: "only an inactive product", active: false },

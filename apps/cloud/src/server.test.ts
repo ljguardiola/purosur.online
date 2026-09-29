@@ -281,6 +281,7 @@ describe("startServer", () => {
     expect(initSentry).toHaveBeenCalledWith({
       dsn: "https://public@sentry.example/1",
       environment: "staging",
+      release: "sha123",
     });
     expect(buildApp).toHaveBeenCalledWith({
       version: "sha123",
@@ -289,6 +290,62 @@ describe("startServer", () => {
     });
     expect(listen).toHaveBeenCalledWith({ port: 4000, host: "0.0.0.0" });
     expect(app).toBe(fakeApp);
+  });
+
+  it("tags the cloud's error reports with the same version the app serves when APP_VERSION is empty", async () => {
+    const listen = vi.fn().mockResolvedValue(undefined);
+    const fakeApp = { listen } as unknown as ReturnType<typeof import("./app.js").buildApp>;
+    const initSentry = vi.fn();
+    const buildApp = vi.fn().mockReturnValue(fakeApp);
+
+    await startServer(
+      {
+        APP_VERSION: "",
+        SENTRY_DSN: "https://public@sentry.example/1",
+        SENTRY_ENVIRONMENT: "staging",
+        EDGE_ORIGIN_SECRET: "edge-secret",
+      },
+      { initSentry, buildApp },
+    );
+
+    expect(buildApp).toHaveBeenCalledWith(expect.objectContaining({ version: "unknown" }));
+    expect(initSentry).toHaveBeenCalledWith(expect.objectContaining({ release: "unknown" }));
+  });
+
+  it("gives the app the backoffice's error reporting when its DSN is configured", async () => {
+    const listen = vi.fn().mockResolvedValue(undefined);
+    const fakeApp = { listen } as unknown as ReturnType<typeof import("./app.js").buildApp>;
+    const buildApp = vi.fn().mockReturnValue(fakeApp);
+
+    await startServer(
+      {
+        EDGE_ORIGIN_SECRET: "edge-secret",
+        BACKOFFICE_SENTRY_DSN: "https://key@errors.example.test/1",
+        SENTRY_ENVIRONMENT: "staging",
+      },
+      { initSentry: vi.fn(), buildApp },
+    );
+
+    expect(buildApp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        errorReporting: { dsn: "https://key@errors.example.test/1", environment: "staging" },
+      }),
+    );
+  });
+
+  it("refuses to start with a backoffice DSN and no environment to tell its reports apart by", async () => {
+    const buildApp = vi.fn();
+
+    await expect(
+      startServer(
+        {
+          EDGE_ORIGIN_SECRET: "edge-secret",
+          BACKOFFICE_SENTRY_DSN: "https://key@errors.example.test/1",
+        },
+        { initSentry: vi.fn(), buildApp },
+      ),
+    ).rejects.toThrow("SENTRY_ENVIRONMENT must be set when BACKOFFICE_SENTRY_DSN is");
+    expect(buildApp).not.toHaveBeenCalled();
   });
 
   it("builds the app with an undefined staticDir when none is configured and the default doesn't exist", async () => {

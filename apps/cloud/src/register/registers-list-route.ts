@@ -1,10 +1,9 @@
 import { and, asc, eq, gt, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { checkRequestIsSameOrigin } from "../access/open-session.js";
+import { sameOriginGuard } from "../access/backoffice-origin.js";
 import {
   openSessionOf,
-  originGuard,
   permissionAccess,
   registerRouteAccess,
   routeSessionSource,
@@ -92,9 +91,7 @@ export function registerRegistersListRoute<TQueryResult extends PgQueryResultHKT
   app.get(
     "/registers",
     {
-      preHandler: originGuard((request, reply) =>
-        checkRequestIsSameOrigin(request, reply, options.backofficeOrigin),
-      ),
+      preHandler: sameOriginGuard(options.backofficeOrigin),
       config: { access: permissionAccess("enroll_register_devices"), sessionSource },
     },
     async (request, reply) => {

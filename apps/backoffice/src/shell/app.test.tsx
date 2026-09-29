@@ -1976,3 +1976,74 @@ test.each([
     await expect.poll(() => window.location.pathname).toBe("/help");
   },
 );
+
+test("offers to try again when a screen fails to render, reports the failure, and shows the screen once it works", async () => {
+  window.history.pushState(null, "", "/home/alerts");
+  const services = createAppServices();
+  vi.mocked(services.alertsListScreen.fetchAlerts)
+    .mockResolvedValueOnce({
+      kind: "ok",
+      value: { alerts: null, total: 0, pageSize: 25, openCount: 0, openCriticalCount: 0 },
+    } as never)
+    .mockResolvedValue({
+      kind: "ok",
+      value: { alerts: [], total: 0, pageSize: 25, openCount: 0, openCriticalCount: 0 },
+    });
+  const reportError = vi.fn();
+  const screen = await render(
+    <App help={emptyHelp} services={services} reportError={reportError} />,
+  );
+
+  await expect.element(screen.getByText("No pudimos mostrar esta pantalla")).toBeVisible();
+  expect(reportError).toHaveBeenCalledTimes(1);
+  expect(reportError).toHaveBeenCalledWith(expect.any(TypeError));
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByRole("heading", { name: "Alertas", level: 1 })).toHaveFocus();
+  expect(screen.getByText("No pudimos mostrar esta pantalla").query()).toBeNull();
+  expect(reportError).toHaveBeenCalledTimes(1);
+});
+
+test("moves focus to the failure's title when a screen opened from the rail fails once its data arrives", async () => {
+  window.history.pushState(null, "", "/help");
+  const services = createAppServices();
+  vi.mocked(services.alertsListScreen.fetchAlerts).mockResolvedValue({
+    kind: "ok",
+    value: { alerts: null, total: 0, pageSize: 25, openCount: 0, openCriticalCount: 0 },
+  } as never);
+  const screen = await render(<App help={emptyHelp} services={services} reportError={vi.fn()} />);
+  await expect.element(screen.getByRole("link", { name: "Inicio" })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("link", { name: "Inicio" }));
+
+  await expect
+    .element(screen.getByRole("heading", { name: "No pudimos mostrar esta pantalla", level: 1 }))
+    .toHaveFocus();
+});
+
+test("keeps focus on the failure's title when trying again fails again", async () => {
+  window.history.pushState(null, "", "/home/alerts");
+  const services = createAppServices();
+  vi.mocked(services.alertsListScreen.fetchAlerts).mockResolvedValue({
+    kind: "ok",
+    value: { alerts: null, total: 0, pageSize: 25, openCount: 0, openCriticalCount: 0 },
+  } as never);
+  const reportError = vi.fn();
+  const screen = await render(
+    <App help={emptyHelp} services={services} reportError={reportError} />,
+  );
+  await expect
+    .element(screen.getByRole("heading", { name: "No pudimos mostrar esta pantalla", level: 1 }))
+    .toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.poll(() => reportError.mock.calls.length).toBeGreaterThan(1);
+  await expect
+    .element(screen.getByRole("heading", { name: "No pudimos mostrar esta pantalla", level: 1 }))
+    .toHaveFocus();
+  await expect
+    .element(screen.getByRole("alert"))
+    .toHaveTextContent("Probá de nuevo en unos minutos.");
+});

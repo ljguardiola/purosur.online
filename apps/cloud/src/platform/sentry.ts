@@ -1,9 +1,10 @@
+import { scrubErrorReport } from "@purosur/contracts";
 import * as Sentry from "@sentry/node";
-import { scrubSentryEvent } from "./sentry-scrubbing.js";
 
 export interface SentryEnv {
   dsn?: string | undefined;
   environment?: string | undefined;
+  release?: string | undefined;
 }
 
 export interface InitSentryDeps {
@@ -20,6 +21,7 @@ export function initSentry(env: SentryEnv, deps: InitSentryDeps = {}): void {
   init({
     dsn: env.dsn,
     environment: env.environment,
-    beforeSend: scrubSentryEvent,
+    release: env.release,
+    beforeSend: scrubErrorReport,
   });
 }
