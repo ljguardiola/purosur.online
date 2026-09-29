@@ -1,15 +1,16 @@
-import type { AlertDetail, AlertListPage } from "@purosur/contracts";
+import type { AlertDetail, AlertListPage, AlertsOverview } from "@purosur/contracts";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { useCloudQuery } from "../platform/use-cloud-query";
-import type { AlertListQuery, fetchAlert, fetchAlerts } from "./alerts-api";
+import type { AlertListQuery, fetchAlert, fetchAlerts, fetchAlertsOverview } from "./alerts-api";
 
 export const alertsKey = ["alerts"] as const;
 
 const alertListsKey = [...alertsKey, "list"] as const;
 
 export const alertsKeys = {
+  overview: [...alertsKey, "overview"] as const,
   lists: alertListsKey,
   list: (query: AlertListQuery) => [...alertListsKey, query] as const,
   detail: (id: string) => [...alertsKey, "detail", id] as const,
@@ -26,6 +27,19 @@ export function useAlertsQuery(params: {
   return useCloudQuery<AlertListPage>({
     queryKey: alertsKeys.list(params.query),
     read: () => params.fetchAlerts(params.query),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useAlertsOverviewQuery(params: {
+  fetchAlertsOverview: typeof fetchAlertsOverview;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<AlertsOverview>({
+    queryKey: alertsKeys.overview,
+    read: params.fetchAlertsOverview,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

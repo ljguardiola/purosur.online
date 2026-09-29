@@ -1404,6 +1404,7 @@ describe("the route access inventory", () => {
         access: permissionAccess("manage_products_and_categories"),
       },
       { method: "GET", url: "/alerts", access: OPEN_SESSION_ACCESS },
+      { method: "GET", url: "/alerts/overview", access: OPEN_SESSION_ACCESS },
       { method: "GET", url: "/alerts/:id", access: OPEN_SESSION_ACCESS },
       {
         method: "POST",
