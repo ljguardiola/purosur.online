@@ -11,8 +11,14 @@ import { isOptionValue, type NarrowedOption, type OptionalOptionChoiceProps } fr
 
 type OptionCard<V extends string> = NarrowedOption<V, "description" | "icon">;
 
+// A row gives each card an icon and help text; a grid holds more, shorter choices, three to a row,
+// each named by its title alone.
+type OptionCardLayoutProps<V extends string> =
+  | ({ layout?: "row" } & OptionalOptionChoiceProps<V, OptionCard<V>>)
+  | ({ layout: "grid" } & OptionalOptionChoiceProps<V, NarrowedOption<V>>);
+
 export type OptionCardGroupProps<V extends string> = FieldErrorProps &
-  OptionalOptionChoiceProps<V, OptionCard<V>> & {
+  OptionCardLayoutProps<V> & {
     label: string;
     required?: boolean;
   };
@@ -34,6 +40,14 @@ const cardClassName =
   "data-selected:bg-action-subtle data-selected:inset-ring-2 data-selected:inset-ring-action " +
   "data-hovered:data-selected:bg-action-subtle " +
   "data-focus-visible:focus-ring";
+
+function TitleOnlyCardItem<V extends string>({ value, label }: NarrowedOption<V>) {
+  return (
+    <AriaRadio value={value} aria-label={label} className={cardClassName}>
+      <span className={labelClassName}>{label}</span>
+    </AriaRadio>
+  );
+}
 
 function OptionCardItem<V extends string>({ value, icon, label, description }: OptionCard<V>) {
   const descriptionId = useId();
@@ -59,7 +73,7 @@ function OptionCardItem<V extends string>({ value, icon, label, description }: O
 }
 
 export function OptionCardGroup<V extends string>(props: OptionCardGroupProps<V>) {
-  const { label, options, value, onChange, required = false } = props;
+  const { label, value, onChange, required = false } = props;
   const { invalid, errorMessage, errorMessageId } = fieldError(props);
 
   return (
@@ -68,7 +82,7 @@ export function OptionCardGroup<V extends string>(props: OptionCardGroupProps<V>
       orientation="horizontal"
       value={value}
       onChange={(nextValue) => {
-        if (isOptionValue(nextValue, options)) {
+        if (isOptionValue(nextValue, props.options)) {
           onChange(nextValue);
         }
       }}
@@ -78,11 +92,19 @@ export function OptionCardGroup<V extends string>(props: OptionCardGroupProps<V>
       validationBehavior="aria"
       className="flex flex-col gap-1.5"
     >
-      <div className="flex flex-row gap-3">
-        {options.map((option) => (
-          <OptionCardItem key={option.value} {...option} />
-        ))}
-      </div>
+      {props.layout === "grid" ? (
+        <div className="grid grid-cols-3 gap-3">
+          {props.options.map((option) => (
+            <TitleOnlyCardItem key={option.value} {...option} />
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-row gap-3">
+          {props.options.map((option) => (
+            <OptionCardItem key={option.value} {...option} />
+          ))}
+        </div>
+      )}
       {errorMessage !== undefined ? (
         <AriaText slot="errorMessage" className={fieldErrorClassName}>
           {errorMessage}
