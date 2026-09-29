@@ -12,8 +12,6 @@ export type Options<O> = readonly [O, ...O[]];
 
 type OptionExtra = "description" | "icon";
 
-// A component narrows the shared Option to what it renders: `Need` fields become mandatory and
-// `May` fields stay optional, so any other extra field is not part of its option.
 export type NarrowedOption<
   V extends string,
   Need extends OptionExtra = never,

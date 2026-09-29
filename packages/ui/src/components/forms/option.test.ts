@@ -86,9 +86,8 @@ test("an options list is never empty", () => {
   expectTypeOf<[Option<Kind>]>().toExtend<Options<Option<Kind>>>();
 });
 
-// A call that fails to compile can't sit in this file as literal code, and `@ts-expect-error` is
-// banned, so the first (generic) overload only matches a call the contract accepts; a rejected
-// call falls through to the fallback overload instead, resolving to `false`.
+// The first (generic) overload only matches a call the contract accepts; a call that would not
+// compile falls through to the fallback overload instead, resolving to `false`.
 function acceptsPlainChoice<V extends string>(props: OptionChoiceProps<V, NarrowedOption<V>>): true;
 function acceptsPlainChoice(props: unknown): false;
 function acceptsPlainChoice(_props: unknown): boolean {

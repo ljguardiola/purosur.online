@@ -36,7 +36,6 @@ type SelectCommonProps = {
 export type SelectProps<V extends string> = SelectCommonProps &
   FieldErrorProps &
   OptionalOptionChoiceProps<V, NarrowedOption<V>> & {
-    /** Shown in place of a value while `value` is null. Defaults to AriaSelect's own localized text. */
     placeholder?: string;
   };
 
