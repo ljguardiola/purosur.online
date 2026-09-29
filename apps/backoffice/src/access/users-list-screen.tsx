@@ -25,13 +25,12 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { useCloudForm } from "../platform/cloud-form";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { combineCloudData } from "../platform/combine-cloud-data";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import type { CloudData } from "../platform/use-cloud-query";
-import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { useRefreshAccess, useRolesQuery, useUsersQuery } from "./access-queries";
@@ -93,7 +92,6 @@ function NewUserModal({
 }: NewUserModalProps) {
   const sendToMyAccount = useSendToMyAccount();
   const options = roles.length > 0 ? roleOptions(roles) : undefined;
-  const optionsRef = useLatestRef(options);
   const [notice, setNotice] = useState<FormNotice | null>(null);
   const [deactivatedConflict, setDeactivatedConflict] = useState<{
     id: string;
@@ -161,13 +159,17 @@ function NewUserModal({
   });
   const conflict = deactivatedConflict?.email === values.email ? deactivatedConflict : null;
 
+  const startNewUser = useEffectEvent(() => {
+    reset({ firstName: "", email: "", roleId: options?.[0].value ?? "" });
+    setNotice(null);
+    setDeactivatedConflict(null);
+  });
+
   useEffect(() => {
     if (open) {
-      reset({ firstName: "", email: "", roleId: optionsRef.current?.[0].value ?? "" });
-      setNotice(null);
-      setDeactivatedConflict(null);
+      startNewUser();
     }
-  }, [open, optionsRef, reset]);
+  }, [open]);
 
   return (
     <>
@@ -314,7 +316,7 @@ function UsersListView({
     services;
   const refreshAccess = useRefreshAccess();
   const [modalOpen, setModalOpen] = useState(false);
-  const onFiltersChangeRef = useLatestRef(onFiltersChange);
+  const reportFilters = useEffectEvent(onFiltersChange);
 
   // The cloud only ever returns a deactivated user to a caller who can reactivate one.
   const showsState = canReactivateUser(access);
@@ -328,9 +330,9 @@ function UsersListView({
   useEffect(() => {
     const shown: UsersListFilters = { state: stateFilter };
     if (!deepEqual(shown, filters)) {
-      onFiltersChangeRef.current(shown);
+      reportFilters(shown);
     }
-  }, [stateFilter, filters, onFiltersChangeRef]);
+  }, [stateFilter, filters]);
 
   const { rows, matchCount } = tableRows({
     items: users,

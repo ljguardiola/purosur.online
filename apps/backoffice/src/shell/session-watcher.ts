@@ -1,6 +1,5 @@
-import { type RefObject, useEffect, useRef } from "react";
+import { type RefObject, useEffect, useEffectEvent, useRef } from "react";
 import type { SessionStatusOutcome } from "../access/session-api";
-import { useLatestRef } from "../platform/use-latest-ref";
 
 /** How often the watcher re-checks regardless of any known deadline: revocation and deactivation carry no deadline of their own. */
 const DEFAULT_INTERVAL_MS = 60_000;
@@ -25,18 +24,18 @@ export type SessionWatcherOptions = {
 type WatchSessionParams = {
   intervalMs: number;
   deadlineMarginMs: number;
-  checkStatusRef: RefObject<() => Promise<SessionStatusOutcome>>;
-  onEndedRef: RefObject<() => void>;
-  nowRef: RefObject<() => Date>;
+  checkStatus: () => Promise<SessionStatusOutcome>;
+  onEnded: () => void;
+  now: () => Date;
   scheduleDeadlineRef: RefObject<((expiresAt: string) => void) | undefined>;
 };
 
 function watchSession({
   intervalMs,
   deadlineMarginMs,
-  checkStatusRef,
-  onEndedRef,
-  nowRef,
+  checkStatus,
+  onEnded,
+  now,
   scheduleDeadlineRef,
 }: WatchSessionParams): () => void {
   let cancelled = false;
@@ -50,7 +49,7 @@ function watchSession({
       window.clearTimeout(deadlineTimeoutId);
       deadlineTimeoutId = undefined;
     }
-    const delay = new Date(expiresAt).getTime() - nowRef.current().getTime() + deadlineMarginMs;
+    const delay = new Date(expiresAt).getTime() - now().getTime() + deadlineMarginMs;
     // A deadline already past while the cloud still reports the session open means the
     // browser's clock runs ahead: checking right away would just loop on the same answer.
     if (delay <= 0) {
@@ -69,12 +68,12 @@ function watchSession({
     }
     checking = true;
     try {
-      const outcome = await checkStatusRef.current();
+      const outcome = await checkStatus();
       if (cancelled) {
         return;
       }
       if (outcome.kind === "unauthenticated") {
-        onEndedRef.current();
+        onEnded();
         return;
       }
       // The deadline can have moved out since it was scheduled: re-arm instead of leaving a
@@ -118,9 +117,9 @@ export function useSessionWatcher({
   deadlineMarginMs = DEFAULT_DEADLINE_MARGIN_MS,
   now = currentDate,
 }: SessionWatcherOptions): void {
-  const checkStatusRef = useLatestRef(checkStatus);
-  const onEndedRef = useLatestRef(onEnded);
-  const nowRef = useLatestRef(now);
+  const checkSessionStatus = useEffectEvent(checkStatus);
+  const endSession = useEffectEvent(onEnded);
+  const readNow = useEffectEvent(now);
 
   // Lets an activity touch move the deadline out by calling into the running effect's own
   // scheduling function, instead of tearing down and recreating the interval timer on every touch.
@@ -134,12 +133,12 @@ export function useSessionWatcher({
     return watchSession({
       intervalMs,
       deadlineMarginMs,
-      checkStatusRef,
-      onEndedRef,
-      nowRef,
+      checkStatus: () => checkSessionStatus(),
+      onEnded: () => endSession(),
+      now: () => readNow(),
       scheduleDeadlineRef,
     });
-  }, [active, intervalMs, deadlineMarginMs, checkStatusRef, onEndedRef, nowRef]);
+  }, [active, intervalMs, deadlineMarginMs]);
 
   useEffect(() => {
     if (active && initialExpiresAt !== undefined) {

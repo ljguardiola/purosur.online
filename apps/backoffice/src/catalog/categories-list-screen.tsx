@@ -27,12 +27,11 @@ import {
   TriangleAlert,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import { useCloudForm } from "../platform/cloud-form";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import {
@@ -298,7 +297,6 @@ function EditCategoryModal({
   const [title, setTitle] = useState("");
   const [notice, setNotice] = useState<EditNotice | null>(null);
   const [reloading, setReloading] = useState(false);
-  const targetRef = useLatestRef(target);
   const { form, submit, submitting, reset } = useCloudForm({
     defaultValues: { name: "", parentValue: NO_PARENT_VALUE, version: 1 },
     request: {
@@ -312,13 +310,12 @@ function EditCategoryModal({
     fields: { name: "name", parentId: "parentValue", version: null },
     messages: { name: categoryNameMessage, parentValue: CATEGORY_PARENT_NOT_FOUND_ERROR },
     onSubmit: async (request, { showWireFieldError, showFieldError }) => {
-      const current = targetRef.current;
-      if (!current) {
+      if (!target) {
         return;
       }
       setNotice(null);
       const parentName = categoryName(categories, request.parentId);
-      const outcome = await editCategory(current.id, request);
+      const outcome = await editCategory(target.id, request);
       if (outcome.kind === "ok") {
         onSaved();
         return;
@@ -354,7 +351,7 @@ function EditCategoryModal({
       if (outcome.kind === "move_not_allowed") {
         showFieldError(
           "parentValue",
-          `No se puede mover "${current.name}" bajo "${parentName}": es una de sus subcategorías.`,
+          `No se puede mover "${target.name}" bajo "${parentName}": es una de sus subcategorías.`,
         );
         return;
       }
@@ -374,25 +371,23 @@ function EditCategoryModal({
   });
 
   useEffect(() => {
-    const current = targetRef.current;
-    if (open && current) {
-      reset(categoryFormValues(current));
-      setTitle(current.name);
+    if (open && target) {
+      reset(categoryFormValues(target));
+      setTitle(target.name);
       setNotice(null);
       setReloading(false);
     }
-  }, [open, reset, targetRef]);
+  }, [open, target, reset]);
 
   const excludeIds = target ? selfAndDescendantIds(categories, target.id) : new Set<string>();
   const parentOptions = parentSelectOptions(categories, excludeIds);
 
   async function handleReload() {
-    const current = targetRef.current;
-    if (!current) {
+    if (!target) {
       return;
     }
     setReloading(true);
-    const outcome = await reload(current.id);
+    const outcome = await reload(target.id);
     if (outcome.kind === "found") {
       reset(categoryFormValues(outcome.category));
       setTitle(outcome.category.name);
@@ -524,14 +519,14 @@ export function CategoriesListScreen({
   });
   const [newModalOpen, setNewModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<CategorySummary | null>(null);
-  const onFiltersChangeRef = useLatestRef(onFiltersChange);
+  const reportFilters = useEffectEvent(onFiltersChange);
 
   useEffect(() => {
     const shown: CategoriesListFilters = { search, sort: sort.direction };
     if (!deepEqual(shown, filters)) {
-      onFiltersChangeRef.current(shown);
+      reportFilters(shown);
     }
-  }, [search, sort.direction, filters, onFiltersChangeRef]);
+  }, [search, sort.direction, filters]);
 
   useEffect(() => {
     if (data.status === "failed") {

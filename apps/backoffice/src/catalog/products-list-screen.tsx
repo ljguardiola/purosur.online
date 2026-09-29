@@ -52,15 +52,7 @@ import {
   TriangleAlert,
   X,
 } from "lucide-react";
-import {
-  type KeyboardEvent,
-  useCallback,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type KeyboardEvent, useEffect, useEffectEvent, useId, useRef, useState } from "react";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import { useCloudForm } from "../platform/cloud-form";
 import { useFieldContext } from "../platform/cloud-form-context";
@@ -68,7 +60,6 @@ import { fieldErrorMessage, SharedFieldError } from "../platform/cloud-form-fiel
 import { cloudTableState } from "../platform/cloud-table-state";
 import { combineCloudData } from "../platform/combine-cloud-data";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import {
@@ -250,7 +241,7 @@ function hasInternalBarcode(barcodes: string[]): boolean {
 function useBarcodeChips({ list, latest, setList }: BarcodeListControl) {
   const [scanError, setScanError] = useState<string | undefined>(undefined);
 
-  const reset = useCallback(() => setScanError(undefined), []);
+  const reset = () => setScanError(undefined);
 
   function changeScanInput(value: string) {
     setList({ ...list, scan: value });
@@ -420,11 +411,11 @@ function useGenerateInternalBarcode(
   const [generateError, setGenerateError] = useState<string | undefined>(undefined);
   const requestIdRef = useRef(0);
 
-  const reset = useCallback(() => {
+  const reset = () => {
     requestIdRef.current += 1;
     setGenerating(false);
     setGenerateError(undefined);
-  }, []);
+  };
 
   async function handleGenerate() {
     setGenerateError(undefined);
@@ -707,15 +698,13 @@ function EditProductModal({
   const [title, setTitle] = useState("");
   const [notice, setNotice] = useState<EditNotice | null>(null);
   const [reloading, setReloading] = useState(false);
-  const targetRef = useLatestRef(target);
   const { form, submit, submitting, values, reset } = useCloudForm({
     defaultValues: { ...EMPTY_PRODUCT_FORM, version: 1 },
     request: { schema: productEditBodySchema, from: productEditRequestFrom },
     fields: PRODUCT_EDIT_FIELDS,
     messages: PRODUCT_MESSAGES,
     onSubmit: async (_request, { parsed, showFieldError, showWireFieldError }) => {
-      const current = targetRef.current;
-      if (!current) {
+      if (!target) {
         return;
       }
       if (!parsed) {
@@ -723,7 +712,7 @@ function EditProductModal({
         return;
       }
       setNotice(null);
-      const outcome = await editProduct(current.id, parsed);
+      const outcome = await editProduct(target.id, parsed);
       if (outcome.kind === "ok") {
         onSaved();
         return;
@@ -799,12 +788,11 @@ function EditProductModal({
   const categoryOptions = categorySelectOptions(categories);
 
   async function handleReload() {
-    const current = targetRef.current;
-    if (!current) {
+    if (!target) {
       return;
     }
     setReloading(true);
-    const outcome = await reload(current.id);
+    const outcome = await reload(target.id);
     if (outcome.kind === "found") {
       reset(productFormValues(outcome.product));
       setTitle(outcome.product.name);
@@ -1006,7 +994,6 @@ function DeactivateProductModal({
   const [title, setTitle] = useState("");
   const [notice, setNotice] = useState<DeactivateNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const targetRef = useLatestRef(target);
 
   useEffect(() => {
     if (open && target) {
@@ -1017,14 +1004,13 @@ function DeactivateProductModal({
   }, [open, target]);
 
   async function handleConfirm() {
-    const current = targetRef.current;
-    if (!current) {
+    if (!target) {
       return;
     }
     setNotice(null);
     setSubmitting(true);
 
-    const outcome = await deactivateProduct(current.id);
+    const outcome = await deactivateProduct(target.id);
     if (outcome.kind === "ok") {
       onDeactivated();
       return;
@@ -1235,7 +1221,7 @@ function PrintLabelsModal({
     }
   }, [open]);
 
-  const rows = useMemo(() => labelableProducts(products), [products]);
+  const rows = labelableProducts(products);
   const total = rows.reduce((sum, row) => sum + (counts[row.product.id] ?? 0), 0);
   const previewRow = rows.find((row) => (counts[row.product.id] ?? 0) > 0) ?? rows[0];
   const busy = printing || reloading;
@@ -1491,7 +1477,7 @@ export function ProductsListScreen({
   const [printModalOpen, setPrintModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ProductSummary | null>(null);
   const [deactivateTarget, setDeactivateTarget] = useState<ProductSummary | null>(null);
-  const onFiltersChangeRef = useLatestRef(onFiltersChange);
+  const reportFilters = useEffectEvent(onFiltersChange);
   const refreshCatalog = useRefreshCatalog();
   const reloadProduct = useReloadProduct({
     status: statusFilter,
@@ -1535,17 +1521,9 @@ export function ProductsListScreen({
       sort: sort.direction,
     };
     if (!deepEqual(shown, filters)) {
-      onFiltersChangeRef.current(shown);
+      reportFilters(shown);
     }
-  }, [
-    search,
-    categoryFilter,
-    unitFilter,
-    statusFilter,
-    sort.direction,
-    filters,
-    onFiltersChangeRef,
-  ]);
+  }, [search, categoryFilter, unitFilter, statusFilter, sort.direction, filters]);
 
   const categoryLabels = categoryPathLabels(categories);
 

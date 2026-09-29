@@ -336,6 +336,48 @@ test("moves the deadline out from a fresh initialExpiresAt without restarting th
   });
 });
 
+test("keeps its interval and calls the latest callbacks when handed new ones", async () => {
+  await usingFakeTimers(async () => {
+    const fixedNow = new Date("2026-09-23T12:00:00.000Z");
+    const outdatedCheckStatus = vi.fn<() => Promise<SessionStatusOutcome>>().mockResolvedValue({
+      kind: "ok",
+      expiresAt: new Date(fixedNow.getTime() + ONE_DAY_MS).toISOString(),
+    });
+    const outdatedOnEnded = vi.fn();
+    const latestCheckStatus = vi
+      .fn<() => Promise<SessionStatusOutcome>>()
+      .mockResolvedValue({ kind: "unauthenticated" });
+    const latestOnEnded = vi.fn();
+    const setIntervalSpy = vi.spyOn(window, "setInterval");
+    const hook = await renderWatcher({
+      active: true,
+      checkStatus: outdatedCheckStatus,
+      onEnded: outdatedOnEnded,
+      intervalMs: 10_000,
+      now: () => fixedNow,
+    });
+    hooks.push(hook);
+    const setIntervalCallsAfterMount = setIntervalSpy.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(4_000);
+
+    await hook.rerender({
+      active: true,
+      checkStatus: latestCheckStatus,
+      onEnded: latestOnEnded,
+      intervalMs: 10_000,
+      now: () => fixedNow,
+    });
+    await vi.advanceTimersByTimeAsync(6_000);
+
+    expect(setIntervalSpy.mock.calls.length).toBe(setIntervalCallsAfterMount);
+    expect(latestCheckStatus).toHaveBeenCalledTimes(1);
+    expect(latestOnEnded).toHaveBeenCalledTimes(1);
+    expect(outdatedCheckStatus).not.toHaveBeenCalled();
+    expect(outdatedOnEnded).not.toHaveBeenCalled();
+    setIntervalSpy.mockRestore();
+  });
+});
+
 test("stops checking once the component unmounts", async () => {
   await usingFakeTimers(async () => {
     const fixedNow = new Date("2026-09-23T12:00:00.000Z");

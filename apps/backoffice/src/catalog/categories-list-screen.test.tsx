@@ -47,7 +47,7 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-function renderScreen(
+function screenElement(
   services: CategoriesListScreenServices,
   onSessionEnded: () => void = () => {},
   {
@@ -58,7 +58,7 @@ function renderScreen(
     onFiltersChange?: (filters: CategoriesListFilters) => void;
   } = {},
 ) {
-  return render(
+  return (
     <FieldSizeProvider size="backoffice">
       <main>
         <CategoriesListScreen
@@ -68,8 +68,12 @@ function renderScreen(
           onFiltersChange={onFiltersChange}
         />
       </main>
-    </FieldSizeProvider>,
+    </FieldSizeProvider>
   );
+}
+
+function renderScreen(...args: Parameters<typeof screenElement>) {
+  return render(screenElement(...args));
 }
 
 async function openNewCategoryModal(screen: Awaited<ReturnType<typeof renderScreen>>) {
@@ -1045,4 +1049,25 @@ test("reports every change to its search and ordering, so they can be kept for a
   await userEvent.fill(screen.getByPlaceholder("Buscar una categoría"), "beb");
 
   expect(onFiltersChange).toHaveBeenLastCalledWith({ search: "beb", sort: "descending" });
+});
+
+test("does not report its filters again when the route hands it a new callback", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [groceries, drinks] });
+  const onFiltersChange = vi.fn();
+  const filters = categoriesListFilters.parse({});
+  const screen = await renderScreen(services, () => {}, { filters, onFiltersChange });
+  await expect.element(screen.getByText("2 categorías")).toBeVisible();
+  await userEvent.fill(screen.getByPlaceholder("Buscar una categoría"), "beb");
+  await expect.poll(() => onFiltersChange.mock.calls.length).toBeGreaterThan(0);
+  const reported = onFiltersChange.mock.calls.length;
+
+  await screen.rerender(
+    screenElement(services, () => {}, {
+      filters,
+      onFiltersChange: (reported) => onFiltersChange(reported),
+    }),
+  );
+
+  expect(onFiltersChange).toHaveBeenCalledTimes(reported);
 });

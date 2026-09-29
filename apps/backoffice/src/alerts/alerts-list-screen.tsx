@@ -13,11 +13,10 @@ import {
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
 import { Bell, Eye, Search } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import type { BackofficeAccess } from "../access/backoffice-access";
 import { cloudTableState } from "../platform/cloud-table-state";
 import type { CloudData } from "../platform/use-cloud-query";
-import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { ALERT_LEVEL_LABELS, AlertDetailModal, alertDateTime } from "./alert-detail-modal";
@@ -113,14 +112,14 @@ export function AlertsListScreen({
   const [page, setPage] = useState(filters.page);
   const [selectedAlertId, setSelectedAlertId] = useState<string | null>(null);
 
-  const onFiltersChangeRef = useLatestRef(onFiltersChange);
+  const reportFilters = useEffectEvent(onFiltersChange);
 
   useEffect(() => {
     const shown: AlertsListFilters = { level: levelFilter, status: statusFilter, search, page };
     if (!deepEqual(shown, filters)) {
-      onFiltersChangeRef.current(shown);
+      reportFilters(shown);
     }
-  }, [levelFilter, statusFilter, search, page, filters, onFiltersChangeRef]);
+  }, [levelFilter, statusFilter, search, page, filters]);
 
   useEffect(() => {
     const trimmed = search.trim();

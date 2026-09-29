@@ -26,14 +26,13 @@ import {
   UserX,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { useCloudForm } from "../platform/cloud-form";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { combineCloudData } from "../platform/combine-cloud-data";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import type { CloudData } from "../platform/use-cloud-query";
-import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import {
@@ -175,16 +174,19 @@ function EditUserModal({
       setNotice({ kind: "attemptFailed" });
     },
   });
-  const userRef = useLatestRef(user);
+
+  const showUser = useEffectEvent(() => {
+    const { email, role, version } = user;
+    reset({ email, roleId: role.id, version });
+    setNotice(null);
+    setReloading(false);
+  });
 
   useEffect(() => {
     if (open) {
-      const { email, role, version } = userRef.current;
-      reset({ email, roleId: role.id, version });
-      setNotice(null);
-      setReloading(false);
+      showUser();
     }
-  }, [open, reset, userRef]);
+  }, [open]);
 
   const roleSelectOptions = roles.length > 0 ? roleOptions(roles) : undefined;
 

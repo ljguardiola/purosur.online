@@ -29,13 +29,12 @@ import {
   ShieldX,
   TriangleAlert,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import type { ProductSaleUnit } from "../catalog/products-api";
 import { type CloudSubmission, useCloudForm } from "../platform/cloud-form";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { formatCents, MAX_UNIT_PRICE_CENTS, parseAmountCents } from "./money";
@@ -226,7 +225,6 @@ function PriceChangeModal({
   const open = target !== null;
   const [current, setCurrent] = useState<PriceProduct | null>(null);
   const [shownAt, setShownAt] = useState<Date | null>(null);
-  const nowRef = useLatestRef(now);
   const [title, setTitle] = useState("");
   const [notice, setNotice] = useState<ModalNotice | null>(null);
   const [previousNotice, setPreviousNotice] = useState<ScreenNotice | null>(null);
@@ -274,17 +272,19 @@ function PriceChangeModal({
     setWorking(true);
   }
 
+  const readNow = useEffectEvent(now);
+
   useEffect(() => {
     if (target) {
       setCurrent(target);
-      setShownAt(nowRef.current());
+      setShownAt(readNow());
       setTitle(target.name);
       reset({ amount: "", expectedCurrentPriceId: target.currentPrice?.id ?? null });
       setNotice(null);
       setPreviousNotice(previousProductNotice);
       setWorking(false);
     }
-  }, [target, previousProductNotice, nowRef, reset]);
+  }, [target, previousProductNotice, reset]);
 
   function handleSetPriceOutcome(
     product: PriceProduct,
@@ -587,14 +587,14 @@ export function PricesListScreen({
   const lastNoticeId = useRef(0);
   const [screenRequestInFlight, setScreenRequestInFlight] = useState(false);
 
-  const onFiltersChangeRef = useLatestRef(onFiltersChange);
+  const reportFilters = useEffectEvent(onFiltersChange);
 
   useEffect(() => {
     const shown: PricesListFilters = { search, category: categoryFilter, review: reviewFilter };
     if (!deepEqual(shown, filters)) {
-      onFiltersChangeRef.current(shown);
+      reportFilters(shown);
     }
-  }, [search, categoryFilter, reviewFilter, filters, onFiltersChangeRef]);
+  }, [search, categoryFilter, reviewFilter, filters]);
 
   useEffect(() => {
     const handle = setTimeout(() => setDebouncedSearch(search.trim()), SEARCH_DEBOUNCE_MS);

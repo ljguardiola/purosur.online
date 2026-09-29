@@ -18,7 +18,7 @@ type SignedOutSession = { kind: "signed-out"; notice: SignInOpeningNotice | unde
 
 export type SettledSession = SignedInSession | SignedOutSession;
 
-export type SessionActions = {
+type SessionActions = {
   signedIn: () => void;
   signedOut: () => void;
   sessionEnded: () => void;

@@ -2026,8 +2026,8 @@ test("a refresh of the user in the background does not overwrite what is typed i
   await refreshAccess();
 
   await expect.poll(() => vi.mocked(services.fetchUser).mock.calls.length).toBe(2);
+  await expect.element(screen.getByText("otra@purosur.online")).toBeVisible();
   await expect
     .element(dialog.getByRole("textbox", { name: /^Correo/ }))
     .toHaveValue("escrito@purosur.online");
-  await expect.element(screen.getByText("otra@purosur.online")).toBeVisible();
 });

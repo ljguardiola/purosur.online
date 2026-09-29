@@ -84,7 +84,7 @@ export function mockLoaded(
 
 // A modal panel is centered by a fixed-position overlay that never grows the document's scroll
 // area, so a control past its clipped edge can't be scrolled into view at the default viewport.
-export async function renderScreen(
+export function screenElement(
   services: ProductsListScreenServices,
   onSessionEnded: () => void = () => {},
   {
@@ -95,8 +95,7 @@ export async function renderScreen(
     onFiltersChange?: (filters: ProductsListFilters) => void;
   } = {},
 ) {
-  await page.viewport(1280, 900);
-  return render(
+  return (
     <FieldSizeProvider size="backoffice">
       <main>
         <ProductsListScreen
@@ -106,8 +105,13 @@ export async function renderScreen(
           onFiltersChange={onFiltersChange}
         />
       </main>
-    </FieldSizeProvider>,
+    </FieldSizeProvider>
   );
+}
+
+export async function renderScreen(...args: Parameters<typeof screenElement>) {
+  await page.viewport(1280, 900);
+  return render(screenElement(...args));
 }
 
 export async function openNewProductModal(screen: Screen) {

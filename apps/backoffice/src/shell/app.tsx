@@ -50,7 +50,6 @@ import {
 } from "../fiscal/fiscal-configuration-services";
 import type { BackofficeHelpCatalog } from "../help/help-catalog";
 import { createQueryClient } from "../platform/query-client";
-import { useLatestRef } from "../platform/use-latest-ref";
 import {
   defaultPricesListScreenServices,
   type PricesListScreenServices,
@@ -62,7 +61,6 @@ import {
 import { type AccountFooterServices, defaultAccountFooterServices } from "./account-footer";
 import { createAppRouter } from "./app-router";
 import {
-  type SessionActions,
   SessionCheckPendingContext,
   type SettledSession,
   type SignedInSession,
@@ -146,37 +144,23 @@ function differsOnlyInExpiry(current: SettledSession, next: SettledSession): boo
 
 const BEFORE_SESSION_CHECK: SettledSession = { kind: "signed-out", notice: undefined };
 
-export function App(props: AppProps) {
-  return (
-    <FieldSizeProvider size="backoffice">
-      <AppContent {...props} />
-    </FieldSizeProvider>
-  );
-}
+type SessionControlOptions = {
+  help: BackofficeHelpCatalog;
+  services: AppServices;
+  reportError: (error: unknown) => void;
+  queryClient: ReturnType<typeof createQueryClient>;
+  setSession: (next: SessionState) => void;
+  setRouterStarted: (started: boolean) => void;
+};
 
-function AppContent({ help, services = defaultAppServices, reportError = () => {} }: AppProps) {
-  const [session, setSession] = useState<SessionState>({ kind: "loading" });
-  const [routerStarted, setRouterStarted] = useState(false);
-  const [queryClient] = useState(createQueryClient);
-  const actions = useLatestRef<SessionActions>({
-    signedIn: handleSignedIn,
-    signedOut: handleSignedOut,
-    sessionEnded: handleSessionEnded,
-  });
-  const [router] = useState(() =>
-    createAppRouter({
-      session: BEFORE_SESSION_CHECK,
-      help,
-      services,
-      reportError,
-      sessionActions: {
-        signedIn: () => actions.current.signedIn(),
-        signedOut: () => actions.current.signedOut(),
-        sessionEnded: () => actions.current.sessionEnded(),
-      },
-    }),
-  );
-
+function createSessionControl({
+  help,
+  services,
+  reportError,
+  queryClient,
+  setSession,
+  setRouterStarted,
+}: SessionControlOptions) {
   async function settle(next: SettledSession) {
     const current = router.options.context.session;
     if (next.kind === "signed-out") {
@@ -211,20 +195,6 @@ function AppContent({ help, services = defaultAppServices, reportError = () => {
     return settle({ kind: "signed-out", notice: expired ? { kind: "expired" } : undefined });
   }
 
-  const settleCheckedSessionRef = useLatestRef(settleCheckedSession);
-
-  useEffect(() => {
-    let cancelled = false;
-    void services.fetchSession().then((outcome) => {
-      if (!cancelled) {
-        void settleCheckedSessionRef.current(outcome);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [services, settleCheckedSessionRef]);
-
   function handleSignedIn() {
     setSession({ kind: "loading" });
     void services.fetchSession().then((outcome) => {
@@ -257,10 +227,61 @@ function AppContent({ help, services = defaultAppServices, reportError = () => {
     void settle({ kind: "signed-out", notice: { kind: "expired" } });
   }
 
+  const router = createAppRouter({
+    session: BEFORE_SESSION_CHECK,
+    help,
+    services,
+    reportError,
+    sessionActions: {
+      signedIn: handleSignedIn,
+      signedOut: handleSignedOut,
+      sessionEnded: handleSessionEnded,
+    },
+  });
+
+  return { router, settle, settleCheckedSession, handleSessionEnded };
+}
+
+export function App(props: AppProps) {
+  return (
+    <FieldSizeProvider size="backoffice">
+      <AppContent {...props} />
+    </FieldSizeProvider>
+  );
+}
+
+function AppContent({ help, services = defaultAppServices, reportError = () => {} }: AppProps) {
+  const [session, setSession] = useState<SessionState>({ kind: "loading" });
+  const [routerStarted, setRouterStarted] = useState(false);
+  const [queryClient] = useState(createQueryClient);
+  const [control] = useState(() =>
+    createSessionControl({
+      help,
+      services,
+      reportError,
+      queryClient,
+      setSession,
+      setRouterStarted,
+    }),
+  );
+  const { router } = control;
+
+  useEffect(() => {
+    let cancelled = false;
+    void services.fetchSession().then((outcome) => {
+      if (!cancelled) {
+        void control.settleCheckedSession(outcome);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [services, control]);
+
   useSessionWatcher({
     active: session.kind === "signed-in",
     checkStatus: services.checkSessionStatus,
-    onEnded: handleSessionEnded,
+    onEnded: control.handleSessionEnded,
     ...(session.kind === "signed-in" ? { initialExpiresAt: session.expiresAt } : {}),
   });
 
@@ -271,7 +292,7 @@ function AppContent({ help, services = defaultAppServices, reportError = () => {
     onTouched: (touched) => {
       const current = router.options.context.session;
       if (current.kind === "signed-in") {
-        void settle({
+        void control.settle({
           ...current,
           isAdministrator: touched.isAdministrator,
           permissions: touched.permissions,
@@ -279,7 +300,7 @@ function AppContent({ help, services = defaultAppServices, reportError = () => {
         });
       }
     },
-    onEnded: handleSessionEnded,
+    onEnded: control.handleSessionEnded,
   });
 
   if (!routerStarted) {

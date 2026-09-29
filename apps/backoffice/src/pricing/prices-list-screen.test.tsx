@@ -50,7 +50,7 @@ const rice: PriceProduct = {
   pending: true,
 };
 
-async function renderScreen(
+function screenElement(
   services: PricesListScreenServices,
   onSessionEnded: () => void = () => {},
   now: () => Date = NOW,
@@ -62,7 +62,7 @@ async function renderScreen(
     onFiltersChange?: (filters: PricesListFilters) => void;
   } = {},
 ) {
-  const screen = (
+  return (
     <FieldSizeProvider size="backoffice">
       <main>
         <PricesListScreen
@@ -75,6 +75,10 @@ async function renderScreen(
       </main>
     </FieldSizeProvider>
   );
+}
+
+async function renderScreen(...args: Parameters<typeof screenElement>) {
+  const screen = screenElement(...args);
   const rendered = await render(screen);
   return Object.assign(rendered, {
     /** Flushes pending microtasks, then re-renders inside act so anything they scheduled
@@ -2571,4 +2575,34 @@ test("reports every change to its filters, so they can be kept for a reload", as
     category: "ALL",
     review: "all",
   });
+});
+
+test("does not report its filters again when the route hands it a new callback", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: {
+      products: [rice],
+      pendingCount: 1,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [groceries],
+    },
+  });
+  const onFiltersChange = vi.fn();
+  const filters = pricesListFilters.parse({});
+  const screen = await renderScreen(services, () => {}, NOW, { filters, onFiltersChange });
+  await expect.element(screen.getByText("Arroz")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Revisión: Por revisar" }));
+  await userEvent.click(screen.getByRole("option", { name: "Todos" }));
+  await expect.poll(() => onFiltersChange.mock.calls.length).toBe(1);
+
+  await screen.rerender(
+    screenElement(services, () => {}, NOW, {
+      filters,
+      onFiltersChange: (reported) => onFiltersChange(reported),
+    }),
+  );
+
+  expect(onFiltersChange).toHaveBeenCalledTimes(1);
 });

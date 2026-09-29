@@ -26,13 +26,12 @@ import {
   TriangleAlert,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { useAuthorization } from "../access/authorization-modal";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import { useCloudForm } from "../platform/cloud-form";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
-import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import type { FiscalConfigurationScreenServices } from "./fiscal-configuration-services";
@@ -182,7 +181,6 @@ function EditIssuerIdentificationModal({
   const [notice, setNotice] = useState<ModalNotice | null>(null);
   const [reloading, setReloading] = useState(false);
   const [openedAt, setOpenedAt] = useState(now);
-  const nowRef = useLatestRef(now);
   const { run, modal } = useAuthorization<SaveIssuerIdentificationOutcome>({
     actionName: "Guardar la identificación del emisor",
     onSessionEnded,
@@ -240,11 +238,13 @@ function EditIssuerIdentificationModal({
     },
   });
 
+  const readNow = useEffectEvent(now);
+
   useEffect(() => {
     if (open) {
-      setOpenedAt(nowRef.current());
+      setOpenedAt(readNow());
     }
-  }, [open, nowRef]);
+  }, [open]);
 
   useEffect(() => {
     if (target === null) {

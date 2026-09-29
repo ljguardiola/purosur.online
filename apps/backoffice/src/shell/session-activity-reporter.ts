@@ -1,6 +1,5 @@
-import { type RefObject, useEffect } from "react";
+import { useEffect, useEffectEvent } from "react";
 import type { SessionOutcome } from "../access/session-api";
-import { useLatestRef } from "../platform/use-latest-ref";
 
 const DEFAULT_THROTTLE_MS = 60_000;
 
@@ -22,39 +21,39 @@ export type SessionActivityReporterOptions = {
 
 type ReportSessionActivityParams = {
   throttleMs: number;
-  touchSessionRef: RefObject<() => Promise<SessionOutcome>>;
-  subscribeToNavigationRef: RefObject<(listener: () => void) => () => void>;
-  onTouchedRef: RefObject<(session: Extract<SessionOutcome, { kind: "ok" }>) => void>;
-  onEndedRef: RefObject<() => void>;
-  nowRef: RefObject<() => Date>;
+  touchSession: () => Promise<SessionOutcome>;
+  subscribeToNavigation: (listener: () => void) => () => void;
+  onTouched: (session: Extract<SessionOutcome, { kind: "ok" }>) => void;
+  onEnded: () => void;
+  now: () => Date;
 };
 
 function reportSessionActivity({
   throttleMs,
-  touchSessionRef,
-  subscribeToNavigationRef,
-  onTouchedRef,
-  onEndedRef,
-  nowRef,
+  touchSession,
+  subscribeToNavigation,
+  onTouched,
+  onEnded,
+  now,
 }: ReportSessionActivityParams): () => void {
   let cancelled = false;
   let sending = false;
-  let lastTouchAt = nowRef.current().getTime();
+  let lastTouchAt = now().getTime();
 
   async function touch() {
     sending = true;
-    lastTouchAt = nowRef.current().getTime();
+    lastTouchAt = now().getTime();
     try {
-      const outcome = await touchSessionRef.current();
+      const outcome = await touchSession();
       if (cancelled) {
         return;
       }
       if (outcome.kind === "unauthenticated") {
-        onEndedRef.current();
+        onEnded();
         return;
       }
       if (outcome.kind === "ok") {
-        onTouchedRef.current(outcome);
+        onTouched(outcome);
       }
     } finally {
       sending = false;
@@ -65,7 +64,7 @@ function reportSessionActivity({
     if (sending || document.visibilityState !== "visible") {
       return;
     }
-    if (nowRef.current().getTime() - lastTouchAt < throttleMs) {
+    if (now().getTime() - lastTouchAt < throttleMs) {
       return;
     }
     void touch();
@@ -74,7 +73,7 @@ function reportSessionActivity({
   for (const eventName of ACTIVITY_EVENTS) {
     window.addEventListener(eventName, reportActivity, { passive: true });
   }
-  const stopWatchingNavigation = subscribeToNavigationRef.current(reportActivity);
+  const stopWatchingNavigation = subscribeToNavigation(reportActivity);
 
   return () => {
     cancelled = true;
@@ -94,11 +93,11 @@ export function useSessionActivityReporter({
   throttleMs = DEFAULT_THROTTLE_MS,
   now = currentDate,
 }: SessionActivityReporterOptions): void {
-  const touchSessionRef = useLatestRef(touchSession);
-  const subscribeToNavigationRef = useLatestRef(subscribeToNavigation);
-  const onTouchedRef = useLatestRef(onTouched);
-  const onEndedRef = useLatestRef(onEnded);
-  const nowRef = useLatestRef(now);
+  const touchCurrentSession = useEffectEvent(touchSession);
+  const subscribeToRouteChanges = useEffectEvent(subscribeToNavigation);
+  const handleTouched = useEffectEvent(onTouched);
+  const endSession = useEffectEvent(onEnded);
+  const readNow = useEffectEvent(now);
 
   useEffect(() => {
     if (!active) {
@@ -107,19 +106,11 @@ export function useSessionActivityReporter({
 
     return reportSessionActivity({
       throttleMs,
-      touchSessionRef,
-      subscribeToNavigationRef,
-      onTouchedRef,
-      onEndedRef,
-      nowRef,
+      touchSession: () => touchCurrentSession(),
+      subscribeToNavigation: (listener) => subscribeToRouteChanges(listener),
+      onTouched: (session) => handleTouched(session),
+      onEnded: () => endSession(),
+      now: () => readNow(),
     });
-  }, [
-    active,
-    throttleMs,
-    touchSessionRef,
-    subscribeToNavigationRef,
-    onTouchedRef,
-    onEndedRef,
-    nowRef,
-  ]);
+  }, [active, throttleMs]);
 }
