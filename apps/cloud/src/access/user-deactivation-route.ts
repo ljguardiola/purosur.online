@@ -37,7 +37,7 @@ export async function deactivateUser<TQueryResult extends PgQueryResultHKT>(
       .select({ active: users.active, version: users.version })
       .from(users)
       .where(eq(users.id, input.id))
-      .for("update");
+      .for("no key update");
     if (!current?.active) {
       return { kind: "not_found" };
     }

@@ -4,7 +4,14 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import Fastify, { type FastifyInstance } from "fastify";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { auditLog, roles, sessions, userRoles, users } from "../platform/db/schema.js";
+import {
+  auditLog,
+  rolePermissions,
+  roles,
+  sessions,
+  userRoles,
+  users,
+} from "../platform/db/schema.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -260,5 +267,36 @@ describe("deactivating two different targets at once on a real Postgres", () => 
     expect(otherQueued).toBe(false);
     expect((await otherDeactivation).statusCode).toBe(200);
     expect(await targetState(otherTargetId)).toEqual({ active: false, roleId: cashierRoleId });
+  });
+});
+
+describe("two users deactivating each other at once on a real Postgres", () => {
+  it("deactivates both users", async () => {
+    const managerRoleId = await insertCashierRole();
+    await db
+      .insert(rolePermissions)
+      .values({ roleId: managerRoleId, permissionKey: "deactivate_users" });
+    const firstId = await insertUser(`first-${randomUUID()}@example.com`, managerRoleId);
+    const secondId = await insertUser(`second-${randomUUID()}@example.com`, managerRoleId);
+    const firstCookie = `${SESSION_COOKIE_NAME}=${await insertSession(firstId)}`;
+    const secondCookie = `${SESSION_COOKIE_NAME}=${await insertSession(secondId)}`;
+    const deactivate = (targetId: string, cookie: string) => () =>
+      app.inject({
+        method: "POST",
+        url: `/users/${targetId}/deactivation`,
+        headers: { origin: BACKOFFICE_ORIGIN, cookie },
+      });
+
+    const [firstDeactivation, secondDeactivation] = await runQueuedBehindHeldLock(
+      sql,
+      (holder) => holder`select id from users where id in ${sql([firstId, secondId])} for update`,
+      deactivate(secondId, firstCookie),
+      deactivate(firstId, secondCookie),
+    );
+
+    expect(firstDeactivation.statusCode).toBe(200);
+    expect(secondDeactivation.statusCode).toBe(200);
+    expect((await targetState(firstId))?.active).toBe(false);
+    expect((await targetState(secondId))?.active).toBe(false);
   });
 });
