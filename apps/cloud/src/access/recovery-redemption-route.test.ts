@@ -1,7 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import Fastify, { type FastifyInstance } from "fastify";
-import WebAuthnEmulator from "nid-webauthn-emulator";
+import { WebAuthnEmulator } from "nid-webauthn-emulator";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   alerts,
