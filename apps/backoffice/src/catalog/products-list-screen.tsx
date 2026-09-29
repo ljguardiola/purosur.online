@@ -1903,24 +1903,24 @@ export function ProductsListScreen({
   const columns = [
     {
       key: "product",
-      header: "PRODUCTO",
+      header: "Producto",
       sortable: true,
       defaultDirection: "ascending",
       render: (item: ProductSummary) => item.name,
     },
     {
       key: "category",
-      header: "CATEGORÍA",
+      header: "Categoría",
       render: (item: ProductSummary) => categoryLabels.get(item.categoryId) ?? item.categoryName,
     },
     {
       key: "unit",
-      header: "UNIDAD",
+      header: "Unidad",
       render: (item: ProductSummary) => unitLabel(item.saleUnit),
     },
     {
       key: "status",
-      header: "ESTADO",
+      header: "Estado",
       render: (item: ProductSummary) =>
         item.active ? (
           <StatusIndicator tone="success">Activo</StatusIndicator>

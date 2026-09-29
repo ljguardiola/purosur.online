@@ -144,7 +144,20 @@ jobs:
           path: ~/.cache/ms-playwright
           key: ${{ steps.playwright-cache.outputs.cache-primary-key }}
 
+      - name: Pull the cloud's Postgres image
+        timeout-minutes: 10
+        run: |
+          for delay in 0 15 30 60; do
+            sleep "$delay"
+            timeout 120 docker pull "$POSTGRES_IMAGE" && exit 0
+          done
+          exit 1
+        env:
+          POSTGRES_IMAGE: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+
       - run: pnpm verify:tests --shard=${{ matrix.shard }}/4
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: "true"
 
   visual:
     name: visual
@@ -165,7 +178,20 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Pull the catalog's Playwright image
+        timeout-minutes: 10
+        run: |
+          for delay in 0 15 30 60; do
+            sleep "$delay"
+            timeout 120 docker pull "$PLAYWRIGHT_SERVER_IMAGE" && exit 0
+          done
+          exit 1
+        env:
+          PLAYWRIGHT_SERVER_IMAGE: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+
       - run: pnpm verify:visual
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: "true"
 
       - name: Upload the actual and diff images for a failed comparison
         if: failure()

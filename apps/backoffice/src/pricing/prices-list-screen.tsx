@@ -1,5 +1,6 @@
 import {
   Button,
+  FloatingNotification,
   IconButton,
   InlineNotice,
   ListFilter,
@@ -68,7 +69,6 @@ type ListState =
     };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const NOTICE_LIFETIME_MS = 5000;
 const SEARCH_DEBOUNCE_MS = 300;
 
 const AMOUNT_INVALID = "Ingresá un precio válido, mayor a cero.";
@@ -104,20 +104,20 @@ function reviewedCellText(lastReviewedAt: string | null, now: Date): string {
 }
 
 function eyebrowOverdue(days: number): string {
-  return plural(days, { one: "SIN REVISAR HACE 1 DÍA", other: `SIN REVISAR HACE ${days} DÍAS` });
+  return plural(days, { one: "Sin revisar hace 1 día", other: `Sin revisar hace ${days} días` });
 }
 
 function eyebrowRecent(days: number): string {
-  return plural(days, { one: "REVISADO HACE 1 DÍA", other: `REVISADO HACE ${days} DÍAS` });
+  return plural(days, { one: "Revisado hace 1 día", other: `Revisado hace ${days} días` });
 }
 
 function modalEyebrow(product: PriceProduct, now: Date): string {
   if (!product.currentPrice || !product.lastReviewedAt) {
-    return "SIN PRECIO";
+    return "Sin precio";
   }
   const days = daysSince(product.lastReviewedAt, now);
   if (days <= 0) {
-    return "REVISADO HOY";
+    return "Revisado hoy";
   }
   return product.pending ? eyebrowOverdue(days) : eyebrowRecent(days);
 }
@@ -593,20 +593,6 @@ export function PricesListScreen({
     setNotice({ ...shown, id: lastNoticeId.current });
   }
 
-  useEffect(() => {
-    const lifetimeMs =
-      notice?.tone === "success"
-        ? NOTICE_LIFETIME_MS
-        : notice?.retryAfterSeconds !== undefined
-          ? notice.retryAfterSeconds * 1000
-          : undefined;
-    if (lifetimeMs === undefined) {
-      return;
-    }
-    const handle = setTimeout(() => setNotice(null), lifetimeMs);
-    return () => clearTimeout(handle);
-  }, [notice]);
-
   function clearErrorNotice() {
     setNotice((shown) => (shown?.tone === "error" ? null : shown));
   }
@@ -877,7 +863,7 @@ export function PricesListScreen({
   const columns = [
     {
       key: "product",
-      header: "PRODUCTO",
+      header: "Producto",
       render: (item: PriceProduct) => (
         <div className="flex items-center gap-2">
           <span>{item.name}</span>
@@ -891,13 +877,13 @@ export function PricesListScreen({
     },
     {
       key: "price",
-      header: "PRECIO",
+      header: "Precio",
       render: (item: PriceProduct) =>
         item.currentPrice ? formatCentsWithUnit(item.currentPrice.unitPrice, item.saleUnit) : "—",
     },
     {
       key: "reviewed",
-      header: "REVISADO",
+      header: "Revisado",
       render: (item: PriceProduct) => reviewedCellText(item.lastReviewedAt, loadedAt),
     },
     {
@@ -1062,16 +1048,15 @@ export function PricesListScreen({
         confirmPrice={confirmPriceService}
       />
       {notice ? (
-        <div className="fixed right-6 bottom-6 z-overlay">
-          <NotificationCard
-            key={notice.id}
-            tone={notice.tone}
-            icon={notice.tone === "success" ? <Check /> : <TriangleAlert />}
-            title={notice.title}
-            description={notice.description}
-            floating
-          />
-        </div>
+        <FloatingNotification
+          key={notice.id}
+          tone={notice.tone}
+          icon={notice.tone === "success" ? <Check /> : <TriangleAlert />}
+          title={notice.title}
+          description={notice.description}
+          expiresAfterSeconds={notice.retryAfterSeconds}
+          onDismiss={() => setNotice(null)}
+        />
       ) : null}
     </>
   );

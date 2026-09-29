@@ -26,6 +26,8 @@ export type { TagProps } from "./components/data-display/tag";
 export { Tag } from "./components/data-display/tag";
 export type { EmptyStateProps, EmptyStateVariant } from "./components/feedback/empty-state";
 export { EmptyState } from "./components/feedback/empty-state";
+export type { FloatingNotificationProps } from "./components/feedback/floating-notification";
+export { FloatingNotification } from "./components/feedback/floating-notification";
 export type { HighlightedNoticeProps } from "./components/feedback/highlighted-notice";
 export { HighlightedNotice } from "./components/feedback/highlighted-notice";
 export type { InlineNoticeProps } from "./components/feedback/inline-notice";

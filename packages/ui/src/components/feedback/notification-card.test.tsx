@@ -1,7 +1,8 @@
 import { Info } from "lucide-react";
-import { expect, expectTypeOf, test } from "vitest";
+import { expect, expectTypeOf, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { AA_TEXT_CONTRAST, contrastRatio, NON_TEXT_CONTRAST } from "../../styles/contrast";
+import { expectNoAccessibilityViolations } from "../../test/axe";
 import { rgbToHex, tokenRgb } from "../../test/token-colors";
 import type { Icon } from "../shared/icon";
 import type { NoticeTone } from "../shared/tone";
@@ -239,35 +240,79 @@ test("takes its container's width by default", async () => {
   expect(container.getBoundingClientRect().width).toBeCloseTo(500, 0);
 });
 
-test("in floating mode renders 388px wide with the ink-at-12%-opacity shadow", async () => {
+test("shows no close button unless it is given a way to close", async () => {
   const screen = await render(
-    <NotificationCard tone="success" icon={<Info />} title="Title" description="Detail" floating />,
+    <NotificationCard tone="success" icon={<Info />} title="Title" description="Detail" />,
   );
-  const container = screen.container.firstElementChild as HTMLElement;
-  const rect = container.getBoundingClientRect();
-  const boxShadow = getComputedStyle(container).boxShadow;
-  // Tailwind's shadow utilities always compose several layers (ring/inset placeholders included),
-  // so the token's own layer is picked out of the full list rather than assumed to be the first.
-  const inkLayer = boxShadow.split(/,(?![^(]*\))/).find((layer) => layer.includes("26, 26, 26"));
 
-  expect(rect.width).toBeGreaterThan(387);
-  expect(rect.width).toBeLessThan(389);
-  expect(inkLayer, `no ink shadow layer in: ${boxShadow}`).toBeDefined();
+  expect(screen.getByRole("button").elements()).toEqual([]);
+});
 
-  const match =
-    /rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+),?\s*([\d.]+)?\)\s+(-?[\d.]+)px\s+([\d.]+)px\s+([\d.]+)px/.exec(
-      inkLayer as string,
-    );
-  expect(match, `unexpected box-shadow layer: ${inkLayer}`).not.toBeNull();
-  const [, r, g, b, a, x, y, blur] = match as unknown as string[];
+test("closes through a 'Cerrar' button that calls onClose", async () => {
+  const onClose = vi.fn();
+  const screen = await render(
+    <NotificationCard
+      tone="success"
+      icon={<Info />}
+      title="Title"
+      description="Detail"
+      onClose={onClose}
+    />,
+  );
 
-  expect(Number(r)).toBe(26);
-  expect(Number(g)).toBe(26);
-  expect(Number(b)).toBe(26);
-  expect(Number(a ?? 1)).toBeCloseTo(0.12, 1);
-  expect(Number(x)).toBe(0);
-  expect(Number(y)).toBe(6);
-  expect(Number(blur)).toBe(20);
+  await screen.getByRole("button", { name: "Cerrar" }).click();
+
+  expect(onClose).toHaveBeenCalledTimes(1);
+});
+
+test("places the close button at the card's top-right corner", async () => {
+  const screen = await render(
+    <div style={{ width: "400px" }}>
+      <NotificationCard
+        tone="success"
+        icon={<Info />}
+        title="Title"
+        description="Detail"
+        whatToDo="Do this"
+        onClose={() => {}}
+      />
+    </div>,
+  );
+  const card = screen.container.firstElementChild?.firstElementChild as HTMLElement;
+  const button = screen.getByRole("button", { name: "Cerrar" }).element();
+  const cardRect = card.getBoundingClientRect();
+  const buttonRect = button.getBoundingClientRect();
+
+  expect(cardRect.right - buttonRect.right).toBeLessThan(20);
+  expect(buttonRect.top - cardRect.top).toBeLessThan(20);
+});
+
+test("keeps the announced text unchanged when it can be closed", async () => {
+  const screen = await render(
+    <NotificationCard
+      tone="success"
+      icon={<Info />}
+      title="Title"
+      description="Detail"
+      onClose={() => {}}
+    />,
+  );
+
+  await expect.poll(() => screen.container.textContent).toBe("TitleDetailTitle Detail");
+});
+
+test("has no accessibility violations when it can be closed", async () => {
+  const screen = await render(
+    <NotificationCard
+      tone="success"
+      icon={<Info />}
+      title="Title"
+      description="Detail"
+      onClose={() => {}}
+    />,
+  );
+
+  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("announces an error tone right away, interrupting current speech", async () => {

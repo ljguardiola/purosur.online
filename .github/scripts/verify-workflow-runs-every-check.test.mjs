@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   checkRepository,
+  findCatalogVisualImageViolations,
+  findCloudPostgresImageViolations,
   findVerifyWorkflowViolations,
 } from "./verify-workflow-runs-every-check.mjs";
 
@@ -765,15 +767,212 @@ test("reports a workflow that does not parse as YAML", () => {
   assert.match(violations[0], /does not parse as YAML/);
 });
 
-test("checkRepository reads the real workflow file and package.json path", () => {
+const PINNED_POSTGRES_IMAGE =
+  "postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873";
+const PINNED_PLAYWRIGHT_IMAGE =
+  "mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27";
+const INSTALLED_PLAYWRIGHT_VERSION = "1.63.0";
+
+function pullWithRetriesLines(imageEnv) {
+  return [
+    "for delay in 0 15 30 60; do",
+    '  sleep "$delay"',
+    `  timeout 120 docker pull "$${imageEnv}" && exit 0`,
+    "done",
+    "exit 1",
+  ];
+}
+
+const PRE_PULLED_IMAGES = [
+  {
+    label: "the cloud's Postgres image",
+    job: "tests",
+    testsRun: `pnpm verify:tests --shard=\${{ matrix.shard }}/4`,
+    testsScript: "verify:tests",
+    constant: "POSTGRES_IMAGE",
+    image: PINNED_POSTGRES_IMAGE,
+    tagOnly: "postgres:18-alpine",
+    findViolations: (workflowSource, setupSource) =>
+      findCloudPostgresImageViolations(workflowSource, setupSource),
+  },
+  {
+    label: "the catalog's Playwright image",
+    job: "visual",
+    testsRun: "pnpm verify:visual",
+    testsScript: "verify:visual",
+    constant: "PLAYWRIGHT_SERVER_IMAGE",
+    image: PINNED_PLAYWRIGHT_IMAGE,
+    tagOnly: "mcr.microsoft.com/playwright:v1.63.0-noble",
+    findViolations: (workflowSource, setupSource) =>
+      findCatalogVisualImageViolations(workflowSource, setupSource, INSTALLED_PLAYWRIGHT_VERSION),
+  },
+];
+
+function setupDeclaring(constant, image) {
+  return [
+    'import { GenericContainer } from "testcontainers";',
+    "",
+    `const ${constant} =`,
+    `  "${image}";`,
+  ].join("\n");
+}
+
+function jobWithPull(
+  spec,
+  {
+    pullLines = pullWithRetriesLines(spec.constant),
+    pulledImage = spec.image,
+    pullAfterTests = false,
+    pullStepExtra = [],
+    testsEnv = { TESTCONTAINERS_RYUK_DISABLED: '"true"' },
+  } = {},
+) {
+  const pullStep = [
+    `      - name: Pull ${spec.label}`,
+    ...pullStepExtra.map((line) => `        ${line}`),
+    "        run: |",
+    ...pullLines.map((line) => `          ${line}`),
+    "        env:",
+    `          ${spec.constant}: ${pulledImage}`,
+  ];
+  const testsStep = [
+    `      - run: ${spec.testsRun}`,
+    ...(Object.keys(testsEnv).length === 0
+      ? []
+      : ["        env:", ...Object.entries(testsEnv).map(([k, v]) => `          ${k}: ${v}`)]),
+  ];
+  return [
+    "jobs:",
+    `  ${spec.job}:`,
+    "    runs-on: ubuntu-24.04",
+    "    steps:",
+    "      - run: pnpm install --frozen-lockfile",
+    ...(pullAfterTests ? [...testsStep, ...pullStep] : [...pullStep, ...testsStep]),
+  ].join("\n");
+}
+
+for (const spec of PRE_PULLED_IMAGES) {
+  const setup = (image = spec.image) => setupDeclaring(spec.constant, image);
+
+  test(`passes when the ${spec.job} job pulls ${spec.label}, pinned by digest, with retries before its tests`, () => {
+    const violations = spec.findViolations(jobWithPull(spec), setup());
+
+    assert.deepEqual(violations, []);
+  });
+
+  test(`flags ${spec.label} referenced by a tag alone, which can move to other bytes`, () => {
+    const violations = spec.findViolations(
+      jobWithPull(spec, { pulledImage: spec.tagOnly }),
+      setup(spec.tagOnly),
+    );
+
+    assertSingleViolation(violations, /not pinned by digest/);
+  });
+
+  test(`flags a global setup whose ${spec.constant} cannot be read`, () => {
+    const violations = spec.findViolations(jobWithPull(spec), 'const IMAGE = "postgres";');
+
+    assertSingleViolation(violations, new RegExp(`no ${spec.constant}`));
+  });
+
+  test(`flags a ${spec.job} job that pulls a different image from ${spec.label}`, () => {
+    const violations = spec.findViolations(
+      jobWithPull(spec, { pulledImage: spec.tagOnly }),
+      setup(),
+    );
+
+    assertSingleViolation(violations, new RegExp(`pulls \`${spec.tagOnly}\``));
+  });
+
+  test(`flags a ${spec.job} job that pulls ${spec.label} only after running its tests`, () => {
+    const violations = spec.findViolations(jobWithPull(spec, { pullAfterTests: true }), setup());
+
+    assertSingleViolation(violations, new RegExp(`before its ${spec.testsScript} step`));
+  });
+
+  test(`flags a ${spec.job} job that pulls ${spec.label} once, without retrying`, () => {
+    const violations = spec.findViolations(
+      jobWithPull(spec, { pullLines: [`docker pull "$${spec.constant}"`] }),
+      setup(),
+    );
+
+    assertSingleViolation(violations, new RegExp(`before its ${spec.testsScript} step`));
+  });
+
+  test(`flags a ${spec.job} job whose pull attempt of ${spec.label} can stall without a time limit`, () => {
+    const violations = spec.findViolations(
+      jobWithPull(spec, {
+        pullLines: pullWithRetriesLines(spec.constant).map((line) =>
+          line.replace("timeout 120 ", ""),
+        ),
+      }),
+      setup(),
+    );
+
+    assertSingleViolation(violations, new RegExp(`before its ${spec.testsScript} step`));
+  });
+
+  for (const [label, extra, pattern] of [
+    ["only runs under its own condition", "if: false", /in a step that has its own if/],
+    ["is allowed to fail", "continue-on-error: true", /in a step that sets continue-on-error/],
+    ["runs under its own shell", "shell: sh", /in a step that sets its own shell/],
+  ]) {
+    test(`flags a pull step of ${spec.label} that ${label}`, () => {
+      const violations = spec.findViolations(
+        jobWithPull(spec, { pullStepExtra: [extra] }),
+        setup(),
+      );
+
+      assertSingleViolation(violations, pattern);
+    });
+  }
+
+  test(`flags a ${spec.testsScript} step that still needs Testcontainers' Ryuk image from Docker Hub`, () => {
+    const violations = spec.findViolations(jobWithPull(spec, { testsEnv: {} }), setup());
+
+    assertSingleViolation(violations, /TESTCONTAINERS_RYUK_DISABLED/);
+  });
+}
+
+test("flags a catalog Playwright image whose tag is not the installed Playwright version", () => {
+  const [, visual] = PRE_PULLED_IMAGES;
+  const image =
+    "mcr.microsoft.com/playwright:v1.62.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27";
+
+  const violations = visual.findViolations(
+    jobWithPull(visual, { pulledImage: image }),
+    setupDeclaring(visual.constant, image),
+  );
+
+  assertSingleViolation(violations, /not the installed Playwright version 1\.63\.0/);
+});
+
+test("checkRepository reads the real workflow file, package.json, both image setups and the installed Playwright version", () => {
   const files = {
-    ".github/workflows/verify.yml": workflow(),
+    ".github/workflows/verify.yml": jobWithPull(PRE_PULLED_IMAGES[0]),
     "package.json": packageJson(),
+    "apps/cloud/vitest.global-setup.postgres.ts": setupDeclaring(
+      "POSTGRES_IMAGE",
+      PINNED_POSTGRES_IMAGE,
+    ),
+    "packages/ui/vitest.global-setup.catalog-visual.ts": setupDeclaring(
+      "PLAYWRIGHT_SERVER_IMAGE",
+      PINNED_PLAYWRIGHT_IMAGE,
+    ),
+    "packages/ui/node_modules/playwright/package.json": JSON.stringify({
+      version: INSTALLED_PLAYWRIGHT_VERSION,
+    }),
   };
+  const read = [];
 
-  const violations = checkRepository({ readFile: (path) => files[path] });
+  checkRepository({
+    readFile: (path) => {
+      read.push(path);
+      return files[path];
+    },
+  });
 
-  assert.deepEqual(violations, []);
+  assert.deepEqual(read.sort(), Object.keys(files).sort());
 });
 
 test("the real Verify workflow runs every part of pnpm verify", () => {
