@@ -3,10 +3,16 @@ import { CATEGORY_NAME_MAX_LENGTH, isCategoryNameTooLong } from "@purosur/domain
 import type { Option, Options } from "@purosur/ui";
 import { categoriesInTreeOrder, categoryPathLabels } from "./category-path";
 
-export const NO_PARENT_VALUE = "";
+const NO_PARENT_VALUE = "";
+
+type CategoryFormValues = { name: string; parentValue: string };
+
+type CategoryEditFormValues = CategoryFormValues & { version: number };
+
+export const EMPTY_CATEGORY_FORM: CategoryFormValues = { name: "", parentValue: NO_PARENT_VALUE };
 
 export const CATEGORY_NAME_TAKEN = "Ya existe una categoría con este nombre.";
-export const CATEGORY_PARENT_NOT_FOUND_ERROR = "La categoría superior elegida ya no existe.";
+const CATEGORY_PARENT_NOT_FOUND_ERROR = "La categoría superior elegida ya no existe.";
 export const CATEGORY_PARENT_HELPER_TEXT = "Opcional. Vacío para una categoría de primer nivel.";
 
 export function nameTakenUnderParentError(params: { name: string; parent: string }): string {
@@ -34,7 +40,7 @@ export function parentSelectOptions(
   ];
 }
 
-export function parentIdOf(parentValue: string): string | null {
+function parentIdOf(parentValue: string): string | null {
   return parentValue === NO_PARENT_VALUE ? null : parentValue;
 }
 
@@ -42,13 +48,32 @@ export function categoryName(categories: CategorySummary[], id: string | null | 
   return categories.find((category) => category.id === id)?.name ?? "";
 }
 
-export function categoryFormValues(category: CategorySummary) {
+export function categoryFormValues(category: CategorySummary): CategoryEditFormValues {
   return {
     name: category.name,
     parentValue: category.parentId ?? NO_PARENT_VALUE,
     version: category.version,
   };
 }
+
+export function categoryRequestFrom({ name, parentValue }: CategoryFormValues) {
+  return {
+    name: name.trim(),
+    parentId: parentIdOf(parentValue),
+  };
+}
+
+export function categoryEditRequestFrom({ name, parentValue, version }: CategoryEditFormValues) {
+  return {
+    name: name.trim(),
+    parentId: parentIdOf(parentValue),
+    version,
+  };
+}
+
+export const CATEGORY_FIELDS = { name: "name", parentId: "parentValue" } as const;
+
+export const CATEGORY_EDIT_FIELDS = { ...CATEGORY_FIELDS, version: null } as const;
 
 export function categoryNameMessage({ name }: { name: string }): string {
   const trimmed = name.trim();
@@ -60,3 +85,8 @@ export function categoryNameMessage({ name }: { name: string }): string {
   }
   return "Revisá el nombre de la categoría.";
 }
+
+export const CATEGORY_MESSAGES = {
+  name: categoryNameMessage,
+  parentValue: CATEGORY_PARENT_NOT_FOUND_ERROR,
+};

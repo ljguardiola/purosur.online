@@ -7,14 +7,14 @@ import { useCloudForm } from "../platform/cloud-form";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import type { createCategory } from "./categories-api";
 import {
+  CATEGORY_FIELDS,
+  CATEGORY_MESSAGES,
   CATEGORY_NAME_TAKEN,
   CATEGORY_PARENT_HELPER_TEXT,
-  CATEGORY_PARENT_NOT_FOUND_ERROR,
   categoryName,
-  categoryNameMessage,
-  NO_PARENT_VALUE,
+  categoryRequestFrom,
+  EMPTY_CATEGORY_FORM,
   nameTakenUnderParentError,
-  parentIdOf,
   parentSelectOptions,
 } from "./category-form";
 
@@ -40,16 +40,10 @@ export function NewCategoryModal({
     { kind: "attemptFailed" } | { kind: "rateLimited"; retryAfterSeconds: number } | null
   >(null);
   const { form, submit, submitting, reset } = useCloudForm({
-    defaultValues: { name: "", parentValue: NO_PARENT_VALUE },
-    request: {
-      schema: categoryCreationBodySchema,
-      from: ({ name, parentValue }) => ({
-        name: name.trim(),
-        parentId: parentIdOf(parentValue),
-      }),
-    },
-    fields: { name: "name", parentId: "parentValue" },
-    messages: { name: categoryNameMessage, parentValue: CATEGORY_PARENT_NOT_FOUND_ERROR },
+    defaultValues: EMPTY_CATEGORY_FORM,
+    request: { schema: categoryCreationBodySchema, from: categoryRequestFrom },
+    fields: CATEGORY_FIELDS,
+    messages: CATEGORY_MESSAGES,
     onSubmit: async (request, { showWireFieldError, showFieldError }) => {
       setNotice(null);
       const parentName = categoryName(categories, request.parentId);

@@ -8,15 +8,15 @@ import { retryAfterDetail } from "../platform/retry-after-detail";
 import type { CategoryReload } from "./catalog-queries";
 import type { editCategory } from "./categories-api";
 import {
+  CATEGORY_EDIT_FIELDS,
+  CATEGORY_MESSAGES,
   CATEGORY_NAME_TAKEN,
   CATEGORY_PARENT_HELPER_TEXT,
-  CATEGORY_PARENT_NOT_FOUND_ERROR,
+  categoryEditRequestFrom,
   categoryFormValues,
   categoryName,
-  categoryNameMessage,
-  NO_PARENT_VALUE,
+  EMPTY_CATEGORY_FORM,
   nameTakenUnderParentError,
-  parentIdOf,
   parentSelectOptions,
 } from "./category-form";
 import { selfAndDescendantIds } from "./category-path";
@@ -52,17 +52,10 @@ export function EditCategoryModal({
   const [notice, setNotice] = useState<EditNotice | null>(null);
   const [reloading, setReloading] = useState(false);
   const { form, submit, submitting, reset } = useCloudForm({
-    defaultValues: { name: "", parentValue: NO_PARENT_VALUE, version: 1 },
-    request: {
-      schema: categoryEditBodySchema,
-      from: ({ name, parentValue, version }) => ({
-        name: name.trim(),
-        parentId: parentIdOf(parentValue),
-        version,
-      }),
-    },
-    fields: { name: "name", parentId: "parentValue", version: null },
-    messages: { name: categoryNameMessage, parentValue: CATEGORY_PARENT_NOT_FOUND_ERROR },
+    defaultValues: { ...EMPTY_CATEGORY_FORM, version: 1 },
+    request: { schema: categoryEditBodySchema, from: categoryEditRequestFrom },
+    fields: CATEGORY_EDIT_FIELDS,
+    messages: CATEGORY_MESSAGES,
     onSubmit: async (request, { showWireFieldError, showFieldError }) => {
       if (!target) {
         return;
