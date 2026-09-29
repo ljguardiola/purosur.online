@@ -180,16 +180,18 @@ export default {
       name: "main-process-scope",
       comment:
         "apps/pos/src/main/ is the Electron main process shell: it may only import " +
-        "its own files, apps/pos/src/shared/ (pure code every process's Sentry init " +
+        "its own files, apps/pos/src/shared/ (pure code every process " +
         "shares), electron, electron-updater, @sentry/electron (Sentry is " +
-        "initialized in main), and Node builtins - not domain, contracts, ui, core, " +
-        "renderer, or any other npm package.",
+        "initialized in main), contracts' entry point (for its error report " +
+        "scrubbers alone, which Biome enforces), and Node builtins - not domain, " +
+        "another contracts file, ui, core, renderer, or any other npm package.",
       severity: "error",
       from: { path: "^apps/pos/src/main/" },
       to: {
         pathNot: [
           "^apps/pos/src/main/",
           "^apps/pos/src/shared/",
+          "^packages/contracts/src/index\\.ts$",
           npmPackage("electron"),
           npmPackage("electron-updater"),
           npmPackage("@sentry/electron"),

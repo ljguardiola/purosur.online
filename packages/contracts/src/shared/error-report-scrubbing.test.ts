@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { scrubErrorReport } from "./error-report-scrubbing.js";
+import {
+  scrubErrorReport,
+  scrubErrorReportBreadcrumb,
+  scrubErrorReportLog,
+} from "./error-report-scrubbing.js";
 
 describe("scrubErrorReport", () => {
   it("drops the HTTP request entirely, including its body", () => {
@@ -15,10 +19,11 @@ describe("scrubErrorReport", () => {
     expect(scrubErrorReport(event).request).toBeUndefined();
   });
 
-  it("drops the HTTP response entirely, including its body", () => {
+  it("drops the HTTP request and response contexts entirely, including their bodies", () => {
     const event = {
       message: "unhandled error",
       contexts: {
+        request: { url: "https://cloud.purosur.online/fiscal/authorize", data: { cuit: "x" } },
         response: { status_code: 500, data: { secret: "leaked" } },
       },
     };
@@ -171,10 +176,58 @@ describe("scrubErrorReport", () => {
     expect(scrubErrorReport(event).extra).toEqual(event.extra);
   });
 
-  it("redacts a bearer token or cookie value found in a string", () => {
-    const event = { message: "rejected with authorization: Bearer abc.def.ghi" };
+  it("redacts a bearer token found in a string", () => {
+    for (const message of [
+      "rejected with authorization: Bearer abc.def.ghi",
+      "rejected with authorization: Bearer   abc.def.ghi",
+    ]) {
+      expect(scrubErrorReport({ message }).message).toBe("rejected with authorization: [redacted]");
+    }
+  });
 
-    expect(scrubErrorReport(event).message).toBe("rejected with authorization: [redacted]");
+  it("redacts the whole URL when its authority carries a credential, even without a path", () => {
+    const event = { message: "cache at redis://default:secret@cache.internal:6379 refused" };
+
+    expect(scrubErrorReport(event).message).toBe("cache at [redacted] refused");
+  });
+
+  it("keeps a URL whose path, not its authority, has an at sign", () => {
+    const event = { message: "GET https://registry.npmjs.org/@sentry/node failed" };
+
+    expect(scrubErrorReport(event).message).toBe(
+      "GET https://registry.npmjs.org/@sentry/node failed",
+    );
+  });
+
+  it("redacts the query of a URL that follows a question mark in the same word", () => {
+    const event = { message: "callback?next=https://bucket.example.com/x.db?X-Amz-Signature=abc" };
+
+    expect(scrubErrorReport(event).message).toBe(
+      "callback?next=https://bucket.example.com/x.db?[redacted]",
+    );
+  });
+
+  it("redacts an authorization value whatever its scheme, and a credential", () => {
+    const event = {
+      extra: { authorization: "Basic dXNlcjpwYXNz", smtp_credential: "hunter2" },
+    };
+
+    expect(scrubErrorReport(event).extra).toEqual({
+      authorization: "[redacted]",
+      smtp_credential: "[redacted]",
+    });
+  });
+
+  it("scrubs a megabyte-long dotted word without stalling", () => {
+    const message = "a.".repeat(500_000);
+
+    expect(scrubErrorReport({ message }).message).toBe(message);
+  });
+
+  it("keeps null values", () => {
+    const event = { extra: { reason: null }, contexts: { device: { model: null } } };
+
+    expect(scrubErrorReport(event)).toEqual(event);
   });
 
   it("keeps opaque ids and passes through fields it does not touch", () => {
@@ -226,5 +279,269 @@ describe("scrubErrorReport", () => {
         data: { token: "[redacted]", url: "https://bucket.example.com/x.db?[redacted]" },
       },
     ]);
+  });
+});
+
+describe("scrubErrorReportBreadcrumb", () => {
+  it("redacts identifiers in the breadcrumb message and data", () => {
+    const breadcrumb = {
+      message: "DNI 12345678 rejected",
+      data: { token: "secret-token", register_id: "reg-1" },
+    };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb)).toEqual({
+      message: "DNI [redacted] rejected",
+      data: { token: "[redacted]", register_id: "reg-1" },
+    });
+  });
+
+  it("redacts the query and fragment Sentry records apart from an outgoing request's URL", () => {
+    const breadcrumb = {
+      category: "http",
+      data: {
+        url: "https://bucket.example.com/x.db",
+        "http.method": "PUT",
+        "http.query": "?X-Amz-Signature=abc",
+        "http.fragment": "#token=abc",
+        status_code: 403,
+      },
+    };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toEqual({
+      url: "https://bucket.example.com/x.db",
+      "http.method": "PUT",
+      "http.query": "[redacted]",
+      "http.fragment": "[redacted]",
+      status_code: 403,
+    });
+  });
+});
+
+describe("scrubErrorReportLog", () => {
+  it("redacts identifiers in the log message and attributes", () => {
+    const log = {
+      message: "CUIT 20304050607 could not sync",
+      attributes: { authorization: "Bearer xyz", session_id: "s1", event_id: "evt-1" },
+    };
+
+    expect(scrubErrorReportLog(log)).toEqual({
+      message: "CUIT [redacted] could not sync",
+      attributes: { authorization: "[redacted]", session_id: "[redacted]", event_id: "evt-1" },
+    });
+  });
+
+  it("redacts the query and fragment of every URL in the same text", () => {
+    const log = {
+      message: "tried http://a.example/one?sig=1 then https://b.example/two#token=2",
+    };
+
+    expect(scrubErrorReportLog(log).message).toBe(
+      "tried http://a.example/one?[redacted] then https://b.example/two?[redacted]",
+    );
+  });
+});
+
+describe("keys", () => {
+  it("redacts sensitive keys inside a context section", () => {
+    const event = { contexts: { device: { device_id: "device-1", auth_token: "t", cookie: "c" } } };
+
+    expect(scrubErrorReport(event).contexts).toEqual({
+      device: { device_id: "device-1", auth_token: "[redacted]", cookie: "[redacted]" },
+    });
+  });
+
+  it("redacts fields named after a CUIT, DNI or document whatever their value looks like", () => {
+    const extra = {
+      cuit: "cuit_20304050607",
+      dni_cliente: "x_12345678",
+      documento: 42,
+      clienteDni: "x",
+    };
+
+    expect(scrubErrorReport({ extra }).extra).toEqual({
+      cuit: "[redacted]",
+      dni_cliente: "[redacted]",
+      documento: "[redacted]",
+      clienteDni: "[redacted]",
+    });
+  });
+
+  it("keeps fields where CUIT, DNI or document only appear inside another word", () => {
+    const extra = {
+      circuit_breaker_state: "open",
+      midnight_run: "yes",
+      fiscal_document_id: "fd-1",
+    };
+
+    expect(scrubErrorReport({ extra }).extra).toEqual(extra);
+  });
+});
+
+describe("identifiers in text", () => {
+  it("redacts a CUIT with or without hyphens and a DNI in the message", () => {
+    for (const { message, expected } of [
+      {
+        message: "customer CUIT 20304050607 rejected",
+        expected: "customer CUIT [redacted] rejected",
+      },
+      { message: "CUIT 20-30405060-7 rejected", expected: "CUIT [redacted] rejected" },
+      { message: "CUIT 20-30405060-7.", expected: "CUIT [redacted]." },
+      { message: "DNI 12345678 rejected", expected: "DNI [redacted] rejected" },
+      { message: "DNI 1234567.", expected: "DNI [redacted]." },
+      { message: "cliente 12.345.678", expected: "cliente [redacted]" },
+      { message: "cliente 1.234.567.", expected: "cliente [redacted]." },
+      {
+        message: "CUIT 20304050607 y 27304050607",
+        expected: "CUIT [redacted] y [redacted]",
+      },
+      { message: "DNI 12345678 y 87654321", expected: "DNI [redacted] y [redacted]" },
+    ]) {
+      expect(scrubErrorReport({ message }).message).toBe(expected);
+    }
+  });
+
+  it("redacts a CUIT or DNI glued to a label with an underscore", () => {
+    const event = { message: "rechazado cuit_20304050607 y dni_12345678" };
+
+    expect(scrubErrorReport(event).message).toBe("rechazado cuit_[redacted] y dni_[redacted]");
+  });
+
+  it("redacts a CUIT in an exception value", () => {
+    const event = {
+      exception: { values: [{ type: "ValidationError", value: "rejected CUIT 20304050607" }] },
+    };
+
+    expect(scrubErrorReport(event).exception?.values?.[0]?.value).toBe("rejected CUIT [redacted]");
+  });
+
+  it("keeps a UUID whose groups happen to be all digits", () => {
+    const eventId = "12345678-1234-4234-8234-203040506070";
+    const event = { message: `event ${eventId} rejected`, extra: { event_id: eventId } };
+
+    expect(scrubErrorReport(event)).toEqual(event);
+  });
+
+  it("keeps text that isn't a URL even when it contains a colon and a question mark", () => {
+    const event = { message: "core: is the printer connected? retrying" };
+
+    expect(scrubErrorReport(event).message).toBe("core: is the printer connected? retrying");
+  });
+});
+
+describe("identifiers stored as numbers", () => {
+  it("redacts a CUIT or DNI number in extra, contexts and tags", () => {
+    const event = {
+      extra: { cuit: 20304050607, dni: 12345678, short_dni: 1234567, customer: 20304050607 },
+      contexts: { customer: { number: 20304050607 } },
+      tags: { number: 12345678 },
+    };
+
+    expect(scrubErrorReport(event)).toEqual({
+      extra: {
+        cuit: "[redacted]",
+        dni: "[redacted]",
+        short_dni: "[redacted]",
+        customer: "[redacted]",
+      },
+      contexts: { customer: { number: "[redacted]" } },
+      tags: { number: "[redacted]" },
+    });
+  });
+
+  it("redacts a negative CUIT or DNI number", () => {
+    expect(scrubErrorReport({ extra: { value: -20304050607 } }).extra).toEqual({
+      value: "[redacted]",
+    });
+  });
+
+  it("redacts a CUIT or DNI number among a console breadcrumb's arguments", () => {
+    const breadcrumb = {
+      category: "console",
+      data: { logger: "console", arguments: ["rejected", 20304050607, 12345678] },
+    };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toEqual({
+      logger: "console",
+      arguments: ["rejected", "[redacted]", "[redacted]"],
+    });
+  });
+
+  it("redacts a CUIT or DNI number passed to console as a log parameter", () => {
+    const log = { message: "rejected", attributes: { "sentry.message.parameter.0": 20304050607 } };
+
+    expect(scrubErrorReportLog(log).attributes).toEqual({
+      "sentry.message.parameter.0": "[redacted]",
+    });
+  });
+
+  it("keeps the SDK's numeric device and app diagnostics while still scrubbing context strings", () => {
+    const contexts = {
+      device: {
+        memory_size: 17179869184,
+        free_memory: 12884901888,
+        processor_count: 12345678,
+        processor_frequency: 12345678,
+        screen_density: 12345678,
+      },
+      app: { app_memory: 52428800, free_memory: 10737418240 },
+      culture: { locale: "es-AR cliente 12345678" },
+    };
+
+    expect(scrubErrorReport({ contexts }).contexts).toEqual({
+      ...contexts,
+      culture: { locale: "es-AR cliente [redacted]" },
+    });
+  });
+
+  it("redacts an identifier placed under an SDK section name by anything but the SDK", () => {
+    const contexts = {
+      device: { memory_size: 17179869184, free_memory: "DNI 12345678", number: 20304050607 },
+    };
+
+    expect(scrubErrorReport({ contexts }).contexts).toEqual({
+      device: { memory_size: 17179869184, free_memory: "DNI [redacted]", number: "[redacted]" },
+    });
+  });
+
+  it("keeps a diagnostic field's number only inside the SDK's own context sections", () => {
+    const contexts = { customer: { memory_size: 20304050607 }, device: [20304050607] };
+
+    expect(scrubErrorReport({ contexts }).contexts).toEqual({
+      customer: { memory_size: "[redacted]" },
+      device: ["[redacted]"],
+    });
+  });
+
+  it("keeps the SDK's numeric device and app diagnostics among a log's attributes", () => {
+    const log = {
+      message: "core restarted",
+      attributes: {
+        "device.memory_size": 17179869184,
+        "app.app_memory": 12345678,
+        memory_size: 20304050607,
+        "sentry.message.parameter.0": 20304050607,
+      },
+    };
+
+    expect(scrubErrorReportLog(log).attributes).toEqual({
+      "device.memory_size": 17179869184,
+      "app.app_memory": 12345678,
+      memory_size: "[redacted]",
+      "sentry.message.parameter.0": "[redacted]",
+    });
+  });
+
+  it("keeps numbers that can't be a CUIT or DNI", () => {
+    const extra = {
+      status_code: 503,
+      attempt: 3,
+      six_digits: 123456,
+      nine_digits: 123456789,
+      twelve_digits: 123456789012,
+      timestamp_s: 1726920000,
+      ratio: 12345678.5,
+    };
+
+    expect(scrubErrorReport({ extra }).extra).toEqual(extra);
   });
 });

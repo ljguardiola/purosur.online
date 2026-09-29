@@ -1,11 +1,11 @@
+import {
+  scrubErrorReport,
+  scrubErrorReportBreadcrumb,
+  scrubErrorReportLog,
+} from "@purosur/contracts";
 import * as Sentry from "@sentry/electron/renderer";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import {
-  scrubSentryBreadcrumb,
-  scrubSentryEvent,
-  scrubSentryLog,
-} from "../shared/sentry-scrubbing";
 import "@purosur/ui/tokens.css";
 import type { PortEventSource } from "./platform/incoming-port";
 import { attachIncomingPort } from "./platform/incoming-port";
@@ -17,9 +17,9 @@ import { RenderFailureRecovery } from "./shell/render-failure-recovery";
 Sentry.init({
   enableLogs: true,
   integrations: [Sentry.consoleLoggingIntegration({ levels: ["info", "warn", "error"] })],
-  beforeSend: scrubSentryEvent,
-  beforeBreadcrumb: scrubSentryBreadcrumb,
-  beforeSendLog: scrubSentryLog,
+  beforeSend: scrubErrorReport,
+  beforeBreadcrumb: scrubErrorReportBreadcrumb,
+  beforeSendLog: scrubErrorReportLog,
 });
 
 // Adapts the DOM's `window` to the pure port-handoff module: real MessageEvents carry a `ports`

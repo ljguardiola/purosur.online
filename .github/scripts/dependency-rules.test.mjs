@@ -719,17 +719,19 @@ test("every cloud-only concept register-no-cloud-use-cases names exists in packa
   }
 });
 
-test("main-process-scope flags importing other packages and allows electron and Node builtins", async (t) => {
+test("main-process-scope flags importing other packages and allows electron, Node builtins and contracts' entry point", async (t) => {
   const root = await makeFixture(t, {
     "apps/pos/src/main/index.ts": [
       'import { Button } from "../../../../packages/ui/src/index";',
+      'import { scrub } from "../../../../packages/contracts/src/shared/scrub";',
       'import leftPad from "left-pad";',
       'import { ipc } from "../core/electron/ipc";',
       "export function run() {",
-      "  return [Button, leftPad, ipc];",
+      "  return [Button, scrub, leftPad, ipc];",
       "}",
     ].join("\n"),
     "packages/ui/src/index.ts": "export const Button = {};\n",
+    "packages/contracts/src/shared/scrub.ts": "export function scrub() {}\n",
     "apps/pos/src/core/electron/ipc.ts": "export const ipc = {};\n",
   });
 
@@ -737,8 +739,9 @@ test("main-process-scope flags importing other packages and allows electron and 
   const violations = violationsFor(report, "main-process-scope");
   const violationTargets = violations.map((violation) => violation.to);
 
-  assert.equal(violations.length, 3);
+  assert.equal(violations.length, 4);
   assert.equal(violationTargets.includes("packages/ui/src/index.ts"), true);
+  assert.equal(violationTargets.includes("packages/contracts/src/shared/scrub.ts"), true);
   assert.equal(violationTargets.includes("left-pad"), true);
   assert.equal(violationTargets.includes("apps/pos/src/core/electron/ipc.ts"), true);
 
@@ -748,11 +751,17 @@ test("main-process-scope flags importing other packages and allows electron and 
     [
       'import { app } from "electron";',
       'import { readFileSync } from "node:fs";',
+      'import { scrub } from "../../../../packages/contracts/src/index";',
       'import { createWindow } from "./window";',
       "export function run() {",
-      "  return [app, readFileSync, createWindow];",
+      "  return [app, readFileSync, scrub, createWindow];",
       "}",
     ].join("\n"),
+  );
+  await writeFixtureFile(
+    root,
+    "packages/contracts/src/index.ts",
+    'export { scrub } from "./shared/scrub";\n',
   );
   await writeFixtureFile(
     root,

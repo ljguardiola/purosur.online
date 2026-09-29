@@ -139,6 +139,30 @@
       }
     },
     {
+      "includes": ["apps/pos/src/main/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@purosur/contracts": {
+                    "message": "The register's main process may only import the error report scrubbers from packages/contracts.",
+                    "allowImportNames": [
+                      "scrubErrorReport",
+                      "scrubErrorReportBreadcrumb",
+                      "scrubErrorReportLog"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["apps/pos/src/renderer/**"],
       "linter": {
         "rules": {

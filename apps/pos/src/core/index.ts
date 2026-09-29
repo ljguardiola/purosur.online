@@ -1,12 +1,13 @@
-import { mainToCoreMessageSchema, rendererToCoreMessageSchema } from "@purosur/contracts";
+import {
+  mainToCoreMessageSchema,
+  rendererToCoreMessageSchema,
+  scrubErrorReport,
+  scrubErrorReportBreadcrumb,
+  scrubErrorReportLog,
+} from "@purosur/contracts";
 import * as Sentry from "@sentry/electron/utility";
 import { sentryEnvironmentFromCoreArguments } from "../shared/channel";
 import { CORE_READY_MESSAGE } from "../shared/core-readiness";
-import {
-  scrubSentryBreadcrumb,
-  scrubSentryEvent,
-  scrubSentryLog,
-} from "../shared/sentry-scrubbing";
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
 import { createRendererConnection } from "./renderer-connection";
 
@@ -18,9 +19,9 @@ if (sentryEnvironment) {
     environment: sentryEnvironment,
     enableLogs: true,
     integrations: [Sentry.consoleLoggingIntegration({ levels: ["info", "warn", "error"] })],
-    beforeSend: scrubSentryEvent,
-    beforeBreadcrumb: scrubSentryBreadcrumb,
-    beforeSendLog: scrubSentryLog,
+    beforeSend: scrubErrorReport,
+    beforeBreadcrumb: scrubErrorReportBreadcrumb,
+    beforeSendLog: scrubErrorReportLog,
   });
 }
 

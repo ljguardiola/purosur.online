@@ -1,14 +1,14 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import {
+  scrubErrorReport,
+  scrubErrorReportBreadcrumb,
+  scrubErrorReportLog,
+} from "@purosur/contracts";
 import * as Sentry from "@sentry/electron/main";
 import { app, BrowserWindow, dialog, MessageChannelMain, session, utilityProcess } from "electron";
 import { type ChannelSettings, coreArgumentsFor } from "../shared/channel";
-import {
-  scrubSentryBreadcrumb,
-  scrubSentryEvent,
-  scrubSentryLog,
-} from "../shared/sentry-scrubbing";
 import { loadChannelSettings } from "./channel-settings";
 import { buildContentSecurityPolicy } from "./content-security-policy";
 import { establishCoreConnection } from "./core-connection";
@@ -45,9 +45,9 @@ function initializeErrorReporting(settings: ChannelSettings): void {
       Sentry.childProcessIntegration({ events: CHILD_PROCESS_EVENT_REASONS }),
       Sentry.consoleLoggingIntegration({ levels: ["info", "warn", "error"] }),
     ],
-    beforeSend: scrubSentryEvent,
-    beforeBreadcrumb: scrubSentryBreadcrumb,
-    beforeSendLog: scrubSentryLog,
+    beforeSend: scrubErrorReport,
+    beforeBreadcrumb: scrubErrorReportBreadcrumb,
+    beforeSendLog: scrubErrorReportLog,
   });
 }
 

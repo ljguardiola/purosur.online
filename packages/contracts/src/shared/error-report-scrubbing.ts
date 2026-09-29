@@ -3,13 +3,49 @@ const REDACTED = "[redacted]";
 const SENSITIVE_KEY_PATTERN =
   /token|key|secret|password|authorization|cookie|credential|query|fragment/i;
 // Matched only at the start of a word, since these are short enough to appear inside an unrelated
-// word (`circuit`, `admin`).
-const SENSITIVE_KEY_WORD_PATTERN = /(?:^|_)(?:session|cuit|dni)/;
+// word (`circuit`, `midnight`).
+const SENSITIVE_KEY_WORD_PATTERN = /(?:^|_)(?:session|cuit|dni|documento)/;
 // Dropped entirely rather than redacted field-by-field: a request/response body can carry an
 // arbitrary business payload, which no key-based scrub can enumerate safely.
 const DROPPED_SECTIONS = new Set(["request", "response"]);
 
-const URL_PATTERN = /\b[a-zA-Z][a-zA-Z0-9+.-]*:\/\/[^\s"'<>]+/g;
+// Matched CUIT before DNI so a CUIT's digits are never left exposed as a shorter DNI. The
+// boundaries exclude a letter, hyphen or decimal point so a UUID or fractional number is left alone.
+const NOT_JOINED_BEFORE = String.raw`(?<![A-Za-z0-9-])(?<!\d\.)`;
+const NOT_JOINED_AFTER = String.raw`(?![A-Za-z0-9-])(?!\.\d)`;
+const CUIT_PATTERN = new RegExp(
+  `${NOT_JOINED_BEFORE}(?:\\d{2}-\\d{8}-\\d|\\d{11})${NOT_JOINED_AFTER}`,
+  "g",
+);
+const DNI_PATTERN = new RegExp(
+  `${NOT_JOINED_BEFORE}(?:\\d{1,2}\\.\\d{3}\\.\\d{3}|\\d{7,8})${NOT_JOINED_AFTER}`,
+  "g",
+);
+const IDENTIFIER_NUMBER_PATTERN = /^(?:\d{11}|\d{7,8})$/;
+
+// Sentry's own context integrations put these numeric diagnostics (memory sizes, CPU figures) in
+// these sections, easily 8-11 digits; only they keep their numbers, to avoid a false CUIT/DNI match.
+const SDK_CONTEXT_SECTIONS = new Set(["app", "device"]);
+const SDK_NUMERIC_DIAGNOSTICS = new Set([
+  "app_memory",
+  "free_memory",
+  "memory_size",
+  "processor_count",
+  "processor_frequency",
+  "screen_density",
+]);
+const NO_DIAGNOSTICS: ReadonlySet<string> = new Set();
+// The same diagnostics reach every log as "<section>.<field>" attributes.
+const SDK_LOG_ATTRIBUTE_DIAGNOSTICS: ReadonlySet<string> = new Set(
+  [...SDK_CONTEXT_SECTIONS].flatMap((section) =>
+    [...SDK_NUMERIC_DIAGNOSTICS].map((field) => `${section}.${field}`),
+  ),
+);
+
+// Starts only where a run of scheme characters starts: a start inside the run would rescan it to
+// its end each time, which is quadratic on a long dotted word.
+const URL_PATTERN = /(?<![a-zA-Z0-9+.-])[a-zA-Z0-9+.-]+:\/\/[^\s"'<>]+/g;
+const USERINFO_PATTERN = /^[^/]*@/;
 const BEARER_TOKEN_PATTERN = /\bBearer\s+[A-Za-z0-9\-_.]+/g;
 
 // Only a closing bracket/parenthesis/angle-bracket/quote/backtick is trusted as wrapping a path
@@ -17,12 +53,8 @@ const BEARER_TOKEN_PATTERN = /\bBearer\s+[A-Za-z0-9\-_.]+/g;
 const TRAILING_DELIMITER_PATTERN = /[\])>"'`]$/;
 
 function redactPathToken(token: string): string {
-  const slashIndex = token.indexOf("/");
-  if (slashIndex === -1) {
-    return token;
-  }
   const queryIndex = token.search(/[?#]/);
-  if (queryIndex === -1 || queryIndex < slashIndex) {
+  if (queryIndex === -1 || token.lastIndexOf("/", queryIndex) === -1) {
     return token;
   }
 
@@ -41,7 +73,7 @@ function toSnakeCase(key: string): string {
   return key
     .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_");
+    .replace(/[^a-z0-9]/g, "_");
 }
 
 function isSensitiveKey(key: string): boolean {
@@ -51,10 +83,7 @@ function isSensitiveKey(key: string): boolean {
 // A URL whose authority carries userinfo (`scheme://user:pass@host`) embeds a credential, as a
 // Postgres connection string does; the whole URL is redacted rather than only its query string.
 function redactUrl(url: string): string {
-  const schemeEnd = url.indexOf("://") + 3;
-  const authorityEnd = url.indexOf("/", schemeEnd);
-  const authority = authorityEnd === -1 ? url.slice(schemeEnd) : url.slice(schemeEnd, authorityEnd);
-  if (authority.includes("@")) {
+  if (USERINFO_PATTERN.test(url.slice(url.indexOf("://") + 3))) {
     return REDACTED;
   }
   const queryStart = url.search(/[?#]/);
@@ -65,7 +94,13 @@ function redactString(value: string): string {
   return value
     .replace(URL_PATTERN, redactUrl)
     .replace(/\S+/g, redactPathToken)
-    .replace(BEARER_TOKEN_PATTERN, REDACTED);
+    .replace(BEARER_TOKEN_PATTERN, REDACTED)
+    .replace(CUIT_PATTERN, REDACTED)
+    .replace(DNI_PATTERN, REDACTED);
+}
+
+function isIdentifierNumber(value: number): boolean {
+  return Number.isInteger(value) && IDENTIFIER_NUMBER_PATTERN.test(String(Math.abs(value)));
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -76,6 +111,9 @@ function redactValue(value: unknown): unknown {
   if (typeof value === "string") {
     return redactString(value);
   }
+  if (typeof value === "number" && isIdentifierNumber(value)) {
+    return REDACTED;
+  }
   if (Array.isArray(value)) {
     return value.map(redactValue);
   }
@@ -85,10 +123,19 @@ function redactValue(value: unknown): unknown {
   return value;
 }
 
-function redactRecord(record: Record<string, unknown>): Record<string, unknown> {
+function redactRecord(
+  record: Record<string, unknown>,
+  numericDiagnostics: ReadonlySet<string> = NO_DIAGNOSTICS,
+): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(record)) {
-    result[key] = isSensitiveKey(key) ? REDACTED : redactValue(value);
+    if (isSensitiveKey(key)) {
+      result[key] = REDACTED;
+    } else if (typeof value === "number" && numericDiagnostics.has(key)) {
+      result[key] = value;
+    } else {
+      result[key] = redactValue(value);
+    }
   }
   return result;
 }
@@ -99,7 +146,10 @@ function redactSections(sections: Record<string, unknown>): Record<string, unkno
     if (DROPPED_SECTIONS.has(name)) {
       continue;
     }
-    result[name] = redactValue(value);
+    result[name] =
+      isPlainObject(value) && SDK_CONTEXT_SECTIONS.has(name)
+        ? redactRecord(value, SDK_NUMERIC_DIAGNOSTICS)
+        : redactValue(value);
   }
   return result;
 }
@@ -123,6 +173,11 @@ interface EventLike {
   request?: unknown;
 }
 
+interface LogLike {
+  message?: string;
+  attributes?: Record<string, unknown>;
+}
+
 export function scrubErrorReport<E extends EventLike>(event: E): E {
   const { request: _request, ...rest } = event as EventLike & Record<string, unknown>;
 
@@ -142,11 +197,11 @@ export function scrubErrorReport<E extends EventLike>(event: E): E {
     extra: rest.extra ? redactRecord(rest.extra) : rest.extra,
     contexts: rest.contexts ? redactSections(rest.contexts) : rest.contexts,
     tags: rest.tags ? redactRecord(rest.tags) : rest.tags,
-    breadcrumbs: rest.breadcrumbs?.map(scrubBreadcrumb),
+    breadcrumbs: rest.breadcrumbs?.map(scrubErrorReportBreadcrumb),
   } as E;
 }
 
-function scrubBreadcrumb<B extends BreadcrumbLike>(breadcrumb: B): B {
+export function scrubErrorReportBreadcrumb<B extends BreadcrumbLike>(breadcrumb: B): B {
   const rest = breadcrumb as BreadcrumbLike & Record<string, unknown>;
 
   return {
@@ -154,4 +209,16 @@ function scrubBreadcrumb<B extends BreadcrumbLike>(breadcrumb: B): B {
     message: rest.message === undefined ? undefined : redactString(rest.message),
     data: rest.data ? redactRecord(rest.data) : rest.data,
   } as B;
+}
+
+export function scrubErrorReportLog<L extends LogLike>(log: L): L {
+  const rest = log as LogLike & Record<string, unknown>;
+
+  return {
+    ...rest,
+    message: rest.message === undefined ? undefined : redactString(rest.message),
+    attributes: rest.attributes
+      ? redactRecord(rest.attributes, SDK_LOG_ATTRIBUTE_DIAGNOSTICS)
+      : rest.attributes,
+  } as L;
 }

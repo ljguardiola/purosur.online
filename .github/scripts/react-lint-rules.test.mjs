@@ -209,6 +209,40 @@ for (const { name, specifiers } of UI_FORBIDDEN_PACKAGES) {
   }
 }
 
+const ERROR_REPORT_SCRUBBERS = [
+  "scrubErrorReport",
+  "scrubErrorReportBreadcrumb",
+  "scrubErrorReportLog",
+];
+
+test("apps/pos/src/main: importing the error report scrubbers from @purosur/contracts passes", () => {
+  const source = [
+    `import { ${ERROR_REPORT_SCRUBBERS.join(", ")} } from "@purosur/contracts";`,
+    "",
+    `export const used = [${ERROR_REPORT_SCRUBBERS.join(", ")}];`,
+    "",
+  ].join("\n");
+
+  const { exitCode, categories } = lint("apps/pos/src/main", source);
+
+  assert.deepEqual(categories, []);
+  assert.equal(exitCode, 0);
+});
+
+test("apps/pos/src/main: importing anything else from @purosur/contracts fails under verify's flags", () => {
+  const source = [
+    'import { rule, scrubErrorReport } from "@purosur/contracts";',
+    "",
+    "export const used = [rule, scrubErrorReport];",
+    "",
+  ].join("\n");
+
+  const { exitCode, categories } = lint("apps/pos/src/main", source);
+
+  assert.deepEqual(categories, ["lint/style/noRestrictedImports"]);
+  assert.notEqual(exitCode, 0);
+});
+
 const LAZY_ROUTE_COMPONENT_SOURCE =
   'import { lazyRouteComponent } from "@tanstack/react-router";\n\nexport const screen = lazyRouteComponent(() => import("./page"), "Page");\n';
 
