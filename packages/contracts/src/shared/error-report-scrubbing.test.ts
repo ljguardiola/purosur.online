@@ -438,6 +438,57 @@ describe("scrubErrorReportBreadcrumb", () => {
     });
   });
 
+  it("marks an error reached again through another error's field instead of following it", () => {
+    const inner = new Error("inner");
+    inner.stack = "Error: inner";
+    const outer = new Error("outer", { cause: inner });
+    outer.stack = "Error: outer";
+    Object.assign(inner, { outer, nested: { outer } });
+    const breadcrumb = { data: { error: outer } };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
+      error: {
+        name: "Error",
+        message: "outer",
+        stack: "Error: outer",
+        cause: {
+          outer: "[circular]",
+          nested: { outer: "[circular]" },
+          name: "Error",
+          message: "inner",
+          stack: "Error: inner",
+        },
+      },
+    });
+  });
+
+  it("sends a cause assigned as one of the error's fields through the same rules", () => {
+    const error = new Error("sync failed");
+    error.stack = "Error: sync failed";
+    error.cause = { status: 409, token: "abc123" };
+    const breadcrumb = { data: { error } };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
+      error: {
+        cause: { status: 409, token: "[redacted]" },
+        name: "Error",
+        message: "sync failed",
+        stack: "Error: sync failed",
+      },
+    });
+  });
+
+  it("keeps the same error readable each time it appears outside its own chain", () => {
+    const error = new Error("timeout");
+    error.stack = "Error: timeout";
+    const breadcrumb = { data: { arguments: [error, error] } };
+    const readable = { name: "Error", message: "timeout", stack: "Error: timeout" };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
+      arguments: [readable, readable],
+    });
+  });
+
   it("keeps a date as its ISO value", () => {
     const breadcrumb = { data: { at: new Date("2026-09-28T13:45:00.000Z") } };
 
