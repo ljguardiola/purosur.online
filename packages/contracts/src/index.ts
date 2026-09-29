@@ -81,6 +81,14 @@ export {
 } from "./pricing/price-list.js";
 export type { PriceSetBody } from "./pricing/price-set.js";
 export { priceSetBodySchema } from "./pricing/price-set.js";
+export type { CloudError, CloudErrorCode } from "./register/cloud-error.js";
+export {
+  cloudError,
+  cloudErrorSchema,
+  cloudErrorStatus,
+  isRetryableCloudError,
+  retryAfterSecondsOf,
+} from "./register/cloud-error.js";
 export type {
   CoreStatusMessage,
   MainToCoreMessage,
