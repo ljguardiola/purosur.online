@@ -3,8 +3,7 @@ import type {
   PublicKeyCredentialCreationOptionsJSON,
   RegistrationResponseJSON,
 } from "@simplewebauthn/browser";
-
-const ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
+import { retryAfterSeconds } from "../platform/retry-after-seconds";
 
 export type Passkey = {
   id: string;
@@ -42,14 +41,6 @@ export type RegisterPasskeyOutcome =
   | GatedActionErrorOutcome;
 
 export type RemovePasskeyOutcome = { kind: "ok" } | { kind: "not_found" } | GatedActionErrorOutcome;
-
-function retryAfterSeconds(response: Response): number {
-  const header = response.headers.get("Retry-After");
-  const seconds = header ? Number(header) : Number.NaN;
-  return Number.isFinite(seconds) && seconds > 0
-    ? seconds
-    : ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS;
-}
 
 function postJson(path: string, body?: unknown): Promise<Response> {
   return fetch(path, {

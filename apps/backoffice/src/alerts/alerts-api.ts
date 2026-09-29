@@ -1,6 +1,5 @@
 import type { AlertAudience, AlertKind, AlertLevel } from "@purosur/domain";
-
-const ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
+import { retryAfterSeconds } from "../platform/retry-after-seconds";
 
 export type { AlertKind, AlertLevel };
 
@@ -87,14 +86,6 @@ export type CloseAlertOutcome =
   | { kind: "unauthenticated" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
-
-function retryAfterSeconds(response: Response): number {
-  const header = response.headers.get("Retry-After");
-  const seconds = header ? Number(header) : Number.NaN;
-  return Number.isFinite(seconds) && seconds > 0
-    ? seconds
-    : ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS;
-}
 
 function alertSummaryFromWire(row: {
   id: string;

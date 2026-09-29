@@ -1,13 +1,12 @@
 import type { LabelSheetBody, ProductCreationBody, ProductEditBody } from "@purosur/contracts";
 import type { NetContentUnit } from "@purosur/domain";
+import { retryAfterSeconds } from "../platform/retry-after-seconds";
 
 export type ProductSaleUnit = "UNIT" | "KG";
 
 export type NetContent = { quantity: number; unit: NetContentUnit };
 
 export type ProductStatusFilter = "active" | "inactive" | "all";
-
-const ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
 
 export type ProductSummary = {
   id: string;
@@ -82,14 +81,6 @@ export type GenerateInternalBarcodeOutcome =
   | { kind: "unauthenticated" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
-
-function retryAfterSeconds(response: Response): number {
-  const header = response.headers.get("Retry-After");
-  const seconds = header ? Number(header) : Number.NaN;
-  return Number.isFinite(seconds) && seconds > 0
-    ? seconds
-    : ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS;
-}
 
 function postJson(path: string, body?: unknown): Promise<Response> {
   return fetch(path, {
