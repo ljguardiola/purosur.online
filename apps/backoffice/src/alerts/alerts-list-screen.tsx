@@ -30,6 +30,7 @@ const LIST_KIND_LABELS = {
   backoffice_recovery_requested: "Recuperación de acceso",
   user_email_changed: "Correo",
   backoffice_sign_in_lockout: "Bloqueo de ingreso",
+  user_access_increased: "Acceso ampliado",
 } satisfies Record<AlertKind, string>;
 
 const LIST_KIND_DESCRIPTIONS = {
@@ -37,6 +38,7 @@ const LIST_KIND_DESCRIPTIONS = {
   backoffice_recovery_requested: "Se pidió el enlace de acceso",
   user_email_changed: "Se cambió una dirección de correo",
   backoffice_sign_in_lockout: "Demasiados intentos fallidos de ingreso",
+  user_access_increased: "Se amplió el acceso de un usuario",
 } satisfies Record<AlertKind, string>;
 
 export type AlertsListScreenProps = {

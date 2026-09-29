@@ -625,3 +625,142 @@ test("navigates to Mi cuenta when closing the alert comes back forbidden", async
   await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
   window.history.pushState(null, "", "/");
 });
+
+test("shows the description of a role change that gives more permissions", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "user_access_increased",
+        level: "critical",
+        detail: {
+          cause: "role_assigned",
+          previousRole: { name: "Cajera", isAdministrator: false },
+          newRole: { name: "Encargada", isAdministrator: false },
+          actorId: "admin-1",
+          actorName: "Ada",
+        },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText("Se amplió el acceso de un usuario")).toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "El Administrador Ada cambió el rol de Lucía Pérez de «Cajera» a «Encargada», que le da más permisos.",
+      ),
+    )
+    .toBeVisible();
+});
+
+test("shows the Administrator role by its name when someone is made Administrator", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "user_access_increased",
+        level: "critical",
+        detail: {
+          cause: "role_assigned",
+          previousRole: { name: "Cajera", isAdministrator: false },
+          newRole: { name: null, isAdministrator: true },
+          actorId: "admin-1",
+          actorName: "Ada",
+        },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(
+      screen.getByText(
+        "El Administrador Ada cambió el rol de Lucía Pérez de «Cajera» a «Administrador», que le da más permisos.",
+      ),
+    )
+    .toBeVisible();
+});
+
+test("shows each permission added to the role the user holds", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "user_access_increased",
+        level: "critical",
+        detail: {
+          cause: "role_permissions_added",
+          roleName: "Cajera",
+          addedPermissionKeys: ["view_sales_history", "configure_branch"],
+          actorId: "admin-1",
+          actorName: "Ada",
+        },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(
+      screen.getByText(
+        "El Administrador Ada agregó los permisos «Consultar el historial de ventas» y «Configurar la sucursal» al rol «Cajera», que tiene Lucía Pérez.",
+      ),
+    )
+    .toBeVisible();
+});
+
+test("shows a single permission added to the role the user holds", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "user_access_increased",
+        level: "critical",
+        detail: {
+          cause: "role_permissions_added",
+          roleName: "Cajera",
+          addedPermissionKeys: ["configure_branch"],
+          actorId: "admin-1",
+          actorName: "Ada",
+        },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(
+      screen.getByText(
+        "El Administrador Ada agregó el permiso «Configurar la sucursal» al rol «Cajera», que tiene Lucía Pérez.",
+      ),
+    )
+    .toBeVisible();
+});
+
+test("never shows an increase of access without the Administrator's name", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "user_access_increased",
+        level: "critical",
+        detail: {
+          cause: "role_permissions_added",
+          roleName: "Cajera",
+          addedPermissionKeys: ["configure_branch"],
+        },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+  await expect.element(screen.getByText("Se amplió el acceso de un usuario")).toBeVisible();
+
+  expect(screen.getByText(/Administrador/).query()).toBeNull();
+});
