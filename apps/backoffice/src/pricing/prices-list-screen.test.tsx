@@ -1373,13 +1373,13 @@ test.each([
     reviewedAt: new Date(2026, 8, 24, 23, 0),
     viewedAt: new Date(2026, 8, 25, 8, 0),
     cell: "Hace 1 día",
-    eyebrow: "REVISADO HACE 1 DÍA",
+    eyebrow: "Revisado hace 1 día",
   },
   {
     reviewedAt: new Date(2026, 8, 25, 0, 10),
     viewedAt: new Date(2026, 8, 25, 23, 50),
     cell: "Hoy",
-    eyebrow: "REVISADO HOY",
+    eyebrow: "Revisado hoy",
   },
 ])(
   "the review age counts local calendar days, so one viewed at $viewedAt reads $cell",
@@ -1511,18 +1511,18 @@ test("the modal's review age counts against the time the modal was opened", asyn
   const screen = await render(screenFor(() => current));
   await userEvent.click(screen.getByRole("button", { name: "Cambiar el precio de Arroz" }));
   const dialog = screen.getByRole("dialog");
-  await expect.element(dialog.getByText("REVISADO HOY")).toBeVisible();
+  await expect.element(dialog.getByText("Revisado hoy")).toBeVisible();
 
   current = new Date(2026, 8, 26, 12, 0);
   await screen.rerender(screenFor(() => current));
-  expect(dialog.getByText("REVISADO HOY").query()).not.toBeNull();
+  expect(dialog.getByText("Revisado hoy").query()).not.toBeNull();
 
   await userEvent.click(dialog.getByLabelText("Precio de venta por kilo"));
   await userEvent.keyboard("{Escape}");
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await userEvent.click(screen.getByRole("button", { name: "Cambiar el precio de Arroz" }));
 
-  await expect.element(screen.getByRole("dialog").getByText("REVISADO HACE 1 DÍA")).toBeVisible();
+  await expect.element(screen.getByRole("dialog").getByText("Revisado hace 1 día")).toBeVisible();
   expect(services.fetchPrices).toHaveBeenCalledTimes(1);
 });
 
@@ -1837,12 +1837,12 @@ test("a price reviewed earlier today is announced as reviewed today even with a 
   );
   await userEvent.click(screen.getByRole("button", { name: "Cambiar el precio de Arroz" }));
 
-  await expect.element(screen.getByRole("dialog").getByText("REVISADO HOY")).toBeVisible();
+  await expect.element(screen.getByRole("dialog").getByText("Revisado hoy")).toBeVisible();
 });
 
 test.each([
-  { pending: false, eyebrow: "REVISADO HACE 30 DÍAS" },
-  { pending: true, eyebrow: "SIN REVISAR HACE 30 DÍAS" },
+  { pending: false, eyebrow: "Revisado hace 30 días" },
+  { pending: true, eyebrow: "Sin revisar hace 30 días" },
 ])(
   "the modal calls a price overdue exactly when the cloud marks it pending: $eyebrow",
   async ({ pending, eyebrow }) => {

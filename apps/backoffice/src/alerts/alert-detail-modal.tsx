@@ -329,7 +329,7 @@ export function AlertDetailModal({
       width="standard"
       tone={alert ? MODAL_TONE[alert.level] : "info"}
       icon={alertIcon(alert?.kind ?? "")}
-      context="ALERTA DE SEGURIDAD"
+      context="Alerta de seguridad"
       title={alert ? alertTitle(alert) : "Alertas"}
       closable={!submitting}
       footer={
