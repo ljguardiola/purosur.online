@@ -580,7 +580,7 @@ test("shows a notice, and keeps the alert open, when closing is rate limited or 
   expect(onClosed).not.toHaveBeenCalled();
 });
 
-test("ends the session when the alert read or the close comes back unauthenticated", async () => {
+test("ends the session when the alert read comes back unauthenticated", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue({ kind: "unauthenticated" });
   const onSessionEnded = vi.fn();
@@ -603,7 +603,17 @@ test("ends the session when closing the alert comes back unauthenticated", async
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when the alert read or the close comes back forbidden", async () => {
+test("navigates to Mi cuenta when the alert read comes back forbidden", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue({ kind: "forbidden" });
+
+  await renderModal(services);
+
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  window.history.pushState(null, "", "/");
+});
+
+test("navigates to Mi cuenta when closing the alert comes back forbidden", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(ok(baseDetail()));
   vi.mocked(services.closeAlert).mockResolvedValue({ kind: "forbidden" });
