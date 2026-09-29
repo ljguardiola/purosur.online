@@ -242,13 +242,20 @@ test("dismisses through its close button", async () => {
   expect(onDismiss).toHaveBeenCalledTimes(1);
 });
 
-function DismissedByItsOwner({ onDismiss }: { onDismiss: () => void }) {
+function DismissedByItsOwner({
+  onDismiss,
+  expiresAfterSeconds,
+}: {
+  onDismiss: () => void;
+  expiresAfterSeconds?: number;
+}) {
   const [shown, setShown] = useState(true);
   return (
     <>
       <button type="button">Elsewhere</button>
       {shown
         ? notification({
+            ...(expiresAfterSeconds === undefined ? {} : { expiresAfterSeconds }),
             onDismiss: () => {
               onDismiss();
               setShown(false);
@@ -272,6 +279,24 @@ test("closed from the keyboard, gives focus back to where it was before focus en
 
   expect(onDismiss).toHaveBeenCalledTimes(1);
   expect(document.activeElement).toBe(elsewhere);
+});
+
+test("leaving on its own while focus is inside, gives focus back to where it was before focus entered it", async () => {
+  const onDismiss = vi.fn();
+  await whileTimersFrozen(async () => {
+    const screen = await render(
+      <DismissedByItsOwner expiresAfterSeconds={12} onDismiss={onDismiss} />,
+    );
+    const elsewhere = screen.getByRole("button", { name: "Elsewhere" }).element();
+
+    await userEvent.tab();
+    await userEvent.tab();
+    expect(document.activeElement?.getAttribute("aria-label")).toBe("Cerrar");
+    vi.advanceTimersByTime(12_000);
+
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).toBe(elsewhere);
+  });
 });
 
 test("does not take focus when it appears", async () => {

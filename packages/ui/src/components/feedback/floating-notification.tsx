@@ -29,7 +29,6 @@ export function FloatingNotification({
   const lifetimeSeconds = expiresAfterSeconds ?? defaultLifetimeSeconds[card.tone];
   // A given lifetime is when the notice stops being true, so reading it cannot extend it.
   const paused = expiresAfterSeconds === undefined && (hovered || focused);
-  const dismiss = useEffectEvent(onDismiss);
   const focusBeforeEntering = useRef<HTMLElement | null>(null);
 
   const close = () => {
@@ -37,6 +36,7 @@ export function FloatingNotification({
     if (focused && returnTo?.isConnected) returnTo.focus();
     onDismiss();
   };
+  const dismiss = useEffectEvent(close);
 
   useEffect(() => {
     if (lifetimeSeconds === undefined || paused) return;
