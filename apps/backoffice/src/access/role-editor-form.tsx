@@ -167,7 +167,7 @@ function PermissionRow({
   return (
     <div className="flex items-center gap-3 border-border border-b px-4 py-3 last:border-b-0">
       <div className="min-w-0 flex-1">
-        <Checkbox isSelected={checked} onChange={onToggle}>
+        <Checkbox checked={checked} onCheckedChange={onToggle}>
           {PERMISSION_LABELS[definition.key]}
         </Checkbox>
       </div>
@@ -218,7 +218,7 @@ function AlertsAreaList({
         value={alertsView}
         onChange={changeAlertsView}
       />
-      <Checkbox isSelected={dismissChecked} onChange={toggleDismiss}>
+      <Checkbox checked={dismissChecked} onCheckedChange={toggleDismiss}>
         Cerrar alertas a mano
       </Checkbox>
     </div>
@@ -298,7 +298,7 @@ export function RoleEditorForm({
           value={name}
           onChange={onNameChange}
           required
-          {...(nameError ? { invalid: true, errorMessage: nameError } : {})}
+          errorMessage={nameError}
         />
       </div>
       <div className="flex min-h-0 flex-1">

@@ -79,7 +79,7 @@ type FormNotice =
   | { kind: "reloadFailed" };
 
 type RoleSaveConfirmationModalProps = {
-  isOpen: boolean;
+  open: boolean;
   roleName: string;
   assignedUsers: AssignedUser[];
   submitting: boolean;
@@ -88,7 +88,7 @@ type RoleSaveConfirmationModalProps = {
 };
 
 function RoleSaveConfirmationModal({
-  isOpen,
+  open,
   roleName,
   assignedUsers,
   submitting,
@@ -97,7 +97,7 @@ function RoleSaveConfirmationModal({
 }: RoleSaveConfirmationModalProps) {
   return (
     <Modal
-      isOpen={isOpen}
+      open={open}
       onOpenChange={(open) => {
         if (!open) {
           onBack();
@@ -116,7 +116,7 @@ function RoleSaveConfirmationModal({
             size="large"
             icon={<ArrowLeft />}
             fullWidth
-            isDisabled={submitting}
+            disabled={submitting}
             onPress={onBack}
           >
             Volver
@@ -126,7 +126,7 @@ function RoleSaveConfirmationModal({
             size="large"
             icon={<Check />}
             fullWidth
-            isDisabled={submitting}
+            disabled={submitting}
             onPress={onConfirm}
           >
             Guardar los cambios
@@ -171,7 +171,7 @@ export function RoleEditorModal({
     authorizeSession,
     startAuthentication,
   } = services ?? defaultRoleEditorModalServices;
-  const isOpen = request !== null;
+  const open = request !== null;
   const mode = request?.kind ?? "new";
 
   const [name, setName] = useState("");
@@ -410,7 +410,7 @@ export function RoleEditorModal({
   return (
     <>
       <Modal
-        isOpen={isOpen}
+        open={open}
         onOpenChange={(open) => {
           if (!open && !submitting) {
             onClose();
@@ -433,13 +433,13 @@ export function RoleEditorModal({
               })}
             </p>
             <div className="flex items-center gap-3">
-              <Button variant="secondary" icon={<X />} isDisabled={submitting} onPress={onClose}>
+              <Button variant="secondary" icon={<X />} disabled={submitting} onPress={onClose}>
                 Cancelar
               </Button>
               <Button
                 variant="primary"
                 icon={<Check />}
-                isDisabled={!canSubmit}
+                disabled={!canSubmit}
                 onPress={() => void handleSubmit()}
               >
                 {saveLabel}
@@ -456,7 +456,7 @@ export function RoleEditorModal({
                   tone="error"
                   icon={<TriangleAlert />}
                   title="No se pudo guardar el rol"
-                  detail="Probá de nuevo."
+                  description="Probá de nuevo."
                 />
               )}
               {notice?.kind === "rateLimited" && (
@@ -464,7 +464,7 @@ export function RoleEditorModal({
                   tone="error"
                   icon={<ShieldX />}
                   title="Demasiadas solicitudes"
-                  detail={retryAfterDetail(notice.retryAfterSeconds)}
+                  description={retryAfterDetail(notice.retryAfterSeconds)}
                 />
               )}
               {notice?.kind === "staleVersion" && (
@@ -472,7 +472,7 @@ export function RoleEditorModal({
                   tone="error"
                   icon={<TriangleAlert />}
                   title="Este rol cambió mientras lo editabas"
-                  detail="Recargá sus datos y volvé a hacer el cambio."
+                  description="Recargá sus datos y volvé a hacer el cambio."
                 />
               )}
               {notice?.kind === "reloadFailed" && (
@@ -480,14 +480,14 @@ export function RoleEditorModal({
                   tone="error"
                   icon={<TriangleAlert />}
                   title="No se pudieron recargar los datos"
-                  detail="Probá de nuevo."
+                  description="Probá de nuevo."
                 />
               )}
               {offersReload ? (
                 <Button
                   variant="secondary"
                   icon={<RotateCcw />}
-                  isDisabled={submitting}
+                  disabled={submitting}
                   onPress={() => void handleReload()}
                 >
                   Recargar
@@ -503,7 +503,7 @@ export function RoleEditorModal({
                     tone="error"
                     icon={<TriangleAlert />}
                     title="No pudimos abrir este rol"
-                    detail="Probá de nuevo en unos minutos."
+                    description="Probá de nuevo en unos minutos."
                   />
                   <Button
                     variant="secondary"
@@ -519,7 +519,7 @@ export function RoleEditorModal({
                     tone="error"
                     icon={<ShieldX />}
                     title="Demasiadas solicitudes"
-                    detail={retryAfterDetail(loadState.retryAfterSeconds)}
+                    description={retryAfterDetail(loadState.retryAfterSeconds)}
                   />
                   <Button
                     variant="secondary"
@@ -552,7 +552,7 @@ export function RoleEditorModal({
         </div>
       </Modal>
       <RoleSaveConfirmationModal
-        isOpen={confirmingSave}
+        open={confirmingSave}
         roleName={loadState.kind === "loaded" ? roleDisplayName(loadState.role) : ""}
         assignedUsers={loadState.kind === "loaded" ? loadState.role.assignedUsers : []}
         submitting={submitting}

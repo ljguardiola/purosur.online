@@ -7,9 +7,9 @@ import {
   plural,
   SearchField,
   StatusIndicator,
-  type StatusIndicatorTone,
   Table,
   TableCellText,
+  type Tone,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
 import { Bell, Eye, Search, ShieldX, TriangleAlert } from "lucide-react";
@@ -60,7 +60,7 @@ const SEARCH_DELAY_MS = 300;
 type LevelFilter = "all" | AlertLevel;
 type StatusFilter = "open" | "closed";
 
-const LEVEL_TONE: Record<AlertLevel, StatusIndicatorTone> = {
+const LEVEL_TONE: Record<AlertLevel, Tone> = {
   critical: "error",
   warning: "warning",
   informational: "info",
@@ -195,34 +195,34 @@ export function AlertsListScreen({
   const columns = [
     {
       key: "level",
-      title: "Nivel",
+      header: "Nivel",
       render: (item: AlertSummary) => (
         <StatusIndicator tone={LEVEL_TONE[item.level]}>{levelLabel(item.level)}</StatusIndicator>
       ),
     },
     {
       key: "alert",
-      title: "Alerta",
+      header: "Alerta",
       render: (item: AlertSummary) => (
-        <TableCellText detail={listKindDescription(item.kind)}>
+        <TableCellText description={listKindDescription(item.kind)}>
           {listKindLabel(item.kind)}
         </TableCellText>
       ),
     },
     {
       key: "scope",
-      title: "Alcance",
+      header: "Alcance",
       render: (item: AlertSummary) => item.scopeDisplay ?? "—",
     },
     {
       key: "openedAt",
-      title: "Abierta",
+      header: "Abierta",
       render: (item: AlertSummary) => alertDateTime(new Date(item.openedAt)),
     },
     {
       key: "actions",
       kind: "actions",
-      srLabel: "Acciones de la alerta",
+      header: "Acciones de la alerta",
       actions: [
         (item: AlertSummary) => ({
           icon: <Eye />,
@@ -261,7 +261,7 @@ export function AlertsListScreen({
               tone="error"
               icon={<TriangleAlert />}
               title="No pudimos abrir las alertas"
-              detail="Probá de nuevo en unos minutos."
+              description="Probá de nuevo en unos minutos."
             />
             <Button variant="secondary" onPress={() => void load()}>
               Reintentar
@@ -274,7 +274,7 @@ export function AlertsListScreen({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(list.retryAfterSeconds)}
+              description={retryAfterDetail(list.retryAfterSeconds)}
             />
             <Button variant="secondary" onPress={() => void load()}>
               Reintentar
@@ -286,7 +286,6 @@ export function AlertsListScreen({
             <div className="flex flex-wrap items-center gap-3">
               <div className="w-105">
                 <SearchField
-                  variant="backoffice"
                   value={search}
                   onChange={setSearch}
                   placeholder="Buscar una alerta"
@@ -322,14 +321,14 @@ export function AlertsListScreen({
                   ? {
                       icon: <Search />,
                       title: "No encontramos alertas",
-                      detail: "Probá cambiar la búsqueda o los filtros.",
-                      tone: "filtered",
+                      description: "Probá cambiar la búsqueda o los filtros.",
+                      variant: "filtered",
                     }
                   : {
                       icon: <Bell />,
                       title: "Sin alertas abiertas",
-                      detail: "Cuando algo necesite atención, aparece acá.",
-                      tone: "blank",
+                      description: "Cuando algo necesite atención, aparece acá.",
+                      variant: "blank",
                     }
               }
               footer={

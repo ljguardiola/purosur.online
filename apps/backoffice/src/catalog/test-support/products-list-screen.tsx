@@ -1,3 +1,4 @@
+import { FieldSizeProvider } from "@purosur/ui";
 import { expect, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../../shell/test-support/render-with-router";
@@ -97,14 +98,16 @@ export async function renderScreen(
 ) {
   await page.viewport(1280, 900);
   return render(
-    <main>
-      <ProductsListScreen
-        services={services}
-        onSessionEnded={onSessionEnded}
-        filters={filters}
-        onFiltersChange={onFiltersChange}
-      />
-    </main>,
+    <FieldSizeProvider size="backoffice">
+      <main>
+        <ProductsListScreen
+          services={services}
+          onSessionEnded={onSessionEnded}
+          filters={filters}
+          onFiltersChange={onFiltersChange}
+        />
+      </main>
+    </FieldSizeProvider>,
   );
 }
 
@@ -144,13 +147,15 @@ export async function settleLateResponse(
   services: ProductsListScreenServices,
 ): Promise<void> {
   await screen.rerender(
-    <main>
-      <ProductsListScreen
-        services={services}
-        onSessionEnded={() => {}}
-        filters={productsListFilters.parse({})}
-        onFiltersChange={() => {}}
-      />
-    </main>,
+    <FieldSizeProvider size="backoffice">
+      <main>
+        <ProductsListScreen
+          services={services}
+          onSessionEnded={() => {}}
+          filters={productsListFilters.parse({})}
+          onFiltersChange={() => {}}
+        />
+      </main>
+    </FieldSizeProvider>,
   );
 }

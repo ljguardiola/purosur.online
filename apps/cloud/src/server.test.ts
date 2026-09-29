@@ -281,6 +281,7 @@ describe("startServer", () => {
     expect(initSentry).toHaveBeenCalledWith({
       dsn: "https://public@sentry.example/1",
       environment: "staging",
+      release: "sha123",
     });
     expect(buildApp).toHaveBeenCalledWith({
       version: "sha123",
@@ -289,6 +290,26 @@ describe("startServer", () => {
     });
     expect(listen).toHaveBeenCalledWith({ port: 4000, host: "0.0.0.0" });
     expect(app).toBe(fakeApp);
+  });
+
+  it("tags the cloud's error reports with the same version the app serves when APP_VERSION is empty", async () => {
+    const listen = vi.fn().mockResolvedValue(undefined);
+    const fakeApp = { listen } as unknown as ReturnType<typeof import("./app.js").buildApp>;
+    const initSentry = vi.fn();
+    const buildApp = vi.fn().mockReturnValue(fakeApp);
+
+    await startServer(
+      {
+        APP_VERSION: "",
+        SENTRY_DSN: "https://public@sentry.example/1",
+        SENTRY_ENVIRONMENT: "staging",
+        EDGE_ORIGIN_SECRET: "edge-secret",
+      },
+      { initSentry, buildApp },
+    );
+
+    expect(buildApp).toHaveBeenCalledWith(expect.objectContaining({ version: "unknown" }));
+    expect(initSentry).toHaveBeenCalledWith(expect.objectContaining({ release: "unknown" }));
   });
 
   it("gives the app the backoffice's error reporting when its DSN is configured", async () => {

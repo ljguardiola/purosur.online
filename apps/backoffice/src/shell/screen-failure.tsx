@@ -95,7 +95,7 @@ export function ScreenFailure({ error }: ErrorComponentProps) {
       <InlineNotice
         tone="error"
         icon={<TriangleAlert />}
-        detail={
+        description={
           offlineOnRetry
             ? "Revisá la conexión a internet y probá de nuevo."
             : "Probá de nuevo en unos minutos."

@@ -4,7 +4,7 @@ import {
   formatDate,
   InlineNotice,
   Modal,
-  type ModalTone,
+  type NoticeTone,
   plural,
   StatusIndicator,
 } from "@purosur/ui";
@@ -94,7 +94,7 @@ const LEVEL_TONE: Record<AlertLevel, "error" | "warning" | "info"> = {
   informational: "info",
 };
 
-const MODAL_TONE: Record<AlertLevel, ModalTone> = {
+const MODAL_TONE: Record<AlertLevel, NoticeTone> = {
   critical: "error",
   warning: "warning",
   informational: "info",
@@ -320,7 +320,7 @@ export function AlertDetailModal({
 
   return (
     <Modal
-      isOpen={alertId !== null}
+      open={alertId !== null}
       onOpenChange={(open) => {
         if (!open && !submitting) {
           onClose();
@@ -338,7 +338,7 @@ export function AlertDetailModal({
             variant="secondary"
             size="large"
             icon={<ArrowLeft />}
-            isDisabled={submitting}
+            disabled={submitting}
             onPress={onClose}
           >
             Volver
@@ -349,7 +349,7 @@ export function AlertDetailModal({
               size="large"
               icon={<Check />}
               fullWidth
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={() => void handleCloseAlert()}
             >
               Cerrar la alerta
@@ -364,7 +364,7 @@ export function AlertDetailModal({
             tone="error"
             icon={<TriangleAlert />}
             title="No se pudo cerrar la alerta"
-            detail="Probá de nuevo."
+            description="Probá de nuevo."
           />
         )}
         {notice?.kind === "alreadyClosed" && (
@@ -372,7 +372,7 @@ export function AlertDetailModal({
             tone="error"
             icon={<TriangleAlert />}
             title="Esta alerta ya estaba cerrada"
-            detail="Alguien más la cerró primero."
+            description="Alguien más la cerró primero."
           />
         )}
         {notice?.kind === "rateLimited" && (
@@ -380,7 +380,7 @@ export function AlertDetailModal({
             tone="error"
             icon={<ShieldX />}
             title="Demasiadas solicitudes"
-            detail={retryAfterDetail(notice.retryAfterSeconds)}
+            description={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
         {loadState.kind === "loading" && <p role="status">Cargando la alerta…</p>}
@@ -392,7 +392,7 @@ export function AlertDetailModal({
             tone="error"
             icon={<TriangleAlert />}
             title="No pudimos abrir la alerta"
-            detail="Probá de nuevo en unos minutos."
+            description="Probá de nuevo en unos minutos."
           />
         )}
         {loadState.kind === "rate_limited" && (
@@ -400,7 +400,7 @@ export function AlertDetailModal({
             tone="error"
             icon={<ShieldX />}
             title="Demasiadas solicitudes"
-            detail={retryAfterDetail(loadState.retryAfterSeconds)}
+            description={retryAfterDetail(loadState.retryAfterSeconds)}
           />
         )}
         {alertId !== null &&

@@ -52,11 +52,11 @@ function readToken(): string | null {
 
 function TokenErrorNotice({
   title,
-  detail,
+  description,
   offerNewLink,
 }: {
   title: string;
-  detail?: string;
+  description?: string;
   offerNewLink: boolean;
 }) {
   return (
@@ -65,7 +65,7 @@ function TokenErrorNotice({
         tone="error"
         icon={<TriangleAlert />}
         title={title}
-        {...(detail ? { detail } : {})}
+        {...(description ? { description } : {})}
       />
       {offerNewLink ? (
         <AccessFooterLink
@@ -212,7 +212,7 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps) 
         <AccessHeader heading="Registrá una passkey nueva" />
         <TokenErrorNotice
           title="Este enlace no es válido"
-          detail="Revisá que el enlace esté completo."
+          description="Revisá que el enlace esté completo."
           offerNewLink
         />
       </AccessLayout>
@@ -225,7 +225,7 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps) 
         <AccessHeader heading="Registrá una passkey nueva" />
         <TokenErrorNotice
           title="Este enlace ya no se puede usar"
-          detail="Ya se usó o se pidió uno más nuevo."
+          description="Ya se usó o se pidió uno más nuevo."
           offerNewLink
         />
       </AccessLayout>
@@ -238,7 +238,7 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps) 
         <AccessHeader heading="Registrá una passkey nueva" />
         <TokenErrorNotice
           title="Este enlace venció"
-          detail="Los enlaces valen 15 minutos."
+          description="Los enlaces valen 15 minutos."
           offerNewLink
         />
       </AccessLayout>
@@ -253,7 +253,7 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps) 
           tone="error"
           icon={<ShieldX />}
           title="Demasiados intentos desde esta conexión"
-          detail={retryAfterDetail(phase.retryAfterSeconds)}
+          description={retryAfterDetail(phase.retryAfterSeconds)}
         />
       </AccessLayout>
     );
@@ -267,7 +267,7 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps) 
           tone="error"
           icon={<TriangleAlert />}
           title="No pudimos abrir el registro"
-          detail="Probá de nuevo en unos minutos."
+          description="Probá de nuevo en unos minutos."
         />
         <Button variant="secondary" onPress={() => void load()}>
           Reintentar
@@ -284,7 +284,7 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps) 
           tone="info"
           icon={<ShieldCheck />}
           title="Se cerraron las sesiones abiertas de tu cuenta"
-          detail="Si alguien más estaba adentro con tu cuenta, ya no lo está."
+          description="Si alguien más estaba adentro con tu cuenta, ya no lo está."
         />
         <AccessFooterLink to="/sign-in" icon={<ArrowLeft />} label="Ir a ingresar" />
       </AccessLayout>
@@ -303,7 +303,7 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps) 
           tone="error"
           icon={<TriangleAlert />}
           title="No se pudo registrar la passkey"
-          detail="Podés volver a intentarlo con este mismo enlace."
+          description="Podés volver a intentarlo con este mismo enlace."
         />
       ) : null}
       <TextField
@@ -316,16 +316,16 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps) 
             setNameError(validatePasskeyName(value));
           }
         }}
-        helperText="Por ejemplo, Notebook del local."
+        description="Por ejemplo, Notebook del local."
         required
-        {...(nameError ? { invalid: true, errorMessage: nameError } : {})}
+        errorMessage={nameError}
       />
       <Button
         variant="primary"
         size="large"
         fullWidth
         icon={<KeyRound />}
-        isDisabled={phase.submitting}
+        disabled={phase.submitting}
         onPress={() => void handleRegister(phase)}
       >
         Registrar la passkey

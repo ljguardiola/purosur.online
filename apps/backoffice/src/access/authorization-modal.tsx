@@ -25,7 +25,7 @@ type ModalNotice = { kind: "attemptFailed" } | { kind: "rateLimited"; retryAfter
 type Authorizable = { kind: string };
 
 type AuthorizationModalProps = {
-  isOpen: boolean;
+  open: boolean;
   actionName: string;
   notice: ModalNotice | null;
   submitting: boolean;
@@ -34,7 +34,7 @@ type AuthorizationModalProps = {
 };
 
 function AuthorizationModal({
-  isOpen,
+  open,
   actionName,
   notice,
   submitting,
@@ -43,7 +43,7 @@ function AuthorizationModal({
 }: AuthorizationModalProps) {
   return (
     <Modal
-      isOpen={isOpen}
+      open={open}
       onOpenChange={(open) => {
         if (!open) {
           onCancel();
@@ -61,7 +61,7 @@ function AuthorizationModal({
             size="large"
             icon={<X />}
             fullWidth
-            isDisabled={submitting}
+            disabled={submitting}
             onPress={onCancel}
           >
             Cancelar
@@ -71,7 +71,7 @@ function AuthorizationModal({
             size="large"
             icon={<Fingerprint />}
             fullWidth
-            isDisabled={submitting}
+            disabled={submitting}
             onPress={onConfirm}
           >
             Usar mi passkey
@@ -88,7 +88,7 @@ function AuthorizationModal({
             tone="error"
             icon={<TriangleAlert />}
             title="No se pudo confirmar con tu passkey"
-            detail="Probá de nuevo."
+            description="Probá de nuevo."
           />
         )}
         {notice?.kind === "rateLimited" && (
@@ -96,7 +96,7 @@ function AuthorizationModal({
             tone="error"
             icon={<ShieldX />}
             title="Demasiadas solicitudes"
-            detail={retryAfterDetail(notice.retryAfterSeconds)}
+            description={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
       </div>
@@ -115,7 +115,7 @@ export function useAuthorization<T extends Authorizable>({
 }): { run: (attempt: () => Promise<T>) => Promise<T | { kind: "cancelled" }>; modal: ReactNode } {
   const { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication } =
     services ?? defaultAuthorizationServices;
-  const [isOpen, setIsOpen] = useState(false);
+  const [open, setOpen] = useState(false);
   const [notice, setNotice] = useState<ModalNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const pendingRef = useRef<(() => Promise<T>) | null>(null);
@@ -130,7 +130,7 @@ export function useAuthorization<T extends Authorizable>({
       pendingRef.current = attempt;
       resolveRef.current = resolve;
       setNotice(null);
-      setIsOpen(true);
+      setOpen(true);
     });
   }
 
@@ -138,7 +138,7 @@ export function useAuthorization<T extends Authorizable>({
     const resolve = resolveRef.current;
     pendingRef.current = null;
     resolveRef.current = null;
-    setIsOpen(false);
+    setOpen(false);
     setSubmitting(false);
     resolve?.({ kind: "cancelled" });
   }
@@ -197,7 +197,7 @@ export function useAuthorization<T extends Authorizable>({
     const resolve = resolveRef.current;
     pendingRef.current = null;
     resolveRef.current = null;
-    setIsOpen(false);
+    setOpen(false);
     setSubmitting(false);
     if (!attempt || !resolve) {
       return;
@@ -209,7 +209,7 @@ export function useAuthorization<T extends Authorizable>({
     run,
     modal: (
       <AuthorizationModal
-        isOpen={isOpen}
+        open={open}
         actionName={actionName}
         notice={notice}
         submitting={submitting}

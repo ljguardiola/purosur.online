@@ -89,7 +89,7 @@ type EditUserModalNotice =
   | { kind: "reloadFailed" };
 
 type EditUserModalProps = {
-  isOpen: boolean;
+  open: boolean;
   user: BranchUser;
   roles: BranchUserRole[];
   onClose: () => void;
@@ -105,7 +105,7 @@ type EditUserModalProps = {
 };
 
 function EditUserModal({
-  isOpen,
+  open,
   user,
   roles,
   onClose,
@@ -134,7 +134,7 @@ function EditUserModal({
   const userRef = useLatestRef(user);
 
   useEffect(() => {
-    if (isOpen) {
+    if (open) {
       setEmail(userRef.current.email);
       setRoleId(userRef.current.role.id);
       setVersion(userRef.current.version);
@@ -142,7 +142,7 @@ function EditUserModal({
       setNotice(null);
       setSubmitting(false);
     }
-  }, [isOpen, userRef]);
+  }, [open, userRef]);
 
   const roleSelectOptions = roles.length > 0 ? roleOptions(roles) : undefined;
 
@@ -252,7 +252,7 @@ function EditUserModal({
   return (
     <>
       <Modal
-        isOpen={isOpen}
+        open={open}
         onOpenChange={(open) => {
           if (!open) {
             onClose();
@@ -270,7 +270,7 @@ function EditUserModal({
               variant="secondary"
               size="large"
               icon={<X />}
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={onClose}
             >
               Cancelar
@@ -280,7 +280,7 @@ function EditUserModal({
               size="large"
               icon={<Check />}
               fullWidth
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={() => void handleSubmit()}
             >
               Guardar los cambios
@@ -294,7 +294,7 @@ function EditUserModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo guardar el cambio"
-              detail="Probá de nuevo."
+              description="Probá de nuevo."
             />
           )}
           {notice?.kind === "rateLimited" && (
@@ -302,7 +302,7 @@ function EditUserModal({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(notice.retryAfterSeconds)}
+              description={retryAfterDetail(notice.retryAfterSeconds)}
             />
           )}
           {notice?.kind === "staleVersion" && (
@@ -310,7 +310,7 @@ function EditUserModal({
               tone="error"
               icon={<TriangleAlert />}
               title="Este usuario cambió mientras lo editabas"
-              detail="Recargá sus datos y volvé a hacer el cambio."
+              description="Recargá sus datos y volvé a hacer el cambio."
             />
           )}
           {notice?.kind === "lastAdministrator" && (
@@ -318,7 +318,7 @@ function EditUserModal({
               tone="error"
               icon={<TriangleAlert />}
               title="Ahora es el único Administrador activo"
-              detail="Recargá sus datos: para cambiarle el rol, primero hacé Administrador a otra persona."
+              description="Recargá sus datos: para cambiarle el rol, primero hacé Administrador a otra persona."
             />
           )}
           {notice?.kind === "unknownRole" && (
@@ -326,7 +326,7 @@ function EditUserModal({
               tone="error"
               icon={<TriangleAlert />}
               title="Ese rol ya no está disponible"
-              detail="Cerrá esta ventana y volvé a intentarlo."
+              description="Cerrá esta ventana y volvé a intentarlo."
             />
           )}
           {notice?.kind === "reloadFailed" && (
@@ -334,7 +334,7 @@ function EditUserModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudieron recargar los datos"
-              detail="Probá de nuevo."
+              description="Probá de nuevo."
             />
           )}
           {(notice?.kind === "staleVersion" ||
@@ -344,7 +344,7 @@ function EditUserModal({
             <Button
               variant="secondary"
               icon={<RotateCcw />}
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={() => void handleReload()}
             >
               Recargar
@@ -384,7 +384,7 @@ function EditUserModal({
               }
             }}
             required
-            {...(emailError ? { invalid: true, errorMessage: emailError } : {})}
+            errorMessage={emailError}
           />
         </div>
       </Modal>
@@ -421,7 +421,7 @@ function RemoveUserPasskeyModal({
   startAuthentication,
 }: RemoveUserPasskeyModalProps) {
   const sendToMyAccount = useSendToMyAccount();
-  const isOpen = target !== null;
+  const open = target !== null;
   const [attemptFailed, setAttemptFailed] = useState(false);
   const [rateLimitedSeconds, setRateLimitedSeconds] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -432,12 +432,12 @@ function RemoveUserPasskeyModal({
   });
 
   useEffect(() => {
-    if (isOpen) {
+    if (open) {
       setAttemptFailed(false);
       setRateLimitedSeconds(null);
       setSubmitting(false);
     }
-  }, [isOpen]);
+  }, [open]);
 
   async function handleConfirm() {
     if (!target) {
@@ -476,7 +476,7 @@ function RemoveUserPasskeyModal({
   return (
     <>
       <Modal
-        isOpen={isOpen}
+        open={open}
         onOpenChange={(open) => {
           if (!open) {
             onClose();
@@ -493,18 +493,18 @@ function RemoveUserPasskeyModal({
               variant="secondary"
               size="large"
               icon={<X />}
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={onClose}
             >
               Cancelar
             </Button>
             <Button
               variant="primary"
-              tone="destructive"
+              destructive
               size="large"
               icon={<Trash2 />}
               fullWidth
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={() => void handleConfirm()}
             >
               Dar de baja
@@ -525,7 +525,7 @@ function RemoveUserPasskeyModal({
                 tone="error"
                 icon={<TriangleAlert />}
                 title="No se pudo dar de baja la passkey"
-                detail="Probá de nuevo."
+                description="Probá de nuevo."
               />
             ) : null}
             {rateLimitedSeconds !== null && (
@@ -533,7 +533,7 @@ function RemoveUserPasskeyModal({
                 tone="error"
                 icon={<ShieldX />}
                 title="Demasiadas solicitudes"
-                detail={retryAfterDetail(rateLimitedSeconds)}
+                description={retryAfterDetail(rateLimitedSeconds)}
               />
             )}
           </div>
@@ -545,7 +545,7 @@ function RemoveUserPasskeyModal({
 }
 
 type DeactivateUserModalProps = {
-  isOpen: boolean;
+  open: boolean;
   user: BranchUser;
   onClose: () => void;
   onDeactivated: () => void;
@@ -558,7 +558,7 @@ type DeactivateUserModalProps = {
 };
 
 function DeactivateUserModal({
-  isOpen,
+  open,
   user,
   onClose,
   onDeactivated,
@@ -580,12 +580,12 @@ function DeactivateUserModal({
   });
 
   useEffect(() => {
-    if (isOpen) {
+    if (open) {
       setAttemptFailed(false);
       setRateLimitedSeconds(null);
       setSubmitting(false);
     }
-  }, [isOpen]);
+  }, [open]);
 
   async function handleConfirm() {
     setAttemptFailed(false);
@@ -625,7 +625,7 @@ function DeactivateUserModal({
   return (
     <>
       <Modal
-        isOpen={isOpen}
+        open={open}
         onOpenChange={(open) => {
           if (!open) {
             onClose();
@@ -642,18 +642,18 @@ function DeactivateUserModal({
               variant="secondary"
               size="large"
               icon={<X />}
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={onClose}
             >
               Cancelar
             </Button>
             <Button
               variant="primary"
-              tone="destructive"
+              destructive
               size="large"
               icon={<UserX />}
               fullWidth
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={() => void handleConfirm()}
             >
               Desactivar
@@ -668,7 +668,7 @@ function DeactivateUserModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo desactivar el usuario"
-              detail="Probá de nuevo."
+              description="Probá de nuevo."
             />
           ) : null}
           {rateLimitedSeconds !== null && (
@@ -676,7 +676,7 @@ function DeactivateUserModal({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(rateLimitedSeconds)}
+              description={retryAfterDetail(rateLimitedSeconds)}
             />
           )}
         </div>
@@ -687,7 +687,7 @@ function DeactivateUserModal({
 }
 
 type ReactivateUserModalProps = {
-  isOpen: boolean;
+  open: boolean;
   user: BranchUser;
   onClose: () => void;
   onReactivated: () => void;
@@ -699,7 +699,7 @@ type ReactivateUserModalProps = {
 };
 
 function ReactivateUserModal({
-  isOpen,
+  open,
   user,
   onClose,
   onReactivated,
@@ -720,12 +720,12 @@ function ReactivateUserModal({
   });
 
   useEffect(() => {
-    if (isOpen) {
+    if (open) {
       setAttemptFailed(false);
       setRateLimitedSeconds(null);
       setSubmitting(false);
     }
-  }, [isOpen]);
+  }, [open]);
 
   async function handleConfirm() {
     setAttemptFailed(false);
@@ -761,7 +761,7 @@ function ReactivateUserModal({
   return (
     <>
       <Modal
-        isOpen={isOpen}
+        open={open}
         onOpenChange={(open) => {
           if (!open) {
             onClose();
@@ -780,7 +780,7 @@ function ReactivateUserModal({
               size="large"
               icon={<X />}
               fullWidth
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={onClose}
             >
               Cancelar
@@ -790,7 +790,7 @@ function ReactivateUserModal({
               size="large"
               icon={<RotateCcw />}
               fullWidth
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={() => void handleConfirm()}
             >
               Reactivar
@@ -807,7 +807,7 @@ function ReactivateUserModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo reactivar el usuario"
-              detail="Probá de nuevo."
+              description="Probá de nuevo."
             />
           ) : null}
           {rateLimitedSeconds !== null && (
@@ -815,7 +815,7 @@ function ReactivateUserModal({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(rateLimitedSeconds)}
+              description={retryAfterDetail(rateLimitedSeconds)}
             />
           )}
         </div>
@@ -962,7 +962,7 @@ export function UserDetailScreen({
               tone="error"
               icon={<TriangleAlert />}
               title="No pudimos abrir este usuario"
-              detail="Probá de nuevo en unos minutos."
+              description="Probá de nuevo en unos minutos."
             />
             <Button variant="secondary" onPress={() => void load()}>
               Reintentar
@@ -975,7 +975,7 @@ export function UserDetailScreen({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(state.retryAfterSeconds)}
+              description={retryAfterDetail(state.retryAfterSeconds)}
             />
             <Button variant="secondary" onPress={() => void load()}>
               Reintentar
@@ -1023,7 +1023,7 @@ export function UserDetailScreen({
                   tone="error"
                   icon={<TriangleAlert />}
                   title="No pudimos abrir las passkeys"
-                  detail="Probá de nuevo en unos minutos."
+                  description="Probá de nuevo en unos minutos."
                 />
                 <Button variant="secondary" onPress={() => void loadPasskeys()}>
                   Reintentar
@@ -1036,7 +1036,7 @@ export function UserDetailScreen({
                   tone="error"
                   icon={<ShieldX />}
                   title="Demasiadas solicitudes"
-                  detail={retryAfterDetail(passkeysState.retryAfterSeconds)}
+                  description={retryAfterDetail(passkeysState.retryAfterSeconds)}
                 />
                 <Button variant="secondary" onPress={() => void loadPasskeys()}>
                   Reintentar
@@ -1086,7 +1086,7 @@ export function UserDetailScreen({
               <Button
                 variant="secondary"
                 size="small"
-                tone="destructive"
+                destructive
                 icon={<UserX />}
                 onPress={() => setDeactivateModalOpen(true)}
               >
@@ -1134,7 +1134,7 @@ export function UserDetailScreen({
       )}
       {state.kind === "loaded" && (
         <EditUserModal
-          isOpen={modalOpen}
+          open={modalOpen}
           user={state.user}
           roles={state.roles}
           onClose={() => setModalOpen(false)}
@@ -1157,7 +1157,7 @@ export function UserDetailScreen({
       )}
       {state.kind === "loaded" && (
         <DeactivateUserModal
-          isOpen={deactivateModalOpen}
+          open={deactivateModalOpen}
           user={state.user}
           onClose={() => setDeactivateModalOpen(false)}
           onDeactivated={() => {
@@ -1177,7 +1177,7 @@ export function UserDetailScreen({
       )}
       {state.kind === "loaded" && (
         <ReactivateUserModal
-          isOpen={reactivateModalOpen}
+          open={reactivateModalOpen}
           user={state.user}
           onClose={() => setReactivateModalOpen(false)}
           onReactivated={() => {

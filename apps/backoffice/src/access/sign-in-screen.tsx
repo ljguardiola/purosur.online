@@ -79,7 +79,7 @@ export function SignInScreen({ openingNotice, onSignedIn, services }: SignInScre
           tone="error"
           icon={<ShieldX />}
           title="Demasiados intentos desde esta conexión"
-          detail={retryAfterDetail(notice.retryAfterSeconds)}
+          description={retryAfterDetail(notice.retryAfterSeconds)}
         />
       )}
       {notice?.kind === "expired" && (
@@ -87,7 +87,7 @@ export function SignInScreen({ openingNotice, onSignedIn, services }: SignInScre
           tone="info"
           icon={<Clock />}
           title="Tu sesión venció"
-          detail="Se cierra sola a los 30 minutos sin uso o a las 12 horas de haber ingresado."
+          description="Se cierra sola a los 30 minutos sin uso o a las 12 horas de haber ingresado."
         />
       )}
       {notice?.kind === "check_failed" && (
@@ -95,7 +95,7 @@ export function SignInScreen({ openingNotice, onSignedIn, services }: SignInScre
           tone="warning"
           icon={<TriangleAlert />}
           title="No pudimos verificar tu sesión"
-          detail="Probá de nuevo en unos minutos."
+          description="Probá de nuevo en unos minutos."
         />
       )}
       {notice?.kind === "rate_limited" && (
@@ -103,7 +103,7 @@ export function SignInScreen({ openingNotice, onSignedIn, services }: SignInScre
           tone="error"
           icon={<ShieldX />}
           title="Demasiadas solicitudes"
-          detail={retryAfterDetail(notice.retryAfterSeconds)}
+          description={retryAfterDetail(notice.retryAfterSeconds)}
         />
       )}
       {notice?.kind === "failed" && (
@@ -111,7 +111,7 @@ export function SignInScreen({ openingNotice, onSignedIn, services }: SignInScre
           tone="error"
           icon={<TriangleAlert />}
           title="No se pudo ingresar"
-          detail="Probá de nuevo."
+          description="Probá de nuevo."
         />
       )}
       <Button
@@ -119,7 +119,7 @@ export function SignInScreen({ openingNotice, onSignedIn, services }: SignInScre
         size="large"
         fullWidth
         icon={<KeyRound />}
-        isDisabled={submitting}
+        disabled={submitting}
         onPress={() => void handleSignIn()}
       >
         Ingresar con passkey

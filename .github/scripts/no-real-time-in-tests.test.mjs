@@ -1230,7 +1230,7 @@ test("treats files under a test-only directory, or with a test basename token, a
 test("does not treat production files as test helpers", () => {
   for (const path of [
     "apps/cloud/src/db/database.ts",
-    "packages/ui/src/components/Tooltip.tsx",
+    "packages/ui/src/components/overlays/tooltip.tsx",
     "apps/cloud/src/testimonials/list.ts",
     "apps/cloud/src/latest/feed.ts",
   ]) {
@@ -1281,13 +1281,13 @@ test("scans story files, whose play functions run as tests", () => {
   const root = mkdtempSync(join(tmpdir(), "no-real-time-in-tests-"));
   try {
     writeFixtureRepository(root, [
-      "packages/ui/src/components/button.stories.tsx",
+      "packages/ui/src/components/forms/button.stories.tsx",
       "apps/backoffice/src/catalog/products-list.stories.tsx",
     ]);
 
     assert.deepEqual(findScannedFiles(root), [
       "apps/backoffice/src/catalog/products-list.stories.tsx",
-      "packages/ui/src/components/button.stories.tsx",
+      "packages/ui/src/components/forms/button.stories.tsx",
     ]);
   } finally {
     rmSync(root, { recursive: true, force: true });

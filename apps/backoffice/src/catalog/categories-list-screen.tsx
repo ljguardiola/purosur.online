@@ -2,10 +2,11 @@ import {
   Button,
   InlineNotice,
   Modal,
+  type Option,
+  type Options,
   plural,
   SearchField,
   Select,
-  type SelectOption,
   Table,
   type TableSort,
   TextField,
@@ -64,12 +65,12 @@ function nameTakenUnderParentError(params: { name: string; parent: string }): st
 function parentSelectOptions(
   categories: CategorySummary[],
   excludeIds: ReadonlySet<string>,
-): [SelectOption<string>, ...SelectOption<string>[]] {
+): Options<Option<string>> {
   const labels = categoryPathLabels(categories);
   const sorted = categoriesInTreeOrder(categories, "ascending").filter(
     (category) => !excludeIds.has(category.id),
   );
-  const noneOption: SelectOption<string> = {
+  const noneOption: Option<string> = {
     value: "",
     label: "Ninguna (categoría de primer nivel)",
   };
@@ -83,7 +84,7 @@ function parentSelectOptions(
 }
 
 type NewCategoryModalProps = {
-  isOpen: boolean;
+  open: boolean;
   onClose: () => void;
   onCreated: (category: CategorySummary) => void;
   onSessionEnded: () => void;
@@ -94,7 +95,7 @@ type NewCategoryModalProps = {
 const NO_PARENT_VALUE = "";
 
 function NewCategoryModal({
-  isOpen,
+  open,
   onClose,
   onCreated,
   onSessionEnded,
@@ -112,7 +113,7 @@ function NewCategoryModal({
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
+    if (open) {
       setName("");
       setParentValue(NO_PARENT_VALUE);
       setNameError(undefined);
@@ -120,7 +121,7 @@ function NewCategoryModal({
       setNotice(null);
       setSubmitting(false);
     }
-  }, [isOpen]);
+  }, [open]);
 
   const parentOptions = parentSelectOptions(categories, new Set());
   const parentId = parentValue === NO_PARENT_VALUE ? null : parentValue;
@@ -187,7 +188,7 @@ function NewCategoryModal({
 
   return (
     <Modal
-      isOpen={isOpen}
+      open={open}
       onOpenChange={(open) => {
         if (!open) {
           onClose();
@@ -205,7 +206,7 @@ function NewCategoryModal({
             variant="secondary"
             size="large"
             icon={<X />}
-            isDisabled={submitting}
+            disabled={submitting}
             onPress={onClose}
           >
             Cancelar
@@ -215,7 +216,7 @@ function NewCategoryModal({
             size="large"
             icon={<Check />}
             fullWidth
-            isDisabled={submitting}
+            disabled={submitting}
             onPress={() => void handleSubmit()}
           >
             Crear la categoría
@@ -229,7 +230,7 @@ function NewCategoryModal({
             tone="error"
             icon={<TriangleAlert />}
             title="No se pudo crear la categoría"
-            detail="Probá de nuevo."
+            description="Probá de nuevo."
           />
         )}
         {notice?.kind === "rateLimited" && (
@@ -237,7 +238,7 @@ function NewCategoryModal({
             tone="error"
             icon={<ShieldX />}
             title="Demasiadas solicitudes"
-            detail={retryAfterDetail(notice.retryAfterSeconds)}
+            description={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
         <TextField
@@ -251,7 +252,7 @@ function NewCategoryModal({
             }
           }}
           required
-          {...(nameError ? { invalid: true, errorMessage: nameError } : {})}
+          errorMessage={nameError}
         />
         <Select
           label="Categoría superior"
@@ -261,9 +262,8 @@ function NewCategoryModal({
             setParentValue(value);
             setParentError(undefined);
           }}
-          {...(parentError
-            ? { invalid: true, errorMessage: parentError }
-            : { helperText: CATEGORY_PARENT_HELPER_TEXT })}
+          description={CATEGORY_PARENT_HELPER_TEXT}
+          errorMessage={parentError}
         />
       </div>
     </Modal>
@@ -299,7 +299,7 @@ function EditCategoryModal({
   categories,
 }: EditCategoryModalProps) {
   const sendToMyAccount = useSendToMyAccount();
-  const isOpen = target !== null;
+  const open = target !== null;
   const [name, setName] = useState("");
   const [parentValue, setParentValue] = useState(NO_PARENT_VALUE);
   const [version, setVersion] = useState(1);
@@ -311,7 +311,7 @@ function EditCategoryModal({
   const targetRef = useLatestRef(target);
 
   useEffect(() => {
-    if (isOpen && target) {
+    if (open && target) {
       setName(target.name);
       setParentValue(target.parentId ?? NO_PARENT_VALUE);
       setVersion(target.version);
@@ -321,7 +321,7 @@ function EditCategoryModal({
       setNotice(null);
       setSubmitting(false);
     }
-  }, [isOpen, target]);
+  }, [open, target]);
 
   const excludeIds = target ? selfAndDescendantIds(categories, target.id) : new Set<string>();
   const parentOptions = parentSelectOptions(categories, excludeIds);
@@ -454,7 +454,7 @@ function EditCategoryModal({
 
   return (
     <Modal
-      isOpen={isOpen}
+      open={open}
       onOpenChange={(open) => {
         if (!open) {
           onClose();
@@ -472,7 +472,7 @@ function EditCategoryModal({
             variant="secondary"
             size="large"
             icon={<X />}
-            isDisabled={submitting}
+            disabled={submitting}
             onPress={onClose}
           >
             Cancelar
@@ -482,7 +482,7 @@ function EditCategoryModal({
             size="large"
             icon={<Check />}
             fullWidth
-            isDisabled={submitting}
+            disabled={submitting}
             onPress={() => void handleSubmit()}
           >
             Guardar los cambios
@@ -497,7 +497,7 @@ function EditCategoryModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo guardar el cambio"
-              detail="Probá de nuevo."
+              description="Probá de nuevo."
             />
           )}
           {notice?.kind === "rateLimited" && (
@@ -505,7 +505,7 @@ function EditCategoryModal({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(notice.retryAfterSeconds)}
+              description={retryAfterDetail(notice.retryAfterSeconds)}
             />
           )}
           {notice?.kind === "staleVersion" && (
@@ -513,7 +513,7 @@ function EditCategoryModal({
               tone="error"
               icon={<TriangleAlert />}
               title="Esta categoría cambió mientras la editabas"
-              detail="Recargá sus datos y volvé a hacer el cambio."
+              description="Recargá sus datos y volvé a hacer el cambio."
             />
           )}
           {notice?.kind === "notFound" && (
@@ -528,14 +528,14 @@ function EditCategoryModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudieron recargar los datos"
-              detail="Probá de nuevo."
+              description="Probá de nuevo."
             />
           )}
           {offersReload ? (
             <Button
               variant="secondary"
               icon={<RotateCcw />}
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={() => void handleReload()}
             >
               Recargar
@@ -552,7 +552,7 @@ function EditCategoryModal({
               }
             }}
             required
-            {...(nameError ? { invalid: true, errorMessage: nameError } : {})}
+            errorMessage={nameError}
           />
           <Select
             label="Categoría superior"
@@ -562,9 +562,8 @@ function EditCategoryModal({
               setParentValue(value);
               setParentError(undefined);
             }}
-            {...(parentError
-              ? { invalid: true, errorMessage: parentError }
-              : { helperText: CATEGORY_PARENT_HELPER_TEXT })}
+            description={CATEGORY_PARENT_HELPER_TEXT}
+            errorMessage={parentError}
           />
         </div>
       ) : null}
@@ -643,7 +642,7 @@ export function CategoriesListScreen({
   const columns = [
     {
       key: "category",
-      title: "Categoría",
+      header: "Categoría",
       sortable: true,
       defaultDirection: "ascending",
       render: pathLabel,
@@ -651,7 +650,7 @@ export function CategoriesListScreen({
     {
       key: "actions",
       kind: "actions",
-      srLabel: "Acciones",
+      header: "Acciones",
       actions: [
         (item: CategorySummary) => ({
           icon: <Pencil />,
@@ -684,7 +683,7 @@ export function CategoriesListScreen({
               tone="error"
               icon={<TriangleAlert />}
               title="No pudimos abrir las categorías"
-              detail="Probá de nuevo en unos minutos."
+              description="Probá de nuevo en unos minutos."
             />
             <Button variant="secondary" onPress={() => void load()}>
               Reintentar
@@ -697,7 +696,7 @@ export function CategoriesListScreen({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(list.retryAfterSeconds)}
+              description={retryAfterDetail(list.retryAfterSeconds)}
             />
             <Button variant="secondary" onPress={() => void load()}>
               Reintentar
@@ -708,7 +707,6 @@ export function CategoriesListScreen({
           <>
             <div className="w-105">
               <SearchField
-                variant="backoffice"
                 value={search}
                 onChange={setSearch}
                 placeholder="Buscar una categoría"
@@ -727,14 +725,14 @@ export function CategoriesListScreen({
                   ? {
                       icon: <Tags />,
                       title: "Todavía no hay categorías",
-                      detail: "Creá la primera para poder darle una a un producto.",
-                      tone: "blank",
+                      description: "Creá la primera para poder darle una a un producto.",
+                      variant: "blank",
                     }
                   : {
                       icon: <Search />,
                       title: "Sin resultados",
-                      detail: "Probá con otro nombre.",
-                      tone: "filtered",
+                      description: "Probá con otro nombre.",
+                      variant: "filtered",
                     }
               }
               footer={
@@ -750,7 +748,7 @@ export function CategoriesListScreen({
         )}
       </ScreenLayout>
       <NewCategoryModal
-        isOpen={newModalOpen}
+        open={newModalOpen}
         onClose={() => setNewModalOpen(false)}
         onCreated={(category) => {
           setNewModalOpen(false);
