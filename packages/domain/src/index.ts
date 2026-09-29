@@ -15,14 +15,17 @@ export {
   isPasskeyNameTooLong,
   isPermissionKey,
   isRoleNameTooLong,
+  lacksARequiredPermission,
   PASSKEY_NAME_MAX_LENGTH,
   PERMISSION_AREAS,
   PERMISSION_CATALOG,
   PERMISSION_KEYS,
   passkeyNameLength,
+  permissionsRequiring,
   ROLE_NAME_MAX_LENGTH,
   repeatsAPermissionKey,
   roleNameLength,
+  withRequiredPermissions,
 } from "./access/index.js";
 export type { AlertAudience, AlertKind, AlertLevel } from "./alerts/index.js";
 export {

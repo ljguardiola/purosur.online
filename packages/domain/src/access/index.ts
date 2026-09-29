@@ -22,6 +22,11 @@ export {
   repeatsAPermissionKey,
 } from "./model/permission-catalog.js";
 export {
+  lacksARequiredPermission,
+  permissionsRequiring,
+  withRequiredPermissions,
+} from "./model/permission-requirements.js";
+export {
   isAdministratorRoleName,
   isRoleNameTooLong,
   ROLE_NAME_MAX_LENGTH,
