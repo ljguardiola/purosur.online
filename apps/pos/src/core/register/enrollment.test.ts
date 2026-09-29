@@ -3,6 +3,7 @@ import type { CloudResponse } from "../platform/cloud-client";
 import { type EnrollmentDeps, enroll, generatePepper, installationReportFrom } from "./enrollment";
 
 const TYPED_CODE = "p4nx 7kwe 2qrt 6mzd";
+const ENROLLED_AT = new Date("2026-09-29T12:00:00.000Z");
 const ENROLLED_BODY = { device_id: "a4b1", device_token: "prefix.secret" };
 
 function envelope(code: string, details: unknown[] = []): CloudResponse {
@@ -24,6 +25,7 @@ function depsAnswering(response: CloudResponse, stored = true, storable = true) 
     }),
     canStoreCredentials: async () => storable,
     generatePepper: () => `pepper-${++peppers}`,
+    now: () => ENROLLED_AT,
     storeCredentials: async (credentials) => {
       storedCredentials.push(credentials);
       return stored;
@@ -50,13 +52,15 @@ describe("enroll", () => {
     ]);
   });
 
-  it("stores the device id and token it receives with a pepper of its own, and is enrolled", async () => {
+  it("stores the device id and token it receives with a pepper of its own and the moment it received them, and is enrolled", async () => {
     const { deps, storedCredentials } = depsAnswering({ kind: "ok", body: ENROLLED_BODY });
 
     const outcome = await enroll(deps, TYPED_CODE);
 
     expect(outcome).toEqual({ kind: "enrolled" });
-    expect(storedCredentials).toEqual([{ ...ENROLLED_BODY, pepper: "pepper-1" }]);
+    expect(storedCredentials).toEqual([
+      { ...ENROLLED_BODY, pepper: "pepper-1", token_received_at: "2026-09-29T12:00:00.000Z" },
+    ]);
   });
 
   it("doesn't redeem the code when this machine can't store credentials", async () => {

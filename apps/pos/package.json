@@ -15,6 +15,7 @@
   },
   "devDependencies": {
     "@purosur/contracts": "workspace:*",
+    "@purosur/domain": "workspace:*",
     "@purosur/ui": "workspace:*",
     "@sentry/electron": "^7.19.0",
     "@tailwindcss/node": "^4.3.3",

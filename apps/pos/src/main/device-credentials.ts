@@ -22,6 +22,7 @@ export interface CredentialsFile {
 export interface DeviceCredentialsStore {
   canStore(): boolean;
   store(credentials: DeviceCredentials): boolean;
+  read(): DeviceCredentials | undefined;
   isPresent(): boolean;
 }
 
@@ -62,18 +63,19 @@ export function createDeviceCredentialsStore(deps: {
         return false;
       }
     },
-    isPresent() {
+    read() {
       const contents = deps.file.read();
       if (contents === undefined) {
-        return false;
+        return undefined;
       }
       try {
-        return (
-          readDeviceCredentials(JSON.parse(deps.encryption.decryptString(contents))) !== undefined
-        );
+        return readDeviceCredentials(JSON.parse(deps.encryption.decryptString(contents)));
       } catch {
-        return false;
+        return undefined;
       }
+    },
+    isPresent() {
+      return this.read() !== undefined;
     },
   };
 }
@@ -95,6 +97,12 @@ export function answerCoreCredentialsRequest(
       request_id: message.request_id,
       storable: store.canStore(),
     };
+  }
+  if (message.type === "device-credentials-read-request") {
+    const credentials = store.read();
+    return credentials === undefined
+      ? { type: "device-credentials-read", request_id: message.request_id }
+      : { type: "device-credentials-read", request_id: message.request_id, credentials };
   }
   return {
     type: "device-credentials-presence",

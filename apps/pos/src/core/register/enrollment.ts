@@ -22,6 +22,7 @@ export interface EnrollmentDeps {
   canStoreCredentials: () => Promise<boolean>;
   generatePepper: () => string;
   storeCredentials: (credentials: DeviceCredentials) => Promise<boolean>;
+  now: () => Date;
 }
 
 export function generatePepper(): string {
@@ -87,6 +88,7 @@ export async function enroll(deps: EnrollmentDeps, typedCode: string): Promise<E
     device_id: enrollment.data.device_id,
     device_token: enrollment.data.device_token,
     pepper: deps.generatePepper(),
+    token_received_at: deps.now().toISOString(),
   });
   return stored ? { kind: "enrolled" } : { kind: "not_stored" };
 }

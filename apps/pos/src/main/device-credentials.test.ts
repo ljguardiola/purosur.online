@@ -13,6 +13,7 @@ const CREDENTIALS = {
   device_id: "5f2b7e0c-1d1b-4c43-9c55-0d8e3a1f2b44",
   device_token: "lookupprefix0000.secretpartofthetoken",
   pepper: "cGVwcGVycGVwcGVycGVwcGVycGVwcGVycGVwcGVy",
+  token_received_at: "2026-09-29T12:00:00.000Z",
 };
 
 const temporaryFolders: string[] = [];
@@ -64,6 +65,38 @@ describe("createDeviceCredentialsStore", () => {
 
   it("reports no credentials before any were stored", () => {
     expect(storeIn(temporaryFolder()).isPresent()).toBe(false);
+  });
+
+  it("reads back the credentials it stored, even from a store opened afterwards", () => {
+    const folder = temporaryFolder();
+    storeIn(folder).store(CREDENTIALS);
+
+    expect(storeIn(folder).read()).toEqual(CREDENTIALS);
+  });
+
+  it("reads credentials stored before their token's arrival was recorded", () => {
+    const folder = temporaryFolder();
+    const { token_received_at: _unrecorded, ...older } = CREDENTIALS;
+    storeIn(folder).store(older);
+
+    expect(storeIn(folder).read()).toEqual(older);
+  });
+
+  it("reads nothing before any credentials were stored", () => {
+    expect(storeIn(temporaryFolder()).read()).toBeUndefined();
+  });
+
+  it("reads nothing from a file it can't decrypt", () => {
+    const folder = temporaryFolder();
+    writeFileSync(join(folder, "device-credentials.bin"), "garbage");
+    const failingDecryption = {
+      ...reversingEncryption,
+      decryptString: () => {
+        throw new Error("the data could not be decrypted");
+      },
+    };
+
+    expect(storeIn(folder, failingDecryption).read()).toBeUndefined();
   });
 
   it("refuses to store anything when the operating system can't encrypt", () => {
@@ -139,6 +172,27 @@ describe("answerCoreCredentialsRequest", () => {
     expect(
       answerCoreCredentialsRequest(store, { type: "device-credentials-request", request_id: "r2" }),
     ).toEqual({ type: "device-credentials-presence", request_id: "r2", present: true });
+  });
+
+  it("hands the core the stored credentials when it asks to read them", () => {
+    const store = storeIn(temporaryFolder());
+    store.store(CREDENTIALS);
+
+    expect(
+      answerCoreCredentialsRequest(store, {
+        type: "device-credentials-read-request",
+        request_id: "r4",
+      }),
+    ).toEqual({ type: "device-credentials-read", request_id: "r4", credentials: CREDENTIALS });
+  });
+
+  it("tells the core there are no credentials when it asks to read them and none are stored", () => {
+    expect(
+      answerCoreCredentialsRequest(storeIn(temporaryFolder()), {
+        type: "device-credentials-read-request",
+        request_id: "r4",
+      }),
+    ).toEqual({ type: "device-credentials-read", request_id: "r4" });
   });
 
   it.each([true, false])(

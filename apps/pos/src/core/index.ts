@@ -13,8 +13,10 @@ import { net } from "electron";
 import { cloudUrlFromCoreArguments, sentryEnvironmentFromCoreArguments } from "../shared/channel";
 import { CORE_READY_MESSAGE } from "../shared/core-readiness";
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
-import { postToCloud } from "./platform/cloud-client";
+import { postToCloud, postToCloudWithBearer } from "./platform/cloud-client";
 import { createMainRequests } from "./platform/main-requests";
+import { rotateDeviceToken } from "./register/device-token-rotation";
+import { startDeviceTokenRotationSchedule } from "./register/device-token-rotation-schedule";
 import { enroll, generatePepper, installationReportFrom } from "./register/enrollment";
 import { answerRendererRequest } from "./register/renderer-requests";
 import { createRendererConnection } from "./renderer-connection";
@@ -58,28 +60,45 @@ if (cloudUrl === undefined) {
   console.error("core: no cloud configured for this channel, so it can't enroll");
 }
 
+const cloudClient =
+  cloudUrl === undefined
+    ? undefined
+    : { cloudUrl, fetch: (input: string, init: RequestInit) => net.fetch(input, init), sleep };
+
 const rendererRequestDeps = {
   credentialsPresent: () => mainRequests.credentialsPresent(),
   enroll: (typedCode: string) =>
     enroll(
       {
         postToCloud:
-          cloudUrl === undefined
+          cloudClient === undefined
             ? undefined
-            : (path, body) =>
-                postToCloud(
-                  { cloudUrl, fetch: (input, init) => net.fetch(input, init), sleep },
-                  path,
-                  body,
-                ),
+            : (path, body) => postToCloud(cloudClient, path, body),
         installationReport: () => installationReportFrom({ hostname, version, release }),
         canStoreCredentials: () => mainRequests.canStoreCredentials(),
         generatePepper,
         storeCredentials: (credentials) => mainRequests.storeCredentials(credentials),
+        now: () => new Date(),
       },
       typedCode,
     ),
 };
+
+if (cloudClient !== undefined) {
+  startDeviceTokenRotationSchedule({
+    rotate: () =>
+      rotateDeviceToken({
+        readCredentials: () => mainRequests.readCredentials(),
+        postToCloud: (path, bearerToken) => postToCloudWithBearer(cloudClient, path, bearerToken),
+        storeCredentials: (credentials) => mainRequests.storeCredentials(credentials),
+        now: () => new Date(),
+      }),
+    schedule: (run, delayMs) => {
+      const id = setTimeout(run, delayMs);
+      return () => clearTimeout(id);
+    },
+  });
+}
 
 const rendererConnection = createRendererConnection((data, reply) => {
   gateFromRenderer(data, (message) => {
