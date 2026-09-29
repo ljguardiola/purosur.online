@@ -1264,6 +1264,51 @@ test("hides the Desactivar row against an Administrator target, even for an Admi
   expect(screen.getByRole("button", { name: "Desactivar a Ana Fernández" }).query()).toBeNull();
 });
 
+test("while the user loads, shows a disabled Desactivar to someone who may deactivate users", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockReturnValue(new Promise(() => {}));
+
+  const screen = await renderScreen(
+    services,
+    () => {},
+    "user-1",
+    "user-2",
+    DEACTIVATE_USERS_ACCESS,
+  );
+
+  await expect.element(screen.getByRole("button", { name: "Desactivar" })).toBeDisabled();
+});
+
+test("after the user fails to load, shows Desactivar disabled to someone who may deactivate users", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "failed" });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("No pudimos abrir este usuario")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Desactivar" })).toBeDisabled();
+});
+
+test("while the user loads, shows no Desactivar on the viewer's own account", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockReturnValue(new Promise(() => {}));
+
+  const screen = await renderScreen(services, () => {}, "admin-1", "admin-1");
+
+  await expect.element(screen.getByRole("status").first()).toHaveTextContent("Cargando…");
+  expect(screen.getByRole("button", { name: "Desactivar" }).query()).toBeNull();
+});
+
+test("while the user loads, shows no Desactivar without deactivate or reactivate permission", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockReturnValue(new Promise(() => {}));
+
+  const screen = await renderScreen(services, () => {}, "user-1", "user-2", NO_DEACTIVATE_ACCESS);
+
+  await expect.element(screen.getByRole("status").first()).toHaveTextContent("Cargando…");
+  expect(screen.getByRole("button", { name: "Desactivar" }).query()).toBeNull();
+});
+
 async function openDeactivateModal(screen: Awaited<ReturnType<typeof renderScreen>>) {
   await userEvent.click(screen.getByRole("button", { name: "Desactivar a Lucía" }));
   return screen.getByRole("dialog", { name: "¿Desactivar a Lucía?" });

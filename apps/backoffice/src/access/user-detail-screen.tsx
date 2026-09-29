@@ -47,7 +47,12 @@ import {
   useUserQuery,
 } from "./access-queries";
 import { useAuthorization } from "./authorization-modal";
-import { type BackofficeAccess, canDeactivateUser, canReactivateUser } from "./backoffice-access";
+import {
+  type BackofficeAccess,
+  canDeactivateUser,
+  canReactivateUser,
+  canSeeUsersArea,
+} from "./backoffice-access";
 import { validateEmail } from "./email-validation";
 import type { Passkey } from "./passkey-api";
 import { passkeyRowDetail } from "./passkey-row-detail";
@@ -979,6 +984,19 @@ function UserDetailView({
                   ))}
               </div>
             ) : null}
+            {!user && canSeeUsersArea(access) && !isOwnAccount && (
+              <div className="flex items-center justify-end">
+                <Button
+                  variant="secondary"
+                  size="small"
+                  destructive
+                  icon={<UserX />}
+                  dataStatus={data.status}
+                >
+                  Desactivar
+                </Button>
+              </div>
+            )}
             {user && !isInactive && canDeactivateUser(access, user.role) && !isOwnAccount && (
               <div className="flex items-center gap-3">
                 <p className="flex-1 text-text-subtle text-detail">
@@ -989,6 +1007,7 @@ function UserDetailView({
                   size="small"
                   destructive
                   icon={<UserX />}
+                  dataStatus={data.status}
                   onPress={() => setDeactivateModalOpen(true)}
                 >
                   {`Desactivar a ${user.firstName}`}
@@ -1004,6 +1023,7 @@ function UserDetailView({
                   variant="secondary"
                   size="small"
                   icon={<UserCheck />}
+                  dataStatus={data.status}
                   onPress={() => setReactivateModalOpen(true)}
                 >
                   {`Reactivar a ${user.firstName}`}
