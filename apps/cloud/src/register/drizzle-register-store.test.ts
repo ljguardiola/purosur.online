@@ -290,7 +290,7 @@ describe("DrizzleRegisterStore", () => {
     expect(alert?.detail).toMatchObject({ replacedInstallation: false });
   });
 
-  it("keeps the register's enrollment alert that is still open when the register enrolls again, opening no second one", async () => {
+  it("opens a second alert when the register enrolls again while its first is open, leaving the first as it was", async () => {
     const registerId = await insertRegister("Caja 1");
     await insertCode(registerId, CODE);
     const first = await enrollWithCode(CODE);
@@ -300,12 +300,29 @@ describe("DrizzleRegisterStore", () => {
       .delete(registerEnrollmentCodes)
       .where(eq(registerEnrollmentCodes.registerId, registerId));
     await insertCode(registerId, secondCode);
+    const later = minutesAgo(-1);
 
-    const second = await enrollWithCode(secondCode, minutesAgo(-1));
+    const second = await enrollWithCode(secondCode, later);
 
-    expect(first.kind).toBe("enrolled");
-    expect(second.kind).toBe("enrolled");
-    expect(await db.select().from(alerts)).toEqual([firstAlert]);
+    if (first.kind !== "enrolled" || second.kind !== "enrolled") {
+      throw new Error("expected both enrollments to succeed");
+    }
+    const alertsAfter = await db.select().from(alerts);
+    expect(alertsAfter).toHaveLength(2);
+    expect(alertsAfter.find((alert) => alert.id === firstAlert?.id)).toEqual(firstAlert);
+    expect(alertsAfter.find((alert) => alert.id !== firstAlert?.id)).toMatchObject({
+      kind: "register_enrolled",
+      scope: registerId,
+      level: "warning",
+      detail: {
+        deviceId: second.deviceId,
+        hostname: "CAJA-MOSTRADOR",
+        windowsVersion: "Windows 11 Pro 10.0.26100",
+        replacedInstallation: true,
+      },
+      openedAt: later,
+      resolvedAt: null,
+    });
   });
 
   it("opens a separate alert for each register that enrolls", async () => {

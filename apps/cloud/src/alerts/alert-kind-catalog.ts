@@ -60,7 +60,7 @@ export const ALERT_KIND_CATALOG: readonly AlertKindDefinition[] = [
     escalatesAfterMs: TWENTY_FOUR_HOURS_MS,
     audience: "all",
     scopeKind: "register",
-    deduplicates: true,
+    deduplicates: false,
   },
 ];
 
