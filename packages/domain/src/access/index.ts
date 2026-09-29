@@ -21,12 +21,12 @@ export {
   PERMISSION_KEYS,
   repeatsAPermissionKey,
 } from "./model/permission-catalog.js";
-export { uncoveredRegisterPermissions } from "./model/register-coverage.js";
 export {
   lacksARequiredPermission,
   permissionsRequiring,
   withRequiredPermissions,
 } from "./model/permission-requirements.js";
+export { uncoveredRegisterPermissions } from "./model/register-coverage.js";
 export {
   isAdministratorRoleName,
   isRoleNameTooLong,
