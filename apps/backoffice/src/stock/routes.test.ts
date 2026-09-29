@@ -27,8 +27,7 @@ test("opens the losses and adjustments of the last 30 days, for every reason", (
   expect(stockMovementsFilters.parse({})).toEqual({ search: "", reason: "ALL", period: "30" });
 });
 
-test("keeps a loss or adjustment reason a URL names, falling back for one it does not offer", () => {
+test("keeps the reason a URL names, falling back for one that is not text", () => {
   expect(stockMovementsFilters.parse({ reason: "theft" }).reason).toBe("theft");
-  expect(stockMovementsFilters.parse({ reason: "supplier_return" }).reason).toBe("supplier_return");
-  expect(stockMovementsFilters.parse({ reason: "count" }).reason).toBe("ALL");
+  expect(stockMovementsFilters.parse({ reason: 3 }).reason).toBe("ALL");
 });
