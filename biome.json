@@ -81,6 +81,26 @@
   },
   "overrides": [
     {
+      "includes": ["apps/backoffice/src/**", "!apps/backoffice/src/shell/lazy-screen.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@tanstack/react-router": {
+                    "message": "Use lazyScreen from shell/lazy-screen instead of lazyRouteComponent.",
+                    "importNames": ["lazyRouteComponent"]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["packages/ui/**"],
       "linter": {
         "rules": {

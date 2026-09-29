@@ -1,10 +1,6 @@
-import {
-  createRoute,
-  lazyRouteComponent,
-  redirect,
-  stripSearchParams,
-} from "@tanstack/react-router";
+import { createRoute, redirect, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
+import { lazyScreen } from "../shell/lazy-screen";
 import { publicRoute } from "../shell/public-route";
 import { settingsAreaRoute } from "../shell/settings-area";
 import { refuseWithout } from "../shell/signed-in-route";
@@ -18,25 +14,25 @@ export const signInRoute = createRoute({
       throw redirect({ to: "/" });
     }
   },
-  component: lazyRouteComponent(() => import("./sign-in-page"), "SignInPage"),
+  component: lazyScreen(() => import("./sign-in-page"), "SignInPage"),
 });
 
 export const accountRecoveryRoute = createRoute({
   getParentRoute: () => publicRoute,
   path: "account-recovery",
-  component: lazyRouteComponent(() => import("./account-recovery-page"), "AccountRecoveryPage"),
+  component: lazyScreen(() => import("./account-recovery-page"), "AccountRecoveryPage"),
 });
 
 export const registerPasskeyRoute = createRoute({
   getParentRoute: () => publicRoute,
   path: "account-recovery/passkey",
-  component: lazyRouteComponent(() => import("./register-passkey-page"), "RegisterPasskeyPage"),
+  component: lazyScreen(() => import("./register-passkey-page"), "RegisterPasskeyPage"),
 });
 
 export const myAccountRoute = createRoute({
   getParentRoute: () => settingsAreaRoute,
   path: "users/me",
-  component: lazyRouteComponent(() => import("./my-account-page"), "MyAccountPage"),
+  component: lazyScreen(() => import("./my-account-page"), "MyAccountPage"),
 });
 
 export const usersListFilters = z.object({
@@ -51,19 +47,19 @@ export const usersListRoute = createRoute({
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeUsersArea),
   validateSearch: usersListFilters,
   search: { middlewares: [stripSearchParams(usersListFilters.parse({}))] },
-  component: lazyRouteComponent(() => import("./users-list-page"), "UsersListPage"),
+  component: lazyScreen(() => import("./users-list-page"), "UsersListPage"),
 });
 
 export const userDetailRoute = createRoute({
   getParentRoute: () => settingsAreaRoute,
   path: "users/$userId",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeUsersArea),
-  component: lazyRouteComponent(() => import("./user-detail-page"), "UserDetailPage"),
+  component: lazyScreen(() => import("./user-detail-page"), "UserDetailPage"),
 });
 
 export const rolesListRoute = createRoute({
   getParentRoute: () => settingsAreaRoute,
   path: "roles",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeRolesArea),
-  component: lazyRouteComponent(() => import("./roles-list-page"), "RolesListPage"),
+  component: lazyScreen(() => import("./roles-list-page"), "RolesListPage"),
 });
