@@ -1,3 +1,4 @@
+import { registerEnrollmentCodeSchema } from "@purosur/contracts";
 import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -156,9 +157,12 @@ export function registerRegisterEnrollmentCodeRoute<TQueryResult extends PgQuery
         now: attemptedAt,
       });
 
-      await reply
-        .code(200)
-        .send({ code: emitted.code, expires_at: emitted.expiresAt.toISOString() });
+      await reply.code(200).send(
+        registerEnrollmentCodeSchema.parse({
+          code: emitted.code,
+          expires_at: emitted.expiresAt.toISOString(),
+        }),
+      );
     },
   );
 }
