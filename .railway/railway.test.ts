@@ -10,6 +10,7 @@ const REQUIRED_ENV: Record<string, string> = {
   BACKOFFICE_SENTRY_DSN: "https://sentry.test/2",
   RESEND_API_KEY: "resend-api-key",
   EDGE_ORIGIN_SECRET: "edge-origin-secret",
+  DEVICE_TOKEN_ROTATION_KEY: "device-token-rotation-key",
   CLOUD_APP_DATABASE_PASSWORD: "cloud-app-password",
   ARCA_CERTIFICATE: "arca-certificate-pem",
 };
@@ -98,6 +99,14 @@ describe("the Cloud Server service's environment", () => {
     expect(cloud.variables?.["ARCA_CERTIFICATE"]).toEqual({
       type: "literal",
       value: "arca-certificate-pem",
+    });
+  });
+
+  it("carries the device token rotation key from the deploying environment", async () => {
+    const cloud = findService(await compile(), "Cloud Server");
+    expect(cloud.variables?.["DEVICE_TOKEN_ROTATION_KEY"]).toEqual({
+      type: "literal",
+      value: "device-token-rotation-key",
     });
   });
 

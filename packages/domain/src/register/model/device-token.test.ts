@@ -45,4 +45,8 @@ describe("isDeviceTokenRotationDue", () => {
   it("is due from the instant 24 hours have passed", () => {
     expect(isDeviceTokenRotationDue(ISSUED_AT, ONE_DAY_LATER)).toBe(true);
   });
+
+  it("is due when the token was received later than now, after the clock went back", () => {
+    expect(isDeviceTokenRotationDue(ISSUED_AT, millisecondsBefore(ISSUED_AT))).toBe(true);
+  });
 });

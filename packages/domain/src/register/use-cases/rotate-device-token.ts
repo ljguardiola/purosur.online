@@ -1,3 +1,4 @@
+import { isDeviceTokenExpired } from "../model/device-token.js";
 import { matchPresentedDeviceToken } from "./match-presented-device-token.js";
 import type { InstallationTokenPorts } from "./register-store.js";
 
@@ -23,14 +24,18 @@ export async function rotateDeviceToken(
     if (isPending) {
       await tx.promotePendingDeviceToken(installation.deviceId);
     }
+    const now = clock.now();
     const successor = tokens.successorOf(input.deviceToken);
+    const pending = installation.pendingToken;
     const alreadyIssued =
-      !isPending && installation.pendingToken?.tokenHash === successor.tokenHash;
+      !isPending &&
+      pending?.tokenHash === successor.tokenHash &&
+      !isDeviceTokenExpired(pending.issuedAt, now);
     if (!alreadyIssued) {
       await tx.recordPendingDeviceToken(installation.deviceId, {
         lookupPrefix: successor.lookupPrefix,
         tokenHash: successor.tokenHash,
-        issuedAt: clock.now(),
+        issuedAt: now,
       });
     }
     return { kind: "rotated", deviceToken: successor.deviceToken };

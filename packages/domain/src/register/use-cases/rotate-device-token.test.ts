@@ -10,6 +10,7 @@ import {
 const NOW = new Date("2026-09-29T12:00:00.000Z");
 const HOURS_AGO_25 = new Date("2026-09-28T11:00:00.000Z");
 const DAYS_AGO_8 = new Date("2026-09-21T12:00:00.000Z");
+const DAYS_AGO_7 = new Date("2026-09-22T12:00:00.000Z");
 const MINUTES_AGO_5 = new Date("2026-09-29T11:55:00.000Z");
 const ENROLLED = new Date("2026-08-01T09:00:00.000Z");
 
@@ -72,7 +73,7 @@ describe("rotateDeviceToken", () => {
     expect(installation?.tokenIssuedAt).toEqual(HOURS_AGO_25);
   });
 
-  it("gives back the same token, rewriting nothing, when the current token retries", async () => {
+  it("gives back the same token, writing nothing, when the current token retries", async () => {
     const store = storeWith({ pending: { token: SUCCESSOR_OF_CURRENT, issuedAt: MINUTES_AGO_5 } });
     const before = store.snapshot();
 
@@ -80,14 +81,21 @@ describe("rotateDeviceToken", () => {
 
     expect(outcome).toEqual({ kind: "rotated", deviceToken: SUCCESSOR_OF_CURRENT });
     expect(store.snapshot()).toEqual(before);
+    expect(store.operationOrder).toEqual(["lockInstallationByTokenPrefix"]);
   });
 
-  it("does not write anything while it retries", async () => {
-    const store = storeWith({ pending: { token: SUCCESSOR_OF_CURRENT, issuedAt: MINUTES_AGO_5 } });
+  it("gives back the same token, issued anew, when the current token retries after its successor's 7 days ran out", async () => {
+    const store = storeWith({
+      currentIssuedAt: DAYS_AGO_8,
+      pending: { token: SUCCESSOR_OF_CURRENT, issuedAt: DAYS_AGO_7 },
+    });
 
-    await rotate(store, CURRENT);
+    const outcome = await rotate(store, CURRENT);
 
-    expect(store.operationOrder).toEqual(["lockInstallationByTokenPrefix"]);
+    expect(outcome).toEqual({ kind: "rotated", deviceToken: SUCCESSOR_OF_CURRENT });
+    expect(store.snapshot().installations[0]?.pendingToken).toEqual(
+      storedTokenOf(SUCCESSOR_OF_CURRENT, NOW),
+    );
   });
 
   it("replaces a pending token that is not the successor of the presented one", async () => {

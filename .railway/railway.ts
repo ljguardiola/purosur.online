@@ -73,6 +73,7 @@ export default defineRailway((ctx) => {
   const backofficeSentryDsn = requireEnv("BACKOFFICE_SENTRY_DSN");
   const resendApiKey = requireEnv("RESEND_API_KEY");
   const edgeOriginSecret = requireEnv("EDGE_ORIGIN_SECRET");
+  const deviceTokenRotationKey = requireEnv("DEVICE_TOKEN_ROTATION_KEY");
   const cloudAppDatabasePassword = requireEnv("CLOUD_APP_DATABASE_PASSWORD");
   // The PEM text of the ARCA X.509 certificate the business is authorized under: public data, not
   // a secret in the credential sense (the matching private key is the secret), but
@@ -137,6 +138,7 @@ export default defineRailway((ctx) => {
       RECOVERY_EMAIL_REPLY_TO,
       BACKOFFICE_ORIGIN: backofficeOrigin,
       EDGE_ORIGIN_SECRET: edgeOriginSecret,
+      DEVICE_TOKEN_ROTATION_KEY: deviceTokenRotationKey,
       ARCA_CERTIFICATE: arcaCertificate,
     },
   });
