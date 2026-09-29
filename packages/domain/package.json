@@ -17,6 +17,10 @@
     "./pricing/use-cases": {
       "types": "./dist/pricing/use-cases/index.d.ts",
       "default": "./dist/pricing/use-cases/index.js"
+    },
+    "./stock/use-cases": {
+      "types": "./dist/stock/use-cases/index.d.ts",
+      "default": "./dist/stock/use-cases/index.js"
     }
   },
   "files": [

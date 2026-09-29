@@ -47,6 +47,10 @@ export default defineConfig({
         find: /^@purosur\/domain\/pricing\/use-cases$/,
         replacement: r("./packages/domain/src/pricing/use-cases/index.ts"),
       },
+      {
+        find: /^@purosur\/domain\/stock\/use-cases$/,
+        replacement: r("./packages/domain/src/stock/use-cases/index.ts"),
+      },
       { find: /^@purosur\/contracts$/, replacement: r("./packages/contracts/src/index.ts") },
       { find: /^@purosur\/ui$/, replacement: r("./packages/ui/src/index.ts") },
     ],

@@ -77,3 +77,17 @@ export {
   registerNameLength,
 } from "./register/index.js";
 export { ARGENTINA_TIME_ZONE, argentinaCalendarDay } from "./shared/index.js";
+export type { AdjustmentReason, LossReason, StockDirection } from "./stock/index.js";
+export {
+  ADJUSTMENT_REASONS,
+  adjustmentDirections,
+  countResult,
+  isCountedQuantity,
+  isMovementQuantity,
+  LOSS_REASONS,
+  lossDelta,
+  MAX_STOCK_QUANTITY,
+  STOCK_DIRECTIONS,
+  STOCK_QUANTITY_PER_UNIT,
+  signedDelta,
+} from "./stock/index.js";
