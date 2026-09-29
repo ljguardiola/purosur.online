@@ -6,6 +6,7 @@ test("invalidating the catalog key marks every catalog list stale, whatever its 
   const client = new QueryClient();
   const keys = [
     catalogKeys.categories,
+    catalogKeys.brands,
     catalogKeys.products("active"),
     catalogKeys.products("inactive"),
     catalogKeys.products("all"),

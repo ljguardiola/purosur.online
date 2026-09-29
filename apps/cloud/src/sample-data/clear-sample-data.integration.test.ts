@@ -18,6 +18,8 @@ import {
   passkeyChallenges,
   products,
   recoveryTokens,
+  registerInstallations,
+  registers,
   roles,
   sessions,
   userRoles,
@@ -235,6 +237,7 @@ describe("clearSampleData", () => {
     const realProductOutcome = await createProduct(new DrizzleCatalogStore(db), {
       name: "Producto Real",
       categoryId: realCategoryOutcome.category.id,
+      brandId: null,
       saleUnit: "UNIT",
       barcodes: ["7791234567890"],
       netContent: null,
@@ -297,6 +300,7 @@ describe("clearSampleData", () => {
     const realProduct = await createProduct(new DrizzleCatalogStore(db), {
       name: "Aceite Real",
       categoryId: realNamesake.category.id,
+      brandId: null,
       saleUnit: "UNIT",
       barcodes: ["7791234567890"],
       netContent: null,
@@ -328,6 +332,7 @@ describe("clearSampleData", () => {
     const realProduct = await createProduct(new DrizzleCatalogStore(db), {
       name: "Aceite Real",
       categoryId: sampleLeafId,
+      brandId: null,
       saleUnit: "UNIT",
       barcodes: ["7791234567890"],
       netContent: null,
@@ -405,6 +410,27 @@ describe("clearSampleData", () => {
     expect(survivingAlerts).toEqual([{ id: realAlert.alertId }]);
   }, 120_000);
 
+  it("clears a sample register that an installation enrolled, with that installation", async () => {
+    const db = await freshOwnerDatabase();
+    await seedActiveAdministrator(db);
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    const [sampleRegister] = await db.select({ id: registers.id }).from(registers).limit(1);
+    if (!sampleRegister) throw new Error("test setup: no sample register was loaded");
+    await db.insert(registerInstallations).values({
+      registerId: sampleRegister.id,
+      tokenLookupPrefix: randomUUID(),
+      tokenHash: "hash",
+      hostname: "CAJA",
+      windowsVersion: "Windows 11",
+      enrolledAt: NOW,
+    });
+
+    expect((await clearSampleData(db)).kind).toBe("cleared");
+
+    expect(await tableCount(db, "registers")).toBe(0);
+    expect(await tableCount(db, "register_installations")).toBe(0);
+  }, 120_000);
+
   it("refuses and deletes nothing when a sample user reviewed a real product's price", async () => {
     const db = await freshOwnerDatabase();
     const bootstrapAdmin = await seedActiveAdministrator(db);
@@ -416,6 +442,7 @@ describe("clearSampleData", () => {
     const realProduct = await createProduct(new DrizzleCatalogStore(db), {
       name: "Producto Real",
       categoryId: realCategory.category.id,
+      brandId: null,
       saleUnit: "UNIT",
       barcodes: ["7791234567890"],
       netContent: null,

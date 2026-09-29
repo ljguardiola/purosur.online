@@ -36,6 +36,7 @@ test("creates a product and shows it in the list", async () => {
     id: "product-3",
     name: "Pasta de maní 380 g",
     categoryId: "category-1",
+    brandId: null,
     categoryName: "Almacén",
     saleUnit: "KG",
     barcodes: ["7790000000099"],
@@ -68,6 +69,7 @@ test("creates a product and shows it in the list", async () => {
   expect(services.createProduct).toHaveBeenCalledWith({
     name: "Pasta de maní 380 g",
     categoryId: "category-1",
+    brandId: null,
     saleUnit: "KG",
     barcodes: ["7790000000099"],
     netContent: null,
@@ -105,6 +107,7 @@ test("creates a product with a net content", async () => {
   expect(services.createProduct).toHaveBeenCalledWith({
     name: "Pasta de maní 380 g",
     categoryId: "category-1",
+    brandId: null,
     saleUnit: "KG",
     barcodes: ["7790000000099"],
     netContent: { quantity: 1.5, unit: "KG" },

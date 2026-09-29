@@ -1471,6 +1471,37 @@ test("redirects a non-permitted user's typed /catalog/categories to Mi cuenta, w
   expect(services.categoriesListScreen.fetchCategories).not.toHaveBeenCalled();
 });
 
+test("navigating directly to /catalog/brands opens the brands list, with Marcas active", async () => {
+  window.history.pushState(null, "", "/catalog/brands");
+  const services = createAppServices();
+  vi.mocked(services.brandsListScreen.fetchBrands).mockResolvedValue({ kind: "ok", value: [] });
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Marcas", level: 1 })).toBeVisible();
+  const brandsItem = screen.getByRole("link", { name: "Marcas" }).element() as HTMLAnchorElement;
+  expect(brandsItem.getAttribute("aria-current")).toBe("page");
+  window.history.pushState(null, "", "/");
+});
+
+test("redirects a non-permitted user's typed /catalog/brands to Mi cuenta, without listing brands", async () => {
+  const services = createAppServices({
+    fetchSession: vi
+      .fn()
+      .mockResolvedValue(
+        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+      ),
+  });
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/catalog/brands");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/settings/users/me");
+  expect(services.brandsListScreen.fetchBrands).not.toHaveBeenCalled();
+});
+
 test("redirects a non-permitted user's typed /catalog/products to Mi cuenta, without listing products", async () => {
   const services = createAppServices({
     fetchSession: vi
@@ -1577,6 +1608,7 @@ test("shows the Precios section, and only it, for a user holding only manage_pri
   expect(window.location.pathname).toBe("/catalog/prices");
   expect(screen.getByRole("link", { name: "Productos" }).query()).toBeNull();
   expect(screen.getByRole("link", { name: "Categorías" }).query()).toBeNull();
+  expect(screen.getByRole("link", { name: "Marcas" }).query()).toBeNull();
   await expect.element(screen.getByRole("link", { name: "Precios" })).toBeVisible();
 });
 

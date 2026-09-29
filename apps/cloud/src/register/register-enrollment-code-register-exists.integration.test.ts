@@ -31,6 +31,7 @@ describe("the register enrollment codes table on a real Postgres", () => {
     await expect(
       db.insert(registerEnrollmentCodes).values({
         registerId: randomUUID(),
+        codeLookup: "ABCD",
         codeHash: "hash",
         issuedAt,
         expiresAt: new Date(issuedAt.getTime() + 60_000),

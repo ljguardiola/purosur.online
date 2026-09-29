@@ -14,6 +14,8 @@ import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
 import {
+  BRAND_INACTIVE_RESPONSE,
+  BRAND_NOT_FOUND_FAILURE,
   CATEGORY_NOT_FOUND_FAILURE,
   CATEGORY_NOT_LEAF_RESPONSE,
 } from "./product-creation-route.js";
@@ -86,6 +88,18 @@ export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
       }
       if (outcome.kind === "category_not_leaf") {
         await reply.code(409).send(CATEGORY_NOT_LEAF_RESPONSE);
+        return;
+      }
+      if (outcome.kind === "brand_not_found") {
+        await reply.code(400).send({
+          code: "validation_failed",
+          message: BRAND_NOT_FOUND_FAILURE.message,
+          details: [{ field: BRAND_NOT_FOUND_FAILURE.field }],
+        });
+        return;
+      }
+      if (outcome.kind === "brand_inactive") {
+        await reply.code(409).send(BRAND_INACTIVE_RESPONSE);
         return;
       }
       if (outcome.kind === "barcode_taken") {

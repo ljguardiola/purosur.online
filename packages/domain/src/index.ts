@@ -44,6 +44,7 @@ export type { BarcodeListProblem, NetContentUnit, SaleUnit } from "./catalog/ind
 export {
   appendEan13CheckDigit,
   BARCODE_MAX_LENGTH,
+  BRAND_NAME_MAX_LENGTH,
   barcodeLength,
   barcodeListProblem,
   CATEGORY_NAME_MAX_LENGTH,
@@ -51,6 +52,7 @@ export {
   ean13CheckDigit,
   ean13Modules,
   isBarcodeTooLong,
+  isBrandNameTooLong,
   isCategoryNameTooLong,
   isInternalBarcode,
   isNetContentUnit,
@@ -75,7 +77,15 @@ export {
 } from "./fiscal/index.js";
 export { MAX_UNIT_PRICE_CENTS } from "./pricing/index.js";
 export {
+  ENROLLMENT_CODE_LENGTH,
+  enrollmentAttemptWindowStart,
+  enrollmentCodeExpiresAt,
+  enrollmentCodeLookup,
+  INSTALLATION_REPORT_MAX_LENGTH,
+  isInstallationReportTooLong,
   isRegisterNameTooLong,
+  isWellFormedEnrollmentCode,
+  normalizeEnrollmentCode,
   REGISTER_NAME_MAX_LENGTH,
   registerNameLength,
 } from "./register/index.js";

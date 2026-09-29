@@ -4,13 +4,7 @@ import {
   roleCreationBodySchema,
   roleEditBodySchema,
 } from "@purosur/contracts";
-import {
-  isAdministratorRoleName,
-  isRoleNameTooLong,
-  type PermissionArea,
-  type PermissionKey,
-  ROLE_NAME_MAX_LENGTH,
-} from "@purosur/domain";
+import type { PermissionArea, PermissionKey } from "@purosur/domain";
 import {
   Button,
   InlineNotice,
@@ -21,29 +15,19 @@ import {
   plural,
 } from "@purosur/ui";
 import { startAuthentication } from "@simplewebauthn/browser";
-import {
-  ArrowLeft,
-  Check,
-  RotateCcw,
-  Shield,
-  ShieldOff,
-  ShieldX,
-  TriangleAlert,
-  User,
-  Users,
-  X,
-} from "lucide-react";
+import { Check, RotateCcw, Shield, ShieldOff, ShieldX, TriangleAlert, X } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useCloudForm } from "../platform/cloud-form";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useRefreshAccess, useReloadRole, useRoleQuery } from "./access-queries";
 import { useAuthorization } from "./authorization-modal";
+import { ConfirmRoleSaveModal } from "./confirm-role-save-modal";
 import { roleDisplayName } from "./role-display";
 import { RoleEditorForm } from "./role-editor-form";
+import { roleNameMessage } from "./role-name-message";
 import { withOneAlertView } from "./role-permissions";
 import {
-  type AssignedUser,
   type CreateRoleOutcome,
   createRole,
   type EditRoleOutcome,
@@ -86,101 +70,10 @@ export type RoleEditorModalProps = {
   services?: RoleEditorModalServices;
 };
 
-function roleNameMessage({ name }: { name: string }): string {
-  const trimmed = name.trim();
-  if (trimmed === "") {
-    return "Ingresá el nombre del rol.";
-  }
-  if (isRoleNameTooLong(trimmed)) {
-    return `El nombre puede tener hasta ${ROLE_NAME_MAX_LENGTH} caracteres.`;
-  }
-  if (isAdministratorRoleName(trimmed)) {
-    return "Ese nombre es del Administrador; elegí otro.";
-  }
-  return "Revisá el nombre del rol.";
-}
-
 type FormNotice =
   | { kind: "attemptFailed" }
   | { kind: "rateLimited"; retryAfterSeconds: number }
   | { kind: "staleVersion" };
-
-type RoleSaveConfirmationModalProps = {
-  open: boolean;
-  roleName: string;
-  assignedUsers: AssignedUser[];
-  submitting: boolean;
-  onBack: () => void;
-  onConfirm: () => void;
-};
-
-function RoleSaveConfirmationModal({
-  open,
-  roleName,
-  assignedUsers,
-  submitting,
-  onBack,
-  onConfirm,
-}: RoleSaveConfirmationModalProps) {
-  return (
-    <Modal
-      open={open}
-      onOpenChange={(open) => {
-        if (!open) {
-          onBack();
-        }
-      }}
-      width="confirmation"
-      tone="info"
-      icon={<Users />}
-      headerLayout="centered"
-      title="¿Guardar los cambios?"
-      closable
-      footer={
-        <>
-          <Button
-            variant="secondary"
-            size="large"
-            icon={<ArrowLeft />}
-            fullWidth
-            disabled={submitting}
-            onPress={onBack}
-          >
-            Volver
-          </Button>
-          <Button
-            variant="primary"
-            size="large"
-            icon={<Check />}
-            fullWidth
-            disabled={submitting}
-            onPress={onConfirm}
-          >
-            Guardar los cambios
-          </Button>
-        </>
-      }
-    >
-      <p className="text-center text-body text-text-subtle">
-        {`${plural(assignedUsers.length, {
-          one: "Se aplica a la 1 persona",
-          other: `Se aplican a las ${assignedUsers.length} personas`,
-        })} con el rol ${roleName}:`}
-      </p>
-      <div className="max-h-60 w-full shrink-0 overflow-y-auto rounded-lg border border-border text-left">
-        {assignedUsers.map((user) => (
-          <div
-            key={user.id}
-            className="flex items-center gap-2 border-border border-b px-4 py-2 last:border-b-0"
-          >
-            <User aria-hidden="true" className="size-icon-sm shrink-0 text-text-subtle" />
-            <span>{user.name}</span>
-          </div>
-        ))}
-      </div>
-    </Modal>
-  );
-}
 
 type RoleSeed =
   | { kind: "new" }
@@ -482,7 +375,7 @@ function RoleEditorSession({
           />
         </div>
       </RoleEditorFrame>
-      <RoleSaveConfirmationModal
+      <ConfirmRoleSaveModal
         open={confirmingSave}
         roleName={stored ? roleDisplayName(stored) : ""}
         assignedUsers={stored?.assignedUsers ?? []}

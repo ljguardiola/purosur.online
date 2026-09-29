@@ -4,6 +4,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../access/session-id.js";
 import {
+  brands,
   categories,
   productBarcodes,
   products,
@@ -117,6 +118,7 @@ async function insertProduct(input: {
   barcodes: string[];
   netContentQuantity?: number;
   netContentUnit?: string;
+  brandId?: string;
 }): Promise<{ id: string; version: number }> {
   const [product] = await db
     .insert(products)
@@ -126,6 +128,7 @@ async function insertProduct(input: {
       saleUnit: input.saleUnit,
       netContentQuantity: input.netContentQuantity,
       netContentUnit: input.netContentUnit,
+      brandId: input.brandId,
     })
     .returning({ id: products.id, version: products.version });
   if (!product) {
@@ -135,6 +138,14 @@ async function insertProduct(input: {
     .insert(productBarcodes)
     .values(input.barcodes.map((code, position) => ({ productId: product.id, code, position })));
   return product;
+}
+
+async function insertBrand(name: string, active = true): Promise<string> {
+  const [brand] = await db.insert(brands).values({ name, active }).returning({ id: brands.id });
+  if (!brand) {
+    throw new Error("test setup: seeding the brand returned no row");
+  }
+  return brand.id;
 }
 
 function cookieHeader(rawSessionId: string): Record<string, string> {
@@ -174,6 +185,7 @@ describe("POST /products/:id/edit", () => {
       categoryId,
       saleUnit: "UNIT",
       barcodes: ["111"],
+      brandId: null,
       version: product.version,
     });
 
@@ -200,6 +212,7 @@ describe("POST /products/:id/edit", () => {
         categoryId,
         saleUnit: "UNIT",
         barcodes: ["111"],
+        brandId: null,
         version: product.version,
       },
       { origin: "https://attacker.example" },
@@ -227,6 +240,7 @@ describe("POST /products/:id/edit", () => {
       categoryId,
       saleUnit: "UNIT",
       barcodes: ["111"],
+      brandId: null,
       version: product.version,
     });
 
@@ -253,6 +267,7 @@ describe("POST /products/:id/edit", () => {
       categoryId: otherCategoryId,
       saleUnit: "KG",
       barcodes: ["333"],
+      brandId: null,
       version: product.version,
     });
 
@@ -266,6 +281,7 @@ describe("POST /products/:id/edit", () => {
       barcodes: ["333"],
       netContent: null,
       active: true,
+      brandId: null,
       version: 2,
     });
     const codes = await db
@@ -291,6 +307,7 @@ describe("POST /products/:id/edit", () => {
       categoryId,
       saleUnit: "UNIT",
       barcodes: ["111"],
+      brandId: null,
       version: product.version,
     });
 
@@ -314,6 +331,7 @@ describe("POST /products/:id/edit", () => {
       categoryId,
       saleUnit: "KG",
       barcodes: ["111"],
+      brandId: null,
       version: product.version,
       netContent: { quantity: 1.5, unit: "KG" },
     });
@@ -342,6 +360,7 @@ describe("POST /products/:id/edit", () => {
       categoryId,
       saleUnit: "KG",
       barcodes: ["111"],
+      brandId: null,
       version: product.version,
       netContent: null,
     });
@@ -370,6 +389,7 @@ describe("POST /products/:id/edit", () => {
       categoryId,
       saleUnit: "KG",
       barcodes: ["111"],
+      brandId: null,
       version: product.version,
     });
 
@@ -389,6 +409,7 @@ describe("POST /products/:id/edit", () => {
       categoryId,
       saleUnit: "UNIT",
       barcodes: ["111"],
+      brandId: null,
       version: 1,
     });
 
@@ -406,6 +427,7 @@ describe("POST /products/:id/edit", () => {
       categoryId,
       saleUnit: "UNIT",
       barcodes: ["111"],
+      brandId: null,
       version: 1,
     });
 
@@ -429,6 +451,7 @@ describe("POST /products/:id/edit", () => {
       categoryId,
       saleUnit: "UNIT",
       barcodes: ["111"],
+      brandId: null,
       version: product.version,
     });
 
@@ -457,6 +480,7 @@ describe("POST /products/:id/edit", () => {
       categoryId: "00000000-0000-0000-0000-000000000000",
       saleUnit: "UNIT",
       barcodes: ["111"],
+      brandId: null,
       version: product.version,
     });
 
@@ -487,6 +511,7 @@ describe("POST /products/:id/edit", () => {
       categoryId: nonLeafCategoryId,
       saleUnit: "UNIT",
       barcodes: ["111"],
+      brandId: null,
       version: product.version,
     });
 
@@ -514,6 +539,7 @@ describe("POST /products/:id/edit", () => {
       categoryId: leafCategoryId,
       saleUnit: "UNIT",
       barcodes: ["111"],
+      brandId: null,
       version: product.version,
     });
 
@@ -539,6 +565,7 @@ describe("POST /products/:id/edit", () => {
       categoryId,
       saleUnit: "UNIT",
       barcodes: ["111"],
+      brandId: null,
       version: product.version + 1,
     });
 
@@ -570,6 +597,7 @@ describe("POST /products/:id/edit", () => {
       categoryId,
       saleUnit: "UNIT",
       barcodes: ["999"],
+      brandId: null,
       version: product.version,
     });
 
@@ -609,6 +637,7 @@ describe("POST /products/:id/edit", () => {
       categoryId,
       saleUnit: "UNIT",
       barcodes: ["999"],
+      brandId: null,
       version: product.version,
     });
 
@@ -633,6 +662,7 @@ describe("POST /products/:id/edit", () => {
       categoryId,
       saleUnit: "UNIT",
       barcodes: ["222"],
+      brandId: null,
       version: product.version,
     });
 
@@ -669,6 +699,7 @@ describe("POST /products/:id/edit", () => {
       categoryId,
       saleUnit: "UNIT",
       barcodes: ["999"],
+      brandId: null,
       version: deactivated.version,
     });
 
@@ -679,5 +710,170 @@ describe("POST /products/:id/edit", () => {
       .from(productBarcodes)
       .where(eq(productBarcodes.productId, deactivated.id));
     expect(barcodeRows).toMatchObject([{ code: "999", active: false }]);
+  });
+
+  it("gives the product an active brand", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const brandId = await insertBrand("Granix");
+    const product = await insertProduct({
+      name: "Galletitas",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+    });
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await editProduct(rawSessionId, product.id, {
+      name: "Galletitas",
+      categoryId,
+      brandId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      version: product.version,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ brandId });
+    expect(await db.select().from(products)).toMatchObject([{ brandId }]);
+  });
+
+  it("removes the product's brand when sent null", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const brandId = await insertBrand("Granix");
+    const product = await insertProduct({
+      name: "Galletitas",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      brandId,
+    });
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await editProduct(rawSessionId, product.id, {
+      name: "Galletitas",
+      categoryId,
+      brandId: null,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      version: product.version,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(await db.select().from(products)).toMatchObject([{ brandId: null }]);
+  });
+
+  it("refuses a body without the brandId key, keeping the product's brand", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const brandId = await insertBrand("Granix");
+    const product = await insertProduct({
+      name: "Galletitas",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      brandId,
+    });
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await editProduct(rawSessionId, product.id, {
+      name: "Galletitas",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      version: product.version,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "brandId" }],
+    });
+    expect(await db.select().from(products)).toMatchObject([{ brandId, version: 1 }]);
+  });
+
+  it("lets the product keep the deactivated brand it already carries", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const brandId = await insertBrand("Yerba del Litoral", false);
+    const product = await insertProduct({
+      name: "Miel pura de abeja",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      brandId,
+    });
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await editProduct(rawSessionId, product.id, {
+      name: "Miel pura de abeja 1 kg",
+      categoryId,
+      brandId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      version: product.version,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(await db.select().from(products)).toMatchObject([
+      { name: "Miel pura de abeja 1 kg", brandId },
+    ]);
+  });
+
+  it("rejects moving the product to a deactivated brand with 409 brand_inactive, changing nothing", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const brandId = await insertBrand("Granix");
+    const inactiveBrandId = await insertBrand("Yerba del Litoral", false);
+    const product = await insertProduct({
+      name: "Galletitas",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      brandId,
+    });
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await editProduct(rawSessionId, product.id, {
+      name: "Galletitas",
+      categoryId,
+      brandId: inactiveBrandId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      version: product.version,
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "brand_inactive" });
+    expect(await db.select().from(products)).toMatchObject([{ brandId, version: 1 }]);
+  });
+
+  it("rejects a brandId that does not name an existing brand, changing nothing", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const product = await insertProduct({
+      name: "Galletitas",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+    });
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await editProduct(rawSessionId, product.id, {
+      name: "Galletitas",
+      categoryId,
+      brandId: "00000000-0000-0000-0000-000000000000",
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      version: product.version,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "brandId" }],
+    });
+    expect(await db.select().from(products)).toMatchObject([{ brandId: null, version: 1 }]);
   });
 });

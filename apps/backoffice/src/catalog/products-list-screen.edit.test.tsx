@@ -85,6 +85,7 @@ test("edits a product and shows the updated data in the list", async () => {
   expect(services.editProduct).toHaveBeenCalledWith("product-1", {
     name: "Miel pura de abeja 500 g",
     categoryId: "category-1",
+    brandId: null,
     saleUnit: "UNIT",
     barcodes: ["7790987000015"],
     netContent: null,
@@ -108,6 +109,7 @@ test("changes a product's net content on edit", async () => {
   expect(services.editProduct).toHaveBeenCalledWith("product-1", {
     name: "Miel pura de abeja 1 kg",
     categoryId: "category-1",
+    brandId: null,
     saleUnit: "UNIT",
     barcodes: ["7790987000015"],
     netContent: { quantity: 500, unit: "G" },
@@ -130,6 +132,7 @@ test("clears a product's net content by emptying the quantity on edit", async ()
   expect(services.editProduct).toHaveBeenCalledWith("product-1", {
     name: "Miel pura de abeja 1 kg",
     categoryId: "category-1",
+    brandId: null,
     saleUnit: "UNIT",
     barcodes: ["7790987000015"],
     netContent: null,
@@ -300,6 +303,7 @@ test("shows a stale-version conflict banner, and reloading restores the fresh pr
   expect(services.editProduct).toHaveBeenLastCalledWith("product-1", {
     name: "Miel pura de abeja 1200 g",
     categoryId: "category-1",
+    brandId: null,
     saleUnit: "UNIT",
     barcodes: ["7790987000015"],
     netContent: null,

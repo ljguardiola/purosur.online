@@ -1,5 +1,5 @@
 {
-  "id": "0a36341a-293e-4508-b4d2-d8b59f992318",
+  "id": "9e4d1f06-584f-4f76-bee3-f450edc05357",
   "prevId": "870f1739-e24b-4784-8c19-aef5a6b0867e",
   "version": "7",
   "dialect": "postgresql",
@@ -191,13 +191,6 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
-        },
-        "deduplicates": {
-          "name": "deduplicates",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
         }
       },
       "indexes": {
@@ -218,7 +211,7 @@
             }
           ],
           "isUnique": true,
-          "where": "\"alerts\".\"resolved_at\" IS NULL AND \"alerts\".\"deduplicates\"",
+          "where": "\"alerts\".\"resolved_at\" IS NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -588,6 +581,62 @@
           "onUpdate": "no action"
         }
       },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.brands": {
+      "name": "brands",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        }
+      },
+      "indexes": {
+        "brands_name_lower_key": {
+          "name": "brands_name_lower_key",
+          "columns": [
+            {
+              "expression": "lower(\"name\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -1284,6 +1333,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "brand_id": {
+          "name": "brand_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "sale_unit": {
           "name": "sale_unit",
           "type": "text",
@@ -1317,13 +1372,38 @@
           "default": 1
         }
       },
-      "indexes": {},
+      "indexes": {
+        "products_brand_id_idx": {
+          "name": "products_brand_id_idx",
+          "columns": [
+            {
+              "expression": "brand_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "products_category_id_categories_id_fk": {
           "name": "products_category_id_categories_id_fk",
           "tableFrom": "products",
           "tableTo": "categories",
           "columnsFrom": ["category_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "products_brand_id_brands_id_fk": {
+          "name": "products_brand_id_brands_id_fk",
+          "tableFrom": "products",
+          "tableTo": "brands",
+          "columnsFrom": ["brand_id"],
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"

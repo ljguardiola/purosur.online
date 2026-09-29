@@ -173,6 +173,18 @@ export const categories = pgTable(
   ],
 );
 
+// A name is unique ignoring letter case across every brand, deactivated ones included.
+export const brands = pgTable(
+  "brands",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    active: boolean("active").notNull().default(true),
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [uniqueIndex("brands_name_lower_key").on(sql`lower(${table.name})`)],
+);
+
 // active is one-way (never deleted): the migration also revokes DELETE on this table, so
 // historical sale lines keep referencing it.
 export const products = pgTable(
@@ -183,6 +195,7 @@ export const products = pgTable(
     categoryId: uuid("category_id")
       .notNull()
       .references(() => categories.id),
+    brandId: uuid("brand_id").references(() => brands.id),
     saleUnit: text("sale_unit").notNull(),
     active: boolean("active").notNull().default(true),
     netContentQuantity: numeric("net_content_quantity", {
@@ -194,6 +207,7 @@ export const products = pgTable(
     version: integer("version").notNull().default(1),
   },
   (table) => [
+    index("products_brand_id_idx").on(table.brandId),
     check("products_sale_unit_check", sql`${table.saleUnit} in ('UNIT', 'KG')`),
     check(
       "products_net_content_unit_check",
@@ -317,16 +331,67 @@ export const registers = pgTable(
   ],
 );
 
-export const registerEnrollmentCodes = pgTable("register_enrollment_codes", {
-  registerId: uuid("register_id")
-    .primaryKey()
-    .references(() => registers.id),
-  codeHash: text("code_hash").notNull(),
-  issuedAt: timestamp("issued_at", { withTimezone: true }).notNull(),
-  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-  redeemedAt: timestamp("redeemed_at", { withTimezone: true }),
-  failedAttempts: integer("failed_attempts").notNull().default(0),
-});
+export const registerEnrollmentCodes = pgTable(
+  "register_enrollment_codes",
+  {
+    registerId: uuid("register_id")
+      .primaryKey()
+      .references(() => registers.id),
+    // A code emitted before this column existed has an empty lookup, which no typed code matches.
+    codeLookup: text("code_lookup").notNull(),
+    codeHash: text("code_hash").notNull(),
+    issuedAt: timestamp("issued_at", { withTimezone: true }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    redeemedAt: timestamp("redeemed_at", { withTimezone: true }),
+    failedAttempts: integer("failed_attempts").notNull().default(0),
+  },
+  (table) => [index("register_enrollment_codes_code_lookup_idx").on(table.codeLookup)],
+);
+
+export const registerInstallations = pgTable(
+  "register_installations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    registerId: uuid("register_id")
+      .notNull()
+      .references(() => registers.id),
+    tokenLookupPrefix: text("token_lookup_prefix").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    hostname: text("hostname").notNull(),
+    windowsVersion: text("windows_version").notNull(),
+    enrolledAt: timestamp("enrolled_at", { withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("register_installations_token_lookup_prefix_key").on(table.tokenLookupPrefix),
+    uniqueIndex("register_installations_active_register_id_key")
+      .on(table.registerId)
+      .where(sql`${table.revokedAt} is null`),
+  ],
+);
+
+export const registerEnrollmentAttemptKeyKind = pgEnum("register_enrollment_attempt_key_kind", [
+  "source_address",
+  "register",
+]);
+
+export const registerEnrollmentAttempts = pgTable(
+  "register_enrollment_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    keyKind: registerEnrollmentAttemptKeyKind("key_kind").notNull(),
+    keyValue: text("key_value").notNull(),
+    attemptedAt: timestamp("attempted_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index("register_enrollment_attempts_key_idx").on(
+      table.keyKind,
+      table.keyValue,
+      table.attemptedAt,
+    ),
+    index("register_enrollment_attempts_attempted_at_idx").on(table.attemptedAt),
+  ],
+);
 
 // `actor_id` is nullable: a null actor reads as "the service itself acted" (e.g. a sign-in
 // lockout, which is keyed by source address and may match no account at all).

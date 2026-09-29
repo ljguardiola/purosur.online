@@ -1,9 +1,12 @@
 import {
+  type BrandFields,
   CatalogBarcodeConflict,
+  CatalogBrandNameConflict,
   CatalogCategoryNameConflict,
   type CatalogStore,
   type CatalogStoreTransaction,
   type CategoryFields,
+  type LockBrandResult,
   type LockCategoryResult,
   type LockedProduct,
   type LockLeafCategoryResult,
@@ -15,12 +18,13 @@ import {
 import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
-import { categories, productBarcodes, products } from "../platform/db/schema.js";
+import { brands, categories, productBarcodes, products } from "../platform/db/schema.js";
 import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 
 const UNIQUE_VIOLATION = "23505";
 const BARCODE_UNIQUE_INDEX = "product_barcodes_code_key";
 const CATEGORY_NAME_UNIQUE_INDEX = "categories_name_lower_key";
+const BRAND_NAME_UNIQUE_INDEX = "brands_name_lower_key";
 
 export const CATEGORY_MOVE_LOCK_KEY = "category-move";
 
@@ -105,7 +109,12 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
       return { kind: "not_found" };
     }
     const [product] = await this.tx
-      .select({ id: products.id, version: products.version, active: products.active })
+      .select({
+        id: products.id,
+        version: products.version,
+        active: products.active,
+        brandId: products.brandId,
+      })
       .from(products)
       .where(eq(products.id, productId))
       .for("update");
@@ -171,6 +180,7 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
       .values({
         name: fields.name,
         categoryId: fields.categoryId,
+        brandId: fields.brandId,
         saleUnit: fields.saleUnit,
         netContentQuantity: fields.netContent?.quantity,
         netContentUnit: fields.netContent?.unit,
@@ -192,6 +202,7 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
       .set({
         name: fields.name,
         categoryId: fields.categoryId,
+        brandId: fields.brandId,
         saleUnit: fields.saleUnit,
         netContentQuantity: fields.netContent?.quantity ?? null,
         netContentUnit: fields.netContent?.unit ?? null,
@@ -249,6 +260,55 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
     }
   }
 
+  async lockBrand(brandId: string): Promise<LockBrandResult> {
+    if (!UUID_PATTERN.test(brandId)) {
+      return { kind: "not_found" };
+    }
+    const [brand] = await this.tx
+      .select({ name: brands.name, active: brands.active, version: brands.version })
+      .from(brands)
+      .where(eq(brands.id, brandId))
+      .for("update");
+    return brand ? { kind: "locked", brand } : { kind: "not_found" };
+  }
+
+  async brandNameTaken(name: string, excludingBrandId?: string): Promise<boolean> {
+    const [brand] = await this.tx
+      .select({ id: brands.id })
+      .from(brands)
+      .where(
+        and(
+          sql`lower(${brands.name}) = lower(${name})`,
+          excludingBrandId === undefined ? undefined : ne(brands.id, excludingBrandId),
+        ),
+      )
+      .limit(1);
+    return brand !== undefined;
+  }
+
+  async insertBrand(name: string): Promise<{ id: string }> {
+    try {
+      const [brand] = await this.tx.insert(brands).values({ name }).returning({ id: brands.id });
+      if (!brand) {
+        throw new Error("inserting the brand returned no row");
+      }
+      return brand;
+    } catch (error) {
+      throw translateBrandNameViolation(error);
+    }
+  }
+
+  async updateBrand(brandId: string, fields: BrandFields): Promise<void> {
+    try {
+      await this.tx
+        .update(brands)
+        .set({ name: fields.name, active: fields.active, version: fields.version })
+        .where(eq(brands.id, brandId));
+    } catch (error) {
+      throw translateBrandNameViolation(error);
+    }
+  }
+
   private async writeBarcodes(
     productId: string,
     barcodes: readonly string[],
@@ -270,6 +330,12 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
 function translateCategoryNameViolation(error: unknown): unknown {
   return violatesUniqueIndex(error, CATEGORY_NAME_UNIQUE_INDEX)
     ? new CatalogCategoryNameConflict()
+    : error;
+}
+
+function translateBrandNameViolation(error: unknown): unknown {
+  return violatesUniqueIndex(error, BRAND_NAME_UNIQUE_INDEX)
+    ? new CatalogBrandNameConflict()
     : error;
 }
 

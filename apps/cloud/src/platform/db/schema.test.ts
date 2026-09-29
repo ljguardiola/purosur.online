@@ -20,6 +20,7 @@ import { buildTestDatabase, type TestDatabase } from "../../test-support/build-t
 import { migrateFreshDatabase } from "../../test-support/test-database-snapshot.js";
 import { MIGRATIONS_FOLDER } from "./migrations-folder.js";
 import {
+  brands,
   categories,
   locations,
   passkeyChallenges,
@@ -119,6 +120,48 @@ describe("categories.parent_id", () => {
     await expect(
       db.update(categories).set({ parentId: category.id }).where(eq(categories.id, category.id)),
     ).rejects.toMatchObject({ cause: { constraint: "categories_parent_is_not_itself" } });
+  });
+});
+
+describe("brands.name", () => {
+  it("rejects a second brand with the same name in another letter case, even when the first is deactivated", async () => {
+    await db.insert(brands).values({ name: "Vitaco", active: false });
+
+    await expect(db.insert(brands).values({ name: "vITACO" })).rejects.toMatchObject({
+      cause: { constraint: "brands_name_lower_key" },
+    });
+  });
+
+  it("starts a brand active at version 1", async () => {
+    const [brand] = await db.insert(brands).values({ name: "Granix" }).returning();
+
+    expect(brand).toMatchObject({ name: "Granix", active: true, version: 1 });
+  });
+});
+
+describe("products.brand_id", () => {
+  it("starts a product with no brand and rejects a brand that doesn't exist", async () => {
+    const [category] = await db
+      .insert(categories)
+      .values({ name: "Almacén" })
+      .returning({ id: categories.id });
+    if (!category) {
+      throw new Error("test setup: inserting the category returned no row");
+    }
+    const [product] = await db
+      .insert(products)
+      .values({ name: "Dátiles", categoryId: category.id, saleUnit: "KG" })
+      .returning();
+
+    expect(product).toMatchObject({ brandId: null });
+    await expect(
+      db.insert(products).values({
+        name: "Galletitas",
+        categoryId: category.id,
+        saleUnit: "UNIT",
+        brandId: "00000000-0000-0000-0000-000000000000",
+      }),
+    ).rejects.toMatchObject({ cause: { constraint: "products_brand_id_brands_id_fk" } });
   });
 });
 
