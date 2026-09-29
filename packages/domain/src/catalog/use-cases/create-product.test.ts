@@ -13,6 +13,7 @@ describe("createProduct", () => {
     const outcome = await createProduct(store, {
       name: "Yerba",
       categoryId: "missing",
+      brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
       netContent: null,
@@ -29,6 +30,7 @@ describe("createProduct", () => {
     const outcome = await createProduct(store, {
       name: "Yerba",
       categoryId: "parent",
+      brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
       netContent: null,
@@ -45,6 +47,7 @@ describe("createProduct", () => {
         id: "existing",
         name: "Otro",
         categoryId: "category-1",
+        brandId: null,
         saleUnit: "UNIT",
         netContent: null,
         active: true,
@@ -56,6 +59,7 @@ describe("createProduct", () => {
     const outcome = await createProduct(store, {
       name: "Yerba",
       categoryId: "category-1",
+      brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
       netContent: null,
@@ -72,6 +76,7 @@ describe("createProduct", () => {
         id: "existing",
         name: "Otro",
         categoryId: "category-1",
+        brandId: null,
         saleUnit: "UNIT",
         netContent: null,
         active: false,
@@ -83,6 +88,7 @@ describe("createProduct", () => {
     const outcome = await createProduct(store, {
       name: "Yerba",
       categoryId: "category-1",
+      brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
       netContent: null,
@@ -99,6 +105,7 @@ describe("createProduct", () => {
     const outcome = await createProduct(store, {
       name: "Yerba",
       categoryId: "category-1",
+      brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
       netContent: null,
@@ -115,6 +122,7 @@ describe("createProduct", () => {
     const outcome = await createProduct(store, {
       name: "Yerba",
       categoryId: "category-1",
+      brandId: null,
       saleUnit: "KG",
       barcodes: ["111", "222"],
       netContent: { quantity: 0.5, unit: "KG" },
@@ -126,6 +134,7 @@ describe("createProduct", () => {
         id: "product-1",
         name: "Yerba",
         categoryId: "category-1",
+        brandId: null,
         categoryName: "Almacén",
         saleUnit: "KG",
         barcodes: ["111", "222"],
@@ -139,6 +148,7 @@ describe("createProduct", () => {
         id: "product-1",
         name: "Yerba",
         categoryId: "category-1",
+        brandId: null,
         saleUnit: "KG",
         netContent: { quantity: 0.5, unit: "KG" },
         active: true,
@@ -148,12 +158,136 @@ describe("createProduct", () => {
     expect(await store.activeBarcodesTaken(["111", "222"])).toEqual(["111", "222"]);
   });
 
+  it("creates the product with the active brand it was given", async () => {
+    const store = new FakeCatalogStore();
+    leafCategory(store);
+    store.seedBrand({ id: "decoy", name: "Decoy", active: true, version: 1 });
+    store.seedBrand({ id: "brand-1", name: "Granix", active: true, version: 4 });
+
+    const outcome = await createProduct(store, {
+      name: "Galletitas",
+      categoryId: "category-1",
+      brandId: "brand-1",
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      netContent: null,
+    });
+
+    expect(outcome).toMatchObject({ kind: "created", product: { brandId: "brand-1" } });
+    expect(store.snapshot().products).toMatchObject([{ id: "product-1", brandId: "brand-1" }]);
+    expect(store.snapshot().brands).toContainEqual({
+      id: "brand-1",
+      name: "Granix",
+      active: true,
+      version: 4,
+    });
+    expect(store.lockCallOrder).toEqual(["lockLeafCategory", "lockBrand"]);
+  });
+
+  it("creates the product with no brand when none was given, locking no brand", async () => {
+    const store = new FakeCatalogStore();
+    leafCategory(store);
+
+    const outcome = await createProduct(store, {
+      name: "Dátiles sueltos",
+      categoryId: "category-1",
+      brandId: null,
+      saleUnit: "KG",
+      barcodes: ["111"],
+      netContent: null,
+    });
+
+    expect(outcome).toMatchObject({ kind: "created", product: { brandId: null } });
+    expect(store.snapshot().products).toMatchObject([{ brandId: null }]);
+    expect(store.lockCallOrder).toEqual(["lockLeafCategory"]);
+  });
+
+  it("rejects a brandId that does not exist, creating nothing", async () => {
+    const store = new FakeCatalogStore();
+    leafCategory(store);
+
+    const outcome = await createProduct(store, {
+      name: "Galletitas",
+      categoryId: "category-1",
+      brandId: "missing",
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      netContent: null,
+    });
+
+    expect(outcome).toEqual({ kind: "brand_not_found" });
+    expect(store.snapshot().products).toEqual([]);
+  });
+
+  it("rejects a deactivated brand, creating nothing", async () => {
+    const store = new FakeCatalogStore();
+    leafCategory(store);
+    store.seedBrand({ id: "brand-1", name: "Yerba del Litoral", active: false, version: 2 });
+
+    const outcome = await createProduct(store, {
+      name: "Yerba",
+      categoryId: "category-1",
+      brandId: "brand-1",
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      netContent: null,
+    });
+
+    expect(outcome).toEqual({ kind: "brand_inactive" });
+    expect(store.snapshot().products).toEqual([]);
+  });
+
+  it("checks the category before the brand", async () => {
+    const store = new FakeCatalogStore();
+
+    const outcome = await createProduct(store, {
+      name: "Yerba",
+      categoryId: "missing",
+      brandId: "missing",
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      netContent: null,
+    });
+
+    expect(outcome).toEqual({ kind: "category_not_found" });
+  });
+
+  it("checks the brand before the barcodes", async () => {
+    const store = new FakeCatalogStore();
+    leafCategory(store);
+    store.seedProduct(
+      {
+        id: "existing",
+        name: "Otro",
+        categoryId: "category-1",
+        brandId: null,
+        saleUnit: "UNIT",
+        netContent: null,
+        active: true,
+        version: 1,
+      },
+      [{ code: "111" }],
+    );
+
+    const outcome = await createProduct(store, {
+      name: "Yerba",
+      categoryId: "category-1",
+      brandId: "missing",
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      netContent: null,
+    });
+
+    expect(outcome).toEqual({ kind: "brand_not_found" });
+  });
+
   it("gives each created product its own id", async () => {
     const store = new FakeCatalogStore();
     leafCategory(store);
     const input = {
       name: "Yerba",
       categoryId: "category-1",
+      brandId: null,
       saleUnit: "UNIT" as const,
       netContent: null,
     };
@@ -173,6 +307,7 @@ describe("createProduct", () => {
     await createProduct(store, {
       name: "Yerba",
       categoryId: "category-1",
+      brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
       netContent: null,
@@ -189,6 +324,7 @@ describe("createProduct", () => {
       createProduct(store, {
         name: "Yerba",
         categoryId: "category-1",
+        brandId: null,
         saleUnit: "UNIT",
         barcodes: ["111"],
         netContent: null,
@@ -203,6 +339,7 @@ describe("createProduct", () => {
     await createProduct(store, {
       name: "Yerba",
       categoryId: "category-1",
+      brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
       netContent: null,
@@ -219,6 +356,7 @@ describe("createProduct", () => {
     await createProduct(store, {
       name: "Yerba",
       categoryId: "category-1",
+      brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111", "222"],
       netContent: null,

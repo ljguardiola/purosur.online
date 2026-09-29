@@ -15,6 +15,7 @@ function activeProduct(
       id: overrides.id ?? "product-1",
       name: "Yerba",
       categoryId: overrides.categoryId ?? "category-1",
+      brandId: null,
       saleUnit: "UNIT",
       netContent: null,
       active: overrides.active ?? true,
@@ -30,12 +31,29 @@ function decoyProduct(store: FakeCatalogStore): void {
       id: "decoy",
       name: "Decoy",
       categoryId: "category-1",
+      brandId: null,
       saleUnit: "KG",
       netContent: { quantity: 1, unit: "L" },
       active: true,
       version: 7,
     },
     [{ code: "900" }],
+  );
+}
+
+function brandedProduct(store: FakeCatalogStore, brandId: string): void {
+  store.seedProduct(
+    {
+      id: "product-1",
+      name: "Yerba",
+      categoryId: "category-1",
+      brandId,
+      saleUnit: "UNIT",
+      netContent: null,
+      active: true,
+      version: 1,
+    },
+    [{ code: "111" }],
   );
 }
 
@@ -48,6 +66,7 @@ describe("editProduct", () => {
       id: "missing",
       name: "Yerba",
       categoryId: "category-1",
+      brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
       netContent: null,
@@ -66,6 +85,7 @@ describe("editProduct", () => {
       id: "product-1",
       name: "Yerba",
       categoryId: "category-1",
+      brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
       netContent: null,
@@ -84,6 +104,7 @@ describe("editProduct", () => {
       id: "product-1",
       name: "Yerba",
       categoryId: "missing",
+      brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
       netContent: null,
@@ -103,6 +124,7 @@ describe("editProduct", () => {
       id: "product-1",
       name: "Yerba",
       categoryId: "parent",
+      brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
       netContent: null,
@@ -121,6 +143,7 @@ describe("editProduct", () => {
         id: "other",
         name: "Otro",
         categoryId: "category-1",
+        brandId: null,
         saleUnit: "UNIT",
         netContent: null,
         active: true,
@@ -133,6 +156,7 @@ describe("editProduct", () => {
       id: "product-1",
       name: "Yerba",
       categoryId: "category-1",
+      brandId: null,
       saleUnit: "UNIT",
       barcodes: ["222"],
       netContent: null,
@@ -151,6 +175,7 @@ describe("editProduct", () => {
       id: "product-1",
       name: "Yerba",
       categoryId: "category-1",
+      brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
       netContent: null,
@@ -168,6 +193,7 @@ describe("editProduct", () => {
         id: "other",
         name: "Otro",
         categoryId: "category-1",
+        brandId: null,
         saleUnit: "UNIT",
         netContent: null,
         active: true,
@@ -181,6 +207,7 @@ describe("editProduct", () => {
       id: "product-1",
       name: "Yerba",
       categoryId: "category-1",
+      brandId: null,
       saleUnit: "UNIT",
       barcodes: ["222"],
       netContent: null,
@@ -193,7 +220,7 @@ describe("editProduct", () => {
     });
     expect(await store.activeBarcodesTaken(["222"])).toEqual(["222"]);
     expect(store.barcodeReplacements).toEqual([
-      { product: { id: "product-1", version: 1, active: false }, barcodes: ["222"] },
+      { product: { id: "product-1", version: 1, active: false, brandId: null }, barcodes: ["222"] },
     ]);
   });
 
@@ -208,6 +235,7 @@ describe("editProduct", () => {
       id: "product-1",
       name: "Yerba Mate",
       categoryId: "category-2",
+      brandId: null,
       saleUnit: "KG",
       barcodes: ["333"],
       netContent: { quantity: 0.5, unit: "KG" },
@@ -220,6 +248,7 @@ describe("editProduct", () => {
         id: "product-1",
         name: "Yerba Mate",
         categoryId: "category-2",
+        brandId: null,
         categoryName: "Bebidas",
         saleUnit: "KG",
         barcodes: ["333"],
@@ -233,6 +262,7 @@ describe("editProduct", () => {
         id: "decoy",
         name: "Decoy",
         categoryId: "category-1",
+        brandId: null,
         saleUnit: "KG",
         netContent: { quantity: 1, unit: "L" },
         active: true,
@@ -242,6 +272,7 @@ describe("editProduct", () => {
         id: "product-1",
         name: "Yerba Mate",
         categoryId: "category-2",
+        brandId: null,
         saleUnit: "KG",
         netContent: { quantity: 0.5, unit: "KG" },
         active: true,
@@ -253,6 +284,159 @@ describe("editProduct", () => {
       { productId: "product-1", code: "333", active: true },
     ]);
     expect(store.lockCallOrder).toEqual(["lockProduct", "lockLeafCategory"]);
+  });
+
+  it("gives the product an active brand, locking the product, its category and then the brand", async () => {
+    const store = new FakeCatalogStore();
+    leafCategory(store);
+    store.seedBrand({ id: "brand-1", name: "Granix", active: true, version: 1 });
+    activeProduct(store);
+
+    const outcome = await editProduct(store, {
+      id: "product-1",
+      name: "Yerba",
+      categoryId: "category-1",
+      brandId: "brand-1",
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      netContent: null,
+      version: 1,
+    });
+
+    expect(outcome).toMatchObject({ kind: "applied", product: { brandId: "brand-1", version: 2 } });
+    expect(store.snapshot().products).toMatchObject([{ id: "product-1", brandId: "brand-1" }]);
+    expect(store.lockCallOrder).toEqual(["lockProduct", "lockLeafCategory", "lockBrand"]);
+  });
+
+  it("removes the product's brand when saved with none", async () => {
+    const store = new FakeCatalogStore();
+    leafCategory(store);
+    store.seedBrand({ id: "brand-1", name: "Granix", active: true, version: 1 });
+    brandedProduct(store, "brand-1");
+
+    const outcome = await editProduct(store, {
+      id: "product-1",
+      name: "Yerba",
+      categoryId: "category-1",
+      brandId: null,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      netContent: null,
+      version: 1,
+    });
+
+    expect(outcome).toMatchObject({ kind: "applied", product: { brandId: null } });
+    expect(store.snapshot().products).toMatchObject([{ id: "product-1", brandId: null }]);
+    expect(store.lockCallOrder).toEqual(["lockProduct", "lockLeafCategory"]);
+  });
+
+  it("lets a product keep the deactivated brand it already carries", async () => {
+    const store = new FakeCatalogStore();
+    leafCategory(store);
+    store.seedBrand({ id: "brand-1", name: "Yerba del Litoral", active: false, version: 2 });
+    brandedProduct(store, "brand-1");
+
+    const outcome = await editProduct(store, {
+      id: "product-1",
+      name: "Miel pura de abeja 1 kg",
+      categoryId: "category-1",
+      brandId: "brand-1",
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      netContent: null,
+      version: 1,
+    });
+
+    expect(outcome).toMatchObject({
+      kind: "applied",
+      product: { name: "Miel pura de abeja 1 kg", brandId: "brand-1" },
+    });
+    expect(store.snapshot().products).toMatchObject([
+      { id: "product-1", name: "Miel pura de abeja 1 kg", brandId: "brand-1" },
+    ]);
+  });
+
+  it("rejects moving a product to a deactivated brand it doesn't carry, changing nothing", async () => {
+    const store = new FakeCatalogStore();
+    leafCategory(store);
+    store.seedBrand({ id: "brand-1", name: "Granix", active: true, version: 1 });
+    store.seedBrand({ id: "brand-2", name: "Yerba del Litoral", active: false, version: 2 });
+    brandedProduct(store, "brand-1");
+
+    const outcome = await editProduct(store, {
+      id: "product-1",
+      name: "Yerba Mate",
+      categoryId: "category-1",
+      brandId: "brand-2",
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      netContent: null,
+      version: 1,
+    });
+
+    expect(outcome).toEqual({ kind: "brand_inactive" });
+    expect(store.snapshot().products).toMatchObject([
+      { id: "product-1", name: "Yerba", brandId: "brand-1", version: 1 },
+    ]);
+  });
+
+  it("rejects a deactivated brand for a product that carries no brand", async () => {
+    const store = new FakeCatalogStore();
+    leafCategory(store);
+    store.seedBrand({ id: "brand-2", name: "Yerba del Litoral", active: false, version: 2 });
+    activeProduct(store);
+
+    const outcome = await editProduct(store, {
+      id: "product-1",
+      name: "Yerba",
+      categoryId: "category-1",
+      brandId: "brand-2",
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      netContent: null,
+      version: 1,
+    });
+
+    expect(outcome).toEqual({ kind: "brand_inactive" });
+  });
+
+  it("rejects a brandId that does not exist", async () => {
+    const store = new FakeCatalogStore();
+    leafCategory(store);
+    activeProduct(store);
+
+    const outcome = await editProduct(store, {
+      id: "product-1",
+      name: "Yerba",
+      categoryId: "category-1",
+      brandId: "missing",
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      netContent: null,
+      version: 1,
+    });
+
+    expect(outcome).toEqual({ kind: "brand_not_found" });
+  });
+
+  it("checks the brand before the barcodes", async () => {
+    const store = new FakeCatalogStore();
+    leafCategory(store);
+    decoyProduct(store);
+    activeProduct(store);
+
+    const outcome = await editProduct(store, {
+      id: "product-1",
+      name: "Yerba",
+      categoryId: "category-1",
+      brandId: "missing",
+      saleUnit: "UNIT",
+      barcodes: ["900"],
+      netContent: null,
+      version: 1,
+    });
+
+    expect(outcome).toEqual({ kind: "brand_not_found" });
   });
 
   it("maps a barcode race caught by the store's write to barcode_taken, re-reading only the codes another product holds", async () => {
@@ -267,6 +451,7 @@ describe("editProduct", () => {
       id: "product-1",
       name: "Yerba",
       categoryId: "category-1",
+      brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111", "222", "333"],
       netContent: null,
@@ -286,6 +471,7 @@ describe("editProduct", () => {
         id: "product-1",
         name: "Yerba",
         categoryId: "category-1",
+        brandId: null,
         saleUnit: "UNIT",
         barcodes: ["111"],
         netContent: null,
@@ -303,6 +489,7 @@ describe("editProduct", () => {
       id: "product-1",
       name: "Yerba",
       categoryId: "category-1",
+      brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
       netContent: null,

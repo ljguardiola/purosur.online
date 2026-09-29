@@ -178,6 +178,7 @@ describe("editCategory", () => {
         id: "product-1",
         name: "Yerba",
         categoryId: "new-parent",
+        brandId: null,
         saleUnit: "UNIT",
         netContent: null,
         active: true,
