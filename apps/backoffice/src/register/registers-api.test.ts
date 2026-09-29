@@ -68,24 +68,51 @@ test("fetchRegisters returns failed when the request throws", async () => {
   expect(await fetchRegisters()).toEqual({ kind: "failed" });
 });
 
-test("fetchRegisters returns failed on a malformed body", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { not: "an array" }));
+test.each([
+  ["a body that is not a list", { not: "an array" }],
+  ["a register without a name", [{ id: "register-1", pending_code: null }]],
+  ["a register without its pending_code", [{ id: "register-1", name: "Caja 1" }]],
+  [
+    "a pending code without its expiry",
+    [{ id: "register-1", name: "Caja 1", pending_code: { issued_at: "2026-09-25T12:00:00.000Z" } }],
+  ],
+])("fetchRegisters returns failed on %s", async (_name, body) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, body));
 
   expect(await fetchRegisters()).toEqual({ kind: "failed" });
 });
 
-test("createRegister posts the name and returns the created register on 201", async () => {
+test("fetchRegisters returns failed on a 200 that is not JSON", async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response("not json", { status: 200 }));
+
+  expect(await fetchRegisters()).toEqual({ kind: "failed" });
+});
+
+test("createRegister posts the name and returns ok on 201", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(201, { id: "register-3", name: "Caja 3" }));
 
   const outcome = await createRegister({ name: "Caja 3" });
 
-  expect(outcome).toEqual({ kind: "ok", value: { id: "register-3", name: "Caja 3" } });
+  expect(outcome).toEqual({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith("/registers", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name: "Caja 3" }),
   });
 });
+
+test.each([
+  ["an empty body", jsonResponse(201)],
+  ["a body that is not JSON", new Response("created", { status: 201 })],
+  ["a body of another shape", jsonResponse(200, { created: true })],
+])(
+  "createRegister returns ok on a 2xx with %s, because the cloud already committed it",
+  async (_name, response) => {
+    vi.mocked(fetch).mockResolvedValue(response);
+
+    expect(await createRegister({ name: "Caja 3" })).toEqual({ kind: "ok" });
+  },
+);
 
 test("createRegister returns validation_failed on the named field for a 400", async () => {
   vi.mocked(fetch).mockResolvedValue(
@@ -164,8 +191,19 @@ test("emitEnrollmentCode posts to the register's enrollment-code route and retur
   });
 });
 
-test("emitEnrollmentCode returns failed on a 200 without a string code", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { expires_at: "2026-09-25T12:15:00.000Z" }));
+test.each([
+  ["without a string code", { expires_at: "2026-09-25T12:15:00.000Z" }],
+  ["with a numeric code", { code: 1, expires_at: "2026-09-25T12:15:00.000Z" }],
+  ["without an expiry", { code: "P4NX7KWE2QRT8MZD" }],
+  ["with a numeric expiry", { code: "P4NX7KWE2QRT8MZD", expires_at: 1 }],
+])("emitEnrollmentCode returns failed on a 200 %s", async (_name, body) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, body));
+
+  expect(await emitEnrollmentCode("register-2")).toEqual({ kind: "failed" });
+});
+
+test("emitEnrollmentCode returns failed on a 200 that is not JSON", async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response("not json", { status: 200 }));
 
   expect(await emitEnrollmentCode("register-2")).toEqual({ kind: "failed" });
 });

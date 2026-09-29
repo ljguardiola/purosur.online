@@ -1,4 +1,8 @@
-import { type BranchSettingsEditBody, branchSettingsEditBodySchema } from "@purosur/contracts";
+import {
+  type BranchSettingsEditBody,
+  branchSettingsEditBodySchema,
+  branchSettingsSchema,
+} from "@purosur/contracts";
 import { asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -241,7 +245,7 @@ export function registerBranchSettingsEditRoute<TQueryResult extends PgQueryResu
         return;
       }
 
-      await reply.code(200).send(toBranchSettingsWire(outcome.row));
+      await reply.code(200).send(branchSettingsSchema.parse(toBranchSettingsWire(outcome.row)));
     },
   );
 }

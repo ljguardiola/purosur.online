@@ -18,6 +18,8 @@ export type { UserCreationBody } from "./access/user-creation.js";
 export { userCreationBodySchema } from "./access/user-creation.js";
 export type { UserEditBody } from "./access/user-edit.js";
 export { userEditBodySchema } from "./access/user-edit.js";
+export type { BranchSettingsBody } from "./branch/branch-settings.js";
+export { branchSettingsSchema } from "./branch/branch-settings.js";
 export type { BranchSettingsEditBody } from "./branch/branch-settings-edit.js";
 export { branchSettingsEditBodySchema } from "./branch/branch-settings-edit.js";
 export type { CategoryCreationBody } from "./catalog/category-creation.js";
@@ -36,6 +38,8 @@ export type { ProductEditBody } from "./catalog/product-edit.js";
 export { productEditBodySchema } from "./catalog/product-edit.js";
 export type { ProductSummary } from "./catalog/product-summary.js";
 export { productListSchema, productSummarySchema } from "./catalog/product-summary.js";
+export type { IssuerIdentificationBody } from "./fiscal/issuer-identification.js";
+export { issuerIdentificationSchema } from "./fiscal/issuer-identification.js";
 export type { IssuerIdentificationEditBody } from "./fiscal/issuer-identification-edit.js";
 export { issuerIdentificationEditBodySchema } from "./fiscal/issuer-identification-edit.js";
 export type { PriceConfirmationBody } from "./pricing/price-confirmation.js";
@@ -65,6 +69,10 @@ export {
 } from "./register/core-messages.js";
 export type { RegisterCreationBody } from "./register/register-creation.js";
 export { registerCreationBodySchema } from "./register/register-creation.js";
+export type { RegisterEnrollmentCodeBody } from "./register/register-enrollment-code.js";
+export { registerEnrollmentCodeSchema } from "./register/register-enrollment-code.js";
+export type { RegisterSummaryBody } from "./register/register-summary.js";
+export { registerListSchema, registerSummarySchema } from "./register/register-summary.js";
 export type { ErrorReportingConfiguration } from "./shared/index.js";
 export {
   scrubErrorReport,

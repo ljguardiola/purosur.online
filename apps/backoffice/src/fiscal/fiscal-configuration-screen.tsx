@@ -6,7 +6,16 @@ import {
   isIssuerIdentificationGrossIncomeRegistrationTooLong,
   isIssuerIdentificationLegalNameTooLong,
 } from "@purosur/domain";
-import { Button, DateField, formatDate, InlineNotice, Modal, TextField } from "@purosur/ui";
+import {
+  Button,
+  DateField,
+  formatDate,
+  InlineNotice,
+  LoadFailure,
+  LoadingPlaceholder,
+  Modal,
+  TextField,
+} from "@purosur/ui";
 import {
   Check,
   CircleAlert,
@@ -17,13 +26,16 @@ import {
   TriangleAlert,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuthorization } from "../access/authorization-modal";
 import { useSendToMyAccount } from "../access/send-to-my-account";
+import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import type { FiscalConfigurationScreenServices } from "./fiscal-configuration-services";
+import { useIssuerIdentificationQuery, useReloadIssuerIdentification } from "./fiscal-queries";
 import type {
   IssuerIdentification,
   IssuerIdentificationField,
@@ -35,11 +47,6 @@ export type FiscalConfigurationScreenProps = {
   services: FiscalConfigurationScreenServices;
   now?: () => Date;
 };
-
-type LoadState =
-  | { kind: "loading" }
-  | { kind: "loadError" }
-  | { kind: "loaded"; value: IssuerIdentification };
 
 function dateOf(value: string | null): CalendarDate | null {
   return value === null ? null : parseDate(value);
@@ -89,7 +96,7 @@ function fixedPair(label: string, value: string) {
 type FieldErrorKey = "legalName" | "grossIncomeRegistration" | "activityStartDate";
 type FieldErrors = Partial<Record<FieldErrorKey, string>>;
 
-type ModalNotice = { kind: "attemptFailed" } | { kind: "staleVersion" } | { kind: "reloadFailed" };
+type ModalNotice = { kind: "attemptFailed" } | { kind: "staleVersion" };
 
 type ModalValues = {
   legalName: string;
@@ -109,6 +116,14 @@ function valuesFrom(value: IssuerIdentification): ModalValues {
     grossIncomeRegistration: value.grossIncomeRegistration ?? "",
     activityStartDate: dateOf(value.activityStartDate),
   };
+}
+
+function matchesIssuerIdentification(values: ModalValues, value: IssuerIdentification): boolean {
+  return (
+    values.legalName === (value.legalName ?? "") &&
+    values.grossIncomeRegistration === (value.grossIncomeRegistration ?? "") &&
+    (values.activityStartDate?.toString() ?? null) === value.activityStartDate
+  );
 }
 
 type CompleteModalValues = {
@@ -164,8 +179,8 @@ function serverFieldErrors(field: IssuerIdentificationField): FieldErrors | unde
 type EditIssuerIdentificationModalProps = {
   target: IssuerIdentification | null;
   onClose: () => void;
-  onSaved: (value: IssuerIdentification) => void;
-  onReloaded: (value: IssuerIdentification) => void;
+  onSaved: () => void;
+  reload: () => Promise<CloudReadOutcome<IssuerIdentification>>;
   onSessionEnded: () => void;
   services: FiscalConfigurationScreenServices;
   now: () => Date;
@@ -177,22 +192,21 @@ function EditIssuerIdentificationModal({
   target,
   onClose,
   onSaved,
-  onReloaded,
+  reload,
   onSessionEnded,
   services,
   now,
 }: EditIssuerIdentificationModalProps) {
   const sendToMyAccount = useSendToMyAccount();
   const {
-    fetchIssuerIdentification,
     saveIssuerIdentification,
     fetchSessionAuthorizationOptions,
     authorizeSession,
     startAuthentication,
   } = services;
   const open = target !== null;
+  const [shownValue, setShownValue] = useState<IssuerIdentification | null>(null);
   const [values, setValues] = useState<ModalValues>(EMPTY_MODAL_VALUES);
-  const [version, setVersion] = useState(1);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [notice, setNotice] = useState<ModalNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -205,15 +219,27 @@ function EditIssuerIdentificationModal({
   });
 
   useEffect(() => {
-    if (open && target) {
-      setValues(valuesFrom(target));
+    if (open) {
       setToday(todayCalendarDate(nowRef.current()));
-      setVersion(target.version);
-      setErrors({});
-      setNotice(null);
-      setSubmitting(false);
     }
-  }, [open, target, nowRef]);
+  }, [open, nowRef]);
+
+  function showServerValue(value: IssuerIdentification) {
+    setShownValue(value);
+    setValues(valuesFrom(value));
+    setErrors({});
+    setNotice(null);
+    setSubmitting(false);
+  }
+
+  const hasUnsavedEdits = shownValue !== null && !matchesIssuerIdentification(values, shownValue);
+  if (target === null) {
+    if (shownValue !== null) {
+      setShownValue(null);
+    }
+  } else if (target !== shownValue && !hasUnsavedEdits) {
+    showServerValue(target);
+  }
 
   function clearFieldError(field: FieldErrorKey) {
     if (!errors[field]) {
@@ -227,7 +253,7 @@ function EditIssuerIdentificationModal({
   }
 
   async function handleSubmit() {
-    if (target === null) {
+    if (target === null || shownValue === null) {
       return;
     }
     const validation = validateModal(values, todayCalendarDate(now()));
@@ -245,7 +271,7 @@ function EditIssuerIdentificationModal({
         legalName,
         grossIncomeRegistration,
         activityStartDate: activityStartDate.toString(),
-        version,
+        version: shownValue.version,
       }),
     );
     if (outcome.kind === "cancelled") {
@@ -253,7 +279,8 @@ function EditIssuerIdentificationModal({
       return;
     }
     if (outcome.kind === "ok") {
-      onSaved(outcome.value);
+      await reload();
+      onSaved();
       return;
     }
     if (outcome.kind === "unauthenticated") {
@@ -285,24 +312,13 @@ function EditIssuerIdentificationModal({
 
   async function handleReload() {
     setSubmitting(true);
-    const outcome = await fetchIssuerIdentification();
+    const outcome = await reload();
     if (outcome.kind === "ok") {
-      onReloaded(outcome.value);
-      return;
+      showServerValue(outcome.value);
     }
-    if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
-      return;
-    }
-    if (outcome.kind === "forbidden") {
-      sendToMyAccount();
-      return;
-    }
-    setNotice({ kind: "reloadFailed" });
-    setSubmitting(false);
   }
 
-  const offersReload = notice?.kind === "staleVersion" || notice?.kind === "reloadFailed";
+  const offersReload = notice?.kind === "staleVersion";
 
   return (
     <>
@@ -374,14 +390,6 @@ function EditIssuerIdentificationModal({
                 description="Recargá los datos y volvé a hacer el cambio."
               />
             )}
-            {notice?.kind === "reloadFailed" && (
-              <InlineNotice
-                tone="error"
-                icon={<TriangleAlert />}
-                title="No se pudieron recargar los datos"
-                description="Probá de nuevo."
-              />
-            )}
             <div className="flex gap-8">
               {fixedPair("CUIT", target.authorizedCuit)}
               {fixedPair("Condición frente al IVA", target.taxStatus)}
@@ -444,38 +452,21 @@ export function FiscalConfigurationScreen({
   services,
   now,
 }: FiscalConfigurationScreenProps) {
-  const sendToMyAccount = useSendToMyAccount();
   const { fetchIssuerIdentification } = services;
   const clock = now ?? (() => new Date());
-  const [state, setState] = useState<LoadState>({ kind: "loading" });
+  const data = useIssuerIdentificationQuery({ fetchIssuerIdentification, onSessionEnded });
+  const reload = useReloadIssuerIdentification({ fetchIssuerIdentification });
   const [editing, setEditing] = useState(false);
+  if (editing && data.status === "failed") {
+    setEditing(false);
+  }
 
-  const onSessionEndedRef = useLatestRef(onSessionEnded);
-  const endSession = useCallback(() => onSessionEndedRef.current(), [onSessionEndedRef]);
-
-  const load = useCallback(async () => {
-    setState({ kind: "loading" });
-    const outcome = await fetchIssuerIdentification();
-    if (outcome.kind === "ok") {
-      setState({ kind: "loaded", value: outcome.value });
-    } else if (outcome.kind === "unauthenticated") {
-      endSession();
-    } else if (outcome.kind === "forbidden") {
-      sendToMyAccount();
-    } else {
-      setState({ kind: "loadError" });
-    }
-  }, [fetchIssuerIdentification, endSession, sendToMyAccount]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
+  const issuerIdentification = data.status === "loaded" ? data.value : null;
   const incomplete =
-    state.kind === "loaded" &&
-    (state.value.legalName === null ||
-      state.value.grossIncomeRegistration === null ||
-      state.value.activityStartDate === null);
+    issuerIdentification !== null &&
+    (issuerIdentification.legalName === null ||
+      issuerIdentification.grossIncomeRegistration === null ||
+      issuerIdentification.activityStartDate === null);
 
   return (
     <ScreenLayout
@@ -489,65 +480,57 @@ export function FiscalConfigurationScreen({
       }
       bodyClassName="gap-4 p-6"
     >
-      {state.kind === "loading" && <p role="status">Cargando…</p>}
-      {state.kind === "loadError" && (
-        <>
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title="No pudimos abrir la configuración fiscal"
-            description="Probá de nuevo en unos minutos."
-          />
-          <Button variant="secondary" onPress={() => void load()}>
-            Reintentar
+      <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+        <div className="flex items-center gap-3">
+          <h2 className="flex-1 text-text-accent text-subheading">Identificación del emisor</h2>
+          <Button
+            variant="secondary"
+            size="small"
+            icon={<Pencil />}
+            dataStatus={data.status}
+            onPress={() => setEditing(true)}
+          >
+            Editar
           </Button>
-        </>
-      )}
-      {state.kind === "loaded" && (
-        <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
-          <div className="flex items-center gap-3">
-            <h2 className="flex-1 text-text-accent text-subheading">Identificación del emisor</h2>
-            <Button
-              variant="secondary"
-              size="small"
-              icon={<Pencil />}
-              onPress={() => setEditing(true)}
-            >
-              Editar
-            </Button>
-          </div>
-          {incomplete ? (
-            <InlineNotice
-              tone="error"
-              icon={<CircleAlert />}
-              title="Las cajas no están emitiendo facturas ni notas de crédito"
-              description="Hasta que se carguen los datos que faltan. Las ventas se siguen cobrando."
-            />
-          ) : null}
-          <div className="flex gap-8">
-            {dataPair("Razón social", state.value.legalName)}
-            {fixedPair("CUIT", state.value.authorizedCuit)}
-            {fixedPair("Condición frente al IVA", state.value.taxStatus)}
-            {dataPair("Ingresos Brutos", state.value.grossIncomeRegistration)}
-            {dataPair(
-              "Inicio de actividades",
-              state.value.activityStartDate
-                ? formatDisplayDate(state.value.activityStartDate)
-                : null,
-            )}
-          </div>
-          <p className="text-text-subtle text-detail">Lo imprime cada factura y nota de crédito.</p>
         </div>
-      )}
+        {data.status === "loading" && <LoadingPlaceholder variant="form" fields={2} />}
+        {data.status === "failed" && (
+          <LoadFailure {...cloudLoadFailure(data, "la configuración fiscal")} />
+        )}
+        {issuerIdentification !== null && (
+          <>
+            {incomplete ? (
+              <InlineNotice
+                tone="error"
+                icon={<CircleAlert />}
+                title="Las cajas no están emitiendo facturas ni notas de crédito"
+                description="Hasta que se carguen los datos que faltan. Las ventas se siguen cobrando."
+              />
+            ) : null}
+            <div className="flex gap-8">
+              {dataPair("Razón social", issuerIdentification.legalName)}
+              {fixedPair("CUIT", issuerIdentification.authorizedCuit)}
+              {fixedPair("Condición frente al IVA", issuerIdentification.taxStatus)}
+              {dataPair("Ingresos Brutos", issuerIdentification.grossIncomeRegistration)}
+              {dataPair(
+                "Inicio de actividades",
+                issuerIdentification.activityStartDate
+                  ? formatDisplayDate(issuerIdentification.activityStartDate)
+                  : null,
+              )}
+            </div>
+            <p className="text-text-subtle text-detail">
+              Lo imprime cada factura y nota de crédito.
+            </p>
+          </>
+        )}
+      </div>
       <EditIssuerIdentificationModal
-        target={editing && state.kind === "loaded" ? state.value : null}
+        target={editing ? issuerIdentification : null}
         onClose={() => setEditing(false)}
-        onSaved={(value) => {
-          setState({ kind: "loaded", value });
-          setEditing(false);
-        }}
-        onReloaded={(value) => setState({ kind: "loaded", value })}
-        onSessionEnded={endSession}
+        onSaved={() => setEditing(false)}
+        reload={reload}
+        onSessionEnded={onSessionEnded}
         services={services}
         now={clock}
       />
