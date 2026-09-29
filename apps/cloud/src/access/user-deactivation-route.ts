@@ -33,13 +33,6 @@ export async function deactivateUser<TQueryResult extends PgQueryResultHKT>(
   input: DeactivateUserInput,
 ): Promise<DeactivateUserOutcome> {
   return db.transaction<DeactivateUserOutcome>(async (tx) => {
-    // Locks the Administrator role row, then the user row, in the edit route's order so the
-    // two never deadlock, and re-reads `active` and the role under those locks.
-    const [administratorRole] = await tx
-      .select({ id: roles.id })
-      .from(roles)
-      .where(eq(roles.isAdministrator, true))
-      .for("update");
     const [current] = await tx
       .select({ active: users.active, version: users.version })
       .from(users)
@@ -49,10 +42,11 @@ export async function deactivateUser<TQueryResult extends PgQueryResultHKT>(
       return { kind: "not_found" };
     }
     const [currentRole] = await tx
-      .select({ roleId: userRoles.roleId })
+      .select({ isAdministrator: roles.isAdministrator })
       .from(userRoles)
+      .innerJoin(roles, eq(roles.id, userRoles.roleId))
       .where(eq(userRoles.userId, input.id));
-    if (currentRole?.roleId === administratorRole?.id) {
+    if (currentRole?.isAdministrator) {
       return { kind: "not_found" };
     }
 

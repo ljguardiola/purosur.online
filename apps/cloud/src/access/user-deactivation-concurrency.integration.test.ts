@@ -9,7 +9,11 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
-import { runQueuedBehindHeldLock } from "../test-support/queued-behind-held-lock.js";
+import {
+  countLockWaiters,
+  runQueuedBehindHeldLock,
+  waitForLockWaiters,
+} from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { SESSION_COOKIE_NAME } from "./session-cookie.js";
 import { generateSessionId, hashSessionId } from "./session-id.js";
@@ -204,5 +208,57 @@ describe("deactivating a target while it is promoted to Administrator on a real 
     expect(promotion.statusCode).toBe(409);
     expect(promotion.json()).toMatchObject({ code: "stale_version" });
     expect(await targetState(targetId)).toEqual({ active: false, roleId: cashierRoleId });
+  });
+});
+
+describe("deactivating two different targets at once on a real Postgres", () => {
+  async function queuesBehindALock(pending: Promise<unknown>): Promise<boolean> {
+    let settled = false;
+    const markSettled = () => {
+      settled = true;
+    };
+    const settling = pending.then(markSettled, markSettled);
+    while (!settled) {
+      if ((await countLockWaiters(sql)) >= 2) return true;
+      await Promise.race([settling, new Promise((resolve) => setTimeout(resolve, 10))]);
+    }
+    return false;
+  }
+
+  it("deactivates one target while another target's deactivation is still waiting", async () => {
+    const administratorRoleId = await seededAdministratorRoleId();
+    const cashierRoleId = await insertCashierRole();
+    const waitingTargetId = await insertUser(`waiting-${randomUUID()}@example.com`, cashierRoleId);
+    const otherTargetId = await insertUser(`other-${randomUUID()}@example.com`, cashierRoleId);
+    const actorId = await insertUser(`actor-${randomUUID()}@example.com`, administratorRoleId);
+    const cookie = `${SESSION_COOKIE_NAME}=${await insertSession(actorId)}`;
+
+    const deactivate = (targetId: string) =>
+      app.inject({
+        method: "POST",
+        url: `/users/${targetId}/deactivation`,
+        headers: { origin: BACKOFFICE_ORIGIN, cookie },
+      });
+
+    const holder = await sql.reserve();
+    let waitingDeactivation: Promise<unknown> = Promise.resolve();
+    let otherDeactivation: ReturnType<typeof deactivate> | undefined;
+    let otherQueued: boolean;
+    try {
+      await holder`begin`;
+      await holder`select id from users where id = ${waitingTargetId} for update`;
+      waitingDeactivation = deactivate(waitingTargetId);
+      await waitForLockWaiters(sql, 1);
+      otherDeactivation = deactivate(otherTargetId);
+      otherQueued = await queuesBehindALock(otherDeactivation);
+    } finally {
+      await holder`rollback`;
+      holder.release();
+      await Promise.allSettled([waitingDeactivation, otherDeactivation]);
+    }
+
+    expect(otherQueued).toBe(false);
+    expect((await otherDeactivation).statusCode).toBe(200);
+    expect(await targetState(otherTargetId)).toEqual({ active: false, roleId: cashierRoleId });
   });
 });
