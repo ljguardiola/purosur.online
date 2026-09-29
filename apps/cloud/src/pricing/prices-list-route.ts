@@ -63,6 +63,7 @@ export interface ListPricesResult {
   products: PriceProductRow[];
   categories: PriceCategoryOption[];
   pendingCount: number;
+  activeProductCount: number;
   reviewWindowDays: number;
 }
 
@@ -208,6 +209,7 @@ export async function listPrices<TQueryResult extends PgQueryResultHKT>(
     products: sorted,
     categories: leafCategoryOptions(allCategories),
     pendingCount: pendingCountAcrossFullCatalog,
+    activeProductCount: withDerived.length,
     reviewWindowDays: input.unreviewedPriceAlertDays,
   };
 }

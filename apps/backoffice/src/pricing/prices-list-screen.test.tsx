@@ -102,6 +102,7 @@ test("shows the breadcrumb, heading, and each product's name", async () => {
     value: {
       products: [withoutPrice, rice],
       pendingCount: 2,
+      activeProductCount: 3,
       reviewWindowDays: 30,
       categories: [],
     },
@@ -123,6 +124,7 @@ test("shows a no-price product with a Sin precio badge and Nunca, and a priced p
     value: {
       products: [withoutPrice, rice],
       pendingCount: 2,
+      activeProductCount: 3,
       reviewWindowDays: 30,
       categories: [],
     },
@@ -141,7 +143,13 @@ test("offers no confirm-without-change action for a product with no price", asyn
   const services = createServices();
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",
-    value: { products: [withoutPrice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+    value: {
+      products: [withoutPrice],
+      pendingCount: 1,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [],
+    },
   });
 
   const screen = await renderScreen(services);
@@ -160,11 +168,23 @@ test("confirming a priced product's price without a change shows a confirmed not
   vi.mocked(services.fetchPrices)
     .mockResolvedValueOnce({
       kind: "ok",
-      value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+      value: {
+        products: [rice],
+        pendingCount: 1,
+        activeProductCount: 3,
+        reviewWindowDays: 30,
+        categories: [],
+      },
     })
     .mockResolvedValueOnce({
       kind: "ok",
-      value: { products: [], pendingCount: 0, reviewWindowDays: 30, categories: [] },
+      value: {
+        products: [],
+        pendingCount: 0,
+        activeProductCount: 3,
+        reviewWindowDays: 30,
+        categories: [],
+      },
     });
   vi.mocked(services.confirmPrice).mockResolvedValue({ kind: "ok" });
 
@@ -189,7 +209,13 @@ test("a second click on a row's confirm while the first is in flight sends no se
   const services = createServices();
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",
-    value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+    value: {
+      products: [rice],
+      pendingCount: 1,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [],
+    },
   });
   vi.mocked(services.confirmPrice).mockReturnValue(new Promise(() => {}));
 
@@ -210,11 +236,23 @@ test("changing a product's price sends the current price id as expectedCurrentPr
   vi.mocked(services.fetchPrices)
     .mockResolvedValueOnce({
       kind: "ok",
-      value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+      value: {
+        products: [rice],
+        pendingCount: 1,
+        activeProductCount: 3,
+        reviewWindowDays: 30,
+        categories: [],
+      },
     })
     .mockResolvedValueOnce({
       kind: "ok",
-      value: { products: [], pendingCount: 0, reviewWindowDays: 30, categories: [] },
+      value: {
+        products: [],
+        pendingCount: 0,
+        activeProductCount: 3,
+        reviewWindowDays: 30,
+        categories: [],
+      },
     });
   vi.mocked(services.setPrice).mockResolvedValue({ kind: "ok" });
 
@@ -238,7 +276,13 @@ test("changing a product's price sends the current price id as expectedCurrentPr
 async function openRicePriceModal(services: PricesListScreenServices) {
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",
-    value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+    value: {
+      products: [rice],
+      pendingCount: 1,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [],
+    },
   });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Arroz")).toBeVisible();
@@ -292,7 +336,13 @@ test("shows a stale-price notice on a 409 and offers to reload the row's current
   vi.mocked(services.fetchPrices)
     .mockResolvedValueOnce({
       kind: "ok",
-      value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+      value: {
+        products: [rice],
+        pendingCount: 1,
+        activeProductCount: 3,
+        reviewWindowDays: 30,
+        categories: [],
+      },
     })
     .mockResolvedValueOnce({
       kind: "ok",
@@ -308,6 +358,7 @@ test("shows a stale-price notice on a 409 and offers to reload the row's current
           },
         ],
         pendingCount: 1,
+        activeProductCount: 3,
         reviewWindowDays: 30,
         categories: [],
       },
@@ -328,7 +379,13 @@ test("shows the empty state when nothing is pending review", async () => {
   const services = createServices();
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",
-    value: { products: [], pendingCount: 0, reviewWindowDays: 30, categories: [] },
+    value: {
+      products: [],
+      pendingCount: 0,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [],
+    },
   });
 
   const screen = await renderScreen(services);
@@ -344,7 +401,13 @@ test("the search field re-fetches with the typed search term", async () => {
   const services = createServices();
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",
-    value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+    value: {
+      products: [rice],
+      pendingCount: 1,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [],
+    },
   });
 
   const screen = await renderScreen(services);
@@ -368,6 +431,7 @@ test("the review filter switches between pending and all, re-fetching each time"
     value: {
       products: [rice, withoutPrice],
       pendingCount: 2,
+      activeProductCount: 3,
       reviewWindowDays: 30,
       categories: [],
     },
@@ -392,6 +456,7 @@ test("keeps the previous rows and the Revisar button on screen while the list re
       value: {
         products: [rice, withoutPrice],
         pendingCount: 2,
+        activeProductCount: 3,
         reviewWindowDays: 30,
         categories: [],
       },
@@ -416,7 +481,13 @@ test("the category filter offers the categories the prices list brings and narro
   const services = createServices();
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",
-    value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [groceries] },
+    value: {
+      products: [rice],
+      pendingCount: 1,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [groceries],
+    },
   });
 
   const screen = await renderScreen(services);
@@ -441,6 +512,7 @@ test("Revisar los N walks the pending products one by one, opening the next afte
     value: {
       products: [withoutPrice, rice],
       pendingCount: 2,
+      activeProductCount: 3,
       reviewWindowDays: 30,
       categories: [],
     },
@@ -473,6 +545,7 @@ test("during Revisar los N, a saved price's notice shows inside the next product
     value: {
       products: [withoutPrice, rice],
       pendingCount: 2,
+      activeProductCount: 3,
       reviewWindowDays: 30,
       categories: [],
     },
@@ -548,11 +621,23 @@ test("reloading a stale price for a product that is no longer listed shows its n
   vi.mocked(services.fetchPrices)
     .mockResolvedValueOnce({
       kind: "ok",
-      value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+      value: {
+        products: [rice],
+        pendingCount: 1,
+        activeProductCount: 3,
+        reviewWindowDays: 30,
+        categories: [],
+      },
     })
     .mockResolvedValue({
       kind: "ok",
-      value: { products: [], pendingCount: 0, reviewWindowDays: 30, categories: [] },
+      value: {
+        products: [],
+        pendingCount: 0,
+        activeProductCount: 3,
+        reviewWindowDays: 30,
+        categories: [],
+      },
     });
   vi.mocked(services.setPrice).mockResolvedValue({ kind: "stale_price" });
 
@@ -584,7 +669,13 @@ test("confirming a row whose product no longer exists names it in the screen's n
   const services = createServices();
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",
-    value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+    value: {
+      products: [rice],
+      pendingCount: 1,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [],
+    },
   });
   vi.mocked(services.confirmPrice).mockResolvedValue({ kind: "not_found" });
 
@@ -605,6 +696,7 @@ test("Revisar los N moves past a product that no longer exists, naming it on the
     value: {
       products: [withoutPrice, rice],
       pendingCount: 2,
+      activeProductCount: 3,
       reviewWindowDays: 30,
       categories: [],
     },
@@ -696,7 +788,13 @@ test("while a row confirm is in flight no price can be opened, reviewed or confi
   const services = createServices();
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",
-    value: { products: [rice, yerbaMate], pendingCount: 2, reviewWindowDays: 30, categories: [] },
+    value: {
+      products: [rice, yerbaMate],
+      pendingCount: 2,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [],
+    },
   });
   const pending = deferred<Awaited<ReturnType<PricesListScreenServices["confirmPrice"]>>>();
   vi.mocked(services.confirmPrice).mockReturnValue(pending.promise);
@@ -720,7 +818,13 @@ test("while Revisar los N is loading the pending products, no row action can sta
   vi.mocked(services.fetchPrices)
     .mockResolvedValueOnce({
       kind: "ok",
-      value: { products: [rice, yerbaMate], pendingCount: 2, reviewWindowDays: 30, categories: [] },
+      value: {
+        products: [rice, yerbaMate],
+        pendingCount: 2,
+        activeProductCount: 3,
+        reviewWindowDays: 30,
+        categories: [],
+      },
     })
     .mockReturnValue(new Promise(() => {}));
 
@@ -753,7 +857,13 @@ test.each([
     vi.mocked(services.fetchPrices)
       .mockResolvedValueOnce({
         kind: "ok",
-        value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+        value: {
+          products: [rice],
+          pendingCount: 1,
+          activeProductCount: 3,
+          reviewWindowDays: 30,
+          categories: [],
+        },
       })
       .mockReturnValue(new Promise(() => {}));
     vi.mocked(services.confirmPrice).mockResolvedValue(outcome);
@@ -776,6 +886,7 @@ test("a notice about a previous product leaves the modal once the modal shows it
     value: {
       products: [withoutPrice, rice],
       pendingCount: 2,
+      activeProductCount: 3,
       reviewWindowDays: 30,
       categories: [],
     },
@@ -807,6 +918,7 @@ const riceStaleReload = {
       },
     ],
     pendingCount: 1,
+    activeProductCount: 3,
     reviewWindowDays: 30,
     categories: [],
   },
@@ -842,14 +954,26 @@ test("a price reload that throws ends in the reload-failed notice and the modal 
   vi.mocked(services.fetchPrices)
     .mockResolvedValueOnce({
       kind: "ok",
-      value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+      value: {
+        products: [rice],
+        pendingCount: 1,
+        activeProductCount: 3,
+        reviewWindowDays: 30,
+        categories: [],
+      },
     })
     .mockImplementation(({ review }) =>
       review === "all"
         ? Promise.reject(new Error("network down"))
         : Promise.resolve({
             kind: "ok",
-            value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+            value: {
+              products: [rice],
+              pendingCount: 1,
+              activeProductCount: 3,
+              reviewWindowDays: 30,
+              categories: [],
+            },
           }),
     );
   vi.mocked(services.setPrice).mockResolvedValue({ kind: "stale_price" });
@@ -870,7 +994,13 @@ test("a row confirmation that throws shows its failure notice and re-enables the
   const services = createServices();
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",
-    value: { products: [rice, yerbaMate], pendingCount: 2, reviewWindowDays: 30, categories: [] },
+    value: {
+      products: [rice, yerbaMate],
+      pendingCount: 2,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [],
+    },
   });
   vi.mocked(services.confirmPrice).mockRejectedValue(new Error("network down"));
 
@@ -891,7 +1021,13 @@ test("a Revisar los N read that throws shows a notice, keeps the table and re-en
   vi.mocked(services.fetchPrices)
     .mockResolvedValueOnce({
       kind: "ok",
-      value: { products: [rice, yerbaMate], pendingCount: 2, reviewWindowDays: 30, categories: [] },
+      value: {
+        products: [rice, yerbaMate],
+        pendingCount: 2,
+        activeProductCount: 3,
+        reviewWindowDays: 30,
+        categories: [],
+      },
     })
     .mockRejectedValue(new Error("network down"));
 
@@ -908,12 +1044,24 @@ test("Revisar los N with nothing left under Por revisar reloads the list and lea
   const services = createServices();
   const nothingPending = {
     kind: "ok" as const,
-    value: { products: [], pendingCount: 0, reviewWindowDays: 30, categories: [] },
+    value: {
+      products: [],
+      pendingCount: 0,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [],
+    },
   };
   vi.mocked(services.fetchPrices)
     .mockResolvedValueOnce({
       kind: "ok",
-      value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+      value: {
+        products: [rice],
+        pendingCount: 1,
+        activeProductCount: 3,
+        reviewWindowDays: 30,
+        categories: [],
+      },
     })
     .mockResolvedValue(nothingPending);
 
@@ -937,16 +1085,34 @@ test("Revisar los N with nothing left under another filter reloads the list and 
     filters.review === "pending"
       ? {
           kind: "ok",
-          value: { products: [], pendingCount: 0, reviewWindowDays: 15, categories: [] },
+          value: {
+            products: [],
+            pendingCount: 0,
+            activeProductCount: 3,
+            reviewWindowDays: 15,
+            categories: [],
+          },
         }
       : {
           kind: "ok",
-          value: { products: [rice], pendingCount: 1, reviewWindowDays: 15, categories: [] },
+          value: {
+            products: [rice],
+            pendingCount: 1,
+            activeProductCount: 3,
+            reviewWindowDays: 15,
+            categories: [],
+          },
         },
   );
   vi.mocked(services.fetchPrices).mockResolvedValueOnce({
     kind: "ok",
-    value: { products: [rice], pendingCount: 1, reviewWindowDays: 15, categories: [] },
+    value: {
+      products: [rice],
+      pendingCount: 1,
+      activeProductCount: 3,
+      reviewWindowDays: 15,
+      categories: [],
+    },
   });
 
   const screen = await renderScreen(services);
@@ -982,7 +1148,13 @@ test.each([
     vi.mocked(services.fetchPrices)
       .mockResolvedValueOnce({
         kind: "ok",
-        value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+        value: {
+          products: [rice],
+          pendingCount: 1,
+          activeProductCount: 3,
+          reviewWindowDays: 30,
+          categories: [],
+        },
       })
       .mockResolvedValueOnce(outcome);
 
@@ -1002,7 +1174,13 @@ test("a failed first load offers to retry, and a retry shows the list", async ()
     .mockResolvedValueOnce({ kind: "failed" })
     .mockResolvedValue({
       kind: "ok",
-      value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+      value: {
+        products: [rice],
+        pendingCount: 1,
+        activeProductCount: 3,
+        reviewWindowDays: 30,
+        categories: [],
+      },
     });
 
   const screen = await renderScreen(services);
@@ -1034,7 +1212,13 @@ test("keeps the filters on screen while the list failed to load, and a retry sho
     .mockResolvedValueOnce({ kind: "failed" })
     .mockResolvedValue({
       kind: "ok",
-      value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+      value: {
+        products: [rice],
+        pendingCount: 1,
+        activeProductCount: 3,
+        reviewWindowDays: 30,
+        categories: [],
+      },
     });
 
   const screen = await renderScreen(services);
@@ -1056,6 +1240,7 @@ test("a chosen category keeps its name in the filter while the list it narrows f
           value: {
             products: [rice],
             pendingCount: 1,
+            activeProductCount: 3,
             reviewWindowDays: 30,
             categories: [groceries],
           },
@@ -1083,6 +1268,7 @@ test("retrying a list narrowed by a chosen category loads it again from its plac
           value: {
             products: [rice],
             pendingCount: 1,
+            activeProductCount: 3,
             reviewWindowDays: 30,
             categories: [groceries],
           },
@@ -1103,7 +1289,13 @@ test("retrying a list narrowed by a chosen category loads it again from its plac
   await expect.element(screen.getByRole("button", { name: "Categoría: Almacén" })).toBeVisible();
   retry.resolve({
     kind: "ok",
-    value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [groceries] },
+    value: {
+      products: [rice],
+      pendingCount: 1,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [groceries],
+    },
   });
   await expect.element(screen.getByText("Arroz")).toBeVisible();
 });
@@ -1130,7 +1322,13 @@ test.each([
     const services = createServices();
     vi.mocked(services.fetchPrices).mockResolvedValue({
       kind: "ok",
-      value: { products: [], pendingCount: search ? 1 : 0, reviewWindowDays: 30, categories: [] },
+      value: {
+        products: [],
+        pendingCount: search ? 1 : 0,
+        activeProductCount: 3,
+        reviewWindowDays: 30,
+        categories: [],
+      },
     });
 
     const screen = await renderScreen(services, undefined, undefined, {
@@ -1173,6 +1371,7 @@ test.each([
       value: {
         products: [],
         pendingCount: 0,
+        activeProductCount: 3,
         reviewWindowDays: 30,
         categories: [{ id: "cat-1", name: "Almacén" }],
       },
@@ -1198,7 +1397,13 @@ test("a price modal open when the list fails to load closes, and does not open a
         ? { kind: "failed" }
         : {
             kind: "ok",
-            value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+            value: {
+              products: [rice],
+              pendingCount: 1,
+              activeProductCount: 3,
+              reviewWindowDays: 30,
+              categories: [],
+            },
           },
     );
   });
@@ -1234,12 +1439,24 @@ test("an earlier list load that settles after a later one does not replace it", 
 
   second.resolve({
     kind: "ok",
-    value: { products: [yerbaMate], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+    value: {
+      products: [yerbaMate],
+      pendingCount: 1,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [],
+    },
   });
   await expect.element(screen.getByText("Yerba")).toBeVisible();
   first.resolve({
     kind: "ok",
-    value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+    value: {
+      products: [rice],
+      pendingCount: 1,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [],
+    },
   });
   await screen.commitScheduledUpdates();
 
@@ -1333,7 +1550,13 @@ test("a reloaded price is shown and becomes the one the next save and confirmati
   vi.mocked(services.fetchPrices)
     .mockResolvedValueOnce({
       kind: "ok",
-      value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+      value: {
+        products: [rice],
+        pendingCount: 1,
+        activeProductCount: 3,
+        reviewWindowDays: 30,
+        categories: [],
+      },
     })
     .mockResolvedValue(riceStaleReload);
   vi.mocked(services.setPrice)
@@ -1369,7 +1592,13 @@ test("the modal offers no confirm-without-change action for a product with no pr
   const services = createServices();
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",
-    value: { products: [withoutPrice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+    value: {
+      products: [withoutPrice],
+      pendingCount: 1,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [],
+    },
   });
 
   const screen = await renderScreen(services);
@@ -1387,7 +1616,13 @@ test("a modal save that finds no open session ends the session", async () => {
   const services = createServices();
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",
-    value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+    value: {
+      products: [rice],
+      pendingCount: 1,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [],
+    },
   });
   vi.mocked(services.setPrice).mockResolvedValue({ kind: "unauthenticated" });
   const onSessionEnded = vi.fn();
@@ -1405,7 +1640,13 @@ test("a row confirmation that finds no open session ends the session", async () 
   const services = createServices();
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",
-    value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+    value: {
+      products: [rice],
+      pendingCount: 1,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [],
+    },
   });
   vi.mocked(services.confirmPrice).mockResolvedValue({ kind: "unauthenticated" });
   const onSessionEnded = vi.fn();
@@ -1423,7 +1664,13 @@ test("a row confirmation answered forbidden navigates to Mi cuenta", async () =>
   const services = createServices();
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",
-    value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+    value: {
+      products: [rice],
+      pendingCount: 1,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [],
+    },
   });
   vi.mocked(services.confirmPrice).mockResolvedValue({ kind: "forbidden" });
 
@@ -1450,7 +1697,13 @@ test("an error notice does not leave with time, only with the person's next acti
   const services = createServices();
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",
-    value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+    value: {
+      products: [rice],
+      pendingCount: 1,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [],
+    },
   });
   vi.mocked(services.confirmPrice)
     .mockResolvedValueOnce({ kind: "failed" })
@@ -1480,7 +1733,13 @@ test("a success notice leaves the screen on its own after a few seconds", async 
   const services = createServices();
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",
-    value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+    value: {
+      products: [rice],
+      pendingCount: 1,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [],
+    },
   });
   vi.mocked(services.confirmPrice).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
@@ -1504,7 +1763,13 @@ test("a second identical notice in a row is announced again", async () => {
   const services = createServices();
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",
-    value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+    value: {
+      products: [rice],
+      pendingCount: 1,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [],
+    },
   });
   vi.mocked(services.confirmPrice).mockResolvedValue({ kind: "failed" });
   const screen = await renderScreen(services);
@@ -1554,6 +1819,7 @@ test.each([
       value: {
         products: [{ ...rice, lastReviewedAt: reviewedAt.toISOString(), pending: false }],
         pendingCount: 0,
+        activeProductCount: 3,
         reviewWindowDays: 30,
         categories: [],
       },
@@ -1580,6 +1846,7 @@ test("the review age counts against the time the list was last loaded", async ()
     value: {
       products: [{ ...rice, lastReviewedAt: new Date(2026, 8, 25, 9, 0).toISOString() }],
       pendingCount: 1,
+      activeProductCount: 3,
       reviewWindowDays: 30,
       categories: [],
     },
@@ -1612,6 +1879,7 @@ test("the review age counts against the time the list was loaded, not the time a
     value: {
       products: [{ ...rice, lastReviewedAt: new Date(2026, 8, 25, 9, 0).toISOString() }],
       pendingCount: 1,
+      activeProductCount: 3,
       reviewWindowDays: 30,
       categories: [],
     },
@@ -1664,6 +1932,7 @@ test("the modal's review age counts against the time the modal was opened", asyn
         { ...rice, lastReviewedAt: new Date(2026, 8, 25, 9, 0).toISOString(), pending: false },
       ],
       pendingCount: 0,
+      activeProductCount: 3,
       reviewWindowDays: 30,
       categories: [],
     },
@@ -1748,13 +2017,20 @@ test("a row confirmation answered that there is no price to confirm reloads the 
   vi.mocked(services.fetchPrices)
     .mockResolvedValueOnce({
       kind: "ok",
-      value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+      value: {
+        products: [rice],
+        pendingCount: 1,
+        activeProductCount: 3,
+        reviewWindowDays: 30,
+        categories: [],
+      },
     })
     .mockResolvedValue({
       kind: "ok",
       value: {
         products: [{ ...rice, currentPrice: null, lastReviewedAt: null }],
         pendingCount: 1,
+        activeProductCount: 3,
         reviewWindowDays: 30,
         categories: [],
       },
@@ -1789,7 +2065,13 @@ test("a refresh that throws ends in the load error and offers to retry", async (
   vi.mocked(services.fetchPrices)
     .mockResolvedValueOnce({
       kind: "ok",
-      value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+      value: {
+        products: [rice],
+        pendingCount: 1,
+        activeProductCount: 3,
+        reviewWindowDays: 30,
+        categories: [],
+      },
     })
     .mockRejectedValue(new Error("network down"));
 
@@ -1805,7 +2087,13 @@ test("a refresh that throws ends in the load error and offers to retry", async (
 async function showRowConfirmFailure(services: PricesListScreenServices) {
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",
-    value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [groceries] },
+    value: {
+      products: [rice],
+      pendingCount: 1,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [groceries],
+    },
   });
   vi.mocked(services.confirmPrice).mockResolvedValue({ kind: "failed" });
   const screen = await renderScreen(services);
@@ -1899,7 +2187,13 @@ test("an error notice leaves when Reintentar is pressed", async () => {
   vi.mocked(services.fetchPrices)
     .mockResolvedValueOnce({
       kind: "ok",
-      value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+      value: {
+        products: [rice],
+        pendingCount: 1,
+        activeProductCount: 3,
+        reviewWindowDays: 30,
+        categories: [],
+      },
     })
     .mockReturnValueOnce(refresh.promise)
     .mockReturnValue(new Promise(() => {}));
@@ -1929,11 +2223,23 @@ test("an error notice stays when a list load succeeds after it", async () => {
   vi.mocked(services.fetchPrices)
     .mockResolvedValueOnce({
       kind: "ok",
-      value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+      value: {
+        products: [rice],
+        pendingCount: 1,
+        activeProductCount: 3,
+        reviewWindowDays: 30,
+        categories: [],
+      },
     })
     .mockResolvedValue({
       kind: "ok",
-      value: { products: [rice], pendingCount: 3, reviewWindowDays: 30, categories: [] },
+      value: {
+        products: [rice],
+        pendingCount: 3,
+        activeProductCount: 3,
+        reviewWindowDays: 30,
+        categories: [],
+      },
     });
   vi.mocked(services.confirmPrice).mockResolvedValue({ kind: "failed" });
   const screen = await renderScreen(services);
@@ -1969,7 +2275,13 @@ test("a rate-limited notice leaves once its retry window has passed", async () =
   const services = createServices();
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",
-    value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+    value: {
+      products: [rice],
+      pendingCount: 1,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [],
+    },
   });
   vi.mocked(services.confirmPrice).mockResolvedValue({
     kind: "rate_limited",
@@ -2002,6 +2314,7 @@ test("a price reviewed late yesterday counts as reviewed one calendar day ago th
     value: {
       products: [{ ...rice, lastReviewedAt: new Date(2026, 8, 24, 23, 30).toISOString() }],
       pendingCount: 1,
+      activeProductCount: 3,
       reviewWindowDays: 30,
       categories: [],
     },
@@ -2024,6 +2337,7 @@ test("a price reviewed earlier today is announced as reviewed today even with a 
     value: {
       products: [{ ...rice, lastReviewedAt: new Date(2026, 8, 25, 8, 0).toISOString() }],
       pendingCount: 1,
+      activeProductCount: 3,
       reviewWindowDays: 0,
       categories: [],
     },
@@ -2058,6 +2372,7 @@ test.each([
           },
         ],
         pendingCount: 0,
+        activeProductCount: 3,
         reviewWindowDays: 30,
         categories: [],
       },
@@ -2078,7 +2393,13 @@ test("opens with the filters it is given, asking for them in its first request",
   const services = createServices();
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",
-    value: { products: [rice], pendingCount: 0, reviewWindowDays: 30, categories: [groceries] },
+    value: {
+      products: [rice],
+      pendingCount: 0,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [groceries],
+    },
   });
 
   const screen = await renderScreen(services, () => {}, NOW, {
@@ -2100,7 +2421,13 @@ test("falls back to every category when the category it is given is not one the 
   const services = createServices();
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",
-    value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [groceries] },
+    value: {
+      products: [rice],
+      pendingCount: 1,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [groceries],
+    },
   });
   const onFiltersChange = vi.fn();
 
@@ -2122,7 +2449,13 @@ test("reports every change to its filters, so they can be kept for a reload", as
   const services = createServices();
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",
-    value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [groceries] },
+    value: {
+      products: [rice],
+      pendingCount: 1,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [groceries],
+    },
   });
   const onFiltersChange = vi.fn();
   const screen = await renderScreen(services, () => {}, NOW, { onFiltersChange });

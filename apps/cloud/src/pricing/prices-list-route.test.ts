@@ -479,6 +479,42 @@ describe("GET /prices", () => {
     expect(response.json().pendingCount).toBe(1);
   });
 
+  it("counts every active product whatever the filters, and leaves a deactivated one out", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+    const groceries = await insertCategory("Almacén");
+    const cleaning = await insertCategory("Limpieza");
+    const priceListId = await seededPriceListId(db);
+    const riceId = await insertProduct("Arroz", groceries);
+    await insertProduct("Fideos", groceries);
+    await insertProduct("Detergente", cleaning);
+    const inactiveId = await insertProduct("Lavandina", cleaning);
+    await db.update(products).set({ active: false }).where(eq(products.id, inactiveId));
+    const priceId = await insertPrice(riceId, priceListId, 500, NOON);
+    await insertReview(riceId, priceListId, priceId, userId, NOON);
+
+    const filters = [
+      { review: "all" },
+      { review: "pending" },
+      { review: "all", categoryId: cleaning },
+      { review: "all", search: "arr" },
+    ];
+    for (const query of filters) {
+      const response = await listPricesRequest(rawSessionId, query);
+
+      expect(response.json().activeProductCount).toBe(3);
+    }
+  });
+
+  it("reports no active products for an empty catalog", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await listPricesRequest(rawSessionId, { review: "pending" });
+
+    expect(response.json().activeProductCount).toBe(0);
+  });
+
   it("shows each product's newest price and newest review, whatever older history it has", async () => {
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);
