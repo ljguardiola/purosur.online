@@ -65,11 +65,10 @@ export type TextFieldProps = TextFieldCommonProps &
   FieldErrorProps &
   TextFieldKindProps & { readOnlyReason?: undefined };
 
-// The reason opens as a tooltip over the whole box, so the box's horizontal padding moves onto the
-// input to keep that area edge to edge, which leaves no room for an affix beside it.
 export type TextFieldReadOnlyReasonProps = TextFieldCommonProps &
   FieldErrorProps & {
     kind: "plain-text";
+    disabled?: false;
     prefix?: undefined;
     suffix?: undefined;
     readOnly: true;
@@ -112,8 +111,6 @@ function ReadOnlyReasonInput({
   return <AriaInput {...props} />;
 }
 
-// An overload rather than one more member of TextFieldProps' union: a member with required props
-// stops a spread of an optional `errorMessageId` from being assignable to that union.
 export function TextField(props: TextFieldReadOnlyReasonProps): ReactNode;
 export function TextField(props: TextFieldProps): ReactNode;
 export function TextField(props: TextFieldProps | TextFieldReadOnlyReasonProps) {

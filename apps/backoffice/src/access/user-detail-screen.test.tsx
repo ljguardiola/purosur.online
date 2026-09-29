@@ -1,6 +1,6 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useEffect } from "react";
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, expect, onTestFinished, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { useRefreshAccess } from "./access-queries";
@@ -293,17 +293,17 @@ test("opens the last active Administrator's explanation when the Rol field is ho
 
   // Wider than the default phone-sized browser-mode viewport, or the field is unhoverable.
   await page.viewport(1280, 900);
+  onTestFinished(() => page.viewport(414, 896));
   await userEvent.hover(dialog.getByRole("textbox", { name: "Rol" }));
   await expect.element(screen.getByRole("tooltip")).toBeVisible();
   await expect.element(screen.getByRole("tooltip")).toHaveTextContent(lastAdministratorReason);
-
-  await page.viewport(414, 896);
 });
 
 test("opens the last active Administrator's explanation when the Rol field is focused with the keyboard", async () => {
   const { screen, dialog } = await openLastAdministratorEditModal();
 
   await page.viewport(1280, 900);
+  onTestFinished(() => page.viewport(414, 896));
   const rol = dialog.getByRole("textbox", { name: "Rol" });
   for (let presses = 0; presses < 10 && document.activeElement !== rol.element(); presses++) {
     await userEvent.tab();
@@ -311,8 +311,6 @@ test("opens the last active Administrator's explanation when the Rol field is fo
   expect(document.activeElement).toBe(rol.element());
   await expect.element(screen.getByRole("tooltip")).toBeVisible();
   await expect.element(screen.getByRole("tooltip")).toHaveTextContent(lastAdministratorReason);
-
-  await page.viewport(414, 896);
 });
 
 test("shows a last_administrator notice with a reload action when the server still refuses the role change", async () => {

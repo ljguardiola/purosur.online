@@ -1094,6 +1094,18 @@ test("does not accept a read-only reason unless the field is read-only", () => {
   }>().toExtend<TextFieldReadOnlyReasonProps>();
 });
 
+test("does not accept a read-only reason on a disabled field", () => {
+  expectTypeOf<{
+    kind: "plain-text";
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    disabled: true;
+    readOnly: true;
+    readOnlyReason: string;
+  }>().not.toExtend<TextFieldProps | TextFieldReadOnlyReasonProps>();
+});
+
 test("does not accept a read-only reason beside an affix", () => {
   expectTypeOf<{
     kind: "plain-text";
