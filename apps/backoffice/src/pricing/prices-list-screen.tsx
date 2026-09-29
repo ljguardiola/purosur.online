@@ -1,4 +1,4 @@
-import type { PriceCategory, PriceProduct } from "@purosur/contracts";
+import { type PriceCategory, type PriceProduct, priceSetBodySchema } from "@purosur/contracts";
 import {
   Button,
   FloatingNotification,
@@ -11,7 +11,6 @@ import {
   SearchField,
   Table,
   Tag,
-  TextField,
   Tooltip,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
@@ -30,12 +29,13 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import type { ProductSaleUnit } from "../catalog/products-api";
+import { type CloudSubmission, useCloudForm } from "../platform/cloud-form";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
-import { formatCents, MAX_UNIT_PRICE_CENTS, parseAmountInput } from "./money";
+import { formatCents, MAX_UNIT_PRICE_CENTS, parseAmountCents } from "./money";
 import type {
   ConfirmPriceOutcome,
   confirmPrice,
@@ -67,7 +67,10 @@ const NO_CATEGORIES: PriceCategory[] = [];
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SEARCH_DEBOUNCE_MS = 300;
 
-const AMOUNT_INVALID = "Ingresá un precio válido, mayor a cero.";
+const AMOUNT_REQUIRED = "Ingresá el precio nuevo.";
+const AMOUNT_MALFORMED = "Escribí el precio con coma para los decimales, por ejemplo 7.500,50.";
+const AMOUNT_OUT_OF_RANGE = `Ingresá un precio mayor a cero, de hasta ${formatCents(MAX_UNIT_PRICE_CENTS)}.`;
+const AMOUNT_REVIEW = "Revisá el precio.";
 const AMOUNT_UNCHANGED = "Es el precio actual: confirmalo sin cambios en vez de guardarlo.";
 
 const PRICE_LABEL = {
@@ -80,6 +83,23 @@ const UNIT_SUFFIX = { UNIT: "", KG: "/ kg" } satisfies Record<ProductSaleUnit, s
 function formatCentsWithUnit(cents: number, saleUnit: ProductSaleUnit): string {
   const suffix = UNIT_SUFFIX[saleUnit];
   return suffix ? `${formatCents(cents)} ${suffix}` : formatCents(cents);
+}
+
+type PriceFormValues = { amount: string; expectedCurrentPriceId: string | null };
+
+const EMPTY_PRICE_FORM: PriceFormValues = { amount: "", expectedCurrentPriceId: null };
+
+function amountMessage({ amount }: PriceFormValues): string {
+  if (amount.trim() === "") {
+    return AMOUNT_REQUIRED;
+  }
+  const cents = parseAmountCents(amount);
+  if (cents === undefined) {
+    return AMOUNT_MALFORMED;
+  }
+  return priceSetBodySchema.shape.unitPrice.safeParse(cents).success
+    ? AMOUNT_REVIEW
+    : AMOUNT_OUT_OF_RANGE;
 }
 
 function startOfLocalDay(date: Date): number {
@@ -203,26 +223,50 @@ function PriceChangeModal({
   const [shownAt, setShownAt] = useState<Date | null>(null);
   const nowRef = useLatestRef(now);
   const [title, setTitle] = useState("");
-  const [amount, setAmount] = useState("");
-  const [amountError, setAmountError] = useState<string | undefined>(undefined);
   const [notice, setNotice] = useState<ModalNotice | null>(null);
   const [previousNotice, setPreviousNotice] = useState<ScreenNotice | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [working, setWorking] = useState(false);
+  const { form, submit, submitting, reset } = useCloudForm({
+    defaultValues: EMPTY_PRICE_FORM,
+    request: {
+      schema: priceSetBodySchema,
+      from: ({ amount, expectedCurrentPriceId }) => ({
+        unitPrice: parseAmountCents(amount) ?? Number.NaN,
+        expectedCurrentPriceId,
+      }),
+    },
+    fields: { unitPrice: "amount", expectedCurrentPriceId: null },
+    messages: { amount: amountMessage },
+    onSubmit: async (request, submission) => {
+      const product = current;
+      if (!product) {
+        return;
+      }
+      setNotice(null);
+      setPreviousNotice(null);
+      try {
+        handleSetPriceOutcome(
+          product,
+          request.unitPrice,
+          await setPrice(product.id, request),
+          submission,
+        );
+      } catch {
+        showNotice({ kind: "attemptFailed" });
+      }
+    },
+  });
+  const busy = submitting || working;
 
   function showNotice(ownNotice: ModalNotice) {
     setNotice(ownNotice);
     setPreviousNotice(null);
   }
 
-  function showAmountError(error: string) {
-    setAmountError(error);
-    setPreviousNotice(null);
-  }
-
   function startRequest() {
     setNotice(null);
     setPreviousNotice(null);
-    setSubmitting(true);
+    setWorking(true);
   }
 
   useEffect(() => {
@@ -230,44 +274,18 @@ function PriceChangeModal({
       setCurrent(target);
       setShownAt(nowRef.current());
       setTitle(target.name);
-      setAmount("");
-      setAmountError(undefined);
+      reset({ amount: "", expectedCurrentPriceId: target.currentPrice?.id ?? null });
       setNotice(null);
       setPreviousNotice(previousProductNotice);
-      setSubmitting(false);
+      setWorking(false);
     }
-  }, [target, previousProductNotice, nowRef]);
-
-  function validatedAmount(product: PriceProduct): number | undefined {
-    if (!amount.trim()) {
-      showAmountError("Ingresá el precio nuevo.");
-      return undefined;
-    }
-    const parsed = parseAmountInput(amount);
-    if (parsed.kind === "malformed") {
-      showAmountError("Escribí el precio con coma para los decimales, por ejemplo 7.500,50.");
-      return undefined;
-    }
-    if (parsed.kind === "notPositive") {
-      showAmountError(AMOUNT_INVALID);
-      return undefined;
-    }
-    if (parsed.kind === "tooLarge") {
-      showAmountError(`Ingresá un precio de hasta ${formatCents(MAX_UNIT_PRICE_CENTS)}.`);
-      return undefined;
-    }
-    const cents = parsed.cents;
-    if (product.currentPrice && cents === product.currentPrice.unitPrice) {
-      showAmountError(AMOUNT_UNCHANGED);
-      return undefined;
-    }
-    return cents;
-  }
+  }, [target, previousProductNotice, nowRef, reset]);
 
   function handleSetPriceOutcome(
     product: PriceProduct,
     unitPrice: number,
     outcome: SetPriceOutcome,
+    { showFieldError, showWireFieldError }: CloudSubmission<PriceFormValues>,
   ) {
     if (outcome.kind === "ok") {
       onSaved(product, { kind: "saved", unitPrice });
@@ -287,40 +305,20 @@ function PriceChangeModal({
     } else if (outcome.kind === "stale_price") {
       showNotice({ kind: "stale" });
     } else if (outcome.kind === "price_unchanged") {
-      showAmountError(AMOUNT_UNCHANGED);
-    } else if (outcome.kind === "validation_failed" && outcome.field === "expectedCurrentPriceId") {
-      showNotice({ kind: "stale" });
+      showFieldError("amount", AMOUNT_UNCHANGED);
     } else if (outcome.kind === "validation_failed") {
-      showAmountError(AMOUNT_INVALID);
+      if (!showWireFieldError(outcome.field)) {
+        showNotice(
+          outcome.field === "expectedCurrentPriceId"
+            ? { kind: "stale" }
+            : { kind: "attemptFailed" },
+        );
+      }
     } else if (outcome.kind === "rate_limited") {
       showNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
     } else {
       showNotice({ kind: "attemptFailed" });
     }
-  }
-
-  async function handleSave() {
-    const product = current;
-    if (!product) {
-      return;
-    }
-    const cents = validatedAmount(product);
-    if (cents === undefined) {
-      return;
-    }
-    setAmountError(undefined);
-    startRequest();
-    const expectedCurrentPriceId = product.currentPrice?.id ?? null;
-    try {
-      const outcome = await setPrice(product.id, {
-        unitPrice: cents,
-        expectedCurrentPriceId,
-      });
-      handleSetPriceOutcome(product, cents, outcome);
-    } catch {
-      showNotice({ kind: "attemptFailed" });
-    }
-    setSubmitting(false);
   }
 
   function handleConfirmPriceOutcome(product: PriceProduct, outcome: ConfirmPriceOutcome) {
@@ -364,7 +362,7 @@ function PriceChangeModal({
     } catch {
       showNotice({ kind: "confirmFailed" });
     }
-    setSubmitting(false);
+    setWorking(false);
   }
 
   async function handleReload() {
@@ -373,14 +371,18 @@ function PriceChangeModal({
       return;
     }
     setPreviousNotice(null);
-    setSubmitting(true);
+    setWorking(true);
     handleReloadOutcome(product, await reload(product.id));
-    setSubmitting(false);
+    setWorking(false);
   }
 
   function handleReloadOutcome(product: PriceProduct, outcome: PriceReload) {
     if (outcome.kind === "found") {
       setCurrent(outcome.product);
+      reset({
+        amount: form.state.values.amount,
+        expectedCurrentPriceId: outcome.product.currentPrice?.id ?? null,
+      });
       setShownAt(now());
       setNotice(null);
       return;
@@ -409,7 +411,7 @@ function PriceChangeModal({
     notice?.kind === "stale" ||
     notice?.kind === "noPriceToConfirm" ||
     notice?.kind === "reloadFailed";
-  const actionsDisabled = submitting || notice?.kind === "notFound";
+  const actionsDisabled = busy || notice?.kind === "notFound";
 
   return (
     <Modal
@@ -424,7 +426,7 @@ function PriceChangeModal({
       icon={<Pencil />}
       context={current && shownAt ? modalEyebrow(current, shownAt) : ""}
       title={title}
-      closable={!submitting}
+      closable={!busy}
       footer={
         current && (
           <>
@@ -445,7 +447,7 @@ function PriceChangeModal({
               icon={<Check />}
               fullWidth
               disabled={actionsDisabled}
-              onPress={() => void handleSave()}
+              onPress={() => void submit()}
             >
               Guardar el precio nuevo
             </Button>
@@ -525,31 +527,27 @@ function PriceChangeModal({
             <Button
               variant="secondary"
               icon={<RotateCcw />}
-              disabled={submitting}
+              disabled={busy}
               onPress={() => void handleReload()}
             >
               Recargar el precio
             </Button>
           ) : null}
-          <TextField
-            kind="price"
-            label={PRICE_LABEL[current.saleUnit]}
-            prefix="$"
-            value={amount}
-            onChange={(value) => {
-              setAmount(value);
-              if (amountError) {
-                setAmountError(undefined);
-              }
-            }}
-            required
-            {...(current.currentPrice
-              ? {
-                  description: `Precio actual: ${formatCentsWithUnit(current.currentPrice.unitPrice, current.saleUnit)}`,
-                }
-              : {})}
-            errorMessage={amountError}
-          />
+          <form.AppField name="amount">
+            {(field) => (
+              <field.TextField
+                kind="price"
+                label={PRICE_LABEL[current.saleUnit]}
+                prefix="$"
+                required
+                {...(current.currentPrice
+                  ? {
+                      description: `Precio actual: ${formatCentsWithUnit(current.currentPrice.unitPrice, current.saleUnit)}`,
+                    }
+                  : {})}
+              />
+            )}
+          </form.AppField>
         </div>
       ) : null}
     </Modal>
