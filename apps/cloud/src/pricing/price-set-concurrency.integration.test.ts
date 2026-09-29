@@ -9,6 +9,7 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
+import { runQueuedBehindHeldLock } from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { DrizzlePricingStore } from "./drizzle-pricing-store.js";
@@ -55,40 +56,9 @@ async function seedActorAndProduct(): Promise<{ actorId: string; productId: stri
   return { actorId: actor.id, productId: product.id };
 }
 
-async function waitForLockWaiters(count: number): Promise<void> {
-  // The second write waits on the first one's tuple lock, not on the holder, so
-  // pg_blocking_pids of the holder never lists it; counting pg_stat_activity waiters does.
-  for (let attempt = 0; attempt < 200; attempt += 1) {
-    const [row] = await sql<{ waiting: number }[]>`
-      select count(*)::int as waiting from pg_stat_activity
-      where datname = current_database() and wait_event_type = 'Lock'`;
-    if ((row?.waiting ?? 0) >= count) return;
-    await new Promise((resolve) => setTimeout(resolve, 10));
-  }
-  throw new Error(`test setup: ${count} writes never queued behind the held lock`);
-}
-
-async function runQueuedBehindProductLock<TFirst, TSecond>(
-  productId: string,
-  first: () => Promise<TFirst>,
-  second: () => Promise<TSecond>,
-): Promise<[TFirst, TSecond]> {
-  const reserved = await sql.reserve();
-  let firstOutcome: Promise<TFirst> | undefined;
-  let secondOutcome: Promise<TSecond> | undefined;
-  try {
-    await reserved`begin`;
-    await reserved`select id from products where id = ${productId} for update`;
-    firstOutcome = first();
-    await waitForLockWaiters(1);
-    secondOutcome = second();
-    await waitForLockWaiters(2);
-  } finally {
-    await reserved`rollback`;
-    reserved.release();
-    await Promise.allSettled([firstOutcome, secondOutcome]);
-  }
-  return Promise.all([firstOutcome, secondOutcome]);
+function holdProductRowLock(productId: string) {
+  return (holder: postgres.ReservedSql) =>
+    holder`select id from products where id = ${productId} for update`;
 }
 
 const NOW = () => new Date("2026-01-05T12:00:00.000Z");
@@ -110,7 +80,12 @@ describe("two price changes on the same never-priced product queued behind each 
         actorId,
       });
 
-    const [first, second] = await runQueuedBehindProductLock(productId, change(1000), change(2000));
+    const [first, second] = await runQueuedBehindHeldLock(
+      sql,
+      holdProductRowLock(productId),
+      change(1000),
+      change(2000),
+    );
 
     const outcomes = [first.kind, second.kind].sort();
     expect(outcomes).toEqual(["applied", "stale_price"]);
@@ -131,8 +106,9 @@ describe("a confirmation queued behind a change of the price it confirms, on a r
       throw new Error("test setup: seeding the price returned no row");
     }
 
-    const [change, confirmation] = await runQueuedBehindProductLock(
-      productId,
+    const [change, confirmation] = await runQueuedBehindHeldLock(
+      sql,
+      holdProductRowLock(productId),
       () =>
         setPrice(pricingPorts(), {
           productId,

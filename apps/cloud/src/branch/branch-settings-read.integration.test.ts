@@ -5,6 +5,7 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
+import { waitForLockWaiters } from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { findBranchSettings } from "./branch-settings-read-route.js";
 
@@ -29,17 +30,6 @@ afterAll(async () => {
   await integrationDb.close();
 });
 
-async function waitForLockWaiter(): Promise<void> {
-  for (let attempt = 0; attempt < 500; attempt += 1) {
-    const [row] = await adminSql<{ waiting: number }[]>`
-      select count(*)::int as waiting from pg_stat_activity
-      where datname = current_database() and wait_event_type = 'Lock'`;
-    if ((row?.waiting ?? 0) >= 1) return;
-    await new Promise((resolve) => setTimeout(resolve, 10));
-  }
-  throw new Error("test setup: the read never queued behind the held lock");
-}
-
 describe("reading a branch's settings while a save commits, on a real Postgres through postgres-js", () => {
   it("answers the version and the hours from the same moment, never one from before the save and the other from after it", async () => {
     const locationId = await seededLocationId(db);
@@ -53,7 +43,7 @@ describe("reading a branch's settings while a save commits, on a real Postgres t
       await writer`begin`;
       await writer`lock table branch_hours in access exclusive mode`;
       read = findBranchSettings(db, locationId);
-      await waitForLockWaiter();
+      await waitForLockWaiters(adminSql, 1);
       await writer`update branch_settings set version = version + 1 where location_id = ${locationId}`;
       await writer`
         insert into branch_hours (location_id, day_of_week, position, opens_at, closes_at)

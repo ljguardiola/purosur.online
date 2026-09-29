@@ -10,6 +10,7 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
+import { waitForLockWaiters } from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { type OpenAlertInput, type OpenAlertOutcome, openAlert } from "./open-alert.js";
 
@@ -41,7 +42,7 @@ async function insertAdministrator<TQueryResult extends PgQueryResultHKT>(
 
 async function racesOpenAlertDedup<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-  waitForLockWaiters: (count: number) => Promise<void>,
+  waitForQueued: (count: number) => Promise<void>,
 ): Promise<void> {
   const recipientId = await insertAdministrator(db);
   const scope = "user-ada";
@@ -87,7 +88,7 @@ async function racesOpenAlertDedup<TQueryResult extends PgQueryResultHKT>(
     // Attached now so a rejection during the lock wait isn't reported as unhandled.
     secondCommitted.catch(() => {});
 
-    await waitForLockWaiters(1);
+    await waitForQueued(1);
   } finally {
     resolveRelease();
   }
@@ -131,51 +132,31 @@ describe("openAlert dedup raced through postgres-js on a real Postgres", () => {
     await integrationDb.close();
   });
 
-  async function waitForLockWaiters(count: number): Promise<void> {
-    for (let attempt = 0; attempt < 500; attempt += 1) {
-      const [row] = await sql<{ waiting: number }[]>`
-        select count(*)::int as waiting from pg_stat_activity
-        where datname = current_database() and wait_event_type = 'Lock'`;
-      if ((row?.waiting ?? 0) >= count) return;
-      await new Promise((resolve) => setTimeout(resolve, 10));
-    }
-    throw new Error(`test setup: ${count} openAlert calls never queued behind the first`);
-  }
-
   it("dedups: the second call gets already_open, one alert, one set of deliveries, and its own transaction still commits", async () => {
-    await racesOpenAlertDedup(db, waitForLockWaiters);
+    await racesOpenAlertDedup(db, (count) => waitForLockWaiters(sql, count));
   }, 30_000);
 });
 
 describe("openAlert dedup raced through node-postgres on a real Postgres", () => {
   let integrationDb: IntegrationDatabase;
   let pool: pg.Pool;
+  let observer: ReturnType<typeof postgres>;
   let db: NodePgDatabase<Record<string, never>>;
 
   beforeAll(async () => {
     integrationDb = await createIntegrationDatabase("open_alert_dedup_node_postgres");
     pool = new pg.Pool({ connectionString: integrationDb.databaseUrl, max: 6 });
+    observer = postgres(integrationDb.databaseUrl, { max: 1 });
     db = drizzleNodePostgres(pool);
   }, 60_000);
 
   afterAll(async () => {
+    await observer.end({ timeout: 1 });
     await pool.end();
     await integrationDb.close();
   });
 
-  async function waitForLockWaiters(count: number): Promise<void> {
-    for (let attempt = 0; attempt < 500; attempt += 1) {
-      const { rows } = await pool.query<{ waiting: number }>(
-        `select count(*)::int as waiting from pg_stat_activity
-         where datname = current_database() and wait_event_type = 'Lock'`,
-      );
-      if ((rows[0]?.waiting ?? 0) >= count) return;
-      await new Promise((resolve) => setTimeout(resolve, 10));
-    }
-    throw new Error(`test setup: ${count} openAlert calls never queued behind the first`);
-  }
-
   it("dedups: the second call gets already_open, one alert, one set of deliveries, and its own transaction still commits", async () => {
-    await racesOpenAlertDedup(db, waitForLockWaiters);
+    await racesOpenAlertDedup(db, (count) => waitForLockWaiters(observer, count));
   }, 30_000);
 });

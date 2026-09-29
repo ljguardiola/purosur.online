@@ -8,6 +8,7 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
+import { waitForLockWaiters } from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { createRegister } from "./register-creation-route.js";
 
@@ -31,17 +32,6 @@ afterAll(async () => {
   await adminSql.end({ timeout: 1 });
   await integrationDb.close();
 });
-
-async function waitForLockWaiters(count: number): Promise<void> {
-  for (let attempt = 0; attempt < 500; attempt += 1) {
-    const [row] = await adminSql<{ waiting: number }[]>`
-      select count(*)::int as waiting from pg_stat_activity
-      where datname = current_database() and wait_event_type = 'Lock'`;
-    if ((row?.waiting ?? 0) >= count) return;
-    await new Promise((resolve) => setTimeout(resolve, 10));
-  }
-  throw new Error("test setup: the creations never queued behind the held lock");
-}
 
 describe("creating two registers with the same name in the same branch concurrently on a real Postgres through postgres-js", () => {
   it("creates exactly one of them and reports the other as name_taken", async () => {
@@ -68,7 +58,7 @@ describe("creating two registers with the same name in the same branch concurren
         createRegister(db, { locationId, name, actorId: actor.id }),
         createRegister(db, { locationId, name: name.toUpperCase(), actorId: actor.id }),
       ];
-      await waitForLockWaiters(2);
+      await waitForLockWaiters(adminSql, 2);
     } finally {
       await holder`rollback`;
       holder.release();
