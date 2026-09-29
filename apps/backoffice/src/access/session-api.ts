@@ -16,7 +16,7 @@ export type SessionOutcome =
       displayName: string;
       isAdministrator: boolean;
       expiresAt?: string;
-      /** In catalog order. An Administrator holds every key implicitly. */
+      // In catalog order. An Administrator holds every key implicitly.
       permissions?: string[];
     }
   | { kind: "unauthenticated" }
@@ -101,7 +101,7 @@ export async function fetchSession(): Promise<SessionOutcome> {
   };
 }
 
-/** Unlike `fetchSession`, doesn't touch `last_seen_at`, so a probing tab can't keep an idle session alive. */
+// Unlike `fetchSession`, doesn't touch `last_seen_at`, so a probing tab can't keep an idle session alive.
 export async function checkSessionStatus(): Promise<SessionStatusOutcome> {
   let response: Response;
   try {
@@ -141,7 +141,7 @@ export async function fetchAuthenticationOptions(): Promise<AuthenticationOption
   return { kind: "ok", value: body.passkey_authentication_options };
 }
 
-/** The cloud only distinguishes an unrecognized credential id (`unknown_passkey`) from every other rejection. */
+// The cloud only distinguishes an unrecognized credential id (`unknown_passkey`) from every other rejection.
 export async function authenticate(
   assertion: AuthenticationResponseJSON,
 ): Promise<AuthenticateOutcome> {

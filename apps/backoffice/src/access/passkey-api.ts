@@ -59,7 +59,7 @@ function passkeyFromRow(row: {
   return { id: row.id, name: row.name, createdAt: row.created_at, lastUsedAt: row.last_used_at };
 }
 
-/** Oldest first. */
+// Oldest first.
 export async function fetchPasskeys(): Promise<FetchPasskeysOutcome> {
   let response: Response;
   try {

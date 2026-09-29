@@ -7,8 +7,8 @@ export type AlertSummary = {
   id: string;
   kind: AlertKind;
   scope: string | null;
-  /** `scope` as a person reads it (a user's first name, or the raw scope); `null` for a closed
-   * lockout alert, which no longer holds its source address. */
+  // `scope` as a person reads it (a user's first name, or the raw scope); `null` for a closed
+  // lockout alert, which no longer holds its source address.
   scopeDisplay: string | null;
   level: AlertLevel;
   audience: AlertAudience;
@@ -38,7 +38,7 @@ export type AlertDetail = {
   scopeDisplay: string | null;
   level: AlertLevel;
   audience: AlertAudience;
-  /** The kind's own fact payload, passed through untyped exactly as the cloud sends it. */
+  // The kind's own fact payload, passed through untyped exactly as the cloud sends it.
   detail: Record<string, unknown>;
   openedAt: string;
   escalatedAt: string | null;
@@ -49,9 +49,9 @@ export type AlertDetail = {
 export type AlertListQuery = {
   level?: AlertLevel;
   open?: boolean;
-  /** 1-based. */
+  // 1-based.
   page?: number;
-  /** `kinds` lists the kinds whose own title matched `text`: those titles exist only in this app, so the cloud cannot match them itself. */
+  // `kinds` lists the kinds whose own title matched `text`: those titles exist only in this app, so the cloud cannot match them itself.
   search?: { text: string; kinds: readonly string[] };
 };
 

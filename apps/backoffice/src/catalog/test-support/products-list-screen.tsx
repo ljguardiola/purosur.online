@@ -140,7 +140,7 @@ export function scanInputOf(dialog: ScreenLocator) {
   return dialog.getByRole("textbox", { name: "Escanear otro código" });
 }
 
-/** Rerendering drives React's async `act()`, which flushes the already-resolved response's continuation before returning. */
+// Rerendering drives React's async `act()`, which flushes the already-resolved response's continuation before returning.
 export async function settleLateResponse(
   screen: Screen,
   services: ProductsListScreenServices,

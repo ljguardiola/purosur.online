@@ -331,7 +331,7 @@ export type DeactivateProductOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-/** The cloud answers the same `not_found` for a malformed, missing, or already-inactive target. */
+// The cloud answers the same `not_found` for a malformed, missing, or already-inactive target.
 export async function deactivateProduct(id: string): Promise<DeactivateProductOutcome> {
   let response: Response;
   try {

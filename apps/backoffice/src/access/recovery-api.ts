@@ -41,7 +41,7 @@ function postJson(path: string, body: unknown): Promise<Response> {
   });
 }
 
-/** The cloud answers identically, with no body, whether or not `email` belongs to a real account. */
+// The cloud answers identically, with no body, whether or not `email` belongs to a real account.
 export async function requestRecoveryLink(email: string): Promise<RecoveryRequestOutcome> {
   const requestBody: RecoveryRequestBody = { email };
   let response: Response;
@@ -78,7 +78,7 @@ async function tokenErrorOutcome<Value>(response: Response): Promise<RecoveryTok
   return kind ? { kind } : { kind: "failed" };
 }
 
-/** Hands back a still-live token's WebAuthn creation options and the account's display name; doesn't touch the token itself. */
+// Leaves the still-live token untouched.
 export async function fetchRegistrationOptions(
   recoveryToken: string,
 ): Promise<RecoveryTokenOutcome<RegistrationOptions>> {
@@ -102,7 +102,7 @@ export async function fetchRegistrationOptions(
   };
 }
 
-/** Burns the token; never opens a session. */
+// Burns the token; never opens a session.
 export async function redeemRecovery(
   recoveryToken: string,
   passkeyRegistration: RegistrationResponseJSON,
