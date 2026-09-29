@@ -6,8 +6,8 @@ description: Build or change a backoffice screen from the design system in packa
 The rules for backoffice screens live in `CONTRIBUTING.md` ("Structure",
 "Code style", "Backoffice screens", "React code" and "Testing"). This skill
 only sequences the steps and maps each state to its `packages/ui` piece; it
-never restates those rules. Every step follows the strict TDD order in
-"Code style": the failing test comes before the code it covers.
+never restates those rules. Every step below follows the TDD order in
+"Code style".
 
 ## 1. Know the pieces before writing the screen
 
@@ -55,7 +55,8 @@ For the outcome of each action, these are the pieces the design system
 offers:
 
 - A field the action refuses: the field's `errorMessage`, or
-  `errorMessageId` for a message several fields share
+  `errorMessageId` for a message rendered elsewhere, possibly shared by
+  several fields
   (`packages/ui/src/components/forms/field-error.ts`).
 - A result shown where the action was taken, such as inside its `Modal`:
   `InlineNotice` or `NotificationCard`, with the `tone` of the outcome.
