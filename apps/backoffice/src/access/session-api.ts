@@ -1,8 +1,10 @@
 import {
+  openSessionSchema,
   type SessionAuthenticationBody,
   type SessionAuthorizationBody,
   sessionAuthenticationOptionsSchema,
   sessionAuthorizationOptionsSchema,
+  sessionStatusSchema,
 } from "@purosur/contracts";
 import type {
   AuthenticationResponseJSON,
@@ -89,20 +91,17 @@ export async function fetchSession(): Promise<SessionOutcome> {
   if (!response.ok) {
     return { kind: "failed" };
   }
-  const body = (await response.json()) as {
-    user_id: string;
-    display_name: string;
-    is_administrator: boolean;
-    expires_at?: string;
-    permissions?: string[];
-  };
+  const body = openSessionSchema.safeParse(await response.json().catch(() => undefined));
+  if (!body.success) {
+    return { kind: "failed" };
+  }
   return {
     kind: "ok",
-    userId: body.user_id,
-    displayName: body.display_name,
-    isAdministrator: body.is_administrator,
-    ...(body.expires_at !== undefined ? { expiresAt: body.expires_at } : {}),
-    ...(body.permissions !== undefined ? { permissions: body.permissions } : {}),
+    userId: body.data.user_id,
+    displayName: body.data.display_name,
+    isAdministrator: body.data.is_administrator,
+    expiresAt: body.data.expires_at,
+    permissions: body.data.permissions,
   };
 }
 
@@ -126,8 +125,11 @@ export async function checkSessionStatus(): Promise<SessionStatusOutcome> {
   if (!response.ok) {
     return { kind: "failed" };
   }
-  const body = (await response.json()) as { expires_at: string };
-  return { kind: "ok", expiresAt: body.expires_at };
+  const body = sessionStatusSchema.safeParse(await response.json().catch(() => undefined));
+  if (!body.success) {
+    return { kind: "failed" };
+  }
+  return { kind: "ok", expiresAt: body.data.expires_at };
 }
 
 export async function fetchAuthenticationOptions(): Promise<AuthenticationOptionsOutcome> {

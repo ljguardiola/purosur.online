@@ -1,3 +1,4 @@
+import { sessionStatusSchema } from "@purosur/contracts";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "./backoffice-origin.js";
@@ -31,7 +32,11 @@ export function registerSessionStatusRoute<TQueryResult extends PgQueryResultHKT
     },
     async (request, reply) => {
       const openSession = openSessionOf(request);
-      await reply.code(200).send({ expires_at: sessionExpiresAt(openSession).toISOString() });
+      await reply
+        .code(200)
+        .send(
+          sessionStatusSchema.parse({ expires_at: sessionExpiresAt(openSession).toISOString() }),
+        );
     },
   );
 }
