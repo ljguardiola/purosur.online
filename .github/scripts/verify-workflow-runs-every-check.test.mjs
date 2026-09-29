@@ -772,7 +772,7 @@ const PINNED_POSTGRES_IMAGE =
 const PULL_WITH_RETRIES_LINES = [
   "for delay in 0 15 30 60; do",
   '  sleep "$delay"',
-  '  docker pull "$POSTGRES_IMAGE" && exit 0',
+  '  timeout 120 docker pull "$POSTGRES_IMAGE" && exit 0',
   "done",
   "exit 1",
 ];
@@ -790,10 +790,12 @@ function testsJobWithPull({
   pullLines = PULL_WITH_RETRIES_LINES,
   pulledImage = PINNED_POSTGRES_IMAGE,
   pullAfterTests = false,
+  pullStepExtra = [],
   testsEnv = { TESTCONTAINERS_RYUK_DISABLED: '"true"' },
 } = {}) {
   const pullStep = [
     "      - name: Pull the cloud's Postgres image",
+    ...pullStepExtra.map((line) => `        ${line}`),
     "        run: |",
     ...pullLines.map((line) => `          ${line}`),
     "        env:",
@@ -867,6 +869,32 @@ test("flags a tests job that pulls the Postgres image once, without retrying", (
 
   assertSingleViolation(violations, /before its verify:tests step/);
 });
+
+test("flags a tests job whose Postgres pull attempt can stall without a time limit", () => {
+  const violations = findCloudPostgresImageViolations(
+    testsJobWithPull({
+      pullLines: PULL_WITH_RETRIES_LINES.map((line) => line.replace("timeout 120 ", "")),
+    }),
+    postgresSetup(),
+  );
+
+  assertSingleViolation(violations, /before its verify:tests step/);
+});
+
+for (const [label, extra, pattern] of [
+  ["only runs under its own condition", "if: false", /pull step has its own if/],
+  ["is allowed to fail", "continue-on-error: true", /pull step sets continue-on-error/],
+  ["runs under its own shell", "shell: sh", /pull step sets its own shell/],
+]) {
+  test(`flags a Postgres pull step that ${label}`, () => {
+    const violations = findCloudPostgresImageViolations(
+      testsJobWithPull({ pullStepExtra: [extra] }),
+      postgresSetup(),
+    );
+
+    assertSingleViolation(violations, pattern);
+  });
+}
 
 test("flags a tests step that still needs Testcontainers' Ryuk image from Docker Hub", () => {
   const violations = findCloudPostgresImageViolations(

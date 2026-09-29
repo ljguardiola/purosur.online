@@ -7,7 +7,7 @@ const CLOUD_POSTGRES_SETUP_PATH = "apps/cloud/vitest.global-setup.postgres.ts";
 const PULL_WITH_RETRIES_COMMAND = [
   "for delay in 0 15 30 60; do",
   '  sleep "$delay"',
-  '  docker pull "$POSTGRES_IMAGE" && exit 0',
+  '  timeout 120 docker pull "$POSTGRES_IMAGE" && exit 0',
   "done",
   "exit 1",
 ].join("\n");
@@ -392,6 +392,15 @@ export function findCloudPostgresImageViolations(workflowSource, postgresSetupSo
       violations.push(
         `verify.yml's tests job pulls \`${pulled}\`, but the cloud's tests start \`${image}\``,
       );
+    }
+    if (mayContinueOnError(doc, pullStep)) {
+      violations.push("verify.yml's tests job's Postgres pull step sets continue-on-error");
+    }
+    if (mapHas(doc, pullStep, "if")) {
+      violations.push("verify.yml's tests job's Postgres pull step has its own if");
+    }
+    if (mapHas(doc, pullStep, "shell")) {
+      violations.push("verify.yml's tests job's Postgres pull step sets its own shell");
     }
   }
 
