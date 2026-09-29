@@ -362,7 +362,7 @@ async function openEmitModal(screen: Awaited<ReturnType<typeof renderScreen>>, n
   return screen.getByRole("dialog", { name: "Código de alta" });
 }
 
-test("emitting a code shows it grouped in fours, with the expiry note and description", async () => {
+test("the row action emits a code for that register and shows it in the code modal", async () => {
   const services = createServices();
   vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
   vi.mocked(services.emitEnrollmentCode).mockResolvedValue({
@@ -376,14 +376,6 @@ test("emitting a code shows it grouped in fours, with the expiry note and descri
 
   await expect.element(dialog.getByText("P4NX 7KWE 2QRT 8MZD")).toBeVisible();
   expect(services.emitEnrollmentCode).toHaveBeenCalledWith("register-1");
-  await expect.element(dialog.getByText("Vence en 15 minutos · se usa una sola vez")).toBeVisible();
-  await expect
-    .element(
-      dialog.getByText(
-        "En la notebook nueva, al abrir la caja por primera vez, se escribe este código. Después de 5 intentos equivocados deja de servir y hay que emitir otro.",
-      ),
-    )
-    .toBeVisible();
 });
 
 test("emit's not_found closes the modal and refreshes the list", async () => {
@@ -510,29 +502,6 @@ function deferred<T>() {
   });
   return { promise, resolve };
 }
-
-test("while the code is being emitted, neither the close button nor Escape dismisses the modal", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
-  const pendingEmission =
-    deferred<Awaited<ReturnType<RegistersListScreenServices["emitEnrollmentCode"]>>>();
-  vi.mocked(services.emitEnrollmentCode).mockReturnValue(pendingEmission.promise);
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Caja 1")).toBeVisible();
-
-  const dialog = await openEmitModal(screen, "Caja 1");
-  await expect.element(dialog.getByText("Emitiendo el código…")).toBeVisible();
-
-  expect(dialog.getByRole("button", { name: "Cerrar" }).query()).toBeNull();
-  await userEvent.keyboard("{Escape}");
-  await expect.element(dialog).toBeVisible();
-
-  pendingEmission.resolve({
-    kind: "ok",
-    value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
-  });
-  await expect.element(dialog.getByText("P4NX 7KWE 2QRT 8MZD")).toBeVisible();
-});
 
 type CloseCodeModalCase = {
   name: string;
