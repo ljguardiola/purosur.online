@@ -4,6 +4,7 @@ import {
   RadioGroup as AriaRadioGroup,
   Text as AriaText,
 } from "react-aria-components";
+import { iconSlotClassName } from "../shared/icon";
 import { type FieldErrorProps, fieldError } from "./field-error";
 import { fieldErrorClassName } from "./field-styles";
 import { isOptionValue, type NarrowedOption, type OptionalOptionChoiceProps } from "./option";
@@ -17,9 +18,7 @@ export type OptionCardGroupProps<V extends string> = FieldErrorProps &
   };
 
 // Icon color reacts to the card's own data-selected state via the `group` class the card sets on itself.
-const iconWrapperClassName =
-  "inline-flex size-icon-lg shrink-0 text-text-subtle *:size-full " +
-  "group-data-selected:text-text-accent";
+const iconWrapperClassName = `${iconSlotClassName.lg} text-text-subtle group-data-selected:text-text-accent`;
 
 const labelClassName = "text-body font-bold text-text group-data-selected:text-text-accent";
 

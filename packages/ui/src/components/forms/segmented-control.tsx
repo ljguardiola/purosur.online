@@ -1,4 +1,5 @@
 import { Radio as AriaRadio, RadioGroup as AriaRadioGroup } from "react-aria-components";
+import { iconSlotClassName } from "../shared/icon";
 import { isOptionValue, type NarrowedOption, type OptionChoiceProps } from "./option";
 
 export type SegmentedControlSize = "large" | "medium";
@@ -25,12 +26,8 @@ const sizeClassName: Record<SegmentedControlSize, string> = {
 };
 
 const iconWrapperClassName: Record<SegmentedControlSize, string> = {
-  large:
-    "inline-flex size-icon-md shrink-0 text-text-subtle *:size-full " +
-    "group-data-selected:text-text-accent",
-  medium:
-    "inline-flex size-icon-sm shrink-0 text-text-subtle *:size-full " +
-    "group-data-selected:text-text-accent",
+  large: `${iconSlotClassName.md} text-text-subtle group-data-selected:text-text-accent`,
+  medium: `${iconSlotClassName.sm} text-text-subtle group-data-selected:text-text-accent`,
 };
 
 const optionClassName =

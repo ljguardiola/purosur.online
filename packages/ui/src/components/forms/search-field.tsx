@@ -1,5 +1,5 @@
 import { Input as AriaInput, SearchField as AriaSearchField } from "react-aria-components";
-import type { Icon } from "../shared/icon";
+import { type Icon, iconSlotClassName } from "../shared/icon";
 import { type FieldSize, useFieldSize } from "./field-size";
 import { fieldBoxClassName, fieldBoxStateClassName, fieldDisabledClassName } from "./field-styles";
 
@@ -34,10 +34,8 @@ const valueClassName: Record<FieldSize, string> = {
 const chipClassName =
   "inline-flex size-12 shrink-0 items-center justify-center rounded-md bg-action-subtle";
 
-const registerIconWrapperClassName =
-  "inline-flex size-icon-2xl shrink-0 text-text-accent *:size-full";
-const backofficeIconWrapperClassName =
-  "inline-flex size-icon-md shrink-0 text-text-subtle *:size-full";
+const registerIconWrapperClassName = `${iconSlotClassName["2xl"]} text-text-accent`;
+const backofficeIconWrapperClassName = `${iconSlotClassName.md} text-text-subtle`;
 
 export function SearchField(props: SearchFieldProps) {
   const { value, onChange, placeholder, icon, label, disabled = false } = props;
