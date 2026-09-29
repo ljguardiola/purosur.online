@@ -1,9 +1,11 @@
-import { Button, InlineNotice, TextField } from "@purosur/ui";
+import { Button, InlineNotice, LoadFailure, LoadingPlaceholder, TextField } from "@purosur/ui";
 import type { PublicKeyCredentialCreationOptionsJSON } from "@simplewebauthn/browser";
 import { ArrowLeft, KeyRound, ShieldCheck, ShieldX, TriangleAlert } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { AccessFooterLink, AccessHeader, AccessLayout } from "./access-layout";
+import { useRegistrationOptionsQuery, useReloadRegistrationOptions } from "./access-queries";
 import { validatePasskeyName } from "./passkey-name";
 import type { RedeemRecoveryOutcome } from "./recovery-api";
 import type { RegisterPasskeyScreenServices } from "./register-passkey-services";
@@ -23,32 +25,28 @@ function isDefinitiveRejection(outcome: RedeemRecoveryOutcome): boolean {
   }
 }
 
-type ReadyPhase = {
-  kind: "ready";
-  displayName: string;
-  options: PublicKeyCredentialCreationOptionsJSON;
-  attemptFailed: boolean;
-  submitting: boolean;
-};
+type TokenState = "invalid" | "burned" | "expired";
 
-type Phase =
-  | { kind: "loading" }
-  | { kind: "invalid" }
-  | { kind: "burned" }
-  | { kind: "expired" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "loadError" }
-  | ReadyPhase
-  | { kind: "registered" };
+type RedeemResult =
+  | { kind: "registered" }
+  | { kind: TokenState }
+  | { kind: "rate_limited"; retryAfterSeconds: number };
+
+const TOKEN_STATE_COPY: Record<TokenState, { title: string; description: string }> = {
+  invalid: {
+    title: "Este enlace no es válido",
+    description: "Revisá que el enlace esté completo.",
+  },
+  burned: {
+    title: "Este enlace ya no se puede usar",
+    description: "Ya se usó o se pidió uno más nuevo.",
+  },
+  expired: { title: "Este enlace venció", description: "Los enlaces valen 15 minutos." },
+};
 
 export type RegisterPasskeyScreenProps = {
   services: RegisterPasskeyScreenServices;
 };
-
-function readToken(): string | null {
-  const hash = window.location.hash;
-  return hash.length > 1 ? hash.slice(1) : null;
-}
 
 function TokenErrorNotice({
   title,
@@ -78,43 +76,24 @@ function TokenErrorNotice({
   );
 }
 
+function readToken(): string | null {
+  const hash = window.location.hash;
+  return hash.length > 1 ? hash.slice(1) : null;
+}
+
+function TokenStateNotice({ state }: { state: TokenState }) {
+  return (
+    <AccessLayout>
+      <AccessHeader heading="Registrá una passkey nueva" />
+      <TokenErrorNotice {...TOKEN_STATE_COPY[state]} offerNewLink />
+    </AccessLayout>
+  );
+}
+
 export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps) {
-  const { fetchRegistrationOptions, redeemRecovery, startRegistration, signalUnknownCredential } =
-    services;
   // A lazy initializer runs during the initial render, before any effect strips the fragment;
   // StrictMode's doubled call falls within that same render, so both reads see the same token.
   const [token] = useState<string | null>(() => readToken());
-  const [phase, setPhase] = useState<Phase>({ kind: "loading" });
-  const [name, setName] = useState("");
-  const [nameError, setNameError] = useState<string | undefined>(undefined);
-
-  const load = useCallback(async () => {
-    if (!token) {
-      setPhase({ kind: "invalid" });
-      return;
-    }
-    setPhase({ kind: "loading" });
-    const outcome = await fetchRegistrationOptions(token);
-    if (outcome.kind === "ok") {
-      setPhase({
-        kind: "ready",
-        displayName: outcome.value.displayName,
-        options: outcome.value.options,
-        attemptFailed: false,
-        submitting: false,
-      });
-    } else if (
-      outcome.kind === "invalid" ||
-      outcome.kind === "burned" ||
-      outcome.kind === "expired"
-    ) {
-      setPhase({ kind: outcome.kind });
-    } else if (outcome.kind === "rate_limited") {
-      setPhase({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
-    } else {
-      setPhase({ kind: "loadError" });
-    }
-  }, [token, fetchRegistrationOptions]);
 
   useEffect(() => {
     // A URL fragment never reaches server logs or a Referer header, but it's stripped right away
@@ -122,52 +101,53 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps) 
     if (window.location.hash) {
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
     }
-    void load();
-  }, [load]);
+  }, []);
 
-  // A rejected attempt needs fresh options before retrying; fetched now so the next click still
+  return token ? (
+    <RegistrationOfToken token={token} services={services} />
+  ) : (
+    <TokenStateNotice state="invalid" />
+  );
+}
+
+function RegistrationOfToken({
+  token,
+  services,
+}: {
+  token: string;
+  services: RegisterPasskeyScreenServices;
+}) {
+  const { fetchRegistrationOptions, redeemRecovery, startRegistration, signalUnknownCredential } =
+    services;
+  const data = useRegistrationOptionsQuery({ token, fetchRegistrationOptions });
+  const readOptionsAgain = useReloadRegistrationOptions({ fetchRegistrationOptions });
+  const [name, setName] = useState("");
+  const [nameError, setNameError] = useState<string | undefined>(undefined);
+  const [attemptFailed, setAttemptFailed] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState<RedeemResult | null>(null);
+
+  // A rejected attempt needs fresh options before retrying; read now so the next click still
   // starts WebAuthn synchronously, within the browser's required user activation.
-  async function refreshAfterRejectedAttempt(recoveryToken: string, readyPhase: ReadyPhase) {
-    setPhase({ ...readyPhase, attemptFailed: true, submitting: true });
-    const outcome = await fetchRegistrationOptions(recoveryToken);
-    if (outcome.kind === "ok") {
-      setPhase({
-        kind: "ready",
-        displayName: outcome.value.displayName,
-        options: outcome.value.options,
-        attemptFailed: true,
-        submitting: false,
-      });
-    } else if (
-      outcome.kind === "invalid" ||
-      outcome.kind === "burned" ||
-      outcome.kind === "expired"
-    ) {
-      setPhase({ kind: outcome.kind });
-    } else if (outcome.kind === "rate_limited") {
-      setPhase({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
-    } else {
-      setPhase({ ...readyPhase, attemptFailed: true, submitting: false });
-    }
+  async function refreshAfterRejectedAttempt() {
+    setAttemptFailed(true);
+    await readOptionsAgain(token);
+    setSubmitting(false);
   }
 
-  async function handleRegister(readyPhase: ReadyPhase) {
-    if (!token) {
-      setPhase({ kind: "invalid" });
-      return;
-    }
+  async function handleRegister(options: PublicKeyCredentialCreationOptionsJSON) {
     const validationError = validatePasskeyName(name);
     setNameError(validationError);
     if (validationError) {
       return;
     }
-    setPhase({ ...readyPhase, attemptFailed: false, submitting: true });
+    setAttemptFailed(false);
+    setSubmitting(true);
 
-    const registration = await startRegistration({ optionsJSON: readyPhase.options }).catch(
-      () => null,
-    );
+    const registration = await startRegistration({ optionsJSON: options }).catch(() => null);
     if (!registration) {
-      setPhase({ ...readyPhase, attemptFailed: true, submitting: false });
+      setAttemptFailed(true);
+      setSubmitting(false);
       return;
     }
 
@@ -175,108 +155,35 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps) 
     // Every definitive rejection but "already registered" means the credential was never saved,
     // so the device should forget it; an ambiguous outcome never signals, since it may have landed.
     if (isDefinitiveRejection(outcome)) {
-      const rpId = readyPhase.options.rp.id;
+      const rpId = options.rp.id;
       if (rpId) {
         signalUnknownCredential({ rpId, credentialId: registration.id });
       }
     }
-    if (outcome.kind === "ok") {
-      setPhase({ kind: "registered" });
-    } else if (
-      outcome.kind === "invalid" ||
-      outcome.kind === "burned" ||
-      outcome.kind === "expired"
-    ) {
-      setPhase({ kind: outcome.kind });
-    } else if (outcome.kind === "rate_limited") {
-      setPhase({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
-    } else if (outcome.kind === "validation_failed" || outcome.kind === "already_registered") {
-      await refreshAfterRejectedAttempt(token, readyPhase);
-    } else {
-      setPhase({ ...readyPhase, attemptFailed: true, submitting: false });
+    switch (outcome.kind) {
+      case "ok":
+        setResult({ kind: "registered" });
+        return;
+      case "invalid":
+      case "burned":
+      case "expired":
+        setResult({ kind: outcome.kind });
+        return;
+      case "rate_limited":
+        setResult({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
+        return;
+      case "validation_failed":
+      case "already_registered":
+        await refreshAfterRejectedAttempt();
+        return;
+      case "failed":
+        setAttemptFailed(true);
+        setSubmitting(false);
+        return;
     }
   }
 
-  if (phase.kind === "loading") {
-    return (
-      <AccessLayout>
-        <AccessHeader heading="Registrá una passkey nueva" />
-        <p role="status">Abriendo el registro…</p>
-      </AccessLayout>
-    );
-  }
-
-  if (phase.kind === "invalid") {
-    return (
-      <AccessLayout>
-        <AccessHeader heading="Registrá una passkey nueva" />
-        <TokenErrorNotice
-          title="Este enlace no es válido"
-          description="Revisá que el enlace esté completo."
-          offerNewLink
-        />
-      </AccessLayout>
-    );
-  }
-
-  if (phase.kind === "burned") {
-    return (
-      <AccessLayout>
-        <AccessHeader heading="Registrá una passkey nueva" />
-        <TokenErrorNotice
-          title="Este enlace ya no se puede usar"
-          description="Ya se usó o se pidió uno más nuevo."
-          offerNewLink
-        />
-      </AccessLayout>
-    );
-  }
-
-  if (phase.kind === "expired") {
-    return (
-      <AccessLayout>
-        <AccessHeader heading="Registrá una passkey nueva" />
-        <TokenErrorNotice
-          title="Este enlace venció"
-          description="Los enlaces valen 15 minutos."
-          offerNewLink
-        />
-      </AccessLayout>
-    );
-  }
-
-  if (phase.kind === "rate_limited") {
-    return (
-      <AccessLayout>
-        <AccessHeader heading="Registrá una passkey nueva" />
-        <InlineNotice
-          tone="error"
-          icon={<ShieldX />}
-          title="Demasiados intentos desde esta conexión"
-          description={retryAfterDetail(phase.retryAfterSeconds)}
-        />
-      </AccessLayout>
-    );
-  }
-
-  if (phase.kind === "loadError") {
-    return (
-      <AccessLayout>
-        <AccessHeader heading="Registrá una passkey nueva" />
-        <InlineNotice
-          tone="error"
-          icon={<TriangleAlert />}
-          title="No pudimos abrir el registro"
-          description="Probá de nuevo en unos minutos."
-        />
-        <Button variant="secondary" onPress={() => void load()}>
-          Reintentar
-        </Button>
-      </AccessLayout>
-    );
-  }
-
-  if (phase.kind === "registered") {
+  if (result?.kind === "registered") {
     return (
       <AccessLayout>
         <AccessHeader heading="Registraste la passkey" />
@@ -291,14 +198,55 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps) 
     );
   }
 
+  if (result?.kind === "rate_limited") {
+    return (
+      <AccessLayout>
+        <AccessHeader heading="Registrá una passkey nueva" />
+        <InlineNotice
+          tone="error"
+          icon={<ShieldX />}
+          title="Demasiados intentos desde esta conexión"
+          description={retryAfterDetail(result.retryAfterSeconds)}
+        />
+      </AccessLayout>
+    );
+  }
+
+  if (result) {
+    return <TokenStateNotice state={result.kind} />;
+  }
+
+  if (data.status === "loading") {
+    return (
+      <AccessLayout>
+        <AccessHeader heading="Registrá una passkey nueva" />
+        <LoadingPlaceholder variant="form" fields={1} />
+      </AccessLayout>
+    );
+  }
+
+  if (data.status === "failed") {
+    return (
+      <AccessLayout>
+        <AccessHeader heading="Registrá una passkey nueva" />
+        <LoadFailure {...cloudLoadFailure(data, "el registro")} />
+      </AccessLayout>
+    );
+  }
+
+  if (data.value.kind !== "ready") {
+    return <TokenStateNotice state={data.value.kind} />;
+  }
+
+  const { displayName, options } = data.value;
   return (
     <AccessLayout>
       <AccessHeader
-        eyebrow={phase.displayName}
+        eyebrow={displayName}
         heading="Registrá una passkey nueva"
         description="Con ella vas a ingresar de ahora en adelante."
       />
-      {phase.attemptFailed ? (
+      {attemptFailed ? (
         <InlineNotice
           tone="error"
           icon={<TriangleAlert />}
@@ -325,8 +273,8 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps) 
         size="large"
         fullWidth
         icon={<KeyRound />}
-        disabled={phase.submitting}
-        onPress={() => void handleRegister(phase)}
+        disabled={submitting}
+        onPress={() => void handleRegister(options)}
       >
         Registrar la passkey
       </Button>

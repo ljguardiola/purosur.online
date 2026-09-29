@@ -1,7 +1,9 @@
+import type { PublicKeyCredentialCreationOptionsJSON } from "@simplewebauthn/browser";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchPasskeys, Passkey } from "./passkey-api";
+import type { fetchRegistrationOptions } from "./recovery-api";
 import type { fetchRole, fetchRoles, RoleDetail, RoleSummary } from "./roles-api";
 import { useSendToMyAccount } from "./send-to-my-account";
 import type { BranchUser, fetchUser, fetchUserPasskeys, fetchUsers } from "./users-api";
@@ -15,6 +17,7 @@ const accessKeys = {
   role: (id: string) => [...accessKey, "role", id] as const,
   user: (id: string) => [...accessKey, "user", id] as const,
   userPasskeys: (id: string) => [...accessKey, "user-passkeys", id] as const,
+  registrationOptions: (token: string) => [...accessKey, "registration-options", token] as const,
 };
 
 export type PasskeyList = { passkeys: Passkey[]; loadedAt: Date };
@@ -172,4 +175,60 @@ export function useOwnPasskeysQuery(params: {
 export function useRefreshAccess(): () => Promise<void> {
   const client = useQueryClient();
   return () => client.invalidateQueries({ queryKey: accessKey });
+}
+
+export type RegistrationRead =
+  | { kind: "ready"; displayName: string; options: PublicKeyCredentialCreationOptionsJSON }
+  | { kind: "invalid" | "burned" | "expired" };
+
+function readRegistrationOptions(
+  fetchOptions: typeof fetchRegistrationOptions,
+  token: string,
+): () => Promise<CloudReadOutcome<RegistrationRead>> {
+  return async () => {
+    const outcome = await fetchOptions(token);
+    switch (outcome.kind) {
+      case "ok":
+        return { kind: "ok", value: { kind: "ready", ...outcome.value } };
+      case "invalid":
+      case "burned":
+      case "expired":
+        return { kind: "ok", value: { kind: outcome.kind } };
+      case "rate_limited":
+        return outcome;
+      case "validation_failed":
+      case "already_registered":
+      case "failed":
+        return { kind: "failed" };
+    }
+  };
+}
+
+function ignore() {}
+
+// Each read replaces the challenge the cloud holds for the token, so one read is never shown to a
+// later visit.
+export function useRegistrationOptionsQuery(params: {
+  token: string;
+  fetchRegistrationOptions: typeof fetchRegistrationOptions;
+}) {
+  return useCloudQuery<RegistrationRead>({
+    queryKey: accessKeys.registrationOptions(params.token),
+    read: readRegistrationOptions(params.fetchRegistrationOptions, params.token),
+    gcTime: 0,
+    onSessionEnded: ignore,
+    onForbidden: ignore,
+  });
+}
+
+export function useReloadRegistrationOptions(params: {
+  fetchRegistrationOptions: typeof fetchRegistrationOptions;
+}): (token: string) => Promise<CloudReadOutcome<RegistrationRead>> {
+  const client = useQueryClient();
+  return (token) =>
+    fetchCloudQuery(client, {
+      queryKey: accessKeys.registrationOptions(token),
+      read: readRegistrationOptions(params.fetchRegistrationOptions, token),
+      gcTime: 0,
+    });
 }

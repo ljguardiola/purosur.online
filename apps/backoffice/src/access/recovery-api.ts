@@ -34,7 +34,7 @@ export type RegistrationOptionsOutcome =
 
 export type RedeemRecoveryOutcome = { kind: "ok" } | RecoveryTokenRefusal;
 
-export type RegistrationOptions = {
+type RegistrationOptions = {
   displayName: string;
   options: PublicKeyCredentialCreationOptionsJSON;
 };

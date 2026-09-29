@@ -407,7 +407,7 @@ test("routes /account-recovery/passkey to the passkey registration screen, readi
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByText("Abriendo el registro…")).toBeVisible();
+  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
   await expect
     .poll(() => services.registerPasskeyScreen.fetchRegistrationOptions)
     .toHaveBeenCalledWith("the-token");
