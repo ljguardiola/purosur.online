@@ -1,4 +1,5 @@
 const REDACTED = "[redacted]";
+const CIRCULAR = "[circular]";
 
 const SENSITIVE_KEY_PATTERN =
   /token|key|secret|password|authorization|cookie|credential|query|fragment/i;
@@ -35,6 +36,7 @@ const SDK_NUMERIC_DIAGNOSTICS = new Set([
   "screen_density",
 ]);
 const NO_DIAGNOSTICS: ReadonlySet<string> = new Set();
+const NO_ERRORS: ReadonlySet<Error> = new Set();
 // The same diagnostics reach every log as "<section>.<field>" attributes.
 const SDK_LOG_ATTRIBUTE_DIAGNOSTICS: ReadonlySet<string> = new Set(
   [...SDK_CONTEXT_SECTIONS].flatMap((section) =>
@@ -47,10 +49,30 @@ const SDK_LOG_ATTRIBUTE_DIAGNOSTICS: ReadonlySet<string> = new Set(
 const URL_PATTERN = /(?<![a-zA-Z0-9+.-])[a-zA-Z0-9+.-]+:\/\/[^\s"'<>]+/g;
 const USERINFO_PATTERN = /^[^/]*@/;
 const BEARER_TOKEN_PATTERN = /\bBearer\s+[A-Za-z0-9\-_.]+/g;
+// The domain must end in letters, so a package or release name such as `purosur-pos@1.2.3` is kept.
+const EMAIL_PATTERN = /(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]+@(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}/g;
+// A home folder is matched where a path starts, also under `/var`, `/export` or Vite's `/@fs`, so
+// a URL's own `/home/` segment is kept. An account ending the whole text or followed by a query is
+// not recognized, so a backoffice route such as `/home/alerts` is kept; a period only ends an
+// account when it ends a sentence, since account names contain dots.
+const UNIX_HOME_ACCOUNT_PATTERN =
+  /((?:(?<![\w.-])(?:\/var|\/export)?|\/@fs)\/(?:home|Users)\/)(?:[^/\s:,;?#"'`()<>[\].]|\.(?![\s"'`)]))+(?=[/\s"'`()<>[\],;:]|\.(?:[\s"'`)]|$))/g;
+// A Windows account name can contain spaces, quotes and parentheses, so everything after it is
+// hidden up to the next folder separator or line end. Its drive is a letter, or a folder under
+// WSL (`/mnt/c`), Git Bash (`/c`) or Cygwin (`/cygdrive/c`).
+const WINDOWS_HOME_ACCOUNT_PATTERN =
+  /(?<![A-Za-z0-9])((?:[A-Z]:|\/mnt\/[A-Z]|\/cygdrive\/[A-Z]|\/[A-Z])(?:\\+|\/)Users(?:\\+|\/))[^\\/\r\n]+/gi;
+// A stack frame writes the line and column right after the script's URL, inside the same word.
+const FRAME_POSITION_PATTERN = /:\d+:\d+\)?$/;
+const SCRIPT_FILE_PATTERN = /\.[cm]?[jt]sx?$/;
 
 // Only a closing bracket/parenthesis/angle-bracket/quote/backtick is trusted as wrapping a path
 // rather than part of it; sentence punctuation stays inside the redaction instead of being guessed at.
 const TRAILING_DELIMITER_PATTERN = /[\])>"'`]$/;
+
+function framePosition(path: string, text: string): string {
+  return SCRIPT_FILE_PATTERN.test(path) ? (FRAME_POSITION_PATTERN.exec(text)?.[0] ?? "") : "";
+}
 
 function redactPathToken(token: string): string {
   const queryIndex = token.search(/[?#]/);
@@ -65,8 +87,10 @@ function redactPathToken(token: string): string {
     return token;
   }
 
-  const closingDelimiter = TRAILING_DELIMITER_PATTERN.exec(queryPart)?.[0] ?? "";
-  return `${token.slice(0, queryIndex)}?${REDACTED}${closingDelimiter}`;
+  const kept =
+    framePosition(token.slice(0, queryIndex), token) ||
+    (TRAILING_DELIMITER_PATTERN.exec(queryPart)?.[0] ?? "");
+  return `${token.slice(0, queryIndex)}?${REDACTED}${kept}`;
 }
 
 function toSnakeCase(key: string): string {
@@ -87,7 +111,11 @@ function redactUrl(url: string): string {
     return REDACTED;
   }
   const queryStart = url.search(/[?#]/);
-  return queryStart === -1 ? url : `${url.slice(0, queryStart)}?${REDACTED}`;
+  if (queryStart === -1) {
+    return url;
+  }
+  const path = url.slice(0, queryStart);
+  return `${path}?${REDACTED}${framePosition(path, url)}`;
 }
 
 function redactString(value: string): string {
@@ -95,6 +123,9 @@ function redactString(value: string): string {
     .replace(URL_PATTERN, redactUrl)
     .replace(/\S+/g, redactPathToken)
     .replace(BEARER_TOKEN_PATTERN, REDACTED)
+    .replace(EMAIL_PATTERN, REDACTED)
+    .replace(WINDOWS_HOME_ACCOUNT_PATTERN, `$1${REDACTED}`)
+    .replace(UNIX_HOME_ACCOUNT_PATTERN, `$1${REDACTED}`)
     .replace(CUIT_PATTERN, REDACTED)
     .replace(DNI_PATTERN, REDACTED);
 }
@@ -107,7 +138,29 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function redactValue(value: unknown): unknown {
+function readableError(error: Error): Record<string, unknown> {
+  return {
+    ...error,
+    name: error.name,
+    message: error.message,
+    stack: error.stack,
+    ...(error.cause instanceof Error && { cause: error.cause }),
+  };
+}
+
+function readableDate(date: Date): string {
+  return Number.isNaN(date.getTime()) ? String(date) : date.toISOString();
+}
+
+function redactValue(value: unknown, enclosingErrors: ReadonlySet<Error>): unknown {
+  if (value instanceof Error) {
+    return enclosingErrors.has(value)
+      ? CIRCULAR
+      : redactRecord(readableError(value), NO_DIAGNOSTICS, new Set(enclosingErrors).add(value));
+  }
+  if (value instanceof Date) {
+    return readableDate(value);
+  }
   if (typeof value === "string") {
     return redactString(value);
   }
@@ -115,10 +168,10 @@ function redactValue(value: unknown): unknown {
     return REDACTED;
   }
   if (Array.isArray(value)) {
-    return value.map(redactValue);
+    return value.map((item) => redactValue(item, enclosingErrors));
   }
   if (isPlainObject(value)) {
-    return redactRecord(value);
+    return redactRecord(value, NO_DIAGNOSTICS, enclosingErrors);
   }
   return value;
 }
@@ -126,6 +179,7 @@ function redactValue(value: unknown): unknown {
 function redactRecord(
   record: Record<string, unknown>,
   numericDiagnostics: ReadonlySet<string> = NO_DIAGNOSTICS,
+  enclosingErrors: ReadonlySet<Error> = NO_ERRORS,
 ): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(record)) {
@@ -134,7 +188,7 @@ function redactRecord(
     } else if (typeof value === "number" && numericDiagnostics.has(key)) {
       result[key] = value;
     } else {
-      result[key] = redactValue(value);
+      result[key] = redactValue(value, enclosingErrors);
     }
   }
   return result;
@@ -149,7 +203,7 @@ function redactSections(sections: Record<string, unknown>): Record<string, unkno
     result[name] =
       isPlainObject(value) && SDK_CONTEXT_SECTIONS.has(name)
         ? redactRecord(value, SDK_NUMERIC_DIAGNOSTICS)
-        : redactValue(value);
+        : redactValue(value, NO_ERRORS);
   }
   return result;
 }
