@@ -12,14 +12,13 @@ import {
 } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { Check, KeySquare, Laptop, Plus, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useAuthorization } from "../access/authorization-modal";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import type { authorizeSession, fetchSessionAuthorizationOptions } from "../access/session-api";
 import { useCloudForm } from "../platform/cloud-form";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { useRefreshRegisters, useRegistersQuery } from "./register-queries";
@@ -337,23 +336,23 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
       onSessionEnded,
       services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
     });
-  const clockRef = useLatestRef(clock);
+  const readClock = useEffectEvent(clock);
   const latestEmission = useRef(0);
 
   const listSettled = data.status === "loaded" && !data.refreshing;
   useEffect(() => {
     if (listSettled) {
-      setCurrentTime(clockRef.current());
+      setCurrentTime(readClock());
     }
-  }, [listSettled, clockRef]);
+  }, [listSettled]);
 
   useEffect(() => {
     const intervalId = window.setInterval(
-      () => setCurrentTime(clockRef.current()),
+      () => setCurrentTime(readClock()),
       PENDING_CODE_REFRESH_MS,
     );
     return () => window.clearInterval(intervalId);
-  }, [clockRef]);
+  }, []);
 
   // Guards a second Enter/Space activation before the first request settles (the modal backdrop
   // blocks other rows).

@@ -69,7 +69,6 @@ import { fieldErrorMessage, SharedFieldError } from "../platform/cloud-form-fiel
 import { cloudTableState } from "../platform/cloud-table-state";
 import { combineCloudData } from "../platform/combine-cloud-data";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import {
@@ -708,15 +707,13 @@ function EditProductModal({
   const [title, setTitle] = useState("");
   const [notice, setNotice] = useState<EditNotice | null>(null);
   const [reloading, setReloading] = useState(false);
-  const targetRef = useLatestRef(target);
   const { form, submit, submitting, values, reset } = useCloudForm({
     defaultValues: { ...EMPTY_PRODUCT_FORM, version: 1 },
     request: { schema: productEditBodySchema, from: productEditRequestFrom },
     fields: PRODUCT_EDIT_FIELDS,
     messages: PRODUCT_MESSAGES,
     onSubmit: async (_request, { parsed, showFieldError, showWireFieldError }) => {
-      const current = targetRef.current;
-      if (!current) {
+      if (!target) {
         return;
       }
       if (!parsed) {
@@ -724,7 +721,7 @@ function EditProductModal({
         return;
       }
       setNotice(null);
-      const outcome = await editProduct(current.id, parsed);
+      const outcome = await editProduct(target.id, parsed);
       if (outcome.kind === "ok") {
         onSaved();
         return;
@@ -800,12 +797,11 @@ function EditProductModal({
   const categoryOptions = categorySelectOptions(categories);
 
   async function handleReload() {
-    const current = targetRef.current;
-    if (!current) {
+    if (!target) {
       return;
     }
     setReloading(true);
-    const outcome = await reload(current.id);
+    const outcome = await reload(target.id);
     if (outcome.kind === "found") {
       reset(productFormValues(outcome.product));
       setTitle(outcome.product.name);
@@ -1007,7 +1003,6 @@ function DeactivateProductModal({
   const [title, setTitle] = useState("");
   const [notice, setNotice] = useState<DeactivateNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const targetRef = useLatestRef(target);
 
   useEffect(() => {
     if (open && target) {
@@ -1018,14 +1013,13 @@ function DeactivateProductModal({
   }, [open, target]);
 
   async function handleConfirm() {
-    const current = targetRef.current;
-    if (!current) {
+    if (!target) {
       return;
     }
     setNotice(null);
     setSubmitting(true);
 
-    const outcome = await deactivateProduct(current.id);
+    const outcome = await deactivateProduct(target.id);
     if (outcome.kind === "ok") {
       onDeactivated();
       return;

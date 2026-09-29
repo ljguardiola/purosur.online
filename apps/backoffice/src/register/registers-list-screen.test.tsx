@@ -648,6 +648,23 @@ test("Listo closes the code modal and refreshes the list", async () => {
   await expect.element(screen.getByText("Caja 2")).toBeVisible();
 });
 
+test("keeps counting the pending code from the time already read when the parent hands it a new clock", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register2] });
+  const screenFor = (now: () => Date) => (
+    <main>
+      <RegistersListScreen services={services} onSessionEnded={() => {}} now={now} />
+    </main>
+  );
+  const screen = await render(screenFor(() => new Date("2026-09-25T12:00:00.000Z")));
+  await expect.element(screen.getByText("Vence en 11 minutos")).toBeVisible();
+
+  await screen.rerender(screenFor(() => new Date("2026-09-25T12:11:00.000Z")));
+
+  expect(screen.getByText("Vence en 11 minutos").query()).not.toBeNull();
+  expect(services.fetchRegisters).toHaveBeenCalledTimes(1);
+});
+
 test("a code shown after the list refreshes counts its time from that refresh, not from the last tick", async () => {
   const services = createServices();
   let current = new Date("2026-09-25T12:00:00.000Z");

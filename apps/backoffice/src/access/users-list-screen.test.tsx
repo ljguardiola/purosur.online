@@ -1,7 +1,9 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { useEffect } from "react";
 import { afterEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
+import { useRefreshAccess } from "./access-queries";
 import type { BackofficeAccess } from "./backoffice-access";
 import { type UsersListFilters, usersListFilters } from "./routes";
 import type { BranchUser } from "./users-api";
@@ -682,6 +684,73 @@ test("keeps the loaded list and an open create modal when the parent re-renders 
     email: "martina@example.com",
     role_id: "00000000-0000-4000-8000-000000000001",
   });
+});
+
+function RefreshProbe({ onReady }: { onReady: (refresh: () => Promise<void>) => void }) {
+  const refreshAccess = useRefreshAccess();
+  useEffect(() => onReady(refreshAccess));
+  return null;
+}
+
+test("a refresh of the roles in the background does not overwrite what is typed in the create modal", async () => {
+  const services = createServices();
+  const administratorRole = {
+    id: "00000000-0000-4000-8000-000000000001",
+    isAdministrator: true,
+    name: null,
+    permissionKeys: [],
+    userCount: 1,
+  };
+  const refreshedUsers = deferred<Awaited<ReturnType<typeof services.fetchUsers>>>();
+  vi.mocked(services.fetchUsers)
+    .mockResolvedValueOnce({ kind: "ok", value: [administrator] })
+    .mockReturnValueOnce(refreshedUsers.promise);
+  vi.mocked(services.fetchRoles)
+    .mockResolvedValueOnce({ kind: "ok", value: [administratorRole] })
+    .mockResolvedValueOnce({
+      kind: "ok",
+      value: [
+        {
+          id: "00000000-0000-4000-8000-000000000002",
+          isAdministrator: false,
+          name: "Cajero",
+          permissionKeys: [],
+          userCount: 0,
+        },
+        administratorRole,
+      ],
+    });
+  let refreshAccess: () => Promise<void> = () => Promise.resolve();
+  const screen = await render(
+    <main>
+      <RefreshProbe
+        onReady={(refresh) => {
+          refreshAccess = refresh;
+        }}
+      />
+      <UsersListScreen
+        services={services}
+        onSessionEnded={() => {}}
+        access={ADMINISTRATOR_ACCESS}
+        filters={usersListFilters.parse({})}
+        onFiltersChange={() => {}}
+      />
+    </main>,
+  );
+  await expect.element(screen.getByText("1 usuario")).toBeVisible();
+  const dialog = await openNewUserModal(screen);
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+
+  void refreshAccess();
+  await expect.poll(() => vi.mocked(services.fetchRoles).mock.calls.length).toBe(2);
+  refreshedUsers.resolve({ kind: "ok", value: [administrator, martina] });
+
+  await expect.element(screen.getByText("2 usuarios")).toBeVisible();
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
+
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
+    .toHaveValue("Martina Gómez");
 });
 
 test("shows an error inside the authorization modal, not calling createUser again, when the browser cancels the passkey ceremony", async () => {
