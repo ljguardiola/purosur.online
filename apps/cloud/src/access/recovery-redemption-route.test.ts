@@ -149,6 +149,19 @@ describe("POST /users/recovery/registration-options", () => {
     });
   });
 
+  it("sends every option the browser needs to create the credential", async () => {
+    const rawToken = await issueToken();
+
+    const response = await postOptions({ recovery_token: rawToken });
+
+    expect(response.json().passkey_registration_options).toMatchObject({
+      attestation: "none",
+      timeout: 60000,
+      extensions: { credProps: true },
+      pubKeyCredParams: expect.arrayContaining([{ alg: -7, type: "public-key" }]),
+    });
+  });
+
   it("stores the returned challenge on the token row", async () => {
     const rawToken = await issueToken();
 

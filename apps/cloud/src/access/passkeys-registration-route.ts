@@ -1,4 +1,8 @@
-import { passkeyRegistrationBodySchema } from "@purosur/contracts";
+import {
+  passkeyRegistrationBodySchema,
+  passkeyRegistrationChallengeSchema,
+  passkeySummarySchema,
+} from "@purosur/contracts";
 import type { RegistrationResponseJSON } from "@simplewebauthn/server";
 import { generateRegistrationOptions, verifyRegistrationResponse } from "@simplewebauthn/server";
 import { eq } from "drizzle-orm";
@@ -97,7 +101,11 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
         now: issuedAt,
       });
 
-      await reply.code(200).send({ passkey_registration_options: registrationOptions });
+      await reply.code(200).send(
+        passkeyRegistrationChallengeSchema.parse({
+          passkey_registration_options: registrationOptions,
+        }),
+      );
     },
   );
 
@@ -207,12 +215,14 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
         return;
       }
 
-      await reply.code(200).send({
-        id: inserted.id,
-        name: passkeyName,
-        created_at: inserted.createdAt.toISOString(),
-        last_used_at: null,
-      });
+      await reply.code(200).send(
+        passkeySummarySchema.parse({
+          id: inserted.id,
+          name: passkeyName,
+          created_at: inserted.createdAt.toISOString(),
+          last_used_at: null,
+        }),
+      );
     },
   );
 }

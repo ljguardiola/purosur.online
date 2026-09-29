@@ -254,6 +254,19 @@ describe("POST /users/passkeys/registration-options", () => {
     expect(excludeCredentials.map((c) => c.id)).toEqual([ownPasskey?.credentialId]);
   });
 
+  it("sends every option the browser needs to create the credential", async () => {
+    const rawSessionId = await insertSession(userId);
+
+    const options = await requestOptions(rawSessionId);
+
+    expect(options.passkey_registration_options).toMatchObject({
+      attestation: "none",
+      timeout: 60000,
+      extensions: { credProps: true },
+      pubKeyCredParams: expect.arrayContaining([{ alg: -7, type: "public-key" }]),
+    });
+  });
+
   it("prunes other sessions' passkey challenges that aged past their lifetime", async () => {
     const emulator = newDeviceEmulator();
     await registerFirstPasskey(userId, emulator);
