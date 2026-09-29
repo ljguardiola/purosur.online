@@ -58,10 +58,8 @@ const EMAIL_PATTERN = /(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]+@(?:[A-Za-z0-9-]+\.
 const UNIX_HOME_ACCOUNT_PATTERN =
   /((?:(?<![\w.-])(?:\/var|\/export|\/cygdrive\/[a-z]|\/mnt\/[a-z]|\/[a-z])?|\/@fs)\/(?:home|Users)\/)[^/\s:,;"'`()<>[\]]+(?=[/\s"'`()<>[\],.;:])/g;
 // A Windows account name can contain spaces, so what follows it is hidden up to the next folder
-// separator, quote, parenthesis or line end. Written with forward slashes, a space is encoded.
+// separator, quote, parenthesis or line end. Written with forward slashes, the Unix rule covers it.
 const WINDOWS_HOME_ACCOUNT_PATTERN = /(?<![A-Za-z0-9])([A-Z]:\\+Users\\+)[^\\/\n:"'`()<>]+/gi;
-const WINDOWS_FORWARD_SLASH_HOME_ACCOUNT_PATTERN =
-  /(?<![A-Za-z0-9])([A-Z]:\/Users\/)[^/\s:"'`()<>]+/gi;
 // A stack frame writes the line and column right after the script's URL, inside the same word.
 const FRAME_POSITION_PATTERN = /:\d+:\d+\)?$/;
 const SCRIPT_FILE_PATTERN = /\.[cm]?[jt]sx?$/;
@@ -70,8 +68,8 @@ const SCRIPT_FILE_PATTERN = /\.[cm]?[jt]sx?$/;
 // rather than part of it; sentence punctuation stays inside the redaction instead of being guessed at.
 const TRAILING_DELIMITER_PATTERN = /[\])>"'`]$/;
 
-function framePosition(path: string, query: string): string {
-  return SCRIPT_FILE_PATTERN.test(path) ? (FRAME_POSITION_PATTERN.exec(query)?.[0] ?? "") : "";
+function framePosition(path: string, text: string): string {
+  return SCRIPT_FILE_PATTERN.test(path) ? (FRAME_POSITION_PATTERN.exec(text)?.[0] ?? "") : "";
 }
 
 function redactPathToken(token: string): string {
@@ -81,14 +79,15 @@ function redactPathToken(token: string): string {
   }
 
   const queryPart = token.slice(queryIndex + 1);
-  const position = framePosition(token.slice(0, queryIndex), queryPart);
-  if (queryPart.slice(0, queryPart.length - position.length) === REDACTED) {
+  if (queryPart === REDACTED) {
     // Already scrubbed by URL_PATTERN above, or by this same pass on an earlier call: redacting
     // again would misread the placeholder's own closing "]" as a delimiter to preserve.
     return token;
   }
 
-  const kept = position || (TRAILING_DELIMITER_PATTERN.exec(queryPart)?.[0] ?? "");
+  const kept =
+    framePosition(token.slice(0, queryIndex), token) ||
+    (TRAILING_DELIMITER_PATTERN.exec(queryPart)?.[0] ?? "");
   return `${token.slice(0, queryIndex)}?${REDACTED}${kept}`;
 }
 
@@ -114,7 +113,7 @@ function redactUrl(url: string): string {
     return url;
   }
   const path = url.slice(0, queryStart);
-  return `${path}?${REDACTED}${framePosition(path, url.slice(queryStart))}`;
+  return `${path}?${REDACTED}${framePosition(path, url)}`;
 }
 
 function redactString(value: string): string {
@@ -125,7 +124,6 @@ function redactString(value: string): string {
     .replace(EMAIL_PATTERN, REDACTED)
     .replace(UNIX_HOME_ACCOUNT_PATTERN, `$1${REDACTED}`)
     .replace(WINDOWS_HOME_ACCOUNT_PATTERN, `$1${REDACTED}`)
-    .replace(WINDOWS_FORWARD_SLASH_HOME_ACCOUNT_PATTERN, `$1${REDACTED}`)
     .replace(CUIT_PATTERN, REDACTED)
     .replace(DNI_PATTERN, REDACTED);
 }

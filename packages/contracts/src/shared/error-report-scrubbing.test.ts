@@ -734,6 +734,10 @@ describe("personal data in text", () => {
         message: "GET https://cloud.purosur.online/sales?at=10:30:45 failed",
         expected: "GET https://cloud.purosur.online/sales?[redacted] failed",
       },
+      {
+        message: "GET https://cloud.purosur.online/config.json?at=10:30:45 failed",
+        expected: "GET https://cloud.purosur.online/config.json?[redacted] failed",
+      },
     ]) {
       expect(scrubErrorReport({ message }).message).toBe(expected);
     }
@@ -751,6 +755,31 @@ describe("personal data in text", () => {
     const once = scrubErrorReport({ message: stack }).message;
 
     expect(scrubErrorReport({ message: once }).message).toBe(once);
+  });
+
+  it("keeps the frame's own line and column when the script's query also holds numbers", () => {
+    for (const { frame, expected } of [
+      {
+        frame: "at render (http://localhost:5173/src/sale-screen.tsx?at=10:30:45&t=1:10:15)",
+        expected: "at render (http://localhost:5173/src/sale-screen.tsx?[redacted]:10:15)",
+      },
+      {
+        frame: "render@http://localhost:5173/src/sale-screen.tsx?t=1:10:15",
+        expected: "render@http://localhost:5173/src/sale-screen.tsx?[redacted]:10:15",
+      },
+      {
+        frame: "at start (/app/dist/main.mjs?t=1:3:7)",
+        expected: "at start (/app/dist/main.mjs?[redacted]:3:7)",
+      },
+    ]) {
+      expect(scrubErrorReport({ message: frame }).message).toBe(expected);
+    }
+  });
+
+  it("hides a script's query that carries no line and column", () => {
+    const message = "at load (/src/sales/load.ts?t=1)";
+
+    expect(scrubErrorReport({ message }).message).toBe("at load (/src/sales/load.ts?[redacted])");
   });
 
   it("keeps a stack frame's line and column after redacting its URL's query", () => {
