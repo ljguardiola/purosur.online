@@ -104,20 +104,20 @@ function reviewedCellText(lastReviewedAt: string | null, now: Date): string {
 }
 
 function eyebrowOverdue(days: number): string {
-  return plural(days, { one: "SIN REVISAR HACE 1 DÍA", other: `SIN REVISAR HACE ${days} DÍAS` });
+  return plural(days, { one: "Sin revisar hace 1 día", other: `Sin revisar hace ${days} días` });
 }
 
 function eyebrowRecent(days: number): string {
-  return plural(days, { one: "REVISADO HACE 1 DÍA", other: `REVISADO HACE ${days} DÍAS` });
+  return plural(days, { one: "Revisado hace 1 día", other: `Revisado hace ${days} días` });
 }
 
 function modalEyebrow(product: PriceProduct, now: Date): string {
   if (!product.currentPrice || !product.lastReviewedAt) {
-    return "SIN PRECIO";
+    return "Sin precio";
   }
   const days = daysSince(product.lastReviewedAt, now);
   if (days <= 0) {
-    return "REVISADO HOY";
+    return "Revisado hoy";
   }
   return product.pending ? eyebrowOverdue(days) : eyebrowRecent(days);
 }
