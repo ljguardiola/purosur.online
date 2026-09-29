@@ -15,9 +15,10 @@ permissions:
   contents: read
 
 jobs:
-  # Decides whether a `pull_request` change is docs-only, the one case that may skip static/tests
-  # below; a push always runs them in full, since its success is what lets the deploy ship it and
-  # the commit before it may not have passed.
+  # Decides whether a `pull_request` change is docs-only, the one case that may skip static below,
+  # and whether the test shards read any of its changed paths; a push always runs every job in
+  # full, since its success is what lets the deploy ship it and the commit before it may not have
+  # passed.
   # It also scans every commit of a `pull_request` change for secrets, which a docs-only net diff
   # can hide: a failure here fails scope, and a failed scope runs static/tests in full.
   scope:
@@ -25,6 +26,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       docs_only: ${{ steps.scope.outputs.docs_only }}
+      tests_needed: ${{ steps.scope.outputs.tests_needed }}
       catalog_changed: ${{ steps.scope.outputs.catalog_changed }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -94,7 +96,9 @@ jobs:
   tests:
     name: tests (${{ matrix.shard }}/4)
     needs: [scope]
-    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.docs_only != 'true') }}
+    # Skipped on `pull_request` only when scope positively decided the shards read no changed path;
+    # a failed or missing decision runs them, like static above.
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.tests_needed != 'false') }}
     strategy:
       fail-fast: false
       matrix:
@@ -223,6 +227,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           SCOPE_RESULT: ${{ needs.scope.result }}
           SCOPE_DOCS_ONLY: ${{ needs.scope.outputs.docs_only }}
+          SCOPE_TESTS_NEEDED: ${{ needs.scope.outputs.tests_needed }}
           SCOPE_CATALOG_CHANGED: ${{ needs.scope.outputs.catalog_changed }}
           STATIC_RESULT: ${{ needs.static.result }}
           TESTS_RESULT: ${{ needs.tests.result }}

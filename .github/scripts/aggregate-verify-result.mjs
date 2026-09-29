@@ -8,6 +8,7 @@ export function decideVerifyResult({
   eventName,
   scopeResult,
   scopeDocsOnly,
+  scopeTestsNeeded,
   scopeCatalogChanged,
   staticResult,
   testsResult,
@@ -23,7 +24,9 @@ export function decideVerifyResult({
     return { ok: false, reason: `static: ${staticResult}` };
   }
 
-  const testsOk = isDecisivelyDocsOnly
+  const isDecisivelyTestsUnneeded =
+    eventName === "pull_request" && scopeResult === "success" && scopeTestsNeeded === "false";
+  const testsOk = isDecisivelyTestsUnneeded
     ? NON_FAILING_RESULTS.has(testsResult)
     : testsResult === "success";
   if (!testsOk) {
@@ -42,7 +45,9 @@ export function decideVerifyResult({
     ok: true,
     reason: isDecisivelyDocsOnly
       ? "docs-only change: static and tests skipped as designed"
-      : "every required job succeeded",
+      : isDecisivelyTestsUnneeded
+        ? "the test shards read no changed path: tests skipped as designed"
+        : "every required job succeeded",
   };
 }
 
@@ -51,6 +56,7 @@ export function runCli({ env = process.env, log = console.log, logError = consol
     eventName: env.EVENT_NAME,
     scopeResult: env.SCOPE_RESULT,
     scopeDocsOnly: env.SCOPE_DOCS_ONLY,
+    scopeTestsNeeded: env.SCOPE_TESTS_NEEDED,
     scopeCatalogChanged: env.SCOPE_CATALOG_CHANGED,
     staticResult: env.STATIC_RESULT,
     testsResult: env.TESTS_RESULT,

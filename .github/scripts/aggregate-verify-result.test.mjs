@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { decideVerifyResult, runCli } from "./aggregate-verify-result.mjs";
 
 const PASSING = {
+  scopeTestsNeeded: "true",
   scopeCatalogChanged: "true",
   visualResult: "success",
 };
@@ -58,6 +59,7 @@ test("passes on a pull request when scope says docs-only and static/tests were s
     staticResult: "skipped",
     testsResult: "skipped",
     ...PASSING,
+    scopeTestsNeeded: "false",
   });
 
   assert.equal(decision.ok, true);
@@ -192,6 +194,130 @@ test("fails a cancelled test shard even when static succeeded", () => {
 
   assert.equal(decision.ok, false);
   assert.match(decision.reason, /tests/);
+});
+
+test("passes on a pull request when scope says the test shards read no changed path, static ran and tests were skipped", () => {
+  const decision = decideVerifyResult({
+    eventName: "pull_request",
+    scopeResult: "success",
+    scopeDocsOnly: "false",
+    staticResult: "success",
+    testsResult: "skipped",
+    ...PASSING,
+    scopeTestsNeeded: "false",
+  });
+
+  assert.equal(decision.ok, true);
+  assert.match(decision.reason, /test shards/);
+});
+
+test("requires static to have actually run when scope says only the test shards may be skipped", () => {
+  const decision = decideVerifyResult({
+    eventName: "pull_request",
+    scopeResult: "success",
+    scopeDocsOnly: "false",
+    staticResult: "skipped",
+    testsResult: "skipped",
+    ...PASSING,
+    scopeTestsNeeded: "false",
+  });
+
+  assert.equal(decision.ok, false);
+  assert.match(decision.reason, /static/);
+});
+
+test("fails on a pull request when scope says the test shards read no changed path but they still failed", () => {
+  const decision = decideVerifyResult({
+    eventName: "pull_request",
+    scopeResult: "success",
+    scopeDocsOnly: "false",
+    staticResult: "success",
+    testsResult: "failure",
+    ...PASSING,
+    scopeTestsNeeded: "false",
+  });
+
+  assert.equal(decision.ok, false);
+  assert.match(decision.reason, /tests/);
+});
+
+test("fails on a pull request when scope says docs-only but the test shards still ran and failed", () => {
+  const decision = decideVerifyResult({
+    eventName: "pull_request",
+    scopeResult: "success",
+    scopeDocsOnly: "true",
+    staticResult: "skipped",
+    testsResult: "failure",
+    ...PASSING,
+    scopeTestsNeeded: "false",
+  });
+
+  assert.equal(decision.ok, false);
+  assert.match(decision.reason, /tests/);
+});
+
+for (const scopeTestsNeeded of ["true", "", undefined]) {
+  test(`requires the test shards to have actually run when scope's tests_needed is ${JSON.stringify(scopeTestsNeeded)}`, () => {
+    const decision = decideVerifyResult({
+      eventName: "pull_request",
+      scopeResult: "success",
+      scopeDocsOnly: "true",
+      staticResult: "skipped",
+      testsResult: "skipped",
+      ...PASSING,
+      scopeTestsNeeded,
+    });
+
+    assert.equal(decision.ok, false);
+    assert.match(decision.reason, /tests/);
+  });
+}
+
+for (const scopeResult of ["failure", "cancelled"]) {
+  test(`fails a pull request whose scope ended ${scopeResult} while claiming the test shards could be skipped`, () => {
+    const decision = decideVerifyResult({
+      eventName: "pull_request",
+      scopeResult,
+      scopeDocsOnly: "false",
+      staticResult: "success",
+      testsResult: "skipped",
+      ...PASSING,
+      scopeTestsNeeded: "false",
+    });
+
+    assert.equal(decision.ok, false);
+    assert.match(decision.reason, /tests/);
+  });
+}
+
+test("fails a push that claims the test shards could be skipped while they were", () => {
+  const decision = decideVerifyResult({
+    eventName: "push",
+    scopeResult: "success",
+    scopeDocsOnly: "false",
+    staticResult: "success",
+    testsResult: "skipped",
+    ...PASSING,
+    scopeTestsNeeded: "false",
+  });
+
+  assert.equal(decision.ok, false);
+  assert.match(decision.reason, /tests/);
+});
+
+test("runCli reads scope's tests_needed from SCOPE_TESTS_NEEDED", () => {
+  const { deps, calls } = fakeCli({
+    EVENT_NAME: "pull_request",
+    SCOPE_RESULT: "success",
+    SCOPE_DOCS_ONLY: "false",
+    SCOPE_TESTS_NEEDED: "false",
+    SCOPE_CATALOG_CHANGED: "false",
+    STATIC_RESULT: "success",
+    TESTS_RESULT: "skipped",
+    VISUAL_RESULT: "skipped",
+  });
+
+  assert.equal(runCli(deps), 0, calls.errors.join("\n"));
 });
 
 test("passes when the scope decisively says the catalog is unchanged and visual was skipped", () => {

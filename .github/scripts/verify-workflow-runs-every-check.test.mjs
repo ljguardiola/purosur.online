@@ -8,6 +8,7 @@ import {
 } from "./verify-workflow-runs-every-check.mjs";
 
 const RUN_CONDITION = `\${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.docs_only != 'true') }}`;
+const TESTS_CONDITION = `\${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.tests_needed != 'false') }}`;
 const VISUAL_CONDITION = `\${{ !cancelled() && needs.scope.outputs.catalog_changed != 'false' }}`;
 
 const AGGREGATE_RUN = "node .github/scripts/aggregate-verify-result.mjs";
@@ -16,6 +17,7 @@ const AGGREGATE_ENV = {
   EVENT_NAME: `\${{ github.event_name }}`,
   SCOPE_RESULT: `\${{ needs.scope.result }}`,
   SCOPE_DOCS_ONLY: `\${{ needs.scope.outputs.docs_only }}`,
+  SCOPE_TESTS_NEEDED: `\${{ needs.scope.outputs.tests_needed }}`,
   SCOPE_CATALOG_CHANGED: `\${{ needs.scope.outputs.catalog_changed }}`,
   STATIC_RESULT: `\${{ needs.static.result }}`,
   TESTS_RESULT: `\${{ needs.tests.result }}`,
@@ -75,7 +77,7 @@ function workflow({
   shardValues = [1, 2, 3, 4],
   testsRun,
   staticIf = RUN_CONDITION,
-  testsIf = RUN_CONDITION,
+  testsIf = TESTS_CONDITION,
   staticJobExtra = [],
   testsJobExtra = [],
   testsMatrixExtra = [],
@@ -242,7 +244,7 @@ test("flags a missing static job", () => {
     "jobs:",
     ...scopeJobLines(),
     "  tests:",
-    `    if: ${RUN_CONDITION}`,
+    `    if: ${TESTS_CONDITION}`,
     "    strategy:",
     "      matrix:",
     "        shard:",
@@ -305,7 +307,7 @@ test("flags a missing visual job", () => {
     "    steps:",
     "      - run: pnpm verify:static",
     "  tests:",
-    `    if: ${RUN_CONDITION}`,
+    `    if: ${TESTS_CONDITION}`,
     "    strategy:",
     "      matrix:",
     "        shard:",
@@ -387,6 +389,24 @@ test("flags a package.json verify script that no longer composes verify:static a
 
   assert.equal(violations.length, 1);
   assert.match(violations[0], /"verify" script/);
+});
+
+test("flags a tests job that still skips only for a docs-only change", () => {
+  const violations = findVerifyWorkflowViolations(
+    workflow({ testsIf: RUN_CONDITION }),
+    packageJson(),
+  );
+
+  assertSingleViolation(violations, /tests job runs under/);
+});
+
+test("flags a static job that skips whenever the test shards read no changed path", () => {
+  const violations = findVerifyWorkflowViolations(
+    workflow({ staticIf: TESTS_CONDITION }),
+    packageJson(),
+  );
+
+  assertSingleViolation(violations, /static job runs under/);
 });
 
 for (const job of ["static", "tests", "visual"]) {
