@@ -62,6 +62,22 @@ test("fetchPasskeys returns the account's own passkeys on 200", async () => {
   expect(fetch).toHaveBeenCalledWith("/users/passkeys");
 });
 
+test("fetchPasskeys reports failed on a 200 whose body is not JSON", async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response("<!doctype html>", { status: 200 }));
+
+  await expect(fetchPasskeys()).resolves.toEqual({ kind: "failed" });
+});
+
+test("fetchPasskeys reports failed on a 200 whose passkeys do not match the contract", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, [{ id: "pk-1", name: "Notebook", created_at: 1, last_used_at: null }]),
+  );
+  await expect(fetchPasskeys()).resolves.toEqual({ kind: "failed" });
+
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { passkeys: [] }));
+  await expect(fetchPasskeys()).resolves.toEqual({ kind: "failed" });
+});
+
 test("fetchPasskeys reports unauthenticated on 401", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "unauthenticated" }));
   await expect(fetchPasskeys()).resolves.toEqual({ kind: "unauthenticated" });

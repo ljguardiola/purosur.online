@@ -96,6 +96,12 @@ test("fetchRoles returns failed on a malformed body", async () => {
   expect(await fetchRoles()).toEqual({ kind: "failed" });
 });
 
+test("fetchRoles returns failed on a 200 whose roles do not match the contract", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [{ ...administratorRow, user_count: "1" }]));
+
+  expect(await fetchRoles()).toEqual({ kind: "failed" });
+});
+
 test("createRole posts the name and permissions, returning the created role on 201", async () => {
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse(201, {
@@ -241,6 +247,15 @@ test("fetchRole parses the role's assigned people, in the order the server sent 
       ],
     },
   });
+});
+
+test("fetchRole returns failed on a 200 whose body does not match the contract", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { ...stockDetailRow, version: "3" }));
+  expect(await fetchRole("role-stock")).toEqual({ kind: "failed" });
+
+  const { assigned_users: _omitted, ...withoutAssignedUsers } = stockDetailRow;
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, withoutAssignedUsers));
+  expect(await fetchRole("role-stock")).toEqual({ kind: "failed" });
 });
 
 test("fetchRole returns not_found on 404", async () => {

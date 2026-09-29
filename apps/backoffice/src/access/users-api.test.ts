@@ -141,6 +141,14 @@ test("fetchUsers reports failed on a 200 whose body is not JSON", async () => {
   await expect(fetchUsers()).resolves.toEqual({ kind: "failed" });
 });
 
+test("fetchUsers reports failed on a 200 whose users do not match the contract", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [{ ...administratorRow, version: "1" }]));
+  await expect(fetchUsers()).resolves.toEqual({ kind: "failed" });
+
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { users: [administratorRow] }));
+  await expect(fetchUsers()).resolves.toEqual({ kind: "failed" });
+});
+
 const creationInput = {
   firstName: "Martina Gómez",
   email: "martina@example.com",
@@ -328,6 +336,13 @@ test("fetchUser reports failed on a 200 whose body is not JSON", async () => {
   await expect(fetchUser("user-1")).resolves.toEqual({ kind: "failed" });
 });
 
+test("fetchUser reports failed on a 200 whose body does not match the contract", async () => {
+  const { passkey_count: _omitted, ...missingPasskeyCount } = administratorRow;
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, missingPasskeyCount));
+
+  await expect(fetchUser("user-1")).resolves.toEqual({ kind: "failed" });
+});
+
 const changedRow = {
   ...administratorRow,
   email: "new@example.com",
@@ -491,6 +506,14 @@ test("fetchUserPasskeys lists the target user's passkeys on 200", async () => {
 
 test("fetchUserPasskeys reports failed on a 200 whose body is not JSON", async () => {
   vi.mocked(fetch).mockResolvedValue(new Response("<!doctype html>", { status: 200 }));
+
+  await expect(fetchUserPasskeys("user-2")).resolves.toEqual({ kind: "failed" });
+});
+
+test("fetchUserPasskeys reports failed on a 200 whose passkeys do not match the contract", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, [{ id: "pk-1", name: "Notebook", created_at: "2026-08-02T12:00:00.000Z" }]),
+  );
 
   await expect(fetchUserPasskeys("user-2")).resolves.toEqual({ kind: "failed" });
 });

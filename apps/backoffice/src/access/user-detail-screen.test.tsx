@@ -3,10 +3,11 @@ import { afterEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { BackofficeAccess } from "./backoffice-access";
+import type { Passkey } from "./passkey-api";
 import type { RoleSummary } from "./roles-api";
 import { UserDetailScreen } from "./user-detail-screen";
 import type { UserDetailScreenServices } from "./user-detail-services";
-import type { BranchUser, UserPasskey } from "./users-api";
+import type { BranchUser } from "./users-api";
 
 const ADMINISTRATOR_ACCESS: BackofficeAccess = { isAdministrator: true, permissions: [] };
 
@@ -69,14 +70,14 @@ const lucia: BranchUser = {
 
 const NOW = () => new Date("2026-09-23T12:00:00.000Z");
 
-const notebook: UserPasskey = {
+const notebook: Passkey = {
   id: "pk-1",
   name: "Notebook del local",
   createdAt: "2026-08-02T12:00:00.000Z",
   // 09:12 in America/Argentina/Buenos_Aires (UTC-3), same calendar day as NOW below.
   lastUsedAt: "2026-09-23T12:12:00.000Z",
 };
-const phone: UserPasskey = {
+const phone: Passkey = {
   id: "pk-2",
   name: "Teléfono de Lucía",
   createdAt: "2026-08-10T12:00:00.000Z",

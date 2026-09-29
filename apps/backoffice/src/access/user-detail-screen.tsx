@@ -32,6 +32,7 @@ import { ScreenTitle } from "../shell/screen-title";
 import { useAuthorization } from "./authorization-modal";
 import { type BackofficeAccess, canDeactivateUser, canReactivateUser } from "./backoffice-access";
 import { validateEmail } from "./email-validation";
+import type { Passkey } from "./passkey-api";
 import { passkeyRowDetail } from "./passkey-row-detail";
 import { roleDisplayName, roleOptions } from "./role-display";
 import type { fetchRoles } from "./roles-api";
@@ -50,7 +51,6 @@ import type {
   RemoveUserPasskeyOutcome,
   reactivateUser,
   removeUserPasskey,
-  UserPasskey,
 } from "./users-api";
 
 export type UserDetailScreenProps = {
@@ -73,7 +73,7 @@ type PasskeysState =
   | { kind: "loading" }
   | { kind: "loadError" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "loaded"; passkeys: UserPasskey[]; loadedAt: Date };
+  | { kind: "loaded"; passkeys: Passkey[]; loadedAt: Date };
 
 const EMAIL_REQUIRED = "Ingresá el correo.";
 const EMAIL_INVALID = "Ingresá un correo válido.";
@@ -394,7 +394,7 @@ function EditUserModal({
 }
 
 type RemoveUserPasskeyModalProps = {
-  target: UserPasskey | null;
+  target: Passkey | null;
   userId: string;
   userName: string;
   isOnlyPasskey: boolean;
@@ -850,7 +850,7 @@ export function UserDetailScreen({
   const clock = now ?? (() => new Date());
   const [state, setState] = useState<DetailState>({ kind: "loading" });
   const [passkeysState, setPasskeysState] = useState<PasskeysState>({ kind: "loading" });
-  const [removeTarget, setRemoveTarget] = useState<UserPasskey | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<Passkey | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [deactivateModalOpen, setDeactivateModalOpen] = useState(false);
   const [reactivateModalOpen, setReactivateModalOpen] = useState(false);

@@ -1,35 +1,19 @@
-import type { UserCreationBody, UserEditBody } from "@purosur/contracts";
+import {
+  type BranchUserWire,
+  branchUserListSchema,
+  branchUserSchema,
+  type UserCreationBody,
+  type UserEditBody,
+} from "@purosur/contracts";
+import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { retryAfterSeconds } from "../platform/retry-after-seconds";
+import { type Passkey, passkeyListFromWire } from "./passkey-api";
 
-export type BranchUserRole = { id: string; isAdministrator: boolean; name: string | null };
+export type BranchUser = ReturnType<typeof userFromWire>;
 
-export type BranchUser = {
-  id: string;
-  firstName: string;
-  email: string;
-  version: number;
-  // Wire omits this field entirely unless the caller may see a deactivated user.
-  active?: boolean;
-  role: BranchUserRole;
-  passkeyCount: number;
-  // The server refuses to change the role regardless, so callers lock that field on this.
-  isLastActiveAdministrator: boolean;
-};
+export type BranchUserRole = BranchUser["role"];
 
-export type UserPasskey = {
-  id: string;
-  name: string;
-  createdAt: string;
-  lastUsedAt: string | null;
-};
-
-export type FetchUserPasskeysOutcome =
-  | { kind: "ok"; value: UserPasskey[] }
-  | { kind: "not_found" }
-  | { kind: "forbidden" }
-  | { kind: "unauthenticated" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "failed" };
+export type FetchUserPasskeysOutcome = CloudReadOutcome<Passkey[]> | { kind: "not_found" };
 
 export type RemoveUserPasskeyOutcome =
   | { kind: "ok" }
@@ -59,20 +43,9 @@ export type ReactivateUserOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-export type FetchUsersOutcome =
-  | { kind: "ok"; value: BranchUser[] }
-  | { kind: "forbidden" }
-  | { kind: "unauthenticated" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "failed" };
+export type FetchUsersOutcome = CloudReadOutcome<BranchUser[]>;
 
-export type FetchUserOutcome =
-  | { kind: "ok"; value: BranchUser }
-  | { kind: "not_found" }
-  | { kind: "forbidden" }
-  | { kind: "unauthenticated" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "failed" };
+export type FetchUserOutcome = CloudReadOutcome<BranchUser> | { kind: "not_found" };
 
 export type EditUserInput = { email: string; roleId: string; version: number };
 
@@ -116,21 +89,13 @@ function postJson(path: string, body?: unknown): Promise<Response> {
   });
 }
 
-function userFromWire(row: {
-  id: string;
-  first_name: string;
-  email: string;
-  version: number;
-  active?: boolean;
-  role: { id: string; is_administrator: boolean; name: string | null };
-  passkey_count: number;
-  is_last_active_administrator: boolean;
-}): BranchUser {
+function userFromWire(row: BranchUserWire) {
   return {
     id: row.id,
     firstName: row.first_name,
     email: row.email,
     version: row.version,
+    // Absent unless the caller may see deactivated users.
     ...(row.active !== undefined ? { active: row.active } : {}),
     role: {
       id: row.role.id,
@@ -138,17 +103,9 @@ function userFromWire(row: {
       name: row.role.name,
     },
     passkeyCount: row.passkey_count,
+    // The server refuses to change the role regardless, so callers lock that field on this.
     isLastActiveAdministrator: row.is_last_active_administrator,
   };
-}
-
-function userPasskeyFromRow(row: {
-  id: string;
-  name: string;
-  created_at: string;
-  last_used_at: string | null;
-}): UserPasskey {
-  return { id: row.id, name: row.name, createdAt: row.created_at, lastUsedAt: row.last_used_at };
 }
 
 export async function fetchUsers(): Promise<FetchUsersOutcome> {
@@ -170,13 +127,11 @@ export async function fetchUsers(): Promise<FetchUsersOutcome> {
   if (!response.ok) {
     return { kind: "failed" };
   }
-  const body = (await response.json().catch(() => undefined)) as
-    | Array<Parameters<typeof userFromWire>[0]>
-    | undefined;
-  if (!Array.isArray(body)) {
+  const parsed = branchUserListSchema.safeParse(await response.json().catch(() => undefined));
+  if (!parsed.success) {
     return { kind: "failed" };
   }
-  return { kind: "ok", value: body.map(userFromWire) };
+  return { kind: "ok", value: parsed.data.map(userFromWire) };
 }
 
 function fieldFromWire(field: unknown): CreateUserFieldError | undefined {
@@ -287,13 +242,11 @@ export async function fetchUser(id: string): Promise<FetchUserOutcome> {
   if (!response.ok) {
     return { kind: "failed" };
   }
-  const body = (await response.json().catch(() => undefined)) as
-    | Parameters<typeof userFromWire>[0]
-    | undefined;
-  if (!body) {
+  const parsed = branchUserSchema.safeParse(await response.json().catch(() => undefined));
+  if (!parsed.success) {
     return { kind: "failed" };
   }
-  return { kind: "ok", value: userFromWire(body) };
+  return { kind: "ok", value: userFromWire(parsed.data) };
 }
 
 function editFieldFromWire(field: unknown): EditUserFieldError | undefined {
@@ -388,13 +341,11 @@ export async function fetchUserPasskeys(id: string): Promise<FetchUserPasskeysOu
   if (!response.ok) {
     return { kind: "failed" };
   }
-  const body = (await response.json().catch(() => undefined)) as
-    | Array<Parameters<typeof userPasskeyFromRow>[0]>
-    | undefined;
-  if (!Array.isArray(body)) {
+  const passkeys = passkeyListFromWire(await response.json().catch(() => undefined));
+  if (!passkeys) {
     return { kind: "failed" };
   }
-  return { kind: "ok", value: body.map(userPasskeyFromRow) };
+  return { kind: "ok", value: passkeys };
 }
 
 // Authorization runs against the Administrator's own passkeys, never the target's.
