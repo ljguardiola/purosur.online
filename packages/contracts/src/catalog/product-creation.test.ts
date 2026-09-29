@@ -249,4 +249,8 @@ describe("productCreationBodySchema, order and unknown keys", () => {
   it("reads a body without any field as failing on the name", () => {
     expect(firstFailure({})?.field).toBe("name");
   });
+
+  it.each([null, undefined, "Maceta", 1, []])("rejects the body %j as not an object", (body) => {
+    expect(isAccepted(body)).toBe(false);
+  });
 });

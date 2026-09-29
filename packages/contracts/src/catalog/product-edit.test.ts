@@ -59,6 +59,10 @@ describe("productEditBodySchema", () => {
     expect(firstFailure(validBody({ netContent: "x", version: 0 }))?.field).toBe("netContent");
   });
 
+  it.each([null, undefined, "Maceta", 1, []])("rejects the body %j as not an object", (body) => {
+    expect(productEditBodySchema.safeParse(body).success).toBe(false);
+  });
+
   it("strips keys it does not know", () => {
     expect(productEditBodySchema.safeParse(validBody({ active: false })).data).not.toHaveProperty(
       "active",
