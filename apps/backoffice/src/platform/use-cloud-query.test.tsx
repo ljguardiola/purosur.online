@@ -29,6 +29,7 @@ function describeData(data: CloudData<string>): string {
 
 type ProbeProps = {
   queryKey?: readonly string[];
+  keepPreviousData?: boolean;
   read: () => Promise<CloudReadOutcome<string>>;
   onSessionEnded?: () => void;
   onForbidden?: () => void;
@@ -36,15 +37,17 @@ type ProbeProps = {
 
 function Probe({
   queryKey = ["probe"],
+  keepPreviousData,
   read,
   onSessionEnded = () => {},
   onForbidden = () => {},
 }: ProbeProps) {
-  const data = useCloudQuery({ queryKey, read, onSessionEnded, onForbidden });
+  const data = useCloudQuery({ queryKey, keepPreviousData, read, onSessionEnded, onForbidden });
   const client = useQueryClient();
   return (
     <>
       <p>{describeData(data)}</p>
+      {data.status !== "loaded" && "lastValue" in data ? <p>{`last:${data.lastValue}`}</p> : null}
       <button type="button" onClick={() => void client.invalidateQueries({ queryKey: ["probe"] })}>
         refresh
       </button>
@@ -167,6 +170,191 @@ test("a response for a key that is no longer shown never appears under the curre
   await screen.rerender(<Probe queryKey={["probe", "b"]} read={() => secondKey.promise} />);
   await expect.element(screen.getByText("loaded:for b")).toBeVisible();
   await expect.element(screen.getByText("loaded:for a")).not.toBeInTheDocument();
+});
+
+test("a key change goes back to loading unless the previous value is kept", async () => {
+  const secondKey = deferred<CloudReadOutcome<string>>();
+  const screen = await render(
+    <Probe queryKey={["probe", "a"]} read={() => Promise.resolve(ok("for a"))} />,
+  );
+  await expect.element(screen.getByText("loaded:for a")).toBeVisible();
+
+  await screen.rerender(<Probe queryKey={["probe", "b"]} read={() => secondKey.promise} />);
+
+  await expect.element(screen.getByText("loading")).toBeVisible();
+});
+
+test("a key change keeps showing the previous value, marked as refreshing, when asked to, until the new key's value arrives", async () => {
+  const secondKey = deferred<CloudReadOutcome<string>>();
+  const screen = await render(
+    <Probe keepPreviousData queryKey={["probe", "a"]} read={() => Promise.resolve(ok("for a"))} />,
+  );
+  await expect.element(screen.getByText("loaded:for a")).toBeVisible();
+
+  await screen.rerender(
+    <Probe keepPreviousData queryKey={["probe", "b"]} read={() => secondKey.promise} />,
+  );
+
+  await expect.element(screen.getByText("loaded:for a:refreshing")).toBeVisible();
+  secondKey.resolve(ok("for b"));
+  await expect.element(screen.getByText("loaded:for b")).toBeVisible();
+});
+
+test("a key change that fails is reported as failed, not as the previous value, when the previous value is kept", async () => {
+  const screen = await render(
+    <Probe keepPreviousData queryKey={["probe", "a"]} read={() => Promise.resolve(ok("for a"))} />,
+  );
+  await expect.element(screen.getByText("loaded:for a")).toBeVisible();
+
+  await screen.rerender(
+    <Probe
+      keepPreviousData
+      queryKey={["probe", "b"]}
+      read={() => Promise.resolve({ kind: "failed" })}
+    />,
+  );
+
+  await expect.element(screen.getByText("failed", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("loaded:for a")).not.toBeInTheDocument();
+});
+
+test("a key change that fails carries the last value loaded when the previous value is kept", async () => {
+  const screen = await render(
+    <Probe keepPreviousData queryKey={["probe", "a"]} read={() => Promise.resolve(ok("for a"))} />,
+  );
+  await expect.element(screen.getByText("loaded:for a")).toBeVisible();
+
+  await screen.rerender(
+    <Probe
+      keepPreviousData
+      queryKey={["probe", "b"]}
+      read={() => Promise.resolve({ kind: "failed" })}
+    />,
+  );
+
+  await expect.element(screen.getByText("failed", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("last:for a")).toBeVisible();
+});
+
+test("retrying a failed key change goes back to loading, carrying the last value loaded, when the previous value is kept", async () => {
+  const retried = deferred<CloudReadOutcome<string>>();
+  const read = vi
+    .fn<() => Promise<CloudReadOutcome<string>>>()
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockReturnValueOnce(retried.promise);
+  const screen = await render(
+    <Probe keepPreviousData queryKey={["probe", "a"]} read={() => Promise.resolve(ok("for a"))} />,
+  );
+  await expect.element(screen.getByText("loaded:for a")).toBeVisible();
+  await screen.rerender(<Probe keepPreviousData queryKey={["probe", "b"]} read={read} />);
+  await expect.element(screen.getByText("failed", { exact: true })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "retry" }));
+
+  await expect.element(screen.getByText("loading")).toBeVisible();
+  await expect.element(screen.getByText("last:for a")).toBeVisible();
+  retried.resolve(ok("for b"));
+  await expect.element(screen.getByText("loaded:for b")).toBeVisible();
+});
+
+test("reading a failed key again by any means goes back to loading, carrying the last value loaded, when the previous value is kept", async () => {
+  const reread = deferred<CloudReadOutcome<string>>();
+  const read = vi
+    .fn<() => Promise<CloudReadOutcome<string>>>()
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockReturnValueOnce(reread.promise);
+  const screen = await render(
+    <Probe keepPreviousData queryKey={["probe", "a"]} read={() => Promise.resolve(ok("for a"))} />,
+  );
+  await expect.element(screen.getByText("loaded:for a")).toBeVisible();
+  await screen.rerender(<Probe keepPreviousData queryKey={["probe", "b"]} read={read} />);
+  await expect.element(screen.getByText("failed", { exact: true })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "refresh" }));
+
+  await expect.element(screen.getByText("loading")).toBeVisible();
+  await expect.element(screen.getByText("last:for a")).toBeVisible();
+  reread.resolve(ok("for b"));
+  await expect.element(screen.getByText("loaded:for b")).toBeVisible();
+});
+
+test("a retry that fails again is reported as failed when the previous value is kept", async () => {
+  const read = vi
+    .fn<() => Promise<CloudReadOutcome<string>>>()
+    .mockResolvedValue({ kind: "failed" });
+  const screen = await render(
+    <Probe keepPreviousData queryKey={["probe", "a"]} read={() => Promise.resolve(ok("for a"))} />,
+  );
+  await expect.element(screen.getByText("loaded:for a")).toBeVisible();
+  await screen.rerender(<Probe keepPreviousData queryKey={["probe", "b"]} read={read} />);
+  await expect.element(screen.getByText("failed", { exact: true })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "retry" }));
+
+  await expect.poll(() => read.mock.calls.length).toBe(2);
+  await expect.element(screen.getByText("failed", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("last:for a")).toBeVisible();
+});
+
+test("after a retried key change, changing the key again keeps showing the retried value, marked as refreshing", async () => {
+  const thirdKey = deferred<CloudReadOutcome<string>>();
+  const read = vi
+    .fn<() => Promise<CloudReadOutcome<string>>>()
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockResolvedValueOnce(ok("for b"));
+  const screen = await render(
+    <Probe keepPreviousData queryKey={["probe", "a"]} read={() => Promise.resolve(ok("for a"))} />,
+  );
+  await expect.element(screen.getByText("loaded:for a")).toBeVisible();
+  await screen.rerender(<Probe keepPreviousData queryKey={["probe", "b"]} read={read} />);
+  await expect.element(screen.getByText("failed", { exact: true })).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "retry" }));
+  await expect.element(screen.getByText("loaded:for b")).toBeVisible();
+
+  await screen.rerender(
+    <Probe keepPreviousData queryKey={["probe", "c"]} read={() => thirdKey.promise} />,
+  );
+
+  await expect.element(screen.getByText("loaded:for b:refreshing")).toBeVisible();
+});
+
+test("a failed read carries no last value unless the previous value is kept", async () => {
+  const read = vi
+    .fn<() => Promise<CloudReadOutcome<string>>>()
+    .mockResolvedValueOnce(ok("one"))
+    .mockResolvedValueOnce({ kind: "failed" });
+  const screen = await render(<Probe read={read} />);
+  await expect.element(screen.getByText("loaded:one")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "refresh" }));
+
+  await expect.element(screen.getByText("failed", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("last:one")).not.toBeInTheDocument();
+});
+
+test("an older key's response never replaces a newer key's when the previous value is kept", async () => {
+  const secondKey = deferred<CloudReadOutcome<string>>();
+  const thirdKey = deferred<CloudReadOutcome<string>>();
+  const screen = await render(
+    <Probe keepPreviousData queryKey={["probe", "a"]} read={() => Promise.resolve(ok("for a"))} />,
+  );
+  await expect.element(screen.getByText("loaded:for a")).toBeVisible();
+  await screen.rerender(
+    <Probe keepPreviousData queryKey={["probe", "b"]} read={() => secondKey.promise} />,
+  );
+  await screen.rerender(
+    <Probe keepPreviousData queryKey={["probe", "c"]} read={() => thirdKey.promise} />,
+  );
+
+  thirdKey.resolve(ok("for c"));
+  await expect.element(screen.getByText("loaded:for c")).toBeVisible();
+  secondKey.resolve(ok("for b"));
+
+  await screen.rerender(
+    <Probe keepPreviousData queryKey={["probe", "c"]} read={() => thirdKey.promise} />,
+  );
+  await expect.element(screen.getByText("loaded:for c")).toBeVisible();
+  await expect.element(screen.getByText("loaded:for b")).not.toBeInTheDocument();
 });
 
 test("an unauthenticated read ends the session once, however often the screen renders", async () => {
