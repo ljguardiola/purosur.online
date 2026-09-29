@@ -1,4 +1,4 @@
-import { type QueryClient, type QueryKey, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, type QueryClient, type QueryKey, useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import type { CloudReadOutcome } from "./cloud-read-outcome";
 import { useLatestRef } from "./use-latest-ref";
@@ -50,16 +50,22 @@ export async function fetchCloudQuery<T>(
 
 export function useCloudQuery<T>({
   queryKey,
+  keepPreviousData: keepsPreviousData = false,
   read,
   onSessionEnded,
   onForbidden,
 }: CloudQuery<T> & {
+  keepPreviousData?: boolean | undefined;
   onSessionEnded: () => void;
   onForbidden: () => void;
 }): CloudData<T> {
   const onSessionEndedRef = useLatestRef(onSessionEnded);
   const onForbiddenRef = useLatestRef(onForbidden);
-  const query = useQuery({ queryKey, queryFn: cloudQueryFn(read) });
+  const query = useQuery({
+    queryKey,
+    queryFn: cloudQueryFn(read),
+    ...(keepsPreviousData ? { placeholderData: keepPreviousData } : {}),
+  });
   const refusal = query.error instanceof CloudReadRefused ? query.error.refusal : undefined;
   const refusalReadWhileShown = query.isFetchedAfterMount ? refusal : undefined;
 

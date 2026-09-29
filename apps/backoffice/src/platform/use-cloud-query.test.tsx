@@ -29,6 +29,7 @@ function describeData(data: CloudData<string>): string {
 
 type ProbeProps = {
   queryKey?: readonly string[];
+  keepPreviousData?: boolean;
   read: () => Promise<CloudReadOutcome<string>>;
   onSessionEnded?: () => void;
   onForbidden?: () => void;
@@ -36,11 +37,12 @@ type ProbeProps = {
 
 function Probe({
   queryKey = ["probe"],
+  keepPreviousData,
   read,
   onSessionEnded = () => {},
   onForbidden = () => {},
 }: ProbeProps) {
-  const data = useCloudQuery({ queryKey, read, onSessionEnded, onForbidden });
+  const data = useCloudQuery({ queryKey, keepPreviousData, read, onSessionEnded, onForbidden });
   const client = useQueryClient();
   return (
     <>
@@ -167,6 +169,77 @@ test("a response for a key that is no longer shown never appears under the curre
   await screen.rerender(<Probe queryKey={["probe", "b"]} read={() => secondKey.promise} />);
   await expect.element(screen.getByText("loaded:for b")).toBeVisible();
   await expect.element(screen.getByText("loaded:for a")).not.toBeInTheDocument();
+});
+
+test("a key change goes back to loading unless the previous value is kept", async () => {
+  const secondKey = deferred<CloudReadOutcome<string>>();
+  const screen = await render(
+    <Probe queryKey={["probe", "a"]} read={() => Promise.resolve(ok("for a"))} />,
+  );
+  await expect.element(screen.getByText("loaded:for a")).toBeVisible();
+
+  await screen.rerender(<Probe queryKey={["probe", "b"]} read={() => secondKey.promise} />);
+
+  await expect.element(screen.getByText("loading")).toBeVisible();
+});
+
+test("a key change keeps showing the previous value, marked as refreshing, when asked to, until the new key's value arrives", async () => {
+  const secondKey = deferred<CloudReadOutcome<string>>();
+  const screen = await render(
+    <Probe keepPreviousData queryKey={["probe", "a"]} read={() => Promise.resolve(ok("for a"))} />,
+  );
+  await expect.element(screen.getByText("loaded:for a")).toBeVisible();
+
+  await screen.rerender(
+    <Probe keepPreviousData queryKey={["probe", "b"]} read={() => secondKey.promise} />,
+  );
+
+  await expect.element(screen.getByText("loaded:for a:refreshing")).toBeVisible();
+  secondKey.resolve(ok("for b"));
+  await expect.element(screen.getByText("loaded:for b")).toBeVisible();
+});
+
+test("a key change that fails is reported as failed, not as the previous value, when the previous value is kept", async () => {
+  const screen = await render(
+    <Probe keepPreviousData queryKey={["probe", "a"]} read={() => Promise.resolve(ok("for a"))} />,
+  );
+  await expect.element(screen.getByText("loaded:for a")).toBeVisible();
+
+  await screen.rerender(
+    <Probe
+      keepPreviousData
+      queryKey={["probe", "b"]}
+      read={() => Promise.resolve({ kind: "failed" })}
+    />,
+  );
+
+  await expect.element(screen.getByText("failed", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("loaded:for a")).not.toBeInTheDocument();
+});
+
+test("an older key's response never replaces a newer key's when the previous value is kept", async () => {
+  const secondKey = deferred<CloudReadOutcome<string>>();
+  const thirdKey = deferred<CloudReadOutcome<string>>();
+  const screen = await render(
+    <Probe keepPreviousData queryKey={["probe", "a"]} read={() => Promise.resolve(ok("for a"))} />,
+  );
+  await expect.element(screen.getByText("loaded:for a")).toBeVisible();
+  await screen.rerender(
+    <Probe keepPreviousData queryKey={["probe", "b"]} read={() => secondKey.promise} />,
+  );
+  await screen.rerender(
+    <Probe keepPreviousData queryKey={["probe", "c"]} read={() => thirdKey.promise} />,
+  );
+
+  thirdKey.resolve(ok("for c"));
+  await expect.element(screen.getByText("loaded:for c")).toBeVisible();
+  secondKey.resolve(ok("for b"));
+
+  await screen.rerender(
+    <Probe keepPreviousData queryKey={["probe", "c"]} read={() => thirdKey.promise} />,
+  );
+  await expect.element(screen.getByText("loaded:for c")).toBeVisible();
+  await expect.element(screen.getByText("loaded:for b")).not.toBeInTheDocument();
 });
 
 test("an unauthenticated read ends the session once, however often the screen renders", async () => {
