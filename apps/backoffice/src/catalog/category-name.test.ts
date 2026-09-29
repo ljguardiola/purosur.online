@@ -1,27 +1,26 @@
 import { CATEGORY_NAME_MAX_LENGTH } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
-import { categoryNameError } from "./category-name";
+import { categoryNameMessage } from "./category-name";
 
-describe("categoryNameError", () => {
-  it("requires a name, rejecting a blank one", () => {
-    expect(categoryNameError("")).toBe("Ingresá el nombre de la categoría.");
+describe("categoryNameMessage", () => {
+  it("asks for a name when it is blank", () => {
+    expect(categoryNameMessage({ name: "" })).toBe("Ingresá el nombre de la categoría.");
   });
 
-  it("requires a name, rejecting a whitespace-only one", () => {
-    expect(categoryNameError("   ")).toBe("Ingresá el nombre de la categoría.");
+  it("asks for a name when it is only spaces", () => {
+    expect(categoryNameMessage({ name: "   " })).toBe("Ingresá el nombre de la categoría.");
   });
 
-  it("rejects a name of 101 characters", () => {
-    expect(categoryNameError("a".repeat(101))).toBe(
+  it("names the limit when it has 101 characters", () => {
+    expect(categoryNameMessage({ name: "a".repeat(101) })).toBe(
       `El nombre puede tener hasta ${CATEGORY_NAME_MAX_LENGTH} caracteres.`,
     );
   });
 
-  it("accepts a 100-character name surrounded by spaces, trimmed before the limit applies", () => {
-    expect(categoryNameError(`  ${"a".repeat(100)}  `)).toBeUndefined();
-  });
-
-  it("accepts an ordinary name", () => {
-    expect(categoryNameError("Almacén")).toBeUndefined();
+  it("asks to review a name that passes every local check, trimmed before the limit applies", () => {
+    expect(categoryNameMessage({ name: `  ${"a".repeat(100)}  ` })).toBe(
+      "Revisá el nombre de la categoría.",
+    );
+    expect(categoryNameMessage({ name: "Almacén" })).toBe("Revisá el nombre de la categoría.");
   });
 });
