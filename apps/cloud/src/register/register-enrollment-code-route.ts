@@ -64,12 +64,13 @@ export async function emitRegisterEnrollmentCode<TQueryResult extends PgQueryRes
 
   await db.transaction(async (tx) => {
     // The register row always exists, unlike its code row before the first emission, so locking it
-    // is what serializes two emissions for the same register.
+    // is what serializes two emissions for the same register. NO KEY UPDATE leaves the foreign-key
+    // check of an enrollment redeeming this register's code free to proceed, instead of deadlocking.
     await tx
       .select({ id: registers.id })
       .from(registers)
       .where(eq(registers.id, input.registerId))
-      .for("update");
+      .for("no key update");
 
     const [previous] = await tx
       .select({
