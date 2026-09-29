@@ -1,6 +1,6 @@
 import type { AlertDetail, AlertSummary } from "@purosur/contracts";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { closeAlert, fetchAlert, fetchAlerts } from "./alerts-api";
+import { closeAlert, fetchAlert, fetchAlerts, fetchAlertsOverview } from "./alerts-api";
 
 function jsonResponse(status: number, body?: unknown, headers?: Record<string, string>): Response {
   return new Response(
@@ -234,4 +234,57 @@ test("closeAlert reports failed on an unexpected status or when the request thro
 
   vi.mocked(fetch).mockRejectedValue(new Error("network down"));
   await expect(closeAlert("alert-1")).resolves.toEqual({ kind: "failed" });
+});
+
+const overview = {
+  critical: { openCount: 1, kinds: ["user_access_increased"] },
+  warning: { openCount: 2, kinds: ["backoffice_passkey_changed", "user_email_changed"] },
+  informational: { openCount: 0, kinds: [] },
+};
+
+test("fetchAlertsOverview answers the open visible alerts of each level on 200", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, overview));
+
+  await expect(fetchAlertsOverview()).resolves.toEqual({ kind: "ok", value: overview });
+  expect(fetch).toHaveBeenCalledWith("/alerts/overview");
+});
+
+test.each([
+  ["a body without a level", { critical: overview.critical, warning: overview.warning }],
+  ["a negative count", { ...overview, informational: { openCount: -1, kinds: [] } }],
+])("fetchAlertsOverview reports failed when a 200 body is %s", async (_description, body) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, body));
+
+  await expect(fetchAlertsOverview()).resolves.toEqual({ kind: "failed" });
+});
+
+test("fetchAlertsOverview reports failed when a 200 body is not JSON", async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response("<html>", { status: 200 }));
+
+  await expect(fetchAlertsOverview()).resolves.toEqual({ kind: "failed" });
+});
+
+test.each([
+  [401, { kind: "unauthenticated" }],
+  [403, { kind: "forbidden" }],
+  [500, { kind: "failed" }],
+])("fetchAlertsOverview answers a %i as %j", async (status, outcome) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(status, { code: "any" }));
+
+  await expect(fetchAlertsOverview()).resolves.toEqual(outcome);
+});
+
+test("fetchAlertsOverview reports rate_limited with the retry time the response names", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "90" }));
+
+  await expect(fetchAlertsOverview()).resolves.toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 90,
+  });
+});
+
+test("fetchAlertsOverview reports failed when the request itself throws", async () => {
+  vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+  await expect(fetchAlertsOverview()).resolves.toEqual({ kind: "failed" });
 });

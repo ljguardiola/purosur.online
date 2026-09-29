@@ -1,8 +1,10 @@
 import {
   type AlertDetail,
   type AlertListPage,
+  type AlertsOverview,
   alertDetailSchema,
   alertListPageSchema,
+  alertsOverviewSchema,
 } from "@purosur/contracts";
 import type { AlertLevel } from "@purosur/domain";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
@@ -18,6 +20,8 @@ export type AlertListQuery = {
 };
 
 export type FetchAlertsOutcome = CloudReadOutcome<AlertListPage>;
+
+export type FetchAlertsOverviewOutcome = CloudReadOutcome<AlertsOverview>;
 
 export type FetchAlertOutcome = CloudReadOutcome<AlertDetail> | { kind: "not_found" };
 
@@ -69,6 +73,29 @@ export async function fetchAlerts(listQuery: AlertListQuery = {}): Promise<Fetch
     return { kind: "failed" };
   }
   const parsed = alertListPageSchema.safeParse(await response.json().catch(() => undefined));
+  return parsed.success ? { kind: "ok", value: parsed.data } : { kind: "failed" };
+}
+
+export async function fetchAlertsOverview(): Promise<FetchAlertsOverviewOutcome> {
+  let response: Response;
+  try {
+    response = await fetch("/alerts/overview");
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.status === 401) {
+    return { kind: "unauthenticated" };
+  }
+  if (response.status === 403) {
+    return { kind: "forbidden" };
+  }
+  if (response.status === 429) {
+    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+  }
+  if (!response.ok) {
+    return { kind: "failed" };
+  }
+  const parsed = alertsOverviewSchema.safeParse(await response.json().catch(() => undefined));
   return parsed.success ? { kind: "ok", value: parsed.data } : { kind: "failed" };
 }
 
