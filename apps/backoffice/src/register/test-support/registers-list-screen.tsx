@@ -11,6 +11,7 @@ export function createServices(
 ): RegistersListScreenServices {
   return {
     fetchRegisters: vi.fn(),
+    fetchRegisterCoverage: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     createRegister: vi.fn(),
     emitEnrollmentCode: vi.fn(),
     fetchSessionAuthorizationOptions: vi.fn(),
