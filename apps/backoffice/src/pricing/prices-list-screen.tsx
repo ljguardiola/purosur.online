@@ -9,10 +9,13 @@ import {
   NotificationCard,
   plural,
   SearchField,
+  sortedItems,
   Table,
   Tag,
   TextField,
   Tooltip,
+  tableRows,
+  textOrder,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
 import {
@@ -661,7 +664,10 @@ export function PricesListScreen({
       : data;
 
   const categoryFilterOptions = (() => {
-    const sorted = [...categories].sort((a, b) => a.name.localeCompare(b.name, "es"));
+    const sorted = sortedItems(categories, {
+      order: textOrder((category) => category.name),
+      direction: "ascending",
+    });
     return [
       { value: "ALL" as const, label: "Todas" },
       ...sorted.map((category) => ({ value: category.id, label: category.name })),
@@ -968,7 +974,7 @@ export function PricesListScreen({
           aria-label="Precios"
           columns={columns}
           {...cloudTableState(shownData, "los precios")}
-          rows={products.map((product) => ({ id: product.id, item: product }))}
+          rows={tableRows({ items: products, id: (product) => product.id }).rows}
           empty={emptyTableState({
             activeProductCount,
             reviewFilter,

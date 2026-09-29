@@ -505,6 +505,37 @@ test("the category filter offers the categories the prices list brings and narro
     .toBe(true);
 });
 
+test("the category filter lists the categories alphabetically by name", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: {
+      products: [rice],
+      pendingCount: 1,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [
+        { id: "category-3", name: "Verdulería" },
+        groceries,
+        { id: "category-2", name: "Bebidas" },
+      ],
+    },
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Arroz")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Categoría: Todas" }));
+
+  await expect
+    .poll(() =>
+      screen
+        .getByRole("option")
+        .all()
+        .map((option) => option.element().textContent ?? ""),
+    )
+    .toEqual(["Todas", "Almacén", "Bebidas", "Verdulería"]);
+});
+
 test("Revisar los N walks the pending products one by one, opening the next after each save", async () => {
   const services = createServices();
   vi.mocked(services.fetchPrices).mockImplementation(async () => ({
