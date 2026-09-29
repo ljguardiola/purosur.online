@@ -260,7 +260,10 @@ test("saves the newly picked role together with the email", async () => {
   await expect.element(screen.getByText("Cajero")).toBeVisible();
 });
 
-test("shows no Select, but a locked Rol field with a keyboard-focusable lock and its tooltip, for the last active Administrator", async () => {
+const lastAdministratorReason =
+  "Es el único Administrador activo. Para cambiarle el rol, primero hacé Administrador a otra persona.";
+
+async function openLastAdministratorEditModal() {
   const lastAdmin: BranchUser = {
     ...lucia,
     role: administratorRole,
@@ -270,22 +273,44 @@ test("shows no Select, but a locked Rol field with a keyboard-focusable lock and
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lastAdmin });
   const screen = await renderScreen(services);
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
-  const dialog = await openEditModal(screen);
+  return { screen, dialog: await openEditModal(screen) };
+}
 
-  expect(dialog.getByRole("button", { name: /Rol$/ }).query()).toBeNull();
-  await expect.element(dialog.getByText("Administrador")).toBeVisible();
-  const lock = dialog.getByRole("button", { name: "Por qué el rol está fijo" });
-  await expect.element(lock).toBeVisible();
+test("shows the last active Administrator's Rol as a read-only field with no button, described by why it is fixed", async () => {
+  const { dialog } = await openLastAdministratorEditModal();
 
-  // Wider than the default phone-sized browser-mode viewport, or the lock is unhoverable.
+  expect(dialog.getByRole("combobox", { name: /Rol$/ }).query()).toBeNull();
+  const rol = dialog.getByRole("textbox", { name: "Rol" });
+  await expect.element(rol).toHaveValue("Administrador");
+  await expect.element(rol).toHaveAttribute("readonly");
+  await expect.element(rol).toHaveAccessibleDescription(lastAdministratorReason);
+  const box = (rol.element() as HTMLElement).parentElement as HTMLElement;
+  expect(box.querySelector("button")).toBeNull();
+});
+
+test("opens the last active Administrator's explanation when the Rol field is hovered", async () => {
+  const { screen, dialog } = await openLastAdministratorEditModal();
+
+  // Wider than the default phone-sized browser-mode viewport, or the field is unhoverable.
   await page.viewport(1280, 900);
-  await userEvent.hover(lock);
+  await userEvent.hover(dialog.getByRole("textbox", { name: "Rol" }));
   await expect.element(screen.getByRole("tooltip")).toBeVisible();
-  await expect
-    .element(screen.getByRole("tooltip"))
-    .toHaveTextContent(
-      "Es el único Administrador activo. Para cambiarle el rol, primero hacé Administrador a otra persona.",
-    );
+  await expect.element(screen.getByRole("tooltip")).toHaveTextContent(lastAdministratorReason);
+
+  await page.viewport(414, 896);
+});
+
+test("opens the last active Administrator's explanation when the Rol field is focused with the keyboard", async () => {
+  const { screen, dialog } = await openLastAdministratorEditModal();
+
+  await page.viewport(1280, 900);
+  const rol = dialog.getByRole("textbox", { name: "Rol" });
+  for (let presses = 0; presses < 10 && document.activeElement !== rol.element(); presses++) {
+    await userEvent.tab();
+  }
+  expect(document.activeElement).toBe(rol.element());
+  await expect.element(screen.getByRole("tooltip")).toBeVisible();
+  await expect.element(screen.getByRole("tooltip")).toHaveTextContent(lastAdministratorReason);
 
   await page.viewport(414, 896);
 });
