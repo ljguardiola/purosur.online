@@ -14,14 +14,14 @@ const CELL_INNER_PADDING_PX = 6;
 // border-box as the declared width, so it has to be added on top of the content width here.
 export function headerColumnWidthStyle<T>(
   column: TableColumn<T>,
-  isFirst: boolean,
-  isLast: boolean,
+  first: boolean,
+  last: boolean,
 ): { width: string } | undefined {
   if (column.kind !== "actions") {
     return undefined;
   }
-  const leftPadding = isFirst ? CELL_EDGE_PADDING_PX : CELL_INNER_PADDING_PX;
-  const rightPadding = isLast ? CELL_EDGE_PADDING_PX : CELL_INNER_PADDING_PX;
+  const leftPadding = first ? CELL_EDGE_PADDING_PX : CELL_INNER_PADDING_PX;
+  const rightPadding = last ? CELL_EDGE_PADDING_PX : CELL_INNER_PADDING_PX;
   return {
     width: `${ACTIONS_CONTENT_WIDTH_PX[column.actions.length] + leftPadding + rightPadding}px`,
   };

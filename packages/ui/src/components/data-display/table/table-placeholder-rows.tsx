@@ -17,36 +17,36 @@ const PLACEHOLDER_WIDTHS_PERCENT = [72, 48, 64, 56, 80, 40];
 
 function PlaceholderRow<T>({
   columns,
-  isLastRow,
+  lastRow,
 }: {
   columns: readonly TableColumn<T>[];
-  isLastRow: boolean;
+  lastRow: boolean;
 }) {
   return (
     <tr
       className={[
         "h-control-4xl",
-        rowBoxShadowClassName(undefined, isLastRow),
+        rowBoxShadowClassName(undefined, lastRow),
         "animate-table-placeholder-reveal",
       ].join(" ")}
     >
       {columns.map((column, index) => {
-        const isActions = column.kind === "actions";
-        const align = isActions ? "start" : column.align;
+        const actionsColumn = column.kind === "actions";
+        const align = actionsColumn ? "start" : column.align;
         const widthPercent = PLACEHOLDER_WIDTHS_PERCENT[index % PLACEHOLDER_WIDTHS_PERCENT.length];
-        const isFirst = index === 0;
-        const isLast = index === columns.length - 1;
+        const first = index === 0;
+        const last = index === columns.length - 1;
 
         return (
           <td
             key={column.key}
             className={[
               "align-middle",
-              cellHorizontalPaddingClassName(isFirst, isLast),
+              cellHorizontalPaddingClassName(first, last),
               alignClassName(align),
             ].join(" ")}
           >
-            {isActions ? (
+            {actionsColumn ? (
               <div className="flex flex-row items-center justify-end gap-2">
                 <div className="size-control-md shrink-0 rounded-lg bg-surface-soft" />
                 {column.actions.length === 2 && (
@@ -72,10 +72,6 @@ function PlaceholderRow<T>({
 
 export function TablePlaceholderRows<T>({ columns }: { columns: readonly TableColumn<T>[] }) {
   return PLACEHOLDER_ROW_IDS.map((id, index) => (
-    <PlaceholderRow
-      key={id}
-      columns={columns}
-      isLastRow={index === PLACEHOLDER_ROW_IDS.length - 1}
-    />
+    <PlaceholderRow key={id} columns={columns} lastRow={index === PLACEHOLDER_ROW_IDS.length - 1} />
   ));
 }

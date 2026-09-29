@@ -6,8 +6,8 @@ export function alignClassName(align: TableColumnAlign | undefined): string {
 
 // <tr> can't carry padding under table layout, so the row's own edge padding lives on the first
 // and last cell instead.
-export function cellHorizontalPaddingClassName(isFirst: boolean, isLast: boolean): string {
-  return [isFirst ? "pl-4" : "pl-1.5", isLast ? "pr-4" : "pr-1.5"].join(" ");
+export function cellHorizontalPaddingClassName(first: boolean, last: boolean): string {
+  return [first ? "pl-4" : "pl-1.5", last ? "pr-4" : "pr-1.5"].join(" ");
 }
 
 // A muted row's subtle text applies to every cell at once, so a column's own render() should
@@ -33,8 +33,8 @@ export function rowStateClassName(state: TableRowState | undefined): string {
 //
 // Every branch is its own complete, literal class string: Tailwind's scanner only generates CSS
 // for names it finds written out in source, never one assembled at runtime.
-export function rowBoxShadowClassName(state: TableRowState | undefined, isLast: boolean): string {
-  if (isLast) {
+export function rowBoxShadowClassName(state: TableRowState | undefined, last: boolean): string {
+  if (last) {
     return state === "selected" ? "inset-shadow-marker" : "";
   }
   return state === "selected" ? "inset-shadow-divider-marker" : "inset-shadow-divider";

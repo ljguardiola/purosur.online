@@ -88,8 +88,8 @@ export function Table<T>({
                         key={column.key}
                         column={column}
                         item={item}
-                        isFirst={index === 0}
-                        isLast={index === columns.length - 1}
+                        first={index === 0}
+                        last={index === columns.length - 1}
                       />
                     ))}
                   </tr>

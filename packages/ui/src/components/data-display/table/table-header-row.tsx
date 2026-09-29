@@ -15,37 +15,37 @@ export function TableHeaderRow<T>({
   return (
     <tr className="h-control-xl bg-surface-subtle">
       {columns.map((column, index) => {
-        const isActions = column.kind === "actions";
-        const isSortable = !isActions && column.sortable === true && onSortChange !== undefined;
-        const isSorted = isSortable && sort?.column === column.key;
-        const isFirst = index === 0;
-        const isLast = index === columns.length - 1;
+        const actionsColumn = column.kind === "actions";
+        const sortable = !actionsColumn && column.sortable === true && onSortChange !== undefined;
+        const sorted = sortable && sort?.column === column.key;
+        const first = index === 0;
+        const last = index === columns.length - 1;
         return (
           <th
             key={column.key}
             scope="col"
-            aria-sort={isSortable ? (isSorted ? sort?.direction : "none") : undefined}
-            style={headerColumnWidthStyle(column, isFirst, isLast)}
+            aria-sort={sortable ? (sorted ? sort?.direction : "none") : undefined}
+            style={headerColumnWidthStyle(column, first, last)}
             className={[
               // A cell's explicit height is a floor, not a cap, so h-full on a sortable
               // header's button always has an actual, resolved height to track.
               "h-control-xl break-words align-middle",
               // A sortable header's hit area needs the cell's full box, so its padding
               // lives on the button instead.
-              isSortable ? "" : cellHorizontalPaddingClassName(isFirst, isLast),
+              sortable ? "" : cellHorizontalPaddingClassName(first, last),
               "text-caption font-bold uppercase",
-              alignClassName(isActions ? "start" : column.align),
+              alignClassName(actionsColumn ? "start" : column.align),
             ].join(" ")}
           >
-            {isActions ? (
+            {actionsColumn ? (
               <span className="sr-only">{column.header}</span>
-            ) : isSortable ? (
+            ) : sortable ? (
               <SortableColumnHeader
                 column={column}
                 sort={sort}
                 onSortChange={onSortChange}
-                isFirst={isFirst}
-                isLast={isLast}
+                first={first}
+                last={last}
               />
             ) : (
               <span className="text-text-subtle">{column.header}</span>

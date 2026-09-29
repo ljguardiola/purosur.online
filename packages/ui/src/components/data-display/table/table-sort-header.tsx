@@ -22,18 +22,18 @@ export function SortableColumnHeader<T>({
   column,
   sort,
   onSortChange,
-  isFirst,
-  isLast,
+  first,
+  last,
 }: {
   column: TableSortableDataColumn<T>;
   sort: TableSort | undefined;
   onSortChange: (sort: TableSort) => void;
-  isFirst: boolean;
-  isLast: boolean;
+  first: boolean;
+  last: boolean;
 }) {
-  const isSorted = sort?.column === column.key;
-  const direction = isSorted ? sort.direction : undefined;
-  const colorClassName = isSorted ? "text-text" : "text-text-subtle";
+  const sorted = sort?.column === column.key;
+  const direction = sorted ? sort.direction : undefined;
+  const colorClassName = sorted ? "text-text" : "text-text-subtle";
   const Icon =
     direction === "ascending"
       ? ChevronUp
@@ -44,7 +44,7 @@ export function SortableColumnHeader<T>({
   function handlePress() {
     onSortChange({
       column: column.key,
-      direction: isSorted ? oppositeDirection(sort.direction) : column.defaultDirection,
+      direction: sorted ? oppositeDirection(sort.direction) : column.defaultDirection,
     });
   }
 
@@ -53,7 +53,7 @@ export function SortableColumnHeader<T>({
       onPress={handlePress}
       className={[
         headerButtonClassName,
-        cellHorizontalPaddingClassName(isFirst, isLast),
+        cellHorizontalPaddingClassName(first, last),
         column.align === "end" ? "justify-end" : "justify-start",
       ].join(" ")}
     >

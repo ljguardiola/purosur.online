@@ -5,36 +5,36 @@ import type { TableColumn } from "./table-types";
 export function TableCell<T>({
   column,
   item,
-  isFirst,
-  isLast,
+  first,
+  last,
 }: {
   column: TableColumn<T>;
   item: T;
-  isFirst: boolean;
-  isLast: boolean;
+  first: boolean;
+  last: boolean;
 }) {
-  const isActions = column.kind === "actions";
-  const align = isActions ? "start" : column.align;
+  const actionsColumn = column.kind === "actions";
+  const align = actionsColumn ? "start" : column.align;
 
   return (
     <td
       className={[
         "h-control-4xl break-words align-middle py-2",
-        cellHorizontalPaddingClassName(isFirst, isLast),
+        cellHorizontalPaddingClassName(first, last),
         alignClassName(align),
         align === "end" ? "tabular-nums" : "",
       ].join(" ")}
     >
       <div
         className={
-          isActions
+          actionsColumn
             ? "flex flex-row items-center justify-end gap-2"
             : ["flex flex-col justify-center", align === "end" ? "items-end" : "items-start"].join(
                 " ",
               )
         }
       >
-        {isActions ? (
+        {actionsColumn ? (
           <TableActionButtons actions={column.actions} item={item} />
         ) : (
           // items-start/-end opts out of flex stretch, so an unbreakable run's unclamped preferred
