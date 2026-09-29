@@ -1072,6 +1072,42 @@ test("a chosen category keeps its name in the filter while the list it narrows f
   await expect.element(screen.getByRole("button", { name: "Categoría: Almacén" })).toBeVisible();
 });
 
+test("retrying a list narrowed by a chosen category loads it again from its placeholder, keeping the category's name", async () => {
+  const services = createServices();
+  const retry = deferred<Awaited<ReturnType<PricesListScreenServices["fetchPrices"]>>>();
+  vi.mocked(services.fetchPrices).mockImplementation(async (input) =>
+    input.categoryId
+      ? { kind: "failed" }
+      : {
+          kind: "ok",
+          value: {
+            products: [rice],
+            pendingCount: 1,
+            reviewWindowDays: 30,
+            categories: [groceries],
+          },
+        },
+  );
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Arroz")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Categoría: Todas" }));
+  await userEvent.click(screen.getByRole("option", { name: "Almacén" }));
+  await expect.element(screen.getByText("No pudimos abrir los precios")).toBeVisible();
+  vi.mocked(services.fetchPrices).mockReturnValueOnce(retry.promise);
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText("No pudimos abrir los precios")).not.toBeInTheDocument();
+  await expect.element(screen.getByText("Arroz")).not.toBeInTheDocument();
+  await expect.element(screen.getByRole("table")).toHaveAttribute("aria-busy", "true");
+  await expect.element(screen.getByRole("button", { name: "Categoría: Almacén" })).toBeVisible();
+  retry.resolve({
+    kind: "ok",
+    value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [groceries] },
+  });
+  await expect.element(screen.getByText("Arroz")).toBeVisible();
+});
+
 test("the Revisar action is disabled while the list loads, and after it fails to load", async () => {
   const services = createServices();
   const firstLoad = deferred<Awaited<ReturnType<PricesListScreenServices["fetchPrices"]>>>();

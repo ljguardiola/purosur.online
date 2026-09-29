@@ -593,7 +593,7 @@ export function PricesListScreen({
   const refreshPrices = useRefreshPrices();
 
   const loaded = data.status === "loaded" ? data.value : undefined;
-  const lastLoaded = data.status === "failed" ? data.lastValue : undefined;
+  const lastLoaded = data.status === "loaded" ? undefined : data.lastValue;
   const categories = loaded?.categories ?? lastLoaded?.categories ?? NO_CATEGORIES;
   const categoryFilterIsOffered =
     categoryFilter === "ALL" || categories.some(({ id }) => id === categoryFilter);
