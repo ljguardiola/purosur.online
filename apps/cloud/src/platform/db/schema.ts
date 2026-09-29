@@ -1,3 +1,4 @@
+import { ALERT_AUDIENCES, ALERT_LEVELS } from "@purosur/domain";
 import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
@@ -541,9 +542,9 @@ export const backofficeRateLimitAttempts = pgTable(
   ],
 );
 
-export const alertLevel = pgEnum("alert_level", ["informational", "warning", "critical"]);
+export const alertLevel = pgEnum("alert_level", ALERT_LEVELS);
 
-export const alertAudience = pgEnum("alert_audience", ["local", "all"]);
+export const alertAudience = pgEnum("alert_audience", ALERT_AUDIENCES);
 
 // kind and scope are free text: the kind catalog lives in code, so a new kind needs no migration.
 export const alerts = pgTable(

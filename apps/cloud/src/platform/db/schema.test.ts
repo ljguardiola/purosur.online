@@ -1,6 +1,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { ALERT_AUDIENCES, ALERT_LEVELS } from "@purosur/domain";
 import { eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
@@ -66,6 +67,26 @@ async function insertUser(email: string): Promise<{ id: string }> {
   }
   return user;
 }
+
+async function databaseEnumValues(typeName: string): Promise<string[]> {
+  const { rows } = await testDatabase.client.query<{ enumlabel: string }>(
+    "select enumlabel from pg_enum join pg_type on pg_enum.enumtypid = pg_type.oid where pg_type.typname = $1 order by enumsortorder",
+    [typeName],
+  );
+  return rows.map((row) => row.enumlabel);
+}
+
+describe("alert_level", () => {
+  it("allows exactly the domain's alert levels, in the domain's order", async () => {
+    expect(await databaseEnumValues("alert_level")).toEqual(ALERT_LEVELS);
+  });
+});
+
+describe("alert_audience", () => {
+  it("allows exactly the domain's alert audiences, in the domain's order", async () => {
+    expect(await databaseEnumValues("alert_audience")).toEqual(ALERT_AUDIENCES);
+  });
+});
 
 describe("locations", () => {
   it("is seeded with exactly one row, the business's single branch", async () => {
