@@ -50,9 +50,13 @@ export const FocusVisible: Story = {
 };
 
 export const Described: Story = {
-  args: { checked: false, description: "Lo requiere Hacer recuentos." },
+  args: { checked: false, description: "Lo requiere «Recuentos»." },
 };
 
 export const DisabledChecked: Story = {
-  args: { checked: true, disabled: true, description: "Lo requiere Hacer recuentos." },
+  args: { checked: true, disabled: true, description: "Lo requiere «Recuentos»." },
+};
+
+export const DisabledUnchecked: Story = {
+  args: { checked: false, disabled: true },
 };
