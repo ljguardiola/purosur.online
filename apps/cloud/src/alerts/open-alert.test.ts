@@ -285,12 +285,16 @@ describe("openAlert", () => {
   it.each(ALERT_KINDS.filter((kind) => kind !== "user_access_increased"))(
     "opens %s once while it is open, whatever triggers it again",
     async (kind) => {
-      const first = await db.transaction((tx) =>
-        openAlert(tx, { kind, scope: "a-scope", detail: {} }, { now: () => NOON }),
-      );
-      const second = await db.transaction((tx) =>
-        openAlert(tx, { kind, scope: "a-scope", detail: {} }, { now: () => NOON }),
-      );
+      const input: OpenAlertInput =
+        kind === "backoffice_passkey_changed"
+          ? {
+              kind,
+              scope: "a-scope",
+              detail: { action: "registered", passkeyName: "Teléfono", actorId: "a", via: "self" },
+            }
+          : { kind, scope: "a-scope", detail: {} };
+      const first = await db.transaction((tx) => openAlert(tx, input, { now: () => NOON }));
+      const second = await db.transaction((tx) => openAlert(tx, input, { now: () => NOON }));
 
       expect(first.kind).toBe("opened");
       expect(second).toEqual({

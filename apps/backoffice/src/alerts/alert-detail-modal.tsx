@@ -176,6 +176,9 @@ function accessIncreaseDescription(detail: Record<string, unknown>, targetName: 
   if (typeof actorName !== "string") {
     return "";
   }
+  if (cause === "created_as_administrator") {
+    return `El Administrador ${actorName} creó a ${targetName} como Administrador.`;
+  }
   if (cause === "role_assigned") {
     const previousRoleName = roleName(detail["previousRole"]);
     const newRoleName = roleName(detail["newRole"]);

@@ -213,13 +213,17 @@ describe("clearSampleData", () => {
       actorId: bootstrapAdmin.id,
     });
     if (realRoleOutcome.kind !== "created") throw new Error("test setup: real role collided");
-    const realUserOutcome = await createUser(db, {
-      firstName: "Usuaria Real",
-      email: "cajera.real@example.com",
-      roleId: realRoleOutcome.role.id,
-      locationId: bootstrapAdmin.locationId,
-      actorId: bootstrapAdmin.id,
-    });
+    const realUserOutcome = await createUser(
+      db,
+      {
+        firstName: "Usuaria Real",
+        email: "cajera.real@example.com",
+        roleId: realRoleOutcome.role.id,
+        locationId: bootstrapAdmin.locationId,
+        actorId: bootstrapAdmin.id,
+      },
+      { now: () => new Date() },
+    );
     if (realUserOutcome.kind !== "created") throw new Error("test setup: real user collided");
 
     const realCategoryOutcome = await createCategory(new DrizzleCatalogStore(db), {

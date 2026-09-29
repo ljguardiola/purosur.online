@@ -23,6 +23,7 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { editRole } from "./role-edit-route.js";
 import { SESSION_COOKIE_NAME } from "./session-cookie.js";
 import { generateSessionId, hashSessionId } from "./session-id.js";
+import { createUser } from "./user-creation-route.js";
 import { registerUserEditRoutes } from "./user-edit-route.js";
 
 // PGlite serializes every transaction, so an assignment and a role edit can only interleave, and
@@ -290,6 +291,38 @@ describe("an alert for increased access that fails to open, on a real Postgres",
       .where(eq(users.id, userId));
     expect(user?.version).toBe(1);
     expect(await db.select().from(auditLog).where(eq(auditLog.entityId, userId))).toHaveLength(0);
+  });
+
+  it("creates no user as Administrator, nor its audit row", async () => {
+    const [administratorRole] = await db
+      .select({ id: roles.id })
+      .from(roles)
+      .where(eq(roles.isAdministrator, true));
+    if (!administratorRole) {
+      throw new Error("test setup: no Administrator role seeded");
+    }
+    const email = `${randomUUID()}@example.com`;
+
+    await expect(
+      createUser(
+        db,
+        {
+          firstName: "Katherine Johnson",
+          email,
+          roleId: administratorRole.id,
+          locationId: await seededLocationId(db),
+          actorId: administratorId,
+        },
+        { now: () => new Date() },
+      ),
+    ).rejects.toThrow();
+
+    expect(await db.select().from(users).where(eq(users.email, email))).toHaveLength(0);
+    const audited = await db
+      .select({ newValue: auditLog.newValue })
+      .from(auditLog)
+      .where(eq(auditLog.actorId, administratorId));
+    expect(audited.filter((row) => JSON.stringify(row.newValue).includes(email))).toHaveLength(0);
   });
 
   it("leaves the role's permissions, version and audit trail as they were", async () => {

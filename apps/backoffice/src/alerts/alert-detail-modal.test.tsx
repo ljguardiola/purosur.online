@@ -764,3 +764,23 @@ test("never shows an increase of access without the Administrator's name", async
 
   expect(screen.getByText(/Administrador/).query()).toBeNull();
 });
+
+test("shows the description of a user created as Administrator", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "user_access_increased",
+        level: "critical",
+        detail: { cause: "created_as_administrator", actorId: "admin-1", actorName: "Ada" },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText("Se amplió el acceso de un usuario")).toBeVisible();
+  await expect
+    .element(screen.getByText("El Administrador Ada creó a Lucía Pérez como Administrador."))
+    .toBeVisible();
+});

@@ -105,13 +105,17 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
         throw new Error("sample-data: no location is seeded in the database");
       }
 
-      const administratorOutcome = await createUser(tx, {
-        firstName: SAMPLE_ADMINISTRATOR.firstName,
-        email: SAMPLE_ADMINISTRATOR.email,
-        roleId: bootstrapAdministrator.roleId,
-        locationId: location.id,
-        actorId: bootstrapAdministrator.id,
-      });
+      const administratorOutcome = await createUser(
+        tx,
+        {
+          firstName: SAMPLE_ADMINISTRATOR.firstName,
+          email: SAMPLE_ADMINISTRATOR.email,
+          roleId: bootstrapAdministrator.roleId,
+          locationId: location.id,
+          actorId: bootstrapAdministrator.id,
+        },
+        deps,
+      );
       const sampleAdministrator = expectOutcome(
         administratorOutcome,
         "created",
@@ -137,13 +141,17 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
           throw new Error(`sample-data: role "${rolePlan.name}" was not created`);
         }
         for (const userPlan of rolePlan.users) {
-          const outcome = await createUser(tx, {
-            firstName: userPlan.firstName,
-            email: userPlan.email,
-            roleId,
-            locationId: location.id,
-            actorId,
-          });
+          const outcome = await createUser(
+            tx,
+            {
+              firstName: userPlan.firstName,
+              email: userPlan.email,
+              roleId,
+              locationId: location.id,
+              actorId,
+            },
+            deps,
+          );
           const created = expectOutcome(outcome, "created", `user "${userPlan.firstName}"`);
           sampleUserIdsInOrder.push(created.id);
           if (!userPlan.active) {
