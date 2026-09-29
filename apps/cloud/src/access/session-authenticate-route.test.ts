@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
-import WebAuthnEmulator from "nid-webauthn-emulator";
+import { WebAuthnEmulator } from "nid-webauthn-emulator";
 import {
   afterAll,
   afterEach,
