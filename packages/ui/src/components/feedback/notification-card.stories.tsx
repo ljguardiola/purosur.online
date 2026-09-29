@@ -48,6 +48,6 @@ export const WithTime: Story = {
   args: { tone: "success", time: "14:32" },
 };
 
-export const Floating: Story = {
-  args: { tone: "success", floating: true },
+export const Closable: Story = {
+  args: { tone: "success", onClose: () => {} },
 };

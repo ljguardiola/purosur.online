@@ -1,5 +1,6 @@
 import {
   Button,
+  FloatingNotification,
   IconButton,
   InlineNotice,
   ListFilter,
@@ -68,7 +69,6 @@ type ListState =
     };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const NOTICE_LIFETIME_MS = 5000;
 const SEARCH_DEBOUNCE_MS = 300;
 
 const AMOUNT_INVALID = "Ingresá un precio válido, mayor a cero.";
@@ -593,20 +593,6 @@ export function PricesListScreen({
     setNotice({ ...shown, id: lastNoticeId.current });
   }
 
-  useEffect(() => {
-    const lifetimeMs =
-      notice?.tone === "success"
-        ? NOTICE_LIFETIME_MS
-        : notice?.retryAfterSeconds !== undefined
-          ? notice.retryAfterSeconds * 1000
-          : undefined;
-    if (lifetimeMs === undefined) {
-      return;
-    }
-    const handle = setTimeout(() => setNotice(null), lifetimeMs);
-    return () => clearTimeout(handle);
-  }, [notice]);
-
   function clearErrorNotice() {
     setNotice((shown) => (shown?.tone === "error" ? null : shown));
   }
@@ -1062,16 +1048,15 @@ export function PricesListScreen({
         confirmPrice={confirmPriceService}
       />
       {notice ? (
-        <div className="fixed right-6 bottom-6 z-overlay">
-          <NotificationCard
-            key={notice.id}
-            tone={notice.tone}
-            icon={notice.tone === "success" ? <Check /> : <TriangleAlert />}
-            title={notice.title}
-            description={notice.description}
-            floating
-          />
-        </div>
+        <FloatingNotification
+          key={notice.id}
+          tone={notice.tone}
+          icon={notice.tone === "success" ? <Check /> : <TriangleAlert />}
+          title={notice.title}
+          description={notice.description}
+          expiresAfterSeconds={notice.retryAfterSeconds}
+          onDismiss={() => setNotice(null)}
+        />
       ) : null}
     </>
   );

@@ -10,6 +10,7 @@ export type NoticeFrameProps = {
   iconSize: keyof typeof iconSlotClassName;
   iconBadgeClassName?: string;
   announcement: ReadonlyArray<string | undefined>;
+  trailing?: ReactNode;
   children: ReactNode;
 };
 
@@ -20,6 +21,7 @@ export function NoticeFrame({
   iconSize,
   iconBadgeClassName,
   announcement,
+  trailing,
   children,
 }: NoticeFrameProps) {
   return (
@@ -38,6 +40,7 @@ export function NoticeFrame({
       <div aria-hidden="true" className="flex flex-col gap-1">
         {children}
       </div>
+      {trailing}
       <NoticeLiveRegion
         assertiveness={tone === "error" ? "assertive" : "polite"}
         text={announcement.filter(Boolean).join(" ")}
