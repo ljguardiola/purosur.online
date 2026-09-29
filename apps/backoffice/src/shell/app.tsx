@@ -33,6 +33,10 @@ import {
   defaultAlertsListScreenServices,
 } from "../alerts/alerts-list-services";
 import {
+  type AlertsOverviewScreenServices,
+  defaultAlertsOverviewScreenServices,
+} from "../alerts/alerts-overview-services";
+import {
   type BranchSettingsScreenServices,
   defaultBranchSettingsScreenServices,
 } from "../branch/branch-settings-services";
@@ -93,6 +97,7 @@ export type AppServices = {
   fiscalConfigurationScreen: FiscalConfigurationScreenServices;
   accountFooter: AccountFooterServices;
   screenFailure: ScreenFailureServices;
+  alertsOverviewScreen: AlertsOverviewScreenServices;
   alertsListScreen: AlertsListScreenServices;
 };
 
@@ -115,6 +120,7 @@ const defaultAppServices: AppServices = {
   fiscalConfigurationScreen: defaultFiscalConfigurationScreenServices,
   accountFooter: defaultAccountFooterServices,
   screenFailure: defaultScreenFailureServices,
+  alertsOverviewScreen: defaultAlertsOverviewScreenServices,
   alertsListScreen: defaultAlertsListScreenServices,
 };
 

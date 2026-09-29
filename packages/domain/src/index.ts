@@ -25,6 +25,7 @@ export {
   ROLE_NAME_MAX_LENGTH,
   repeatsAPermissionKey,
   roleNameLength,
+  uncoveredRegisterPermissions,
   withRequiredPermissions,
 } from "./access/index.js";
 export type { AlertAudience, AlertKind, AlertLevel } from "./alerts/index.js";

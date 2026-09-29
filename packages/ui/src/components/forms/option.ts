@@ -6,11 +6,12 @@ export type Option<V extends string = string> = {
   label: string;
   description?: string;
   icon?: Icon;
+  status?: string;
 };
 
 export type Options<O> = readonly [O, ...O[]];
 
-type OptionExtra = "description" | "icon";
+type OptionExtra = "description" | "icon" | "status";
 
 export type NarrowedOption<
   V extends string,

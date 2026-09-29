@@ -9,7 +9,12 @@ import { ScreenTitle } from "../shell/screen-title";
 import { minutesElapsed, minutesRemaining } from "./enrollment-code";
 import { type EmissionState, EnrollmentCodeModal } from "./enrollment-code-modal";
 import { NewRegisterModal } from "./new-register-modal";
-import { useRefreshRegisters, useRegistersQuery } from "./register-queries";
+import { RegisterCoverageNotice } from "./register-coverage-notice";
+import {
+  useRefreshRegisters,
+  useRegisterCoverageQuery,
+  useRegistersQuery,
+} from "./register-queries";
 import type { EmitEnrollmentCodeOutcome, RegisterSummary } from "./registers-api";
 import type { RegistersListScreenServices } from "./registers-list-services";
 
@@ -27,6 +32,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
   const sendToMyAccount = useSendToMyAccount();
   const {
     fetchRegisters,
+    fetchRegisterCoverage,
     emitEnrollmentCode,
     fetchSessionAuthorizationOptions,
     authorizeSession,
@@ -34,6 +40,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
   } = services;
   const clock = now ?? (() => new Date());
   const data = useRegistersQuery({ fetchRegisters, onSessionEnded });
+  const coverage = useRegisterCoverageQuery({ fetchRegisterCoverage, onSessionEnded });
   const refreshRegisters = useRefreshRegisters();
   const [currentTime, setCurrentTime] = useState(() => clock());
   const [newModalOpen, setNewModalOpen] = useState(false);
@@ -210,6 +217,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
             )
           }
         />
+        <RegisterCoverageNotice coverage={coverage} />
       </ScreenLayout>
       <NewRegisterModal
         open={newModalOpen}

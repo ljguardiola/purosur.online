@@ -26,7 +26,9 @@ export function InlineNotice({ tone, icon, title, description }: InlineNoticePro
       announcement={[title, description]}
     >
       {title ? <p className="text-body font-bold">{title}</p> : null}
-      {description ? <p className="text-detail leading-sm">{description}</p> : null}
+      {description ? (
+        <p className="whitespace-pre-line text-detail leading-sm">{description}</p>
+      ) : null}
     </NoticeFrame>
   );
 }

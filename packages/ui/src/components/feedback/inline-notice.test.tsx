@@ -48,6 +48,25 @@ test("renders with only a description", async () => {
   expect(paragraph.textContent).toBe("Nothing to sync yet");
 });
 
+test("starts each line of a description written over several lines on a line of its own", async () => {
+  const screen = await render(
+    <div style={{ width: "600px" }}>
+      <InlineNotice tone="warning" icon={<Info />} description={"First line.\nSecond line."} />
+    </div>,
+  );
+  const description = screen.container.querySelector("p") as HTMLElement;
+  const text = description.firstChild as Text;
+  const lineTop = (start: number, end: number) => {
+    const range = document.createRange();
+    range.setStart(text, start);
+    range.setEnd(text, end);
+    return range.getBoundingClientRect().top;
+  };
+  const secondLineStart = text.data.indexOf("Second");
+
+  expect(lineTop(secondLineStart, text.data.length)).toBeGreaterThan(lineTop(0, 5));
+});
+
 test("does not accept an inline notice without a title or a description", () => {
   expectTypeOf<{ tone: "info"; icon: Icon }>().not.toExtend<InlineNoticeProps>();
 });
