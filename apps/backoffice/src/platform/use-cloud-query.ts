@@ -1,4 +1,4 @@
-import { type QueryKey, useQuery } from "@tanstack/react-query";
+import { type QueryKey, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import type { CloudReadOutcome } from "./cloud-read-outcome";
 import { useLatestRef } from "./use-latest-ref";
@@ -30,6 +30,8 @@ export function useCloudQuery<T>({
   onSessionEnded: () => void;
   onForbidden: () => void;
 }): CloudData<T> {
+  const queryClient = useQueryClient();
+  const queryKeyRef = useLatestRef(queryKey);
   const onSessionEndedRef = useLatestRef(onSessionEnded);
   const onForbiddenRef = useLatestRef(onForbidden);
   const query = useQuery({
@@ -48,9 +50,10 @@ export function useCloudQuery<T>({
     if (refusal?.kind === "unauthenticated") {
       onSessionEndedRef.current();
     } else if (refusal?.kind === "forbidden") {
+      queryClient.removeQueries({ queryKey: queryKeyRef.current, exact: true });
       onForbiddenRef.current();
     }
-  }, [refusal, onSessionEndedRef, onForbiddenRef]);
+  }, [refusal, queryClient, queryKeyRef, onSessionEndedRef, onForbiddenRef]);
 
   const leavingScreen = refusal?.kind === "unauthenticated" || refusal?.kind === "forbidden";
   if (query.isError && !query.isFetching && !leavingScreen) {

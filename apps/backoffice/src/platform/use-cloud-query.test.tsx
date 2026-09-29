@@ -1,4 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
@@ -185,4 +186,35 @@ test("a forbidden read is handed to its forbidden handler", async () => {
   await render(<Probe read={() => Promise.resolve({ kind: "forbidden" })} onForbidden={onForbidden} />);
 
   await expect.poll(() => onForbidden.mock.calls.length).toBe(1);
+});
+
+function ShownOnDemand(props: ProbeProps) {
+  const [shown, setShown] = useState(true);
+  return (
+    <>
+      <button type="button" onClick={() => setShown(!shown)}>
+        toggle
+      </button>
+      {shown ? <Probe {...props} /> : null}
+    </>
+  );
+}
+
+test("a refresh refused as forbidden is not handed over again when the screen opens later, and the fresh read decides", async () => {
+  const onForbidden = vi.fn();
+  const read = vi
+    .fn<() => Promise<CloudReadOutcome<string>>>()
+    .mockResolvedValueOnce(ok("one"))
+    .mockResolvedValueOnce({ kind: "forbidden" })
+    .mockResolvedValueOnce(ok("two"));
+  const screen = await render(<ShownOnDemand read={read} onForbidden={onForbidden} />);
+  await expect.element(screen.getByText("loaded:one")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "refresh" }));
+  await expect.poll(() => onForbidden.mock.calls.length).toBe(1);
+  await userEvent.click(screen.getByRole("button", { name: "toggle" }));
+
+  await userEvent.click(screen.getByRole("button", { name: "toggle" }));
+
+  await expect.element(screen.getByText("loaded:two")).toBeVisible();
+  expect(onForbidden).toHaveBeenCalledTimes(1);
 });
