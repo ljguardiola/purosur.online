@@ -52,7 +52,7 @@ export type EditUserInput = { email: string; roleId: string; version: number };
 type EditUserFieldError = "email" | "roleId" | "version";
 
 export type EditUserOutcome =
-  | { kind: "ok"; value: BranchUser }
+  | { kind: "ok" }
   | { kind: "validation_failed"; field: EditUserFieldError }
   | { kind: "email_taken" }
   | { kind: "stale_version" }
@@ -69,7 +69,7 @@ export type CreateUserInput = { firstName: string; email: string; roleId: string
 export type CreateUserFieldError = "firstName" | "email" | "roleId";
 
 export type CreateUserOutcome =
-  | { kind: "ok"; value: BranchUser }
+  | { kind: "ok" }
   | { kind: "validation_failed"; field: CreateUserFieldError }
   | { kind: "unknown_role" }
   | { kind: "email_taken" }
@@ -185,13 +185,7 @@ export async function createUser(input: CreateUserInput): Promise<CreateUserOutc
     return { kind: "failed" };
   }
   if (response.ok) {
-    const body = (await response.json().catch(() => undefined)) as
-      | Parameters<typeof userFromWire>[0]
-      | undefined;
-    if (!body) {
-      return { kind: "failed" };
-    }
-    return { kind: "ok", value: userFromWire(body) };
+    return { kind: "ok" };
   }
   if (response.status === 400) {
     const body = (await response.json().catch(() => undefined)) as
@@ -275,13 +269,7 @@ export async function editUser(id: string, input: EditUserInput): Promise<EditUs
     return { kind: "failed" };
   }
   if (response.ok) {
-    const body = (await response.json().catch(() => undefined)) as
-      | Parameters<typeof userFromWire>[0]
-      | undefined;
-    if (!body) {
-      return { kind: "failed" };
-    }
-    return { kind: "ok", value: userFromWire(body) };
+    return { kind: "ok" };
   }
   if (response.status === 400) {
     const body = (await response.json().catch(() => undefined)) as

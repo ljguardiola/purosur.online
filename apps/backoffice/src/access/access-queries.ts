@@ -4,7 +4,7 @@ import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchPasskeys, Passkey } from "./passkey-api";
 import type { fetchRole, fetchRoles, RoleDetail, RoleSummary } from "./roles-api";
 import { useSendToMyAccount } from "./send-to-my-account";
-import type { BranchUser, fetchUsers } from "./users-api";
+import type { BranchUser, fetchUser, fetchUserPasskeys, fetchUsers } from "./users-api";
 
 const accessKey = ["access"] as const;
 
@@ -13,9 +13,11 @@ const accessKeys = {
   roles: [...accessKey, "roles"] as const,
   ownPasskeys: [...accessKey, "own-passkeys"] as const,
   role: (id: string) => [...accessKey, "role", id] as const,
+  user: (id: string) => [...accessKey, "user", id] as const,
+  userPasskeys: (id: string) => [...accessKey, "user-passkeys", id] as const,
 };
 
-export type OwnPasskeys = { passkeys: Passkey[]; loadedAt: Date };
+export type PasskeyList = { passkeys: Passkey[]; loadedAt: Date };
 
 export function useUsersQuery(params: {
   fetchUsers: typeof fetchUsers;
@@ -85,13 +87,76 @@ export function useReloadRole(params: {
   };
 }
 
+export type UserRead = { kind: "found"; user: BranchUser } | { kind: "not_found" };
+
+function readUser(
+  fetchUserById: typeof fetchUser,
+  userId: string,
+): () => Promise<CloudReadOutcome<UserRead>> {
+  return async () => {
+    const outcome = await fetchUserById(userId);
+    if (outcome.kind === "ok") {
+      return { kind: "ok", value: { kind: "found", user: outcome.value } };
+    }
+    return outcome.kind === "not_found" ? { kind: "ok", value: { kind: "not_found" } } : outcome;
+  };
+}
+
+export function useUserQuery(params: {
+  userId: string;
+  fetchUser: typeof fetchUser;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<UserRead>({
+    queryKey: accessKeys.user(params.userId),
+    read: readUser(params.fetchUser, params.userId),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useReloadUser(params: {
+  fetchUser: typeof fetchUser;
+}): (userId: string) => Promise<CloudReadOutcome<UserRead>> {
+  const client = useQueryClient();
+  return async (userId) => {
+    void client.invalidateQueries({ queryKey: accessKey });
+    return fetchCloudQuery(client, {
+      queryKey: accessKeys.user(userId),
+      read: readUser(params.fetchUser, userId),
+    });
+  };
+}
+
+export function useUserPasskeysQuery(params: {
+  userId: string;
+  fetchUserPasskeys: typeof fetchUserPasskeys;
+  now: () => Date;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<PasskeyList>({
+    queryKey: accessKeys.userPasskeys(params.userId),
+    read: async () => {
+      const outcome = await params.fetchUserPasskeys(params.userId);
+      if (outcome.kind === "ok") {
+        return { kind: "ok", value: { passkeys: outcome.value, loadedAt: params.now() } };
+      }
+      return outcome.kind === "not_found" ? { kind: "failed" } : outcome;
+    },
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
 export function useOwnPasskeysQuery(params: {
   fetchPasskeys: typeof fetchPasskeys;
   now: () => Date;
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
-  return useCloudQuery<OwnPasskeys>({
+  return useCloudQuery<PasskeyList>({
     queryKey: accessKeys.ownPasskeys,
     read: async () => {
       const outcome = await params.fetchPasskeys();

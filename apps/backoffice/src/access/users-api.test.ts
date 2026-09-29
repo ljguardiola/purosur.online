@@ -155,12 +155,12 @@ const creationInput = {
   roleId: "role-admin",
 };
 
-test("createUser posts the wire shape and returns the created user on 201", async () => {
+test("createUser posts the wire shape and returns ok on 201", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(201, administratorRow));
 
   const outcome = await createUser(creationInput);
 
-  expect(outcome).toEqual({ kind: "ok", value: administrator });
+  expect(outcome).toEqual({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith(
     "/users",
     expect.objectContaining({
@@ -174,10 +174,10 @@ test("createUser posts the wire shape and returns the created user on 201", asyn
   );
 });
 
-test("createUser reports failed on a 201 whose body is not JSON", async () => {
+test("createUser returns ok on a 201 whatever the body says, since the user is already created", async () => {
   vi.mocked(fetch).mockResolvedValue(new Response("<!doctype html>", { status: 201 }));
 
-  await expect(createUser(creationInput)).resolves.toEqual({ kind: "failed" });
+  await expect(createUser(creationInput)).resolves.toEqual({ kind: "ok" });
 });
 
 test("createUser reports a validation_failed field on 400", async () => {
@@ -343,26 +343,14 @@ test("fetchUser reports failed on a 200 whose body does not match the contract",
   await expect(fetchUser("user-1")).resolves.toEqual({ kind: "failed" });
 });
 
-const changedRow = {
-  ...administratorRow,
-  email: "new@example.com",
-  role: { id: "role-shift", is_administrator: false, name: "Responsable de turno" },
-  version: 2,
-};
-const changedUser: BranchUser = {
-  ...administrator,
-  email: "new@example.com",
-  role: { id: "role-shift", isAdministrator: false, name: "Responsable de turno" },
-  version: 2,
-};
 const editInput = { email: "new@example.com", roleId: "role-shift", version: 1 };
 
-test("editUser posts the wire shape and returns the updated user on 200", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, changedRow));
+test("editUser posts the wire shape and returns ok on 200", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, {}));
 
   const outcome = await editUser("user-1", editInput);
 
-  expect(outcome).toEqual({ kind: "ok", value: changedUser });
+  expect(outcome).toEqual({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith(
     "/users/user-1/edit",
     expect.objectContaining({
@@ -372,10 +360,10 @@ test("editUser posts the wire shape and returns the updated user on 200", async 
   );
 });
 
-test("editUser reports failed on a 200 whose body is not JSON", async () => {
+test("editUser returns ok on a 200 whatever the body says, since the change is already applied", async () => {
   vi.mocked(fetch).mockResolvedValue(new Response("<!doctype html>", { status: 200 }));
 
-  await expect(editUser("user-1", editInput)).resolves.toEqual({ kind: "failed" });
+  await expect(editUser("user-1", editInput)).resolves.toEqual({ kind: "ok" });
 });
 
 test("editUser reports a validation_failed field on 400", async () => {

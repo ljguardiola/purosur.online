@@ -325,7 +325,7 @@ test("creating a user reads users and roles again from the server, keeping the s
   vi.mocked(services.fetchUsers)
     .mockResolvedValueOnce({ kind: "ok", value: [administrator] })
     .mockReturnValueOnce(refresh.promise);
-  vi.mocked(services.createUser).mockResolvedValue({ kind: "ok", value: martina });
+  vi.mocked(services.createUser).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
@@ -415,7 +415,7 @@ test("creates a user directly, without the authorization modal, when the session
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
 
-  vi.mocked(services.createUser).mockResolvedValue({ kind: "ok", value: martina });
+  vi.mocked(services.createUser).mockResolvedValue({ kind: "ok" });
   vi.mocked(services.fetchUsers).mockResolvedValueOnce({
     kind: "ok",
     value: [administrator, martina],
@@ -445,7 +445,7 @@ test("opens the authorization modal on authorization_required, then authorizes a
 
   vi.mocked(services.createUser).mockResolvedValueOnce({ kind: "authorization_required" });
   grantAuthorization(services);
-  vi.mocked(services.createUser).mockResolvedValueOnce({ kind: "ok", value: martina });
+  vi.mocked(services.createUser).mockResolvedValueOnce({ kind: "ok" });
   vi.mocked(services.fetchUsers).mockResolvedValueOnce({
     kind: "ok",
     value: [administrator, martina],
@@ -589,7 +589,7 @@ test("keeps the loaded list and an open create modal when the parent re-renders 
   await expect.element(dialog.getByRole("button", { name: /^Administrador Rol/ })).toBeVisible();
   expect(services.fetchUsers).toHaveBeenCalledTimes(1);
 
-  vi.mocked(services.createUser).mockResolvedValue({ kind: "ok", value: martina });
+  vi.mocked(services.createUser).mockResolvedValue({ kind: "ok" });
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
 
   await expect.poll(() => vi.mocked(services.createUser).mock.calls.length).toBe(1);
