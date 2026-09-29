@@ -700,6 +700,29 @@ test("shows a load failure instead of the modal when Recargar cannot read the is
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
 });
 
+test("keeps the modal closed once Reintentar loads the data a failed Recargar could not read", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification)
+    .mockResolvedValueOnce({ kind: "ok", value: complete })
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockResolvedValueOnce({ kind: "ok", value: { ...complete, version: 2 } });
+  vi.mocked(services.saveIssuerIdentification).mockResolvedValueOnce({ kind: "stale_version" });
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+  await expect
+    .element(dialog.getByText("La identificación del emisor cambió mientras la editabas"))
+    .toBeVisible();
+  await userEvent.click(dialog.getByRole("button", { name: "Recargar" }));
+  await expect.element(screen.getByText("No pudimos abrir la configuración fiscal")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText("María Laura Fernández")).toBeVisible();
+  expect(screen.getByRole("dialog").query()).toBeNull();
+});
+
 test("keeps what Recargar brought on the screen after Cancelar, so reopening saves with the reloaded version", async () => {
   const services = createServices();
   vi.mocked(services.fetchIssuerIdentification).mockResolvedValueOnce({

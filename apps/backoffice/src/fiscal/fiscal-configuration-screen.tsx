@@ -457,6 +457,9 @@ export function FiscalConfigurationScreen({
   const data = useIssuerIdentificationQuery({ fetchIssuerIdentification, onSessionEnded });
   const reload = useReloadIssuerIdentification({ fetchIssuerIdentification });
   const [editing, setEditing] = useState(false);
+  if (editing && data.status === "failed") {
+    setEditing(false);
+  }
 
   const issuerIdentification = data.status === "loaded" ? data.value : null;
   const incomplete =
