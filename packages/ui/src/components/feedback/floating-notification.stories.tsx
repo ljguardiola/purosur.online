@@ -30,6 +30,22 @@ export const Success: Story = {
   args: { tone: "success" },
 };
 
+export const Info: Story = {
+  args: {
+    tone: "info",
+    title: "Nueva versión disponible",
+    description: "Se instalará al cerrar el turno.",
+  },
+};
+
+export const Warning: Story = {
+  args: {
+    tone: "warning",
+    title: "Sincronización pendiente",
+    description: "Se reintentará en breve.",
+  },
+};
+
 export const ErrorTone: Story = {
   args: {
     tone: "error",
