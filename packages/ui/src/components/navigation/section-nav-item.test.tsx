@@ -76,3 +76,18 @@ test("turns bone on hover while inactive", async () => {
 
   await expect.poll(() => getComputedStyle(link).backgroundColor).toBe(tokenRgb("surface-subtle"));
 });
+
+test("forwards a style to the link, so a router can apply its own inline styles", async () => {
+  const screen = await render(
+    <SectionNavItem
+      label="Primeros pasos"
+      icon={<Flag />}
+      active={false}
+      href="/help/getting_started"
+      style={{ opacity: 0.5 }}
+    />,
+  );
+
+  const link = screen.getByRole("link", { name: "Primeros pasos" }).element() as HTMLAnchorElement;
+  expect(link.style.opacity).toBe("0.5");
+});

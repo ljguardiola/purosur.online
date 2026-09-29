@@ -1,8 +1,8 @@
-import { NavItem, type NavItemProps, type NavItemStyle } from "./nav-item";
+import { NavItem, type NavItemProps, type NavItemLook } from "./nav-item";
 
 export type SectionNavItemProps = NavItemProps;
 
-const style: NavItemStyle = {
+const look: NavItemLook = {
   container:
     "flex h-control-lg w-full items-center gap-2 rounded-lg px-2 outline-none transition-colors " +
     "focus-visible:focus-ring-tight",
@@ -20,5 +20,5 @@ const style: NavItemStyle = {
 };
 
 export function SectionNavItem(props: SectionNavItemProps) {
-  return <NavItem {...props} style={style} />;
+  return <NavItem {...props} look={look} />;
 }

@@ -1,8 +1,8 @@
-import { NavItem, type NavItemProps, type NavItemStyle } from "./nav-item";
+import { NavItem, type NavItemProps, type NavItemLook } from "./nav-item";
 
 export type AreaNavItemProps = NavItemProps;
 
-const style: NavItemStyle = {
+const look: NavItemLook = {
   container:
     "flex w-15 flex-col items-center justify-center gap-1 rounded-lg px-0 py-2 outline-none " +
     "focus-visible:focus-ring-inverse",
@@ -20,5 +20,5 @@ const style: NavItemStyle = {
 };
 
 export function AreaNavItem(props: AreaNavItemProps) {
-  return <NavItem {...props} style={style} />;
+  return <NavItem {...props} look={look} />;
 }

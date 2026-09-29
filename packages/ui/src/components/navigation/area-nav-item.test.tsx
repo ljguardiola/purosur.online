@@ -69,3 +69,15 @@ test("forwards a click handler, so the app can drive its own router", async () =
 
   expect(clicked).toBe(true);
 });
+
+test("forwards a style to the link, so a router can apply its own inline styles", async () => {
+  const screen = await renderItem({
+    label: "Ayuda",
+    active: false,
+    href: "/help",
+    style: { opacity: 0.5 },
+  });
+
+  const link = screen.getByRole("link", { name: "Ayuda" }).element() as HTMLAnchorElement;
+  expect(link.style.opacity).toBe("0.5");
+});

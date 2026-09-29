@@ -7,30 +7,30 @@ export type NavItemProps = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "classN
   active: boolean;
 };
 
-type NavItemStateStyle = { container: string; icon: string; label: string };
+type NavItemStateLook = { container: string; icon: string; label: string };
 
-export type NavItemStyle = {
+export type NavItemLook = {
   container: string;
   iconSize: keyof typeof iconSlotClassName;
-  active: NavItemStateStyle;
-  inactive: NavItemStateStyle;
+  active: NavItemStateLook;
+  inactive: NavItemStateLook;
 };
 
 export function NavItem({
-  style,
+  look,
   label,
   icon,
   active,
   ...props
-}: NavItemProps & { style: NavItemStyle }) {
-  const state = active ? style.active : style.inactive;
+}: NavItemProps & { look: NavItemLook }) {
+  const state = active ? look.active : look.inactive;
   return (
     <a
       {...props}
       aria-current={active ? "page" : undefined}
-      className={`${style.container} ${state.container}`}
+      className={`${look.container} ${state.container}`}
     >
-      <span aria-hidden="true" className={`${iconSlotClassName[style.iconSize]} ${state.icon}`}>
+      <span aria-hidden="true" className={`${iconSlotClassName[look.iconSize]} ${state.icon}`}>
         {icon}
       </span>
       <span className={state.label}>{label}</span>
