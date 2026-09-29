@@ -137,9 +137,9 @@ test("reports the file of every match across several files", () => {
 
 test("scans the design system and the apps' screens, but not tests or CSS", () => {
   const tracked = [
-    "packages/ui/src/components/Button.tsx",
-    "packages/ui/src/components/Button.stories.tsx",
-    "packages/ui/src/components/Button.test.tsx",
+    "packages/ui/src/components/forms/button.tsx",
+    "packages/ui/src/components/forms/button.stories.tsx",
+    "packages/ui/src/components/forms/button.test.tsx",
     "packages/ui/src/styles/tokens.css",
     "apps/backoffice/src/catalog/screen.tsx",
     "apps/backoffice/src/catalog/screen.test.ts",
@@ -153,8 +153,8 @@ test("scans the design system and the apps' screens, but not tests or CSS", () =
     [
       "apps/backoffice/src/catalog/screen.tsx",
       "apps/pos/src/renderer/App.tsx",
-      "packages/ui/src/components/Button.stories.tsx",
-      "packages/ui/src/components/Button.tsx",
+      "packages/ui/src/components/forms/button.stories.tsx",
+      "packages/ui/src/components/forms/button.tsx",
     ],
   );
 });
@@ -162,7 +162,7 @@ test("scans the design system and the apps' screens, but not tests or CSS", () =
 test("no design system or screen source uses a Tailwind arbitrary value", () => {
   const files = findScannedFiles();
   for (const sentinel of [
-    "packages/ui/src/components/Button.tsx",
+    "packages/ui/src/components/forms/button.tsx",
     "apps/backoffice/src/catalog/products-list-screen.tsx",
   ]) {
     assert.ok(files.includes(sentinel), `expected the scan to include ${sentinel}`);

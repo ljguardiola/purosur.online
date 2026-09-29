@@ -69,7 +69,7 @@ export function AccountFooter({ displayName, onSignedOut, services }: AccountFoo
         <span className="text-caption text-text-inverse-subtle">Salir</span>
       </button>
       <Modal
-        isOpen={confirming}
+        open={confirming}
         onOpenChange={setConfirming}
         width="standard"
         tone="info"
@@ -83,7 +83,7 @@ export function AccountFooter({ displayName, onSignedOut, services }: AccountFoo
               variant="secondary"
               size="large"
               icon={<X />}
-              isDisabled={signingOut}
+              disabled={signingOut}
               onPress={() => setConfirming(false)}
             >
               Cancelar
@@ -93,7 +93,7 @@ export function AccountFooter({ displayName, onSignedOut, services }: AccountFoo
               size="large"
               icon={<LogOut />}
               fullWidth
-              isDisabled={signingOut}
+              disabled={signingOut}
               onPress={() => void handleConfirm()}
             >
               Salir
@@ -106,7 +106,7 @@ export function AccountFooter({ displayName, onSignedOut, services }: AccountFoo
             tone="error"
             icon={<ShieldX />}
             title="Demasiadas solicitudes"
-            detail={retryAfterDetail(notice.retryAfterSeconds)}
+            description={retryAfterDetail(notice.retryAfterSeconds)}
           />
         ) : null}
         {notice?.kind === "failed" ? (
@@ -114,7 +114,7 @@ export function AccountFooter({ displayName, onSignedOut, services }: AccountFoo
             tone="error"
             icon={<TriangleAlert />}
             title="No se pudo salir"
-            detail="Probá de nuevo."
+            description="Probá de nuevo."
           />
         ) : null}
       </Modal>

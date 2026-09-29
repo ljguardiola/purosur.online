@@ -1,7 +1,6 @@
 import { BRANCH_HOURS_RANGES_PER_DAY_MAX, BRANCH_SETTINGS_DAYS_MAX } from "@purosur/domain";
 import {
   Button,
-  backofficeFieldHeightClassName,
   Checkbox,
   IconButton,
   type IconButtonProps,
@@ -477,7 +476,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           label={label}
           value={values[field]}
           onChange={(value) => setTextValue(field, value)}
-          {...(error ? { invalid: true, errorMessage: error } : {})}
+          errorMessage={error}
         />
       </div>
     );
@@ -493,7 +492,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           value={values[field]}
           onChange={(value) => setDaysValue(field, value)}
           suffix="días"
-          {...(error ? { invalid: true, errorMessage: error } : {})}
+          errorMessage={error}
         />
       </div>
     );
@@ -514,7 +513,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           labelVisuallyHidden
           value={values[day].ranges[index]?.[part] ?? ""}
           onChange={(value) => setRangeValue(day, index, part, value)}
-          {...(errorId !== undefined ? { invalid: true, errorMessageId: errorId } : {})}
+          {...(errorId !== undefined ? { errorMessageId: errorId } : {})}
         />
       </div>
     );
@@ -531,13 +530,13 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
     return (
       <div key={day} className="flex flex-col gap-2 border-border border-t py-3">
         <div className="flex flex-wrap items-start gap-4">
-          <div className={`flex ${backofficeFieldHeightClassName} w-35 shrink-0 items-center`}>
+          <div className={`flex h-control-2xl w-35 shrink-0 items-center`}>
             <p className="font-semibold text-text">{dayLabel}</p>
           </div>
-          <div className={`flex ${backofficeFieldHeightClassName} w-25 shrink-0 items-center`}>
+          <div className={`flex h-control-2xl w-25 shrink-0 items-center`}>
             <Checkbox
-              isSelected={dayValues.closed}
-              onChange={(closed) => setDayClosed(day, closed)}
+              checked={dayValues.closed}
+              onCheckedChange={(closed) => setDayClosed(day, closed)}
             >
               <span aria-hidden="true">Cerrado</span>
               <span className="sr-only">{`${dayLabel} — Cerrado`}</span>
@@ -572,7 +571,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
                 </div>
               ))}
               {!atCap && (
-                <div className={`flex ${backofficeFieldHeightClassName} items-center`}>
+                <div className={`flex h-control-2xl items-center`}>
                   <IconButton
                     icon={<Plus />}
                     aria-label={`Agregar un horario al ${dayLower}`}
@@ -603,7 +602,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           <Button
             variant="primary"
             icon={<Check />}
-            isDisabled={submitting || state.kind !== "loaded"}
+            disabled={submitting || state.kind !== "loaded"}
             onPress={() => void handleSubmit()}
           >
             Guardar los cambios
@@ -619,7 +618,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
             tone="error"
             icon={<TriangleAlert />}
             title="No pudimos abrir la sucursal"
-            detail="Probá de nuevo en unos minutos."
+            description="Probá de nuevo en unos minutos."
           />
           <Button variant="secondary" onPress={() => void load()}>
             Reintentar
@@ -631,7 +630,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           tone="error"
           icon={<TriangleAlert />}
           title="No se pudo guardar la sucursal"
-          detail="Probá de nuevo."
+          description="Probá de nuevo."
         />
       )}
       {notice?.kind === "staleVersion" && (
@@ -639,7 +638,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           tone="error"
           icon={<TriangleAlert />}
           title="La sucursal cambió mientras la editabas"
-          detail="Recargá sus datos y volvé a hacer el cambio."
+          description="Recargá sus datos y volvé a hacer el cambio."
         />
       )}
       {notice?.kind === "reloadFailed" && (
@@ -647,14 +646,14 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           tone="error"
           icon={<TriangleAlert />}
           title="No se pudieron recargar los datos"
-          detail="Probá de nuevo."
+          description="Probá de nuevo."
         />
       )}
       {offersReload ? (
         <Button
           variant="secondary"
           icon={<RotateCcw />}
-          isDisabled={submitting}
+          disabled={submitting}
           onPress={() => void handleReload()}
         >
           Recargar

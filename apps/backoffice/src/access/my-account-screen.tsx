@@ -53,7 +53,7 @@ type ListState =
   | { kind: "loaded"; passkeys: Passkey[]; loadedAt: Date };
 
 type RegisterPasskeyModalProps = {
-  isOpen: boolean;
+  open: boolean;
   onClose: () => void;
   onRegistered: () => void;
   onSessionEnded: () => void;
@@ -68,7 +68,7 @@ type RegisterPasskeyModalProps = {
 
 /** The cloud gates the registration-options fetch behind authorization, so this ceremony only ever runs once authorized. */
 function RegisterPasskeyModal({
-  isOpen,
+  open,
   onClose,
   onRegistered,
   onSessionEnded,
@@ -92,14 +92,14 @@ function RegisterPasskeyModal({
   });
 
   useEffect(() => {
-    if (isOpen) {
+    if (open) {
       setName("");
       setNameError(undefined);
       setAttemptFailed(false);
       setRateLimitedSeconds(null);
       setSubmitting(false);
     }
-  }, [isOpen]);
+  }, [open]);
 
   // Redone in full on a retry: the registration challenge shares its session-scoped row with the
   // authorization ceremony's own challenge, so options fetched before authorizing are gone after.
@@ -162,7 +162,7 @@ function RegisterPasskeyModal({
   return (
     <>
       <Modal
-        isOpen={isOpen}
+        open={open}
         onOpenChange={(open) => {
           if (!open) {
             onClose();
@@ -180,7 +180,7 @@ function RegisterPasskeyModal({
               variant="secondary"
               size="large"
               icon={<X />}
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={onClose}
             >
               Cancelar
@@ -190,7 +190,7 @@ function RegisterPasskeyModal({
               size="large"
               icon={<KeyRound />}
               fullWidth
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={() => void handleSubmit()}
             >
               Registrar la passkey
@@ -204,7 +204,7 @@ function RegisterPasskeyModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo registrar la passkey"
-              detail="Probá de nuevo."
+              description="Probá de nuevo."
             />
           ) : null}
           {rateLimitedSeconds !== null && (
@@ -212,7 +212,7 @@ function RegisterPasskeyModal({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(rateLimitedSeconds)}
+              description={retryAfterDetail(rateLimitedSeconds)}
             />
           )}
           <TextField
@@ -225,9 +225,9 @@ function RegisterPasskeyModal({
                 setNameError(validatePasskeyName(value));
               }
             }}
-            helperText="Por ejemplo, Teléfono de Lucía."
+            description="Por ejemplo, Teléfono de Lucía."
             required
-            {...(nameError ? { invalid: true, errorMessage: nameError } : {})}
+            errorMessage={nameError}
           />
         </div>
       </Modal>
@@ -259,7 +259,7 @@ function RemovePasskeyModal({
   authorizeSession,
   startAuthentication,
 }: RemovePasskeyModalProps) {
-  const isOpen = target !== null;
+  const open = target !== null;
   const [attemptFailed, setAttemptFailed] = useState(false);
   const [rateLimitedSeconds, setRateLimitedSeconds] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -270,12 +270,12 @@ function RemovePasskeyModal({
   });
 
   useEffect(() => {
-    if (isOpen) {
+    if (open) {
       setAttemptFailed(false);
       setRateLimitedSeconds(null);
       setSubmitting(false);
     }
-  }, [isOpen]);
+  }, [open]);
 
   async function handleConfirm() {
     if (!target) {
@@ -310,7 +310,7 @@ function RemovePasskeyModal({
   return (
     <>
       <Modal
-        isOpen={isOpen}
+        open={open}
         onOpenChange={(open) => {
           if (!open) {
             onClose();
@@ -327,18 +327,18 @@ function RemovePasskeyModal({
               variant="secondary"
               size="large"
               icon={<X />}
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={onClose}
             >
               Cancelar
             </Button>
             <Button
               variant="primary"
-              tone="destructive"
+              destructive
               size="large"
               icon={<Trash2 />}
               fullWidth
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={() => void handleConfirm()}
             >
               Dar de baja
@@ -359,7 +359,7 @@ function RemovePasskeyModal({
                 tone="error"
                 icon={<TriangleAlert />}
                 title="No se pudo dar de baja la passkey"
-                detail="Probá de nuevo."
+                description="Probá de nuevo."
               />
             ) : null}
             {rateLimitedSeconds !== null && (
@@ -367,7 +367,7 @@ function RemovePasskeyModal({
                 tone="error"
                 icon={<ShieldX />}
                 title="Demasiadas solicitudes"
-                detail={retryAfterDetail(rateLimitedSeconds)}
+                description={retryAfterDetail(rateLimitedSeconds)}
               />
             )}
           </div>
@@ -453,7 +453,7 @@ export function MyAccountScreen({
             <Button
               variant="secondary"
               icon={<Plus />}
-              isDisabled={list.kind === "loading" || hasNoPasskeys}
+              disabled={list.kind === "loading" || hasNoPasskeys}
               onPress={() => setRegisterModalOpen(true)}
             >
               Registrar otra passkey
@@ -466,7 +466,7 @@ export function MyAccountScreen({
                 tone="error"
                 icon={<TriangleAlert />}
                 title="No pudimos abrir tus passkeys"
-                detail="Probá de nuevo en unos minutos."
+                description="Probá de nuevo en unos minutos."
               />
               <Button variant="secondary" onPress={() => void load()}>
                 Reintentar
@@ -479,7 +479,7 @@ export function MyAccountScreen({
                 tone="error"
                 icon={<ShieldX />}
                 title="Demasiadas solicitudes"
-                detail={retryAfterDetail(list.retryAfterSeconds)}
+                description={retryAfterDetail(list.retryAfterSeconds)}
               />
               <Button variant="secondary" onPress={() => void load()}>
                 Reintentar
@@ -492,7 +492,7 @@ export function MyAccountScreen({
                 <InlineNotice
                   tone="warning"
                   icon={<TriangleAlert />}
-                  detail="No tenés ninguna passkey. Para volver a entrar al backoffice vas a tener que pedir el enlace de recuperación por correo."
+                  description="No tenés ninguna passkey. Para volver a entrar al backoffice vas a tener que pedir el enlace de recuperación por correo."
                 />
               ) : null}
               <ul className="flex flex-col gap-2">
@@ -523,7 +523,7 @@ export function MyAccountScreen({
         </div>
       </ScreenLayout>
       <RegisterPasskeyModal
-        isOpen={registerModalOpen}
+        open={registerModalOpen}
         onClose={() => setRegisterModalOpen(false)}
         onRegistered={() => {
           setRegisterModalOpen(false);

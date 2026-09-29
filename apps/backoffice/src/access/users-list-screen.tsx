@@ -98,7 +98,7 @@ function withFieldError(
 }
 
 type NewUserModalProps = {
-  isOpen: boolean;
+  open: boolean;
   roles: BranchUserRole[];
   onClose: () => void;
   onCreated: () => void;
@@ -111,7 +111,7 @@ type NewUserModalProps = {
 };
 
 function NewUserModal({
-  isOpen,
+  open,
   roles,
   onClose,
   onCreated,
@@ -142,7 +142,7 @@ function NewUserModal({
   });
 
   useEffect(() => {
-    if (isOpen) {
+    if (open) {
       setFirstName("");
       setEmail("");
       setRoleId(optionsRef.current?.[0].value ?? "");
@@ -151,7 +151,7 @@ function NewUserModal({
       setSubmitting(false);
       setDeactivatedConflict(null);
     }
-  }, [isOpen, optionsRef]);
+  }, [open, optionsRef]);
 
   async function handleSubmit() {
     const nameError = validateName(firstName);
@@ -221,7 +221,7 @@ function NewUserModal({
   return (
     <>
       <Modal
-        isOpen={isOpen}
+        open={open}
         onOpenChange={(open) => {
           if (!open) {
             onClose();
@@ -239,7 +239,7 @@ function NewUserModal({
               variant="secondary"
               size="large"
               icon={<X />}
-              isDisabled={submitting}
+              disabled={submitting}
               onPress={onClose}
             >
               Cancelar
@@ -249,7 +249,7 @@ function NewUserModal({
               size="large"
               icon={<KeyRound />}
               fullWidth
-              isDisabled={submitting || deactivatedConflict !== null}
+              disabled={submitting || deactivatedConflict !== null}
               onPress={() => void handleSubmit()}
             >
               Crear el usuario
@@ -263,7 +263,7 @@ function NewUserModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo crear el usuario"
-              detail="Probá de nuevo."
+              description="Probá de nuevo."
             />
           )}
           {notice?.kind === "unknownRole" && (
@@ -271,7 +271,7 @@ function NewUserModal({
               tone="error"
               icon={<TriangleAlert />}
               title="Ese rol ya no está disponible"
-              detail="Cerrá esta ventana y volvé a intentarlo."
+              description="Cerrá esta ventana y volvé a intentarlo."
             />
           )}
           {notice?.kind === "rateLimited" && (
@@ -279,7 +279,7 @@ function NewUserModal({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(notice.retryAfterSeconds)}
+              description={retryAfterDetail(notice.retryAfterSeconds)}
             />
           )}
           <TextField
@@ -295,9 +295,7 @@ function NewUserModal({
               }
             }}
             required
-            {...(fieldErrors.firstName
-              ? { invalid: true, errorMessage: fieldErrors.firstName }
-              : {})}
+            errorMessage={fieldErrors.firstName}
           />
           {options ? (
             <Select
@@ -309,7 +307,7 @@ function NewUserModal({
                 setFieldErrors((current) => withFieldError(current, "roleId", undefined));
               }}
               required
-              {...(fieldErrors.roleId ? { invalid: true, errorMessage: fieldErrors.roleId } : {})}
+              errorMessage={fieldErrors.roleId}
             />
           ) : null}
           <TextField
@@ -328,14 +326,12 @@ function NewUserModal({
               }
             }}
             required
-            {...(fieldErrors.email
-              ? { invalid: true, errorMessage: fieldErrors.email }
-              : deactivatedConflict
-                ? {
-                    invalid: true,
-                    errorMessage: `Ese correo pertenece a la cuenta desactivada de ${deactivatedConflict.name}.`,
-                  }
-                : {})}
+            errorMessage={
+              fieldErrors.email ||
+              (deactivatedConflict
+                ? `Ese correo pertenece a la cuenta desactivada de ${deactivatedConflict.name}.`
+                : undefined)
+            }
           />
           {deactivatedConflict ? (
             <Button
@@ -439,19 +435,19 @@ export function UsersListScreen({
   const baseColumns = [
     {
       key: "user",
-      title: "Usuario",
+      header: "Usuario",
       render: (item: BranchUser) => (
-        <TableCellText detail={item.email}>{item.firstName}</TableCellText>
+        <TableCellText description={item.email}>{item.firstName}</TableCellText>
       ),
     },
     {
       key: "role",
-      title: "Rol",
+      header: "Rol",
       render: (item: BranchUser) => roleDisplayName(item.role),
     },
     {
       key: "passkeys",
-      title: "Passkeys",
+      header: "Passkeys",
       render: (item: BranchUser) =>
         item.passkeyCount === 0
           ? "—"
@@ -463,14 +459,14 @@ export function UsersListScreen({
   ] as const;
   const stateColumn = {
     key: "state",
-    title: "Estado",
+    header: "Estado",
     render: (item: BranchUser) =>
       item.active === false ? <Tag tone="neutral">Inactivo</Tag> : null,
   } as const;
   const actionsColumn = {
     key: "actions",
     kind: "actions",
-    srLabel: "Acciones",
+    header: "Acciones",
     actions: [
       (item: BranchUser) => ({
         icon: access.isAdministrator ? <Pencil /> : <Eye />,
@@ -498,7 +494,7 @@ export function UsersListScreen({
               <Button
                 variant="primary"
                 icon={<Plus />}
-                isDisabled={list.kind !== "loaded" || roles.length === 0}
+                disabled={list.kind !== "loaded" || roles.length === 0}
                 onPress={() => setModalOpen(true)}
               >
                 Nuevo usuario
@@ -514,7 +510,7 @@ export function UsersListScreen({
               tone="error"
               icon={<TriangleAlert />}
               title="No pudimos abrir los usuarios"
-              detail="Probá de nuevo en unos minutos."
+              description="Probá de nuevo en unos minutos."
             />
             <Button variant="secondary" onPress={() => void load()}>
               Reintentar
@@ -527,7 +523,7 @@ export function UsersListScreen({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryAfterDetail(list.retryAfterSeconds)}
+              description={retryAfterDetail(list.retryAfterSeconds)}
             />
             <Button variant="secondary" onPress={() => void load()}>
               Reintentar
@@ -564,7 +560,7 @@ export function UsersListScreen({
         )}
       </ScreenLayout>
       <NewUserModal
-        isOpen={modalOpen}
+        open={modalOpen}
         roles={roles}
         onClose={() => setModalOpen(false)}
         onCreated={() => {

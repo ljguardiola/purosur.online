@@ -27,7 +27,8 @@
       "@purosur/domain/pricing/use-cases": ["./packages/domain/src/pricing/use-cases/index.ts"],
       "@purosur/contracts": ["./packages/contracts/src/index.ts"],
       "@purosur/ui": ["./packages/ui/src/index.ts"],
-      "@purosur/ui/test": ["./packages/ui/src/test/index.ts"]
+      "@purosur/ui/test": ["./packages/ui/src/test/index.ts"],
+      "@purosur/ui/tokens.css": ["./packages/ui/src/styles/tokens.css"]
     }
   },
   "include": [
@@ -35,8 +36,6 @@
     "packages/ui/.storybook",
     "vitest.config.ts",
     "vitest.mutation.config.ts",
-    "apps/cloud/vitest.global-setup.ts",
-    "apps/cloud/vitest.global-setup.postgres.ts",
     "packages/ui/vitest.global-setup.catalog-visual.ts",
     ".railway/railway.ts",
     ".railway/railway.test.ts"

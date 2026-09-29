@@ -6,9 +6,7 @@ import {
 import * as Sentry from "@sentry/electron/renderer";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-// packages/ui's compiled design tokens; a relative path, not a "@purosur/ui/styles/..." specifier,
-// because the packaged build's "@purosur/ui" alias already maps that whole prefix to its index.ts.
-import "../../../../packages/ui/src/styles/tokens.css";
+import "@purosur/ui/tokens.css";
 import type { PortEventSource } from "./platform/incoming-port";
 import { attachIncomingPort } from "./platform/incoming-port";
 import { App } from "./shell/app";

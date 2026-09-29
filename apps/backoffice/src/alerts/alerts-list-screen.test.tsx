@@ -1,3 +1,4 @@
+import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { act } from "react";
 import { expect, test, vi } from "vitest";
@@ -92,15 +93,17 @@ function renderScreen(
   } = {},
 ) {
   return render(
-    <main>
-      <AlertsListScreen
-        services={services}
-        onSessionEnded={onSessionEnded}
-        access={access}
-        filters={filters}
-        onFiltersChange={onFiltersChange}
-      />
-    </main>,
+    <FieldSizeProvider size="backoffice">
+      <main>
+        <AlertsListScreen
+          services={services}
+          onSessionEnded={onSessionEnded}
+          access={access}
+          filters={filters}
+          onFiltersChange={onFiltersChange}
+        />
+      </main>
+    </FieldSizeProvider>,
   );
 }
 

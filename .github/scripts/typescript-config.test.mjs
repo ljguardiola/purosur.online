@@ -10,6 +10,7 @@ const configPaths = [
   "tsconfig.json",
   "apps/backoffice/tsconfig.json",
   "apps/cloud/tsconfig.json",
+  "apps/cloud/tsconfig.test.json",
   "apps/pos/tsconfig.json",
   "packages/contracts/tsconfig.json",
   "packages/domain/tsconfig.json",

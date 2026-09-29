@@ -4,6 +4,7 @@ import * as Sentry from "@sentry/node";
 export interface SentryEnv {
   dsn?: string | undefined;
   environment?: string | undefined;
+  release?: string | undefined;
 }
 
 export interface InitSentryDeps {
@@ -20,6 +21,7 @@ export function initSentry(env: SentryEnv, deps: InitSentryDeps = {}): void {
   init({
     dsn: env.dsn,
     environment: env.environment,
+    release: env.release,
     beforeSend: scrubErrorReport,
   });
 }

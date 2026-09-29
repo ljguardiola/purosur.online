@@ -53,6 +53,12 @@
       "style": {
         "useArrayLiterals": "error",
         "useComponentExportOnlyModules": "off",
+        "useFilenamingConvention": {
+          "level": "error",
+          "options": {
+            "filenameCases": ["kebab-case"]
+          }
+        },
         "useExponentiationOperator": "error",
         "useNodejsImportProtocol": "error",
         "useReactFunctionComponents": "error",
