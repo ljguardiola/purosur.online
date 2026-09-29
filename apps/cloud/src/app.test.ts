@@ -993,9 +993,12 @@ describe("wiring the registers routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
 
+    const coverage = await app.inject({ method: "GET", url: "/registers/coverage" });
+
     expect(list.statusCode).toBe(404);
     expect(create.statusCode).toBe(404);
     expect(emitCode.statusCode).toBe(404);
+    expect(coverage.statusCode).toBe(404);
   });
 
   it("registers the registers routes when a registers option is given", async () => {
@@ -1016,9 +1019,12 @@ describe("wiring the registers routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
 
+    const coverage = await app.inject({ method: "GET", url: "/registers/coverage" });
+
     expect(list.statusCode).toBe(401);
     expect(create.statusCode).toBe(401);
     expect(emitCode.statusCode).toBe(401);
+    expect(coverage.statusCode).toBe(401);
   });
 });
 
@@ -1434,6 +1440,11 @@ describe("the route access inventory", () => {
       {
         method: "POST",
         url: "/registers",
+        access: permissionAccess("enroll_register_devices"),
+      },
+      {
+        method: "GET",
+        url: "/registers/coverage",
         access: permissionAccess("enroll_register_devices"),
       },
       {
