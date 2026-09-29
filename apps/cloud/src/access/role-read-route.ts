@@ -1,10 +1,11 @@
+import { type RoleDetailWire, roleDetailSchema } from "@purosur/contracts";
 import { PERMISSION_KEYS } from "@purosur/domain";
 import { and, asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { rolePermissions, roles, userRoles, users } from "../platform/db/schema.js";
 import { sameOriginGuard } from "./backoffice-origin.js";
-import type { RoleSummaryRow, RoleSummaryWire, RolesRouteOptions } from "./roles-list-route.js";
+import type { RoleSummaryRow, RolesRouteOptions } from "./roles-list-route.js";
 import { toRoleSummaryWire } from "./roles-list-route.js";
 import { ADMINISTRATOR_ACCESS, registerRouteAccess, routeSessionSource } from "./route-access.js";
 
@@ -25,13 +26,12 @@ export interface RoleDetailRow extends RoleSummaryRow {
   assignedUsers: AssignedUser[];
 }
 
-export interface RoleDetailWire extends RoleSummaryWire {
-  version: number;
-  assigned_users: AssignedUser[];
-}
-
 export function toRoleDetailWire(row: RoleDetailRow): RoleDetailWire {
-  return { ...toRoleSummaryWire(row), version: row.version, assigned_users: row.assignedUsers };
+  return roleDetailSchema.parse({
+    ...toRoleSummaryWire(row),
+    version: row.version,
+    assigned_users: row.assignedUsers,
+  });
 }
 
 export async function listRoleUsers<TQueryResult extends PgQueryResultHKT>(
