@@ -26,7 +26,9 @@ never restates those rules. Every step follows the strict TDD order in
   state; read the story to see the exact props that produce that state.
 - Each story has an approved screenshot in
   `packages/ui/src/__screenshots__/catalog-screenshots.visual.tsx/`, named
-  `<story-id>-chromium.png`; they show a state without running the catalog.
+  after the story (`components-button-primary-chromium.png` for
+  `Components/Button`'s Primary); they show a state without running the
+  catalog.
 - The screen's frame comes from the backoffice's `shell/`: `ScreenLayout`
   (`screen-layout.tsx`) and `ScreenTitle` (`screen-title.tsx`). A screen
   that cannot open at all — its code fails to download or its route throws —
@@ -57,8 +59,9 @@ offers:
   (`packages/ui/src/components/forms/field-error.ts`).
 - A result shown where the action was taken, such as inside its `Modal`:
   `InlineNotice` or `NotificationCard`, with the `tone` of the outcome.
-- A transient result for the whole screen: `NotificationCard` with
-  `floating`.
+- A result for the whole screen: `NotificationCard` with `floating`. The
+  design system gives the card only; where it floats and how long it stays
+  are not in `packages/ui` yet: see step 4.
 - A question before an action goes ahead: `Modal` with
   `width="confirmation"`.
 
@@ -80,18 +83,16 @@ that handles a state some other way is not a precedent.
   `.github/scripts/no-arbitrary-tailwind-values.mjs` rejects them in
   `packages/ui`, the backoffice and the register's renderer, and
   `pnpm verify` runs it.
-- Text follows "Code style" in `CONTRIBUTING.md`: the screen passes its own
-  text to the components as props.
+- Text follows "Code style" in `CONTRIBUTING.md`.
 
 ## 4. When the design system lacks a piece or a state
 
 Never build it inside the screen, and never approximate it with markup and
-classes of your own. Add it to `packages/ui` first, as its own commit before
-the screen uses it:
+classes of your own. Add it to `packages/ui` first:
 
 1. A failing browser test beside it (`<component>.test.tsx`), including an
    accessibility check with `expectNoAccessibilityViolations` from
-   `@purosur/ui/test`.
+   `packages/ui/src/test/axe.ts`.
 2. The component or state in its purpose folder, typed with the shared
    contracts where they apply, exported from `packages/ui/src/index.ts`.
 3. A story for every state in `<component>.stories.tsx`;
