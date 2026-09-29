@@ -52,3 +52,17 @@ export function fieldBoxStateClassName({
 export function disabledTextProps(disabled: boolean): { "aria-disabled"?: true } {
   return disabled ? { "aria-disabled": true } : {};
 }
+
+export const menuSurfaceClassName = "rounded-lg border border-border bg-surface shadow-lg";
+
+// react-aria-components portals a popover to the document body as its own, separately stacked
+// layer: with no z-index of its own it would paint below any sibling with a real positive
+// z-index, since a positive z-index always wins that comparison over an auto one.
+export const menuPopoverStyle = { zIndex: "var(--z-index-popover)" };
+
+export const menuOptionClassName =
+  "flex h-control-lg cursor-pointer items-center justify-between rounded-md px-3 text-detail font-semibold " +
+  "text-text outline-none data-hovered:bg-surface-subtle data-focus-visible:bg-surface-subtle " +
+  "data-selected:bg-action-subtle data-selected:text-text-accent " +
+  "data-hovered:data-selected:bg-action-subtle " +
+  "data-focus-visible:data-selected:bg-action-subtle";
