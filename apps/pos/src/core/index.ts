@@ -1,3 +1,6 @@
+import { randomUUID } from "node:crypto";
+import { hostname, release, version } from "node:os";
+import { setTimeout as sleep } from "node:timers/promises";
 import {
   mainToCoreMessageSchema,
   rendererToCoreMessageSchema,
@@ -6,9 +9,14 @@ import {
   scrubErrorReportLog,
 } from "@purosur/contracts";
 import * as Sentry from "@sentry/electron/utility";
-import { sentryEnvironmentFromCoreArguments } from "../shared/channel";
+import { net } from "electron";
+import { cloudUrlFromCoreArguments, sentryEnvironmentFromCoreArguments } from "../shared/channel";
 import { CORE_READY_MESSAGE } from "../shared/core-readiness";
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
+import { postToCloud } from "./platform/cloud-client";
+import { createMainRequests } from "./platform/main-requests";
+import { enroll, generatePepper, installationReportFrom } from "./register/enrollment";
+import { answerRendererRequest } from "./register/renderer-requests";
 import { createRendererConnection } from "./renderer-connection";
 
 // No DSN here: @sentry/electron's utility SDK hands every envelope to main, which owns the
@@ -40,16 +48,55 @@ const gateFromRenderer = createMessageGate(rendererToCoreMessageSchema, recorder
 
 function handleMainMessage(): void {}
 
-function handleRendererMessage(): void {}
+const mainRequests = createMainRequests({
+  post: (message) => process.parentPort.postMessage(message),
+  newRequestId: randomUUID,
+});
 
-const rendererConnection = createRendererConnection((data) => {
-  gateFromRenderer(data, handleRendererMessage);
+const cloudUrl = cloudUrlFromCoreArguments(process.argv);
+if (cloudUrl === undefined) {
+  console.error("core: no cloud configured for this channel, so it can't enroll");
+}
+
+const rendererRequestDeps = {
+  credentialsPresent: () => mainRequests.credentialsPresent(),
+  enroll: (typedCode: string) =>
+    enroll(
+      {
+        postToCloud:
+          cloudUrl === undefined
+            ? undefined
+            : (path, body) =>
+                postToCloud(
+                  { cloudUrl, fetch: (input, init) => net.fetch(input, init), sleep },
+                  path,
+                  body,
+                ),
+        installationReport: () => installationReportFrom({ hostname, version, release }),
+        generatePepper,
+        storeCredentials: (credentials) => mainRequests.storeCredentials(credentials),
+      },
+      typedCode,
+    ),
+};
+
+const rendererConnection = createRendererConnection((data, reply) => {
+  gateFromRenderer(data, (message) => {
+    void answerRendererRequest(rendererRequestDeps, message).then((answer) => {
+      if (answer !== undefined) {
+        reply(answer);
+      }
+    });
+  });
 });
 
 process.parentPort.on("message", (event) => {
   const [rendererPort] = event.ports;
   if (rendererPort) {
     rendererConnection.adopt(rendererPort);
+    return;
+  }
+  if (mainRequests.receive(event.data)) {
     return;
   }
 
