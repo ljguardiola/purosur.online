@@ -45,8 +45,11 @@ function inTreeOrder<T>(
   const childrenByParent = new Map<string, T[]>();
   for (const item of items) {
     const parent = parentId(item);
-    if (parent !== null && ids.has(parent)) {
-      childrenByParent.set(parent, [...(childrenByParent.get(parent) ?? []), item]);
+    const siblings = parent === null ? undefined : childrenByParent.get(parent);
+    if (siblings !== undefined) {
+      siblings.push(item);
+    } else if (parent !== null && ids.has(parent)) {
+      childrenByParent.set(parent, [item]);
     } else {
       roots.push(item);
     }
@@ -60,7 +63,7 @@ function inTreeOrder<T>(
     }
     visited.add(id(item));
     ordered.push(item);
-    for (const child of [...(childrenByParent.get(id(item)) ?? [])].sort(order)) {
+    for (const child of (childrenByParent.get(id(item)) ?? []).sort(order)) {
       walk(child);
     }
   }
@@ -68,8 +71,8 @@ function inTreeOrder<T>(
   for (const root of roots.sort(order)) {
     walk(root);
   }
-  // A missing parent makes an item a root above; only a cycle leaves items unreached here.
-  for (const unreached of [...items].sort(order)) {
+  // Only a cycle leaves items unreached from the roots.
+  for (const unreached of items.filter((item) => !visited.has(id(item))).sort(order)) {
     walk(unreached);
   }
   return ordered;
@@ -92,6 +95,10 @@ function searchMatcher<T>(search: TableRowsOptions<T, string>["search"]): (item:
   return (item) => search.in(item).some((text) => text.toLowerCase().includes(query));
 }
 
+function wholeAtLeastOne(value: number): number {
+  return Math.max(Math.trunc(value) || 1, 1);
+}
+
 export function tableRows<T, K extends string = never>({
   items,
   id,
@@ -111,9 +118,9 @@ export function tableRows<T, K extends string = never>({
   const matchesSearch = searchMatcher(search);
   const matches = ordered.filter((item) => matchesSearch(item) && filter(item));
 
-  const pageSize = page?.size ?? Math.max(matches.length, 1);
+  const pageSize = page === undefined ? Math.max(matches.length, 1) : wholeAtLeastOne(page.size);
   const pageCount = Math.max(Math.ceil(matches.length / pageSize), 1);
-  const pageNumber = Math.min(Math.max(page?.number ?? 1, 1), pageCount);
+  const pageNumber = Math.min(wholeAtLeastOne(page?.number ?? 1), pageCount);
   const shown = matches.slice((pageNumber - 1) * pageSize, pageNumber * pageSize);
 
   return {

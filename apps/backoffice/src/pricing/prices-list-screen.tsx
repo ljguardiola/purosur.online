@@ -70,6 +70,8 @@ const NO_CATEGORIES: PriceCategory[] = [];
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SEARCH_DEBOUNCE_MS = 300;
 
+const categoryNameOrder = textOrder((category: PriceCategory) => category.name);
+
 const AMOUNT_INVALID = "Ingresá un precio válido, mayor a cero.";
 const AMOUNT_UNCHANGED = "Es el precio actual: confirmalo sin cambios en vez de guardarlo.";
 
@@ -665,7 +667,7 @@ export function PricesListScreen({
 
   const categoryFilterOptions = (() => {
     const sorted = sortedItems(categories, {
-      order: textOrder((category) => category.name),
+      order: categoryNameOrder,
       direction: "ascending",
     });
     return [

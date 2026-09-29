@@ -21,15 +21,15 @@ describe("tableRows", () => {
   });
 
   it("keeps the items whose texts contain the search, ignoring case and surrounding spaces", () => {
-    const items = [fruit("1", "Manzana", ["779"]), fruit("2", "Pera"), fruit("3", "Banana")];
+    const items = [fruit("1", "MANZANA", ["779"]), fruit("2", "Pera"), fruit("3", "Banana")];
 
     const { rows } = tableRows({
       items,
       id: byId,
-      search: { text: "  ANA ", in: (item) => [item.name, ...item.codes] },
+      search: { text: "  aNa ", in: (item) => [item.name, ...item.codes] },
     });
 
-    expect(names(rows)).toEqual(["Manzana", "Banana"]);
+    expect(names(rows)).toEqual(["MANZANA", "Banana"]);
   });
 
   it("matches the search against any of an item's texts", () => {
@@ -127,7 +127,7 @@ describe("tableRows", () => {
     expect(descending.rows.map((row) => row.id)).toEqual(["1", "3", "2"]);
   });
 
-  it("counts every item the search and filter leave", () => {
+  it("counts every item the search leaves, not only the page shown", () => {
     const items = [fruit("1", "Manzana"), fruit("2", "Banana"), fruit("3", "Pera")];
 
     const { matchCount } = tableRows({
@@ -151,7 +151,7 @@ describe("tableRows", () => {
       expect(result.pageCount).toBe(3);
     });
 
-    it("pages the rows the search leaves, after ordering them", () => {
+    it("pages the rows the filter leaves, after ordering them", () => {
       const result = tableRows({
         items: [...items].reverse(),
         id: byId,
@@ -179,6 +179,27 @@ describe("tableRows", () => {
 
       expect(names(result.rows)).toEqual(["A", "B"]);
       expect(result.page).toBe(1);
+    });
+
+    it("shows one row per page for a page size below one", () => {
+      const result = tableRows({ items, id: byId, page: { number: 2, size: 0 } });
+
+      expect(names(result.rows)).toEqual(["B"]);
+      expect(result.pageCount).toBe(5);
+    });
+
+    it("shows the first page for a page number that is not a number", () => {
+      const result = tableRows({ items, id: byId, page: { number: Number.NaN, size: 2 } });
+
+      expect(names(result.rows)).toEqual(["A", "B"]);
+      expect(result.page).toBe(1);
+    });
+
+    it("rounds a fractional page number and page size down", () => {
+      const result = tableRows({ items, id: byId, page: { number: 2.7, size: 2.5 } });
+
+      expect(names(result.rows)).toEqual(["C", "D"]);
+      expect(result.page).toBe(2);
     });
 
     it("has one empty page when nothing matches", () => {
