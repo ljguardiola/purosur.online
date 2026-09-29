@@ -1,4 +1,4 @@
-import type { BranchSettingsEditBody } from "@purosur/contracts";
+import { type BranchSettingsEditBody, branchSettingsEditBodySchema } from "@purosur/contracts";
 import {
   BRANCH_SETTINGS_DAYS_MAX,
   BRANCH_SETTINGS_TEXT_MAX_LENGTH,
@@ -129,13 +129,39 @@ export const REQUEST_FIELDS = {
 
 const TEXT_TOO_LONG = `Ingresá como mucho ${BRANCH_SETTINGS_TEXT_MAX_LENGTH} caracteres.`;
 
+type TextField = "address" | "whatsappNumber" | "instagramHandle";
+
+const TEXT_WIRE_FIELDS = {
+  address: "address",
+  whatsappNumber: "whatsapp_number",
+  instagramHandle: "instagram_handle",
+} as const;
+
+function textMessage(field: TextField, review: string) {
+  return (values: BranchSettingsValues): string =>
+    branchSettingsEditBodySchema.shape[TEXT_WIRE_FIELDS[field]].safeParse(values[field]).success
+      ? review
+      : TEXT_TOO_LONG;
+}
+
 type DaysField = "expiringLotAlertDays" | "unreviewedPriceAlertDays" | "goodConditionReturnDays";
 
+const DAYS_WIRE_FIELDS = {
+  expiringLotAlertDays: "expiring_lot_alert_days",
+  unreviewedPriceAlertDays: "unreviewed_price_alert_days",
+  goodConditionReturnDays: "good_condition_return_days",
+} as const;
+
 function daysMessage(field: DaysField) {
-  return (values: BranchSettingsValues): string =>
-    wireDays(values[field]) > BRANCH_SETTINGS_DAYS_MAX
+  return (values: BranchSettingsValues): string => {
+    const days = wireDays(values[field]);
+    if (branchSettingsEditBodySchema.shape[DAYS_WIRE_FIELDS[field]].safeParse(days).success) {
+      return "Revisá el número de días.";
+    }
+    return days > BRANCH_SETTINGS_DAYS_MAX
       ? "Ingresá un número de días más chico."
       : "Ingresá un número entero de 0 días o más.";
+  };
 }
 
 function hoursMessage(day: BranchDay) {
@@ -160,9 +186,9 @@ function hoursMessage(day: BranchDay) {
 }
 
 export const MESSAGES = {
-  address: TEXT_TOO_LONG,
-  whatsappNumber: TEXT_TOO_LONG,
-  instagramHandle: TEXT_TOO_LONG,
+  address: textMessage("address", "Revisá la dirección."),
+  whatsappNumber: textMessage("whatsappNumber", "Revisá el número de WhatsApp."),
+  instagramHandle: textMessage("instagramHandle", "Revisá el usuario de Instagram."),
   monday: hoursMessage("monday"),
   tuesday: hoursMessage("tuesday"),
   wednesday: hoursMessage("wednesday"),

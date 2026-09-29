@@ -572,7 +572,7 @@ test("shows a server validation_failed error on the named field", async () => {
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
 
-  await expect.element(dialog.getByText("Ingresá un correo válido.")).toBeVisible();
+  await expect.element(dialog.getByText("Revisá el correo.")).toBeVisible();
 });
 
 test("rejects an email longer than any address can be, without calling the API", async () => {
@@ -608,7 +608,8 @@ test("shows a server validation_failed error for the name on Nombre", async () =
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
 
-  await expect.element(dialog.getByText("Ingresá el nombre.")).toBeVisible();
+  await expect.element(dialog.getByText("Revisá el nombre.")).toBeVisible();
+  expect(dialog.getByText("Ingresá el nombre.").query()).toBeNull();
 });
 
 test("shows the generic failure notice when the cloud refuses a field the form does not have", async () => {

@@ -33,6 +33,16 @@ const NO_REGISTERS: RegisterSummary[] = [];
 const NEW_REGISTER_NAME_REQUIRED = "Ingresá el nombre de la caja.";
 const NEW_REGISTER_NAME_TOO_LONG = `El nombre puede tener hasta ${REGISTER_NAME_MAX_LENGTH} caracteres.`;
 
+function registerNameMessage({ name }: { name: string }): string {
+  const trimmed = name.trim();
+  if (trimmed === "") {
+    return NEW_REGISTER_NAME_REQUIRED;
+  }
+  return isRegisterNameTooLong(trimmed)
+    ? NEW_REGISTER_NAME_TOO_LONG
+    : "Revisá el nombre de la caja.";
+}
+
 const PENDING_CODE_REFRESH_MS = 30_000;
 
 function minutesElapsed(issuedAt: string, now: Date): number {
@@ -81,12 +91,7 @@ function NewRegisterModal({
     defaultValues: { name: "" },
     request: { schema: registerCreationBodySchema, from: ({ name }) => ({ name }) },
     fields: { name: "name" },
-    messages: {
-      name: ({ name }) =>
-        isRegisterNameTooLong(name.trim())
-          ? NEW_REGISTER_NAME_TOO_LONG
-          : NEW_REGISTER_NAME_REQUIRED,
-    },
+    messages: { name: registerNameMessage },
     onSubmit: async (request, { showWireFieldError, showFieldError }) => {
       setNotice(null);
       const outcome = await run(() => createRegister(request));

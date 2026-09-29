@@ -528,7 +528,7 @@ test("shows the passkey name the cloud refused on the name field, still reading 
   await fillName(screen, PASSKEY_NAME);
   await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
 
-  await expect.element(screen.getByText("Ingresá un nombre para la passkey.")).toBeVisible();
+  await expect.element(screen.getByText("Revisá el nombre de la passkey.")).toBeVisible();
   expect(screen.getByText("No se pudo registrar la passkey").query()).toBeNull();
   await expect.poll(() => fetchRegistrationOptions.mock.calls.length).toBe(2);
   expect(services.signalUnknownCredential).toHaveBeenCalledWith({

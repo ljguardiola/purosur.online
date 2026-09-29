@@ -423,7 +423,8 @@ test("shows the server's validation_failed error on create and does not add the 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la caja/ }), "Caja 2");
   await userEvent.click(dialog.getByRole("button", { name: "Crear la caja" }));
 
-  await expect.element(dialog.getByText("Ingresá el nombre de la caja.")).toBeVisible();
+  await expect.element(dialog.getByText("Revisá el nombre de la caja.")).toBeVisible();
+  expect(dialog.getByText("Ingresá el nombre de la caja.").query()).toBeNull();
   await expect.element(screen.getByRole("dialog")).toBeVisible();
   await expect.element(screen.getByText("1 caja")).toBeVisible();
 });

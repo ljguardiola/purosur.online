@@ -586,7 +586,7 @@ test("shows a server-rejected email on Correo", async () => {
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@purosur.online");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
-  await expect.element(dialog.getByText("Ingresá un correo válido.")).toBeVisible();
+  await expect.element(dialog.getByText("Revisá el correo.")).toBeVisible();
 });
 
 test("shows a server-rejected version as a failed notice, leaving Correo without an error", async () => {

@@ -983,7 +983,7 @@ test("refuses a text longer than the limit under its field, without saving", asy
   expect(services.saveBranchSettings).not.toHaveBeenCalled();
 });
 
-test("shows a cloud error on the text field it names, with the same wording as the local check", async () => {
+test("shows a cloud error on the text field it names, asking to review a text that passes the local check", async () => {
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
   vi.mocked(services.saveBranchSettings).mockResolvedValue({
@@ -999,13 +999,13 @@ test("shows a cloud error on the text field it names, with the same wording as t
 
   await expect
     .element(screen.getByRole("textbox", { name: "Instagram" }))
-    .toHaveAccessibleDescription(TEXT_TOO_LONG);
+    .toHaveAccessibleDescription("Revisá el usuario de Instagram.");
   await expect
     .element(screen.getByRole("textbox", { name: "WhatsApp" }))
     .not.toHaveAttribute("aria-invalid", "true");
 });
 
-test("shows a cloud error on a days field with the wording its value calls for", async () => {
+test("shows a cloud error on a days field asking to review a number that passes the local check", async () => {
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
   vi.mocked(services.saveBranchSettings).mockResolvedValue({
@@ -1019,7 +1019,7 @@ test("shows a cloud error on a days field with the wording its value calls for",
 
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
 
-  await expect.element(screen.getByText("Ingresá un número entero de 0 días o más.")).toBeVisible();
+  await expect.element(screen.getByText("Revisá el número de días.")).toBeVisible();
   await expect
     .element(screen.getByRole("textbox", { name: "Aviso de vencimiento" }))
     .toHaveAttribute("aria-invalid", "true");

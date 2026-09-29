@@ -17,6 +17,7 @@ export type AccountRecoveryScreenProps = {
 const EMAIL_MESSAGE = emailFieldMessage({
   required: "Ingresá tu correo.",
   invalid: "Ingresá un correo válido.",
+  review: "Revisá tu correo.",
 });
 
 export function AccountRecoveryScreen({ services }: AccountRecoveryScreenProps) {

@@ -412,7 +412,7 @@ test("shows the passkey name the cloud refused on the name field, not as a notic
   await userEvent.fill(dialog.getByRole("textbox"), "Teléfono de Lucía");
   await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
 
-  await expect.element(dialog.getByText("Ingresá un nombre para la passkey.")).toBeVisible();
+  await expect.element(dialog.getByText("Revisá el nombre de la passkey.")).toBeVisible();
   expect(dialog.getByText("No se pudo registrar la passkey").query()).toBeNull();
   expect(services.signalUnknownCredential).toHaveBeenCalledWith({
     rpId: "purosur.online",

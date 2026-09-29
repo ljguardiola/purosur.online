@@ -633,10 +633,11 @@ test("shows a field error from the server and keeps the modal open", async () =>
 
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
-  await expect.element(dialog.getByText("Ingresá como mucho 200 caracteres.")).toBeVisible();
+  await expect.element(dialog.getByText("Revisá la razón social.")).toBeVisible();
+  expect(dialog.getByText(/Ingresá como mucho/).query()).toBeNull();
 });
 
-test("shows a cloud error on the activity start date's field with the future-date wording", async () => {
+test("shows a cloud error on the activity start date's field asking to review a date that is not in the future", async () => {
   const services = createServices();
   vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
   vi.mocked(services.saveIssuerIdentification).mockResolvedValue({
@@ -649,7 +650,8 @@ test("shows a cloud error on the activity start date's field with the future-dat
 
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
-  await expect.element(dialog.getByText("La fecha no puede ser futura.")).toBeVisible();
+  await expect.element(dialog.getByText("Revisá la fecha de inicio de actividades.")).toBeVisible();
+  expect(dialog.getByText("La fecha no puede ser futura.").query()).toBeNull();
 });
 
 test("a cloud error on a field clears as soon as that field is edited", async () => {
@@ -663,12 +665,12 @@ test("a cloud error on a field clears as soon as that field is edited", async ()
   await userEvent.click(screen.getByRole("button", { name: "Editar" }));
   const dialog = screen.getByRole("dialog");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
-  await expect.element(dialog.getByText("Ingresá como mucho 100 caracteres.")).toBeVisible();
+  await expect.element(dialog.getByText("Revisá el número de Ingresos Brutos.")).toBeVisible();
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Ingresos Brutos/ }), "1284531-07");
 
   await expect
-    .element(dialog.getByText("Ingresá como mucho 100 caracteres."))
+    .element(dialog.getByText("Revisá el número de Ingresos Brutos."))
     .not.toBeInTheDocument();
 });
 

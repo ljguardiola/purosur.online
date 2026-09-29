@@ -56,7 +56,9 @@ export type UsersListScreenProps = {
 const NO_USERS: BranchUser[] = [];
 const NO_ROLES: BranchUserRole[] = [];
 
-const NAME_REQUIRED = "Ingresá el nombre.";
+function firstNameMessage({ firstName }: { firstName: string }): string {
+  return firstName.trim() === "" ? "Ingresá el nombre." : "Revisá el nombre.";
+}
 
 type FormNotice =
   | { kind: "attemptFailed" }
@@ -113,7 +115,7 @@ function NewUserModal({
       }),
     },
     fields: { first_name: "firstName", email: "email", role_id: "roleId" },
-    messages: { firstName: NAME_REQUIRED, email: userEmailMessage, roleId: roleFieldMessage },
+    messages: { firstName: firstNameMessage, email: userEmailMessage, roleId: roleFieldMessage },
     onSubmit: async (request, { values, showWireFieldError, showFieldError }) => {
       setNotice(null);
       setDeactivatedConflict(null);

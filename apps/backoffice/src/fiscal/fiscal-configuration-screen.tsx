@@ -4,6 +4,9 @@ import {
   argentinaCalendarDay,
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
+  isIssuerIdentificationActivityStartDate,
+  isIssuerIdentificationGrossIncomeRegistrationTooLong,
+  isIssuerIdentificationLegalNameTooLong,
 } from "@purosur/domain";
 import {
   Button,
@@ -116,19 +119,34 @@ function valuesFrom(value: IssuerIdentification): ModalValues {
 }
 
 function legalNameMessage({ legalName }: ModalValues): string {
-  return legalName.trim() === "" ? "Ingresá la razón social." : LEGAL_NAME_TOO_LONG_ERROR;
+  const trimmed = legalName.trim();
+  if (trimmed === "") {
+    return "Ingresá la razón social.";
+  }
+  return isIssuerIdentificationLegalNameTooLong(trimmed)
+    ? LEGAL_NAME_TOO_LONG_ERROR
+    : "Revisá la razón social.";
 }
 
 function grossIncomeRegistrationMessage({ grossIncomeRegistration }: ModalValues): string {
-  return grossIncomeRegistration.trim() === ""
-    ? "Ingresá el número de Ingresos Brutos."
-    : GROSS_INCOME_REGISTRATION_TOO_LONG_ERROR;
+  const trimmed = grossIncomeRegistration.trim();
+  if (trimmed === "") {
+    return "Ingresá el número de Ingresos Brutos.";
+  }
+  return isIssuerIdentificationGrossIncomeRegistrationTooLong(trimmed)
+    ? GROSS_INCOME_REGISTRATION_TOO_LONG_ERROR
+    : "Revisá el número de Ingresos Brutos.";
 }
 
-function activityStartDateMessage({ activityStartDate }: ModalValues): string {
-  return activityStartDate === null
-    ? "Elegí la fecha de inicio de actividades."
-    : ACTIVITY_START_DATE_FUTURE_ERROR;
+function activityStartDateMessage(today: Date) {
+  return ({ activityStartDate }: ModalValues): string => {
+    if (activityStartDate === null) {
+      return "Elegí la fecha de inicio de actividades.";
+    }
+    return isIssuerIdentificationActivityStartDate(activityStartDate.toString(), today)
+      ? "Revisá la fecha de inicio de actividades."
+      : ACTIVITY_START_DATE_FUTURE_ERROR;
+  };
 }
 
 type EditIssuerIdentificationModalProps = {
@@ -190,7 +208,7 @@ function EditIssuerIdentificationModal({
     messages: {
       legalName: legalNameMessage,
       grossIncomeRegistration: grossIncomeRegistrationMessage,
-      activityStartDate: activityStartDateMessage,
+      activityStartDate: activityStartDateMessage(openedAt),
     },
     onSubmit: async (request, { showWireFieldError }) => {
       setNotice(null);

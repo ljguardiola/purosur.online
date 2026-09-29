@@ -75,7 +75,7 @@ test("shows the email the cloud refused on the email field, not as a notice", as
   await fillEmail(screen, "lucia.perez@purosur.online");
   await userEvent.click(screen.getByRole("button", { name: "Enviar el enlace" }));
 
-  await expect.element(screen.getByText("Ingresá un correo válido.")).toBeVisible();
+  await expect.element(screen.getByText("Revisá tu correo.")).toBeVisible();
   await expect.element(screen.getByText("No pudimos enviar el enlace")).not.toBeInTheDocument();
 });
 
