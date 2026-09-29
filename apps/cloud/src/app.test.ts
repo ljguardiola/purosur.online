@@ -3,6 +3,7 @@ import { request as httpRequest } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { healthCheckSchema } from "@purosur/contracts";
 import { PERMISSION_KEYS } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -21,6 +22,7 @@ import { SESSION_COOKIE_NAME } from "./access/session-cookie.js";
 import { generateSessionId, hashSessionId } from "./access/session-id.js";
 import { buildApp as buildRealApp } from "./app.js";
 import { rolePermissions, roles, sessions, userRoles, users } from "./platform/db/schema.js";
+import { insertEnrolledInstallation } from "./register/test-support/enrolled-installation.js";
 import {
   buildTestApp as buildApp,
   TEST_EDGE_ORIGIN_SECRET,
@@ -50,6 +52,20 @@ describe("GET /health", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ status: "ok", version: "abc1234" });
+  });
+
+  it("reaches the enrolled installations when the device routes are wired", async () => {
+    const { deviceToken } = await insertEnrolledInstallation(testDatabase.db);
+    const app = buildApp({ version: "abc1234", devices: { db: testDatabase.db } });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/health",
+      headers: { authorization: `Bearer ${deviceToken}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(healthCheckSchema.parse(response.json()).installation).toEqual({ revoked: false });
   });
 });
 
@@ -1250,7 +1266,6 @@ describe("the route access inventory", () => {
     await app.ready();
 
     expect(app.routeAccessInventory()).toEqual([
-      { method: "GET", url: "/health", access: PUBLIC_ACCESS },
       { method: "GET", url: "/error-reporting", access: PUBLIC_ACCESS },
       { method: "POST", url: "/users/recovery/request", access: PUBLIC_ACCESS },
       { method: "POST", url: "/users/recovery/registration-options", access: PUBLIC_ACCESS },
@@ -1425,6 +1440,7 @@ describe("the route access inventory", () => {
         url: "/registers/:id/enrollment-code",
         access: permissionAccess("enroll_register_devices"),
       },
+      { method: "GET", url: "/health", access: PUBLIC_ACCESS },
       { method: "POST", url: "/devices/enroll", access: PUBLIC_ACCESS },
       { method: "HEAD", url: "/*", access: PUBLIC_ACCESS },
       { method: "GET", url: "/*", access: PUBLIC_ACCESS },

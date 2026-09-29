@@ -43,6 +43,7 @@ describe("cloudErrorSchema", () => {
 describe("cloudErrorStatus", () => {
   it.each([
     ["validation_failed", 400],
+    ["device_token_rejected", 401],
     ["enrollment_code_rejected", 403],
     ["rate_limited", 429],
     ["internal_error", 500],
@@ -62,6 +63,7 @@ describe("isRetryableCloudError", () => {
     ["server_unavailable", true],
     ["validation_failed", false],
     ["enrollment_code_rejected", false],
+    ["device_token_rejected", false],
     ["internal_error", false],
   ] as const)("marks %s as retryable: %s", (code, retryable) => {
     expect(isRetryableCloudError(code)).toBe(retryable);

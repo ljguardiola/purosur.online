@@ -2,6 +2,7 @@ import { z } from "zod";
 
 const CLOUD_ERRORS = {
   validation_failed: { status: 400, retryable: false },
+  device_token_rejected: { status: 401, retryable: false },
   enrollment_code_rejected: { status: 403, retryable: false },
   rate_limited: { status: 429, retryable: true },
   internal_error: { status: 500, retryable: false },

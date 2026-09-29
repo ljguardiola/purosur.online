@@ -113,6 +113,8 @@ export {
   deviceEnrollmentBodySchema,
   deviceEnrollmentSchema,
 } from "./register/device-enrollment.js";
+export type { HealthCheck } from "./register/health-check.js";
+export { healthCheckSchema } from "./register/health-check.js";
 export type { RegisterCreationBody } from "./register/register-creation.js";
 export { registerCreationBodySchema } from "./register/register-creation.js";
 export type { RegisterEnrollmentCodeBody } from "./register/register-enrollment-code.js";
