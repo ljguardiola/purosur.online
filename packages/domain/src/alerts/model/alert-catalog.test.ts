@@ -9,13 +9,14 @@ import {
 } from "./alert-catalog.js";
 
 describe("ALERT_KINDS", () => {
-  it("lists exactly the five security-fact kinds a backoffice account can raise", () => {
+  it("lists exactly the security-fact kinds a backoffice account or a register enrollment can raise", () => {
     expect(ALERT_KINDS).toEqual([
       "backoffice_passkey_changed",
       "backoffice_recovery_requested",
       "user_email_changed",
       "backoffice_sign_in_lockout",
       "user_access_increased",
+      "register_enrolled",
     ]);
   });
 });

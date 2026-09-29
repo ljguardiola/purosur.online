@@ -30,7 +30,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
-import { alerts, users } from "../platform/db/schema.js";
+import { alerts, registers, users } from "../platform/db/schema.js";
 import { ALERT_KIND_CATALOG, type AlertScopeKind } from "./alert-kind-catalog.js";
 import { loadScopeDisplayNames, scopeDisplay, wireScope } from "./alert-scope-display.js";
 import { canSeeAnyAlerts, visibleAlertsCondition } from "./alert-visibility.js";
@@ -56,13 +56,13 @@ interface AlertSummaryRow {
 
 function toAlertSummary(
   row: AlertSummaryRow,
-  namesByUserId: ReadonlyMap<string, string>,
+  namesById: ReadonlyMap<string, string>,
 ): AlertSummary {
   return {
     id: row.id,
     kind: row.kind,
     scope: wireScope(row),
-    scopeDisplay: scopeDisplay(row, namesByUserId),
+    scopeDisplay: scopeDisplay(row, namesById),
     level: row.level,
     audience: row.audience,
     openedAt: row.openedAt.toISOString(),
@@ -113,11 +113,19 @@ function searchCondition<TQueryResult extends PgQueryResultHKT>(
     .select({ id: sql<string>`${users.id}::text` })
     .from(users)
     .where(ilike(users.firstName, pattern));
+  const matchingRegisterIds = db
+    .select({ id: sql<string>`${registers.id}::text` })
+    .from(registers)
+    .where(ilike(registers.name, pattern));
   return or(
     search.kindsWithMatchingTitle.length > 0
       ? inArray(alerts.kind, [...search.kindsWithMatchingTitle])
       : undefined,
     and(inArray(alerts.kind, kindsWithScope("user")), inArray(alerts.scope, matchingUserIds)),
+    and(
+      inArray(alerts.kind, kindsWithScope("register")),
+      inArray(alerts.scope, matchingRegisterIds),
+    ),
     and(
       inArray(alerts.kind, kindsWithScope("sourceAddress")),
       isNull(alerts.resolvedAt),
@@ -245,12 +253,12 @@ export function registerAlertsListRoute<TQueryResult extends PgQueryResultHKT>(
         pageFromQuery(query.page),
       );
       const openCounts = await countOpenVisibleAlerts(options.db, openSession);
-      const namesByUserId = await loadScopeDisplayNames(
+      const namesById = await loadScopeDisplayNames(
         options.db,
         rows.map((row) => row.scope),
       );
       const body = alertListPageSchema.parse({
-        alerts: rows.map((row) => toAlertSummary(row, namesByUserId)),
+        alerts: rows.map((row) => toAlertSummary(row, namesById)),
         total,
         pageSize: ALERTS_PAGE_SIZE,
         openCount: openCounts.openCount,

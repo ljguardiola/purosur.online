@@ -16,9 +16,9 @@ import {
   ALERT_NOT_FOUND_RESPONSE,
   type AlertDetailRow,
   findAlertById,
+  idsToResolve,
   listAlertDeliveries,
   toAlertDetailBody,
-  userIdsToResolve,
 } from "./alert-read-route.js";
 import { loadScopeDisplayNames } from "./alert-scope-display.js";
 import type { AlertsRouteOptions } from "./alerts-list-route.js";
@@ -132,11 +132,8 @@ export function registerAlertCloseRoute<TQueryResult extends PgQueryResultHKT>(
       }
 
       const deliveries = await listAlertDeliveries(options.db, outcome.alert.id);
-      const namesByUserId = await loadScopeDisplayNames(
-        options.db,
-        userIdsToResolve(outcome.alert),
-      );
-      await reply.code(200).send(toAlertDetailBody(outcome.alert, deliveries, namesByUserId));
+      const namesById = await loadScopeDisplayNames(options.db, idsToResolve(outcome.alert));
+      await reply.code(200).send(toAlertDetailBody(outcome.alert, deliveries, namesById));
     },
   );
 }

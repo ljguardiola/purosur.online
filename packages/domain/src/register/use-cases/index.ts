@@ -6,6 +6,7 @@ export { enrollInstallation } from "./enroll-installation.js";
 export type {
   Clock,
   DeviceTokenIssuer,
+  EnrollmentAlert,
   EnrollmentAttemptKey,
   EnrollmentCodeVerifier,
   EnrollmentPorts,
