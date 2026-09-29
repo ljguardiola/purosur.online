@@ -23,6 +23,9 @@ import {
   fieldHelperClassName,
   fieldTriggerHoverClassName,
   fieldWrapperClassName,
+  menuOptionClassName,
+  menuPopoverStyle,
+  menuSurfaceClassName,
 } from "./field-styles";
 import { isOptionValue, type NarrowedOption, type OptionalOptionChoiceProps } from "./option";
 
@@ -67,21 +70,7 @@ const chevronClassName = "size-icon-md shrink-0 text-text-subtle";
 
 // react-aria-components caps the popover's max-height to the viewport but leaves overflow
 // handling to the consumer.
-const popoverClassName =
-  "min-w-trigger w-trigger rounded-lg border border-border " +
-  "bg-surface p-1.5 shadow-lg overflow-y-auto";
-
-// react-aria-components portals this popover to the document body as its own, separately stacked
-// layer: with no z-index of its own it would paint below any sibling with a real positive
-// z-index, since a positive z-index always wins that comparison over an auto one.
-const popoverStyle = { zIndex: "var(--z-index-popover)" };
-
-const optionClassName =
-  "flex h-control-lg cursor-pointer items-center justify-between rounded-md px-3 text-detail font-semibold " +
-  "text-text outline-none data-hovered:bg-surface-subtle data-focus-visible:bg-surface-subtle " +
-  "data-selected:bg-action-subtle data-selected:text-text-accent " +
-  "data-hovered:data-selected:bg-action-subtle " +
-  "data-focus-visible:data-selected:bg-action-subtle";
+const popoverClassName = `min-w-trigger w-trigger p-1.5 overflow-y-auto ${menuSurfaceClassName}`;
 
 export function Select<V extends string>(props: SelectProps<V>) {
   const {
@@ -161,14 +150,14 @@ export function Select<V extends string>(props: SelectProps<V>) {
               </AriaText>
             )
           )}
-          <AriaPopover offset={4} style={popoverStyle} className={popoverClassName}>
+          <AriaPopover offset={4} style={menuPopoverStyle} className={popoverClassName}>
             <AriaListBox className="flex flex-col gap-1">
               {options.map((option) => (
                 <AriaListBoxItem
                   key={option.value}
                   id={option.value}
                   textValue={option.label}
-                  className={optionClassName}
+                  className={menuOptionClassName}
                 >
                   {({ isSelected }) => (
                     <>
