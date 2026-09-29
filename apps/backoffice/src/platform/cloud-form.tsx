@@ -140,6 +140,8 @@ export function useCloudForm<
     }));
   }
 
+  const [unsettled, setUnsettled] = useState(0);
+
   async function submit() {
     for (const field of Object.values(wireFields)) {
       if (field) {
@@ -149,15 +151,22 @@ export function useCloudForm<
     const values = form.state.values;
     const body = request.from(values);
     const result = validate(body);
-    const started = failuresOf(values, result.issues)
-      ? undefined
-      : options.onSubmit(body, {
-          values,
-          parsed: result.issues ? undefined : result.value,
-          showWireFieldError,
-          showFieldError,
-        });
-    await form.handleSubmit({ started });
+    if (failuresOf(values, result.issues)) {
+      await form.handleSubmit(NOTHING_STARTED);
+      return;
+    }
+    const started = options.onSubmit(body, {
+      values,
+      parsed: result.issues ? undefined : result.value,
+      showWireFieldError,
+      showFieldError,
+    });
+    setUnsettled((count) => count + 1);
+    // handleSubmit returns without awaiting started while a field shows an error, including one
+    // onSubmit has just set.
+    await Promise.all([form.handleSubmit({ started }), started]).finally(() =>
+      setUnsettled((count) => count - 1),
+    );
   }
 
   const [loaded, setLoaded] = useState(defaultValues);
@@ -166,11 +175,12 @@ export function useCloudForm<
     form.reset(values, { keepDefaultValues: true });
   });
   const currentValues = useStore(form.store, (state) => state.values);
+  const tanStackSubmitting = useStore(form.store, (state) => state.isSubmitting);
 
   return {
     form,
     submit,
-    submitting: useStore(form.store, (state) => state.isSubmitting),
+    submitting: tanStackSubmitting || unsettled > 0,
     values: currentValues,
     dirty: !evaluate(currentValues, loaded),
     reset,

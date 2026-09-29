@@ -20,10 +20,12 @@ const AMOUNT_INVALID = "Ingresá un monto válido.";
 
 function deferred() {
   let resolve: () => void = () => {};
-  const promise = new Promise<void>((settle) => {
+  let reject: (error: Error) => void = () => {};
+  const promise = new Promise<void>((settle, fail) => {
     resolve = settle;
+    reject = fail;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
 type SubmitHandler = (
@@ -222,10 +224,13 @@ test("an error from the cloud clears as soon as its field changes", async () => 
 });
 
 test("an error from the cloud on a field that is left unchanged never blocks the next submit", async () => {
-  const onSubmit = vi.fn<SubmitHandler>((_request, submission) => {
-    submission.showFieldError("name", "Ya existe.");
-    return Promise.resolve();
-  });
+  const pending = deferred();
+  const onSubmit = vi
+    .fn<SubmitHandler>(() => pending.promise)
+    .mockImplementationOnce((_request, submission) => {
+      submission.showFieldError("name", "Ya existe.");
+      return Promise.resolve();
+    });
   const screen = await render(<Probe onSubmit={onSubmit} />);
   await userEvent.fill(screen.getByRole("textbox", { name: "Nombre" }), "Ana");
   await userEvent.fill(screen.getByRole("textbox", { name: "Monto" }), "12");
@@ -233,9 +238,12 @@ test("an error from the cloud on a field that is left unchanged never blocks the
   await expect.element(screen.getByText("Ya existe.")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
-  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
 
-  await expect.poll(() => onSubmit.mock.calls.length).toBe(3);
+  await expect.element(screen.getByRole("button", { name: "Enviar" })).toBeDisabled();
+  expect(onSubmit).toHaveBeenCalledTimes(2);
+  await expect.element(screen.getByText("Ya existe.")).not.toBeInTheDocument();
+  pending.resolve();
+  await expect.element(screen.getByRole("button", { name: "Enviar" })).toBeEnabled();
 });
 
 test("the form is submitting until onSubmit settles", async () => {
@@ -249,6 +257,65 @@ test("the form is submitting until onSubmit settles", async () => {
   await expect.element(screen.getByRole("button", { name: "Enviar" })).toBeDisabled();
   pending.resolve();
   await expect.element(screen.getByRole("button", { name: "Enviar" })).toBeEnabled();
+});
+
+test("the form is submitting until onSubmit settles, also when it shows a field error before its first await", async () => {
+  const pending = deferred();
+  const screen = await render(
+    <Probe
+      onSubmit={(_request, submission) => {
+        submission.showFieldError("name", "Ya existe.");
+        return pending.promise;
+      }}
+    />,
+  );
+  await userEvent.fill(screen.getByRole("textbox", { name: "Nombre" }), "Ana");
+  await userEvent.fill(screen.getByRole("textbox", { name: "Monto" }), "12");
+
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+  await expect.element(screen.getByText("Ya existe.")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Enviar" })).toBeDisabled();
+  pending.resolve();
+  await expect.element(screen.getByRole("button", { name: "Enviar" })).toBeEnabled();
+  await expect.element(screen.getByText("Ya existe.")).toBeVisible();
+});
+
+test("a failed onSubmit that showed a field error before its first await rejects the submit and keeps the error", async () => {
+  const pending = deferred();
+  const failed = vi.fn<(error: unknown) => void>();
+  const failure = new Error("sin conexión");
+  function FailingProbe() {
+    const { form, submit, submitting } = useCloudForm({
+      defaultValues: { name: "Ana" },
+      request: { schema: z.object({ name: z.string() }), from: (values) => values },
+      fields: { name: "name" },
+      messages: { name: "Nombre inválido." },
+      onSubmit: (_request, submission) => {
+        submission.showFieldError("name", "Ya existe.");
+        return pending.promise;
+      },
+    });
+    return (
+      <>
+        <form.AppField name="name">
+          {(field) => <field.TextField kind="plain-text" label="Nombre" />}
+        </form.AppField>
+        <button type="button" disabled={submitting} onClick={() => void submit().catch(failed)}>
+          Enviar
+        </button>
+      </>
+    );
+  }
+  const screen = await render(<FailingProbe />);
+
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+  await expect.element(screen.getByRole("button", { name: "Enviar" })).toBeDisabled();
+  pending.reject(failure);
+
+  await expect.poll(() => failed.mock.calls).toEqual([[failure]]);
+  await expect.element(screen.getByRole("button", { name: "Enviar" })).toBeEnabled();
+  await expect.element(screen.getByText("Ya existe.")).toBeVisible();
 });
 
 test("a schema issue outside every declared field still submits the request, with nothing parsed", async () => {
