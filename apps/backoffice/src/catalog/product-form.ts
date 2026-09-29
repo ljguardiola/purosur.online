@@ -20,9 +20,13 @@ export type BarcodeListValue = { codes: string[]; scan: string };
 
 type NetContentValue = { quantity: string; unit: NetContentUnit };
 
+// A brand is chosen through a select whose empty value stands for no brand.
+export const NO_BRAND = "";
+
 export type ProductFormValues = {
   name: string;
   categoryId: string | null;
+  brandId: string;
   saleUnit: ProductSaleUnit | null;
   netContent: NetContentValue;
   barcodes: BarcodeListValue;
@@ -33,6 +37,7 @@ export type ProductEditFormValues = ProductFormValues & { version: number };
 export const EMPTY_PRODUCT_FORM: ProductFormValues = {
   name: "",
   categoryId: null,
+  brandId: NO_BRAND,
   saleUnit: null,
   netContent: { quantity: "", unit: "G" },
   barcodes: { codes: [], scan: "" },
@@ -42,6 +47,7 @@ export function productFormValues(product: ProductSummary): ProductEditFormValue
   return {
     name: product.name,
     categoryId: product.categoryId,
+    brandId: product.brandId ?? NO_BRAND,
     saleUnit: product.saleUnit,
     netContent: product.netContent
       ? {
@@ -74,6 +80,7 @@ export function productRequestFrom(values: ProductFormValues): ProductRequest {
   return {
     name: values.name,
     categoryId: values.categoryId ?? "",
+    brandId: values.brandId === NO_BRAND ? null : values.brandId,
     saleUnit: values.saleUnit,
     barcodes: barcodesWithScan(values.barcodes),
     netContent: netContentFrom(values.netContent),
@@ -89,6 +96,7 @@ export function productEditRequestFrom(
 export const PRODUCT_FIELDS = {
   name: "name",
   categoryId: "categoryId",
+  brandId: "brandId",
   saleUnit: "saleUnit",
   barcodes: "barcodes",
   netContent: "netContent",
@@ -125,6 +133,10 @@ export function categoryMessage({ categoryId }: ProductFormValues): string {
   return categoryId ? "Revisá la categoría." : "Elegí una categoría.";
 }
 
+export function brandMessage(): string {
+  return "La marca elegida ya no existe.";
+}
+
 export function saleUnitMessage({ saleUnit }: ProductFormValues): string {
   return saleUnit ? "Revisá la unidad de venta." : "Elegí la unidad de venta.";
 }
@@ -154,6 +166,7 @@ export function barcodeListMessage({ barcodes }: ProductFormValues): string {
 export const PRODUCT_MESSAGES = {
   name: productMessage,
   categoryId: categoryMessage,
+  brandId: brandMessage,
   saleUnit: saleUnitMessage,
   netContent: netContentMessage,
   barcodes: barcodeListMessage,

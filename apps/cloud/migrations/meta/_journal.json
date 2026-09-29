@@ -229,8 +229,15 @@
     {
       "idx": 32,
       "version": "7",
-      "when": 1790707568589,
-      "tag": "0032_register_installations",
+      "when": 1790704645872,
+      "tag": "0032_brands",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1790710810529,
+      "tag": "0033_register_installations",
       "breakpoints": true
     }
   ]

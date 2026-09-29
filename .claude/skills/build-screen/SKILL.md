@@ -123,8 +123,12 @@ Then use it in the screen.
 
 ## 5. Test the screen
 
+Divide the screen's code from the start into the kinds of file in
+"Backoffice screens" in `CONTRIBUTING.md`, and give each modal, form model,
+field message, part and helper the tests beside it that section assigns it.
+
 For each state and each action's outcome, first write the screen's test
-(`<screen>.test.tsx` beside it) showing how the screen presents it, then the
-code that makes it pass. The test covers the screen's presentation and its
-wiring to the cloud, not the component's behavior, which `packages/ui` owns.
-Finish with the `check` skill.
+(`<screen>-screen.test.tsx` beside it) showing how the screen presents it,
+then the code that makes it pass. The test covers the screen's presentation
+and its wiring to the cloud and to its modals, not the behavior its other
+files' tests or `packages/ui` own. Finish with the `check` skill.

@@ -47,6 +47,7 @@ test("generates an internal code, adds it to the list, and saves the product wit
   expect(services.createProduct).toHaveBeenCalledWith({
     name: "Ensalada de fruta 300 g",
     categoryId: "category-1",
+    brandId: null,
     saleUnit: "KG",
     barcodes: ["2000000000015"],
     netContent: null,
@@ -73,6 +74,7 @@ test("generates an internal code from the edit modal and saves it alongside the 
   expect(services.editProduct).toHaveBeenCalledWith("product-1", {
     name: "Miel pura de abeja 1 kg",
     categoryId: "category-1",
+    brandId: null,
     saleUnit: "UNIT",
     barcodes: ["7790987000015", "2000000000015"],
     netContent: null,
