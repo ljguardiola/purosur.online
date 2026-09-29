@@ -2,6 +2,7 @@ import { X } from "lucide-react";
 import type { ReactNode } from "react";
 import { Button as AriaButton, type ButtonProps as AriaButtonProps } from "react-aria-components";
 import { type Icon, iconSlotClassName } from "../shared/icon";
+import type { LoadStatus } from "../shared/load-status";
 
 export type ButtonVariant = "primary" | "secondary" | "text";
 export type ButtonSize = "small" | "medium" | "large" | "sale";
@@ -10,6 +11,7 @@ export type ButtonTextSize = Extract<ButtonSize, "small" | "large">;
 
 type ButtonCommonProps = Pick<AriaButtonProps, "onPress" | "type"> & {
   disabled?: boolean;
+  dataStatus?: LoadStatus;
   // TypeScript can't tell a label from other content, so an empty string or an icon passed as
   // children still compiles; icon-only actions belong to IconButton, which requires an aria-label.
   children: Exclude<ReactNode, null | undefined | boolean>;
@@ -91,6 +93,7 @@ export function Button({
   fullWidth = false,
   children,
   disabled = false,
+  dataStatus,
   ...props
 }: ButtonProps) {
   const color = destructive ? "destructive" : "regular";
@@ -111,7 +114,11 @@ export function Button({
   const sizedIcon = glyph ? <span className={iconWrapperClassName[variant]}>{glyph}</span> : null;
 
   return (
-    <AriaButton {...props} isDisabled={disabled} className={className}>
+    <AriaButton
+      {...props}
+      isDisabled={disabled || (dataStatus !== undefined && dataStatus !== "loaded")}
+      className={className}
+    >
       {variant !== "primary" && sizedIcon}
       {/* truncate on this justify-center flex container itself would clip both ends with no
           ellipsis; it needs its own box to truncate correctly. */}

@@ -52,6 +52,10 @@ export const PrimaryDisabled: Story = {
   args: { disabled: true },
 };
 
+export const PrimaryWaitingForData: Story = {
+  args: { dataStatus: "loading" },
+};
+
 export const PrimaryHovered: Story = {
   play: playHoverSetsDataHovered(theButton),
 };
