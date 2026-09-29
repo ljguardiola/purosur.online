@@ -179,6 +179,9 @@ function AppContent({ help, services = defaultAppServices, reportError = () => {
 
   async function settle(next: SettledSession) {
     const current = router.options.context.session;
+    if (next.kind === "signed-out") {
+      queryClient.clear();
+    }
     router.update({ ...router.options, context: { ...router.options.context, session: next } });
     if (!differsOnlyInExpiry(current, next)) {
       await router.invalidate();
