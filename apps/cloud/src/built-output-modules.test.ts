@@ -1,20 +1,15 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import { describe, expect, inject, it } from "vitest";
+import { cloudCommands } from "./test-support/cloud-commands.js";
 
 const CLOUD_DIR = fileURLToPath(new URL("../", import.meta.url));
 const SOURCE_DIR = join(CLOUD_DIR, "src");
 
 function entrypointSources(): string[] {
-  const { scripts } = JSON.parse(readFileSync(join(CLOUD_DIR, "package.json"), "utf8")) as {
-    scripts: Record<string, string>;
-  };
-  return Object.values(scripts).flatMap((script) => {
-    const entrypoint = /^node dist\/(.+)\.js$/.exec(script)?.[1];
-    return entrypoint ? [join(SOURCE_DIR, `${entrypoint}.ts`)] : [];
-  });
+  return cloudCommands().map((command) => join(SOURCE_DIR, `${command}.ts`));
 }
 
 function modulesLoadedBy(entrypoints: string[]): string[] {

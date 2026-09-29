@@ -444,9 +444,7 @@ export async function reportStartupFailure(
   exit(1);
 }
 
-const isMainModule =
-  process.argv[1] !== undefined && process.argv[1] === fileURLToPath(import.meta.url);
-if (isMainModule) {
+if (import.meta.main) {
   startServer().then(
     (app) => registerShutdownHandlers(app),
     (error: unknown) => reportStartupFailure(error),
