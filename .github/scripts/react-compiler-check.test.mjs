@@ -1,6 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import {
@@ -182,16 +180,4 @@ test("runCli prints every violation and exits 1 when a file cannot be compiled",
 
   assert.equal(exitCode, 1);
   assert.ok(errors.some((line) => line.startsWith("labeled.tsx:")));
-});
-
-test("verify:static runs the React Compiler check before the automation tests", () => {
-  const packageJson = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8"));
-  const script = packageJson.scripts["verify:static"];
-
-  assert.match(script, /node \.github\/scripts\/react-compiler-check\.mjs/);
-  assert.ok(
-    script.indexOf("node .github/scripts/react-compiler-check.mjs") <
-      script.indexOf("node --test .github/scripts/*.test.mjs"),
-    "the React Compiler check must run before the automation tests",
-  );
 });

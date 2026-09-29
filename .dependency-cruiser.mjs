@@ -224,6 +224,22 @@ export default {
         reachable: true,
       },
     },
+    {
+      name: "cloud-server-never-migrates",
+      comment:
+        "The cloud server never reaches, directly or transitively, the migrate entry " +
+        "point or drizzle's migrator: migrations run as their own step before the " +
+        "server starts, never from the server.",
+      severity: "error",
+      from: { path: "^apps/cloud/src/server\\.ts$" },
+      to: {
+        path: [
+          "^apps/cloud/src/migrate\\.ts$",
+          "^drizzle-orm/[^/]+/migrator$|(^|/)node_modules/drizzle-orm/[^/]+/migrator\\.",
+        ],
+        reachable: true,
+      },
+    },
   ],
   options: {
     doNotFollow: {

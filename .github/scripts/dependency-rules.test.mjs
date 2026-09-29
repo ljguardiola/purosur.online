@@ -931,3 +931,50 @@ test("the register's build output under out/ is not cruised", async (t) => {
   const controlReport = await cruiseFixture(root, ["apps"]);
   assert.equal(violationsFor(controlReport, "no-app-to-app").length, 1);
 });
+
+test("cloud-server-never-migrates flags the cloud server reaching the migrate entry point or drizzle's migrator, even through a helper", async (t) => {
+  const root = await makeFixture(t, {
+    "apps/cloud/src/server.ts": [
+      'import { boot } from "./platform/boot";',
+      'import { migrate } from "drizzle-orm/postgres-js/migrator";',
+      "export const deps = [boot, migrate];",
+    ].join("\n"),
+    "apps/cloud/src/platform/boot.ts": [
+      'import { runMigrations } from "../migrate";',
+      "export const boot = runMigrations;",
+    ].join("\n"),
+    "apps/cloud/src/migrate.ts": "export function runMigrations() {}\n",
+  });
+  await installPnpmPackage(root, "drizzle-orm", "postgres-js/migrator.js");
+
+  const report = await cruiseFixture(root, ["apps"]);
+  const violationPairs = violationsFor(report, "cloud-server-never-migrates").map(
+    (violation) => `${violation.from} -> ${violation.to}`,
+  );
+
+  assert.equal(violationPairs.length, 2);
+  assert.equal(
+    violationPairs.some(
+      (pair) =>
+        pair.startsWith("apps/cloud/src/server.ts -> ") &&
+        pair.endsWith("apps/cloud/src/migrate.ts"),
+    ),
+    true,
+  );
+  assert.equal(
+    violationPairs.some(
+      (pair) =>
+        pair.startsWith("apps/cloud/src/server.ts -> ") &&
+        pair.endsWith("node_modules/drizzle-orm/postgres-js/migrator.js"),
+    ),
+    true,
+  );
+
+  await writeFixtureFile(
+    root,
+    "apps/cloud/src/server.ts",
+    'import { readFile } from "node:fs/promises";\nexport const deps = [readFile];\n',
+  );
+  const controlReport = await cruiseFixture(root, ["apps"]);
+  assert.equal(violationsFor(controlReport, "cloud-server-never-migrates").length, 0);
+});

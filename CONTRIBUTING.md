@@ -147,6 +147,8 @@ A new migration must be dated after every migration already on `main`: the migra
 
 A test's result must not depend on how much real time passes while it runs: it neither waits a fixed real time nor measures real elapsed time to decide its outcome. It controls time with fake timers or an injected clock, or it waits for the condition it actually needs. `pnpm verify` rejects a test that depends on real elapsed time.
 
+A test proves behavior and never repeats a configuration value: a test that depends on configuration runs the tool or the build with it and checks the outcome.
+
 A test is removed only when the rule it checks is already verified by its owning test and it verifies nothing beyond that rule.
 
 An approved screenshot of each Storybook story, committed under `packages/ui/src/__screenshots__`, owns that story's visual appearance; `pnpm verify` renders every story again and fails on any difference. A change that alters how a story looks on purpose is approved with `pnpm catalog:approve`, which overwrites the affected screenshots; review the new images before committing them alongside the change in the same pull request.
