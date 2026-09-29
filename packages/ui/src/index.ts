@@ -11,6 +11,13 @@ export { Table } from "./components/data-display/table/table";
 export type { TableCellTextProps } from "./components/data-display/table/table-cell-text";
 export { TableCellText } from "./components/data-display/table/table-cell-text";
 export type {
+  TableItemOrder,
+  TableItemsSort,
+  TableRows,
+  TableRowsOptions,
+} from "./components/data-display/table/table-rows";
+export { sortedItems, tableRows, textOrder } from "./components/data-display/table/table-rows";
+export type {
   TableAction,
   TableColumn,
   TableColumnAlign,
