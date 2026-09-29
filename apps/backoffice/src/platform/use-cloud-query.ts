@@ -1,4 +1,4 @@
-import { type QueryClient, type QueryKey, useQuery, useQueryClient } from "@tanstack/react-query";
+import { type QueryClient, type QueryKey, useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import type { CloudReadOutcome } from "./cloud-read-outcome";
 import { useLatestRef } from "./use-latest-ref";
@@ -57,21 +57,19 @@ export function useCloudQuery<T>({
   onSessionEnded: () => void;
   onForbidden: () => void;
 }): CloudData<T> {
-  const queryClient = useQueryClient();
-  const queryKeyRef = useLatestRef(queryKey);
   const onSessionEndedRef = useLatestRef(onSessionEnded);
   const onForbiddenRef = useLatestRef(onForbidden);
   const query = useQuery({ queryKey, queryFn: cloudQueryFn(read) });
   const refusal = query.error instanceof CloudReadRefused ? query.error.refusal : undefined;
+  const refusalReadWhileShown = query.isFetchedAfterMount ? refusal : undefined;
 
   useEffect(() => {
-    if (refusal?.kind === "unauthenticated") {
+    if (refusalReadWhileShown?.kind === "unauthenticated") {
       onSessionEndedRef.current();
-    } else if (refusal?.kind === "forbidden") {
-      queryClient.removeQueries({ queryKey: queryKeyRef.current, exact: true });
+    } else if (refusalReadWhileShown?.kind === "forbidden") {
       onForbiddenRef.current();
     }
-  }, [refusal, queryClient, queryKeyRef, onSessionEndedRef, onForbiddenRef]);
+  }, [refusalReadWhileShown, onSessionEndedRef, onForbiddenRef]);
 
   const leavingScreen = refusal?.kind === "unauthenticated" || refusal?.kind === "forbidden";
   if (query.isError && !query.isFetching && !leavingScreen) {

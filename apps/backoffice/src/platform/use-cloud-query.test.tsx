@@ -222,6 +222,68 @@ test("a refresh refused as forbidden is not handed over again when the screen op
   expect(onForbidden).toHaveBeenCalledTimes(1);
 });
 
+test("a forbidden read is handed over once and read once, however often the screen renders before it leaves", async () => {
+  const onForbidden = vi.fn();
+  const read = vi
+    .fn<() => Promise<CloudReadOutcome<string>>>()
+    .mockResolvedValue({ kind: "forbidden" });
+  const screen = await render(<Probe read={read} onForbidden={onForbidden} />);
+  await expect.poll(() => onForbidden.mock.calls.length).toBe(1);
+
+  await screen.rerender(<Probe read={read} onForbidden={() => onForbidden()} />);
+  await screen.rerender(<Probe read={read} onForbidden={() => onForbidden()} />);
+
+  expect(read).toHaveBeenCalledTimes(1);
+  expect(onForbidden).toHaveBeenCalledTimes(1);
+});
+
+function OpenedAfterACachedRead({
+  cachedRead,
+  ...props
+}: ProbeProps & { cachedRead: () => Promise<CloudReadOutcome<string>> }) {
+  const client = useQueryClient();
+  const [shown, setShown] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => void fetchCloudQuery(client, { queryKey: ["probe"], read: cachedRead })}
+      >
+        read through the cache
+      </button>
+      <button type="button" onClick={() => setShown(true)}>
+        open
+      </button>
+      {shown ? <Probe {...props} /> : null}
+    </>
+  );
+}
+
+test("a refusal read through the cache before the screen opened is not handed over, and the screen's own read decides", async () => {
+  const onForbidden = vi.fn();
+  const cachedRead = vi
+    .fn<() => Promise<CloudReadOutcome<string>>>()
+    .mockResolvedValue({ kind: "forbidden" });
+  const answer = deferred<CloudReadOutcome<string>>();
+  const screen = await render(
+    <OpenedAfterACachedRead
+      cachedRead={cachedRead}
+      read={() => answer.promise}
+      onForbidden={onForbidden}
+    />,
+  );
+  await userEvent.click(screen.getByRole("button", { name: "read through the cache" }));
+  await expect.poll(() => cachedRead.mock.calls.length).toBe(1);
+
+  await userEvent.click(screen.getByRole("button", { name: "open" }));
+
+  await expect.element(screen.getByText("loading")).toBeVisible();
+  expect(onForbidden).not.toHaveBeenCalled();
+  answer.resolve(ok("one"));
+  await expect.element(screen.getByText("loaded:one")).toBeVisible();
+  expect(onForbidden).not.toHaveBeenCalled();
+});
+
 test("a read through the cache hands back the value it read, and leaves it cached under its key", async () => {
   const client = createQueryClient();
 
