@@ -22,6 +22,10 @@ beforeEach(async () => {
   // and is silently dropped; a throwaway move gives it that signal in advance.
   const session = cdp() as unknown as DispatchableCdpSession;
   await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
+
+  // The test page starts without focus, so a first Tab key would go to the page around it instead
+  // and only move focus in, never reaching React Aria as keyboard input.
+  window.focus();
 });
 
 // react-aria-components portals the tooltip into document.body, outside the render container, so
