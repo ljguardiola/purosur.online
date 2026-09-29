@@ -1,6 +1,7 @@
 import { BRANCH_HOURS_RANGES_PER_DAY_MAX, BRANCH_SETTINGS_DAYS_MAX } from "@purosur/domain";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { useIsFetching } from "@tanstack/react-query";
 import { expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
@@ -885,6 +886,10 @@ test("shows a stale_version notice, and Recargar refetches so the second save se
   expect(services.saveBranchSettings).toHaveBeenLastCalledWith(reloaded);
 });
 
+function FetchesInFlight() {
+  return <output aria-label="Lecturas en curso">{useIsFetching()}</output>;
+}
+
 async function reopenWithCachedSettings(
   services: BranchSettingsScreenServices,
   screen: Awaited<ReturnType<typeof renderScreen>>,
@@ -894,6 +899,7 @@ async function reopenWithCachedSettings(
     <FieldSizeProvider size="backoffice">
       <main>
         <BranchSettingsScreen onSessionEnded={() => {}} services={services} />
+        <FetchesInFlight />
       </main>
     </FieldSizeProvider>,
   );
@@ -913,11 +919,11 @@ test("keeps the person's unsaved edit when a refresh of the cached settings land
   const address = screen.getByRole("textbox", { name: "Dirección" });
   await expect.element(address).toHaveValue("Av. Belgrano 1450, CABA");
   await userEvent.fill(address, "Av. Corrientes 800, CABA");
+  await expect.element(screen.getByLabelText("Lecturas en curso")).toHaveTextContent("1");
 
   refresh.resolve({ kind: "ok", value: { ...loaded, whatsappNumber: "+54 9 11 0000-0000" } });
 
-  await expect.poll(() => vi.mocked(services.fetchBranchSettings).mock.calls.length).toBe(2);
-  await new Promise((settle) => setTimeout(settle, 100));
+  await expect.element(screen.getByLabelText("Lecturas en curso")).toHaveTextContent("0");
   await expect.element(address).toHaveValue("Av. Corrientes 800, CABA");
   await expect
     .element(screen.getByRole("textbox", { name: "WhatsApp" }))
