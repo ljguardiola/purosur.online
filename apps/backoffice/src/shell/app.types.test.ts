@@ -11,6 +11,7 @@ import type { BranchSettingsScreenProps } from "../branch/branch-settings-screen
 import type { BrandsListScreenProps } from "../catalog/brands-list-screen";
 import type { CategoriesListScreenProps } from "../catalog/categories-list-screen";
 import type { ProductsListScreenProps } from "../catalog/products-list-screen";
+import type { TagsListScreenProps } from "../catalog/tags-list-screen";
 import type { FiscalConfigurationScreenProps } from "../fiscal/fiscal-configuration-screen";
 import type { PricesListScreenProps } from "../pricing/prices-list-screen";
 import type { RegistersListScreenProps } from "../register/registers-list-screen";
@@ -55,6 +56,9 @@ test("makes every screen require its services", () => {
   >();
   expectTypeOf<ServicesProp<BrandsListScreenProps>>().toEqualTypeOf<
     Required<ServicesProp<BrandsListScreenProps>>
+  >();
+  expectTypeOf<ServicesProp<TagsListScreenProps>>().toEqualTypeOf<
+    Required<ServicesProp<TagsListScreenProps>>
   >();
   expectTypeOf<ServicesProp<ProductsListScreenProps>>().toEqualTypeOf<
     Required<ServicesProp<ProductsListScreenProps>>

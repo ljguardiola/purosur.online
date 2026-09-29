@@ -61,6 +61,13 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       deactivateBrand: vi.fn(),
       reactivateBrand: vi.fn(),
     },
+    tagsListScreen: {
+      fetchTags: vi.fn().mockReturnValue(new Promise(() => {})),
+      createTag: vi.fn(),
+      editTag: vi.fn(),
+      deactivateTag: vi.fn(),
+      reactivateTag: vi.fn(),
+    },
     productsListScreen: {
       fetchProducts: vi.fn().mockReturnValue(new Promise(() => {})),
       createProduct: vi.fn(),

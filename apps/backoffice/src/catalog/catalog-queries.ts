@@ -1,4 +1,4 @@
-import type { BrandSummary, CategorySummary, ProductSummary } from "@purosur/contracts";
+import type { BrandSummary, CategorySummary, ProductSummary, TagSummary } from "@purosur/contracts";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
@@ -6,12 +6,14 @@ import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchBrands } from "./brands-api";
 import type { fetchCategories } from "./categories-api";
 import type { fetchProducts, ProductStatusFilter } from "./products-api";
+import type { fetchTags } from "./tags-api";
 
 export const catalogKey = ["catalog"] as const;
 
 export const catalogKeys = {
   categories: [...catalogKey, "categories"] as const,
   brands: [...catalogKey, "brands"] as const,
+  tags: [...catalogKey, "tags"] as const,
   products: (status: ProductStatusFilter) => [...catalogKey, "products", status] as const,
 };
 
@@ -36,6 +38,16 @@ export function useBrandsQuery(params: {
   return useCloudQuery<BrandSummary[]>({
     queryKey: catalogKeys.brands,
     read: params.fetchBrands,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useTagsQuery(params: { fetchTags: typeof fetchTags; onSessionEnded: () => void }) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<TagSummary[]>({
+    queryKey: catalogKeys.tags,
+    read: params.fetchTags,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
@@ -98,6 +110,29 @@ export function useReloadBrand(params: {
     }
     const brand = listed.value.find((listedBrand) => listedBrand.id === id);
     return brand ? { kind: "found", brand } : { kind: "not_found" };
+  };
+}
+
+export type TagReload =
+  | { kind: "found"; tag: TagSummary }
+  | { kind: "not_found" }
+  | { kind: "list_failed" };
+
+export function useReloadTag(params: {
+  fetchTags: typeof fetchTags;
+}): (id: string) => Promise<TagReload> {
+  const client = useQueryClient();
+  return async (id) => {
+    void client.invalidateQueries({ queryKey: catalogKey });
+    const listed = await fetchCloudQuery(client, {
+      queryKey: catalogKeys.tags,
+      read: params.fetchTags,
+    });
+    if (listed.kind !== "ok") {
+      return { kind: "list_failed" };
+    }
+    const tag = listed.value.find((listedTag) => listedTag.id === id);
+    return tag ? { kind: "found", tag } : { kind: "not_found" };
   };
 }
 

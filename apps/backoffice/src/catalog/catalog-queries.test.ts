@@ -7,6 +7,7 @@ test("invalidating the catalog key marks every catalog list stale, whatever its 
   const keys = [
     catalogKeys.categories,
     catalogKeys.brands,
+    catalogKeys.tags,
     catalogKeys.products("active"),
     catalogKeys.products("inactive"),
     catalogKeys.products("all"),
