@@ -2,9 +2,10 @@ import { QueryClient } from "@tanstack/react-query";
 import { expect, test } from "vitest";
 import { alertsKey, alertsKeys } from "./alerts-queries";
 
-test("invalidating the alerts key marks every alerts list and detail stale, whatever they were asked for", async () => {
+test("invalidating the alerts key marks every alerts list, detail and the overview stale, whatever they were asked for", async () => {
   const client = new QueryClient();
   const keys = [
+    alertsKeys.overview,
     alertsKeys.list({ open: true, page: 1 }),
     alertsKeys.list({ level: "critical", open: false, page: 2 }),
     alertsKeys.detail("alert-1"),
