@@ -6,6 +6,7 @@ import { hashSourceAddress } from "../access/sign-in-lockout.js";
 import {
   alerts,
   locations,
+  registers,
   rolePermissions,
   roles,
   sessions,
@@ -115,6 +116,15 @@ async function insertAlert(input: {
     })
     .returning({ id: alerts.id });
   if (!row) throw new Error("test setup: inserting the alert returned no row");
+  return row.id;
+}
+
+async function insertRegister(name: string): Promise<string> {
+  const [row] = await db
+    .insert(registers)
+    .values({ locationId: ownLocationId, name })
+    .returning({ id: registers.id });
+  if (!row) throw new Error("test setup: inserting the register returned no row");
   return row.id;
 }
 
@@ -254,6 +264,22 @@ describe("GET /alerts", () => {
     ]);
   });
 
+  it("shows a register-scoped alert's scopeDisplay as that register's name", async () => {
+    const rawSessionId = await signedInViewer();
+    const registerId = await insertRegister("Caja 1");
+    await insertAlert({ kind: "register_enrolled", scope: registerId, audience: "all" });
+
+    const body = listBody(await getAlerts(rawSessionId)).alerts;
+
+    expect(body).toEqual([
+      expect.objectContaining({
+        kind: "register_enrolled",
+        scope: registerId,
+        scopeDisplay: "Caja 1",
+      }),
+    ]);
+  });
+
   it("falls back to the raw scope for a kind outside the catalog, e.g. a source address", async () => {
     const roleId = await insertRole(["view_all_alerts"]);
     const userId = await insertUserWithRole(roleId);
@@ -364,6 +390,25 @@ describe("GET /alerts", () => {
     });
 
     const body = listBody(await getAlerts(rawSessionId, "?q=ad"));
+
+    expect(body.alerts.map((row) => row.id)).toEqual([matchingId]);
+    expect(body.total).toBe(1);
+  });
+
+  it("searches by a register-scoped alert's register name", async () => {
+    const rawSessionId = await signedInViewer();
+    const matchingId = await insertAlert({
+      kind: "register_enrolled",
+      scope: await insertRegister("Caja del mostrador"),
+      audience: "all",
+    });
+    await insertAlert({
+      kind: "register_enrolled",
+      scope: await insertRegister("Depósito"),
+      audience: "all",
+    });
+
+    const body = listBody(await getAlerts(rawSessionId, "?q=mostrador"));
 
     expect(body.alerts.map((row) => row.id)).toEqual([matchingId]);
     expect(body.total).toBe(1);

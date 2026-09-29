@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { roles, userRoles, users } from "../platform/db/schema.js";
+import { registers, roles, userRoles, users } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { loadScopeDisplayNames, scopeDisplay } from "./alert-scope-display.js";
@@ -57,6 +57,21 @@ describe("loadScopeDisplayNames", () => {
     expect(names.get(graceId)).toBe("Grace Hopper");
   });
 
+  it("maps each given register id to that register's name", async () => {
+    const locationId = await seededLocationId(db);
+    const [register] = await db
+      .insert(registers)
+      .values({ locationId, name: "Caja 1" })
+      .returning({ id: registers.id });
+    if (!register) throw new Error("test setup: inserting the register returned no row");
+    const luciaId = await insertUser("Lucía Pérez");
+
+    const names = await loadScopeDisplayNames(db, [register.id, luciaId]);
+
+    expect(names.get(register.id)).toBe("Caja 1");
+    expect(names.get(luciaId)).toBe("Lucía Pérez");
+  });
+
   it("answers an empty map for an empty list, without querying", async () => {
     const names = await loadScopeDisplayNames(db, []);
 
@@ -82,6 +97,14 @@ describe("scopeDisplay", () => {
     expect(
       scopeDisplay({ kind: "user_email_changed", scope: "user-1", resolvedAt: null }, names),
     ).toBe("Lucía Pérez");
+  });
+
+  it("resolves a register-scoped kind's scope through the same name map", () => {
+    const names = new Map([["register-1", "Caja 1"]]);
+
+    expect(
+      scopeDisplay({ kind: "register_enrolled", scope: "register-1", resolvedAt: null }, names),
+    ).toBe("Caja 1");
   });
 
   it("falls back to the raw scope when the user id isn't in the map", () => {
