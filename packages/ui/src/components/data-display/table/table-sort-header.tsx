@@ -12,9 +12,10 @@ const sortIconClassName = "size-icon-2xs shrink-0";
 // The focus ring is inset (negative outline-offset) since the button's box is flush with the
 // container's clipped, rounded edge, leaving no room for an outward ring. relative + z-focused, scoped
 // to focus-visible only, since the "updating" bar is positioned above all in-flow content and
-// would otherwise paint over the ring.
+// would otherwise paint over the ring. uppercase repeats the <th>'s own, since the browser's
+// default button styles reset text-transform instead of inheriting it.
 const headerButtonClassName =
-  "flex h-full w-full items-center gap-1 outline-none data-hovered:bg-surface-soft " +
+  "flex h-full w-full items-center gap-1 uppercase outline-none data-hovered:bg-surface-soft " +
   "data-focus-visible:relative data-focus-visible:z-focused " +
   "data-focus-visible:focus-ring-inset";
 

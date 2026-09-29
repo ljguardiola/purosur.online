@@ -465,14 +465,14 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
   const columns = [
     {
       key: "register",
-      header: "CAJA",
+      header: "Caja",
       render: (item: RegisterSummary) => (
         <TableCellText description="Sin instalación">{item.name}</TableCellText>
       ),
     },
     {
       key: "installation",
-      header: "INSTALACIÓN",
+      header: "Instalación",
       render: (item: RegisterSummary) => {
         const now = currentTime;
         const pendingCode =
@@ -498,12 +498,12 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
     },
     {
       key: "pointsOfSale",
-      header: "PUNTOS DE VENTA",
+      header: "Puntos de venta",
       render: () => <span className="text-text-subtle text-detail">Sin configurar</span>,
     },
     {
       key: "status",
-      header: "ESTADO",
+      header: "Estado",
       render: () => <Tag tone="info">Esperando alta</Tag>,
     },
     {

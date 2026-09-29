@@ -258,8 +258,8 @@ test("shows a created register in the same order the server lists registers", as
     .getByRole("row")
     .all()
     .map((row) => row.element().textContent ?? "")
-    .filter((text) => text.includes("Caja"))
-    .map((text) => text.match(/Caja \d/)?.[0]);
+    .map((text) => text.match(/Caja \d/)?.[0])
+    .filter((name) => name !== undefined);
   expect(rowNames).toEqual(["Caja 1", "Caja 2"]);
 });
 
