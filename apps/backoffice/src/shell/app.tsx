@@ -1,4 +1,5 @@
 import { FieldSizeProvider } from "@purosur/ui";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
@@ -48,6 +49,7 @@ import {
   type FiscalConfigurationScreenServices,
 } from "../fiscal/fiscal-configuration-services";
 import type { BackofficeHelpCatalog } from "../help/help-catalog";
+import { createQueryClient } from "../platform/query-client";
 import { useLatestRef } from "../platform/use-latest-ref";
 import {
   defaultPricesListScreenServices,
@@ -155,6 +157,7 @@ export function App(props: AppProps) {
 function AppContent({ help, services = defaultAppServices, reportError = () => {} }: AppProps) {
   const [session, setSession] = useState<SessionState>({ kind: "loading" });
   const [routerStarted, setRouterStarted] = useState(false);
+  const [queryClient] = useState(createQueryClient);
   const actions = useLatestRef<SessionActions>({
     signedIn: handleSignedIn,
     signedOut: handleSignedOut,
@@ -284,7 +287,9 @@ function AppContent({ help, services = defaultAppServices, reportError = () => {
 
   return (
     <SessionCheckPendingContext value={session.kind === "loading"}>
-      <RouterProvider router={router} />
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
     </SessionCheckPendingContext>
   );
 }

@@ -5,14 +5,10 @@ import {
   categoryListSchema,
   categorySummarySchema,
 } from "@purosur/contracts";
+import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { retryAfterSeconds } from "../platform/retry-after-seconds";
 
-export type FetchCategoriesOutcome =
-  | { kind: "ok"; value: CategorySummary[] }
-  | { kind: "forbidden" }
-  | { kind: "unauthenticated" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "failed" };
+export type FetchCategoriesOutcome = CloudReadOutcome<CategorySummary[]>;
 
 export type CreateCategoryInput = { name: string; parentId: string | null };
 

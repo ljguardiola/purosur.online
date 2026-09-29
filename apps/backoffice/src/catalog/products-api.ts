@@ -8,6 +8,7 @@ import {
   productSummarySchema,
 } from "@purosur/contracts";
 import type { NetContentUnit } from "@purosur/domain";
+import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { retryAfterSeconds } from "../platform/retry-after-seconds";
 
 export type ProductSaleUnit = "UNIT" | "KG";
@@ -16,12 +17,7 @@ export type NetContent = { quantity: number; unit: NetContentUnit };
 
 export type ProductStatusFilter = "active" | "inactive" | "all";
 
-export type FetchProductsOutcome =
-  | { kind: "ok"; value: ProductSummary[] }
-  | { kind: "forbidden" }
-  | { kind: "unauthenticated" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "failed" };
+export type FetchProductsOutcome = CloudReadOutcome<ProductSummary[]>;
 
 type ProductFieldError =
   | "name"
