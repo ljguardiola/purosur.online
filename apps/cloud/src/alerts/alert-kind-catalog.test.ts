@@ -15,23 +15,28 @@ const SCOPE_KIND_BY_ALERT_KIND: Record<AlertKind, "user" | "sourceAddress"> = {
 };
 
 describe("alertKindDefinition", () => {
-  it.each(WARNING_KINDS)("opens %s as a Warning, escalating after 24h, All audience", (kind) => {
-    expect(alertKindDefinition(kind)).toEqual({
-      kind,
-      level: "warning",
-      escalatesAfterMs: TWENTY_FOUR_HOURS_MS,
-      audience: "all",
-      scopeKind: SCOPE_KIND_BY_ALERT_KIND[kind],
-    });
-  });
+  it.each(WARNING_KINDS)(
+    "opens %s as a Warning, escalating after 24h, All audience, once while open",
+    (kind) => {
+      expect(alertKindDefinition(kind)).toEqual({
+        kind,
+        level: "warning",
+        escalatesAfterMs: TWENTY_FOUR_HOURS_MS,
+        audience: "all",
+        scopeKind: SCOPE_KIND_BY_ALERT_KIND[kind],
+        deduplicates: true,
+      });
+    },
+  );
 
-  it("opens an increase of someone's access as Critical from the start, All audience, scoped to that user", () => {
+  it("opens every increase of someone's access as its own Critical, All-audience alert scoped to that user", () => {
     expect(alertKindDefinition("user_access_increased")).toEqual({
       kind: "user_access_increased",
       level: "critical",
       escalatesAfterMs: null,
       audience: "all",
       scopeKind: "user",
+      deduplicates: false,
     });
   });
 

@@ -523,18 +523,26 @@ describe("POST /roles/:id/edit and the alert for increased access", () => {
     expect(await accessIncreasedAlerts()).toHaveLength(0);
   });
 
-  it("opens no alert for a deactivated holder, who can't use the added permission", async () => {
-    const graceId = await insertUser({
+  it("opens one alert for the active holder and none for a deactivated one", async () => {
+    const locationId = await seededLocationId(db);
+    const activeId = await insertUser({
       firstName: "Grace Hopper",
       email: "grace@example.com",
       roleId,
-      locationId: await seededLocationId(db),
+      locationId,
     });
-    await db.update(users).set({ active: false }).where(eq(users.id, graceId));
+    const deactivatedId = await insertUser({
+      firstName: "Hedy Lamarr",
+      email: "hedy@example.com",
+      roleId,
+      locationId,
+    });
+    await db.update(users).set({ active: false }).where(eq(users.id, deactivatedId));
 
     const response = await editPermissions(["sell_and_charge", "void_sale", "adjust_stock"]);
 
     expect(response.statusCode).toBe(200);
-    expect(await accessIncreasedAlerts()).toHaveLength(0);
+    const opened = await accessIncreasedAlerts();
+    expect(opened.map((alert) => alert.scope)).toEqual([activeId]);
   });
 });

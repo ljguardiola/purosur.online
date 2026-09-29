@@ -1,3 +1,4 @@
+import { ALERT_KINDS } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";
 import {
@@ -279,6 +280,64 @@ describe("openAlert", () => {
     expect(passkeyChanged.alertId).not.toBe(emailChanged.alertId);
     const openAlerts = await db.select().from(alerts).where(eq(alerts.scope, "a-user-id"));
     expect(openAlerts).toHaveLength(2);
+  });
+
+  it.each(ALERT_KINDS.filter((kind) => kind !== "user_access_increased"))(
+    "opens %s once while it is open, whatever triggers it again",
+    async (kind) => {
+      const first = await db.transaction((tx) =>
+        openAlert(tx, { kind, scope: "a-scope", detail: {} }, { now: () => NOON }),
+      );
+      const second = await db.transaction((tx) =>
+        openAlert(tx, { kind, scope: "a-scope", detail: {} }, { now: () => NOON }),
+      );
+
+      expect(first.kind).toBe("opened");
+      expect(second).toEqual({
+        kind: "already_open",
+        alertId: (first as { alertId: string }).alertId,
+      });
+    },
+  );
+
+  it("opens every increase of someone's access as its own alert, leaving the one already open as it was", async () => {
+    const roleId = await insertRole({ name: "Supervisor", permissionKeys: ["view_all_alerts"] });
+    await insertUser({ firstName: "Grace", email: "grace@example.com", roleId });
+    const later = new Date(NOON.getTime() + 60_000);
+
+    const first = await db.transaction((tx) =>
+      openAlert(
+        tx,
+        { kind: "user_access_increased", scope: "a-user-id", detail: { cause: "first" } },
+        { now: () => NOON },
+      ),
+    );
+    const second = await db.transaction((tx) =>
+      openAlert(
+        tx,
+        { kind: "user_access_increased", scope: "a-user-id", detail: { cause: "second" } },
+        { now: () => later },
+      ),
+    );
+
+    if (first.kind !== "opened" || second.kind !== "opened") {
+      throw new Error("expected both increases to open an alert");
+    }
+    expect(second.alertId).not.toBe(first.alertId);
+    const [firstRow] = await db.select().from(alerts).where(eq(alerts.id, first.alertId));
+    expect(firstRow).toMatchObject({
+      detail: { cause: "first" },
+      openedAt: NOON,
+      resolvedAt: null,
+    });
+    const [secondRow] = await db.select().from(alerts).where(eq(alerts.id, second.alertId));
+    expect(secondRow).toMatchObject({
+      detail: { cause: "second" },
+      openedAt: later,
+      resolvedAt: null,
+    });
+    expect(await deliveriesOf(first.alertId)).toHaveLength(1);
+    expect(await deliveriesOf(second.alertId)).toHaveLength(1);
   });
 
   it("opens a fresh alert once the earlier one of the same kind and scope is resolved", async () => {

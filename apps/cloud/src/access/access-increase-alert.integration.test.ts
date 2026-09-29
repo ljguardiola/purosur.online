@@ -4,6 +4,7 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import Fastify, { type FastifyInstance } from "fastify";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { openAlert } from "../alerts/open-alert.js";
 import {
   alerts,
   auditLog,
@@ -212,6 +213,45 @@ describe("assigning a role while that role's edit writes rows naming the person,
     const response = await assignment;
     expect(response.statusCode).toBe(200);
     expect(await roleOf(userId)).toBe(editedRoleId);
+  });
+});
+
+describe("two increases of the same person's access at once, on a real Postgres", () => {
+  it("opens both alerts without either waiting for the other", async () => {
+    const userId = await insertUser(await insertRole(["sell_and_charge"]));
+    const increase = (cause: string) => ({
+      kind: "user_access_increased" as const,
+      scope: userId,
+      detail: { cause },
+    });
+
+    let release: () => void = () => {};
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let firstOpened: () => void = () => {};
+    const opened = new Promise<void>((resolve) => {
+      firstOpened = resolve;
+    });
+    const first = db.transaction(async (tx) => {
+      const outcome = await openAlert(tx, increase("first"), { now: () => new Date() });
+      firstOpened();
+      await released;
+      return outcome;
+    });
+    try {
+      await Promise.race([opened, first]);
+      const second = await db.transaction((tx) =>
+        openAlert(tx, increase("second"), { now: () => new Date() }),
+      );
+      expect(second.kind).toBe("opened");
+    } finally {
+      release();
+    }
+
+    expect((await first).kind).toBe("opened");
+    const alertsForUser = await accessIncreasedAlertsFor(userId);
+    expect(alertsForUser.map((alert) => alert.detail["cause"]).sort()).toEqual(["first", "second"]);
   });
 });
 

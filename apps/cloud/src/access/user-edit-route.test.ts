@@ -761,6 +761,30 @@ describe("POST /users/:id/edit and the alert for increased access", () => {
     });
   });
 
+  it("opens a second alert for a second increase, leaving the first open as it was", async () => {
+    const encargadaRoleId = await insertRoleWithPermissions("Encargada", [
+      "sell_and_charge",
+      "void_sale",
+      "adjust_stock",
+    ]);
+    await assignRole(targetId, encargadaRoleId);
+    const [first] = await accessIncreasedAlerts();
+
+    const response = await assignRole(targetId, await seededAdministratorRoleId(), 2);
+
+    expect(response.statusCode).toBe(200);
+    const opened = await accessIncreasedAlerts();
+    expect(opened).toHaveLength(2);
+    expect(opened).toContainEqual(first);
+    expect(opened).toContainEqual(
+      expect.objectContaining({
+        scope: targetId,
+        resolvedAt: null,
+        detail: expect.objectContaining({ newRole: { name: null, isAdministrator: true } }),
+      }),
+    );
+  });
+
   it("opens no alert when the user is assigned a role whose permissions they already had", async () => {
     const fewerRoleId = await insertRoleWithPermissions("Repositora", ["sell_and_charge"]);
 
