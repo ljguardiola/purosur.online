@@ -12,12 +12,12 @@ export interface EnrolledInstallation {
 
 export async function insertEnrolledInstallation<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-  options: { revokedAt?: Date } = {},
+  options: { revokedAt?: Date; registerName?: string } = {},
 ): Promise<EnrolledInstallation> {
   const locationId = await seededLocationId(db);
   const [register] = await db
     .insert(registers)
-    .values({ locationId, name: "Caja 1" })
+    .values({ locationId, name: options.registerName ?? "Caja 1" })
     .returning({ id: registers.id });
   if (!register) {
     throw new Error("test setup: seeding the register returned no row");
