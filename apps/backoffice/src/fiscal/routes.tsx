@@ -1,14 +1,12 @@
-import { createRoute, lazyRouteComponent } from "@tanstack/react-router";
+import { createRoute } from "@tanstack/react-router";
 import { canSeeCashArea } from "../access/backoffice-access";
 import { cashAndFiscalAreaRoute } from "../shell/cash-and-fiscal-area";
+import { lazyScreen } from "../shell/lazy-screen";
 import { refuseWithout } from "../shell/signed-in-route";
 
 export const fiscalConfigurationRoute = createRoute({
   getParentRoute: () => cashAndFiscalAreaRoute,
   path: "fiscal-configuration",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeCashArea),
-  component: lazyRouteComponent(
-    () => import("./fiscal-configuration-page"),
-    "FiscalConfigurationPage",
-  ),
+  component: lazyScreen(() => import("./fiscal-configuration-page"), "FiscalConfigurationPage"),
 });

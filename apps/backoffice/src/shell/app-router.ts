@@ -19,6 +19,7 @@ import { cashAndFiscalAreaIndexRoute, cashAndFiscalAreaRoute } from "./cash-and-
 import { catalogAreaIndexRoute, catalogAreaRoute } from "./catalog-area";
 import { helpAreaRoute } from "./help-area";
 import { homeAreaIndexRoute, homeAreaRoute } from "./home-area";
+import { ScreenDownloadFailure } from "./lazy-screen";
 import { publicRoute } from "./public-route";
 import { type RouterContext, rootRoute } from "./root-route";
 import { ScreenFailure } from "./screen-failure";
@@ -78,7 +79,11 @@ export function createAppRouter(context: RouterContext) {
     stringifySearch,
     defaultPendingComponent: ScreenPending,
     defaultErrorComponent: ScreenFailure,
-    defaultOnCatch: (error) => context.reportError(error),
+    defaultOnCatch: (error) => {
+      if (!(error instanceof ScreenDownloadFailure)) {
+        context.reportError(error);
+      }
+    },
   });
   router.subscribe("onRendered", ({ pathChanged }) => {
     if (pathChanged) {
