@@ -1,9 +1,11 @@
 import {
   type RegisterCreationBody,
   type RegisterSummaryBody,
+  registerCoverageSchema,
   registerEnrollmentCodeSchema,
   registerListSchema,
 } from "@purosur/contracts";
+import type { PermissionKey } from "@purosur/domain";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { retryAfterSeconds } from "../platform/retry-after-seconds";
 import { readValidationFailedField } from "../platform/validation-failed-field";
@@ -17,6 +19,8 @@ export type RegisterSummary = {
 };
 
 export type FetchRegistersOutcome = CloudReadOutcome<RegisterSummary[]>;
+
+export type FetchRegisterCoverageOutcome = CloudReadOutcome<PermissionKey[]>;
 
 export type CreateRegisterInput = RegisterCreationBody;
 
@@ -84,10 +88,13 @@ async function gatedActionErrorOutcome(response: Response): Promise<GatedActionE
   return { kind: "failed" };
 }
 
-export async function fetchRegisters(): Promise<FetchRegistersOutcome> {
+async function readCloud<T>(
+  path: string,
+  fromBody: (body: unknown) => T | undefined,
+): Promise<CloudReadOutcome<T>> {
   let response: Response;
   try {
-    response = await fetch("/registers");
+    response = await fetch(path);
   } catch {
     return { kind: "failed" };
   }
@@ -103,11 +110,21 @@ export async function fetchRegisters(): Promise<FetchRegistersOutcome> {
   if (!response.ok) {
     return { kind: "failed" };
   }
-  const parsed = registerListSchema.safeParse(await response.json().catch(() => undefined));
-  if (!parsed.success) {
-    return { kind: "failed" };
-  }
-  return { kind: "ok", value: parsed.data.map(registerFromWire) };
+  const value = fromBody(await response.json().catch(() => undefined));
+  return value === undefined ? { kind: "failed" } : { kind: "ok", value };
+}
+
+export function fetchRegisters(): Promise<FetchRegistersOutcome> {
+  return readCloud("/registers", (body) =>
+    registerListSchema.safeParse(body).data?.map(registerFromWire),
+  );
+}
+
+export function fetchRegisterCoverage(): Promise<FetchRegisterCoverageOutcome> {
+  return readCloud(
+    "/registers/coverage",
+    (body) => registerCoverageSchema.safeParse(body).data?.uncovered_permissions,
+  );
 }
 
 export async function createRegister(input: CreateRegisterInput): Promise<CreateRegisterOutcome> {
