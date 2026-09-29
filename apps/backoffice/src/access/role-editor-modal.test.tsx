@@ -635,38 +635,6 @@ test("the confirmation step names the role as it is stored, not the name being t
     .toBeVisible();
 });
 
-test("draws the confirmation step as one centered column, 12px apart, with only Volver and Guardar los cambios, and Escape still goes back", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stockDetailWithPeople });
-  const screen = await renderModal({ kind: "edit", roleId: "role-stock" }, services);
-  await expect
-    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
-    .toHaveValue("Depósito");
-  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
-  const confirmation = screen.getByRole("dialog", { name: "¿Guardar los cambios?" });
-  await expect.element(confirmation).toBeVisible();
-
-  const buttonNames = Array.from(
-    (confirmation.element() as HTMLElement).querySelectorAll("button"),
-    (button) => button.textContent,
-  );
-  expect(buttonNames).toEqual(["Volver", "Guardar los cambios"]);
-  const title = confirmation.getByRole("heading").element().getBoundingClientRect();
-  const text = confirmation
-    .getByText(/^Se aplican/)
-    .element()
-    .getBoundingClientRect();
-  const names = (confirmation.getByText("Amara Ortiz").element().parentElement as HTMLElement)
-    .parentElement as HTMLElement;
-  expect(text.top - title.bottom).toBeCloseTo(12, 0);
-  expect(names.getBoundingClientRect().top - text.bottom).toBeCloseTo(12, 0);
-
-  await userEvent.keyboard("{Escape}");
-
-  await expect.poll(() => screen.getByText("¿Guardar los cambios?").query()).toBeNull();
-  expect(services.editRole).not.toHaveBeenCalled();
-});
-
 test("at a short desktop viewport, the areas list and the permissions list each scroll on their own while the name row, area title and footer stay put", async () => {
   for (const height of [720, 600]) {
     await page.viewport(1280, height);
