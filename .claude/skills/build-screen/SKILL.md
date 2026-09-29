@@ -40,7 +40,7 @@ never restates those rules. Every step below follows the TDD order in
 
 A section reads its data through `useCloudQuery`
 (`apps/backoffice/src/platform/use-cloud-query.ts`), wrapped in its
-concept's `<concept>-queries.ts` (`catalog/catalog-queries.ts` is the first).
+concept's `<concept>-queries.ts` (such as `catalog/catalog-queries.ts`).
 It combines several reads with `combineCloudData`
 (`platform/combine-cloud-data.ts`), and a table takes its loading and failure
 from `cloudTableState` (`platform/cloud-table-state.tsx`). The rules for
