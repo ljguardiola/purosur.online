@@ -231,7 +231,7 @@ function OpenAlertDetailModal({
     const outcome = await closeAlert(alertId);
     if (outcome.kind === "ok") {
       onClosed();
-      void refreshAlertsAfterClosing();
+      void refreshAlertsAfterClosing(alertId);
       return;
     }
     if (outcome.kind === "unauthenticated") {

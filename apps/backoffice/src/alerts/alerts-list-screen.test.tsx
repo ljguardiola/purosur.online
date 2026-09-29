@@ -487,6 +487,46 @@ test("reads the alerts again after one is closed, keeping the rows shown while i
   expect(services.alertDetailModal.fetchAlert).toHaveBeenCalledTimes(1);
 });
 
+test("never shows an alert the person just closed as still open when it is opened again", async () => {
+  const services = createServices();
+  const closedPasskeyAlert = { ...passkeyAlert, resolvedAt: "2026-01-06T09:00:00.000Z" };
+  vi.mocked(services.fetchAlerts).mockImplementation(async (query) =>
+    query?.open === false ? ok([closedPasskeyAlert]) : ok([passkeyAlert]),
+  );
+  const reread = deferred<{ kind: "ok"; value: AlertDetail }>();
+  services.alertDetailModal = {
+    fetchAlert: vi
+      .fn()
+      .mockResolvedValueOnce({ kind: "ok", value: passkeyDetail })
+      .mockReturnValueOnce(reread.promise),
+    closeAlert: vi.fn().mockResolvedValue({ kind: "ok" }),
+  };
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: /Ver la alerta «Passkey»/ }));
+  await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeEnabled();
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar la alerta" }));
+  await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+  await screen.getByRole("button", { name: /Estado/ }).click();
+  await screen.getByRole("option", { name: "Cerradas" }).click();
+  await expect
+    .poll(() => vi.mocked(services.fetchAlerts).mock.calls.at(-1))
+    .toEqual([{ open: false, page: 1 }]);
+
+  await userEvent.click(screen.getByRole("button", { name: /Ver la alerta «Passkey»/ }));
+
+  await expect.element(screen.getByRole("dialog")).toBeVisible();
+  expect(services.alertDetailModal.fetchAlert).toHaveBeenCalledTimes(2);
+  expect(screen.getByText("No se cierra sola", { exact: false }).query()).toBeNull();
+  await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeDisabled();
+  reread.resolve({
+    kind: "ok",
+    value: { ...passkeyDetail, resolvedAt: "2026-01-06T09:00:00.000Z" },
+  });
+  await expect
+    .element(screen.getByRole("button", { name: "Cerrar la alerta" }))
+    .not.toBeInTheDocument();
+});
+
 test("moves to the last page left when closing the only alert on the last page empties it", async () => {
   const services = createServices();
   let closed = false;

@@ -64,11 +64,12 @@ export function useRefreshAlerts(): () => Promise<void> {
   return () => client.invalidateQueries({ queryKey: alertsKey });
 }
 
-export function useRefreshAlertsAfterClosing(): () => Promise<void> {
+export function useRefreshAlertsAfterClosing(): (closedAlertId: string) => Promise<void> {
   const client = useQueryClient();
   // The closed alert's detail is still mounted at this point: reading it again would spend a
   // request of the backoffice's hourly rate limit on an alert that is no longer shown.
-  return () => {
+  return (closedAlertId) => {
+    client.removeQueries({ queryKey: alertsKeys.detail(closedAlertId), exact: true });
     void client.invalidateQueries({ queryKey: alertsKey, refetchType: "none" });
     return client.refetchQueries({ queryKey: alertsKeys.lists, type: "active" });
   };
