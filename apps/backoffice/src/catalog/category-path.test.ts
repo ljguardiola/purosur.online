@@ -1,6 +1,7 @@
 import { expect, test } from "vitest";
 import {
   type CategoryNode,
+  categoriesInTreeOrder,
   categoryPathLabels,
   leafCategories,
   selfAndDescendantIds,
@@ -57,4 +58,15 @@ test("selfAndDescendantIds returns only the category itself when it has no child
   const categories = [groceries, spreads, jams, drinks];
 
   expect([...selfAndDescendantIds(categories, "bebidas")]).toEqual(["bebidas"]);
+});
+
+test("categoriesInTreeOrder lists each category right before its subcategories, by name", () => {
+  const ordered = categoriesInTreeOrder([jams, drinks, spreads, groceries]);
+
+  expect(ordered.map((category) => category.id)).toEqual([
+    "almacen",
+    "untables",
+    "mermeladas",
+    "bebidas",
+  ]);
 });

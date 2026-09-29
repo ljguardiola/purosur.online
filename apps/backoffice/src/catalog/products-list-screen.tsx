@@ -79,7 +79,7 @@ import {
   useRefreshCatalog,
   useReloadProduct,
 } from "./catalog-queries";
-import { categoryPathLabels, leafCategories } from "./category-path";
+import { categoriesInTreeOrder, categoryPathLabels, leafCategories } from "./category-path";
 import {
   formatNetContentQuantity,
   NET_CONTENT_QUANTITY_INVALID,
@@ -211,15 +211,6 @@ function netContentUnitOf(netContent: NetContent | null): NetContentUnit {
 }
 
 const productNameOrder = textOrder((product: ProductSummary) => product.name);
-
-function categoriesInTreeOrder(categories: CategorySummary[]): CategorySummary[] {
-  return sortedItems(categories, {
-    order: textOrder((category) => category.name),
-    direction: "ascending",
-    id: (category) => category.id,
-    parentId: (category) => category.parentId,
-  });
-}
 
 // Full paths disambiguate leaves that share a name under different parents.
 function categorySelectOptions(categories: CategorySummary[]): Options<Option<string>> | undefined {
@@ -1462,7 +1453,7 @@ function labelableProducts(products: ProductSummary[]): LabelableProduct[] {
     return code ? [{ product, code }] : [];
   });
   return sortedItems(labelable, {
-    order: (a, b) => productNameOrder(a.product, b.product),
+    order: textOrder((labelableProduct) => labelableProduct.product.name),
     direction: "ascending",
   });
 }

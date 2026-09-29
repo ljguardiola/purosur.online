@@ -8,12 +8,10 @@ import {
   plural,
   SearchField,
   Select,
-  sortedItems,
   Table,
   type TableSort,
   TextField,
   tableRows,
-  textOrder,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
 import {
@@ -43,7 +41,13 @@ import {
 import type { createCategory, editCategory } from "./categories-api";
 import type { CategoriesListScreenServices } from "./categories-list-services";
 import { categoryNameError } from "./category-name";
-import { categoryPathLabels, selfAndDescendantIds } from "./category-path";
+import {
+  categoriesInTreeOrder,
+  categoryNameOrder,
+  categoryParentId,
+  categoryPathLabels,
+  selfAndDescendantIds,
+} from "./category-path";
 import type { CategoriesListFilters } from "./routes";
 
 export type CategoriesListScreenProps = {
@@ -64,19 +68,14 @@ function nameTakenUnderParentError(params: { name: string; parent: string }): st
   return `Ya existe una categoría "${params.name}" en ${params.parent}.`;
 }
 
-const categoryNameOrder = textOrder((category: CategorySummary) => category.name);
-
 function parentSelectOptions(
   categories: CategorySummary[],
   excludeIds: ReadonlySet<string>,
 ): Options<Option<string>> {
   const labels = categoryPathLabels(categories);
-  const sorted = sortedItems(categories, {
-    order: categoryNameOrder,
-    direction: "ascending",
-    id: (category) => category.id,
-    parentId: (category) => category.parentId,
-  }).filter((category) => !excludeIds.has(category.id));
+  const sorted = categoriesInTreeOrder(categories).filter(
+    (category) => !excludeIds.has(category.id),
+  );
   const noneOption: Option<string> = {
     value: "",
     label: "Ninguna (categoría de primer nivel)",
@@ -592,7 +591,7 @@ export function CategoriesListScreen({
     sort: {
       by: sort,
       orders: { category: categoryNameOrder },
-      parentId: (category) => category.parentId,
+      parentId: categoryParentId,
     },
   });
 

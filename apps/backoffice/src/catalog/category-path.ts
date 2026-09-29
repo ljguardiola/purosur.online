@@ -1,3 +1,5 @@
+import { sortedItems, textOrder } from "@purosur/ui";
+
 export type CategoryNode = { id: string; name: string; parentId: string | null };
 
 const PATH_SEPARATOR = " › ";
@@ -31,6 +33,21 @@ export function categoryPathLabels<T extends CategoryNode>(
     labelFor(category.id, new Set());
   }
   return labels;
+}
+
+export const categoryNameOrder = textOrder((category: CategoryNode) => category.name);
+
+export function categoryParentId(category: CategoryNode): string | null {
+  return category.parentId;
+}
+
+export function categoriesInTreeOrder<T extends CategoryNode>(categories: readonly T[]): T[] {
+  return sortedItems(categories, {
+    order: categoryNameOrder,
+    direction: "ascending",
+    id: (category) => category.id,
+    parentId: categoryParentId,
+  });
 }
 
 export function leafCategories<T extends CategoryNode>(categories: readonly T[]): T[] {
