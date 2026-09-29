@@ -1279,6 +1279,21 @@ test("while the user loads, shows a disabled Desactivar to someone who may deact
   await expect.element(screen.getByRole("button", { name: "Desactivar" })).toBeDisabled();
 });
 
+test("while the user loads, shows a disabled Desactivar to someone who may only reactivate users", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockReturnValue(new Promise(() => {}));
+
+  const screen = await renderScreen(
+    services,
+    () => {},
+    "user-1",
+    "user-2",
+    REACTIVATE_USERS_ACCESS,
+  );
+
+  await expect.element(screen.getByRole("button", { name: "Desactivar" })).toBeDisabled();
+});
+
 test("after the user fails to load, shows Desactivar disabled to someone who may deactivate users", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "failed" });
