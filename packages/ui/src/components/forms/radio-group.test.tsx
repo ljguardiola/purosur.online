@@ -307,9 +307,8 @@ test("does not accept a chosen value outside the group's own options, or an empt
   }>().not.toExtend<RadioGroupProps<PaymentMethod>>();
 });
 
-// `@ts-expect-error` is banned, so an object that fails the first overload's `RadioGroupProps<V>`
-// constraint falls through to the second, `unknown` overload and resolves to `false` instead of
-// refusing to typecheck.
+// An object that fails the first overload's `RadioGroupProps<V>` constraint falls through to the
+// second, `unknown` overload and resolves to `false` instead of refusing to typecheck.
 function isValidRadioGroupCall<V extends string>(props: RadioGroupProps<V>): true;
 function isValidRadioGroupCall(props: unknown): false;
 function isValidRadioGroupCall(_props: unknown): boolean {

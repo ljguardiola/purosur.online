@@ -389,10 +389,9 @@ test("does not accept a chosen value outside the group's own options, or an empt
 
 // `icon`/`title`/`description` are left out here because a `ReactElement` field breaks TypeScript's
 // overload-based inference below, which would make even a valid call wrongly resolve to the
-// "invalid" branch. A call that fails to compile can't sit in this file as literal code, and
-// `@ts-expect-error` is banned, so the first (generic) overload only matches a call whose
-// `value`/`onChange` truly fit the inferred V; an invalid call falls through to the fallback
-// overload instead, resolving to `false`.
+// "invalid" branch. The first (generic) overload only matches a call whose `value`/`onChange`
+// truly fit the inferred V; an invalid call falls through to the fallback overload instead,
+// resolving to `false`.
 type OptionCardGroupValueOnlyProps<V extends string> = {
   options: readonly [{ value: V }, ...{ value: V }[]];
   value: OptionCardGroupProps<V>["value"];
