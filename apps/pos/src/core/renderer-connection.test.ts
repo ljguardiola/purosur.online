@@ -4,6 +4,7 @@ import { createRendererConnection, type RendererPort } from "./renderer-connecti
 class FakePort implements RendererPort {
   started = false;
   closed = false;
+  posted: unknown[] = [];
   private listener: ((event: { data: unknown }) => void) | undefined;
 
   on(_event: "message", listener: (event: { data: unknown }) => void): void {
@@ -16,6 +17,10 @@ class FakePort implements RendererPort {
 
   close(): void {
     this.closed = true;
+  }
+
+  postMessage(message: unknown): void {
+    this.posted.push(message);
   }
 
   receive(data: unknown): void {
@@ -33,7 +38,7 @@ describe("createRendererConnection", () => {
     port.receive({ type: "ping" });
 
     expect(port.started).toBe(true);
-    expect(onMessage).toHaveBeenCalledExactlyOnceWith({ type: "ping" });
+    expect(onMessage).toHaveBeenCalledExactlyOnceWith({ type: "ping" }, expect.any(Function));
   });
 
   it("closes the previous renderer port when a new one replaces it", () => {
@@ -58,5 +63,30 @@ describe("createRendererConnection", () => {
     previous.receive({ type: "ping" });
 
     expect(onMessage).not.toHaveBeenCalled();
+  });
+
+  it("answers on the port the message arrived on", () => {
+    const connection = createRendererConnection((_data, reply) => reply({ type: "answer" }));
+    const port = new FakePort();
+
+    connection.adopt(port);
+    port.receive({ type: "ping" });
+
+    expect(port.posted).toEqual([{ type: "answer" }]);
+  });
+
+  it("drops an answer whose port was replaced before it was ready", () => {
+    const replies: ((message: unknown) => void)[] = [];
+    const connection = createRendererConnection((_data, reply) => replies.push(reply));
+    const previous = new FakePort();
+    const next = new FakePort();
+
+    connection.adopt(previous);
+    previous.receive({ type: "ping" });
+    connection.adopt(next);
+    replies[0]?.({ type: "late answer" });
+
+    expect(previous.posted).toEqual([]);
+    expect(next.posted).toEqual([]);
   });
 });

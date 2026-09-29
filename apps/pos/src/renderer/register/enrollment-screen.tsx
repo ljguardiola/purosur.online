@@ -1,0 +1,135 @@
+import type { EnrollmentOutcome } from "@purosur/contracts";
+import { deviceEnrollmentBodySchema } from "@purosur/contracts";
+import type { Icon } from "@purosur/ui";
+import { Button, InlineNotice, plural, TextField } from "@purosur/ui";
+import { ShieldX, TriangleAlert, WifiOff } from "lucide-react";
+import type { FormEvent } from "react";
+import { useId, useState } from "react";
+import { BrandPanelScreen } from "../shell/brand-panel-screen";
+
+type Notice = { icon: Icon; title: string; description: string };
+
+const INCOMPLETE_CODE_MESSAGE = "Escribí los 16 caracteres del código de alta.";
+
+const UNAVAILABLE_NOTICE: Notice = {
+  icon: <TriangleAlert />,
+  title: "No se pudo dar de alta la caja",
+  description: "Puro Sur no responde en este momento. Probá de nuevo en unos minutos.",
+};
+
+function noticeFor(outcome: EnrollmentOutcome): Notice | undefined {
+  switch (outcome.kind) {
+    case "enrolled":
+      return undefined;
+    case "code_rejected":
+      return {
+        icon: <ShieldX />,
+        title: "El código ya no sirve",
+        description:
+          "Venció, ya se usó o se escribió mal varias veces. Pedí un código nuevo en el backoffice.",
+      };
+    case "rate_limited": {
+      const minutes = Math.max(1, Math.ceil(outcome.retry_after_seconds / 60));
+      return {
+        icon: <ShieldX />,
+        title: "Demasiadas solicitudes",
+        description: `Se puede volver a intentar en ${plural(minutes, { one: "1 minuto", other: `${minutes} minutos` })}.`,
+      };
+    }
+    case "unreachable":
+      return {
+        icon: <WifiOff />,
+        title: "No hay conexión a internet",
+        description: "Revisá que esta notebook esté conectada y probá de nuevo.",
+      };
+    case "unavailable":
+      return UNAVAILABLE_NOTICE;
+    case "not_stored":
+      return {
+        icon: <TriangleAlert />,
+        title: "No se pudo guardar el alta en esta notebook",
+        description: "Avisá al Administrador.",
+      };
+  }
+}
+
+export type EnrollmentScreenProps = {
+  enroll: (typedCode: string) => Promise<EnrollmentOutcome>;
+};
+
+export function EnrollmentScreen({ enroll }: EnrollmentScreenProps) {
+  const [code, setCode] = useState("");
+  const [incomplete, setIncomplete] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [outcome, setOutcome] = useState<EnrollmentOutcome>();
+  const noticeId = useId();
+
+  const notice = outcome === undefined ? undefined : noticeFor(outcome);
+  const codeRejected = outcome?.kind === "code_rejected";
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (submitting) {
+      return;
+    }
+    setOutcome(undefined);
+    if (!deviceEnrollmentBodySchema.shape.code.safeParse(code).success) {
+      setIncomplete(true);
+      return;
+    }
+    setIncomplete(false);
+    setSubmitting(true);
+    const answered = await enroll(code).catch((): EnrollmentOutcome => ({ kind: "unavailable" }));
+    setOutcome(answered);
+    setSubmitting(false);
+  }
+
+  return (
+    <BrandPanelScreen status="Sin dar de alta">
+      <main className="flex w-full max-w-110 flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <p className="text-caption font-bold text-text-eyebrow uppercase tracking-sm">
+            NOTEBOOK NUEVA
+          </p>
+          <h1 className="text-display text-text-accent">Dar de alta esta caja</h1>
+          <p className="text-body text-text-subtle">
+            Escribí el código de alta que se genera en el backoffice, en Cajas registradoras. Vale
+            15 minutos y hace falta internet.
+          </p>
+        </div>
+        <form className="flex flex-col gap-4" noValidate onSubmit={submit}>
+          {codeRejected ? (
+            <TextField
+              kind="plain-text"
+              label="Código de alta"
+              value={code}
+              onChange={setCode}
+              errorMessageId={noticeId}
+            />
+          ) : (
+            <TextField
+              kind="plain-text"
+              label="Código de alta"
+              value={code}
+              onChange={setCode}
+              errorMessage={incomplete ? INCOMPLETE_CODE_MESSAGE : undefined}
+            />
+          )}
+          {notice === undefined ? null : (
+            <div id={noticeId}>
+              <InlineNotice
+                tone="error"
+                icon={notice.icon}
+                title={notice.title}
+                description={notice.description}
+              />
+            </div>
+          )}
+          <Button type="submit" fullWidth disabled={submitting}>
+            Dar de alta
+          </Button>
+        </form>
+      </main>
+    </BrandPanelScreen>
+  );
+}

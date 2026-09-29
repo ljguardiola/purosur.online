@@ -1,15 +1,47 @@
 import { RouterProvider } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import type { CoreClient } from "../platform/core-client";
 import { useCoreStatus } from "../platform/use-core-status";
-import { createAppRouter, ROUTE_FOR_STATUS } from "./router";
+import type { Enrollment } from "./router";
+import { createAppRouter, routeFor } from "./router";
 
-export function App() {
+export function App({ core }: { core: CoreClient }) {
   const coreStatus = useCoreStatus();
-  const [router] = useState(() => createAppRouter());
+  const [knownEnrollment, setKnownEnrollment] = useState<Enrollment>("unknown");
+  const enrollment = coreStatus === "up" ? knownEnrollment : "unknown";
+
+  async function enroll(typedCode: string) {
+    const outcome = await core.enroll(typedCode);
+    if (outcome.kind === "enrolled") {
+      setKnownEnrollment("enrolled");
+    }
+    return outcome;
+  }
+
+  const [router] = useState(() => createAppRouter(enroll));
 
   useEffect(() => {
-    router.navigate({ to: ROUTE_FOR_STATUS[coreStatus], replace: true });
-  }, [router, coreStatus]);
+    if (coreStatus !== "up") {
+      return;
+    }
+    let current = true;
+    core.enrollmentStatus().then(
+      (enrolled) => {
+        if (current) {
+          setKnownEnrollment(enrolled ? "enrolled" : "not_enrolled");
+        }
+      },
+      // A replaced core connection fails this request; the core coming back up asks again.
+      () => {},
+    );
+    return () => {
+      current = false;
+    };
+  }, [core, coreStatus]);
 
-  return <RouterProvider router={router} context={{ coreStatus }} />;
+  useEffect(() => {
+    router.navigate({ to: routeFor({ coreStatus, enrollment }), replace: true });
+  }, [router, coreStatus, enrollment]);
+
+  return <RouterProvider router={router} context={{ coreStatus, enrollment, enroll }} />;
 }
