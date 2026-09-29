@@ -950,7 +950,7 @@ export function PricesListScreen({
                 ? {
                     icon: <Package />,
                     title: "No hay productos activos",
-                    description: "Creá o activá uno en Productos para ponerle precio.",
+                    description: "Creá uno en Productos para ponerle precio.",
                     variant: "blank",
                   }
                 : {

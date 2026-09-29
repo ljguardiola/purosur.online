@@ -1147,23 +1147,26 @@ test.each([
     applied: "no filter",
     filters: {},
     empty: "No hay productos activos",
+    detail: "Creá uno en Productos para ponerle precio.",
     absent: "Sin resultados",
   },
   {
     applied: "a category filter",
     filters: { category: "cat-1" },
     empty: "Sin resultados",
+    detail: "Probá con otro nombre o categoría.",
     absent: "No hay productos activos",
   },
   {
     applied: "a search",
     filters: { search: "zzz" },
     empty: "Sin resultados",
+    detail: "Probá con otro nombre o categoría.",
     absent: "No hay productos activos",
   },
 ])(
   "an empty list of every product with $applied shows $empty",
-  async ({ filters, empty, absent }) => {
+  async ({ filters, empty, detail, absent }) => {
     const services = createServices();
     vi.mocked(services.fetchPrices).mockResolvedValue({
       kind: "ok",
@@ -1180,6 +1183,7 @@ test.each([
     });
 
     await expect.element(screen.getByText(empty)).toBeVisible();
+    await expect.element(screen.getByText(detail)).toBeVisible();
     expect(screen.getByText(absent).query()).toBeNull();
   },
 );
