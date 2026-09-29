@@ -28,6 +28,30 @@ export function decideScope(changedPaths) {
   return { docsOnly: true, reason: "every changed path is documentation-only" };
 }
 
+// No test project includes or imports anything under .claude/. Tailwind's scan of the whole
+// repository reads it, but a utility generated from it only styles an element whose own source,
+// scanned too, already names that class.
+const TESTS_UNREAD_ROOTS = [".claude/"];
+
+export function isUnreadByTests(path) {
+  return isDocumentationOnly(path) || TESTS_UNREAD_ROOTS.some((root) => path.startsWith(root));
+}
+
+export function decideTestsScope(changedPaths) {
+  if (changedPaths === null) {
+    return { testsNeeded: true, reason: "could not determine the changed paths" };
+  }
+  if (changedPaths.length === 0) {
+    return { testsNeeded: true, reason: "no changed path was reported" };
+  }
+
+  const readPath = changedPaths.find((path) => !isUnreadByTests(path));
+  if (readPath !== undefined) {
+    return { testsNeeded: true, reason: `${readPath} is read by the test shards` };
+  }
+  return { testsNeeded: false, reason: "no changed path is read by the test shards" };
+}
+
 const CATALOG_INPUT_ROOTS = ["packages/ui/"];
 
 const CATALOG_INPUT_FILES = new Set([
@@ -91,16 +115,20 @@ export async function runCli({
     log(`${LOG_PREFIX}: SCOPE_FROM or SCOPE_TO is missing or unresolved`);
     await appendOutput(GITHUB_OUTPUT, "docs_only=false\n");
     await appendOutput(GITHUB_OUTPUT, "catalog_changed=true\n");
+    await appendOutput(GITHUB_OUTPUT, "tests_needed=true\n");
     return 0;
   }
 
   const changedPaths = await diffChangedPaths({ fromSha: SCOPE_FROM, toSha: SCOPE_TO, runGit });
   const scopeDecision = decideScope(changedPaths);
   const catalogDecision = decideCatalogScope(changedPaths);
+  const testsDecision = decideTestsScope(changedPaths);
   log(`${LOG_PREFIX}: ${scopeDecision.reason}`);
   log(`${LOG_PREFIX}: ${catalogDecision.reason}`);
+  log(`${LOG_PREFIX}: ${testsDecision.reason}`);
   await appendOutput(GITHUB_OUTPUT, `docs_only=${scopeDecision.docsOnly}\n`);
   await appendOutput(GITHUB_OUTPUT, `catalog_changed=${catalogDecision.catalogChanged}\n`);
+  await appendOutput(GITHUB_OUTPUT, `tests_needed=${testsDecision.testsNeeded}\n`);
   return 0;
 }
 
