@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import Fastify, { type FastifyInstance, type LightMyRequestResponse } from "fastify";
+import Fastify, { type FastifyInstance } from "fastify";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { auditLog, roles, sessions, userRoles, users } from "../platform/db/schema.js";
@@ -9,6 +9,7 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
+import { runQueuedBehindHeldLock } from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { SESSION_COOKIE_NAME } from "./session-cookie.js";
 import { generateSessionId, hashSessionId } from "./session-id.js";
@@ -85,43 +86,6 @@ async function insertSession(userId: string): Promise<string> {
   return rawSessionId;
 }
 
-type InjectRequest = () => Promise<LightMyRequestResponse>;
-
-async function waitForLockWaiters(count: number): Promise<void> {
-  for (let attempt = 0; attempt < 500; attempt += 1) {
-    const [row] = await sql<{ waiting: number }[]>`
-      select count(*)::int as waiting from pg_stat_activity
-      where datname = current_database() and wait_event_type = 'Lock'`;
-    if ((row?.waiting ?? 0) >= count) return;
-    await new Promise((resolve) => setTimeout(resolve, 10));
-  }
-  throw new Error(`test setup: ${count} requests never queued behind the held lock`);
-}
-
-// Holds the same row lock the reactivation route takes before reading `active`, so both requests queue behind it in order.
-async function runQueuedBehindTargetUserLock(
-  targetId: string,
-  first: InjectRequest,
-  second: InjectRequest,
-): Promise<[LightMyRequestResponse, LightMyRequestResponse]> {
-  const reserved = await sql.reserve();
-  let firstResponse: Promise<LightMyRequestResponse> | undefined;
-  let secondResponse: Promise<LightMyRequestResponse> | undefined;
-  try {
-    await reserved`begin`;
-    await reserved`select id from users where id = ${targetId} for update`;
-    firstResponse = first();
-    await waitForLockWaiters(1);
-    secondResponse = second();
-    await waitForLockWaiters(2);
-  } finally {
-    await reserved`rollback`;
-    reserved.release();
-    await Promise.allSettled([firstResponse, secondResponse]);
-  }
-  return Promise.all([firstResponse, secondResponse]);
-}
-
 describe("reactivating the same target twice at once on a real Postgres", () => {
   it("lets exactly one reactivation succeed, answers the other not_found, and audits it once", async () => {
     const administratorRoleId = await seededAdministratorRoleId();
@@ -139,8 +103,10 @@ describe("reactivating the same target twice at once on a real Postgres", () => 
         headers: { origin: BACKOFFICE_ORIGIN, cookie },
       });
 
-    const [firstResponse, secondResponse] = await runQueuedBehindTargetUserLock(
-      targetId,
+    // The reactivation route takes this same row lock before reading `active`.
+    const [firstResponse, secondResponse] = await runQueuedBehindHeldLock(
+      sql,
+      (holder) => holder`select id from users where id = ${targetId} for update`,
       reactivate,
       reactivate,
     );
