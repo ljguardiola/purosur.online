@@ -285,3 +285,138 @@ test("reset returns the fields to their defaults with no errors", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
   await expect.poll(() => onSubmit.mock.calls.length).toBe(1);
 });
+
+type VersionedValues = { name: string; version: number };
+
+function VersionedProbe({
+  version,
+  onSubmit,
+}: {
+  version: number;
+  onSubmit: (submission: CloudSubmission<VersionedValues>) => Promise<void>;
+}) {
+  const { form, submit, reset } = useCloudForm({
+    defaultValues: { name: "Ana", version } satisfies VersionedValues,
+    request: {
+      schema: z.object({ name: z.string().min(1), version: z.number().int().min(1) }),
+      from: (values) => values,
+    },
+    fields: { name: "name", version: null },
+    messages: { name: "Nombre inválido." },
+    onSubmit: (_request, submission) => onSubmit(submission),
+  });
+  return (
+    <>
+      <form.AppField name="name">
+        {(field) => <field.TextField kind="plain-text" label="Nombre" />}
+      </form.AppField>
+      <button type="button" onClick={() => void submit()}>
+        Enviar
+      </button>
+      <button type="button" onClick={() => reset({ name: "Beto", version: 4 })}>
+        Cargar
+      </button>
+    </>
+  );
+}
+
+test("a request key declared as belonging to no field is reported as unknown by the cloud's name", async () => {
+  const known = vi.fn<(known: boolean) => void>();
+  const screen = await render(
+    <VersionedProbe
+      version={1}
+      onSubmit={(submission) => {
+        known(submission.showWireFieldError("version"));
+        return Promise.resolve();
+      }}
+    />,
+  );
+
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+  await expect.poll(() => known.mock.calls.length).toBe(1);
+  expect(known).toHaveBeenCalledWith(false);
+  await expect.element(screen.getByText("Nombre inválido.")).not.toBeInTheDocument();
+});
+
+test("a schema issue on a key that belongs to no field blocks the submit", async () => {
+  const onSubmit = vi.fn<() => Promise<void>>(() => Promise.resolve());
+  const screen = await render(<VersionedProbe version={0} onSubmit={onSubmit} />);
+
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+  await expect.element(screen.getByRole("textbox", { name: "Nombre" })).toBeVisible();
+  expect(onSubmit).not.toHaveBeenCalled();
+});
+
+test("reset with values loads them into the fields and the request", async () => {
+  const seen = vi.fn<(values: VersionedValues) => void>();
+  const screen = await render(
+    <VersionedProbe
+      version={1}
+      onSubmit={(submission) => {
+        seen(submission.values);
+        return Promise.resolve();
+      }}
+    />,
+  );
+
+  await userEvent.click(screen.getByRole("button", { name: "Cargar" }));
+  await expect.element(screen.getByRole("textbox", { name: "Nombre" })).toHaveValue("Beto");
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+  await expect.poll(() => seen.mock.calls.length).toBe(1);
+  expect(seen).toHaveBeenCalledWith({ name: "Beto", version: 4 });
+});
+
+const ROLE_OPTIONS = [
+  { value: "cashier", label: "Caja" },
+  { value: "stock", label: "Depósito" },
+] as const;
+
+function SelectProbe({ onSubmit }: { onSubmit: (role: string) => Promise<void> }) {
+  const { form, submit } = useCloudForm({
+    defaultValues: { role: "" },
+    request: {
+      schema: z.object({ role: z.string().min(1) }),
+      from: ({ role }) => ({ role }),
+    },
+    fields: { role: "role" },
+    messages: { role: "Elegí un rol." },
+    onSubmit: ({ role }) => onSubmit(role),
+  });
+  return (
+    <>
+      <form.AppField name="role">
+        {(field) => <field.Select label="Rol" options={ROLE_OPTIONS} required />}
+      </form.AppField>
+      <button type="button" onClick={() => void submit()}>
+        Enviar
+      </button>
+    </>
+  );
+}
+
+test("a select shows its field's message after a failed submit and clears it once an option is chosen", async () => {
+  const screen = await render(<SelectProbe onSubmit={() => Promise.resolve()} />);
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+  await expect.element(screen.getByText("Elegí un rol.")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: /Rol/ }));
+  await userEvent.click(screen.getByRole("option", { name: "Depósito" }));
+
+  await expect.element(screen.getByText("Elegí un rol.")).not.toBeInTheDocument();
+});
+
+test("a select submits the option that was chosen", async () => {
+  const onSubmit = vi.fn<(role: string) => Promise<void>>(() => Promise.resolve());
+  const screen = await render(<SelectProbe onSubmit={onSubmit} />);
+
+  await userEvent.click(screen.getByRole("button", { name: /Rol/ }));
+  await userEvent.click(screen.getByRole("option", { name: "Depósito" }));
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+  await expect.poll(() => onSubmit.mock.calls.length).toBe(1);
+  expect(onSubmit).toHaveBeenCalledWith("stock");
+});

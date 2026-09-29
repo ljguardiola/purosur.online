@@ -6,12 +6,12 @@ import {
   useStore,
 } from "@tanstack/react-form";
 import { fieldContext, formContext } from "./cloud-form-context";
-import { BoundTextField } from "./cloud-form-fields";
+import { BoundSelect, BoundTextField } from "./cloud-form-fields";
 
 const { useAppForm } = createFormHook({
   fieldContext,
   formContext,
-  fieldComponents: { TextField: BoundTextField },
+  fieldComponents: { TextField: BoundTextField, Select: BoundSelect },
   formComponents: {},
 });
 
@@ -33,7 +33,7 @@ type CloudFormOptions<
     schema: StandardSchemaV1<Request, unknown>;
     from: (values: Values) => Request;
   };
-  fields: { [Wire in keyof Request & string]-?: Field };
+  fields: { [Wire in keyof Request & string]-?: Field | null };
   messages: Record<Field, Message<Values>>;
   onSubmit: (request: Request, submission: CloudSubmission<Values>) => Promise<void>;
 };
@@ -50,9 +50,11 @@ export function useCloudForm<
   Field extends keyof Values & string,
 >(options: CloudFormOptions<Values, Request, Field>) {
   const { request, fields, messages } = options;
-  const wireFields: Record<string, Field | undefined> = fields;
+  const wireFields: Record<string, Field | null | undefined> = fields;
   const fieldOf = (wireField: string | undefined): Field | undefined =>
-    wireField !== undefined && Object.hasOwn(fields, wireField) ? wireFields[wireField] : undefined;
+    wireField !== undefined && Object.hasOwn(fields, wireField)
+      ? (wireFields[wireField] ?? undefined)
+      : undefined;
   const messageFor = (field: Field, values: Values): string => {
     const message = messages[field];
     return typeof message === "function" ? message(values) : message;
@@ -114,14 +116,14 @@ export function useCloudForm<
 
   async function submit() {
     for (const field of Object.values(wireFields)) {
-      if (field !== undefined) {
+      if (field) {
         clearFieldError(field);
       }
     }
     await form.handleSubmit();
   }
 
-  const reset: () => void = form.reset;
+  const reset = (values?: Values) => form.reset(values);
 
   return {
     form,
