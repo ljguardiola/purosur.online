@@ -1,4 +1,10 @@
-import type { BranchSettingsEditBody } from "@purosur/contracts";
+import {
+  type BranchSettingsBody,
+  type BranchSettingsEditBody,
+  branchSettingsSchema,
+} from "@purosur/contracts";
+import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import { retryAfterSeconds } from "../platform/retry-after-seconds";
 
 export type BranchDay =
   | "monday"
@@ -32,7 +38,7 @@ export type BranchSettings = {
   version: number;
 };
 
-type BranchHoursRangeWire = { opens_at: string; closes_at: string };
+type BranchHoursRangeWire = BranchSettingsBody["monday_hours"][number];
 
 export type BranchSettingsDayField =
   | "monday_hours"
@@ -42,16 +48,6 @@ export type BranchSettingsDayField =
   | "friday_hours"
   | "saturday_hours"
   | "sunday_hours";
-
-type BranchSettingsWire = {
-  address: string;
-  whatsapp_number: string;
-  instagram_handle: string;
-  expiring_lot_alert_days: number;
-  unreviewed_price_alert_days: number;
-  good_condition_return_days: number;
-  version: number;
-} & Record<BranchSettingsDayField, BranchHoursRangeWire[]>;
 
 export type BranchSettingsField =
   | "address"
@@ -63,14 +59,10 @@ export type BranchSettingsField =
   | "good_condition_return_days"
   | "version";
 
-export type FetchBranchSettingsOutcome =
-  | { kind: "ok"; value: BranchSettings }
-  | { kind: "forbidden" }
-  | { kind: "unauthenticated" }
-  | { kind: "failed" };
+export type FetchBranchSettingsOutcome = CloudReadOutcome<BranchSettings>;
 
 export type SaveBranchSettingsOutcome =
-  | { kind: "ok"; value: BranchSettings }
+  | { kind: "ok" }
   | { kind: "validation_failed"; field: BranchSettingsField }
   | { kind: "stale_version" }
   | { kind: "forbidden" }
@@ -95,7 +87,7 @@ function rangesToWire(ranges: BranchHoursRange[]): BranchHoursRangeWire[] {
   return ranges.map((range) => ({ opens_at: range.opensAt, closes_at: range.closesAt }));
 }
 
-function branchSettingsFromWire(row: BranchSettingsWire): BranchSettings {
+function branchSettingsFromWire(row: BranchSettingsBody): BranchSettings {
   const hours = {} as Record<BranchDay, BranchHoursRange[]>;
   for (const day of BRANCH_DAYS) {
     hours[day] = rangesFromWire(row[DAY_FIELD_OF[day]]);
@@ -112,7 +104,7 @@ function branchSettingsFromWire(row: BranchSettingsWire): BranchSettings {
   };
 }
 
-function branchSettingsToWire(settings: BranchSettings): BranchSettingsWire {
+function branchSettingsToWire(settings: BranchSettings): BranchSettingsBody {
   const wire = {
     address: settings.address,
     whatsapp_number: settings.whatsappNumber,
@@ -121,7 +113,7 @@ function branchSettingsToWire(settings: BranchSettings): BranchSettingsWire {
     unreviewed_price_alert_days: settings.unreviewedPriceAlertDays,
     good_condition_return_days: settings.goodConditionReturnDays,
     version: settings.version,
-  } as BranchSettingsWire;
+  } as BranchSettingsBody;
   for (const day of BRANCH_DAYS) {
     wire[DAY_FIELD_OF[day]] = rangesToWire(settings.hours[day]);
   }
@@ -155,14 +147,17 @@ export async function fetchBranchSettings(): Promise<FetchBranchSettingsOutcome>
   if (response.status === 403) {
     return { kind: "forbidden" };
   }
+  if (response.status === 429) {
+    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+  }
   if (!response.ok) {
     return { kind: "failed" };
   }
-  const body = (await response.json().catch(() => undefined)) as BranchSettingsWire | undefined;
-  if (!body) {
+  const parsed = branchSettingsSchema.safeParse(await response.json().catch(() => undefined));
+  if (!parsed.success) {
     return { kind: "failed" };
   }
-  return { kind: "ok", value: branchSettingsFromWire(body) };
+  return { kind: "ok", value: branchSettingsFromWire(parsed.data) };
 }
 
 export async function saveBranchSettings(
@@ -180,11 +175,7 @@ export async function saveBranchSettings(
     return { kind: "failed" };
   }
   if (response.ok) {
-    const body = (await response.json().catch(() => undefined)) as BranchSettingsWire | undefined;
-    if (!body) {
-      return { kind: "failed" };
-    }
-    return { kind: "ok", value: branchSettingsFromWire(body) };
+    return { kind: "ok" };
   }
   if (response.status === 400) {
     const body = (await response.json().catch(() => undefined)) as

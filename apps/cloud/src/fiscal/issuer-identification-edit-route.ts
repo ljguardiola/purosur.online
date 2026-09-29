@@ -1,4 +1,4 @@
-import { issuerIdentificationEditBodySchema } from "@purosur/contracts";
+import { issuerIdentificationEditBodySchema, issuerIdentificationSchema } from "@purosur/contracts";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -148,7 +148,13 @@ export function registerIssuerIdentificationEditRoute<TQueryResult extends PgQue
         return;
       }
 
-      await reply.code(200).send(toIssuerIdentificationWire(outcome.row, options.authorizedCuit));
+      await reply
+        .code(200)
+        .send(
+          issuerIdentificationSchema.parse(
+            toIssuerIdentificationWire(outcome.row, options.authorizedCuit),
+          ),
+        );
     },
   );
 }

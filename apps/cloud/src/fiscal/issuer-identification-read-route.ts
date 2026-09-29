@@ -1,3 +1,4 @@
+import { type IssuerIdentificationBody, issuerIdentificationSchema } from "@purosur/contracts";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -26,19 +27,10 @@ export interface IssuerIdentificationRow {
   version: number;
 }
 
-export type IssuerIdentificationWire = {
-  legal_name: string | null;
-  gross_income_registration: string | null;
-  activity_start_date: string | null;
-  authorized_cuit: string;
-  tax_status: string;
-  version: number;
-};
-
 export function toIssuerIdentificationWire(
   row: IssuerIdentificationRow,
   authorizedCuit: string,
-): IssuerIdentificationWire {
+): IssuerIdentificationBody {
   return {
     legal_name: row.legalName,
     gross_income_registration: row.grossIncomeRegistration,
@@ -83,7 +75,11 @@ export function registerIssuerIdentificationReadRoute<TQueryResult extends PgQue
     },
     async (_request, reply) => {
       const row = await findIssuerIdentification(options.db);
-      await reply.code(200).send(toIssuerIdentificationWire(row, options.authorizedCuit));
+      await reply
+        .code(200)
+        .send(
+          issuerIdentificationSchema.parse(toIssuerIdentificationWire(row, options.authorizedCuit)),
+        );
     },
   );
 }

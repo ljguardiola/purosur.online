@@ -1,3 +1,4 @@
+import { type BranchSettingsBody, branchSettingsSchema } from "@purosur/contracts";
 import { asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -52,17 +53,7 @@ export interface BranchSettingsRow {
   version: number;
 }
 
-type BranchHoursRangeWire = { opens_at: string; closes_at: string };
-
-export type BranchSettingsWire = {
-  address: string;
-  whatsapp_number: string;
-  instagram_handle: string;
-  expiring_lot_alert_days: number;
-  unreviewed_price_alert_days: number;
-  good_condition_return_days: number;
-  version: number;
-} & Record<BranchSettingsDayField, BranchHoursRangeWire[]>;
+type BranchHoursRangeWire = BranchSettingsBody[BranchSettingsDayField][number];
 
 // Postgres' own `time` type answers with seconds ("09:00:00"); the wire only ever speaks the
 // zero-padded HH:MM a caller sent, so this slices the trailing ":00" back off.
@@ -83,7 +74,7 @@ function dayHoursWireInPositionOrder(
     }));
 }
 
-export function toBranchSettingsWire(row: BranchSettingsRow): BranchSettingsWire {
+export function toBranchSettingsWire(row: BranchSettingsRow): BranchSettingsBody {
   const wire = {
     address: row.address,
     whatsapp_number: row.whatsappNumber,
@@ -92,7 +83,7 @@ export function toBranchSettingsWire(row: BranchSettingsRow): BranchSettingsWire
     unreviewed_price_alert_days: row.unreviewedPriceAlertDays,
     good_condition_return_days: row.goodConditionReturnDays,
     version: row.version,
-  } as BranchSettingsWire;
+  } as BranchSettingsBody;
   BRANCH_SETTINGS_DAY_FIELDS.forEach((field, index) => {
     wire[field] = dayHoursWireInPositionOrder(row.hours, index + 1);
   });
@@ -163,7 +154,7 @@ export function registerBranchSettingsReadRoute<TQueryResult extends PgQueryResu
       const openSession = openSessionOf(request);
 
       const row = await findBranchSettings(options.db, openSession.locationId);
-      await reply.code(200).send(toBranchSettingsWire(row));
+      await reply.code(200).send(branchSettingsSchema.parse(toBranchSettingsWire(row)));
     },
   );
 }
