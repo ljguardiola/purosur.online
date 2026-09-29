@@ -11,14 +11,16 @@ import {
 } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { Check, KeySquare, Laptop, Plus, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuthorization } from "../access/authorization-modal";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import type { authorizeSession, fetchSessionAuthorizationOptions } from "../access/session-api";
+import { cloudTableState } from "../platform/cloud-table-state";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
+import { useRefreshRegisters, useRegistersQuery } from "./register-queries";
 import type {
   CreateRegisterOutcome,
   createRegister,
@@ -33,12 +35,7 @@ export type RegistersListScreenProps = {
   services: RegistersListScreenServices;
 };
 
-type ListState =
-  | { kind: "loading" }
-  | { kind: "loadError" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "loaded"; registers: RegisterSummary[] }
-  | { kind: "refreshing"; registers: RegisterSummary[] };
+const NO_REGISTERS: RegisterSummary[] = [];
 
 const NEW_REGISTER_NAME_REQUIRED = "Ingresá el nombre de la caja.";
 const NEW_REGISTER_NAME_TOO_LONG = `El nombre puede tener hasta ${REGISTER_NAME_MAX_LENGTH} caracteres.`;
@@ -353,7 +350,8 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
     startAuthentication,
   } = services;
   const clock = now ?? (() => new Date());
-  const [list, setList] = useState<ListState>({ kind: "loading" });
+  const data = useRegistersQuery({ fetchRegisters, onSessionEnded });
+  const refreshRegisters = useRefreshRegisters();
   const [currentTime, setCurrentTime] = useState(() => clock());
   const [newModalOpen, setNewModalOpen] = useState(false);
   const [emission, setEmission] = useState<EmissionState>({ kind: "closed" });
@@ -363,41 +361,15 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
       onSessionEnded,
       services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
     });
-  const onSessionEndedRef = useLatestRef(onSessionEnded);
   const clockRef = useLatestRef(clock);
-
-  const latestLoad = useRef(0);
   const latestEmission = useRef(0);
 
-  const load = useCallback(async () => {
-    latestLoad.current += 1;
-    const thisLoad = latestLoad.current;
-    setList((current) =>
-      (current.kind === "loaded" || current.kind === "refreshing") && current.registers.length > 0
-        ? { kind: "refreshing", registers: current.registers }
-        : { kind: "loading" },
-    );
-    const outcome = await fetchRegisters();
-    if (thisLoad !== latestLoad.current) {
-      return;
-    }
-    if (outcome.kind === "ok") {
-      setCurrentTime(clockRef.current());
-      setList({ kind: "loaded", registers: outcome.value });
-    } else if (outcome.kind === "unauthenticated") {
-      onSessionEndedRef.current();
-    } else if (outcome.kind === "rate_limited") {
-      setList({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
-    } else if (outcome.kind === "forbidden") {
-      sendToMyAccount();
-    } else {
-      setList({ kind: "loadError" });
-    }
-  }, [fetchRegisters, onSessionEndedRef, clockRef, sendToMyAccount]);
-
+  const listSettled = data.status === "loaded" && !data.refreshing;
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (listSettled) {
+      setCurrentTime(clockRef.current());
+    }
+  }, [listSettled, clockRef]);
 
   useEffect(() => {
     const intervalId = window.setInterval(
@@ -425,7 +397,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
     // `authorization_required` opens the modal that cancel dismisses), so reload every time.
     if (outcome.kind === "cancelled") {
       setEmission({ kind: "closed" });
-      void load();
+      void refreshRegisters();
       return;
     }
     if (outcome.kind === "ok") {
@@ -442,7 +414,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
     }
     if (outcome.kind === "not_found") {
       setEmission({ kind: "closed" });
-      void load();
+      void refreshRegisters();
       return;
     }
     if (outcome.kind === "rate_limited") {
@@ -457,10 +429,10 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
   function closeEmission() {
     latestEmission.current += 1;
     setEmission({ kind: "closed" });
-    void load();
+    void refreshRegisters();
   }
 
-  const registers = list.kind === "loaded" || list.kind === "refreshing" ? list.registers : [];
+  const registers = data.status === "loaded" ? data.value : NO_REGISTERS;
 
   const columns = [
     {
@@ -536,60 +508,32 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
         }
         bodyClassName="gap-4 p-6"
       >
-        {list.kind === "loadError" && (
-          <>
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No pudimos abrir las cajas registradoras"
-              description="Probá de nuevo en unos minutos."
-            />
-            <Button variant="secondary" onPress={() => void load()}>
-              Reintentar
-            </Button>
-          </>
-        )}
-        {list.kind === "rate_limited" && (
-          <>
-            <InlineNotice
-              tone="error"
-              icon={<ShieldX />}
-              title="Demasiadas solicitudes"
-              description={retryAfterDetail(list.retryAfterSeconds)}
-            />
-            <Button variant="secondary" onPress={() => void load()}>
-              Reintentar
-            </Button>
-          </>
-        )}
-        {(list.kind === "loading" || list.kind === "loaded" || list.kind === "refreshing") && (
-          <Table
-            aria-label="Cajas registradoras"
-            columns={columns}
-            loading={
-              list.kind === "loading" ? "initial" : list.kind === "refreshing" ? "updating" : false
-            }
-            rows={registers.map((register) => ({ id: register.id, item: register }))}
-            empty={{
-              icon: <Laptop />,
-              title: "Todavía no hay cajas registradoras",
-              description: "Creá la primera para verla en la lista.",
-              variant: "blank",
-            }}
-            footer={
+        <Table
+          aria-label="Cajas registradoras"
+          columns={columns}
+          {...cloudTableState(data, "las cajas registradoras")}
+          rows={registers.map((register) => ({ id: register.id, item: register }))}
+          empty={{
+            icon: <Laptop />,
+            title: "Todavía no hay cajas registradoras",
+            description: "Creá la primera para verla en la lista.",
+            variant: "blank",
+          }}
+          footer={
+            registers.length === 0 ? undefined : (
               <p className="text-text-subtle text-detail">
                 {plural(registers.length, { one: "1 caja", other: `${registers.length} cajas` })}
               </p>
-            }
-          />
-        )}
+            )
+          }
+        />
       </ScreenLayout>
       <NewRegisterModal
         open={newModalOpen}
         onClose={() => setNewModalOpen(false)}
         onCreated={() => {
           setNewModalOpen(false);
-          void load();
+          void refreshRegisters();
         }}
         onSessionEnded={onSessionEnded}
         createRegister={createRegister}
