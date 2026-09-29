@@ -99,6 +99,11 @@ export {
   mainToCoreMessageSchema,
   rendererToCoreMessageSchema,
 } from "./register/core-messages.js";
+export type { DeviceEnrollment, DeviceEnrollmentBody } from "./register/device-enrollment.js";
+export {
+  deviceEnrollmentBodySchema,
+  deviceEnrollmentSchema,
+} from "./register/device-enrollment.js";
 export type { RegisterCreationBody } from "./register/register-creation.js";
 export { registerCreationBodySchema } from "./register/register-creation.js";
 export type { RegisterEnrollmentCodeBody } from "./register/register-enrollment-code.js";
