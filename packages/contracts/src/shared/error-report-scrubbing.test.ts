@@ -680,6 +680,10 @@ describe("personal data in text", () => {
         expected: "could not read /home/[redacted].",
       },
       {
+        message: "could not read /home/ana.perez. Retrying",
+        expected: "could not read /home/[redacted]. Retrying",
+      },
+      {
         message: "paths: /home/ana, /Users/juan; HOME=/home/ana:/bin [/home/ana]",
         expected:
           "paths: /home/[redacted], /Users/[redacted]; HOME=/home/[redacted]:/bin [/home/[redacted]]",

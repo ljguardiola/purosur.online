@@ -56,7 +56,7 @@ const EMAIL_PATTERN = /(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]+@(?:[A-Za-z0-9-]+\.
 // account ending the whole text is not recognized, so a backoffice route such as `/home/alerts`
 // is kept; a period only ends an account when it ends a sentence, since account names contain dots.
 const UNIX_HOME_ACCOUNT_PATTERN =
-  /((?:(?<![\w.-])(?:\/var|\/export|\/cygdrive\/[a-z]|\/mnt\/[a-z]|\/[a-z])?|\/@fs)\/(?:home|Users)\/)[^/\s:,;"'`()<>[\]]+(?=[/\s"'`()<>[\],;:]|\.(?:[\s"'`)]|$))/g;
+  /((?:(?<![\w.-])(?:\/var|\/export|\/cygdrive\/[a-z]|\/mnt\/[a-z]|\/[a-z])?|\/@fs)\/(?:home|Users)\/)(?:[^/\s:,;"'`()<>[\].]|\.(?![\s"'`)]))+(?=[/\s"'`()<>[\],;:]|\.(?:[\s"'`)]|$))/g;
 // A Windows account name can contain spaces, quotes and parentheses, so everything after it is
 // hidden up to the next folder separator or line end.
 const WINDOWS_HOME_ACCOUNT_PATTERN = /(?<![A-Za-z0-9])([A-Z]:(?:\\+|\/)Users(?:\\+|\/))[^\\/\n]+/gi;
