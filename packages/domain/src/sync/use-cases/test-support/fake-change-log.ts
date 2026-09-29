@@ -4,7 +4,7 @@ export interface FakeLoggedChange extends PulledChange {
   locationId: string;
 }
 
-export interface FakeObservedPull {
+interface FakeObservedPull {
   deviceId: string;
   since: number;
   at: Date;

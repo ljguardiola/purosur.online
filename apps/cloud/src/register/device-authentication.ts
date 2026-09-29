@@ -3,7 +3,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { registerInstallations, registers } from "../platform/db/schema.js";
 import { hashDeviceToken } from "./device-token.js";
 
-export interface AuthenticatedInstallation {
+interface AuthenticatedInstallation {
   deviceId: string;
   registerId: string;
   locationId: string;
