@@ -26,6 +26,11 @@ function firstFailure(body: unknown): { field: unknown; message: unknown } | und
   return issue && { field: issue.path[0], message: issue.message };
 }
 
+function failingFields(body: unknown): unknown[] {
+  const result = productCreationBodySchema.safeParse(body);
+  return result.success ? [] : result.error.issues.map((issue) => issue.path[0]);
+}
+
 function isAccepted(body: unknown): boolean {
   return productCreationBodySchema.safeParse(body).success;
 }
@@ -187,6 +192,22 @@ describe("productCreationBodySchema, netContent", () => {
         field: "netContentQuantity",
         message: `netContent's quantity must be a positive number of at most ${NET_CONTENT_QUANTITY_MAX_DECIMALS} decimals, at most ${NET_CONTENT_QUANTITY_MAX}`,
       });
+    },
+  );
+
+  it.each([undefined, "unit", null])(
+    "reports the quantity under netContentQuantity also when the saleUnit %j fails",
+    (saleUnit) => {
+      expect(
+        failingFields(validBody({ saleUnit, netContent: { quantity: 0, unit: "KG" } })),
+      ).toEqual(["saleUnit", "netContentQuantity"]);
+    },
+  );
+
+  it.each(["1 KG", { quantity: "0", unit: "KG" }, { quantity: 0, unit: "LB" }])(
+    "reports the malformed net content %j only once, never under netContentQuantity",
+    (netContent) => {
+      expect(failingFields(validBody({ netContent }))).toEqual(["netContent"]);
     },
   );
 
