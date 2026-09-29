@@ -7,11 +7,12 @@ function shapes(container: HTMLElement): HTMLElement {
   return container.querySelector('[aria-hidden="true"]') as HTMLElement;
 }
 
-test("marks its wrapper busy and announces the loading politely", async () => {
+test("announces the loading politely, outside any busy subtree that would hold the announcement back", async () => {
   const screen = await render(<LoadingPlaceholder variant="form" fields={2} />);
 
-  expect(screen.container.querySelector('[aria-busy="true"]')).not.toBeNull();
-  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
+  const status = screen.getByRole("status");
+  await expect.element(status).toHaveTextContent("Cargando…");
+  expect((status.element() as HTMLElement).closest('[aria-busy="true"]')).toBeNull();
 });
 
 test("hides every shape from assistive technology", async () => {

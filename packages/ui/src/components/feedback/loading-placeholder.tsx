@@ -60,7 +60,7 @@ function ListShapes({ items }: { items: number }) {
 
 export function LoadingPlaceholder(props: LoadingPlaceholderProps) {
   return (
-    <div aria-busy="true">
+    <div>
       <NoticeLiveRegion assertiveness="polite" text="Cargando…" />
       {props.variant === "form" && <FormShapes fields={props.fields} />}
       {props.variant === "card" && <CardShapes lines={props.lines} />}
