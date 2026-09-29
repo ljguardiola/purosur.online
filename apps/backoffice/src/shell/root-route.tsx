@@ -11,7 +11,7 @@ export type SignedInSession = {
   displayName: string;
   isAdministrator: boolean;
   permissions: string[];
-  expiresAt?: string;
+  expiresAt: string;
 };
 
 type SignedOutSession = { kind: "signed-out"; notice: SignInOpeningNotice | undefined };

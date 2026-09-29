@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { renderHook } from "vitest-browser-react";
 import type { SessionOutcome } from "../access/session-api";
+import { openSession } from "../access/test-support/open-session";
 import {
   type SessionActivityReporterOptions,
   useSessionActivityReporter,
@@ -25,13 +26,7 @@ async function awaitHookToSettleAfterTouch(touchSession: TouchSessionMock): Prom
 }
 
 function okOutcome(expiresAt: string): SessionOutcome {
-  return {
-    kind: "ok",
-    userId: "user-1",
-    displayName: "Lucas Guardiola",
-    isAdministrator: false,
-    expiresAt,
-  };
+  return openSession({ isAdministrator: false, expiresAt });
 }
 
 type ReporterProps = Omit<SessionActivityReporterOptions, "subscribeToNavigation">;
@@ -306,14 +301,11 @@ test("ends the session when a touch finds it no longer open", async () => {
 });
 
 test("hands the refreshed session, with its new expiresAt and current access, to onTouched after a successful touch", async () => {
-  const refreshed: SessionOutcome = {
-    kind: "ok",
-    userId: "user-1",
-    displayName: "Lucas Guardiola",
+  const refreshed: SessionOutcome = openSession({
     isAdministrator: false,
     expiresAt: "2099-06-01T00:00:00.000Z",
     permissions: ["void_sale"],
-  };
+  });
   const touchSession = vi.fn<() => Promise<SessionOutcome>>().mockResolvedValue(refreshed);
   const onTouched = vi.fn();
   const clock = createControllableClock();
