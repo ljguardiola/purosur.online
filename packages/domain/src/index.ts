@@ -94,3 +94,10 @@ export {
   registerNameLength,
 } from "./register/index.js";
 export { ARGENTINA_TIME_ZONE, argentinaCalendarDay } from "./shared/index.js";
+export type { PulledChange, PullPage } from "./sync/index.js";
+export {
+  FIRST_PULL_CURSOR,
+  isPageAfter,
+  isPullCursor,
+  PULL_PAGE_MAX_CHANGES,
+} from "./sync/index.js";
