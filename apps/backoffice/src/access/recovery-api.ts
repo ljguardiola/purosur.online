@@ -1,7 +1,8 @@
-import type {
-  RecoveryRedemptionBody,
-  RecoveryRequestBody,
-  RecoveryTokenBody,
+import {
+  type RecoveryRedemptionBody,
+  type RecoveryRequestBody,
+  type RecoveryTokenBody,
+  recoveryRegistrationOptionsSchema,
 } from "@purosur/contracts";
 
 import type {
@@ -22,11 +23,16 @@ type RecoveryTokenErrorKind =
   | "validation_failed"
   | "already_registered";
 
-export type RecoveryTokenOutcome<Value> =
-  | { kind: "ok"; value: Value }
+type RecoveryTokenRefusal =
   | { kind: RecoveryTokenErrorKind }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
+
+export type RegistrationOptionsOutcome =
+  | { kind: "ok"; value: RegistrationOptions }
+  | RecoveryTokenRefusal;
+
+export type RedeemRecoveryOutcome = { kind: "ok" } | RecoveryTokenRefusal;
 
 export type RegistrationOptions = {
   displayName: string;
@@ -69,7 +75,7 @@ const TOKEN_ERROR_KIND_BY_CODE: Record<string, RecoveryTokenErrorKind> = {
   passkey_already_registered: "already_registered",
 };
 
-async function tokenErrorOutcome<Value>(response: Response): Promise<RecoveryTokenOutcome<Value>> {
+async function tokenErrorOutcome(response: Response): Promise<RecoveryTokenRefusal> {
   if (response.status === 429) {
     return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
   }
@@ -81,7 +87,7 @@ async function tokenErrorOutcome<Value>(response: Response): Promise<RecoveryTok
 // Leaves the still-live token untouched.
 export async function fetchRegistrationOptions(
   recoveryToken: string,
-): Promise<RecoveryTokenOutcome<RegistrationOptions>> {
+): Promise<RegistrationOptionsOutcome> {
   const requestBody: RecoveryTokenBody = { recovery_token: recoveryToken };
   let response: Response;
   try {
@@ -92,13 +98,18 @@ export async function fetchRegistrationOptions(
   if (!response.ok) {
     return tokenErrorOutcome(response);
   }
-  const body = (await response.json()) as {
-    passkey_registration_options: PublicKeyCredentialCreationOptionsJSON;
-    display_name: string;
-  };
+  const body = recoveryRegistrationOptionsSchema.safeParse(
+    await response.json().catch(() => undefined),
+  );
+  if (!body.success) {
+    return { kind: "failed" };
+  }
   return {
     kind: "ok",
-    value: { displayName: body.display_name, options: body.passkey_registration_options },
+    value: {
+      displayName: body.data.display_name,
+      options: body.data.passkey_registration_options,
+    },
   };
 }
 
@@ -107,7 +118,7 @@ export async function redeemRecovery(
   recoveryToken: string,
   passkeyRegistration: RegistrationResponseJSON,
   passkeyName: string,
-): Promise<RecoveryTokenOutcome<{ userId: string }>> {
+): Promise<RedeemRecoveryOutcome> {
   const requestBody: RecoveryRedemptionBody = {
     recovery_token: recoveryToken,
     passkey_registration: passkeyRegistration,
@@ -122,6 +133,5 @@ export async function redeemRecovery(
   if (!response.ok) {
     return tokenErrorOutcome(response);
   }
-  const body = (await response.json()) as { user_id: string };
-  return { kind: "ok", value: { userId: body.user_id } };
+  return { kind: "ok" };
 }

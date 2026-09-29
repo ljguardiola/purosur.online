@@ -6,6 +6,7 @@ import {
   registerPasskey,
   removePasskey,
 } from "./passkey-api";
+import { creationOptions } from "./test-support/creation-options";
 
 function jsonResponse(status: number, body?: unknown, headers?: Record<string, string>): Response {
   return new Response(
@@ -99,7 +100,7 @@ test("fetchPasskeys reports rate_limited with the Retry-After seconds on 429", a
   await expect(fetchPasskeys()).resolves.toEqual({ kind: "rate_limited", retryAfterSeconds: 180 });
 });
 
-const registrationOptions = { challenge: "reg", rp: { id: "purosur.online" } };
+const registrationOptions = creationOptions;
 
 test("fetchPasskeyRegistrationChallenge posts with no body and returns the registration options", async () => {
   vi.mocked(fetch).mockResolvedValue(
@@ -113,6 +114,25 @@ test("fetchPasskeyRegistrationChallenge posts with no body and returns the regis
     "/users/passkeys/registration-options",
     expect.objectContaining({ method: "POST" }),
   );
+});
+
+test.each([
+  ["a body with no options", {}],
+  [
+    "options with no user",
+    { passkey_registration_options: { ...creationOptions, user: undefined } },
+  ],
+  ["options that are not an object", { passkey_registration_options: "options" }],
+])("fetchPasskeyRegistrationChallenge reports failed on %s", async (_, body) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, body));
+
+  await expect(fetchPasskeyRegistrationChallenge()).resolves.toEqual({ kind: "failed" });
+});
+
+test("fetchPasskeyRegistrationChallenge reports failed on a body that is not JSON", async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response("<html>", { status: 200 }));
+
+  await expect(fetchPasskeyRegistrationChallenge()).resolves.toEqual({ kind: "failed" });
 });
 
 test("fetchPasskeyRegistrationChallenge reports unauthenticated on 401 and failed otherwise", async () => {
@@ -147,27 +167,12 @@ test("fetchPasskeyRegistrationChallenge reports rate_limited with the Retry-Afte
 
 const passkeyRegistration = { id: "new-cred" } as unknown as RegistrationResponseJSON;
 
-test("registerPasskey posts the registration and trimmed name, returning the new passkey", async () => {
-  vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(200, {
-      id: "pk-3",
-      name: "Teléfono de Lucía",
-      created_at: "2026-09-23T09:12:00.000Z",
-      last_used_at: null,
-    }),
-  );
+test("registerPasskey posts the registration and trimmed name, reading nothing from the body", async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response("<html>", { status: 200 }));
 
   const outcome = await registerPasskey(passkeyRegistration, "Teléfono de Lucía");
 
-  expect(outcome).toEqual({
-    kind: "ok",
-    value: {
-      id: "pk-3",
-      name: "Teléfono de Lucía",
-      createdAt: "2026-09-23T09:12:00.000Z",
-      lastUsedAt: null,
-    },
-  });
+  expect(outcome).toEqual({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith(
     "/users/passkeys",
     expect.objectContaining({

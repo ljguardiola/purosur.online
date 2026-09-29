@@ -5,10 +5,10 @@ import { useCallback, useEffect, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { AccessFooterLink, AccessHeader, AccessLayout } from "./access-layout";
 import { validatePasskeyName } from "./passkey-name";
-import type { RecoveryTokenOutcome } from "./recovery-api";
+import type { RedeemRecoveryOutcome } from "./recovery-api";
 import type { RegisterPasskeyScreenServices } from "./register-passkey-services";
 
-function isDefinitiveRejection(outcome: RecoveryTokenOutcome<unknown>): boolean {
+function isDefinitiveRejection(outcome: RedeemRecoveryOutcome): boolean {
   switch (outcome.kind) {
     case "invalid":
     case "burned":

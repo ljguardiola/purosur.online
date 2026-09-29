@@ -1,6 +1,7 @@
 import type { RegistrationResponseJSON } from "@simplewebauthn/browser";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { fetchRegistrationOptions, redeemRecovery, requestRecoveryLink } from "./recovery-api";
+import { creationOptions } from "./test-support/creation-options";
 
 function jsonResponse(status: number, body?: unknown, headers?: Record<string, string>): Response {
   return new Response(
@@ -71,7 +72,7 @@ test("requestRecoveryLink reports failed when the network call itself rejects", 
 });
 
 const registrationOptionsBody = {
-  passkey_registration_options: { challenge: "abc", rp: { id: "purosur.online" } },
+  passkey_registration_options: creationOptions,
   display_name: "Lucía Pérez",
 };
 
@@ -94,6 +95,26 @@ test("fetchRegistrationOptions sends the token and returns the options and displ
       body: JSON.stringify({ recovery_token: "the-token" }),
     }),
   );
+});
+
+test.each([
+  ["a body with no options", { display_name: "Lucía Pérez" }],
+  ["a body with no display name", { passkey_registration_options: creationOptions }],
+  [
+    "options with no rp",
+    { passkey_registration_options: { ...creationOptions, rp: undefined }, display_name: "Lucía" },
+  ],
+  ["a body that is not an object", "options"],
+])("fetchRegistrationOptions reports failed on %s", async (_, body) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, body));
+
+  await expect(fetchRegistrationOptions("the-token")).resolves.toEqual({ kind: "failed" });
+});
+
+test("fetchRegistrationOptions reports failed on a body that is not JSON", async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response("<html>", { status: 200 }));
+
+  await expect(fetchRegistrationOptions("the-token")).resolves.toEqual({ kind: "failed" });
 });
 
 test.each([
@@ -130,12 +151,12 @@ test("fetchRegistrationOptions maps an unexpected status or network failure to f
 
 const registration = { id: "cred-id" } as unknown as RegistrationResponseJSON;
 
-test("redeemRecovery sends the token, the passkey registration and its name, returning the user id", async () => {
+test("redeemRecovery sends the token and the passkey registration with its name, reading nothing from the body", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { user_id: "user-1" }));
 
   const outcome = await redeemRecovery("the-token", registration, "Notebook del local");
 
-  expect(outcome).toEqual({ kind: "ok", value: { userId: "user-1" } });
+  expect(outcome).toEqual({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith(
     "/users/recovery/redeem",
     expect.objectContaining({

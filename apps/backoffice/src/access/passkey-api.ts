@@ -2,6 +2,7 @@ import {
   type PasskeyRegistrationBody,
   type PasskeySummaryWire,
   passkeyListSchema,
+  passkeyRegistrationChallengeSchema,
 } from "@purosur/contracts";
 import type {
   PublicKeyCredentialCreationOptionsJSON,
@@ -31,7 +32,7 @@ type GatedActionErrorOutcome =
   | { kind: "failed" };
 
 export type RegisterPasskeyOutcome =
-  | { kind: "ok"; value: Passkey }
+  | { kind: "ok" }
   | { kind: "validation_failed" }
   | { kind: "already_registered" }
   | GatedActionErrorOutcome;
@@ -89,10 +90,13 @@ export async function fetchPasskeyRegistrationChallenge(): Promise<FetchPasskeyR
   if (!response.ok) {
     return gatedActionErrorOutcome(response);
   }
-  const body = (await response.json()) as {
-    passkey_registration_options: PublicKeyCredentialCreationOptionsJSON;
-  };
-  return { kind: "ok", value: { registrationOptions: body.passkey_registration_options } };
+  const body = passkeyRegistrationChallengeSchema.safeParse(
+    await response.json().catch(() => undefined),
+  );
+  if (!body.success) {
+    return { kind: "failed" };
+  }
+  return { kind: "ok", value: { registrationOptions: body.data.passkey_registration_options } };
 }
 
 async function gatedActionErrorOutcome(response: Response): Promise<GatedActionErrorOutcome> {
@@ -123,13 +127,7 @@ export async function registerPasskey(
     return { kind: "failed" };
   }
   if (response.ok) {
-    const body = (await response.json()) as {
-      id: string;
-      name: string;
-      created_at: string;
-      last_used_at: string | null;
-    };
-    return { kind: "ok", value: passkeyFromWire(body) };
+    return { kind: "ok" };
   }
   if (response.status === 400) {
     const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;

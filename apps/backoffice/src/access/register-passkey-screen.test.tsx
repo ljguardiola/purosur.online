@@ -55,7 +55,7 @@ test("keeps the token across React StrictMode's double-mount effects, in dev", a
       value: { displayName: "Lucía Pérez", options: registrationOptions },
     }),
     startRegistration: vi.fn().mockResolvedValue(registrationResponse),
-    redeemRecovery: vi.fn().mockResolvedValue({ kind: "ok", value: { userId: "user-1" } }),
+    redeemRecovery: vi.fn().mockResolvedValue({ kind: "ok" }),
   });
 
   const screen = await render(
@@ -193,7 +193,7 @@ test("registers the passkey and shows the success state, naming that open sessio
       value: { displayName: "Lucía Pérez", options: registrationOptions },
     }),
     startRegistration: vi.fn().mockResolvedValue(registrationResponse),
-    redeemRecovery: vi.fn().mockResolvedValue({ kind: "ok", value: { userId: "user-1" } }),
+    redeemRecovery: vi.fn().mockResolvedValue({ kind: "ok" }),
   });
 
   const screen = await render(<RegisterPasskeyScreen services={services} />);
@@ -391,7 +391,7 @@ test("retries with fresh options after another tab replaced this link's challeng
   const redeemRecovery = vi
     .fn()
     .mockResolvedValueOnce({ kind: "validation_failed" })
-    .mockResolvedValueOnce({ kind: "ok", value: { userId: "user-1" } });
+    .mockResolvedValueOnce({ kind: "ok" });
   const services = createServices({
     fetchRegistrationOptions,
     startRegistration,
@@ -425,7 +425,7 @@ test("keeps the current options after the browser cancels, without fetching them
       value: { displayName: "Lucía Pérez", options: registrationOptions },
     }),
     startRegistration,
-    redeemRecovery: vi.fn().mockResolvedValue({ kind: "ok", value: { userId: "user-1" } }),
+    redeemRecovery: vi.fn().mockResolvedValue({ kind: "ok" }),
   });
 
   const screen = await render(<RegisterPasskeyScreen services={services} />);
@@ -501,7 +501,7 @@ test("sends the trimmed passkey name", async () => {
       value: { displayName: "Lucía Pérez", options: registrationOptions },
     }),
     startRegistration: vi.fn().mockResolvedValue(registrationResponse),
-    redeemRecovery: vi.fn().mockResolvedValue({ kind: "ok", value: { userId: "user-1" } }),
+    redeemRecovery: vi.fn().mockResolvedValue({ kind: "ok" }),
   });
 
   const screen = await render(<RegisterPasskeyScreen services={services} />);

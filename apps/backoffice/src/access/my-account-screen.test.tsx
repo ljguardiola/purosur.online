@@ -272,7 +272,7 @@ test("registers a passkey directly, without the authorization modal, when the se
     value: { registrationOptions },
   });
   vi.mocked(services.startRegistration).mockResolvedValue(newRegistration);
-  vi.mocked(services.registerPasskey).mockResolvedValue({ kind: "ok", value: phone });
+  vi.mocked(services.registerPasskey).mockResolvedValue({ kind: "ok" });
   vi.mocked(services.fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [notebook, phone] });
 
   await userEvent.fill(dialog.getByRole("textbox"), "Teléfono de Lucía");
@@ -303,7 +303,7 @@ test("asks for the authorization before any creation ceremony when the registrat
   });
   vi.mocked(services.startRegistration).mockResolvedValue(newRegistration);
   grantAuthorization(services);
-  vi.mocked(services.registerPasskey).mockResolvedValue({ kind: "ok", value: phone });
+  vi.mocked(services.registerPasskey).mockResolvedValue({ kind: "ok" });
   vi.mocked(services.fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [notebook, phone] });
 
   await userEvent.fill(dialog.getByRole("textbox"), "Teléfono de Lucía");
