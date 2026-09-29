@@ -375,6 +375,7 @@ export const registerEnrollmentAttempts = pgTable(
       table.keyValue,
       table.attemptedAt,
     ),
+    index("register_enrollment_attempts_attempted_at_idx").on(table.attemptedAt),
   ],
 );
 

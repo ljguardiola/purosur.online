@@ -1,5 +1,5 @@
 {
-  "id": "7a657bcb-e772-47ef-9496-6df0cad847b3",
+  "id": "f795fe63-7c4f-4d4a-9dfe-259dad4ca29d",
   "prevId": "870f1739-e24b-4784-8c19-aef5a6b0867e",
   "version": "7",
   "dialect": "postgresql",
@@ -1700,6 +1700,21 @@
               "asc": true,
               "nulls": "last"
             },
+            {
+              "expression": "attempted_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "register_enrollment_attempts_attempted_at_idx": {
+          "name": "register_enrollment_attempts_attempted_at_idx",
+          "columns": [
             {
               "expression": "attempted_at",
               "isExpression": false,

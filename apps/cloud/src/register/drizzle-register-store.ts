@@ -67,14 +67,11 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
     keys: readonly EnrollmentAttemptKey[],
     attemptedAt: Date,
   ): Promise<void> {
-    const windowStart = enrollmentAttemptWindowStart(attemptedAt);
-    for (const key of keys) {
-      await this.tx
-        .delete(registerEnrollmentAttempts)
-        .where(
-          and(attemptKeyCondition(key), lte(registerEnrollmentAttempts.attemptedAt, windowStart)),
-        );
-    }
+    await this.tx
+      .delete(registerEnrollmentAttempts)
+      .where(
+        lte(registerEnrollmentAttempts.attemptedAt, enrollmentAttemptWindowStart(attemptedAt)),
+      );
     await this.tx
       .insert(registerEnrollmentAttempts)
       .values(keys.map((key) => ({ keyKind: key.kind, keyValue: key.value, attemptedAt })));

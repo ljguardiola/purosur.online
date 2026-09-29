@@ -21,6 +21,7 @@ ALTER TABLE "register_enrollment_codes" ADD COLUMN "code_lookup" text DEFAULT ''
 ALTER TABLE "register_enrollment_codes" ALTER COLUMN "code_lookup" DROP DEFAULT;--> statement-breakpoint
 ALTER TABLE "register_installations" ADD CONSTRAINT "register_installations_register_id_registers_id_fk" FOREIGN KEY ("register_id") REFERENCES "public"."registers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "register_enrollment_attempts_key_idx" ON "register_enrollment_attempts" USING btree ("key_kind","key_value","attempted_at");--> statement-breakpoint
+CREATE INDEX "register_enrollment_attempts_attempted_at_idx" ON "register_enrollment_attempts" USING btree ("attempted_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "register_installations_token_lookup_prefix_key" ON "register_installations" USING btree ("token_lookup_prefix");--> statement-breakpoint
 CREATE UNIQUE INDEX "register_installations_active_register_id_key" ON "register_installations" USING btree ("register_id") WHERE "register_installations"."revoked_at" is null;--> statement-breakpoint
 CREATE INDEX "register_enrollment_codes_code_lookup_idx" ON "register_enrollment_codes" USING btree ("code_lookup");

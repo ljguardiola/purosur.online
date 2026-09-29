@@ -128,7 +128,7 @@ describe("DrizzleRegisterStore", () => {
     expect(accepted).toEqual([minutesAgo(10), minutesAgo(30)]);
   });
 
-  it("records an attempt under each key and forgets that key's attempts older than an hour", async () => {
+  it("records an attempt under each key and forgets every attempt older than an hour", async () => {
     await db.insert(registerEnrollmentAttempts).values([
       { keyKind: "source_address", keyValue: "203.0.113.7", attemptedAt: minutesAgo(60) },
       { keyKind: "source_address", keyValue: "203.0.113.7", attemptedAt: minutesAgo(59) },
@@ -158,10 +158,9 @@ describe("DrizzleRegisterStore", () => {
         { keyKind: "source_address", keyValue: "203.0.113.7", attemptedAt: minutesAgo(59) },
         { keyKind: "source_address", keyValue: "203.0.113.7", attemptedAt: NOW },
         { keyKind: "register", keyValue: "a-register", attemptedAt: NOW },
-        { keyKind: "source_address", keyValue: "198.51.100.1", attemptedAt: minutesAgo(90) },
       ]),
     );
-    expect(rows).toHaveLength(4);
+    expect(rows).toHaveLength(3);
   });
 
   it("adds one failed attempt to each code it is given", async () => {

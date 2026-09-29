@@ -229,7 +229,7 @@
     {
       "idx": 32,
       "version": "7",
-      "when": 1790704479802,
+      "when": 1790707568589,
       "tag": "0032_register_installations",
       "breakpoints": true
     }
