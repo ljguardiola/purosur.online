@@ -1,7 +1,7 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
+import { render } from "../shell/test-support/render-with-router";
 import { MyAccountScreen } from "./my-account-screen";
 import type { MyAccountScreenServices } from "./my-account-services";
 import type { Passkey } from "./passkey-api";
@@ -51,6 +51,14 @@ function grantAuthorization(services: MyAccountScreenServices) {
   vi.mocked(services.authorizeSession).mockResolvedValue({ kind: "ok" });
 }
 
+function deferred<T>() {
+  let resolve: (value: T) => void = () => {};
+  const promise = new Promise<T>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
+
 function renderScreen(services: MyAccountScreenServices, onSessionEnded: () => void = () => {}) {
   return render(
     <main>
@@ -70,7 +78,7 @@ test("shows a loading state before the passkeys resolve", async () => {
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByRole("status")).toBeVisible();
+  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
 });
 
 test("offers no registration while the passkeys are loading", async () => {
@@ -79,7 +87,7 @@ test("offers no registration while the passkeys are loading", async () => {
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByRole("status")).toBeVisible();
+  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
   await expect
     .element(screen.getByRole("button", { name: "Registrar otra passkey" }))
     .toBeDisabled();
@@ -110,18 +118,17 @@ test("lists a single passkey without flagging the account", async () => {
   expect(screen.getByRole("status").query()).toBeNull();
 });
 
-test("warns an account with no passkey that only a recovery link lets it back in, and offers no registration", async () => {
+test("shows an empty state telling an account with no passkey that only a recovery link lets it back in, and offers no registration", async () => {
   const services = createServices();
   vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   const screen = await renderScreen(services);
 
+  await expect.element(screen.getByText("No tenés ninguna passkey")).toBeVisible();
   await expect
     .element(
-      screen
-        .getByText(
-          "No tenés ninguna passkey. Para volver a entrar al backoffice vas a tener que pedir el enlace de recuperación por correo.",
-        )
-        .first(),
+      screen.getByText(
+        "Para volver a entrar al backoffice vas a tener que pedir el enlace de recuperación por correo.",
+      ),
     )
     .toBeVisible();
   await expect
@@ -140,6 +147,58 @@ test("shows a load error with a retry action when the passkeys fail to load", as
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
   await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+});
+
+test("retrying a failed load starts again from the loading placeholder", async () => {
+  const services = createServices();
+  const retry = deferred<Awaited<ReturnType<typeof services.fetchPasskeys>>>();
+  vi.mocked(services.fetchPasskeys)
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockReturnValueOnce(retry.promise);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No pudimos abrir tus passkeys")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText("No pudimos abrir tus passkeys")).not.toBeInTheDocument();
+  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
+  retry.resolve({ kind: "ok", value: [notebook] });
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+});
+
+test("Registrar otra passkey is disabled after the passkeys fail to load", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPasskeys).mockResolvedValueOnce({ kind: "failed" });
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("No pudimos abrir tus passkeys")).toBeVisible();
+  await expect
+    .element(screen.getByRole("button", { name: "Registrar otra passkey" }))
+    .toBeDisabled();
+});
+
+test("removing a passkey keeps the shown ones and Registrar otra passkey available while the list is read again", async () => {
+  const services = createServices();
+  const refresh = deferred<Awaited<ReturnType<typeof services.fetchPasskeys>>>();
+  vi.mocked(services.fetchPasskeys)
+    .mockResolvedValueOnce({ kind: "ok", value: [notebook, phone] })
+    .mockReturnValueOnce(refresh.promise);
+  vi.mocked(services.removePasskey).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
+  const dialog = await openRemoveModal(screen, "Notebook del local");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  expect(screen.getByText("Notebook del local").query()).not.toBeNull();
+  expect(screen.getByText("Cargando…").query()).toBeNull();
+  await expect
+    .element(screen.getByRole("button", { name: "Registrar otra passkey" }))
+    .toBeEnabled();
+  refresh.resolve({ kind: "ok", value: [phone] });
+  await expect.element(screen.getByText("Notebook del local")).not.toBeInTheDocument();
+  expect(services.fetchPasskeys).toHaveBeenCalledTimes(2);
 });
 
 test("shows a rate-limited notice, instead of a generic load error, when the passkeys request is rate limited", async () => {
