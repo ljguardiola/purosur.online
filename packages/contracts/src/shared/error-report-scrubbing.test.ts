@@ -708,6 +708,10 @@ describe("personal data in text", () => {
         message: "cannot write C:/Users/ana now\nretrying",
         expected: "cannot write C:/Users/[redacted]\nretrying",
       },
+      {
+        message: "cannot write C:/Users/ana now\r\nretrying",
+        expected: "cannot write C:/Users/[redacted]\r\nretrying",
+      },
     ]) {
       expect(scrubErrorReport({ message }).message).toBe(expected);
     }
@@ -727,16 +731,31 @@ describe("personal data in text", () => {
         frame: 'Failed to resolve import from "C:/Users/Juan Perez/purosur/src/x.tsx"',
         expected: 'Failed to resolve import from "C:/Users/[redacted]/purosur/src/x.tsx"',
       },
+      {
+        frame: "at start (/mnt/c/Users/Juan Perez/purosur/main.js:10:5)",
+        expected: "at start (/mnt/c/Users/[redacted]/purosur/main.js:10:5)",
+      },
+      {
+        frame: "at start (/c/Users/D'Angelo/purosur/main.js:10:5)",
+        expected: "at start (/c/Users/[redacted]/purosur/main.js:10:5)",
+      },
+      {
+        frame: "at start (/cygdrive/c/Users/Juan (Caja)/purosur/main.js:10:5)",
+        expected: "at start (/cygdrive/c/Users/[redacted]/purosur/main.js:10:5)",
+      },
     ]) {
       expect(scrubErrorReport({ message: frame }).message).toBe(expected);
     }
   });
 
   it("keeps a backoffice route under the home area", () => {
-    const breadcrumb = { category: "navigation", data: { from: "/home", to: "/home/alerts" } };
+    const breadcrumb = {
+      category: "navigation",
+      data: { from: "/home/alerts?tab=1", to: "/home/alerts" },
+    };
 
     expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
-      from: "/home",
+      from: "/home/alerts?[redacted]",
       to: "/home/alerts",
     });
   });
