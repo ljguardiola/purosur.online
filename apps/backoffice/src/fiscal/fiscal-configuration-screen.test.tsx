@@ -749,7 +749,7 @@ test("keeps what Recargar brought on the screen after Cancelar, so reopening sav
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
 });
 
-test("keeps the person's unsaved edit when a refresh lands with different data, and takes the refresh for the fields not edited", async () => {
+test("keeps every value of the form, edited or not, when a refresh lands with different data while an edit is unsaved", async () => {
   const services = createServices();
   const refresh = deferred<FetchOutcome>();
   vi.mocked(services.fetchIssuerIdentification)
