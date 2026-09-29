@@ -1,5 +1,7 @@
 export type { BranchUserWire } from "./access/branch-user.js";
 export { branchUserListSchema, branchUserSchema } from "./access/branch-user.js";
+export type { OpenSessionWire } from "./access/open-session.js";
+export { openSessionSchema } from "./access/open-session.js";
 export type { PasskeyRegistrationBody } from "./access/passkey-registration.js";
 export { passkeyRegistrationBodySchema } from "./access/passkey-registration.js";
 export type { PasskeyRegistrationChallengeWire } from "./access/passkey-registration-challenge.js";
@@ -30,6 +32,8 @@ export type { SessionAuthorizationBody } from "./access/session-authorization.js
 export { sessionAuthorizationBodySchema } from "./access/session-authorization.js";
 export type { SessionAuthorizationOptionsWire } from "./access/session-authorization-options.js";
 export { sessionAuthorizationOptionsSchema } from "./access/session-authorization-options.js";
+export type { SessionStatusWire } from "./access/session-status.js";
+export { sessionStatusSchema } from "./access/session-status.js";
 export type { UserCreationBody } from "./access/user-creation.js";
 export { userCreationBodySchema } from "./access/user-creation.js";
 export type { UserEditBody } from "./access/user-edit.js";
