@@ -47,8 +47,8 @@ export default defineConfig(({ mode }) => {
       rolldownOptions: {
         output: {
           codeSplitting: {
-            // The design system modules the entry needs are claimed first, so the lazy group only
-            // takes the ones screens need; one lazy chunk compresses better than a chunk per screen.
+            // The design system modules the entry needs are claimed first, so they never land in
+            // the lazy "ui" chunk that screens share.
             groups: [
               {
                 name: "initial",
@@ -56,7 +56,12 @@ export default defineConfig(({ mode }) => {
                 test: /[\\/](?:node_modules|packages[\\/]ui[\\/]src)[\\/]/,
                 priority: 2,
               },
-              { name: "ui", test: /[\\/]packages[\\/]ui[\\/]src[\\/]/, priority: 1 },
+              {
+                name: "ui",
+                test: /[\\/]packages[\\/]ui[\\/]src[\\/]/,
+                priority: 1,
+                minShareCount: 4,
+              },
             ],
           },
         },
