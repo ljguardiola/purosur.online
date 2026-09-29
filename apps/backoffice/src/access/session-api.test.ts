@@ -25,14 +25,16 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test("fetchSession returns the signed-in user's identity on 200", async () => {
-  vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(200, {
-      user_id: "user-1",
-      display_name: "Lucas Guardiola",
-      is_administrator: false,
-    }),
-  );
+const sessionBody = {
+  user_id: "user-1",
+  display_name: "Lucas Guardiola",
+  expires_at: "2026-09-23T12:30:00.000Z",
+  is_administrator: false,
+  permissions: ["void_sale", "sell_and_charge"],
+};
+
+test("fetchSession returns the signed-in user's identity, permissions and deadline on 200", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, sessionBody));
 
   const outcome = await fetchSession();
 
@@ -41,37 +43,20 @@ test("fetchSession returns the signed-in user's identity on 200", async () => {
     userId: "user-1",
     displayName: "Lucas Guardiola",
     isAdministrator: false,
+    expiresAt: "2026-09-23T12:30:00.000Z",
+    permissions: ["void_sale", "sell_and_charge"],
   });
   expect(fetch).toHaveBeenCalledWith("/users/session");
 });
 
-test("fetchSession returns the signed-in user's permission keys when the server sends them", async () => {
-  vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(200, {
-      user_id: "user-1",
-      display_name: "Lucas Guardiola",
-      is_administrator: false,
-      permissions: ["void_sale", "sell_and_charge"],
-    }),
-  );
-
-  const outcome = await fetchSession();
-
-  expect(outcome).toMatchObject({ permissions: ["void_sale", "sell_and_charge"] });
-});
-
 test("fetchSession reports isAdministrator true for an Administrator session", async () => {
   vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(200, {
-      user_id: "user-1",
-      display_name: "Lucas Guardiola",
-      is_administrator: true,
-    }),
+    jsonResponse(200, { ...sessionBody, is_administrator: true, permissions: [] }),
   );
 
   const outcome = await fetchSession();
 
-  expect(outcome).toMatchObject({ isAdministrator: true });
+  expect(outcome).toMatchObject({ isAdministrator: true, permissions: [] });
 });
 
 test("fetchSession reports unauthenticated on 401", async () => {
@@ -85,6 +70,24 @@ test("fetchSession reports failed on any other status or a network failure", asy
   await expect(fetchSession()).resolves.toEqual({ kind: "failed" });
 
   vi.mocked(fetch).mockRejectedValue(new TypeError("network down"));
+  await expect(fetchSession()).resolves.toEqual({ kind: "failed" });
+});
+
+test.each([
+  ["a body with no user", { ...sessionBody, user_id: undefined }],
+  ["a body with no deadline", { ...sessionBody, expires_at: undefined }],
+  ["a body with no permissions", { ...sessionBody, permissions: undefined }],
+  ["an administrator flag that is not a boolean", { ...sessionBody, is_administrator: "no" }],
+  ["a body that is not an object", "session"],
+])("fetchSession reports failed on %s", async (_, body) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, body));
+
+  await expect(fetchSession()).resolves.toEqual({ kind: "failed" });
+});
+
+test("fetchSession reports failed on a body that is not JSON", async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response("<html>", { status: 200 }));
+
   await expect(fetchSession()).resolves.toEqual({ kind: "failed" });
 });
 
@@ -102,25 +105,6 @@ test("fetchSession falls back to the one-hour rolling window when Retry-After is
   await expect(fetchSession()).resolves.toEqual({
     kind: "rate_limited",
     retryAfterSeconds: 60 * 60,
-  });
-});
-
-test("fetchSession carries the session's deadline so the caller can schedule its next check", async () => {
-  vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(200, {
-      user_id: "user-1",
-      display_name: "Lucas Guardiola",
-      expires_at: "2026-09-23T12:30:00.000Z",
-      is_administrator: false,
-    }),
-  );
-
-  await expect(fetchSession()).resolves.toEqual({
-    kind: "ok",
-    userId: "user-1",
-    displayName: "Lucas Guardiola",
-    expiresAt: "2026-09-23T12:30:00.000Z",
-    isAdministrator: false,
   });
 });
 
@@ -144,6 +128,22 @@ test("checkSessionStatus reports failed on any other status or a network failure
   await expect(checkSessionStatus()).resolves.toEqual({ kind: "failed" });
 
   vi.mocked(fetch).mockRejectedValue(new TypeError("network down"));
+  await expect(checkSessionStatus()).resolves.toEqual({ kind: "failed" });
+});
+
+test.each([
+  ["a body with no deadline", {}],
+  ["a deadline that is not a string", { expires_at: 1 }],
+  ["a body that is not an object", "status"],
+])("checkSessionStatus reports failed on %s", async (_, body) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, body));
+
+  await expect(checkSessionStatus()).resolves.toEqual({ kind: "failed" });
+});
+
+test("checkSessionStatus reports failed on a body that is not JSON", async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response("<html>", { status: 200 }));
+
   await expect(checkSessionStatus()).resolves.toEqual({ kind: "failed" });
 });
 
