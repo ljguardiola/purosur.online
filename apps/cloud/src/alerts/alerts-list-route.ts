@@ -1,10 +1,10 @@
 import { type AlertSummary, alertListPageSchema } from "@purosur/contracts";
 import {
-  ALERT_LEVELS,
   type AlertAudience,
   type AlertKind,
   type AlertLevel,
   isAlertKind,
+  isAlertLevel,
 } from "@purosur/domain";
 import {
   and,
@@ -69,10 +69,6 @@ function toAlertSummary(
     escalatedAt: row.escalatedAt?.toISOString() ?? null,
     resolvedAt: row.resolvedAt?.toISOString() ?? null,
   };
-}
-
-function isAlertLevel(value: unknown): value is AlertLevel {
-  return typeof value === "string" && (ALERT_LEVELS as readonly string[]).includes(value);
 }
 
 const ALERTS_PAGE_SIZE = 25;

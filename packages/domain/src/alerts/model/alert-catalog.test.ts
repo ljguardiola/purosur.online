@@ -1,6 +1,12 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { ALERT_AUDIENCES, ALERT_KINDS, ALERT_LEVELS, isAlertKind } from "./alert-catalog.js";
+import {
+  ALERT_AUDIENCES,
+  ALERT_KINDS,
+  ALERT_LEVELS,
+  isAlertKind,
+  isAlertLevel,
+} from "./alert-catalog.js";
 
 describe("ALERT_KINDS", () => {
   it("lists exactly the four security-fact kinds a backoffice account can raise", () => {
@@ -34,6 +40,24 @@ describe("isAlertKind", () => {
 describe("ALERT_LEVELS", () => {
   it("lists every level an alert can have, from the least to the most urgent", () => {
     expect(ALERT_LEVELS).toEqual(["informational", "warning", "critical"]);
+  });
+});
+
+describe("isAlertLevel", () => {
+  it("accepts every level and rejects an unknown one", () => {
+    for (const level of ALERT_LEVELS) {
+      expect(isAlertLevel(level)).toBe(true);
+    }
+    expect(isAlertLevel("urgent")).toBe(false);
+  });
+
+  it("rejects any string that is not a level and any non-string value", () => {
+    fc.assert(
+      fc.property(fc.anything(), (value) => {
+        fc.pre(!(typeof value === "string" && (ALERT_LEVELS as readonly string[]).includes(value)));
+        expect(isAlertLevel(value)).toBe(false);
+      }),
+    );
   });
 });
 

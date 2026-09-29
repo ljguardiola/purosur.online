@@ -19,6 +19,12 @@ export const ALERT_LEVELS = ["informational", "warning", "critical"] as const;
 
 export type AlertLevel = (typeof ALERT_LEVELS)[number];
 
+const ALERT_LEVEL_SET: ReadonlySet<string> = new Set(ALERT_LEVELS);
+
+export function isAlertLevel(value: unknown): value is AlertLevel {
+  return typeof value === "string" && ALERT_LEVEL_SET.has(value);
+}
+
 // Who can see an alert: every alert-view permission holder ("all"), or only a branch's own
 // `view_branch_alerts` holders ("local").
 export const ALERT_AUDIENCES = ["local", "all"] as const;

@@ -22,7 +22,13 @@ export {
   roleNameLength,
 } from "./access/index.js";
 export type { AlertAudience, AlertKind, AlertLevel } from "./alerts/index.js";
-export { ALERT_AUDIENCES, ALERT_KINDS, ALERT_LEVELS, isAlertKind } from "./alerts/index.js";
+export {
+  ALERT_AUDIENCES,
+  ALERT_KINDS,
+  ALERT_LEVELS,
+  isAlertKind,
+  isAlertLevel,
+} from "./alerts/index.js";
 export {
   BRANCH_HOURS_RANGES_PER_DAY_MAX,
   BRANCH_SETTINGS_DAYS_MAX,
