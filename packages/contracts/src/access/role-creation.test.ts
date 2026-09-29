@@ -111,6 +111,21 @@ describe("roleCreationBodySchema, permissions", () => {
   });
 });
 
+describe("roleCreationBodySchema, required permissions", () => {
+  it("rejects a permission without one it requires", () => {
+    expect(firstFailure({ name: "Depósito", permissions: ["record_stock_losses"] })).toEqual({
+      field: "permissions",
+      message: "permissions must include every permission they require",
+    });
+  });
+
+  it("accepts a permission together with what it requires", () => {
+    expect(
+      isAccepted({ name: "Depósito", permissions: ["record_stock_losses", "view_stock_balances"] }),
+    ).toBe(true);
+  });
+});
+
 describe("roleCreationBodySchema, order of checks", () => {
   it("reports the name before the permissions when both are wrong", () => {
     expect(firstFailingField({ name: "", permissions: "nope" })).toBe("name");
