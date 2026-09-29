@@ -2,6 +2,7 @@ import { userCreationBodySchema } from "@purosur/contracts";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { openAlert } from "../alerts/open-alert.js";
 import { auditLog, roles, userRoles, users } from "../platform/db/schema.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
@@ -44,6 +45,10 @@ export interface CreateUserInput {
   actorId: string;
 }
 
+export interface CreateUserDeps {
+  now: () => Date;
+}
+
 interface CreatedUserRole {
   id: string;
   name: string | null;
@@ -58,6 +63,7 @@ export type CreateUserOutcome =
 export async function createUser<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: CreateUserInput,
+  deps: CreateUserDeps,
 ): Promise<CreateUserOutcome> {
   const [role] = await db
     .select({ id: roles.id, name: roles.name, isAdministrator: roles.isAdministrator })
@@ -92,6 +98,18 @@ export async function createUser<TQueryResult extends PgQueryResultHKT>(
         previousValue: null,
         newValue: { firstName: input.firstName, email: input.email, roleId: role.id },
       });
+
+      if (role.isAdministrator) {
+        await openAlert(
+          tx,
+          {
+            kind: "user_access_increased",
+            scope: newUser.id,
+            detail: { cause: "created_as_administrator", actorId: input.actorId },
+          },
+          deps,
+        );
+      }
 
       return newUser;
     })
@@ -135,13 +153,17 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
         return;
       }
 
-      const outcome = await createUser(options.db, {
-        firstName: parsedBody.first_name,
-        email: parsedBody.email,
-        roleId: parsedBody.role_id,
-        locationId: openSession.locationId,
-        actorId: openSession.userId,
-      });
+      const outcome = await createUser(
+        options.db,
+        {
+          firstName: parsedBody.first_name,
+          email: parsedBody.email,
+          roleId: parsedBody.role_id,
+          locationId: openSession.locationId,
+          actorId: openSession.userId,
+        },
+        { now },
+      );
 
       if (outcome.kind === "unknown_role") {
         await reply.code(400).send(UNKNOWN_ROLE_RESPONSE);

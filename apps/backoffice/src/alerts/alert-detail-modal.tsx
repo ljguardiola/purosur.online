@@ -1,5 +1,11 @@
 import type { AlertDetail } from "@purosur/contracts";
-import { type AlertLevel, ARGENTINA_TIME_ZONE } from "@purosur/domain";
+import {
+  type AlertLevel,
+  ARGENTINA_TIME_ZONE,
+  isPermissionKey,
+  PERMISSION_CATALOG,
+  type PermissionKey,
+} from "@purosur/domain";
 import {
   Button,
   EmptyState,
@@ -20,11 +26,14 @@ import {
   LifeBuoy,
   Mail,
   ShieldAlert,
+  ShieldPlus,
   ShieldX,
   TriangleAlert,
 } from "lucide-react";
 import { type ReactElement, useState } from "react";
 import { type BackofficeAccess, canCloseAlertsManually } from "../access/backoffice-access";
+import { AREA_LABELS, PERMISSION_LABELS } from "../access/permission-labels";
+import { roleDisplayName } from "../access/role-display";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { retryAfterDetail } from "../platform/retry-after-detail";
@@ -106,6 +115,8 @@ function alertIcon(kind: string): Icon {
       return <Mail />;
     case "backoffice_sign_in_lockout":
       return <ShieldAlert />;
+    case "user_access_increased":
+      return <ShieldPlus />;
     default:
       return <Bell />;
   }
@@ -133,6 +144,65 @@ function passkeyChangeDetail(detail: Record<string, unknown>): PasskeyChangeDeta
   return undefined;
 }
 
+function roleName(role: unknown): string | undefined {
+  if (typeof role !== "object" || role === null) {
+    return undefined;
+  }
+  const { name, isAdministrator } = role as Record<string, unknown>;
+  if (typeof isAdministrator !== "boolean" || !(name === null || typeof name === "string")) {
+    return undefined;
+  }
+  return roleDisplayName({ isAdministrator, name });
+}
+
+// Many permission labels only read clearly under their area's heading, as the role editor shows them.
+function permissionLabelWithArea(key: PermissionKey): string {
+  const definition = PERMISSION_CATALOG.find((permission) => permission.key === key);
+  const label = PERMISSION_LABELS[key];
+  return definition ? `${AREA_LABELS[definition.area]}: ${label}` : label;
+}
+
+function permissionLabels(keys: unknown): string[] | undefined {
+  if (!Array.isArray(keys) || keys.length === 0 || !keys.every(isPermissionKey)) {
+    return undefined;
+  }
+  return keys.map((key) => `«${permissionLabelWithArea(key)}»`);
+}
+
+const PERMISSION_LIST_FORMAT = new Intl.ListFormat("es-AR", { type: "conjunction" });
+
+function accessIncreaseDescription(detail: Record<string, unknown>, targetName: string): string {
+  const { cause, actorName } = detail;
+  if (typeof actorName !== "string") {
+    return "";
+  }
+  if (cause === "created_as_administrator") {
+    return `El Administrador ${actorName} creó a ${targetName} como Administrador.`;
+  }
+  if (cause === "role_assigned") {
+    const previousRoleName = roleName(detail["previousRole"]);
+    const newRoleName = roleName(detail["newRole"]);
+    if (previousRoleName === undefined || newRoleName === undefined) {
+      return "";
+    }
+    return `El Administrador ${actorName} cambió el rol de ${targetName} de «${previousRoleName}» a «${newRoleName}», que le da permisos que no tenía.`;
+  }
+  if (cause === "role_permissions_added") {
+    const { roleName: editedRoleName } = detail;
+    const labels = permissionLabels(detail["addedPermissionKeys"]);
+    if (typeof editedRoleName !== "string" || labels === undefined) {
+      return "";
+    }
+    const permissionList = PERMISSION_LIST_FORMAT.format(labels);
+    const permissionsText = plural(labels.length, {
+      one: `el permiso ${permissionList}`,
+      other: `los permisos ${permissionList}`,
+    });
+    return `El Administrador ${actorName} agregó ${permissionsText} al rol «${editedRoleName}», que tiene ${targetName}.`;
+  }
+  return "";
+}
+
 function alertTitle(alert: AlertDetail): string {
   switch (alert.kind) {
     case "backoffice_passkey_changed": {
@@ -147,6 +217,8 @@ function alertTitle(alert: AlertDetail): string {
       return "Se cambió un correo";
     case "backoffice_sign_in_lockout":
       return "Se bloqueó un origen de ingreso";
+    case "user_access_increased":
+      return "Se amplió el acceso de un usuario";
     default:
       return alert.kind;
   }
@@ -197,6 +269,8 @@ function alertDescription(alert: AlertDetail): string {
       }
       return `El Administrador ${actorName} cambió el correo de ${targetName} de ${previousEmail} a ${newEmail}.`;
     }
+    case "user_access_increased":
+      return accessIncreaseDescription(alert.detail, targetName);
     default:
       return "";
   }

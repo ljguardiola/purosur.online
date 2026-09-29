@@ -687,3 +687,23 @@ test("does not report its filters again when the route hands it a new callback",
 
   expect(onFiltersChange).toHaveBeenCalledTimes(1);
 });
+
+test("names an alert for increased access by its kind and what happened", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(
+    ok([
+      {
+        ...passkeyAlert,
+        kind: "user_access_increased",
+        level: "critical",
+        scopeDisplay: "Grace Hopper",
+      },
+    ]),
+  );
+
+  const screen = await renderScreen(services);
+
+  const row = screen.getByRole("row", { name: /Grace Hopper/ });
+  await expect.element(row.getByText("Acceso ampliado")).toBeVisible();
+  await expect.element(row.getByText("Se amplió el acceso de un usuario")).toBeVisible();
+});
