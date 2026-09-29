@@ -295,10 +295,7 @@ test("saving a role reads the roles again from the server, keeping the shown row
   vi.mocked(services.fetchRoles)
     .mockResolvedValueOnce({ kind: "ok", value: [administrator, stock] })
     .mockReturnValueOnce(refresh.promise);
-  vi.mocked(services.roleEditorModal.createRole).mockResolvedValue({
-    kind: "ok",
-    value: { ...stock, id: "role-copy", name: "Copia de Depósito" },
-  });
+  vi.mocked(services.roleEditorModal.createRole).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("2 roles")).toBeVisible();
   await userEvent.click(screen.getByRole("button", { name: "Duplicar el rol Depósito" }));
@@ -349,4 +346,33 @@ test("has no accessibility violations once loaded", async () => {
 
   await expect.element(screen.getByText("2 roles")).toBeVisible();
   await expectNoAccessibilityViolations(document.body);
+});
+
+test("the editor modal closes when the roles fail to load again, and never reopens by itself", async () => {
+  await page.viewport(1280, 900);
+  const services = createServices();
+  vi.mocked(services.fetchRoles)
+    .mockResolvedValueOnce({ kind: "ok", value: [administrator, stock] })
+    .mockResolvedValueOnce({ kind: "failed" });
+  vi.mocked(services.roleEditorModal.fetchRole).mockResolvedValue({
+    kind: "ok",
+    value: { ...stock, version: 1, assignedUsers: [] },
+  });
+  vi.mocked(services.roleEditorModal.editRole).mockResolvedValue({ kind: "stale_version" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("2 roles")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Editar el rol Depósito" }));
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await userEvent.click(screen.getByRole("button", { name: "Recargar" }));
+
+  await expect.element(screen.getByText("No pudimos abrir los roles")).toBeVisible();
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  vi.mocked(services.fetchRoles).mockResolvedValueOnce({
+    kind: "ok",
+    value: [administrator, stock],
+  });
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+  await expect.element(screen.getByText("2 roles")).toBeVisible();
+  expect(screen.getByRole("dialog").query()).toBeNull();
 });

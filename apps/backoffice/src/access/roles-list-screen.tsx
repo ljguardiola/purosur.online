@@ -1,7 +1,7 @@
 import { PERMISSION_KEYS } from "@purosur/domain";
 import { Button, plural, Table } from "@purosur/ui";
 import { Copy, Lock, Pencil, Plus, Shield } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
@@ -83,6 +83,12 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
   const data = useRolesQuery({ fetchRoles, onSessionEnded });
   const refreshAccess = useRefreshAccess();
   const [editorRequest, setEditorRequest] = useState<RoleEditorRequest | null>(null);
+
+  useEffect(() => {
+    if (data.status === "failed") {
+      setEditorRequest((request) => (request?.kind === "new" ? request : null));
+    }
+  }, [data.status]);
 
   const roles = data.status === "loaded" ? data.value : NO_ROLES;
   const columns = columnsFor(setEditorRequest);

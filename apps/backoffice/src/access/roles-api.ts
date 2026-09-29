@@ -18,7 +18,7 @@ export type CreateRoleInput = { name: string; permissionKeys: string[] };
 export type CreateRoleFieldError = "name" | "permissions";
 
 export type CreateRoleOutcome =
-  | { kind: "ok"; value: RoleSummary }
+  | { kind: "ok" }
   | { kind: "validation_failed"; field: CreateRoleFieldError }
   | { kind: "name_taken" }
   | { kind: "forbidden" }
@@ -38,7 +38,7 @@ export type EditRoleInput = { name: string; permissionKeys: string[]; version: n
 export type EditRoleFieldError = "name" | "permissions" | "version";
 
 export type EditRoleOutcome =
-  | { kind: "ok"; value: RoleDetail }
+  | { kind: "ok" }
   | { kind: "validation_failed"; field: EditRoleFieldError }
   | { kind: "name_taken" }
   | { kind: "stale_version" }
@@ -133,13 +133,7 @@ export async function createRole(input: CreateRoleInput): Promise<CreateRoleOutc
     return { kind: "failed" };
   }
   if (response.ok) {
-    const body = (await response.json().catch(() => undefined)) as
-      | Parameters<typeof roleSummaryFromWire>[0]
-      | undefined;
-    if (!body) {
-      return { kind: "failed" };
-    }
-    return { kind: "ok", value: roleSummaryFromWire(body) };
+    return { kind: "ok" };
   }
   if (response.status === 400) {
     const body = (await response.json().catch(() => undefined)) as
@@ -209,13 +203,7 @@ export async function editRole(id: string, input: EditRoleInput): Promise<EditRo
     return { kind: "failed" };
   }
   if (response.ok) {
-    const body = (await response.json().catch(() => undefined)) as
-      | Parameters<typeof roleDetailFromWire>[0]
-      | undefined;
-    if (!body) {
-      return { kind: "failed" };
-    }
-    return { kind: "ok", value: roleDetailFromWire(body) };
+    return { kind: "ok" };
   }
   if (response.status === 400) {
     const body = (await response.json().catch(() => undefined)) as

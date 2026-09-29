@@ -102,29 +102,12 @@ test("fetchRoles returns failed on a 200 whose roles do not match the contract",
   expect(await fetchRoles()).toEqual({ kind: "failed" });
 });
 
-test("createRole posts the name and permissions, returning the created role on 201", async () => {
-  vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(201, {
-      id: "role-stock",
-      name: "Depósito",
-      is_administrator: false,
-      permissions: ["view_stock_balances"],
-      user_count: 0,
-    }),
-  );
+test("createRole posts the name and permissions and returns ok on 201", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(201, {}));
 
   const outcome = await createRole({ name: "Depósito", permissionKeys: ["view_stock_balances"] });
 
-  expect(outcome).toEqual({
-    kind: "ok",
-    value: {
-      id: "role-stock",
-      name: "Depósito",
-      isAdministrator: false,
-      permissionKeys: ["view_stock_balances"],
-      userCount: 0,
-    },
-  });
+  expect(outcome).toEqual({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith(
     "/roles",
     expect.objectContaining({
@@ -288,8 +271,8 @@ test("fetchRole returns failed when the request throws", async () => {
   expect(await fetchRole("role-stock")).toEqual({ kind: "failed" });
 });
 
-test("editRole posts the name, permissions and version, returning the updated role on 200", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, stockDetailRow));
+test("editRole posts the name, permissions and version and returns ok on 200", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, {}));
 
   const outcome = await editRole("role-stock", {
     name: "Depósito",
@@ -297,7 +280,7 @@ test("editRole posts the name, permissions and version, returning the updated ro
     version: 2,
   });
 
-  expect(outcome).toEqual({ kind: "ok", value: stockDetail });
+  expect(outcome).toEqual({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith(
     "/roles/role-stock/edit",
     expect.objectContaining({
@@ -419,4 +402,18 @@ test("editRole returns failed when the request throws", async () => {
   });
 
   expect(outcome).toEqual({ kind: "failed" });
+});
+
+test("createRole returns ok on 201 whatever the body says, since the role is already created", async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response("not json", { status: 201 }));
+
+  expect(await createRole({ name: "Depósito", permissionKeys: [] })).toEqual({ kind: "ok" });
+});
+
+test("editRole returns ok on 200 whatever the body says, since the change is already applied", async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response("not json", { status: 200 }));
+
+  expect(
+    await editRole("role-stock", { name: "Depósito", permissionKeys: [], version: 2 }),
+  ).toEqual({ kind: "ok" });
 });
