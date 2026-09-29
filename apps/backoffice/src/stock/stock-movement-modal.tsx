@@ -4,16 +4,7 @@ import {
   stockAdjustmentBodySchema,
   stockLossBodySchema,
 } from "@purosur/contracts";
-import {
-  ADJUSTMENT_REASONS,
-  type AdjustmentReason,
-  adjustmentDirections,
-  LOSS_REASONS,
-  type LossReason,
-  type SaleUnit,
-  type StockDirection,
-  signedDelta,
-} from "@purosur/domain";
+import { type SaleUnit, signedDelta } from "@purosur/domain";
 import {
   Button,
   EmptyState,
@@ -22,46 +13,32 @@ import {
   LoadingPlaceholder,
   Modal,
   OptionCardGroup,
-  SummaryRowGroup,
 } from "@purosur/ui";
-import {
-  ArrowDownUp,
-  Check,
-  Info,
-  Minus,
-  Package,
-  PackageX,
-  Plus,
-  ShieldX,
-  TriangleAlert,
-} from "lucide-react";
+import { ArrowDownUp, Check, Info, Minus, Package, PackageX, Plus } from "lucide-react";
 import { useState } from "react";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import { useCloudForm } from "../platform/cloud-form";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
-import { retryAfterDetail } from "../platform/retry-after-detail";
 import type { RecordMovementOutcome } from "./stock-api";
-import { productOptions, quantityFieldKind, quantityMessage } from "./stock-movement-form";
+import { StockBalanceChange } from "./stock-balance-change";
+import {
+  ADJUSTMENT_REASON_OPTIONS,
+  type AdjustmentValues,
+  LOSS_REASON_OPTIONS,
+  type LossValues,
+  PRODUCT_REQUIRED,
+  productOptions,
+  quantityFieldKind,
+  quantityMessage,
+  REASON_REQUIRED,
+  soleDirection,
+} from "./stock-movement-form";
+import { StockMovementNotice } from "./stock-movement-notice";
 import type { StockMovementsScreenServices } from "./stock-movements-services";
-import { formatStockChange, formatStockQuantity, parseStockQuantity } from "./stock-quantity";
-import { useRefreshStock, useStockBalancesQuery, useStockProductsQuery } from "./stock-queries";
-import { ADJUSTMENT_REASON_LABELS, LOSS_REASON_LABELS } from "./stock-reason-labels";
+import { parseStockQuantity } from "./stock-quantity";
+import { useRefreshStock, useStockProductsQuery } from "./stock-queries";
 
 export type MovementKind = "loss" | "adjustment";
-
-type LossValues = { productId: string | null; quantity: string; reason: LossReason | null };
-
-type AdjustmentValues = {
-  productId: string | null;
-  quantity: string;
-  reason: AdjustmentReason | null;
-  direction: StockDirection;
-};
-
-type Notice =
-  | { kind: "attemptFailed" }
-  | { kind: "rateLimited"; retryAfterSeconds: number }
-  | { kind: "notFound" };
 
 const KIND_OPTIONS = {
   loss: {
@@ -78,76 +55,10 @@ const KIND_OPTIONS = {
   },
 } as const;
 
-const LOSS_REASON_OPTIONS = LOSS_REASONS.map((reason) => ({
-  value: reason,
-  label: LOSS_REASON_LABELS[reason],
-})) as [{ value: LossReason; label: string }, ...{ value: LossReason; label: string }[]];
-
-const ADJUSTMENT_REASON_OPTIONS = ADJUSTMENT_REASONS.map((reason) => ({
-  value: reason,
-  label: ADJUSTMENT_REASON_LABELS[reason],
-})) as [
-  { value: AdjustmentReason; label: string },
-  ...{ value: AdjustmentReason; label: string }[],
-];
-
 const DIRECTION_OPTIONS = [
   { value: "add", label: "Suma", icon: <Plus /> },
   { value: "subtract", label: "Resta", icon: <Minus /> },
 ] as const;
-
-const PRODUCT_REQUIRED = "Elegí el producto.";
-const REASON_REQUIRED = "Elegí el motivo.";
-
-function soleDirection(reason: AdjustmentReason | null): StockDirection | undefined {
-  const [only, ...others] = reason === null ? [] : adjustmentDirections(reason);
-  return others.length === 0 ? only : undefined;
-}
-
-function BalanceChange({
-  product,
-  delta,
-  services,
-  onSessionEnded,
-}: {
-  product: StockProduct;
-  delta: number | undefined;
-  services: StockMovementsScreenServices;
-  onSessionEnded: () => void;
-}) {
-  const balances = useStockBalancesQuery({
-    fetchStockBalances: services.fetchStockBalances,
-    onSessionEnded,
-  });
-  if (balances.status === "loading") {
-    return <LoadingPlaceholder variant="card" lines={3} />;
-  }
-  if (balances.status === "failed") {
-    return <LoadFailure {...cloudLoadFailure(balances, "el saldo")} />;
-  }
-  const balance = balances.value.products.find((listed) => listed.id === product.id)?.balance ?? 0;
-  const current = {
-    label: "Saldo actual",
-    value: formatStockQuantity(balance, product.saleUnit),
-  };
-  return (
-    <SummaryRowGroup
-      rows={
-        delta === undefined
-          ? [current]
-          : [
-              current,
-              { label: "Cambio", value: formatStockChange(delta, product.saleUnit) },
-              {
-                label: "Saldo después",
-                value: formatStockQuantity(balance + delta, product.saleUnit),
-                strong: true,
-              },
-            ]
-      }
-    />
-  );
-}
 
 export type StockMovementModalProps = {
   title: string;
@@ -171,7 +82,7 @@ export function StockMovementModal({
   const sendToMyAccount = useSendToMyAccount();
   const refreshStock = useRefreshStock();
   const [kind, setKind] = useState<MovementKind>(kinds[0]);
-  const [notice, setNotice] = useState<Notice | null>(null);
+  const [notice, setNotice] = useState<StockMovementNotice | null>(null);
   const products = useStockProductsQuery({
     fetchStockProducts: services.fetchStockProducts,
     onSessionEnded,
@@ -351,30 +262,7 @@ export function StockMovementModal({
       ) : null}
       {products.status === "loaded" && options ? (
         <div className="flex flex-col gap-4">
-          {notice?.kind === "attemptFailed" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudo guardar el movimiento"
-              description="Probá de nuevo."
-            />
-          )}
-          {notice?.kind === "rateLimited" && (
-            <InlineNotice
-              tone="error"
-              icon={<ShieldX />}
-              title="Demasiadas solicitudes"
-              description={retryAfterDetail(notice.retryAfterSeconds)}
-            />
-          )}
-          {notice?.kind === "notFound" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="Producto desactivado"
-              description="Ya no está en el catálogo."
-            />
-          )}
+          {notice ? <StockMovementNotice notice={notice} /> : null}
           {kinds.length > 1 ? (
             <OptionCardGroup
               label="Qué se carga"
@@ -424,7 +312,7 @@ export function StockMovementModal({
                 )}
               </loss.form.AppField>
               {showsBalance && lossProduct ? (
-                <BalanceChange
+                <StockBalanceChange
                   services={services}
                   onSessionEnded={onSessionEnded}
                   product={lossProduct}
@@ -484,7 +372,7 @@ export function StockMovementModal({
                 title="Si lo que hay en el local no coincide con el sistema, se corrige con un recuento."
               />
               {showsBalance && adjustmentProduct ? (
-                <BalanceChange
+                <StockBalanceChange
                   services={services}
                   onSessionEnded={onSessionEnded}
                   product={adjustmentProduct}
