@@ -64,6 +64,8 @@ import { registerPriceConfirmationRoute } from "./pricing/price-confirmation-rou
 import { registerPriceSetRoute } from "./pricing/price-set-route.js";
 import type { PricesRouteOptions } from "./pricing/prices-list-route.js";
 import { registerPricesListRoute } from "./pricing/prices-list-route.js";
+import type { DeviceEnrollmentRouteOptions } from "./register/device-enrollment-route.js";
+import { registerDeviceEnrollmentRoute } from "./register/device-enrollment-route.js";
 import { registerRegisterCreationRoute } from "./register/register-creation-route.js";
 import { registerRegisterEnrollmentCodeRoute } from "./register/register-enrollment-code-route.js";
 import type { RegistersRouteOptions } from "./register/registers-list-route.js";
@@ -87,6 +89,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   alerts?: AlertsRouteOptions<TQueryResult>;
   prices?: PricesRouteOptions<TQueryResult>;
   registers?: RegistersRouteOptions<TQueryResult>;
+  devices?: DeviceEnrollmentRouteOptions<TQueryResult>;
 }
 
 const STRICT_TRANSPORT_SECURITY = "max-age=63072000; includeSubDomains";
@@ -243,6 +246,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     registerRegistersListRoute(app, options.registers);
     registerRegisterCreationRoute(app, options.registers);
     registerRegisterEnrollmentCodeRoute(app, options.registers);
+  }
+
+  if (options.devices) {
+    registerDeviceEnrollmentRoute(app, options.devices);
   }
 
   const staticDir = options.staticDir;

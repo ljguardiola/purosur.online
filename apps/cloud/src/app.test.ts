@@ -975,6 +975,25 @@ describe("wiring the registers routes", () => {
   });
 });
 
+describe("wiring the device enrollment route", () => {
+  it("does not register POST /devices/enroll when no devices option is given", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    const response = await app.inject({ method: "POST", url: "/devices/enroll", payload: {} });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("registers POST /devices/enroll, answering without a session, when a devices option is given", async () => {
+    const app = buildApp({ version: "abc1234", devices: { db: testDatabase.db } });
+
+    const response = await app.inject({ method: "POST", url: "/devices/enroll", payload: {} });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
+  });
+});
+
 describe("wiring the branch settings routes", () => {
   it("does not register GET /branch-settings when no branchSettings option is given", async () => {
     const app = buildApp({ version: "abc1234" });
@@ -1189,6 +1208,7 @@ function productionWiredApp() {
     alerts: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     prices: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     registers: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
+    devices: { db: testDatabase.db },
   });
 }
 
@@ -1348,6 +1368,7 @@ describe("the route access inventory", () => {
         url: "/registers/:id/enrollment-code",
         access: permissionAccess("enroll_register_devices"),
       },
+      { method: "POST", url: "/devices/enroll", access: PUBLIC_ACCESS },
       { method: "HEAD", url: "/*", access: PUBLIC_ACCESS },
       { method: "GET", url: "/*", access: PUBLIC_ACCESS },
     ]);
