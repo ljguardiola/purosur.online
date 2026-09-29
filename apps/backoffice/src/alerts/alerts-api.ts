@@ -1,50 +1,12 @@
-import type { AlertAudience, AlertKind, AlertLevel } from "@purosur/domain";
+import {
+  type AlertDetail,
+  type AlertListPage,
+  alertDetailSchema,
+  alertListPageSchema,
+} from "@purosur/contracts";
+import type { AlertLevel } from "@purosur/domain";
+import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { retryAfterSeconds } from "../platform/retry-after-seconds";
-
-export type { AlertKind, AlertLevel };
-
-export type AlertSummary = {
-  id: string;
-  kind: AlertKind;
-  scope: string | null;
-  // `scope` as a person reads it (a user's first name, or the raw scope); `null` for a closed
-  // lockout alert, which no longer holds its source address.
-  scopeDisplay: string | null;
-  level: AlertLevel;
-  audience: AlertAudience;
-  openedAt: string;
-  escalatedAt: string | null;
-  resolvedAt: string | null;
-};
-
-type AlertDeliveryRecipientRole = {
-  id: string;
-  name: string | null;
-  isAdministrator: boolean;
-};
-
-type AlertDelivery = {
-  channel: string;
-  status: string;
-  error: string | null;
-  createdAt: string;
-  recipient: { id: string; firstName: string; role: AlertDeliveryRecipientRole };
-};
-
-export type AlertDetail = {
-  id: string;
-  kind: AlertKind;
-  scope: string | null;
-  scopeDisplay: string | null;
-  level: AlertLevel;
-  audience: AlertAudience;
-  // The kind's own fact payload, passed through untyped exactly as the cloud sends it.
-  detail: Record<string, unknown>;
-  openedAt: string;
-  escalatedAt: string | null;
-  resolvedAt: string | null;
-  deliveries: AlertDelivery[];
-};
 
 export type AlertListQuery = {
   level?: AlertLevel;
@@ -55,117 +17,18 @@ export type AlertListQuery = {
   search?: { text: string; kinds: readonly string[] };
 };
 
-export type AlertListPage = {
-  alerts: AlertSummary[];
-  total: number;
-  pageSize: number;
-  openCount: number;
-  openCriticalCount: number;
-};
+export type FetchAlertsOutcome = CloudReadOutcome<AlertListPage>;
 
-export type FetchAlertsOutcome =
-  | { kind: "ok"; value: AlertListPage }
-  | { kind: "forbidden" }
-  | { kind: "unauthenticated" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "failed" };
-
-export type FetchAlertOutcome =
-  | { kind: "ok"; value: AlertDetail }
-  | { kind: "not_found" }
-  | { kind: "forbidden" }
-  | { kind: "unauthenticated" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "failed" };
+export type FetchAlertOutcome = CloudReadOutcome<AlertDetail> | { kind: "not_found" };
 
 export type CloseAlertOutcome =
-  | { kind: "ok"; value: AlertDetail }
+  | { kind: "ok" }
   | { kind: "already_closed" }
   | { kind: "not_found" }
   | { kind: "forbidden" }
   | { kind: "unauthenticated" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
-
-function alertSummaryFromWire(row: {
-  id: string;
-  kind: AlertKind;
-  scope: string | null;
-  scope_display: string | null;
-  level: AlertLevel;
-  audience: AlertAudience;
-  opened_at: string;
-  escalated_at: string | null;
-  resolved_at: string | null;
-}): AlertSummary {
-  return {
-    id: row.id,
-    kind: row.kind,
-    scope: row.scope,
-    scopeDisplay: row.scope_display,
-    level: row.level,
-    audience: row.audience,
-    openedAt: row.opened_at,
-    escalatedAt: row.escalated_at,
-    resolvedAt: row.resolved_at,
-  };
-}
-
-function alertDeliveryFromWire(row: {
-  channel: string;
-  status: string;
-  error: string | null;
-  created_at: string;
-  recipient: {
-    id: string;
-    first_name: string;
-    role: { id: string; name: string | null; is_administrator: boolean };
-  };
-}): AlertDelivery {
-  return {
-    channel: row.channel,
-    status: row.status,
-    error: row.error,
-    createdAt: row.created_at,
-    recipient: {
-      id: row.recipient.id,
-      firstName: row.recipient.first_name,
-      role: {
-        id: row.recipient.role.id,
-        name: row.recipient.role.name,
-        isAdministrator: row.recipient.role.is_administrator,
-      },
-    },
-  };
-}
-
-function alertDetailFromWire(row: {
-  id: string;
-  kind: AlertKind;
-  scope: string | null;
-  scope_display: string | null;
-  level: AlertLevel;
-  audience: AlertAudience;
-  detail: Record<string, unknown>;
-  opened_at: string;
-  escalated_at: string | null;
-  resolved_at: string | null;
-  deliveries: Array<Parameters<typeof alertDeliveryFromWire>[0]>;
-}): AlertDetail {
-  return {
-    id: row.id,
-    kind: row.kind,
-    scope: row.scope,
-    scopeDisplay: row.scope_display,
-    level: row.level,
-    audience: row.audience,
-    detail: row.detail,
-    openedAt: row.opened_at,
-    escalatedAt: row.escalated_at,
-    resolvedAt: row.resolved_at,
-    deliveries: row.deliveries.map(alertDeliveryFromWire),
-  };
-}
 
 function queryString(listQuery: AlertListQuery): string {
   const params = new URLSearchParams();
@@ -184,31 +47,6 @@ function queryString(listQuery: AlertListQuery): string {
   }
   const query = params.toString();
   return query ? `?${query}` : "";
-}
-
-type AlertListPageWire = {
-  alerts: Array<Parameters<typeof alertSummaryFromWire>[0]>;
-  total: number;
-  page_size: number;
-  open_count: number;
-  open_critical_count: number;
-};
-
-function isAlertListPageWire(body: unknown): body is AlertListPageWire {
-  return (
-    typeof body === "object" &&
-    body !== null &&
-    "alerts" in body &&
-    Array.isArray(body.alerts) &&
-    "total" in body &&
-    typeof body.total === "number" &&
-    "page_size" in body &&
-    typeof body.page_size === "number" &&
-    "open_count" in body &&
-    typeof body.open_count === "number" &&
-    "open_critical_count" in body &&
-    typeof body.open_critical_count === "number"
-  );
 }
 
 export async function fetchAlerts(listQuery: AlertListQuery = {}): Promise<FetchAlertsOutcome> {
@@ -230,20 +68,8 @@ export async function fetchAlerts(listQuery: AlertListQuery = {}): Promise<Fetch
   if (!response.ok) {
     return { kind: "failed" };
   }
-  const body: unknown = await response.json().catch(() => undefined);
-  if (!isAlertListPageWire(body)) {
-    return { kind: "failed" };
-  }
-  return {
-    kind: "ok",
-    value: {
-      alerts: body.alerts.map(alertSummaryFromWire),
-      total: body.total,
-      pageSize: body.page_size,
-      openCount: body.open_count,
-      openCriticalCount: body.open_critical_count,
-    },
-  };
+  const parsed = alertListPageSchema.safeParse(await response.json().catch(() => undefined));
+  return parsed.success ? { kind: "ok", value: parsed.data } : { kind: "failed" };
 }
 
 export async function fetchAlert(id: string): Promise<FetchAlertOutcome> {
@@ -268,13 +94,8 @@ export async function fetchAlert(id: string): Promise<FetchAlertOutcome> {
   if (!response.ok) {
     return { kind: "failed" };
   }
-  const body = (await response.json().catch(() => undefined)) as
-    | Parameters<typeof alertDetailFromWire>[0]
-    | undefined;
-  if (!body) {
-    return { kind: "failed" };
-  }
-  return { kind: "ok", value: alertDetailFromWire(body) };
+  const parsed = alertDetailSchema.safeParse(await response.json().catch(() => undefined));
+  return parsed.success ? { kind: "ok", value: parsed.data } : { kind: "failed" };
 }
 
 export async function closeAlert(id: string): Promise<CloseAlertOutcome> {
@@ -289,13 +110,7 @@ export async function closeAlert(id: string): Promise<CloseAlertOutcome> {
     return { kind: "failed" };
   }
   if (response.ok) {
-    const body = (await response.json().catch(() => undefined)) as
-      | Parameters<typeof alertDetailFromWire>[0]
-      | undefined;
-    if (!body) {
-      return { kind: "failed" };
-    }
-    return { kind: "ok", value: alertDetailFromWire(body) };
+    return { kind: "ok" };
   }
   if (response.status === 401) {
     return { kind: "unauthenticated" };
