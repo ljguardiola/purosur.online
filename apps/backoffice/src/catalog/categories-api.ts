@@ -3,7 +3,6 @@ import {
   type CategoryEditBody,
   type CategorySummary,
   categoryListSchema,
-  categorySummarySchema,
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { retryAfterSeconds } from "../platform/retry-after-seconds";
@@ -15,7 +14,7 @@ export type CreateCategoryInput = { name: string; parentId: string | null };
 type CreateCategoryFieldError = "name" | "parentId";
 
 export type CreateCategoryOutcome =
-  | { kind: "ok"; value: CategorySummary }
+  | { kind: "ok" }
   | { kind: "validation_failed"; field: CreateCategoryFieldError }
   | { kind: "name_taken" }
   | { kind: "parent_has_products" }
@@ -29,7 +28,7 @@ export type EditCategoryInput = { name: string; parentId: string | null; version
 type EditCategoryFieldError = "name" | "parentId" | "version";
 
 export type EditCategoryOutcome =
-  | { kind: "ok"; value: CategorySummary }
+  | { kind: "ok" }
   | { kind: "validation_failed"; field: EditCategoryFieldError }
   | { kind: "name_taken" }
   | { kind: "parent_has_products" }
@@ -88,11 +87,7 @@ export async function createCategory(input: CreateCategoryInput): Promise<Create
     return { kind: "failed" };
   }
   if (response.ok) {
-    const parsed = categorySummarySchema.safeParse(await response.json().catch(() => undefined));
-    if (!parsed.success) {
-      return { kind: "failed" };
-    }
-    return { kind: "ok", value: parsed.data };
+    return { kind: "ok" };
   }
   if (response.status === 400) {
     const body = (await response.json().catch(() => undefined)) as
@@ -140,11 +135,7 @@ export async function editCategory(
     return { kind: "failed" };
   }
   if (response.ok) {
-    const parsed = categorySummarySchema.safeParse(await response.json().catch(() => undefined));
-    if (!parsed.success) {
-      return { kind: "failed" };
-    }
-    return { kind: "ok", value: parsed.data };
+    return { kind: "ok" };
   }
   if (response.status === 400) {
     const body = (await response.json().catch(() => undefined)) as

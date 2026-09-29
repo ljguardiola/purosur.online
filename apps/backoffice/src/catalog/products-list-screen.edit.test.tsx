@@ -63,7 +63,7 @@ test("edits a product and shows the updated data in the list", async () => {
   const services = createServices();
   mockLoaded(services, [honey]);
   const updated: ProductSummary = { ...honey, name: "Miel pura de abeja 500 g", version: 2 };
-  vi.mocked(services.editProduct).mockResolvedValue({ kind: "ok", value: updated });
+  vi.mocked(services.editProduct).mockResolvedValue({ kind: "ok" });
   vi.mocked(services.fetchProducts)
     .mockResolvedValueOnce({ kind: "ok", value: [honey] })
     .mockResolvedValueOnce({ kind: "ok", value: [updated] });
@@ -96,12 +96,7 @@ test("edits a product and shows the updated data in the list", async () => {
 test("changes a product's net content on edit", async () => {
   const services = createServices();
   mockLoaded(services, [honey]);
-  const updated: ProductSummary = {
-    ...honey,
-    netContent: { quantity: 500, unit: "G" },
-    version: 2,
-  };
-  vi.mocked(services.editProduct).mockResolvedValue({ kind: "ok", value: updated });
+  vi.mocked(services.editProduct).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
   const dialog = await openEditProductModal(screen, honey);
 
@@ -123,8 +118,7 @@ test("clears a product's net content by emptying the quantity on edit", async ()
   const services = createServices();
   const honeyWithNetContent: ProductSummary = { ...honey, netContent: { quantity: 1, unit: "KG" } };
   mockLoaded(services, [honeyWithNetContent]);
-  const updated: ProductSummary = { ...honeyWithNetContent, netContent: null, version: 2 };
-  vi.mocked(services.editProduct).mockResolvedValue({ kind: "ok", value: updated });
+  vi.mocked(services.editProduct).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
   const dialog = await openEditProductModal(screen, honeyWithNetContent);
 
@@ -219,10 +213,7 @@ test("shows a stale-version conflict banner, and reloading restores the fresh pr
 
   const freshened: ProductSummary = { ...honey, name: "Miel pura de abeja 900 g", version: 2 };
   vi.mocked(services.fetchProducts).mockResolvedValueOnce({ kind: "ok", value: [freshened] });
-  vi.mocked(services.editProduct).mockResolvedValueOnce({
-    kind: "ok",
-    value: { ...freshened, name: "Miel pura de abeja 1200 g", version: 3 },
-  });
+  vi.mocked(services.editProduct).mockResolvedValueOnce({ kind: "ok" });
   await userEvent.click(dialog.getByRole("button", { name: "Recargar el producto" }));
 
   await expect

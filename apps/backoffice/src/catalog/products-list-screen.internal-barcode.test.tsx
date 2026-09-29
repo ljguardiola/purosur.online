@@ -1,4 +1,3 @@
-import type { ProductSummary } from "@purosur/contracts";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { GenerateInternalBarcodeOutcome } from "./products-api";
@@ -29,18 +28,7 @@ test("generates an internal code, adds it to the list, and saves the product wit
     kind: "ok",
     code: "2000000000015",
   });
-  const created: ProductSummary = {
-    id: "product-3",
-    name: "Ensalada de fruta 300 g",
-    categoryId: "category-1",
-    categoryName: "Almacén",
-    saleUnit: "KG",
-    barcodes: ["2000000000015"],
-    netContent: null,
-    active: true,
-    version: 1,
-  };
-  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok", value: created });
+  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
@@ -72,10 +60,7 @@ test("generates an internal code from the edit modal and saves it alongside the 
     kind: "ok",
     code: "2000000000015",
   });
-  vi.mocked(services.editProduct).mockResolvedValue({
-    kind: "ok",
-    value: { ...honey, barcodes: [...honey.barcodes, "2000000000015"], version: 2 },
-  });
+  vi.mocked(services.editProduct).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
   const dialog = await openEditProductModal(screen, honey);
 

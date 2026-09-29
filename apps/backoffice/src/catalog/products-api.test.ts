@@ -94,12 +94,12 @@ const createInput = {
   netContent: null,
 };
 
-test("createProduct posts the fields and returns the created product on 201", async () => {
+test("createProduct posts the fields and returns ok on 201", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(201, honey));
 
   const outcome = await createProduct(createInput);
 
-  expect(outcome).toEqual({ kind: "ok", value: honey });
+  expect(outcome).toEqual({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith("/products", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -107,14 +107,14 @@ test("createProduct posts the fields and returns the created product on 201", as
   });
 });
 
-test("createProduct posts a given net content and returns it in the created product", async () => {
+test("createProduct posts a given net content", async () => {
   const withNetContent = { ...createInput, netContent: { quantity: 380, unit: "G" as const } };
   const created: ProductSummary = { ...honey, netContent: withNetContent.netContent };
   vi.mocked(fetch).mockResolvedValue(jsonResponse(201, created));
 
   const outcome = await createProduct(withNetContent);
 
-  expect(outcome).toEqual({ kind: "ok", value: created });
+  expect(outcome).toEqual({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith("/products", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -204,13 +204,13 @@ test("createProduct returns failed when the request throws", async () => {
 
 const editInput = { ...createInput, version: 1 };
 
-test("editProduct posts the fields and version and returns the applied product on 200", async () => {
+test("editProduct posts the fields and version and returns ok on 200", async () => {
   const applied: ProductSummary = { ...honey, version: 2 };
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, applied));
 
   const outcome = await editProduct("product-1", editInput);
 
-  expect(outcome).toEqual({ kind: "ok", value: applied });
+  expect(outcome).toEqual({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith("/products/product-1/edit", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -461,16 +461,16 @@ test("fetchProducts returns failed when a listed product does not have the expec
   expect(await fetchProducts()).toEqual({ kind: "failed" });
 });
 
-test("createProduct returns failed when the created product does not have the expected shape", async () => {
+test("createProduct returns ok on 201 whatever the body says, since the product is already created", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(201, { id: "product-1" }));
 
-  expect(await createProduct(createInput)).toEqual({ kind: "failed" });
+  expect(await createProduct(createInput)).toEqual({ kind: "ok" });
 });
 
-test("editProduct returns failed when the applied product does not have the expected shape", async () => {
+test("editProduct returns ok on 200 whatever the body says, since the change is already applied", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { ...honey, barcodes: "7790987000015" }));
 
-  expect(await editProduct("product-1", editInput)).toEqual({ kind: "failed" });
+  expect(await editProduct("product-1", editInput)).toEqual({ kind: "ok" });
 });
 
 test("generateInternalBarcode returns failed when the body has no code", async () => {

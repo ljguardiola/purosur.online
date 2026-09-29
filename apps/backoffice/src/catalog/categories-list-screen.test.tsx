@@ -307,7 +307,7 @@ test("the create action stays available while a refresh of the shown categories 
   vi.mocked(services.fetchCategories)
     .mockResolvedValueOnce({ kind: "ok", value: [groceries] })
     .mockReturnValueOnce(refresh.promise);
-  vi.mocked(services.editCategory).mockResolvedValue({ kind: "ok", value: groceries });
+  vi.mocked(services.editCategory).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Almacén")).toBeVisible();
   await userEvent.click(screen.getByRole("button", { name: "Editar la categoría Almacén" }));
@@ -345,10 +345,7 @@ test("rejects a name longer than 100 characters in the create modal, without cal
 test("sends the typed name trimmed from the create modal", async () => {
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [] });
-  vi.mocked(services.createCategory).mockResolvedValue({
-    kind: "ok",
-    value: { id: "category-5", name: "Limpieza", version: 1, parentId: null },
-  });
+  vi.mocked(services.createCategory).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Todavía no hay categorías")).toBeVisible();
   const dialog = await openNewCategoryModal(screen);
@@ -411,7 +408,7 @@ test("creates a top-level category and shows it in the list", async () => {
   vi.mocked(services.fetchCategories)
     .mockResolvedValueOnce({ kind: "ok", value: [groceries] })
     .mockResolvedValueOnce({ kind: "ok", value: [groceries, newCategory, drinks] });
-  vi.mocked(services.createCategory).mockResolvedValue({ kind: "ok", value: newCategory });
+  vi.mocked(services.createCategory).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("1 categoría")).toBeVisible();
   const dialog = await openNewCategoryModal(screen);
@@ -441,7 +438,7 @@ test("creates a subcategory under the chosen parent", async () => {
   vi.mocked(services.fetchCategories)
     .mockResolvedValueOnce({ kind: "ok", value: [groceries] })
     .mockResolvedValueOnce({ kind: "ok", value: [groceries, newCategory] });
-  vi.mocked(services.createCategory).mockResolvedValue({ kind: "ok", value: newCategory });
+  vi.mocked(services.createCategory).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("1 categoría")).toBeVisible();
   const dialog = await openNewCategoryModal(screen);
@@ -597,7 +594,7 @@ test("moves a category to a new parent and shows its updated path in the list", 
   vi.mocked(services.fetchCategories)
     .mockResolvedValueOnce({ kind: "ok", value: [groceries, drinks] })
     .mockResolvedValueOnce({ kind: "ok", value: [groceries, moved] });
-  vi.mocked(services.editCategory).mockResolvedValue({ kind: "ok", value: moved });
+  vi.mocked(services.editCategory).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Bebidas")).toBeVisible();
   await userEvent.click(screen.getByRole("button", { name: "Editar la categoría Bebidas" }));
@@ -640,10 +637,7 @@ test("rejects a name longer than 100 characters in the edit modal, without calli
 test("sends the typed name trimmed from the edit modal", async () => {
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [groceries] });
-  vi.mocked(services.editCategory).mockResolvedValue({
-    kind: "ok",
-    value: { ...groceries, name: "Despensa", version: 2 },
-  });
+  vi.mocked(services.editCategory).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Almacén")).toBeVisible();
   await userEvent.click(screen.getByRole("button", { name: "Editar la categoría Almacén" }));
@@ -799,7 +793,7 @@ test("a stale-version reload on edit discards the typed name and saves again ove
     .element(dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }))
     .toHaveValue("Bebidas");
 
-  vi.mocked(services.editCategory).mockResolvedValue({ kind: "ok", value: freshened });
+  vi.mocked(services.editCategory).mockResolvedValue({ kind: "ok" });
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.editCategory).mock.calls.length).toBe(2);

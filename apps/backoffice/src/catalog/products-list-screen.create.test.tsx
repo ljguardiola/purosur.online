@@ -43,7 +43,7 @@ test("creates a product and shows it in the list", async () => {
     active: true,
     version: 1,
   };
-  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok", value: created });
+  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok" });
   vi.mocked(services.fetchProducts)
     .mockResolvedValueOnce({ kind: "ok", value: [] })
     .mockResolvedValueOnce({ kind: "ok", value: [created, honey] });
@@ -81,18 +81,7 @@ test("creates a product and shows it in the list", async () => {
 test("creates a product with a net content", async () => {
   const services = createServices();
   mockLoaded(services, []);
-  const created: ProductSummary = {
-    id: "product-3",
-    name: "Pasta de maní 380 g",
-    categoryId: "category-1",
-    categoryName: "Almacén",
-    saleUnit: "KG",
-    barcodes: ["7790000000099"],
-    netContent: { quantity: 1.5, unit: "KG" },
-    active: true,
-    version: 1,
-  };
-  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok", value: created });
+  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
@@ -209,18 +198,7 @@ test("a product created while only inactive products are listed stays out of the
   const services = createServices();
   const inactiveAlmonds: ProductSummary = { ...almonds, active: false };
   mockLoaded(services, [inactiveAlmonds]);
-  const created: ProductSummary = {
-    id: "product-3",
-    name: "Pasta de maní 380 g",
-    categoryId: "category-1",
-    categoryName: "Almacén",
-    saleUnit: "UNIT",
-    barcodes: ["7790000000099"],
-    netContent: null,
-    active: true,
-    version: 1,
-  };
-  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok", value: created });
+  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
   await userEvent.click(screen.getByRole("button", { name: "Estado: Activos" }));
   await userEvent.click(screen.getByRole("option", { name: "Inactivos" }));

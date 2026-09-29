@@ -5,7 +5,6 @@ import {
   type ProductEditBody,
   type ProductSummary,
   productListSchema,
-  productSummarySchema,
 } from "@purosur/contracts";
 import type { NetContentUnit } from "@purosur/domain";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
@@ -37,7 +36,7 @@ export type CreateProductInput = {
 };
 
 export type CreateProductOutcome =
-  | { kind: "ok"; value: ProductSummary }
+  | { kind: "ok" }
   | { kind: "validation_failed"; field: ProductFieldError }
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "category_not_leaf" }
@@ -56,7 +55,7 @@ export type EditProductInput = {
 };
 
 export type EditProductOutcome =
-  | { kind: "ok"; value: ProductSummary }
+  | { kind: "ok" }
   | { kind: "validation_failed"; field: ProductFieldError }
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "category_not_leaf" }
@@ -144,11 +143,7 @@ export async function createProduct(input: CreateProductInput): Promise<CreatePr
     return { kind: "failed" };
   }
   if (response.ok) {
-    const parsed = productSummarySchema.safeParse(await response.json().catch(() => undefined));
-    if (!parsed.success) {
-      return { kind: "failed" };
-    }
-    return { kind: "ok", value: parsed.data };
+    return { kind: "ok" };
   }
   if (response.status === 400) {
     const body = (await response.json().catch(() => undefined)) as
@@ -275,11 +270,7 @@ export async function editProduct(
     return { kind: "failed" };
   }
   if (response.ok) {
-    const parsed = productSummarySchema.safeParse(await response.json().catch(() => undefined));
-    if (!parsed.success) {
-      return { kind: "failed" };
-    }
-    return { kind: "ok", value: parsed.data };
+    return { kind: "ok" };
   }
   if (response.status === 400) {
     const body = (await response.json().catch(() => undefined)) as
