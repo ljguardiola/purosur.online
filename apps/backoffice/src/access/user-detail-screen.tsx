@@ -1,4 +1,3 @@
-import { userEditBodySchema } from "@purosur/contracts";
 import {
   Button,
   EmptyState,
@@ -6,32 +5,13 @@ import {
   InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
-  Modal,
   Tag,
-  TextField,
 } from "@purosur/ui";
-import type { startAuthentication } from "@simplewebauthn/browser";
 import { useNavigate } from "@tanstack/react-router";
-import {
-  Check,
-  KeyRound,
-  Laptop,
-  Pencil,
-  RotateCcw,
-  ShieldX,
-  Trash2,
-  TriangleAlert,
-  UserCheck,
-  UserPen,
-  UserX,
-  X,
-} from "lucide-react";
-import { useEffect, useEffectEvent, useState } from "react";
-import { useCloudForm } from "../platform/cloud-form";
+import { KeyRound, Laptop, Pencil, Trash2, UserCheck, UserX } from "lucide-react";
+import { useEffect, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
-import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { combineCloudData } from "../platform/combine-cloud-data";
-import { retryAfterDetail } from "../platform/retry-after-detail";
 import type { CloudData } from "../platform/use-cloud-query";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
@@ -44,33 +24,21 @@ import {
   useUserPasskeysQuery,
   useUserQuery,
 } from "./access-queries";
-import { useAuthorization } from "./authorization-modal";
 import {
   type BackofficeAccess,
   canDeactivateUser,
   canReactivateUser,
   canSeeUsersArea,
 } from "./backoffice-access";
-import { userEmailMessage } from "./email-field-message";
+import { DeactivateUserModal } from "./deactivate-user-modal";
+import { EditUserModal } from "./edit-user-modal";
 import type { Passkey } from "./passkey-api";
 import { passkeyRowDetail } from "./passkey-row-detail";
-import { roleDisplayName, roleOptions } from "./role-display";
-import { roleFieldMessage } from "./role-field-message";
-import { useSendToMyAccount } from "./send-to-my-account";
-import type { authorizeSession, fetchSessionAuthorizationOptions } from "./session-api";
+import { ReactivateUserModal } from "./reactivate-user-modal";
+import { RemoveUserPasskeyModal } from "./remove-user-passkey-modal";
+import { roleDisplayName } from "./role-display";
 import type { UserDetailScreenServices } from "./user-detail-services";
-import type {
-  BranchUser,
-  BranchUserRole,
-  DeactivateUserOutcome,
-  deactivateUser,
-  EditUserOutcome,
-  editUser,
-  ReactivateUserOutcome,
-  RemoveUserPasskeyOutcome,
-  reactivateUser,
-  removeUserPasskey,
-} from "./users-api";
+import type { BranchUserRole } from "./users-api";
 
 export type UserDetailScreenProps = {
   userId: string;
@@ -80,666 +48,6 @@ export type UserDetailScreenProps = {
   now?: () => Date;
   services: UserDetailScreenServices;
 };
-
-type EditUserModalNotice =
-  | { kind: "attemptFailed" }
-  | { kind: "rateLimited"; retryAfterSeconds: number }
-  | { kind: "staleVersion" }
-  | { kind: "lastAdministrator" };
-
-type EditUserModalProps = {
-  open: boolean;
-  user: BranchUser;
-  roles: BranchUserRole[];
-  onClose: () => void;
-  onSaved: () => void;
-  onSessionEnded: () => void;
-  reload: (userId: string) => Promise<CloudReadOutcome<UserRead>>;
-  editUser: typeof editUser;
-  fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
-  authorizeSession: typeof authorizeSession;
-  startAuthentication: typeof startAuthentication;
-};
-
-function EditUserModal({
-  open,
-  user,
-  roles,
-  onClose,
-  onSaved,
-  onSessionEnded,
-  reload,
-  editUser,
-  fetchSessionAuthorizationOptions,
-  authorizeSession,
-  startAuthentication,
-}: EditUserModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
-  const [notice, setNotice] = useState<EditUserModalNotice | null>(null);
-  const [reloading, setReloading] = useState(false);
-  const { run, modal } = useAuthorization<EditUserOutcome>({
-    actionName: "Editar un usuario",
-    onSessionEnded,
-    services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
-  });
-  const { form, submit, submitting, reset } = useCloudForm({
-    defaultValues: { email: user.email, roleId: user.role.id, version: user.version },
-    request: {
-      schema: userEditBodySchema,
-      from: ({ email, roleId, version }) => ({
-        email: email.trim(),
-        role_id: roleId,
-        version,
-      }),
-    },
-    fields: { email: "email", role_id: "roleId", version: null },
-    messages: { email: userEmailMessage, roleId: roleFieldMessage },
-    onSubmit: async (request, { showWireFieldError, showFieldError }) => {
-      setNotice(null);
-      const outcome = await run(() => editUser(user.id, request));
-      if (outcome.kind === "cancelled") {
-        return;
-      }
-      if (outcome.kind === "ok") {
-        onSaved();
-        return;
-      }
-      if (outcome.kind === "unauthenticated") {
-        onSessionEnded();
-        return;
-      }
-      if (outcome.kind === "forbidden") {
-        sendToMyAccount();
-        return;
-      }
-      if (outcome.kind === "validation_failed" && showWireFieldError(outcome.field)) {
-        return;
-      }
-      if (outcome.kind === "email_taken") {
-        showFieldError("email", "Ya existe un usuario con este correo.");
-        return;
-      }
-      if (outcome.kind === "stale_version") {
-        setNotice({ kind: "staleVersion" });
-        return;
-      }
-      if (outcome.kind === "last_administrator") {
-        setNotice({ kind: "lastAdministrator" });
-        return;
-      }
-      if (outcome.kind === "rate_limited") {
-        setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
-        return;
-      }
-      setNotice({ kind: "attemptFailed" });
-    },
-  });
-
-  const showUser = useEffectEvent(() => {
-    const { email, role, version } = user;
-    reset({ email, roleId: role.id, version });
-    setNotice(null);
-    setReloading(false);
-  });
-
-  useEffect(() => {
-    if (open) {
-      showUser();
-    }
-  }, [open]);
-
-  const roleSelectOptions = roles.length > 0 ? roleOptions(roles) : undefined;
-
-  async function handleReload() {
-    setReloading(true);
-    const outcome = await reload(user.id);
-    if (outcome.kind === "ok" && outcome.value.kind === "found") {
-      const { email, role, version } = outcome.value.user;
-      reset({ email, roleId: role.id, version });
-      setNotice(null);
-    }
-    setReloading(false);
-  }
-
-  return (
-    <>
-      <Modal
-        open={open}
-        onOpenChange={(open) => {
-          if (!open) {
-            onClose();
-          }
-        }}
-        width="standard"
-        tone="info"
-        icon={<UserPen />}
-        context="Configuración · Usuarios"
-        title={user.firstName}
-        closable
-        footer={
-          <>
-            <Button
-              variant="secondary"
-              size="large"
-              icon={<X />}
-              disabled={submitting}
-              onPress={onClose}
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="primary"
-              size="large"
-              icon={<Check />}
-              fullWidth
-              disabled={submitting || reloading}
-              onPress={() => void submit()}
-            >
-              Guardar los cambios
-            </Button>
-          </>
-        }
-      >
-        <div className="flex flex-col gap-4">
-          {notice?.kind === "attemptFailed" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudo guardar el cambio"
-              description="Probá de nuevo."
-            />
-          )}
-          {notice?.kind === "rateLimited" && (
-            <InlineNotice
-              tone="error"
-              icon={<ShieldX />}
-              title="Demasiadas solicitudes"
-              description={retryAfterDetail(notice.retryAfterSeconds)}
-            />
-          )}
-          {notice?.kind === "staleVersion" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="Este usuario cambió mientras lo editabas"
-              description="Recargá sus datos y volvé a hacer el cambio."
-            />
-          )}
-          {notice?.kind === "lastAdministrator" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="Ahora es el único Administrador activo"
-              description="Recargá sus datos: para cambiarle el rol, primero hacé Administrador a otra persona."
-            />
-          )}
-          {(notice?.kind === "staleVersion" || notice?.kind === "lastAdministrator") && (
-            <Button
-              variant="secondary"
-              icon={<RotateCcw />}
-              disabled={submitting || reloading}
-              onPress={() => void handleReload()}
-            >
-              Recargar
-            </Button>
-          )}
-          {user.isLastActiveAdministrator ? (
-            <TextField
-              kind="plain-text"
-              label="Rol"
-              value={roleDisplayName(user.role)}
-              onChange={() => {}}
-              readOnly
-              readOnlyReason="Es el único Administrador activo. Para cambiarle el rol, primero hacé Administrador a otra persona."
-            />
-          ) : (
-            roleSelectOptions && (
-              <form.AppField name="roleId">
-                {(field) => <field.Select label="Rol" options={roleSelectOptions} required />}
-              </form.AppField>
-            )
-          )}
-          <form.AppField name="email">
-            {(field) => <field.TextField kind="plain-text" label="Correo" required />}
-          </form.AppField>
-        </div>
-      </Modal>
-      {modal}
-    </>
-  );
-}
-
-type RemoveUserPasskeyModalProps = {
-  target: Passkey | null;
-  userId: string;
-  userName: string;
-  isOnlyPasskey: boolean;
-  onClose: () => void;
-  onRemoved: (passkeyId: string) => void;
-  onSessionEnded: () => void;
-  removeUserPasskey: typeof removeUserPasskey;
-  fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
-  authorizeSession: typeof authorizeSession;
-  startAuthentication: typeof startAuthentication;
-};
-
-function RemoveUserPasskeyModal({
-  target,
-  userId,
-  userName,
-  isOnlyPasskey,
-  onClose,
-  onRemoved,
-  onSessionEnded,
-  removeUserPasskey,
-  fetchSessionAuthorizationOptions,
-  authorizeSession,
-  startAuthentication,
-}: RemoveUserPasskeyModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
-  const open = target !== null;
-  const [attemptFailed, setAttemptFailed] = useState(false);
-  const [rateLimitedSeconds, setRateLimitedSeconds] = useState<number | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const { run, modal } = useAuthorization<RemoveUserPasskeyOutcome>({
-    actionName: "Dar de baja una passkey",
-    onSessionEnded,
-    services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
-  });
-
-  useEffect(() => {
-    if (open) {
-      setAttemptFailed(false);
-      setRateLimitedSeconds(null);
-      setSubmitting(false);
-    }
-  }, [open]);
-
-  async function handleConfirm() {
-    if (!target) {
-      return;
-    }
-    setAttemptFailed(false);
-    setRateLimitedSeconds(null);
-    setSubmitting(true);
-
-    const outcome = await run(() => removeUserPasskey(userId, target.id));
-    if (outcome.kind === "cancelled") {
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "ok" || outcome.kind === "not_found") {
-      onRemoved(target.id);
-      return;
-    }
-    if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
-      return;
-    }
-    if (outcome.kind === "forbidden") {
-      sendToMyAccount();
-      return;
-    }
-    if (outcome.kind === "rate_limited") {
-      setRateLimitedSeconds(outcome.retryAfterSeconds);
-      setSubmitting(false);
-      return;
-    }
-    setAttemptFailed(true);
-    setSubmitting(false);
-  }
-
-  return (
-    <>
-      <Modal
-        open={open}
-        onOpenChange={(open) => {
-          if (!open) {
-            onClose();
-          }
-        }}
-        width="confirmation"
-        tone="error"
-        icon={<Trash2 />}
-        title={`¿Dar de baja la passkey de ${userName}?`}
-        closable
-        footer={
-          <>
-            <Button
-              variant="secondary"
-              size="large"
-              icon={<X />}
-              disabled={submitting}
-              onPress={onClose}
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="primary"
-              destructive
-              size="large"
-              icon={<Trash2 />}
-              fullWidth
-              disabled={submitting}
-              onPress={() => void handleConfirm()}
-            >
-              Dar de baja
-            </Button>
-          </>
-        }
-      >
-        {target ? (
-          <div className="flex flex-col gap-4">
-            <p className="text-body text-text">
-              {`«${target.name}» deja de servir para entrar.`}
-              {isOnlyPasskey
-                ? ` Es su única passkey: para volver a entrar, ${userName} va a tener que pedir el enlace de recuperación por correo.`
-                : ""}
-            </p>
-            {attemptFailed ? (
-              <InlineNotice
-                tone="error"
-                icon={<TriangleAlert />}
-                title="No se pudo dar de baja la passkey"
-                description="Probá de nuevo."
-              />
-            ) : null}
-            {rateLimitedSeconds !== null && (
-              <InlineNotice
-                tone="error"
-                icon={<ShieldX />}
-                title="Demasiadas solicitudes"
-                description={retryAfterDetail(rateLimitedSeconds)}
-              />
-            )}
-          </div>
-        ) : null}
-      </Modal>
-      {modal}
-    </>
-  );
-}
-
-type DeactivateUserModalProps = {
-  open: boolean;
-  user: BranchUser;
-  onClose: () => void;
-  onDeactivated: () => void;
-  onVanished: () => void;
-  onSessionEnded: () => void;
-  deactivateUser: typeof deactivateUser;
-  fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
-  authorizeSession: typeof authorizeSession;
-  startAuthentication: typeof startAuthentication;
-};
-
-function DeactivateUserModal({
-  open,
-  user,
-  onClose,
-  onDeactivated,
-  onVanished,
-  onSessionEnded,
-  deactivateUser,
-  fetchSessionAuthorizationOptions,
-  authorizeSession,
-  startAuthentication,
-}: DeactivateUserModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
-  const [attemptFailed, setAttemptFailed] = useState(false);
-  const [rateLimitedSeconds, setRateLimitedSeconds] = useState<number | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const { run, modal } = useAuthorization<DeactivateUserOutcome>({
-    actionName: "Desactivar un usuario",
-    onSessionEnded,
-    services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
-  });
-
-  useEffect(() => {
-    if (open) {
-      setAttemptFailed(false);
-      setRateLimitedSeconds(null);
-      setSubmitting(false);
-    }
-  }, [open]);
-
-  async function handleConfirm() {
-    setAttemptFailed(false);
-    setRateLimitedSeconds(null);
-    setSubmitting(true);
-
-    const outcome = await run(() => deactivateUser(user.id));
-    if (outcome.kind === "cancelled") {
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "ok") {
-      onDeactivated();
-      return;
-    }
-    if (outcome.kind === "not_found") {
-      onVanished();
-      return;
-    }
-    if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
-      return;
-    }
-    if (outcome.kind === "forbidden") {
-      sendToMyAccount();
-      return;
-    }
-    if (outcome.kind === "rate_limited") {
-      setRateLimitedSeconds(outcome.retryAfterSeconds);
-      setSubmitting(false);
-      return;
-    }
-    setAttemptFailed(true);
-    setSubmitting(false);
-  }
-
-  return (
-    <>
-      <Modal
-        open={open}
-        onOpenChange={(open) => {
-          if (!open) {
-            onClose();
-          }
-        }}
-        width="confirmation"
-        tone="error"
-        icon={<UserX />}
-        title={`¿Desactivar a ${user.firstName}?`}
-        closable
-        footer={
-          <>
-            <Button
-              variant="secondary"
-              size="large"
-              icon={<X />}
-              disabled={submitting}
-              onPress={onClose}
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="primary"
-              destructive
-              size="large"
-              icon={<UserX />}
-              fullWidth
-              disabled={submitting}
-              onPress={() => void handleConfirm()}
-            >
-              Desactivar
-            </Button>
-          </>
-        }
-      >
-        <div className="flex flex-col gap-4">
-          <p className="text-body text-text">Se puede reactivar más adelante.</p>
-          {attemptFailed ? (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudo desactivar el usuario"
-              description="Probá de nuevo."
-            />
-          ) : null}
-          {rateLimitedSeconds !== null && (
-            <InlineNotice
-              tone="error"
-              icon={<ShieldX />}
-              title="Demasiadas solicitudes"
-              description={retryAfterDetail(rateLimitedSeconds)}
-            />
-          )}
-        </div>
-      </Modal>
-      {modal}
-    </>
-  );
-}
-
-type ReactivateUserModalProps = {
-  open: boolean;
-  user: BranchUser;
-  onClose: () => void;
-  onReactivated: () => void;
-  onSessionEnded: () => void;
-  reactivateUser: typeof reactivateUser;
-  fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
-  authorizeSession: typeof authorizeSession;
-  startAuthentication: typeof startAuthentication;
-};
-
-function ReactivateUserModal({
-  open,
-  user,
-  onClose,
-  onReactivated,
-  onSessionEnded,
-  reactivateUser,
-  fetchSessionAuthorizationOptions,
-  authorizeSession,
-  startAuthentication,
-}: ReactivateUserModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
-  const [attemptFailed, setAttemptFailed] = useState(false);
-  const [rateLimitedSeconds, setRateLimitedSeconds] = useState<number | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const { run, modal } = useAuthorization<ReactivateUserOutcome>({
-    actionName: "Reactivar un usuario",
-    onSessionEnded,
-    services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
-  });
-
-  useEffect(() => {
-    if (open) {
-      setAttemptFailed(false);
-      setRateLimitedSeconds(null);
-      setSubmitting(false);
-    }
-  }, [open]);
-
-  async function handleConfirm() {
-    setAttemptFailed(false);
-    setRateLimitedSeconds(null);
-    setSubmitting(true);
-
-    const outcome = await run(() => reactivateUser(user.id));
-    if (outcome.kind === "cancelled") {
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "ok" || outcome.kind === "not_found") {
-      onReactivated();
-      return;
-    }
-    if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
-      return;
-    }
-    if (outcome.kind === "forbidden") {
-      sendToMyAccount();
-      return;
-    }
-    if (outcome.kind === "rate_limited") {
-      setRateLimitedSeconds(outcome.retryAfterSeconds);
-      setSubmitting(false);
-      return;
-    }
-    setAttemptFailed(true);
-    setSubmitting(false);
-  }
-
-  return (
-    <>
-      <Modal
-        open={open}
-        onOpenChange={(open) => {
-          if (!open) {
-            onClose();
-          }
-        }}
-        width="confirmation"
-        tone="info"
-        icon={<RotateCcw />}
-        headerLayout="centered"
-        title={`¿Reactivar a ${user.firstName}?`}
-        closable
-        footer={
-          <>
-            <Button
-              variant="secondary"
-              size="large"
-              icon={<X />}
-              fullWidth
-              disabled={submitting}
-              onPress={onClose}
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="primary"
-              size="large"
-              icon={<RotateCcw />}
-              fullWidth
-              disabled={submitting}
-              onPress={() => void handleConfirm()}
-            >
-              Reactivar
-            </Button>
-          </>
-        }
-      >
-        <div className="flex flex-col gap-4">
-          <p className="text-center text-body text-text-subtle">
-            Vuelve a entrar a la caja y al backoffice con su mismo correo, rol y passkeys.
-          </p>
-          {attemptFailed ? (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudo reactivar el usuario"
-              description="Probá de nuevo."
-            />
-          ) : null}
-          {rateLimitedSeconds !== null && (
-            <InlineNotice
-              tone="error"
-              icon={<ShieldX />}
-              title="Demasiadas solicitudes"
-              description={retryAfterDetail(rateLimitedSeconds)}
-            />
-          )}
-        </div>
-      </Modal>
-      {modal}
-    </>
-  );
-}
 
 const NO_ROLES: BranchUserRole[] = [];
 
@@ -802,16 +110,7 @@ function UserDetailView({
   passkeys,
 }: UserDetailViewProps) {
   const navigate = useNavigate();
-  const {
-    fetchUser,
-    editUser,
-    removeUserPasskey,
-    deactivateUser,
-    reactivateUser,
-    fetchSessionAuthorizationOptions,
-    authorizeSession,
-    startAuthentication,
-  } = services;
+  const { fetchUser } = services;
   const refreshAccess = useRefreshAccess();
   const reloadUser = useReloadUser({ fetchUser });
   const [removeTarget, setRemoveTarget] = useState<Passkey | null>(null);
@@ -999,10 +298,7 @@ function UserDetailView({
             void refreshAccess();
           }}
           onSessionEnded={onSessionEnded}
-          removeUserPasskey={removeUserPasskey}
-          fetchSessionAuthorizationOptions={fetchSessionAuthorizationOptions}
-          authorizeSession={authorizeSession}
-          startAuthentication={startAuthentication}
+          services={services}
         />
       ) : null}
       {user ? (
@@ -1017,10 +313,7 @@ function UserDetailView({
           }}
           onSessionEnded={onSessionEnded}
           reload={reloadUser}
-          editUser={editUser}
-          fetchSessionAuthorizationOptions={fetchSessionAuthorizationOptions}
-          authorizeSession={authorizeSession}
-          startAuthentication={startAuthentication}
+          services={services}
         />
       ) : null}
       {user ? (
@@ -1038,10 +331,7 @@ function UserDetailView({
             void refreshAccess();
           }}
           onSessionEnded={onSessionEnded}
-          deactivateUser={deactivateUser}
-          fetchSessionAuthorizationOptions={fetchSessionAuthorizationOptions}
-          authorizeSession={authorizeSession}
-          startAuthentication={startAuthentication}
+          services={services}
         />
       ) : null}
       {user ? (
@@ -1054,10 +344,7 @@ function UserDetailView({
             void refreshAccess();
           }}
           onSessionEnded={onSessionEnded}
-          reactivateUser={reactivateUser}
-          fetchSessionAuthorizationOptions={fetchSessionAuthorizationOptions}
-          authorizeSession={authorizeSession}
-          startAuthentication={startAuthentication}
+          services={services}
         />
       ) : null}
     </>
