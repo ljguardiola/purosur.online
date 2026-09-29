@@ -1046,6 +1046,32 @@ test("keeps the filters on screen while the list failed to load, and a retry sho
   await expect.element(screen.getByText("Arroz")).toBeVisible();
 });
 
+test("a chosen category keeps its name in the filter while the list it narrows failed to load", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockImplementation(async (input) =>
+    input.categoryId
+      ? { kind: "failed" }
+      : {
+          kind: "ok",
+          value: {
+            products: [rice],
+            pendingCount: 1,
+            reviewWindowDays: 30,
+            categories: [groceries],
+          },
+        },
+  );
+
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Arroz")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Categoría: Todas" }));
+  await userEvent.click(screen.getByRole("option", { name: "Almacén" }));
+  await expect.element(screen.getByText("No pudimos abrir los precios")).toBeVisible();
+
+  await expect.element(screen.getByRole("button", { name: "Categoría: Almacén" })).toBeVisible();
+});
+
 test("the Revisar action is disabled while the list loads, and after it fails to load", async () => {
   const services = createServices();
   const firstLoad = deferred<Awaited<ReturnType<PricesListScreenServices["fetchPrices"]>>>();
