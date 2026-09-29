@@ -4,6 +4,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../access/session-id.js";
 import {
+  brands,
   categories,
   productBarcodes,
   products,
@@ -121,6 +122,14 @@ async function insertProductWithBarcode(categoryId: string, code: string): Promi
   await db.insert(productBarcodes).values({ productId: product.id, code, position: 0 });
 }
 
+async function insertBrand(name: string, active = true): Promise<string> {
+  const [brand] = await db.insert(brands).values({ name, active }).returning({ id: brands.id });
+  if (!brand) {
+    throw new Error("test setup: seeding the brand returned no row");
+  }
+  return brand.id;
+}
+
 function cookieHeader(rawSessionId: string): Record<string, string> {
   return { cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` };
 }
@@ -202,6 +211,7 @@ describe("POST /products", () => {
       name: "Maceta 20cm",
       categoryId,
       categoryName: "Macetas",
+      brandId: null,
       saleUnit: "UNIT",
       barcodes: ["222", "111"],
       netContent: null,
@@ -410,5 +420,84 @@ describe("POST /products", () => {
 
     expect(response.statusCode).toBe(201);
     expect(response.json()).toMatchObject({ barcodes: ["999"] });
+  });
+
+  it("creates the product with the active brand it was given", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const brandId = await insertBrand("Granix");
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await createProduct(rawSessionId, {
+      name: "Galletitas de salvado",
+      categoryId,
+      brandId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({ brandId });
+    expect(await db.select().from(products)).toMatchObject([{ brandId }]);
+  });
+
+  it("creates the product with no brand when the field is absent", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await createProduct(rawSessionId, {
+      name: "Dátiles sueltos",
+      categoryId,
+      saleUnit: "KG",
+      barcodes: ["111"],
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({ brandId: null });
+    expect(await db.select().from(products)).toMatchObject([{ brandId: null }]);
+  });
+
+  it.each(["00000000-0000-0000-0000-000000000000", "not-a-uuid"])(
+    "rejects the brandId %s that does not name an existing brand, creating nothing",
+    async (brandId) => {
+      const categoryId = await insertCategory("Almacén");
+      const userId = await insertUserWithPermission();
+      const rawSessionId = await insertSession(userId);
+
+      const response = await createProduct(rawSessionId, {
+        name: "Galletitas",
+        categoryId,
+        brandId,
+        saleUnit: "UNIT",
+        barcodes: ["111"],
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({
+        code: "validation_failed",
+        details: [{ field: "brandId" }],
+      });
+      expect(await db.select().from(products)).toHaveLength(0);
+    },
+  );
+
+  it("rejects a deactivated brand with 409 brand_inactive, creating nothing", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const brandId = await insertBrand("Yerba del Litoral", false);
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await createProduct(rawSessionId, {
+      name: "Yerba",
+      categoryId,
+      brandId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "brand_inactive" });
+    expect(await db.select().from(products)).toHaveLength(0);
   });
 });

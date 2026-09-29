@@ -10,6 +10,7 @@ import {
   backofficeRateLimitAttempts,
   branchHours,
   branchSettings,
+  brands,
   categories,
   issuerIdentification,
   locations,
@@ -161,9 +162,13 @@ describe("buildTestDatabase", () => {
     if (!category) {
       throw new Error("seeding categories returned no row");
     }
+    const [brand] = await db.insert(brands).values({ name: "Granix" }).returning({ id: brands.id });
+    if (!brand) {
+      throw new Error("seeding brands returned no row");
+    }
     const [product] = await db
       .insert(products)
-      .values({ name: "Alpiste", categoryId: category.id, saleUnit: "KG" })
+      .values({ name: "Alpiste", categoryId: category.id, brandId: brand.id, saleUnit: "KG" })
       .returning({ id: products.id });
     if (!product) {
       throw new Error("seeding products returned no row");

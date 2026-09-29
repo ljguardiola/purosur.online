@@ -4,6 +4,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../access/session-id.js";
 import {
+  brands,
   categories,
   productBarcodes,
   products,
@@ -197,6 +198,7 @@ describe("GET /products", () => {
         name: "Alpiste 1kg",
         categoryId: semillasId,
         categoryName: "Semillas",
+        brandId: null,
         saleUnit: "KG",
         barcodes: ["333"],
         netContent: null,
@@ -208,6 +210,7 @@ describe("GET /products", () => {
         name: "Maceta 20cm",
         categoryId: macetasId,
         categoryName: "Macetas",
+        brandId: null,
         saleUnit: "UNIT",
         barcodes: ["222", "111"],
         netContent: null,
@@ -215,6 +218,26 @@ describe("GET /products", () => {
         version: maceta.version,
       },
     ]);
+  });
+
+  it("returns the brand of a product that has one, deactivated or not", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const [brand] = await db
+      .insert(brands)
+      .values({ name: "Yerba del Litoral", active: false })
+      .returning({ id: brands.id });
+    if (!brand) {
+      throw new Error("test setup: seeding the brand returned no row");
+    }
+    await db
+      .insert(products)
+      .values({ name: "Miel pura de abeja", categoryId, saleUnit: "UNIT", brandId: brand.id });
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await getProducts(rawSessionId);
+
+    expect(response.json()).toMatchObject([{ brandId: brand.id }]);
   });
 
   it("returns the net content of a product that has one", async () => {
