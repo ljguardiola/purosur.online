@@ -130,3 +130,5 @@ export {
   scrubErrorReportBreadcrumb,
   scrubErrorReportLog,
 } from "./shared/index.js";
+export type { SyncPulledChange, SyncPullPage, SyncPullQuery } from "./sync/sync-pull.js";
+export { syncPullPageSchema, syncPullQuerySchema } from "./sync/sync-pull.js";
