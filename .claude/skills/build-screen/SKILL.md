@@ -60,16 +60,18 @@ offers:
   (`packages/ui/src/components/forms/field-error.ts`).
 - A result shown where the action was taken, such as inside its `Modal`:
   `InlineNotice` or `NotificationCard`, with the `tone` of the outcome.
-- A result for the whole screen: `NotificationCard` with `floating`. The
-  design system gives the card only; where it floats and how long it stays
-  are not in `packages/ui` yet: see step 4.
+- A result for the whole screen: `FloatingNotification`. `packages/ui`
+  places it and decides how long it stays; the screen passes what to show
+  and an `onDismiss` that clears it, and adds no placement or timer of its
+  own.
 - A question before an action goes ahead: `Modal` with
   `width="confirmation"`.
 
 The canonical use of each pattern is in its own stories:
 `packages/ui/src/components/data-display/table/table.stories.tsx`, and
 `loading-placeholder.stories.tsx`, `empty-state.stories.tsx`,
-`load-failure.stories.tsx` and `notification-card.stories.tsx` in
+`load-failure.stories.tsx`, `notification-card.stories.tsx` and
+`floating-notification.stories.tsx` in
 `packages/ui/src/components/feedback/`, and
 `packages/ui/src/components/forms/button.stories.tsx`. An existing screen
 that handles a state some other way is not a precedent.
