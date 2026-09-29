@@ -182,10 +182,14 @@ test("offers a bordered and a subtle look, bordered unless asked", async () => {
   expectTypeOf<IconButtonProps["variant"]>().toEqualTypeOf<"bordered" | "subtle" | undefined>();
 
   const screen = await render(
-    <IconButton variant="bordered" aria-label="Delete row" icon={<Trash2 />} />,
+    <>
+      <IconButton aria-label="Unset" icon={<Trash2 />} />
+      <IconButton variant="bordered" aria-label="Bordered" icon={<Trash2 />} />
+    </>,
   );
-  const button = screen.getByRole("button", { name: "Delete row" }).element() as HTMLElement;
-  expect(getComputedStyle(button).borderWidth).toBe("1px");
+  const unset = screen.getByRole("button", { name: "Unset" }).element() as HTMLElement;
+  const bordered = screen.getByRole("button", { name: "Bordered" }).element() as HTMLElement;
+  expect(unset.className).toBe(bordered.className);
 });
 
 test("draws the subtle look as a 32x32px square with 6px corners and no border or fill of its own", async () => {
@@ -254,7 +258,7 @@ test("fills the subtle look with sand and turns its glyph strong blue on hover, 
   ).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
 });
 
-test("shows the subtle look's focus with the same 3px strong-blue outline as every other button", async () => {
+test("shows the subtle look's focus at once with the same 3px strong-blue outline as every other button", async () => {
   const screen = await render(
     <IconButton variant="subtle" aria-label="Remove code" icon={<Trash2 />} />,
   );
@@ -263,8 +267,8 @@ test("shows the subtle look's focus with the same 3px strong-blue outline as eve
   await userEvent.tab();
 
   await expect.poll(() => getComputedStyle(button).outlineWidth).toBe("3px");
-  await expect.poll(() => getComputedStyle(button).outlineOffset).toBe("3px");
-  await expect.poll(() => getComputedStyle(button).outlineColor).toBe(tokenRgb("focus"));
+  expect(getComputedStyle(button).outlineOffset).toBe("3px");
+  expect(getComputedStyle(button).outlineColor).toBe(tokenRgb("focus"));
 });
 
 test("dims the subtle look to the same 45% opacity when disabled", async () => {

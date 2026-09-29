@@ -372,10 +372,13 @@ test("ends each barcode row with a borderless remove button centred in the row, 
   const row = button.parentElement as HTMLElement;
   const buttonRect = button.getBoundingClientRect();
   const rowRect = row.getBoundingClientRect();
+  const codeRect = dialog.getByText("7790001", { exact: true }).element().getBoundingClientRect();
 
   expect(getComputedStyle(button).borderWidth).toBe("0px");
   expect(getComputedStyle(button).backgroundColor).toBe("rgba(0, 0, 0, 0)");
   expect(rowRect.height).toBe(44);
   expect(buttonRect.top - rowRect.top).toBe(rowRect.bottom - buttonRect.bottom);
   expect(rowRect.right - buttonRect.right).toBe(6);
+  expect(codeRect.left - rowRect.left).toBe(12);
+  expect(buttonRect.left - codeRect.right).toBe(8);
 });

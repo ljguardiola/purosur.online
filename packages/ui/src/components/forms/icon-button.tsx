@@ -26,7 +26,7 @@ const variantClassName: Record<IconButtonVariant, string> = {
     "data-hovered:bg-surface-subtle data-hovered:border-action-soft",
   subtle:
     "size-8 rounded-md text-text-subtle " +
-    "transition-colors " +
+    "transition-background-text-border " +
     "data-hovered:bg-surface-soft data-hovered:text-text-accent",
 };
 
