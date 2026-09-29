@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { createCategory, createProduct } from "@purosur/domain/catalog/use-cases";
 import { confirmPrice, setPrice } from "@purosur/domain/pricing/use-cases";
-import { eq, sql } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterEach, describe, expect, it } from "vitest";
@@ -15,6 +15,8 @@ import {
   auditLog,
   branchSettings,
   categories,
+  changes,
+  deviceState,
   passkeyChallenges,
   products,
   recoveryTokens,
@@ -416,19 +418,51 @@ describe("clearSampleData", () => {
     expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
     const [sampleRegister] = await db.select({ id: registers.id }).from(registers).limit(1);
     if (!sampleRegister) throw new Error("test setup: no sample register was loaded");
-    await db.insert(registerInstallations).values({
-      registerId: sampleRegister.id,
-      tokenLookupPrefix: randomUUID(),
-      tokenHash: "hash",
-      hostname: "CAJA",
-      windowsVersion: "Windows 11",
-      enrolledAt: NOW,
-    });
+    const [installation] = await db
+      .insert(registerInstallations)
+      .values({
+        registerId: sampleRegister.id,
+        tokenLookupPrefix: randomUUID(),
+        tokenHash: "hash",
+        hostname: "CAJA",
+        windowsVersion: "Windows 11",
+        enrolledAt: NOW,
+      })
+      .returning({ id: registerInstallations.id });
+    if (!installation) throw new Error("test setup: no installation was inserted");
+    await db
+      .insert(deviceState)
+      .values({ deviceId: installation.id, lastPullSince: 3, lastPulledAt: NOW });
 
     expect((await clearSampleData(db)).kind).toBe("cleared");
 
     expect(await tableCount(db, "registers")).toBe(0);
     expect(await tableCount(db, "register_installations")).toBe(0);
+    expect(await tableCount(db, "device_state")).toBe(0);
+  }, 120_000);
+
+  it("logs the branch settings it set back as a change, so registers pull them", async () => {
+    const db = await freshOwnerDatabase();
+    const bootstrapAdmin = await seedActiveAdministrator(db);
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+
+    expect((await clearSampleData(db)).kind).toBe("cleared");
+
+    const [settings] = await db
+      .select({ version: branchSettings.version })
+      .from(branchSettings)
+      .where(eq(branchSettings.locationId, bootstrapAdmin.locationId));
+    const [lastChange] = await db
+      .select({ entity: changes.entity, version: changes.version, op: changes.op })
+      .from(changes)
+      .where(eq(changes.entityId, bootstrapAdmin.locationId))
+      .orderBy(desc(changes.changeSeq))
+      .limit(1);
+    expect(lastChange).toEqual({
+      entity: "branch_settings",
+      version: settings?.version,
+      op: "update",
+    });
   }, 120_000);
 
   it("refuses and deletes nothing when a sample user reviewed a real product's price", async () => {

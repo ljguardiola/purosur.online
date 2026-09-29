@@ -155,6 +155,24 @@ describe("the cloud_app role runMigrations creates", () => {
     await expectPermissionDenied(cloudApp`truncate prices`);
   });
 
+  it("appends to the changes log but never rewrites, removes or truncates it", async () => {
+    const [change] = await cloudApp<{ changeSeq: number }[]>`
+      insert into changes (entity, entity_id, version, op)
+      values ('branch_settings', ${randomUUID()}, 1, 'update') returning change_seq as "changeSeq"
+    `;
+    if (!change) {
+      throw new Error("test setup: logging the change returned no row");
+    }
+
+    await expectPermissionDenied(
+      cloudApp`update changes set version = 2 where change_seq = ${change.changeSeq}`,
+    );
+    await expectPermissionDenied(
+      cloudApp`delete from changes where change_seq = ${change.changeSeq}`,
+    );
+    await expectPermissionDenied(cloudApp`truncate changes`);
+  });
+
   it("cannot update or delete a price_reviews row", async () => {
     const { priceId, priceListId } = await insertPricedRow();
     const [product] = await cloudApp<{ productId: string }[]>`
