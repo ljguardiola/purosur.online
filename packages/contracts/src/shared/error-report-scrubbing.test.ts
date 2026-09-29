@@ -315,6 +315,195 @@ describe("scrubErrorReportBreadcrumb", () => {
       status_code: 403,
     });
   });
+
+  it("keeps the name, message and stack of an error logged to the console", () => {
+    const error = new TypeError("sale sync failed");
+    error.stack = "TypeError: sale sync failed\n    at syncSales (sync.ts:10:5)";
+    const breadcrumb = { category: "console", data: { logger: "console", arguments: [error] } };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
+      logger: "console",
+      arguments: [
+        {
+          name: "TypeError",
+          message: "sale sync failed",
+          stack: "TypeError: sale sync failed\n    at syncSales (sync.ts:10:5)",
+        },
+      ],
+    });
+  });
+
+  it("redacts personal data and credentials in an error's message and stack", () => {
+    const error = new Error(
+      "customer ana.perez@example.com with CUIT 20-30405060-7 and DNI 12.345.678 rejected",
+    );
+    error.stack =
+      "Error: connect redis://default:secret@cache.internal:6379 failed for ana.perez@example.com\n" +
+      "    at fetch (https://cloud.purosur.online/assets/index.js?token=abc123:1:1)\n" +
+      "    at authorize (Bearer eyJhbGciOi.payload.sig)";
+    const breadcrumb = { data: { arguments: [error] } };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
+      arguments: [
+        {
+          name: "Error",
+          message: "customer [redacted] with CUIT [redacted] and DNI [redacted] rejected",
+          stack:
+            "Error: connect [redacted] failed for [redacted]\n" +
+            "    at fetch (https://cloud.purosur.online/assets/index.js?[redacted]:1:1)\n" +
+            "    at authorize ([redacted])",
+        },
+      ],
+    });
+  });
+
+  it("keeps an error's cause, scrubbed by the same rules", () => {
+    const cause = new Error("DNI 12345678 not found");
+    cause.stack = "Error: DNI 12345678 not found";
+    const error = new Error("lookup failed", { cause });
+    error.stack = "Error: lookup failed";
+    const breadcrumb = { data: { error } };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
+      error: {
+        name: "Error",
+        message: "lookup failed",
+        stack: "Error: lookup failed",
+        cause: {
+          name: "Error",
+          message: "DNI [redacted] not found",
+          stack: "Error: DNI [redacted] not found",
+        },
+      },
+    });
+  });
+
+  it("keeps an error's own fields, scrubbed by the same rules", () => {
+    const error = Object.assign(new Error("duplicate key"), {
+      code: "23505",
+      constraint: "sales_pkey",
+      token: "abc123",
+    });
+    error.stack = "Error: duplicate key";
+    const breadcrumb = { data: { error } };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
+      error: {
+        code: "23505",
+        constraint: "sales_pkey",
+        token: "[redacted]",
+        name: "Error",
+        message: "duplicate key",
+        stack: "Error: duplicate key",
+      },
+    });
+  });
+
+  it("marks a cause that loops back to an error already in the chain instead of following it", () => {
+    const first = new Error("first");
+    first.stack = "Error: first";
+    const second = new Error("second", { cause: first });
+    second.stack = "Error: second";
+    Object.defineProperty(first, "cause", { value: second });
+    const breadcrumb = { data: { error: first } };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
+      error: {
+        name: "Error",
+        message: "first",
+        stack: "Error: first",
+        cause: { name: "Error", message: "second", stack: "Error: second", cause: "[circular]" },
+      },
+    });
+  });
+
+  it("marks an error that is its own cause", () => {
+    const error = new Error("retry");
+    error.stack = "Error: retry";
+    error.cause = error;
+    const breadcrumb = { data: { error } };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
+      error: { name: "Error", message: "retry", stack: "Error: retry", cause: "[circular]" },
+    });
+  });
+
+  it("keeps hidden a cause that is not an error", () => {
+    const error = new Error("sync failed", {
+      cause: { response: { data: { customer: { name: "Ana" } } } },
+    });
+    error.stack = "Error: sync failed";
+    const breadcrumb = { data: { error } };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
+      error: { name: "Error", message: "sync failed", stack: "Error: sync failed" },
+    });
+  });
+
+  it("marks an error reached again through another error's field instead of following it", () => {
+    const inner = new Error("inner");
+    inner.stack = "Error: inner";
+    const outer = new Error("outer", { cause: inner });
+    outer.stack = "Error: outer";
+    Object.assign(inner, { outer, nested: { outer } });
+    const breadcrumb = { data: { error: outer } };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
+      error: {
+        name: "Error",
+        message: "outer",
+        stack: "Error: outer",
+        cause: {
+          outer: "[circular]",
+          nested: { outer: "[circular]" },
+          name: "Error",
+          message: "inner",
+          stack: "Error: inner",
+        },
+      },
+    });
+  });
+
+  it("sends a cause assigned as one of the error's fields through the same rules", () => {
+    const error = new Error("sync failed");
+    error.stack = "Error: sync failed";
+    error.cause = { status: 409, token: "abc123" };
+    const breadcrumb = { data: { error } };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
+      error: {
+        cause: { status: 409, token: "[redacted]" },
+        name: "Error",
+        message: "sync failed",
+        stack: "Error: sync failed",
+      },
+    });
+  });
+
+  it("keeps the same error readable each time it appears outside its own chain", () => {
+    const error = new Error("timeout");
+    error.stack = "Error: timeout";
+    const breadcrumb = { data: { arguments: [error, error] } };
+    const readable = { name: "Error", message: "timeout", stack: "Error: timeout" };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
+      arguments: [readable, readable],
+    });
+  });
+
+  it("keeps a date as its ISO value", () => {
+    const breadcrumb = { data: { at: new Date("2026-09-28T13:45:00.000Z") } };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
+      at: "2026-09-28T13:45:00.000Z",
+    });
+  });
+
+  it("keeps an invalid date readable instead of failing", () => {
+    const breadcrumb = { data: { at: new Date("not a date") } };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({ at: "Invalid Date" });
+  });
 });
 
 describe("scrubErrorReportLog", () => {
@@ -374,6 +563,281 @@ describe("keys", () => {
     };
 
     expect(scrubErrorReport({ extra }).extra).toEqual(extra);
+  });
+});
+
+describe("personal data in text", () => {
+  it("redacts an email address in the message and in a breadcrumb's text", () => {
+    const event = {
+      message: "no customer for ana.perez@example.com",
+      breadcrumbs: [
+        { message: "sent to Juan_Diaz+caja@mail.example.com.ar", data: { to: "ana@example.com" } },
+      ],
+    };
+
+    const scrubbed = scrubErrorReport(event);
+
+    expect(scrubbed.message).toBe("no customer for [redacted]");
+    expect(scrubbed.breadcrumbs).toStrictEqual([
+      { message: "sent to [redacted]", data: { to: "[redacted]" } },
+    ]);
+  });
+
+  it("keeps package and release names that carry an at sign", () => {
+    const message = "@sentry/node@10.75.3 in purosur-pos@1.2.3 failed";
+
+    expect(scrubErrorReport({ message }).message).toBe(message);
+  });
+
+  it("redacts the account name in a home folder path while keeping the frame's file, line and column", () => {
+    for (const { frame, expected } of [
+      {
+        frame: "at start (/home/ana/purosur/dist/main.js:10:5)",
+        expected: "at start (/home/[redacted]/purosur/dist/main.js:10:5)",
+      },
+      {
+        frame: "at start (file:///Users/ana/purosur/dist/main.js:10:5)",
+        expected: "at start (file:///Users/[redacted]/purosur/dist/main.js:10:5)",
+      },
+      {
+        frame: String.raw`at start (C:\\Users\\ana\\AppData\\Local\\purosur\\main.js:10:5)`,
+        expected: String.raw`at start (C:\\Users\\[redacted]\\AppData\\Local\\purosur\\main.js:10:5)`,
+      },
+      {
+        frame: String.raw`at start (C:\Users\ana.perez\AppData\Local\purosur\main.js:10:5)`,
+        expected: String.raw`at start (C:\Users\[redacted]\AppData\Local\purosur\main.js:10:5)`,
+      },
+      {
+        frame: "at start (file:///c:/Users/ana/purosur/main.js:10:5)",
+        expected: "at start (file:///c:/Users/[redacted]/purosur/main.js:10:5)",
+      },
+    ]) {
+      expect(scrubErrorReport({ message: frame }).message).toBe(expected);
+    }
+  });
+
+  it("redacts a Windows account name that has a space", () => {
+    for (const { frame, expected } of [
+      {
+        frame: String.raw`at start (C:\Users\Juan Perez\AppData\Local\purosur\main.js:10:5)`,
+        expected: String.raw`at start (C:\Users\[redacted]\AppData\Local\purosur\main.js:10:5)`,
+      },
+      {
+        frame: String.raw`at start (C:\\Users\\Juan Perez\\AppData\\main.js:10:5)`,
+        expected: String.raw`at start (C:\\Users\\[redacted]\\AppData\\main.js:10:5)`,
+      },
+    ]) {
+      expect(scrubErrorReport({ message: frame }).message).toBe(expected);
+    }
+  });
+
+  it("redacts the account name in a home folder nested under another folder", () => {
+    for (const { frame, expected } of [
+      {
+        frame: "at start (/var/home/ana/purosur/main.js:10:5)",
+        expected: "at start (/var/home/[redacted]/purosur/main.js:10:5)",
+      },
+      {
+        frame: "at start (/mnt/c/Users/ana/purosur/main.js:10:5)",
+        expected: "at start (/mnt/c/Users/[redacted]/purosur/main.js:10:5)",
+      },
+      {
+        frame: "at start (/c/Users/ana/purosur/main.js:10:5)",
+        expected: "at start (/c/Users/[redacted]/purosur/main.js:10:5)",
+      },
+      {
+        frame: "at start (/cygdrive/c/Users/ana/purosur/main.js:10:5)",
+        expected: "at start (/cygdrive/c/Users/[redacted]/purosur/main.js:10:5)",
+      },
+      {
+        frame: "at start (/export/home/ana/purosur/main.js:10:5)",
+        expected: "at start (/export/home/[redacted]/purosur/main.js:10:5)",
+      },
+      {
+        frame: "at render (http://localhost:5173/@fs/home/ana/purosur/button.tsx?t=1:10:5)",
+        expected:
+          "at render (http://localhost:5173/@fs/home/[redacted]/purosur/button.tsx?[redacted]:10:5)",
+      },
+    ]) {
+      expect(scrubErrorReport({ message: frame }).message).toBe(expected);
+    }
+  });
+
+  it("redacts the account name at the end of a home folder path", () => {
+    for (const { message, expected } of [
+      {
+        message: "ENOENT: no such file or directory, scandir '/home/ana'",
+        expected: "ENOENT: no such file or directory, scandir '/home/[redacted]'",
+      },
+      { message: String.raw`C:\Users\ana`, expected: String.raw`C:\Users\[redacted]` },
+      {
+        message: String.raw`ENOENT: no such file or directory, scandir 'C:\Users\Juan Perez'`,
+        expected: String.raw`ENOENT: no such file or directory, scandir 'C:\Users\[redacted]`,
+      },
+      { message: String.raw`C:\Users\Juan Perez`, expected: String.raw`C:\Users\[redacted]` },
+      {
+        message: "could not read /home/ana.",
+        expected: "could not read /home/[redacted].",
+      },
+      {
+        message: "could not read /home/ana.perez. Retrying",
+        expected: "could not read /home/[redacted]. Retrying",
+      },
+      {
+        message: "paths: /home/ana, /Users/juan; HOME=/home/ana:/bin [/home/ana]",
+        expected:
+          "paths: /home/[redacted], /Users/[redacted]; HOME=/home/[redacted]:/bin [/home/[redacted]]",
+      },
+      { message: "C:/Users/ana", expected: "C:/Users/[redacted]" },
+      {
+        message: "could not read /home/ana.perez.",
+        expected: "could not read /home/[redacted].",
+      },
+    ]) {
+      expect(scrubErrorReport({ message }).message).toBe(expected);
+    }
+  });
+
+  it("hides everything after a Windows account up to the next folder or line, since the name may contain any character", () => {
+    for (const { message, expected } of [
+      {
+        message: String.raw`cannot write C:\Users\ana: access denied`,
+        expected: String.raw`cannot write C:\Users\[redacted]`,
+      },
+      {
+        message: "cannot write C:/Users/ana now\nretrying",
+        expected: "cannot write C:/Users/[redacted]\nretrying",
+      },
+      {
+        message: "cannot write C:/Users/ana now\r\nretrying",
+        expected: "cannot write C:/Users/[redacted]\r\nretrying",
+      },
+    ]) {
+      expect(scrubErrorReport({ message }).message).toBe(expected);
+    }
+  });
+
+  it("redacts a Windows account with an apostrophe, a parenthesis or a space, whatever the slashes", () => {
+    for (const { frame, expected } of [
+      {
+        frame: String.raw`at start (C:\Users\D'Angelo\AppData\main.js:10:5)`,
+        expected: String.raw`at start (C:\Users\[redacted]\AppData\main.js:10:5)`,
+      },
+      {
+        frame: String.raw`at start (C:\Users\Juan (Caja)\AppData\main.js:10:5)`,
+        expected: String.raw`at start (C:\Users\[redacted]\AppData\main.js:10:5)`,
+      },
+      {
+        frame: 'Failed to resolve import from "C:/Users/Juan Perez/purosur/src/x.tsx"',
+        expected: 'Failed to resolve import from "C:/Users/[redacted]/purosur/src/x.tsx"',
+      },
+      {
+        frame: "at start (/mnt/c/Users/Juan Perez/purosur/main.js:10:5)",
+        expected: "at start (/mnt/c/Users/[redacted]/purosur/main.js:10:5)",
+      },
+      {
+        frame: "at start (/c/Users/D'Angelo/purosur/main.js:10:5)",
+        expected: "at start (/c/Users/[redacted]/purosur/main.js:10:5)",
+      },
+      {
+        frame: "at start (/cygdrive/c/Users/Juan (Caja)/purosur/main.js:10:5)",
+        expected: "at start (/cygdrive/c/Users/[redacted]/purosur/main.js:10:5)",
+      },
+    ]) {
+      expect(scrubErrorReport({ message: frame }).message).toBe(expected);
+    }
+  });
+
+  it("keeps a backoffice route under the home area", () => {
+    const breadcrumb = {
+      category: "navigation",
+      data: { from: "/home/alerts?tab=1", to: "/home/alerts" },
+    };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
+      from: "/home/alerts?[redacted]",
+      to: "/home/alerts",
+    });
+  });
+
+  it("keeps a URL whose path has a home or Users folder", () => {
+    const message = "GET https://cloud.purosur.online/home/banner and /api/Users/42/roles failed";
+
+    expect(scrubErrorReport({ message }).message).toBe(message);
+  });
+
+  it("keeps a stack frame's line and column after redacting a relative path's query", () => {
+    const message = "at render (/src/sales/sale-screen.tsx?t=1727561234:10:5)";
+
+    expect(scrubErrorReport({ message }).message).toBe(
+      "at render (/src/sales/sale-screen.tsx?[redacted]:10:5)",
+    );
+  });
+
+  it("hides a query that merely ends in two numbers when the path is not a script", () => {
+    for (const { message, expected } of [
+      {
+        message: "GET /events?since=2026-09-28T10:30:00 failed",
+        expected: "GET /events?[redacted] failed",
+      },
+      {
+        message: "GET https://cloud.purosur.online/sales?at=10:30:45 failed",
+        expected: "GET https://cloud.purosur.online/sales?[redacted] failed",
+      },
+      {
+        message: "GET https://cloud.purosur.online/config.json?at=10:30:45 failed",
+        expected: "GET https://cloud.purosur.online/config.json?[redacted] failed",
+      },
+    ]) {
+      expect(scrubErrorReport({ message }).message).toBe(expected);
+    }
+  });
+
+  it("gives the same text when an already scrubbed stack is scrubbed again", () => {
+    const stack = [
+      "Error: no customer for ana.perez@example.com",
+      "    at render (http://localhost:5173/src/sale-screen.tsx?t=1:10:5)",
+      "    at load (/src/sales/load.ts?t=1:3:7)",
+      "    at start (/home/ana/purosur/main.js:10:5)",
+      String.raw`    at start (C:\Users\Juan Perez\AppData\main.js:10:5)`,
+    ].join("\n");
+
+    const once = scrubErrorReport({ message: stack }).message;
+
+    expect(scrubErrorReport({ message: once }).message).toBe(once);
+  });
+
+  it("keeps the frame's own line and column when the script's query also holds numbers", () => {
+    for (const { frame, expected } of [
+      {
+        frame: "at render (http://localhost:5173/src/sale-screen.tsx?at=10:30:45&t=1:10:15)",
+        expected: "at render (http://localhost:5173/src/sale-screen.tsx?[redacted]:10:15)",
+      },
+      {
+        frame: "render@http://localhost:5173/src/sale-screen.tsx?t=1:10:15",
+        expected: "render@http://localhost:5173/src/sale-screen.tsx?[redacted]:10:15",
+      },
+      {
+        frame: "at start (/app/dist/main.mjs?t=1:3:7)",
+        expected: "at start (/app/dist/main.mjs?[redacted]:3:7)",
+      },
+    ]) {
+      expect(scrubErrorReport({ message: frame }).message).toBe(expected);
+    }
+  });
+
+  it("hides a script's query that carries no line and column", () => {
+    const message = "at load (/src/sales/load.ts?t=1)";
+
+    expect(scrubErrorReport({ message }).message).toBe("at load (/src/sales/load.ts?[redacted])");
+  });
+
+  it("keeps a stack frame's line and column after redacting its URL's query", () => {
+    const message = "at render (http://localhost:5173/src/sales/sale-screen.tsx?t=1727561234:10:5)";
+
+    expect(scrubErrorReport({ message }).message).toBe(
+      "at render (http://localhost:5173/src/sales/sale-screen.tsx?[redacted]:10:5)",
+    );
   });
 });
 
