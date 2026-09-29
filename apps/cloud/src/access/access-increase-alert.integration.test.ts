@@ -315,7 +315,7 @@ describe("an alert for increased access that fails to open, on a real Postgres",
         },
         { now: () => new Date() },
       ),
-    ).rejects.toThrow();
+    ).rejects.toThrow(/insert into "alerts"/);
 
     expect(await db.select().from(users).where(eq(users.email, email))).toHaveLength(0);
     const audited = await db
@@ -341,7 +341,7 @@ describe("an alert for increased access that fails to open, on a real Postgres",
         },
         { now: () => new Date() },
       ),
-    ).rejects.toThrow();
+    ).rejects.toThrow(/insert into "alerts"/);
 
     const permissions = await db
       .select({ permissionKey: rolePermissions.permissionKey })

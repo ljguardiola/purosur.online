@@ -291,5 +291,11 @@ describe("loadSampleData", () => {
         actorId: sampleAdministrator?.id,
       });
     }
+    const accessIncreasedAlerts = alertRows.filter(
+      (alert) => alert.kind === "user_access_increased",
+    );
+    expect(accessIncreasedAlerts.map((alert) => [alert.scope, alert.detail])).toEqual([
+      [sampleAdministrator?.id, { cause: "created_as_administrator", actorId: expect.any(String) }],
+    ]);
   }, 120_000);
 });
