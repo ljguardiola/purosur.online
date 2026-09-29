@@ -1,15 +1,8 @@
 {
-  "extends": "./tsconfig.json",
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "noEmit": true,
-    "rootDir": "../..",
-    "paths": {
-      "@purosur/domain": ["../../packages/domain/src/index.ts"],
-      "@purosur/domain/catalog/use-cases": ["../../packages/domain/src/catalog/use-cases/index.ts"],
-      "@purosur/domain/pricing/use-cases": ["../../packages/domain/src/pricing/use-cases/index.ts"],
-      "@purosur/contracts": ["../../packages/contracts/src/index.ts"]
-    }
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext"
   },
-  "include": ["src/**/*.ts", "vitest.global-setup.ts", "vitest.global-setup.postgres.ts"],
-  "exclude": []
+  "include": ["src/**/*.ts", "vitest.global-setup.ts", "vitest.global-setup.postgres.ts"]
 }
