@@ -69,3 +69,29 @@ export function canCloseAlertsManually(access: BackofficeAccess): boolean {
 export function canSeeRegistersArea(access: BackofficeAccess): boolean {
   return access.isAdministrator || access.permissions.includes("enroll_register_devices");
 }
+
+export function canSeeStockBalances(access: BackofficeAccess): boolean {
+  return access.isAdministrator || access.permissions.includes("view_stock_balances");
+}
+
+export function canPerformStockCounts(access: BackofficeAccess): boolean {
+  return access.isAdministrator || access.permissions.includes("perform_stock_counts");
+}
+
+export function canRecordStockLosses(access: BackofficeAccess): boolean {
+  return access.isAdministrator || access.permissions.includes("record_stock_losses");
+}
+
+export function canAdjustStock(access: BackofficeAccess): boolean {
+  return access.isAdministrator || access.permissions.includes("adjust_stock");
+}
+
+export function canSeeStockMovements(access: BackofficeAccess): boolean {
+  return canRecordStockLosses(access) || canAdjustStock(access);
+}
+
+export function canSeeStockArea(access: BackofficeAccess): boolean {
+  return (
+    canSeeStockBalances(access) || canPerformStockCounts(access) || canSeeStockMovements(access)
+  );
+}
