@@ -1,10 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Banknote, CreditCard, Wallet } from "lucide-react";
+import { useId } from "react";
 import { within } from "storybook/test";
 import {
   playHoverSetsDataHovered,
   playTabReachesFocusVisible,
 } from "../../test-support/story-interactions";
+import { fieldErrorClassName } from "./field-styles";
 import type { NarrowedOption } from "./option";
 import { OptionCardGroup } from "./option-card-group";
 
@@ -89,4 +91,26 @@ export const Required: Story = {
 
 export const Invalid: Story = {
   args: { value: null, errorMessage: "Elegí una opción." },
+};
+
+function OptionCardGroupWithMessageElsewhere() {
+  const messageId = useId();
+  return (
+    <div className="flex flex-col gap-1.5">
+      <OptionCardGroup
+        label="Tipo de movimiento"
+        options={options}
+        value={null}
+        onChange={() => {}}
+        errorMessageId={messageId}
+      />
+      <p id={messageId} className={fieldErrorClassName}>
+        Elegí una opción.
+      </p>
+    </div>
+  );
+}
+
+export const InvalidMessageElsewhere: Story = {
+  render: () => <OptionCardGroupWithMessageElsewhere />,
 };

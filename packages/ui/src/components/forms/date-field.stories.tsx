@@ -1,5 +1,6 @@
 import { CalendarDate } from "@internationalized/date";
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { useId } from "react";
 import { expect, userEvent, within } from "storybook/test";
 import {
   playClickExpandsTrigger,
@@ -9,6 +10,7 @@ import {
 } from "../../test-support/story-interactions";
 import { DateField } from "./date-field";
 import { FieldSizeProvider } from "./field-size";
+import { fieldErrorClassName } from "./field-styles";
 
 const meta: Meta<typeof DateField> = {
   title: "Components/DateField",
@@ -193,6 +195,22 @@ export const Required: Story = {
 
 export const Invalid: Story = {
   args: { value: null, errorMessage: "Elegí una fecha." },
+};
+
+function DateFieldWithMessageElsewhere() {
+  const messageId = useId();
+  return (
+    <div className="flex flex-col gap-1.5">
+      <DateField label="Vencimiento" value={null} onChange={() => {}} errorMessageId={messageId} />
+      <p id={messageId} className={fieldErrorClassName}>
+        Elegí una fecha.
+      </p>
+    </div>
+  );
+}
+
+export const InvalidMessageElsewhere: Story = {
+  render: () => <DateFieldWithMessageElsewhere />,
 };
 
 export const OutOfRange: Story = {

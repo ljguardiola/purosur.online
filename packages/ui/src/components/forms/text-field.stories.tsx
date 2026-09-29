@@ -1,9 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { useId } from "react";
 import {
   playPseudoHoverPaintsBoneFill,
   playTabMatchesCssFocusWithin,
 } from "../../test-support/story-interactions";
 import { FieldSizeProvider } from "./field-size";
+import { fieldErrorClassName } from "./field-styles";
 import { TextField } from "./text-field";
 
 const meta: Meta<typeof TextField> = {
@@ -109,6 +111,28 @@ export const Invalid: Story = {
     onChange: () => {},
     errorMessage: "Ingresá un motivo.",
   },
+};
+
+function TextFieldWithMessageElsewhere() {
+  const messageId = useId();
+  return (
+    <div className="flex flex-col gap-1.5">
+      <TextField
+        kind="plain-text"
+        label="Motivo"
+        value=""
+        onChange={() => {}}
+        errorMessageId={messageId}
+      />
+      <p id={messageId} className={fieldErrorClassName}>
+        Ingresá un motivo.
+      </p>
+    </div>
+  );
+}
+
+export const InvalidMessageElsewhere: Story = {
+  render: () => <TextFieldWithMessageElsewhere />,
 };
 
 export const ReadOnly: Story = {

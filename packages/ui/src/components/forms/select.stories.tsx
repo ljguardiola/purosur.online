@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { useId } from "react";
 import { expect, userEvent, within } from "storybook/test";
 import {
   playArrowKeyFocusesListboxOption,
@@ -6,6 +7,7 @@ import {
   playHoverListboxOption,
   playHoverSetsDataHovered,
 } from "../../test-support/story-interactions";
+import { fieldErrorClassName } from "./field-styles";
 import type { Option } from "./option";
 import { Select } from "./select";
 
@@ -86,6 +88,28 @@ export const Required: Story = {
 
 export const Invalid: Story = {
   args: { value: "shift-lead", errorMessage: "Elegí un rol." },
+};
+
+function SelectWithMessageElsewhere() {
+  const messageId = useId();
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Select
+        label="Rol"
+        options={options}
+        value="shift-lead"
+        onChange={() => {}}
+        errorMessageId={messageId}
+      />
+      <p id={messageId} className={fieldErrorClassName}>
+        Elegí un rol.
+      </p>
+    </div>
+  );
+}
+
+export const InvalidMessageElsewhere: Story = {
+  render: () => <SelectWithMessageElsewhere />,
 };
 
 export const Disabled: Story = {

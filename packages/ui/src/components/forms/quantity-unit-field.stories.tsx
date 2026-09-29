@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { useId } from "react";
 import {
   playArrowKeyFocusesListboxOption,
   playClickExpandsTrigger,
@@ -6,6 +7,7 @@ import {
   playPseudoHoverPaintsBoneFill,
   playTabMatchesCssFocusWithin,
 } from "../../test-support/story-interactions";
+import { fieldErrorClassName } from "./field-styles";
 import type { Option } from "./option";
 import { QuantityUnitField } from "./quantity-unit-field";
 
@@ -91,6 +93,31 @@ export const UnitOptionFocusVisible: Story = {
 
 export const Invalid: Story = {
   args: { quantity: "", errorMessage: "Ingresá una cantidad válida." },
+};
+
+function QuantityUnitFieldWithMessageElsewhere() {
+  const messageId = useId();
+  return (
+    <div className="flex flex-col gap-1.5">
+      <QuantityUnitField
+        label="Contenido neto"
+        quantity=""
+        onQuantityChange={() => {}}
+        unit="g"
+        onUnitChange={() => {}}
+        options={unitOptions}
+        unitLabel="Unidad"
+        errorMessageId={messageId}
+      />
+      <p id={messageId} className={fieldErrorClassName}>
+        Ingresá una cantidad válida.
+      </p>
+    </div>
+  );
+}
+
+export const InvalidMessageElsewhere: Story = {
+  render: () => <QuantityUnitFieldWithMessageElsewhere />,
 };
 
 export const Disabled: Story = {
