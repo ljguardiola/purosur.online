@@ -1,9 +1,11 @@
 import type { CalendarDate } from "@internationalized/date";
+import { TextField } from "@purosur/ui";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { z } from "zod";
 import { render } from "../shell/test-support/render-with-router";
 import { type CloudSubmission, useCloudForm } from "./cloud-form";
+import { SharedFieldError } from "./cloud-form-fields";
 
 const requestSchema = z.object({
   name: z.string().trim().min(1, "empty").max(5, "long"),
@@ -537,4 +539,75 @@ test("a date field submits the date that was typed", async () => {
 
   await expect.poll(() => onSubmit.mock.calls.length).toBe(1);
   expect(onSubmit).toHaveBeenCalledWith("2020-03-01");
+});
+
+function PairProbe() {
+  const { form, submit } = useCloudForm({
+    defaultValues: { opens: "" },
+    request: { schema: z.object({ opens: z.string().min(1) }), from: (values) => values },
+    fields: { opens: "opens" },
+    messages: { opens: "Completá los dos horarios." },
+    onSubmit: () => Promise.resolve(),
+  });
+  return (
+    <>
+      <form.AppField name="opens">
+        {(field) => (
+          <SharedFieldError>
+            {(errorMessageId) => (
+              <>
+                <TextField
+                  kind="plain-text"
+                  label="Abre"
+                  value={field.state.value}
+                  onChange={field.handleChange}
+                  {...(errorMessageId === undefined ? {} : { errorMessageId })}
+                />
+                <TextField
+                  kind="plain-text"
+                  label="Cierra"
+                  value=""
+                  onChange={() => {}}
+                  {...(errorMessageId === undefined ? {} : { errorMessageId })}
+                />
+              </>
+            )}
+          </SharedFieldError>
+        )}
+      </form.AppField>
+      <button type="button" onClick={() => void submit()}>
+        Enviar
+      </button>
+    </>
+  );
+}
+
+test("inputs sharing one field's error are all invalid and described by a single message", async () => {
+  const screen = await render(<PairProbe />);
+  await expect.element(screen.getByText("Completá los dos horarios.")).not.toBeInTheDocument();
+
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+  await expect.element(screen.getByText("Completá los dos horarios.")).toBeVisible();
+  for (const name of ["Abre", "Cierra"]) {
+    await expect
+      .element(screen.getByRole("textbox", { name }))
+      .toHaveAttribute("aria-invalid", "true");
+    await expect
+      .element(screen.getByRole("textbox", { name }))
+      .toHaveAccessibleDescription("Completá los dos horarios.");
+  }
+});
+
+test("the shared message goes away once the field changes", async () => {
+  const screen = await render(<PairProbe />);
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+  await expect.element(screen.getByText("Completá los dos horarios.")).toBeVisible();
+
+  await userEvent.fill(screen.getByRole("textbox", { name: "Abre" }), "9:00");
+
+  await expect.element(screen.getByText("Completá los dos horarios.")).not.toBeInTheDocument();
+  await expect
+    .element(screen.getByRole("textbox", { name: "Cierra" }))
+    .not.toHaveAttribute("aria-invalid", "true");
 });

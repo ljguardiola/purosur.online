@@ -7,6 +7,7 @@ import {
   TextField,
   type TextFieldProps,
 } from "@purosur/ui";
+import { type ReactNode, useId } from "react";
 import { useFieldContext } from "./cloud-form-context";
 
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
@@ -51,5 +52,25 @@ export function BoundDateField(props: DistributiveOmit<DateFieldProps, FieldValu
       onChange={field.handleChange}
       errorMessage={fieldErrorMessage(field.state.meta.errors)}
     />
+  );
+}
+
+type SharedFieldErrorProps = {
+  children: (errorMessageId: string | undefined) => ReactNode;
+};
+
+export function SharedFieldError({ children }: SharedFieldErrorProps) {
+  const field = useFieldContext();
+  const errorMessageId = useId();
+  const message = fieldErrorMessage(field.state.meta.errors);
+  return (
+    <>
+      {children(message === undefined ? undefined : errorMessageId)}
+      {message !== undefined && (
+        <p id={errorMessageId} className="text-detail text-error">
+          {message}
+        </p>
+      )}
+    </>
   );
 }

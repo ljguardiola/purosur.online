@@ -1,4 +1,8 @@
-import { BRANCH_HOURS_RANGES_PER_DAY_MAX, BRANCH_SETTINGS_DAYS_MAX } from "@purosur/domain";
+import {
+  BRANCH_HOURS_RANGES_PER_DAY_MAX,
+  BRANCH_SETTINGS_DAYS_MAX,
+  BRANCH_SETTINGS_TEXT_MAX_LENGTH,
+} from "@purosur/domain";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useIsFetching } from "@tanstack/react-query";
@@ -48,6 +52,29 @@ const loaded: BranchSettings = {
   goodConditionReturnDays: 15,
   version: 1,
 };
+
+function wire(settings: BranchSettings) {
+  const range = ({ opensAt, closesAt }: { opensAt: string; closesAt: string }) => ({
+    opens_at: opensAt,
+    closes_at: closesAt,
+  });
+  return {
+    address: settings.address,
+    whatsapp_number: settings.whatsappNumber,
+    instagram_handle: settings.instagramHandle,
+    monday_hours: settings.hours.monday.map(range),
+    tuesday_hours: settings.hours.tuesday.map(range),
+    wednesday_hours: settings.hours.wednesday.map(range),
+    thursday_hours: settings.hours.thursday.map(range),
+    friday_hours: settings.hours.friday.map(range),
+    saturday_hours: settings.hours.saturday.map(range),
+    sunday_hours: settings.hours.sunday.map(range),
+    expiring_lot_alert_days: settings.expiringLotAlertDays,
+    unreviewed_price_alert_days: settings.unreviewedPriceAlertDays,
+    good_condition_return_days: settings.goodConditionReturnDays,
+    version: settings.version,
+  };
+}
 
 // A visually-hidden label still renders in the DOM, collapsed to a 1x1px box.
 function labelRect(input: HTMLInputElement): DOMRect {
@@ -239,8 +266,8 @@ test("once Reintentar loads the branch a failed read after a save could not, the
     .mockResolvedValue({ kind: "ok", value: saved });
   vi.mocked(services.saveBranchSettings)
     .mockResolvedValueOnce({ kind: "ok" })
-    .mockImplementation(async (settings) =>
-      settings.version === saved.version ? { kind: "ok" } : { kind: "stale_version" },
+    .mockImplementation(async (body) =>
+      body.version === saved.version ? { kind: "ok" } : { kind: "stale_version" },
     );
   const screen = await renderScreen(services);
   await expect
@@ -257,7 +284,7 @@ test("once Reintentar loads the branch a failed read after a save could not, the
     .toHaveValue("Av. Belgrano 1500, CABA");
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
   await expect.poll(() => vi.mocked(services.saveBranchSettings).mock.calls.length).toBe(2);
-  expect(services.saveBranchSettings).toHaveBeenLastCalledWith(saved);
+  expect(services.saveBranchSettings).toHaveBeenLastCalledWith(wire(saved));
   await expect.poll(() => vi.mocked(services.fetchBranchSettings).mock.calls.length).toBe(4);
   expect(screen.getByText("La sucursal cambió mientras la editabas").query()).toBeNull();
 });
@@ -371,10 +398,12 @@ test("saves every field, each day's ranges and the loaded version, then shows th
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.saveBranchSettings).mock.calls.length).toBe(1);
-  expect(services.saveBranchSettings).toHaveBeenCalledWith({
-    ...loaded,
-    address: "Av. Belgrano 1500 ",
-  });
+  expect(services.saveBranchSettings).toHaveBeenCalledWith(
+    wire({
+      ...loaded,
+      address: "Av. Belgrano 1500 ",
+    }),
+  );
   await expect
     .element(screen.getByRole("textbox", { name: "Dirección" }))
     .toHaveValue("Av. Belgrano 1500, CABA");
@@ -398,7 +427,7 @@ test("a second save sends the version the read after the first save returned", a
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.saveBranchSettings).mock.calls.length).toBe(2);
-  expect(services.saveBranchSettings).toHaveBeenLastCalledWith({ ...loaded, version: 2 });
+  expect(services.saveBranchSettings).toHaveBeenLastCalledWith(wire({ ...loaded, version: 2 }));
 });
 
 test("keeps the saved form on screen while the branch is read again after a save", async () => {
@@ -438,10 +467,12 @@ test("checking Cerrado on a day hides its ranges and saves it as closed", async 
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.saveBranchSettings).mock.calls.length).toBe(1);
-  expect(services.saveBranchSettings).toHaveBeenCalledWith({
-    ...loaded,
-    hours: { ...loaded.hours, monday: [] },
-  });
+  expect(services.saveBranchSettings).toHaveBeenCalledWith(
+    wire({
+      ...loaded,
+      hours: { ...loaded.hours, monday: [] },
+    }),
+  );
 });
 
 test("unchecking Cerrado brings back the ranges the day had before it was checked", async () => {
@@ -464,16 +495,18 @@ test("unchecking Cerrado brings back the ranges the day had before it was checke
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.saveBranchSettings).mock.calls.length).toBe(1);
-  expect(services.saveBranchSettings).toHaveBeenCalledWith({
-    ...loaded,
-    hours: {
-      ...loaded.hours,
-      monday: [
-        { opensAt: "09:00", closesAt: "13:00" },
-        { opensAt: "17:00", closesAt: "21:30" },
-      ],
-    },
-  });
+  expect(services.saveBranchSettings).toHaveBeenCalledWith(
+    wire({
+      ...loaded,
+      hours: {
+        ...loaded.hours,
+        monday: [
+          { opensAt: "09:00", closesAt: "13:00" },
+          { opensAt: "17:00", closesAt: "21:30" },
+        ],
+      },
+    }),
+  );
 });
 
 test("unchecking Cerrado on a day with no ranges shows one empty range", async () => {
@@ -519,16 +552,18 @@ test("adding a range appends an empty range and shows a trash button for both", 
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.saveBranchSettings).mock.calls.length).toBe(1);
-  expect(services.saveBranchSettings).toHaveBeenCalledWith({
-    ...loaded,
-    hours: {
-      ...loaded.hours,
-      tuesday: [
-        { opensAt: "09:00", closesAt: "20:00" },
-        { opensAt: "21:00", closesAt: "23:00" },
-      ],
-    },
-  });
+  expect(services.saveBranchSettings).toHaveBeenCalledWith(
+    wire({
+      ...loaded,
+      hours: {
+        ...loaded.hours,
+        tuesday: [
+          { opensAt: "09:00", closesAt: "20:00" },
+          { opensAt: "21:00", closesAt: "23:00" },
+        ],
+      },
+    }),
+  );
 });
 
 test("removing a range drops it, hiding the trash button once only one is left", async () => {
@@ -547,10 +582,12 @@ test("removing a range drops it, hiding the trash button once only one is left",
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.saveBranchSettings).mock.calls.length).toBe(1);
-  expect(services.saveBranchSettings).toHaveBeenCalledWith({
-    ...loaded,
-    hours: { ...loaded.hours, monday: [{ opensAt: "09:00", closesAt: "13:00" }] },
-  });
+  expect(services.saveBranchSettings).toHaveBeenCalledWith(
+    wire({
+      ...loaded,
+      hours: { ...loaded.hours, monday: [{ opensAt: "09:00", closesAt: "13:00" }] },
+    }),
+  );
 });
 
 test("leaves focus off the time fields when a range is removed with a pointer", async () => {
@@ -716,10 +753,12 @@ test("accepts a single-digit hour like 9:00 and sends it zero-padded", async () 
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.saveBranchSettings).mock.calls.length).toBe(1);
-  expect(services.saveBranchSettings).toHaveBeenCalledWith({
-    ...loaded,
-    hours: { ...loaded.hours, sunday: [{ opensAt: "09:00", closesAt: "13:00" }] },
-  });
+  expect(services.saveBranchSettings).toHaveBeenCalledWith(
+    wire({
+      ...loaded,
+      hours: { ...loaded.hours, sunday: [{ opensAt: "09:00", closesAt: "13:00" }] },
+    }),
+  );
 });
 
 test("rejects a range whose closing time isn't later than opening, with one inline error under the day, without saving", async () => {
@@ -863,10 +902,12 @@ test("accepts a days value of exactly the maximum", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.saveBranchSettings).mock.calls.length).toBe(1);
-  expect(services.saveBranchSettings).toHaveBeenCalledWith({
-    ...loaded,
-    unreviewedPriceAlertDays: BRANCH_SETTINGS_DAYS_MAX,
-  });
+  expect(services.saveBranchSettings).toHaveBeenCalledWith(
+    wire({
+      ...loaded,
+      unreviewedPriceAlertDays: BRANCH_SETTINGS_DAYS_MAX,
+    }),
+  );
 });
 
 test("accepts a good-condition return window of exactly 0 days", async () => {
@@ -882,10 +923,12 @@ test("accepts a good-condition return window of exactly 0 days", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.saveBranchSettings).mock.calls.length).toBe(1);
-  expect(services.saveBranchSettings).toHaveBeenCalledWith({
-    ...loaded,
-    goodConditionReturnDays: 0,
-  });
+  expect(services.saveBranchSettings).toHaveBeenCalledWith(
+    wire({
+      ...loaded,
+      goodConditionReturnDays: 0,
+    }),
+  );
 });
 
 test("shows the server's hours rejection as a neutral error under the day it names, since it doesn't say why", async () => {
@@ -914,6 +957,113 @@ test("shows the server's hours rejection as a neutral error under the day it nam
     .toHaveAccessibleDescription("Revisá los horarios de este día.");
   await expect
     .element(screen.getByRole("textbox", { name: "Martes, horario 1, cierra" }))
+    .not.toHaveAttribute("aria-invalid", "true");
+});
+
+const TEXT_TOO_LONG = `Ingresá como mucho ${BRANCH_SETTINGS_TEXT_MAX_LENGTH} caracteres.`;
+
+test("refuses a text longer than the limit under its field, without saving", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Dirección" }))
+    .toHaveValue("Av. Belgrano 1450, CABA");
+
+  await userEvent.fill(
+    screen.getByRole("textbox", { name: "Dirección" }),
+    "a".repeat(BRANCH_SETTINGS_TEXT_MAX_LENGTH + 1),
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(screen.getByText(TEXT_TOO_LONG)).toBeVisible();
+  await expect
+    .element(screen.getByRole("textbox", { name: "Dirección" }))
+    .toHaveAttribute("aria-invalid", "true");
+  expect(services.saveBranchSettings).not.toHaveBeenCalled();
+});
+
+test("shows a cloud error on the text field it names, with the same wording as the local check", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  vi.mocked(services.saveBranchSettings).mockResolvedValue({
+    kind: "validation_failed",
+    field: "instagram_handle",
+  });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Instagram" }))
+    .toHaveValue("@purosur.dietetica");
+
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect
+    .element(screen.getByRole("textbox", { name: "Instagram" }))
+    .toHaveAccessibleDescription(TEXT_TOO_LONG);
+  await expect
+    .element(screen.getByRole("textbox", { name: "WhatsApp" }))
+    .not.toHaveAttribute("aria-invalid", "true");
+});
+
+test("shows a cloud error on a days field with the wording its value calls for", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  vi.mocked(services.saveBranchSettings).mockResolvedValue({
+    kind: "validation_failed",
+    field: "expiring_lot_alert_days",
+  });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Aviso de vencimiento" }))
+    .toHaveValue("30");
+
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(screen.getByText("Ingresá un número entero de 0 días o más.")).toBeVisible();
+  await expect
+    .element(screen.getByRole("textbox", { name: "Aviso de vencimiento" }))
+    .toHaveAttribute("aria-invalid", "true");
+});
+
+test("shows the attempt-failed notice, and no field error, when the cloud names a field the form does not show", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  vi.mocked(services.saveBranchSettings).mockResolvedValue({
+    kind: "validation_failed",
+    field: "version",
+  });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Dirección" }))
+    .toHaveValue("Av. Belgrano 1450, CABA");
+
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(screen.getByText("No se pudo guardar la sucursal")).toBeVisible();
+  expect(screen.getByText(TEXT_TOO_LONG).query()).toBeNull();
+});
+
+test("a cloud error on a day goes away once one of its times is edited", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  vi.mocked(services.saveBranchSettings).mockResolvedValue({
+    kind: "validation_failed",
+    field: "monday_hours",
+  });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Lunes, horario 1, cierra" }))
+    .toHaveValue("13:00");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+  await expect.element(screen.getByText("Revisá los horarios de este día.")).toBeVisible();
+
+  await userEvent.fill(screen.getByRole("textbox", { name: "Lunes, horario 1, cierra" }), "14:00");
+
+  await expect
+    .element(screen.getByText("Revisá los horarios de este día."))
+    .not.toBeInTheDocument();
+  await expect
+    .element(screen.getByRole("textbox", { name: "Lunes, horario 2, abre" }))
     .not.toHaveAttribute("aria-invalid", "true");
 });
 
@@ -950,7 +1100,7 @@ test("shows a stale_version notice, and Recargar refetches so the second save se
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.saveBranchSettings).mock.calls.length).toBe(2);
-  expect(services.saveBranchSettings).toHaveBeenLastCalledWith(reloaded);
+  expect(services.saveBranchSettings).toHaveBeenLastCalledWith(wire(reloaded));
 });
 
 function FetchesInFlight() {
