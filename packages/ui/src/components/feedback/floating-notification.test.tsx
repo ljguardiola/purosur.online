@@ -196,6 +196,43 @@ test("stays while focus is inside it, and restarts its full lifetime once focus 
   });
 });
 
+test("dismisses after the seconds it is given even while the pointer is over it", async () => {
+  const onDismiss = vi.fn();
+  await whileTimersFrozen(async () => {
+    await render(notification({ expiresAfterSeconds: 12, onDismiss }));
+    vi.advanceTimersByTime(6000);
+
+    await userEvent.hover(floatingElement());
+    vi.advanceTimersByTime(6000 - 1);
+    expect(onDismiss, "dismissed early").not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1);
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+});
+
+test("dismisses after the seconds it is given even while focus is inside it", async () => {
+  const onDismiss = vi.fn();
+  await whileTimersFrozen(async () => {
+    await render(
+      <>
+        <button type="button">Elsewhere</button>
+        {notification({ expiresAfterSeconds: 12, onDismiss })}
+      </>,
+    );
+    vi.advanceTimersByTime(6000);
+
+    await userEvent.tab();
+    await userEvent.tab();
+    expect(document.activeElement?.getAttribute("aria-label")).toBe("Cerrar");
+    vi.advanceTimersByTime(6000 - 1);
+    expect(onDismiss, "dismissed early").not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1);
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+});
+
 test("dismisses through its close button", async () => {
   const onDismiss = vi.fn();
   const screen = await render(notification({ onDismiss }));
