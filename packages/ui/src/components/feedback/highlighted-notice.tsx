@@ -1,5 +1,4 @@
 import type { Icon } from "../shared/icon";
-import { iconSlotClassName } from "../shared/icon";
 import { type NoticeTone, toneClassName } from "../shared/tone";
 import { NoticeFrame } from "./notice-frame";
 
@@ -20,11 +19,8 @@ export function HighlightedNotice({ tone, icon, title, description }: Highlighte
     <NoticeFrame
       tone={tone}
       className={className}
-      icon={
-        <span aria-hidden="true" className={iconSlotClassName.lg}>
-          {icon}
-        </span>
-      }
+      icon={icon}
+      iconSize="lg"
       announcement={[title, description]}
     >
       <p className="text-subheading">{title}</p>

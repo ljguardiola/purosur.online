@@ -1,5 +1,4 @@
 import type { Icon } from "../shared/icon";
-import { iconSlotClassName } from "../shared/icon";
 import { type NoticeTone, toneClassName } from "../shared/tone";
 import { NoticeFrame } from "./notice-frame";
 
@@ -37,11 +36,9 @@ export function NotificationCard({
     <NoticeFrame
       tone={tone}
       className={className}
-      icon={
-        <span aria-hidden="true" className={circleClassName}>
-          <span className={iconSlotClassName.md}>{icon}</span>
-        </span>
-      }
+      icon={icon}
+      iconSize="md"
+      iconBadgeClassName={circleClassName}
       announcement={[title, description, whatToDo, time]}
     >
       <p className="text-body font-bold text-text">{title}</p>
