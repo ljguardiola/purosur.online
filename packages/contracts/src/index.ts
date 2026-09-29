@@ -16,6 +16,8 @@ export type { RecoveryRequestBody } from "./access/recovery-request.js";
 export { recoveryRequestBodySchema } from "./access/recovery-request.js";
 export type { RecoveryTokenBody } from "./access/recovery-token.js";
 export { recoveryTokenBodySchema } from "./access/recovery-token.js";
+export type { RegisterCoverageWire } from "./access/register-coverage.js";
+export { registerCoverageSchema } from "./access/register-coverage.js";
 export type { RoleCreationBody } from "./access/role-creation.js";
 export { roleCreationBodySchema } from "./access/role-creation.js";
 export type { RoleDetailWire } from "./access/role-detail.js";
