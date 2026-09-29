@@ -355,3 +355,27 @@ test("rings the whole scan control while its input has keyboard focus", async ()
   await expect.poll(() => getComputedStyle(control).outlineStyle).toBe("solid");
   expect(getComputedStyle(control).outlineWidth).toBe("3px");
 });
+
+test("ends each barcode row with a borderless remove button centred in the row, 6px from its right edge", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await userEvent.fill(scanInputOf(dialog), "7790001");
+  await userEvent.keyboard("{Enter}");
+
+  const remove = dialog.getByRole("button", { name: "Quitar el código 7790001" });
+  await expect.element(remove).toBeVisible();
+  const button = remove.element() as HTMLElement;
+  const row = button.parentElement as HTMLElement;
+  const buttonRect = button.getBoundingClientRect();
+  const rowRect = row.getBoundingClientRect();
+
+  expect(getComputedStyle(button).borderWidth).toBe("0px");
+  expect(getComputedStyle(button).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+  expect(rowRect.height).toBe(44);
+  expect(buttonRect.top - rowRect.top).toBe(rowRect.bottom - buttonRect.bottom);
+  expect(rowRect.right - buttonRect.right).toBe(6);
+});
