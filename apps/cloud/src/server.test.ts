@@ -281,6 +281,7 @@ describe("startServer", () => {
     expect(initSentry).toHaveBeenCalledWith({
       dsn: "https://public@sentry.example/1",
       environment: "staging",
+      release: "sha123",
     });
     expect(buildApp).toHaveBeenCalledWith({
       version: "sha123",

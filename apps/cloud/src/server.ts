@@ -305,7 +305,11 @@ export async function startServer(
   const doBuildApp = deps.buildApp ?? buildApp;
   const doSetUpRecovery = deps.setUpRecovery ?? setUpRecovery;
 
-  doInitSentry({ dsn: env.SENTRY_DSN, environment: env.SENTRY_ENVIRONMENT });
+  doInitSentry({
+    dsn: env.SENTRY_DSN,
+    environment: env.SENTRY_ENVIRONMENT,
+    release: env.APP_VERSION,
+  });
 
   const edgeOriginSecret = requireEdgeOriginSecret(env);
   const errorReporting = resolveBackofficeErrorReporting(env);
