@@ -231,6 +231,7 @@ describe("clearSampleData", () => {
     const realProductOutcome = await createProduct(new DrizzleCatalogStore(db), {
       name: "Producto Real",
       categoryId: realCategoryOutcome.category.id,
+      brandId: null,
       saleUnit: "UNIT",
       barcodes: ["7791234567890"],
       netContent: null,
@@ -293,6 +294,7 @@ describe("clearSampleData", () => {
     const realProduct = await createProduct(new DrizzleCatalogStore(db), {
       name: "Aceite Real",
       categoryId: realNamesake.category.id,
+      brandId: null,
       saleUnit: "UNIT",
       barcodes: ["7791234567890"],
       netContent: null,
@@ -324,6 +326,7 @@ describe("clearSampleData", () => {
     const realProduct = await createProduct(new DrizzleCatalogStore(db), {
       name: "Aceite Real",
       categoryId: sampleLeafId,
+      brandId: null,
       saleUnit: "UNIT",
       barcodes: ["7791234567890"],
       netContent: null,
@@ -412,6 +415,7 @@ describe("clearSampleData", () => {
     const realProduct = await createProduct(new DrizzleCatalogStore(db), {
       name: "Producto Real",
       categoryId: realCategory.category.id,
+      brandId: null,
       saleUnit: "UNIT",
       barcodes: ["7791234567890"],
       netContent: null,

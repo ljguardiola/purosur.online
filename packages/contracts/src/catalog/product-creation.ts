@@ -13,6 +13,7 @@ import {
   SALE_UNITS,
 } from "@purosur/domain";
 import { z } from "zod";
+import { optionalBrandIdSchema } from "./product-brand-id.js";
 
 const NAME_EMPTY_MESSAGE = "name must not be empty";
 const BARCODES_TYPE_MESSAGE = "barcodes must be a non-empty list of codes";
@@ -52,6 +53,7 @@ export const productCreationBodySchema = z
         `name must be at most ${PRODUCT_NAME_MAX_LENGTH} characters`,
       ),
     categoryId: z.string({ error: "categoryId must be an existing category's id" }).min(1),
+    brandId: optionalBrandIdSchema,
     saleUnit: z.enum(SALE_UNITS, { error: "saleUnit must be UNIT or KG" }),
     barcodes: z
       .array(z.string({ error: BARCODES_TYPE_MESSAGE }).trim().min(1, BARCODES_TYPE_MESSAGE), {

@@ -37,6 +37,10 @@ import {
   defaultBranchSettingsScreenServices,
 } from "../branch/branch-settings-services";
 import {
+  type BrandsListScreenServices,
+  defaultBrandsListScreenServices,
+} from "../catalog/brands-list-services";
+import {
   type CategoriesListScreenServices,
   defaultCategoriesListScreenServices,
 } from "../catalog/categories-list-services";
@@ -83,6 +87,7 @@ export type AppServices = {
   registersListScreen: RegistersListScreenServices;
   branchSettingsScreen: BranchSettingsScreenServices;
   categoriesListScreen: CategoriesListScreenServices;
+  brandsListScreen: BrandsListScreenServices;
   productsListScreen: ProductsListScreenServices;
   pricesListScreen: PricesListScreenServices;
   fiscalConfigurationScreen: FiscalConfigurationScreenServices;
@@ -104,6 +109,7 @@ const defaultAppServices: AppServices = {
   registersListScreen: defaultRegistersListScreenServices,
   branchSettingsScreen: defaultBranchSettingsScreenServices,
   categoriesListScreen: defaultCategoriesListScreenServices,
+  brandsListScreen: defaultBrandsListScreenServices,
   productsListScreen: defaultProductsListScreenServices,
   pricesListScreen: defaultPricesListScreenServices,
   fiscalConfigurationScreen: defaultFiscalConfigurationScreenServices,

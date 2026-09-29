@@ -352,6 +352,10 @@ export async function startServer(
             db: database.recovery.db,
             backofficeOrigin: database.recovery.backofficeOrigin,
           },
+          brands: {
+            db: database.recovery.db,
+            backofficeOrigin: database.recovery.backofficeOrigin,
+          },
           products: {
             db: database.recovery.db,
             backofficeOrigin: database.recovery.backofficeOrigin,

@@ -22,6 +22,7 @@ export type FetchProductsOutcome = CloudReadOutcome<ProductSummary[]>;
 export type CreateProductInput = {
   name: string;
   categoryId: string;
+  brandId: string | null;
   saleUnit: ProductSaleUnit;
   barcodes: string[];
   netContent: NetContent | null;
@@ -32,6 +33,7 @@ export type CreateProductOutcome =
   | { kind: "validation_failed"; field: string }
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "category_not_leaf" }
+  | { kind: "brand_inactive" }
   | { kind: "forbidden" }
   | { kind: "unauthenticated" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
@@ -40,6 +42,7 @@ export type CreateProductOutcome =
 export type EditProductInput = {
   name: string;
   categoryId: string;
+  brandId: string | null;
   saleUnit: ProductSaleUnit;
   barcodes: string[];
   netContent: NetContent | null;
@@ -51,6 +54,7 @@ export type EditProductOutcome =
   | { kind: "validation_failed"; field: string }
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "category_not_leaf" }
+  | { kind: "brand_inactive" }
   | { kind: "stale_version" }
   | { kind: "not_found" }
   | { kind: "forbidden" }
@@ -112,6 +116,7 @@ export async function createProduct(input: CreateProductInput): Promise<CreatePr
   const requestBody: ProductCreationBody = {
     name: input.name,
     categoryId: input.categoryId,
+    brandId: input.brandId,
     saleUnit: input.saleUnit,
     barcodes: input.barcodes,
     netContent: input.netContent,
@@ -134,6 +139,9 @@ export async function createProduct(input: CreateProductInput): Promise<CreatePr
     const body = (await cloned.json().catch(() => undefined)) as { code?: string } | undefined;
     if (body?.code === "category_not_leaf") {
       return { kind: "category_not_leaf" };
+    }
+    if (body?.code === "brand_inactive") {
+      return { kind: "brand_inactive" };
     }
     return { kind: "barcode_taken", codes: await readBarcodeTakenCodes(response) };
   }
@@ -230,6 +238,7 @@ export async function editProduct(
   const requestBody: ProductEditBody = {
     name: input.name,
     categoryId: input.categoryId,
+    brandId: input.brandId,
     saleUnit: input.saleUnit,
     barcodes: input.barcodes,
     netContent: input.netContent,
@@ -260,6 +269,9 @@ export async function editProduct(
     }
     if (body?.code === "category_not_leaf") {
       return { kind: "category_not_leaf" };
+    }
+    if (body?.code === "brand_inactive") {
+      return { kind: "brand_inactive" };
     }
     const codes = Array.isArray(body?.codes)
       ? body.codes.filter((code): code is string => typeof code === "string")

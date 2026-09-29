@@ -10,7 +10,7 @@ import {
 } from "../access/routes";
 import { alertsListRoute } from "../alerts/routes";
 import { branchSettingsRoute } from "../branch/routes";
-import { categoriesListRoute, productsListRoute } from "../catalog/routes";
+import { brandsListRoute, categoriesListRoute, productsListRoute } from "../catalog/routes";
 import { fiscalConfigurationRoute } from "../fiscal/routes";
 import { helpArticleRoute, helpCategoryRoute, helpHomeRoute } from "../help/routes";
 import { pricesListRoute } from "../pricing/routes";
@@ -55,6 +55,7 @@ const routeTree = rootRoute.addChildren([
       catalogAreaIndexRoute,
       productsListRoute,
       categoriesListRoute,
+      brandsListRoute,
       pricesListRoute,
     ]),
     cashAndFiscalAreaRoute.addChildren([cashAndFiscalAreaIndexRoute, fiscalConfigurationRoute]),

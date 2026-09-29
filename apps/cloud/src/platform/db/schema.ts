@@ -173,6 +173,18 @@ export const categories = pgTable(
   ],
 );
 
+// A name is unique ignoring letter case across every brand, deactivated ones included.
+export const brands = pgTable(
+  "brands",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    active: boolean("active").notNull().default(true),
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [uniqueIndex("brands_name_lower_key").on(sql`lower(${table.name})`)],
+);
+
 // active is one-way (never deleted): the migration also revokes DELETE on this table, so
 // historical sale lines keep referencing it.
 export const products = pgTable(
@@ -183,6 +195,7 @@ export const products = pgTable(
     categoryId: uuid("category_id")
       .notNull()
       .references(() => categories.id),
+    brandId: uuid("brand_id").references(() => brands.id),
     saleUnit: text("sale_unit").notNull(),
     active: boolean("active").notNull().default(true),
     netContentQuantity: numeric("net_content_quantity", {
@@ -194,6 +207,7 @@ export const products = pgTable(
     version: integer("version").notNull().default(1),
   },
   (table) => [
+    index("products_brand_id_idx").on(table.brandId),
     check("products_sale_unit_check", sql`${table.saleUnit} in ('UNIT', 'KG')`),
     check(
       "products_net_content_unit_check",

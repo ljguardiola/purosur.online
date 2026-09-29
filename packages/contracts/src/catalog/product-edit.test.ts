@@ -5,6 +5,7 @@ function validBody(overrides: Record<string, unknown> = {}): Record<string, unkn
   return {
     name: "Maceta",
     categoryId: "cat-1",
+    brandId: null,
     saleUnit: "UNIT",
     barcodes: ["111"],
     version: 1,
@@ -27,11 +28,38 @@ describe("productEditBodySchema", () => {
     expect(result.data).toEqual({
       name: "Maceta",
       categoryId: "cat-1",
+      brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
       netContent: { quantity: 2, unit: "L" },
       version: 4,
     });
+  });
+
+  it("reads a brand id", () => {
+    expect(productEditBodySchema.safeParse(validBody({ brandId: "brand-1" })).data).toMatchObject({
+      brandId: "brand-1",
+    });
+  });
+
+  it("requires the brandId key so a client that omits it cannot remove a product's brand", () => {
+    const { brandId: _omitted, ...withoutBrand } = validBody();
+
+    expect(firstFailure(withoutBrand)).toEqual({
+      field: "brandId",
+      message: "brandId must be sent, null for none",
+    });
+  });
+
+  it("reports a malformed brandId only as malformed, never as missing", () => {
+    const result = productEditBodySchema.safeParse(validBody({ brandId: 42 }));
+    const brandIdMessages = result.error?.issues
+      .filter((issue) => issue.path[0] === "brandId")
+      .map((issue) => issue.message);
+
+    expect(new Set(brandIdMessages)).toEqual(
+      new Set(["brandId must be an existing brand's id, or null for none"]),
+    );
   });
 
   it("reads absent net content as none", () => {

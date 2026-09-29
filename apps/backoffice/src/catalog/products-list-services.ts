@@ -1,3 +1,4 @@
+import { createBrand, fetchBrands } from "./brands-api";
 import { fetchCategories } from "./categories-api";
 import {
   createProduct,
@@ -14,6 +15,8 @@ export type ProductsListScreenServices = {
   editProduct: typeof editProduct;
   deactivateProduct: typeof deactivateProduct;
   fetchCategories: typeof fetchCategories;
+  fetchBrands: typeof fetchBrands;
+  createBrand: typeof createBrand;
   generateInternalBarcode: typeof generateInternalBarcode;
   printLabels: typeof printLabels;
 };
@@ -24,6 +27,8 @@ export const defaultProductsListScreenServices: ProductsListScreenServices = {
   editProduct,
   deactivateProduct,
   fetchCategories,
+  fetchBrands,
+  createBrand,
   generateInternalBarcode,
   printLabels,
 };

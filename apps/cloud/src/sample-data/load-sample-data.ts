@@ -201,6 +201,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
               const productOutcome = await createProduct(catalogStore, {
                 name: plan.name,
                 categoryId: leafCategory.category.id,
+                brandId: null,
                 saleUnit: plan.saleUnit,
                 barcodes: [barcode],
                 netContent: plan.netContent,

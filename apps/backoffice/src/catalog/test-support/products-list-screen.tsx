@@ -1,4 +1,4 @@
-import type { CategorySummary, ProductSummary } from "@purosur/contracts";
+import type { BrandSummary, CategorySummary, ProductSummary } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expect, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
@@ -16,6 +16,8 @@ export function createServices(
     editProduct: vi.fn(),
     deactivateProduct: vi.fn(),
     fetchCategories: vi.fn(),
+    fetchBrands: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
+    createBrand: vi.fn(),
     generateInternalBarcode: vi.fn(),
     printLabels: vi.fn(),
     ...overrides,
@@ -39,6 +41,7 @@ export const honey: ProductSummary = {
   id: "product-1",
   name: "Miel pura de abeja 1 kg",
   categoryId: "category-1",
+  brandId: null,
   categoryName: "Almacén",
   saleUnit: "UNIT",
   barcodes: ["7790987000015"],
@@ -51,6 +54,7 @@ export const almonds: ProductSummary = {
   id: "product-2",
   name: "Almendras peladas",
   categoryId: "category-2",
+  brandId: null,
   categoryName: "Frutos secos",
   saleUnit: "KG",
   barcodes: ["7790000000001"],
@@ -77,9 +81,11 @@ export function mockLoaded(
   services: ProductsListScreenServices,
   products: ProductSummary[],
   categories: CategorySummary[] = [groceries, driedFruits],
+  brands: BrandSummary[] = [],
 ) {
   vi.mocked(services.fetchProducts).mockResolvedValue({ kind: "ok", value: products });
   vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: categories });
+  vi.mocked(services.fetchBrands).mockResolvedValue({ kind: "ok", value: brands });
 }
 
 // A modal panel is centered by a fixed-position overlay that never grows the document's scroll

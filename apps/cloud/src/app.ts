@@ -45,6 +45,12 @@ import { registerAlertsListRoute } from "./alerts/alerts-list-route.js";
 import { registerBranchSettingsEditRoute } from "./branch/branch-settings-edit-route.js";
 import type { BranchSettingsRouteOptions } from "./branch/branch-settings-read-route.js";
 import { registerBranchSettingsReadRoute } from "./branch/branch-settings-read-route.js";
+import { registerBrandCreationRoute } from "./catalog/brand-creation-route.js";
+import { registerBrandDeactivationRoute } from "./catalog/brand-deactivation-route.js";
+import { registerBrandEditRoute } from "./catalog/brand-edit-route.js";
+import { registerBrandReactivationRoute } from "./catalog/brand-reactivation-route.js";
+import type { BrandsRouteOptions } from "./catalog/brands-list-route.js";
+import { registerBrandsListRoute } from "./catalog/brands-list-route.js";
 import type { CategoriesRouteOptions } from "./catalog/categories-list-route.js";
 import { registerCategoriesListRoute } from "./catalog/categories-list-route.js";
 import { registerCategoryCreationRoute } from "./catalog/category-creation-route.js";
@@ -83,6 +89,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   branchSettings?: BranchSettingsRouteOptions<TQueryResult>;
   issuerIdentification?: IssuerIdentificationRouteOptions<TQueryResult>;
   categories?: CategoriesRouteOptions<TQueryResult>;
+  brands?: BrandsRouteOptions<TQueryResult>;
   products?: ProductsRouteOptions<TQueryResult>;
   alerts?: AlertsRouteOptions<TQueryResult>;
   prices?: PricesRouteOptions<TQueryResult>;
@@ -216,6 +223,14 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     registerCategoriesListRoute(app, options.categories);
     registerCategoryCreationRoute(app, options.categories);
     registerCategoryEditRoute(app, options.categories);
+  }
+
+  if (options.brands) {
+    registerBrandsListRoute(app, options.brands);
+    registerBrandCreationRoute(app, options.brands);
+    registerBrandEditRoute(app, options.brands);
+    registerBrandDeactivationRoute(app, options.brands);
+    registerBrandReactivationRoute(app, options.brands);
   }
 
   if (options.products) {

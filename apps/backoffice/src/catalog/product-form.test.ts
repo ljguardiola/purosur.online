@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import { NET_CONTENT_QUANTITY_INVALID } from "./net-content-quantity";
 import {
   barcodeListMessage,
+  brandMessage,
   categoryMessage,
   EMPTY_PRODUCT_FORM,
   netContentMessage,
+  productFormValues,
   productMessage,
   productRequestFrom,
   saleUnitMessage,
@@ -158,13 +160,43 @@ describe("productRequestFrom", () => {
 });
 
 describe("the empty form", () => {
-  it("starts with nothing chosen and the net content in grams", () => {
+  it("starts with nothing chosen, no brand, and the net content in grams", () => {
     expect(EMPTY_PRODUCT_FORM).toEqual({
       name: "",
       categoryId: null,
+      brandId: "",
       saleUnit: null,
       netContent: { quantity: "", unit: "G" },
       barcodes: NO_BARCODES,
     });
+  });
+});
+
+describe("the product's brand", () => {
+  it("asks for no brand when none is chosen, and for the chosen one otherwise", () => {
+    expect(productRequestFrom({ ...EMPTY_PRODUCT_FORM, brandId: "" }).brandId).toBeNull();
+    expect(productRequestFrom({ ...EMPTY_PRODUCT_FORM, brandId: "brand-1" }).brandId).toBe(
+      "brand-1",
+    );
+  });
+
+  it("loads a product's brand, or none", () => {
+    const product = {
+      id: "product-1",
+      name: "Miel",
+      categoryId: "category-1",
+      categoryName: "Almacén",
+      saleUnit: "UNIT" as const,
+      barcodes: ["111"],
+      netContent: null,
+      active: true,
+      version: 1,
+    };
+    expect(productFormValues({ ...product, brandId: "brand-1" }).brandId).toBe("brand-1");
+    expect(productFormValues({ ...product, brandId: null }).brandId).toBe("");
+  });
+
+  it("says a brand the cloud refuses no longer exists", () => {
+    expect(brandMessage()).toBe("La marca elegida ya no existe.");
   });
 });

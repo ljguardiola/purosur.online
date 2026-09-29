@@ -41,6 +41,7 @@ export type { BarcodeListProblem, NetContentUnit, SaleUnit } from "./catalog/ind
 export {
   appendEan13CheckDigit,
   BARCODE_MAX_LENGTH,
+  BRAND_NAME_MAX_LENGTH,
   barcodeLength,
   barcodeListProblem,
   CATEGORY_NAME_MAX_LENGTH,
@@ -48,6 +49,7 @@ export {
   ean13CheckDigit,
   ean13Modules,
   isBarcodeTooLong,
+  isBrandNameTooLong,
   isCategoryNameTooLong,
   isInternalBarcode,
   isNetContentUnit,
