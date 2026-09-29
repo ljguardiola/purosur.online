@@ -28,6 +28,7 @@ const honey: ProductSummary = {
   id: "product-1",
   name: "Miel pura de abeja 1 kg",
   categoryId: "category-1",
+  brandId: null,
   categoryName: "Almacén",
   saleUnit: "UNIT",
   barcodes: ["7790987000015"],
@@ -89,6 +90,7 @@ test("fetchProducts returns failed on a malformed body", async () => {
 const createInput = {
   name: "Miel pura de abeja 1 kg",
   categoryId: "category-1",
+  brandId: null,
   saleUnit: "UNIT" as const,
   barcodes: ["7790987000015"],
   netContent: null,
@@ -183,6 +185,24 @@ test("createProduct returns barcode_taken with the taken codes on 409", async ()
   });
 });
 
+test("createProduct posts a chosen brand", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(201, { ...honey, brandId: "brand-1" }));
+  const withBrand = { ...createInput, brandId: "brand-1" };
+
+  await createProduct(withBrand);
+
+  expect(fetch).toHaveBeenCalledWith(
+    "/products",
+    expect.objectContaining({ body: JSON.stringify(withBrand) }),
+  );
+});
+
+test("createProduct returns brand_inactive on a 409 carrying that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "brand_inactive" }));
+
+  expect(await createProduct(createInput)).toEqual({ kind: "brand_inactive" });
+});
+
 test("createProduct returns category_not_leaf on a 409 carrying that code", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "category_not_leaf" }));
 
@@ -274,6 +294,24 @@ test("editProduct returns stale_version on a 409 carrying that code", async () =
   vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "stale_version" }));
 
   expect(await editProduct("product-1", editInput)).toEqual({ kind: "stale_version" });
+});
+
+test("editProduct posts the product's brand", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { ...honey, brandId: "brand-1" }));
+  const withBrand = { ...editInput, brandId: "brand-1" };
+
+  await editProduct("product-1", withBrand);
+
+  expect(fetch).toHaveBeenCalledWith(
+    "/products/product-1/edit",
+    expect.objectContaining({ body: JSON.stringify(withBrand) }),
+  );
+});
+
+test("editProduct returns brand_inactive on a 409 carrying that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "brand_inactive" }));
+
+  expect(await editProduct("product-1", editInput)).toEqual({ kind: "brand_inactive" });
 });
 
 test("editProduct returns category_not_leaf on a 409 carrying that code", async () => {

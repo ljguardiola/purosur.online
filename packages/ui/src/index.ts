@@ -1,6 +1,8 @@
 export { Focusable } from "react-aria-components";
 export type { ColumnChartBar, ColumnChartProps } from "./components/data-display/column-chart";
 export { ColumnChart } from "./components/data-display/column-chart";
+export type { CountCardProps } from "./components/data-display/count-card";
+export { CountCard } from "./components/data-display/count-card";
 export type { ProportionBarProps } from "./components/data-display/proportion-bar";
 export { ProportionBar } from "./components/data-display/proportion-bar";
 export type { SummaryRowProps } from "./components/data-display/summary-row";

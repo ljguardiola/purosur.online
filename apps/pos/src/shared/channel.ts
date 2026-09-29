@@ -9,6 +9,7 @@ export const CHANNEL_DATA_FOLDERS: Readonly<Record<Channel, string>> = {
 export interface ChannelFile {
   readonly channel: Channel;
   readonly sentryDsn?: string;
+  readonly cloudUrl?: string;
 }
 
 export interface ChannelSettings extends ChannelFile {
@@ -19,7 +20,7 @@ export type ChannelFileResult =
   | { readonly ok: true; readonly settings: ChannelSettings }
   | { readonly ok: false; readonly reason: string };
 
-const CHANNEL_FILE_FIELDS = new Set(["channel", "sentryDsn"]);
+const CHANNEL_FILE_FIELDS = new Set(["channel", "sentryDsn", "cloudUrl"]);
 const LOCAL_CHANNEL_FILE_FIELDS = new Set([...CHANNEL_FILE_FIELDS, "dataFolder"]);
 const FOLDER_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 // Windows drops trailing dots from a folder name and opens these device names, with or without an
@@ -66,7 +67,16 @@ function dataFolderProblem(channel: Channel, dataFolder: string): string | undef
   return undefined;
 }
 
-function parseFields(text: string, knownFields: ReadonlySet<string>): ChannelFileResult {
+function isHttpsUrl(value: string): boolean {
+  return isHttpUrl(value) && new URL(value).protocol === "https:";
+}
+
+// Only an unpackaged run may reach its cloud over plain http, such as one on this same machine.
+function parseFields(
+  text: string,
+  knownFields: ReadonlySet<string>,
+  allowPlainHttpCloud: boolean,
+): ChannelFileResult {
   let data: unknown;
   try {
     data = JSON.parse(text);
@@ -83,7 +93,7 @@ function parseFields(text: string, knownFields: ReadonlySet<string>): ChannelFil
     return fail(`unknown field "${unknownField}"`);
   }
 
-  const { channel, sentryDsn } = fields;
+  const { channel, sentryDsn, cloudUrl } = fields;
   if (!isChannel(channel)) {
     return fail(`channel must be one of ${CHANNELS.join(", ")}`);
   }
@@ -99,21 +109,32 @@ function parseFields(text: string, knownFields: ReadonlySet<string>): ChannelFil
     return fail("sentryDsn must be an http(s) URL when present");
   }
 
+  const isCloudUrl = allowPlainHttpCloud ? isHttpUrl : isHttpsUrl;
+  if (cloudUrl !== undefined && (typeof cloudUrl !== "string" || !isCloudUrl(cloudUrl))) {
+    return fail(
+      `cloudUrl must be an ${allowPlainHttpCloud ? "http(s)" : "https"} URL when present`,
+    );
+  }
+
   return {
     ok: true,
-    settings:
-      sentryDsn === undefined ? { channel, dataFolder } : { channel, dataFolder, sentryDsn },
+    settings: {
+      channel,
+      dataFolder,
+      ...(sentryDsn === undefined ? {} : { sentryDsn }),
+      ...(cloudUrl === undefined ? {} : { cloudUrl }),
+    },
   };
 }
 
 /** An installed register's file: its data folder is always its channel's own. */
 export function parseChannelFile(text: string): ChannelFileResult {
-  return parseFields(text, CHANNEL_FILE_FIELDS);
+  return parseFields(text, CHANNEL_FILE_FIELDS, false);
 }
 
 /** An unpackaged run's file (development and end-to-end tests), which may name its data folder. */
 export function parseLocalChannelFile(text: string): ChannelFileResult {
-  return parseFields(text, LOCAL_CHANNEL_FILE_FIELDS);
+  return parseFields(text, LOCAL_CHANNEL_FILE_FIELDS, true);
 }
 
 export function serializeChannelFile(file: ChannelFile): string {
@@ -126,9 +147,19 @@ export function serializeChannelFile(file: ChannelFile): string {
 }
 
 const SENTRY_ENVIRONMENT_ARGUMENT = "--sentry-environment=";
+const CLOUD_URL_ARGUMENT = "--cloud-url=";
 
-export function coreArgumentsFor(channel: Channel): string[] {
-  return [`${SENTRY_ENVIRONMENT_ARGUMENT}${channel}`];
+export function coreArgumentsFor(settings: Pick<ChannelFile, "channel" | "cloudUrl">): string[] {
+  return [
+    `${SENTRY_ENVIRONMENT_ARGUMENT}${settings.channel}`,
+    ...(settings.cloudUrl === undefined ? [] : [`${CLOUD_URL_ARGUMENT}${settings.cloudUrl}`]),
+  ];
+}
+
+export function cloudUrlFromCoreArguments(argv: readonly string[]): string | undefined {
+  const argument = argv.find((value) => value.startsWith(CLOUD_URL_ARGUMENT));
+  const value = argument?.slice(CLOUD_URL_ARGUMENT.length);
+  return value !== undefined && isHttpUrl(value) ? value : undefined;
 }
 
 export function sentryEnvironmentFromCoreArguments(argv: readonly string[]): Channel | undefined {

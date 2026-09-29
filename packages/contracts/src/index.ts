@@ -16,6 +16,8 @@ export type { RecoveryRequestBody } from "./access/recovery-request.js";
 export { recoveryRequestBodySchema } from "./access/recovery-request.js";
 export type { RecoveryTokenBody } from "./access/recovery-token.js";
 export { recoveryTokenBodySchema } from "./access/recovery-token.js";
+export type { RegisterCoverageWire } from "./access/register-coverage.js";
+export { registerCoverageSchema } from "./access/register-coverage.js";
 export type { RoleCreationBody } from "./access/role-creation.js";
 export { roleCreationBodySchema } from "./access/role-creation.js";
 export type { RoleDetailWire } from "./access/role-detail.js";
@@ -42,10 +44,18 @@ export type { AlertDetail } from "./alerts/alert-detail.js";
 export { alertDetailSchema } from "./alerts/alert-detail.js";
 export type { AlertListPage, AlertSummary } from "./alerts/alert-summary.js";
 export { alertListPageSchema, alertSummarySchema } from "./alerts/alert-summary.js";
+export type { AlertsOverview } from "./alerts/alerts-overview.js";
+export { alertsOverviewSchema } from "./alerts/alerts-overview.js";
 export type { BranchSettingsBody } from "./branch/branch-settings.js";
 export { branchSettingsSchema } from "./branch/branch-settings.js";
 export type { BranchSettingsEditBody } from "./branch/branch-settings-edit.js";
 export { branchSettingsEditBodySchema } from "./branch/branch-settings-edit.js";
+export type { BrandCreationBody } from "./catalog/brand-creation.js";
+export { brandCreationBodySchema } from "./catalog/brand-creation.js";
+export type { BrandEditBody } from "./catalog/brand-edit.js";
+export { brandEditBodySchema } from "./catalog/brand-edit.js";
+export type { BrandSummary } from "./catalog/brand-summary.js";
+export { brandListSchema, brandSummarySchema } from "./catalog/brand-summary.js";
 export type { CategoryCreationBody } from "./catalog/category-creation.js";
 export { categoryCreationBodySchema } from "./catalog/category-creation.js";
 export type { CategoryEditBody } from "./catalog/category-edit.js";
@@ -81,16 +91,34 @@ export {
 } from "./pricing/price-list.js";
 export type { PriceSetBody } from "./pricing/price-set.js";
 export { priceSetBodySchema } from "./pricing/price-set.js";
+export type { CloudError, CloudErrorCode } from "./register/cloud-error.js";
+export {
+  cloudError,
+  cloudErrorSchema,
+  cloudErrorStatus,
+  isRetryableCloudError,
+  retryAfterSecondsOf,
+} from "./register/cloud-error.js";
 export type {
   CoreStatusMessage,
+  CoreToRendererMessage,
+  EnrollmentOutcome,
   MainToCoreMessage,
   RendererToCoreMessage,
 } from "./register/core-messages.js";
 export {
   coreStatusMessageSchema,
+  coreToRendererMessageSchema,
   mainToCoreMessageSchema,
   rendererToCoreMessageSchema,
 } from "./register/core-messages.js";
+export type { DeviceEnrollment, DeviceEnrollmentBody } from "./register/device-enrollment.js";
+export {
+  deviceEnrollmentBodySchema,
+  deviceEnrollmentSchema,
+} from "./register/device-enrollment.js";
+export type { HealthCheck } from "./register/health-check.js";
+export { healthCheckSchema } from "./register/health-check.js";
 export type { RegisterCreationBody } from "./register/register-creation.js";
 export { registerCreationBodySchema } from "./register/register-creation.js";
 export type { RegisterEnrollmentCodeBody } from "./register/register-enrollment-code.js";

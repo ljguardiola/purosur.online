@@ -1,18 +1,92 @@
 import { describe, expect, it } from "vitest";
 import {
   coreStatusMessageSchema,
+  coreToRendererMessageSchema,
   mainToCoreMessageSchema,
   rendererToCoreMessageSchema,
 } from "./core-messages.js";
+
+const REQUEST_ID = "7d1c1e1e-5b1a-4a53-9c1c-3a7c6f0b2d10";
 
 describe("rendererToCoreMessageSchema", () => {
   it("accepts a ping", () => {
     expect(rendererToCoreMessageSchema.safeParse({ type: "ping" }).success).toBe(true);
   });
 
+  it("accepts a request for whether this installation is enrolled", () => {
+    const message = { type: "enrollment-status-request", request_id: REQUEST_ID };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts an enrollment with the code as typed", () => {
+    const message = { type: "enroll", request_id: REQUEST_ID, code: "p4nx 7kwe 2qrt 6mzd" };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a request without its request id", () => {
+    expect(
+      rendererToCoreMessageSchema.safeParse({ type: "enrollment-status-request" }).success,
+    ).toBe(false);
+    expect(rendererToCoreMessageSchema.safeParse({ type: "enroll", code: "x" }).success).toBe(
+      false,
+    );
+  });
+
+  it("rejects an enrollment without a code", () => {
+    expect(
+      rendererToCoreMessageSchema.safeParse({ type: "enroll", request_id: REQUEST_ID }).success,
+    ).toBe(false);
+  });
+
   it("rejects any other message type", () => {
     expect(rendererToCoreMessageSchema.safeParse({ type: "health-check" }).success).toBe(false);
     expect(rendererToCoreMessageSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe("coreToRendererMessageSchema", () => {
+  it.each([true, false])("accepts whether this installation is enrolled: %s", (enrolled) => {
+    const message = { type: "enrollment-status", request_id: REQUEST_ID, enrolled };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "enrolled" },
+    { kind: "code_rejected" },
+    { kind: "rate_limited", retry_after_seconds: 600 },
+    { kind: "unreachable" },
+    { kind: "unavailable" },
+    { kind: "not_stored" },
+  ])("accepts the enrollment result $kind", (outcome) => {
+    const message = { type: "enrollment-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a rate limit without when to retry", () => {
+    const message = {
+      type: "enrollment-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "rate_limited" },
+    };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("rejects an enrollment result it does not know", () => {
+    const message = { type: "enrollment-result", request_id: REQUEST_ID, outcome: { kind: "x" } };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("rejects an enrollment status without whether it is enrolled", () => {
+    expect(
+      coreToRendererMessageSchema.safeParse({ type: "enrollment-status", request_id: REQUEST_ID })
+        .success,
+    ).toBe(false);
   });
 });
 

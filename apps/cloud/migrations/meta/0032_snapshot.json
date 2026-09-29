@@ -1,5 +1,5 @@
 {
-  "id": "8ea4e4fb-05c9-415c-80c2-7cf948dad022",
+  "id": "9e4d1f06-584f-4f76-bee3-f450edc05357",
   "prevId": "870f1739-e24b-4784-8c19-aef5a6b0867e",
   "version": "7",
   "dialect": "postgresql",
@@ -581,6 +581,62 @@
           "onUpdate": "no action"
         }
       },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.brands": {
+      "name": "brands",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        }
+      },
+      "indexes": {
+        "brands_name_lower_key": {
+          "name": "brands_name_lower_key",
+          "columns": [
+            {
+              "expression": "lower(\"name\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -1277,6 +1333,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "brand_id": {
+          "name": "brand_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "sale_unit": {
           "name": "sale_unit",
           "type": "text",
@@ -1310,13 +1372,38 @@
           "default": 1
         }
       },
-      "indexes": {},
+      "indexes": {
+        "products_brand_id_idx": {
+          "name": "products_brand_id_idx",
+          "columns": [
+            {
+              "expression": "brand_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "products_category_id_categories_id_fk": {
           "name": "products_category_id_categories_id_fk",
           "tableFrom": "products",
           "tableTo": "categories",
           "columnsFrom": ["category_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "products_brand_id_brands_id_fk": {
+          "name": "products_brand_id_brands_id_fk",
+          "tableFrom": "products",
+          "tableTo": "brands",
+          "columnsFrom": ["brand_id"],
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
@@ -2149,278 +2236,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.stock_balances": {
-      "name": "stock_balances",
-      "schema": "",
-      "columns": {
-        "product_id": {
-          "name": "product_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "location_id": {
-          "name": "location_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "quantity": {
-          "name": "quantity",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "stock_balances_product_id_products_id_fk": {
-          "name": "stock_balances_product_id_products_id_fk",
-          "tableFrom": "stock_balances",
-          "tableTo": "products",
-          "columnsFrom": ["product_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "stock_balances_location_id_locations_id_fk": {
-          "name": "stock_balances_location_id_locations_id_fk",
-          "tableFrom": "stock_balances",
-          "tableTo": "locations",
-          "columnsFrom": ["location_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "stock_balances_product_id_location_id_pk": {
-          "name": "stock_balances_product_id_location_id_pk",
-          "columns": ["product_id", "location_id"]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.stock_counts": {
-      "name": "stock_counts",
-      "schema": "",
-      "columns": {
-        "movement_id": {
-          "name": "movement_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "counted": {
-          "name": "counted",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "expected": {
-          "name": "expected",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "stock_counts_movement_id_stock_movements_id_fk": {
-          "name": "stock_counts_movement_id_stock_movements_id_fk",
-          "tableFrom": "stock_counts",
-          "tableTo": "stock_movements",
-          "columnsFrom": ["movement_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "stock_counts_counted_non_negative": {
-          "name": "stock_counts_counted_non_negative",
-          "value": "\"stock_counts\".\"counted\" >= 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.stock_movements": {
-      "name": "stock_movements",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "product_id": {
-          "name": "product_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "location_id": {
-          "name": "location_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reason": {
-          "name": "reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "delta": {
-          "name": "delta",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "occurred_at": {
-          "name": "occurred_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "recorded_at": {
-          "name": "recorded_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "actor_id": {
-          "name": "actor_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "superseded_by_count_id": {
-          "name": "superseded_by_count_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "stock_movements_product_id_location_id_occurred_at_idx": {
-          "name": "stock_movements_product_id_location_id_occurred_at_idx",
-          "columns": [
-            {
-              "expression": "product_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "location_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "occurred_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "stock_movements_location_id_occurred_at_idx": {
-          "name": "stock_movements_location_id_occurred_at_idx",
-          "columns": [
-            {
-              "expression": "location_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "occurred_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "stock_movements_product_id_products_id_fk": {
-          "name": "stock_movements_product_id_products_id_fk",
-          "tableFrom": "stock_movements",
-          "tableTo": "products",
-          "columnsFrom": ["product_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "stock_movements_location_id_locations_id_fk": {
-          "name": "stock_movements_location_id_locations_id_fk",
-          "tableFrom": "stock_movements",
-          "tableTo": "locations",
-          "columnsFrom": ["location_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "stock_movements_actor_id_users_id_fk": {
-          "name": "stock_movements_actor_id_users_id_fk",
-          "tableFrom": "stock_movements",
-          "tableTo": "users",
-          "columnsFrom": ["actor_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "stock_movements_superseded_by_count_id_stock_movements_id_fk": {
-          "name": "stock_movements_superseded_by_count_id_stock_movements_id_fk",
-          "tableFrom": "stock_movements",
-          "tableTo": "stock_movements",
-          "columnsFrom": ["superseded_by_count_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "stock_movements_kind_check": {
-          "name": "stock_movements_kind_check",
-          "value": "\"stock_movements\".\"kind\" in ('loss', 'adjustment', 'count')"
-        },
-        "stock_movements_reason_unless_count_check": {
-          "name": "stock_movements_reason_unless_count_check",
-          "value": "(\"stock_movements\".\"kind\" = 'count') = (\"stock_movements\".\"reason\" is null)"
-        }
-      },
       "isRLSEnabled": false
     },
     "public.user_roles": {

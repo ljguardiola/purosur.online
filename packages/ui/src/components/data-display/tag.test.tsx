@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { Focusable } from "react-aria-components";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -106,6 +106,86 @@ test("wrapped in Focusable with an img role and label, becomes a working Tooltip
       },
     },
   });
+});
+
+test("the status variant leads its text with a dot in the tone's own color, hidden from assistive technology", async () => {
+  const screen = await render(
+    <Tag tone="neutral" variant="status">
+      Inactiva
+    </Tag>,
+  );
+  const tag = screen.getByText("Inactiva").element() as HTMLElement;
+  const dot = tag.firstElementChild as HTMLElement;
+
+  expect(dot).not.toBeNull();
+  expect(dot.getAttribute("aria-hidden")).toBe("true");
+  expect(dot.textContent).toBe("");
+  expect(getComputedStyle(dot).backgroundColor).toBe(tokenRgb("neutral"));
+  expect(getComputedStyle(dot).borderRadius).not.toBe("0px");
+  const dotBox = dot.getBoundingClientRect();
+  expect(dotBox.width).toBeGreaterThan(0);
+  expect(dotBox.height).toBe(dotBox.width);
+  expect(getComputedStyle(tag).backgroundColor).toBe(tokenRgb("surface-subtle"));
+  expect(getComputedStyle(tag).color).toBe(tokenRgb("text-subtle"));
+});
+
+test("the status variant keeps the plain tag's height, so it fits inside a field", async () => {
+  const screen = await render(
+    <>
+      <Tag tone="neutral">Caja</Tag>
+      <Tag tone="neutral" variant="status">
+        Inactiva
+      </Tag>
+    </>,
+  );
+  const plain = screen.getByText("Caja").element() as HTMLElement;
+  const status = screen.getByText("Inactiva").element() as HTMLElement;
+
+  expect(status.getBoundingClientRect().height).toBe(plain.getBoundingClientRect().height);
+});
+
+test("the status variant passes the accessibility checks", async () => {
+  const screen = await render(
+    <main>
+      <Tag tone="neutral" variant="status">
+        Inactiva
+      </Tag>
+      <Tag tone="info" variant="status">
+        Nueva
+      </Tag>
+    </main>,
+  );
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("the status variant in the info tone colors its dot with the info tone", async () => {
+  const screen = await render(
+    <Tag tone="info" variant="status">
+      Nueva
+    </Tag>,
+  );
+  const tag = screen.getByText("Nueva").element() as HTMLElement;
+  const dot = tag.firstElementChild as HTMLElement;
+
+  expect(getComputedStyle(dot).backgroundColor).toBe(tokenRgb("info-soft"));
+  expect(getComputedStyle(tag).backgroundColor).toBe(tokenRgb("action-subtle"));
+});
+
+test("a plain tag draws no dot", async () => {
+  const screen = await render(<Tag tone="neutral">Caja</Tag>);
+  const tag = screen.getByText("Caja").element() as HTMLElement;
+
+  expect(tag.children).toHaveLength(0);
+});
+
+test("does not accept an icon on a status tag, since its dot takes that place", () => {
+  expectTypeOf<{
+    tone: "neutral";
+    variant: "status";
+    icon: ReactElement;
+    children: string;
+  }>().not.toExtend<TagProps>();
 });
 
 test("does not accept a tag without content", () => {

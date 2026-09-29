@@ -229,8 +229,29 @@
     {
       "idx": 32,
       "version": "7",
-      "when": 1790704450923,
-      "tag": "0032_stock_ledger",
+      "when": 1790704645872,
+      "tag": "0032_brands",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1790710810529,
+      "tag": "0033_register_installations",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1790712315233,
+      "tag": "0034_alerts_deduplicates",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1790718099155,
+      "tag": "0035_stock_ledger",
       "breakpoints": true
     }
   ]

@@ -33,9 +33,17 @@ import {
   defaultAlertsListScreenServices,
 } from "../alerts/alerts-list-services";
 import {
+  type AlertsOverviewScreenServices,
+  defaultAlertsOverviewScreenServices,
+} from "../alerts/alerts-overview-services";
+import {
   type BranchSettingsScreenServices,
   defaultBranchSettingsScreenServices,
 } from "../branch/branch-settings-services";
+import {
+  type BrandsListScreenServices,
+  defaultBrandsListScreenServices,
+} from "../catalog/brands-list-services";
 import {
   type CategoriesListScreenServices,
   defaultCategoriesListScreenServices,
@@ -95,6 +103,7 @@ export type AppServices = {
   registersListScreen: RegistersListScreenServices;
   branchSettingsScreen: BranchSettingsScreenServices;
   categoriesListScreen: CategoriesListScreenServices;
+  brandsListScreen: BrandsListScreenServices;
   productsListScreen: ProductsListScreenServices;
   pricesListScreen: PricesListScreenServices;
   stockBalancesScreen: StockBalancesScreenServices;
@@ -103,6 +112,7 @@ export type AppServices = {
   fiscalConfigurationScreen: FiscalConfigurationScreenServices;
   accountFooter: AccountFooterServices;
   screenFailure: ScreenFailureServices;
+  alertsOverviewScreen: AlertsOverviewScreenServices;
   alertsListScreen: AlertsListScreenServices;
 };
 
@@ -119,6 +129,7 @@ const defaultAppServices: AppServices = {
   registersListScreen: defaultRegistersListScreenServices,
   branchSettingsScreen: defaultBranchSettingsScreenServices,
   categoriesListScreen: defaultCategoriesListScreenServices,
+  brandsListScreen: defaultBrandsListScreenServices,
   productsListScreen: defaultProductsListScreenServices,
   pricesListScreen: defaultPricesListScreenServices,
   stockBalancesScreen: defaultStockBalancesScreenServices,
@@ -127,6 +138,7 @@ const defaultAppServices: AppServices = {
   fiscalConfigurationScreen: defaultFiscalConfigurationScreenServices,
   accountFooter: defaultAccountFooterServices,
   screenFailure: defaultScreenFailureServices,
+  alertsOverviewScreen: defaultAlertsOverviewScreenServices,
   alertsListScreen: defaultAlertsListScreenServices,
 };
 

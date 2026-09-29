@@ -25,7 +25,11 @@ function buildFailingRouter(shouldThrow: () => boolean) {
       return <p>{RECOVERED_TEXT}</p>;
     },
   });
-  return createRegisterRouter(rootRoute.addChildren([failingRoute]), { coreStatus: "up" }, "/");
+  return createRegisterRouter(
+    rootRoute.addChildren([failingRoute]),
+    { coreStatus: "up", enrollment: "enrolled", enroll: async () => ({ kind: "enrolled" }) },
+    "/",
+  );
 }
 
 function FailingRegisterHost({ shouldThrow }: { shouldThrow: () => boolean }) {

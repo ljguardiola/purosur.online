@@ -61,7 +61,18 @@ describe("the product_net_content migration applied to a database that already h
     await migrate(drizzle(client), { migrationsFolder: folder });
 
     const db = drizzle(client);
-    const rows = await db.select().from(products).where(eq(products.id, seededProduct.id));
+    const rows = await db
+      .select({
+        id: products.id,
+        name: products.name,
+        categoryId: products.categoryId,
+        saleUnit: products.saleUnit,
+        active: products.active,
+        netContentQuantity: products.netContentQuantity,
+        netContentUnit: products.netContentUnit,
+      })
+      .from(products)
+      .where(eq(products.id, seededProduct.id));
 
     expect(rows).toMatchObject([
       {

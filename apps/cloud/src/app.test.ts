@@ -3,6 +3,7 @@ import { request as httpRequest } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { healthCheckSchema } from "@purosur/contracts";
 import { PERMISSION_KEYS } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -21,6 +22,7 @@ import { SESSION_COOKIE_NAME } from "./access/session-cookie.js";
 import { generateSessionId, hashSessionId } from "./access/session-id.js";
 import { buildApp as buildRealApp } from "./app.js";
 import { rolePermissions, roles, sessions, userRoles, users } from "./platform/db/schema.js";
+import { insertEnrolledInstallation } from "./register/test-support/enrolled-installation.js";
 import {
   buildTestApp as buildApp,
   TEST_EDGE_ORIGIN_SECRET,
@@ -50,6 +52,20 @@ describe("GET /health", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ status: "ok", version: "abc1234" });
+  });
+
+  it("reaches the enrolled installations when the device routes are wired", async () => {
+    const { deviceToken } = await insertEnrolledInstallation(testDatabase.db);
+    const app = buildApp({ version: "abc1234", devices: { db: testDatabase.db } });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/health",
+      headers: { authorization: `Bearer ${deviceToken}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(healthCheckSchema.parse(response.json()).installation).toEqual({ revoked: false });
   });
 });
 
@@ -816,6 +832,37 @@ describe("wiring the categories routes", () => {
   });
 });
 
+describe("wiring the brands routes", () => {
+  const ORIGIN = { origin: "https://staging.purosur.online" };
+  const ID = "00000000-0000-0000-0000-000000000000";
+
+  async function brandsResponses(app: ReturnType<typeof buildApp>): Promise<number[]> {
+    const responses = await Promise.all([
+      app.inject({ method: "GET", url: "/brands" }),
+      app.inject({ method: "POST", url: "/brands", headers: ORIGIN }),
+      app.inject({ method: "POST", url: `/brands/${ID}/edit`, headers: ORIGIN }),
+      app.inject({ method: "POST", url: `/brands/${ID}/deactivation`, headers: ORIGIN }),
+      app.inject({ method: "POST", url: `/brands/${ID}/reactivation`, headers: ORIGIN }),
+    ]);
+    return responses.map((response) => response.statusCode);
+  }
+
+  it("does not register the brands routes when no brands option is given", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    expect(await brandsResponses(app)).toEqual([404, 404, 404, 404, 404]);
+  });
+
+  it("registers the brands routes when a brands option is given", async () => {
+    const app = buildApp({
+      version: "abc1234",
+      brands: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+    });
+
+    expect(await brandsResponses(app)).toEqual([401, 401, 401, 401, 401]);
+  });
+});
+
 describe("wiring the products routes", () => {
   it("does not register the products routes when no products option is given", async () => {
     const app = buildApp({ version: "abc1234" });
@@ -986,9 +1033,12 @@ describe("wiring the registers routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
 
+    const coverage = await app.inject({ method: "GET", url: "/registers/coverage" });
+
     expect(list.statusCode).toBe(404);
     expect(create.statusCode).toBe(404);
     expect(emitCode.statusCode).toBe(404);
+    expect(coverage.statusCode).toBe(404);
   });
 
   it("registers the registers routes when a registers option is given", async () => {
@@ -1009,9 +1059,31 @@ describe("wiring the registers routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
 
+    const coverage = await app.inject({ method: "GET", url: "/registers/coverage" });
+
     expect(list.statusCode).toBe(401);
     expect(create.statusCode).toBe(401);
     expect(emitCode.statusCode).toBe(401);
+    expect(coverage.statusCode).toBe(401);
+  });
+});
+
+describe("wiring the device enrollment route", () => {
+  it("does not register POST /devices/enroll when no devices option is given", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    const response = await app.inject({ method: "POST", url: "/devices/enroll", payload: {} });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("registers POST /devices/enroll, answering without a session, when a devices option is given", async () => {
+    const app = buildApp({ version: "abc1234", devices: { db: testDatabase.db } });
+
+    const response = await app.inject({ method: "POST", url: "/devices/enroll", payload: {} });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
   });
 });
 
@@ -1225,10 +1297,12 @@ function productionWiredApp() {
       authorizedCuit: "20-12345678-6",
     },
     categories: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
+    brands: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     products: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     alerts: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     prices: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     registers: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
+    devices: { db: testDatabase.db },
   });
 }
 
@@ -1238,7 +1312,6 @@ describe("the route access inventory", () => {
     await app.ready();
 
     expect(app.routeAccessInventory()).toEqual([
-      { method: "GET", url: "/health", access: PUBLIC_ACCESS },
       { method: "GET", url: "/error-reporting", access: PUBLIC_ACCESS },
       { method: "POST", url: "/users/recovery/request", access: PUBLIC_ACCESS },
       { method: "POST", url: "/users/recovery/registration-options", access: PUBLIC_ACCESS },
@@ -1323,6 +1396,31 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/brands",
+        access: permissionAccess("manage_products_and_categories"),
+      },
+      {
+        method: "POST",
+        url: "/brands",
+        access: permissionAccess("manage_products_and_categories"),
+      },
+      {
+        method: "POST",
+        url: "/brands/:id/edit",
+        access: permissionAccess("manage_products_and_categories"),
+      },
+      {
+        method: "POST",
+        url: "/brands/:id/deactivation",
+        access: permissionAccess("manage_products_and_categories"),
+      },
+      {
+        method: "POST",
+        url: "/brands/:id/reactivation",
+        access: permissionAccess("manage_products_and_categories"),
+      },
+      {
+        method: "GET",
         url: "/products",
         access: permissionAccess("manage_products_and_categories"),
       },
@@ -1352,6 +1450,7 @@ describe("the route access inventory", () => {
         access: permissionAccess("manage_products_and_categories"),
       },
       { method: "GET", url: "/alerts", access: OPEN_SESSION_ACCESS },
+      { method: "GET", url: "/alerts/overview", access: OPEN_SESSION_ACCESS },
       { method: "GET", url: "/alerts/:id", access: OPEN_SESSION_ACCESS },
       {
         method: "POST",
@@ -1384,10 +1483,17 @@ describe("the route access inventory", () => {
         access: permissionAccess("enroll_register_devices"),
       },
       {
+        method: "GET",
+        url: "/registers/coverage",
+        access: permissionAccess("enroll_register_devices"),
+      },
+      {
         method: "POST",
         url: "/registers/:id/enrollment-code",
         access: permissionAccess("enroll_register_devices"),
       },
+      { method: "GET", url: "/health", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/devices/enroll", access: PUBLIC_ACCESS },
       { method: "HEAD", url: "/*", access: PUBLIC_ACCESS },
       { method: "GET", url: "/*", access: PUBLIC_ACCESS },
     ]);

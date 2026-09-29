@@ -65,6 +65,16 @@ test("a narrowed option makes its required fields mandatory and its allowed ones
   expectTypeOf<{ value: Kind; label: string; icon: string }>().not.toExtend<Segment>();
 });
 
+test("an option may carry a short status text, and a narrowed option allows it only when asked to", () => {
+  expectTypeOf<{ value: Kind; label: string; status: string }>().toExtend<Option<Kind>>();
+  expectTypeOf<{ value: Kind; label: string; status: number }>().not.toExtend<Option<Kind>>();
+
+  type WithStatus = NarrowedOption<Kind, never, "status">;
+  expectTypeOf<{ value: Kind; label: string }>().toExtend<WithStatus>();
+  expectTypeOf<{ value: Kind; label: string; status: string }>().toExtend<WithStatus>();
+  expectTypeOf<NarrowedOption<Kind>>().not.toHaveProperty("status");
+});
+
 test("a narrowed option is still an option", () => {
   expectTypeOf<NarrowedOption<Kind>>().toExtend<Option<Kind>>();
   expectTypeOf<NarrowedOption<Kind, "description" | "icon">>().toExtend<Option<Kind>>();

@@ -8,7 +8,6 @@ import {
   StatusIndicator,
   Table,
   TableCellText,
-  type Tone,
   tableRows,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
@@ -20,23 +19,20 @@ import type { CloudData } from "../platform/use-cloud-query";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { ALERT_LEVEL_LABELS, AlertDetailModal, alertDateTime } from "./alert-detail-modal";
+import { alertKindLabel } from "./alert-kind-label";
+import { ALERT_LEVEL_TONE } from "./alert-level-tone";
 import type { AlertListQuery } from "./alerts-api";
 import type { AlertsListScreenServices } from "./alerts-list-services";
+import { AlertsOpenCountPill } from "./alerts-open-count-pill";
 import { useAlertsQuery } from "./alerts-queries";
 import type { AlertsListFilters } from "./routes";
-
-const LIST_KIND_LABELS = {
-  backoffice_passkey_changed: "Passkey",
-  backoffice_recovery_requested: "Recuperación de acceso",
-  user_email_changed: "Correo",
-  backoffice_sign_in_lockout: "Bloqueo de ingreso",
-} satisfies Record<AlertKind, string>;
 
 const LIST_KIND_DESCRIPTIONS = {
   backoffice_passkey_changed: "Se registró o dio de baja una passkey",
   backoffice_recovery_requested: "Se pidió el enlace de acceso",
   user_email_changed: "Se cambió una dirección de correo",
   backoffice_sign_in_lockout: "Demasiados intentos fallidos de ingreso",
+  user_access_increased: "Se amplió el acceso de un usuario",
 } satisfies Record<AlertKind, string>;
 
 export type AlertsListScreenProps = {
@@ -56,18 +52,8 @@ const SEARCH_DELAY_MS = 300;
 type LevelFilter = "all" | AlertLevel;
 type StatusFilter = "open" | "closed";
 
-const LEVEL_TONE: Record<AlertLevel, Tone> = {
-  critical: "error",
-  warning: "warning",
-  informational: "info",
-};
-
 function levelLabel(level: AlertLevel): string {
   return ALERT_LEVEL_LABELS[level];
-}
-
-function listKindLabel(kind: string): string {
-  return kind in LIST_KIND_LABELS ? LIST_KIND_LABELS[kind as keyof typeof LIST_KIND_LABELS] : kind;
 }
 
 function listKindDescription(kind: string): string {
@@ -81,7 +67,7 @@ const LIST_KINDS: readonly string[] = ALERT_KINDS;
 function kindsMatching(text: string): string[] {
   const query = text.toLowerCase();
   return LIST_KINDS.filter((kind) =>
-    `${listKindLabel(kind)} ${listKindDescription(kind)}`.toLowerCase().includes(query),
+    `${alertKindLabel(kind)} ${listKindDescription(kind)}`.toLowerCase().includes(query),
   );
 }
 
@@ -168,7 +154,9 @@ export function AlertsListScreen({
       key: "level",
       header: "Nivel",
       render: (item: AlertSummary) => (
-        <StatusIndicator tone={LEVEL_TONE[item.level]}>{levelLabel(item.level)}</StatusIndicator>
+        <StatusIndicator tone={ALERT_LEVEL_TONE[item.level]}>
+          {levelLabel(item.level)}
+        </StatusIndicator>
       ),
     },
     {
@@ -176,7 +164,7 @@ export function AlertsListScreen({
       header: "Alerta",
       render: (item: AlertSummary) => (
         <TableCellText description={listKindDescription(item.kind)}>
-          {listKindLabel(item.kind)}
+          {alertKindLabel(item.kind)}
         </TableCellText>
       ),
     },
@@ -197,7 +185,7 @@ export function AlertsListScreen({
       actions: [
         (item: AlertSummary) => ({
           icon: <Eye />,
-          "aria-label": `Ver la alerta «${listKindLabel(item.kind)}»`,
+          "aria-label": `Ver la alerta «${alertKindLabel(item.kind)}»`,
           onPress: () => setSelectedAlertId(item.id),
         }),
       ],
@@ -213,15 +201,7 @@ export function AlertsListScreen({
               <p className="text-text-subtle text-detail">Inicio</p>
               <ScreenTitle>Alertas</ScreenTitle>
             </div>
-            {openCount > 0 && (
-              <div className="inline-flex h-7 items-center gap-2 rounded-full bg-warning-subtle px-3 font-sans text-detail font-semibold text-warning-strong">
-                <Bell aria-hidden="true" className="size-icon-xs shrink-0" />
-                {plural(openCount, {
-                  one: "1 alerta abierta",
-                  other: `${openCount} alertas abiertas`,
-                })}
-              </div>
-            )}
+            <AlertsOpenCountPill openCount={openCount} />
           </div>
         }
         bodyClassName="gap-4 p-6"

@@ -39,6 +39,7 @@ interface ProductWithoutBarcodes {
   name: string;
   categoryId: string;
   categoryName: string;
+  brandId: string | null;
   saleUnit: string;
   netContentQuantity: number | null;
   netContentUnit: string | null;
@@ -91,6 +92,7 @@ async function listProducts<TQueryResult extends PgQueryResultHKT>(
       name: products.name,
       categoryId: products.categoryId,
       categoryName: categories.name,
+      brandId: products.brandId,
       saleUnit: products.saleUnit,
       netContentQuantity: products.netContentQuantity,
       netContentUnit: products.netContentUnit,
@@ -112,6 +114,7 @@ async function listProducts<TQueryResult extends PgQueryResultHKT>(
     name: row.name,
     categoryId: row.categoryId,
     categoryName: row.categoryName,
+    brandId: row.brandId,
     saleUnit: row.saleUnit as SaleUnit,
     barcodes: barcodes.get(row.id) ?? [],
     netContent: netContentRow(row),

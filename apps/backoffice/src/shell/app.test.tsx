@@ -4,7 +4,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { openSession } from "../access/test-support/open-session";
-import { almonds, honey } from "../catalog/test-support/products-list-screen";
+import { almonds, honey } from "../catalog/test-support/products";
 import { App, type AppServices } from "./app";
 import { createAppServices } from "./test-support/app-services";
 
@@ -41,13 +41,32 @@ afterEach(() => {
   window.localStorage.clear();
 });
 
-test("redirects the root path to /help without leaving the root in the history", async () => {
+test("opens Inicio from the root path without leaving the root in the history", async () => {
   const lengthBefore = window.history.length;
 
-  await render(<App help={emptyHelp} services={createAppServices()} />);
+  const screen = await render(<App help={emptyHelp} services={createAppServices()} />);
 
-  await expect.poll(() => window.location.pathname).toBe("/help");
+  await expect.element(screen.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/home");
   expect(window.history.length).toBe(lengthBefore);
+});
+
+test("opens Inicio at /home, with Inicio and Resumen active", async () => {
+  window.history.pushState(null, "", "/home");
+
+  const screen = await render(<App help={emptyHelp} services={createAppServices()} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
+  const rail = screen.getByRole("navigation", { name: "Áreas" });
+  await expect
+    .element(rail.getByRole("link", { name: "Inicio" }))
+    .toHaveAttribute("aria-current", "page");
+  await expect
+    .element(screen.getByRole("link", { name: "Resumen" }))
+    .toHaveAttribute("aria-current", "page");
+  expect(screen.getByRole("link", { name: "Alertas" }).element().hasAttribute("aria-current")).toBe(
+    false,
+  );
 });
 
 test.each(["/ventas", "/helps", "/help/getting_started/intro/extra", "/catalog", "/settings"])(
@@ -123,6 +142,7 @@ test("a rail item leaves a modifier click to the browser", async () => {
 });
 
 test("renders the shell's area rail and section column landmarks", async () => {
+  window.history.pushState(null, "", "/help");
   const screen = await render(<App help={emptyHelp} services={createAppServices()} />);
 
   await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
@@ -286,9 +306,7 @@ test("moves focus to the first screen's title after signing in", async () => {
 
   await userEvent.click(screen.getByRole("button", { name: "Ingresar con passkey" }));
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Todavía no hay contenido de ayuda", level: 1 }))
-    .toHaveFocus();
+  await expect.element(screen.getByRole("heading", { name: "Inicio", level: 1 })).toHaveFocus();
 });
 
 test("leaves focus where it is when only a list's filters change", async () => {
@@ -1244,6 +1262,7 @@ test("ends the session with the expired notice when the open tab's status check 
 });
 
 test("ends the session with the expired notice when real use of the open tab finds it already ended", async () => {
+  window.history.pushState(null, "", "/help");
   const services = createAppServices();
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
@@ -1295,7 +1314,7 @@ test("hides the Catálogo item in the rail for a user without the permission", a
   expect(screen.getByRole("link", { name: "Catálogo" }).query()).toBeNull();
 });
 
-test("shows the Inicio item in the rail for a user holding view_branch_alerts, linking to Alertas", async () => {
+test("shows the Inicio item in the rail for a user holding view_branch_alerts, linking to Inicio", async () => {
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
@@ -1310,10 +1329,12 @@ test("shows the Inicio item in the rail for a user holding view_branch_alerts, l
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("link", { name: "Inicio" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("link", { name: "Inicio" }))
+    .toHaveAttribute("href", "/home");
 });
 
-test("hides the Inicio item in the rail for a user without either alert-view permission", async () => {
+test("lands a user without either alert-view permission on Inicio, telling them they have no alerts to view and offering no Alertas", async () => {
   const services = createAppServices({
     fetchSession: vi
       .fn()
@@ -1321,15 +1342,17 @@ test("hides the Inicio item in the rail for a user without either alert-view per
         openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
       ),
   });
-  window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
-  expect(screen.getByRole("link", { name: "Inicio" }).query()).toBeNull();
+  await expect.element(screen.getByText("No tenés alertas para ver")).toBeVisible();
+  expect(window.location.pathname).toBe("/home");
+  await expect.element(screen.getByRole("link", { name: "Resumen" })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Alertas" }).query()).toBeNull();
+  expect(services.alertsOverviewScreen.fetchAlertsOverview).not.toHaveBeenCalled();
 });
 
-test("following the rail's Inicio item opens the Alertas list, with Inicio and Alertas active", async () => {
+test("following the rail's Inicio item opens Inicio, and its Alertas section link the Alertas list", async () => {
   window.history.pushState(null, "", "/help");
   const services = createAppServices();
   vi.mocked(services.alertsListScreen.fetchAlerts).mockResolvedValue({
@@ -1341,12 +1364,42 @@ test("following the rail's Inicio item opens the Alertas list, with Inicio and A
 
   await userEvent.click(screen.getByRole("link", { name: "Inicio" }));
 
+  await expect.element(screen.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/home");
+
+  await userEvent.click(screen.getByRole("link", { name: "Alertas" }));
+
   await expect.element(screen.getByRole("heading", { name: "Alertas", level: 1 })).toBeVisible();
   expect(window.location.pathname).toBe("/home/alerts");
   const homeItem = screen.getByRole("link", { name: "Inicio" }).element() as HTMLAnchorElement;
   expect(homeItem.getAttribute("aria-current")).toBe("page");
   const alertsItem = screen.getByRole("link", { name: "Alertas" }).element() as HTMLAnchorElement;
   expect(alertsItem.getAttribute("aria-current")).toBe("page");
+  expect(screen.getByRole("link", { name: "Resumen" }).element().hasAttribute("aria-current")).toBe(
+    false,
+  );
+});
+
+test("opens the alerts list filtered by a level from that level's card on Inicio", async () => {
+  window.history.pushState(null, "", "/home");
+  const services = createAppServices();
+  vi.mocked(services.alertsOverviewScreen.fetchAlertsOverview).mockResolvedValue({
+    kind: "ok",
+    value: {
+      critical: { openCount: 0, kinds: [] },
+      warning: { openCount: 2, kinds: ["user_email_changed"] },
+      informational: { openCount: 0, kinds: [] },
+    },
+  });
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await userEvent.click(screen.getByRole("link", { name: /^Advertencias 2/ }));
+
+  await expect.element(screen.getByRole("heading", { name: "Alertas", level: 1 })).toBeVisible();
+  expect(`${window.location.pathname}${window.location.search}`).toBe("/home/alerts?level=warning");
+  await expect
+    .poll(() => services.alertsListScreen.fetchAlerts)
+    .toHaveBeenCalledWith({ level: "warning", open: true, page: 1 });
 });
 
 test.each(["/help", "/settings/users", "/catalog/categories", "/catalog/products"])(
@@ -1471,6 +1524,37 @@ test("redirects a non-permitted user's typed /catalog/categories to Mi cuenta, w
   expect(services.categoriesListScreen.fetchCategories).not.toHaveBeenCalled();
 });
 
+test("navigating directly to /catalog/brands opens the brands list, with Marcas active", async () => {
+  window.history.pushState(null, "", "/catalog/brands");
+  const services = createAppServices();
+  vi.mocked(services.brandsListScreen.fetchBrands).mockResolvedValue({ kind: "ok", value: [] });
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Marcas", level: 1 })).toBeVisible();
+  const brandsItem = screen.getByRole("link", { name: "Marcas" }).element() as HTMLAnchorElement;
+  expect(brandsItem.getAttribute("aria-current")).toBe("page");
+  window.history.pushState(null, "", "/");
+});
+
+test("redirects a non-permitted user's typed /catalog/brands to Mi cuenta, without listing brands", async () => {
+  const services = createAppServices({
+    fetchSession: vi
+      .fn()
+      .mockResolvedValue(
+        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+      ),
+  });
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/catalog/brands");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/settings/users/me");
+  expect(services.brandsListScreen.fetchBrands).not.toHaveBeenCalled();
+});
+
 test("redirects a non-permitted user's typed /catalog/products to Mi cuenta, without listing products", async () => {
   const services = createAppServices({
     fetchSession: vi
@@ -1577,6 +1661,7 @@ test("shows the Precios section, and only it, for a user holding only manage_pri
   expect(window.location.pathname).toBe("/catalog/prices");
   expect(screen.getByRole("link", { name: "Productos" }).query()).toBeNull();
   expect(screen.getByRole("link", { name: "Categorías" }).query()).toBeNull();
+  expect(screen.getByRole("link", { name: "Marcas" }).query()).toBeNull();
   await expect.element(screen.getByRole("link", { name: "Precios" })).toBeVisible();
 });
 
@@ -1910,12 +1995,13 @@ test.each([
   await expect.element(screen.getByRole("link", { name: link })).toHaveAttribute("href", url);
 });
 
-test.each([
-  { url: "/home/alerts?status=closed", link: "Inicio" },
-  { url: "/catalog/products?search=miel", link: "Catálogo" },
-])("the $link rail link keeps the filters its list is showing", async ({ url, link }) => {
+test("the Catálogo rail link keeps the filters its list is showing", async () => {
+  const url = "/catalog/products?search=miel";
   const services = createAppServices();
-  vi.mocked(services.productsListScreen.fetchProducts).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.productsListScreen.fetchProducts).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   vi.mocked(services.productsListScreen.fetchCategories).mockResolvedValue({
     kind: "ok",
     value: [],
@@ -1923,7 +2009,7 @@ test.each([
   window.history.pushState(null, "", "/help");
   window.history.pushState(null, "", url);
   const screen = await render(<App help={emptyHelp} services={services} />);
-  const railLink = screen.getByRole("link", { name: link });
+  const railLink = screen.getByRole("link", { name: "Catálogo" });
   await expect.element(railLink).toHaveAttribute("href", url);
 
   await userEvent.click(railLink);
@@ -2023,9 +2109,9 @@ test("offers to try again when a screen fails to render, reports the failure, an
 test("moves focus to the failure's title when a screen opened from the rail fails once its data arrives", async () => {
   window.history.pushState(null, "", "/help");
   const services = createAppServices();
-  vi.mocked(services.alertsListScreen.fetchAlerts).mockResolvedValue({
+  vi.mocked(services.alertsOverviewScreen.fetchAlertsOverview).mockResolvedValue({
     kind: "ok",
-    value: { alerts: null, total: 0, pageSize: 25, openCount: 0, openCriticalCount: 0 },
+    value: { critical: null, warning: null, informational: null },
   } as never);
   const screen = await render(<App help={emptyHelp} services={services} reportError={vi.fn()} />);
   await expect.element(screen.getByRole("link", { name: "Inicio" })).toBeVisible();

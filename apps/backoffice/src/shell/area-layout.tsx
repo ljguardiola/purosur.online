@@ -5,7 +5,6 @@ import type { ReactNode } from "react";
 import {
   canManageProductsAndCategories,
   canPerformStockCounts,
-  canSeeAlertsArea,
   canSeeCashArea,
   canSeeCatalogArea,
   canSeeStockArea,
@@ -31,7 +30,6 @@ export type AreaLayoutProps = {
 export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }: AreaLayoutProps) {
   const { session, services, sessionActions } = signedInRoute.useRouteContext();
   const matchRoute = useMatchRoute();
-  const alertsShown = Boolean(matchRoute({ to: "/home/alerts" }));
   const catalogTarget = canManageProductsAndCategories(session)
     ? "/catalog/products"
     : "/catalog/prices";
@@ -47,15 +45,7 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
       sectionColumnLabel={sectionColumnLabel}
       railAreas={
         <>
-          {canSeeAlertsArea(session) && (
-            <AreaLink
-              to="/home/alerts"
-              search={alertsShown ? true : {}}
-              label="Inicio"
-              icon={<Home />}
-              active={area === "home"}
-            />
-          )}
+          <AreaLink to="/home" label="Inicio" icon={<Home />} active={area === "home"} />
           {canSeeCatalogArea(session) && (
             <AreaLink
               to={catalogTarget}

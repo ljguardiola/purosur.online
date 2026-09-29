@@ -42,9 +42,16 @@ import { registerAlertCloseRoute } from "./alerts/alert-close-route.js";
 import { registerAlertReadRoute } from "./alerts/alert-read-route.js";
 import type { AlertsRouteOptions } from "./alerts/alerts-list-route.js";
 import { registerAlertsListRoute } from "./alerts/alerts-list-route.js";
+import { registerAlertsOverviewRoute } from "./alerts/alerts-overview-route.js";
 import { registerBranchSettingsEditRoute } from "./branch/branch-settings-edit-route.js";
 import type { BranchSettingsRouteOptions } from "./branch/branch-settings-read-route.js";
 import { registerBranchSettingsReadRoute } from "./branch/branch-settings-read-route.js";
+import { registerBrandCreationRoute } from "./catalog/brand-creation-route.js";
+import { registerBrandDeactivationRoute } from "./catalog/brand-deactivation-route.js";
+import { registerBrandEditRoute } from "./catalog/brand-edit-route.js";
+import { registerBrandReactivationRoute } from "./catalog/brand-reactivation-route.js";
+import type { BrandsRouteOptions } from "./catalog/brands-list-route.js";
+import { registerBrandsListRoute } from "./catalog/brands-list-route.js";
 import type { CategoriesRouteOptions } from "./catalog/categories-list-route.js";
 import { registerCategoriesListRoute } from "./catalog/categories-list-route.js";
 import { registerCategoryCreationRoute } from "./catalog/category-creation-route.js";
@@ -60,10 +67,15 @@ import { registerIssuerIdentificationEditRoute } from "./fiscal/issuer-identific
 import type { IssuerIdentificationRouteOptions } from "./fiscal/issuer-identification-read-route.js";
 import { registerIssuerIdentificationReadRoute } from "./fiscal/issuer-identification-read-route.js";
 import { registerEdgeOriginGuard } from "./platform/edge-origin-guard.js";
+import { registerHealthRoute } from "./platform/health-route.js";
 import { registerPriceConfirmationRoute } from "./pricing/price-confirmation-route.js";
 import { registerPriceSetRoute } from "./pricing/price-set-route.js";
 import type { PricesRouteOptions } from "./pricing/prices-list-route.js";
 import { registerPricesListRoute } from "./pricing/prices-list-route.js";
+import { authenticateDevice } from "./register/device-authentication.js";
+import type { DeviceEnrollmentRouteOptions } from "./register/device-enrollment-route.js";
+import { registerDeviceEnrollmentRoute } from "./register/device-enrollment-route.js";
+import { registerRegisterCoverageRoute } from "./register/register-coverage-route.js";
 import { registerRegisterCreationRoute } from "./register/register-creation-route.js";
 import { registerRegisterEnrollmentCodeRoute } from "./register/register-enrollment-code-route.js";
 import type { RegistersRouteOptions } from "./register/registers-list-route.js";
@@ -88,11 +100,13 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   branchSettings?: BranchSettingsRouteOptions<TQueryResult>;
   issuerIdentification?: IssuerIdentificationRouteOptions<TQueryResult>;
   categories?: CategoriesRouteOptions<TQueryResult>;
+  brands?: BrandsRouteOptions<TQueryResult>;
   products?: ProductsRouteOptions<TQueryResult>;
   alerts?: AlertsRouteOptions<TQueryResult>;
   prices?: PricesRouteOptions<TQueryResult>;
   registers?: RegistersRouteOptions<TQueryResult>;
   stock?: StockRouteOptions<TQueryResult>;
+  devices?: DeviceEnrollmentRouteOptions<TQueryResult>;
 }
 
 const STRICT_TRANSPORT_SECURITY = "max-age=63072000; includeSubDomains";
@@ -160,10 +174,13 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
   registerEdgeOriginGuard(app, options.edgeOriginSecret);
 
-  app.get("/health", { config: { access: PUBLIC_ACCESS } }, async () => ({
-    status: "ok",
+  const devices = options.devices;
+  registerHealthRoute(app, {
     version: options.version,
-  }));
+    ...(devices && {
+      authenticateDevice: (authorization) => authenticateDevice(devices.db, authorization),
+    }),
+  });
 
   const errorReporting: ErrorReportingConfiguration = options.errorReporting
     ? { enabled: true, ...options.errorReporting, release: options.version }
@@ -224,6 +241,14 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     registerCategoryEditRoute(app, options.categories);
   }
 
+  if (options.brands) {
+    registerBrandsListRoute(app, options.brands);
+    registerBrandCreationRoute(app, options.brands);
+    registerBrandEditRoute(app, options.brands);
+    registerBrandDeactivationRoute(app, options.brands);
+    registerBrandReactivationRoute(app, options.brands);
+  }
+
   if (options.products) {
     registerProductsListRoute(app, options.products);
     registerProductCreationRoute(app, options.products);
@@ -235,6 +260,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
   if (options.alerts) {
     registerAlertsListRoute(app, options.alerts);
+    registerAlertsOverviewRoute(app, options.alerts);
     registerAlertReadRoute(app, options.alerts);
     registerAlertCloseRoute(app, options.alerts);
   }
@@ -255,7 +281,12 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
   if (options.registers) {
     registerRegistersListRoute(app, options.registers);
     registerRegisterCreationRoute(app, options.registers);
+    registerRegisterCoverageRoute(app, options.registers);
     registerRegisterEnrollmentCodeRoute(app, options.registers);
+  }
+
+  if (options.devices) {
+    registerDeviceEnrollmentRoute(app, options.devices);
   }
 
   const staticDir = options.staticDir;

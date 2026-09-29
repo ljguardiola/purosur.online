@@ -3,12 +3,9 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { productsListFilters } from "./routes";
+import { almonds, driedFruits, groceries, honey } from "./test-support/products";
 import {
-  almonds,
   createServices,
-  driedFruits,
-  groceries,
-  honey,
   mockLoaded,
   openDeactivateProductModal,
   openEditProductModal,

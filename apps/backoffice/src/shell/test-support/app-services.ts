@@ -54,12 +54,21 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       createCategory: vi.fn(),
       editCategory: vi.fn(),
     },
+    brandsListScreen: {
+      fetchBrands: vi.fn().mockReturnValue(new Promise(() => {})),
+      createBrand: vi.fn(),
+      editBrand: vi.fn(),
+      deactivateBrand: vi.fn(),
+      reactivateBrand: vi.fn(),
+    },
     productsListScreen: {
       fetchProducts: vi.fn().mockReturnValue(new Promise(() => {})),
       createProduct: vi.fn(),
       editProduct: vi.fn(),
       deactivateProduct: vi.fn(),
       fetchCategories: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchBrands: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
+      createBrand: vi.fn(),
       generateInternalBarcode: vi.fn(),
       printLabels: vi.fn(),
     },
@@ -99,6 +108,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     },
     registersListScreen: {
       fetchRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchRegisterCoverage: vi.fn().mockReturnValue(new Promise(() => {})),
       createRegister: vi.fn(),
       emitEnrollmentCode: vi.fn(),
       fetchSessionAuthorizationOptions: vi.fn(),
@@ -118,6 +128,9 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     },
     accountFooter: { signOut: vi.fn().mockResolvedValue({ kind: "ok" }) },
     screenFailure: { isOnline: vi.fn(), reloadPage: vi.fn() },
+    alertsOverviewScreen: {
+      fetchAlertsOverview: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
     alertsListScreen: {
       fetchAlerts: vi.fn().mockReturnValue(new Promise(() => {})),
       alertDetailModal: {

@@ -5,6 +5,7 @@ import { CatalogBarcodeConflict } from "./catalog-store.js";
 export interface CreateProductInput {
   name: string;
   categoryId: string;
+  brandId: string | null;
   saleUnit: SaleUnit;
   barcodes: string[];
   netContent: CatalogNetContent | null;
@@ -13,6 +14,8 @@ export interface CreateProductInput {
 export type CreateProductOutcome =
   | { kind: "category_not_found" }
   | { kind: "category_not_leaf" }
+  | { kind: "brand_not_found" }
+  | { kind: "brand_inactive" }
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "created"; product: CatalogProduct };
 
@@ -30,6 +33,18 @@ export async function createProduct(
         return { kind: "category_not_leaf" };
       }
 
+      if (input.brandId !== null) {
+        // Locks the brand, so a concurrent deactivation can't slip in between this check and the
+        // product's insert.
+        const brand = await tx.lockBrand(input.brandId);
+        if (brand.kind === "not_found") {
+          return { kind: "brand_not_found" };
+        }
+        if (!brand.brand.active) {
+          return { kind: "brand_inactive" };
+        }
+      }
+
       const taken = await tx.activeBarcodesTaken(input.barcodes);
       if (taken.length > 0) {
         return { kind: "barcode_taken", codes: taken };
@@ -38,6 +53,7 @@ export async function createProduct(
       const created = await tx.insertProduct({
         name: input.name,
         categoryId: input.categoryId,
+        brandId: input.brandId,
         saleUnit: input.saleUnit,
         netContent: input.netContent,
       });
@@ -50,6 +66,7 @@ export async function createProduct(
           name: input.name,
           categoryId: input.categoryId,
           categoryName: locked.category.name,
+          brandId: input.brandId,
           saleUnit: input.saleUnit,
           barcodes: input.barcodes,
           netContent: input.netContent,

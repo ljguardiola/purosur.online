@@ -18,6 +18,7 @@ import {
   products,
   recoveryTokens,
   registerEnrollmentCodes,
+  registerInstallations,
   registers,
   rolePermissions,
   roles,
@@ -384,6 +385,9 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
     await tx
       .delete(registerEnrollmentCodes)
       .where(inArray(registerEnrollmentCodes.registerId, sampleRegisterIds));
+    await tx
+      .delete(registerInstallations)
+      .where(inArray(registerInstallations.registerId, sampleRegisterIds));
     const deletedRegisters = await tx
       .delete(registers)
       .where(inArray(registers.id, sampleRegisterIds))

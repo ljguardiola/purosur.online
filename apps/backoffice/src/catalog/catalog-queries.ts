@@ -1,8 +1,9 @@
-import type { CategorySummary, ProductSummary } from "@purosur/contracts";
+import type { BrandSummary, CategorySummary, ProductSummary } from "@purosur/contracts";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
+import type { fetchBrands } from "./brands-api";
 import type { fetchCategories } from "./categories-api";
 import type { fetchProducts, ProductStatusFilter } from "./products-api";
 
@@ -10,6 +11,7 @@ export const catalogKey = ["catalog"] as const;
 
 export const catalogKeys = {
   categories: [...catalogKey, "categories"] as const,
+  brands: [...catalogKey, "brands"] as const,
   products: (status: ProductStatusFilter) => [...catalogKey, "products", status] as const,
 };
 
@@ -21,6 +23,19 @@ export function useCategoriesQuery(params: {
   return useCloudQuery<CategorySummary[]>({
     queryKey: catalogKeys.categories,
     read: params.fetchCategories,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useBrandsQuery(params: {
+  fetchBrands: typeof fetchBrands;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<BrandSummary[]>({
+    queryKey: catalogKeys.brands,
+    read: params.fetchBrands,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
@@ -60,6 +75,29 @@ export function useReloadCategory(params: {
     }
     const category = listed.value.find((listedCategory) => listedCategory.id === id);
     return category ? { kind: "found", category } : { kind: "not_found" };
+  };
+}
+
+export type BrandReload =
+  | { kind: "found"; brand: BrandSummary }
+  | { kind: "not_found" }
+  | { kind: "list_failed" };
+
+export function useReloadBrand(params: {
+  fetchBrands: typeof fetchBrands;
+}): (id: string) => Promise<BrandReload> {
+  const client = useQueryClient();
+  return async (id) => {
+    void client.invalidateQueries({ queryKey: catalogKey });
+    const listed = await fetchCloudQuery(client, {
+      queryKey: catalogKeys.brands,
+      read: params.fetchBrands,
+    });
+    if (listed.kind !== "ok") {
+      return { kind: "list_failed" };
+    }
+    const brand = listed.value.find((listedBrand) => listedBrand.id === id);
+    return brand ? { kind: "found", brand } : { kind: "not_found" };
   };
 }
 
@@ -104,4 +142,11 @@ export function useReloadProduct(params: {
 export function useRefreshCatalog(): () => Promise<void> {
   const client = useQueryClient();
   return () => client.invalidateQueries({ queryKey: catalogKey });
+}
+
+// Marks every catalog list out of date without reading it now, for a change made while a form
+// that renders from those lists is still open.
+export function useMarkCatalogStale(): () => Promise<void> {
+  const client = useQueryClient();
+  return () => client.invalidateQueries({ queryKey: catalogKey, refetchType: "none" });
 }

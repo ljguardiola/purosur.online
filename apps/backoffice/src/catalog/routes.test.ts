@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { categoriesListFilters, productsListFilters } from "./routes";
+import { brandsListFilters, categoriesListFilters, productsListFilters } from "./routes";
 
 test("opens the products list on active products, every category and unit, by name ascending", () => {
   expect(productsListFilters.parse({})).toEqual({
@@ -41,4 +41,21 @@ test("keeps the categories list filters a URL names, falling back for a value it
     search: "",
     sort: "ascending",
   });
+});
+
+test("opens the brands list on active brands, unsearched, by name ascending", () => {
+  expect(brandsListFilters.parse({})).toEqual({
+    search: "",
+    status: "active",
+    sortBy: "brand",
+    sort: "ascending",
+  });
+});
+
+test("keeps the brands list filters a URL names, falling back for a value it does not offer", () => {
+  const filters = { search: "gra", status: "all", sortBy: "products", sort: "descending" };
+  expect(brandsListFilters.parse(filters)).toEqual(filters);
+  expect(
+    brandsListFilters.parse({ search: 1, status: "gone", sortBy: "name", sort: "up" }),
+  ).toEqual(brandsListFilters.parse({}));
 });

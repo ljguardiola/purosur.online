@@ -73,6 +73,32 @@ describe("productCreationBodySchema, categoryId", () => {
   });
 });
 
+describe("productCreationBodySchema, brandId", () => {
+  it.each([undefined, null])("reads %j as no brand", (brandId) => {
+    const result = productCreationBodySchema.safeParse(validBody({ brandId }));
+
+    expect(result).toMatchObject({ success: true, data: { brandId: null } });
+  });
+
+  it("keeps a brand id, in its canonical lowercase form", () => {
+    const result = productCreationBodySchema.safeParse(
+      validBody({ brandId: "D131EC62-1111-4AAA-8BBB-ABCDEF012345" }),
+    );
+
+    expect(result).toMatchObject({
+      success: true,
+      data: { brandId: "d131ec62-1111-4aaa-8bbb-abcdef012345" },
+    });
+  });
+
+  it.each([42, "", true, {}])("rejects the brandId %j", (brandId) => {
+    expect(firstFailure(validBody({ brandId }))).toEqual({
+      field: "brandId",
+      message: "brandId must be an existing brand's id, or null for none",
+    });
+  });
+});
+
 describe("productCreationBodySchema, saleUnit", () => {
   it.each(SALE_UNITS)("accepts %s", (saleUnit) => {
     expect(isAccepted(validBody({ saleUnit }))).toBe(true);
@@ -219,19 +245,27 @@ describe("productCreationBodySchema, netContent", () => {
 });
 
 describe("productCreationBodySchema, order and unknown keys", () => {
-  it("reports the first failing field in the order name, categoryId, saleUnit, barcodes, netContent", () => {
-    const allInvalid = { name: "", categoryId: "", saleUnit: "x", barcodes: [], netContent: "x" };
+  it("reports the first failing field in the order name, categoryId, brandId, saleUnit, barcodes, netContent", () => {
+    const allInvalid = {
+      name: "",
+      categoryId: "",
+      brandId: 42,
+      saleUnit: "x",
+      barcodes: [],
+      netContent: "x",
+    };
 
     expect(firstFailure(allInvalid)?.field).toBe("name");
     expect(firstFailure({ ...allInvalid, name: "a" })?.field).toBe("categoryId");
-    expect(firstFailure({ ...allInvalid, name: "a", categoryId: "c" })?.field).toBe("saleUnit");
-    expect(firstFailure({ ...allInvalid, name: "a", categoryId: "c", saleUnit: "KG" })?.field).toBe(
-      "barcodes",
+    expect(firstFailure({ ...allInvalid, name: "a", categoryId: "c" })?.field).toBe("brandId");
+    expect(firstFailure({ ...allInvalid, name: "a", categoryId: "c", brandId: null })?.field).toBe(
+      "saleUnit",
     );
-    expect(
-      firstFailure({ ...allInvalid, name: "a", categoryId: "c", saleUnit: "KG", barcodes: ["1"] })
-        ?.field,
-    ).toBe("netContent");
+    const validUpToSaleUnit = { name: "a", categoryId: "c", brandId: null, saleUnit: "KG" };
+    expect(firstFailure({ ...allInvalid, ...validUpToSaleUnit })?.field).toBe("barcodes");
+    expect(firstFailure({ ...allInvalid, ...validUpToSaleUnit, barcodes: ["1"] })?.field).toBe(
+      "netContent",
+    );
   });
 
   it("strips keys it does not know", () => {
@@ -240,6 +274,7 @@ describe("productCreationBodySchema, order and unknown keys", () => {
     expect(result.data).toEqual({
       name: "Maceta",
       categoryId: "cat-1",
+      brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
       netContent: null,

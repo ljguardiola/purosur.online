@@ -60,20 +60,28 @@ describe("two edits racing on the same role's version, on a real Postgres throug
     const roleId = await insertRole(`Cajera ${suffix}`);
 
     const [first, second] = await Promise.all([
-      editRole(db, {
-        id: roleId,
-        name: `Primera ${suffix}`,
-        permissionKeys: ["sell_and_charge"],
-        version: 1,
-        actorId: administratorId,
-      }),
-      editRole(db, {
-        id: roleId,
-        name: `Segunda ${suffix}`,
-        permissionKeys: ["adjust_stock"],
-        version: 1,
-        actorId: administratorId,
-      }),
+      editRole(
+        db,
+        {
+          id: roleId,
+          name: `Primera ${suffix}`,
+          permissionKeys: ["sell_and_charge"],
+          version: 1,
+          actorId: administratorId,
+        },
+        { now: () => new Date() },
+      ),
+      editRole(
+        db,
+        {
+          id: roleId,
+          name: `Segunda ${suffix}`,
+          permissionKeys: ["adjust_stock"],
+          version: 1,
+          actorId: administratorId,
+        },
+        { now: () => new Date() },
+      ),
     ]);
 
     const outcomes = [first, second];
@@ -103,20 +111,28 @@ describe("two edits racing to rename different roles to the same name, on a real
     const targetName = `Compartido ${suffix}`;
 
     const [first, second] = await Promise.all([
-      editRole(db, {
-        id: roleAId,
-        name: targetName,
-        permissionKeys: [],
-        version: 1,
-        actorId: administratorId,
-      }),
-      editRole(db, {
-        id: roleBId,
-        name: targetName.toUpperCase(),
-        permissionKeys: [],
-        version: 1,
-        actorId: administratorId,
-      }),
+      editRole(
+        db,
+        {
+          id: roleAId,
+          name: targetName,
+          permissionKeys: [],
+          version: 1,
+          actorId: administratorId,
+        },
+        { now: () => new Date() },
+      ),
+      editRole(
+        db,
+        {
+          id: roleBId,
+          name: targetName.toUpperCase(),
+          permissionKeys: [],
+          version: 1,
+          actorId: administratorId,
+        },
+        { now: () => new Date() },
+      ),
     ]);
 
     const outcomes = [first, second];
