@@ -334,9 +334,11 @@ describe("scrubErrorReportBreadcrumb", () => {
   });
 
   it("redacts personal data and credentials in an error's message and stack", () => {
-    const error = new Error("customer with CUIT 20-30405060-7 and DNI 12.345.678 rejected");
+    const error = new Error(
+      "customer ana.perez@example.com with CUIT 20-30405060-7 and DNI 12.345.678 rejected",
+    );
     error.stack =
-      "Error: connect redis://default:secret@cache.internal:6379 failed\n" +
+      "Error: connect redis://default:secret@cache.internal:6379 failed for ana.perez@example.com\n" +
       "    at fetch (https://cloud.purosur.online/sales?token=abc123:1:1)\n" +
       "    at authorize (Bearer eyJhbGciOi.payload.sig)";
     const breadcrumb = { data: { arguments: [error] } };
@@ -345,10 +347,10 @@ describe("scrubErrorReportBreadcrumb", () => {
       arguments: [
         {
           name: "Error",
-          message: "customer with CUIT [redacted] and DNI [redacted] rejected",
+          message: "customer [redacted] with CUIT [redacted] and DNI [redacted] rejected",
           stack:
-            "Error: connect [redacted] failed\n" +
-            "    at fetch (https://cloud.purosur.online/sales?[redacted]\n" +
+            "Error: connect [redacted] failed for [redacted]\n" +
+            "    at fetch (https://cloud.purosur.online/sales?[redacted]:1:1)\n" +
             "    at authorize ([redacted])",
         },
       ],
@@ -561,6 +563,79 @@ describe("keys", () => {
     };
 
     expect(scrubErrorReport({ extra }).extra).toEqual(extra);
+  });
+});
+
+describe("personal data in text", () => {
+  it("redacts an email address in the message and in a breadcrumb's text", () => {
+    const event = {
+      message: "no customer for ana.perez@example.com",
+      breadcrumbs: [
+        { message: "sent to Juan_Diaz+caja@mail.example.com.ar", data: { to: "ana@example.com" } },
+      ],
+    };
+
+    const scrubbed = scrubErrorReport(event);
+
+    expect(scrubbed.message).toBe("no customer for [redacted]");
+    expect(scrubbed.breadcrumbs).toStrictEqual([
+      { message: "sent to [redacted]", data: { to: "[redacted]" } },
+    ]);
+  });
+
+  it("keeps package and release names that carry an at sign", () => {
+    const message = "@sentry/node@10.75.3 in purosur-pos@1.2.3 failed";
+
+    expect(scrubErrorReport({ message }).message).toBe(message);
+  });
+
+  it("redacts the account name in a home folder path while keeping the frame's file, line and column", () => {
+    for (const { frame, expected } of [
+      {
+        frame: "at start (/home/ana/purosur/dist/main.js:10:5)",
+        expected: "at start (/home/[redacted]/purosur/dist/main.js:10:5)",
+      },
+      {
+        frame: "at start (file:///Users/ana/purosur/dist/main.js:10:5)",
+        expected: "at start (file:///Users/[redacted]/purosur/dist/main.js:10:5)",
+      },
+      {
+        frame: String.raw`at start (C:\\Users\\ana\\AppData\\Local\\purosur\\main.js:10:5)`,
+        expected: String.raw`at start (C:\\Users\\[redacted]\\AppData\\Local\\purosur\\main.js:10:5)`,
+      },
+      {
+        frame: String.raw`at start (C:\Users\ana.perez\AppData\Local\purosur\main.js:10:5)`,
+        expected: String.raw`at start (C:\Users\[redacted]\AppData\Local\purosur\main.js:10:5)`,
+      },
+      {
+        frame: "at start (file:///c:/Users/ana/purosur/main.js:10:5)",
+        expected: "at start (file:///c:/Users/[redacted]/purosur/main.js:10:5)",
+      },
+    ]) {
+      expect(scrubErrorReport({ message: frame }).message).toBe(expected);
+    }
+  });
+
+  it("keeps a URL whose path has a home or Users folder", () => {
+    const message = "GET https://cloud.purosur.online/home/banner and /api/Users/42/roles failed";
+
+    expect(scrubErrorReport({ message }).message).toBe(message);
+  });
+
+  it("keeps a stack frame's line and column after redacting a relative path's query", () => {
+    const message = "at render (/src/sales/sale-screen.tsx?t=1727561234:10:5)";
+
+    expect(scrubErrorReport({ message }).message).toBe(
+      "at render (/src/sales/sale-screen.tsx?[redacted]:10:5)",
+    );
+  });
+
+  it("keeps a stack frame's line and column after redacting its URL's query", () => {
+    const message = "at render (http://localhost:5173/src/sales/sale-screen.tsx?t=1727561234:10:5)";
+
+    expect(scrubErrorReport({ message }).message).toBe(
+      "at render (http://localhost:5173/src/sales/sale-screen.tsx?[redacted]:10:5)",
+    );
   });
 });
 

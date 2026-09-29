@@ -49,6 +49,14 @@ const SDK_LOG_ATTRIBUTE_DIAGNOSTICS: ReadonlySet<string> = new Set(
 const URL_PATTERN = /(?<![a-zA-Z0-9+.-])[a-zA-Z0-9+.-]+:\/\/[^\s"'<>]+/g;
 const USERINFO_PATTERN = /^[^/]*@/;
 const BEARER_TOKEN_PATTERN = /\bBearer\s+[A-Za-z0-9\-_.]+/g;
+// The domain must end in letters, so a package or release name such as `purosur-pos@1.2.3` is kept.
+const EMAIL_PATTERN = /(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]+@(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}/g;
+// A home folder is only matched where a path starts, so a URL's own `/home/` segment is kept.
+const UNIX_HOME_ACCOUNT_PATTERN = /(?<![\w.-])(\/(?:home|Users)\/)[^/\s]+(?=\/)/g;
+const WINDOWS_HOME_ACCOUNT_PATTERN =
+  /(?<![A-Za-z0-9])([A-Z]:(?:\\+|\/)Users(?:\\+|\/))[^\\/\s]+(?=[\\/])/gi;
+// A stack frame writes the line and column right after the URL, inside the same word.
+const FRAME_POSITION_PATTERN = /:\d+:\d+\)?$/;
 
 // Only a closing bracket/parenthesis/angle-bracket/quote/backtick is trusted as wrapping a path
 // rather than part of it; sentence punctuation stays inside the redaction instead of being guessed at.
@@ -61,14 +69,15 @@ function redactPathToken(token: string): string {
   }
 
   const queryPart = token.slice(queryIndex + 1);
-  if (queryPart === REDACTED) {
+  const framePosition = FRAME_POSITION_PATTERN.exec(queryPart)?.[0] ?? "";
+  if (queryPart.slice(0, queryPart.length - framePosition.length) === REDACTED) {
     // Already scrubbed by URL_PATTERN above, or by this same pass on an earlier call: redacting
     // again would misread the placeholder's own closing "]" as a delimiter to preserve.
     return token;
   }
 
-  const closingDelimiter = TRAILING_DELIMITER_PATTERN.exec(queryPart)?.[0] ?? "";
-  return `${token.slice(0, queryIndex)}?${REDACTED}${closingDelimiter}`;
+  const kept = framePosition || (TRAILING_DELIMITER_PATTERN.exec(queryPart)?.[0] ?? "");
+  return `${token.slice(0, queryIndex)}?${REDACTED}${kept}`;
 }
 
 function toSnakeCase(key: string): string {
@@ -89,7 +98,11 @@ function redactUrl(url: string): string {
     return REDACTED;
   }
   const queryStart = url.search(/[?#]/);
-  return queryStart === -1 ? url : `${url.slice(0, queryStart)}?${REDACTED}`;
+  if (queryStart === -1) {
+    return url;
+  }
+  const framePosition = FRAME_POSITION_PATTERN.exec(url)?.[0] ?? "";
+  return `${url.slice(0, queryStart)}?${REDACTED}${framePosition}`;
 }
 
 function redactString(value: string): string {
@@ -97,6 +110,9 @@ function redactString(value: string): string {
     .replace(URL_PATTERN, redactUrl)
     .replace(/\S+/g, redactPathToken)
     .replace(BEARER_TOKEN_PATTERN, REDACTED)
+    .replace(EMAIL_PATTERN, REDACTED)
+    .replace(UNIX_HOME_ACCOUNT_PATTERN, `$1${REDACTED}`)
+    .replace(WINDOWS_HOME_ACCOUNT_PATTERN, `$1${REDACTED}`)
     .replace(CUIT_PATTERN, REDACTED)
     .replace(DNI_PATTERN, REDACTED);
 }
