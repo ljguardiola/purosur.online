@@ -67,6 +67,26 @@ test("lists only products with an internal barcode", async () => {
   expect(dialog.getByText("Producto sin código interno").query()).toBeNull();
 });
 
+test("lists the products alphabetically by name", async () => {
+  const services = createServices();
+  mockLoaded(services, [honeyWithInternalBarcode, almondsWithInternalBarcode]);
+  const screen = await renderScreen(services);
+
+  const dialog = await openPrintLabelsModal(screen);
+
+  await expect
+    .poll(() =>
+      dialog
+        .getByRole("button", { name: /^Sumar una etiqueta a / })
+        .all()
+        .map((button) => button.element().getAttribute("aria-label")),
+    )
+    .toEqual([
+      `Sumar una etiqueta a ${almondsWithInternalBarcode.name}`,
+      `Sumar una etiqueta a ${honeyWithInternalBarcode.name}`,
+    ]);
+});
+
 test("does not list an inactive product, even with an internal barcode", async () => {
   const services = createServices();
   const inactiveAlmonds: ProductSummary = { ...almondsWithInternalBarcode, active: false };
