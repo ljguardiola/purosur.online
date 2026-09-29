@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Info as InfoIcon } from "lucide-react";
+import { Check, Info as InfoIcon } from "lucide-react";
 import { HighlightedNotice } from "./highlighted-notice";
 
 const meta: Meta<typeof HighlightedNotice> = {
@@ -19,7 +19,12 @@ export const Info: Story = {
 };
 
 export const Success: Story = {
-  args: { tone: "success", title: "Turno cerrado", description: "La caja cuadró sin diferencias." },
+  args: {
+    tone: "success",
+    icon: <Check />,
+    title: "Turno cerrado",
+    description: "La caja cuadró sin diferencias.",
+  },
 };
 
 export const Warning: Story = {

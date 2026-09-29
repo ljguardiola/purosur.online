@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Info as InfoIcon } from "lucide-react";
+import { Check, Info as InfoIcon } from "lucide-react";
 import { InlineNotice } from "./inline-notice";
 
 const meta: Meta<typeof InlineNotice> = {
@@ -23,7 +23,12 @@ export const Info: Story = {
 };
 
 export const Success: Story = {
-  args: { tone: "success", title: "Cambios guardados", description: "Todo quedó sincronizado." },
+  args: {
+    tone: "success",
+    icon: <Check />,
+    title: "Cambios guardados",
+    description: "Todo quedó sincronizado.",
+  },
 };
 
 export const Warning: Story = {
