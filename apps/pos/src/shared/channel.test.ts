@@ -87,6 +87,12 @@ describe("parseChannelFile", () => {
     }
   });
 
+  it("rejects a cloud reached over plain http, which would send the device token in clear", () => {
+    const result = parse({ ...stagingFile, cloudUrl: "http://staging.purosur.online" });
+
+    expect(result).toEqual({ ok: false, reason: expect.stringContaining("cloudUrl") });
+  });
+
   it("rejects a field it doesn't know, so a misspelled one can't be silently ignored", () => {
     const result = parse({ ...productionFile, sentryDSN: "https://public@o1.ingest.sentry.io/2" });
 
@@ -168,6 +174,13 @@ describe("parseLocalChannelFile", () => {
     const result = parseLocal({ channel: "production", dataFolder: "purosur-pos-staging" });
 
     expect(result).toEqual({ ok: false, reason: expect.stringContaining("dataFolder") });
+  });
+
+  it("lets a local run reach a cloud on this machine over plain http", () => {
+    expect(parseLocal({ channel: "staging", cloudUrl: "http://localhost:3001" })).toMatchObject({
+      ok: true,
+      settings: { cloudUrl: "http://localhost:3001" },
+    });
   });
 
   it("applies the same channel and DSN rules as an installed register's file", () => {

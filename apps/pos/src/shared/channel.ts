@@ -67,7 +67,16 @@ function dataFolderProblem(channel: Channel, dataFolder: string): string | undef
   return undefined;
 }
 
-function parseFields(text: string, knownFields: ReadonlySet<string>): ChannelFileResult {
+function isHttpsUrl(value: string): boolean {
+  return isHttpUrl(value) && new URL(value).protocol === "https:";
+}
+
+// Only an unpackaged run may reach its cloud over plain http, such as one on this same machine.
+function parseFields(
+  text: string,
+  knownFields: ReadonlySet<string>,
+  allowPlainHttpCloud: boolean,
+): ChannelFileResult {
   let data: unknown;
   try {
     data = JSON.parse(text);
@@ -100,8 +109,11 @@ function parseFields(text: string, knownFields: ReadonlySet<string>): ChannelFil
     return fail("sentryDsn must be an http(s) URL when present");
   }
 
-  if (cloudUrl !== undefined && (typeof cloudUrl !== "string" || !isHttpUrl(cloudUrl))) {
-    return fail("cloudUrl must be an http(s) URL when present");
+  const isCloudUrl = allowPlainHttpCloud ? isHttpUrl : isHttpsUrl;
+  if (cloudUrl !== undefined && (typeof cloudUrl !== "string" || !isCloudUrl(cloudUrl))) {
+    return fail(
+      `cloudUrl must be an ${allowPlainHttpCloud ? "http(s)" : "https"} URL when present`,
+    );
   }
 
   return {
@@ -117,12 +129,12 @@ function parseFields(text: string, knownFields: ReadonlySet<string>): ChannelFil
 
 /** An installed register's file: its data folder is always its channel's own. */
 export function parseChannelFile(text: string): ChannelFileResult {
-  return parseFields(text, CHANNEL_FILE_FIELDS);
+  return parseFields(text, CHANNEL_FILE_FIELDS, false);
 }
 
 /** An unpackaged run's file (development and end-to-end tests), which may name its data folder. */
 export function parseLocalChannelFile(text: string): ChannelFileResult {
-  return parseFields(text, LOCAL_CHANNEL_FILE_FIELDS);
+  return parseFields(text, LOCAL_CHANNEL_FILE_FIELDS, true);
 }
 
 export function serializeChannelFile(file: ChannelFile): string {
