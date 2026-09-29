@@ -1,4 +1,5 @@
 import {
+  type BrandSummary,
   type CategorySummary,
   type ProductSummary,
   productCreationBodySchema,
@@ -62,14 +63,18 @@ import { combineCloudData } from "../platform/combine-cloud-data";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
+import type { createBrand } from "./brands-api";
 import {
   type ProductReload,
+  useBrandsQuery,
   useCategoriesQuery,
   useProductsQuery,
   useRefreshCatalog,
   useReloadProduct,
 } from "./catalog-queries";
 import { categoriesInTreeOrder, categoryPathLabels, leafCategories } from "./category-path";
+import { NewBrandModal } from "./new-brand-modal";
+import { ProductBrandField, withCreatedBrand } from "./product-brand-field";
 import {
   type BarcodeListValue,
   barcodeProblemMessage,
@@ -102,6 +107,7 @@ export type ProductsListScreenProps = {
 
 const NO_PRODUCTS: ProductSummary[] = [];
 const NO_CATEGORIES: CategorySummary[] = [];
+const NO_BRANDS: BrandSummary[] = [];
 
 type CategoryFilter = "ALL" | string;
 type UnitFilter = "ALL" | ProductSaleUnit;
@@ -124,6 +130,8 @@ const SALE_UNIT_OPTIONS = [
     description: "Se pesa en la balanza",
   },
 ] as const;
+const PRODUCT_BRAND_INACTIVE_ERROR =
+  "La marca elegida se dio de baja. Elegí otra o dejala sin marca.";
 const PRODUCT_BARCODE_TAKEN_UNNAMED = "Alguno de los códigos ya es de otro producto.";
 const PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED =
   "No se pudo generar el código interno. Probá de nuevo.";
@@ -459,14 +467,49 @@ function categoryNameOf(categories: CategorySummary[], id: string): string {
   return categories.find((category) => category.id === id)?.name ?? "";
 }
 
+type StackedBrandCreation = {
+  open: boolean;
+  created: BrandSummary | null;
+  start: () => void;
+  reset: () => void;
+  close: () => void;
+  select: (brand: BrandSummary) => void;
+};
+
+// The brand modal opens over the product form, which stays mounted with everything typed in it;
+// the brand it creates is kept here until the brands are read again, so it's selectable at once.
+function useStackedBrandCreation(chooseBrand: (brandId: string) => void): StackedBrandCreation {
+  const refreshCatalog = useRefreshCatalog();
+  const [open, setOpen] = useState(false);
+  const [created, setCreated] = useState<BrandSummary | null>(null);
+  return {
+    open,
+    created,
+    start: () => setOpen(true),
+    reset: () => {
+      setOpen(false);
+      setCreated(null);
+    },
+    close: () => setOpen(false),
+    select: (brand) => {
+      setCreated(brand);
+      chooseBrand(brand.id);
+      setOpen(false);
+      void refreshCatalog();
+    },
+  };
+}
+
 type NewProductModalProps = {
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
   onSessionEnded: () => void;
   createProduct: typeof createProduct;
+  createBrand: typeof createBrand;
   generateInternalBarcode: typeof generateInternalBarcode;
   categories: CategorySummary[];
+  brands: BrandSummary[];
 };
 
 function NewProductModal({
@@ -475,8 +518,10 @@ function NewProductModal({
   onCreated,
   onSessionEnded,
   createProduct,
+  createBrand,
   generateInternalBarcode,
   categories,
+  brands,
 }: NewProductModalProps) {
   const sendToMyAccount = useSendToMyAccount();
   const [notice, setNotice] = useState<
@@ -524,6 +569,10 @@ function NewProductModal({
         );
         return;
       }
+      if (outcome.kind === "brand_inactive") {
+        showFieldError("brandId", PRODUCT_BRAND_INACTIVE_ERROR);
+        return;
+      }
       if (outcome.kind === "rate_limited") {
         setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
         return;
@@ -549,14 +598,19 @@ function NewProductModal({
     PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED,
   );
 
+  const brandCreation = useStackedBrandCreation((brandId) =>
+    form.setFieldValue("brandId", brandId),
+  );
+
   useEffect(() => {
     if (open) {
       reset();
       chips.reset();
       setNotice(null);
       generate.reset();
+      brandCreation.reset();
     }
-  }, [open, reset, chips.reset, generate.reset]);
+  }, [open, reset, chips.reset, generate.reset, brandCreation.reset]);
 
   const categoryOptions = categorySelectOptions(categories);
 
@@ -634,6 +688,16 @@ function NewProductModal({
             )
           }
         </form.AppField>
+        <form.AppField name="brandId">
+          {() => (
+            <ProductBrandField
+              brands={withCreatedBrand(brands, brandCreation.created)}
+              keptBrandId={null}
+              disabled={submitting}
+              onCreateBrand={brandCreation.start}
+            />
+          )}
+        </form.AppField>
         <form.AppField name="netContent">
           {(field) => (
             <field.QuantityUnitField
@@ -660,6 +724,14 @@ function NewProductModal({
             />
           )}
         </form.AppField>
+        <NewBrandModal
+          open={brandCreation.open}
+          context="Marcas"
+          createBrand={createBrand}
+          onCreated={brandCreation.select}
+          onClose={brandCreation.close}
+          onSessionEnded={onSessionEnded}
+        />
       </div>
     </Modal>
   );
@@ -672,8 +744,10 @@ type EditProductModalProps = {
   onSessionEnded: () => void;
   reload: (id: string) => Promise<ProductReload>;
   editProduct: typeof editProduct;
+  createBrand: typeof createBrand;
   generateInternalBarcode: typeof generateInternalBarcode;
   categories: CategorySummary[];
+  brands: BrandSummary[];
 };
 
 type EditNotice =
@@ -690,12 +764,15 @@ function EditProductModal({
   onSessionEnded,
   reload,
   editProduct,
+  createBrand,
   generateInternalBarcode,
   categories,
+  brands,
 }: EditProductModalProps) {
   const sendToMyAccount = useSendToMyAccount();
   const open = target !== null;
   const [title, setTitle] = useState("");
+  const [keptBrandId, setKeptBrandId] = useState<string | null>(null);
   const [notice, setNotice] = useState<EditNotice | null>(null);
   const [reloading, setReloading] = useState(false);
   const { form, submit, submitting, values, reset } = useCloudForm({
@@ -749,6 +826,10 @@ function EditProductModal({
         );
         return;
       }
+      if (outcome.kind === "brand_inactive") {
+        showFieldError("brandId", PRODUCT_BRAND_INACTIVE_ERROR);
+        return;
+      }
       if (outcome.kind === "rate_limited") {
         setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
         return;
@@ -774,16 +855,22 @@ function EditProductModal({
     PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED,
   );
 
+  const brandCreation = useStackedBrandCreation((brandId) =>
+    form.setFieldValue("brandId", brandId),
+  );
+
   useEffect(() => {
     if (open && target) {
       reset(productFormValues(target));
       setTitle(target.name);
+      setKeptBrandId(target.brandId);
       chips.reset();
       setNotice(null);
       setReloading(false);
       generate.reset();
+      brandCreation.reset();
     }
-  }, [open, target, reset, chips.reset, generate.reset]);
+  }, [open, target, reset, chips.reset, generate.reset, brandCreation.reset]);
 
   const categoryOptions = categorySelectOptions(categories);
 
@@ -796,6 +883,7 @@ function EditProductModal({
     if (outcome.kind === "found") {
       reset(productFormValues(outcome.product));
       setTitle(outcome.product.name);
+      setKeptBrandId(outcome.product.brandId);
       chips.reset();
       setNotice(null);
       setReloading(false);
@@ -931,6 +1019,16 @@ function EditProductModal({
               )
             }
           </form.AppField>
+          <form.AppField name="brandId">
+            {() => (
+              <ProductBrandField
+                brands={withCreatedBrand(brands, brandCreation.created)}
+                keptBrandId={keptBrandId}
+                disabled={busy}
+                onCreateBrand={brandCreation.start}
+              />
+            )}
+          </form.AppField>
           <form.AppField name="netContent">
             {(field) => (
               <field.QuantityUnitField
@@ -961,6 +1059,14 @@ function EditProductModal({
               />
             )}
           </form.AppField>
+          <NewBrandModal
+            open={brandCreation.open}
+            context="Marcas"
+            createBrand={createBrand}
+            onCreated={brandCreation.select}
+            onClose={brandCreation.close}
+            onSessionEnded={onSessionEnded}
+          />
         </div>
       ) : null}
     </Modal>
@@ -1460,6 +1566,8 @@ export function ProductsListScreen({
     editProduct: editProductService,
     deactivateProduct: deactivateProductService,
     fetchCategories: fetchCategoriesService,
+    fetchBrands: fetchBrandsService,
+    createBrand: createBrandService,
     generateInternalBarcode: generateInternalBarcodeService,
     printLabels: printLabelsService,
   } = services;
@@ -1493,9 +1601,10 @@ export function ProductsListScreen({
     fetchCategories: fetchCategoriesService,
     onSessionEnded,
   });
-  const data = combineCloudData(productsData, categoriesData);
-  const [products, categories] =
-    data.status === "loaded" ? data.value : [NO_PRODUCTS, NO_CATEGORIES];
+  const brandsData = useBrandsQuery({ fetchBrands: fetchBrandsService, onSessionEnded });
+  const data = combineCloudData(combineCloudData(productsData, categoriesData), brandsData);
+  const [[products, categories], brands] =
+    data.status === "loaded" ? data.value : [[NO_PRODUCTS, NO_CATEGORIES], NO_BRANDS];
 
   useEffect(() => {
     if (data.status === "failed") {
@@ -1712,8 +1821,10 @@ export function ProductsListScreen({
         }}
         onSessionEnded={onSessionEnded}
         createProduct={createProductService}
+        createBrand={createBrandService}
         generateInternalBarcode={generateInternalBarcodeService}
         categories={categories}
+        brands={brands}
       />
       {data.status === "loaded" ? (
         <EditProductModal
@@ -1726,8 +1837,10 @@ export function ProductsListScreen({
           onSessionEnded={onSessionEnded}
           reload={reloadProduct}
           editProduct={editProductService}
+          createBrand={createBrandService}
           generateInternalBarcode={generateInternalBarcodeService}
-          categories={data.value[1]}
+          categories={categories}
+          brands={brands}
         />
       ) : null}
       <DeactivateProductModal

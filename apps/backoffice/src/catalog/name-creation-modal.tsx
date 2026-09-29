@@ -15,7 +15,7 @@ export type NameCreationOutcome<Created> =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-export type NameCreationTexts = {
+type NameCreationTexts = {
   title: string;
   submitLabel: string;
   nameTaken: string;

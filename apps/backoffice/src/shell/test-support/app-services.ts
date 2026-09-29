@@ -67,6 +67,8 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       editProduct: vi.fn(),
       deactivateProduct: vi.fn(),
       fetchCategories: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchBrands: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
+      createBrand: vi.fn(),
       generateInternalBarcode: vi.fn(),
       printLabels: vi.fn(),
     },
