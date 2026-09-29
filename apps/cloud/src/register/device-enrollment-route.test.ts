@@ -4,6 +4,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { registerRouteAccess } from "../access/route-access.js";
 import {
+  alerts,
   registerEnrollmentAttempts,
   registerEnrollmentCodes,
   registerInstallations,
@@ -124,6 +125,22 @@ describe("POST /devices/enroll", () => {
     expect(after?.revokedAt).toEqual(NOW);
   });
 
+  it("opens the register's enrollment alert along with the installation", async () => {
+    const registerId = await insertRegisterWithCode();
+
+    const response = await enroll();
+
+    const body = deviceEnrollmentSchema.parse(response.json());
+    expect(await db.select().from(alerts)).toEqual([
+      expect.objectContaining({
+        kind: "register_enrolled",
+        scope: registerId,
+        openedAt: NOW,
+        detail: expect.objectContaining({ deviceId: body.device_id }),
+      }),
+    ]);
+  });
+
   it("refuses a code that no longer works with enrollment_code_rejected, creating no installation", async () => {
     await insertRegisterWithCode({ expiresAt: NOW });
 
@@ -136,6 +153,7 @@ describe("POST /devices/enroll", () => {
       details: [],
     });
     expect(await db.select().from(registerInstallations)).toEqual([]);
+    expect(await db.select().from(alerts)).toEqual([]);
   });
 
   it("refuses an attempt past the hour's limit as rate_limited with when to retry", async () => {

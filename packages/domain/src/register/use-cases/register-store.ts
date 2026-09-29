@@ -43,6 +43,15 @@ export interface NewInstallation {
   enrolledAt: Date;
 }
 
+export interface EnrollmentAlert {
+  registerId: string;
+  deviceId: string;
+  hostname: string;
+  windowsVersion: string;
+  replacedInstallation: boolean;
+  enrolledAt: Date;
+}
+
 export interface RegisterStore {
   transaction<TOutcome>(
     work: (tx: RegisterStoreTransaction) => Promise<TOutcome>,
@@ -55,7 +64,8 @@ export interface RegisterStoreTransaction {
   acceptedEnrollmentAttempts(key: EnrollmentAttemptKey, since: Date): Promise<Date[]>;
   recordEnrollmentAttempt(keys: readonly EnrollmentAttemptKey[], attemptedAt: Date): Promise<void>;
   recordFailedEnrollmentAttempt(registerIds: readonly string[]): Promise<void>;
-  revokeActiveInstallation(registerId: string, revokedAt: Date): Promise<void>;
+  revokeActiveInstallation(registerId: string, revokedAt: Date): Promise<{ revoked: boolean }>;
   recordInstallation(installation: NewInstallation): Promise<{ deviceId: string }>;
   markEnrollmentCodeRedeemed(registerId: string, redeemedAt: Date): Promise<void>;
+  openEnrollmentAlert(alert: EnrollmentAlert): Promise<void>;
 }
