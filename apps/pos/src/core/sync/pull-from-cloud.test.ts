@@ -91,6 +91,30 @@ describe("a pull from the cloud", () => {
     expect(await replica.savedCursor()).toBe(2);
   });
 
+  it("pulls from the very first cursor once another installation's credentials are stored", async () => {
+    const replica = freshReplica();
+    await pullFromCloud({
+      readCredentials: async () => CREDENTIALS,
+      replica,
+      getFromCloud: cloudAnswering(page([1, 2, 3], false)).getFromCloud,
+    });
+    const { getFromCloud, requests } = cloudAnswering(page([1], false));
+
+    await pullFromCloud({
+      readCredentials: async () => ({
+        ...CREDENTIALS,
+        device_id: "c9d2",
+        device_token: "new.token",
+      }),
+      replica,
+      getFromCloud,
+    });
+
+    expect(requests).toEqual([
+      { path: "/sync/pull?since=0", headers: { authorization: "Bearer new.token" } },
+    ]);
+  });
+
   it("asks nothing of the cloud before the register is enrolled", async () => {
     const { getFromCloud, requests } = cloudAnswering();
 

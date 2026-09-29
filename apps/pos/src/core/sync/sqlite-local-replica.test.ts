@@ -103,6 +103,33 @@ describe("the register's local copy of what it pulls", () => {
     expect(storedBranchSettings()).toEqual(settingsRow({ version: 3, sunday_hours: [] }));
   });
 
+  it("keeps its cursor for the installation that pulled it", async () => {
+    replica.adoptDevice("device-a");
+    await replica.savePage({
+      changes: [branchSettingsChange(7, settingsRow())],
+      cursor: 7,
+      hasMore: false,
+    });
+
+    replica.adoptDevice("device-a");
+
+    expect(await replica.savedCursor()).toBe(7);
+  });
+
+  it("starts over from the very first cursor when another installation takes over, keeping what it holds", async () => {
+    replica.adoptDevice("device-a");
+    await replica.savePage({
+      changes: [branchSettingsChange(7, settingsRow())],
+      cursor: 7,
+      hasMore: false,
+    });
+
+    replica.adoptDevice("device-b");
+
+    expect(await replica.savedCursor()).toBe(0);
+    expect(storedBranchSettings()).toEqual(settingsRow());
+  });
+
   it("saves neither the data nor the cursor when the page can't be saved whole", async () => {
     database.exec(
       "CREATE TRIGGER refuse_cursor BEFORE UPDATE ON pull_cursor BEGIN SELECT RAISE(ABORT, 'disk full'); END",

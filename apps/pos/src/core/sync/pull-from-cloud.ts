@@ -7,9 +7,13 @@ import type { DeviceCredentials } from "../../shared/device-credentials-messages
 import { CloudPullFeed, type GetFromCloud, type PullFailure } from "./cloud-pull-feed";
 import type { RegisterPulledChange } from "./pulled-change";
 
+interface RegisterReplica extends LocalReplica<RegisterPulledChange> {
+  adoptDevice(deviceId: string): void;
+}
+
 export interface PullFromCloudDeps {
   readCredentials: () => Promise<DeviceCredentials | undefined>;
-  replica: LocalReplica<RegisterPulledChange> | undefined;
+  replica: RegisterReplica | undefined;
   getFromCloud: GetFromCloud | undefined;
 }
 
@@ -30,6 +34,7 @@ export async function pullFromCloud(deps: PullFromCloudDeps): Promise<PullAttemp
   if (credentials === undefined) {
     return { kind: "not_enrolled" };
   }
+  deps.replica.adoptDevice(credentials.device_id);
   return catchUpWithCloud({
     replica: deps.replica,
     feed: new CloudPullFeed(deps.getFromCloud, credentials.device_token),

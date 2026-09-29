@@ -37,6 +37,16 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
     this.database = database;
   }
 
+  // A cursor only means something to the installation that pulled it: another one, perhaps of
+  // another branch, starts over from the first change.
+  adoptDevice(deviceId: string): void {
+    this.database
+      .prepare<[string, string]>(
+        "UPDATE pull_cursor SET change_seq = 0, device_id = ? WHERE id = 1 AND device_id IS NOT ?",
+      )
+      .run(deviceId, deviceId);
+  }
+
   async savedCursor(): Promise<number> {
     const row = this.database
       .prepare<[], { change_seq: number }>("SELECT change_seq FROM pull_cursor WHERE id = 1")

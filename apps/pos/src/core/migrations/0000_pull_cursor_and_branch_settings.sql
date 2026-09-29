@@ -1,6 +1,7 @@
 CREATE TABLE pull_cursor (
   id INTEGER PRIMARY KEY CHECK (id = 1),
-  change_seq INTEGER NOT NULL CHECK (change_seq >= 0)
+  change_seq INTEGER NOT NULL CHECK (change_seq >= 0),
+  device_id TEXT
 );
 
 INSERT INTO pull_cursor (id, change_seq) VALUES (1, 0);
