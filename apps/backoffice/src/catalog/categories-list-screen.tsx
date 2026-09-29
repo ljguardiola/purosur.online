@@ -31,8 +31,13 @@ import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
-import { useCategoriesQuery, useRefreshCatalog } from "./catalog-queries";
-import type { createCategory, editCategory, fetchCategories } from "./categories-api";
+import {
+  type CategoryReload,
+  useCategoriesQuery,
+  useRefreshCatalog,
+  useReloadCategory,
+} from "./catalog-queries";
+import type { createCategory, editCategory } from "./categories-api";
 import type { CategoriesListScreenServices } from "./categories-list-services";
 import { categoryNameError } from "./category-name";
 import { categoriesInTreeOrder, categoryPathLabels, selfAndDescendantIds } from "./category-path";
@@ -268,9 +273,8 @@ type EditCategoryModalProps = {
   target: CategorySummary | null;
   onClose: () => void;
   onSaved: () => void;
-  onReloaded: () => void;
   onSessionEnded: () => void;
-  fetchCategories: typeof fetchCategories;
+  reload: (id: string) => Promise<CategoryReload>;
   editCategory: typeof editCategory;
   categories: CategorySummary[];
 };
@@ -279,16 +283,14 @@ type EditNotice =
   | { kind: "attemptFailed" }
   | { kind: "rateLimited"; retryAfterSeconds: number }
   | { kind: "staleVersion" }
-  | { kind: "notFound" }
-  | { kind: "reloadFailed" };
+  | { kind: "notFound" };
 
 function EditCategoryModal({
   target,
   onClose,
   onSaved,
-  onReloaded,
   onSessionEnded,
-  fetchCategories,
+  reload,
   editCategory,
   categories,
 }: EditCategoryModalProps) {
@@ -408,15 +410,9 @@ function EditCategoryModal({
       return;
     }
     setSubmitting(true);
-    const outcome = await fetchCategories();
-    if (outcome.kind === "ok") {
-      onReloaded();
-      const fresh = outcome.value.find((category) => category.id === current.id);
-      if (!fresh) {
-        setNotice({ kind: "notFound" });
-        setSubmitting(false);
-        return;
-      }
+    const outcome = await reload(current.id);
+    if (outcome.kind === "found") {
+      const fresh = outcome.category;
       setName(fresh.name);
       setTitle(fresh.name);
       setParentValue(fresh.parentId ?? NO_PARENT_VALUE);
@@ -427,24 +423,13 @@ function EditCategoryModal({
       setSubmitting(false);
       return;
     }
-    if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
-      return;
+    if (outcome.kind === "not_found") {
+      setNotice({ kind: "notFound" });
     }
-    if (outcome.kind === "forbidden") {
-      sendToMyAccount();
-      return;
-    }
-    if (outcome.kind === "rate_limited") {
-      setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
-      setSubmitting(false);
-      return;
-    }
-    setNotice({ kind: "reloadFailed" });
     setSubmitting(false);
   }
 
-  const offersReload = notice?.kind === "staleVersion" || notice?.kind === "reloadFailed";
+  const offersReload = notice?.kind === "staleVersion";
 
   return (
     <Modal
@@ -517,14 +502,6 @@ function EditCategoryModal({
               title="Esta categoría ya no existe"
             />
           )}
-          {notice?.kind === "reloadFailed" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudieron recargar los datos"
-              description="Probá de nuevo."
-            />
-          )}
           {offersReload ? (
             <Button
               variant="secondary"
@@ -574,6 +551,7 @@ export function CategoriesListScreen({
   const { fetchCategories, createCategory, editCategory } = services;
   const data = useCategoriesQuery({ fetchCategories, onSessionEnded });
   const refreshCatalog = useRefreshCatalog();
+  const reloadCategory = useReloadCategory({ fetchCategories });
   const [search, setSearch] = useState(filters.search);
   const [sort, setSort] = useState<TableSort<"category">>({
     column: "category",
@@ -702,9 +680,8 @@ export function CategoriesListScreen({
           setEditTarget(null);
           void refreshCatalog();
         }}
-        onReloaded={() => void refreshCatalog()}
         onSessionEnded={onSessionEnded}
-        fetchCategories={fetchCategories}
+        reload={reloadCategory}
         editCategory={editCategory}
         categories={categories}
       />

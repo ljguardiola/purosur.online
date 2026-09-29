@@ -4,7 +4,8 @@ import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { CloudReadOutcome } from "./cloud-read-outcome";
-import { type CloudData, useCloudQuery } from "./use-cloud-query";
+import { createQueryClient } from "./query-client";
+import { type CloudData, fetchCloudQuery, useCloudQuery } from "./use-cloud-query";
 
 function deferred<T>() {
   let resolve: (value: T) => void = () => {};
@@ -219,4 +220,47 @@ test("a refresh refused as forbidden is not handed over again when the screen op
 
   await expect.element(screen.getByText("loaded:two")).toBeVisible();
   expect(onForbidden).toHaveBeenCalledTimes(1);
+});
+
+test("a read through the cache hands back the value it read, and leaves it cached under its key", async () => {
+  const client = createQueryClient();
+
+  const outcome = await fetchCloudQuery(client, {
+    queryKey: ["probe"],
+    read: () => Promise.resolve(ok("one")),
+  });
+
+  expect(outcome).toEqual(ok("one"));
+  expect(client.getQueryData(["probe"])).toBe("one");
+});
+
+test("a read through the cache hands back the refusal of a refused read", async () => {
+  const outcome = await fetchCloudQuery(createQueryClient(), {
+    queryKey: ["probe"],
+    read: () => Promise.resolve<CloudReadOutcome<string>>({ kind: "forbidden" }),
+  });
+
+  expect(outcome).toEqual({ kind: "forbidden" });
+});
+
+test("a read through the cache that throws is reported as failed", async () => {
+  const outcome = await fetchCloudQuery(createQueryClient(), {
+    queryKey: ["probe"],
+    read: () => Promise.reject(new Error("boom")),
+  });
+
+  expect(outcome).toEqual({ kind: "failed" });
+});
+
+test("a read through the cache while the same key is already being read sends no second read", async () => {
+  const client = createQueryClient();
+  const answer = deferred<CloudReadOutcome<string>>();
+  const read = vi.fn(() => answer.promise);
+
+  const first = fetchCloudQuery(client, { queryKey: ["probe"], read });
+  const second = fetchCloudQuery(client, { queryKey: ["probe"], read });
+  answer.resolve(ok("one"));
+
+  expect(await Promise.all([first, second])).toEqual([ok("one"), ok("one")]);
+  expect(read).toHaveBeenCalledTimes(1);
 });

@@ -68,7 +68,13 @@ import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
-import { useCategoriesQuery, useProductsQuery, useRefreshCatalog } from "./catalog-queries";
+import {
+  type ProductReload,
+  useCategoriesQuery,
+  useProductsQuery,
+  useRefreshCatalog,
+  useReloadProduct,
+} from "./catalog-queries";
 import { categoriesInTreeOrder, categoryPathLabels, leafCategories } from "./category-path";
 import {
   formatNetContentQuantity,
@@ -81,7 +87,6 @@ import type {
   createProduct,
   deactivateProduct,
   editProduct,
-  fetchProducts,
   generateInternalBarcode,
   NetContent,
   ProductSaleUnit,
@@ -882,9 +887,8 @@ type EditProductModalProps = {
   target: ProductSummary | null;
   onClose: () => void;
   onSaved: () => void;
-  onReloaded: () => void;
   onSessionEnded: () => void;
-  fetchProducts: typeof fetchProducts;
+  reload: (id: string) => Promise<ProductReload>;
   editProduct: typeof editProduct;
   generateInternalBarcode: typeof generateInternalBarcode;
   categories: CategorySummary[];
@@ -901,9 +905,8 @@ function EditProductModal({
   target,
   onClose,
   onSaved,
-  onReloaded,
   onSessionEnded,
-  fetchProducts,
+  reload,
   editProduct,
   generateInternalBarcode,
   categories,
@@ -1061,15 +1064,9 @@ function EditProductModal({
       return;
     }
     setSubmitting(true);
-    const outcome = await fetchProducts("all");
-    if (outcome.kind === "ok") {
-      onReloaded();
-      const fresh = outcome.value.find((product) => product.id === current.id);
-      if (!fresh) {
-        setNotice({ kind: "notFound" });
-        setSubmitting(false);
-        return;
-      }
+    const outcome = await reload(current.id);
+    if (outcome.kind === "found") {
+      const fresh = outcome.product;
       setName(fresh.name);
       setTitle(fresh.name);
       setCategoryId(fresh.categoryId);
@@ -1082,6 +1079,15 @@ function EditProductModal({
       setNotice(null);
       setSubmitting(false);
       generate.reset();
+      return;
+    }
+    if (outcome.kind === "not_found") {
+      setNotice({ kind: "notFound" });
+      setSubmitting(false);
+      return;
+    }
+    if (outcome.kind === "list_failed") {
+      setSubmitting(false);
       return;
     }
     if (outcome.kind === "unauthenticated") {
@@ -1803,6 +1809,10 @@ export function ProductsListScreen({
   const [deactivateTarget, setDeactivateTarget] = useState<ProductSummary | null>(null);
   const onFiltersChangeRef = useLatestRef(onFiltersChange);
   const refreshCatalog = useRefreshCatalog();
+  const reloadProduct = useReloadProduct({
+    status: statusFilter,
+    fetchProducts: fetchProductsService,
+  });
 
   const productsData = useProductsQuery({
     status: statusFilter,
@@ -2052,9 +2062,8 @@ export function ProductsListScreen({
           setEditTarget(null);
           void refreshCatalog();
         }}
-        onReloaded={() => void refreshCatalog()}
         onSessionEnded={onSessionEnded}
-        fetchProducts={fetchProductsService}
+        reload={reloadProduct}
         editProduct={editProductService}
         generateInternalBarcode={generateInternalBarcodeService}
         categories={categories}

@@ -1,4 +1,4 @@
-import { type QueryKey, useQuery, useQueryClient } from "@tanstack/react-query";
+import { type QueryClient, type QueryKey, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import type { CloudReadOutcome } from "./cloud-read-outcome";
 import { useLatestRef } from "./use-latest-ref";
@@ -19,14 +19,41 @@ class CloudReadRefused extends Error {
   }
 }
 
+type CloudQuery<T> = {
+  queryKey: QueryKey;
+  read: () => Promise<CloudReadOutcome<T>>;
+};
+
+function cloudQueryFn<T>(read: () => Promise<CloudReadOutcome<T>>): () => Promise<T> {
+  return async () => {
+    const outcome = await read();
+    if (outcome.kind !== "ok") {
+      throw new CloudReadRefused(outcome);
+    }
+    return outcome.value;
+  };
+}
+
+export async function fetchCloudQuery<T>(
+  queryClient: QueryClient,
+  { queryKey, read }: CloudQuery<T>,
+): Promise<CloudReadOutcome<T>> {
+  try {
+    return {
+      kind: "ok",
+      value: await queryClient.fetchQuery({ queryKey, queryFn: cloudQueryFn(read) }),
+    };
+  } catch (error) {
+    return error instanceof CloudReadRefused ? error.refusal : { kind: "failed" };
+  }
+}
+
 export function useCloudQuery<T>({
   queryKey,
   read,
   onSessionEnded,
   onForbidden,
-}: {
-  queryKey: QueryKey;
-  read: () => Promise<CloudReadOutcome<T>>;
+}: CloudQuery<T> & {
   onSessionEnded: () => void;
   onForbidden: () => void;
 }): CloudData<T> {
@@ -34,16 +61,7 @@ export function useCloudQuery<T>({
   const queryKeyRef = useLatestRef(queryKey);
   const onSessionEndedRef = useLatestRef(onSessionEnded);
   const onForbiddenRef = useLatestRef(onForbidden);
-  const query = useQuery({
-    queryKey,
-    queryFn: async () => {
-      const outcome = await read();
-      if (outcome.kind !== "ok") {
-        throw new CloudReadRefused(outcome);
-      }
-      return outcome.value;
-    },
-  });
+  const query = useQuery({ queryKey, queryFn: cloudQueryFn(read) });
   const refusal = query.error instanceof CloudReadRefused ? query.error.refusal : undefined;
 
   useEffect(() => {

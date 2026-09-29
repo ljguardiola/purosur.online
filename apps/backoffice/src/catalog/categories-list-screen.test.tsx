@@ -831,6 +831,36 @@ test("a stale-version reload on edit also retitles the dialog with the fresh nam
   await expect.element(dialog.getByRole("heading", { name: "Bebidas frías" })).toBeVisible();
 });
 
+test("a stale-version reload on edit reads the categories once, and refills the form from that read", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchCategories).mockResolvedValue({
+    kind: "ok",
+    value: [groceries, drinks],
+  });
+  vi.mocked(services.editCategory).mockResolvedValue({ kind: "stale_version" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Bebidas")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Editar la categoría Bebidas" }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+  await expect
+    .element(dialog.getByText("Esta categoría cambió mientras la editabas"))
+    .toBeVisible();
+  const renamed: CategorySummary = { ...drinks, name: "Bebidas frías", version: 4 };
+  vi.mocked(services.fetchCategories).mockClear();
+  vi.mocked(services.fetchCategories).mockResolvedValue({
+    kind: "ok",
+    value: [groceries, renamed],
+  });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Recargar" }));
+
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }))
+    .toHaveValue("Bebidas frías");
+  expect(services.fetchCategories).toHaveBeenCalledTimes(1);
+});
+
 test("a stale-version reload on edit refreshes the categories too, so a parent that only the fresh data has is offered and named", async () => {
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({
