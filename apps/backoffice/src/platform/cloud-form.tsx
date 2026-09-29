@@ -8,7 +8,13 @@ import {
 } from "@tanstack/react-form";
 import { useState } from "react";
 import { fieldContext, formContext } from "./cloud-form-context";
-import { BoundDateField, BoundSelect, BoundTextField } from "./cloud-form-fields";
+import {
+  BoundDateField,
+  BoundOptionCardGroup,
+  BoundQuantityUnitField,
+  BoundSelect,
+  BoundTextField,
+} from "./cloud-form-fields";
 
 const { useAppForm } = createFormHook({
   fieldContext,
@@ -17,14 +23,17 @@ const { useAppForm } = createFormHook({
     TextField: BoundTextField,
     Select: BoundSelect,
     DateField: BoundDateField,
+    QuantityUnitField: BoundQuantityUnitField,
+    OptionCardGroup: BoundOptionCardGroup,
   },
   formComponents: {},
 });
 
 type Message<Values> = string | ((values: Values) => string);
 
-export type CloudSubmission<Values> = {
+export type CloudSubmission<Values, Parsed = unknown> = {
   values: Values;
+  parsed: Parsed;
   showWireFieldError: (wireField: string) => boolean;
   showFieldError: (field: keyof Values & string, message: string) => void;
 };
@@ -32,16 +41,19 @@ export type CloudSubmission<Values> = {
 type CloudFormOptions<
   Values extends Record<string, unknown>,
   Request extends Record<string, unknown>,
+  Parsed,
   Field extends keyof Values & string,
 > = {
   defaultValues: Values;
   request: {
-    schema: StandardSchemaV1<Request, unknown>;
+    schema: StandardSchemaV1<Request, Parsed>;
     from: (values: Values) => Request;
   };
-  fields: { [Wire in keyof Request & string]-?: Field | null };
+  fields: { [Wire in keyof Request & string]-?: Field | null } & Partial<
+    Record<string, Field | null>
+  >;
   messages: Record<Field, Message<Values>>;
-  onSubmit: (request: Request, submission: CloudSubmission<Values>) => Promise<void>;
+  onSubmit: (request: Request, submission: CloudSubmission<Values, Parsed>) => Promise<void>;
 };
 
 function issueWireField(issue: StandardSchemaV1Issue): string | undefined {
@@ -53,8 +65,9 @@ function issueWireField(issue: StandardSchemaV1Issue): string | undefined {
 export function useCloudForm<
   Values extends Record<string, unknown>,
   Request extends Record<string, unknown>,
+  Parsed,
   Field extends keyof Values & string,
->(options: CloudFormOptions<Values, Request, Field>) {
+>(options: CloudFormOptions<Values, Request, Parsed, Field>) {
   const { request, fields, messages } = options;
   const wireFields: Record<string, Field | null | undefined> = fields;
   const fieldOf = (wireField: string | undefined): Field | undefined =>
@@ -90,12 +103,19 @@ export function useCloudForm<
       },
     },
     listeners: { onChange: ({ fieldApi }) => clearFieldError(fieldApi.name) },
-    onSubmit: ({ value }) =>
-      options.onSubmit(request.from(value), {
+    onSubmit: async ({ value }) => {
+      const body = request.from(value);
+      const result = await request.schema["~standard"].validate(body);
+      if (result.issues) {
+        return;
+      }
+      await options.onSubmit(body, {
         values: value,
+        parsed: result.value,
         showWireFieldError,
         showFieldError,
-      }),
+      });
+    },
   });
 
   function showFieldError(field: keyof Values & string, message: string) {

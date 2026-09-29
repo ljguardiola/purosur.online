@@ -611,3 +611,227 @@ test("the shared message goes away once the field changes", async () => {
     .element(screen.getByRole("textbox", { name: "Cierra" }))
     .not.toHaveAttribute("aria-invalid", "true");
 });
+
+const CONTENT_UNITS = [
+  { value: "G", label: "g" },
+  { value: "KG", label: "kg" },
+] as const;
+
+type ContentUnit = "G" | "KG";
+
+const contentSchema = z.object({
+  content: z.object({
+    quantity: z.number({ error: "not a number" }).positive(),
+    unit: z.enum(["G", "KG"]),
+  }),
+});
+
+function QuantityProbe({ onSubmit }: { onSubmit: (content: unknown) => Promise<void> }) {
+  const { form, submit } = useCloudForm({
+    defaultValues: { content: { quantity: "", unit: "G" as ContentUnit } },
+    request: {
+      schema: contentSchema,
+      from: ({ content }) => ({
+        content: { quantity: Number(content.quantity), unit: content.unit },
+      }),
+    },
+    fields: { content: "content" },
+    messages: { content: "Revisá el contenido." },
+    onSubmit: ({ content }) => onSubmit(content),
+  });
+  return (
+    <>
+      <form.AppField name="content">
+        {(field) => (
+          <field.QuantityUnitField label="Contenido" options={CONTENT_UNITS} unitLabel="Unidad" />
+        )}
+      </form.AppField>
+      <button type="button" onClick={() => void submit()}>
+        Enviar
+      </button>
+    </>
+  );
+}
+
+test("a quantity and unit field shows its field's message after a failed submit and clears it once the quantity changes", async () => {
+  const screen = await render(<QuantityProbe onSubmit={() => Promise.resolve()} />);
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+  await expect.element(screen.getByText("Revisá el contenido.")).toBeVisible();
+
+  await userEvent.fill(screen.getByRole("textbox", { name: "Contenido" }), "5");
+
+  await expect.element(screen.getByText("Revisá el contenido.")).not.toBeInTheDocument();
+});
+
+test("a quantity and unit field submits the quantity typed and the unit chosen", async () => {
+  const onSubmit = vi.fn<(content: unknown) => Promise<void>>(() => Promise.resolve());
+  const screen = await render(<QuantityProbe onSubmit={onSubmit} />);
+
+  await userEvent.fill(screen.getByRole("textbox", { name: "Contenido" }), "500");
+  await userEvent.click(screen.getByRole("button", { name: /Unidad/ }));
+  await userEvent.click(screen.getByRole("option", { name: "kg" }));
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+  await expect.poll(() => onSubmit.mock.calls.length).toBe(1);
+  expect(onSubmit).toHaveBeenCalledWith({ quantity: 500, unit: "KG" });
+});
+
+const SALE_OPTIONS = [
+  { value: "UNIT", label: "Por unidad", description: "Se vende de a uno", icon: <span /> },
+  { value: "KG", label: "Por peso", description: "Se pesa", icon: <span /> },
+] as const;
+
+function cardLabel(screen: Awaited<ReturnType<typeof render>>, title: string): HTMLElement {
+  const input = screen.getByRole("radio", { name: title }).element();
+  const label = input.closest("label");
+  if (!label) {
+    throw new Error(`no label found for radio "${title}"`);
+  }
+  return label;
+}
+
+function CardProbe({ onSubmit }: { onSubmit: (saleUnit: string) => Promise<void> }) {
+  const { form, submit } = useCloudForm({
+    defaultValues: { saleUnit: null as "UNIT" | "KG" | null },
+    request: {
+      schema: z.object({ saleUnit: z.enum(["UNIT", "KG"]) }),
+      from: ({ saleUnit }) => ({ saleUnit }),
+    },
+    fields: { saleUnit: "saleUnit" },
+    messages: { saleUnit: "Elegí la unidad de venta." },
+    onSubmit: (_request, { parsed }) => onSubmit(parsed.saleUnit),
+  });
+  return (
+    <>
+      <form.AppField name="saleUnit">
+        {(field) => <field.OptionCardGroup label="Unidad de venta" options={SALE_OPTIONS} />}
+      </form.AppField>
+      <button type="button" onClick={() => void submit()}>
+        Enviar
+      </button>
+    </>
+  );
+}
+
+test("an option card group shows its field's message after a failed submit and clears it once a card is chosen", async () => {
+  const screen = await render(<CardProbe onSubmit={() => Promise.resolve()} />);
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+  await expect.element(screen.getByText("Elegí la unidad de venta.")).toBeVisible();
+
+  await userEvent.click(cardLabel(screen, "Por peso"));
+
+  await expect.element(screen.getByText("Elegí la unidad de venta.")).not.toBeInTheDocument();
+});
+
+test("an option card group submits the card that was chosen", async () => {
+  const onSubmit = vi.fn<(saleUnit: string) => Promise<void>>(() => Promise.resolve());
+  const screen = await render(<CardProbe onSubmit={onSubmit} />);
+
+  await userEvent.click(cardLabel(screen, "Por peso"));
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+  await expect.poll(() => onSubmit.mock.calls.length).toBe(1);
+  expect(onSubmit).toHaveBeenCalledWith("KG");
+});
+
+test("a submit hands onSubmit what the schema read, so the request needs no cast", async () => {
+  const parsedSeen = vi.fn<(parsed: unknown) => void>();
+  const schema = z.object({ name: z.string().trim().min(1) });
+  function ParsedProbe() {
+    const { form, submit } = useCloudForm({
+      defaultValues: { name: "" },
+      request: { schema, from: ({ name }) => ({ name }) },
+      fields: { name: "name" },
+      messages: { name: "Nombre inválido." },
+      onSubmit: (_request, { parsed }) => {
+        parsedSeen(parsed);
+        return Promise.resolve();
+      },
+    });
+    return (
+      <>
+        <form.AppField name="name">
+          {(field) => <field.TextField kind="plain-text" label="Nombre" />}
+        </form.AppField>
+        <button type="button" onClick={() => void submit()}>
+          Enviar
+        </button>
+      </>
+    );
+  }
+  const screen = await render(<ParsedProbe />);
+
+  await userEvent.fill(screen.getByRole("textbox", { name: "Nombre" }), "  Ana  ");
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+  await expect.poll(() => parsedSeen.mock.calls.length).toBe(1);
+  expect(parsedSeen).toHaveBeenCalledWith({ name: "Ana" });
+});
+
+function NullableSelectProbe() {
+  const { form, submit } = useCloudForm({
+    defaultValues: { role: null as string | null },
+    request: {
+      schema: z.object({ role: z.string().min(1) }),
+      from: ({ role }) => ({ role: role ?? "" }),
+    },
+    fields: { role: "role" },
+    messages: { role: "Elegí un rol." },
+    onSubmit: () => Promise.resolve(),
+  });
+  return (
+    <>
+      <form.AppField name="role">
+        {(field) => (
+          <field.Select label="Rol" placeholder="Elegí un rol" options={ROLE_OPTIONS} required />
+        )}
+      </form.AppField>
+      <button type="button" onClick={() => void submit()}>
+        Enviar
+      </button>
+    </>
+  );
+}
+
+test("a select with nothing chosen shows its placeholder and its message after a failed submit", async () => {
+  const screen = await render(<NullableSelectProbe />);
+  await expect
+    .element(screen.getByRole("button", { name: /Rol/ }))
+    .toHaveTextContent("Elegí un rol");
+
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+  await expect.element(screen.getByText("Elegí un rol.")).toBeVisible();
+});
+
+test("a schema issue on a key the request type does not declare shows on the field it is declared for", async () => {
+  const schema = z
+    .object({ content: z.number() })
+    .superRefine((_request, context) =>
+      context.addIssue({ code: "custom", path: ["contentQuantity"], message: "refused" }),
+    );
+  function ExtraKeyProbe() {
+    const { form, submit } = useCloudForm({
+      defaultValues: { content: "1" },
+      request: { schema, from: ({ content }) => ({ content: Number(content) }) },
+      fields: { content: "content", contentQuantity: "content" },
+      messages: { content: "Revisá el contenido." },
+      onSubmit: () => Promise.resolve(),
+    });
+    return (
+      <>
+        <form.AppField name="content">
+          {(field) => <field.TextField kind="plain-text" label="Contenido" />}
+        </form.AppField>
+        <button type="button" onClick={() => void submit()}>
+          Enviar
+        </button>
+      </>
+    );
+  }
+  const screen = await render(<ExtraKeyProbe />);
+
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+  await expect.element(screen.getByText("Revisá el contenido.")).toBeVisible();
+});

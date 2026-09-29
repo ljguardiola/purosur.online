@@ -2,6 +2,10 @@ import type { CalendarDate } from "@internationalized/date";
 import {
   DateField,
   type DateFieldProps,
+  OptionCardGroup,
+  type OptionCardGroupProps,
+  QuantityUnitField,
+  type QuantityUnitFieldProps,
   Select,
   type SelectProps,
   TextField,
@@ -14,7 +18,7 @@ type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K>
 
 type FieldValueProps = "value" | "onChange" | "errorMessage" | "errorMessageId";
 
-function fieldErrorMessage(errors: readonly unknown[]): string | undefined {
+export function fieldErrorMessage(errors: readonly unknown[]): string | undefined {
   const [first] = errors;
   return typeof first === "string" ? first : undefined;
 }
@@ -32,7 +36,7 @@ export function BoundTextField(props: DistributiveOmit<TextFieldProps, FieldValu
 }
 
 export function BoundSelect(props: DistributiveOmit<SelectProps<string>, FieldValueProps>) {
-  const field = useFieldContext<string>();
+  const field = useFieldContext<string | null>();
   return (
     <Select
       {...props}
@@ -47,6 +51,42 @@ export function BoundDateField(props: DistributiveOmit<DateFieldProps, FieldValu
   const field = useFieldContext<CalendarDate | null>();
   return (
     <DateField
+      {...props}
+      value={field.state.value}
+      onChange={field.handleChange}
+      errorMessage={fieldErrorMessage(field.state.meta.errors)}
+    />
+  );
+}
+
+type QuantityUnitValue<Unit extends string> = { quantity: string; unit: Unit };
+
+export function BoundQuantityUnitField<Unit extends string>(
+  props: DistributiveOmit<
+    QuantityUnitFieldProps<Unit>,
+    FieldValueProps | "quantity" | "onQuantityChange" | "unit" | "onUnitChange"
+  >,
+) {
+  const field = useFieldContext<QuantityUnitValue<Unit>>();
+  const { quantity, unit } = field.state.value;
+  return (
+    <QuantityUnitField
+      {...props}
+      quantity={quantity}
+      onQuantityChange={(next) => field.handleChange({ quantity: next, unit })}
+      unit={unit}
+      onUnitChange={(next) => field.handleChange({ quantity, unit: next })}
+      errorMessage={fieldErrorMessage(field.state.meta.errors)}
+    />
+  );
+}
+
+export function BoundOptionCardGroup<Value extends string>(
+  props: DistributiveOmit<OptionCardGroupProps<Value>, FieldValueProps>,
+) {
+  const field = useFieldContext<Value | null>();
+  return (
+    <OptionCardGroup
       {...props}
       value={field.state.value}
       onChange={field.handleChange}
