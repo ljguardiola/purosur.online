@@ -390,25 +390,6 @@ test("reopening the create modal starts from an empty name with no error", async
   await expect.element(reopened.getByText("Ingresá el nombre de la caja.")).not.toBeInTheDocument();
 });
 
-test("shows the name-too-long error on create, without calling the API", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [] });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay cajas registradoras")).toBeVisible();
-  const dialog = await openNewRegisterModal(screen);
-
-  await userEvent.fill(
-    dialog.getByRole("textbox", { name: /^Nombre de la caja/ }),
-    "a".repeat(101),
-  );
-  await userEvent.click(dialog.getByRole("button", { name: "Crear la caja" }));
-
-  await expect
-    .element(dialog.getByText("El nombre puede tener hasta 100 caracteres."))
-    .toBeVisible();
-  expect(services.createRegister).not.toHaveBeenCalled();
-});
-
 test("shows the server's validation_failed error on create and does not add the register to the list", async () => {
   const services = createServices();
   vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });

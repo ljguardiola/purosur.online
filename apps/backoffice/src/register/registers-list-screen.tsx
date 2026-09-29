@@ -1,5 +1,4 @@
 import { registerCreationBodySchema } from "@purosur/contracts";
-import { isRegisterNameTooLong, REGISTER_NAME_MAX_LENGTH } from "@purosur/domain";
 import {
   Button,
   InlineNotice,
@@ -21,6 +20,8 @@ import { cloudTableState } from "../platform/cloud-table-state";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
+import { groupedCode, minutesElapsed, minutesRemaining } from "./enrollment-code";
+import { registerNameMessage } from "./register-name-message";
 import { useRefreshRegisters, useRegistersQuery } from "./register-queries";
 import type {
   CreateRegisterOutcome,
@@ -38,32 +39,7 @@ export type RegistersListScreenProps = {
 
 const NO_REGISTERS: RegisterSummary[] = [];
 
-const NEW_REGISTER_NAME_REQUIRED = "Ingresá el nombre de la caja.";
-const NEW_REGISTER_NAME_TOO_LONG = `El nombre puede tener hasta ${REGISTER_NAME_MAX_LENGTH} caracteres.`;
-
-function registerNameMessage({ name }: { name: string }): string {
-  const trimmed = name.trim();
-  if (trimmed === "") {
-    return NEW_REGISTER_NAME_REQUIRED;
-  }
-  return isRegisterNameTooLong(trimmed)
-    ? NEW_REGISTER_NAME_TOO_LONG
-    : "Revisá el nombre de la caja.";
-}
-
 const PENDING_CODE_REFRESH_MS = 30_000;
-
-function minutesElapsed(issuedAt: string, now: Date): number {
-  return Math.max(0, Math.floor((now.getTime() - new Date(issuedAt).getTime()) / 60_000));
-}
-
-function minutesRemaining(expiresAt: string, now: Date): number {
-  return Math.max(1, Math.ceil((new Date(expiresAt).getTime() - now.getTime()) / 60_000));
-}
-
-function groupedCode(code: string): string {
-  return (code.match(/.{1,4}/g) ?? [code]).join(" ");
-}
 
 type NewRegisterModalProps = {
   open: boolean;
