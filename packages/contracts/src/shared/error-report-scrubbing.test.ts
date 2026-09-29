@@ -672,7 +672,7 @@ describe("personal data in text", () => {
       { message: String.raw`C:\Users\ana`, expected: String.raw`C:\Users\[redacted]` },
       {
         message: String.raw`ENOENT: no such file or directory, scandir 'C:\Users\Juan Perez'`,
-        expected: String.raw`ENOENT: no such file or directory, scandir 'C:\Users\[redacted]'`,
+        expected: String.raw`ENOENT: no such file or directory, scandir 'C:\Users\[redacted]`,
       },
       { message: String.raw`C:\Users\Juan Perez`, expected: String.raw`C:\Users\[redacted]` },
       {
@@ -684,21 +684,48 @@ describe("personal data in text", () => {
         expected:
           "paths: /home/[redacted], /Users/[redacted]; HOME=/home/[redacted]:/bin [/home/[redacted]]",
       },
+      { message: "C:/Users/ana", expected: "C:/Users/[redacted]" },
       {
-        message: "cannot write C:/Users/ana now",
-        expected: "cannot write C:/Users/[redacted] now",
+        message: "could not read /home/ana.perez.",
+        expected: "could not read /home/[redacted].",
       },
     ]) {
       expect(scrubErrorReport({ message }).message).toBe(expected);
     }
   });
 
-  it("hides the words after a Windows account up to where its folder could end, since the name may contain spaces", () => {
-    const message = String.raw`cannot write C:\Users\ana now`;
+  it("hides everything after a Windows account up to the next folder or line, since the name may contain any character", () => {
+    for (const { message, expected } of [
+      {
+        message: String.raw`cannot write C:\Users\ana: access denied`,
+        expected: String.raw`cannot write C:\Users\[redacted]`,
+      },
+      {
+        message: "cannot write C:/Users/ana now\nretrying",
+        expected: "cannot write C:/Users/[redacted]\nretrying",
+      },
+    ]) {
+      expect(scrubErrorReport({ message }).message).toBe(expected);
+    }
+  });
 
-    expect(scrubErrorReport({ message }).message).toBe(
-      String.raw`cannot write C:\Users\[redacted]`,
-    );
+  it("redacts a Windows account with an apostrophe, a parenthesis or a space, whatever the slashes", () => {
+    for (const { frame, expected } of [
+      {
+        frame: String.raw`at start (C:\Users\D'Angelo\AppData\main.js:10:5)`,
+        expected: String.raw`at start (C:\Users\[redacted]\AppData\main.js:10:5)`,
+      },
+      {
+        frame: String.raw`at start (C:\Users\Juan (Caja)\AppData\main.js:10:5)`,
+        expected: String.raw`at start (C:\Users\[redacted]\AppData\main.js:10:5)`,
+      },
+      {
+        frame: 'Failed to resolve import from "C:/Users/Juan Perez/purosur/src/x.tsx"',
+        expected: 'Failed to resolve import from "C:/Users/[redacted]/purosur/src/x.tsx"',
+      },
+    ]) {
+      expect(scrubErrorReport({ message: frame }).message).toBe(expected);
+    }
   });
 
   it("keeps a backoffice route under the home area", () => {

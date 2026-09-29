@@ -54,12 +54,12 @@ const EMAIL_PATTERN = /(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]+@(?:[A-Za-z0-9-]+\.
 // A home folder is matched where a path starts, also under `/var`, `/export`, a drive letter
 // (`/c`, `/mnt/c`, `/cygdrive/c`) or Vite's `/@fs`, so a URL's own `/home/` segment is kept. An
 // account ending the whole text is not recognized, so a backoffice route such as `/home/alerts`
-// is kept.
+// is kept; a period only ends an account when it ends a sentence, since account names contain dots.
 const UNIX_HOME_ACCOUNT_PATTERN =
-  /((?:(?<![\w.-])(?:\/var|\/export|\/cygdrive\/[a-z]|\/mnt\/[a-z]|\/[a-z])?|\/@fs)\/(?:home|Users)\/)[^/\s:,;"'`()<>[\]]+(?=[/\s"'`()<>[\],.;:])/g;
-// A Windows account name can contain spaces, so what follows it is hidden up to the next folder
-// separator, quote, parenthesis or line end. Written with forward slashes, the Unix rule covers it.
-const WINDOWS_HOME_ACCOUNT_PATTERN = /(?<![A-Za-z0-9])([A-Z]:\\+Users\\+)[^\\/\n:"'`()<>]+/gi;
+  /((?:(?<![\w.-])(?:\/var|\/export|\/cygdrive\/[a-z]|\/mnt\/[a-z]|\/[a-z])?|\/@fs)\/(?:home|Users)\/)[^/\s:,;"'`()<>[\]]+(?=[/\s"'`()<>[\],;:]|\.(?:[\s"'`)]|$))/g;
+// A Windows account name can contain spaces, quotes and parentheses, so everything after it is
+// hidden up to the next folder separator or line end.
+const WINDOWS_HOME_ACCOUNT_PATTERN = /(?<![A-Za-z0-9])([A-Z]:(?:\\+|\/)Users(?:\\+|\/))[^\\/\n]+/gi;
 // A stack frame writes the line and column right after the script's URL, inside the same word.
 const FRAME_POSITION_PATTERN = /:\d+:\d+\)?$/;
 const SCRIPT_FILE_PATTERN = /\.[cm]?[jt]sx?$/;
@@ -122,8 +122,8 @@ function redactString(value: string): string {
     .replace(/\S+/g, redactPathToken)
     .replace(BEARER_TOKEN_PATTERN, REDACTED)
     .replace(EMAIL_PATTERN, REDACTED)
-    .replace(UNIX_HOME_ACCOUNT_PATTERN, `$1${REDACTED}`)
     .replace(WINDOWS_HOME_ACCOUNT_PATTERN, `$1${REDACTED}`)
+    .replace(UNIX_HOME_ACCOUNT_PATTERN, `$1${REDACTED}`)
     .replace(CUIT_PATTERN, REDACTED)
     .replace(DNI_PATTERN, REDACTED);
 }
