@@ -1,7 +1,7 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import {
   type AccountRecoveryScreenServices,
   defaultAccountRecoveryScreenServices,
@@ -50,7 +50,6 @@ import {
 } from "../fiscal/fiscal-configuration-services";
 import type { BackofficeHelpCatalog } from "../help/help-catalog";
 import { createQueryClient } from "../platform/query-client";
-import { useLatestRef } from "../platform/use-latest-ref";
 import {
   defaultPricesListScreenServices,
   type PricesListScreenServices,
@@ -146,6 +145,12 @@ function differsOnlyInExpiry(current: SettledSession, next: SettledSession): boo
 
 const BEFORE_SESSION_CHECK: SettledSession = { kind: "signed-out", notice: undefined };
 
+const UNBOUND_SESSION_ACTIONS: SessionActions = {
+  signedIn: () => {},
+  signedOut: () => {},
+  sessionEnded: () => {},
+};
+
 export function App(props: AppProps) {
   return (
     <FieldSizeProvider size="backoffice">
@@ -158,22 +163,13 @@ function AppContent({ help, services = defaultAppServices, reportError = () => {
   const [session, setSession] = useState<SessionState>({ kind: "loading" });
   const [routerStarted, setRouterStarted] = useState(false);
   const [queryClient] = useState(createQueryClient);
-  const actions = useLatestRef<SessionActions>({
-    signedIn: handleSignedIn,
-    signedOut: handleSignedOut,
-    sessionEnded: handleSessionEnded,
-  });
   const [router] = useState(() =>
     createAppRouter({
       session: BEFORE_SESSION_CHECK,
       help,
       services,
       reportError,
-      sessionActions: {
-        signedIn: () => actions.current.signedIn(),
-        signedOut: () => actions.current.signedOut(),
-        sessionEnded: () => actions.current.sessionEnded(),
-      },
+      sessionActions: UNBOUND_SESSION_ACTIONS,
     }),
   );
 
@@ -211,19 +207,7 @@ function AppContent({ help, services = defaultAppServices, reportError = () => {
     return settle({ kind: "signed-out", notice: expired ? { kind: "expired" } : undefined });
   }
 
-  const settleCheckedSessionRef = useLatestRef(settleCheckedSession);
-
-  useEffect(() => {
-    let cancelled = false;
-    void services.fetchSession().then((outcome) => {
-      if (!cancelled) {
-        void settleCheckedSessionRef.current(outcome);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [services, settleCheckedSessionRef]);
+  const settleFetchedSession = useEffectEvent(settleCheckedSession);
 
   function handleSignedIn() {
     setSession({ kind: "loading" });
@@ -256,6 +240,36 @@ function AppContent({ help, services = defaultAppServices, reportError = () => {
     clearSignedInMarker();
     void settle({ kind: "signed-out", notice: { kind: "expired" } });
   }
+
+  const signIn = useEffectEvent(handleSignedIn);
+  const signOut = useEffectEvent(handleSignedOut);
+  const endSession = useEffectEvent(handleSessionEnded);
+
+  useEffect(() => {
+    router.update({
+      ...router.options,
+      context: {
+        ...router.options.context,
+        sessionActions: {
+          signedIn: () => signIn(),
+          signedOut: () => signOut(),
+          sessionEnded: () => endSession(),
+        },
+      },
+    });
+  }, [router]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void services.fetchSession().then((outcome) => {
+      if (!cancelled) {
+        void settleFetchedSession(outcome);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [services]);
 
   useSessionWatcher({
     active: session.kind === "signed-in",

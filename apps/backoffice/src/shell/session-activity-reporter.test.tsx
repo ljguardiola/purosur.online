@@ -421,6 +421,52 @@ test("stops touching once no longer active", async () => {
   expect(touchSession).not.toHaveBeenCalled();
 });
 
+test("keeps its subscription and throttle window and calls the latest callbacks when handed new ones", async () => {
+  const outdatedTouchSession = vi
+    .fn<() => Promise<SessionOutcome>>()
+    .mockResolvedValue(okOutcome("2099-01-01T00:00:00.000Z"));
+  const latestTouchSession = vi
+    .fn<() => Promise<SessionOutcome>>()
+    .mockResolvedValue(okOutcome("2099-01-01T00:00:00.000Z"));
+  const outdatedOnTouched = vi.fn();
+  const latestOnTouched = vi.fn();
+  const subscribeToNavigation = vi.fn(navigation.subscribe);
+  const clock = createControllableClock();
+  const initialProps: SessionActivityReporterOptions = {
+    active: true,
+    touchSession: outdatedTouchSession,
+    subscribeToNavigation: (listener) => subscribeToNavigation(listener),
+    onTouched: outdatedOnTouched,
+    onEnded: vi.fn(),
+    throttleMs: 10,
+    now: clock.now,
+  };
+  const hook = await renderHook(
+    (props?: SessionActivityReporterOptions) => useSessionActivityReporter(props ?? initialProps),
+    { initialProps },
+  );
+  hooks.push(hook);
+  clock.advance(20);
+
+  await hook.rerender({
+    active: true,
+    touchSession: latestTouchSession,
+    subscribeToNavigation: (listener) => subscribeToNavigation(listener),
+    onTouched: latestOnTouched,
+    onEnded: vi.fn(),
+    throttleMs: 10,
+    now: () => clock.now(),
+  });
+  window.dispatchEvent(new Event("pointerdown"));
+  await awaitHookToSettleAfterTouch(latestTouchSession);
+
+  expect(subscribeToNavigation).toHaveBeenCalledTimes(1);
+  expect(latestTouchSession).toHaveBeenCalledTimes(1);
+  expect(latestOnTouched).toHaveBeenCalledTimes(1);
+  expect(outdatedTouchSession).not.toHaveBeenCalled();
+  expect(outdatedOnTouched).not.toHaveBeenCalled();
+});
+
 test("stops touching once the component unmounts", async () => {
   const touchSession = vi
     .fn<() => Promise<SessionOutcome>>()
