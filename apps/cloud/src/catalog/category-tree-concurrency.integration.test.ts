@@ -14,6 +14,7 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
+import { runQueuedBehindHeldLock } from "../test-support/queued-behind-held-lock.js";
 import { CATEGORY_MOVE_LOCK_KEY, DrizzleCatalogStore } from "./drizzle-catalog-store.js";
 
 // PGlite serializes every query on one connection, so racing writes can only interleave on a real
@@ -32,40 +33,6 @@ afterAll(async () => {
   await sql.end({ timeout: 1 });
   await integrationDb.close();
 });
-
-async function waitForLockWaiters(count: number): Promise<void> {
-  for (let attempt = 0; attempt < 500; attempt += 1) {
-    const [row] = await sql<{ waiting: number }[]>`
-      select count(*)::int as waiting from pg_stat_activity
-      where datname = current_database() and wait_event_type = 'Lock'`;
-    if ((row?.waiting ?? 0) >= count) return;
-    await new Promise((resolve) => setTimeout(resolve, 10));
-  }
-  throw new Error(`test setup: ${count} writes never queued behind the held lock`);
-}
-
-async function runQueuedBehindHeldLock<First, Second>(
-  holdLock: (connection: postgres.ReservedSql) => Promise<unknown>,
-  first: () => Promise<First>,
-  second: () => Promise<Second>,
-): Promise<[First, Second]> {
-  const reserved = await sql.reserve();
-  let firstOutcome: Promise<First> | undefined;
-  let secondOutcome: Promise<Second> | undefined;
-  try {
-    await reserved`begin`;
-    await holdLock(reserved);
-    firstOutcome = first();
-    await waitForLockWaiters(1);
-    secondOutcome = second();
-    await waitForLockWaiters(2);
-  } finally {
-    await reserved`rollback`;
-    reserved.release();
-    await Promise.allSettled([firstOutcome, secondOutcome]);
-  }
-  return Promise.all([firstOutcome, secondOutcome]);
-}
 
 function holdCategoryRowLock(categoryId: string) {
   return (connection: postgres.ReservedSql) =>
@@ -101,6 +68,7 @@ describe("moving two unrelated categories under each other concurrently on a rea
     const b = await insertTopLevelCategory("Categoría B");
 
     const [moveAUnderB, moveBUnderA] = await runQueuedBehindHeldLock(
+      sql,
       (connection) =>
         connection`select pg_advisory_xact_lock(hashtextextended(${CATEGORY_MOVE_LOCK_KEY}, 0))`,
       () =>
@@ -144,9 +112,15 @@ async function raceOnCategory<ProductOutcome, CategoryOutcome>(
   categoryWrite: () => Promise<CategoryOutcome>,
 ): Promise<[ProductOutcome, CategoryOutcome]> {
   if (order === "product write first") {
-    return runQueuedBehindHeldLock(holdCategoryRowLock(categoryId), productWrite, categoryWrite);
+    return runQueuedBehindHeldLock(
+      sql,
+      holdCategoryRowLock(categoryId),
+      productWrite,
+      categoryWrite,
+    );
   }
   const [categoryOutcome, productOutcome] = await runQueuedBehindHeldLock(
+    sql,
     holdCategoryRowLock(categoryId),
     categoryWrite,
     productWrite,
