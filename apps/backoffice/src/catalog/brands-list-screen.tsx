@@ -555,9 +555,9 @@ export function BrandsListScreen({
       header: "Estado",
       render: (item: BrandSummary) =>
         item.active ? (
-          <StatusIndicator tone="success">Activo</StatusIndicator>
+          <StatusIndicator tone="success">Activa</StatusIndicator>
         ) : (
-          <StatusIndicator tone="neutral">Inactivo</StatusIndicator>
+          <StatusIndicator tone="neutral">Inactiva</StatusIndicator>
         ),
     },
     {

@@ -115,7 +115,7 @@ test("shows the breadcrumb, heading, each active brand with its product count an
 
   await expect.element(screen.getByText("Catálogo").first()).toBeVisible();
   await expect.element(screen.getByRole("heading", { name: "Marcas", level: 1 })).toBeVisible();
-  await expect.poll(() => rowTexts(screen)).toEqual(["Granix42Activo", "Vitaco18Activo"]);
+  await expect.poll(() => rowTexts(screen)).toEqual(["Granix42Activa", "Vitaco18Activa"]);
   await expect.element(screen.getByText("2 marcas · 60 productos")).toBeVisible();
 });
 
@@ -126,7 +126,7 @@ test("the state filter shows the inactive brands, or every brand, counting the i
   await userEvent.click(screen.getByRole("button", { name: /Estado:/ }));
   await userEvent.click(screen.getByRole("option", { name: "Inactivas" }));
 
-  await expect.poll(() => rowTexts(screen)).toEqual(["Yerba del Litoral3Inactivo"]);
+  await expect.poll(() => rowTexts(screen)).toEqual(["Yerba del Litoral3Inactiva"]);
   await expect.element(screen.getByText("1 marca · 1 inactiva · 3 productos")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: /Estado:/ }));
