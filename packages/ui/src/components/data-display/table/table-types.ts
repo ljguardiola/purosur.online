@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { EmptyStateProps } from "../../feedback/empty-state";
+import type { LoadFailureProps } from "../../feedback/load-failure";
 import type { Icon } from "../../shared/icon";
 
 export type TableColumnAlign = "start" | "end";
@@ -72,13 +73,16 @@ export type TableRow<T> = {
 // the header instead.
 export type TableLoadingState = false | "initial" | "updating";
 
+type TableLoadProps =
+  | { loading?: TableLoadingState; failure?: never }
+  | { loading?: false; failure: LoadFailureProps };
+
 export type TableCommonProps<T> = {
   "aria-label": string;
   rows: readonly TableRow<T>[];
-  loading?: TableLoadingState;
   empty?: EmptyStateProps;
   footer?: ReactNode;
-};
+} & TableLoadProps;
 
 // A tuple with no sortable column forbids sort/onSortChange too, so a sortable header's button
 // can never be left without a handler to call.

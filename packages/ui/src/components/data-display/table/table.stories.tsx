@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Package, Pencil, SearchX, Trash2 } from "lucide-react";
+import { CircleAlert, Package, Pencil, SearchX, Trash2 } from "lucide-react";
 import { expect, within } from "storybook/test";
 import {
   playHoverSetsDataHovered,
@@ -318,6 +318,24 @@ export const EmptyFiltered: Story = {
         title: "Sin resultados",
         description: "Probá con otro término de búsqueda.",
         variant: "filtered",
+      }}
+    />
+  ),
+};
+
+export const LoadFailed: Story = {
+  render: () => (
+    <Table
+      aria-label="Productos"
+      columns={baseColumns}
+      rows={emptyRows}
+      sort={sort}
+      onSortChange={onSortChange}
+      failure={{
+        icon: <CircleAlert />,
+        title: "No pudimos abrir los productos",
+        description: "Probá de nuevo en unos minutos.",
+        onRetry: () => {},
       }}
     />
   ),

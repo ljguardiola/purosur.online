@@ -30,6 +30,8 @@ export type { HighlightedNoticeProps } from "./components/feedback/highlighted-n
 export { HighlightedNotice } from "./components/feedback/highlighted-notice";
 export type { InlineNoticeProps } from "./components/feedback/inline-notice";
 export { InlineNotice } from "./components/feedback/inline-notice";
+export type { LoadFailureProps } from "./components/feedback/load-failure";
+export { LoadFailure } from "./components/feedback/load-failure";
 export type { LoadingPlaceholderProps } from "./components/feedback/loading-placeholder";
 export { LoadingPlaceholder } from "./components/feedback/loading-placeholder";
 export type { NotificationCardProps } from "./components/feedback/notification-card";

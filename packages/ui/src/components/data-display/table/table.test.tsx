@@ -1,10 +1,11 @@
-import { PackageSearch, Pencil, Trash2 } from "lucide-react";
+import { PackageSearch, Pencil, ShieldX, Trash2 } from "lucide-react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../test/axe";
 import { paintedBoxShadowLayers, tokenRgb } from "../../../test/token-colors";
 import type { EmptyStateProps } from "../../feedback/empty-state";
+import type { LoadFailureProps } from "../../feedback/load-failure";
 import { Table } from "./table";
 import { TableCellText } from "./table-cell-text";
 import type {
@@ -2158,6 +2159,106 @@ test("keeps focus on the header when the rows become the empty state", async () 
   );
 
   expect(document.activeElement).toBe(header);
+});
+
+const failure: LoadFailureProps = {
+  icon: <ShieldX />,
+  title: "Could not open the products",
+  description: "Try again in a few minutes.",
+  onRetry: () => {},
+};
+
+test("renders the failure with its retry under the kept header, in the frame's own body", async () => {
+  const onRetry = vi.fn();
+  const screen = await render(
+    <Table {...commonProps} columns={columns} rows={emptyRows} failure={{ ...failure, onRetry }} />,
+  );
+
+  await expect.element(screen.getByRole("columnheader", { name: "Producto" })).toBeVisible();
+  const cells = screen.container.querySelectorAll("tbody td");
+  expect(cells).toHaveLength(1);
+  expect((cells[0] as HTMLTableCellElement).colSpan).toBe(columns.length);
+  expect(screen.getByRole("table").element().hasAttribute("aria-busy")).toBe(false);
+  await expect
+    .element(screen.getByRole("alert"))
+    .toHaveTextContent("Could not open the products Try again in a few minutes.");
+  await screen.getByRole("button", { name: "Reintentar" }).click();
+  expect(onRetry).toHaveBeenCalledTimes(1);
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps the table the same height from its placeholders to its failure, so nothing jumps", async () => {
+  const screen = await render(
+    <Table {...commonProps} columns={columns} rows={emptyRows} loading="initial" />,
+  );
+  const placeholderHeight = (
+    screen.container.querySelector("table") as HTMLTableElement
+  ).getBoundingClientRect().height;
+
+  await screen.rerender(
+    <Table {...commonProps} columns={columns} rows={emptyRows} failure={failure} />,
+  );
+
+  expect(screen.container.querySelector("table")?.getBoundingClientRect().height).toBe(
+    placeholderHeight,
+  );
+});
+
+test("starts the failure at the top of the frame's body with 16px around it", async () => {
+  const screen = await render(
+    <Table {...commonProps} columns={columns} rows={emptyRows} failure={failure} />,
+  );
+
+  const cell = screen.container.querySelector("tbody td") as HTMLElement;
+  const notice = screen.getByRole("alert").element().parentElement as HTMLElement;
+  expect(notice.getBoundingClientRect().top - cell.getBoundingClientRect().top).toBe(16);
+  expect(notice.getBoundingClientRect().left - cell.getBoundingClientRect().left).toBe(16);
+});
+
+test("shows the failure instead of the empty state and of any rows", async () => {
+  const screen = await render(
+    <Table
+      {...commonProps}
+      columns={columns}
+      failure={failure}
+      empty={{ icon: <PackageSearch />, title: "No products yet", variant: "blank" }}
+    />,
+  );
+
+  expect(screen.getByText("No products yet").query()).toBeNull();
+  expect(screen.getByRole("cell", { name: "Coffee" }).query()).toBeNull();
+  await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
+});
+
+test("hides the footer while the failure shows", async () => {
+  const screen = await render(
+    <Table
+      {...commonProps}
+      columns={columns}
+      rows={emptyRows}
+      failure={failure}
+      footer={<p>0 of 215 products</p>}
+    />,
+  );
+
+  await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
+  expect(screen.getByText("0 of 215 products").query()).toBeNull();
+});
+
+test("does not accept a failure together with a loading state", () => {
+  expectTypeOf<{
+    "aria-label": string;
+    columns: typeof columns;
+    rows: TableRow<Product>[];
+    loading: "initial";
+    failure: LoadFailureProps;
+  }>().not.toExtend<TableProps<Product, typeof columns>>();
+  expectTypeOf<{
+    "aria-label": string;
+    columns: typeof columns;
+    rows: TableRow<Product>[];
+    failure: LoadFailureProps;
+  }>().toExtend<TableProps<Product, typeof columns>>();
 });
 
 test("shows placeholders instead of the empty state while loading is initial, even with an empty prop", async () => {

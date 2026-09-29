@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 import { EmptyState } from "../../feedback/empty-state";
+import { LoadFailure } from "../../feedback/load-failure";
 import { TableCell } from "./table-cell";
 import { TableHeaderRow } from "./table-header-row";
 import { TablePlaceholderRows } from "./table-placeholder-rows";
@@ -13,13 +14,17 @@ import type {
 } from "./table-types";
 import { TableUpdatingBar } from "./table-updating-bar";
 
-type TableDisplayMode = "placeholders" | "empty" | "rows";
+type TableDisplayMode = "placeholders" | "failure" | "empty" | "rows";
 
 function tableDisplayMode(
   loading: TableLoadingState,
+  failed: boolean,
   rowCount: number,
   hasEmptyState: boolean,
 ): TableDisplayMode {
+  if (failed) {
+    return "failure";
+  }
   if (loading === "initial") {
     return "placeholders";
   }
@@ -41,6 +46,7 @@ export function Table<T>({
   sort,
   onSortChange,
   loading = false,
+  failure,
   empty,
   footer,
 }: TableCommonProps<T> & {
@@ -48,7 +54,12 @@ export function Table<T>({
   sort?: TableSort;
   onSortChange?: (sort: TableSort) => void;
 }): ReactElement {
-  const displayMode = tableDisplayMode(loading, rows.length, empty !== undefined);
+  const displayMode = tableDisplayMode(
+    loading,
+    failure !== undefined,
+    rows.length,
+    empty !== undefined,
+  );
   const showEmptyState = displayMode === "empty";
   const showingPlaceholders = displayMode === "placeholders";
 
@@ -68,6 +79,13 @@ export function Table<T>({
           </thead>
           <tbody aria-hidden={showingPlaceholders ? true : undefined}>
             {showingPlaceholders && <TablePlaceholderRows columns={columns} />}
+            {failure !== undefined && (
+              <tr>
+                <td colSpan={columns.length} className="h-70 p-4 align-top">
+                  <LoadFailure {...failure} />
+                </td>
+              </tr>
+            )}
             {showEmptyState && empty !== undefined && (
               <tr>
                 <td colSpan={columns.length} className="h-70 align-middle">
@@ -98,7 +116,7 @@ export function Table<T>({
           </tbody>
         </table>
       </div>
-      {!showingPlaceholders && footer}
+      {displayMode !== "placeholders" && displayMode !== "failure" && footer}
     </>
   );
 }
