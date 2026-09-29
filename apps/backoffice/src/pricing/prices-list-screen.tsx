@@ -29,7 +29,7 @@ import {
   ShieldX,
   TriangleAlert,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import type { ProductSaleUnit } from "../catalog/products-api";
 import { type CloudSubmission, useCloudForm } from "../platform/cloud-form";
@@ -587,14 +587,14 @@ export function PricesListScreen({
   const lastNoticeId = useRef(0);
   const [screenRequestInFlight, setScreenRequestInFlight] = useState(false);
 
-  const onFiltersChangeRef = useLatestRef(onFiltersChange);
+  const reportFilters = useEffectEvent(onFiltersChange);
 
   useEffect(() => {
     const shown: PricesListFilters = { search, category: categoryFilter, review: reviewFilter };
     if (!deepEqual(shown, filters)) {
-      onFiltersChangeRef.current(shown);
+      reportFilters(shown);
     }
-  }, [search, categoryFilter, reviewFilter, filters, onFiltersChangeRef]);
+  }, [search, categoryFilter, reviewFilter, filters]);
 
   useEffect(() => {
     const handle = setTimeout(() => setDebouncedSearch(search.trim()), SEARCH_DEBOUNCE_MS);

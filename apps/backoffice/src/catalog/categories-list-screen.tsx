@@ -27,7 +27,7 @@ import {
   TriangleAlert,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import { useCloudForm } from "../platform/cloud-form";
 import { cloudTableState } from "../platform/cloud-table-state";
@@ -524,14 +524,14 @@ export function CategoriesListScreen({
   });
   const [newModalOpen, setNewModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<CategorySummary | null>(null);
-  const onFiltersChangeRef = useLatestRef(onFiltersChange);
+  const reportFilters = useEffectEvent(onFiltersChange);
 
   useEffect(() => {
     const shown: CategoriesListFilters = { search, sort: sort.direction };
     if (!deepEqual(shown, filters)) {
-      onFiltersChangeRef.current(shown);
+      reportFilters(shown);
     }
-  }, [search, sort.direction, filters, onFiltersChangeRef]);
+  }, [search, sort.direction, filters]);
 
   useEffect(() => {
     if (data.status === "failed") {

@@ -90,7 +90,7 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-function renderScreen(
+function screenElement(
   services: AlertsListScreenServices,
   onSessionEnded: () => void = () => {},
   access: BackofficeAccess = ADMINISTRATOR_ACCESS,
@@ -102,7 +102,7 @@ function renderScreen(
     onFiltersChange?: (filters: AlertsListFilters) => void;
   } = {},
 ) {
-  return render(
+  return (
     <FieldSizeProvider size="backoffice">
       <main>
         <AlertsListScreen
@@ -113,8 +113,12 @@ function renderScreen(
           onFiltersChange={onFiltersChange}
         />
       </main>
-    </FieldSizeProvider>,
+    </FieldSizeProvider>
   );
+}
+
+function renderScreen(...args: Parameters<typeof screenElement>) {
+  return render(screenElement(...args));
 }
 
 test("shows the breadcrumb, heading, each alert's level/kind/scope/opened date, the pill, and the footer", async () => {
@@ -659,4 +663,27 @@ test("reports every change to its filters and page, so they can be kept for a re
   await expect
     .poll(() => onFiltersChange.mock.lastCall)
     .toEqual([{ ...alertsListFilters.parse({}), level: "critical" }]);
+});
+
+test("does not report its filters again when the route hands it a new callback", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(ok([passkeyAlert], { total: 30 }));
+  const onFiltersChange = vi.fn();
+  const filters = alertsListFilters.parse({});
+  const screen = await renderScreen(services, () => {}, ADMINISTRATOR_ACCESS, {
+    filters,
+    onFiltersChange,
+  });
+  await expect.element(screen.getByText("Lucía Pérez")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Página 2" }));
+  await expect.poll(() => onFiltersChange.mock.calls.length).toBe(1);
+
+  await screen.rerender(
+    screenElement(services, () => {}, ADMINISTRATOR_ACCESS, {
+      filters,
+      onFiltersChange: (reported) => onFiltersChange(reported),
+    }),
+  );
+
+  expect(onFiltersChange).toHaveBeenCalledTimes(1);
 });

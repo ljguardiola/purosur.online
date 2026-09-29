@@ -56,6 +56,7 @@ import {
   type KeyboardEvent,
   useCallback,
   useEffect,
+  useEffectEvent,
   useId,
   useMemo,
   useRef,
@@ -1491,7 +1492,7 @@ export function ProductsListScreen({
   const [printModalOpen, setPrintModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ProductSummary | null>(null);
   const [deactivateTarget, setDeactivateTarget] = useState<ProductSummary | null>(null);
-  const onFiltersChangeRef = useLatestRef(onFiltersChange);
+  const reportFilters = useEffectEvent(onFiltersChange);
   const refreshCatalog = useRefreshCatalog();
   const reloadProduct = useReloadProduct({
     status: statusFilter,
@@ -1535,17 +1536,9 @@ export function ProductsListScreen({
       sort: sort.direction,
     };
     if (!deepEqual(shown, filters)) {
-      onFiltersChangeRef.current(shown);
+      reportFilters(shown);
     }
-  }, [
-    search,
-    categoryFilter,
-    unitFilter,
-    statusFilter,
-    sort.direction,
-    filters,
-    onFiltersChangeRef,
-  ]);
+  }, [search, categoryFilter, unitFilter, statusFilter, sort.direction, filters]);
 
   const categoryLabels = categoryPathLabels(categories);
 

@@ -14,6 +14,7 @@ import {
   openEditProductModal,
   openNewProductModal,
   renderScreen,
+  screenElement,
 } from "./test-support/products-list-screen";
 
 test("shows the breadcrumb, heading, each product's data and the product count", async () => {
@@ -521,4 +522,25 @@ test("reports every change to its filters, so they can be kept for a reload", as
     unit: "KG",
     search: "alm",
   });
+});
+
+test("does not report its filters again when the route hands it a new callback", async () => {
+  const services = createServices();
+  mockLoaded(services, [honey, almonds]);
+  const onFiltersChange = vi.fn();
+  const filters = productsListFilters.parse({});
+  const screen = await renderScreen(services, () => {}, { filters, onFiltersChange });
+  await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Unidad: Todas" }));
+  await userEvent.click(screen.getByRole("option", { name: "Por peso" }));
+  await expect.poll(() => onFiltersChange.mock.calls.length).toBe(1);
+
+  await screen.rerender(
+    screenElement(services, () => {}, {
+      filters,
+      onFiltersChange: (reported) => onFiltersChange(reported),
+    }),
+  );
+
+  expect(onFiltersChange).toHaveBeenCalledTimes(1);
 });

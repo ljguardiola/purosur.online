@@ -115,7 +115,7 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-function renderScreen(
+function screenElement(
   services: UsersListScreenServices,
   onSessionEnded: () => void = () => {},
   access: BackofficeAccess = ADMINISTRATOR_ACCESS,
@@ -127,7 +127,7 @@ function renderScreen(
     onFiltersChange?: (filters: UsersListFilters) => void;
   } = {},
 ) {
-  return render(
+  return (
     <main>
       <UsersListScreen
         services={services}
@@ -136,8 +136,12 @@ function renderScreen(
         filters={filters}
         onFiltersChange={onFiltersChange}
       />
-    </main>,
+    </main>
   );
+}
+
+function renderScreen(...args: Parameters<typeof screenElement>) {
+  return render(screenElement(...args));
 }
 
 test("shows the breadcrumb, heading, each user's role, and the user count", async () => {
@@ -1006,4 +1010,28 @@ test("reports every change to its state filter, so it can be kept for a reload",
   await userEvent.click(screen.getByRole("option", { name: "Activos", exact: true }));
 
   expect(onFiltersChange).toHaveBeenLastCalledWith({ state: "active" });
+});
+
+test("does not report its filters again when the route hands it a new callback", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, sofia] });
+  const onFiltersChange = vi.fn();
+  const filters = usersListFilters.parse({});
+  const screen = await renderScreen(services, () => {}, ADMINISTRATOR_ACCESS, {
+    filters,
+    onFiltersChange,
+  });
+  await expect.element(screen.getByText("2 usuarios")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: /^Estado/ }));
+  await userEvent.click(screen.getByRole("option", { name: "Activos", exact: true }));
+  await expect.poll(() => onFiltersChange.mock.calls.length).toBe(1);
+
+  await screen.rerender(
+    screenElement(services, () => {}, ADMINISTRATOR_ACCESS, {
+      filters,
+      onFiltersChange: (reported) => onFiltersChange(reported),
+    }),
+  );
+
+  expect(onFiltersChange).toHaveBeenCalledTimes(1);
 });

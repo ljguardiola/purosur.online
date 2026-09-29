@@ -25,7 +25,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { useCloudForm } from "../platform/cloud-form";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { combineCloudData } from "../platform/combine-cloud-data";
@@ -314,7 +314,7 @@ function UsersListView({
     services;
   const refreshAccess = useRefreshAccess();
   const [modalOpen, setModalOpen] = useState(false);
-  const onFiltersChangeRef = useLatestRef(onFiltersChange);
+  const reportFilters = useEffectEvent(onFiltersChange);
 
   // The cloud only ever returns a deactivated user to a caller who can reactivate one.
   const showsState = canReactivateUser(access);
@@ -328,9 +328,9 @@ function UsersListView({
   useEffect(() => {
     const shown: UsersListFilters = { state: stateFilter };
     if (!deepEqual(shown, filters)) {
-      onFiltersChangeRef.current(shown);
+      reportFilters(shown);
     }
-  }, [stateFilter, filters, onFiltersChangeRef]);
+  }, [stateFilter, filters]);
 
   const { rows, matchCount } = tableRows({
     items: users,
