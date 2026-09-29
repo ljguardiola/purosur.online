@@ -513,6 +513,30 @@ test("rejects a passkey name over 40 characters once trimmed, without calling th
   expect(services.redeemRecovery).not.toHaveBeenCalled();
 });
 
+test("shows the passkey name the cloud refused on the name field, still reading fresh options and signaling the device", async () => {
+  const fetchRegistrationOptions = vi.fn().mockResolvedValue({
+    kind: "ok",
+    value: { displayName: "Lucía Pérez", options: registrationOptions },
+  });
+  const services = createServices({
+    fetchRegistrationOptions,
+    startRegistration: vi.fn().mockResolvedValue(registrationResponse),
+    redeemRecovery: vi.fn().mockResolvedValue({ kind: "validation_failed", field: "passkey_name" }),
+  });
+
+  const screen = await render(<RegisterPasskeyScreen services={services} />);
+  await fillName(screen, PASSKEY_NAME);
+  await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
+
+  await expect.element(screen.getByText("Ingresá un nombre para la passkey.")).toBeVisible();
+  expect(screen.getByText("No se pudo registrar la passkey").query()).toBeNull();
+  await expect.poll(() => fetchRegistrationOptions.mock.calls.length).toBe(2);
+  expect(services.signalUnknownCredential).toHaveBeenCalledWith({
+    rpId: "purosur.online",
+    credentialId: "cred-1",
+  });
+});
+
 test("sends the trimmed passkey name", async () => {
   const services = createServices({
     fetchRegistrationOptions: vi.fn().mockResolvedValue({

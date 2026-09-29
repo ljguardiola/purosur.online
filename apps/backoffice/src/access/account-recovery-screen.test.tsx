@@ -55,6 +55,42 @@ test("rejects a malformed email without calling the API", async () => {
   expect(services.requestRecoveryLink).not.toHaveBeenCalled();
 });
 
+test("rejects an email longer than any address can be without calling the API", async () => {
+  const services = createServices();
+  const screen = await render(<AccountRecoveryScreen services={services} />);
+
+  await fillEmail(screen, `${"a".repeat(250)}@purosur.online`);
+  await userEvent.click(screen.getByRole("button", { name: "Enviar el enlace" }));
+
+  await expect.element(screen.getByText("Ingresá un correo válido.")).toBeVisible();
+  expect(services.requestRecoveryLink).not.toHaveBeenCalled();
+});
+
+test("shows the email the cloud refused on the email field, not as a notice", async () => {
+  const services = createServices({
+    requestRecoveryLink: vi.fn().mockResolvedValue({ kind: "validation_failed", field: "email" }),
+  });
+  const screen = await render(<AccountRecoveryScreen services={services} />);
+
+  await fillEmail(screen, "lucia.perez@purosur.online");
+  await userEvent.click(screen.getByRole("button", { name: "Enviar el enlace" }));
+
+  await expect.element(screen.getByText("Ingresá un correo válido.")).toBeVisible();
+  await expect.element(screen.getByText("No pudimos enviar el enlace")).not.toBeInTheDocument();
+});
+
+test("a field the form does not have that the cloud refused shows the generic notice", async () => {
+  const services = createServices({
+    requestRecoveryLink: vi.fn().mockResolvedValue({ kind: "validation_failed", field: "other" }),
+  });
+  const screen = await render(<AccountRecoveryScreen services={services} />);
+
+  await fillEmail(screen, "lucia.perez@purosur.online");
+  await userEvent.click(screen.getByRole("button", { name: "Enviar el enlace" }));
+
+  await expect.element(screen.getByText("No pudimos enviar el enlace")).toBeVisible();
+});
+
 test("confirms the link was sent, with the uniform notice, after a successful submit", async () => {
   const services = createServices({
     requestRecoveryLink: vi.fn().mockResolvedValue({ kind: "sent" }),

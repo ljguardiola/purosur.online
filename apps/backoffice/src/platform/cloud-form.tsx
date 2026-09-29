@@ -123,7 +123,7 @@ export function useCloudForm<
     await form.handleSubmit();
   }
 
-  const reset = (values?: Values) => form.reset(values);
+  const reset: (values?: Values) => void = form.reset;
 
   return {
     form,

@@ -1,10 +1,12 @@
-import { Button, InlineNotice, TextField } from "@purosur/ui";
+import { recoveryRequestBodySchema } from "@purosur/contracts";
+import { Button, InlineNotice } from "@purosur/ui";
 import { ArrowLeft, MailCheck, Send, ShieldX, TriangleAlert } from "lucide-react";
 import { type FormEvent, useState } from "react";
+import { useCloudForm } from "../platform/cloud-form";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { AccessFooterLink, AccessHeader, AccessLayout } from "./access-layout";
 import type { AccountRecoveryScreenServices } from "./account-recovery-services";
-import { validateEmail } from "./email-validation";
+import { emailFieldMessage } from "./email-field-message";
 
 type Notice = { kind: "rate_limited"; retryAfterSeconds: number } | { kind: "error" };
 
@@ -12,37 +14,36 @@ export type AccountRecoveryScreenProps = {
   services: AccountRecoveryScreenServices;
 };
 
-const EMAIL_ERRORS = {
+const EMAIL_MESSAGE = emailFieldMessage({
   required: "Ingresá tu correo.",
   invalid: "Ingresá un correo válido.",
-};
+});
 
 export function AccountRecoveryScreen({ services }: AccountRecoveryScreenProps) {
   const { requestRecoveryLink } = services;
-  const [email, setEmail] = useState("");
-  const [fieldError, setFieldError] = useState<string | undefined>(undefined);
-  const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [sent, setSent] = useState(false);
+  const { form, submit, submitting } = useCloudForm({
+    defaultValues: { email: "" },
+    request: { schema: recoveryRequestBodySchema, from: ({ email }) => ({ email }) },
+    fields: { email: "email" },
+    messages: { email: EMAIL_MESSAGE },
+    onSubmit: async ({ email }, { showWireFieldError }) => {
+      setNotice(null);
+      const outcome = await requestRecoveryLink(email);
+      if (outcome.kind === "sent") {
+        setSent(true);
+      } else if (outcome.kind === "rate_limited") {
+        setNotice({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
+      } else if (outcome.kind !== "validation_failed" || !showWireFieldError(outcome.field)) {
+        setNotice({ kind: "error" });
+      }
+    },
+  });
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const validationError = validateEmail(email, EMAIL_ERRORS);
-    setFieldError(validationError);
-    if (validationError) {
-      return;
-    }
-    setNotice(null);
-    setSubmitting(true);
-    const outcome = await requestRecoveryLink(email.trim());
-    setSubmitting(false);
-    if (outcome.kind === "sent") {
-      setSent(true);
-    } else if (outcome.kind === "rate_limited") {
-      setNotice({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
-    } else {
-      setNotice({ kind: "error" });
-    }
+    void submit();
   }
 
   if (sent) {
@@ -84,19 +85,9 @@ export function AccountRecoveryScreen({ services }: AccountRecoveryScreenProps) 
         />
       )}
       <form className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
-        <TextField
-          kind="plain-text"
-          label="Correo de tu cuenta"
-          value={email}
-          onChange={(value) => {
-            setEmail(value);
-            if (fieldError) {
-              setFieldError(validateEmail(value, EMAIL_ERRORS));
-            }
-          }}
-          required
-          errorMessage={fieldError}
-        />
+        <form.AppField name="email">
+          {(field) => <field.TextField kind="plain-text" label="Correo de tu cuenta" required />}
+        </form.AppField>
         <Button
           type="submit"
           variant="primary"

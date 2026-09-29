@@ -393,6 +393,33 @@ test("rejects a passkey name over 40 characters once trimmed", async () => {
   expect(services.registerPasskey).not.toHaveBeenCalled();
 });
 
+test("shows the passkey name the cloud refused on the name field, not as a notice", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+  vi.mocked(services.fetchPasskeyRegistrationChallenge).mockResolvedValue({
+    kind: "ok",
+    value: { registrationOptions },
+  });
+  vi.mocked(services.startRegistration).mockResolvedValue(newRegistration);
+  vi.mocked(services.registerPasskey).mockResolvedValue({
+    kind: "validation_failed",
+    field: "passkey_name",
+  });
+  const dialog = await openRegisterModal(screen);
+
+  await userEvent.fill(dialog.getByRole("textbox"), "Teléfono de Lucía");
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
+
+  await expect.element(dialog.getByText("Ingresá un nombre para la passkey.")).toBeVisible();
+  expect(dialog.getByText("No se pudo registrar la passkey").query()).toBeNull();
+  expect(services.signalUnknownCredential).toHaveBeenCalledWith({
+    rpId: "purosur.online",
+    credentialId: "new-cred",
+  });
+});
+
 test("shows an attempt-failed notice when the registration challenge fails to fetch", async () => {
   const services = createServices();
   vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
