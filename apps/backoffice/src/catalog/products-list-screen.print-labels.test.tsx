@@ -103,7 +103,7 @@ test("reloading the changed product list keeps the screen's own status filter", 
   expect(services.fetchProducts).toHaveBeenLastCalledWith("all");
 });
 
-test("shows an empty state when no product has an internal barcode", async () => {
+test("shows only the empty state when no product has an internal barcode", async () => {
   const services = createServices();
   mockLoaded(services, [withoutInternalBarcode]);
   const screen = await renderScreen(services);
@@ -113,6 +113,7 @@ test("shows an empty state when no product has an internal barcode", async () =>
   await expect
     .element(dialog.getByText("No hay productos activos con código interno"))
     .toBeVisible();
+  expect(dialog.getByText(/Elegí cuántas etiquetas/).query()).toBeNull();
   await expect
     .element(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }))
     .toBeDisabled();

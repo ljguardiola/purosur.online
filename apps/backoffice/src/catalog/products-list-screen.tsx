@@ -14,6 +14,7 @@ import {
 } from "@purosur/domain";
 import {
   Button,
+  EmptyState,
   FieldGroup,
   IconButton,
   InlineNotice,
@@ -1695,21 +1696,18 @@ function PrintLabelsModal({
             Recargar la lista
           </Button>
         ) : null}
-        <p className="text-body text-text">
-          Productos con código interno. Elegí cuántas etiquetas va a llevar cada uno.
-        </p>
         {rows.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 rounded-lg bg-surface-subtle px-4 py-8 text-center">
-            <Package aria-hidden="true" className="size-icon-xl text-text-subtle" />
-            <p className="text-body font-bold text-text">
-              No hay productos activos con código interno
-            </p>
-            <p className="text-detail text-text-subtle">
-              Generá uno desde el formulario de un producto activo.
-            </p>
-          </div>
+          <EmptyState
+            variant="blank"
+            icon={<Package />}
+            title="No hay productos activos con código interno"
+            description="Generá uno desde el formulario de un producto activo."
+          />
         ) : (
           <>
+            <p className="text-body text-text">
+              Productos con código interno. Elegí cuántas etiquetas va a llevar cada uno.
+            </p>
             <div className="flex max-h-64 flex-col gap-1 overflow-y-auto">
               {rows.map(({ product, code }) => {
                 const count = counts[product.id] ?? 0;
