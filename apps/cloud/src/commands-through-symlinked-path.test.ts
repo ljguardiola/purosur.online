@@ -8,7 +8,7 @@ import { cloudCommands } from "./test-support/cloud-commands.js";
 
 function runNode(args: string[]): Promise<{ status: number | null; stderr: string }> {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, args, { env: {} });
+    const child = spawn(process.execPath, args, { env: {}, stdio: ["ignore", "ignore", "pipe"] });
     let stderr = "";
     child.stderr.setEncoding("utf8").on("data", (chunk: string) => {
       stderr += chunk;
