@@ -29,7 +29,7 @@ import { useSendToMyAccount } from "../access/send-to-my-account";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { closeAlert as closeAlertDefault, fetchAlert as fetchAlertDefault } from "./alerts-api";
-import { useAlertQuery, useRefreshAlerts } from "./alerts-queries";
+import { useAlertQuery, useRefreshAlerts, useRefreshAlertsAfterClosing } from "./alerts-queries";
 
 type Icon = ReactElement<{ className?: string }>;
 
@@ -221,6 +221,7 @@ function OpenAlertDetailModal({
   const { fetchAlert, closeAlert } = services ?? defaultAlertDetailModalServices;
   const data = useAlertQuery({ id: alertId, fetchAlert, onSessionEnded });
   const refreshAlerts = useRefreshAlerts();
+  const refreshAlertsAfterClosing = useRefreshAlertsAfterClosing();
   const [notice, setNotice] = useState<FormNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -230,7 +231,7 @@ function OpenAlertDetailModal({
     const outcome = await closeAlert(alertId);
     if (outcome.kind === "ok") {
       onClosed();
-      void refreshAlerts();
+      void refreshAlertsAfterClosing();
       return;
     }
     if (outcome.kind === "unauthenticated") {

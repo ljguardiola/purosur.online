@@ -34,3 +34,18 @@ test("each list query and each alert has its own key, so one answer cannot land 
   expect(alertsKeys.detail("alert-1")).not.toEqual(alertsKeys.detail("alert-2"));
   expect(alertsKeys.list(first)).not.toEqual(alertsKeys.detail("alert-1"));
 });
+
+test("the lists key covers every alerts list, whatever it was asked for, and no alert's detail", () => {
+  const client = new QueryClient();
+  const lists = [
+    alertsKeys.list({ open: true, page: 1 }),
+    alertsKeys.list({ level: "critical", open: false, page: 2 }),
+  ];
+  for (const key of [...lists, alertsKeys.detail("alert-1")]) {
+    client.setQueryData(key, {});
+  }
+
+  const covered = client.getQueryCache().findAll({ queryKey: alertsKeys.lists });
+
+  expect(covered.map((query) => query.queryKey)).toEqual(lists);
+});

@@ -484,6 +484,7 @@ test("reads the alerts again after one is closed, keeping the rows shown while i
   await expect.element(screen.getByText("Lucía Pérez")).not.toBeInTheDocument();
   expect(services.fetchAlerts).toHaveBeenCalledTimes(2);
   expect(services.fetchAlerts).toHaveBeenLastCalledWith({ open: true, page: 1 });
+  expect(services.alertDetailModal.fetchAlert).toHaveBeenCalledTimes(1);
 });
 
 test("moves to the last page left when closing the only alert on the last page empties it", async () => {

@@ -1,5 +1,6 @@
 import type { AlertDetail } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { act } from "react";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { BackofficeAccess } from "../access/backoffice-access";
@@ -423,6 +424,21 @@ test("Cerrar la alerta closes the alert and reports it back through onClosed", a
 
   await expect.poll(() => onClosed).toHaveBeenCalled();
   expect(services.closeAlert).toHaveBeenCalledWith("alert-1");
+});
+
+test("does not read the alert again once it is closed", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(ok(baseDetail()));
+  vi.mocked(services.closeAlert).mockResolvedValue({ kind: "ok" });
+  const onClosed = vi.fn();
+  const screen = await renderModal(services, { onClosed });
+  await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeEnabled();
+
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar la alerta" }));
+  await expect.poll(() => onClosed).toHaveBeenCalled();
+  await act(async () => {});
+
+  expect(services.fetchAlert).toHaveBeenCalledTimes(1);
 });
 
 test("shows a notice when someone else already closed it, instead of reporting success", async () => {

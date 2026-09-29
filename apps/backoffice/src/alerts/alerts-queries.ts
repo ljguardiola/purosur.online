@@ -7,8 +7,11 @@ import type { AlertListQuery, fetchAlert, fetchAlerts } from "./alerts-api";
 
 export const alertsKey = ["alerts"] as const;
 
+const alertListsKey = [...alertsKey, "list"] as const;
+
 export const alertsKeys = {
-  list: (query: AlertListQuery) => [...alertsKey, "list", query] as const,
+  lists: alertListsKey,
+  list: (query: AlertListQuery) => [...alertListsKey, query] as const,
   detail: (id: string) => [...alertsKey, "detail", id] as const,
 };
 
@@ -59,4 +62,14 @@ export function useAlertQuery(params: {
 export function useRefreshAlerts(): () => Promise<void> {
   const client = useQueryClient();
   return () => client.invalidateQueries({ queryKey: alertsKey });
+}
+
+export function useRefreshAlertsAfterClosing(): () => Promise<void> {
+  const client = useQueryClient();
+  // The closed alert's detail is still mounted at this point: reading it again would spend a
+  // request of the backoffice's hourly rate limit on an alert that is no longer shown.
+  return () => {
+    void client.invalidateQueries({ queryKey: alertsKey, refetchType: "none" });
+    return client.refetchQueries({ queryKey: alertsKeys.lists, type: "active" });
+  };
 }
