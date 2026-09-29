@@ -129,6 +129,27 @@ test("createRegister returns validation_failed on the named field for a 400", as
   });
 });
 
+test("createRegister returns the wire field of a validation_failed 400 as the cloud named it", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(400, {
+      code: "validation_failed",
+      message: "unexpected",
+      details: [{ field: "branch_id" }],
+    }),
+  );
+
+  expect(await createRegister({ name: "Caja 3" })).toEqual({
+    kind: "validation_failed",
+    field: "branch_id",
+  });
+});
+
+test("createRegister returns failed on a 400 that is not validation_failed", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(400, { code: "bad_request" }));
+
+  expect(await createRegister({ name: "Caja 3" })).toEqual({ kind: "failed" });
+});
+
 test("createRegister returns name_taken on 409", async () => {
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse(409, {

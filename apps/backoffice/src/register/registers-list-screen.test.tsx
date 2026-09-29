@@ -370,6 +370,26 @@ test("requires a name before submitting the create modal, without calling the AP
   expect(services.createRegister).not.toHaveBeenCalled();
 });
 
+test("reopening the create modal starts from an empty name with no error", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay cajas registradoras")).toBeVisible();
+  const dialog = await openNewRegisterModal(screen);
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la caja/ }), "  ");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la caja" }));
+  await expect.element(dialog.getByText("Ingresá el nombre de la caja.")).toBeVisible();
+  await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+
+  const reopened = await openNewRegisterModal(screen);
+
+  await expect
+    .element(reopened.getByRole("textbox", { name: /^Nombre de la caja/ }))
+    .toHaveValue("");
+  await expect.element(reopened.getByText("Ingresá el nombre de la caja.")).not.toBeInTheDocument();
+});
+
 test("shows the name-too-long error on create, without calling the API", async () => {
   const services = createServices();
   vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [] });
@@ -406,6 +426,24 @@ test("shows the server's validation_failed error on create and does not add the 
   await expect.element(dialog.getByText("Ingresá el nombre de la caja.")).toBeVisible();
   await expect.element(screen.getByRole("dialog")).toBeVisible();
   await expect.element(screen.getByText("1 caja")).toBeVisible();
+});
+
+test("shows the attempt-failed notice when the cloud names a field the form does not have", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.createRegister).mockResolvedValue({
+    kind: "validation_failed",
+    field: "branch_id",
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay cajas registradoras")).toBeVisible();
+  const dialog = await openNewRegisterModal(screen);
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la caja/ }), "Caja 1");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la caja" }));
+
+  await expect.element(dialog.getByText("No se pudo crear la caja")).toBeVisible();
+  await expect.element(dialog.getByText("Ingresá el nombre de la caja.")).not.toBeInTheDocument();
 });
 
 test("shows the name-taken error on create and does not add the register to the list", async () => {

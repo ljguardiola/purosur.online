@@ -53,7 +53,7 @@ function Probe({ onSubmit }: { onSubmit: SubmitHandler }) {
       <button type="button" disabled={submitting} onClick={() => void submit()}>
         Enviar
       </button>
-      <button type="button" onClick={reset}>
+      <button type="button" onClick={() => reset()}>
         Vaciar
       </button>
     </>

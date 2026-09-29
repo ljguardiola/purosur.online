@@ -74,7 +74,7 @@ export function useCloudForm<
           if (field === undefined) {
             outsideFields = true;
           } else {
-            failures[field] ??= messageFor(field, value);
+            failures[field] = failures[field] ?? messageFor(field, value);
           }
         }
         return { form: outsideFields ? "invalid" : undefined, fields: failures };
@@ -121,10 +121,12 @@ export function useCloudForm<
     await form.handleSubmit();
   }
 
+  const reset: () => void = form.reset;
+
   return {
     form,
     submit,
     submitting: useStore(form.store, (state) => state.isSubmitting),
-    reset: () => form.reset(),
+    reset,
   };
 }
