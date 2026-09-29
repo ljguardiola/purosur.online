@@ -38,6 +38,15 @@ never restates those rules. Every step below follows the TDD order in
 
 ## 2. Cover every state with its piece
 
+A section reads its data through `useCloudQuery`
+(`apps/backoffice/src/platform/use-cloud-query.ts`), wrapped in its
+concept's `<concept>-queries.ts` (`catalog/catalog-queries.ts` is the first).
+It combines several reads with `combineCloudData`
+(`platform/combine-cloud-data.ts`), and a table takes its loading and failure
+from `cloudTableState` (`platform/cloud-table-state.tsx`). The rules for
+loading, refreshing after a change and checking responses are in
+"Structure" and "Backoffice screens" in `CONTRIBUTING.md`.
+
 List the sections of the screen that load data and the actions a person can
 take, then give each one every state below. The rules for these states are
 in "Backoffice screens" in `CONTRIBUTING.md`; this table only says which
