@@ -1,12 +1,11 @@
-import { X } from "lucide-react";
 import { Children, Fragment, isValidElement, type ReactNode } from "react";
 import {
-  Button as AriaButton,
   Dialog as AriaDialog,
   Heading as AriaHeading,
   Modal as AriaModal,
   ModalOverlay as AriaModalOverlay,
 } from "react-aria-components";
+import { CloseButton } from "../shared/close-button";
 import { type Icon, iconSlotClassName } from "../shared/icon";
 import { type NoticeTone, type Tone, toneClassName } from "../shared/tone";
 
@@ -61,11 +60,6 @@ function hasContent(node: ReactNode): boolean {
       : true,
   );
 }
-
-const closeButtonClassName =
-  "flex size-control-lg shrink-0 items-center justify-center rounded-full bg-surface-subtle text-text-subtle " +
-  "transition-background outline-none data-hovered:bg-surface-soft " +
-  "data-focus-visible:focus-ring";
 
 export function Modal(props: ModalProps) {
   const {
@@ -150,15 +144,7 @@ export function Modal(props: ModalProps) {
                   </AriaHeading>
                 </div>
                 {props.closable ? (
-                  <AriaButton
-                    aria-label="Cerrar"
-                    onPress={() => onOpenChange(false)}
-                    className={closeButtonClassName}
-                  >
-                    <span className={iconSlotClassName.lg}>
-                      <X aria-hidden="true" />
-                    </span>
-                  </AriaButton>
+                  <CloseButton onPress={() => onOpenChange(false)} />
                 ) : null}
               </div>
               {hasContent(children) && (
