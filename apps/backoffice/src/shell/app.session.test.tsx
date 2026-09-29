@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { page, userEvent } from "vitest/browser";
+import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { openSession } from "../access/test-support/open-session";
 import { honey } from "../catalog/test-support/products";
@@ -157,7 +157,6 @@ test("shows the signed-in user's name in the rail footer, and Salir signs back o
 });
 
 test("a list the previous person had open is read again from the loading placeholder after signing out and back in", async () => {
-  await page.viewport(1280, 900);
   window.history.pushState(null, "", "/catalog/products");
   const services = createAppServices();
   vi.mocked(services.productsListScreen.fetchProducts).mockResolvedValue({

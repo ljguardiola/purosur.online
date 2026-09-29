@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { page, userEvent } from "vitest/browser";
+import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { openSession } from "../access/test-support/open-session";
 import { App } from "./app";
@@ -238,8 +238,6 @@ test("opens the role editor modal, over the Roles list, from the Nuevo rol butto
 });
 
 test("opens the role editor modal for editing, from a role's pencil action, with Roles still the active sidebar item", async () => {
-  // A desktop-sized viewport keeps this row action clear of the rail at the default phone-sized viewport.
-  await page.viewport(1280, 900);
   const services = createAppServices();
   const roleEditorModal = services.rolesListScreen.roleEditorModal;
   if (!roleEditorModal) {
@@ -285,7 +283,6 @@ test("opens the role editor modal for editing, from a role's pencil action, with
 });
 
 test("opens the role editor modal for duplicating, pre-filled from the source row, without refetching the list", async () => {
-  await page.viewport(1280, 900);
   const services = createAppServices();
   const fetchRoles = vi.mocked(services.rolesListScreen.fetchRoles);
   fetchRoles.mockResolvedValue({

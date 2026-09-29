@@ -23,6 +23,7 @@ export const help = defineHelp("es-AR", {
 });
 
 export async function resetPageState() {
+  // The default browser viewport is phone-sized, which the backoffice is not laid out for.
   await page.viewport(1280, 900);
   window.history.pushState(null, "", "/");
   window.localStorage.clear();
