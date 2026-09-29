@@ -3,10 +3,13 @@ export type {
   PermissionDefinition,
   PermissionKey,
   PermissionRegisterMarker,
+  RoleAccess,
 } from "./access/index.js";
 export {
   ALERT_VIEW_PERMISSION_KEYS,
+  grantedPermissionKeys,
   holdsBothAlertViewPermissions,
+  increasesAccess,
   isAdministratorRoleName,
   isEmailAddress,
   isPasskeyNameTooLong,
@@ -74,7 +77,15 @@ export {
 } from "./fiscal/index.js";
 export { MAX_UNIT_PRICE_CENTS } from "./pricing/index.js";
 export {
+  ENROLLMENT_CODE_LENGTH,
+  enrollmentAttemptWindowStart,
+  enrollmentCodeExpiresAt,
+  enrollmentCodeLookup,
+  INSTALLATION_REPORT_MAX_LENGTH,
+  isInstallationReportTooLong,
   isRegisterNameTooLong,
+  isWellFormedEnrollmentCode,
+  normalizeEnrollmentCode,
   REGISTER_NAME_MAX_LENGTH,
   registerNameLength,
 } from "./register/index.js";

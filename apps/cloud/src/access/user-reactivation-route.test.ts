@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
+  alerts,
   auditLog,
   locations,
   passkeys,
@@ -267,6 +268,19 @@ describe("POST /users/:id/reactivation", () => {
       previousValue: { active: false },
       newValue: { active: true },
     });
+  });
+
+  it("opens no alert for increased access, even when the role gained permissions while the user was deactivated", async () => {
+    await db
+      .insert(rolePermissions)
+      .values({ roleId: cashierRoleId, permissionKey: "adjust_stock" });
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await reactivateUser(targetId, rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    const opened = await db.select().from(alerts).where(eq(alerts.kind, "user_access_increased"));
+    expect(opened).toHaveLength(0);
   });
 
   it("allows a holder of only reactivate_users, not an Administrator, to reactivate a user", async () => {

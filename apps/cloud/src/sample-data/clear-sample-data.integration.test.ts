@@ -18,6 +18,8 @@ import {
   passkeyChallenges,
   products,
   recoveryTokens,
+  registerInstallations,
+  registers,
   roles,
   sessions,
   userRoles,
@@ -213,13 +215,17 @@ describe("clearSampleData", () => {
       actorId: bootstrapAdmin.id,
     });
     if (realRoleOutcome.kind !== "created") throw new Error("test setup: real role collided");
-    const realUserOutcome = await createUser(db, {
-      firstName: "Usuaria Real",
-      email: "cajera.real@example.com",
-      roleId: realRoleOutcome.role.id,
-      locationId: bootstrapAdmin.locationId,
-      actorId: bootstrapAdmin.id,
-    });
+    const realUserOutcome = await createUser(
+      db,
+      {
+        firstName: "Usuaria Real",
+        email: "cajera.real@example.com",
+        roleId: realRoleOutcome.role.id,
+        locationId: bootstrapAdmin.locationId,
+        actorId: bootstrapAdmin.id,
+      },
+      { now: () => new Date() },
+    );
     if (realUserOutcome.kind !== "created") throw new Error("test setup: real user collided");
 
     const realCategoryOutcome = await createCategory(new DrizzleCatalogStore(db), {
@@ -402,6 +408,27 @@ describe("clearSampleData", () => {
     expect(await tableCount(db, "passkey_challenges")).toBe(0);
     const survivingAlerts = await db.select({ id: alerts.id }).from(alerts);
     expect(survivingAlerts).toEqual([{ id: realAlert.alertId }]);
+  }, 120_000);
+
+  it("clears a sample register that an installation enrolled, with that installation", async () => {
+    const db = await freshOwnerDatabase();
+    await seedActiveAdministrator(db);
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    const [sampleRegister] = await db.select({ id: registers.id }).from(registers).limit(1);
+    if (!sampleRegister) throw new Error("test setup: no sample register was loaded");
+    await db.insert(registerInstallations).values({
+      registerId: sampleRegister.id,
+      tokenLookupPrefix: randomUUID(),
+      tokenHash: "hash",
+      hostname: "CAJA",
+      windowsVersion: "Windows 11",
+      enrolledAt: NOW,
+    });
+
+    expect((await clearSampleData(db)).kind).toBe("cleared");
+
+    expect(await tableCount(db, "registers")).toBe(0);
+    expect(await tableCount(db, "register_installations")).toBe(0);
   }, 120_000);
 
   it("refuses and deletes nothing when a sample user reviewed a real product's price", async () => {

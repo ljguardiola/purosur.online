@@ -7,6 +7,7 @@ import {
   auditLog,
   locations,
   recoveryTokens,
+  rolePermissions,
   roles,
   sessions,
   userRoles,
@@ -676,5 +677,152 @@ describe("POST /users/:id/edit", () => {
       const [row] = await db.select().from(users).where(eq(users.id, targetId));
       expect(row?.email).toBe("grace@example.com");
     });
+  });
+});
+
+describe("POST /users/:id/edit and the alert for increased access", () => {
+  let targetId: string;
+
+  async function insertRoleWithPermissions(
+    name: string,
+    permissionKeys: string[],
+  ): Promise<string> {
+    const roleId = await insertCashierRole(name);
+    await db
+      .insert(rolePermissions)
+      .values(permissionKeys.map((permissionKey) => ({ roleId, permissionKey })));
+    return roleId;
+  }
+
+  async function assignRole(userId: string, roleId: string, version = 1) {
+    const [row] = await db.select({ email: users.email }).from(users).where(eq(users.id, userId));
+    return editUser(userId, await insertSession(administratorId), {
+      email: row?.email,
+      role_id: roleId,
+      version,
+    });
+  }
+
+  async function accessIncreasedAlerts() {
+    return db.select().from(alerts).where(eq(alerts.kind, "user_access_increased"));
+  }
+
+  beforeEach(async () => {
+    targetId = await insertUser({
+      firstName: "Grace Hopper",
+      email: "grace@example.com",
+      roleId: await insertRoleWithPermissions("Cajera", ["sell_and_charge", "void_sale"]),
+      locationId: await seededLocationId(db),
+    });
+  });
+
+  it("opens one Critical, All-audience alert scoped to the user made Administrator, never resolving on its own", async () => {
+    const response = await assignRole(targetId, await seededAdministratorRoleId());
+
+    expect(response.statusCode).toBe(200);
+    const opened = await accessIncreasedAlerts();
+    expect(opened).toHaveLength(1);
+    expect(opened[0]).toMatchObject({
+      scope: targetId,
+      level: "critical",
+      audience: "all",
+      escalateAt: null,
+      resolvedAt: null,
+      detail: {
+        cause: "role_assigned",
+        previousRole: { name: "Cajera", isAdministrator: false },
+        newRole: { name: null, isAdministrator: true },
+        actorId: administratorId,
+      },
+    });
+  });
+
+  it("opens the alert when the user is assigned a role that gives them a permission they did not have", async () => {
+    const encargadaRoleId = await insertRoleWithPermissions("Encargada", [
+      "sell_and_charge",
+      "adjust_stock",
+    ]);
+
+    const response = await assignRole(targetId, encargadaRoleId);
+
+    expect(response.statusCode).toBe(200);
+    const opened = await accessIncreasedAlerts();
+    expect(opened).toHaveLength(1);
+    expect(opened[0]).toMatchObject({
+      scope: targetId,
+      level: "critical",
+      audience: "all",
+      detail: {
+        cause: "role_assigned",
+        previousRole: { name: "Cajera", isAdministrator: false },
+        newRole: { name: "Encargada", isAdministrator: false },
+        actorId: administratorId,
+      },
+    });
+  });
+
+  it("opens a second alert for a second increase, leaving the first open as it was", async () => {
+    const encargadaRoleId = await insertRoleWithPermissions("Encargada", [
+      "sell_and_charge",
+      "void_sale",
+      "adjust_stock",
+    ]);
+    await assignRole(targetId, encargadaRoleId);
+    const [first] = await accessIncreasedAlerts();
+
+    const response = await assignRole(targetId, await seededAdministratorRoleId(), 2);
+
+    expect(response.statusCode).toBe(200);
+    const opened = await accessIncreasedAlerts();
+    expect(opened).toHaveLength(2);
+    expect(opened).toContainEqual(first);
+    expect(opened).toContainEqual(
+      expect.objectContaining({
+        scope: targetId,
+        resolvedAt: null,
+        detail: expect.objectContaining({ newRole: { name: null, isAdministrator: true } }),
+      }),
+    );
+  });
+
+  it("opens no alert when the user is assigned a role whose permissions they already had", async () => {
+    const fewerRoleId = await insertRoleWithPermissions("Repositora", ["sell_and_charge"]);
+
+    const response = await assignRole(targetId, fewerRoleId);
+
+    expect(response.statusCode).toBe(200);
+    expect(await roleOf(targetId)).toBe(fewerRoleId);
+    expect(await accessIncreasedAlerts()).toHaveLength(0);
+  });
+
+  it("opens no alert when an Administrator is assigned any other role", async () => {
+    const secondAdministratorId = await insertUser({
+      firstName: "Katherine Johnson",
+      email: "katherine@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const everyPermissionRoleId = await insertRoleWithPermissions("Encargada", [
+      "sell_and_charge",
+      "void_sale",
+      "adjust_stock",
+    ]);
+
+    const response = await assignRole(secondAdministratorId, everyPermissionRoleId);
+
+    expect(response.statusCode).toBe(200);
+    expect(await roleOf(secondAdministratorId)).toBe(everyPermissionRoleId);
+    expect(await accessIncreasedAlerts()).toHaveLength(0);
+  });
+
+  it("opens no alert when only the email changes", async () => {
+    const response = await editUser(targetId, await insertSession(administratorId), {
+      email: "new.email@example.com",
+      role_id: await roleOf(targetId),
+      version: 1,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(await accessIncreasedAlerts()).toHaveLength(0);
   });
 });

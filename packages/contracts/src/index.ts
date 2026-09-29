@@ -87,16 +87,32 @@ export {
 } from "./pricing/price-list.js";
 export type { PriceSetBody } from "./pricing/price-set.js";
 export { priceSetBodySchema } from "./pricing/price-set.js";
+export type { CloudError, CloudErrorCode } from "./register/cloud-error.js";
+export {
+  cloudError,
+  cloudErrorSchema,
+  cloudErrorStatus,
+  isRetryableCloudError,
+  retryAfterSecondsOf,
+} from "./register/cloud-error.js";
 export type {
   CoreStatusMessage,
+  CoreToRendererMessage,
+  EnrollmentOutcome,
   MainToCoreMessage,
   RendererToCoreMessage,
 } from "./register/core-messages.js";
 export {
   coreStatusMessageSchema,
+  coreToRendererMessageSchema,
   mainToCoreMessageSchema,
   rendererToCoreMessageSchema,
 } from "./register/core-messages.js";
+export type { DeviceEnrollment, DeviceEnrollmentBody } from "./register/device-enrollment.js";
+export {
+  deviceEnrollmentBodySchema,
+  deviceEnrollmentSchema,
+} from "./register/device-enrollment.js";
 export type { RegisterCreationBody } from "./register/register-creation.js";
 export { registerCreationBodySchema } from "./register/register-creation.js";
 export type { RegisterEnrollmentCodeBody } from "./register/register-enrollment-code.js";

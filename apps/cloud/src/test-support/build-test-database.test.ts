@@ -24,7 +24,9 @@ import {
   recoveryRateLimitAttempts,
   recoveryRejectedAttemptAccumulator,
   recoveryTokens,
+  registerEnrollmentAttempts,
   registerEnrollmentCodes,
+  registerInstallations,
   registers,
   rolePermissions,
   roles,
@@ -203,9 +205,23 @@ describe("buildTestDatabase", () => {
     }
     await db.insert(registerEnrollmentCodes).values({
       registerId: register.id,
+      codeLookup: "ABCD",
       codeHash: "code-hash",
       issuedAt: new Date("2026-01-05T12:00:00.000Z"),
       expiresAt: new Date("2026-01-05T12:15:00.000Z"),
+    });
+    await db.insert(registerInstallations).values({
+      registerId: register.id,
+      tokenLookupPrefix: "token-prefix",
+      tokenHash: "token-hash",
+      hostname: "CAJA",
+      windowsVersion: "Windows 11",
+      enrolledAt: new Date("2026-01-05T12:00:00.000Z"),
+    });
+    await db.insert(registerEnrollmentAttempts).values({
+      keyKind: "source_address",
+      keyValue: "203.0.113.10",
+      attemptedAt: new Date("2026-01-05T12:00:00.000Z"),
     });
     await db.insert(auditLog).values({ entity: "users", entityId: user.id });
     await db.insert(passkeys).values({

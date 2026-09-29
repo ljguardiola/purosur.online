@@ -3,9 +3,11 @@ import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
+  alerts,
   auditLog,
   locations,
   passkeys,
+  rolePermissions,
   roles,
   sessions,
   userRoles,
@@ -407,5 +409,54 @@ describe("POST /users", () => {
       const created = await db.select().from(users).where(eq(users.email, "newhire@example.com"));
       expect(created).toHaveLength(0);
     });
+  });
+});
+
+describe("POST /users and the alert for increased access", () => {
+  function createUser(rawSessionId: string, body: Record<string, unknown>) {
+    return postJson(app, "/users", body, cookieHeader(rawSessionId));
+  }
+
+  function accessIncreasedAlerts() {
+    return db.select().from(alerts).where(eq(alerts.kind, "user_access_increased"));
+  }
+
+  it("opens one Critical, All-audience alert for a user created as Administrator, never resolving on its own", async () => {
+    const response = await createUser(await insertSession(administratorId), {
+      first_name: "New Administrator",
+      email: "new.administrator@example.com",
+      role_id: await seededAdministratorRoleId(),
+    });
+
+    expect(response.statusCode).toBe(201);
+    const opened = await accessIncreasedAlerts();
+    expect(opened).toHaveLength(1);
+    expect(opened[0]).toMatchObject({
+      scope: response.json().id,
+      level: "critical",
+      audience: "all",
+      escalateAt: null,
+      resolvedAt: null,
+      detail: { cause: "created_as_administrator", actorId: administratorId },
+    });
+  });
+
+  it("opens no alert for a user created with any other role, however many permissions it gives", async () => {
+    const encargadaRoleId = await insertCashierRole("Encargada");
+    await db.insert(rolePermissions).values(
+      ["sell_and_charge", "adjust_stock", "configure_branch"].map((permissionKey) => ({
+        roleId: encargadaRoleId,
+        permissionKey,
+      })),
+    );
+
+    const response = await createUser(await insertSession(administratorId), {
+      first_name: "New Hire",
+      email: "newhire@example.com",
+      role_id: encargadaRoleId,
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(await accessIncreasedAlerts()).toHaveLength(0);
   });
 });

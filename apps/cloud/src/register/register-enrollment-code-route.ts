@@ -1,4 +1,5 @@
 import { registerEnrollmentCodeSchema } from "@purosur/contracts";
+import { enrollmentCodeExpiresAt, enrollmentCodeLookup } from "@purosur/domain";
 import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -23,8 +24,6 @@ const REGISTER_NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no register with that id belongs to this branch",
 } as const;
-
-export const REGISTER_ENROLLMENT_CODE_WINDOW_MS = 15 * 60 * 1000;
 
 async function findBranchRegister<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
@@ -60,16 +59,18 @@ export async function emitRegisterEnrollmentCode<TQueryResult extends PgQueryRes
   input: EmitRegisterEnrollmentCodeInput,
 ): Promise<EmittedRegisterEnrollmentCode> {
   const rawCode = generateRegisterEnrollmentCode();
-  const expiresAt = new Date(input.now.getTime() + REGISTER_ENROLLMENT_CODE_WINDOW_MS);
+  const codeLookup = enrollmentCodeLookup(rawCode);
+  const expiresAt = enrollmentCodeExpiresAt(input.now);
 
   await db.transaction(async (tx) => {
     // The register row always exists, unlike its code row before the first emission, so locking it
-    // is what serializes two emissions for the same register.
+    // is what serializes two emissions for the same register. NO KEY UPDATE leaves the foreign-key
+    // check of an enrollment redeeming this register's code free to proceed, instead of deadlocking.
     await tx
       .select({ id: registers.id })
       .from(registers)
       .where(eq(registers.id, input.registerId))
-      .for("update");
+      .for("no key update");
 
     const [previous] = await tx
       .select({
@@ -88,6 +89,7 @@ export async function emitRegisterEnrollmentCode<TQueryResult extends PgQueryRes
       .insert(registerEnrollmentCodes)
       .values({
         registerId: input.registerId,
+        codeLookup,
         codeHash: hashRegisterEnrollmentCode(rawCode),
         issuedAt: input.now,
         expiresAt,
@@ -97,6 +99,7 @@ export async function emitRegisterEnrollmentCode<TQueryResult extends PgQueryRes
       .onConflictDoUpdate({
         target: registerEnrollmentCodes.registerId,
         set: {
+          codeLookup,
           codeHash: hashRegisterEnrollmentCode(rawCode),
           issuedAt: input.now,
           expiresAt,

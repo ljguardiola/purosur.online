@@ -558,6 +558,7 @@ describe("startServer", () => {
         db: fakeRecovery.db,
         backofficeOrigin: fakeRecovery.backofficeOrigin,
       },
+      devices: { db: fakeRecovery.db },
     });
 
     expect(onCloseHooks).toHaveLength(1);
