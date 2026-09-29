@@ -14,6 +14,12 @@ export const alertsListFilters = z.object({
 
 export type AlertsListFilters = z.output<typeof alertsListFilters>;
 
+export const alertsOverviewRoute = createRoute({
+  getParentRoute: () => homeAreaRoute,
+  path: "/",
+  component: lazyScreen(() => import("./alerts-overview-page"), "AlertsOverviewPage"),
+});
+
 export const alertsListRoute = createRoute({
   getParentRoute: () => homeAreaRoute,
   path: "alerts",
