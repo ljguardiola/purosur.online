@@ -1,3 +1,5 @@
+export type { RoleAccess } from "./model/access-increase.js";
+export { grantedPermissionKeys, increasesAccess } from "./model/access-increase.js";
 export { isEmailAddress } from "./model/email-address.js";
 export {
   isPasskeyNameTooLong,

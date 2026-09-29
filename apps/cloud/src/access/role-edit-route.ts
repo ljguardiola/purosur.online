@@ -1,8 +1,9 @@
 import { roleEditBodySchema } from "@purosur/contracts";
-import { PERMISSION_KEYS } from "@purosur/domain";
+import { grantedPermissionKeys, increasesAccess, PERMISSION_KEYS } from "@purosur/domain";
 import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { openAlert } from "../alerts/open-alert.js";
 import { auditLog, rolePermissions, roles } from "../platform/db/schema.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
@@ -54,6 +55,10 @@ interface EditedRole {
   assignedUsers: AssignedUser[];
 }
 
+export interface EditRoleDeps {
+  now: () => Date;
+}
+
 export type EditRoleOutcome =
   | { kind: "stale_version" }
   | { kind: "name_taken" }
@@ -62,6 +67,7 @@ export type EditRoleOutcome =
 export async function editRole<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: EditRoleInput,
+  deps: EditRoleDeps,
 ): Promise<EditRoleOutcome> {
   const outcome = await db
     .transaction<EditRoleOutcome>(async (tx) => {
@@ -145,6 +151,31 @@ export async function editRole<TQueryResult extends PgQueryResultHKT>(
         newValue: { name: input.name, permissions: nextPermissionKeys },
       });
 
+      const previousAccess = { isAdministrator: false, permissionKeys: currentPermissionKeys };
+      const nextAccess = { isAdministrator: false, permissionKeys: nextPermissionKeys };
+      if (increasesAccess(previousAccess, nextAccess)) {
+        const addedPermissionKeys = grantedPermissionKeys(
+          currentPermissionKeys,
+          nextPermissionKeys,
+        );
+        for (const holder of await listRoleUsers(tx, input.id)) {
+          await openAlert(
+            tx,
+            {
+              kind: "user_access_increased",
+              scope: holder.id,
+              detail: {
+                cause: "role_permissions_added",
+                roleName: input.name,
+                addedPermissionKeys,
+                actorId: input.actorId,
+              },
+            },
+            deps,
+          );
+        }
+      }
+
       return {
         kind: "applied",
         role: {
@@ -208,13 +239,17 @@ export function registerRoleEditRoutes<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      const outcome = await editRole(options.db, {
-        id: target.id,
-        name: parsedBody.name,
-        permissionKeys: parsedBody.permissions,
-        version: parsedBody.version,
-        actorId: openSession.userId,
-      });
+      const outcome = await editRole(
+        options.db,
+        {
+          id: target.id,
+          name: parsedBody.name,
+          permissionKeys: parsedBody.permissions,
+          version: parsedBody.version,
+          actorId: openSession.userId,
+        },
+        { now },
+      );
 
       if (outcome.kind === "stale_version") {
         await reply.code(409).send(STALE_VERSION_RESPONSE);

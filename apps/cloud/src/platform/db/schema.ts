@@ -627,13 +627,14 @@ export const alerts = pgTable(
     escalatedAt: timestamp("escalated_at", { withTimezone: true }),
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
     resolvedBy: uuid("resolved_by").references(() => users.id),
+    deduplicates: boolean("deduplicates").notNull().default(true),
   },
   (table) => [
-    // Enforces at most one open alert per (kind, scope): a duplicate trigger hits this unique
-    // violation, which the caller treats as a no-op.
+    // Enforces at most one open alert per (kind, scope) for a kind that deduplicates: a duplicate
+    // trigger hits this unique violation, which the caller treats as a no-op.
     uniqueIndex("alerts_open_dedup_key")
       .on(table.kind, table.scope)
-      .where(sql`${table.resolvedAt} IS NULL`),
+      .where(sql`${table.resolvedAt} IS NULL AND ${table.deduplicates}`),
     index("alerts_level_idx").on(table.level),
     index("alerts_resolved_at_idx").on(table.resolvedAt),
     check(
