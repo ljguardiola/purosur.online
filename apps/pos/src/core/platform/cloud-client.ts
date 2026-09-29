@@ -31,11 +31,11 @@ async function readJson(response: Response): Promise<unknown> {
   }
 }
 
-async function postOnce(
-  deps: CloudClientDeps,
-  path: string,
-  body: unknown,
-): Promise<CloudResponse> {
+// Only the cloud's own refusal proves it did nothing, so only that is ever resent: a request that
+// timed out, or that a proxy in front of the cloud failed, may already have taken effect.
+type Attempt = { response: CloudResponse; refusedByCloud: boolean };
+
+async function postOnce(deps: CloudClientDeps, path: string, body: unknown): Promise<Attempt> {
   let response: Response;
   try {
     response = await deps.fetch(new URL(path, deps.cloudUrl).href, {
@@ -45,36 +45,29 @@ async function postOnce(
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
   } catch {
-    return { kind: "unreachable" };
+    return { response: { kind: "unreachable" }, refusedByCloud: false };
   }
 
   const json = await readJson(response);
   if (response.ok) {
-    return { kind: "ok", body: json };
+    return { response: { kind: "ok", body: json }, refusedByCloud: false };
   }
   const envelope = cloudErrorSchema.safeParse(json);
   if (envelope.success) {
-    return { kind: "error", error: envelope.data };
+    return { response: { kind: "error", error: envelope.data }, refusedByCloud: true };
   }
-  // Only a proxy in front of the cloud answers outside the contract, such as a gateway error.
-  return {
-    kind: "error",
-    error:
-      response.status >= 500
-        ? cloudError("server_unavailable", `the cloud answered ${response.status}`)
-        : cloudError("internal_error", `the cloud answered ${response.status}`),
-  };
+  const error =
+    response.status >= 500
+      ? cloudError("server_unavailable", `the cloud answered ${response.status}`)
+      : cloudError("internal_error", `the cloud answered ${response.status}`);
+  return { response: { kind: "error", error }, refusedByCloud: false };
 }
 
-function retryWaitMs(response: CloudResponse, attempt: number): number | undefined {
-  if (response.kind === "ok") {
+function retryWaitMs({ response, refusedByCloud }: Attempt, attempt: number): number | undefined {
+  if (!refusedByCloud || response.kind !== "error" || !isRetryableCloudError(response.error.code)) {
     return undefined;
   }
-  if (response.kind === "error" && !isRetryableCloudError(response.error.code)) {
-    return undefined;
-  }
-  const retryAfterSeconds =
-    response.kind === "error" ? retryAfterSecondsOf(response.error) : undefined;
+  const retryAfterSeconds = retryAfterSecondsOf(response.error);
   return retryAfterSeconds === undefined ? BACKOFF_MS[attempt - 1] : retryAfterSeconds * 1000;
 }
 
@@ -84,10 +77,10 @@ export async function postToCloud(
   body: unknown,
 ): Promise<CloudResponse> {
   for (let attempt = 1; ; attempt += 1) {
-    const response = await postOnce(deps, path, body);
-    const waitMs = retryWaitMs(response, attempt);
+    const sent = await postOnce(deps, path, body);
+    const waitMs = retryWaitMs(sent, attempt);
     if (attempt === MAX_ATTEMPTS || waitMs === undefined || waitMs > MAX_WAIT_MS) {
-      return response;
+      return sent.response;
     }
     await deps.sleep(waitMs);
   }

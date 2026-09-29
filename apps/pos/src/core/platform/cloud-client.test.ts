@@ -118,15 +118,15 @@ describe("postToCloud", () => {
     expect(waits).toEqual([10_000]);
   });
 
-  it("retries when the cloud can't be reached, and says so if it never can", async () => {
+  it("doesn't resend a request the cloud may have received when it can't be reached", async () => {
     const { deps, requests, waits } = clientAnswering(new TypeError("fetch failed"));
 
     expect(await postToCloud(deps, "/devices/enroll", {})).toEqual({ kind: "unreachable" });
-    expect(requests).toHaveLength(3);
-    expect(waits).toEqual([1000, 2000]);
+    expect(requests).toHaveLength(1);
+    expect(waits).toEqual([]);
   });
 
-  it("reads a server error that isn't the contract's envelope as the server being unavailable", async () => {
+  it("reads a server error from outside the cloud as unavailable, without resending", async () => {
     const { deps, requests } = clientAnswering(
       new Response("<html>Bad gateway</html>", { status: 502 }),
     );
@@ -134,7 +134,7 @@ describe("postToCloud", () => {
     const response = await postToCloud(deps, "/devices/enroll", {});
 
     expect(response).toMatchObject({ kind: "error", error: { code: "server_unavailable" } });
-    expect(requests).toHaveLength(3);
+    expect(requests).toHaveLength(1);
   });
 
   it("reads any other answer outside the contract as an internal error, not retried", async () => {
