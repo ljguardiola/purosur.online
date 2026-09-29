@@ -904,6 +904,32 @@ test("a stale-version reload on edit refreshes the categories too, so a parent t
     .toBeVisible();
 });
 
+test("a stale-version reload whose read fails closes the edit modal for the list's failure, and a retry leaves it closed", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchCategories).mockResolvedValue({
+    kind: "ok",
+    value: [groceries, drinks],
+  });
+  vi.mocked(services.editCategory).mockResolvedValue({ kind: "stale_version" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Bebidas")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Editar la categoría Bebidas" }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+  await expect
+    .element(dialog.getByText("Esta categoría cambió mientras la editabas"))
+    .toBeVisible();
+  vi.mocked(services.fetchCategories).mockResolvedValueOnce({ kind: "failed" });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Recargar" }));
+
+  await expect.element(screen.getByText("No pudimos abrir las categorías")).toBeVisible();
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+  await expect.element(screen.getByRole("cell", { name: "Bebidas" })).toBeVisible();
+  expect(screen.getByRole("dialog").query()).toBeNull();
+});
+
 test("has no accessibility violations once loaded, and with the create modal open", async () => {
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [groceries] });

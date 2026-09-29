@@ -1830,6 +1830,7 @@ export function ProductsListScreen({
   useEffect(() => {
     if (data.status === "failed") {
       setPrintModalOpen(false);
+      setEditTarget(null);
     }
   }, [data.status]);
 
@@ -2055,19 +2056,21 @@ export function ProductsListScreen({
         generateInternalBarcode={generateInternalBarcodeService}
         categories={categories}
       />
-      <EditProductModal
-        target={editTarget}
-        onClose={() => setEditTarget(null)}
-        onSaved={() => {
-          setEditTarget(null);
-          void refreshCatalog();
-        }}
-        onSessionEnded={onSessionEnded}
-        reload={reloadProduct}
-        editProduct={editProductService}
-        generateInternalBarcode={generateInternalBarcodeService}
-        categories={categories}
-      />
+      {data.status === "loaded" ? (
+        <EditProductModal
+          target={editTarget}
+          onClose={() => setEditTarget(null)}
+          onSaved={() => {
+            setEditTarget(null);
+            void refreshCatalog();
+          }}
+          onSessionEnded={onSessionEnded}
+          reload={reloadProduct}
+          editProduct={editProductService}
+          generateInternalBarcode={generateInternalBarcodeService}
+          categories={data.value[1]}
+        />
+      ) : null}
       <DeactivateProductModal
         target={deactivateTarget}
         onClose={() => setDeactivateTarget(null)}

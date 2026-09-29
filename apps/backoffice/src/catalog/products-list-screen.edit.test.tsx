@@ -363,3 +363,24 @@ test("a stale-version reload of a product the list on screen does not hold reads
     .toHaveValue("Miel pura de abeja 900 g");
   expect(vi.mocked(services.fetchProducts).mock.calls).toEqual([["active"], ["all"]]);
 });
+
+test("a stale-version reload whose list read fails closes the edit modal for the list's failure, and a retry leaves it closed", async () => {
+  const services = createServices();
+  mockLoaded(services, [honey]);
+  vi.mocked(services.editProduct).mockResolvedValue({ kind: "stale_version" });
+  const screen = await renderScreen(services);
+  const dialog = await openEditProductModal(screen, honey);
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+  await expect.element(dialog.getByText("Otra persona cambió este producto")).toBeVisible();
+  vi.mocked(services.fetchProducts).mockResolvedValueOnce({ kind: "failed" });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Recargar el producto" }));
+
+  await expect.element(screen.getByText("No pudimos abrir los productos")).toBeVisible();
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+  await expect
+    .element(screen.getByRole("table", { name: "Productos" }).getByText(honey.name))
+    .toBeVisible();
+  expect(screen.getByRole("dialog").query()).toBeNull();
+});

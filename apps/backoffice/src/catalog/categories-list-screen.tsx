@@ -568,6 +568,12 @@ export function CategoriesListScreen({
     }
   }, [search, sort.direction, filters, onFiltersChangeRef]);
 
+  useEffect(() => {
+    if (data.status === "failed") {
+      setEditTarget(null);
+    }
+  }, [data.status]);
+
   const categories = data.status === "loaded" ? data.value : NO_CATEGORIES;
   const labels = categoryPathLabels(categories);
   const pathLabel = (category: CategorySummary) => labels.get(category.id) ?? category.name;
@@ -673,18 +679,20 @@ export function CategoriesListScreen({
         createCategory={createCategory}
         categories={categories}
       />
-      <EditCategoryModal
-        target={editTarget}
-        onClose={() => setEditTarget(null)}
-        onSaved={() => {
-          setEditTarget(null);
-          void refreshCatalog();
-        }}
-        onSessionEnded={onSessionEnded}
-        reload={reloadCategory}
-        editCategory={editCategory}
-        categories={categories}
-      />
+      {data.status === "loaded" ? (
+        <EditCategoryModal
+          target={editTarget}
+          onClose={() => setEditTarget(null)}
+          onSaved={() => {
+            setEditTarget(null);
+            void refreshCatalog();
+          }}
+          onSessionEnded={onSessionEnded}
+          reload={reloadCategory}
+          editCategory={editCategory}
+          categories={data.value}
+        />
+      ) : null}
     </>
   );
 }
