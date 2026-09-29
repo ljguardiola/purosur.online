@@ -70,6 +70,7 @@ export default defineRailway((ctx) => {
   const imageRef = requireEnv("CLOUD_IMAGE_REF");
   const ghcrPullToken = requireEnv("GHCR_PULL_TOKEN");
   const sentryDsn = requireEnv("CLOUD_SENTRY_DSN");
+  const backofficeSentryDsn = requireEnv("BACKOFFICE_SENTRY_DSN");
   const resendApiKey = requireEnv("RESEND_API_KEY");
   const edgeOriginSecret = requireEnv("EDGE_ORIGIN_SECRET");
   const cloudAppDatabasePassword = requireEnv("CLOUD_APP_DATABASE_PASSWORD");
@@ -130,6 +131,7 @@ export default defineRailway((ctx) => {
       DATABASE_URL: cloudAppDatabaseUrl(cloudAppDatabasePassword),
       SENTRY_DSN: sentryDsn,
       SENTRY_ENVIRONMENT: environment,
+      BACKOFFICE_SENTRY_DSN: backofficeSentryDsn,
       RESEND_API_KEY: resendApiKey,
       RECOVERY_EMAIL_FROM: requireRecoveryEmailFrom(environment),
       RECOVERY_EMAIL_REPLY_TO,

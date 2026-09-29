@@ -7,6 +7,7 @@ const REQUIRED_ENV: Record<string, string> = {
   CLOUD_IMAGE_REF: "ghcr.io/ljguardiola/purosur-cloud@sha256:test",
   GHCR_PULL_TOKEN: "ghcr-pull-token",
   CLOUD_SENTRY_DSN: "https://sentry.test/1",
+  BACKOFFICE_SENTRY_DSN: "https://sentry.test/2",
   RESEND_API_KEY: "resend-api-key",
   EDGE_ORIGIN_SECRET: "edge-origin-secret",
   CLOUD_APP_DATABASE_PASSWORD: "cloud-app-password",
@@ -97,6 +98,18 @@ describe("the Cloud Server service's environment", () => {
     expect(cloud.variables?.["ARCA_CERTIFICATE"]).toEqual({
       type: "literal",
       value: "arca-certificate-pem",
+    });
+  });
+
+  it("gives the backoffice its own Sentry DSN, apart from the cloud's", async () => {
+    const cloud = findService(await compile(), "Cloud Server");
+    expect(cloud.variables?.["BACKOFFICE_SENTRY_DSN"]).toEqual({
+      type: "literal",
+      value: "https://sentry.test/2",
+    });
+    expect(cloud.variables?.["SENTRY_DSN"]).toEqual({
+      type: "literal",
+      value: "https://sentry.test/1",
     });
   });
 

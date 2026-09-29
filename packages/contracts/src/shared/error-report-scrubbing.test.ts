@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { scrubSentryEvent } from "./sentry-scrubbing.js";
+import { scrubErrorReport } from "./error-report-scrubbing.js";
 
-describe("scrubSentryEvent", () => {
+describe("scrubErrorReport", () => {
   it("drops the HTTP request entirely, including its body", () => {
     const event = {
       message: "unhandled error",
@@ -12,7 +12,7 @@ describe("scrubSentryEvent", () => {
       },
     };
 
-    expect(scrubSentryEvent(event).request).toBeUndefined();
+    expect(scrubErrorReport(event).request).toBeUndefined();
   });
 
   it("drops the HTTP response entirely, including its body", () => {
@@ -23,7 +23,7 @@ describe("scrubSentryEvent", () => {
       },
     };
 
-    expect(scrubSentryEvent(event).contexts).toEqual({});
+    expect(scrubErrorReport(event).contexts).toEqual({});
   });
 
   it("redacts the query string of every URL in the message", () => {
@@ -31,7 +31,7 @@ describe("scrubSentryEvent", () => {
       message: "GET https://cloud.purosur.online/health?token=abc123 failed",
     };
 
-    expect(scrubSentryEvent(event).message).toBe(
+    expect(scrubErrorReport(event).message).toBe(
       "GET https://cloud.purosur.online/health?[redacted] failed",
     );
   });
@@ -42,7 +42,7 @@ describe("scrubSentryEvent", () => {
       extra: { url: "/media/a.jpg?X-Amz-Signature=abc" },
     };
 
-    const scrubbed = scrubSentryEvent(event);
+    const scrubbed = scrubErrorReport(event);
 
     expect(scrubbed.message).toBe("GET /media/a.jpg?[redacted] failed; see /docs/page?[redacted]");
     expect(scrubbed.extra).toEqual({ url: "/media/a.jpg?[redacted]" });
@@ -55,7 +55,7 @@ describe("scrubSentryEvent", () => {
       exception: { values: [{ type: "NotFoundError", value: notFound }] },
     };
 
-    const scrubbed = scrubSentryEvent(event);
+    const scrubbed = scrubErrorReport(event);
 
     expect(scrubbed.message).toBe("Route GET:/media/a.jpg?[redacted] not found");
     expect(scrubbed.exception?.values?.[0]?.value).toBe(
@@ -68,7 +68,7 @@ describe("scrubSentryEvent", () => {
       message: "fetch [/media/a.jpg?sig=abc] and `/media/b.jpg?token=x` failed",
     };
 
-    expect(scrubSentryEvent(event).message).toBe(
+    expect(scrubErrorReport(event).message).toBe(
       "fetch [/media/a.jpg?[redacted]] and `/media/b.jpg?[redacted]` failed",
     );
   });
@@ -76,7 +76,7 @@ describe("scrubSentryEvent", () => {
   it("redacts a relative path query that contains a backtick, without leaking what follows it", () => {
     const event = { message: "GET /media/a.jpg?token=ab`cd failed" };
 
-    expect(scrubSentryEvent(event).message).toBe("GET /media/a.jpg?[redacted] failed");
+    expect(scrubErrorReport(event).message).toBe("GET /media/a.jpg?[redacted] failed");
   });
 
   it("redacts the query string of a protocol-relative path", () => {
@@ -84,30 +84,30 @@ describe("scrubSentryEvent", () => {
       message: "GET //cdn.example.com/media/a.jpg?X-Amz-Signature=abc failed",
     };
 
-    expect(scrubSentryEvent(event).message).toBe(
+    expect(scrubErrorReport(event).message).toBe(
       "GET //cdn.example.com/media/a.jpg?[redacted] failed",
     );
   });
 
   it("leaves an already-redacted URL unchanged when scrubbed again", () => {
-    const once = scrubSentryEvent({
+    const once = scrubErrorReport({
       message: "GET https://cloud.purosur.online/media/a.jpg?token=abc failed",
     });
 
     expect(once.message).toBe("GET https://cloud.purosur.online/media/a.jpg?[redacted] failed");
-    expect(scrubSentryEvent(once).message).toBe(once.message);
+    expect(scrubErrorReport(once).message).toBe(once.message);
   });
 
   it("leaves a relative path without a query string untouched", () => {
     const event = { message: "GET /fiscal/authorize returned 500" };
 
-    expect(scrubSentryEvent(event).message).toBe("GET /fiscal/authorize returned 500");
+    expect(scrubErrorReport(event).message).toBe("GET /fiscal/authorize returned 500");
   });
 
   it("leaves a URL without a query string untouched", () => {
     const event = { message: "GET https://cloud.purosur.online/health failed" };
 
-    expect(scrubSentryEvent(event).message).toBe("GET https://cloud.purosur.online/health failed");
+    expect(scrubErrorReport(event).message).toBe("GET https://cloud.purosur.online/health failed");
   });
 
   it("redacts extra and tags keys that look like tokens, keys, secrets, passwords or credentials", () => {
@@ -124,7 +124,7 @@ describe("scrubSentryEvent", () => {
       tags: { auth_cookie: "session=abc", event_id: "evt-1" },
     };
 
-    const scrubbed = scrubSentryEvent(event);
+    const scrubbed = scrubErrorReport(event);
 
     expect(scrubbed.extra).toEqual({
       token: "[redacted]",
@@ -154,7 +154,7 @@ describe("scrubSentryEvent", () => {
       },
     };
 
-    expect(scrubSentryEvent(event).extra).toEqual({
+    expect(scrubErrorReport(event).extra).toEqual({
       session: "[redacted]",
       sessionId: "[redacted]",
       backoffice_session_id: "[redacted]",
@@ -168,13 +168,13 @@ describe("scrubSentryEvent", () => {
   it("does not redact keys that merely contain those letters inside another word", () => {
     const event = { extra: { admin_count: 2, circuit_id: "c-1", fiscal_document_id: "fd-1" } };
 
-    expect(scrubSentryEvent(event).extra).toEqual(event.extra);
+    expect(scrubErrorReport(event).extra).toEqual(event.extra);
   });
 
   it("redacts a bearer token or cookie value found in a string", () => {
     const event = { message: "rejected with authorization: Bearer abc.def.ghi" };
 
-    expect(scrubSentryEvent(event).message).toBe("rejected with authorization: [redacted]");
+    expect(scrubErrorReport(event).message).toBe("rejected with authorization: [redacted]");
   });
 
   it("keeps opaque ids and passes through fields it does not touch", () => {
@@ -184,7 +184,7 @@ describe("scrubSentryEvent", () => {
       extra: { register_id: "reg-1", device_id: "dev-1", event_id: "evt-1" },
     };
 
-    expect(scrubSentryEvent(event)).toEqual(event);
+    expect(scrubErrorReport(event)).toEqual(event);
   });
 
   it("redacts identifiers in exception values while preserving type and stacktrace", () => {
@@ -201,7 +201,7 @@ describe("scrubSentryEvent", () => {
       },
     };
 
-    const scrubbed = scrubSentryEvent(event);
+    const scrubbed = scrubErrorReport(event);
 
     expect(scrubbed.exception?.values?.[0]?.type).toBe("PoolError");
     expect(scrubbed.exception?.values?.[0]?.value).toBe("connection to [redacted] failed");
@@ -219,7 +219,7 @@ describe("scrubSentryEvent", () => {
       ],
     };
 
-    expect(scrubSentryEvent(event).breadcrumbs).toEqual([
+    expect(scrubErrorReport(event).breadcrumbs).toEqual([
       {
         category: "http",
         message: "PUT https://bucket.example.com/x.db?[redacted]",

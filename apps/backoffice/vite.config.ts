@@ -59,6 +59,7 @@ export default defineConfig(({ mode }) => {
         "/fiscal-configuration": cloudApiProxy,
         "/alerts": cloudApiProxy,
         "/registers": cloudApiProxy,
+        "/error-reporting": cloudApiProxy,
       },
     },
   };

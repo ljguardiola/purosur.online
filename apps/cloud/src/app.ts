@@ -1,5 +1,6 @@
 import { extname, relative, sep } from "node:path";
 import fastifyStatic from "@fastify/static";
+import type { ErrorReportingConfiguration } from "@purosur/contracts";
 import { setupFastifyErrorHandler as defaultSetupFastifyErrorHandler } from "@sentry/node";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
@@ -70,6 +71,7 @@ import { registerRegistersListRoute } from "./register/registers-list-route.js";
 
 export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = PostgresJsQueryResultHKT> {
   version: string;
+  errorReporting?: BackofficeErrorReporting;
   edgeOriginSecret: string;
   setupFastifyErrorHandler?: (app: FastifyInstance) => void;
   staticDir?: string | undefined;
@@ -89,23 +91,44 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
 
 const STRICT_TRANSPORT_SECURITY = "max-age=63072000; includeSubDomains";
 
-const backofficeSecurityHeaders: Record<string, string> = {
-  "Content-Security-Policy": [
-    "default-src 'self'",
-    "script-src 'self'",
-    "style-src 'self'",
-    "font-src 'self'",
-    "img-src 'self'",
-    "connect-src 'self'",
-    "object-src 'none'",
-    "base-uri 'none'",
-    "form-action 'self'",
-    "frame-ancestors 'none'",
-  ].join("; "),
-  "X-Content-Type-Options": "nosniff",
-  "X-Frame-Options": "DENY",
-  "Referrer-Policy": "no-referrer",
-};
+export interface BackofficeErrorReporting {
+  dsn: string;
+  environment: string;
+}
+
+function errorReportingOrigin(dsn: string): string {
+  try {
+    return new URL(dsn).origin;
+  } catch (cause) {
+    throw new Error("BACKOFFICE_SENTRY_DSN must be a URL", { cause });
+  }
+}
+
+function backofficeSecurityHeaders(
+  errorReporting: BackofficeErrorReporting | undefined,
+): Record<string, string> {
+  const connectSources = ["'self'"];
+  if (errorReporting) {
+    connectSources.push(errorReportingOrigin(errorReporting.dsn));
+  }
+  return {
+    "Content-Security-Policy": [
+      "default-src 'self'",
+      "script-src 'self'",
+      "style-src 'self'",
+      "font-src 'self'",
+      "img-src 'self'",
+      `connect-src ${connectSources.join(" ")}`,
+      "object-src 'none'",
+      "base-uri 'none'",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
+    ].join("; "),
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "no-referrer",
+  };
+}
 
 // Vite names every file under assets/ by its content hash, so an asset URL never changes content.
 function cacheControlFor(staticDir: string, filePath: string): string {
@@ -135,6 +158,11 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     status: "ok",
     version: options.version,
   }));
+
+  const errorReporting: ErrorReportingConfiguration = options.errorReporting
+    ? { enabled: true, ...options.errorReporting, release: options.version }
+    : { enabled: false };
+  app.get("/error-reporting", { config: { access: PUBLIC_ACCESS } }, async () => errorReporting);
 
   if (options.recovery) {
     registerRecoveryRoutes(app, options.recovery);
@@ -218,13 +246,14 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
   }
 
   const staticDir = options.staticDir;
+  const securityHeaders = backofficeSecurityHeaders(options.errorReporting);
   if (staticDir) {
     app.register(async (staticScope) => {
       declarePluginRoutesAccess(staticScope, PUBLIC_ACCESS);
       await staticScope.register(fastifyStatic, {
         root: staticDir,
         setHeaders: (reply, filePath) => {
-          reply.headers(backofficeSecurityHeaders);
+          reply.headers(securityHeaders);
           reply.header("Cache-Control", cacheControlFor(staticDir, filePath));
         },
       });
