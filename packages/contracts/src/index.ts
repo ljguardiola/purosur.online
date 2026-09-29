@@ -130,3 +130,5 @@ export {
   stockCountBodySchema,
   stockLossBodySchema,
 } from "./stock/stock-movement-bodies.js";
+export type { StockCountResult, StockMovementResult } from "./stock/stock-results.js";
+export { stockCountResultSchema, stockMovementResultSchema } from "./stock/stock-results.js";

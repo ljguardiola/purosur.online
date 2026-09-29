@@ -4,6 +4,7 @@ import {
   stockAdjustmentBodySchema,
   stockLossBodySchema,
   stockMovementListSchema,
+  stockMovementResultSchema,
 } from "@purosur/contracts";
 import type { SaleUnit } from "@purosur/domain";
 import {
@@ -95,9 +96,12 @@ async function sendMovementOutcome(
     await reply.code(400).send(DIRECTION_NOT_ALLOWED_RESPONSE);
     return;
   }
-  await reply
-    .code(200)
-    .send({ balance: outcome.balance, superseded: outcome.supersededByCountId !== null });
+  await reply.code(200).send(
+    stockMovementResultSchema.parse({
+      balance: outcome.balance,
+      superseded: outcome.supersededByCountId !== null,
+    }),
+  );
 }
 
 export function registerStockMovementsRoutes<TQueryResult extends PgQueryResultHKT>(

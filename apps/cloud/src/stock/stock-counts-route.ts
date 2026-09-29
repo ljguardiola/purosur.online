@@ -2,6 +2,7 @@ import {
   type StockCountList,
   stockCountBodySchema,
   stockCountListSchema,
+  stockCountResultSchema,
   stockExpectedBalanceSchema,
 } from "@purosur/contracts";
 import { expectedBalance, type SaleUnit } from "@purosur/domain";
@@ -141,12 +142,14 @@ export function registerStockCountsRoutes<TQueryResult extends PgQueryResultHKT>
       await reply.code(409).send(SAME_MOMENT_RESPONSE);
       return;
     }
-    await reply.code(200).send({
-      expected: outcome.expected,
-      delta: outcome.delta,
-      balance: outcome.balance,
-      superseded: outcome.supersededByCountId !== null,
-    });
+    await reply.code(200).send(
+      stockCountResultSchema.parse({
+        expected: outcome.expected,
+        delta: outcome.delta,
+        balance: outcome.balance,
+        superseded: outcome.supersededByCountId !== null,
+      }),
+    );
   });
 
   app.get<{ Params: { id: string }; Querystring: { at?: string } }>(
