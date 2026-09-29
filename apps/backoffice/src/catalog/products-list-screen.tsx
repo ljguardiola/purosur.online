@@ -504,6 +504,10 @@ function NewProductModal({
     fields: PRODUCT_FIELDS,
     messages: PRODUCT_MESSAGES,
     onSubmit: async (_request, { parsed, showFieldError, showWireFieldError }) => {
+      if (!parsed) {
+        setNotice({ kind: "attemptFailed" });
+        return;
+      }
       setNotice(null);
       const outcome = await createProduct(parsed);
       if (outcome.kind === "ok") {
@@ -717,6 +721,10 @@ function EditProductModal({
     onSubmit: async (_request, { parsed, showFieldError, showWireFieldError }) => {
       const current = targetRef.current;
       if (!current) {
+        return;
+      }
+      if (!parsed) {
+        setNotice({ kind: "attemptFailed" });
         return;
       }
       setNotice(null);

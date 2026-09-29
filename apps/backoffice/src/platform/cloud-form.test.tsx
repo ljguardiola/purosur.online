@@ -251,8 +251,10 @@ test("the form is submitting until onSubmit settles", async () => {
   await expect.element(screen.getByRole("button", { name: "Enviar" })).toBeEnabled();
 });
 
-test("a schema issue outside every declared field blocks the submit", async () => {
-  const onSubmit = vi.fn<() => Promise<void>>(() => Promise.resolve());
+test("a schema issue outside every declared field still submits the request, with nothing parsed", async () => {
+  const onSubmit = vi.fn<
+    (request: { name: string }, submission: CloudSubmission<{ name: string }>) => Promise<void>
+  >(() => Promise.resolve());
   const rootSchema = z.object({ name: z.string() }).refine(() => false, "always refused");
   function RootProbe() {
     const { form, submit } = useCloudForm({
@@ -276,10 +278,11 @@ test("a schema issue outside every declared field blocks the submit", async () =
   const screen = await render(<RootProbe />);
 
   await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
-  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
 
-  await expect.element(screen.getByRole("textbox", { name: "Nombre" })).toBeVisible();
-  expect(onSubmit).not.toHaveBeenCalled();
+  await expect.poll(() => onSubmit.mock.calls.length).toBe(1);
+  expect(onSubmit.mock.calls[0]?.[0]).toEqual({ name: "Ana" });
+  expect(onSubmit.mock.calls[0]?.[1].parsed).toBeUndefined();
+  await expect.element(screen.getByText("Nombre inválido.")).not.toBeInTheDocument();
 });
 
 test("refuses a request schema that can only validate asynchronously", async () => {
@@ -383,15 +386,30 @@ test("a request key declared as belonging to no field is reported as unknown by 
   await expect.element(screen.getByText("Nombre inválido.")).not.toBeInTheDocument();
 });
 
-test("a schema issue on a key that belongs to no field blocks the submit", async () => {
-  const onSubmit = vi.fn<() => Promise<void>>(() => Promise.resolve());
-  const screen = await render(<VersionedProbe version={0} onSubmit={onSubmit} />);
+test("a schema issue on a key that belongs to no field still submits the request, with nothing parsed", async () => {
+  const submitted = vi.fn<(submission: CloudSubmission<VersionedValues>) => Promise<void>>(() =>
+    Promise.resolve(),
+  );
+  const screen = await render(<VersionedProbe version={0} onSubmit={submitted} />);
 
   await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+  await expect.poll(() => submitted.mock.calls.length).toBe(1);
+  expect(submitted.mock.calls[0]?.[0].values).toEqual({ name: "Ana", version: 0 });
+  expect(submitted.mock.calls[0]?.[0].parsed).toBeUndefined();
+});
+
+test("a field's own issue still holds the request back alongside an issue outside every field", async () => {
+  const submitted = vi.fn<(submission: CloudSubmission<VersionedValues>) => Promise<void>>(() =>
+    Promise.resolve(),
+  );
+  const screen = await render(<VersionedProbe version={0} onSubmit={submitted} />);
+  await userEvent.fill(screen.getByRole("textbox", { name: "Nombre" }), "");
+
   await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
 
-  await expect.element(screen.getByRole("textbox", { name: "Nombre" })).toBeVisible();
-  expect(onSubmit).not.toHaveBeenCalled();
+  await expect.element(screen.getByText("Nombre inválido.")).toBeVisible();
+  expect(submitted).not.toHaveBeenCalled();
 });
 
 test("reset with values loads them into the fields and the request", async () => {
@@ -722,7 +740,7 @@ function cardLabel(screen: Awaited<ReturnType<typeof render>>, title: string): H
   return label;
 }
 
-function CardProbe({ onSubmit }: { onSubmit: (saleUnit: string) => Promise<void> }) {
+function CardProbe({ onSubmit }: { onSubmit: (saleUnit: string | null) => Promise<void> }) {
   const { form, submit } = useCloudForm({
     defaultValues: { saleUnit: null as "UNIT" | "KG" | null },
     request: {
@@ -731,7 +749,7 @@ function CardProbe({ onSubmit }: { onSubmit: (saleUnit: string) => Promise<void>
     },
     fields: { saleUnit: "saleUnit" },
     messages: { saleUnit: "Elegí la unidad de venta." },
-    onSubmit: (_request, { parsed }) => onSubmit(parsed.saleUnit),
+    onSubmit: (request) => onSubmit(request.saleUnit),
   });
   return (
     <>
@@ -756,7 +774,7 @@ test("an option card group shows its field's message after a failed submit and c
 });
 
 test("an option card group submits the card that was chosen", async () => {
-  const onSubmit = vi.fn<(saleUnit: string) => Promise<void>>(() => Promise.resolve());
+  const onSubmit = vi.fn<(saleUnit: string | null) => Promise<void>>(() => Promise.resolve());
   const screen = await render(<CardProbe onSubmit={onSubmit} />);
 
   await userEvent.click(cardLabel(screen, "Por peso"));

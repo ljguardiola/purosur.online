@@ -33,7 +33,7 @@ type Message<Values> = string | ((values: Values) => string);
 
 export type CloudSubmission<Values, Parsed = unknown> = {
   values: Values;
-  parsed: Parsed;
+  parsed: Parsed | undefined;
   showWireFieldError: (wireField: string) => boolean;
   showFieldError: (field: keyof Values & string, message: string) => void;
 };
@@ -88,22 +88,18 @@ export function useCloudForm<
     }
     return result;
   };
-  const failuresOf = (values: Values) => {
-    const { issues } = validate(request.from(values));
-    if (!issues) {
-      return undefined;
-    }
+  const failuresOf = (
+    values: Values,
+    issues: readonly StandardSchemaV1Issue[] = [],
+  ): Partial<Record<Field, string>> | undefined => {
     const failures: Partial<Record<Field, string>> = {};
-    let outsideFields = false;
     for (const issue of issues) {
       const field = fieldOf(issueWireField(issue));
-      if (field === undefined) {
-        outsideFields = true;
-      } else {
+      if (field !== undefined) {
         failures[field] = failures[field] ?? messageFor(field, values);
       }
     }
-    return { form: outsideFields ? "invalid" : undefined, fields: failures };
+    return Object.keys(failures).length > 0 ? failures : undefined;
   };
 
   const [defaultValues] = useState(() => options.defaultValues);
@@ -111,7 +107,10 @@ export function useCloudForm<
     defaultValues,
     validationLogic: revalidateLogic({ mode: "submit", modeAfterSubmission: "change" }),
     validators: {
-      onDynamic: ({ value }) => failuresOf(value),
+      onDynamic: ({ value }) => {
+        const fields = failuresOf(value, validate(request.from(value)).issues);
+        return fields && { fields };
+      },
     },
     listeners: { onChange: ({ fieldApi }) => clearFieldError(fieldApi.name) },
     onSubmitMeta: NOTHING_STARTED,
@@ -150,11 +149,11 @@ export function useCloudForm<
     const values = form.state.values;
     const body = request.from(values);
     const result = validate(body);
-    const started = result.issues
+    const started = failuresOf(values, result.issues)
       ? undefined
       : options.onSubmit(body, {
           values,
-          parsed: result.value,
+          parsed: result.issues ? undefined : result.value,
           showWireFieldError,
           showFieldError,
         });

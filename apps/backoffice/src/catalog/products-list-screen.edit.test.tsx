@@ -212,6 +212,19 @@ test("shows the generic failure notice on edit when the cloud refuses the versio
   await expect.element(dialog.getByText("No se pudo guardar el cambio")).toBeVisible();
 });
 
+test("shows the generic failure notice on edit when the loaded version is not one the request accepts", async () => {
+  const services = createServices();
+  const unversioned = { ...honey, version: 0 };
+  mockLoaded(services, [unversioned]);
+  const screen = await renderScreen(services);
+  const dialog = await openEditProductModal(screen, unversioned);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(dialog.getByText("No se pudo guardar el cambio")).toBeVisible();
+  expect(services.editProduct).not.toHaveBeenCalled();
+});
+
 test("shows the server's rejection of the whole net content inline on edit", async () => {
   const services = createServices();
   mockLoaded(services, [honey]);
