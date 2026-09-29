@@ -36,6 +36,7 @@ test("creates a product and shows it in the list", async () => {
     categoryName: "Almacén",
     saleUnit: "KG",
     barcodes: ["7790000000099"],
+    tagIds: [],
     netContent: null,
     active: true,
     version: 1,
@@ -68,6 +69,7 @@ test("creates a product and shows it in the list", async () => {
     brandId: null,
     saleUnit: "KG",
     barcodes: ["7790000000099"],
+    tagIds: [],
     netContent: null,
   });
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();

@@ -16,6 +16,7 @@ describe("createProduct", () => {
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       netContent: null,
     });
 
@@ -33,6 +34,7 @@ describe("createProduct", () => {
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       netContent: null,
     });
 
@@ -62,6 +64,7 @@ describe("createProduct", () => {
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       netContent: null,
     });
 
@@ -91,6 +94,7 @@ describe("createProduct", () => {
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       netContent: null,
     });
 
@@ -108,6 +112,7 @@ describe("createProduct", () => {
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       netContent: null,
     });
 
@@ -125,6 +130,7 @@ describe("createProduct", () => {
       brandId: null,
       saleUnit: "KG",
       barcodes: ["111", "222"],
+      tagIds: [],
       netContent: { quantity: 0.5, unit: "KG" },
     });
 
@@ -138,6 +144,7 @@ describe("createProduct", () => {
         categoryName: "Almacén",
         saleUnit: "KG",
         barcodes: ["111", "222"],
+        tagIds: [],
         netContent: { quantity: 0.5, unit: "KG" },
         active: true,
         version: 1,
@@ -170,6 +177,7 @@ describe("createProduct", () => {
       brandId: "brand-1",
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       netContent: null,
     });
 
@@ -194,6 +202,7 @@ describe("createProduct", () => {
       brandId: null,
       saleUnit: "KG",
       barcodes: ["111"],
+      tagIds: [],
       netContent: null,
     });
 
@@ -212,6 +221,7 @@ describe("createProduct", () => {
       brandId: "missing",
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       netContent: null,
     });
 
@@ -230,6 +240,7 @@ describe("createProduct", () => {
       brandId: "brand-1",
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       netContent: null,
     });
 
@@ -246,6 +257,7 @@ describe("createProduct", () => {
       brandId: "missing",
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       netContent: null,
     });
 
@@ -275,6 +287,7 @@ describe("createProduct", () => {
       brandId: "missing",
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       netContent: null,
     });
 
@@ -290,6 +303,7 @@ describe("createProduct", () => {
       brandId: null,
       saleUnit: "UNIT" as const,
       netContent: null,
+      tagIds: [],
     };
 
     const first = await createProduct(store, { ...input, barcodes: ["111"] });
@@ -310,6 +324,7 @@ describe("createProduct", () => {
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       netContent: null,
     });
 
@@ -327,6 +342,7 @@ describe("createProduct", () => {
         brandId: null,
         saleUnit: "UNIT",
         barcodes: ["111"],
+        tagIds: [],
         netContent: null,
       }),
     ).rejects.toThrow("connection lost");
@@ -342,6 +358,7 @@ describe("createProduct", () => {
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       netContent: null,
     });
 
@@ -359,10 +376,160 @@ describe("createProduct", () => {
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111", "222"],
+      tagIds: [],
       netContent: null,
     });
 
     expect(store.snapshot().products).toEqual([]);
     expect(store.snapshot().barcodes).toEqual([]);
+  });
+
+  it("creates the product with the tags it was given, in the order given", async () => {
+    const store = new FakeCatalogStore();
+    leafCategory(store);
+    store.seedTag({ id: "tag-9", name: "Vegano", active: true, version: 1 });
+    store.seedTag({ id: "tag-2", name: "Sin TACC", active: true, version: 3 });
+    store.seedTag({ id: "decoy", name: "Decoy", active: true, version: 1 });
+
+    const outcome = await createProduct(store, {
+      name: "Galletitas",
+      categoryId: "category-1",
+      brandId: null,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      tagIds: ["tag-9", "tag-2"],
+      netContent: null,
+    });
+
+    expect(outcome).toMatchObject({ kind: "created", product: { tagIds: ["tag-9", "tag-2"] } });
+    expect(store.snapshot().productTags).toEqual([
+      { productId: "product-1", tagId: "tag-9" },
+      { productId: "product-1", tagId: "tag-2" },
+    ]);
+    expect(store.snapshot().tags).toContainEqual({
+      id: "tag-2",
+      name: "Sin TACC",
+      active: true,
+      version: 3,
+    });
+  });
+
+  it("locks the tags in id order whatever order they were given, after the category and the brand", async () => {
+    const store = new FakeCatalogStore();
+    leafCategory(store);
+    store.seedBrand({ id: "brand-1", name: "Granix", active: true, version: 1 });
+    for (const id of ["tag-1", "tag-2", "tag-3"]) {
+      store.seedTag({ id, name: id, active: true, version: 1 });
+    }
+
+    await createProduct(store, {
+      name: "Galletitas",
+      categoryId: "category-1",
+      brandId: "brand-1",
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      tagIds: ["tag-3", "tag-1", "tag-2"],
+      netContent: null,
+    });
+
+    expect(store.lockCallOrder).toEqual([
+      "lockLeafCategory",
+      "lockBrand",
+      "lockTag",
+      "lockTag",
+      "lockTag",
+    ]);
+    expect(store.lockedTagIds).toEqual(["tag-1", "tag-2", "tag-3"]);
+  });
+
+  it("creates the product with no tags when none were given, locking no tag", async () => {
+    const store = new FakeCatalogStore();
+    leafCategory(store);
+
+    const outcome = await createProduct(store, {
+      name: "Dátiles sueltos",
+      categoryId: "category-1",
+      brandId: null,
+      saleUnit: "KG",
+      barcodes: ["111"],
+      tagIds: [],
+      netContent: null,
+    });
+
+    expect(outcome).toMatchObject({ kind: "created", product: { tagIds: [] } });
+    expect(store.snapshot().productTags).toEqual([]);
+    expect(store.lockCallOrder).toEqual(["lockLeafCategory"]);
+  });
+
+  it("rejects a tag that does not exist, creating nothing", async () => {
+    const store = new FakeCatalogStore();
+    leafCategory(store);
+    store.seedTag({ id: "tag-1", name: "Sin TACC", active: true, version: 1 });
+
+    const outcome = await createProduct(store, {
+      name: "Galletitas",
+      categoryId: "category-1",
+      brandId: null,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      tagIds: ["tag-1", "missing"],
+      netContent: null,
+    });
+
+    expect(outcome).toEqual({ kind: "tag_not_found" });
+    expect(store.snapshot().products).toEqual([]);
+    expect(store.snapshot().productTags).toEqual([]);
+  });
+
+  it("rejects a deactivated tag, creating nothing", async () => {
+    const store = new FakeCatalogStore();
+    leafCategory(store);
+    store.seedTag({ id: "tag-1", name: "Sin TACC", active: true, version: 1 });
+    store.seedTag({ id: "tag-2", name: "Vegano", active: false, version: 2 });
+
+    const outcome = await createProduct(store, {
+      name: "Galletitas",
+      categoryId: "category-1",
+      brandId: null,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      tagIds: ["tag-1", "tag-2"],
+      netContent: null,
+    });
+
+    expect(outcome).toEqual({ kind: "tag_inactive" });
+    expect(store.snapshot().products).toEqual([]);
+  });
+
+  it("checks the brand before the tags, and the tags before the barcodes", async () => {
+    const store = new FakeCatalogStore();
+    leafCategory(store);
+    store.seedProduct(
+      {
+        id: "existing",
+        name: "Otro",
+        categoryId: "category-1",
+        brandId: null,
+        saleUnit: "UNIT",
+        netContent: null,
+        active: true,
+        version: 1,
+      },
+      [{ code: "111" }],
+    );
+    const input = {
+      name: "Galletitas",
+      categoryId: "category-1",
+      saleUnit: "UNIT" as const,
+      barcodes: ["111"],
+      netContent: null,
+    };
+
+    expect(
+      await createProduct(store, { ...input, brandId: "missing", tagIds: ["missing"] }),
+    ).toEqual({ kind: "brand_not_found" });
+    expect(await createProduct(store, { ...input, brandId: null, tagIds: ["missing"] })).toEqual({
+      kind: "tag_not_found",
+    });
   });
 });

@@ -186,6 +186,7 @@ describe("POST /products/:id/edit", () => {
       saleUnit: "UNIT",
       barcodes: ["111"],
       brandId: null,
+      tagIds: [],
       version: product.version,
     });
 
@@ -213,6 +214,7 @@ describe("POST /products/:id/edit", () => {
         saleUnit: "UNIT",
         barcodes: ["111"],
         brandId: null,
+        tagIds: [],
         version: product.version,
       },
       { origin: "https://attacker.example" },
@@ -241,6 +243,7 @@ describe("POST /products/:id/edit", () => {
       saleUnit: "UNIT",
       barcodes: ["111"],
       brandId: null,
+      tagIds: [],
       version: product.version,
     });
 
@@ -268,6 +271,7 @@ describe("POST /products/:id/edit", () => {
       saleUnit: "KG",
       barcodes: ["333"],
       brandId: null,
+      tagIds: [],
       version: product.version,
     });
 
@@ -282,6 +286,7 @@ describe("POST /products/:id/edit", () => {
       netContent: null,
       active: true,
       brandId: null,
+      tagIds: [],
       version: 2,
     });
     const codes = await db
@@ -308,6 +313,7 @@ describe("POST /products/:id/edit", () => {
       saleUnit: "UNIT",
       barcodes: ["111"],
       brandId: null,
+      tagIds: [],
       version: product.version,
     });
 
@@ -332,6 +338,7 @@ describe("POST /products/:id/edit", () => {
       saleUnit: "KG",
       barcodes: ["111"],
       brandId: null,
+      tagIds: [],
       version: product.version,
       netContent: { quantity: 1.5, unit: "KG" },
     });
@@ -361,6 +368,7 @@ describe("POST /products/:id/edit", () => {
       saleUnit: "KG",
       barcodes: ["111"],
       brandId: null,
+      tagIds: [],
       version: product.version,
       netContent: null,
     });
@@ -390,6 +398,7 @@ describe("POST /products/:id/edit", () => {
       saleUnit: "KG",
       barcodes: ["111"],
       brandId: null,
+      tagIds: [],
       version: product.version,
     });
 
@@ -410,6 +419,7 @@ describe("POST /products/:id/edit", () => {
       saleUnit: "UNIT",
       barcodes: ["111"],
       brandId: null,
+      tagIds: [],
       version: 1,
     });
 
@@ -428,6 +438,7 @@ describe("POST /products/:id/edit", () => {
       saleUnit: "UNIT",
       barcodes: ["111"],
       brandId: null,
+      tagIds: [],
       version: 1,
     });
 
@@ -452,6 +463,7 @@ describe("POST /products/:id/edit", () => {
       saleUnit: "UNIT",
       barcodes: ["111"],
       brandId: null,
+      tagIds: [],
       version: product.version,
     });
 
@@ -481,6 +493,7 @@ describe("POST /products/:id/edit", () => {
       saleUnit: "UNIT",
       barcodes: ["111"],
       brandId: null,
+      tagIds: [],
       version: product.version,
     });
 
@@ -512,6 +525,7 @@ describe("POST /products/:id/edit", () => {
       saleUnit: "UNIT",
       barcodes: ["111"],
       brandId: null,
+      tagIds: [],
       version: product.version,
     });
 
@@ -540,6 +554,7 @@ describe("POST /products/:id/edit", () => {
       saleUnit: "UNIT",
       barcodes: ["111"],
       brandId: null,
+      tagIds: [],
       version: product.version,
     });
 
@@ -566,6 +581,7 @@ describe("POST /products/:id/edit", () => {
       saleUnit: "UNIT",
       barcodes: ["111"],
       brandId: null,
+      tagIds: [],
       version: product.version + 1,
     });
 
@@ -598,6 +614,7 @@ describe("POST /products/:id/edit", () => {
       saleUnit: "UNIT",
       barcodes: ["999"],
       brandId: null,
+      tagIds: [],
       version: product.version,
     });
 
@@ -638,6 +655,7 @@ describe("POST /products/:id/edit", () => {
       saleUnit: "UNIT",
       barcodes: ["999"],
       brandId: null,
+      tagIds: [],
       version: product.version,
     });
 
@@ -663,6 +681,7 @@ describe("POST /products/:id/edit", () => {
       saleUnit: "UNIT",
       barcodes: ["222"],
       brandId: null,
+      tagIds: [],
       version: product.version,
     });
 
@@ -700,6 +719,7 @@ describe("POST /products/:id/edit", () => {
       saleUnit: "UNIT",
       barcodes: ["999"],
       brandId: null,
+      tagIds: [],
       version: deactivated.version,
     });
 
@@ -730,6 +750,7 @@ describe("POST /products/:id/edit", () => {
       brandId,
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       version: product.version,
     });
 
@@ -757,6 +778,7 @@ describe("POST /products/:id/edit", () => {
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       version: product.version,
     });
 
@@ -782,6 +804,7 @@ describe("POST /products/:id/edit", () => {
       categoryId,
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       version: product.version,
     });
 
@@ -812,6 +835,7 @@ describe("POST /products/:id/edit", () => {
       brandId,
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       version: product.version,
     });
 
@@ -841,6 +865,7 @@ describe("POST /products/:id/edit", () => {
       brandId: inactiveBrandId,
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       version: product.version,
     });
 
@@ -866,6 +891,7 @@ describe("POST /products/:id/edit", () => {
       brandId: "00000000-0000-0000-0000-000000000000",
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       version: product.version,
     });
 

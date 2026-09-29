@@ -25,6 +25,7 @@ export type CreateProductInput = {
   brandId: string | null;
   saleUnit: ProductSaleUnit;
   barcodes: string[];
+  tagIds: string[];
   netContent: NetContent | null;
 };
 
@@ -45,6 +46,7 @@ export type EditProductInput = {
   brandId: string | null;
   saleUnit: ProductSaleUnit;
   barcodes: string[];
+  tagIds: string[];
   netContent: NetContent | null;
   version: number;
 };
@@ -119,6 +121,7 @@ export async function createProduct(input: CreateProductInput): Promise<CreatePr
     brandId: input.brandId,
     saleUnit: input.saleUnit,
     barcodes: input.barcodes,
+    tagIds: input.tagIds,
     netContent: input.netContent,
   };
   let response: Response;
@@ -241,6 +244,7 @@ export async function editProduct(
     brandId: input.brandId,
     saleUnit: input.saleUnit,
     barcodes: input.barcodes,
+    tagIds: input.tagIds,
     netContent: input.netContent,
     version: input.version,
   };

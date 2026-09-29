@@ -170,6 +170,7 @@ describe("the empty form", () => {
       saleUnit: null,
       netContent: { quantity: "", unit: "G" },
       barcodes: NO_BARCODES,
+      tagIds: [],
     });
   });
 });
@@ -190,6 +191,7 @@ describe("the product's brand", () => {
       categoryName: "Almacén",
       saleUnit: "UNIT" as const,
       barcodes: ["111"],
+      tagIds: [],
       netContent: null,
       active: true,
       version: 1,

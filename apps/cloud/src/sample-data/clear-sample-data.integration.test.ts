@@ -240,6 +240,7 @@ describe("clearSampleData", () => {
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["7791234567890"],
+      tagIds: [],
       netContent: null,
     });
     if (realProductOutcome.kind !== "created") throw new Error("test setup: real product collided");
@@ -303,6 +304,7 @@ describe("clearSampleData", () => {
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["7791234567890"],
+      tagIds: [],
       netContent: null,
     });
     if (realProduct.kind !== "created") throw new Error("test setup: real product collided");
@@ -335,6 +337,7 @@ describe("clearSampleData", () => {
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["7791234567890"],
+      tagIds: [],
       netContent: null,
     });
     if (realProduct.kind !== "created") throw new Error("test setup: real product collided");
@@ -445,6 +448,7 @@ describe("clearSampleData", () => {
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["7791234567890"],
+      tagIds: [],
       netContent: null,
     });
     if (realProduct.kind !== "created") throw new Error("test setup: real product collided");

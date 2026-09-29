@@ -18,6 +18,8 @@ import {
   BRAND_NOT_FOUND_FAILURE,
   CATEGORY_NOT_FOUND_FAILURE,
   CATEGORY_NOT_LEAF_RESPONSE,
+  TAG_INACTIVE_RESPONSE,
+  TAG_NOT_FOUND_FAILURE,
 } from "./product-creation-route.js";
 import type { ProductsRouteOptions } from "./products-list-route.js";
 
@@ -100,6 +102,18 @@ export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
       }
       if (outcome.kind === "brand_inactive") {
         await reply.code(409).send(BRAND_INACTIVE_RESPONSE);
+        return;
+      }
+      if (outcome.kind === "tag_not_found") {
+        await reply.code(400).send({
+          code: "validation_failed",
+          message: TAG_NOT_FOUND_FAILURE.message,
+          details: [{ field: TAG_NOT_FOUND_FAILURE.field }],
+        });
+        return;
+      }
+      if (outcome.kind === "tag_inactive") {
+        await reply.code(409).send(TAG_INACTIVE_RESPONSE);
         return;
       }
       if (outcome.kind === "barcode_taken") {

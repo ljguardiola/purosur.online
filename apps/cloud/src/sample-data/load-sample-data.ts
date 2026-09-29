@@ -212,6 +212,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
                 brandId: null,
                 saleUnit: plan.saleUnit,
                 barcodes: [barcode],
+                tagIds: [],
                 netContent: plan.netContent,
               });
               const product = expectOutcome(productOutcome, "created", `product "${plan.name}"`);

@@ -32,6 +32,7 @@ const honey: ProductSummary = {
   categoryName: "Almacén",
   saleUnit: "UNIT",
   barcodes: ["7790987000015"],
+  tagIds: [],
   netContent: null,
   active: true,
   version: 1,
@@ -93,6 +94,7 @@ const createInput = {
   brandId: null,
   saleUnit: "UNIT" as const,
   barcodes: ["7790987000015"],
+  tagIds: [],
   netContent: null,
 };
 

@@ -117,6 +117,7 @@ async function listProducts<TQueryResult extends PgQueryResultHKT>(
     brandId: row.brandId,
     saleUnit: row.saleUnit as SaleUnit,
     barcodes: barcodes.get(row.id) ?? [],
+    tagIds: [],
     netContent: netContentRow(row),
     active: row.active,
     version: row.version,

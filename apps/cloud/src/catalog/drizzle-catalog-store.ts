@@ -12,8 +12,10 @@ import {
   type LockLeafCategoryResult,
   type LockParentForNewChildResult,
   type LockProductResult,
+  type LockTagResult,
   type NewProductFields,
   type ProductFields,
+  type TagFields,
 } from "@purosur/domain/catalog/use-cases";
 import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -118,7 +120,9 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
       .from(products)
       .where(eq(products.id, productId))
       .for("update");
-    return product ? { kind: "locked", product } : { kind: "not_found" };
+    return product
+      ? { kind: "locked", product: { ...product, tagIds: [] } }
+      : { kind: "not_found" };
   }
 
   async lockCategory(categoryId: string): Promise<LockCategoryResult> {
@@ -258,6 +262,34 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
     } catch (error) {
       throw translateCategoryNameViolation(error);
     }
+  }
+
+  async insertProductTags(_productId: string, tagIds: readonly string[]): Promise<void> {
+    if (tagIds.length > 0) {
+      throw new Error("product tags are not stored yet");
+    }
+  }
+
+  async replaceProductTags(_productId: string, tagIds: readonly string[]): Promise<void> {
+    if (tagIds.length > 0) {
+      throw new Error("product tags are not stored yet");
+    }
+  }
+
+  async lockTag(_tagId: string): Promise<LockTagResult> {
+    throw new Error("tags are not stored yet");
+  }
+
+  async tagNameTaken(_name: string, _excludingTagId?: string): Promise<boolean> {
+    throw new Error("tags are not stored yet");
+  }
+
+  async insertTag(_name: string): Promise<{ id: string }> {
+    throw new Error("tags are not stored yet");
+  }
+
+  async updateTag(_tagId: string, _fields: TagFields): Promise<void> {
+    throw new Error("tags are not stored yet");
   }
 
   async lockBrand(brandId: string): Promise<LockBrandResult> {

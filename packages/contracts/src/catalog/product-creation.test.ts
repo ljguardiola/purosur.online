@@ -244,14 +244,53 @@ describe("productCreationBodySchema, netContent", () => {
   });
 });
 
+describe("productCreationBodySchema, tagIds", () => {
+  it.each([undefined, []])("reads %j as no tags", (tagIds) => {
+    expect(productCreationBodySchema.safeParse(validBody({ tagIds })).data).toMatchObject({
+      tagIds: [],
+    });
+  });
+
+  it("keeps several tag ids in the order sent, in their canonical lowercase form", () => {
+    const result = productCreationBodySchema.safeParse(
+      validBody({ tagIds: ["D131EC62-1111-4AAA-8BBB-ABCDEF012345", "tag-2"] }),
+    );
+
+    expect(result.data).toMatchObject({
+      tagIds: ["d131ec62-1111-4aaa-8bbb-abcdef012345", "tag-2"],
+    });
+  });
+
+  it.each([null, "tag-1", 42, {}, [42], [""], [null], ["tag-1", ""]])(
+    "rejects the tagIds %j",
+    (tagIds) => {
+      expect(firstFailure(validBody({ tagIds }))).toEqual({
+        field: "tagIds",
+        message: "tagIds must be a list of existing tags' ids, [] for none",
+      });
+    },
+  );
+
+  it.each([
+    ["tag-1", "tag-1"],
+    ["tag-1", "TAG-1"],
+  ])("rejects a tag sent more than once as %j and %j", (first, second) => {
+    expect(firstFailure(validBody({ tagIds: [first, "tag-2", second] }))).toEqual({
+      field: "tagIds",
+      message: "tagIds must not repeat a tag",
+    });
+  });
+});
+
 describe("productCreationBodySchema, order and unknown keys", () => {
-  it("reports the first failing field in the order name, categoryId, brandId, saleUnit, barcodes, netContent", () => {
+  it("reports the first failing field in the order name, categoryId, brandId, saleUnit, barcodes, tagIds, netContent", () => {
     const allInvalid = {
       name: "",
       categoryId: "",
       brandId: 42,
       saleUnit: "x",
       barcodes: [],
+      tagIds: "x",
       netContent: "x",
     };
 
@@ -264,8 +303,11 @@ describe("productCreationBodySchema, order and unknown keys", () => {
     const validUpToSaleUnit = { name: "a", categoryId: "c", brandId: null, saleUnit: "KG" };
     expect(firstFailure({ ...allInvalid, ...validUpToSaleUnit })?.field).toBe("barcodes");
     expect(firstFailure({ ...allInvalid, ...validUpToSaleUnit, barcodes: ["1"] })?.field).toBe(
-      "netContent",
+      "tagIds",
     );
+    expect(
+      firstFailure({ ...allInvalid, ...validUpToSaleUnit, barcodes: ["1"], tagIds: [] })?.field,
+    ).toBe("netContent");
   });
 
   it("strips keys it does not know", () => {
@@ -277,6 +319,7 @@ describe("productCreationBodySchema, order and unknown keys", () => {
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       netContent: null,
     });
   });

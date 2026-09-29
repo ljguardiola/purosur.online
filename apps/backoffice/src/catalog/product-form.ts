@@ -34,6 +34,7 @@ export type ProductFormValues = {
   saleUnit: ProductSaleUnit | null;
   netContent: NetContentValue;
   barcodes: BarcodeListValue;
+  tagIds: string[];
 };
 
 export type ProductEditFormValues = ProductFormValues & { version: number };
@@ -45,6 +46,7 @@ export const EMPTY_PRODUCT_FORM: ProductFormValues = {
   saleUnit: null,
   netContent: { quantity: "", unit: "G" },
   barcodes: { codes: [], scan: "" },
+  tagIds: [],
 };
 
 export function productFormValues(product: ProductSummary): ProductEditFormValues {
@@ -60,6 +62,7 @@ export function productFormValues(product: ProductSummary): ProductEditFormValue
         }
       : EMPTY_PRODUCT_FORM.netContent,
     barcodes: { codes: product.barcodes, scan: "" },
+    tagIds: product.tagIds,
     version: product.version,
   };
 }
@@ -87,6 +90,7 @@ export function productRequestFrom(values: ProductFormValues): ProductRequest {
     brandId: values.brandId === NO_BRAND ? null : values.brandId,
     saleUnit: values.saleUnit,
     barcodes: barcodesWithScan(values.barcodes),
+    tagIds: values.tagIds,
     netContent: netContentFrom(values.netContent),
   };
 }
@@ -103,6 +107,7 @@ export const PRODUCT_FIELDS = {
   brandId: "brandId",
   saleUnit: "saleUnit",
   barcodes: "barcodes",
+  tagIds: null,
   netContent: "netContent",
   netContentQuantity: "netContent",
 } as const;

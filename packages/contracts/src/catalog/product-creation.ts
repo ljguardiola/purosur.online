@@ -14,6 +14,7 @@ import {
 } from "@purosur/domain";
 import { z } from "zod";
 import { optionalBrandIdSchema } from "./product-brand-id.js";
+import { optionalTagIdsSchema } from "./product-tag-ids.js";
 
 const NAME_EMPTY_MESSAGE = "name must not be empty";
 const BARCODES_TYPE_MESSAGE = "barcodes must be a non-empty list of codes";
@@ -66,6 +67,7 @@ export const productCreationBodySchema = z
           context.addIssue({ code: "custom", message: BARCODE_PROBLEM_MESSAGES[problem] });
         }
       }),
+    tagIds: optionalTagIdsSchema,
     netContent: netContentSchema,
   })
   .superRefine(

@@ -129,6 +129,7 @@ test("changes a product's net content on edit", async () => {
     brandId: null,
     saleUnit: "UNIT",
     barcodes: ["7790987000015"],
+    tagIds: [],
     netContent: { quantity: 500, unit: "G" },
     version: 1,
   });
@@ -151,6 +152,7 @@ test("clears a product's net content by emptying the quantity on edit", async ()
     brandId: null,
     saleUnit: "UNIT",
     barcodes: ["7790987000015"],
+    tagIds: [],
     netContent: null,
     version: 1,
   });
@@ -299,6 +301,7 @@ test("shows a stale-version conflict banner, and reloading restores the fresh pr
     brandId: null,
     saleUnit: "UNIT",
     barcodes: ["7790987000015"],
+    tagIds: [],
     netContent: null,
     version: 2,
   });
@@ -382,6 +385,7 @@ test("saving an edit includes a code typed in the scan input but not yet confirm
     brandId: null,
     saleUnit: "UNIT",
     barcodes: ["7790987000015", "7790000000099"],
+    tagIds: [],
     netContent: null,
     version: 1,
   });
@@ -431,6 +435,7 @@ test("generates an internal code from the edit modal and saves it alongside the 
     brandId: null,
     saleUnit: "UNIT",
     barcodes: ["7790987000015", "2000000000015"],
+    tagIds: [],
     netContent: null,
     version: 1,
   });

@@ -214,6 +214,7 @@ describe("POST /products", () => {
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["222", "111"],
+      tagIds: [],
       netContent: null,
       active: true,
       version: 1,
