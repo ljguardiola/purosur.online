@@ -103,3 +103,30 @@ export {
   scrubErrorReportBreadcrumb,
   scrubErrorReportLog,
 } from "./shared/index.js";
+export type {
+  StockBalance,
+  StockBalanceList,
+  StockCount,
+  StockCountList,
+  StockExpectedBalance,
+  StockMovement,
+  StockMovementList,
+  StockPeriodDays,
+} from "./stock/stock-lists.js";
+export {
+  STOCK_PERIOD_DAYS,
+  stockBalanceListSchema,
+  stockCountListSchema,
+  stockExpectedBalanceSchema,
+  stockMovementListSchema,
+} from "./stock/stock-lists.js";
+export type {
+  StockAdjustmentBody,
+  StockCountBody,
+  StockLossBody,
+} from "./stock/stock-movement-bodies.js";
+export {
+  stockAdjustmentBodySchema,
+  stockCountBodySchema,
+  stockLossBodySchema,
+} from "./stock/stock-movement-bodies.js";
