@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   checkRepository,
+  findCloudPostgresImageViolations,
   findVerifyWorkflowViolations,
 } from "./verify-workflow-runs-every-check.mjs";
 
@@ -765,15 +766,133 @@ test("reports a workflow that does not parse as YAML", () => {
   assert.match(violations[0], /does not parse as YAML/);
 });
 
-test("checkRepository reads the real workflow file and package.json path", () => {
-  const files = {
-    ".github/workflows/verify.yml": workflow(),
-    "package.json": packageJson(),
-  };
+const PINNED_POSTGRES_IMAGE =
+  "public.ecr.aws/docker/library/postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873";
 
-  const violations = checkRepository({ readFile: (path) => files[path] });
+const PULL_WITH_RETRIES_LINES = [
+  "for delay in 0 15 30 60; do",
+  '  sleep "$delay"',
+  '  docker pull "$POSTGRES_IMAGE" && exit 0',
+  "done",
+  "exit 1",
+];
+
+function postgresSetup(image = PINNED_POSTGRES_IMAGE) {
+  return [
+    'import { PostgreSqlContainer } from "@testcontainers/postgresql";',
+    "",
+    "const POSTGRES_IMAGE =",
+    `  "${image}";`,
+  ].join("\n");
+}
+
+function testsJobWithPull({
+  pullLines = PULL_WITH_RETRIES_LINES,
+  pulledImage = PINNED_POSTGRES_IMAGE,
+  pullAfterTests = false,
+  testsEnv = { TESTCONTAINERS_RYUK_DISABLED: '"true"' },
+} = {}) {
+  const pullStep = [
+    "      - name: Pull the cloud's Postgres image",
+    "        run: |",
+    ...pullLines.map((line) => `          ${line}`),
+    "        env:",
+    `          POSTGRES_IMAGE: ${pulledImage}`,
+  ];
+  const testsStep = [
+    `      - run: pnpm verify:tests --shard=\${{ matrix.shard }}/4`,
+    ...(Object.keys(testsEnv).length === 0
+      ? []
+      : ["        env:", ...Object.entries(testsEnv).map(([k, v]) => `          ${k}: ${v}`)]),
+  ];
+  return [
+    "jobs:",
+    "  tests:",
+    "    runs-on: ubuntu-24.04",
+    "    steps:",
+    "      - run: pnpm install --frozen-lockfile",
+    ...(pullAfterTests ? [...testsStep, ...pullStep] : [...pullStep, ...testsStep]),
+  ].join("\n");
+}
+
+test("passes when the tests job pulls the cloud's digest-pinned Postgres image with retries before its tests", () => {
+  const violations = findCloudPostgresImageViolations(testsJobWithPull(), postgresSetup());
 
   assert.deepEqual(violations, []);
+});
+
+test("flags a cloud Postgres image referenced by a tag alone, which can move to other bytes", () => {
+  const image = "public.ecr.aws/docker/library/postgres:18-alpine";
+
+  const violations = findCloudPostgresImageViolations(
+    testsJobWithPull({ pulledImage: image }),
+    postgresSetup(image),
+  );
+
+  assertSingleViolation(violations, /not pinned by digest/);
+});
+
+test("flags a cloud global setup whose Postgres image cannot be read", () => {
+  const violations = findCloudPostgresImageViolations(
+    testsJobWithPull(),
+    'const IMAGE = "postgres";',
+  );
+
+  assertSingleViolation(violations, /no POSTGRES_IMAGE/);
+});
+
+test("flags a tests job that pulls a different image from the one the cloud's tests start", () => {
+  const violations = findCloudPostgresImageViolations(
+    testsJobWithPull({ pulledImage: "postgres:18-alpine" }),
+    postgresSetup(),
+  );
+
+  assertSingleViolation(violations, /pulls `postgres:18-alpine`/);
+});
+
+test("flags a tests job that pulls the Postgres image only after running its tests", () => {
+  const violations = findCloudPostgresImageViolations(
+    testsJobWithPull({ pullAfterTests: true }),
+    postgresSetup(),
+  );
+
+  assertSingleViolation(violations, /before its verify:tests step/);
+});
+
+test("flags a tests job that pulls the Postgres image once, without retrying", () => {
+  const violations = findCloudPostgresImageViolations(
+    testsJobWithPull({ pullLines: ['docker pull "$POSTGRES_IMAGE"'] }),
+    postgresSetup(),
+  );
+
+  assertSingleViolation(violations, /before its verify:tests step/);
+});
+
+test("flags a tests step that still needs Testcontainers' Ryuk image from Docker Hub", () => {
+  const violations = findCloudPostgresImageViolations(
+    testsJobWithPull({ testsEnv: {} }),
+    postgresSetup(),
+  );
+
+  assertSingleViolation(violations, /TESTCONTAINERS_RYUK_DISABLED/);
+});
+
+test("checkRepository reads the real workflow file, package.json and the cloud's Postgres setup", () => {
+  const files = {
+    ".github/workflows/verify.yml": testsJobWithPull(),
+    "package.json": packageJson(),
+    "apps/cloud/vitest.global-setup.postgres.ts": postgresSetup(),
+  };
+  const read = [];
+
+  checkRepository({
+    readFile: (path) => {
+      read.push(path);
+      return files[path];
+    },
+  });
+
+  assert.deepEqual(read.sort(), Object.keys(files).sort());
 });
 
 test("the real Verify workflow runs every part of pnpm verify", () => {

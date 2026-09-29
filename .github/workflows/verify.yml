@@ -144,7 +144,20 @@ jobs:
           path: ~/.cache/ms-playwright
           key: ${{ steps.playwright-cache.outputs.cache-primary-key }}
 
+      - name: Pull the cloud's Postgres image
+        timeout-minutes: 10
+        run: |
+          for delay in 0 15 30 60; do
+            sleep "$delay"
+            docker pull "$POSTGRES_IMAGE" && exit 0
+          done
+          exit 1
+        env:
+          POSTGRES_IMAGE: public.ecr.aws/docker/library/postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+
       - run: pnpm verify:tests --shard=${{ matrix.shard }}/4
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: "true"
 
   visual:
     name: visual

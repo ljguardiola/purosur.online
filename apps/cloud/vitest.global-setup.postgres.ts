@@ -15,9 +15,10 @@ declare module "vitest" {
 
 const TEMPLATE_DATABASE_NAME = "cloud_integration_template";
 
-// Matches the Postgres major version Railway's own template deploys, pinned to an explicit tag
-// rather than a moving one.
-const POSTGRES_IMAGE = "postgres:18-alpine";
+// Matches the Postgres major version Railway's own template deploys. ECR Public mirrors Docker
+// Hub's official images byte for byte, so the digest is the same on either registry.
+const POSTGRES_IMAGE =
+  "public.ecr.aws/docker/library/postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873";
 
 // The integration files run in parallel on this one container, each with its own pool, and together
 // they can hold about 300 connections at once: Postgres's default limit of 100 would make whichever
