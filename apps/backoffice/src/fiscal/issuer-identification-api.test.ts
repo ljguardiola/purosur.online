@@ -104,6 +104,17 @@ test("fetchIssuerIdentification returns forbidden on 403", async () => {
   expect(await fetchIssuerIdentification()).toEqual({ kind: "forbidden" });
 });
 
+test("fetchIssuerIdentification returns rate_limited with the Retry-After header on 429", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    new Response(null, { status: 429, headers: { "Retry-After": "45" } }),
+  );
+
+  expect(await fetchIssuerIdentification()).toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 45,
+  });
+});
+
 test("fetchIssuerIdentification returns failed when the network call throws", async () => {
   vi.mocked(fetch).mockRejectedValue(new Error("offline"));
 

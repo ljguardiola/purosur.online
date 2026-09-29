@@ -4,6 +4,7 @@ import {
   branchSettingsSchema,
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import { retryAfterSeconds } from "../platform/retry-after-seconds";
 
 export type BranchDay =
   | "monday"
@@ -145,6 +146,9 @@ export async function fetchBranchSettings(): Promise<FetchBranchSettingsOutcome>
   }
   if (response.status === 403) {
     return { kind: "forbidden" };
+  }
+  if (response.status === 429) {
+    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
   }
   if (!response.ok) {
     return { kind: "failed" };

@@ -4,6 +4,7 @@ import {
   issuerIdentificationSchema,
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import { retryAfterSeconds } from "../platform/retry-after-seconds";
 
 export type IssuerIdentification = {
   legalName: string | null;
@@ -74,6 +75,9 @@ export async function fetchIssuerIdentification(): Promise<FetchIssuerIdentifica
   }
   if (response.status === 403) {
     return { kind: "forbidden" };
+  }
+  if (response.status === 429) {
+    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
   }
   if (!response.ok) {
     return { kind: "failed" };
