@@ -14,6 +14,35 @@ export interface DeviceTokenIssuer {
   issue(): IssuedDeviceToken;
 }
 
+export interface PresentedDeviceToken {
+  lookupPrefix: string;
+  tokenHash: string;
+}
+
+export interface DeviceTokenRotator {
+  read(deviceToken: string): PresentedDeviceToken | undefined;
+  successorOf(deviceToken: string): IssuedDeviceToken;
+}
+
+export interface InstallationTokenPorts {
+  store: RegisterStore;
+  clock: Clock;
+  tokens: DeviceTokenRotator;
+}
+
+export interface StoredDeviceToken {
+  lookupPrefix: string;
+  tokenHash: string;
+  issuedAt: Date;
+}
+
+export interface LockedInstallation {
+  deviceId: string;
+  revoked: boolean;
+  currentToken: StoredDeviceToken;
+  pendingToken: StoredDeviceToken | undefined;
+}
+
 export interface EnrollmentCodeVerifier {
   matches(code: string, codeHash: string): boolean;
 }
@@ -38,6 +67,7 @@ export interface NewInstallation {
   registerId: string;
   tokenLookupPrefix: string;
   tokenHash: string;
+  tokenIssuedAt: Date;
   hostname: string;
   windowsVersion: string;
   enrolledAt: Date;
@@ -57,5 +87,8 @@ export interface RegisterStoreTransaction {
   recordFailedEnrollmentAttempt(registerIds: readonly string[]): Promise<void>;
   revokeActiveInstallation(registerId: string, revokedAt: Date): Promise<void>;
   recordInstallation(installation: NewInstallation): Promise<{ deviceId: string }>;
+  lockInstallationByTokenPrefix(lookupPrefix: string): Promise<LockedInstallation | undefined>;
+  promotePendingDeviceToken(deviceId: string): Promise<void>;
+  recordPendingDeviceToken(deviceId: string, token: StoredDeviceToken): Promise<void>;
   markEnrollmentCodeRedeemed(registerId: string, redeemedAt: Date): Promise<void>;
 }

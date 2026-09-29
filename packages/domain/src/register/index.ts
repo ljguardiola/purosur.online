@@ -1,3 +1,8 @@
+export {
+  deviceTokenExpiresAt,
+  isDeviceTokenExpired,
+  isDeviceTokenRotationDue,
+} from "./model/device-token.js";
 export { enrollmentAttemptWindowStart } from "./model/enrollment-attempt-limit.js";
 export {
   ENROLLMENT_CODE_LENGTH,
