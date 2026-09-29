@@ -71,9 +71,9 @@ function inTreeOrder<T>(
   for (const root of roots.sort(order)) {
     walk(root);
   }
-  // Only a cycle leaves items unreached from the roots.
-  for (const unreached of items.filter((item) => !visited.has(id(item))).sort(order)) {
-    walk(unreached);
+  const itemsInCycles = items.filter((item) => !visited.has(id(item)));
+  for (const item of itemsInCycles.sort(order)) {
+    walk(item);
   }
   return ordered;
 }
