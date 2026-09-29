@@ -68,6 +68,23 @@ test("fetchBranchSettings returns the branch's settings on 200", async () => {
   expect(fetch).toHaveBeenCalledWith("/branch-settings");
 });
 
+test.each([
+  ["a body missing a field", { ...wireRow, version: undefined }],
+  ["a body with a mistyped field", { ...wireRow, expiring_lot_alert_days: "30" }],
+  ["a body with a malformed range", { ...wireRow, monday_hours: [{ opens_at: "09:00" }] }],
+  ["a body that is not an object", []],
+])("fetchBranchSettings returns failed on 200 with %s", async (_name, body) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, body));
+
+  expect(await fetchBranchSettings()).toEqual({ kind: "failed" });
+});
+
+test("fetchBranchSettings returns failed on 200 with a body that is not JSON", async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response("<html>", { status: 200 }));
+
+  expect(await fetchBranchSettings()).toEqual({ kind: "failed" });
+});
+
 test("fetchBranchSettings returns unauthenticated on 401", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(401));
 
@@ -92,17 +109,27 @@ test("fetchBranchSettings returns failed on an unexpected status", async () => {
   expect(await fetchBranchSettings()).toEqual({ kind: "failed" });
 });
 
-test("saveBranchSettings PUTs every field, each day's ranges in order, and the version, returning the saved settings", async () => {
+test("saveBranchSettings PUTs every field, each day's ranges in order, and the version", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { ...wireRow, version: 2 }));
 
   const outcome = await saveBranchSettings(settings);
 
-  expect(outcome).toEqual({ kind: "ok", value: { ...settings, version: 2 } });
+  expect(outcome).toEqual({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith("/branch-settings", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(wireRow),
   });
+});
+
+test.each([
+  ["a body that does not match the settings", jsonResponse(200, { version: "2" })],
+  ["no body", jsonResponse(204)],
+  ["a body that is not JSON", new Response("<html>", { status: 200 })],
+])("saveBranchSettings returns ok on any 2xx, even with %s", async (_name, response) => {
+  vi.mocked(fetch).mockResolvedValue(response);
+
+  expect(await saveBranchSettings(settings)).toEqual({ kind: "ok" });
 });
 
 test("saveBranchSettings maps a 400 validation_failed to its day field", async () => {

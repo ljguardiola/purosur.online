@@ -18,6 +18,14 @@ function createServices(
   };
 }
 
+function deferred<T>() {
+  let resolve: (value: T) => void = () => {};
+  const promise = new Promise<T>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
+
 const loaded: BranchSettings = {
   address: "Av. Belgrano 1450, CABA",
   whatsappNumber: "+54 9 11 3333-2211",
@@ -140,18 +148,85 @@ test("shows the breadcrumb, heading, and the branch's loaded values", async () =
   expect(screen.getByRole("textbox", { name: "Cambio con defecto" }).query()).toBeNull();
 });
 
-test("shows a load-error notice, and Reintentar loads the settings again", async () => {
+test("shows a form-shaped placeholder instead of a loading line while the settings load", async () => {
   const services = createServices();
-  vi.mocked(services.fetchBranchSettings).mockResolvedValueOnce({ kind: "failed" });
+  const firstLoad = deferred<Awaited<ReturnType<typeof services.fetchBranchSettings>>>();
+  vi.mocked(services.fetchBranchSettings).mockReturnValue(firstLoad.promise);
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
+  expect(screen.container.querySelector('[aria-hidden="true"]')?.children.length).toBeGreaterThan(
+    0,
+  );
+  expect(screen.getByRole("textbox").query()).toBeNull();
+  expect(screen.container.querySelector("p[role=status]")).toBeNull();
+  firstLoad.resolve({ kind: "ok", value: loaded });
+  await expect.element(screen.getByRole("textbox", { name: "Dirección" })).toBeVisible();
+});
+
+test("shows a load failure, and Reintentar goes back to the placeholder before loading the settings again", async () => {
+  const services = createServices();
+  const retry = deferred<Awaited<ReturnType<typeof services.fetchBranchSettings>>>();
+  vi.mocked(services.fetchBranchSettings)
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockReturnValueOnce(retry.promise);
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("No pudimos abrir la sucursal")).toBeVisible();
+  await expect.element(screen.getByText("Probá de nuevo en unos minutos.")).toBeVisible();
 
-  vi.mocked(services.fetchBranchSettings).mockResolvedValueOnce({ kind: "ok", value: loaded });
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
+  await expect.element(screen.getByText("No pudimos abrir la sucursal")).not.toBeInTheDocument();
+  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
+  retry.resolve({ kind: "ok", value: loaded });
   await expect
     .element(screen.getByRole("textbox", { name: "Dirección" }))
     .toHaveValue("Av. Belgrano 1450, CABA");
+});
+
+test("shows the rate-limited notice with the time to wait and a retry action", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({
+    kind: "rate_limited",
+    retryAfterSeconds: 120,
+  });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
+  await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
+});
+
+test("the save action is disabled while the settings load, and after they fail to load", async () => {
+  const services = createServices();
+  const firstLoad = deferred<Awaited<ReturnType<typeof services.fetchBranchSettings>>>();
+  vi.mocked(services.fetchBranchSettings).mockReturnValueOnce(firstLoad.promise);
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByRole("button", { name: "Guardar los cambios" })).toBeDisabled();
+
+  firstLoad.resolve({ kind: "failed" });
+  await expect.element(screen.getByText("No pudimos abrir la sucursal")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Guardar los cambios" })).toBeDisabled();
+});
+
+test("shows a failure instead of the form when reading the branch again after a save fails", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings)
+    .mockResolvedValueOnce({ kind: "ok", value: loaded })
+    .mockResolvedValueOnce({ kind: "failed" });
+  vi.mocked(services.saveBranchSettings).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Dirección" }))
+    .toHaveValue("Av. Belgrano 1450, CABA");
+
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(screen.getByText("No pudimos abrir la sucursal")).toBeVisible();
+  expect(screen.getByRole("textbox", { name: "Dirección" }).query()).toBeNull();
 });
 
 test("ends the session when the load finds it closed", async () => {
@@ -210,41 +285,79 @@ test("navigates to Mi cuenta when Recargar comes back forbidden", async () => {
   window.history.pushState(null, "", "/");
 });
 
-test("saves every field, each day's ranges and the loaded version, showing the saved values", async () => {
+test("saves every field, each day's ranges and the loaded version, then shows the values read again", async () => {
   const services = createServices();
-  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
-  vi.mocked(services.saveBranchSettings).mockResolvedValue({
-    kind: "ok",
-    value: { ...loaded, address: "Av. Belgrano 1500, CABA", version: 2 },
-  });
+  vi.mocked(services.fetchBranchSettings)
+    .mockResolvedValueOnce({ kind: "ok", value: loaded })
+    .mockResolvedValueOnce({
+      kind: "ok",
+      value: { ...loaded, address: "Av. Belgrano 1500, CABA", version: 2 },
+    });
+  vi.mocked(services.saveBranchSettings).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
   await expect
     .element(screen.getByRole("textbox", { name: "Dirección" }))
     .toHaveValue("Av. Belgrano 1450, CABA");
 
-  await userEvent.fill(
-    screen.getByRole("textbox", { name: "Dirección" }),
-    "Av. Belgrano 1500, CABA",
-  );
+  await userEvent.fill(screen.getByRole("textbox", { name: "Dirección" }), "Av. Belgrano 1500 ");
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.saveBranchSettings).mock.calls.length).toBe(1);
   expect(services.saveBranchSettings).toHaveBeenCalledWith({
     ...loaded,
-    address: "Av. Belgrano 1500, CABA",
+    address: "Av. Belgrano 1500 ",
   });
   await expect
     .element(screen.getByRole("textbox", { name: "Dirección" }))
     .toHaveValue("Av. Belgrano 1500, CABA");
+  expect(services.fetchBranchSettings).toHaveBeenCalledTimes(2);
+});
+
+test("a second save sends the version the read after the first save returned", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings)
+    .mockResolvedValueOnce({ kind: "ok", value: loaded })
+    .mockResolvedValueOnce({ kind: "ok", value: { ...loaded, version: 2 } });
+  vi.mocked(services.saveBranchSettings).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Dirección" }))
+    .toHaveValue("Av. Belgrano 1450, CABA");
+
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+  await expect.poll(() => vi.mocked(services.fetchBranchSettings).mock.calls.length).toBe(2);
+  await expect.element(screen.getByRole("button", { name: "Guardar los cambios" })).toBeEnabled();
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => vi.mocked(services.saveBranchSettings).mock.calls.length).toBe(2);
+  expect(services.saveBranchSettings).toHaveBeenLastCalledWith({ ...loaded, version: 2 });
+});
+
+test("keeps the saved form on screen while the branch is read again after a save", async () => {
+  const services = createServices();
+  const refresh = deferred<Awaited<ReturnType<typeof services.fetchBranchSettings>>>();
+  vi.mocked(services.fetchBranchSettings)
+    .mockResolvedValueOnce({ kind: "ok", value: loaded })
+    .mockReturnValueOnce(refresh.promise);
+  vi.mocked(services.saveBranchSettings).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Dirección" }))
+    .toHaveValue("Av. Belgrano 1450, CABA");
+
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => vi.mocked(services.fetchBranchSettings).mock.calls.length).toBe(2);
+  await expect.element(screen.getByRole("textbox", { name: "Dirección" })).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Guardar los cambios" })).toBeDisabled();
+  refresh.resolve({ kind: "ok", value: loaded });
+  await expect.element(screen.getByRole("button", { name: "Guardar los cambios" })).toBeEnabled();
 });
 
 test("checking Cerrado on a day hides its ranges and saves it as closed", async () => {
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
-  vi.mocked(services.saveBranchSettings).mockResolvedValue({
-    kind: "ok",
-    value: { ...loaded, hours: { ...loaded.hours, monday: [] }, version: 2 },
-  });
+  vi.mocked(services.saveBranchSettings).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
   await expect
     .element(screen.getByRole("textbox", { name: "Lunes, horario 1, abre" }))
@@ -266,7 +379,7 @@ test("checking Cerrado on a day hides its ranges and saves it as closed", async 
 test("unchecking Cerrado brings back the ranges the day had before it was checked", async () => {
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
-  vi.mocked(services.saveBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  vi.mocked(services.saveBranchSettings).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
   await userEvent.fill(screen.getByRole("textbox", { name: "Lunes, horario 2, cierra" }), "21:30");
 
@@ -317,7 +430,7 @@ test("unchecking Cerrado on a day with no ranges shows one empty range", async (
 test("adding a range appends an empty range and shows a trash button for both", async () => {
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
-  vi.mocked(services.saveBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  vi.mocked(services.saveBranchSettings).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
   expect(screen.getByRole("textbox", { name: "Martes, horario 2, abre" }).query()).toBeNull();
 
@@ -353,7 +466,7 @@ test("adding a range appends an empty range and shows a trash button for both", 
 test("removing a range drops it, hiding the trash button once only one is left", async () => {
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
-  vi.mocked(services.saveBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  vi.mocked(services.saveBranchSettings).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
   await expect
     .element(screen.getByRole("textbox", { name: "Lunes, horario 2, abre" }))
@@ -404,6 +517,7 @@ test("moves keyboard focus to the new range's opening field after adding one", a
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
   const screen = await renderScreen(services);
+  await expect.element(screen.getByRole("textbox", { name: "Dirección" })).toBeVisible();
 
   await pressWithKeyboard(
     screen.getByRole("button", { name: "Agregar un horario al martes" }).element() as HTMLElement,
@@ -428,6 +542,7 @@ test("keeps keyboard focus in the day once the add-range button disappears at th
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: belowCap });
   const screen = await renderScreen(services);
+  await expect.element(screen.getByRole("textbox", { name: "Dirección" })).toBeVisible();
 
   await pressWithKeyboard(
     screen.getByRole("button", { name: "Agregar un horario al viernes" }).element() as HTMLElement,
@@ -447,6 +562,7 @@ test("moves keyboard focus to the previous range's opening field after removing 
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
   const screen = await renderScreen(services);
+  await expect.element(screen.getByRole("textbox", { name: "Dirección" })).toBeVisible();
 
   await pressWithKeyboard(
     screen.getByRole("button", { name: "Quitar el horario 2 del lunes" }).element() as HTMLElement,
@@ -475,6 +591,7 @@ test("moves keyboard focus to the range that takes the removed one's place", asy
     },
   });
   const screen = await renderScreen(services);
+  await expect.element(screen.getByRole("textbox", { name: "Dirección" })).toBeVisible();
 
   await pressWithKeyboard(
     screen.getByRole("button", { name: "Quitar el horario 1 del lunes" }).element() as HTMLElement,
@@ -519,7 +636,7 @@ test("accepts a single-digit hour like 9:00 and sends it zero-padded", async () 
     kind: "ok",
     value: { ...loaded, hours: { ...loaded.hours, sunday: [] } },
   });
-  vi.mocked(services.saveBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  vi.mocked(services.saveBranchSettings).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
   await screen.getByRole("checkbox", { name: "Domingo — Cerrado" }).click({ force: true });
   await userEvent.fill(screen.getByRole("textbox", { name: "Domingo, horario 1, abre" }), "9:00");
@@ -665,7 +782,7 @@ test("rejects a days value above the maximum with an error that asks for a small
 test("accepts a days value of exactly the maximum", async () => {
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
-  vi.mocked(services.saveBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  vi.mocked(services.saveBranchSettings).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
   await expect
     .element(screen.getByRole("textbox", { name: "Precio sin revisar" }))
@@ -687,10 +804,7 @@ test("accepts a days value of exactly the maximum", async () => {
 test("accepts a good-condition return window of exactly 0 days", async () => {
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
-  vi.mocked(services.saveBranchSettings).mockResolvedValue({
-    kind: "ok",
-    value: { ...loaded, goodConditionReturnDays: 0, version: 2 },
-  });
+  vi.mocked(services.saveBranchSettings).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);
   await expect
     .element(screen.getByRole("textbox", { name: "Cambio en buen estado" }))
@@ -760,10 +874,11 @@ test("shows a stale_version notice, and Recargar refetches so the second save se
     .element(screen.getByRole("textbox", { name: "Dirección" }))
     .toHaveValue("Av. Belgrano 1600, CABA");
 
-  vi.mocked(services.saveBranchSettings).mockResolvedValueOnce({
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({
     kind: "ok",
     value: { ...reloaded, version: 6 },
   });
+  vi.mocked(services.saveBranchSettings).mockResolvedValueOnce({ kind: "ok" });
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.saveBranchSettings).mock.calls.length).toBe(2);
@@ -806,6 +921,7 @@ test("renders a Plazos field at the same box height as a plain-text field, with 
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
   const screen = await renderScreen(services);
+  await expect.element(screen.getByRole("textbox", { name: "Dirección" })).toBeVisible();
 
   const addressBox = screen.getByRole("textbox", { name: "Dirección" }).element()
     .parentElement as HTMLElement;
