@@ -365,15 +365,19 @@ async function openEmitModal(screen: Awaited<ReturnType<typeof renderScreen>>, n
 test("the row action emits a code for that register and shows it in the code modal", async () => {
   const services = createServices();
   vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
-  vi.mocked(services.emitEnrollmentCode).mockResolvedValue({
-    kind: "ok",
-    value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
-  });
+  const pendingEmission =
+    deferred<Awaited<ReturnType<RegistersListScreenServices["emitEnrollmentCode"]>>>();
+  vi.mocked(services.emitEnrollmentCode).mockReturnValue(pendingEmission.promise);
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Caja 1")).toBeVisible();
 
   const dialog = await openEmitModal(screen, "Caja 1");
 
+  await expect.element(dialog.getByText("Emitiendo el código…")).toBeVisible();
+  pendingEmission.resolve({
+    kind: "ok",
+    value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
+  });
   await expect.element(dialog.getByText("P4NX 7KWE 2QRT 8MZD")).toBeVisible();
   expect(services.emitEnrollmentCode).toHaveBeenCalledWith("register-1");
 });

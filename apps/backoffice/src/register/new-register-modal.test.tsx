@@ -82,6 +82,18 @@ test("requires a name before submitting the create modal, without calling the AP
   expect(services.createRegister).not.toHaveBeenCalled();
 });
 
+test("shows the name-too-long error on create, without calling the API", async () => {
+  const services = createServices();
+  const { dialog } = await renderModal(services);
+
+  await submitName(dialog, "a".repeat(101));
+
+  await expect
+    .element(dialog.getByText("El nombre puede tener hasta 100 caracteres."))
+    .toBeVisible();
+  expect(services.createRegister).not.toHaveBeenCalled();
+});
+
 test("reopening the create modal starts from an empty name with no error", async () => {
   const services = createServices();
   const onClose = vi.fn();
