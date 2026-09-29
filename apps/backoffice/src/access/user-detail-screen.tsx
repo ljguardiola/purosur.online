@@ -1056,6 +1056,7 @@ function UserDetailView({
           onClose={() => setDeactivateModalOpen(false)}
           onDeactivated={() => {
             setDeactivateModalOpen(false);
+            void refreshAccess();
             void navigate({ to: "/settings/users" });
           }}
           onVanished={() => {

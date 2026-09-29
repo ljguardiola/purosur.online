@@ -1301,6 +1301,21 @@ test("deactivates directly, without the authorization modal, navigating back to 
   await expect.poll(() => window.location.pathname).toBe("/settings/users");
 });
 
+test("a deactivation refreshes every access read", async () => {
+  window.history.pushState(null, "", "/settings/users/user-1");
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  vi.mocked(services.deactivateUser).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+  const dialog = await openDeactivateModal(screen);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
+
+  await expect.poll(() => vi.mocked(services.fetchRoles).mock.calls.length).toBe(2);
+  await expect.poll(() => vi.mocked(services.fetchUserPasskeys).mock.calls.length).toBe(2);
+});
+
 test("opens the authorization modal on authorization_required, then authorizes and retries the deactivation", async () => {
   window.history.pushState(null, "", "/settings/users/user-1");
   const services = createServices();
