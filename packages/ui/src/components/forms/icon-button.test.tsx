@@ -177,3 +177,105 @@ test("names its disabled state disabled", () => {
   expectTypeOf<IconButtonProps>().toHaveProperty("disabled");
   expectTypeOf<IconButtonProps>().not.toHaveProperty("isDisabled");
 });
+
+test("offers a bordered and a subtle look, bordered unless asked", async () => {
+  expectTypeOf<IconButtonProps["variant"]>().toEqualTypeOf<"bordered" | "subtle" | undefined>();
+
+  const screen = await render(
+    <IconButton variant="bordered" aria-label="Delete row" icon={<Trash2 />} />,
+  );
+  const button = screen.getByRole("button", { name: "Delete row" }).element() as HTMLElement;
+  expect(getComputedStyle(button).borderWidth).toBe("1px");
+});
+
+test("draws the subtle look as a 32x32px square with 6px corners and no border or fill of its own", async () => {
+  const screen = await render(
+    <IconButton variant="subtle" aria-label="Remove code" icon={<Trash2 />} />,
+  );
+  const button = screen.getByRole("button", { name: "Remove code" }).element() as HTMLElement;
+
+  const rect = button.getBoundingClientRect();
+  expect(rect.width).toBe(32);
+  expect(rect.height).toBe(32);
+
+  const style = getComputedStyle(button);
+  expect(style.borderRadius).toBe("6px");
+  expect(style.borderWidth).toBe("0px");
+  expect(style.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+});
+
+test("renders the subtle look's glyph at 18px in the secondary tone", async () => {
+  const screen = await render(
+    <IconButton variant="subtle" aria-label="Remove code" icon={<Trash2 />} />,
+  );
+  const button = screen.getByRole("button", { name: "Remove code" }).element() as HTMLElement;
+  const icon = button.querySelector("svg") as SVGSVGElement;
+
+  const iconRect = icon.getBoundingClientRect();
+  expect(iconRect.width).toBe(18);
+  expect(iconRect.height).toBe(18);
+  expect(getComputedStyle(icon).color).toBe(tokenRgb("text-subtle"));
+});
+
+test("keeps the subtle look's glyph distinguishable from the grey surface it sits on", async () => {
+  const screen = await render(
+    <div style={{ backgroundColor: "var(--color-surface-subtle)" }}>
+      <IconButton variant="subtle" aria-label="Remove code" icon={<Trash2 />} />
+    </div>,
+  );
+  const button = screen.getByRole("button", { name: "Remove code" }).element() as HTMLElement;
+  const surface = button.parentElement as HTMLElement;
+  const icon = button.querySelector("svg") as SVGSVGElement;
+
+  const ratio = contrastRatio(
+    rgbToHex(getComputedStyle(icon).color),
+    rgbToHex(getComputedStyle(surface).backgroundColor),
+  );
+  expect(ratio).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
+});
+
+test("fills the subtle look with sand and turns its glyph strong blue on hover, still borderless", async () => {
+  const screen = await render(
+    <IconButton variant="subtle" aria-label="Remove code" icon={<Trash2 />} />,
+  );
+  const button = screen.getByRole("button", { name: "Remove code" }).element() as HTMLElement;
+  const icon = button.querySelector("svg") as SVGSVGElement;
+
+  await userEvent.hover(button);
+
+  await expect
+    .poll(() => getComputedStyle(button).backgroundColor)
+    .toBe(tokenRgb("surface-soft"));
+  await expect.poll(() => getComputedStyle(icon).color).toBe(tokenRgb("text-accent"));
+  expect(getComputedStyle(button).borderWidth).toBe("0px");
+  expect(
+    contrastRatio(
+      rgbToHex(getComputedStyle(icon).color),
+      rgbToHex(getComputedStyle(button).backgroundColor),
+    ),
+  ).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
+});
+
+test("shows the subtle look's focus with the same 3px strong-blue outline as every other button", async () => {
+  const screen = await render(
+    <IconButton variant="subtle" aria-label="Remove code" icon={<Trash2 />} />,
+  );
+  const button = screen.getByRole("button", { name: "Remove code" }).element() as HTMLElement;
+
+  await userEvent.tab();
+
+  await expect.poll(() => getComputedStyle(button).outlineWidth).toBe("3px");
+  await expect.poll(() => getComputedStyle(button).outlineOffset).toBe("3px");
+  await expect.poll(() => getComputedStyle(button).outlineColor).toBe(tokenRgb("focus"));
+});
+
+test("dims the subtle look to the same 45% opacity when disabled", async () => {
+  const screen = await render(
+    <IconButton variant="subtle" aria-label="Remove code" icon={<Trash2 />} disabled />,
+  );
+  const button = screen.getByRole("button", { name: "Remove code" }).element() as HTMLElement;
+
+  await expect.element(screen.getByRole("button", { name: "Remove code" })).toBeDisabled();
+  expect(getComputedStyle(button).opacity).toBe("0.45");
+  expect(getComputedStyle(button).cursor).toBe("default");
+});

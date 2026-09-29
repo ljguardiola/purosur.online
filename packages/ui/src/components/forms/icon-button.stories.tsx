@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Trash2 } from "lucide-react";
+import { Trash2, X } from "lucide-react";
 import { useId } from "react";
 import { within } from "storybook/test";
 import {
@@ -35,6 +35,24 @@ export const FocusVisible: Story = {
 
 export const Disabled: Story = {
   args: { disabled: true },
+};
+
+export const Subtle: Story = {
+  args: { variant: "subtle", "aria-label": "Quitar código", icon: <X /> },
+};
+
+export const SubtleHovered: Story = {
+  args: Subtle.args,
+  play: playHoverSetsDataHovered(theButton),
+};
+
+export const SubtleFocusVisible: Story = {
+  args: Subtle.args,
+  play: playTabReachesFocusVisible(theButton),
+};
+
+export const SubtleDisabled: Story = {
+  args: { ...Subtle.args, disabled: true },
 };
 
 function IconButtonLabelledByVisibleText() {
