@@ -877,7 +877,7 @@ export function PricesListScreen({
   const columns = [
     {
       key: "product",
-      header: "PRODUCTO",
+      header: "Producto",
       render: (item: PriceProduct) => (
         <div className="flex items-center gap-2">
           <span>{item.name}</span>
@@ -891,13 +891,13 @@ export function PricesListScreen({
     },
     {
       key: "price",
-      header: "PRECIO",
+      header: "Precio",
       render: (item: PriceProduct) =>
         item.currentPrice ? formatCentsWithUnit(item.currentPrice.unitPrice, item.saleUnit) : "—",
     },
     {
       key: "reviewed",
-      header: "REVISADO",
+      header: "Revisado",
       render: (item: PriceProduct) => reviewedCellText(item.lastReviewedAt, loadedAt),
     },
     {
