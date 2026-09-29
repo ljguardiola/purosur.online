@@ -1,6 +1,15 @@
 import { registerCreationBodySchema } from "@purosur/contracts";
 import { isRegisterNameTooLong, REGISTER_NAME_MAX_LENGTH } from "@purosur/domain";
-import { Button, InlineNotice, Modal, plural, Table, TableCellText, Tag } from "@purosur/ui";
+import {
+  Button,
+  InlineNotice,
+  Modal,
+  plural,
+  Table,
+  TableCellText,
+  Tag,
+  tableRows,
+} from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { Check, KeySquare, Laptop, Plus, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -479,7 +488,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
           aria-label="Cajas registradoras"
           columns={columns}
           {...cloudTableState(data, "las cajas registradoras")}
-          rows={registers.map((register) => ({ id: register.id, item: register }))}
+          rows={tableRows({ items: registers, id: (register) => register.id }).rows}
           empty={{
             icon: <Laptop />,
             title: "Todavía no hay cajas registradoras",

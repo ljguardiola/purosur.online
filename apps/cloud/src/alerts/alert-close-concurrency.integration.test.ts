@@ -7,8 +7,9 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
+import { runQueuedBehindHeldLock } from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { type CloseAlertOutcome, closeAlert } from "./alert-close-route.js";
+import { closeAlert } from "./alert-close-route.js";
 
 // PGlite serves every query on one connection, so these races need a real Postgres.
 const NOON = new Date("2026-01-05T12:00:00.000Z");
@@ -27,41 +28,6 @@ afterAll(async () => {
   await sql.end({ timeout: 1 });
   await integrationDb.close();
 });
-
-async function waitForLockWaiters(count: number): Promise<void> {
-  for (let attempt = 0; attempt < 500; attempt += 1) {
-    const [row] = await sql<{ waiting: number }[]>`
-      select count(*)::int as waiting from pg_stat_activity
-      where datname = current_database() and wait_event_type = 'Lock'`;
-    if ((row?.waiting ?? 0) >= count) return;
-    await new Promise((resolve) => setTimeout(resolve, 10));
-  }
-  throw new Error(`test setup: ${count} closes never queued behind the held lock`);
-}
-
-// Postgres grants two waiters on the same row lock in FIFO order.
-async function runQueuedBehindRowLock<T>(
-  alertId: string,
-  first: () => Promise<T>,
-  second: () => Promise<T>,
-): Promise<[T, T]> {
-  const reserved = await sql.reserve();
-  let firstResult: Promise<T> | undefined;
-  let secondResult: Promise<T> | undefined;
-  try {
-    await reserved`begin`;
-    await reserved`select id from alerts where id = ${alertId} for update`;
-    firstResult = first();
-    await waitForLockWaiters(1);
-    secondResult = second();
-    await waitForLockWaiters(2);
-  } finally {
-    await reserved`rollback`;
-    reserved.release();
-    await Promise.allSettled([firstResult, secondResult]);
-  }
-  return Promise.all([firstResult, secondResult]) as Promise<[T, T]>;
-}
 
 async function insertActor(name: string): Promise<string> {
   const locationId = await seededLocationId(db);
@@ -110,8 +76,9 @@ describe("closing the same alert from two actors at once on a real Postgres", ()
     const firstActorId = await insertActor("Grace");
     const secondActorId = await insertActor("Ada");
 
-    const [firstOutcome, secondOutcome] = await runQueuedBehindRowLock<CloseAlertOutcome>(
-      alertId,
+    const [firstOutcome, secondOutcome] = await runQueuedBehindHeldLock(
+      sql,
+      (holder) => holder`select id from alerts where id = ${alertId} for update`,
       () => closeAlert(db, { id: alertId, actorId: firstActorId }, { now: () => NOON }),
       () =>
         closeAlert(

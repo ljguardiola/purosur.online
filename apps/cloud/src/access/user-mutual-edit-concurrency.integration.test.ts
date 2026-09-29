@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import Fastify, { type FastifyInstance } from "fastify";
 import postgres from "postgres";
@@ -13,10 +13,10 @@ import { runQueuedBehindHeldLock } from "../test-support/queued-behind-held-lock
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { SESSION_COOKIE_NAME } from "./session-cookie.js";
 import { generateSessionId, hashSessionId } from "./session-id.js";
-import { registerUserReactivationRoutes } from "./user-reactivation-route.js";
+import { registerUserEditRoutes } from "./user-edit-route.js";
 
 // PGlite serializes every transaction, so racing requests can only interleave on a real Postgres
-// pool; this test pins the order by holding a row lock until both requests queue behind it.
+// pool; this test pins the order by holding both users' row locks until both requests are waiting.
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 
 let integrationDb: IntegrationDatabase;
@@ -25,7 +25,7 @@ let db: PostgresJsDatabase<Record<string, never>>;
 let app: FastifyInstance;
 
 beforeAll(async () => {
-  integrationDb = await createIntegrationDatabase("user_reactivation_race");
+  integrationDb = await createIntegrationDatabase("user_mutual_edit_race");
   sql = postgres(integrationDb.databaseUrl, { max: 10 });
   db = drizzle(sql);
 }, 60_000);
@@ -37,7 +37,7 @@ afterAll(async () => {
 
 beforeEach(() => {
   app = Fastify();
-  registerUserReactivationRoutes(app, { db, backofficeOrigin: BACKOFFICE_ORIGIN });
+  registerUserEditRoutes(app, { db, backofficeOrigin: BACKOFFICE_ORIGIN });
 });
 
 afterEach(async () => {
@@ -67,12 +67,6 @@ async function insertUser(email: string, roleId: string): Promise<string> {
   return user.id;
 }
 
-async function insertInactiveUser(email: string, roleId: string): Promise<string> {
-  const userId = await insertUser(email, roleId);
-  await db.update(users).set({ active: false }).where(eq(users.id, userId));
-  return userId;
-}
-
 async function insertSession(userId: string): Promise<string> {
   const rawSessionId = generateSessionId();
   const now = new Date();
@@ -86,42 +80,52 @@ async function insertSession(userId: string): Promise<string> {
   return rawSessionId;
 }
 
-describe("reactivating the same target twice at once on a real Postgres", () => {
-  it("lets exactly one reactivation succeed, answers the other not_found, and audits it once", async () => {
+describe("two users editing each other at once on a real Postgres", () => {
+  it("applies both edits", async () => {
     const administratorRoleId = await seededAdministratorRoleId();
-    const targetId = await insertInactiveUser(
-      `target-${randomUUID()}@example.com`,
-      administratorRoleId,
-    );
-    const actorId = await insertUser(`actor-${randomUUID()}@example.com`, administratorRoleId);
-    const cookie = `${SESSION_COOKIE_NAME}=${await insertSession(actorId)}`;
-
-    const reactivate = () =>
+    const firstId = await insertUser(`first-${randomUUID()}@example.com`, administratorRoleId);
+    const secondId = await insertUser(`second-${randomUUID()}@example.com`, administratorRoleId);
+    const firstCookie = `${SESSION_COOKIE_NAME}=${await insertSession(firstId)}`;
+    const secondCookie = `${SESSION_COOKIE_NAME}=${await insertSession(secondId)}`;
+    const firstNewEmail = `first-${randomUUID()}@example.com`;
+    const secondNewEmail = `second-${randomUUID()}@example.com`;
+    const edit = (targetId: string, email: string, cookie: string) => () =>
       app.inject({
         method: "POST",
-        url: `/users/${targetId}/reactivation`,
+        url: `/users/${targetId}/edit`,
         headers: { origin: BACKOFFICE_ORIGIN, cookie },
+        payload: { email, role_id: administratorRoleId, version: 1 },
       });
 
-    // The reactivation route takes this same row lock before reading `active`.
-    const [firstResponse, secondResponse] = await runQueuedBehindHeldLock(
+    const [secondEdit, firstEdit] = await runQueuedBehindHeldLock(
       sql,
-      (holder) => holder`select id from users where id = ${targetId} for update`,
-      reactivate,
-      reactivate,
+      (holder) => holder`select id from users where id in ${sql([firstId, secondId])} for update`,
+      edit(secondId, secondNewEmail, firstCookie),
+      edit(firstId, firstNewEmail, secondCookie),
     );
 
-    const statusCodes = [firstResponse.statusCode, secondResponse.statusCode].sort();
-    expect(statusCodes).toEqual([200, 404]);
-
-    const [row] = await db
-      .select({ active: users.active, version: users.version })
+    expect(secondEdit.statusCode).toBe(200);
+    expect(firstEdit.statusCode).toBe(200);
+    const edited = await db
+      .select({ id: users.id, email: users.email })
       .from(users)
-      .where(eq(users.id, targetId));
-    expect(row?.active).toBe(true);
-    expect(row?.version).toBe(2);
-
-    const audited = await db.select().from(auditLog).where(eq(auditLog.entityId, targetId));
-    expect(audited).toHaveLength(1);
+      .where(inArray(users.id, [firstId, secondId]));
+    expect(edited).toEqual(
+      expect.arrayContaining([
+        { id: firstId, email: firstNewEmail },
+        { id: secondId, email: secondNewEmail },
+      ]),
+    );
+    const audited = await db
+      .select({ entityId: auditLog.entityId, actorId: auditLog.actorId })
+      .from(auditLog)
+      .where(inArray(auditLog.entityId, [firstId, secondId]));
+    expect(audited).toEqual(
+      expect.arrayContaining([
+        { entityId: firstId, actorId: secondId },
+        { entityId: secondId, actorId: firstId },
+      ]),
+    );
+    expect(audited).toHaveLength(2);
   });
 });

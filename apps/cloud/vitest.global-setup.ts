@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { cpSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from "node:fs";
+import { cpSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -27,9 +27,7 @@ const TSC_BIN = createRequire(import.meta.url).resolve("typescript/bin/tsc");
 // tests spawn the compiled JavaScript instead, built outside apps/cloud/dist to never overwrite a
 // developer's own build.
 export default async function setup(project: TestProject): Promise<() => void> {
-  // Resolved because each entrypoint compares process.argv[1] with its own realpath'd module URL,
-  // which differ when the temp dir sits behind a symlink (macOS /var -> /private/var).
-  const buildRoot = realpathSync(mkdtempSync(join(tmpdir(), "purosur-cloud-build-")));
+  const buildRoot = mkdtempSync(join(tmpdir(), "purosur-cloud-build-"));
   try {
     // The cloud reads domain's and contracts' compiled declarations through node_modules, not
     // project references, so both must be built here first: the compile below (`-p`, not `-b`)
@@ -43,6 +41,7 @@ export default async function setup(project: TestProject): Promise<() => void> {
     );
     cpSync(join(CLOUD_DIR, "package.json"), join(buildRoot, "package.json"));
     cpSync(MIGRATIONS_FOLDER, join(buildRoot, "migrations"), { recursive: true });
+    cpSync(join(CLOUD_DIR, "fonts"), join(buildRoot, "fonts"), { recursive: true });
     symlinkSync(join(CLOUD_DIR, "node_modules"), join(buildRoot, "node_modules"), "dir");
 
     project.provide("cloudBuildDir", join(buildRoot, "dist"));

@@ -1,4 +1,3 @@
-import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -75,9 +74,7 @@ function parseArgsOrExit(argv: string[]): ParsedCreateFirstAdministratorArgs {
   }
 }
 
-const isMainModule =
-  process.argv[1] !== undefined && process.argv[1] === fileURLToPath(import.meta.url);
-if (isMainModule) {
+if (import.meta.main) {
   const parsedArgs = parseArgsOrExit(process.argv.slice(2));
   const databaseUrl = process.env["DATABASE_URL"];
   if (!databaseUrl) {
