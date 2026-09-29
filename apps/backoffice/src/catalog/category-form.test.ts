@@ -1,6 +1,6 @@
 import { CATEGORY_NAME_MAX_LENGTH } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
-import { categoryNameMessage } from "./category-name";
+import { categoryNameMessage } from "./category-form";
 
 describe("categoryNameMessage", () => {
   it("asks for a name when it is blank", () => {

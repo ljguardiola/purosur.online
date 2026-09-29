@@ -7,8 +7,6 @@ import {
   Button,
   InlineNotice,
   Modal,
-  type Option,
-  type Options,
   plural,
   SearchField,
   Table,
@@ -42,9 +40,19 @@ import {
 } from "./catalog-queries";
 import type { createCategory, editCategory } from "./categories-api";
 import type { CategoriesListScreenServices } from "./categories-list-services";
-import { categoryNameMessage } from "./category-name";
 import {
-  categoriesInTreeOrder,
+  CATEGORY_NAME_TAKEN,
+  CATEGORY_PARENT_HELPER_TEXT,
+  CATEGORY_PARENT_NOT_FOUND_ERROR,
+  categoryFormValues,
+  categoryName,
+  categoryNameMessage,
+  NO_PARENT_VALUE,
+  nameTakenUnderParentError,
+  parentIdOf,
+  parentSelectOptions,
+} from "./category-form";
+import {
   categoryNameOrder,
   categoryParentId,
   categoryPathLabels,
@@ -61,35 +69,6 @@ export type CategoriesListScreenProps = {
 
 const NO_CATEGORIES: CategorySummary[] = [];
 
-const CATEGORY_NAME_TAKEN = "Ya existe una categoría con este nombre.";
-const CATEGORY_PARENT_NOT_FOUND_ERROR = "La categoría superior elegida ya no existe.";
-const CATEGORY_PARENT_HELPER_TEXT = "Opcional. Vacío para una categoría de primer nivel.";
-
-function nameTakenUnderParentError(params: { name: string; parent: string }): string {
-  return `Ya existe una categoría "${params.name}" en ${params.parent}.`;
-}
-
-function parentSelectOptions(
-  categories: CategorySummary[],
-  excludeIds: ReadonlySet<string>,
-): Options<Option<string>> {
-  const labels = categoryPathLabels(categories);
-  const sorted = categoriesInTreeOrder(categories).filter(
-    (category) => !excludeIds.has(category.id),
-  );
-  const noneOption: Option<string> = {
-    value: "",
-    label: "Ninguna (categoría de primer nivel)",
-  };
-  return [
-    noneOption,
-    ...sorted.map((category) => ({
-      value: category.id,
-      label: labels.get(category.id) ?? category.name,
-    })),
-  ];
-}
-
 type NewCategoryModalProps = {
   open: boolean;
   onClose: () => void;
@@ -98,16 +77,6 @@ type NewCategoryModalProps = {
   createCategory: typeof createCategory;
   categories: CategorySummary[];
 };
-
-const NO_PARENT_VALUE = "";
-
-function parentIdOf(parentValue: string): string | null {
-  return parentValue === NO_PARENT_VALUE ? null : parentValue;
-}
-
-function categoryName(categories: CategorySummary[], id: string | null | undefined): string {
-  return categories.find((category) => category.id === id)?.name ?? "";
-}
 
 function NewCategoryModal({
   open,
@@ -274,14 +243,6 @@ type EditNotice =
   | { kind: "rateLimited"; retryAfterSeconds: number }
   | { kind: "staleVersion" }
   | { kind: "notFound" };
-
-function categoryFormValues(category: CategorySummary) {
-  return {
-    name: category.name,
-    parentValue: category.parentId ?? NO_PARENT_VALUE,
-    version: category.version,
-  };
-}
 
 function EditCategoryModal({
   target,
