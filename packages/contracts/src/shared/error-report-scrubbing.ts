@@ -51,15 +51,17 @@ const USERINFO_PATTERN = /^[^/]*@/;
 const BEARER_TOKEN_PATTERN = /\bBearer\s+[A-Za-z0-9\-_.]+/g;
 // The domain must end in letters, so a package or release name such as `purosur-pos@1.2.3` is kept.
 const EMAIL_PATTERN = /(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]+@(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}/g;
-// A home folder is matched where a path starts, under `/var` (ostree systems), `/mnt/<drive>`
-// (WSL) or Vite's `/@fs`, so a URL's own `/home/` segment is kept. An account at the end of a path
-// is only recognized before a space, quote or parenthesis, so a backoffice route such as
-// `/home/alerts` is kept.
+// A home folder is matched where a path starts, also under `/var`, `/export`, a drive letter
+// (`/c`, `/mnt/c`, `/cygdrive/c`) or Vite's `/@fs`, so a URL's own `/home/` segment is kept. An
+// account ending the whole text is not recognized, so a backoffice route such as `/home/alerts`
+// is kept.
 const UNIX_HOME_ACCOUNT_PATTERN =
-  /((?:(?<![\w.-])(?:\/var|\/mnt\/[a-z])?|\/@fs)\/(?:home|Users)\/)[^/\s:"'`()<>]+(?=[/\s"'`)])/g;
-// A Windows account name can contain spaces, which only a following folder separator bounds.
-const WINDOWS_HOME_ACCOUNT_PATTERN =
-  /(?<![A-Za-z0-9])([A-Z]:(?:\\+|\/)Users(?:\\+|\/))(?:[^\\/\n:"'`()<>]+(?=[\\/])|[^\\/\s:"'`()<>]+(?=[\s"'`)]|$))/gi;
+  /((?:(?<![\w.-])(?:\/var|\/export|\/cygdrive\/[a-z]|\/mnt\/[a-z]|\/[a-z])?|\/@fs)\/(?:home|Users)\/)[^/\s:,;"'`()<>[\]]+(?=[/\s"'`()<>[\],.;:])/g;
+// A Windows account name can contain spaces, so what follows it is hidden up to the next folder
+// separator, quote, parenthesis or line end. Written with forward slashes, a space is encoded.
+const WINDOWS_HOME_ACCOUNT_PATTERN = /(?<![A-Za-z0-9])([A-Z]:\\+Users\\+)[^\\/\n:"'`()<>]+/gi;
+const WINDOWS_FORWARD_SLASH_HOME_ACCOUNT_PATTERN =
+  /(?<![A-Za-z0-9])([A-Z]:\/Users\/)[^/\s:"'`()<>]+/gi;
 // A stack frame writes the line and column right after the script's URL, inside the same word.
 const FRAME_POSITION_PATTERN = /:\d+:\d+\)?$/;
 const SCRIPT_FILE_PATTERN = /\.[cm]?[jt]sx?$/;
@@ -123,6 +125,7 @@ function redactString(value: string): string {
     .replace(EMAIL_PATTERN, REDACTED)
     .replace(UNIX_HOME_ACCOUNT_PATTERN, `$1${REDACTED}`)
     .replace(WINDOWS_HOME_ACCOUNT_PATTERN, `$1${REDACTED}`)
+    .replace(WINDOWS_FORWARD_SLASH_HOME_ACCOUNT_PATTERN, `$1${REDACTED}`)
     .replace(CUIT_PATTERN, REDACTED)
     .replace(DNI_PATTERN, REDACTED);
 }

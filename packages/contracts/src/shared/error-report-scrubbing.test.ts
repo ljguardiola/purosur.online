@@ -642,6 +642,18 @@ describe("personal data in text", () => {
         expected: "at start (/mnt/c/Users/[redacted]/purosur/main.js:10:5)",
       },
       {
+        frame: "at start (/c/Users/ana/purosur/main.js:10:5)",
+        expected: "at start (/c/Users/[redacted]/purosur/main.js:10:5)",
+      },
+      {
+        frame: "at start (/cygdrive/c/Users/ana/purosur/main.js:10:5)",
+        expected: "at start (/cygdrive/c/Users/[redacted]/purosur/main.js:10:5)",
+      },
+      {
+        frame: "at start (/export/home/ana/purosur/main.js:10:5)",
+        expected: "at start (/export/home/[redacted]/purosur/main.js:10:5)",
+      },
+      {
         frame: "at render (http://localhost:5173/@fs/home/ana/purosur/button.tsx?t=1:10:5)",
         expected:
           "at render (http://localhost:5173/@fs/home/[redacted]/purosur/button.tsx?[redacted]:10:5)",
@@ -659,12 +671,34 @@ describe("personal data in text", () => {
       },
       { message: String.raw`C:\Users\ana`, expected: String.raw`C:\Users\[redacted]` },
       {
-        message: String.raw`cannot write C:\Users\ana now`,
-        expected: String.raw`cannot write C:\Users\[redacted] now`,
+        message: String.raw`ENOENT: no such file or directory, scandir 'C:\Users\Juan Perez'`,
+        expected: String.raw`ENOENT: no such file or directory, scandir 'C:\Users\[redacted]'`,
+      },
+      { message: String.raw`C:\Users\Juan Perez`, expected: String.raw`C:\Users\[redacted]` },
+      {
+        message: "could not read /home/ana.",
+        expected: "could not read /home/[redacted].",
+      },
+      {
+        message: "paths: /home/ana, /Users/juan; HOME=/home/ana:/bin [/home/ana]",
+        expected:
+          "paths: /home/[redacted], /Users/[redacted]; HOME=/home/[redacted]:/bin [/home/[redacted]]",
+      },
+      {
+        message: "cannot write C:/Users/ana now",
+        expected: "cannot write C:/Users/[redacted] now",
       },
     ]) {
       expect(scrubErrorReport({ message }).message).toBe(expected);
     }
+  });
+
+  it("hides the words after a Windows account up to where its folder could end, since the name may contain spaces", () => {
+    const message = String.raw`cannot write C:\Users\ana now`;
+
+    expect(scrubErrorReport({ message }).message).toBe(
+      String.raw`cannot write C:\Users\[redacted]`,
+    );
   });
 
   it("keeps a backoffice route under the home area", () => {
