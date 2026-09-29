@@ -137,6 +137,21 @@ test("its lifetime is the seconds it is given, not the default, for a tone that 
   });
 });
 
+test("keeps counting when its owner re-renders, and dismisses through the latest onDismiss", async () => {
+  const first = vi.fn();
+  const latest = vi.fn();
+  await whileTimersFrozen(async () => {
+    const screen = await render(notification({ onDismiss: first }));
+
+    vi.advanceTimersByTime(DEFAULT_LIFETIME_MS - 1000);
+    await screen.rerender(notification({ onDismiss: latest }));
+    vi.advanceTimersByTime(1000);
+
+    expect(first).not.toHaveBeenCalled();
+    expect(latest).toHaveBeenCalledTimes(1);
+  });
+});
+
 test("stays while the pointer is over it, and restarts its full lifetime once the pointer leaves", async () => {
   const onDismiss = vi.fn();
   await whileTimersFrozen(async () => {

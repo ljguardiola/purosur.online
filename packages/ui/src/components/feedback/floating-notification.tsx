@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { createPortal } from "react-dom";
 import type { NoticeTone } from "../shared/tone";
 import { NotificationCard, type NotificationCardProps } from "./notification-card";
@@ -27,12 +27,13 @@ export function FloatingNotification({
 
   const lifetimeSeconds = expiresAfterSeconds ?? defaultLifetimeSeconds[card.tone];
   const paused = hovered || focused;
+  const dismiss = useEffectEvent(onDismiss);
 
   useEffect(() => {
     if (lifetimeSeconds === undefined || paused) return;
-    const timeout = setTimeout(onDismiss, lifetimeSeconds * 1000);
+    const timeout = setTimeout(dismiss, lifetimeSeconds * 1000);
     return () => clearTimeout(timeout);
-  }, [lifetimeSeconds, paused, onDismiss]);
+  }, [lifetimeSeconds, paused]);
 
   return createPortal(
     <div
