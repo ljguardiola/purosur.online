@@ -1,9 +1,11 @@
+import type { CategorySummary } from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
 import { NET_CONTENT_QUANTITY_INVALID } from "./net-content-quantity";
 import {
   barcodeListMessage,
   brandMessage,
   categoryMessage,
+  categorySelectOptions,
   EMPTY_PRODUCT_FORM,
   netContentMessage,
   productFormValues,
@@ -198,5 +200,26 @@ describe("the product's brand", () => {
 
   it("says a brand the cloud refuses no longer exists", () => {
     expect(brandMessage()).toBe("La marca elegida ya no existe.");
+  });
+});
+
+describe("categorySelectOptions", () => {
+  it("only offers leaf categories, labeled by their full path", () => {
+    const groceries: CategorySummary = {
+      id: "category-1",
+      name: "Almacén",
+      version: 1,
+      parentId: null,
+    };
+    const spreads: CategorySummary = {
+      id: "category-3",
+      name: "Untables",
+      version: 1,
+      parentId: "category-1",
+    };
+
+    expect(categorySelectOptions([groceries, spreads])).toEqual([
+      { value: "category-3", label: "Almacén › Untables" },
+    ]);
   });
 });

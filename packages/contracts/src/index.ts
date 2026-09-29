@@ -44,6 +44,8 @@ export type { AlertDetail } from "./alerts/alert-detail.js";
 export { alertDetailSchema } from "./alerts/alert-detail.js";
 export type { AlertListPage, AlertSummary } from "./alerts/alert-summary.js";
 export { alertListPageSchema, alertSummarySchema } from "./alerts/alert-summary.js";
+export type { AlertsOverview } from "./alerts/alerts-overview.js";
+export { alertsOverviewSchema } from "./alerts/alerts-overview.js";
 export type { BranchSettingsBody } from "./branch/branch-settings.js";
 export { branchSettingsSchema } from "./branch/branch-settings.js";
 export type { BranchSettingsEditBody } from "./branch/branch-settings-edit.js";
@@ -115,6 +117,8 @@ export {
   deviceEnrollmentBodySchema,
   deviceEnrollmentSchema,
 } from "./register/device-enrollment.js";
+export type { HealthCheck } from "./register/health-check.js";
+export { healthCheckSchema } from "./register/health-check.js";
 export type { RegisterCreationBody } from "./register/register-creation.js";
 export { registerCreationBodySchema } from "./register/register-creation.js";
 export type { RegisterEnrollmentCodeBody } from "./register/register-enrollment-code.js";

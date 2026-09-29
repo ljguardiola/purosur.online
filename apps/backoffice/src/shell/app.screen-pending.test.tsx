@@ -14,8 +14,8 @@ cdp().on("Fetch.requestPaused", ({ requestId }) => {
   heldRequests.push(requestId);
 });
 
-async function holdDownloadsMatching(urlPattern: string) {
-  await cdp().send("Fetch.enable", { patterns: [{ urlPattern }] });
+async function holdDownloadsMatching(...urlPatterns: string[]) {
+  await cdp().send("Fetch.enable", { patterns: urlPatterns.map((urlPattern) => ({ urlPattern })) });
 }
 
 async function releaseHeldDownloads() {
@@ -36,7 +36,7 @@ function topBarHeight(main: Element): number {
 
 beforeEach(async () => {
   window.history.pushState(null, "", "/help");
-  await holdDownloadsMatching("*alerts-list-page*");
+  await holdDownloadsMatching("*alerts-list-page*", "*alerts-overview-page*");
 });
 
 afterEach(async () => {
