@@ -1,3 +1,4 @@
+import { userEditBodySchema } from "@purosur/contracts";
 import {
   Button,
   EmptyState,
@@ -6,9 +7,7 @@ import {
   LoadFailure,
   LoadingPlaceholder,
   Modal,
-  Select,
   Tag,
-  TextField,
   Tooltip,
 } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
@@ -29,6 +28,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useCloudForm } from "../platform/cloud-form";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { combineCloudData } from "../platform/combine-cloud-data";
@@ -53,7 +53,7 @@ import {
   canReactivateUser,
   canSeeUsersArea,
 } from "./backoffice-access";
-import { validateEmail } from "./email-validation";
+import { userEmailMessage } from "./email-field-message";
 import type { Passkey } from "./passkey-api";
 import { passkeyRowDetail } from "./passkey-row-detail";
 import { roleDisplayName, roleOptions } from "./role-display";
@@ -82,17 +82,13 @@ export type UserDetailScreenProps = {
   services: UserDetailScreenServices;
 };
 
-const EMAIL_REQUIRED = "Ingresá el correo.";
-const EMAIL_INVALID = "Ingresá un correo válido.";
-
-const EMAIL_ERRORS = { required: EMAIL_REQUIRED, invalid: EMAIL_INVALID };
+const ROLE_REQUIRED = "Elegí un rol.";
 
 type EditUserModalNotice =
   | { kind: "attemptFailed" }
   | { kind: "rateLimited"; retryAfterSeconds: number }
   | { kind: "staleVersion" }
-  | { kind: "lastAdministrator" }
-  | { kind: "unknownRole" };
+  | { kind: "lastAdministrator" };
 
 type EditUserModalProps = {
   open: boolean;
@@ -122,104 +118,87 @@ function EditUserModal({
   startAuthentication,
 }: EditUserModalProps) {
   const sendToMyAccount = useSendToMyAccount();
-  const [email, setEmail] = useState(user.email);
-  const [roleId, setRoleId] = useState(user.role.id);
-  const [version, setVersion] = useState(user.version);
-  const [emailError, setEmailError] = useState<string | undefined>(undefined);
   const [notice, setNotice] = useState<EditUserModalNotice | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [reloading, setReloading] = useState(false);
   const { run, modal } = useAuthorization<EditUserOutcome>({
     actionName: "Editar un usuario",
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
+  const { form, submit, submitting, reset } = useCloudForm({
+    defaultValues: { email: user.email, roleId: user.role.id, version: user.version },
+    request: {
+      schema: userEditBodySchema,
+      from: ({ email, roleId, version }) => ({
+        email: email.trim(),
+        role_id: roleId,
+        version,
+      }),
+    },
+    fields: { email: "email", role_id: "roleId", version: null },
+    messages: { email: userEmailMessage, roleId: ROLE_REQUIRED },
+    onSubmit: async (request, { showWireFieldError, showFieldError }) => {
+      setNotice(null);
+      const outcome = await run(() => editUser(user.id, request));
+      if (outcome.kind === "cancelled") {
+        return;
+      }
+      if (outcome.kind === "ok") {
+        onSaved();
+        return;
+      }
+      if (outcome.kind === "unauthenticated") {
+        onSessionEnded();
+        return;
+      }
+      if (outcome.kind === "forbidden") {
+        sendToMyAccount();
+        return;
+      }
+      if (outcome.kind === "validation_failed" && showWireFieldError(outcome.field)) {
+        return;
+      }
+      if (outcome.kind === "email_taken") {
+        showFieldError("email", "Ya existe un usuario con este correo.");
+        return;
+      }
+      if (outcome.kind === "stale_version") {
+        setNotice({ kind: "staleVersion" });
+        return;
+      }
+      if (outcome.kind === "last_administrator") {
+        setNotice({ kind: "lastAdministrator" });
+        return;
+      }
+      if (outcome.kind === "rate_limited") {
+        setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
+        return;
+      }
+      setNotice({ kind: "attemptFailed" });
+    },
+  });
   const userRef = useLatestRef(user);
 
   useEffect(() => {
     if (open) {
-      setEmail(userRef.current.email);
-      setRoleId(userRef.current.role.id);
-      setVersion(userRef.current.version);
-      setEmailError(undefined);
+      const { email, role, version } = userRef.current;
+      reset({ email, roleId: role.id, version });
       setNotice(null);
-      setSubmitting(false);
+      setReloading(false);
     }
-  }, [open, userRef]);
+  }, [open, reset, userRef]);
 
   const roleSelectOptions = roles.length > 0 ? roleOptions(roles) : undefined;
 
-  async function handleSubmit() {
-    const validationError = validateEmail(email, EMAIL_ERRORS);
-    setEmailError(validationError);
-    if (validationError) {
-      return;
-    }
-    setNotice(null);
-    setSubmitting(true);
-
-    const outcome = await run(() => editUser(user.id, { email: email.trim(), roleId, version }));
-    if (outcome.kind === "cancelled") {
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "ok") {
-      onSaved();
-      return;
-    }
-    if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
-      return;
-    }
-    if (outcome.kind === "forbidden") {
-      sendToMyAccount();
-      return;
-    }
-    if (outcome.kind === "validation_failed") {
-      if (outcome.field === "email") {
-        setEmailError(EMAIL_INVALID);
-      } else if (outcome.field === "roleId") {
-        setNotice({ kind: "unknownRole" });
-      } else {
-        setNotice({ kind: "attemptFailed" });
-      }
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "email_taken") {
-      setEmailError("Ya existe un usuario con este correo.");
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "stale_version") {
-      setNotice({ kind: "staleVersion" });
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "last_administrator") {
-      setNotice({ kind: "lastAdministrator" });
-      setSubmitting(false);
-      return;
-    }
-    if (outcome.kind === "rate_limited") {
-      setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
-      setSubmitting(false);
-      return;
-    }
-    setNotice({ kind: "attemptFailed" });
-    setSubmitting(false);
-  }
-
   async function handleReload() {
-    setSubmitting(true);
+    setReloading(true);
     const outcome = await reload(user.id);
     if (outcome.kind === "ok" && outcome.value.kind === "found") {
-      const fresh = outcome.value.user;
-      setEmail(fresh.email);
-      setRoleId(fresh.role.id);
-      setVersion(fresh.version);
+      const { email, role, version } = outcome.value.user;
+      reset({ email, roleId: role.id, version });
       setNotice(null);
     }
-    setSubmitting(false);
+    setReloading(false);
   }
 
   return (
@@ -253,8 +232,8 @@ function EditUserModal({
               size="large"
               icon={<Check />}
               fullWidth
-              disabled={submitting}
-              onPress={() => void handleSubmit()}
+              disabled={submitting || reloading}
+              onPress={() => void submit()}
             >
               Guardar los cambios
             </Button>
@@ -294,19 +273,11 @@ function EditUserModal({
               description="Recargá sus datos: para cambiarle el rol, primero hacé Administrador a otra persona."
             />
           )}
-          {notice?.kind === "unknownRole" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="Ese rol ya no está disponible"
-              description="Cerrá esta ventana y volvé a intentarlo."
-            />
-          )}
           {(notice?.kind === "staleVersion" || notice?.kind === "lastAdministrator") && (
             <Button
               variant="secondary"
               icon={<RotateCcw />}
-              disabled={submitting}
+              disabled={submitting || reloading}
               onPress={() => void handleReload()}
             >
               Recargar
@@ -326,28 +297,14 @@ function EditUserModal({
             </div>
           ) : (
             roleSelectOptions && (
-              <Select
-                label="Rol"
-                options={roleSelectOptions}
-                value={roleId}
-                onChange={setRoleId}
-                required
-              />
+              <form.AppField name="roleId">
+                {(field) => <field.Select label="Rol" options={roleSelectOptions} required />}
+              </form.AppField>
             )
           )}
-          <TextField
-            kind="plain-text"
-            label="Correo"
-            value={email}
-            onChange={(value) => {
-              setEmail(value);
-              if (emailError) {
-                setEmailError(validateEmail(value, EMAIL_ERRORS));
-              }
-            }}
-            required
-            errorMessage={emailError}
-          />
+          <form.AppField name="email">
+            {(field) => <field.TextField kind="plain-text" label="Correo" required />}
+          </form.AppField>
         </div>
       </Modal>
       {modal}

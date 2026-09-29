@@ -24,7 +24,13 @@ function createServices(overrides: Partial<UsersListScreenServices> = {}): Users
     vi.mocked(services.fetchRoles).mockResolvedValue({
       kind: "ok",
       value: [
-        { id: "role-admin", isAdministrator: true, name: null, permissionKeys: [], userCount: 1 },
+        {
+          id: "00000000-0000-4000-8000-000000000001",
+          isAdministrator: true,
+          name: null,
+          permissionKeys: [],
+          userCount: 1,
+        },
       ],
     });
   }
@@ -36,7 +42,7 @@ const administrator: BranchUser = {
   firstName: "Lucas Guardiola",
   email: "lucas@example.com",
   version: 1,
-  role: { id: "role-admin", isAdministrator: true, name: null },
+  role: { id: "00000000-0000-4000-8000-000000000001", isAdministrator: true, name: null },
   passkeyCount: 2,
   isLastActiveAdministrator: true,
 };
@@ -46,7 +52,7 @@ const martina: BranchUser = {
   firstName: "Martina Gómez",
   email: "martina@example.com",
   version: 1,
-  role: { id: "role-admin", isAdministrator: true, name: null },
+  role: { id: "00000000-0000-4000-8000-000000000001", isAdministrator: true, name: null },
   passkeyCount: 1,
   isLastActiveAdministrator: false,
 };
@@ -56,7 +62,11 @@ const tomas: BranchUser = {
   firstName: "Tomás Ruiz",
   email: "tomas@example.com",
   version: 1,
-  role: { id: "role-shift", isAdministrator: false, name: "Atención de caja" },
+  role: {
+    id: "00000000-0000-4000-8000-000000000002",
+    isAdministrator: false,
+    name: "Atención de caja",
+  },
   passkeyCount: 0,
   isLastActiveAdministrator: false,
 };
@@ -67,7 +77,11 @@ const sofia: BranchUser = {
   email: "sofia@example.com",
   version: 1,
   active: false,
-  role: { id: "role-shift", isAdministrator: false, name: "Atención de caja" },
+  role: {
+    id: "00000000-0000-4000-8000-000000000002",
+    isAdministrator: false,
+    name: "Atención de caja",
+  },
   passkeyCount: 0,
   isLastActiveAdministrator: false,
 };
@@ -207,7 +221,13 @@ test("shows a load error when the roles fail to load, and Reintentar reads again
   vi.mocked(services.fetchRoles).mockResolvedValueOnce({
     kind: "ok",
     value: [
-      { id: "role-admin", isAdministrator: true, name: null, permissionKeys: [], userCount: 1 },
+      {
+        id: "00000000-0000-4000-8000-000000000001",
+        isAdministrator: true,
+        name: null,
+        permissionKeys: [],
+        userCount: 1,
+      },
     ],
   });
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
@@ -387,9 +407,15 @@ test("offers a role held by no users yet in the create-user selector", async () 
     fetchRoles: vi.fn().mockResolvedValue({
       kind: "ok",
       value: [
-        { id: "role-admin", isAdministrator: true, name: null, permissionKeys: [], userCount: 1 },
         {
-          id: "role-stock",
+          id: "00000000-0000-4000-8000-000000000001",
+          isAdministrator: true,
+          name: null,
+          permissionKeys: [],
+          userCount: 1,
+        },
+        {
+          id: "00000000-0000-4000-8000-000000000004",
           isAdministrator: false,
           name: "Depósito",
           permissionKeys: [],
@@ -427,9 +453,9 @@ test("creates a user directly, without the authorization modal, when the session
 
   await expect.poll(() => vi.mocked(services.createUser).mock.calls.length).toBe(1);
   expect(services.createUser).toHaveBeenCalledWith({
-    firstName: "Martina Gómez",
+    first_name: "Martina Gómez",
     email: "martina@example.com",
-    roleId: "role-admin",
+    role_id: "00000000-0000-4000-8000-000000000001",
   });
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.element(screen.getByText("Martina Gómez")).toBeVisible();
@@ -549,13 +575,64 @@ test("shows a server validation_failed error on the named field", async () => {
   await expect.element(dialog.getByText("Ingresá un correo válido.")).toBeVisible();
 });
 
+test("rejects an email longer than any address can be, without calling the API", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("1 usuario")).toBeVisible();
+  const dialog = await openNewUserModal(screen);
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: /^Correo/ }),
+    `${"a".repeat(250)}@example.com`,
+  );
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
+
+  await expect.element(dialog.getByText("Ingresá un correo válido.")).toBeVisible();
+  expect(services.createUser).not.toHaveBeenCalled();
+});
+
+test("shows a server validation_failed error for the name on Nombre", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("1 usuario")).toBeVisible();
+  const dialog = await openNewUserModal(screen);
+  vi.mocked(services.createUser).mockResolvedValue({
+    kind: "validation_failed",
+    field: "first_name",
+  });
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
+
+  await expect.element(dialog.getByText("Ingresá el nombre.")).toBeVisible();
+});
+
+test("shows the generic failure notice when the cloud refuses a field the form does not have", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("1 usuario")).toBeVisible();
+  const dialog = await openNewUserModal(screen);
+  vi.mocked(services.createUser).mockResolvedValue({ kind: "validation_failed", field: "other" });
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
+
+  await expect.element(dialog.getByText("No se pudo crear el usuario")).toBeVisible();
+});
+
 test("shows a server validation_failed error for the role on Rol", async () => {
   const services = createServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
-  vi.mocked(services.createUser).mockResolvedValue({ kind: "validation_failed", field: "roleId" });
+  vi.mocked(services.createUser).mockResolvedValue({ kind: "validation_failed", field: "role_id" });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
@@ -594,9 +671,9 @@ test("keeps the loaded list and an open create modal when the parent re-renders 
 
   await expect.poll(() => vi.mocked(services.createUser).mock.calls.length).toBe(1);
   expect(vi.mocked(services.createUser).mock.calls[0]?.[0]).toEqual({
-    firstName: "Martina Gómez",
+    first_name: "Martina Gómez",
     email: "martina@example.com",
-    roleId: "role-admin",
+    role_id: "00000000-0000-4000-8000-000000000001",
   });
 });
 

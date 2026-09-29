@@ -29,7 +29,7 @@ type SubmitHandler = (
 ) => Promise<void>;
 
 function Probe({ onSubmit }: { onSubmit: SubmitHandler }) {
-  const { form, submit, submitting, reset } = useCloudForm({
+  const { form, submit, submitting, reset, values } = useCloudForm({
     defaultValues: { name: "", amountText: "" } satisfies Values,
     request: {
       schema: requestSchema,
@@ -56,11 +56,20 @@ function Probe({ onSubmit }: { onSubmit: SubmitHandler }) {
       <button type="button" onClick={() => reset()}>
         Vaciar
       </button>
+      <p>{`Escrito: ${values.name}`}</p>
     </>
   );
 }
 
 const noop: SubmitHandler = () => Promise.resolve();
+
+test("exposes the values as they are typed", async () => {
+  const screen = await render(<Probe onSubmit={noop} />);
+
+  await userEvent.fill(screen.getByRole("textbox", { name: "Nombre" }), "Ana");
+
+  await expect.element(screen.getByText("Escrito: Ana")).toBeVisible();
+});
 
 test("does not show an error before the first submit, however the fields are typed", async () => {
   const screen = await render(<Probe onSubmit={noop} />);

@@ -14,21 +14,21 @@ import type { BranchUser } from "./users-api";
 const ADMINISTRATOR_ACCESS: BackofficeAccess = { isAdministrator: true, permissions: [] };
 
 const shiftRole: RoleSummary = {
-  id: "role-shift",
+  id: "00000000-0000-4000-8000-000000000002",
   isAdministrator: false,
   name: "Responsable de turno",
   permissionKeys: [],
   userCount: 1,
 };
 const cashierRole: RoleSummary = {
-  id: "role-cashier",
+  id: "00000000-0000-4000-8000-000000000003",
   isAdministrator: false,
   name: "Cajero",
   permissionKeys: [],
   userCount: 0,
 };
 const administratorRole: RoleSummary = {
-  id: "role-admin",
+  id: "00000000-0000-4000-8000-000000000001",
   isAdministrator: true,
   name: null,
   permissionKeys: [],
@@ -253,7 +253,7 @@ test("saves the newly picked role together with the email", async () => {
   await expect.poll(() => vi.mocked(services.editUser).mock.calls.length).toBe(1);
   expect(services.editUser).toHaveBeenCalledWith("user-1", {
     email: "lucia.perez@purosur.online",
-    roleId: "role-cashier",
+    role_id: "00000000-0000-4000-8000-000000000003",
     version: 1,
   });
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
@@ -306,17 +306,48 @@ test("shows a last_administrator notice with a reload action when the server sti
   await expect.element(dialog.getByRole("button", { name: "Recargar" })).toBeVisible();
 });
 
-test("shows an unknown-role notice when the server rejects the chosen role", async () => {
+test("shows the role the cloud refused on Rol, not as a notice", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
   const screen = await renderScreen(services);
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
   const dialog = await openEditModal(screen);
-  vi.mocked(services.editUser).mockResolvedValue({ kind: "validation_failed", field: "roleId" });
+  vi.mocked(services.editUser).mockResolvedValue({ kind: "validation_failed", field: "role_id" });
 
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
-  await expect.element(dialog.getByText("Ese rol ya no está disponible")).toBeVisible();
+  await expect.element(dialog.getByText("Elegí un rol.")).toBeVisible();
+  expect(dialog.getByText("No se pudo guardar el cambio").query()).toBeNull();
+});
+
+test("rejects an email longer than any address can be, without calling the API", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+  const dialog = await openEditModal(screen);
+
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: /^Correo/ }),
+    `${"a".repeat(250)}@purosur.online`,
+  );
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(dialog.getByText("Ingresá un correo válido.")).toBeVisible();
+  expect(services.editUser).not.toHaveBeenCalled();
+});
+
+test("shows the generic failure notice when the cloud refuses a field the form does not have", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+  const dialog = await openEditModal(screen);
+  vi.mocked(services.editUser).mockResolvedValue({ kind: "validation_failed", field: "other" });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(dialog.getByText("No se pudo guardar el cambio")).toBeVisible();
 });
 
 test("shows no helper line under Correo in the edit modal", async () => {
@@ -348,7 +379,7 @@ test("changes the email directly, without the authorization modal, when the sess
   await expect.poll(() => vi.mocked(services.editUser).mock.calls.length).toBe(1);
   expect(services.editUser).toHaveBeenCalledWith("user-1", {
     email: "nueva@purosur.online",
-    roleId: "role-shift",
+    role_id: "00000000-0000-4000-8000-000000000002",
     version: 1,
   });
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
@@ -607,7 +638,7 @@ test("shows a stale_version notice, and Recargar refetches the user so the secon
   await expect.poll(() => vi.mocked(services.editUser).mock.calls.length).toBe(2);
   expect(vi.mocked(services.editUser).mock.calls[1]).toEqual([
     "user-1",
-    { email: "final@purosur.online", roleId: "role-shift", version: 5 },
+    { email: "final@purosur.online", role_id: "00000000-0000-4000-8000-000000000002", version: 5 },
   ]);
 });
 
@@ -1139,7 +1170,7 @@ const adminTarget: BranchUser = {
   firstName: "Ana Fernández",
   email: "ana@purosur.online",
   version: 1,
-  role: { id: "role-admin", isAdministrator: true, name: null },
+  role: { id: "00000000-0000-4000-8000-000000000001", isAdministrator: true, name: null },
   passkeyCount: 1,
   isLastActiveAdministrator: false,
 };

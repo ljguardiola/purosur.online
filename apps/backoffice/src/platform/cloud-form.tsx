@@ -5,6 +5,7 @@ import {
   type StandardSchemaV1Issue,
   useStore,
 } from "@tanstack/react-form";
+import { useState } from "react";
 import { fieldContext, formContext } from "./cloud-form-context";
 import { BoundSelect, BoundTextField } from "./cloud-form-fields";
 
@@ -60,8 +61,9 @@ export function useCloudForm<
     return typeof message === "function" ? message(values) : message;
   };
 
+  const [defaultValues] = useState(() => options.defaultValues);
   const form = useAppForm({
-    defaultValues: options.defaultValues,
+    defaultValues,
     validationLogic: revalidateLogic({ mode: "submit", modeAfterSubmission: "change" }),
     validators: {
       onDynamicAsync: async ({ value }) => {
@@ -123,12 +125,15 @@ export function useCloudForm<
     await form.handleSubmit();
   }
 
-  const reset: (values?: Values) => void = form.reset;
+  const [reset] = useState(
+    () => (values?: Values) => form.reset(values, { keepDefaultValues: true }),
+  );
 
   return {
     form,
     submit,
     submitting: useStore(form.store, (state) => state.isSubmitting),
+    values: useStore(form.store, (state) => state.values),
     reset,
   };
 }
