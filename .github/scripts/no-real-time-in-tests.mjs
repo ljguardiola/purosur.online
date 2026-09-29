@@ -223,7 +223,7 @@ function loopCanExit(loop) {
   if (exitsFromBody) return true;
   return (
     (ts.isWhileStatement(loop) || ts.isDoStatement(loop)) &&
-    ownNodes(loop.expression).some(ts.isAwaitExpression)
+    ownNodes(loop.expression).some((n) => ts.isAwaitExpression(n) || ts.isCallExpression(n))
   );
 }
 

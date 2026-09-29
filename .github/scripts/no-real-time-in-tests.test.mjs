@@ -103,10 +103,13 @@ test("flags a comparison whose result depends on one real clock read", () => {
     "  expect(Date.now()).toBeLessThan(1000);",
     "  expect(record.createdAt.getTime()).toBeGreaterThan(Date.now() - 1000);",
     "  assert.ok(Date.now() < deadline);",
+    "  assert.ok(Date.now() <= deadline);",
+    "  assert.ok(Date.now() > deadline);",
+    "  assert.ok(Date.now() >= deadline);",
     "});",
   ].join("\n");
 
-  assert.deepEqual(flaggedLines(source), [2, 3, 4]);
+  assert.deepEqual(flaggedLines(source), [2, 3, 4, 5, 6, 7]);
 });
 
 test("does not flag reading the clock without measuring elapsed time", () => {
@@ -119,6 +122,7 @@ test("does not flag reading the clock without measuring elapsed time", () => {
     "const readClock = () => Date.now();",
     "const gap = readClock() - Date.now();",
     "check(Date.now()).toBeLessThan(5);",
+    'expect(due).toBeLessThan(new Date("2027-01-01"));',
   ].join("\n");
 
   assert.deepEqual(flaggedLines(source), []);
@@ -238,6 +242,16 @@ test("does not flag a sleep inside a for loop that can return early", () => {
     "for (let i = 0; i < attempts; i++) {",
     "  if (await isDone()) return;",
     "  await new Promise((r) => setTimeout(r, 10));",
+    "}",
+  ].join("\n");
+
+  assert.deepEqual(flaggedLines(source), []);
+});
+
+test("does not flag a sleep inside a while loop whose condition calls a check", () => {
+  const source = [
+    "while (!server.isReady()) {",
+    "  await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));",
     "}",
   ].join("\n");
 
