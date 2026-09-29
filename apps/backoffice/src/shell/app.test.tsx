@@ -1591,7 +1591,13 @@ test("shows the Precios section, and only it, for a user holding only manage_pri
   });
   vi.mocked(services.pricesListScreen.fetchPrices).mockResolvedValue({
     kind: "ok",
-    value: { products: [], pendingCount: 0, reviewWindowDays: 30, categories: [] },
+    value: {
+      products: [],
+      pendingCount: 0,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [],
+    },
   });
   window.history.pushState(null, "", "/help");
 

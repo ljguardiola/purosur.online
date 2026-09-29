@@ -27,6 +27,7 @@ export const priceListSchema = z.object({
   products: z.array(priceProductSchema),
   categories: z.array(priceCategorySchema),
   pendingCount: z.int(),
+  activeProductCount: z.int().nonnegative(),
   reviewWindowDays: z.int(),
 });
 

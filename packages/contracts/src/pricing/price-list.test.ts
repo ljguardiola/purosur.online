@@ -19,6 +19,7 @@ const list = {
   products: [priced, unpriced],
   categories: [almacen],
   pendingCount: 1,
+  activeProductCount: 2,
   reviewWindowDays: 30,
 };
 
@@ -111,7 +112,13 @@ describe("priceProductSchema", () => {
 describe("priceListSchema", () => {
   it("accepts a list, empty or not", () => {
     expect(priceListSchema.safeParse(list).data).toEqual(list);
-    const empty = { products: [], categories: [], pendingCount: 0, reviewWindowDays: 30 };
+    const empty = {
+      products: [],
+      categories: [],
+      pendingCount: 0,
+      activeProductCount: 0,
+      reviewWindowDays: 30,
+    };
     expect(priceListSchema.safeParse(empty).data).toEqual(empty);
   });
 
@@ -133,6 +140,10 @@ describe("priceListSchema", () => {
     ["categories", [{ id: 1, name: "Almacén" }]],
     ["pendingCount", "1"],
     ["pendingCount", 1.5],
+    ["activeProductCount", "2"],
+    ["activeProductCount", 2.5],
+    ["activeProductCount", -1],
+    ["activeProductCount", null],
     ["reviewWindowDays", "30"],
     ["reviewWindowDays", 30.5],
     ["reviewWindowDays", null],

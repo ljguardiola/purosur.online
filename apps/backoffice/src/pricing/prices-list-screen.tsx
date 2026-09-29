@@ -20,6 +20,7 @@ import {
   Ban,
   Check,
   ListChecks,
+  Package,
   Pencil,
   RotateCcw,
   Search,
@@ -121,6 +122,36 @@ function emptyPendingDetail(params: { days: number }): string {
     one: "Todos los precios se revisaron en el último día.",
     other: `Todos los precios se revisaron en los últimos ${params.days} días.`,
   });
+}
+
+function emptyTableState(params: {
+  activeProductCount: number;
+  reviewFilter: PricesReviewFilter;
+  pendingCount: number;
+  reviewWindowDays: number;
+}) {
+  if (params.activeProductCount === 0) {
+    return {
+      icon: <Package />,
+      title: "No hay productos activos",
+      description: "Creá uno en Productos para ponerle precio.",
+      variant: "blank" as const,
+    };
+  }
+  if (params.reviewFilter === "pending" && params.pendingCount === 0) {
+    return {
+      icon: <BadgeCheck />,
+      title: "Precios al día",
+      description: emptyPendingDetail({ days: params.reviewWindowDays }),
+      variant: "blank" as const,
+    };
+  }
+  return {
+    icon: <Search />,
+    title: "Sin resultados",
+    description: "Probá con otro nombre o categoría.",
+    variant: "filtered" as const,
+  };
 }
 
 type PriceModalOutcome = { kind: "confirmed" } | { kind: "saved"; unitPrice: number };
@@ -614,6 +645,7 @@ export function PricesListScreen({
 
   const products = loaded?.products ?? NO_PRODUCTS;
   const pendingCount = loaded?.pendingCount ?? 0;
+  const activeProductCount = loaded?.activeProductCount ?? 0;
   const reviewWindowDays = loaded?.reviewWindowDays ?? 30;
   const readAt = loaded?.readAt;
 
@@ -937,21 +969,12 @@ export function PricesListScreen({
           columns={columns}
           {...cloudTableState(shownData, "los precios")}
           rows={products.map((product) => ({ id: product.id, item: product }))}
-          empty={
-            reviewFilter === "pending" && pendingCount === 0
-              ? {
-                  icon: <BadgeCheck />,
-                  title: "Precios al día",
-                  description: emptyPendingDetail({ days: reviewWindowDays }),
-                  variant: "blank",
-                }
-              : {
-                  icon: <Search />,
-                  title: "Sin resultados",
-                  description: "Probá con otro nombre o categoría.",
-                  variant: "filtered",
-                }
-          }
+          empty={emptyTableState({
+            activeProductCount,
+            reviewFilter,
+            pendingCount,
+            reviewWindowDays,
+          })}
           footer={
             products.length === 0 ? undefined : (
               <p className="text-text-subtle text-detail">
