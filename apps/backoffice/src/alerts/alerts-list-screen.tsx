@@ -1,4 +1,4 @@
-import type { AlertSummary } from "@purosur/contracts";
+import type { AlertListPage, AlertSummary } from "@purosur/contracts";
 import { ALERT_KINDS, type AlertKind, type AlertLevel } from "@purosur/domain";
 import {
   ListFilter,
@@ -15,6 +15,7 @@ import { Bell, Eye, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { BackofficeAccess } from "../access/backoffice-access";
 import { cloudTableState } from "../platform/cloud-table-state";
+import type { CloudData } from "../platform/use-cloud-query";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
@@ -138,19 +139,22 @@ export function AlertsListScreen({
     page,
     ...(searchQuery ? { search: { text: searchQuery, kinds: kindsMatching(searchQuery) } } : {}),
   };
-  const data = useAlertsQuery({ query: listQuery, fetchAlerts, onSessionEnded });
+  const read = useAlertsQuery({ query: listQuery, fetchAlerts, onSessionEnded });
 
-  const loadedPage = data.status === "loaded" && !data.refreshing ? data.value : undefined;
-  const lastPage = loadedPage
-    ? Math.max(1, Math.ceil(loadedPage.total / loadedPage.pageSize))
-    : undefined;
+  const lastPage =
+    read.status === "loaded"
+      ? Math.max(1, Math.ceil(read.value.total / read.value.pageSize))
+      : undefined;
+  const isPastLastPage = lastPage !== undefined && page > lastPage;
+  const settledLastPage = read.status === "loaded" && !read.refreshing ? lastPage : undefined;
   useEffect(() => {
     // Closing the last alerts of the last page (here or elsewhere) can leave this page past the
-    // end: move to the last page that still has alerts instead of showing it empty.
-    if (lastPage !== undefined && page > lastPage) {
-      setPage(lastPage);
+    // end: it keeps loading while it moves to the last page that still has alerts, never empty.
+    if (settledLastPage !== undefined && page > settledLastPage) {
+      setPage(settledLastPage);
     }
-  }, [lastPage, page]);
+  }, [settledLastPage, page]);
+  const data: CloudData<AlertListPage> = isPastLastPage ? { status: "loading" } : read;
 
   const alerts = data.status === "loaded" ? data.value.alerts : NO_ALERTS;
   const openCount = data.status === "loaded" ? data.value.openCount : 0;

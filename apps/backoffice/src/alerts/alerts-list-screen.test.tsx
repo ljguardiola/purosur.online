@@ -519,6 +519,50 @@ test("moves to the last page left when closing the only alert on the last page e
   expect(screen.getByText("Sin alertas abiertas").query()).toBeNull();
 });
 
+test("never shows the emptied last page as empty while it moves to the last page left", async () => {
+  const services = createServices();
+  let closed = false;
+  const lastPageLeft = deferred<FetchAlertsOutcome>();
+  vi.mocked(services.fetchAlerts).mockImplementation(async (query) => {
+    if (query?.page === 2) {
+      return closed ? ok([], { total: 25, openCount: 25 }) : ok([passkeyAlert], { total: 26 });
+    }
+    return closed ? lastPageLeft.promise : ok([lockoutAlert], { total: 26, openCount: 26 });
+  });
+  services.alertDetailModal = {
+    fetchAlert: vi.fn().mockResolvedValue({ kind: "ok", value: passkeyDetail }),
+    closeAlert: vi.fn().mockImplementation(async () => {
+      closed = true;
+      return { kind: "ok" };
+    }),
+  };
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("203.0.113.5")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Página 2" }));
+  await expect.element(screen.getByText("Lucía Pérez")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: /Ver la alerta/ }));
+  await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeEnabled();
+  let emptyStateShown = false;
+  const observer = new MutationObserver((records) => {
+    emptyStateShown ||= records.some((record) =>
+      Array.from(record.addedNodes).some((node) =>
+        node.textContent?.includes("Sin alertas abiertas"),
+      ),
+    );
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar la alerta" }));
+  await expect
+    .poll(() => vi.mocked(services.fetchAlerts).mock.calls.at(-1))
+    .toEqual([{ open: true, page: 1 }]);
+  await act(async () => {});
+  observer.disconnect();
+
+  expect(emptyStateShown).toBe(false);
+  expect(screen.getByText("Sin alertas abiertas").query()).toBeNull();
+});
+
 test("shows a rate-limited notice with a retry action", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlerts).mockResolvedValueOnce({
