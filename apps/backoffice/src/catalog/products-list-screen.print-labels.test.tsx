@@ -644,7 +644,9 @@ test("the print modal a failed reload closed stays closed once the list loads ag
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
   await expect
-    .element(screen.getByRole("table", { name: "Productos" }).getByText(honeyWithInternalBarcode.name))
+    .element(
+      screen.getByRole("table", { name: "Productos" }).getByText(honeyWithInternalBarcode.name),
+    )
     .toBeVisible();
   expect(screen.getByRole("dialog").query()).toBeNull();
 });

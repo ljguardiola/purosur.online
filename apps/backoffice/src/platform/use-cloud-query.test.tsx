@@ -183,7 +183,9 @@ test("an unauthenticated read ends the session once, however often the screen re
 test("a forbidden read is handed to its forbidden handler", async () => {
   const onForbidden = vi.fn();
 
-  await render(<Probe read={() => Promise.resolve({ kind: "forbidden" })} onForbidden={onForbidden} />);
+  await render(
+    <Probe read={() => Promise.resolve({ kind: "forbidden" })} onForbidden={onForbidden} />,
+  );
 
   await expect.poll(() => onForbidden.mock.calls.length).toBe(1);
 });
