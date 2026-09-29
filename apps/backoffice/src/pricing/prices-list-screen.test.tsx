@@ -844,7 +844,14 @@ test("a price reload that throws ends in the reload-failed notice and the modal 
       kind: "ok",
       value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
     })
-    .mockRejectedValue(new Error("network down"));
+    .mockImplementation(({ review }) =>
+      review === "all"
+        ? Promise.reject(new Error("network down"))
+        : Promise.resolve({
+            kind: "ok",
+            value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+          }),
+    );
   vi.mocked(services.setPrice).mockResolvedValue({ kind: "stale_price" });
 
   const screen = await renderScreen(services);
@@ -1019,6 +1026,75 @@ test("a rate-limited first load shows when to try again and offers to retry", as
   await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
   await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
+});
+
+test("keeps the filters on screen while the list failed to load, and a retry shows the list", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices)
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockResolvedValue({
+      kind: "ok",
+      value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+    });
+
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No pudimos abrir los precios")).toBeVisible();
+
+  await expect.element(screen.getByPlaceholder("Buscar un producto")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Revisión: Por revisar" })).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+  await expect.element(screen.getByText("Arroz")).toBeVisible();
+});
+
+test.each([
+  { filter: "under Por revisar", empty: "Precios al día", search: "" },
+  { filter: "for a search", empty: "Sin resultados", search: "zzz" },
+])(
+  "an empty list $filter shows its empty state and no count line under it",
+  async ({ empty, search }) => {
+    const services = createServices();
+    vi.mocked(services.fetchPrices).mockResolvedValue({
+      kind: "ok",
+      value: { products: [], pendingCount: search ? 1 : 0, reviewWindowDays: 30, categories: [] },
+    });
+
+    const screen = await renderScreen(services, undefined, undefined, {
+      filters: pricesListFilters.parse({ search }),
+    });
+
+    await expect.element(screen.getByText(empty)).toBeVisible();
+    expect(screen.getByText(/\d+ productos?/).query()).toBeNull();
+  },
+);
+
+test("a price modal open when the list fails to load closes, and does not open again when the list returns", async () => {
+  const services = createServices();
+  let listReads = 0;
+  vi.mocked(services.fetchPrices).mockImplementation(({ review }) => {
+    listReads += review === "pending" ? 1 : 0;
+    return Promise.resolve(
+      listReads === 2 && review === "pending"
+        ? { kind: "failed" }
+        : {
+            kind: "ok",
+            value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+          },
+    );
+  });
+  vi.mocked(services.setPrice).mockResolvedValue({ kind: "stale_price" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Arroz")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Cambiar el precio de Arroz" }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.fill(dialog.getByLabelText("Precio de venta por kilo"), "8000");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar el precio nuevo" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Recargar el precio" }));
+
+  await expect.element(screen.getByText("No pudimos abrir los precios")).toBeVisible();
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+  await expect.element(screen.getByText("Arroz")).toBeVisible();
+  expect(screen.getByRole("dialog").query()).toBeNull();
 });
 
 test("an earlier list load that settles after a later one does not replace it", async () => {
@@ -1739,7 +1815,12 @@ test("an error notice stays when a list load succeeds after it", async () => {
 
     vi.advanceTimersByTime(300);
 
-    await expect.element(screen.getByRole("button", { name: "Revisar los 3" })).toBeVisible();
+    await expect
+      .poll(() => {
+        vi.advanceTimersByTime(1);
+        return screen.getByRole("button", { name: "Revisar los 3" }).query();
+      })
+      .not.toBeNull();
     expect(vi.mocked(services.fetchPrices).mock.lastCall?.[0]).toEqual({
       review: "pending",
       search: "arr",
@@ -1779,6 +1860,27 @@ test("a rate-limited notice leaves once its retry window has passed", async () =
   } finally {
     vi.useRealTimers();
   }
+});
+
+test("a price reviewed late yesterday counts as reviewed one calendar day ago the next morning, though fewer than 24 hours passed", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: {
+      products: [{ ...rice, lastReviewedAt: new Date(2026, 8, 24, 23, 30).toISOString() }],
+      pendingCount: 1,
+      reviewWindowDays: 30,
+      categories: [],
+    },
+  });
+
+  const screen = await renderScreen(
+    services,
+    () => {},
+    () => new Date(2026, 8, 25, 0, 30),
+  );
+
+  await expect.element(screen.getByText("Hace 1 día", { exact: true })).toBeVisible();
 });
 
 test("a price reviewed earlier today is announced as reviewed today even with a zero-day review window", async () => {

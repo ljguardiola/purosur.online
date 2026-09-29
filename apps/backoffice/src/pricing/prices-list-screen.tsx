@@ -26,9 +26,10 @@ import {
   ShieldX,
   TriangleAlert,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import type { ProductSaleUnit } from "../catalog/products-api";
+import { cloudTableState } from "../platform/cloud-table-state";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
@@ -37,13 +38,18 @@ import { formatCents, MAX_UNIT_PRICE_CENTS, parseAmountInput } from "./money";
 import type {
   ConfirmPriceOutcome,
   confirmPrice,
-  FetchPricesOutcome,
-  fetchPrices,
   PricesReviewFilter,
   SetPriceOutcome,
   setPrice,
 } from "./prices-api";
 import type { PricesListScreenServices } from "./prices-list-services";
+import {
+  type PriceReload,
+  usePricesQuery,
+  useReadReviewQueue,
+  useRefreshPrices,
+  useReloadPrice,
+} from "./pricing-queries";
 import type { PricesListFilters } from "./routes";
 
 export type PricesListScreenProps = {
@@ -54,17 +60,8 @@ export type PricesListScreenProps = {
   now?: () => Date;
 };
 
-type ListState =
-  | { kind: "loading" }
-  | { kind: "loadError" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | {
-      kind: "loaded";
-      products: PriceProduct[];
-      pendingCount: number;
-      reviewWindowDays: number;
-      refreshing: boolean;
-    };
+const NO_PRODUCTS: PriceProduct[] = [];
+const NO_CATEGORIES: PriceCategory[] = [];
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -88,8 +85,7 @@ function startOfLocalDay(date: Date): number {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 }
 
-/** Calendar days in the browser's own timezone; rounding absorbs a daylight-saving day's 23 or 25 hours. */
-function daysSince(at: string, now: Date): number {
+function calendarDaysSince(at: string, now: Date): number {
   return Math.round((startOfLocalDay(now) - startOfLocalDay(new Date(at))) / DAY_MS);
 }
 
@@ -97,7 +93,7 @@ function reviewedCellText(lastReviewedAt: string | null, now: Date): string {
   if (!lastReviewedAt) {
     return "Nunca";
   }
-  const days = daysSince(lastReviewedAt, now);
+  const days = calendarDaysSince(lastReviewedAt, now);
   return days <= 0 ? "Hoy" : plural(days, { one: "Hace 1 día", other: `Hace ${days} días` });
 }
 
@@ -113,7 +109,7 @@ function modalEyebrow(product: PriceProduct, now: Date): string {
   if (!product.currentPrice || !product.lastReviewedAt) {
     return "Sin precio";
   }
-  const days = daysSince(product.lastReviewedAt, now);
+  const days = calendarDaysSince(product.lastReviewedAt, now);
   if (days <= 0) {
     return "Revisado hoy";
   }
@@ -153,7 +149,7 @@ type PriceChangeModalProps = {
   onSessionEnded: () => void;
   onSaved: (product: PriceProduct, outcome: PriceModalOutcome) => void;
   onGone: (product: PriceProduct) => void;
-  fetchPrices: typeof fetchPrices;
+  reload: (id: string) => Promise<PriceReload>;
   setPrice: typeof setPrice;
   confirmPrice: typeof confirmPrice;
 };
@@ -166,7 +162,7 @@ function PriceChangeModal({
   onSessionEnded,
   onSaved,
   onGone,
-  fetchPrices,
+  reload,
   setPrice,
   confirmPrice,
 }: PriceChangeModalProps) {
@@ -347,26 +343,20 @@ function PriceChangeModal({
     }
     setPreviousNotice(null);
     setSubmitting(true);
-    try {
-      const outcome = await fetchPrices({ review: "all" });
-      handleReloadOutcome(product, outcome);
-    } catch {
-      showNotice({ kind: "reloadFailed" });
-    }
+    handleReloadOutcome(product, await reload(product.id));
     setSubmitting(false);
   }
 
-  function handleReloadOutcome(product: PriceProduct, outcome: FetchPricesOutcome) {
-    if (outcome.kind === "ok") {
-      const fresh = outcome.value.products.find((candidate) => candidate.id === product.id);
-      if (!fresh) {
-        showNotice({ kind: "notFound" });
-        onGone(product);
-        return;
-      }
-      setCurrent(fresh);
+  function handleReloadOutcome(product: PriceProduct, outcome: PriceReload) {
+    if (outcome.kind === "found") {
+      setCurrent(outcome.product);
       setShownAt(now());
       setNotice(null);
+      return;
+    }
+    if (outcome.kind === "not_found") {
+      showNotice({ kind: "notFound" });
+      onGone(product);
       return;
     }
     if (outcome.kind === "unauthenticated") {
@@ -550,9 +540,6 @@ export function PricesListScreen({
   } = services;
   const clock = now ?? (() => new Date());
 
-  const [list, setList] = useState<ListState>({ kind: "loading" });
-  const [loadedAt, setLoadedAt] = useState(() => clock());
-  const [categories, setCategories] = useState<PriceCategory[]>([]);
   const [search, setSearch] = useState(filters.search);
   const [debouncedSearch, setDebouncedSearch] = useState(filters.search.trim());
   const [categoryFilter, setCategoryFilter] = useState<"ALL" | string>(filters.category);
@@ -566,9 +553,7 @@ export function PricesListScreen({
   const lastNoticeId = useRef(0);
   const [screenRequestInFlight, setScreenRequestInFlight] = useState(false);
 
-  const onSessionEndedRef = useLatestRef(onSessionEnded);
   const onFiltersChangeRef = useLatestRef(onFiltersChange);
-  const clockRef = useLatestRef(clock);
 
   useEffect(() => {
     const shown: PricesListFilters = { search, category: categoryFilter, review: reviewFilter };
@@ -593,71 +578,54 @@ export function PricesListScreen({
     setNotice((shown) => (shown?.tone === "error" ? null : shown));
   }
 
-  const latestLoad = useRef(0);
-
-  const load = useCallback(async () => {
-    latestLoad.current += 1;
-    const thisLoad = latestLoad.current;
-    setList((previous) =>
-      previous.kind === "loaded" ? { ...previous, refreshing: true } : { kind: "loading" },
-    );
-    const outcome = await fetchPricesService({
+  const data = usePricesQuery({
+    input: {
       review: reviewFilter,
       ...(categoryFilter !== "ALL" ? { categoryId: categoryFilter } : {}),
       ...(debouncedSearch ? { search: debouncedSearch } : {}),
-    }).catch((): FetchPricesOutcome => ({ kind: "failed" }));
-    if (thisLoad !== latestLoad.current) {
-      return;
-    }
-    if (outcome.kind === "ok") {
-      setLoadedAt(clockRef.current());
-      setList({
-        kind: "loaded",
-        products: outcome.value.products,
-        pendingCount: outcome.value.pendingCount,
-        reviewWindowDays: outcome.value.reviewWindowDays,
-        refreshing: false,
-      });
-      const offeredIds = new Set(outcome.value.categories.map(({ id }) => id));
-      setCategories(outcome.value.categories);
-      setCategoryFilter((shown) => (shown === "ALL" || offeredIds.has(shown) ? shown : "ALL"));
-    } else if (outcome.kind === "unauthenticated") {
-      onSessionEndedRef.current();
-    } else if (outcome.kind === "rate_limited") {
-      setList({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
-    } else if (outcome.kind === "forbidden") {
-      sendToMyAccount();
-    } else {
-      setList({ kind: "loadError" });
-    }
-  }, [
-    fetchPricesService,
-    reviewFilter,
-    categoryFilter,
-    debouncedSearch,
-    sendToMyAccount,
-    onSessionEndedRef,
-    clockRef,
-  ]);
+    },
+    fetchPrices: fetchPricesService,
+    now: clock,
+    onSessionEnded,
+  });
+  const readReviewQueue = useReadReviewQueue({ fetchPrices: fetchPricesService, now: clock });
+  const reloadPrice = useReloadPrice({ fetchPrices: fetchPricesService, now: clock });
+  const refreshPrices = useRefreshPrices();
+
+  const loaded = data.status === "loaded" ? data.value : undefined;
+  const categories = loaded?.categories ?? NO_CATEGORIES;
+  const categoryFilterIsOffered =
+    categoryFilter === "ALL" || categories.some(({ id }) => id === categoryFilter);
+  const listIsFresh = data.status === "loaded" && !data.refreshing;
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (listIsFresh && !categoryFilterIsOffered) {
+      setCategoryFilter("ALL");
+    }
+  }, [listIsFresh, categoryFilterIsOffered]);
 
-  const loadRef = useLatestRef(load);
-  const reviewFilterRef = useLatestRef(reviewFilter);
-  function reloadWithCurrentFilters() {
-    void loadRef.current();
-  }
+  useEffect(() => {
+    if (data.status === "failed") {
+      setWalk(null);
+      setModal(null);
+    }
+  }, [data.status]);
 
-  function handleRetry() {
-    clearErrorNotice();
-    void load();
-  }
+  const products = loaded?.products ?? NO_PRODUCTS;
+  const pendingCount = loaded?.pendingCount ?? 0;
+  const reviewWindowDays = loaded?.reviewWindowDays ?? 30;
+  const readAt = loaded?.readAt ?? clock();
 
-  const products = list.kind === "loaded" ? list.products : [];
-  const pendingCount = list.kind === "loaded" ? list.pendingCount : 0;
-  const reviewWindowDays = list.kind === "loaded" ? list.reviewWindowDays : 30;
+  const shownData =
+    data.status === "failed"
+      ? {
+          ...data,
+          retry: () => {
+            clearErrorNotice();
+            data.retry();
+          },
+        }
+      : data;
 
   const categoryFilterOptions = (() => {
     const sorted = [...categories].sort((a, b) => a.name.localeCompare(b.name, "es"));
@@ -690,20 +658,16 @@ export function PricesListScreen({
   async function handleReviewButton() {
     clearErrorNotice();
     setScreenRequestInFlight(true);
-    try {
-      handleReviewReadOutcome(await fetchPricesService({ review: "pending" }));
-    } catch {
-      showScreenNotice(reviewStartFailedNotice);
-    }
+    handleReviewReadOutcome(await readReviewQueue());
     setScreenRequestInFlight(false);
   }
 
-  function handleReviewReadOutcome(outcome: FetchPricesOutcome) {
+  function handleReviewReadOutcome(outcome: Awaited<ReturnType<typeof readReviewQueue>>) {
     if (outcome.kind === "ok") {
       const [first] = outcome.value.products;
       if (!first) {
-        reloadWithCurrentFilters();
-        if (reviewFilterRef.current !== "pending") {
+        void refreshPrices();
+        if (reviewFilter !== "pending") {
           showScreenNotice({
             tone: "success",
             title: "No quedan precios por revisar",
@@ -717,7 +681,7 @@ export function PricesListScreen({
       return;
     }
     if (outcome.kind === "unauthenticated") {
-      onSessionEndedRef.current();
+      onSessionEnded();
       return;
     }
     if (outcome.kind === "forbidden") {
@@ -768,12 +732,12 @@ export function PricesListScreen({
   }
 
   function handleModalSaved(product: PriceProduct, outcome: PriceModalOutcome) {
-    reloadWithCurrentFilters();
+    void refreshPrices();
     moveToNextInWalkOrClose(reviewedNotice(product, outcome));
   }
 
   function handleModalProductGone(product: PriceProduct) {
-    reloadWithCurrentFilters();
+    void refreshPrices();
     if (walk) {
       moveToNextInWalkOrClose(goneNotice(product));
     }
@@ -811,12 +775,12 @@ export function PricesListScreen({
 
   function handleRowConfirmOutcome(item: PriceProduct, outcome: ConfirmPriceOutcome) {
     if (outcome.kind === "ok") {
-      reloadWithCurrentFilters();
+      void refreshPrices();
       showScreenNotice(reviewedNotice(item, { kind: "confirmed" }));
       return;
     }
     if (outcome.kind === "unauthenticated") {
-      onSessionEndedRef.current();
+      onSessionEnded();
       return;
     }
     if (outcome.kind === "forbidden") {
@@ -824,7 +788,7 @@ export function PricesListScreen({
       return;
     }
     if (outcome.kind === "stale_price") {
-      reloadWithCurrentFilters();
+      void refreshPrices();
       showScreenNotice({
         tone: "error",
         title: "El precio cambió recién",
@@ -833,12 +797,12 @@ export function PricesListScreen({
       return;
     }
     if (outcome.kind === "not_found") {
-      reloadWithCurrentFilters();
+      void refreshPrices();
       showScreenNotice(goneNotice(item));
       return;
     }
     if (outcome.kind === "no_price_to_confirm") {
-      reloadWithCurrentFilters();
+      void refreshPrices();
       showScreenNotice({
         tone: "error",
         title: "No hay un precio para confirmar",
@@ -877,7 +841,7 @@ export function PricesListScreen({
     {
       key: "reviewed",
       header: "Revisado",
-      render: (item: PriceProduct) => reviewedCellText(item.lastReviewedAt, loadedAt),
+      render: (item: PriceProduct) => reviewedCellText(item.lastReviewedAt, readAt),
     },
     {
       key: "actions",
@@ -922,6 +886,7 @@ export function PricesListScreen({
               <Button
                 variant="primary"
                 icon={<ListChecks />}
+                dataStatus={data.status}
                 disabled={screenRequestInFlight}
                 onPress={() => void handleReviewButton()}
               >
@@ -932,101 +897,73 @@ export function PricesListScreen({
         }
         bodyClassName="gap-4 p-6"
       >
-        {list.kind === "loadError" && (
-          <>
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No pudimos abrir los precios"
-              description="Probá de nuevo en unos minutos."
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="w-105">
+            <SearchField
+              value={search}
+              onChange={(value) => {
+                clearErrorNotice();
+                setSearch(value);
+              }}
+              placeholder="Buscar un producto"
+              icon={<Search />}
             />
-            <Button variant="secondary" onPress={handleRetry}>
-              Reintentar
-            </Button>
-          </>
-        )}
-        {list.kind === "rate_limited" && (
-          <>
-            <InlineNotice
-              tone="error"
-              icon={<ShieldX />}
-              title="Demasiadas solicitudes"
-              description={retryAfterDetail(list.retryAfterSeconds)}
-            />
-            <Button variant="secondary" onPress={handleRetry}>
-              Reintentar
-            </Button>
-          </>
-        )}
-        {(list.kind === "loading" || list.kind === "loaded") && (
-          <>
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="w-105">
-                <SearchField
-                  value={search}
-                  onChange={(value) => {
-                    clearErrorNotice();
-                    setSearch(value);
-                  }}
-                  placeholder="Buscar un producto"
-                  icon={<Search />}
-                />
-              </div>
-              <ListFilter
-                label="Categoría:"
-                options={categoryFilterOptions}
-                value={categoryFilter}
-                onChange={(value) => {
-                  clearErrorNotice();
-                  setCategoryFilter(value);
-                }}
-              />
-              <ListFilter
-                label="Revisión:"
-                options={reviewFilterOptions}
-                value={reviewFilter}
-                onChange={(value) => {
-                  clearErrorNotice();
-                  setReviewFilter(value);
-                }}
-              />
-            </div>
-            <Table
-              aria-label="Precios"
-              columns={columns}
-              loading={list.kind === "loading" ? "initial" : list.refreshing ? "updating" : false}
-              rows={products.map((product) => ({ id: product.id, item: product }))}
-              empty={
-                reviewFilter === "pending" && pendingCount === 0
-                  ? {
-                      icon: <BadgeCheck />,
-                      title: "Precios al día",
-                      description: emptyPendingDetail({ days: reviewWindowDays }),
-                      variant: "blank",
-                    }
-                  : {
-                      icon: <Search />,
-                      title: "Sin resultados",
-                      description: "Probá con otro nombre o categoría.",
-                      variant: "filtered",
-                    }
-              }
-              footer={
-                <p className="text-text-subtle text-detail">
-                  {reviewFilter === "pending"
-                    ? plural(products.length, {
-                        one: "1 producto sin revisar, del más viejo al más nuevo",
-                        other: `${products.length} productos sin revisar, del más viejo al más nuevo`,
-                      })
-                    : plural(products.length, {
-                        one: "1 producto",
-                        other: `${products.length} productos`,
-                      })}
-                </p>
-              }
-            />
-          </>
-        )}
+          </div>
+          <ListFilter
+            label="Categoría:"
+            options={categoryFilterOptions}
+            value={categoryFilter}
+            onChange={(value) => {
+              clearErrorNotice();
+              setCategoryFilter(value);
+            }}
+          />
+          <ListFilter
+            label="Revisión:"
+            options={reviewFilterOptions}
+            value={reviewFilter}
+            onChange={(value) => {
+              clearErrorNotice();
+              setReviewFilter(value);
+            }}
+          />
+        </div>
+        <Table
+          aria-label="Precios"
+          columns={columns}
+          {...cloudTableState(shownData, "los precios")}
+          rows={products.map((product) => ({ id: product.id, item: product }))}
+          empty={
+            reviewFilter === "pending" && pendingCount === 0
+              ? {
+                  icon: <BadgeCheck />,
+                  title: "Precios al día",
+                  description: emptyPendingDetail({ days: reviewWindowDays }),
+                  variant: "blank",
+                }
+              : {
+                  icon: <Search />,
+                  title: "Sin resultados",
+                  description: "Probá con otro nombre o categoría.",
+                  variant: "filtered",
+                }
+          }
+          footer={
+            products.length === 0 ? undefined : (
+              <p className="text-text-subtle text-detail">
+                {reviewFilter === "pending"
+                  ? plural(products.length, {
+                      one: "1 producto sin revisar, del más viejo al más nuevo",
+                      other: `${products.length} productos sin revisar, del más viejo al más nuevo`,
+                    })
+                  : plural(products.length, {
+                      one: "1 producto",
+                      other: `${products.length} productos`,
+                    })}
+              </p>
+            )
+          }
+        />
       </ScreenLayout>
       <PriceChangeModal
         target={modal?.target ?? null}
@@ -1036,7 +973,7 @@ export function PricesListScreen({
         onSessionEnded={onSessionEnded}
         onSaved={handleModalSaved}
         onGone={handleModalProductGone}
-        fetchPrices={fetchPricesService}
+        reload={reloadPrice}
         setPrice={setPriceService}
         confirmPrice={confirmPriceService}
       />
