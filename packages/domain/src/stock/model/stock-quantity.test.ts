@@ -14,8 +14,8 @@ describe("STOCK_QUANTITY_PER_UNIT", () => {
 });
 
 describe("MAX_STOCK_QUANTITY", () => {
-  it("is the ceiling of the integer column a movement's quantity is stored in", () => {
-    expect(MAX_STOCK_QUANTITY).toBe(2_147_483_647);
+  it("keeps a sum of a million of the largest quantities an exact number", () => {
+    expect(Number.isSafeInteger(MAX_STOCK_QUANTITY * 1_000_000)).toBe(true);
   });
 });
 

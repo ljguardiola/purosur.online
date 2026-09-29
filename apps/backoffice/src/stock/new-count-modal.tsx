@@ -20,7 +20,7 @@ import { useFieldContext } from "../platform/cloud-form-context";
 import { SharedFieldError } from "../platform/cloud-form-fields";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { type CountMoment, countMomentInstant } from "./count-moment";
+import { type CountMoment, type CountStart, countOccurredAt } from "./count-moment";
 import type { RegisterCountOutcome } from "./stock-api";
 import type { StockCountsScreenServices } from "./stock-counts-services";
 import { productOptions, quantityFieldKind, quantityMessage } from "./stock-movement-form";
@@ -118,7 +118,7 @@ function ExpectedBalance({
 }
 
 export type NewCountModalProps = {
-  startMoment: { day: CalendarDate; time: string };
+  startMoment: CountStart;
   services: StockCountsScreenServices;
   onClose: () => void;
   onSessionEnded: () => void;
@@ -144,14 +144,18 @@ export function NewCountModal({
     listed.find((product) => product.id === productId);
 
   const { form, submit, submitting, values } = useCloudForm({
-    defaultValues: { productId: null, moment: startMoment, counted: "" } as CountFormValues,
+    defaultValues: {
+      productId: null,
+      moment: { day: startMoment.day, time: startMoment.time },
+      counted: "",
+    } as CountFormValues,
     request: {
       schema: stockCountBodySchema,
       from: ({ productId, moment, counted }) => ({
         productId: productId ?? "",
         counted:
           parseStockQuantity(counted, productOf(productId)?.saleUnit ?? "UNIT") ?? Number.NaN,
-        occurredAt: countMomentInstant(moment) ?? "",
+        occurredAt: countOccurredAt(moment, startMoment) ?? "",
       }),
     },
     fields: { productId: "productId", counted: "counted", occurredAt: "moment" },
@@ -203,7 +207,7 @@ export function NewCountModal({
   }
 
   const product = productOf(values.productId);
-  const at = countMomentInstant(values.moment);
+  const at = countOccurredAt(values.moment, startMoment);
   const options = productOptions(listed);
 
   return (

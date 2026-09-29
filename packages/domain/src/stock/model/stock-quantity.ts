@@ -4,7 +4,8 @@ import type { SaleUnit } from "../../catalog/index.js";
 // by the kilo, a thousandth of one sold by the unit.
 export const STOCK_QUANTITY_PER_UNIT = 1000;
 
-// A movement's quantity is stored as a Postgres `integer`; this is that column's ceiling.
+// Caps a single movement's or count's quantity (over two million kilos or units) so the sums a
+// balance is built from stay far inside the integers a JavaScript number holds exactly.
 export const MAX_STOCK_QUANTITY = 2_147_483_647;
 
 export function isCountedQuantity(saleUnit: SaleUnit, quantity: number): boolean {

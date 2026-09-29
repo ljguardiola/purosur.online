@@ -149,7 +149,7 @@ test("starts a new count now, and shows the balance the chosen product expects a
   await expect.element(dialog.getByText("Saldo esperado")).toBeVisible();
   await expect.element(dialog.getByText("17 u")).toBeVisible();
   await expect.element(dialog.getByText("− 1 u")).toBeVisible();
-  expect(services.fetchExpectedBalance).toHaveBeenCalledWith(tea.id, "2026-09-15T18:40:00-03:00");
+  expect(services.fetchExpectedBalance).toHaveBeenCalledWith(tea.id, "2026-09-15T21:40:30.000Z");
   await expectNoAccessibilityViolations(screen.container);
 });
 
@@ -313,4 +313,26 @@ test("closes the modal without registering anything on Cancelar", async () => {
 
   expect(screen.getByRole("dialog").query()).toBeNull();
   expect(services.registerCount).not.toHaveBeenCalled();
+});
+
+test("registers a count left at its default moment at the exact instant the modal opened", async () => {
+  const services = createServices();
+  vi.mocked(services.registerCount).mockResolvedValue({
+    kind: "ok",
+    value: { expected: 17_000, delta: -1000, balance: 16_000, superseded: false },
+  });
+  const screen = await renderScreen(services);
+  const dialog = await openNewCount(screen);
+  await chooseProduct(screen, "Té verde en hebras 100 g");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad contada/ }), "16");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar el recuento" }));
+
+  await expect
+    .poll(() => vi.mocked(services.registerCount).mock.calls[0]?.[0])
+    .toEqual({
+      productId: tea.id,
+      counted: 16_000,
+      occurredAt: "2026-09-15T21:40:30.000Z",
+    });
 });
