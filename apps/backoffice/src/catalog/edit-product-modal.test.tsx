@@ -526,7 +526,7 @@ test("editing a product whose brand was deactivated shows it and keeps it on sav
     .toBeVisible();
   await userEvent.click(brandSelect(dialog));
   await expect
-    .element(page.getByRole("option", { name: "Yerba del Litoral Inactiva" }))
+    .element(dialog.getByRole("option", { name: "Yerba del Litoral Inactiva" }))
     .toBeVisible();
   await userEvent.keyboard("{Escape}");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
