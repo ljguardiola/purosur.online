@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CHANNEL_DATA_FOLDERS,
+  cloudUrlFromCoreArguments,
   coreArgumentsFor,
   parseChannelFile,
   parseLocalChannelFile,
@@ -64,6 +65,25 @@ describe("parseChannelFile", () => {
       const result = parse({ ...stagingFile, sentryDsn });
 
       expect(result).toEqual({ ok: false, reason: expect.stringContaining("sentryDsn") });
+    }
+  });
+
+  it("reads the cloud the register talks to", () => {
+    expect(parse({ ...stagingFile, cloudUrl: "https://staging.purosur.online" })).toEqual({
+      ok: true,
+      settings: {
+        ...stagingFile,
+        cloudUrl: "https://staging.purosur.online",
+        dataFolder: "purosur-pos-staging",
+      },
+    });
+  });
+
+  it("rejects a cloud that is empty or isn't an http(s) URL", () => {
+    for (const cloudUrl of ["", "staging.purosur.online", "file:///etc/passwd", 42]) {
+      const result = parse({ ...stagingFile, cloudUrl });
+
+      expect(result).toEqual({ ok: false, reason: expect.stringContaining("cloudUrl") });
     }
   });
 
@@ -196,7 +216,7 @@ describe("serializeChannelFile", () => {
 describe("the core's Sentry environment argument", () => {
   it("round-trips each channel through the core's arguments", () => {
     for (const channel of ["production", "staging"] as const) {
-      const argv = ["/path/to/electron", "/path/to/core.js", ...coreArgumentsFor(channel)];
+      const argv = ["/path/to/electron", "/path/to/core.js", ...coreArgumentsFor({ channel })];
 
       expect(sentryEnvironmentFromCoreArguments(argv)).toBe(channel);
     }
@@ -207,5 +227,27 @@ describe("the core's Sentry environment argument", () => {
     expect(
       sentryEnvironmentFromCoreArguments(["/path/to/core.js", "--sentry-environment=dev"]),
     ).toBeUndefined();
+  });
+});
+
+describe("the core's cloud argument", () => {
+  it("round-trips the channel's cloud through the core's arguments", () => {
+    const argv = [
+      "/path/to/core.js",
+      ...coreArgumentsFor({ channel: "staging", cloudUrl: "https://staging.purosur.online" }),
+    ];
+
+    expect(cloudUrlFromCoreArguments(argv)).toBe("https://staging.purosur.online");
+    expect(sentryEnvironmentFromCoreArguments(argv)).toBe("staging");
+  });
+
+  it("finds no cloud when the channel names none", () => {
+    const argv = ["/path/to/core.js", ...coreArgumentsFor({ channel: "staging" })];
+
+    expect(cloudUrlFromCoreArguments(argv)).toBeUndefined();
+  });
+
+  it("finds no cloud in an argument that isn't an http(s) URL", () => {
+    expect(cloudUrlFromCoreArguments(["--cloud-url=file:///etc/passwd"])).toBeUndefined();
   });
 });

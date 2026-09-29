@@ -26,8 +26,13 @@ const channelConfig = {
 const { appId, packageName, productName } = channelConfig[channel];
 const updateFeedUrl = process.env.POS_UPDATE_FEED_URL;
 const sentryDsn = process.env.POS_SENTRY_DSN;
+const cloudUrl = process.env.POS_CLOUD_URL;
 
-const channelFile = serializeChannelFile({ channel, ...(sentryDsn ? { sentryDsn } : {}) });
+const channelFile = serializeChannelFile({
+  channel,
+  ...(sentryDsn ? { sentryDsn } : {}),
+  ...(cloudUrl ? { cloudUrl } : {}),
+});
 
 /** @type {import('electron-builder').Configuration} */
 export default {

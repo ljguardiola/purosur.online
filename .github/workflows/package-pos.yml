@@ -66,13 +66,14 @@ jobs:
 
       - run: pnpm --filter @purosur/pos build
 
-      # The built app code carries nothing channel-specific; the channel, its Sentry DSN and its
-      # update feed only reach each channel's resources/channel.json and app-update.yml, outside
-      # app.asar. An unset variable leaves that feature off.
+      # The built app code carries nothing channel-specific; the channel, its Sentry DSN, its cloud
+      # and its update feed only reach each channel's resources/channel.json and app-update.yml,
+      # outside app.asar. An unset variable leaves that feature off.
       - run: pnpm --filter @purosur/pos pack:production
         env:
           POS_SENTRY_DSN: ""
           POS_UPDATE_FEED_URL: ""
+          POS_CLOUD_URL: ""
 
       # The staging feed is a separate artifact in the staging bucket. The DSN reaches only the job
       # running under the staging environment (a push to main), which is also the only run that
@@ -81,6 +82,7 @@ jobs:
         env:
           POS_SENTRY_DSN: ${{ github.event_name == 'push' && vars.POS_SENTRY_DSN || '' }}
           POS_UPDATE_FEED_URL: ${{ vars.POS_UPDATE_FEED_URL }}
+          POS_CLOUD_URL: ${{ vars.POS_CLOUD_URL }}
 
       # Each channel's unpacked folder holds its app code, so both can be compared directly.
       - name: Compare the two channels' app.asar
@@ -137,6 +139,7 @@ jobs:
         env:
           POS_SENTRY_DSN: ""
           POS_UPDATE_FEED_URL: ""
+          POS_CLOUD_URL: ""
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

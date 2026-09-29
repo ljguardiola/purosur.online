@@ -182,7 +182,7 @@ function startRegister(settings: ChannelSettings): void {
 
     const supervisor = createCoreSupervisor({
       fork: (): SupervisedProcess => {
-        const child = utilityProcess.fork(CORE_ENTRY, coreArgumentsFor(settings.channel), {
+        const child = utilityProcess.fork(CORE_ENTRY, coreArgumentsFor(settings), {
           stdio: ["ignore", "pipe", "pipe"],
         });
         forwardCoreOutput(child, process.stdout, process.stderr);
