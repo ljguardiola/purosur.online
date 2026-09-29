@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { expect, expectTypeOf, test } from "vitest";
+import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { contrastRatio, NON_TEXT_CONTRAST } from "../../styles/contrast";
+import { expectNoAccessibilityViolations } from "../../test/axe";
 import {
   boundaryColorHex,
   insetBoundary,
@@ -227,6 +228,90 @@ test("lets its content fill the remaining width of a wide container", async () =
 
   expect(labelRect.width).toBeCloseTo(400, 0);
   expect(wrapperRect.right).toBeCloseTo(labelRect.right, 0);
+});
+
+test("shows its description below its content, named by the content and described by the description", async () => {
+  const screen = await render(
+    <Checkbox checked onCheckedChange={() => {}} description="Needed by stock counts">
+      <span>Return this line</span>
+    </Checkbox>,
+  );
+  const checkbox = screen.getByRole("checkbox", { name: "Return this line" });
+  const content = screen.getByText("Return this line").element() as HTMLElement;
+  const description = screen.getByText("Needed by stock counts").element() as HTMLElement;
+
+  await expect.element(checkbox).toHaveAccessibleName("Return this line");
+  await expect.element(checkbox).toHaveAccessibleDescription("Needed by stock counts");
+  expect(description.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+    content.getBoundingClientRect().bottom,
+  );
+  expect(description.getBoundingClientRect().left).toBeCloseTo(
+    content.getBoundingClientRect().left,
+    0,
+  );
+  expect(getComputedStyle(description).color).toBe(tokenRgb("text-subtle"));
+});
+
+test("has no accessible description without one", async () => {
+  const screen = await render(
+    <Checkbox checked onCheckedChange={() => {}}>
+      Return this line
+    </Checkbox>,
+  );
+
+  expect(checkboxInput(screen, "Return this line").hasAttribute("aria-describedby")).toBe(false);
+});
+
+test("dims the box and content to 45% opacity when disabled, keeping its description legible", async () => {
+  const screen = await render(
+    <Checkbox checked onCheckedChange={() => {}} disabled description="Needed by stock counts">
+      <span>Return this line</span>
+    </Checkbox>,
+  );
+  const label = checkboxLabel(screen, "Return this line");
+  const box = checkboxBox(screen, "Return this line");
+  const contentWrapper = screen.getByText("Return this line").element()
+    .parentElement as HTMLElement;
+  const description = screen.getByText("Needed by stock counts").element() as HTMLElement;
+
+  expect(getComputedStyle(box).opacity).toBe("0.45");
+  expect(getComputedStyle(contentWrapper).opacity).toBe("0.45");
+  expect(getComputedStyle(description).opacity).toBe("1");
+  expect(getComputedStyle(label).opacity).toBe("1");
+  expect(getComputedStyle(label).cursor).toBe("default");
+});
+
+test("neither toggles nor takes focus when disabled", async () => {
+  const onCheckedChange = vi.fn();
+  const screen = await render(
+    <>
+      <Checkbox checked onCheckedChange={onCheckedChange} disabled>
+        Return this line
+      </Checkbox>
+      <button type="button">Next control</button>
+    </>,
+  );
+  const input = checkboxInput(screen, "Return this line");
+
+  await userEvent.click(checkboxLabel(screen, "Return this line"), { force: true });
+  await userEvent.tab();
+
+  expect(onCheckedChange).not.toHaveBeenCalled();
+  expect(input.disabled).toBe(true);
+  expect(input.checked).toBe(true);
+  expect(document.activeElement).toBe(
+    screen.getByRole("button", { name: "Next control" }).element(),
+  );
+});
+
+test("has no accessibility violations when disabled with a description", async () => {
+  const screen = await render(
+    <Checkbox checked onCheckedChange={() => {}} disabled description="Needed by stock counts">
+      Return this line
+    </Checkbox>,
+  );
+
+  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("does not accept a checkbox without content", () => {

@@ -366,6 +366,39 @@ test("edits the role with its id, name, permissions, and the version it was load
   await expect.poll(() => onSaved.mock.calls.length).toBe(1);
 });
 
+test("editing a role saved without a permission one of its permissions requires adds it, shown as required", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRole).mockResolvedValue({
+    kind: "ok",
+    value: { ...stockDetail, permissionKeys: ["adjust_stock"] },
+  });
+  vi.mocked(services.editRole).mockResolvedValue({ kind: "ok" });
+  const screen = await renderModal({ kind: "edit", roleId: "role-stock" }, services);
+  await expect.element(screen.getByText("2 permisos elegidos")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: /^Stock/ }));
+  const balances = screen.getByRole("checkbox", { name: "Ver saldos" });
+  await expect.element(balances).toBeChecked();
+  await expect.element(balances).toBeDisabled();
+
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => vi.mocked(services.editRole).mock.calls.length).toBe(1);
+  expect(new Set(vi.mocked(services.editRole).mock.calls[0]?.[1].permissions)).toEqual(
+    new Set(["adjust_stock", "view_stock_balances"]),
+  );
+});
+
+test("duplicating a role saved without a required permission starts with it checked", async () => {
+  const services = createServices();
+  const screen = await renderModal(
+    { kind: "duplicate", source: { ...stockSummary, permissionKeys: ["record_stock_losses"] } },
+    services,
+  );
+
+  await expect.element(screen.getByText("2 permisos elegidos")).toBeVisible();
+});
+
 test("a stale-version save offers to reload, and reloading refreshes the form", async () => {
   const services = createServices();
   vi.mocked(services.fetchRole).mockResolvedValueOnce({ kind: "ok", value: stockDetail });
@@ -928,6 +961,23 @@ test("Recargar reads the role again through the cache once and reseeds the form"
     permissions: ["view_stock_balances"],
     version: 5,
   });
+});
+
+test("Recargar reseeds a role read without a required permission with that permission added", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRole)
+    .mockResolvedValueOnce({ kind: "ok", value: stockDetail })
+    .mockResolvedValueOnce({
+      kind: "ok",
+      value: { ...stockDetail, permissionKeys: ["perform_stock_counts"], version: 5 },
+    });
+  vi.mocked(services.editRole).mockResolvedValueOnce({ kind: "stale_version" });
+  const screen = await renderModal({ kind: "edit", roleId: "role-stock" }, services);
+  await expect.element(screen.getByText("1 permiso elegido")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+  await userEvent.click(screen.getByRole("button", { name: "Recargar" }));
+
+  await expect.element(screen.getByText("2 permisos elegidos")).toBeVisible();
 });
 
 test("a Recargar that fails to read the role shows the load failure with Reintentar", async () => {
