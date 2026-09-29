@@ -7,11 +7,12 @@ import {
   playHoverSetsDataHovered,
   playTabReachesFocusVisible,
 } from "../../test-support/story-interactions";
-import { ListFilter, type ListFilterOption } from "./list-filter";
+import { ListFilter } from "./list-filter";
+import type { Option } from "./option";
 
 type Status = "all" | "open" | "closed";
 
-const options: [ListFilterOption<Status>, ListFilterOption<Status>, ListFilterOption<Status>] = [
+const options: [Option<Status>, Option<Status>, Option<Status>] = [
   { value: "all", label: "Todos" },
   { value: "open", label: "Abiertas" },
   { value: "closed", label: "Cerradas" },

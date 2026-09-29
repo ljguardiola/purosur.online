@@ -6,11 +6,12 @@ import {
   playHoverListboxOption,
   playHoverSetsDataHovered,
 } from "../../test-support/story-interactions";
-import { Select, type SelectOption } from "./select";
+import type { Option } from "./option";
+import { Select } from "./select";
 
 type Role = "administrator" | "shift-lead" | "cashier";
 
-const options: [SelectOption<Role>, SelectOption<Role>, SelectOption<Role>] = [
+const options: [Option<Role>, Option<Role>, Option<Role>] = [
   { value: "administrator", label: "Administrador" },
   { value: "shift-lead", label: "Responsable de turno" },
   { value: "cashier", label: "Atención de caja" },

@@ -7,20 +7,12 @@ import {
   Popover as AriaPopover,
   Select as AriaSelect,
   SelectValue as AriaSelectValue,
-  type Key,
 } from "react-aria-components";
 import { fieldTriggerHoverClassName } from "./field-styles";
+import { isOptionValue, type NarrowedOption, type OptionChoiceProps } from "./option";
 
-export type ListFilterOption<V extends string = string> = {
-  value: V;
+export type ListFilterProps<V extends string> = OptionChoiceProps<V, NarrowedOption<V>> & {
   label: string;
-};
-
-export type ListFilterProps<V extends string> = {
-  label: string;
-  options: readonly [ListFilterOption<V>, ...ListFilterOption<V>[]];
-  value: NoInfer<V>;
-  onChange: (value: NoInfer<V>) => void;
 };
 
 // A <button>, unlike a block element, doesn't fill its container's width on its own; it sizes to
@@ -38,14 +30,6 @@ const popoverClassName =
 const optionClassName =
   "flex h-control-lg cursor-pointer items-center justify-between rounded-md px-3 text-detail font-semibold " +
   "text-text outline-none data-hovered:bg-surface-subtle data-focus-visible:bg-surface-subtle";
-
-// react-aria-components' onSelectionChange reports a plain Key (string | number).
-function isOptionValue<V extends string>(
-  key: Key,
-  options: readonly ListFilterOption<V>[],
-): key is V {
-  return typeof key === "string" && options.some((option) => option.value === key);
-}
 
 export function ListFilter<V extends string>({
   label,
@@ -66,7 +50,7 @@ export function ListFilter<V extends string>({
       aria-label={label}
       selectedKey={value}
       onSelectionChange={(key) => {
-        if (key !== null && isOptionValue(key, options)) {
+        if (isOptionValue(key, options)) {
           onChange(key);
         }
       }}

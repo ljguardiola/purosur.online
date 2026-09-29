@@ -10,7 +10,6 @@ import {
   Select as AriaSelect,
   SelectValue as AriaSelectValue,
   TextField as AriaTextField,
-  type Key,
 } from "react-aria-components";
 import { type FieldErrorProps, fieldError } from "./field-error";
 import {
@@ -27,11 +26,7 @@ import {
   fieldHelperClassName,
   fieldWrapperClassName,
 } from "./field-styles";
-
-export type QuantityUnitFieldOption<U extends string = string> = {
-  id: U;
-  label: string;
-};
+import { isOptionValue, type NarrowedOption, type Options } from "./option";
 
 type QuantityUnitFieldCommonProps<U extends string> = {
   label: string;
@@ -39,7 +34,7 @@ type QuantityUnitFieldCommonProps<U extends string> = {
   onQuantityChange: (value: string) => void;
   unit: NoInfer<U>;
   onUnitChange: (value: NoInfer<U>) => void;
-  options: readonly [QuantityUnitFieldOption<U>, ...QuantityUnitFieldOption<U>[]];
+  options: Options<NarrowedOption<U>>;
   // The unit picker's own accessible name: a separate control from the quantity input, so it
   // needs its own name rather than sharing the field's visible label.
   unitLabel: string;
@@ -78,14 +73,6 @@ const optionClassName =
   "data-selected:bg-action-subtle data-selected:text-text-accent " +
   "data-hovered:data-selected:bg-action-subtle " +
   "data-focus-visible:data-selected:bg-action-subtle";
-
-// react-aria-components' onSelectionChange reports a plain Key (string | number).
-function isOptionValue<U extends string>(
-  key: Key,
-  options: readonly QuantityUnitFieldOption<U>[],
-): key is U {
-  return typeof key === "string" && options.some((option) => option.id === key);
-}
 
 export function QuantityUnitField<U extends string>(props: QuantityUnitFieldProps<U>) {
   const {
@@ -131,7 +118,7 @@ export function QuantityUnitField<U extends string>(props: QuantityUnitFieldProp
         <AriaSelect
           selectedKey={unit}
           onSelectionChange={(key) => {
-            if (key !== null && isOptionValue(key, options)) {
+            if (isOptionValue(key, options)) {
               onUnitChange(key);
             }
           }}
@@ -156,8 +143,8 @@ export function QuantityUnitField<U extends string>(props: QuantityUnitFieldProp
                 <AriaListBox className="flex flex-col gap-1">
                   {options.map((option) => (
                     <AriaListBoxItem
-                      key={option.id}
-                      id={option.id}
+                      key={option.value}
+                      id={option.value}
                       textValue={option.label}
                       className={optionClassName}
                     >

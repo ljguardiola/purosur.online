@@ -18,13 +18,13 @@ import {
   InlineNotice,
   ListFilter,
   Modal,
+  type Option,
   OptionCardGroup,
+  type Options,
   plural,
   QuantityUnitField,
-  type QuantityUnitFieldOption,
   SearchField,
   Select,
-  type SelectOption,
   StatusIndicator,
   Table,
   type TableSort,
@@ -113,9 +113,9 @@ const PRODUCT_CATEGORY_NOT_LEAF_ERROR = (params: { category: string }) =>
   `"${params.category}" tiene subcategorías. Elegí una de ellas.`;
 const PRODUCT_NAME_REQUIRED = "Ingresá el nombre del producto.";
 const SALE_UNIT_OPTION_CONTENT = {
-  UNIT: { title: "Por unidad", description: "Se vende de a uno" },
-  KG: { title: "Por peso", description: "Se pesa en la balanza" },
-} satisfies Record<ProductSaleUnit, { title: string; description: string }>;
+  UNIT: { label: "Por unidad", description: "Se vende de a uno" },
+  KG: { label: "Por peso", description: "Se pesa en la balanza" },
+} satisfies Record<ProductSaleUnit, { label: string; description: string }>;
 const PRODUCT_BARCODE_REQUIRED = "Escaneá al menos un código de barras.";
 const PRODUCT_BARCODE_ALREADY_LISTED = "Ese código ya está en la lista.";
 const PRODUCT_BARCODE_HAS_SPACES = "El código de barras no puede tener espacios.";
@@ -177,15 +177,12 @@ function unitLabel(saleUnit: ProductSaleUnit): string {
   return UNIT_OPTION_LABELS[saleUnit];
 }
 
-const NET_CONTENT_UNIT_OPTIONS: [
-  QuantityUnitFieldOption<NetContentUnit>,
-  ...QuantityUnitFieldOption<NetContentUnit>[],
-] = [
-  { id: "G", label: NET_CONTENT_UNIT_OPTION_LABELS.G },
-  { id: "KG", label: NET_CONTENT_UNIT_OPTION_LABELS.KG },
-  { id: "ML", label: NET_CONTENT_UNIT_OPTION_LABELS.ML },
-  { id: "L", label: NET_CONTENT_UNIT_OPTION_LABELS.L },
-  { id: "UNIT", label: NET_CONTENT_UNIT_OPTION_LABELS.UNIT },
+const NET_CONTENT_UNIT_OPTIONS: Options<Option<NetContentUnit>> = [
+  { value: "G", label: NET_CONTENT_UNIT_OPTION_LABELS.G },
+  { value: "KG", label: NET_CONTENT_UNIT_OPTION_LABELS.KG },
+  { value: "ML", label: NET_CONTENT_UNIT_OPTION_LABELS.ML },
+  { value: "L", label: NET_CONTENT_UNIT_OPTION_LABELS.L },
+  { value: "UNIT", label: NET_CONTENT_UNIT_OPTION_LABELS.UNIT },
 ];
 
 const NET_CONTENT_DEFAULT_UNIT: NetContentUnit = "G";
@@ -215,9 +212,7 @@ function sortedByName(products: ProductSummary[], direction: "ascending" | "desc
 }
 
 // Full paths disambiguate leaves that share a name under different parents.
-function categorySelectOptions(
-  categories: CategorySummary[],
-): [SelectOption<string>, ...SelectOption<string>[]] | undefined {
+function categorySelectOptions(categories: CategorySummary[]): Options<Option<string>> | undefined {
   const leafIds = new Set(leafCategories(categories).map((category) => category.id));
   if (leafIds.size === 0) {
     return undefined;
@@ -844,13 +839,13 @@ function NewProductModal({
               {
                 value: "UNIT",
                 icon: <Package />,
-                title: SALE_UNIT_OPTION_CONTENT.UNIT.title,
+                label: SALE_UNIT_OPTION_CONTENT.UNIT.label,
                 description: SALE_UNIT_OPTION_CONTENT.UNIT.description,
               },
               {
                 value: "KG",
                 icon: <Scale />,
-                title: SALE_UNIT_OPTION_CONTENT.KG.title,
+                label: SALE_UNIT_OPTION_CONTENT.KG.label,
                 description: SALE_UNIT_OPTION_CONTENT.KG.description,
               },
             ]}
@@ -1254,13 +1249,13 @@ function EditProductModal({
                 {
                   value: "UNIT",
                   icon: <Package />,
-                  title: SALE_UNIT_OPTION_CONTENT.UNIT.title,
+                  label: SALE_UNIT_OPTION_CONTENT.UNIT.label,
                   description: SALE_UNIT_OPTION_CONTENT.UNIT.description,
                 },
                 {
                   value: "KG",
                   icon: <Scale />,
-                  title: SALE_UNIT_OPTION_CONTENT.KG.title,
+                  label: SALE_UNIT_OPTION_CONTENT.KG.label,
                   description: SALE_UNIT_OPTION_CONTENT.KG.description,
                 },
               ]}

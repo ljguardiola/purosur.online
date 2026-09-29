@@ -5,11 +5,12 @@ import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { tokenRgb } from "../../test/token-colors";
 import type { FieldErrorProps } from "./field-error";
-import { Select, type SelectOption, type SelectProps } from "./select";
+import type { Option } from "./option";
+import { Select, type SelectProps } from "./select";
 
 type Role = "administrator" | "shift-lead" | "cashier";
 
-const options: [SelectOption<Role>, SelectOption<Role>, SelectOption<Role>] = [
+const options: [Option<Role>, Option<Role>, Option<Role>] = [
   { value: "administrator", label: "Administrador" },
   { value: "shift-lead", label: "Responsable de turno" },
   { value: "cashier", label: "Atención de caja" },
@@ -392,6 +393,16 @@ test("accepts an error message, a shared error message id, or neither", () => {
     onChange: (value: Role) => void;
     errorMessageId: string;
   }>().toExtend<SelectProps<Role>>();
+});
+
+test("reports the chosen option's value, never null", () => {
+  expectTypeOf<SelectProps<Role>["onChange"]>().parameters.toEqualTypeOf<[Role]>();
+});
+
+test("does not accept an option without a value or a label", () => {
+  type SelectOptions = SelectProps<"a">["options"];
+  expectTypeOf<[{ label: string }]>().not.toExtend<SelectOptions>();
+  expectTypeOf<[{ value: "a" }]>().not.toExtend<SelectOptions>();
 });
 
 test("accepts a null value for no selection yet", () => {

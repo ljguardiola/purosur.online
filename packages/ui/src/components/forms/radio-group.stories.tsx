@@ -4,15 +4,12 @@ import {
   playHoverSetsDataHovered,
   playTabReachesFocusVisible,
 } from "../../test-support/story-interactions";
-import { RadioGroup, type RadioOption } from "./radio-group";
+import type { Option } from "./option";
+import { RadioGroup } from "./radio-group";
 
 type PaymentMethod = "cash" | "card" | "transfer";
 
-const options: [
-  RadioOption<PaymentMethod>,
-  RadioOption<PaymentMethod>,
-  RadioOption<PaymentMethod>,
-] = [
+const options: [Option<PaymentMethod>, Option<PaymentMethod>, Option<PaymentMethod>] = [
   { value: "cash", label: "Efectivo" },
   { value: "card", label: "Tarjeta" },
   { value: "transfer", label: "Transferencia" },

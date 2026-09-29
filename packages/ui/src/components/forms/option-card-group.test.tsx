@@ -7,32 +7,32 @@ import { expectNoAccessibilityViolations } from "../../test/axe";
 import { insetBoundary, tokenRgb } from "../../test/token-colors";
 import type { Icon } from "../shared/icon";
 import type { FieldErrorProps } from "./field-error";
-import type { OptionCardOption } from "./option-card-group";
+import type { NarrowedOption, Option } from "./option";
 import { OptionCardGroup, type OptionCardGroupProps } from "./option-card-group";
 
 type MovementValue = "income" | "expense" | "withdrawal";
 
 const options: [
-  OptionCardOption<MovementValue>,
-  OptionCardOption<MovementValue>,
-  OptionCardOption<MovementValue>,
+  NarrowedOption<MovementValue, "description" | "icon">,
+  NarrowedOption<MovementValue, "description" | "icon">,
+  NarrowedOption<MovementValue, "description" | "icon">,
 ] = [
   {
     value: "income",
     icon: <Wallet />,
-    title: "Income",
+    label: "Income",
     description: "Money coming into the register",
   },
   {
     value: "expense",
     icon: <Banknote />,
-    title: "Expense",
+    label: "Expense",
     description: "Money going out of the register",
   },
   {
     value: "withdrawal",
     icon: <CreditCard />,
-    title: "Withdrawal",
+    label: "Withdrawal",
     description: "Cash taken out for the bank",
   },
 ];
@@ -84,7 +84,7 @@ test("shows the hand cursor on each card", async () => {
   const screen = await render(<OptionCardGroup {...baseProps()} />);
 
   for (const option of options) {
-    expect(getComputedStyle(radioCard(screen, option.title)).cursor).toBe("pointer");
+    expect(getComputedStyle(radioCard(screen, option.label)).cursor).toBe("pointer");
   }
 });
 
@@ -92,7 +92,7 @@ test("renders each card's icon, title and help text", async () => {
   const screen = await render(<OptionCardGroup {...baseProps()} />);
 
   for (const option of options) {
-    const card = radioCard(screen, option.title);
+    const card = radioCard(screen, option.label);
     expect(card.querySelector("svg")).not.toBeNull();
     await expect.element(screen.getByText(option.description)).toBeVisible();
   }
@@ -216,9 +216,12 @@ test("wraps a long title and a long help text inside the card", async () => {
   const longTitle = "A very long title that does not fit on a single line of this narrow card";
   const longHelpText =
     "A very long help text that also does not fit on a single line and must wrap onto more than one";
-  const longOptions: [OptionCardOption<"long" | "short">, OptionCardOption<"long" | "short">] = [
-    { value: "long", icon: <Wallet />, title: longTitle, description: longHelpText },
-    { value: "short", icon: <Banknote />, title: "Short", description: "Short help" },
+  const longOptions: [
+    NarrowedOption<"long" | "short", "description" | "icon">,
+    NarrowedOption<"long" | "short", "description" | "icon">,
+  ] = [
+    { value: "long", icon: <Wallet />, label: longTitle, description: longHelpText },
+    { value: "short", icon: <Banknote />, label: "Short", description: "Short help" },
   ];
   const screen = await render(
     <div style={{ width: "360px" }}>
@@ -336,22 +339,18 @@ test("exposes each card as a radio button named by its title and described by it
   expect(radioInput(screen, "Expense").checked).toBe(true);
 });
 
-test("does not accept an option without an icon, title or help text", () => {
-  expectTypeOf<{
-    value: string;
-    title: string;
-    description: string;
-  }>().not.toExtend<OptionCardOption>();
-  expectTypeOf<{
-    value: string;
-    icon: Icon;
-    description: string;
-  }>().not.toExtend<OptionCardOption>();
-  expectTypeOf<{
-    value: string;
-    icon: Icon;
-    title: string;
-  }>().not.toExtend<OptionCardOption>();
+test("does not accept an option without an icon, label or description", () => {
+  type CardOptions = OptionCardGroupProps<"income">["options"];
+  expectTypeOf<
+    [{ value: "income"; label: string; description: string }]
+  >().not.toExtend<CardOptions>();
+  expectTypeOf<
+    [{ value: "income"; icon: Icon; description: string }]
+  >().not.toExtend<CardOptions>();
+  expectTypeOf<[{ value: "income"; icon: Icon; label: string }]>().not.toExtend<CardOptions>();
+  expectTypeOf<
+    [{ value: "income"; icon: Icon; label: string; description: string }]
+  >().toExtend<CardOptions>();
 });
 
 test("does not accept a group without a label, a chosen value or an onChange handler", () => {
@@ -395,7 +394,7 @@ test("does not accept a chosen value outside the group's own options, or an empt
 // `value`/`onChange` truly fit the inferred V; an invalid call falls through to the fallback
 // overload instead, resolving to `false`.
 type OptionCardGroupValueOnlyProps<V extends string> = {
-  options: readonly [Pick<OptionCardOption<V>, "value">, ...Pick<OptionCardOption<V>, "value">[]];
+  options: readonly [{ value: V }, ...{ value: V }[]];
   value: OptionCardGroupProps<V>["value"];
   onChange: OptionCardGroupProps<V>["onChange"];
 };
@@ -429,7 +428,7 @@ test("renders with no card chosen when value is null", async () => {
   const screen = await render(<OptionCardGroup {...baseProps({ value: null })} />);
 
   for (const option of options) {
-    expect(radioInput(screen, option.title).checked).toBe(false);
+    expect(radioInput(screen, option.label).checked).toBe(false);
   }
 });
 
@@ -555,5 +554,11 @@ test("accepts an error message, a shared error message id, or neither", () => {
 });
 
 test("does not name its secondary text helpText", () => {
-  expectTypeOf<OptionCardOption>().not.toHaveProperty("helpText");
+  expectTypeOf<Option>().not.toHaveProperty("helpText");
+});
+
+test("reports the chosen card's value, never null", () => {
+  expectTypeOf<OptionCardGroupProps<MovementValue>["onChange"]>().parameters.toEqualTypeOf<
+    [MovementValue]
+  >();
 });

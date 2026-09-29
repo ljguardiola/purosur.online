@@ -24,7 +24,7 @@ test("draws the label, gap, box and value at the backoffice size, identically fo
         onQuantityChange={() => {}}
         unit="g"
         onUnitChange={() => {}}
-        options={[{ id: "g", label: "g" }]}
+        options={[{ value: "g", label: "g" }]}
         unitLabel="Unidad"
       />
     </FieldSizeProvider>,

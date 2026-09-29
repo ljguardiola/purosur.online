@@ -1,15 +1,8 @@
 import { Radio as AriaRadio, RadioGroup as AriaRadioGroup } from "react-aria-components";
+import { isOptionValue, type NarrowedOption, type OptionChoiceProps } from "./option";
 
-export type RadioOption<V extends string = string> = {
-  value: V;
+export type RadioGroupProps<V extends string> = OptionChoiceProps<V, NarrowedOption<V>> & {
   label: string;
-};
-
-export type RadioGroupProps<V extends string> = {
-  label: string;
-  options: readonly [RadioOption<V>, ...RadioOption<V>[]];
-  value: NoInfer<V>;
-  onChange: (value: NoInfer<V>) => void;
   disabled?: boolean;
 };
 
@@ -29,7 +22,7 @@ const circleClassName =
   "group-data-hovered:group-data-selected:inset-ring-action-strong " +
   "group-data-focus-visible:focus-ring";
 
-function RadioGroupOption<V extends string>({ value, label }: RadioOption<V>) {
+function RadioGroupOption<V extends string>({ value, label }: NarrowedOption<V>) {
   return (
     <AriaRadio value={value} className={radioLabelClassName}>
       <span aria-hidden="true" className={circleClassName} />
@@ -50,9 +43,11 @@ export function RadioGroup<V extends string>({
       aria-label={label}
       value={value}
       isDisabled={disabled}
-      // react-aria's RadioGroupProps types onChange over plain string; it only ever fires with a
-      // value read off one of our own Radio elements, always one of V.
-      onChange={(nextValue) => onChange(nextValue as V)}
+      onChange={(nextValue) => {
+        if (isOptionValue(nextValue, options)) {
+          onChange(nextValue);
+        }
+      }}
       className="flex flex-col gap-3"
     >
       {options.map((option) => (

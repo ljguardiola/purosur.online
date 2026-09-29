@@ -6,16 +6,17 @@ import {
   playPseudoHoverPaintsBoneFill,
   playTabMatchesCssFocusWithin,
 } from "../../test-support/story-interactions";
-import { QuantityUnitField, type QuantityUnitFieldOption } from "./quantity-unit-field";
+import type { Option } from "./option";
+import { QuantityUnitField } from "./quantity-unit-field";
 
 type Unit = "g" | "kg" | "ml" | "l" | "u";
 
-const unitOptions: [QuantityUnitFieldOption<Unit>, ...QuantityUnitFieldOption<Unit>[]] = [
-  { id: "g", label: "g" },
-  { id: "kg", label: "kg" },
-  { id: "ml", label: "ml" },
-  { id: "l", label: "l" },
-  { id: "u", label: "u" },
+const unitOptions: [Option<Unit>, ...Option<Unit>[]] = [
+  { value: "g", label: "g" },
+  { value: "kg", label: "kg" },
+  { value: "ml", label: "ml" },
+  { value: "l", label: "l" },
+  { value: "u", label: "u" },
 ];
 
 const meta: Meta<typeof QuantityUnitField<Unit>> = {

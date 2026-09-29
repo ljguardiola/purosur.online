@@ -4,20 +4,17 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { insetBoundary, paintedBoxShadowLayers, tokenRgb } from "../../test/token-colors";
-import {
-  QuantityUnitField,
-  type QuantityUnitFieldOption,
-  type QuantityUnitFieldProps,
-} from "./quantity-unit-field";
+import type { Option } from "./option";
+import { QuantityUnitField, type QuantityUnitFieldProps } from "./quantity-unit-field";
 
 type Unit = "g" | "kg" | "ml" | "l" | "u";
 
-const unitOptions: [QuantityUnitFieldOption<Unit>, ...QuantityUnitFieldOption<Unit>[]] = [
-  { id: "g", label: "g" },
-  { id: "kg", label: "kg" },
-  { id: "ml", label: "ml" },
-  { id: "l", label: "l" },
-  { id: "u", label: "u" },
+const unitOptions: [Option<Unit>, ...Option<Unit>[]] = [
+  { value: "g", label: "g" },
+  { value: "kg", label: "kg" },
+  { value: "ml", label: "ml" },
+  { value: "l", label: "l" },
+  { value: "u", label: "u" },
 ];
 
 type Screen = Awaited<ReturnType<typeof render>>;
@@ -32,7 +29,7 @@ type BaseFieldProps = {
   onQuantityChange: (value: string) => void;
   unit: Unit;
   onUnitChange: (value: Unit) => void;
-  options: readonly [QuantityUnitFieldOption<Unit>, ...QuantityUnitFieldOption<Unit>[]];
+  options: readonly [Option<Unit>, ...Option<Unit>[]];
   unitLabel: string;
   description?: string;
   disabled?: boolean;
@@ -432,4 +429,15 @@ test("accepts an error message, a shared error message id, or neither", () => {
 
 test("does not name its secondary text helperText", () => {
   expectTypeOf<QuantityUnitFieldProps<string>>().not.toHaveProperty("helperText");
+});
+
+test("reports the chosen unit option's value", () => {
+  expectTypeOf<QuantityUnitFieldProps<Unit>["onUnitChange"]>().parameters.toEqualTypeOf<[Unit]>();
+});
+
+test("does not accept a unit option without a value or a label", () => {
+  type UnitOptions = QuantityUnitFieldProps<"g">["options"];
+  expectTypeOf<[{ label: string }]>().not.toExtend<UnitOptions>();
+  expectTypeOf<[{ value: "g" }]>().not.toExtend<UnitOptions>();
+  expectTypeOf<[{ id: "g"; label: string }]>().not.toExtend<UnitOptions>();
 });

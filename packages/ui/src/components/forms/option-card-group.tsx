@@ -4,32 +4,25 @@ import {
   RadioGroup as AriaRadioGroup,
   Text as AriaText,
 } from "react-aria-components";
-import type { Icon } from "../shared/icon";
 import { type FieldErrorProps, fieldError } from "./field-error";
+import { isOptionValue, type NarrowedOption, type OptionalOptionChoiceProps } from "./option";
 
-export type OptionCardOption<V extends string = string> = {
-  value: V;
-  icon: Icon;
-  title: string;
-  description: string;
-};
+type OptionCard<V extends string> = NarrowedOption<V, "description" | "icon">;
 
-export type OptionCardGroupProps<V extends string> = FieldErrorProps & {
-  label: string;
-  options: readonly [OptionCardOption<V>, ...OptionCardOption<V>[]];
-  value: NoInfer<V> | null;
-  onChange: (value: NoInfer<V>) => void;
-  required?: boolean;
-};
+export type OptionCardGroupProps<V extends string> = FieldErrorProps &
+  OptionalOptionChoiceProps<V, OptionCard<V>> & {
+    label: string;
+    required?: boolean;
+  };
 
 // Icon color reacts to the card's own data-selected state via the `group` class the card sets on itself.
 const iconWrapperClassName =
   "inline-flex size-icon-lg shrink-0 text-text-subtle *:size-full " +
   "group-data-selected:text-text-accent";
 
-const titleClassName = "text-body font-bold text-text group-data-selected:text-text-accent";
+const labelClassName = "text-body font-bold text-text group-data-selected:text-text-accent";
 
-const helpTextClassName = "text-caption text-text-subtle";
+const descriptionClassName = "text-caption text-text-subtle";
 
 const errorClassName = "text-detail text-error";
 
@@ -44,22 +37,22 @@ const cardClassName =
   "data-hovered:data-selected:bg-action-subtle " +
   "data-focus-visible:focus-ring";
 
-function OptionCard<V extends string>({ value, icon, title, description }: OptionCardOption<V>) {
-  const helpTextId = useId();
+function OptionCardItem<V extends string>({ value, icon, label, description }: OptionCard<V>) {
+  const descriptionId = useId();
 
   return (
     <AriaRadio
       value={value}
-      aria-label={title}
-      aria-describedby={helpTextId}
+      aria-label={label}
+      aria-describedby={descriptionId}
       className={cardClassName}
     >
       <span aria-hidden="true" className={iconWrapperClassName}>
         {icon}
       </span>
       <span className="flex min-w-0 flex-col">
-        <span className={titleClassName}>{title}</span>
-        <span id={helpTextId} className={helpTextClassName}>
+        <span className={labelClassName}>{label}</span>
+        <span id={descriptionId} className={descriptionClassName}>
           {description}
         </span>
       </span>
@@ -76,9 +69,11 @@ export function OptionCardGroup<V extends string>(props: OptionCardGroupProps<V>
       aria-label={label}
       orientation="horizontal"
       value={value}
-      // react-aria's RadioGroupProps types onChange over plain string; it only ever fires with a
-      // value read off one of our own Radio elements, always one of V.
-      onChange={(nextValue) => onChange(nextValue as V)}
+      onChange={(nextValue) => {
+        if (isOptionValue(nextValue, options)) {
+          onChange(nextValue);
+        }
+      }}
       isRequired={required}
       isInvalid={invalid}
       {...(errorMessageId !== undefined ? { "aria-describedby": errorMessageId } : {})}
@@ -87,7 +82,7 @@ export function OptionCardGroup<V extends string>(props: OptionCardGroupProps<V>
     >
       <div className="flex flex-row gap-3">
         {options.map((option) => (
-          <OptionCard key={option.value} {...option} />
+          <OptionCardItem key={option.value} {...option} />
         ))}
       </div>
       {errorMessage !== undefined ? (

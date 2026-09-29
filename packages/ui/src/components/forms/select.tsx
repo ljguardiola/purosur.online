@@ -8,7 +8,6 @@ import {
   Select as AriaSelect,
   SelectValue as AriaSelectValue,
   Text as AriaText,
-  type Key,
 } from "react-aria-components";
 import { type FieldErrorProps, fieldError } from "./field-error";
 import {
@@ -25,11 +24,7 @@ import {
   fieldTriggerHoverClassName,
   fieldWrapperClassName,
 } from "./field-styles";
-
-export type SelectOption<V extends string = string> = {
-  value: V;
-  label: string;
-};
+import { isOptionValue, type NarrowedOption, type OptionalOptionChoiceProps } from "./option";
 
 type SelectCommonProps = {
   label: string;
@@ -38,13 +33,9 @@ type SelectCommonProps = {
   required?: boolean;
 };
 
-// `value` may be `null` for "nothing chosen yet"; `onChange` never reports null back, since a
-// chosen option is always one of V.
 export type SelectProps<V extends string> = SelectCommonProps &
-  FieldErrorProps & {
-    options: readonly [SelectOption<V>, ...SelectOption<V>[]];
-    value: NoInfer<V> | null;
-    onChange: (value: NoInfer<V>) => void;
+  FieldErrorProps &
+  OptionalOptionChoiceProps<V, NarrowedOption<V>> & {
     /** Shown in place of a value while `value` is null. Defaults to AriaSelect's own localized text. */
     placeholder?: string;
   };
@@ -93,11 +84,6 @@ const optionClassName =
   "data-hovered:data-selected:bg-action-subtle " +
   "data-focus-visible:data-selected:bg-action-subtle";
 
-// react-aria-components' onSelectionChange reports a plain Key (string | number).
-function isOptionValue<V extends string>(key: Key, options: readonly SelectOption<V>[]): key is V {
-  return typeof key === "string" && options.some((option) => option.value === key);
-}
-
 export function Select<V extends string>(props: SelectProps<V>) {
   const {
     label,
@@ -119,7 +105,7 @@ export function Select<V extends string>(props: SelectProps<V>) {
     <AriaSelect
       selectedKey={value}
       onSelectionChange={(key) => {
-        if (key !== null && isOptionValue(key, options)) {
+        if (isOptionValue(key, options)) {
           onChange(key);
         }
       }}

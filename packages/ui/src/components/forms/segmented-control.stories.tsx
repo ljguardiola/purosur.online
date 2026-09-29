@@ -5,11 +5,12 @@ import {
   playHoverSetsDataHovered,
   playTabReachesFocusVisible,
 } from "../../test-support/story-interactions";
-import { SegmentedControl, type SegmentedControlOption } from "./segmented-control";
+import type { Option } from "./option";
+import { SegmentedControl } from "./segmented-control";
 
 type EntryMode = "discount" | "newPrice";
 
-const options: [SegmentedControlOption<EntryMode>, SegmentedControlOption<EntryMode>] = [
+const options: [Option<EntryMode>, Option<EntryMode>] = [
   { value: "discount", label: "Descuento", icon: <Percent /> },
   { value: "newPrice", label: "Precio nuevo", icon: <Wallet /> },
 ];

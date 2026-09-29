@@ -5,31 +5,32 @@ import {
   playHoverSetsDataHovered,
   playTabReachesFocusVisible,
 } from "../../test-support/story-interactions";
-import { OptionCardGroup, type OptionCardOption } from "./option-card-group";
+import type { NarrowedOption } from "./option";
+import { OptionCardGroup } from "./option-card-group";
 
 type MovementValue = "income" | "expense" | "withdrawal";
 
 const options: [
-  OptionCardOption<MovementValue>,
-  OptionCardOption<MovementValue>,
-  OptionCardOption<MovementValue>,
+  NarrowedOption<MovementValue, "description" | "icon">,
+  NarrowedOption<MovementValue, "description" | "icon">,
+  NarrowedOption<MovementValue, "description" | "icon">,
 ] = [
   {
     value: "income",
     icon: <Wallet />,
-    title: "Ingreso",
+    label: "Ingreso",
     description: "Dinero que entra a la caja",
   },
   {
     value: "expense",
     icon: <Banknote />,
-    title: "Gasto",
+    label: "Gasto",
     description: "Dinero que sale de la caja",
   },
   {
     value: "withdrawal",
     icon: <CreditCard />,
-    title: "Retiro",
+    label: "Retiro",
     description: "Efectivo retirado para el banco",
   },
 ];

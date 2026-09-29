@@ -35,7 +35,7 @@ function SampleFields() {
         onQuantityChange={() => {}}
         unit="g"
         onUnitChange={() => {}}
-        options={[{ id: "g", label: "g" }]}
+        options={[{ value: "g", label: "g" }]}
         unitLabel="Unidad"
       />
     </div>

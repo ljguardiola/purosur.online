@@ -1,19 +1,13 @@
 import { Radio as AriaRadio, RadioGroup as AriaRadioGroup } from "react-aria-components";
-import type { Icon } from "../shared/icon";
+import { isOptionValue, type NarrowedOption, type OptionChoiceProps } from "./option";
 
 export type SegmentedControlSize = "large" | "medium";
 
-export type SegmentedControlOption<V extends string = string> = {
-  value: V;
+export type SegmentedControlProps<V extends string> = OptionChoiceProps<
+  V,
+  NarrowedOption<V, never, "icon">
+> & {
   label: string;
-  icon?: Icon;
-};
-
-export type SegmentedControlProps<V extends string> = {
-  label: string;
-  options: readonly [SegmentedControlOption<V>, ...SegmentedControlOption<V>[]];
-  value: NoInfer<V>;
-  onChange: (value: NoInfer<V>) => void;
   size?: SegmentedControlSize;
 };
 
@@ -73,7 +67,7 @@ function SegmentedOption<V extends string>({
   label,
   icon,
   size,
-}: SegmentedControlOption<V> & { size: SegmentedControlSize }) {
+}: NarrowedOption<V, never, "icon"> & { size: SegmentedControlSize }) {
   return (
     <AriaRadio
       value={value}
@@ -102,9 +96,11 @@ export function SegmentedControl<V extends string>({
       aria-label={label}
       orientation="horizontal"
       value={value}
-      // react-aria's RadioGroupProps types onChange over plain string; it only ever fires with a
-      // value read off one of our own Radio elements, always one of V.
-      onChange={(nextValue) => onChange(nextValue as V)}
+      onChange={(nextValue) => {
+        if (isOptionValue(nextValue, options)) {
+          onChange(nextValue);
+        }
+      }}
       className={`${containerClassName} ${containerSizeClassName[size]}`}
     >
       {options.map((option) => (

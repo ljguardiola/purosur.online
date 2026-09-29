@@ -6,12 +6,12 @@ import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { tokenRgb } from "../../test/token-colors";
 import type { Icon } from "../shared/icon";
-import type { SegmentedControlOption } from "./segmented-control";
+import type { Option } from "./option";
 import { SegmentedControl, type SegmentedControlProps } from "./segmented-control";
 
 type EntryMode = "discount" | "newPrice";
 
-const options: [SegmentedControlOption<EntryMode>, SegmentedControlOption<EntryMode>] = [
+const options: [Option<EntryMode>, Option<EntryMode>] = [
   { value: "discount", label: "Discount", icon: <Percent /> },
   { value: "newPrice", label: "New price", icon: <Wallet /> },
 ];
@@ -85,7 +85,7 @@ test("shows the hand cursor on each option", async () => {
 });
 
 test("renders an option with no icon", async () => {
-  const noIconOptions: [SegmentedControlOption<EntryMode>, SegmentedControlOption<EntryMode>] = [
+  const noIconOptions: [Option<EntryMode>, Option<EntryMode>] = [
     { value: "discount", label: "Discount" },
     { value: "newPrice", label: "New price" },
   ];
@@ -310,18 +310,21 @@ test("exposes each option as a radio button named by its label and its chosen st
 });
 
 test("does not accept an option without a value or a label", () => {
-  expectTypeOf<{
-    label: string;
-    icon: Icon;
-  }>().not.toExtend<SegmentedControlOption>();
-  expectTypeOf<{
-    value: string;
-    icon: Icon;
-  }>().not.toExtend<SegmentedControlOption>();
+  type SegmentOptions = SegmentedControlProps<"a">["options"];
+  expectTypeOf<[{ label: string; icon: Icon }]>().not.toExtend<SegmentOptions>();
+  expectTypeOf<[{ value: "a"; icon: Icon }]>().not.toExtend<SegmentOptions>();
 });
 
-test("accepts an option with no icon", () => {
-  expectTypeOf<{ value: string; label: string }>().toExtend<SegmentedControlOption>();
+test("accepts an option with or without an icon", () => {
+  type SegmentOptions = SegmentedControlProps<"a">["options"];
+  expectTypeOf<[{ value: "a"; label: string }]>().toExtend<SegmentOptions>();
+  expectTypeOf<[{ value: "a"; label: string; icon: Icon }]>().toExtend<SegmentOptions>();
+});
+
+test("reports the chosen option's value", () => {
+  expectTypeOf<SegmentedControlProps<EntryMode>["onChange"]>().parameters.toEqualTypeOf<
+    [EntryMode]
+  >();
 });
 
 test("does not accept a group without a label, a chosen value or an onChange handler", () => {
@@ -359,10 +362,7 @@ test("does not accept a chosen value outside the group's own options, or an empt
 });
 
 type SegmentedControlValueOnlyProps<V extends string> = {
-  options: readonly [
-    Pick<SegmentedControlOption<V>, "value">,
-    ...Pick<SegmentedControlOption<V>, "value">[],
-  ];
+  options: readonly [Pick<Option<V>, "value">, ...Pick<Option<V>, "value">[]];
   value: SegmentedControlProps<V>["value"];
   onChange: SegmentedControlProps<V>["onChange"];
 };

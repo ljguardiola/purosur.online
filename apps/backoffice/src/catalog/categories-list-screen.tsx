@@ -2,10 +2,11 @@ import {
   Button,
   InlineNotice,
   Modal,
+  type Option,
+  type Options,
   plural,
   SearchField,
   Select,
-  type SelectOption,
   Table,
   type TableSort,
   TextField,
@@ -64,12 +65,12 @@ function nameTakenUnderParentError(params: { name: string; parent: string }): st
 function parentSelectOptions(
   categories: CategorySummary[],
   excludeIds: ReadonlySet<string>,
-): [SelectOption<string>, ...SelectOption<string>[]] {
+): Options<Option<string>> {
   const labels = categoryPathLabels(categories);
   const sorted = categoriesInTreeOrder(categories, "ascending").filter(
     (category) => !excludeIds.has(category.id),
   );
-  const noneOption: SelectOption<string> = {
+  const noneOption: Option<string> = {
     value: "",
     label: "Ninguna (categoría de primer nivel)",
   };

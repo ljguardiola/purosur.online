@@ -3,11 +3,12 @@ import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { paletteColor, tokenRgb } from "../../test/token-colors";
-import { ListFilter, type ListFilterOption, type ListFilterProps } from "./list-filter";
+import { ListFilter, type ListFilterProps } from "./list-filter";
+import type { Option } from "./option";
 
 type Status = "all" | "open" | "closed";
 
-const options: [ListFilterOption<Status>, ListFilterOption<Status>, ListFilterOption<Status>] = [
+const options: [Option<Status>, Option<Status>, Option<Status>] = [
   { value: "all", label: "Todos" },
   { value: "open", label: "Abiertas" },
   { value: "closed", label: "Cerradas" },
@@ -179,7 +180,7 @@ test("flips the menu above the trigger, with the same 4px gap, when there is no 
 });
 
 test("keeps the menu at the 200px floor when the trigger is narrower than that", async () => {
-  const narrowOptions: [ListFilterOption<"a" | "b">, ListFilterOption<"a" | "b">] = [
+  const narrowOptions: [Option<"a" | "b">, Option<"a" | "b">] = [
     { value: "a", label: "A" },
     { value: "b", label: "B" },
   ];
@@ -200,7 +201,7 @@ test("keeps the menu at the 200px floor when the trigger is narrower than that",
 });
 
 test("matches the menu to a trigger wider than 200px", async () => {
-  const wideOptions: [ListFilterOption<"a" | "b">, ListFilterOption<"a" | "b">] = [
+  const wideOptions: [Option<"a" | "b">, Option<"a" | "b">] = [
     { value: "a", label: "A very long chosen option value" },
     { value: "b", label: "Another very long chosen option value" },
   ];
@@ -226,7 +227,7 @@ test("matches the menu to a trigger wider than 200px", async () => {
 });
 
 test("caps the trigger at a constrained parent's own width instead of growing past it", async () => {
-  const options: [ListFilterOption<string>, ListFilterOption<string>] = [
+  const options: [Option<string>, Option<string>] = [
     { value: "a", label: "Esperando confirmación de aprobación del pago del pedido" },
     { value: "b", label: "Otro" },
   ];
@@ -251,7 +252,7 @@ test("caps the trigger at a constrained parent's own width instead of growing pa
 });
 
 test("keeps the label whole and the chevron flush, with no gap, when the chosen value is narrower than its own floor", async () => {
-  const narrow: [ListFilterOption<string>] = [{ value: "a", label: "8" }];
+  const narrow: [Option<string>] = [{ value: "a", label: "8" }];
   const screen = await render(
     <ListFilter label="Estado" options={narrow} value="a" onChange={() => {}} />,
   );
@@ -268,7 +269,7 @@ test("keeps the label whole and the chevron flush, with no gap, when the chosen 
 });
 
 test("keeps the same visible gap before the chevron for a value shorter than its own floor", async () => {
-  const narrow: [ListFilterOption<string>, ListFilterOption<string>] = [
+  const narrow: [Option<string>, Option<string>] = [
     { value: "a", label: "8" },
     { value: "b", label: "Otro" },
   ];
@@ -290,7 +291,7 @@ test("keeps the same visible gap before the chevron for a value shorter than its
 });
 
 test("keeps the label whole and lets the value alone truncate when there's room for the label's own full width", async () => {
-  const longOption: [ListFilterOption<string>, ListFilterOption<string>] = [
+  const longOption: [Option<string>, Option<string>] = [
     { value: "a", label: "Un valor bastante largo para forzar el truncado" },
     { value: "b", label: "Otro" },
   ];
@@ -388,7 +389,7 @@ test("scrolls a long options list inside the popover instead of painting it past
   const manyOptions = Array.from({ length: 40 }, (_, i) => ({
     value: `opt${i}`,
     label: `Option ${i}`,
-  })) as [ListFilterOption<string>, ...ListFilterOption<string>[]];
+  })) as [Option<string>, ...Option<string>[]];
   const screen = await render(
     <ListFilter label="Many" options={manyOptions} value="opt0" onChange={() => {}} />,
   );
@@ -413,7 +414,7 @@ test("scrolls the popover to keep a keyboard-focused option below the fold visib
   const manyOptions = Array.from({ length: 40 }, (_, i) => ({
     value: `opt${i}`,
     label: `Option ${i}`,
-  })) as [ListFilterOption<string>, ...ListFilterOption<string>[]];
+  })) as [Option<string>, ...Option<string>[]];
   const screen = await render(
     <ListFilter label="Many" options={manyOptions} value="opt0" onChange={() => {}} />,
   );
@@ -439,7 +440,7 @@ test("scrolls the popover to keep a keyboard-focused option below the fold visib
 });
 
 test("truncates a long option label instead of wrapping it over its own 40px row and the next option", async () => {
-  const options: [ListFilterOption<string>, ListFilterOption<string>] = [
+  const options: [Option<string>, Option<string>] = [
     { value: "a", label: "Esperando confirmación de aprobación del pago del pedido" },
     { value: "b", label: "Otro" },
   ];
@@ -565,7 +566,7 @@ test("keeps showing the old value when the caller's onChange does nothing", asyn
 
 // react-aria-components' Select treats a selectedKey with no matching option as no selection.
 test("shows react-aria's own placeholder, not a stale label, when its value points to an option a narrowed options list no longer has", async () => {
-  const narrowedOptions: [ListFilterOption<Status>, ListFilterOption<Status>] = [
+  const narrowedOptions: [Option<Status>, Option<Status>] = [
     { value: "all", label: "Todos" },
     { value: "open", label: "Abiertas" },
   ];
@@ -597,11 +598,7 @@ test("names the trigger for assistive technology with both its label and its cur
 // react-aria-components' collection is keyed by `id` (this component's `option.value`), the same
 // Map semantics as any JS object literal: the last entry with a given key is the only one that exists.
 test("keeps only the last option with a given value, everywhere, when a caller passes duplicates", async () => {
-  const dupOptions: [
-    ListFilterOption<"a" | "b">,
-    ListFilterOption<"a" | "b">,
-    ListFilterOption<"a" | "b">,
-  ] = [
+  const dupOptions: [Option<"a" | "b">, Option<"a" | "b">, Option<"a" | "b">] = [
     { value: "b", label: "Otro" },
     { value: "a", label: "Primero" },
     { value: "a", label: "Segundo" },
@@ -744,7 +741,7 @@ test("does not accept an empty options list", () => {
 // overload only matches a call whose `value`/`onChange` truly fit the inferred V; an invalid call
 // falls through to the second (fallback) overload instead, resolving to `false`.
 type ListFilterValueOnlyProps<V extends string> = {
-  options: readonly [Pick<ListFilterOption<V>, "value">, ...Pick<ListFilterOption<V>, "value">[]];
+  options: readonly [Pick<Option<V>, "value">, ...Pick<Option<V>, "value">[]];
   value: ListFilterProps<V>["value"];
   onChange: ListFilterProps<V>["onChange"];
 };
@@ -769,4 +766,8 @@ test("cannot widen V through `value` at a real call site with no explicit type a
     onChange: () => {},
   });
   expectTypeOf(invalidCall).toEqualTypeOf<false>();
+});
+
+test("reports the chosen option's value", () => {
+  expectTypeOf<ListFilterProps<Status>["onChange"]>().parameters.toEqualTypeOf<[Status]>();
 });

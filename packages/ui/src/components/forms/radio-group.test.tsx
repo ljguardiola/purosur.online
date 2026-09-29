@@ -11,16 +11,12 @@ import {
   rgbToHex,
   tokenRgb,
 } from "../../test/token-colors";
-import type { RadioOption } from "./radio-group";
+import type { Option } from "./option";
 import { RadioGroup, type RadioGroupProps } from "./radio-group";
 
 type PaymentMethod = "cash" | "card" | "transfer";
 
-const options: [
-  RadioOption<PaymentMethod>,
-  RadioOption<PaymentMethod>,
-  RadioOption<PaymentMethod>,
-] = [
+const options: [Option<PaymentMethod>, Option<PaymentMethod>, Option<PaymentMethod>] = [
   { value: "cash", label: "Cash" },
   { value: "card", label: "Card" },
   { value: "transfer", label: "Transfer" },
@@ -342,4 +338,10 @@ test("cannot widen V through `value` at a real call site with no explicit type a
     onChange: () => {},
   });
   expectTypeOf(invalidCall).toEqualTypeOf<false>();
+});
+
+test("reports the chosen option's value", () => {
+  expectTypeOf<RadioGroupProps<PaymentMethod>["onChange"]>().parameters.toEqualTypeOf<
+    [PaymentMethod]
+  >();
 });
