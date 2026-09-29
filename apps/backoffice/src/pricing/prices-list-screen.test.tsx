@@ -1300,6 +1300,28 @@ test("retrying a list narrowed by a chosen category loads it again from its plac
   await expect.element(screen.getByText("Arroz")).toBeVisible();
 });
 
+test("shows the blank empty state under Por revisar when the catalog has no active products", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: {
+      products: [],
+      pendingCount: 0,
+      activeProductCount: 0,
+      reviewWindowDays: 30,
+      categories: [],
+    },
+  });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
+  await expect
+    .element(screen.getByText("Creá uno en Productos para ponerle precio."))
+    .toBeVisible();
+  expect(screen.getByText("Precios al día").query()).toBeNull();
+});
+
 test("the Revisar action is disabled while the list loads, and after it fails to load", async () => {
   const services = createServices();
   const firstLoad = deferred<Awaited<ReturnType<PricesListScreenServices["fetchPrices"]>>>();
@@ -1344,6 +1366,7 @@ test.each([
   {
     applied: "no filter",
     filters: {},
+    activeProductCount: 0,
     empty: "No hay productos activos",
     detail: "Creá uno en Productos para ponerle precio.",
     absent: "Sin resultados",
@@ -1351,6 +1374,7 @@ test.each([
   {
     applied: "a category filter",
     filters: { category: "cat-1" },
+    activeProductCount: 3,
     empty: "Sin resultados",
     detail: "Probá con otro nombre o categoría.",
     absent: "No hay productos activos",
@@ -1358,20 +1382,37 @@ test.each([
   {
     applied: "a search",
     filters: { search: "zzz" },
+    activeProductCount: 3,
     empty: "Sin resultados",
     detail: "Probá con otro nombre o categoría.",
     absent: "No hay productos activos",
   },
+  {
+    applied: "a search and no active products",
+    filters: { search: "zzz" },
+    activeProductCount: 0,
+    empty: "No hay productos activos",
+    detail: "Creá uno en Productos para ponerle precio.",
+    absent: "Sin resultados",
+  },
+  {
+    applied: "a category filter and no active products",
+    filters: { category: "cat-1" },
+    activeProductCount: 0,
+    empty: "No hay productos activos",
+    detail: "Creá uno en Productos para ponerle precio.",
+    absent: "Sin resultados",
+  },
 ])(
   "an empty list of every product with $applied shows $empty",
-  async ({ filters, empty, detail, absent }) => {
+  async ({ filters, activeProductCount, empty, detail, absent }) => {
     const services = createServices();
     vi.mocked(services.fetchPrices).mockResolvedValue({
       kind: "ok",
       value: {
         products: [],
         pendingCount: 0,
-        activeProductCount: 3,
+        activeProductCount,
         reviewWindowDays: 30,
         categories: [{ id: "cat-1", name: "Almacén" }],
       },
