@@ -17,22 +17,27 @@ import {
   KeyRound,
   Pencil,
   Plus,
+  Search,
   ShieldX,
   TriangleAlert,
   UserCheck,
   UserPlus,
+  Users,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { cloudTableState } from "../platform/cloud-table-state";
+import { combineCloudData } from "../platform/combine-cloud-data";
 import { retryAfterDetail } from "../platform/retry-after-detail";
+import type { CloudData } from "../platform/use-cloud-query";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
+import { useRefreshAccess, useRolesQuery, useUsersQuery } from "./access-queries";
 import { useAuthorization } from "./authorization-modal";
 import { type BackofficeAccess, canReactivateUser } from "./backoffice-access";
 import { validateEmail } from "./email-validation";
 import { roleDisplayName, roleOptions } from "./role-display";
-import type { fetchRoles } from "./roles-api";
 import type { UsersListFilters } from "./routes";
 import { useSendToMyAccount } from "./send-to-my-account";
 import type { authorizeSession, fetchSessionAuthorizationOptions } from "./session-api";
@@ -53,11 +58,8 @@ export type UsersListScreenProps = {
   services: UsersListScreenServices;
 };
 
-type ListState =
-  | { kind: "loading" }
-  | { kind: "loadError" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "loaded"; users: BranchUser[] };
+const NO_USERS: BranchUser[] = [];
+const NO_ROLES: BranchUserRole[] = [];
 
 const NAME_REQUIRED = "Ingresá el nombre.";
 const EMAIL_REQUIRED = "Ingresá el correo.";
@@ -350,62 +352,60 @@ function NewUserModal({
   );
 }
 
-export function UsersListScreen({
+export function UsersListScreen(props: UsersListScreenProps) {
+  return props.access.isAdministrator ? (
+    <AdministratorUsersList {...props} />
+  ) : (
+    <ReaderUsersList {...props} />
+  );
+}
+
+function AdministratorUsersList(props: UsersListScreenProps) {
+  const { fetchUsers, fetchRoles } = props.services;
+  const { onSessionEnded } = props;
+  const data = combineCloudData(
+    useUsersQuery({ fetchUsers, onSessionEnded }),
+    useRolesQuery({ fetchRoles, onSessionEnded }),
+  );
+  const [users, roles] = data.status === "loaded" ? data.value : [NO_USERS, NO_ROLES];
+  return <UsersListView {...props} data={data} users={users} roles={roles} />;
+}
+
+function ReaderUsersList(props: UsersListScreenProps) {
+  const { fetchUsers } = props.services;
+  const data = useUsersQuery({ fetchUsers, onSessionEnded: props.onSessionEnded });
+  return (
+    <UsersListView
+      {...props}
+      data={data}
+      users={data.status === "loaded" ? data.value : NO_USERS}
+      roles={NO_ROLES}
+    />
+  );
+}
+
+type UsersListViewProps = UsersListScreenProps & {
+  data: CloudData<unknown>;
+  users: BranchUser[];
+  roles: BranchUserRole[];
+};
+
+function UsersListView({
   filters,
   onFiltersChange,
   access,
   onSessionEnded,
   services,
-}: UsersListScreenProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  data,
+  users,
+  roles,
+}: UsersListViewProps) {
   const navigate = useNavigate();
-  const {
-    fetchUsers,
-    fetchRoles,
-    createUser,
-    fetchSessionAuthorizationOptions,
-    authorizeSession,
-    startAuthentication,
-  } = services;
-  const [list, setList] = useState<ListState>({ kind: "loading" });
-  const [roles, setRoles] = useState<BranchUserRole[]>([]);
+  const { createUser, fetchSessionAuthorizationOptions, authorizeSession, startAuthentication } =
+    services;
+  const refreshAccess = useRefreshAccess();
   const [modalOpen, setModalOpen] = useState(false);
-  const onSessionEndedRef = useLatestRef(onSessionEnded);
   const onFiltersChangeRef = useLatestRef(onFiltersChange);
-
-  const canReadRoles = access.isAdministrator;
-  const load = useCallback(async () => {
-    setList({ kind: "loading" });
-    const noRolesNeeded: Awaited<ReturnType<typeof fetchRoles>> = { kind: "ok", value: [] };
-    const [usersOutcome, rolesOutcome] = await Promise.all([
-      fetchUsers(),
-      canReadRoles ? fetchRoles() : Promise.resolve(noRolesNeeded),
-    ]);
-    const outcomes = [usersOutcome, rolesOutcome];
-    if (outcomes.some((outcome) => outcome.kind === "unauthenticated")) {
-      onSessionEndedRef.current();
-      return;
-    }
-    const rateLimited = outcomes.flatMap((outcome) =>
-      outcome.kind === "rate_limited" ? [outcome.retryAfterSeconds] : [],
-    );
-    if (rateLimited.length > 0) {
-      setList({ kind: "rate_limited", retryAfterSeconds: Math.max(...rateLimited) });
-    } else if (outcomes.some((outcome) => outcome.kind === "forbidden")) {
-      sendToMyAccount();
-    } else if (usersOutcome.kind === "ok" && rolesOutcome.kind === "ok") {
-      setRoles(rolesOutcome.value);
-      setList({ kind: "loaded", users: usersOutcome.value });
-    } else {
-      setList({ kind: "loadError" });
-    }
-  }, [fetchUsers, fetchRoles, canReadRoles, onSessionEndedRef, sendToMyAccount]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  const users = list.kind === "loaded" ? list.users : [];
 
   // The cloud only ever returns a deactivated user to a caller who can reactivate one.
   const showsState = canReactivateUser(access);
@@ -423,14 +423,12 @@ export function UsersListScreen({
     }
   }, [stateFilter, filters, onFiltersChangeRef]);
 
-  const filteredUsers = useMemo(() => {
-    if (!showsState || stateFilter === "all") {
-      return users;
-    }
-    return users.filter((user) =>
-      stateFilter === "active" ? user.active !== false : user.active === false,
-    );
-  }, [users, showsState, stateFilter]);
+  const filteredUsers =
+    !showsState || stateFilter === "all"
+      ? users
+      : users.filter((user) =>
+          stateFilter === "active" ? user.active !== false : user.active === false,
+        );
 
   const baseColumns = [
     {
@@ -494,7 +492,7 @@ export function UsersListScreen({
               <Button
                 variant="primary"
                 icon={<Plus />}
-                disabled={list.kind !== "loaded" || roles.length === 0}
+                dataStatus={data.status}
                 onPress={() => setModalOpen(true)}
               >
                 Nuevo usuario
@@ -504,60 +502,47 @@ export function UsersListScreen({
         }
         bodyClassName="gap-4 p-6"
       >
-        {list.kind === "loadError" && (
-          <>
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No pudimos abrir los usuarios"
-              description="Probá de nuevo en unos minutos."
+        {showsState && (
+          <div className="flex items-center gap-3">
+            <ListFilter
+              label="Estado:"
+              options={stateFilterOptions}
+              value={stateFilter}
+              onChange={setStateFilter}
             />
-            <Button variant="secondary" onPress={() => void load()}>
-              Reintentar
-            </Button>
-          </>
+          </div>
         )}
-        {list.kind === "rate_limited" && (
-          <>
-            <InlineNotice
-              tone="error"
-              icon={<ShieldX />}
-              title="Demasiadas solicitudes"
-              description={retryAfterDetail(list.retryAfterSeconds)}
-            />
-            <Button variant="secondary" onPress={() => void load()}>
-              Reintentar
-            </Button>
-          </>
-        )}
-        {(list.kind === "loading" || list.kind === "loaded") && (
-          <>
-            {showsState && (
-              <div className="flex items-center gap-3">
-                <ListFilter
-                  label="Estado:"
-                  options={stateFilterOptions}
-                  value={stateFilter}
-                  onChange={setStateFilter}
-                />
-              </div>
-            )}
-            <Table
-              aria-label="Usuarios"
-              columns={columns}
-              loading={list.kind === "loading" ? "initial" : false}
-              rows={filteredUsers.map((user) => ({ id: user.id, item: user }))}
-              footer={
-                <p className="text-text-subtle text-detail">
-                  {plural(filteredUsers.length, {
-                    one: "1 usuario",
-                    other: `${filteredUsers.length} usuarios`,
-                  })}
-                </p>
-              }
-            />
-          </>
-        )}
+        <Table
+          aria-label="Usuarios"
+          columns={columns}
+          {...cloudTableState(data, "los usuarios")}
+          rows={filteredUsers.map((user) => ({ id: user.id, item: user }))}
+          empty={
+            users.length === 0
+              ? {
+                  icon: <Users />,
+                  title: "Todavía no hay usuarios",
+                  description: "Los usuarios que se creen van a aparecer acá.",
+                  variant: "blank",
+                }
+              : {
+                  icon: <Search />,
+                  title: "Sin resultados",
+                  description: "Probá con otro estado.",
+                  variant: "filtered",
+                }
+          }
+          footer={
+            filteredUsers.length === 0 ? undefined : (
+              <p className="text-text-subtle text-detail">
+                {plural(filteredUsers.length, {
+                  one: "1 usuario",
+                  other: `${filteredUsers.length} usuarios`,
+                })}
+              </p>
+            )
+          }
+        />
       </ScreenLayout>
       <NewUserModal
         open={modalOpen}
@@ -565,7 +550,7 @@ export function UsersListScreen({
         onClose={() => setModalOpen(false)}
         onCreated={() => {
           setModalOpen(false);
-          void load();
+          void refreshAccess();
         }}
         onReactivate={({ id }) => {
           setModalOpen(false);

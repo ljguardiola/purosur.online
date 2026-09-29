@@ -183,7 +183,7 @@ describe("GET /alerts/:id", () => {
       deliveries: {
         channel: string;
         status: string;
-        recipient: { id: string; first_name: string; role: { name: string | null } };
+        recipient: { id: string; firstName: string; role: { name: string | null } };
       }[];
     };
     expect(body).toMatchObject({
@@ -196,14 +196,14 @@ describe("GET /alerts/:id", () => {
         channel: "backoffice",
         status: "sent",
         error: null,
-        created_at: expect.any(String),
+        createdAt: expect.any(String),
         recipient: {
           id: viewerId,
-          first_name: "Grace",
+          firstName: "Grace",
           role: {
             id: viewerRoleId,
             name: expect.stringContaining("supervisor"),
-            is_administrator: false,
+            isAdministrator: false,
           },
         },
       },
@@ -239,8 +239,8 @@ describe("GET /alerts/:id", () => {
 
     expect(response.statusCode).toBe(200);
     const recipientNames = (
-      response.json() as { deliveries: { recipient: { first_name: string } }[] }
-    ).deliveries.map((delivery) => delivery.recipient.first_name);
+      response.json() as { deliveries: { recipient: { firstName: string } }[] }
+    ).deliveries.map((delivery) => delivery.recipient.firstName);
     expect(recipientNames).toEqual(["Primera", "Segunda", "Tercera"]);
   });
 
@@ -300,10 +300,10 @@ describe("GET /alerts/:id", () => {
 
     expect(response.statusCode).toBe(200);
     const body = response.json() as {
-      scope_display: string;
+      scopeDisplay: string;
       detail: { actorId: string; actorName?: string };
     };
-    expect(body.scope_display).toBe("Lucía");
+    expect(body.scopeDisplay).toBe("Lucía");
     expect(body.detail.actorName).toBe("Ada");
   });
 });

@@ -1,11 +1,13 @@
+import type { AlertDetail, AlertListPage, AlertSummary } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { notifyManager } from "@tanstack/react-query";
 import { act } from "react";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { BackofficeAccess } from "../access/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
-import type { AlertDetail, AlertListPage, AlertSummary, FetchAlertsOutcome } from "./alerts-api";
+import type { FetchAlertsOutcome } from "./alerts-api";
 import { AlertsListScreen } from "./alerts-list-screen";
 import type { AlertsListScreenServices } from "./alerts-list-services";
 import { type AlertsListFilters, alertsListFilters } from "./routes";
@@ -80,6 +82,14 @@ function ok(
   };
 }
 
+function deferred<T>() {
+  let resolve: (value: T) => void = () => {};
+  const promise = new Promise<T>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
+
 function renderScreen(
   services: AlertsListScreenServices,
   onSessionEnded: () => void = () => {},
@@ -136,6 +146,46 @@ test("hides the header pill and shows the blank empty state when there are no op
 
   await expect.element(screen.getByText("Sin alertas abiertas")).toBeVisible();
   expect(screen.getByText("alertas abiertas").query()).toBeNull();
+});
+
+test("shows no counts line under the empty state, which already says nothing is open", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(ok([]));
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("Sin alertas abiertas")).toBeVisible();
+  expect(screen.getByText("0 alertas abiertas · 0 críticas").query()).toBeNull();
+  expect(screen.getByRole("navigation", { name: "Páginas de alertas" }).query()).toBeNull();
+});
+
+test("shows the filtered empty state, without a counts line, when the filters hide every alert", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(ok([]));
+
+  const screen = await renderScreen(services, () => {}, ADMINISTRATOR_ACCESS, {
+    filters: { ...alertsListFilters.parse({}), level: "critical" },
+  });
+
+  await expect.element(screen.getByText("No encontramos alertas")).toBeVisible();
+  expect(screen.getByText("0 alertas abiertas · 0 críticas").query()).toBeNull();
+});
+
+test("shows the table loading until the first alerts arrive", async () => {
+  const services = createServices();
+  const firstLoad = deferred<FetchAlertsOutcome>();
+  vi.mocked(services.fetchAlerts).mockReturnValue(firstLoad.promise);
+
+  const screen = await renderScreen(services);
+
+  await expect
+    .element(screen.getByRole("table", { name: "Alertas" }))
+    .toHaveAttribute("aria-busy", "true");
+  firstLoad.resolve(ok([passkeyAlert]));
+  await expect.element(screen.getByText("Lucía Pérez")).toBeVisible();
+  await expect
+    .element(screen.getByRole("table", { name: "Alertas" }))
+    .not.toHaveAttribute("aria-busy");
 });
 
 test("makes one request per load, carrying the open-alert counts beyond the rows shown", async () => {
@@ -195,6 +245,7 @@ test("pages through the alerts, going back to the first page when a filter chang
 
 test("keeps a page chosen right after opening once the untouched search settles", async () => {
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  notifyManager.setScheduler(queueMicrotask);
   try {
     const services = createServices();
     vi.mocked(services.fetchAlerts).mockResolvedValue(ok([passkeyAlert], { total: 30 }));
@@ -207,7 +258,6 @@ test("keeps a page chosen right after opening once the untouched search settles"
       .toContainEqual([{ open: true, page: 2 }]);
     await vi.advanceTimersByTimeAsync(300);
 
-    // Only setTimeout/clearTimeout are faked, so React's re-render still settles over real frames.
     await expect
       .element(screen.getByRole("button", { name: "Página 2" }))
       .toHaveAttribute("aria-current", "page");
@@ -216,6 +266,7 @@ test("keeps a page chosen right after opening once the untouched search settles"
       [{ open: true, page: 2 }],
     ]);
   } finally {
+    notifyManager.setScheduler((callback) => setTimeout(callback, 0));
     vi.useRealTimers();
   }
 });
@@ -378,6 +429,104 @@ test("shows a load error with a retry action when the alerts fail to load", asyn
   await expect.element(screen.getByText("Lucía Pérez")).toBeVisible();
 });
 
+test("keeps the search and the filters available when the alerts fail to load", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValueOnce({ kind: "failed" });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("No pudimos abrir las alertas")).toBeVisible();
+  await expect.element(screen.getByPlaceholder("Buscar una alerta")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: /Nivel/ })).toBeVisible();
+});
+
+test("retrying a failed load starts again from the loading state", async () => {
+  const services = createServices();
+  const retry = deferred<FetchAlertsOutcome>();
+  vi.mocked(services.fetchAlerts)
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockReturnValueOnce(retry.promise);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No pudimos abrir las alertas")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText("No pudimos abrir las alertas")).not.toBeInTheDocument();
+  await expect
+    .element(screen.getByRole("table", { name: "Alertas" }))
+    .toHaveAttribute("aria-busy", "true");
+  retry.resolve(ok([passkeyAlert]));
+  await expect.element(screen.getByText("Lucía Pérez")).toBeVisible();
+});
+
+test("reads the alerts again after one is closed, keeping the rows shown while it does", async () => {
+  const services = createServices();
+  const refresh = deferred<FetchAlertsOutcome>();
+  vi.mocked(services.fetchAlerts)
+    .mockResolvedValueOnce(ok([passkeyAlert, lockoutAlert]))
+    .mockReturnValueOnce(refresh.promise);
+  services.alertDetailModal = {
+    fetchAlert: vi.fn().mockResolvedValue({ kind: "ok", value: passkeyDetail }),
+    closeAlert: vi.fn().mockResolvedValue({ kind: "ok" }),
+  };
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("203.0.113.5")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: /Ver la alerta «Passkey»/ }));
+  await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeEnabled();
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar la alerta" }));
+
+  await expect
+    .element(screen.getByRole("table", { name: "Alertas" }))
+    .toHaveAttribute("aria-busy", "true");
+  expect(screen.getByText("203.0.113.5").query()).not.toBeNull();
+  refresh.resolve(ok([lockoutAlert]));
+  await expect.element(screen.getByText("Lucía Pérez")).not.toBeInTheDocument();
+  expect(services.fetchAlerts).toHaveBeenCalledTimes(2);
+  expect(services.fetchAlerts).toHaveBeenLastCalledWith({ open: true, page: 1 });
+  expect(services.alertDetailModal.fetchAlert).toHaveBeenCalledTimes(1);
+});
+
+test("never shows an alert the person just closed as still open when it is opened again", async () => {
+  const services = createServices();
+  const closedPasskeyAlert = { ...passkeyAlert, resolvedAt: "2026-01-06T09:00:00.000Z" };
+  vi.mocked(services.fetchAlerts).mockImplementation(async (query) =>
+    query?.open === false ? ok([closedPasskeyAlert]) : ok([passkeyAlert]),
+  );
+  const reread = deferred<{ kind: "ok"; value: AlertDetail }>();
+  services.alertDetailModal = {
+    fetchAlert: vi
+      .fn()
+      .mockResolvedValueOnce({ kind: "ok", value: passkeyDetail })
+      .mockReturnValueOnce(reread.promise),
+    closeAlert: vi.fn().mockResolvedValue({ kind: "ok" }),
+  };
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: /Ver la alerta «Passkey»/ }));
+  await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeEnabled();
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar la alerta" }));
+  await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+  await screen.getByRole("button", { name: /Estado/ }).click();
+  await screen.getByRole("option", { name: "Cerradas" }).click();
+  await expect
+    .poll(() => vi.mocked(services.fetchAlerts).mock.calls.at(-1))
+    .toEqual([{ open: false, page: 1 }]);
+
+  await userEvent.click(screen.getByRole("button", { name: /Ver la alerta «Passkey»/ }));
+
+  await expect.element(screen.getByRole("dialog")).toBeVisible();
+  expect(services.alertDetailModal.fetchAlert).toHaveBeenCalledTimes(2);
+  expect(screen.getByText("No se cierra sola", { exact: false }).query()).toBeNull();
+  await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeDisabled();
+  reread.resolve({
+    kind: "ok",
+    value: { ...passkeyDetail, resolvedAt: "2026-01-06T09:00:00.000Z" },
+  });
+  await expect
+    .element(screen.getByRole("button", { name: "Cerrar la alerta" }))
+    .not.toBeInTheDocument();
+});
+
 test("moves to the last page left when closing the only alert on the last page empties it", async () => {
   const services = createServices();
   let closed = false;
@@ -391,7 +540,7 @@ test("moves to the last page left when closing the only alert on the last page e
     fetchAlert: vi.fn().mockResolvedValue({ kind: "ok", value: passkeyDetail }),
     closeAlert: vi.fn().mockImplementation(async () => {
       closed = true;
-      return { kind: "ok", value: { ...passkeyDetail, resolvedAt: "2026-01-05T13:00:00.000Z" } };
+      return { kind: "ok" };
     }),
   };
   const screen = await renderScreen(services);
@@ -404,7 +553,53 @@ test("moves to the last page left when closing the only alert on the last page e
 
   await expect.element(screen.getByText("203.0.113.5")).toBeVisible();
   expect(services.alertDetailModal.fetchAlert).toHaveBeenCalledWith("alert-1");
-  expect(vi.mocked(services.fetchAlerts).mock.calls.at(-1)).toEqual([{ open: true, page: 1 }]);
+  await expect
+    .poll(() => vi.mocked(services.fetchAlerts).mock.calls.at(-1))
+    .toEqual([{ open: true, page: 1 }]);
+  expect(screen.getByText("Sin alertas abiertas").query()).toBeNull();
+});
+
+test("never shows the emptied last page as empty while it moves to the last page left", async () => {
+  const services = createServices();
+  let closed = false;
+  const lastPageLeft = deferred<FetchAlertsOutcome>();
+  vi.mocked(services.fetchAlerts).mockImplementation(async (query) => {
+    if (query?.page === 2) {
+      return closed ? ok([], { total: 25, openCount: 25 }) : ok([passkeyAlert], { total: 26 });
+    }
+    return closed ? lastPageLeft.promise : ok([lockoutAlert], { total: 26, openCount: 26 });
+  });
+  services.alertDetailModal = {
+    fetchAlert: vi.fn().mockResolvedValue({ kind: "ok", value: passkeyDetail }),
+    closeAlert: vi.fn().mockImplementation(async () => {
+      closed = true;
+      return { kind: "ok" };
+    }),
+  };
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("203.0.113.5")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Página 2" }));
+  await expect.element(screen.getByText("Lucía Pérez")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: /Ver la alerta/ }));
+  await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeEnabled();
+  let emptyStateShown = false;
+  const observer = new MutationObserver((records) => {
+    emptyStateShown ||= records.some((record) =>
+      Array.from(record.addedNodes).some((node) =>
+        node.textContent?.includes("Sin alertas abiertas"),
+      ),
+    );
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar la alerta" }));
+  await expect
+    .poll(() => vi.mocked(services.fetchAlerts).mock.calls.at(-1))
+    .toEqual([{ open: true, page: 1 }]);
+  await act(async () => {});
+  observer.disconnect();
+
+  expect(emptyStateShown).toBe(false);
   expect(screen.getByText("Sin alertas abiertas").query()).toBeNull();
 });
 
@@ -416,6 +611,7 @@ test("shows a rate-limited notice with a retry action", async () => {
   });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
+  await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
 
   vi.mocked(services.fetchAlerts).mockResolvedValueOnce(ok([passkeyAlert]));
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));

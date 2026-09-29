@@ -1,4 +1,7 @@
-import { sessionAuthorizationBodySchema } from "@purosur/contracts";
+import {
+  sessionAuthorizationBodySchema,
+  sessionAuthorizationOptionsSchema,
+} from "@purosur/contracts";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
 import { generateAuthenticationOptions } from "@simplewebauthn/server";
 import { eq } from "drizzle-orm";
@@ -75,7 +78,11 @@ export function registerSessionAuthorizationRoutes<TQueryResult extends PgQueryR
         now: issuedAt,
       });
 
-      await reply.code(200).send({ authorization_options: authorizationOptions });
+      await reply
+        .code(200)
+        .send(
+          sessionAuthorizationOptionsSchema.parse({ authorization_options: authorizationOptions }),
+        );
     },
   );
 

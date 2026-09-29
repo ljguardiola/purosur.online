@@ -1,3 +1,4 @@
+import { passkeyListSchema } from "@purosur/contracts";
 import { asc, eq } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -62,12 +63,14 @@ export function registerUserPasskeysListRoute<TQueryResult extends PgQueryResult
         .orderBy(asc(passkeys.createdAt));
 
       await reply.code(200).send(
-        rows.map((row) => ({
-          id: row.id,
-          name: row.name,
-          created_at: row.createdAt.toISOString(),
-          last_used_at: row.lastUsedAt ? row.lastUsedAt.toISOString() : null,
-        })),
+        passkeyListSchema.parse(
+          rows.map((row) => ({
+            id: row.id,
+            name: row.name,
+            created_at: row.createdAt.toISOString(),
+            last_used_at: row.lastUsedAt ? row.lastUsedAt.toISOString() : null,
+          })),
+        ),
       );
     },
   );

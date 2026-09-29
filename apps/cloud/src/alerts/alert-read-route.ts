@@ -1,3 +1,4 @@
+import { type AlertDetail, alertDetailSchema } from "@purosur/contracts";
 import type { AlertAudience, AlertLevel } from "@purosur/domain";
 import { and, asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -59,32 +60,6 @@ export interface AlertDeliveryRow {
   recipientRoleIsAdministrator: boolean;
 }
 
-interface AlertDeliveryWire {
-  channel: string;
-  status: string;
-  error: string | null;
-  created_at: string;
-  recipient: {
-    id: string;
-    first_name: string;
-    role: { id: string; name: string | null; is_administrator: boolean };
-  };
-}
-
-export interface AlertDetailWire {
-  id: string;
-  kind: string;
-  scope: string | null;
-  scope_display: string | null;
-  level: AlertLevel;
-  audience: AlertAudience;
-  detail: Record<string, unknown>;
-  opened_at: string;
-  escalated_at: string | null;
-  resolved_at: string | null;
-  deliveries: AlertDeliveryWire[];
-}
-
 function detailWithActorName(
   detail: Record<string, unknown>,
   namesByUserId: ReadonlyMap<string, string>,
@@ -97,19 +72,19 @@ function detailWithActorName(
   return actorName === undefined ? detail : { ...detail, actorName };
 }
 
-function toAlertDeliveryWire(row: AlertDeliveryRow): AlertDeliveryWire {
+function toAlertDelivery(row: AlertDeliveryRow): AlertDetail["deliveries"][number] {
   return {
     channel: row.channel,
     status: row.status,
     error: row.error,
-    created_at: row.createdAt.toISOString(),
+    createdAt: row.createdAt.toISOString(),
     recipient: {
       id: row.recipientId,
-      first_name: row.recipientFirstName,
+      firstName: row.recipientFirstName,
       role: {
         id: row.recipientRoleId,
         name: row.recipientRoleName,
-        is_administrator: row.recipientRoleIsAdministrator,
+        isAdministrator: row.recipientRoleIsAdministrator,
       },
     },
   };
@@ -123,24 +98,24 @@ function detailWithoutSourceAddressHash(alert: AlertDetailRow): Record<string, u
   return rest;
 }
 
-export function toAlertDetailWire(
+export function toAlertDetailBody(
   alert: AlertDetailRow,
   deliveries: AlertDeliveryRow[],
   namesByUserId: ReadonlyMap<string, string>,
-): AlertDetailWire {
-  return {
+): AlertDetail {
+  return alertDetailSchema.parse({
     id: alert.id,
     kind: alert.kind,
     scope: wireScope(alert),
-    scope_display: scopeDisplay(alert, namesByUserId),
+    scopeDisplay: scopeDisplay(alert, namesByUserId),
     level: alert.level,
     audience: alert.audience,
     detail: detailWithActorName(detailWithoutSourceAddressHash(alert), namesByUserId),
-    opened_at: alert.openedAt.toISOString(),
-    escalated_at: alert.escalatedAt?.toISOString() ?? null,
-    resolved_at: alert.resolvedAt?.toISOString() ?? null,
-    deliveries: deliveries.map(toAlertDeliveryWire),
-  };
+    openedAt: alert.openedAt.toISOString(),
+    escalatedAt: alert.escalatedAt?.toISOString() ?? null,
+    resolvedAt: alert.resolvedAt?.toISOString() ?? null,
+    deliveries: deliveries.map(toAlertDelivery),
+  });
 }
 
 export async function findAlertById<TQueryResult extends PgQueryResultHKT>(
@@ -225,7 +200,7 @@ export function registerAlertReadRoute<TQueryResult extends PgQueryResultHKT>(
 
       const deliveries = await listAlertDeliveries(options.db, alert.id);
       const namesByUserId = await loadScopeDisplayNames(options.db, userIdsToResolve(alert));
-      await reply.code(200).send(toAlertDetailWire(alert, deliveries, namesByUserId));
+      await reply.code(200).send(toAlertDetailBody(alert, deliveries, namesByUserId));
     },
   );
 }
