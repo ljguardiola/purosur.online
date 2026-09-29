@@ -44,6 +44,23 @@ export default defineConfig(({ mode }) => {
     ],
     build: {
       outDir: "dist",
+      rolldownOptions: {
+        output: {
+          codeSplitting: {
+            // The design system modules the entry needs are claimed first, so the lazy group only
+            // takes the ones screens need; one lazy chunk compresses better than a chunk per screen.
+            groups: [
+              {
+                name: "initial",
+                tags: ["$initial"],
+                test: /[\\/](?:node_modules|packages[\\/]ui[\\/]src)[\\/]/,
+                priority: 2,
+              },
+              { name: "ui", test: /[\\/]packages[\\/]ui[\\/]src[\\/]/, priority: 1 },
+            ],
+          },
+        },
+      },
     },
     server: {
       // Every cloud API path is forwarded through this Vite origin, so the cloud's Origin check
