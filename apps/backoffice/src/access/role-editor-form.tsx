@@ -8,25 +8,7 @@ import {
 import { Checkbox, Focusable, RadioGroup, Tag, Tooltip } from "@purosur/ui";
 import { KeyRound } from "lucide-react";
 import type { ReactNode } from "react";
-import { PERMISSION_LABELS } from "./permission-labels";
-
-const AREA_LABELS = {
-  cashRegister: "Caja",
-  sale: "Venta",
-  returns: "Devoluciones",
-  checkout: "Cobro",
-  stock: "Stock",
-  purchasing: "Compras",
-  catalog: "Catálogo",
-  assembledProducts: "Productos armados",
-  users: "Usuarios",
-  fiscal: "Fiscal",
-  reports: "Reportes",
-  alerts: "Alertas",
-  devices: "Dispositivos",
-  backups: "Backups",
-  branch: "Sucursal",
-} satisfies Record<PermissionArea, string>;
+import { AREA_LABELS, PERMISSION_LABELS } from "./permission-labels";
 
 type AlertsViewOption = "none" | "view_branch_alerts" | "view_all_alerts";
 const ALERTS_RADIO_OPTIONS: readonly [

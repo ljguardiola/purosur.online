@@ -189,6 +189,32 @@ describe("assigning a role while that role's permissions change, on a real Postg
   });
 });
 
+describe("assigning a role while that role's edit writes rows naming the person, on a real Postgres", () => {
+  it("waits for the role edit instead of deadlocking with it", async () => {
+    const previousRoleId = await insertRole(["sell_and_charge"]);
+    const editedRoleId = await insertRole(["sell_and_charge"]);
+    const userId = await insertUser(previousRoleId);
+
+    const holder = await sql.reserve();
+    let assignment: ReturnType<typeof assignRole> | undefined;
+    try {
+      await holder`begin`;
+      await holder`select id from roles where id = ${editedRoleId} for update`;
+      assignment = assignRole(userId, editedRoleId);
+      await waitForLockWaiters(sql, 1);
+      await holder`insert into audit_log (entity, entity_id, actor_id, previous_value, new_value)
+        values ('role', ${editedRoleId}, ${userId}, '{}', '{}')`;
+      await holder`commit`;
+    } finally {
+      holder.release();
+    }
+
+    const response = await assignment;
+    expect(response.statusCode).toBe(200);
+    expect(await roleOf(userId)).toBe(editedRoleId);
+  });
+});
+
 describe("an alert for increased access that fails to open, on a real Postgres", () => {
   beforeAll(async () => {
     await admin.unsafe(`

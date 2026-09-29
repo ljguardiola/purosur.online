@@ -174,6 +174,26 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
             return { kind: "stale_version" };
           }
 
+          // Every role change holds the Administrator role lock taken above, so this read can't
+          // change before the user row is locked below.
+          const [currentUserRole] = await tx
+            .select({ roleId: userRoles.roleId })
+            .from(userRoles)
+            .where(eq(userRoles.userId, target.id));
+          if (!currentUserRole) {
+            return { kind: "stale_version" };
+          }
+
+          const roleChanged = currentUserRole.roleId !== requestedRole.id;
+          // Taken before the user row lock: a role edit holding one of these roles writes rows
+          // that reference users, which would wait on a user row this transaction already locked.
+          const roleAccessChange = roleChanged
+            ? {
+                previousRole: await lockRoleWithPermissions(tx, currentUserRole.roleId),
+                newRole: await lockRoleWithPermissions(tx, requestedRole.id),
+              }
+            : undefined;
+
           // Locks this one user row so a concurrent edit against the same user waits instead of
           // racing: the version check below runs against a value that can't change under it.
           const [currentUser] = await tx
@@ -182,14 +202,6 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
             .where(eq(users.id, target.id))
             .for("update");
           if (!currentUser || currentUser.version !== parsedBody.version) {
-            return { kind: "stale_version" };
-          }
-
-          const [currentUserRole] = await tx
-            .select({ roleId: userRoles.roleId })
-            .from(userRoles)
-            .where(eq(userRoles.userId, target.id));
-          if (!currentUserRole) {
             return { kind: "stale_version" };
           }
 
@@ -213,7 +225,6 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
           }
 
           const emailChanged = currentUser.email !== parsedBody.email;
-          const roleChanged = currentUserRole.roleId !== requestedRole.id;
           if (emailChanged || roleChanged) {
             await tx
               .update(users)
@@ -260,10 +271,8 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
             );
           }
 
-          if (roleChanged) {
-            const previousRole = await lockRoleWithPermissions(tx, currentUserRole.roleId);
-            const newRole = await lockRoleWithPermissions(tx, requestedRole.id);
-
+          if (roleAccessChange) {
+            const { previousRole, newRole } = roleAccessChange;
             await tx
               .update(userRoles)
               .set({ roleId: requestedRole.id })

@@ -1,5 +1,11 @@
 import type { AlertDetail } from "@purosur/contracts";
-import { type AlertLevel, ARGENTINA_TIME_ZONE, isPermissionKey } from "@purosur/domain";
+import {
+  type AlertLevel,
+  ARGENTINA_TIME_ZONE,
+  isPermissionKey,
+  PERMISSION_CATALOG,
+  type PermissionKey,
+} from "@purosur/domain";
 import {
   Button,
   EmptyState,
@@ -26,7 +32,7 @@ import {
 } from "lucide-react";
 import { type ReactElement, useState } from "react";
 import { type BackofficeAccess, canCloseAlertsManually } from "../access/backoffice-access";
-import { PERMISSION_LABELS } from "../access/permission-labels";
+import { AREA_LABELS, PERMISSION_LABELS } from "../access/permission-labels";
 import { roleDisplayName } from "../access/role-display";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
@@ -149,11 +155,18 @@ function roleName(role: unknown): string | undefined {
   return roleDisplayName({ isAdministrator, name });
 }
 
+// Many permission labels only read clearly under their area's heading, as the role editor shows them.
+function permissionLabelWithArea(key: PermissionKey): string {
+  const definition = PERMISSION_CATALOG.find((permission) => permission.key === key);
+  const label = PERMISSION_LABELS[key];
+  return definition ? `${AREA_LABELS[definition.area]}: ${label}` : label;
+}
+
 function permissionLabels(keys: unknown): string[] | undefined {
   if (!Array.isArray(keys) || keys.length === 0 || !keys.every(isPermissionKey)) {
     return undefined;
   }
-  return keys.map((key) => `«${PERMISSION_LABELS[key]}»`);
+  return keys.map((key) => `«${permissionLabelWithArea(key)}»`);
 }
 
 const PERMISSION_LIST_FORMAT = new Intl.ListFormat("es-AR", { type: "conjunction" });
@@ -169,7 +182,7 @@ function accessIncreaseDescription(detail: Record<string, unknown>, targetName: 
     if (previousRoleName === undefined || newRoleName === undefined) {
       return "";
     }
-    return `El Administrador ${actorName} cambió el rol de ${targetName} de «${previousRoleName}» a «${newRoleName}», que le da más permisos.`;
+    return `El Administrador ${actorName} cambió el rol de ${targetName} de «${previousRoleName}» a «${newRoleName}», que le da permisos que no tenía.`;
   }
   if (cause === "role_permissions_added") {
     const { roleName: editedRoleName } = detail;

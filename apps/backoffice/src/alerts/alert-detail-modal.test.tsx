@@ -626,7 +626,7 @@ test("navigates to Mi cuenta when closing the alert comes back forbidden", async
   window.history.pushState(null, "", "/");
 });
 
-test("shows the description of a role change that gives more permissions", async () => {
+test("shows the description of a role change that gives permissions the user did not have", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
     ok(
@@ -650,7 +650,7 @@ test("shows the description of a role change that gives more permissions", async
   await expect
     .element(
       screen.getByText(
-        "El Administrador Ada cambió el rol de Lucía Pérez de «Cajera» a «Encargada», que le da más permisos.",
+        "El Administrador Ada cambió el rol de Lucía Pérez de «Cajera» a «Encargada», que le da permisos que no tenía.",
       ),
     )
     .toBeVisible();
@@ -679,7 +679,7 @@ test("shows the Administrator role by its name when someone is made Administrato
   await expect
     .element(
       screen.getByText(
-        "El Administrador Ada cambió el rol de Lucía Pérez de «Cajera» a «Administrador», que le da más permisos.",
+        "El Administrador Ada cambió el rol de Lucía Pérez de «Cajera» a «Administrador», que le da permisos que no tenía.",
       ),
     )
     .toBeVisible();
@@ -708,7 +708,7 @@ test("shows each permission added to the role the user holds", async () => {
   await expect
     .element(
       screen.getByText(
-        "El Administrador Ada agregó los permisos «Consultar el historial de ventas» y «Configurar la sucursal» al rol «Cajera», que tiene Lucía Pérez.",
+        "El Administrador Ada agregó los permisos «Caja: Consultar el historial de ventas» y «Sucursal: Configurar la sucursal» al rol «Cajera», que tiene Lucía Pérez.",
       ),
     )
     .toBeVisible();
@@ -737,7 +737,7 @@ test("shows a single permission added to the role the user holds", async () => {
   await expect
     .element(
       screen.getByText(
-        "El Administrador Ada agregó el permiso «Configurar la sucursal» al rol «Cajera», que tiene Lucía Pérez.",
+        "El Administrador Ada agregó el permiso «Sucursal: Configurar la sucursal» al rol «Cajera», que tiene Lucía Pérez.",
       ),
     )
     .toBeVisible();

@@ -1,4 +1,22 @@
-import type { PermissionKey } from "@purosur/domain";
+import type { PermissionArea, PermissionKey } from "@purosur/domain";
+
+export const AREA_LABELS = {
+  cashRegister: "Caja",
+  sale: "Venta",
+  returns: "Devoluciones",
+  checkout: "Cobro",
+  stock: "Stock",
+  purchasing: "Compras",
+  catalog: "Catálogo",
+  assembledProducts: "Productos armados",
+  users: "Usuarios",
+  fiscal: "Fiscal",
+  reports: "Reportes",
+  alerts: "Alertas",
+  devices: "Dispositivos",
+  backups: "Backups",
+  branch: "Sucursal",
+} satisfies Record<PermissionArea, string>;
 
 export const PERMISSION_LABELS = {
   sell_and_charge: "Vender y cobrar, incluido pesar a mano y abrir y cerrar su propia sesión",
