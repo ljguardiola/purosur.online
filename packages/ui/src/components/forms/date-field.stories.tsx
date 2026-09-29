@@ -8,6 +8,7 @@ import {
   playPseudoHoverPaintsBoneFill,
   playTabReachesFocusVisible,
   playWithClockAt,
+  type StoryPlayFunction,
 } from "../../test-support/story-interactions";
 import { DateField } from "./date-field";
 import { FieldSizeProvider } from "./field-size";
@@ -51,6 +52,12 @@ function monthPicker(): HTMLElement {
 
 function yearPicker(): HTMLElement {
   return within(document.body).getByRole("button", { name: /Año$/ });
+}
+
+const TODAY_OUTSIDE_SHOWN_MONTHS = "2026-06-15T12:00:00Z";
+
+function playWithTodayOutsideShownMonths(play: StoryPlayFunction): StoryPlayFunction {
+  return playWithClockAt(TODAY_OUTSIDE_SHOWN_MONTHS, play);
 }
 
 function calendarDay(day: string): HTMLElement {
@@ -107,25 +114,25 @@ export const CalendarToggleFocusVisible: Story = {
 
 export const CalendarOpen: Story = {
   args: { value: new CalendarDate(2027, 2, 28) },
-  play: playClickExpandsTrigger(toggle),
+  play: playWithTodayOutsideShownMonths(playClickExpandsTrigger(toggle)),
 };
 
 export const CalendarMonthPickerOpen: Story = {
   args: { value: new CalendarDate(2027, 2, 28) },
-  play: async ({ canvasElement }) => {
+  play: playWithTodayOutsideShownMonths(async ({ canvasElement }) => {
     await userEvent.click(toggle(canvasElement));
     await userEvent.click(monthPicker());
     await expect(monthPicker()).toHaveAttribute("aria-expanded", "true");
-  },
+  }),
 };
 
 export const CalendarYearPickerOpen: Story = {
   args: { value: new CalendarDate(2027, 2, 28) },
-  play: async ({ canvasElement }) => {
+  play: playWithTodayOutsideShownMonths(async ({ canvasElement }) => {
     await userEvent.click(toggle(canvasElement));
     await userEvent.click(yearPicker());
     await expect(yearPicker()).toHaveAttribute("aria-expanded", "true");
-  },
+  }),
 };
 
 export const CalendarMonthPickerOutOfRange: Story = {
@@ -135,34 +142,34 @@ export const CalendarMonthPickerOutOfRange: Story = {
     maxValue: new CalendarDate(2027, 4, 20),
     rangeMessage: "La fecha debe estar entre el 10/02/2027 y el 20/04/2027.",
   },
-  play: async ({ canvasElement }) => {
+  play: playWithTodayOutsideShownMonths(async ({ canvasElement }) => {
     await userEvent.click(toggle(canvasElement));
     await userEvent.click(monthPicker());
     await expect(within(document.body).getByRole("option", { name: "Enero" })).toHaveAttribute(
       "aria-disabled",
       "true",
     );
-  },
+  }),
 };
 
 export const CalendarPickerHovered: Story = {
   args: { value: new CalendarDate(2027, 2, 28) },
-  play: async (context) => {
+  play: playWithTodayOutsideShownMonths(async (context) => {
     await userEvent.click(toggle(context.canvasElement));
     await playHoverSetsDataHovered(monthPicker)(context);
-  },
+  }),
 };
 
 export const CalendarPickerFocusVisible: Story = {
   args: { value: new CalendarDate(2027, 2, 28) },
-  play: async () => {
+  play: playWithTodayOutsideShownMonths(async () => {
     await userEvent.tab();
     await userEvent.keyboard("{Enter}");
     await userEvent.tab({ shift: true });
     await userEvent.tab({ shift: true });
     await expect(yearPicker()).toHaveFocus();
     await expect(yearPicker()).toHaveAttribute("data-focus-visible");
-  },
+  }),
 };
 
 export const CalendarToday: Story = {
@@ -183,40 +190,40 @@ export const CalendarTodayChosen: Story = {
 
 export const CalendarMonthControlHovered: Story = {
   args: { value: new CalendarDate(2027, 2, 28) },
-  play: async (context) => {
+  play: playWithTodayOutsideShownMonths(async (context) => {
     await userEvent.click(toggle(context.canvasElement));
     await playHoverSetsDataHovered(() => monthControl("next"))(context);
-  },
+  }),
 };
 
 export const CalendarDayHovered: Story = {
   args: { value: new CalendarDate(2027, 2, 28) },
-  play: async (context) => {
+  play: playWithTodayOutsideShownMonths(async (context) => {
     await userEvent.click(toggle(context.canvasElement));
     await playHoverSetsDataHovered(() => calendarDay("15"))(context);
-  },
+  }),
 };
 
 export const CalendarDayFocusVisible: Story = {
   args: { value: new CalendarDate(2027, 2, 28) },
-  play: async () => {
+  play: playWithTodayOutsideShownMonths(async () => {
     await userEvent.tab();
     await userEvent.keyboard("{Enter}");
     const day = calendarDay("28");
     await expect(day).toHaveFocus();
     await expect(day).toHaveAttribute("data-focus-visible");
-  },
+  }),
 };
 
 export const CalendarMonthControlFocusVisible: Story = {
   args: { value: new CalendarDate(2027, 2, 28) },
-  play: async () => {
+  play: playWithTodayOutsideShownMonths(async () => {
     await userEvent.tab();
     await userEvent.keyboard("{Enter}");
     await userEvent.tab({ shift: true });
     await expect(monthControl("next")).toHaveFocus();
     await expect(monthControl("next")).toHaveAttribute("data-focus-visible");
-  },
+  }),
 };
 
 export const CalendarMonthControlsDisabled: Story = {
@@ -226,11 +233,11 @@ export const CalendarMonthControlsDisabled: Story = {
     maxValue: new CalendarDate(2027, 2, 28),
     rangeMessage: "La fecha debe ser de febrero de 2027.",
   },
-  play: async ({ canvasElement }) => {
+  play: playWithTodayOutsideShownMonths(async ({ canvasElement }) => {
     await userEvent.click(toggle(canvasElement));
     await expect(monthControl("previous")).toHaveAttribute("data-disabled");
     await expect(monthControl("next")).toHaveAttribute("data-disabled");
-  },
+  }),
 };
 
 export const CalendarDayOutOfRange: Story = {
@@ -240,10 +247,10 @@ export const CalendarDayOutOfRange: Story = {
     maxValue: new CalendarDate(2027, 2, 20),
     rangeMessage: "La fecha debe estar entre el 10/02/2027 y el 20/02/2027.",
   },
-  play: async ({ canvasElement }) => {
+  play: playWithTodayOutsideShownMonths(async ({ canvasElement }) => {
     await userEvent.click(toggle(canvasElement));
     await expect(calendarDay("5")).toHaveAttribute("data-disabled");
-  },
+  }),
 };
 
 export const Hovered: Story = {

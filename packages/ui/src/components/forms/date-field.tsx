@@ -193,7 +193,7 @@ function CalendarHeader({ titleId }: { titleId: string }) {
   }));
 
   return (
-    <header className={calendarHeaderClassName}>
+    <div className={calendarHeaderClassName}>
       <AriaButton slot="previous" className={calendarNavButtonClassName}>
         <span aria-hidden="true" className={iconSlotClassName.md}>
           <ChevronLeft />
@@ -221,7 +221,7 @@ function CalendarHeader({ titleId }: { titleId: string }) {
           <ChevronRight />
         </span>
       </AriaButton>
-    </header>
+    </div>
   );
 }
 

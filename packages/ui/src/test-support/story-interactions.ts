@@ -113,11 +113,26 @@ export function playWithClockAt(isoDate: string, play: StoryPlayFunction): Story
     const RealDate = globalThis.Date;
     const fixed = RealDate.parse(isoDate);
     class FixedDate extends RealDate {
-      constructor(...args: [] | [number | string | Date]) {
+      constructor(
+        ...args:
+          | []
+          | [value: number | string | Date]
+          | [
+              year: number,
+              monthIndex: number,
+              date?: number,
+              hours?: number,
+              minutes?: number,
+              seconds?: number,
+              ms?: number,
+            ]
+      ) {
         if (args.length === 0) {
           super(fixed);
+        } else if (args.length === 1) {
+          super(args[0]);
         } else {
-          super(args[0] as number);
+          super(...args);
         }
       }
 

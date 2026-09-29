@@ -517,6 +517,13 @@ test("names the calendar by its month and year without a connector, with no visi
   expect(rect.width * rect.height).toBeLessThanOrEqual(1);
 });
 
+test("adds no page landmark while the calendar is open", async () => {
+  const screen = await render(<ControlledFebruary2027 />);
+  await openCalendar(screen, "Expiry");
+
+  expect(screen.getByRole("banner").elements()).toEqual([]);
+});
+
 test("shows the previous and next month controls as 40px chevron buttons, each with a real accessible name", async () => {
   const screen = await render(<ControlledFebruary2027 />);
   const dialog = await openCalendar(screen, "Expiry");
