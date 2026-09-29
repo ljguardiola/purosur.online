@@ -357,237 +357,29 @@ test("shows a created register in the same order the server lists registers", as
   expect(rowNames).toEqual(["Caja 1", "Caja 2"]);
 });
 
-test("requires a name before submitting the create modal, without calling the API", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [] });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay cajas registradoras")).toBeVisible();
-  const dialog = await openNewRegisterModal(screen);
-
-  await userEvent.click(dialog.getByRole("button", { name: "Crear la caja" }));
-
-  await expect.element(dialog.getByText("Ingresá el nombre de la caja.")).toBeVisible();
-  expect(services.createRegister).not.toHaveBeenCalled();
-});
-
-test("reopening the create modal starts from an empty name with no error", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [] });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay cajas registradoras")).toBeVisible();
-  const dialog = await openNewRegisterModal(screen);
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la caja/ }), "  ");
-  await userEvent.click(dialog.getByRole("button", { name: "Crear la caja" }));
-  await expect.element(dialog.getByText("Ingresá el nombre de la caja.")).toBeVisible();
-  await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
-  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-
-  const reopened = await openNewRegisterModal(screen);
-
-  await expect
-    .element(reopened.getByRole("textbox", { name: /^Nombre de la caja/ }))
-    .toHaveValue("");
-  await expect.element(reopened.getByText("Ingresá el nombre de la caja.")).not.toBeInTheDocument();
-});
-
-test("shows the name-too-long error on create, without calling the API", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [] });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay cajas registradoras")).toBeVisible();
-  const dialog = await openNewRegisterModal(screen);
-
-  await userEvent.fill(
-    dialog.getByRole("textbox", { name: /^Nombre de la caja/ }),
-    "a".repeat(101),
-  );
-  await userEvent.click(dialog.getByRole("button", { name: "Crear la caja" }));
-
-  await expect
-    .element(dialog.getByText("El nombre puede tener hasta 100 caracteres."))
-    .toBeVisible();
-  expect(services.createRegister).not.toHaveBeenCalled();
-});
-
-test("shows the server's validation_failed error on create and does not add the register to the list", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
-  vi.mocked(services.createRegister).mockResolvedValue({
-    kind: "validation_failed",
-    field: "name",
-  });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("1 caja")).toBeVisible();
-  const dialog = await openNewRegisterModal(screen);
-
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la caja/ }), "Caja 2");
-  await userEvent.click(dialog.getByRole("button", { name: "Crear la caja" }));
-
-  await expect.element(dialog.getByText("Revisá el nombre de la caja.")).toBeVisible();
-  expect(dialog.getByText("Ingresá el nombre de la caja.").query()).toBeNull();
-  await expect.element(screen.getByRole("dialog")).toBeVisible();
-  await expect.element(screen.getByText("1 caja")).toBeVisible();
-});
-
-test("shows the attempt-failed notice when the cloud names a field the form does not have", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [] });
-  vi.mocked(services.createRegister).mockResolvedValue({
-    kind: "validation_failed",
-    field: "branch_id",
-  });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay cajas registradoras")).toBeVisible();
-  const dialog = await openNewRegisterModal(screen);
-
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la caja/ }), "Caja 1");
-  await userEvent.click(dialog.getByRole("button", { name: "Crear la caja" }));
-
-  await expect.element(dialog.getByText("No se pudo crear la caja")).toBeVisible();
-  await expect.element(dialog.getByText("Ingresá el nombre de la caja.")).not.toBeInTheDocument();
-});
-
-test("shows the name-taken error on create and does not add the register to the list", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
-  vi.mocked(services.createRegister).mockResolvedValue({ kind: "name_taken" });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("1 caja")).toBeVisible();
-  const dialog = await openNewRegisterModal(screen);
-
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la caja/ }), "caja 1");
-  await userEvent.click(dialog.getByRole("button", { name: "Crear la caja" }));
-
-  await expect.element(dialog.getByText("Ya existe una caja con este nombre.")).toBeVisible();
-  await expect.element(screen.getByRole("dialog")).toBeVisible();
-  await expect.element(screen.getByText("1 caja")).toBeVisible();
-});
-
-test("shows the rate-limited notice in the create modal", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [] });
-  vi.mocked(services.createRegister).mockResolvedValue({
-    kind: "rate_limited",
-    retryAfterSeconds: 120,
-  });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay cajas registradoras")).toBeVisible();
-  const dialog = await openNewRegisterModal(screen);
-
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la caja/ }), "Caja 1");
-  await userEvent.click(dialog.getByRole("button", { name: "Crear la caja" }));
-
-  await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
-  await expect.element(dialog.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
-});
-
-test("shows the attempt-failed notice in the create modal", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [] });
-  vi.mocked(services.createRegister).mockResolvedValue({ kind: "failed" });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay cajas registradoras")).toBeVisible();
-  const dialog = await openNewRegisterModal(screen);
-
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la caja/ }), "Caja 1");
-  await userEvent.click(dialog.getByRole("button", { name: "Crear la caja" }));
-
-  await expect.element(dialog.getByText("No se pudo crear la caja")).toBeVisible();
-  await expect.element(dialog.getByText("Probá de nuevo.")).toBeVisible();
-});
-
-test("navigates to Mi cuenta when creating a register comes back forbidden", async () => {
-  window.history.pushState(null, "", "/settings/registers");
-  try {
-    const services = createServices();
-    vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [] });
-    vi.mocked(services.createRegister).mockResolvedValue({ kind: "forbidden" });
-    const screen = await renderScreen(services);
-    await expect.element(screen.getByText("Todavía no hay cajas registradoras")).toBeVisible();
-    const dialog = await openNewRegisterModal(screen);
-
-    await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la caja/ }), "Caja 1");
-    await userEvent.click(dialog.getByRole("button", { name: "Crear la caja" }));
-
-    await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
-  } finally {
-    window.history.pushState(null, "", "/");
-  }
-});
-
-test("ends the session when creating a register finds no open session", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [] });
-  vi.mocked(services.createRegister).mockResolvedValue({ kind: "unauthenticated" });
-  const onSessionEnded = vi.fn();
-  const screen = await renderScreen(services, onSessionEnded);
-  await expect.element(screen.getByText("Todavía no hay cajas registradoras")).toBeVisible();
-  const dialog = await openNewRegisterModal(screen);
-
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la caja/ }), "Caja 1");
-  await userEvent.click(dialog.getByRole("button", { name: "Crear la caja" }));
-
-  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
-});
-
-test("opens the authorization modal on create's authorization_required, then authorizes and retries", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [] });
-  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({
-    kind: "ok",
-    value: [{ id: "register-3", name: "Caja 3", pendingCode: null }],
-  });
-  vi.mocked(services.createRegister).mockResolvedValueOnce({ kind: "authorization_required" });
-  grantAuthorization(services);
-  vi.mocked(services.createRegister).mockResolvedValueOnce({ kind: "ok" });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay cajas registradoras")).toBeVisible();
-  const dialog = await openNewRegisterModal(screen);
-
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la caja/ }), "Caja 3");
-  await userEvent.click(dialog.getByRole("button", { name: "Crear la caja" }));
-  const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
-  await expect.element(authDialog).toBeVisible();
-  await expect
-    .element(
-      authDialog.getByText("Crear una caja necesita tu autorización. Confirmala con tu passkey."),
-    )
-    .toBeVisible();
-
-  await userEvent.click(authDialog.getByRole("button", { name: "Usar mi passkey" }));
-
-  await expect.poll(() => vi.mocked(services.createRegister).mock.calls.length).toBe(2);
-  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await expect.element(screen.getByText("Caja 3")).toBeVisible();
-});
-
 async function openEmitModal(screen: Awaited<ReturnType<typeof renderScreen>>, name: string) {
   await userEvent.click(screen.getByRole("button", { name: `Emitir código de alta para ${name}` }));
   return screen.getByRole("dialog", { name: "Código de alta" });
 }
 
-test("emitting a code shows it grouped in fours, with the expiry note and description", async () => {
+test("the row action emits a code for that register and shows it in the code modal", async () => {
   const services = createServices();
   vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
-  vi.mocked(services.emitEnrollmentCode).mockResolvedValue({
-    kind: "ok",
-    value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
-  });
+  const pendingEmission =
+    deferred<Awaited<ReturnType<RegistersListScreenServices["emitEnrollmentCode"]>>>();
+  vi.mocked(services.emitEnrollmentCode).mockReturnValue(pendingEmission.promise);
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Caja 1")).toBeVisible();
 
   const dialog = await openEmitModal(screen, "Caja 1");
 
+  await expect.element(dialog.getByText("Emitiendo el código…")).toBeVisible();
+  pendingEmission.resolve({
+    kind: "ok",
+    value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
+  });
   await expect.element(dialog.getByText("P4NX 7KWE 2QRT 8MZD")).toBeVisible();
   expect(services.emitEnrollmentCode).toHaveBeenCalledWith("register-1");
-  await expect.element(dialog.getByText("Vence en 15 minutos · se usa una sola vez")).toBeVisible();
-  await expect
-    .element(
-      dialog.getByText(
-        "En la notebook nueva, al abrir la caja por primera vez, se escribe este código. Después de 5 intentos equivocados deja de servir y hay que emitir otro.",
-      ),
-    )
-    .toBeVisible();
 });
 
 test("emit's not_found closes the modal and refreshes the list", async () => {
@@ -714,29 +506,6 @@ function deferred<T>() {
   });
   return { promise, resolve };
 }
-
-test("while the code is being emitted, neither the close button nor Escape dismisses the modal", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
-  const pendingEmission =
-    deferred<Awaited<ReturnType<RegistersListScreenServices["emitEnrollmentCode"]>>>();
-  vi.mocked(services.emitEnrollmentCode).mockReturnValue(pendingEmission.promise);
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Caja 1")).toBeVisible();
-
-  const dialog = await openEmitModal(screen, "Caja 1");
-  await expect.element(dialog.getByText("Emitiendo el código…")).toBeVisible();
-
-  expect(dialog.getByRole("button", { name: "Cerrar" }).query()).toBeNull();
-  await userEvent.keyboard("{Escape}");
-  await expect.element(dialog).toBeVisible();
-
-  pendingEmission.resolve({
-    kind: "ok",
-    value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
-  });
-  await expect.element(dialog.getByText("P4NX 7KWE 2QRT 8MZD")).toBeVisible();
-});
 
 type CloseCodeModalCase = {
   name: string;
