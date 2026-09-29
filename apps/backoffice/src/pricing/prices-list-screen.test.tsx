@@ -1146,20 +1146,20 @@ test.each([
   {
     applied: "no filter",
     filters: {},
-    empty: "Todavía no hay productos",
+    empty: "No hay productos activos",
     absent: "Sin resultados",
   },
   {
     applied: "a category filter",
     filters: { category: "cat-1" },
     empty: "Sin resultados",
-    absent: "Todavía no hay productos",
+    absent: "No hay productos activos",
   },
   {
     applied: "a search",
     filters: { search: "zzz" },
     empty: "Sin resultados",
-    absent: "Todavía no hay productos",
+    absent: "No hay productos activos",
   },
 ])(
   "an empty list of every product with $applied shows $empty",

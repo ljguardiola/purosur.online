@@ -949,8 +949,8 @@ export function PricesListScreen({
               : reviewFilter === "all" && categoryFilter === "ALL" && !debouncedSearch
                 ? {
                     icon: <Package />,
-                    title: "Todavía no hay productos",
-                    description: "Creá el primero en Productos para ponerle precio.",
+                    title: "No hay productos activos",
+                    description: "Creá o activá uno en Productos para ponerle precio.",
                     variant: "blank",
                   }
                 : {
