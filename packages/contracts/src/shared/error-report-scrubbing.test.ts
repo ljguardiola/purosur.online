@@ -280,6 +280,29 @@ describe("scrubErrorReport", () => {
       },
     ]);
   });
+
+  it("marks extra, a context section or tags that refer back to themselves", () => {
+    const extra: Record<string, unknown> = { id: "extra-1" };
+    Object.assign(extra, { self: extra });
+    const section: Record<string, unknown> = { id: "section-1" };
+    Object.assign(section, { self: section });
+    const device: Record<string, unknown> = { memory_size: 20123456789 };
+    Object.assign(device, { self: device });
+    const contexts: Record<string, unknown> = { section, device };
+    Object.assign(contexts, { root: contexts });
+    const tags: Record<string, unknown> = { id: "tags-1" };
+    Object.assign(tags, { self: tags });
+
+    const scrubbed = scrubErrorReport({ extra, contexts, tags });
+
+    expect(scrubbed.extra).toStrictEqual({ id: "extra-1", self: "[circular]" });
+    expect(scrubbed.contexts).toStrictEqual({
+      section: { id: "section-1", self: "[circular]" },
+      device: { memory_size: 20123456789, self: "[circular]" },
+      root: "[circular]",
+    });
+    expect(scrubbed.tags).toStrictEqual({ id: "tags-1", self: "[circular]" });
+  });
 });
 
 describe("scrubErrorReportBreadcrumb", () => {
@@ -491,6 +514,81 @@ describe("scrubErrorReportBreadcrumb", () => {
     });
   });
 
+  it("marks breadcrumb data that refers back to itself instead of following it", () => {
+    const data: Record<string, unknown> = { token: "abc123", cuit: 20123456789 };
+    Object.assign(data, { self: data });
+
+    expect(scrubErrorReportBreadcrumb({ data }).data).toStrictEqual({
+      token: "[redacted]",
+      cuit: "[redacted]",
+      self: "[circular]",
+    });
+  });
+
+  it("marks an object that loops back to itself through other objects", () => {
+    const order: Record<string, unknown> = { id: "order-1" };
+    const line: Record<string, unknown> = { order, note: "ana@example.com" };
+    Object.assign(order, { lines: { first: line } });
+    const breadcrumb = { data: { order } };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
+      order: { id: "order-1", lines: { first: { order: "[circular]", note: "[redacted]" } } },
+    });
+  });
+
+  it("marks an array that contains itself", () => {
+    const items: unknown[] = ["ana@example.com"];
+    items.push(items);
+    const breadcrumb = { data: { arguments: items } };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
+      arguments: ["[redacted]", "[circular]"],
+    });
+  });
+
+  it("marks an object reached again through one of its arrays", () => {
+    const cart: Record<string, unknown> = { id: "cart-1" };
+    Object.assign(cart, { items: [{ cart }] });
+    const breadcrumb = { data: { cart } };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
+      cart: { id: "cart-1", items: [{ cart: "[circular]" }] },
+    });
+  });
+
+  it("marks an object that loops back to itself through an error's own field", () => {
+    const request: Record<string, unknown> = { id: "sync-1" };
+    const error = new Error("sync failed");
+    error.stack = "Error: sync failed";
+    Object.assign(error, { request });
+    Object.assign(request, { error });
+    const breadcrumb = { data: { request } };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
+      request: {
+        id: "sync-1",
+        error: {
+          request: "[circular]",
+          name: "Error",
+          message: "sync failed",
+          stack: "Error: sync failed",
+        },
+      },
+    });
+  });
+
+  it("scrubs an object shared by two branches in both places, since it is not a cycle", () => {
+    const customer = { email: "ana@example.com", dni: "30123456" };
+    const breadcrumb = { data: { buyer: customer, payer: { customer }, list: [customer] } };
+    const scrubbed = { email: "[redacted]", dni: "[redacted]" };
+
+    expect(scrubErrorReportBreadcrumb(breadcrumb).data).toStrictEqual({
+      buyer: scrubbed,
+      payer: { customer: scrubbed },
+      list: [scrubbed],
+    });
+  });
+
   it("keeps a date as its ISO value", () => {
     const breadcrumb = { data: { at: new Date("2026-09-28T13:45:00.000Z") } };
 
@@ -527,6 +625,16 @@ describe("scrubErrorReportLog", () => {
     expect(scrubErrorReportLog(log).message).toBe(
       "tried http://a.example/one?[redacted] then https://b.example/two?[redacted]",
     );
+  });
+
+  it("marks a log attribute that refers back to the attributes", () => {
+    const attributes: Record<string, unknown> = { id: "log-1" };
+    Object.assign(attributes, { self: attributes });
+
+    expect(scrubErrorReportLog({ attributes }).attributes).toStrictEqual({
+      id: "log-1",
+      self: "[circular]",
+    });
   });
 });
 

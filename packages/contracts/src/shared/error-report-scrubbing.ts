@@ -36,7 +36,7 @@ const SDK_NUMERIC_DIAGNOSTICS = new Set([
   "screen_density",
 ]);
 const NO_DIAGNOSTICS: ReadonlySet<string> = new Set();
-const NO_ERRORS: ReadonlySet<Error> = new Set();
+const NO_ENCLOSING: ReadonlySet<object> = new Set();
 // The same diagnostics reach every log as "<section>.<field>" attributes.
 const SDK_LOG_ATTRIBUTE_DIAGNOSTICS: ReadonlySet<string> = new Set(
   [...SDK_CONTEXT_SECTIONS].flatMap((section) =>
@@ -152,11 +152,16 @@ function readableDate(date: Date): string {
   return Number.isNaN(date.getTime()) ? String(date) : date.toISOString();
 }
 
-function redactValue(value: unknown, enclosingErrors: ReadonlySet<Error>): unknown {
+function withEnclosing(enclosing: ReadonlySet<object>, value: object): ReadonlySet<object> {
+  return new Set(enclosing).add(value);
+}
+
+function redactValue(value: unknown, enclosing: ReadonlySet<object>): unknown {
+  if (typeof value === "object" && value !== null && enclosing.has(value)) {
+    return CIRCULAR;
+  }
   if (value instanceof Error) {
-    return enclosingErrors.has(value)
-      ? CIRCULAR
-      : redactRecord(readableError(value), NO_DIAGNOSTICS, new Set(enclosingErrors).add(value));
+    return redactRecord(readableError(value), NO_DIAGNOSTICS, withEnclosing(enclosing, value));
   }
   if (value instanceof Date) {
     return readableDate(value);
@@ -168,10 +173,11 @@ function redactValue(value: unknown, enclosingErrors: ReadonlySet<Error>): unkno
     return REDACTED;
   }
   if (Array.isArray(value)) {
-    return value.map((item) => redactValue(item, enclosingErrors));
+    const itemEnclosing = withEnclosing(enclosing, value);
+    return value.map((item) => redactValue(item, itemEnclosing));
   }
   if (isPlainObject(value)) {
-    return redactRecord(value, NO_DIAGNOSTICS, enclosingErrors);
+    return redactRecord(value, NO_DIAGNOSTICS, enclosing);
   }
   return value;
 }
@@ -179,8 +185,9 @@ function redactValue(value: unknown, enclosingErrors: ReadonlySet<Error>): unkno
 function redactRecord(
   record: Record<string, unknown>,
   numericDiagnostics: ReadonlySet<string> = NO_DIAGNOSTICS,
-  enclosingErrors: ReadonlySet<Error> = NO_ERRORS,
+  enclosing: ReadonlySet<object> = NO_ENCLOSING,
 ): Record<string, unknown> {
+  const fieldEnclosing = withEnclosing(enclosing, record);
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(record)) {
     if (isSensitiveKey(key)) {
@@ -188,13 +195,14 @@ function redactRecord(
     } else if (typeof value === "number" && numericDiagnostics.has(key)) {
       result[key] = value;
     } else {
-      result[key] = redactValue(value, enclosingErrors);
+      result[key] = redactValue(value, fieldEnclosing);
     }
   }
   return result;
 }
 
 function redactSections(sections: Record<string, unknown>): Record<string, unknown> {
+  const sectionEnclosing: ReadonlySet<object> = new Set([sections]);
   const result: Record<string, unknown> = {};
   for (const [name, value] of Object.entries(sections)) {
     if (DROPPED_SECTIONS.has(name)) {
@@ -202,8 +210,8 @@ function redactSections(sections: Record<string, unknown>): Record<string, unkno
     }
     result[name] =
       isPlainObject(value) && SDK_CONTEXT_SECTIONS.has(name)
-        ? redactRecord(value, SDK_NUMERIC_DIAGNOSTICS)
-        : redactValue(value, NO_ERRORS);
+        ? redactRecord(value, SDK_NUMERIC_DIAGNOSTICS, sectionEnclosing)
+        : redactValue(value, sectionEnclosing);
   }
   return result;
 }
