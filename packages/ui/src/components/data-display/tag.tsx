@@ -1,10 +1,10 @@
 import type { ComponentPropsWithoutRef, ReactNode, Ref } from "react";
-import { iconSlotClassName } from "../shared/icon";
+import { type Icon, iconSlotClassName } from "../shared/icon";
 import { type Tone, toneClassName } from "../shared/tone";
 
 export type TagProps = {
   tone: Extract<Tone, "neutral" | "info">;
-  icon?: ReactNode;
+  icon?: Icon;
   children: Exclude<ReactNode, null | undefined | boolean>;
   ref?: Ref<HTMLSpanElement>;
 };
