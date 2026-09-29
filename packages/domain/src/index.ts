@@ -73,6 +73,7 @@ export {
 export { MAX_UNIT_PRICE_CENTS } from "./pricing/index.js";
 export {
   ENROLLMENT_CODE_LENGTH,
+  enrollmentAttemptWindowStart,
   enrollmentCodeExpiresAt,
   enrollmentCodeLookup,
   INSTALLATION_REPORT_MAX_LENGTH,

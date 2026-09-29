@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
 const RFC4648_BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
@@ -33,4 +33,10 @@ export function generateRegisterEnrollmentCode(): string {
 
 export function hashRegisterEnrollmentCode(rawCode: string): string {
   return createHash("sha256").update(rawCode).digest("base64url");
+}
+
+export function registerEnrollmentCodeMatches(rawCode: string, codeHash: string): boolean {
+  const presented = Buffer.from(hashRegisterEnrollmentCode(rawCode));
+  const stored = Buffer.from(codeHash);
+  return presented.length === stored.length && timingSafeEqual(presented, stored);
 }

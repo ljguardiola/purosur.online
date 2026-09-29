@@ -5,6 +5,7 @@ import {
   generateRegisterEnrollmentCode,
   hashRegisterEnrollmentCode,
   REGISTER_ENROLLMENT_CODE_LENGTH,
+  registerEnrollmentCodeMatches,
 } from "./register-enrollment-code.js";
 
 const BASE32_CHARACTER_PATTERN = /^[A-Z2-7]+$/;
@@ -56,5 +57,24 @@ describe("hashRegisterEnrollmentCode", () => {
     const code = generateRegisterEnrollmentCode();
 
     expect(hashRegisterEnrollmentCode(code)).not.toBe(code);
+  });
+});
+
+describe("registerEnrollmentCodeMatches", () => {
+  it("matches a code against the hash stored for it", () => {
+    const code = generateRegisterEnrollmentCode();
+
+    expect(registerEnrollmentCodeMatches(code, hashRegisterEnrollmentCode(code))).toBe(true);
+  });
+
+  it("refuses a code that differs from the one whose hash is stored", () => {
+    const code = generateRegisterEnrollmentCode();
+    const other = `${code.slice(0, 15)}${code.endsWith("A") ? "B" : "A"}`;
+
+    expect(registerEnrollmentCodeMatches(other, hashRegisterEnrollmentCode(code))).toBe(false);
+  });
+
+  it("refuses a stored hash that is not a hash of any code", () => {
+    expect(registerEnrollmentCodeMatches(generateRegisterEnrollmentCode(), "")).toBe(false);
   });
 });
