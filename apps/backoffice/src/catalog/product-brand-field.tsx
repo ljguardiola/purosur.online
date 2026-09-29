@@ -6,6 +6,7 @@ import { useMarkCatalogStale, useRefreshCatalog } from "./catalog-queries";
 import { NO_BRAND } from "./product-form";
 
 const NO_BRAND_OPTION: Option<string> = { value: NO_BRAND, label: "Sin marca" };
+const INACTIVE_BRAND_STATUS = "Inactiva";
 const INACTIVE_BRAND_HELP = "Marca dada de baja. No se ofrece para productos nuevos.";
 
 const brandNameOrder = textOrder((brand: BrandSummary) => brand.name);
@@ -17,10 +18,11 @@ export function brandOptions(
   const offered = brands.filter((brand) => brand.active || brand.id === keptBrandId);
   return [
     NO_BRAND_OPTION,
-    ...sortedItems(offered, { order: brandNameOrder, direction: "ascending" }).map((brand) => ({
-      value: brand.id,
-      label: brand.name,
-    })),
+    ...sortedItems(offered, { order: brandNameOrder, direction: "ascending" }).map((brand) =>
+      brand.active
+        ? { value: brand.id, label: brand.name }
+        : { value: brand.id, label: brand.name, status: INACTIVE_BRAND_STATUS },
+    ),
   ];
 }
 

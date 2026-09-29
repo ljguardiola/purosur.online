@@ -518,10 +518,17 @@ test("editing a product whose brand was deactivated shows it and keeps it on sav
   vi.mocked(services.editProduct).mockResolvedValue({ kind: "ok" });
   const { dialog } = await renderModal(miel, services, { brands: [granix, litoral] });
 
-  await expect.element(brandSelect(dialog)).toHaveTextContent("Yerba del Litoral");
+  await expect
+    .element(dialog.getByRole("button", { name: "Yerba del Litoral Inactiva Marca" }))
+    .toBeVisible();
   await expect
     .element(dialog.getByText("Marca dada de baja. No se ofrece para productos nuevos."))
     .toBeVisible();
+  await userEvent.click(brandSelect(dialog));
+  await expect
+    .element(dialog.getByRole("option", { name: "Yerba del Litoral Inactiva" }))
+    .toBeVisible();
+  await userEvent.keyboard("{Escape}");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.editProduct).mock.calls.length).toBe(1);
@@ -536,13 +543,14 @@ test("a product with an active brand is not offered the deactivated ones, and ca
   const miel: ProductSummary = { ...honey, brandId: granix.id };
   vi.mocked(services.editProduct).mockResolvedValue({ kind: "ok" });
   const { dialog } = await renderModal(miel, services, { brands: [granix, litoral] });
-  await expect.element(brandSelect(dialog)).toHaveTextContent("Granix");
+  await expect.element(dialog.getByRole("button", { name: "Granix Marca" })).toBeVisible();
   expect(
     dialog.getByText("Marca dada de baja. No se ofrece para productos nuevos.").query(),
   ).toBeNull();
 
   await userEvent.click(brandSelect(dialog));
-  expect(dialog.getByRole("option", { name: "Yerba del Litoral" }).query()).toBeNull();
+  await expect.element(dialog.getByRole("option", { name: "Granix" })).toBeVisible();
+  expect(dialog.getByRole("option", { name: /Yerba del Litoral/ }).query()).toBeNull();
   await userEvent.click(dialog.getByRole("option", { name: "Sin marca" }));
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 

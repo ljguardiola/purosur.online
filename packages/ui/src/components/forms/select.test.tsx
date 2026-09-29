@@ -331,6 +331,105 @@ test("paints its open popover above a surrounding stacking context that sets a l
   await expectNoAccessibilityViolations(document.body);
 });
 
+const optionsWithStatus: [Option<Role>, Option<Role>, Option<Role>] = [
+  { value: "administrator", label: "Administrador" },
+  { value: "shift-lead", label: "Responsable de turno" },
+  { value: "cashier", label: "Atención de caja", status: "Inactivo" },
+];
+
+test("shows the chosen option's status as a tag right after its label and before the chevron, naming the trigger with it", async () => {
+  const screen = await render(
+    <Select {...baseProps({ options: optionsWithStatus, value: "cashier" })} />,
+  );
+  const trigger = screen.getByRole("button", { name: "Atención de caja Inactivo Rol" });
+  await expect.element(trigger).toBeVisible();
+
+  const label = trigger.getByText("Atención de caja", { exact: true }).element();
+  const tag = trigger.getByText("Inactivo", { exact: true }).element() as HTMLElement;
+  const chevron = trigger.element().querySelector(":scope > svg") as SVGElement;
+  expect(label.compareDocumentPosition(tag) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(tag.compareDocumentPosition(chevron) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(tag.querySelector("[aria-hidden='true']")).not.toBeNull();
+  expect(getComputedStyle(tag).backgroundColor).toBe(tokenRgb("surface-subtle"));
+
+  const tagBox = tag.getBoundingClientRect();
+  const triggerBox = trigger.element().getBoundingClientRect();
+  expect(tagBox.top - triggerBox.top).toBeCloseTo(triggerBox.bottom - tagBox.bottom, 0);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("shows no tag in the trigger when the chosen option has no status", async () => {
+  const screen = await render(
+    <Select {...baseProps({ options: optionsWithStatus, value: "administrator" })} />,
+  );
+
+  await expect.element(screen.getByRole("button", { name: "Administrador Rol" })).toBeVisible();
+  expect(screen.getByText("Inactivo").query()).toBeNull();
+});
+
+test("truncates a long chosen label but never its status tag", async () => {
+  const longOptions: [Option<Role>] = [
+    {
+      value: "cashier",
+      label: "Atención de caja en el turno de la tarde y de la noche, sucursal centro",
+      status: "Inactivo",
+    },
+  ];
+  const screen = await render(
+    <div style={{ width: "16rem" }}>
+      <Select {...baseProps({ options: longOptions, value: "cashier" })} />
+    </div>,
+  );
+  const trigger = screen.getByRole("button", { name: /Rol/ }).element() as HTMLElement;
+  const label = screen
+    .getByRole("button", { name: /Rol/ })
+    .getByText(/Atención de caja en el turno/)
+    .element() as HTMLElement;
+  const tag = screen
+    .getByRole("button", { name: /Rol/ })
+    .getByText("Inactivo", { exact: true })
+    .element() as HTMLElement;
+
+  expect(label.scrollWidth).toBeGreaterThan(label.clientWidth);
+  expect(getComputedStyle(label).textOverflow).toBe("ellipsis");
+  expect(tag.scrollWidth).toBe(tag.clientWidth);
+  expect(tag.getBoundingClientRect().right).toBeLessThanOrEqual(
+    trigger.getBoundingClientRect().right,
+  );
+});
+
+test("shows an option's status as a tag beside it in the open menu, naming the option with it", async () => {
+  const screen = await render(
+    <Select {...baseProps({ options: optionsWithStatus, value: "cashier" })} />,
+  );
+
+  await screen.getByRole("button", { name: /Rol/ }).click();
+
+  const option = screen.getByRole("option", { name: "Atención de caja Inactivo" });
+  await expect.element(option).toBeVisible();
+  const tag = option.getByText("Inactivo", { exact: true }).element();
+  const check = option.element().querySelector(":scope > svg") as SVGElement;
+  expect(tag.compareDocumentPosition(check) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(
+    screen.getByRole("option", { name: "Administrador" }).getByText("Inactivo").query(),
+  ).toBeNull();
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("still picks an option that carries a status", async () => {
+  const onChange = vi.fn();
+  const screen = await render(
+    <Select {...baseProps({ options: optionsWithStatus, value: "administrator", onChange })} />,
+  );
+
+  await screen.getByRole("button", { name: /Rol/ }).click();
+  await screen.getByRole("option", { name: "Atención de caja Inactivo" }).click();
+
+  expect(onChange).toHaveBeenCalledWith("cashier");
+});
+
 test("does not accept a select without a label, its options, a chosen value or an onChange handler", () => {
   expectTypeOf<{
     options: typeof options;
