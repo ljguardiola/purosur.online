@@ -30,3 +30,7 @@ export const WithIcon: Story = {
 export const Status: Story = {
   args: { tone: "neutral", variant: "status", children: "Inactiva" },
 };
+
+export const StatusInfo: Story = {
+  args: { tone: "info", variant: "status", children: "Nueva" },
+};

@@ -21,7 +21,7 @@ const dotBaseClassName = "size-1.5 shrink-0 rounded-full";
 
 // The extra span attributes react-aria's `Focusable` merges onto this element when a caller wraps
 // it as a tooltip's trigger (tabIndex, onFocus/onBlur, onMouseEnter/Leave, aria-describedby...).
-type TagDomProps = Omit<ComponentPropsWithoutRef<"span">, keyof TagProps | "icon" | "variant">;
+type TagDomProps = Omit<ComponentPropsWithoutRef<"span">, keyof TagProps>;
 
 export function Tag({
   tone,

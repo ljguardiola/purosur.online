@@ -147,3 +147,11 @@ export const LongLabelWithStatus: Story = {
     value: "cashier",
   },
 };
+
+export const DisabledWithStatus: Story = {
+  args: { options: optionsWithStatus, value: "cashier", disabled: true },
+};
+
+export const InvalidWithStatus: Story = {
+  args: { options: optionsWithStatus, value: "cashier", errorMessage: "Elegí un rol." },
+};

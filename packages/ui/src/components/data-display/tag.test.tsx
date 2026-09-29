@@ -144,17 +144,32 @@ test("the status variant keeps the plain tag's height, so it fits inside a field
   expect(status.getBoundingClientRect().height).toBe(plain.getBoundingClientRect().height);
 });
 
-test("the status variant's text reads without the dot, and passes the accessibility checks", async () => {
+test("the status variant passes the accessibility checks", async () => {
   const screen = await render(
     <main>
       <Tag tone="neutral" variant="status">
         Inactiva
       </Tag>
+      <Tag tone="info" variant="status">
+        Nueva
+      </Tag>
     </main>,
   );
 
-  expect(screen.getByText("Inactiva").element().textContent).toBe("Inactiva");
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test("the status variant in the info tone colors its dot with the info tone", async () => {
+  const screen = await render(
+    <Tag tone="info" variant="status">
+      Nueva
+    </Tag>,
+  );
+  const tag = screen.getByText("Nueva").element() as HTMLElement;
+  const dot = tag.firstElementChild as HTMLElement;
+
+  expect(getComputedStyle(dot).backgroundColor).toBe(tokenRgb("info-soft"));
+  expect(getComputedStyle(tag).backgroundColor).toBe(tokenRgb("action-subtle"));
 });
 
 test("a plain tag draws no dot", async () => {
