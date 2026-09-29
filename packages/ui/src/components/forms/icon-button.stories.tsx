@@ -37,22 +37,28 @@ export const Disabled: Story = {
   args: { disabled: true },
 };
 
+const subtleArgs = {
+  variant: "subtle",
+  "aria-label": "Quitar código",
+  icon: <X />,
+} satisfies Story["args"];
+
 export const Subtle: Story = {
-  args: { variant: "subtle", "aria-label": "Quitar código", icon: <X /> },
+  args: subtleArgs,
 };
 
 export const SubtleHovered: Story = {
-  args: Subtle.args,
+  args: subtleArgs,
   play: playHoverSetsDataHovered(theButton),
 };
 
 export const SubtleFocusVisible: Story = {
-  args: Subtle.args,
+  args: subtleArgs,
   play: playTabReachesFocusVisible(theButton),
 };
 
 export const SubtleDisabled: Story = {
-  args: { ...Subtle.args, disabled: true },
+  args: { ...subtleArgs, disabled: true },
 };
 
 function IconButtonLabelledByVisibleText() {

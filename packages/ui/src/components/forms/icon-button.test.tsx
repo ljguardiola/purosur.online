@@ -243,9 +243,7 @@ test("fills the subtle look with sand and turns its glyph strong blue on hover, 
 
   await userEvent.hover(button);
 
-  await expect
-    .poll(() => getComputedStyle(button).backgroundColor)
-    .toBe(tokenRgb("surface-soft"));
+  await expect.poll(() => getComputedStyle(button).backgroundColor).toBe(tokenRgb("surface-soft"));
   await expect.poll(() => getComputedStyle(icon).color).toBe(tokenRgb("text-accent"));
   expect(getComputedStyle(button).borderWidth).toBe("0px");
   expect(
