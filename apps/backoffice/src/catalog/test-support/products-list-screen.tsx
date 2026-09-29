@@ -6,6 +6,7 @@ import { render } from "../../shell/test-support/render-with-router";
 import { ProductsListScreen } from "../products-list-screen";
 import type { ProductsListScreenServices } from "../products-list-services";
 import { type ProductsListFilters, productsListFilters } from "../routes";
+import { driedFruits, groceries } from "./products";
 
 export function createServices(
   overrides: Partial<ProductsListScreenServices> = {},
@@ -24,58 +25,8 @@ export function createServices(
   };
 }
 
-export const groceries: CategorySummary = {
-  id: "category-1",
-  name: "Almacén",
-  version: 1,
-  parentId: null,
-};
-export const driedFruits: CategorySummary = {
-  id: "category-2",
-  name: "Frutos secos",
-  version: 1,
-  parentId: null,
-};
-
-export const honey: ProductSummary = {
-  id: "product-1",
-  name: "Miel pura de abeja 1 kg",
-  categoryId: "category-1",
-  brandId: null,
-  categoryName: "Almacén",
-  saleUnit: "UNIT",
-  barcodes: ["7790987000015"],
-  netContent: null,
-  active: true,
-  version: 1,
-};
-
-export const almonds: ProductSummary = {
-  id: "product-2",
-  name: "Almendras peladas",
-  categoryId: "category-2",
-  brandId: null,
-  categoryName: "Frutos secos",
-  saleUnit: "KG",
-  barcodes: ["7790000000001"],
-  netContent: null,
-  active: true,
-  version: 1,
-};
-
 export type Screen = Awaited<ReturnType<typeof renderScreen>>;
 export type ScreenLocator = ReturnType<Screen["getByRole"]>;
-
-// The "radio" role resolves to react-aria's own visually hidden native <input>; the visible,
-// clickable surface is the <label> that wraps it.
-export function radioLabel(dialog: ScreenLocator, title: string): HTMLElement {
-  const input = dialog.getByRole("radio", { name: title }).element() as HTMLInputElement;
-  const label = input.closest("label");
-  if (!label) {
-    throw new Error(`no label found for radio "${title}"`);
-  }
-  return label;
-}
 
 export function mockLoaded(
   services: ProductsListScreenServices,
@@ -125,13 +76,6 @@ export async function openNewProductModal(screen: Screen) {
   return screen.getByRole("dialog");
 }
 
-export async function fillNewProductFieldsExceptBarcodes(dialog: ScreenLocator) {
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Producto nuevo");
-  await userEvent.click(dialog.getByRole("button", { name: /^Elegí una categoría/ }));
-  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
-  await userEvent.click(radioLabel(dialog, "Por unidad"));
-}
-
 export async function openEditProductModal(screen: Screen, product: ProductSummary) {
   await expect.element(screen.getByText(product.name)).toBeVisible();
   await userEvent.click(screen.getByRole("button", { name: `Editar el producto ${product.name}` }));
@@ -144,27 +88,4 @@ export async function openDeactivateProductModal(screen: Screen, product: Produc
     screen.getByRole("button", { name: `Desactivar el producto ${product.name}` }),
   );
   return screen.getByRole("dialog");
-}
-
-export function scanInputOf(dialog: ScreenLocator) {
-  return dialog.getByRole("textbox", { name: "Escanear otro código" });
-}
-
-// Rerendering drives React's async `act()`, which flushes the already-resolved response's continuation before returning.
-export async function settleLateResponse(
-  screen: Screen,
-  services: ProductsListScreenServices,
-): Promise<void> {
-  await screen.rerender(
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <ProductsListScreen
-          services={services}
-          onSessionEnded={() => {}}
-          filters={productsListFilters.parse({})}
-          onFiltersChange={() => {}}
-        />
-      </main>
-    </FieldSizeProvider>,
-  );
 }
