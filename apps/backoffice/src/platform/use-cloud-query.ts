@@ -1,10 +1,4 @@
-import {
-  hashKey,
-  keepPreviousData,
-  type QueryClient,
-  type QueryKey,
-  useQuery,
-} from "@tanstack/react-query";
+import { keepPreviousData, type QueryClient, type QueryKey, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import type { CloudReadOutcome } from "./cloud-read-outcome";
 import { useLatestRef } from "./use-latest-ref";
@@ -76,9 +70,6 @@ export function useCloudQuery<T>({
   if (keepsPreviousData && query.isSuccess && query.data !== lastLoaded?.value) {
     setLastLoaded({ value: query.data });
   }
-  const [retriedFailure, setRetriedFailure] = useState<
-    { key: string; failedAt: number } | undefined
-  >(undefined);
   const kept = lastLoaded === undefined ? {} : { lastValue: lastLoaded.value };
   const refusal = query.error instanceof CloudReadRefused ? query.error.refusal : undefined;
   const refusalReadWhileShown = query.isFetchedAfterMount ? refusal : undefined;
@@ -96,20 +87,12 @@ export function useCloudQuery<T>({
     return {
       status: "failed",
       ...(refusal?.kind === "rate_limited" ? { retryAfterSeconds: refusal.retryAfterSeconds } : {}),
-      retry: () => {
-        setRetriedFailure({ key: hashKey(queryKey), failedAt: query.errorUpdatedAt });
-        void query.refetch();
-      },
+      retry: () => void query.refetch(),
       ...kept,
     };
   }
-  // Matching the failure's time, not only its key, keeps a later placeholder for the same key (after
-  // the cache dropped it) shown as refreshing instead of as this retry's loading.
-  const retryingFailure =
-    query.isPlaceholderData &&
-    retriedFailure?.key === hashKey(queryKey) &&
-    retriedFailure.failedAt === query.errorUpdatedAt;
-  if (query.isSuccess && !retryingFailure) {
+  const rereadingFailure = query.isPlaceholderData && query.errorUpdateCount > 0;
+  if (query.isSuccess && !rereadingFailure) {
     return { status: "loaded", value: query.data, refreshing: query.isFetching };
   }
   return { status: "loading", ...kept };
