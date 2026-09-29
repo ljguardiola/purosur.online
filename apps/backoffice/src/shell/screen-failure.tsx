@@ -1,7 +1,7 @@
 import { Button, InlineNotice } from "@purosur/ui";
 import { type ErrorComponentProps, useRouter } from "@tanstack/react-router";
 import { TriangleAlert } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ScreenDownloadFailure } from "./lazy-screen";
 import { ScreenLayout } from "./screen-layout";
 import { ScreenPending } from "./screen-pending";
@@ -34,17 +34,31 @@ function claimReloadFor(module: string): boolean {
 
 export function ScreenFailure({ error }: ErrorComponentProps) {
   const router = useRouter();
-  const { isOnline, reloadPage } = router.options.context.services.screenFailure;
+  const { services, reportError } = router.options.context;
+  const { isOnline, reloadPage } = services.screenFailure;
   const downloadFailure = error instanceof ScreenDownloadFailure ? error : null;
   const [reloading, setReloading] = useState(downloadFailure !== null);
+  const [offlineOnRetry, setOfflineOnRetry] = useState(false);
+  const handledFailure = useRef<ScreenDownloadFailure | null>(null);
 
   useEffect(() => {
-    if (downloadFailure !== null && isOnline() && claimReloadFor(downloadFailure.module)) {
-      reloadPage();
-    } else {
+    if (downloadFailure === null) {
       setReloading(false);
+      return;
     }
-  }, [downloadFailure, isOnline, reloadPage]);
+    if (handledFailure.current === downloadFailure) {
+      return;
+    }
+    handledFailure.current = downloadFailure;
+    if (isOnline()) {
+      if (claimReloadFor(downloadFailure.module)) {
+        reloadPage();
+        return;
+      }
+      reportError(downloadFailure);
+    }
+    setReloading(false);
+  }, [downloadFailure, isOnline, reloadPage, reportError]);
 
   useEffect(() => {
     if (!reloading) {
@@ -58,7 +72,11 @@ export function ScreenFailure({ error }: ErrorComponentProps) {
 
   const retry = async () => {
     if (downloadFailure !== null) {
-      reloadPage();
+      if (isOnline()) {
+        reloadPage();
+      } else {
+        setOfflineOnRetry(true);
+      }
       return;
     }
     await router.invalidate();
@@ -76,7 +94,11 @@ export function ScreenFailure({ error }: ErrorComponentProps) {
       <InlineNotice
         tone="error"
         icon={<TriangleAlert />}
-        detail="Probá de nuevo en unos minutos."
+        detail={
+          offlineOnRetry
+            ? "Revisá la conexión a internet y probá de nuevo."
+            : "Probá de nuevo en unos minutos."
+        }
       />
       <Button variant="secondary" onPress={() => void retry()}>
         Reintentar

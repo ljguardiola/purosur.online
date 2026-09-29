@@ -11,8 +11,8 @@ export class ScreenDownloadFailure extends Error {
   }
 }
 
-// The router reloads the page by itself when the error reads as a failed module download,
-// wherever the network stands, so the failure is renamed to keep that decision in ScreenFailure.
+// The router reloads the page by itself, whatever the network state, when an error reads as a
+// failed module download.
 export function lazyScreen<T extends Record<string, unknown>, TKey extends keyof T = "default">(
   importer: () => Promise<T>,
   exportName?: TKey,
