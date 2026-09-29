@@ -1,3 +1,4 @@
+import { openSessionSchema } from "@purosur/contracts";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "./backoffice-origin.js";
@@ -32,13 +33,15 @@ export function registerSessionReadRoute<TQueryResult extends PgQueryResultHKT>(
     async (request, reply) => {
       const openSession = openSessionOf(request);
 
-      await reply.code(200).send({
-        user_id: openSession.userId,
-        display_name: openSession.firstName,
-        expires_at: sessionExpiresAt(openSession).toISOString(),
-        is_administrator: openSession.isAdministrator,
-        permissions: [...openSession.permissionKeys],
-      });
+      await reply.code(200).send(
+        openSessionSchema.parse({
+          user_id: openSession.userId,
+          display_name: openSession.firstName,
+          expires_at: sessionExpiresAt(openSession).toISOString(),
+          is_administrator: openSession.isAdministrator,
+          permissions: [...openSession.permissionKeys],
+        }),
+      );
     },
   );
 }
