@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import Fastify, { type FastifyInstance, type LightMyRequestResponse } from "fastify";
+import Fastify, { type FastifyInstance } from "fastify";
 import {
   AuthenticatorEmulator,
   PasskeysCredentialsMemoryRepository,
@@ -22,6 +22,7 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
+import { runQueuedBehindHeldLock } from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerRecoveryRedemptionRoutes } from "./recovery-redemption-route.js";
 import { hashRecoveryToken } from "./recovery-token-hash.js";
@@ -203,43 +204,6 @@ async function prepareSignIn(emulator: WebAuthnEmulator) {
     });
 }
 
-async function waitForLockWaiters(count: number): Promise<void> {
-  for (let attempt = 0; attempt < 500; attempt += 1) {
-    const [row] = await sql<{ waiting: number }[]>`
-      select count(*)::int as waiting from pg_stat_activity
-      where datname = current_database() and wait_event_type = 'Lock'`;
-    if ((row?.waiting ?? 0) >= count) return;
-    await new Promise((resolve) => setTimeout(resolve, 10));
-  }
-  throw new Error(`test setup: ${count} requests never queued behind the held lock`);
-}
-
-type InjectRequest = () => Promise<LightMyRequestResponse>;
-
-// Settles both requests even when one never queues, so no leftover waiter inflates the next test's count.
-async function runQueuedBehindRowLock(
-  lockQuery: (reserved: postgres.ReservedSql) => Promise<unknown>,
-  first: InjectRequest,
-  second: InjectRequest,
-): Promise<[LightMyRequestResponse, LightMyRequestResponse]> {
-  const reserved = await sql.reserve();
-  let firstResponse: Promise<LightMyRequestResponse> | undefined;
-  let secondResponse: Promise<LightMyRequestResponse> | undefined;
-  try {
-    await reserved`begin`;
-    await lockQuery(reserved);
-    firstResponse = first();
-    await waitForLockWaiters(1);
-    secondResponse = second();
-    await waitForLockWaiters(2);
-  } finally {
-    await reserved`rollback`;
-    reserved.release();
-    await Promise.allSettled([firstResponse, secondResponse]);
-  }
-  return Promise.all([firstResponse, secondResponse]);
-}
-
 async function liveSessionsOf(userId: string) {
   return db
     .select()
@@ -254,7 +218,8 @@ describe("two Administrators removing the same passkey at once on a real Postgre
     const removeFirst = await prepareRemoval(targetId, passkeyId);
     const removeSecond = await prepareRemoval(targetId, passkeyId);
 
-    const responses = await runQueuedBehindRowLock(
+    const responses = await runQueuedBehindHeldLock(
+      sql,
       (reserved) => reserved`select id from passkeys where id = ${passkeyId} for update`,
       removeFirst,
       removeSecond,
@@ -288,7 +253,8 @@ describe("signing in with a passkey while an Administrator removes it, on a real
 
     // Parks the removal after it has deleted the passkey but before it has ended the target's
     // sessions, so the sign-in arrives while the removal is still uncommitted.
-    const [removalResponse, signInResponse] = await runQueuedBehindRowLock(
+    const [removalResponse, signInResponse] = await runQueuedBehindHeldLock(
+      sql,
       (reserved) =>
         reserved`select id from sessions where session_id_hash = ${hashSessionId(existingSession)} for update`,
       remove,
@@ -310,7 +276,8 @@ describe("signing in with a passkey while an Administrator removes it, on a real
     const remove = await prepareRemoval(targetId, passkeyId);
     const signIn = await prepareSignIn(targetEmulator);
 
-    const [signInResponse, removalResponse] = await runQueuedBehindRowLock(
+    const [signInResponse, removalResponse] = await runQueuedBehindHeldLock(
+      sql,
       (reserved) => reserved`select id from passkeys where id = ${passkeyId} for update`,
       signIn,
       remove,

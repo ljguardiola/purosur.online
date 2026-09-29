@@ -8,6 +8,7 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
+import { waitForLockWaiters } from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { emitRegisterEnrollmentCode } from "./register-enrollment-code-route.js";
 
@@ -31,17 +32,6 @@ afterAll(async () => {
   await adminSql.end({ timeout: 1 });
   await integrationDb.close();
 });
-
-async function waitForLockWaiters(count: number): Promise<void> {
-  for (let attempt = 0; attempt < 500; attempt += 1) {
-    const [row] = await adminSql<{ waiting: number }[]>`
-      select count(*)::int as waiting from pg_stat_activity
-      where datname = current_database() and wait_event_type = 'Lock'`;
-    if ((row?.waiting ?? 0) >= count) return;
-    await new Promise((resolve) => setTimeout(resolve, 10));
-  }
-  throw new Error("test setup: the emissions never queued behind the held lock");
-}
 
 describe("emitting two enrollment codes for a register with no code yet concurrently on a real Postgres through postgres-js", () => {
   it("audits the first as replacing nothing and the second as replacing the first, keeping the last one's code", async () => {
@@ -81,7 +71,7 @@ describe("emitting two enrollment codes for a register with no code yet concurre
           now: secondNow,
         }),
       ];
-      await waitForLockWaiters(2);
+      await waitForLockWaiters(adminSql, 2);
     } finally {
       await holder`rollback`;
       holder.release();
