@@ -4,10 +4,10 @@ import { cloudLoadFailure } from "./cloud-load-failure";
 test("a failed read names what could not be opened and offers to retry", () => {
   const retry = vi.fn();
 
-  const failure = cloudLoadFailure({ status: "failed", retry }, "la alerta");
+  const failure = cloudLoadFailure({ status: "failed", retry }, "la sucursal");
 
   expect(failure).toMatchObject({
-    title: "No pudimos abrir la alerta",
+    title: "No pudimos abrir la sucursal",
     description: "Probá de nuevo en unos minutos.",
   });
   failure.onRetry();
@@ -19,7 +19,7 @@ test("a rate-limited read says so and when to try again", () => {
 
   const failure = cloudLoadFailure(
     { status: "failed", retryAfterSeconds: 120, retry },
-    "la alerta",
+    "la sucursal",
   );
 
   expect(failure).toMatchObject({

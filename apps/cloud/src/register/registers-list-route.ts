@@ -1,3 +1,4 @@
+import { type RegisterSummaryBody, registerListSchema } from "@purosur/contracts";
 import { and, asc, eq, gt, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -27,13 +28,7 @@ interface RegisterRow {
   pendingCode: RegisterPendingCode | null;
 }
 
-interface RegisterWire {
-  id: string;
-  name: string;
-  pending_code: { issued_at: string; expires_at: string } | null;
-}
-
-function toRegisterWire(row: RegisterRow): RegisterWire {
+function toRegisterWire(row: RegisterRow): RegisterSummaryBody {
   return {
     id: row.id,
     name: row.name,
@@ -98,7 +93,7 @@ export function registerRegistersListRoute<TQueryResult extends PgQueryResultHKT
       const openSession = openSessionOf(request);
 
       const rows = await listBranchRegisters(options.db, openSession.locationId, now());
-      await reply.code(200).send(rows.map(toRegisterWire));
+      await reply.code(200).send(registerListSchema.parse(rows.map(toRegisterWire)));
     },
   );
 }

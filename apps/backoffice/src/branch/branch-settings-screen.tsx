@@ -5,14 +5,17 @@ import {
   IconButton,
   type IconButtonProps,
   InlineNotice,
+  LoadFailure,
+  LoadingPlaceholder,
   TextField,
 } from "@purosur/ui";
 import { Check, Plus, RotateCcw, Trash2, TriangleAlert } from "lucide-react";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useSendToMyAccount } from "../access/send-to-my-account";
-import { useLatestRef } from "../platform/use-latest-ref";
+import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
+import { useBranchSettingsQuery, useReloadBranchSettings } from "./branch-queries";
 import type {
   BranchDay,
   BranchHoursRange,
@@ -27,11 +30,9 @@ export type BranchSettingsScreenProps = {
   services: BranchSettingsScreenServices;
 };
 
-type LoadState = { kind: "loading" } | { kind: "loadError" } | { kind: "loaded" };
-
 type PointerType = Parameters<NonNullable<IconButtonProps["onPress"]>>[0]["pointerType"];
 
-type FormNotice = { kind: "attemptFailed" } | { kind: "staleVersion" } | { kind: "reloadFailed" };
+type FormNotice = { kind: "attemptFailed" } | { kind: "staleVersion" };
 
 type DaysFieldName =
   | "expiringLotAlertDays"
@@ -117,6 +118,29 @@ function valuesFrom(settings: BranchSettings): FormValues {
     unreviewedPriceAlertDays: String(settings.unreviewedPriceAlertDays),
     goodConditionReturnDays: String(settings.goodConditionReturnDays),
   };
+}
+
+function matchesSettings(values: FormValues, settings: BranchSettings): boolean {
+  return (
+    values.address === settings.address &&
+    values.whatsappNumber === settings.whatsappNumber &&
+    values.instagramHandle === settings.instagramHandle &&
+    values.expiringLotAlertDays === String(settings.expiringLotAlertDays) &&
+    values.unreviewedPriceAlertDays === String(settings.unreviewedPriceAlertDays) &&
+    values.goodConditionReturnDays === String(settings.goodConditionReturnDays) &&
+    BRANCH_DAYS.every((day) => {
+      const shown = values[day];
+      const ranges = settings.hours[day];
+      return (
+        shown.closed === (ranges.length === 0) &&
+        shown.ranges.length === ranges.length &&
+        shown.ranges.every(
+          (range, index) =>
+            range.opensAt === ranges[index]?.opensAt && range.closesAt === ranges[index]?.closesAt,
+        )
+      );
+    })
+  );
 }
 
 function parseDays(value: string): number | undefined {
@@ -268,37 +292,32 @@ const EMPTY_VALUES: FormValues = {
 export function BranchSettingsScreen({ onSessionEnded, services }: BranchSettingsScreenProps) {
   const sendToMyAccount = useSendToMyAccount();
   const { fetchBranchSettings, saveBranchSettings } = services;
-  const [state, setState] = useState<LoadState>({ kind: "loading" });
-  const [version, setVersion] = useState(0);
+  const data = useBranchSettingsQuery({ fetchBranchSettings, onSessionEnded });
+  const reloadBranchSettings = useReloadBranchSettings({ fetchBranchSettings });
+  const [shownSettings, setShownSettings] = useState<BranchSettings | null>(null);
   const [values, setValues] = useState<FormValues>(EMPTY_VALUES);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [notice, setNotice] = useState<FormNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [reseedOnNextLoad, setReseedOnNextLoad] = useState(false);
   const hoursErrorIdPrefix = useId();
 
-  const onSessionEndedRef = useLatestRef(onSessionEnded);
+  const settings = data.status === "loaded" ? data.value : null;
+  const hasUnsavedEdits = shownSettings !== null && !matchesSettings(values, shownSettings);
+  if (settings !== null && settings !== shownSettings && (reseedOnNextLoad || !hasUnsavedEdits)) {
+    setShownSettings(settings);
+    setValues(valuesFrom(settings));
+    setFieldErrors({});
+    setNotice(null);
+    setReseedOnNextLoad(false);
+  }
 
-  const load = useCallback(async () => {
-    setState({ kind: "loading" });
-    const outcome = await fetchBranchSettings();
-    if (outcome.kind === "ok") {
-      setValues(valuesFrom(outcome.value));
-      setVersion(outcome.value.version);
-      setFieldErrors({});
-      setNotice(null);
-      setState({ kind: "loaded" });
-    } else if (outcome.kind === "unauthenticated") {
-      onSessionEndedRef.current();
-    } else if (outcome.kind === "forbidden") {
-      sendToMyAccount();
-    } else {
-      setState({ kind: "loadError" });
-    }
-  }, [fetchBranchSettings, onSessionEndedRef, sendToMyAccount]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  function showServerSettings(reloaded: BranchSettings) {
+    setShownSettings(reloaded);
+    setValues(valuesFrom(reloaded));
+    setFieldErrors({});
+    setNotice(null);
+  }
 
   // Adding/removing a range can unmount the button that did it, dropping keyboard focus to the
   // page; focus lands on the added range, or the range that takes the removed one's place, instead.
@@ -315,24 +334,17 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
 
   async function handleReload() {
     setSubmitting(true);
-    const outcome = await fetchBranchSettings();
+    const outcome = await reloadBranchSettings();
     if (outcome.kind === "ok") {
-      setValues(valuesFrom(outcome.value));
-      setVersion(outcome.value.version);
-      setFieldErrors({});
-      setNotice(null);
+      showServerSettings(outcome.value);
       setSubmitting(false);
       return;
     }
-    if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
+    if (outcome.kind === "unauthenticated" || outcome.kind === "forbidden") {
       return;
     }
-    if (outcome.kind === "forbidden") {
-      sendToMyAccount();
-      return;
-    }
-    setNotice({ kind: "reloadFailed" });
+    setNotice(null);
+    setReseedOnNextLoad(true);
     setSubmitting(false);
   }
 
@@ -420,7 +432,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
   }
 
   async function handleSubmit() {
-    if (state.kind !== "loaded") {
+    if (settings === null || shownSettings === null) {
       return;
     }
     const errors = { ...validateDaysFields(values), ...validateHoursFields(values) };
@@ -431,10 +443,14 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
     setNotice(null);
     setSubmitting(true);
 
-    const outcome = await saveBranchSettings(settingsFrom(values, version));
+    const outcome = await saveBranchSettings(settingsFrom(values, shownSettings.version));
     if (outcome.kind === "ok") {
-      setValues(valuesFrom(outcome.value));
-      setVersion(outcome.value.version);
+      const reloaded = await reloadBranchSettings();
+      if (reloaded.kind === "ok") {
+        showServerSettings(reloaded.value);
+      } else {
+        setReseedOnNextLoad(true);
+      }
       setSubmitting(false);
       return;
     }
@@ -465,7 +481,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
     setSubmitting(false);
   }
 
-  const offersReload = notice?.kind === "staleVersion" || notice?.kind === "reloadFailed";
+  const offersReload = notice?.kind === "staleVersion";
 
   function textField(field: TextFieldName, label: string) {
     const error = fieldErrors[field];
@@ -602,7 +618,8 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           <Button
             variant="primary"
             icon={<Check />}
-            disabled={submitting || state.kind !== "loaded"}
+            dataStatus={data.status}
+            disabled={submitting}
             onPress={() => void handleSubmit()}
           >
             Guardar los cambios
@@ -611,20 +628,8 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
       }
       bodyClassName="gap-4 p-6"
     >
-      {state.kind === "loading" && <p role="status">Cargando…</p>}
-      {state.kind === "loadError" && (
-        <>
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title="No pudimos abrir la sucursal"
-            description="Probá de nuevo en unos minutos."
-          />
-          <Button variant="secondary" onPress={() => void load()}>
-            Reintentar
-          </Button>
-        </>
-      )}
+      {data.status === "loading" && <LoadingPlaceholder variant="form" fields={6} />}
+      {data.status === "failed" && <LoadFailure {...cloudLoadFailure(data, "la sucursal")} />}
       {notice?.kind === "attemptFailed" && (
         <InlineNotice
           tone="error"
@@ -641,14 +646,6 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           description="Recargá sus datos y volvé a hacer el cambio."
         />
       )}
-      {notice?.kind === "reloadFailed" && (
-        <InlineNotice
-          tone="error"
-          icon={<TriangleAlert />}
-          title="No se pudieron recargar los datos"
-          description="Probá de nuevo."
-        />
-      )}
       {offersReload ? (
         <Button
           variant="secondary"
@@ -659,7 +656,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           Recargar
         </Button>
       ) : null}
-      {state.kind === "loaded" && (
+      {data.status === "loaded" && (
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
             <h2 className="text-text-accent text-subheading">Encabezado del ticket</h2>

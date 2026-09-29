@@ -74,6 +74,24 @@ test("fetchIssuerIdentification returns an incomplete identification with null e
   });
 });
 
+test.each([
+  ["a body missing a field", { ...wireRow, version: undefined }],
+  ["a body missing the CUIT", { ...wireRow, authorized_cuit: undefined }],
+  ["a body with a mistyped field", { ...wireRow, version: "1" }],
+  ["a body with a null CUIT", { ...wireRow, authorized_cuit: null }],
+  ["a body that is not an object", []],
+])("fetchIssuerIdentification returns failed on 200 with %s", async (_name, body) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, body));
+
+  expect(await fetchIssuerIdentification()).toEqual({ kind: "failed" });
+});
+
+test("fetchIssuerIdentification returns failed on 200 with a body that is not JSON", async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response("<html>", { status: 200 }));
+
+  expect(await fetchIssuerIdentification()).toEqual({ kind: "failed" });
+});
+
 test("fetchIssuerIdentification returns unauthenticated on 401", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(401));
 
@@ -84,6 +102,17 @@ test("fetchIssuerIdentification returns forbidden on 403", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(403));
 
   expect(await fetchIssuerIdentification()).toEqual({ kind: "forbidden" });
+});
+
+test("fetchIssuerIdentification returns rate_limited with the Retry-After header on 429", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    new Response(null, { status: 429, headers: { "Retry-After": "45" } }),
+  );
+
+  expect(await fetchIssuerIdentification()).toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 45,
+  });
 });
 
 test("fetchIssuerIdentification returns failed when the network call throws", async () => {
@@ -98,12 +127,12 @@ test("fetchIssuerIdentification returns failed on an unexpected status", async (
   expect(await fetchIssuerIdentification()).toEqual({ kind: "failed" });
 });
 
-test("saveIssuerIdentification PUTs the three editable fields and the version, never the CUIT or tax status, returning the saved identification", async () => {
+test("saveIssuerIdentification PUTs the three editable fields and the version, never the CUIT or tax status", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { ...wireRow, version: 2 }));
 
   const outcome = await saveIssuerIdentification(saveInput);
 
-  expect(outcome).toEqual({ kind: "ok", value: { ...issuerIdentification, version: 2 } });
+  expect(outcome).toEqual({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith("/fiscal-configuration/issuer-identification", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -114,6 +143,16 @@ test("saveIssuerIdentification PUTs the three editable fields and the version, n
       version: 1,
     }),
   });
+});
+
+test.each([
+  ["a body that does not match the identification", jsonResponse(200, { version: "2" })],
+  ["no body", jsonResponse(204)],
+  ["a body that is not JSON", new Response("<html>", { status: 200 })],
+])("saveIssuerIdentification returns ok on any 2xx, even with %s", async (_name, response) => {
+  vi.mocked(fetch).mockResolvedValue(response);
+
+  expect(await saveIssuerIdentification(saveInput)).toEqual({ kind: "ok" });
 });
 
 test("saveIssuerIdentification maps a 400 validation_failed to its field", async () => {
