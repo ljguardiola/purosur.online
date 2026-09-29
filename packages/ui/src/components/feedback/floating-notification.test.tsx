@@ -1,5 +1,5 @@
 import { Info } from "lucide-react";
-import type { ReactElement } from "react";
+import { type ReactElement, useState } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -203,6 +203,38 @@ test("dismisses through its close button", async () => {
   await screen.getByRole("button", { name: "Cerrar" }).click();
 
   expect(onDismiss).toHaveBeenCalledTimes(1);
+});
+
+function DismissedByItsOwner({ onDismiss }: { onDismiss: () => void }) {
+  const [shown, setShown] = useState(true);
+  return (
+    <>
+      <button type="button">Elsewhere</button>
+      {shown
+        ? notification({
+            onDismiss: () => {
+              onDismiss();
+              setShown(false);
+            },
+          })
+        : null}
+    </>
+  );
+}
+
+test("closed from the keyboard, gives focus back to where it was before focus entered it", async () => {
+  const onDismiss = vi.fn();
+  const screen = await render(<DismissedByItsOwner onDismiss={onDismiss} />);
+  const elsewhere = screen.getByRole("button", { name: "Elsewhere" }).element();
+
+  await userEvent.tab();
+  expect(document.activeElement).toBe(elsewhere);
+  await userEvent.tab();
+  expect(document.activeElement?.getAttribute("aria-label")).toBe("Cerrar");
+  await userEvent.keyboard("{Enter}");
+
+  expect(onDismiss).toHaveBeenCalledTimes(1);
+  expect(document.activeElement).toBe(elsewhere);
 });
 
 test("does not take focus when it appears", async () => {

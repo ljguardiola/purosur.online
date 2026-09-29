@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { Group } from "react-aria-components";
 import { createPortal } from "react-dom";
 import type { NoticeTone } from "../shared/tone";
@@ -29,6 +29,13 @@ export function FloatingNotification({
   const lifetimeSeconds = expiresAfterSeconds ?? defaultLifetimeSeconds[card.tone];
   const paused = hovered || focused;
   const dismiss = useEffectEvent(onDismiss);
+  const focusBeforeEntering = useRef<HTMLElement | null>(null);
+
+  const close = () => {
+    const returnTo = focusBeforeEntering.current;
+    if (focused && returnTo?.isConnected) returnTo.focus();
+    onDismiss();
+  };
 
   useEffect(() => {
     if (lifetimeSeconds === undefined || paused) return;
@@ -39,13 +46,19 @@ export function FloatingNotification({
   return createPortal(
     <Group
       onHoverChange={setHovered}
-      onFocus={() => setFocused(true)}
+      onFocus={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          focusBeforeEntering.current =
+            event.relatedTarget instanceof HTMLElement ? event.relatedTarget : null;
+        }
+        setFocused(true);
+      }}
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false);
       }}
       className="fixed right-6 bottom-6 z-overlay w-97 rounded-lg shadow-md"
     >
-      <NotificationCard {...card} onClose={onDismiss} />
+      <NotificationCard {...card} onClose={close} />
     </Group>,
     document.body,
   );
