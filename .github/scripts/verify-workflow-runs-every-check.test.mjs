@@ -284,7 +284,7 @@ for (const [label, scope, pattern] of [
     /scope job has no step with id scope whose run is exactly/,
   ],
   [
-    "names another step scope",
+    "gives the scope id to a step that does not decide the scope",
     { scopeRun: 'echo docs_only=true >> "$GITHUB_OUTPUT"' },
     /scope job has no step with id scope whose run is exactly/,
   ],
