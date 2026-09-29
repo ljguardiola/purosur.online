@@ -6,6 +6,7 @@ import { expectNoAccessibilityViolations } from "../../../test/axe";
 import { paintedBoxShadowLayers, tokenRgb } from "../../../test/token-colors";
 import type { EmptyStateProps } from "../../feedback/empty-state";
 import type { LoadFailureProps } from "../../feedback/load-failure";
+import { Button } from "../../forms/button";
 import { Table } from "./table";
 import { TableCellText } from "./table-cell-text";
 import type {
@@ -2038,6 +2039,29 @@ test("keeps the table the same height from its placeholders to its empty state, 
     title: "No products yet",
     description: "Add your first product to see it here.",
     variant: "blank",
+  };
+  const screen = await render(
+    <Table {...commonProps} columns={columns} rows={emptyRows} loading="initial" empty={empty} />,
+  );
+  const table = screen.container.querySelector("table") as HTMLTableElement;
+  const placeholderHeight = table.getBoundingClientRect().height;
+
+  await screen.rerender(
+    <Table {...commonProps} columns={columns} rows={emptyRows} empty={empty} />,
+  );
+
+  expect(screen.container.querySelector("table")?.getBoundingClientRect().height).toBe(
+    placeholderHeight,
+  );
+});
+
+test("keeps the table the same height from its placeholders to an empty state with an action", async () => {
+  const empty: EmptyStateProps = {
+    icon: <PackageSearch />,
+    title: "No products yet",
+    description: "Add your first product to see it here.",
+    variant: "blank",
+    actions: <Button>Add product</Button>,
   };
   const screen = await render(
     <Table {...commonProps} columns={columns} rows={emptyRows} loading="initial" empty={empty} />,
