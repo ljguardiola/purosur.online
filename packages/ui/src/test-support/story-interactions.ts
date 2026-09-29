@@ -104,3 +104,47 @@ export function playTabMatchesCssFocusVisible(
     expect(target.matches(":focus-visible")).toBe(true);
   };
 }
+
+// A story's screenshot must not change with the day it is taken, and a story cannot import vitest's
+// fake timers because Storybook runs it too. Only the play function opens what reads the clock,
+// so the clock is replaced for its duration and put back afterwards.
+export function playWithClockAt(isoDate: string, play: StoryPlayFunction): StoryPlayFunction {
+  return async (context) => {
+    const RealDate = globalThis.Date;
+    const fixed = RealDate.parse(isoDate);
+    class FixedDate extends RealDate {
+      constructor(
+        ...args:
+          | []
+          | [value: number | string | Date]
+          | [
+              year: number,
+              monthIndex: number,
+              date?: number,
+              hours?: number,
+              minutes?: number,
+              seconds?: number,
+              ms?: number,
+            ]
+      ) {
+        if (args.length === 0) {
+          super(fixed);
+        } else if (args.length === 1) {
+          super(args[0]);
+        } else {
+          super(...args);
+        }
+      }
+
+      static override now(): number {
+        return fixed;
+      }
+    }
+    globalThis.Date = FixedDate as unknown as DateConstructor;
+    try {
+      await play(context);
+    } finally {
+      globalThis.Date = RealDate;
+    }
+  };
+}

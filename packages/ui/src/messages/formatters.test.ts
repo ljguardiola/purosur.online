@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { formatDate, formatNumber, plural } from "./formatters";
+import {
+  formatDate,
+  formatMonthAndYear,
+  formatMonthName,
+  formatNumber,
+  plural,
+} from "./formatters";
 
 describe("plural", () => {
   it("selects the form Argentine Spanish plural rules choose", () => {
@@ -29,5 +35,23 @@ describe("formatDate", () => {
 
   it("passes formatting options through to Intl.DateTimeFormat", () => {
     expect(formatDate(new Date(2026, 0, 5), { month: "long" })).toBe("enero");
+  });
+});
+
+describe("formatMonthName", () => {
+  it("writes the month's full name capitalised", () => {
+    expect(formatMonthName(1)).toBe("Enero");
+    expect(formatMonthName(9)).toBe("Septiembre");
+    expect(formatMonthName(12)).toBe("Diciembre");
+  });
+});
+
+describe("formatMonthAndYear", () => {
+  it("writes the capitalised month and the year with no connector", () => {
+    expect(formatMonthAndYear(2026, 9)).toBe("Septiembre 2026");
+  });
+
+  it("writes a year of five digits without a thousands separator", () => {
+    expect(formatMonthAndYear(10000, 1)).toBe("Enero 10000");
   });
 });

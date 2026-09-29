@@ -743,12 +743,15 @@ test("while a save is in flight, neither the close button nor Escape dismisses t
     </main>
   );
   const screen = await render(ui);
-  await userEvent.fill(screen.getByRole("textbox", { name: /^Nombre del rol/ }), "Depósito");
+  const nameField = screen.getByRole("textbox", { name: /^Nombre del rol/ });
+  await userEvent.fill(nameField, "Depósito");
   await userEvent.click(screen.getByRole("button", { name: "Guardar el rol" }));
   await expect.poll(() => vi.mocked(services.createRole).mock.calls.length).toBe(1);
 
   expect(screen.getByRole("button", { name: "Cerrar" }).query()).toBeNull();
   await expect.element(screen.getByRole("button", { name: "Cancelar" })).toBeDisabled();
+  await userEvent.click(nameField);
+  await expect.element(nameField).toHaveFocus();
   await userEvent.keyboard("{Escape}");
   await flushPendingWork(screen, ui);
 
