@@ -16,7 +16,7 @@ import { generateSessionId, hashSessionId } from "./session-id.js";
 import { registerUserEditRoutes } from "./user-edit-route.js";
 
 // PGlite serializes every transaction, so racing requests can only interleave on a real Postgres
-// pool; this test pins the order by holding both users' row locks until both requests queue behind them.
+// pool; this test pins the order by holding both users' row locks until both requests are waiting.
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 
 let integrationDb: IntegrationDatabase;
