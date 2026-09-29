@@ -238,22 +238,18 @@ test("closed from the keyboard, gives focus back to where it was before focus en
 });
 
 test("does not take focus when it appears", async () => {
-  const screen = await render(
-    <>
-      <button type="button">Elsewhere</button>
-      {notification({ onDismiss: () => {} })}
-    </>,
-  );
+  const screen = await render(<button type="button">Elsewhere</button>);
   const elsewhere = screen.getByRole("button", { name: "Elsewhere" }).element() as HTMLElement;
   elsewhere.focus();
 
   await screen.rerender(
     <>
       <button type="button">Elsewhere</button>
-      {notification({ onDismiss: () => {}, title: "Another title" })}
+      {notification({ onDismiss: () => {} })}
     </>,
   );
 
+  expect(floatingElement()).toBeDefined();
   expect(document.activeElement).toBe(elsewhere);
 });
 
