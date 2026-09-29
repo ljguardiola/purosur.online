@@ -954,6 +954,66 @@ test("draws each day as a 40px rounded square with its number in body scale", as
   expect(Math.round(Number.parseFloat(getComputedStyle(day).fontSize))).toBe(16);
 });
 
+type DayOffsets = {
+  squareFromColumn: number;
+  numberFromSquareX: number;
+  numberFromSquareY: number;
+};
+
+function dayOffsets(day: HTMLElement): DayOffsets {
+  const center = (rect: DOMRect) => ({
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2,
+  });
+  const column = center((day.closest("td") as HTMLElement).getBoundingClientRect());
+  const square = center(day.getBoundingClientRect());
+  const numberRange = document.createRange();
+  numberRange.selectNodeContents(day);
+  const number = center(numberRange.getBoundingClientRect());
+  return {
+    squareFromColumn: Math.abs(square.x - column.x),
+    numberFromSquareX: Math.abs(number.x - square.x),
+    numberFromSquareY: Math.abs(number.y - square.y),
+  };
+}
+
+function expectCentered(day: HTMLElement) {
+  const offsets = dayOffsets(day);
+  expect(offsets.squareFromColumn, "square off its column's center").toBeLessThanOrEqual(1);
+  expect(offsets.numberFromSquareX, "number off the square's center across").toBeLessThanOrEqual(1);
+  expect(offsets.numberFromSquareY, "number off the square's center down").toBeLessThanOrEqual(1);
+}
+
+function dayNumbered(dialog: HTMLElement, number: string): HTMLElement {
+  const days = Array.from(dialog.querySelectorAll("td [role='button']")) as HTMLElement[];
+  return days.find((cell) => cell.textContent?.trim() === number) as HTMLElement;
+}
+
+test("centers a hovered day's square in its column and its number in the square", async () => {
+  const screen = await render(<ControlledFebruary2027 />);
+  const dialog = await openCalendar(screen, "Expiry");
+
+  const hovered = dayNumbered(dialog, "15");
+  await userEvent.hover(hovered);
+  await expect.poll(() => hovered.getAttribute("data-hovered")).toBe("true");
+
+  expectCentered(hovered);
+});
+
+test("centers the keyboard-focused day's square in its column and its number in the square", async () => {
+  const screen = await render(<ControlledFebruary2027 />);
+  const dialog = await openCalendarWithKeyboard(screen, "Expiry");
+
+  expectCentered(dialog.querySelector('[data-focus-visible="true"]') as HTMLElement);
+});
+
+test("centers the chosen day's square in its column and its number in the square", async () => {
+  const screen = await render(<ControlledFebruary2027 />);
+  const dialog = await openCalendar(screen, "Expiry");
+
+  expectCentered(dialog.querySelector('[data-selected="true"]') as HTMLElement);
+});
+
 test("shows the chosen day in bold", async () => {
   const screen = await render(<ControlledFebruary2027 />);
   const dialog = await openCalendar(screen, "Expiry");
@@ -983,6 +1043,15 @@ test("rings today in brand blue and bolds its number, leaving other days plain",
   const other = days.find((cell) => cell.textContent?.trim() === "11") as HTMLElement;
   expect(paintedBoxShadowLayers(other)).toEqual([]);
   expect(getComputedStyle(other).fontWeight).toBe("400");
+});
+
+test("centers today's square in its column and its number in the square", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2027-02-10T12:00:00Z"));
+  const screen = await render(<ControlledFebruary2027 />);
+  const dialog = await openCalendar(screen, "Expiry");
+
+  expectCentered(dialog.querySelector("[data-today]") as HTMLElement);
 });
 
 test("keeps today's number legible when today is also the chosen day", async () => {
