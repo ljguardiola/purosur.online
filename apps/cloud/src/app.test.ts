@@ -1266,7 +1266,6 @@ describe("the route access inventory", () => {
     await app.ready();
 
     expect(app.routeAccessInventory()).toEqual([
-      { method: "GET", url: "/health", access: PUBLIC_ACCESS },
       { method: "GET", url: "/error-reporting", access: PUBLIC_ACCESS },
       { method: "POST", url: "/users/recovery/request", access: PUBLIC_ACCESS },
       { method: "POST", url: "/users/recovery/registration-options", access: PUBLIC_ACCESS },
@@ -1441,6 +1440,7 @@ describe("the route access inventory", () => {
         url: "/registers/:id/enrollment-code",
         access: permissionAccess("enroll_register_devices"),
       },
+      { method: "GET", url: "/health", access: PUBLIC_ACCESS },
       { method: "POST", url: "/devices/enroll", access: PUBLIC_ACCESS },
       { method: "HEAD", url: "/*", access: PUBLIC_ACCESS },
       { method: "GET", url: "/*", access: PUBLIC_ACCESS },

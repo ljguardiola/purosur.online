@@ -77,6 +77,27 @@ describe("GET /health", () => {
     });
   });
 
+  it("answers a failure to identify the installation with the cloud error envelope, revealing nothing of it", async () => {
+    const failing = Fastify();
+    registerRouteAccess(failing);
+    registerHealthRoute(failing, {
+      version: "abc1234",
+      authenticateDevice: () =>
+        Promise.reject(new Error("Failed query: select register_installations")),
+    });
+
+    const response = await failing.inject({
+      method: "GET",
+      url: "/health",
+      headers: { authorization: `Bearer ${issueDeviceToken().deviceToken}` },
+    });
+    await failing.close();
+
+    expect(response.statusCode).toBe(500);
+    expect(cloudErrorSchema.parse(response.json())).toMatchObject({ code: "internal_error" });
+    expect(response.body).not.toContain("register_installations");
+  });
+
   it("answers without any installation when no device authentication is wired", async () => {
     const bare = Fastify();
     registerRouteAccess(bare);
