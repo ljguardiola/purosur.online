@@ -8,7 +8,7 @@ import {
   LoadingPlaceholder,
   Modal,
   Tag,
-  Tooltip,
+  TextField,
 } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { useNavigate } from "@tanstack/react-router";
@@ -16,7 +16,6 @@ import {
   Check,
   KeyRound,
   Laptop,
-  Lock,
   Pencil,
   RotateCcw,
   ShieldX,
@@ -283,17 +282,14 @@ function EditUserModal({
             </Button>
           )}
           {user.isLastActiveAdministrator ? (
-            <div className="flex flex-col gap-1">
-              <p className="font-bold text-text text-detail">Rol</p>
-              <div className="flex h-control-2xl min-w-0 max-w-full items-center justify-between gap-2 rounded-lg border-2 border-border bg-surface-subtle px-3">
-                <span className="min-w-0 flex-1 truncate text-left font-semibold text-body text-text">
-                  {roleDisplayName(user.role)}
-                </span>
-                <Tooltip description="Es el único Administrador activo. Para cambiarle el rol, primero hacé Administrador a otra persona.">
-                  <IconButton icon={<Lock />} aria-label="Por qué el rol está fijo" />
-                </Tooltip>
-              </div>
-            </div>
+            <TextField
+              kind="plain-text"
+              label="Rol"
+              value={roleDisplayName(user.role)}
+              onChange={() => {}}
+              readOnly
+              readOnlyReason="Es el único Administrador activo. Para cambiarle el rol, primero hacé Administrador a otra persona."
+            />
           ) : (
             roleSelectOptions && (
               <form.AppField name="roleId">

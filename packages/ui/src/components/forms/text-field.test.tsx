@@ -1,11 +1,12 @@
 import { useId, useState } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
+import type { DispatchableCdpSession } from "../../test/setup-browser";
 import { insetBoundary, paintedBoxShadowLayers, tokenRgb } from "../../test/token-colors";
 import { FieldSizeProvider } from "./field-size";
-import { TextField, type TextFieldProps } from "./text-field";
+import { TextField, type TextFieldProps, type TextFieldReadOnlyReasonProps } from "./text-field";
 
 type Screen = Awaited<ReturnType<typeof render>>;
 
@@ -967,4 +968,152 @@ test("does not accept a field without a label, a value or onChange", () => {
 
 test("does not name its secondary text helperText", () => {
   expectTypeOf<TextFieldProps>().not.toHaveProperty("helperText");
+});
+
+const lastAdministratorReason =
+  "Es el único Administrador activo. Para cambiarle el rol, primero hacé Administrador a otra persona.";
+
+async function renderReadOnlyWithReason(): Promise<Screen> {
+  await page.viewport(1280, 900);
+  const session = cdp() as unknown as DispatchableCdpSession;
+  await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
+  window.focus();
+  return render(
+    <TextField
+      kind="plain-text"
+      label="Rol"
+      value="Administrador"
+      onChange={() => {}}
+      readOnly
+      readOnlyReason={lastAdministratorReason}
+    />,
+  );
+}
+
+test("describes a read-only field by its reason, with no visible text, icon or button of its own", async () => {
+  const screen = await renderReadOnlyWithReason();
+  const input = fieldInput(screen, "Rol");
+  const box = fieldBox(screen, "Rol");
+
+  expect(input.readOnly).toBe(true);
+  expect(input.value).toBe("Administrador");
+  expect(describedText(input)).toBe(lastAdministratorReason);
+  expect(box.querySelector("button, svg")).toBeNull();
+  expect(screen.getByRole("tooltip").query()).toBeNull();
+  const reasonText = document.getElementById(input.getAttribute("aria-describedby") ?? "");
+  expect(reasonText?.getBoundingClientRect().width).toBeLessThanOrEqual(1);
+  expect(reasonText?.getBoundingClientRect().height).toBeLessThanOrEqual(1);
+});
+
+test("opens the reason as a tooltip when the pointer hovers the field box, including its padding", async () => {
+  const screen = await renderReadOnlyWithReason();
+  const box = fieldBox(screen, "Rol");
+
+  await userEvent.hover(box, { position: { x: 3, y: 3 } });
+
+  await expect.element(screen.getByRole("tooltip")).toBeVisible();
+  await expect.element(screen.getByRole("tooltip")).toHaveTextContent(lastAdministratorReason);
+});
+
+test("opens the reason as a tooltip when the field receives keyboard focus", async () => {
+  const screen = await renderReadOnlyWithReason();
+
+  await userEvent.tab();
+
+  expect(document.activeElement).toBe(fieldInput(screen, "Rol"));
+  await expect.element(screen.getByRole("tooltip")).toBeVisible();
+  await expect.element(screen.getByRole("tooltip")).toHaveTextContent(lastAdministratorReason);
+});
+
+test("keeps the field described by the reason once, and by nothing else, while its tooltip is open", async () => {
+  const screen = await renderReadOnlyWithReason();
+  const input = fieldInput(screen, "Rol");
+
+  await userEvent.tab();
+  await expect.element(screen.getByRole("tooltip")).toBeVisible();
+
+  expect(describedText(input)).toBe(lastAdministratorReason);
+});
+
+test("keeps an error message and the reason in a read-only field's description while its tooltip is open", async () => {
+  await page.viewport(1280, 900);
+  window.focus();
+  const screen = await render(
+    <TextField
+      kind="plain-text"
+      label="Rol"
+      value="Administrador"
+      onChange={() => {}}
+      readOnly
+      readOnlyReason={lastAdministratorReason}
+      errorMessage="No se puede cambiar"
+    />,
+  );
+  const input = fieldInput(screen, "Rol");
+
+  await userEvent.tab();
+  await expect.element(screen.getByRole("tooltip")).toBeVisible();
+
+  expect(describedText(input)).toContain("No se puede cambiar");
+  expect(describedText(input)).toContain(lastAdministratorReason);
+  expect(describedText(input).split(lastAdministratorReason)).toHaveLength(2);
+});
+
+test("has no accessibility violations with a read-only reason, closed or open", async () => {
+  const screen = await renderReadOnlyWithReason();
+  await expectNoAccessibilityViolations(screen.container);
+
+  await userEvent.tab();
+  await expect.element(screen.getByRole("tooltip")).toBeVisible();
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("does not accept a read-only reason unless the field is read-only", () => {
+  expectTypeOf<{
+    kind: "plain-text";
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    readOnlyReason: string;
+  }>().not.toExtend<TextFieldProps | TextFieldReadOnlyReasonProps>();
+  expectTypeOf<{
+    kind: "plain-text";
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    readOnly: false;
+    readOnlyReason: string;
+  }>().not.toExtend<TextFieldProps | TextFieldReadOnlyReasonProps>();
+  expectTypeOf<{
+    kind: "plain-text";
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    readOnly: true;
+    readOnlyReason: string;
+  }>().toExtend<TextFieldReadOnlyReasonProps>();
+});
+
+test("does not accept a read-only reason on a disabled field", () => {
+  expectTypeOf<{
+    kind: "plain-text";
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    disabled: true;
+    readOnly: true;
+    readOnlyReason: string;
+  }>().not.toExtend<TextFieldProps | TextFieldReadOnlyReasonProps>();
+});
+
+test("does not accept a read-only reason beside an affix", () => {
+  expectTypeOf<{
+    kind: "plain-text";
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    readOnly: true;
+    readOnlyReason: string;
+    suffix: string;
+  }>().not.toExtend<TextFieldProps | TextFieldReadOnlyReasonProps>();
 });

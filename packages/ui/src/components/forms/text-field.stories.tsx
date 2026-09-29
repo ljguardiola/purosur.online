@@ -145,6 +145,19 @@ export const ReadOnly: Story = {
   },
 };
 
+export const ReadOnlyWithReason: Story = {
+  render: () => (
+    <TextField
+      kind="plain-text"
+      label="Rol"
+      value="Administrador"
+      onChange={() => {}}
+      readOnly
+      readOnlyReason="Es el único Administrador activo. Para cambiarle el rol, primero hacé Administrador a otra persona."
+    />
+  ),
+};
+
 export const Disabled: Story = {
   args: { kind: "plain-text", label: "Motivo", value: "", onChange: () => {}, disabled: true },
 };
