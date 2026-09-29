@@ -885,6 +885,88 @@ test("shows a stale_version notice, and Recargar refetches so the second save se
   expect(services.saveBranchSettings).toHaveBeenLastCalledWith(reloaded);
 });
 
+async function reopenWithCachedSettings(
+  services: BranchSettingsScreenServices,
+  screen: Awaited<ReturnType<typeof renderScreen>>,
+) {
+  await screen.rerender(<main />);
+  await screen.rerender(
+    <FieldSizeProvider size="backoffice">
+      <main>
+        <BranchSettingsScreen onSessionEnded={() => {}} services={services} />
+      </main>
+    </FieldSizeProvider>,
+  );
+}
+
+test("keeps the person's unsaved edit when a refresh of the cached settings lands with different data", async () => {
+  const services = createServices();
+  const refresh = deferred<Awaited<ReturnType<typeof services.fetchBranchSettings>>>();
+  vi.mocked(services.fetchBranchSettings)
+    .mockResolvedValueOnce({ kind: "ok", value: loaded })
+    .mockReturnValueOnce(refresh.promise);
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Dirección" }))
+    .toHaveValue("Av. Belgrano 1450, CABA");
+  await reopenWithCachedSettings(services, screen);
+  const address = screen.getByRole("textbox", { name: "Dirección" });
+  await expect.element(address).toHaveValue("Av. Belgrano 1450, CABA");
+  await userEvent.fill(address, "Av. Corrientes 800, CABA");
+
+  refresh.resolve({ kind: "ok", value: { ...loaded, whatsappNumber: "+54 9 11 0000-0000" } });
+
+  await expect.poll(() => vi.mocked(services.fetchBranchSettings).mock.calls.length).toBe(2);
+  await new Promise((settle) => setTimeout(settle, 100));
+  await expect.element(address).toHaveValue("Av. Corrientes 800, CABA");
+  await expect
+    .element(screen.getByRole("textbox", { name: "WhatsApp" }))
+    .toHaveValue("+54 9 11 3333-2211");
+});
+
+test("shows the refreshed data over cached settings the person has not edited", async () => {
+  const services = createServices();
+  const refresh = deferred<Awaited<ReturnType<typeof services.fetchBranchSettings>>>();
+  vi.mocked(services.fetchBranchSettings)
+    .mockResolvedValueOnce({ kind: "ok", value: loaded })
+    .mockReturnValueOnce(refresh.promise);
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Dirección" }))
+    .toHaveValue("Av. Belgrano 1450, CABA");
+  await reopenWithCachedSettings(services, screen);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Dirección" }))
+    .toHaveValue("Av. Belgrano 1450, CABA");
+
+  refresh.resolve({ kind: "ok", value: { ...loaded, address: "Av. Belgrano 1600, CABA" } });
+
+  await expect
+    .element(screen.getByRole("textbox", { name: "Dirección" }))
+    .toHaveValue("Av. Belgrano 1600, CABA");
+});
+
+test("after a save, shows the server's normalized values even when the read returns the same data", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  vi.mocked(services.saveBranchSettings).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Lunes, horario 1, abre" }))
+    .toHaveValue("09:00");
+  await userEvent.fill(screen.getByRole("textbox", { name: "Lunes, horario 1, abre" }), "9:00");
+  await userEvent.fill(screen.getByRole("textbox", { name: "Aviso de vencimiento" }), "030");
+
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect
+    .element(screen.getByRole("textbox", { name: "Lunes, horario 1, abre" }))
+    .toHaveValue("09:00");
+  await expect
+    .element(screen.getByRole("textbox", { name: "Aviso de vencimiento" }))
+    .toHaveValue("30");
+});
+
 test("has no accessibility violations once loaded", async () => {
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });

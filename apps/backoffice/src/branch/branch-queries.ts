@@ -35,8 +35,3 @@ export function useReloadBranchSettings(params: {
     });
   };
 }
-
-export function useRefreshBranch(): () => Promise<void> {
-  const client = useQueryClient();
-  return () => client.invalidateQueries({ queryKey: branchKey });
-}

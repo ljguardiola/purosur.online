@@ -15,11 +15,7 @@ import { useSendToMyAccount } from "../access/send-to-my-account";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
-import {
-  useBranchSettingsQuery,
-  useRefreshBranch,
-  useReloadBranchSettings,
-} from "./branch-queries";
+import { useBranchSettingsQuery, useReloadBranchSettings } from "./branch-queries";
 import type {
   BranchDay,
   BranchHoursRange,
@@ -122,6 +118,29 @@ function valuesFrom(settings: BranchSettings): FormValues {
     unreviewedPriceAlertDays: String(settings.unreviewedPriceAlertDays),
     goodConditionReturnDays: String(settings.goodConditionReturnDays),
   };
+}
+
+function matchesSettings(values: FormValues, settings: BranchSettings): boolean {
+  return (
+    values.address === settings.address &&
+    values.whatsappNumber === settings.whatsappNumber &&
+    values.instagramHandle === settings.instagramHandle &&
+    values.expiringLotAlertDays === String(settings.expiringLotAlertDays) &&
+    values.unreviewedPriceAlertDays === String(settings.unreviewedPriceAlertDays) &&
+    values.goodConditionReturnDays === String(settings.goodConditionReturnDays) &&
+    BRANCH_DAYS.every((day) => {
+      const shown = values[day];
+      const ranges = settings.hours[day];
+      return (
+        shown.closed === (ranges.length === 0) &&
+        shown.ranges.length === ranges.length &&
+        shown.ranges.every(
+          (range, index) =>
+            range.opensAt === ranges[index]?.opensAt && range.closesAt === ranges[index]?.closesAt,
+        )
+      );
+    })
+  );
 }
 
 function parseDays(value: string): number | undefined {
@@ -274,7 +293,6 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
   const sendToMyAccount = useSendToMyAccount();
   const { fetchBranchSettings, saveBranchSettings } = services;
   const data = useBranchSettingsQuery({ fetchBranchSettings, onSessionEnded });
-  const refreshBranch = useRefreshBranch();
   const reloadBranchSettings = useReloadBranchSettings({ fetchBranchSettings });
   const [shownSettings, setShownSettings] = useState<BranchSettings | null>(null);
   const [values, setValues] = useState<FormValues>(EMPTY_VALUES);
@@ -284,9 +302,17 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
   const hoursErrorIdPrefix = useId();
 
   const settings = data.status === "loaded" ? data.value : null;
-  if (settings !== null && settings !== shownSettings) {
+  const hasUnsavedEdits = shownSettings !== null && !matchesSettings(values, shownSettings);
+  if (settings !== null && settings !== shownSettings && !hasUnsavedEdits) {
     setShownSettings(settings);
     setValues(valuesFrom(settings));
+    setFieldErrors({});
+    setNotice(null);
+  }
+
+  function showServerSettings(reloaded: BranchSettings) {
+    setShownSettings(reloaded);
+    setValues(valuesFrom(reloaded));
     setFieldErrors({});
     setNotice(null);
   }
@@ -308,9 +334,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
     setSubmitting(true);
     const outcome = await reloadBranchSettings();
     if (outcome.kind === "ok") {
-      setValues(valuesFrom(outcome.value));
-      setFieldErrors({});
-      setNotice(null);
+      showServerSettings(outcome.value);
       setSubmitting(false);
       return;
     }
@@ -405,7 +429,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
   }
 
   async function handleSubmit() {
-    if (settings === null) {
+    if (settings === null || shownSettings === null) {
       return;
     }
     const errors = { ...validateDaysFields(values), ...validateHoursFields(values) };
@@ -416,9 +440,12 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
     setNotice(null);
     setSubmitting(true);
 
-    const outcome = await saveBranchSettings(settingsFrom(values, settings.version));
+    const outcome = await saveBranchSettings(settingsFrom(values, shownSettings.version));
     if (outcome.kind === "ok") {
-      await refreshBranch();
+      const reloaded = await reloadBranchSettings();
+      if (reloaded.kind === "ok") {
+        showServerSettings(reloaded.value);
+      }
       setSubmitting(false);
       return;
     }
