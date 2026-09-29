@@ -4,13 +4,7 @@ import {
   roleCreationBodySchema,
   roleEditBodySchema,
 } from "@purosur/contracts";
-import {
-  isAdministratorRoleName,
-  isRoleNameTooLong,
-  type PermissionArea,
-  type PermissionKey,
-  ROLE_NAME_MAX_LENGTH,
-} from "@purosur/domain";
+import type { PermissionArea, PermissionKey } from "@purosur/domain";
 import {
   Button,
   InlineNotice,
@@ -41,6 +35,7 @@ import { useRefreshAccess, useReloadRole, useRoleQuery } from "./access-queries"
 import { useAuthorization } from "./authorization-modal";
 import { roleDisplayName } from "./role-display";
 import { RoleEditorForm } from "./role-editor-form";
+import { roleNameMessage } from "./role-name-message";
 import { withOneAlertView } from "./role-permissions";
 import {
   type AssignedUser,
@@ -85,20 +80,6 @@ export type RoleEditorModalProps = {
   onSessionEnded: () => void;
   services?: RoleEditorModalServices;
 };
-
-function roleNameMessage({ name }: { name: string }): string {
-  const trimmed = name.trim();
-  if (trimmed === "") {
-    return "Ingresá el nombre del rol.";
-  }
-  if (isRoleNameTooLong(trimmed)) {
-    return `El nombre puede tener hasta ${ROLE_NAME_MAX_LENGTH} caracteres.`;
-  }
-  if (isAdministratorRoleName(trimmed)) {
-    return "Ese nombre es del Administrador; elegí otro.";
-  }
-  return "Revisá el nombre del rol.";
-}
 
 type FormNotice =
   | { kind: "attemptFailed" }
