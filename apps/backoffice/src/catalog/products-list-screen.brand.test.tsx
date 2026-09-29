@@ -219,6 +219,31 @@ test("the brand just created is selected even before the brands are read again",
     .toHaveTextContent("Dulcor");
 });
 
+test("creating a brand leaves the catalog unread while the product form is open, and reads it once the form closes", async () => {
+  const services = createServices();
+  mockLoaded(services, [honey], undefined, [granix]);
+  vi.mocked(services.createBrand).mockResolvedValue({ kind: "ok", brand: dulcor });
+  const screen = await renderScreen(services);
+  const productDialog = await openEditProductModal(screen, honey);
+  const brandsReads = vi.mocked(services.fetchBrands).mock.calls.length;
+  const productsReads = vi.mocked(services.fetchProducts).mock.calls.length;
+
+  const brandDialog = await openStackedNewBrandModal(screen, productDialog);
+  await userEvent.fill(brandDialog.getByRole("textbox", { name: /^Nombre/ }), "Dulcor");
+  await userEvent.click(brandDialog.getByRole("button", { name: "Crear la marca" }));
+  await expect.poll(() => screen.getByRole("dialog", { name: "Nueva marca" }).query()).toBeNull();
+
+  expect(vi.mocked(services.fetchBrands).mock.calls.length).toBe(brandsReads);
+  expect(vi.mocked(services.fetchProducts).mock.calls.length).toBe(productsReads);
+  vi.mocked(services.fetchBrands).mockResolvedValue({ kind: "ok", value: [granix, dulcor] });
+  await userEvent.click(
+    screen.getByRole("dialog", { name: honey.name }).getByRole("button", { name: "Cancelar" }),
+  );
+  await expect
+    .poll(() => vi.mocked(services.fetchBrands).mock.calls.length)
+    .toBeGreaterThan(brandsReads);
+});
+
 test("a brand name already taken shows the error in the stacked modal and keeps the product form", async () => {
   const services = createServices();
   mockLoaded(services, [], undefined, [granix]);

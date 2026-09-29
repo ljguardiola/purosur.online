@@ -597,12 +597,7 @@ export function BrandsListScreen({
               <p className="text-text-subtle text-detail">Catálogo</p>
               <ScreenTitle>Marcas</ScreenTitle>
             </div>
-            <Button
-              variant="primary"
-              icon={<Plus />}
-              dataStatus={data.status}
-              onPress={() => setNewModalOpen(true)}
-            >
+            <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
               Nueva marca
             </Button>
           </div>

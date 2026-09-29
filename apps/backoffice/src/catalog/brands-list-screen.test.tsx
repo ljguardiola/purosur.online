@@ -247,17 +247,17 @@ test("ends the session when the brands request finds no open session", async () 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("the create action is disabled while the brands load, and after they fail to load", async () => {
+test("the create action stays available while the brands load, and after they fail to load", async () => {
   const services = createServices();
   const firstLoad = deferred<Awaited<ReturnType<typeof services.fetchBrands>>>();
   vi.mocked(services.fetchBrands).mockReturnValueOnce(firstLoad.promise);
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByRole("button", { name: "Nueva marca" })).toBeDisabled();
+  await expect.element(screen.getByRole("button", { name: "Nueva marca" })).toBeEnabled();
 
   firstLoad.resolve({ kind: "failed" });
   await expect.element(screen.getByText("No pudimos abrir las marcas")).toBeVisible();
-  await expect.element(screen.getByRole("button", { name: "Nueva marca" })).toBeDisabled();
+  await expect.element(screen.getByRole("button", { name: "Nueva marca" })).toBeEnabled();
 });
 
 test("creates a brand from the create modal, sending the name trimmed, and lists it", async () => {

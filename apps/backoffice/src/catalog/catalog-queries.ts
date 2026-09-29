@@ -143,3 +143,10 @@ export function useRefreshCatalog(): () => Promise<void> {
   const client = useQueryClient();
   return () => client.invalidateQueries({ queryKey: catalogKey });
 }
+
+// Marks every catalog list out of date without reading it now, for a change made while a form
+// that renders from those lists is still open.
+export function useMarkCatalogStale(): () => Promise<void> {
+  const client = useQueryClient();
+  return () => client.invalidateQueries({ queryKey: catalogKey, refetchType: "none" });
+}

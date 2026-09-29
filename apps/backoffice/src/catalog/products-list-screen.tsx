@@ -53,7 +53,15 @@ import {
   TriangleAlert,
   X,
 } from "lucide-react";
-import { type KeyboardEvent, useEffect, useEffectEvent, useId, useRef, useState } from "react";
+import {
+  type KeyboardEvent,
+  type ReactNode,
+  useEffect,
+  useEffectEvent,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import { useCloudForm } from "../platform/cloud-form";
 import { useFieldContext } from "../platform/cloud-form-context";
@@ -68,13 +76,14 @@ import {
   type ProductReload,
   useBrandsQuery,
   useCategoriesQuery,
+  useMarkCatalogStale,
   useProductsQuery,
   useRefreshCatalog,
   useReloadProduct,
 } from "./catalog-queries";
 import { categoriesInTreeOrder, categoryPathLabels, leafCategories } from "./category-path";
 import { NewBrandModal } from "./new-brand-modal";
-import { ProductBrandField, withCreatedBrand } from "./product-brand-field";
+import { brandFieldHelp, brandOptions, withCreatedBrand } from "./product-brand-field";
 import {
   type BarcodeListValue,
   barcodeProblemMessage,
@@ -474,11 +483,14 @@ type StackedBrandCreation = {
   reset: () => void;
   close: () => void;
   select: (brand: BrandSummary) => void;
+  finish: () => void;
 };
 
-// The brand modal opens over the product form, which stays mounted with everything typed in it;
-// the brand it creates is kept here until the brands are read again, so it's selectable at once.
+// The brand modal opens over the product form, which stays mounted with everything typed in it.
+// Reading the catalog again while that form is open could fail and close it, so the brand it
+// creates is kept here and the catalog is only read again once the form closes.
 function useStackedBrandCreation(chooseBrand: (brandId: string) => void): StackedBrandCreation {
+  const markCatalogStale = useMarkCatalogStale();
   const refreshCatalog = useRefreshCatalog();
   const [open, setOpen] = useState(false);
   const [created, setCreated] = useState<BrandSummary | null>(null);
@@ -495,9 +507,33 @@ function useStackedBrandCreation(chooseBrand: (brandId: string) => void): Stacke
       setCreated(brand);
       chooseBrand(brand.id);
       setOpen(false);
-      void refreshCatalog();
+      void markCatalogStale();
+    },
+    finish: () => {
+      if (created) {
+        void refreshCatalog();
+      }
     },
   };
+}
+
+function BrandFieldWithCreation({
+  select,
+  onCreateBrand,
+  disabled,
+}: {
+  select: ReactNode;
+  onCreateBrand: () => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="flex flex-col items-start gap-2">
+      <div className="w-full">{select}</div>
+      <Button variant="secondary" icon={<Plus />} disabled={disabled} onPress={onCreateBrand}>
+        Nueva marca
+      </Button>
+    </div>
+  );
 }
 
 type NewProductModalProps = {
@@ -601,6 +637,10 @@ function NewProductModal({
   const brandCreation = useStackedBrandCreation((brandId) =>
     form.setFieldValue("brandId", brandId),
   );
+  const closeForm = () => {
+    brandCreation.finish();
+    onClose();
+  };
 
   useEffect(() => {
     if (open) {
@@ -619,7 +659,7 @@ function NewProductModal({
       open={open}
       onOpenChange={(open) => {
         if (!open) {
-          onClose();
+          closeForm();
         }
       }}
       width="standard"
@@ -635,7 +675,7 @@ function NewProductModal({
             size="large"
             icon={<X />}
             disabled={submitting}
-            onPress={onClose}
+            onPress={closeForm}
           >
             Cancelar
           </Button>
@@ -689,14 +729,22 @@ function NewProductModal({
           }
         </form.AppField>
         <form.AppField name="brandId">
-          {() => (
-            <ProductBrandField
-              brands={withCreatedBrand(brands, brandCreation.created)}
-              keptBrandId={null}
-              disabled={submitting}
-              onCreateBrand={brandCreation.start}
-            />
-          )}
+          {(field) => {
+            const offered = withCreatedBrand(brands, brandCreation.created);
+            return (
+              <BrandFieldWithCreation
+                disabled={submitting}
+                onCreateBrand={brandCreation.start}
+                select={
+                  <field.Select
+                    label="Marca"
+                    options={brandOptions(offered, null)}
+                    {...brandFieldHelp(offered, field.state.value)}
+                  />
+                }
+              />
+            );
+          }}
         </form.AppField>
         <form.AppField name="netContent">
           {(field) => (
@@ -858,6 +906,10 @@ function EditProductModal({
   const brandCreation = useStackedBrandCreation((brandId) =>
     form.setFieldValue("brandId", brandId),
   );
+  const closeForm = () => {
+    brandCreation.finish();
+    onClose();
+  };
 
   useEffect(() => {
     if (open && target) {
@@ -924,7 +976,7 @@ function EditProductModal({
       open={open}
       onOpenChange={(open) => {
         if (!open) {
-          onClose();
+          closeForm();
         }
       }}
       width="standard"
@@ -935,7 +987,7 @@ function EditProductModal({
       closable
       footer={
         <>
-          <Button variant="secondary" size="large" icon={<X />} disabled={busy} onPress={onClose}>
+          <Button variant="secondary" size="large" icon={<X />} disabled={busy} onPress={closeForm}>
             Cancelar
           </Button>
           {offersReload ? (
@@ -1020,14 +1072,22 @@ function EditProductModal({
             }
           </form.AppField>
           <form.AppField name="brandId">
-            {() => (
-              <ProductBrandField
-                brands={withCreatedBrand(brands, brandCreation.created)}
-                keptBrandId={keptBrandId}
-                disabled={busy}
-                onCreateBrand={brandCreation.start}
-              />
-            )}
+            {(field) => {
+              const offered = withCreatedBrand(brands, brandCreation.created);
+              return (
+                <BrandFieldWithCreation
+                  disabled={busy}
+                  onCreateBrand={brandCreation.start}
+                  select={
+                    <field.Select
+                      label="Marca"
+                      options={brandOptions(offered, keptBrandId)}
+                      {...brandFieldHelp(offered, field.state.value)}
+                    />
+                  }
+                />
+              );
+            }}
           </form.AppField>
           <form.AppField name="netContent">
             {(field) => (
