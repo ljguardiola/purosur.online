@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { EmptyStateProps } from "../../feedback/empty-state";
 import type { Icon } from "../../shared/icon";
 
 export type TableColumnAlign = "start" | "end";
@@ -66,16 +67,6 @@ export type TableRow<T> = {
   state?: TableRowState;
 };
 
-export type TableEmptyStateVariant = "blank" | "filtered";
-
-export type TableEmptyStateProps = {
-  icon: Icon;
-  title: string;
-  description?: string;
-  variant: TableEmptyStateVariant;
-  actions?: ReactNode;
-};
-
 // "initial" placeholder rows render right away but stay invisible for a 300ms CSS reveal delay,
 // so a fast load never flashes them; "updating" keeps the current rows and runs a thin bar over
 // the header instead.
@@ -85,7 +76,7 @@ export type TableCommonProps<T> = {
   "aria-label": string;
   rows: readonly TableRow<T>[];
   loading?: TableLoadingState;
-  empty?: TableEmptyStateProps;
+  empty?: EmptyStateProps;
   footer?: ReactNode;
 };
 

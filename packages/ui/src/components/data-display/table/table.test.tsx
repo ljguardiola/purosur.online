@@ -4,12 +4,12 @@ import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../test/axe";
 import { paintedBoxShadowLayers, tokenRgb } from "../../../test/token-colors";
+import type { EmptyStateProps } from "../../feedback/empty-state";
 import { Table } from "./table";
 import { TableCellText } from "./table-cell-text";
 import type {
   TableAction,
   TableColumn,
-  TableEmptyStateProps,
   TableProps,
   TableRow,
   TableSort,
@@ -2003,7 +2003,7 @@ test("keeps the updating bar's segment still when the system asks for reduced mo
     .toBe(false);
 });
 
-test("renders the empty state in place of the header and rows, in blue strong when there is nothing yet", async () => {
+test("renders the empty state under the kept header, in blue strong when there is nothing yet", async () => {
   const screen = await render(
     <Table
       {...commonProps}
@@ -2022,9 +2022,55 @@ test("renders the empty state in place of the header and rows, in blue strong wh
   const icon = screen.container.querySelector("svg") as SVGSVGElement;
   expect(getComputedStyle(icon).color).toBe(tokenRgb("text-accent"));
   expect(icon.closest('[aria-hidden="true"]')).not.toBeNull();
-  expect(screen.container.querySelector("table")).toBeNull();
-  const section = screen.container.querySelector("section") as HTMLElement;
-  expect(section.hasAttribute("aria-busy")).toBe(false);
+  await expect.element(screen.getByRole("columnheader", { name: "Producto" })).toBeVisible();
+  const cells = screen.container.querySelectorAll("tbody td");
+  expect(cells).toHaveLength(1);
+  expect((cells[0] as HTMLTableCellElement).colSpan).toBe(columns.length);
+  const table = screen.getByRole("table").element();
+  expect(table.hasAttribute("aria-busy")).toBe(false);
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps the table the same height from its placeholders to its empty state, so nothing jumps", async () => {
+  const empty: EmptyStateProps = {
+    icon: <PackageSearch />,
+    title: "No products yet",
+    description: "Add your first product to see it here.",
+    variant: "blank",
+  };
+  const screen = await render(
+    <Table {...commonProps} columns={columns} rows={emptyRows} loading="initial" empty={empty} />,
+  );
+  const table = screen.container.querySelector("table") as HTMLTableElement;
+  const placeholderHeight = table.getBoundingClientRect().height;
+
+  await screen.rerender(
+    <Table {...commonProps} columns={columns} rows={emptyRows} empty={empty} />,
+  );
+
+  expect(screen.container.querySelector("table")?.getBoundingClientRect().height).toBe(
+    placeholderHeight,
+  );
+});
+
+test("centers the empty state in the frame's body", async () => {
+  const screen = await render(
+    <Table
+      {...commonProps}
+      columns={columns}
+      rows={emptyRows}
+      empty={{ icon: <PackageSearch />, title: "No products yet", variant: "blank" }}
+    />,
+  );
+
+  const cell = screen.container.querySelector("tbody td") as HTMLElement;
+  const block = screen.getByText("No products yet").element().parentElement as HTMLElement;
+  const cellRect = cell.getBoundingClientRect();
+  const blockRect = block.getBoundingClientRect();
+  const above = blockRect.top - cellRect.top;
+  const below = cellRect.bottom - blockRect.bottom;
+  expect(cellRect.height).toBe(280);
+  expect(Math.abs(above - below)).toBeLessThanOrEqual(1);
 });
 
 test("renders the empty state in secondary text when nothing matches the filters, with the caller's actions", async () => {
@@ -2079,12 +2125,10 @@ test("renders the real rows, not the empty state, when both rows and an empty pr
 
   await expect.element(screen.getByRole("cell", { name: "Coffee" })).toBeVisible();
   expect(screen.getByText("No products yet").query()).toBeNull();
-  expect(screen.container.querySelector("table")).not.toBeNull();
-  expect(screen.container.querySelector("section")).toBeNull();
+  expect(screen.container.querySelectorAll("tbody td")).toHaveLength(columns.length * rows.length);
 });
 
-// document.body is the browser's own standard fallback when a focused element is removed.
-test("drops focus to document.body, cleanly, when a focused header disappears into the empty state", async () => {
+test("keeps focus on the header when the rows become the empty state", async () => {
   const screen = await render(
     <Table
       {...commonProps}
@@ -2113,8 +2157,7 @@ test("drops focus to document.body, cleanly, when a focused header disappears in
     />,
   );
 
-  expect(screen.container.querySelector("table")).toBeNull();
-  expect(document.activeElement).toBe(document.body);
+  expect(document.activeElement).toBe(header);
 });
 
 test("shows placeholders instead of the empty state while loading is initial, even with an empty prop", async () => {
@@ -2237,8 +2280,8 @@ test("does not accept a table without an accessible name, its columns or its row
 });
 
 test("names a column's heading header and an empty state's look variant", () => {
-  expectTypeOf<TableEmptyStateProps>().toHaveProperty("variant");
-  expectTypeOf<TableEmptyStateProps>().not.toHaveProperty("tone");
+  expectTypeOf<EmptyStateProps>().toHaveProperty("variant");
+  expectTypeOf<EmptyStateProps>().not.toHaveProperty("tone");
   expectTypeOf<Extract<TableColumn<unknown>, { kind?: "data" }>>().toHaveProperty("header");
   expectTypeOf<Extract<TableColumn<unknown>, { kind?: "data" }>>().not.toHaveProperty("title");
   expectTypeOf<Extract<TableColumn<unknown>, { kind: "actions" }>>().toHaveProperty("header");

@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
+import { EmptyState } from "../../feedback/empty-state";
 import { TableCell } from "./table-cell";
-import { TableEmptyState } from "./table-empty-state";
 import { TableHeaderRow } from "./table-header-row";
 import { TablePlaceholderRows } from "./table-placeholder-rows";
 import { rowBoxShadowClassName, rowStateClassName } from "./table-styles";
@@ -56,48 +56,47 @@ export function Table<T>({
     <>
       <div className="relative isolate overflow-clip rounded-lg border border-border bg-surface">
         {loading === "updating" && <TableUpdatingBar />}
-        {showEmptyState && empty ? (
-          <section aria-label={ariaLabel}>
-            <TableEmptyState {...empty} />
-          </section>
-        ) : (
-          // table/thead/tbody/tr/th/td keep their native CSS display: overriding it away from
-          // table-shaped drops these tags' implicit ARIA roles in some engines.
-          <table
-            aria-label={ariaLabel}
-            aria-busy={loading ? true : undefined}
-            className="w-full table-fixed"
-          >
-            <thead>
-              <TableHeaderRow columns={columns} sort={sort} onSortChange={onSortChange} />
-            </thead>
-            <tbody aria-hidden={showingPlaceholders ? true : undefined}>
-              {showingPlaceholders ? (
-                <TablePlaceholderRows columns={columns} />
-              ) : (
-                rows.map(({ id, item, state }, rowIndex) => (
-                  <tr
-                    key={id}
-                    className={[
-                      rowBoxShadowClassName(state, rowIndex === rows.length - 1),
-                      rowStateClassName(state),
-                    ].join(" ")}
-                  >
-                    {columns.map((column, index) => (
-                      <TableCell
-                        key={column.key}
-                        column={column}
-                        item={item}
-                        first={index === 0}
-                        last={index === columns.length - 1}
-                      />
-                    ))}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        )}
+        {/* table/thead/tbody/tr/th/td keep their native CSS display: overriding it away from
+            table-shaped drops these tags' implicit ARIA roles in some engines. */}
+        <table
+          aria-label={ariaLabel}
+          aria-busy={loading ? true : undefined}
+          className="w-full table-fixed"
+        >
+          <thead>
+            <TableHeaderRow columns={columns} sort={sort} onSortChange={onSortChange} />
+          </thead>
+          <tbody aria-hidden={showingPlaceholders ? true : undefined}>
+            {showingPlaceholders && <TablePlaceholderRows columns={columns} />}
+            {showEmptyState && empty !== undefined && (
+              <tr>
+                <td colSpan={columns.length} className="h-70 align-middle">
+                  <EmptyState {...empty} />
+                </td>
+              </tr>
+            )}
+            {displayMode === "rows" &&
+              rows.map(({ id, item, state }, rowIndex) => (
+                <tr
+                  key={id}
+                  className={[
+                    rowBoxShadowClassName(state, rowIndex === rows.length - 1),
+                    rowStateClassName(state),
+                  ].join(" ")}
+                >
+                  {columns.map((column, index) => (
+                    <TableCell
+                      key={column.key}
+                      column={column}
+                      item={item}
+                      first={index === 0}
+                      last={index === columns.length - 1}
+                    />
+                  ))}
+                </tr>
+              ))}
+          </tbody>
+        </table>
       </div>
       {!showingPlaceholders && footer}
     </>

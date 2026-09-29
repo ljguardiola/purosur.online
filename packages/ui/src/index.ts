@@ -14,8 +14,6 @@ export type {
   TableAction,
   TableColumn,
   TableColumnAlign,
-  TableEmptyStateProps,
-  TableEmptyStateVariant,
   TableLoadingState,
   TableProps,
   TableRow,
@@ -26,10 +24,14 @@ export type {
 } from "./components/data-display/table/table-types";
 export type { TagProps } from "./components/data-display/tag";
 export { Tag } from "./components/data-display/tag";
+export type { EmptyStateProps, EmptyStateVariant } from "./components/feedback/empty-state";
+export { EmptyState } from "./components/feedback/empty-state";
 export type { HighlightedNoticeProps } from "./components/feedback/highlighted-notice";
 export { HighlightedNotice } from "./components/feedback/highlighted-notice";
 export type { InlineNoticeProps } from "./components/feedback/inline-notice";
 export { InlineNotice } from "./components/feedback/inline-notice";
+export type { LoadingPlaceholderProps } from "./components/feedback/loading-placeholder";
+export { LoadingPlaceholder } from "./components/feedback/loading-placeholder";
 export type { NotificationCardProps } from "./components/feedback/notification-card";
 export { NotificationCard } from "./components/feedback/notification-card";
 export type { StatusIndicatorProps } from "./components/feedback/status-indicator";

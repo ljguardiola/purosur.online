@@ -1,13 +1,17 @@
-import { iconSlotClassName } from "../../shared/icon";
-import type { TableEmptyStateProps } from "./table-types";
+import type { ReactNode } from "react";
+import { type Icon, iconSlotClassName } from "../shared/icon";
 
-export function TableEmptyState({
-  icon,
-  title,
-  description,
-  variant,
-  actions,
-}: TableEmptyStateProps) {
+export type EmptyStateVariant = "blank" | "filtered";
+
+export type EmptyStateProps = {
+  icon: Icon;
+  title: string;
+  description?: string;
+  variant: EmptyStateVariant;
+  actions?: ReactNode;
+};
+
+export function EmptyState({ icon, title, description, variant, actions }: EmptyStateProps) {
   const iconColorClassName = variant === "blank" ? "text-text-accent" : "text-text-subtle";
 
   return (
