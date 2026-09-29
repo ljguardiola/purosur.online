@@ -1,17 +1,18 @@
 import { ALERT_KINDS, type AlertKind } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
-import { alertKindDefinition } from "./alert-kind-catalog.js";
+import { type AlertScopeKind, alertKindDefinition } from "./alert-kind-catalog.js";
 
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
 const WARNING_KINDS = ALERT_KINDS.filter((kind) => kind !== "user_access_increased");
 
-const SCOPE_KIND_BY_ALERT_KIND: Record<AlertKind, "user" | "sourceAddress"> = {
+const SCOPE_KIND_BY_ALERT_KIND: Record<AlertKind, AlertScopeKind> = {
   backoffice_passkey_changed: "user",
   backoffice_recovery_requested: "user",
   user_email_changed: "user",
   backoffice_sign_in_lockout: "sourceAddress",
   user_access_increased: "user",
+  register_enrolled: "register",
 };
 
 describe("alertKindDefinition", () => {

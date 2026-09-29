@@ -1,6 +1,6 @@
 import type { AlertAudience, AlertKind, AlertLevel } from "@purosur/domain";
 
-export type AlertScopeKind = "user" | "sourceAddress";
+export type AlertScopeKind = "user" | "sourceAddress" | "register";
 
 export interface AlertKindDefinition {
   kind: AlertKind;
@@ -53,6 +53,14 @@ export const ALERT_KIND_CATALOG: readonly AlertKindDefinition[] = [
     audience: "all",
     scopeKind: "user",
     deduplicates: false,
+  },
+  {
+    kind: "register_enrolled",
+    level: "warning",
+    escalatesAfterMs: TWENTY_FOUR_HOURS_MS,
+    audience: "all",
+    scopeKind: "register",
+    deduplicates: true,
   },
 ];
 

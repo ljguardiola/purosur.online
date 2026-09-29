@@ -31,6 +31,7 @@ const LIST_KIND_LABELS = {
   user_email_changed: "Correo",
   backoffice_sign_in_lockout: "Bloqueo de ingreso",
   user_access_increased: "Acceso ampliado",
+  register_enrolled: "Alta de caja",
 } satisfies Record<AlertKind, string>;
 
 const LIST_KIND_DESCRIPTIONS = {
@@ -39,6 +40,7 @@ const LIST_KIND_DESCRIPTIONS = {
   user_email_changed: "Se cambió una dirección de correo",
   backoffice_sign_in_lockout: "Demasiados intentos fallidos de ingreso",
   user_access_increased: "Se amplió el acceso de un usuario",
+  register_enrolled: "Se dio de alta una caja",
 } satisfies Record<AlertKind, string>;
 
 export type AlertsListScreenProps = {
