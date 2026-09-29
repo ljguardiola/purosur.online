@@ -767,7 +767,7 @@ test("reports a workflow that does not parse as YAML", () => {
 });
 
 const PINNED_POSTGRES_IMAGE =
-  "public.ecr.aws/docker/library/postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873";
+  "postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873";
 
 const PULL_WITH_RETRIES_LINES = [
   "for delay in 0 15 30 60; do",
@@ -824,7 +824,7 @@ test("passes when the tests job pulls the cloud's digest-pinned Postgres image w
 });
 
 test("flags a cloud Postgres image referenced by a tag alone, which can move to other bytes", () => {
-  const image = "public.ecr.aws/docker/library/postgres:18-alpine";
+  const image = "postgres:18-alpine";
 
   const violations = findCloudPostgresImageViolations(
     testsJobWithPull({ pulledImage: image }),
