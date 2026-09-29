@@ -6,6 +6,8 @@ import {
   type OptionCardGroupProps,
   QuantityUnitField,
   type QuantityUnitFieldProps,
+  SegmentedControl,
+  type SegmentedControlProps,
   Select,
   type SelectProps,
   TextField,
@@ -93,6 +95,13 @@ export function BoundOptionCardGroup<Value extends string>(
       errorMessage={fieldErrorMessage(field.state.meta.errors)}
     />
   );
+}
+
+export function BoundSegmentedControl<Value extends string>(
+  props: Omit<SegmentedControlProps<Value>, "value" | "onChange">,
+) {
+  const field = useFieldContext<Value>();
+  return <SegmentedControl {...props} value={field.state.value} onChange={field.handleChange} />;
 }
 
 type SharedFieldErrorProps = {
