@@ -67,10 +67,12 @@ import { registerIssuerIdentificationEditRoute } from "./fiscal/issuer-identific
 import type { IssuerIdentificationRouteOptions } from "./fiscal/issuer-identification-read-route.js";
 import { registerIssuerIdentificationReadRoute } from "./fiscal/issuer-identification-read-route.js";
 import { registerEdgeOriginGuard } from "./platform/edge-origin-guard.js";
+import { registerHealthRoute } from "./platform/health-route.js";
 import { registerPriceConfirmationRoute } from "./pricing/price-confirmation-route.js";
 import { registerPriceSetRoute } from "./pricing/price-set-route.js";
 import type { PricesRouteOptions } from "./pricing/prices-list-route.js";
 import { registerPricesListRoute } from "./pricing/prices-list-route.js";
+import { authenticateDevice } from "./register/device-authentication.js";
 import type { DeviceEnrollmentRouteOptions } from "./register/device-enrollment-route.js";
 import { registerDeviceEnrollmentRoute } from "./register/device-enrollment-route.js";
 import { registerRegisterCreationRoute } from "./register/register-creation-route.js";
@@ -165,10 +167,13 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
   registerEdgeOriginGuard(app, options.edgeOriginSecret);
 
-  app.get("/health", { config: { access: PUBLIC_ACCESS } }, async () => ({
-    status: "ok",
+  const devices = options.devices;
+  registerHealthRoute(app, {
     version: options.version,
-  }));
+    ...(devices && {
+      authenticateDevice: (authorization) => authenticateDevice(devices.db, authorization),
+    }),
+  });
 
   const errorReporting: ErrorReportingConfiguration = options.errorReporting
     ? { enabled: true, ...options.errorReporting, release: options.version }

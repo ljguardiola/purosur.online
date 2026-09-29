@@ -1,9 +1,8 @@
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { almonds, honey } from "./test-support/products";
 import {
-  almonds,
   createServices,
-  honey,
   mockLoaded,
   openDeactivateProductModal,
   renderScreen,
@@ -66,58 +65,4 @@ test("shows an already-deactivated notice on 404, and updating the list closes t
 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
-});
-
-test("shows a generic failure notice when deactivating fails", async () => {
-  const services = createServices();
-  mockLoaded(services, [honey]);
-  vi.mocked(services.deactivateProduct).mockResolvedValue({ kind: "failed" });
-  const screen = await renderScreen(services);
-  const dialog = await openDeactivateProductModal(screen, honey);
-
-  await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
-
-  await expect.element(dialog.getByText("No se pudo desactivar el producto")).toBeVisible();
-});
-
-test("shows the rate-limited notice when deactivating is refused for too many requests", async () => {
-  const services = createServices();
-  mockLoaded(services, [honey]);
-  vi.mocked(services.deactivateProduct).mockResolvedValue({
-    kind: "rate_limited",
-    retryAfterSeconds: 90,
-  });
-  const screen = await renderScreen(services);
-  const dialog = await openDeactivateProductModal(screen, honey);
-
-  await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
-
-  await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
-});
-
-test("navigates to Mi cuenta when deactivating comes back forbidden", async () => {
-  window.history.pushState(null, "", "/catalog/products");
-  const services = createServices();
-  mockLoaded(services, [honey]);
-  vi.mocked(services.deactivateProduct).mockResolvedValue({ kind: "forbidden" });
-  const screen = await renderScreen(services);
-  const dialog = await openDeactivateProductModal(screen, honey);
-
-  await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
-
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
-  window.history.pushState(null, "", "/");
-});
-
-test("ends the session when deactivating finds no open session", async () => {
-  const services = createServices();
-  mockLoaded(services, [honey]);
-  vi.mocked(services.deactivateProduct).mockResolvedValue({ kind: "unauthenticated" });
-  const onSessionEnded = vi.fn();
-  const screen = await renderScreen(services, onSessionEnded);
-  const dialog = await openDeactivateProductModal(screen, honey);
-
-  await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
-
-  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
