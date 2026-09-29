@@ -1817,6 +1817,12 @@ export function ProductsListScreen({
   const [products, categories] =
     data.status === "loaded" ? data.value : [NO_PRODUCTS, NO_CATEGORIES];
 
+  useEffect(() => {
+    if (data.status === "failed") {
+      setPrintModalOpen(false);
+    }
+  }, [data.status]);
+
   const offeredCategoryIds = new Set(leafCategories(categories).map(({ id }) => id));
   const categoryFilter =
     data.status === "loaded" &&

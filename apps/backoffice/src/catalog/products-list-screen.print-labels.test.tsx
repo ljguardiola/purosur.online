@@ -627,6 +627,28 @@ test("a reload that fails leaves the list failed, with its retry, instead of the
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
 });
 
+test("the print modal a failed reload closed stays closed once the list loads again", async () => {
+  const services = createServices();
+  mockLoaded(services, [honeyWithInternalBarcode]);
+  vi.mocked(services.printLabels).mockResolvedValue({ kind: "product_not_found" });
+  const screen = await renderScreen(services);
+  const dialog = await openPrintLabelsModal(screen);
+  await userEvent.click(
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
+  );
+  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
+  vi.mocked(services.fetchProducts).mockResolvedValueOnce({ kind: "failed" });
+  await userEvent.click(dialog.getByRole("button", { name: "Recargar la lista" }));
+  await expect.element(screen.getByText("No pudimos abrir los productos")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect
+    .element(screen.getByRole("table", { name: "Productos" }).getByText(honeyWithInternalBarcode.name))
+    .toBeVisible();
+  expect(screen.getByRole("dialog").query()).toBeNull();
+});
+
 test("ignores a print failure that arrives after the modal was closed and opened again", async () => {
   const services = createServices();
   mockLoaded(services, [honeyWithInternalBarcode]);
