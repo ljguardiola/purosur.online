@@ -4,7 +4,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { openSession } from "../access/test-support/open-session";
-import { almonds, honey } from "../catalog/test-support/products-list-screen";
+import { almonds, honey } from "../catalog/test-support/products";
 import { App, type AppServices } from "./app";
 import { createAppServices } from "./test-support/app-services";
 
