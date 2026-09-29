@@ -77,6 +77,7 @@ export function createAppRouter(context: RouterContext) {
     context,
     parseSearch,
     stringifySearch,
+    defaultPreload: "intent",
     defaultPendingComponent: ScreenPending,
     defaultErrorComponent: ScreenFailure,
     defaultOnCatch: (error) => {
