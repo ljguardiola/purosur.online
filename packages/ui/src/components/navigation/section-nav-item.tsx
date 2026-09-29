@@ -1,4 +1,4 @@
-import { NavItem, type NavItemProps, type NavItemLook } from "./nav-item";
+import { NavItem, type NavItemLook, type NavItemProps } from "./nav-item";
 
 export type SectionNavItemProps = NavItemProps;
 
