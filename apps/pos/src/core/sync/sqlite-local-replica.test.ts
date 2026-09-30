@@ -1,9 +1,11 @@
 import type { BranchSettingsBody, SyncChange } from "@purosur/contracts";
+import type { OutboxEventDraft } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import type { RegisterPulledChange } from "./pulled-change";
 import { SqliteLocalReplica } from "./sqlite-local-replica";
+import { appendOutboxEvent } from "./sqlite-outbox";
 
 const LOCATION_ID = "3f0d1a52-0f7e-4a53-9f4c-2a7d2f1c9b10";
 const PEPPER = Buffer.alloc(32, 7).toString("base64url");
@@ -149,6 +151,39 @@ function storedBranchSettings() {
   return replica.branchSettings(LOCATION_ID);
 }
 
+const CHAIN_KEY = Buffer.alloc(32, 9).toString("base64");
+const SECOND_EVENT_ID = "018f0000-0000-7000-8000-000000000002";
+const THIRD_EVENT_ID = "018f0000-0000-7000-8000-000000000003";
+
+function outboxDraft(overrides: Partial<OutboxEventDraft> = {}): OutboxEventDraft {
+  return {
+    event_id: "018f0000-0000-7000-8000-000000000001",
+    aggregate_type: "CashSession",
+    aggregate_id: "session-1",
+    event_type: "cash_session_opened",
+    schema_version: 1,
+    payload: { opening_float: 5000, opened_by: "u1" },
+    occurred_at: "2026-09-30T12:00:00.000Z",
+    actor_id: "u1",
+    ...overrides,
+  };
+}
+
+function outboxSeqs(): number[] {
+  return database
+    .prepare<[], { device_seq: number }>("SELECT device_seq FROM outbox ORDER BY device_seq")
+    .all()
+    .map((row) => row.device_seq);
+}
+
+function chainPosition() {
+  return database
+    .prepare<[], { last_device_seq: number; last_chain_hmac: string | null }>(
+      "SELECT last_device_seq, last_chain_hmac FROM sync_state",
+    )
+    .get();
+}
+
 describe("the register's local copy of what it pulls", () => {
   it("starts a brand-new installation at the very first cursor, holding no branch settings", async () => {
     expect(await replica.savedCursor()).toBe(0);
@@ -235,6 +270,29 @@ describe("the register's local copy of what it pulls", () => {
 
     expect(await replica.savedCursor()).toBe(0);
     expect(storedBranchSettings()).toEqual(settingsRow());
+  });
+
+  it("keeps its outbox and chain position for the installation that wrote them", () => {
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+    appendOutboxEvent(database, CHAIN_KEY, outboxDraft());
+
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+
+    expect(outboxSeqs()).toEqual([1]);
+    expect(chainPosition()).toEqual({ last_device_seq: 1, last_chain_hmac: expect.any(String) });
+  });
+
+  it("drops the previous installation's outbox and starts the chain over when another installation takes over", () => {
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+    appendOutboxEvent(database, CHAIN_KEY, outboxDraft());
+    appendOutboxEvent(database, CHAIN_KEY, outboxDraft({ event_id: SECOND_EVENT_ID }));
+
+    replica.adoptDevice({ deviceId: "device-b", pepper: PEPPER });
+
+    expect(outboxSeqs()).toEqual([]);
+    expect(chainPosition()).toEqual({ last_device_seq: 0, last_chain_hmac: null });
+    appendOutboxEvent(database, CHAIN_KEY, outboxDraft({ event_id: THIRD_EVENT_ID }));
+    expect(outboxSeqs()).toEqual([1]);
   });
 
   it("saves neither the data nor the cursor when the page can't be saved whole", async () => {

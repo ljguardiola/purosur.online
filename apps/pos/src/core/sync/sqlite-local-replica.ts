@@ -54,7 +54,8 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
     this.database.transaction(() => {
       const reset = this.database
         .prepare<[string, string]>(
-          "UPDATE sync_state SET pull_cursor = 0, device_id = ? WHERE id = 1 AND device_id IS NOT ?",
+          `UPDATE sync_state SET pull_cursor = 0, device_id = ?, last_device_seq = 0, last_chain_hmac = NULL
+           WHERE id = 1 AND device_id IS NOT ?`,
         )
         .run(deviceId, deviceId);
       if (reset.changes > 0) {
@@ -62,6 +63,7 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
         this.database.prepare("DELETE FROM pin_verifiers").run();
         this.database.prepare("DELETE FROM pin_sign_in_failures").run();
         this.database.prepare("DELETE FROM own_register").run();
+        this.database.prepare("DELETE FROM outbox").run();
       }
     })();
   }
