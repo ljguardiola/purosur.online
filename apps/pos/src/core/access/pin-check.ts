@@ -22,7 +22,7 @@ function sameText(left: string, right: string): boolean {
   return leftBytes.length === rightBytes.length && timingSafeEqual(leftBytes, rightBytes);
 }
 
-export function pinMatches(pepper: string, pinHash: string, record: SignInRecord): boolean {
+function pinMatches(pepper: string, pinHash: string, record: SignInRecord): boolean {
   return sameText(derivePinVerifier(pepper, pinHash), record.verifier);
 }
 
