@@ -1,15 +1,20 @@
-import { PIN_SIGN_IN_LOCKOUT_FAILURES } from "@purosur/domain";
 import { Button, InlineNotice } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, KeyRound } from "lucide-react";
 
-export function SignInLockout({ onBack }: { onBack: () => void }) {
+export function SignInLockout({
+  consecutiveFailures,
+  onBack,
+}: {
+  consecutiveFailures: number;
+  onBack: () => void;
+}) {
   const navigate = useNavigate();
 
   return (
     <>
       <p className="text-body text-text">
-        Se equivocó {PIN_SIGN_IN_LOCKOUT_FAILURES} veces seguidas con el PIN.
+        Se equivocó {consecutiveFailures} veces seguidas con el PIN.
       </p>
       <InlineNotice
         tone="warning"

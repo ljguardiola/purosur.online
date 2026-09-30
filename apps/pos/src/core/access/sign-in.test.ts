@@ -223,7 +223,7 @@ describe("signing in after wrong PINs", () => {
   it("locks the person out with the eighth wrong PIN", async () => {
     const { built, failures } = deps({ failures: { u1: failuresAt(7) } });
 
-    expect(await signIn(built, "u1", "9999")).toEqual({ kind: "locked" });
+    expect(await signIn(built, "u1", "9999")).toEqual({ kind: "locked", consecutive_failures: 8 });
     expect(failures.get("u1")?.consecutiveFailures).toBe(8);
   });
 
@@ -248,7 +248,7 @@ describe("signing in after wrong PINs", () => {
   it("refuses a locked person, even with the right PIN, without hashing or counting", async () => {
     const { built, hashed, failures } = deps({ failures: { u1: failuresAt(8) } });
 
-    expect(await signIn(built, "u1", "1234")).toEqual({ kind: "locked" });
+    expect(await signIn(built, "u1", "1234")).toEqual({ kind: "locked", consecutive_failures: 8 });
     expect(hashed).toEqual([]);
     expect(failures.get("u1")?.consecutiveFailures).toBe(8);
   });
@@ -256,7 +256,7 @@ describe("signing in after wrong PINs", () => {
   it("tells a locked person is locked though the register has no pepper", async () => {
     const { built } = deps({ failures: { u1: failuresAt(8) }, readPepper: async () => undefined });
 
-    expect(await signIn(built, "u1", "1234")).toEqual({ kind: "locked" });
+    expect(await signIn(built, "u1", "1234")).toEqual({ kind: "locked", consecutive_failures: 8 });
   });
 
   it("counts nothing when the register has no pepper", async () => {
@@ -349,7 +349,10 @@ describe("signing in after wrong PINs", () => {
     await firstHashing;
     release();
 
-    expect(await attempts).toEqual([{ kind: "locked" }, { kind: "locked" }]);
+    expect(await attempts).toEqual([
+      { kind: "locked", consecutive_failures: 8 },
+      { kind: "locked", consecutive_failures: 8 },
+    ]);
     expect(hashed).toHaveLength(1);
     expect(failures.get("u1")?.consecutiveFailures).toBe(8);
   });

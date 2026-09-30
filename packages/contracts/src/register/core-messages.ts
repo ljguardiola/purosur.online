@@ -96,7 +96,10 @@ const signInOutcomeSchema = z.discriminatedUnion("kind", [
     retry_after_seconds: pinSignInWaitSeconds.min(1),
     attempts_left: pinSignInAttemptsLeft,
   }),
-  z.object({ kind: z.literal("locked") }),
+  z.object({
+    kind: z.literal("locked"),
+    consecutive_failures: z.literal(PIN_SIGN_IN_LOCKOUT_FAILURES),
+  }),
   z.object({ kind: z.literal("no_register_permission") }),
   z.object({ kind: z.literal("unavailable") }),
 ]);

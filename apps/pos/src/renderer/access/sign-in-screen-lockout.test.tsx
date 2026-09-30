@@ -190,7 +190,7 @@ describe("SignInScreen when an attempt comes during a wait", () => {
 
 describe("SignInScreen when the user is locked", () => {
   it("replaces the list and the PIN with the lockout, naming the user", async () => {
-    const screen = await renderScreen({ kind: "locked" });
+    const screen = await renderScreen({ kind: "locked", consecutive_failures: 8 });
 
     await enter(screen, "Ada", "1234");
 
@@ -217,7 +217,7 @@ describe("SignInScreen when the user is locked", () => {
   });
 
   it("goes to the code redemption from the primary action", async () => {
-    const screen = await renderScreen({ kind: "locked" });
+    const screen = await renderScreen({ kind: "locked", consecutive_failures: 8 });
     await enter(screen, "Ada", "1234");
 
     await userEvent.click(screen.getByRole("button", { name: "Tengo un código" }));
@@ -226,7 +226,7 @@ describe("SignInScreen when the user is locked", () => {
   });
 
   it("goes back to the list of users with nobody chosen, no PIN and no notice", async () => {
-    const screen = await renderScreen({ kind: "locked" });
+    const screen = await renderScreen({ kind: "locked", consecutive_failures: 8 });
     await enter(screen, "Ada", "1234");
 
     await userEvent.click(screen.getByRole("button", { name: "Volver a la lista de usuarios" }));

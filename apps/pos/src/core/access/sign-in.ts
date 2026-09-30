@@ -5,6 +5,7 @@ import {
   holdsARegisterPermission,
   isLockedOutOfPinSignIn,
   PERMISSION_KEYS,
+  PIN_SIGN_IN_LOCKOUT_FAILURES,
   pinSignInAttemptsLeft,
   pinSignInDelaySeconds,
   pinSignInRetryAfterSeconds,
@@ -46,7 +47,7 @@ export async function signIn(
   const failures = deps.store.pinSignInFailures(userId);
   if (failures !== undefined) {
     if (isLockedOutOfPinSignIn(failures.consecutiveFailures)) {
-      return { kind: "locked" };
+      return { kind: "locked", consecutive_failures: PIN_SIGN_IN_LOCKOUT_FAILURES };
     }
     const retryAfterSeconds = pinSignInRetryAfterSeconds(
       failures.consecutiveFailures,
@@ -77,7 +78,7 @@ export async function signIn(
   const verifier = derivePinVerifier(pepper, pinHash);
   if (!sameText(verifier, record.verifier)) {
     if (isLockedOutOfPinSignIn(failed.consecutiveFailures)) {
-      return { kind: "locked" };
+      return { kind: "locked", consecutive_failures: PIN_SIGN_IN_LOCKOUT_FAILURES };
     }
     return {
       kind: "wrong_pin",

@@ -23,7 +23,7 @@ type Notice = { icon: Icon; title: string; description: string };
 
 type Refusal =
   | Exclude<SignInOutcome, { kind: "signed_in" | "locked" }>
-  | { kind: "locked"; firstName: string };
+  | { kind: "locked"; firstName: string; consecutiveFailures: number };
 
 type Wait = { seconds: number };
 
@@ -179,7 +179,11 @@ function SignInPanel({
     }
     setPin("");
     if (outcome.kind === "locked") {
-      setRefusal({ kind: "locked", firstName: chosen.first_name });
+      setRefusal({
+        kind: "locked",
+        firstName: chosen.first_name,
+        consecutiveFailures: outcome.consecutive_failures,
+      });
     } else if (outcome.kind !== "signed_in") {
       setRefusal(outcome);
     }
@@ -209,7 +213,12 @@ function SignInPanel({
             : "¿Quién abre la caja?"}
         </h1>
       </div>
-      {locked ? <SignInLockout onBack={() => reset(null)} /> : null}
+      {refusal?.kind === "locked" ? (
+        <SignInLockout
+          consecutiveFailures={refusal.consecutiveFailures}
+          onBack={() => reset(null)}
+        />
+      ) : null}
       {!locked && loaded.status === "loading" ? (
         <LoadingPlaceholder variant="list" items={3} />
       ) : null}
