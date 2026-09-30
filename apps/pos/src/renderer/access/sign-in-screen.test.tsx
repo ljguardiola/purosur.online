@@ -215,6 +215,7 @@ describe("SignInScreen", () => {
       .toBeVisible();
     await expect.element(screen.getByLabelText("PIN")).toHaveValue("");
     await expect.element(screen.getByLabelText("PIN")).toHaveFocus();
+    await expect.element(screen.getByLabelText("PIN")).not.toHaveAttribute("aria-invalid", "true");
     await expectNoAccessibilityViolations(screen.container);
   });
 
@@ -226,6 +227,7 @@ describe("SignInScreen", () => {
     await expect.element(screen.getByText("La caja está abierta")).toBeVisible();
     await expect.element(screen.getByText("Solo puede ingresar quien la abrió.")).toBeVisible();
     await expect.element(screen.getByLabelText("PIN")).toHaveValue("");
+    await expect.element(screen.getByLabelText("PIN")).not.toHaveAttribute("aria-invalid", "true");
   });
 
   it("says the PIN could not be checked, keeping what was typed, when the core cannot", async () => {
