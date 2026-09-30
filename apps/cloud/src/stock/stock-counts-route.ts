@@ -1,9 +1,9 @@
 import {
   type StockCountList,
+  stockBalanceSchema,
   stockCountBodySchema,
   stockCountListSchema,
   stockCountResultSchema,
-  stockExpectedBalanceSchema,
 } from "@purosur/contracts";
 import { expectedBalance, type SaleUnit } from "@purosur/domain";
 import { registerCount } from "@purosur/domain/stock/use-cases";
@@ -20,7 +20,7 @@ import {
 import { categories, products, stockCounts, stockMovements } from "../platform/db/schema.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { DrizzleStockStore } from "./drizzle-stock-store.js";
-import { appliedDeltaAfter, currentBalance, isActiveProduct } from "./stock-ledger-queries.js";
+import { appliedDeltaAfter, currentBalance, findActiveProduct } from "./stock-ledger-queries.js";
 import { periodStart } from "./stock-period.js";
 import type { StockRouteOptions } from "./stock-route-options.js";
 
@@ -99,7 +99,7 @@ export function registerStockCountsRoutes<TQueryResult extends PgQueryResultHKT>
   };
 
   app.get<{ Querystring: { days?: string } }>(
-    "/stock/counts",
+    "/inventory-counts",
     routeConfig,
     async (request, reply) => {
       const { locationId } = openSessionOf(request);
@@ -111,7 +111,7 @@ export function registerStockCountsRoutes<TQueryResult extends PgQueryResultHKT>
     },
   );
 
-  app.post("/stock/counts", routeConfig, async (request, reply) => {
+  app.post("/inventory-counts", routeConfig, async (request, reply) => {
     const body = await readValidatedBody(reply, stockCountBodySchema, request.body);
     if (!body) {
       return;
@@ -152,15 +152,16 @@ export function registerStockCountsRoutes<TQueryResult extends PgQueryResultHKT>
     );
   });
 
-  app.get<{ Params: { id: string }; Querystring: { at?: string } }>(
-    "/stock/products/:id/expected-balance",
+  app.get<{ Params: { productId: string }; Querystring: { at?: string } }>(
+    "/inventory-levels/:productId",
     {
       preHandler: routeConfig.preHandler,
       config: { access: permissionAccess("view_stock_balances"), sessionSource },
     },
     async (request, reply) => {
-      const productId = request.params.id;
-      if (!(await isActiveProduct(options.db, productId))) {
+      const { productId } = request.params;
+      const product = await findActiveProduct(options.db, productId);
+      if (!product) {
         await reply.code(404).send(NOT_FOUND_RESPONSE);
         return;
       }
@@ -174,7 +175,7 @@ export function registerStockCountsRoutes<TQueryResult extends PgQueryResultHKT>
         balance: await currentBalance(options.db, key),
         appliedAfterCount: await appliedDeltaAfter(options.db, key, new Date(at.data)),
       });
-      await reply.code(200).send(stockExpectedBalanceSchema.parse({ expected }));
+      await reply.code(200).send(stockBalanceSchema.parse({ ...product, balance: expected }));
     },
   );
 }

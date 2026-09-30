@@ -119,7 +119,7 @@ export function registerStockMovementsRoutes<TQueryResult extends PgQueryResultH
   const adjustmentAccess = permissionAccess("adjust_stock");
 
   app.get<{ Querystring: { days?: string } }>(
-    "/stock/movements",
+    "/inventory-movements",
     {
       preHandler,
       config: {
@@ -143,7 +143,7 @@ export function registerStockMovementsRoutes<TQueryResult extends PgQueryResultH
   );
 
   app.post(
-    "/stock/losses",
+    "/inventory-losses",
     { preHandler, config: { access: lossAccess, sessionSource } },
     async (request, reply) => {
       const body = await readValidatedBody(reply, stockLossBodySchema, request.body);
@@ -161,7 +161,7 @@ export function registerStockMovementsRoutes<TQueryResult extends PgQueryResultH
   );
 
   app.post(
-    "/stock/adjustments",
+    "/inventory-adjustments",
     { preHandler, config: { access: adjustmentAccess, sessionSource } },
     async (request, reply) => {
       const body = await readValidatedBody(reply, stockAdjustmentBodySchema, request.body);

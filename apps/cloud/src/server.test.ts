@@ -11,6 +11,7 @@ import {
   registerShutdownHandlers,
   reportStartupFailure,
   requireAuthorizedCuit,
+  requireDeviceTokenRotationKey,
   resolvePort,
   resolveRecoveryEnv,
   resolveStaticDir,
@@ -48,6 +49,31 @@ describe("resolvePort", () => {
     expect(resolvePort({})).toBe(3000);
     expect(resolvePort({ PORT: "not-a-number" })).toBe(3000);
     expect(resolvePort({ PORT: "-1" })).toBe(3000);
+  });
+});
+
+const ROTATION_KEY_BYTES = Buffer.alloc(32, 5);
+const ROTATION_KEY = ROTATION_KEY_BYTES.toString("base64");
+
+describe("requireDeviceTokenRotationKey", () => {
+  it("returns the key decoded from base64", () => {
+    expect(requireDeviceTokenRotationKey({ DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY })).toEqual(
+      ROTATION_KEY_BYTES,
+    );
+  });
+
+  it("throws when DEVICE_TOKEN_ROTATION_KEY is not set", () => {
+    expect(() => requireDeviceTokenRotationKey({})).toThrow(
+      "DEVICE_TOKEN_ROTATION_KEY must be set once DATABASE_URL is configured",
+    );
+  });
+
+  it("throws when the key holds fewer than 32 bytes", () => {
+    const shortKey = Buffer.alloc(31, 5).toString("base64");
+
+    expect(() => requireDeviceTokenRotationKey({ DEVICE_TOKEN_ROTATION_KEY: shortKey })).toThrow(
+      "DEVICE_TOKEN_ROTATION_KEY must hold at least 32 bytes",
+    );
   });
 });
 
@@ -439,6 +465,26 @@ describe("startServer", () => {
     expect(buildApp).not.toHaveBeenCalled();
   });
 
+  it("refuses to start when DATABASE_URL is set but DEVICE_TOKEN_ROTATION_KEY is not, before opening any database or job-queue resource", async () => {
+    const buildApp = vi.fn();
+    const setUpRecovery = vi.fn();
+    const env = {
+      DATABASE_URL: "postgres://user:pass@db/purosur",
+      RESEND_API_KEY: "re_test_key",
+      RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+      RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+      BACKOFFICE_ORIGIN: "https://staging.purosur.online",
+      EDGE_ORIGIN_SECRET: "edge-secret",
+      ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
+    };
+
+    await expect(
+      startServer(env, { initSentry: vi.fn(), buildApp, setUpRecovery }),
+    ).rejects.toThrow("DEVICE_TOKEN_ROTATION_KEY must be set once DATABASE_URL is configured");
+    expect(setUpRecovery).not.toHaveBeenCalled();
+    expect(buildApp).not.toHaveBeenCalled();
+  });
+
   it("refuses to start when ARCA_CERTIFICATE's CUIT is not valid", async () => {
     const buildApp = vi.fn();
     const setUpRecovery = vi.fn();
@@ -489,6 +535,7 @@ describe("startServer", () => {
       BACKOFFICE_ORIGIN: "https://staging.purosur.online",
       EDGE_ORIGIN_SECRET: "edge-secret",
       ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
+      DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY,
     };
 
     await startServer(env, { initSentry: vi.fn(), buildApp, setUpRecovery });
@@ -562,7 +609,7 @@ describe("startServer", () => {
         db: fakeRecovery.db,
         backofficeOrigin: fakeRecovery.backofficeOrigin,
       },
-      devices: { db: fakeRecovery.db },
+      devices: { db: fakeRecovery.db, rotationKey: ROTATION_KEY_BYTES },
     });
 
     expect(onCloseHooks).toHaveLength(1);
@@ -612,6 +659,7 @@ describe("startServer with the real app", () => {
         BACKOFFICE_ORIGIN: "https://staging.purosur.online",
         EDGE_ORIGIN_SECRET: "edge-secret",
         ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
+        DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY,
         BACKOFFICE_STATIC_DIR: staticDir,
       },
       { initSentry: vi.fn(), buildApp: buildAppWithoutListening, setUpRecovery },

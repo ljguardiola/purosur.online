@@ -92,6 +92,7 @@ describe("a register's enrollment alert that fails to open, on a real Postgres",
         hostname: "VIEJA",
         windowsVersion: "Windows 10 Pro 10.0.19045",
         enrolledAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        tokenIssuedAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
       })
       .returning();
 

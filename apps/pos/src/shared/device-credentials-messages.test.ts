@@ -4,7 +4,12 @@ import {
   readDeviceCredentialsRequest,
 } from "./device-credentials-messages";
 
-const CREDENTIALS = { device_id: "a4b1", device_token: "prefix.secret", pepper: "cGVwcGVy" };
+const CREDENTIALS = {
+  device_id: "a4b1",
+  device_token: "prefix.secret",
+  pepper: "cGVwcGVy",
+  token_received_at: "2026-09-29T12:00:00.000Z",
+};
 
 describe("readDeviceCredentialsRequest", () => {
   it("reads credentials the core hands main to store", () => {
@@ -21,6 +26,57 @@ describe("readDeviceCredentialsRequest", () => {
     const message = { type: "device-credentials-storable-request", request_id: "r3" };
 
     expect(readDeviceCredentialsRequest(message)).toEqual(message);
+  });
+
+  it("reads credentials the core asks main to swap in for the ones holding a given token", () => {
+    const message = {
+      type: "replace-device-credentials",
+      request_id: "r5",
+      expected_device_token: "old.token",
+      credentials: CREDENTIALS,
+    };
+
+    expect(readDeviceCredentialsRequest(message)).toEqual(message);
+  });
+
+  it.each([
+    ["without the token it expects", { credentials: CREDENTIALS }],
+    [
+      "with an expected token that isn't a string",
+      { expected_device_token: 7, credentials: CREDENTIALS },
+    ],
+    ["without credentials", { expected_device_token: "old.token" }],
+  ])("reads nothing from a replace request %s", (_case, fields) => {
+    expect(
+      readDeviceCredentialsRequest({
+        type: "replace-device-credentials",
+        request_id: "r5",
+        ...fields,
+      }),
+    ).toBeUndefined();
+  });
+
+  it("reads the core's question for the stored credentials", () => {
+    const message = { type: "device-credentials-read-request", request_id: "r4" };
+
+    expect(readDeviceCredentialsRequest(message)).toEqual(message);
+  });
+
+  it("reads credentials stored before their token's arrival was recorded", () => {
+    const { token_received_at: _unrecorded, ...older } = CREDENTIALS;
+    const message = { type: "store-device-credentials", request_id: "r1", credentials: older };
+
+    expect(readDeviceCredentialsRequest(message)).toEqual(message);
+  });
+
+  it("reads nothing from credentials whose token arrival isn't a string", () => {
+    expect(
+      readDeviceCredentialsRequest({
+        type: "store-device-credentials",
+        request_id: "r1",
+        credentials: { ...CREDENTIALS, token_received_at: 7 },
+      }),
+    ).toBeUndefined();
   });
 
   it("reads the core's question of whether credentials are stored", () => {
@@ -87,6 +143,58 @@ describe("readDeviceCredentialsAnswer", () => {
     const message = { type: "device-credentials-presence", request_id: "r2", present };
 
     expect(readDeviceCredentialsAnswer(message)).toEqual(message);
+  });
+
+  it.each(["replaced", "superseded", "not_stored"])(
+    "reads how main answered a replace request: %s",
+    (outcome) => {
+      const message = { type: "device-credentials-replaced", request_id: "r5", outcome };
+
+      expect(readDeviceCredentialsAnswer(message)).toEqual(message);
+    },
+  );
+
+  it("reads nothing from a replace answer with an outcome it doesn't know", () => {
+    expect(
+      readDeviceCredentialsAnswer({
+        type: "device-credentials-replaced",
+        request_id: "r5",
+        outcome: "maybe",
+      }),
+    ).toBeUndefined();
+  });
+
+  it("reads the credentials main holds", () => {
+    const message = {
+      type: "device-credentials-read",
+      request_id: "r4",
+      credentials: CREDENTIALS,
+    };
+
+    expect(readDeviceCredentialsAnswer(message)).toEqual(message);
+  });
+
+  it("reads that main holds no credentials", () => {
+    const message = { type: "device-credentials-read", request_id: "r4" };
+
+    expect(readDeviceCredentialsAnswer(message)).toEqual(message);
+  });
+
+  it("reads credentials main holds that predate the recorded token arrival", () => {
+    const { token_received_at: _unrecorded, ...older } = CREDENTIALS;
+    const message = { type: "device-credentials-read", request_id: "r4", credentials: older };
+
+    expect(readDeviceCredentialsAnswer(message)).toEqual(message);
+  });
+
+  it("reads a read answer whose credentials are malformed as no credentials", () => {
+    expect(
+      readDeviceCredentialsAnswer({
+        type: "device-credentials-read",
+        request_id: "r4",
+        credentials: { device_id: "a4b1" },
+      }),
+    ).toEqual({ type: "device-credentials-read", request_id: "r4" });
   });
 
   it.each([

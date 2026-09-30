@@ -1,7 +1,7 @@
 import type {
+  StockBalance,
   StockBalanceList,
   StockCountList,
-  StockExpectedBalance,
   StockMovementList,
   StockPeriodDays,
   StockProductList,
@@ -88,7 +88,7 @@ export function useExpectedBalanceQuery(
   },
 ) {
   const sendToMyAccount = useSendToMyAccount();
-  return useCloudQuery<StockExpectedBalance>({
+  return useCloudQuery<StockBalance>({
     queryKey: stockKeys.expectedBalance(params.productId, params.at),
     keepPreviousData: true,
     read: async () => {

@@ -33,7 +33,9 @@ function createServices(counts = [almondsCount, honeyCount]): StockCountsScreenS
       kind: "ok",
       value: { products: [almonds, crackers, honey, tea].map(withoutBalance) },
     }),
-    fetchExpectedBalance: vi.fn().mockResolvedValue({ kind: "ok", value: { expected: 17_000 } }),
+    fetchExpectedBalance: vi
+      .fn()
+      .mockResolvedValue({ kind: "ok", value: { ...tea, balance: 17_000 } }),
     registerCount: vi.fn(),
   };
 }

@@ -36,10 +36,10 @@ afterEach(async () => {
 });
 
 function listBalances(headers: Record<string, string>) {
-  return app.inject({ method: "GET", url: "/stock/balances", headers });
+  return app.inject({ method: "GET", url: "/inventory-levels", headers });
 }
 
-describe("GET /stock/balances", () => {
+describe("GET /inventory-levels", () => {
   it("returns 401 when no session cookie was sent", async () => {
     const response = await listBalances({ origin: BACKOFFICE_ORIGIN });
 

@@ -217,6 +217,7 @@ describe("buildTestDatabase", () => {
       registerId: register.id,
       tokenLookupPrefix: "token-prefix",
       tokenHash: "token-hash",
+      tokenIssuedAt: new Date("2026-01-05T12:00:00.000Z"),
       hostname: "CAJA",
       windowsVersion: "Windows 11",
       enrolledAt: new Date("2026-01-05T12:00:00.000Z"),
