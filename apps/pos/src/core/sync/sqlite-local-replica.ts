@@ -2,6 +2,7 @@ import type { BranchSettingsBody } from "@purosur/contracts";
 import type { NetContentUnit, SaleUnit } from "@purosur/domain";
 import type { LocalReplica, PullPage } from "@purosur/domain/sync/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
+import { prepareAccessPageWrites } from "./access-page-writes";
 import { prepareCatalogPageWrites } from "./catalog-page-writes";
 import type { RegisterPulledChange } from "./pulled-change";
 
@@ -34,19 +35,28 @@ function weeklyHoursOf(row: BranchSettingsBody): WeeklyHours {
 
 export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
   private readonly database: LocalDatabase;
+  private pepper: string | undefined;
 
   constructor(database: LocalDatabase) {
     this.database = database;
   }
 
   // A cursor only means something to the installation that pulled it: another one, perhaps of
-  // another branch, starts over from the first change.
-  adoptDevice(deviceId: string): void {
-    this.database
-      .prepare<[string, string]>(
-        "UPDATE sync_state SET pull_cursor = 0, device_id = ? WHERE id = 1 AND device_id IS NOT ?",
-      )
-      .run(deviceId, deviceId);
+  // another branch, starts over from the first change. Its PIN verifiers were derived with the
+  // pepper of the one before, and the PIN hashes they came from are not kept, so they are dropped
+  // and derived again as the users arrive.
+  adoptDevice({ deviceId, pepper }: { deviceId: string; pepper: string }): void {
+    this.pepper = pepper;
+    this.database.transaction(() => {
+      const reset = this.database
+        .prepare<[string, string]>(
+          "UPDATE sync_state SET pull_cursor = 0, device_id = ? WHERE id = 1 AND device_id IS NOT ?",
+        )
+        .run(deviceId, deviceId);
+      if (reset.changes > 0) {
+        this.database.prepare("DELETE FROM pin_verifiers").run();
+      }
+    })();
   }
 
   async savedCursor(): Promise<number> {
@@ -62,6 +72,7 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
   // A version the register already has, or an older one delivered late, never overwrites it.
   async savePage(page: PullPage<RegisterPulledChange>): Promise<void> {
     const catalog = prepareCatalogPageWrites(this.database);
+    const access = prepareAccessPageWrites(this.database, this.pepper);
     const saveBranchSettings = this.database.prepare(
       `INSERT INTO branch_settings (
          location_id, address, whatsapp_number, instagram_handle, weekly_hours,
@@ -119,9 +130,21 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
           case "price":
             catalog.price(change);
             break;
-          case "removal":
-            catalog.removal(change);
+          case "user":
+            access.user(change);
             break;
+          case "role":
+            access.role(change);
+            break;
+          case "removal": {
+            const { removed_entity } = change;
+            if (removed_entity === "user" || removed_entity === "role") {
+              access.removal({ ...change, removed_entity });
+            } else {
+              catalog.removal({ ...change, removed_entity });
+            }
+            break;
+          }
         }
       }
       saveCursor.run(page.cursor);
@@ -236,5 +259,56 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
       )
       .get(id);
     return record && { ...record, removed: record.removed === 1 };
+  }
+
+  user(id: string) {
+    const record = this.database
+      .prepare<
+        [string],
+        {
+          first_name: string;
+          role_id: string;
+          salt: string | null;
+          active: number;
+          version: number;
+          removed: number;
+        }
+      >("SELECT first_name, role_id, salt, active, version, removed FROM users WHERE id = ?")
+      .get(id);
+    return record && { ...record, active: record.active === 1, removed: record.removed === 1 };
+  }
+
+  pinVerifier(userId: string): string | undefined {
+    return this.database
+      .prepare<[string], { verifier: string }>(
+        "SELECT verifier FROM pin_verifiers WHERE user_id = ?",
+      )
+      .get(userId)?.verifier;
+  }
+
+  role(id: string) {
+    const record = this.database
+      .prepare<
+        [string],
+        { name: string | null; is_administrator: number; version: number; removed: number }
+      >("SELECT name, is_administrator, version, removed FROM roles WHERE id = ?")
+      .get(id);
+    if (record === undefined) {
+      return undefined;
+    }
+    const permissions = this.database
+      .prepare<[string], { permission_key: string; active: number }>(
+        "SELECT permission_key, active FROM role_permissions WHERE role_id = ? ORDER BY permission_key",
+      )
+      .all(id);
+    return {
+      ...record,
+      is_administrator: record.is_administrator === 1,
+      removed: record.removed === 1,
+      permissions: permissions.map((permission) => ({
+        ...permission,
+        active: permission.active === 1,
+      })),
+    };
   }
 }

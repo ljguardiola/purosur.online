@@ -9,7 +9,7 @@ import type { PullResult } from "./pull-schedule";
 import type { RegisterPulledChange } from "./pulled-change";
 
 interface RegisterReplica extends LocalReplica<RegisterPulledChange> {
-  adoptDevice(deviceId: string): void;
+  adoptDevice(device: { deviceId: string; pepper: string }): void;
 }
 
 export interface PullFromCloudDeps {
@@ -35,7 +35,7 @@ export async function pullFromCloud(deps: PullFromCloudDeps): Promise<PullAttemp
   if (credentials === undefined) {
     return { kind: "not_enrolled" };
   }
-  deps.replica.adoptDevice(credentials.device_id);
+  deps.replica.adoptDevice({ deviceId: credentials.device_id, pepper: credentials.pepper });
   return catchUpWithCloud({
     replica: deps.replica,
     feed: new CloudPullFeed(deps.getFromCloud, credentials.device_token),
