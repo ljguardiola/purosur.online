@@ -5,7 +5,7 @@ import type {
   SignInOutcome,
 } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { describe, expect, it, onTestFinished } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { CoreClient } from "../platform/core-client";
@@ -106,6 +106,10 @@ const enrolledCore = coreAnswering(true).core;
 function postCoreStatus(status: "starting" | "down" | "up"): void {
   window.postMessage({ channel: "core-status", payload: { type: "core-status", status } }, "*");
 }
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe("App", () => {
   it("shows only the brand panel before the core reports it is ready", async () => {
@@ -472,6 +476,56 @@ describe("App", () => {
     postCoreStatus("up");
 
     await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+  });
+
+  it("keeps asking for the cash session while the core stays up, until it can read it", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const answers: ("unavailable" | null)[] = ["unavailable", "unavailable", null];
+    const { core, cashSessionAsks } = coreAnswering(true, { kind: "enrolled" }, ADA_SIGNED_IN, {
+      cashSession: async () => answers.shift() ?? null,
+    });
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await expect.element(screen.getByText(CORE_DOWN_TITLE)).toBeVisible();
+
+    await vi.advanceTimersToNextTimerAsync();
+    await expect.poll(() => cashSessionAsks.length).toBe(2);
+    await expect.element(screen.getByText(CORE_DOWN_TITLE)).toBeVisible();
+    await expect
+      .poll(async () => {
+        await vi.advanceTimersToNextTimerAsync();
+        return cashSessionAsks.length;
+      })
+      .toBe(3);
+
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+  });
+
+  it("resumes the open cash session once a failed read of it succeeds while the core stays up", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const answers: (OpenCashSession | "unavailable")[] = ["unavailable", GRACE_SESSION];
+    const { core } = coreAnswering(true, { kind: "enrolled" }, ADA_SIGNED_IN, {
+      cashSession: async () => answers.shift() ?? GRACE_SESSION,
+    });
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await expect.element(screen.getByText(CORE_DOWN_TITLE)).toBeVisible();
+
+    await vi.advanceTimersToNextTimerAsync();
+
+    await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+  });
+
+  it("does not ask for the cash session again while it could read it", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const { core, cashSessionAsks } = coreAnswering(true);
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+
+    await vi.advanceTimersByTimeAsync(60 * 60 * 1000);
+
+    expect(cashSessionAsks).toHaveLength(1);
   });
 
   it("shows a cash session that was opened while the core was down", async () => {

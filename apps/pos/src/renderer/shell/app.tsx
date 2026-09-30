@@ -10,6 +10,7 @@ import type { Enrollment } from "./router";
 import { createAppRouter, routeFor } from "./router";
 
 const UNKNOWN_SESSION: CashSessionState = { status: "unknown" };
+const CASH_SESSION_RETRY_MS = 5000;
 
 function stateOf(session: OpenCashSession | null | "unavailable"): CashSessionState {
   if (session === "unavailable") {
@@ -117,6 +118,28 @@ export function App({ core }: { core: CoreClient }) {
       setCashSession(UNKNOWN_SESSION);
     };
   }, [core, enrollment]);
+
+  useEffect(() => {
+    if (enrollment !== "enrolled" || cashSession.status !== "unavailable") {
+      return;
+    }
+    let current = true;
+    const retry = setTimeout(() => {
+      core.cashSession().then(
+        (session) => {
+          if (current) {
+            setCashSession(stateOf(session));
+          }
+        },
+        // A replaced core connection fails this request; the core coming back up asks again.
+        () => {},
+      );
+    }, CASH_SESSION_RETRY_MS);
+    return () => {
+      current = false;
+      clearTimeout(retry);
+    };
+  }, [core, enrollment, cashSession]);
 
   useEffect(() => core.onPulled(() => void router.invalidate()), [core, router]);
 
