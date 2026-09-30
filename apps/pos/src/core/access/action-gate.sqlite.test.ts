@@ -177,7 +177,7 @@ describe("the action gate over the register's local database", () => {
     expect(performed).toEqual([]);
   });
 
-  it("refuses the next action of a signed-in person who is deactivated in a pull", async () => {
+  it("treats a signed-in person deactivated in a pull as nobody signed in on the next action", async () => {
     await signInAs(MANAGER_ID);
 
     await pull(
@@ -189,7 +189,7 @@ describe("the action gate over the register's local database", () => {
     );
     const { outcome, performed } = cashIn();
 
-    expect(await outcome).toEqual({ kind: "lacks_permission" });
+    expect(await outcome).toEqual({ kind: "not_signed_in" });
     expect(performed).toEqual([]);
   });
 });

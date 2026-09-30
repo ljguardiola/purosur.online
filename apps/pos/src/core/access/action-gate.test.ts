@@ -126,11 +126,31 @@ describe("running a guarded action for the signed-in person", () => {
     expect(performed).toEqual([]);
   });
 
-  it("refuses the action of a signed-in person who no longer has any access", async () => {
+  it("treats a signed-in person who no longer has any access as nobody signed in", async () => {
     const { outcome, performed } = guardedCashIn(deps({ accessOf: {} }));
 
-    expect(await outcome).toEqual({ kind: "lacks_permission" });
+    expect(await outcome).toEqual({ kind: "not_signed_in" });
     expect(performed).toEqual([]);
+  });
+
+  it("treats a signed-in person who no longer has any access as nobody signed in, though the action carries an authorization, without checking the PIN", async () => {
+    const hashed: string[] = [];
+    const { outcome, performed } = guardedCashIn(
+      deps({
+        accessOf: {},
+        overrides: {
+          hashPin: async (pin) => {
+            hashed.push(pin);
+            return PIN_HASH;
+          },
+        },
+      }),
+      { user_id: "u2", pin: "1234" },
+    );
+
+    expect(await outcome).toEqual({ kind: "not_signed_in" });
+    expect(performed).toEqual([]);
+    expect(hashed).toEqual([]);
   });
 
   it("reads the signed-in person's access again on every action", async () => {

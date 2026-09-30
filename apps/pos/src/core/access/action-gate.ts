@@ -39,12 +39,13 @@ export function createActionGate(deps: ActionGateDeps): ActionGate {
   return {
     async run(action, perform) {
       const signedInUserId = deps.signedInPerson.userId();
-      if (signedInUserId === undefined) {
+      const access =
+        signedInUserId === undefined ? undefined : deps.store.roleAccess(signedInUserId);
+      if (signedInUserId === undefined || access === undefined) {
         return { kind: "not_signed_in" };
       }
       if (action.authorization === undefined) {
-        const access = deps.store.roleAccess(signedInUserId);
-        if (access === undefined || !holdsPermission(access, action.permission)) {
+        if (!holdsPermission(access, action.permission)) {
           return { kind: "lacks_permission" };
         }
         return {
