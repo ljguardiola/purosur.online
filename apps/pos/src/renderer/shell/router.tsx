@@ -57,7 +57,8 @@ export interface RouterContext {
     person: SignedInPerson,
     sessionId: string,
     countedCash: number,
-    authorization?: Authorization,
+    authorization: Authorization | undefined,
+    leaving: boolean,
   ) => Promise<CloseCashSessionOutcome>;
   cashBalance: () => Promise<CashBalance | null | "unavailable">;
   redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
@@ -201,6 +202,7 @@ const cashCountRoute = createRoute({
     const { id, openedAt, openedBy, person, cashBalance, authorizers, closeCashSession } =
       cashCountRoute.useRouteContext();
     const registerName = sessionEyebrowRoute.useLoaderData();
+    const { leaving } = cashCountRoute.useSearch();
     const signedIn = person ?? openedBy;
     return (
       <CashCountScreen
@@ -211,7 +213,7 @@ const cashCountRoute = createRoute({
         loadCashBalance={cashBalance}
         loadAuthorizers={authorizers}
         closeCashSession={(countedCash, authorization) =>
-          closeCashSession(signedIn, id, countedCash, authorization)
+          closeCashSession(signedIn, id, countedCash, authorization, leaving)
         }
       />
     );

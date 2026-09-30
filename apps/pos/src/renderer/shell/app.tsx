@@ -103,14 +103,19 @@ export function App({ core }: { core: CoreClient }) {
     closer: SignedInPerson,
     sessionId: string,
     countedCash: number,
-    authorization?: Authorization,
+    authorization: Authorization | undefined,
+    leaving: boolean,
   ) {
     const outcome = await core.closeCashSession(sessionId, countedCash, authorization);
     if (outcome.kind === "not_signed_in") {
       setPerson(undefined);
     }
     if (outcome.kind === "closed") {
-      setPerson(closer);
+      if (leaving) {
+        signOut();
+      } else {
+        setPerson(closer);
+      }
       setCashSession({ status: "none" });
     }
     if (outcome.kind === "no_open_session") {

@@ -534,6 +534,41 @@ describe("the register's router", () => {
     await expect.poll(() => closed).toEqual([["u2", "s1", 4_580_000]]);
   });
 
+  it.each([
+    ["/cash-count", false],
+    ["/cash-count?leaving=true", true],
+    ["/cash-count?leaving=yes", false],
+  ])("closes %s with leaving=%s", async (path, leaving) => {
+    const closed: boolean[] = [];
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", null, undefined, OPEN_SESSION),
+        cashBalance: async () => BALANCE,
+        closeCashSession: async (
+          _person,
+          _sessionId,
+          _countedCash,
+          _authorization,
+          leavingAfter,
+        ) => {
+          closed.push(leavingAfter);
+          return { kind: "unavailable" };
+        },
+      },
+      path,
+    );
+    const screen = await render(<RouterProvider router={router} />);
+    await expect
+      .element(screen.getByRole("complementary").getByText("$ 46.200,00", { exact: true }))
+      .toBeVisible();
+
+    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
+    await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
+
+    await expect.poll(() => closed).toEqual([leaving]);
+  });
+
   it("asks for an authorizer when the signed-in person is not the one who opened the session", async () => {
     const router = createRegisterRouter(
       routeTree,

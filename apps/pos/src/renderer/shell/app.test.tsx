@@ -885,7 +885,7 @@ describe("App", () => {
           difference: -40_000,
         },
       };
-      const { screen, closed } = await resumeGracesSession({
+      const { screen, closed, asked } = await resumeGracesSession({
         closeCashSession: async () => closeOutcome,
       });
       await startClosing(screen);
@@ -899,6 +899,55 @@ describe("App", () => {
         .not.toBeInTheDocument();
       await expect.element(screen.getByText("Sin sesión abierta")).toBeVisible();
       expect(closed).toEqual([["s1", 4_580_000, undefined]]);
+      expect(asked).not.toContain("sign-out");
+    });
+
+    it("ends signed out at the entry screen when the close was started from Salir", async () => {
+      const { screen, closed, asked } = await resumeGracesSession({
+        closeCashSession: async () => ({
+          kind: "closed",
+          session: {
+            id: "s1",
+            expected_cash: 4_620_000,
+            counted_cash: 4_580_000,
+            difference: -40_000,
+          },
+        }),
+      });
+      await userEvent.click(screen.getByRole("button", { name: "Salir" }));
+      await userEvent.click(
+        screen
+          .getByRole("dialog", { name: "Para salir, primero cerrá la caja" })
+          .getByRole("button", { name: "Cerrar caja" }),
+      );
+      await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
+
+      await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
+
+      await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+      await expect
+        .element(screen.getByRole("heading", { name: SIGNED_IN_TITLE }))
+        .not.toBeInTheDocument();
+      expect(closed).toEqual([["s1", 4_580_000, undefined]]);
+      expect(asked).toContain("sign-out");
+    });
+
+    it("stays signed in on the cash count when the close from Salir is refused", async () => {
+      const { screen, asked } = await resumeGracesSession({
+        closeCashSession: async () => ({ kind: "open_sale", total: 3_434_000 }),
+      });
+      await userEvent.click(screen.getByRole("button", { name: "Salir" }));
+      await userEvent.click(
+        screen
+          .getByRole("dialog", { name: "Para salir, primero cerrá la caja" })
+          .getByRole("button", { name: "Cerrar caja" }),
+      );
+      await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
+
+      await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
+
+      await expect.element(screen.getByText("Hay una venta abierta de $ 34.340,00")).toBeVisible();
+      expect(asked).not.toContain("sign-out");
     });
 
     it("stays on the cash count and offers the sale when it is still open", async () => {
