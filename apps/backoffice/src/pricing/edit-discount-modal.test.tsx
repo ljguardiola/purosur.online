@@ -11,6 +11,7 @@ import {
   chooseTarget,
   dateSegments,
   fillQuantities,
+  productPicker,
   radioLabel,
   typeDate,
 } from "./test-support/discount-modal";
@@ -154,7 +155,7 @@ test("shows a buy-N-pay-M promotion with its product and quantities filled in", 
 
   await expect.element(dialog.getByRole("radio", { name: "Lleve N, pague M" })).toBeChecked();
   await expect.element(dialog.getByText("Producto y grupo")).toBeVisible();
-  await expect.element(dialog.getByRole("button", { name: /Yerba Playadito 1 kg/ })).toBeVisible();
+  await expect.element(productPicker(dialog)).toHaveValue("Yerba Playadito 1 kg");
   await expect.element(dialog.getByRole("textbox", { name: /^Lleve/ })).toHaveValue("3");
   await expect.element(dialog.getByRole("textbox", { name: /^Pague/ })).toHaveValue("2");
   expect(dialog.getByRole("textbox", { name: /^Descuento/ }).query()).toBeNull();
@@ -206,7 +207,7 @@ test("says a product that is now sold by weight cannot take it, on the picker", 
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect
-    .element(dialog.getByRole("button", { name: /Yerba Playadito 1 kg/ }))
+    .element(productPicker(dialog))
     .toHaveAccessibleDescription("Se vende por peso. Elegí otro producto.");
 });
 
@@ -296,11 +297,12 @@ test("an inactive current product still shows as the chosen value, marked inacti
   };
   const { dialog } = await renderModal(createServices(), { target: onRetired });
 
-  await expect.element(dialog.getByRole("button", { name: /Café en grano/ })).toBeVisible();
-  await userEvent.click(dialog.getByRole("button", { name: /Café en grano/ }));
-  await expect.element(dialog.getByRole("option", { name: /Café en grano/ })).toBeVisible();
+  await expect.element(productPicker(dialog)).toHaveValue("Café en grano");
+  await expect.element(dialog.getByText("Inactivo")).toBeVisible();
+  await userEvent.click(productPicker(dialog));
+  await expect.element(page.getByRole("option", { name: /Café en grano/ })).toBeVisible();
   await expect
-    .element(dialog.getByRole("option", { name: /Café en grano/ }).getByText("Inactivo"))
+    .element(page.getByRole("option", { name: /Café en grano/ }).getByText("Inactivo"))
     .toBeVisible();
 });
 
@@ -341,10 +343,10 @@ test("turning a percentage promotion on a product sold by weight into buy-N-pay-
   const { dialog } = await renderModal(createServices(), { target: onAlmonds });
 
   await chooseBuyNPayM(dialog);
-  await userEvent.click(dialog.getByRole("button", { name: /^Elegí un producto/ }));
+  await userEvent.click(productPicker(dialog));
 
-  await expect.element(dialog.getByRole("option", { name: /Yerba Playadito 1 kg/ })).toBeVisible();
-  expect(dialog.getByRole("option", { name: /Almendras peladas/ }).query()).toBeNull();
+  await expect.element(page.getByRole("option", { name: /Yerba Playadito 1 kg/ })).toBeVisible();
+  expect(page.getByRole("option", { name: /Almendras peladas/ }).query()).toBeNull();
 });
 
 test("shows each field's message for what was cleared, without calling the cloud", async () => {

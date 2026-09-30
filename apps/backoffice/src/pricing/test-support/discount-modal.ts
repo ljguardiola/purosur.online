@@ -1,4 +1,5 @@
-import { userEvent } from "vitest/browser";
+import { expect } from "vitest";
+import { page, userEvent } from "vitest/browser";
 import { radioLabel } from "../../catalog/test-support/product-form";
 
 type Dialog = Parameters<typeof radioLabel>[0];
@@ -26,6 +27,18 @@ export async function chooseTarget(dialog: Dialog, placeholder: string, option: 
   await userEvent.click(dialog.getByRole("option", { name: option }));
 }
 
+export function productPicker(dialog: Dialog) {
+  return dialog.getByRole("combobox", { name: /^Producto/ });
+}
+
+// The list opens outside the dialog. Picking with the keyboard: a pointer click on an option scrolls it into view first, which
+// closes the list.
+export async function chooseProduct(dialog: Dialog, typed: string, option: string) {
+  await userEvent.fill(productPicker(dialog), typed);
+  await expect.element(page.getByRole("option", { name: option })).toBeVisible();
+  await userEvent.keyboard("{ArrowDown}{Enter}");
+}
+
 export async function fillNewDiscountExceptTarget(dialog: Dialog) {
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Yerba de septiembre");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Descuento/ }), "15");
@@ -35,7 +48,7 @@ export async function fillNewDiscountExceptTarget(dialog: Dialog) {
 
 export async function fillValidNewDiscount(dialog: Dialog) {
   await fillNewDiscountExceptTarget(dialog);
-  await chooseTarget(dialog, "Elegí un producto", "Yerba Playadito 1 kg");
+  await chooseProduct(dialog, "Yerba", "Yerba Playadito 1 kg");
 }
 
 export async function chooseBuyNPayM(dialog: Dialog) {
