@@ -133,6 +133,12 @@ function UserDetailView({
   // session's own.
   const isOwnAccount = signedInUserId.toLowerCase() === userId.toLowerCase();
   const isInactive = user?.active === false;
+  const showsPinSection = user
+    ? canResetUserPin(access, signedInUserId, {
+        ...user,
+        isAdministrator: user.role.isAdministrator,
+      })
+    : access.isAdministrator || (access.permissions.includes("reset_user_pin") && !isOwnAccount);
 
   return (
     <>
@@ -238,20 +244,14 @@ function UserDetailView({
                   ))}
               </div>
             ) : null}
-            {(user
-              ? canResetUserPin(access, signedInUserId, {
-                  ...user,
-                  isAdministrator: user.role.isAdministrator,
-                })
-              : access.isAdministrator ||
-                (access.permissions.includes("reset_user_pin") && !isOwnAccount)) && (
+            {showsPinSection ? (
               <UserPinSection
                 user={user}
                 dataStatus={data.status}
                 onSessionEnded={onSessionEnded}
                 services={services}
               />
-            )}
+            ) : null}
             {!user &&
               (canReactivateUser(access) || access.permissions.includes("deactivate_users")) &&
               !isOwnAccount && (
