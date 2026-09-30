@@ -30,7 +30,8 @@ function buildFirstPinCodeEmailBody(code: string): { text: string; html: string 
   return { text, html };
 }
 
-/** Rejects on a non-2xx response, so graphile-worker's own retries apply to a failed send. */
+// fetch resolves on any HTTP status, but callers retry or roll back only on a rejected send, so a
+// non-2xx response rejects.
 export function createResendRecoveryEmailSender(
   options: ResendRecoveryEmailSenderOptions,
 ): AccessEmailSender {
