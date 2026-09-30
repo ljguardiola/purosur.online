@@ -14,6 +14,7 @@ import { answerErrorsWithCloudEnvelope } from "./cloud-error-handler.js";
 import { issueDeviceToken } from "./device-token.js";
 import { DrizzleRegisterStore } from "./drizzle-register-store.js";
 import { generateInstallationKey } from "./installation-key.js";
+import { installationKeysBody } from "./installation-keys-body.js";
 import { registerEnrollmentCodeMatches } from "./register-enrollment-code.js";
 
 export interface DeviceEnrollmentRouteOptions<TQueryResult extends PgQueryResultHKT> {
@@ -74,6 +75,7 @@ export function registerDeviceEnrollmentRoute<TQueryResult extends PgQueryResult
         deviceEnrollmentSchema.parse({
           device_id: outcome.deviceId,
           device_token: outcome.deviceToken,
+          ...installationKeysBody(outcome.keys),
         }),
       );
     });

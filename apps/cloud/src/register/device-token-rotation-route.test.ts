@@ -1,8 +1,13 @@
 import { cloudErrorSchema, deviceTokenRotationSchema } from "@purosur/contracts";
+import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { registerRouteAccess } from "../access/route-access.js";
-import { registerInstallations } from "../platform/db/schema.js";
+import {
+  registerContingencyTicketKeys,
+  registerInstallations,
+  registerSnapshotKeys,
+} from "../platform/db/schema.js";
 import { registerHealthRoute } from "../platform/health-route.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
@@ -79,6 +84,44 @@ describe("POST /devices/rotate-token", () => {
     const rotated = deviceTokenRotationSchema.parse(response.json()).device_token;
     expect(rotated).toMatch(ENROLLMENT_TOKEN_FORMAT);
     expect(rotated).not.toBe(deviceToken);
+  });
+
+  it("hands back the installation's keys, the same on every rotation", async () => {
+    const { deviceId, deviceToken } = await insertEnrolledInstallation(db);
+
+    const first = deviceTokenRotationSchema.parse((await rotate(`Bearer ${deviceToken}`)).json());
+    const second = deviceTokenRotationSchema.parse(
+      (await rotate(`Bearer ${first.device_token}`)).json(),
+    );
+
+    const [installation] = await db
+      .select({ outboxChainKey: registerInstallations.outboxChainKey })
+      .from(registerInstallations)
+      .where(eq(registerInstallations.id, deviceId));
+    expect(first.outbox_chain_key).toBe(installation?.outboxChainKey);
+    expect({ ...second, device_token: first.device_token }).toEqual(first);
+  });
+
+  it("hands back a snapshot key version and a contingency-ticket key the register got since the last rotation", async () => {
+    const { deviceId, deviceToken } = await insertEnrolledInstallation(db);
+    const first = deviceTokenRotationSchema.parse((await rotate(`Bearer ${deviceToken}`)).json());
+    const [installation] = await db
+      .select({ registerId: registerInstallations.registerId })
+      .from(registerInstallations)
+      .where(eq(registerInstallations.id, deviceId));
+    const registerId = installation?.registerId ?? "";
+    const newSnapshotKey = { version: 2, key: Buffer.alloc(32, 2).toString("base64") };
+    const newTicketKey = { version: 2, key: Buffer.alloc(32, 3).toString("base64") };
+    await db.insert(registerSnapshotKeys).values({ registerId, ...newSnapshotKey });
+    await db.insert(registerContingencyTicketKeys).values({ registerId, ...newTicketKey });
+
+    const second = deviceTokenRotationSchema.parse(
+      (await rotate(`Bearer ${first.device_token}`)).json(),
+    );
+
+    expect(second.snapshot_key_versions).toEqual([...first.snapshot_key_versions, newSnapshotKey]);
+    expect(second.contingency_ticket_key).toEqual(newTicketKey);
+    expect(second.outbox_chain_key).toBe(first.outbox_chain_key);
   });
 
   it("answers the same new token when retried with the previous token, keeping one pending token", async () => {

@@ -5,9 +5,11 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { registerRouteAccess } from "../access/route-access.js";
 import {
   alerts,
+  registerContingencyTicketKeys,
   registerEnrollmentAttempts,
   registerEnrollmentCodes,
   registerInstallations,
+  registerSnapshotKeys,
   registers,
 } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
@@ -102,6 +104,40 @@ describe("POST /devices/enroll", () => {
       enrolledAt: NOW,
       revokedAt: null,
     });
+  });
+
+  it("answers the installation's keys: its register's snapshot key versions and contingency-ticket key, and its own outbox-chain key", async () => {
+    const registerId = await insertRegisterWithCode();
+
+    const response = await enroll();
+
+    const body = deviceEnrollmentSchema.parse(response.json());
+    const snapshotKeys = await db
+      .select({ version: registerSnapshotKeys.version, key: registerSnapshotKeys.key })
+      .from(registerSnapshotKeys)
+      .where(eq(registerSnapshotKeys.registerId, registerId));
+    const contingencyTicketKeys = await db
+      .select({
+        version: registerContingencyTicketKeys.version,
+        key: registerContingencyTicketKeys.key,
+      })
+      .from(registerContingencyTicketKeys)
+      .where(eq(registerContingencyTicketKeys.registerId, registerId));
+    const [installation] = await db
+      .select({ outboxChainKey: registerInstallations.outboxChainKey })
+      .from(registerInstallations)
+      .where(eq(registerInstallations.id, body.device_id));
+    expect(body.snapshot_key_versions).toEqual(snapshotKeys);
+    expect(body.snapshot_key_versions).toHaveLength(1);
+    expect([body.contingency_ticket_key]).toEqual(contingencyTicketKeys);
+    expect(body.outbox_chain_key).toBe(installation?.outboxChainKey);
+    expect(
+      new Set([
+        body.snapshot_key_versions[0]?.key,
+        body.contingency_ticket_key.key,
+        body.outbox_chain_key,
+      ]).size,
+    ).toBe(3);
   });
 
   it("revokes the installation that held the register before", async () => {
