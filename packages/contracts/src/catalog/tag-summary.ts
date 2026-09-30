@@ -8,6 +8,10 @@ export const tagSummarySchema = z.object({
   productCount: z.int().nonnegative(),
 });
 
-export const tagListSchema = z.array(tagSummarySchema);
+export const tagListSchema = z.object({
+  tags: z.array(tagSummarySchema),
+  taggedProductCount: z.int().nonnegative(),
+});
 
 export type TagSummary = z.output<typeof tagSummarySchema>;
+export type TagList = z.output<typeof tagListSchema>;

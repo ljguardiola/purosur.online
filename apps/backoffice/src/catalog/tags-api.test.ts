@@ -36,15 +36,23 @@ const JSON_BODY = { headers: { "Content-Type": "application/json" } };
 const JSON_POST = { method: "POST", ...JSON_BODY };
 
 describe("fetchTags", () => {
-  test("lists every tag on 200", async () => {
-    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [sinTacc, sinColorantes]));
+  test("lists every tag with the count of products carrying any on 200", async () => {
+    const body = { tags: [sinTacc, sinColorantes], taggedProductCount: 44 };
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, body));
 
-    expect(await fetchTags()).toEqual({ kind: "ok", value: [sinTacc, sinColorantes] });
+    expect(await fetchTags()).toEqual({ kind: "ok", value: body });
     expect(fetch).toHaveBeenCalledWith("/api/tags");
   });
 
   test("returns failed when a listed tag does not have the expected shape", async () => {
-    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [{ ...sinTacc, productCount: "42" }]));
+    const body = { tags: [{ ...sinTacc, productCount: "42" }], taggedProductCount: 44 };
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, body));
+
+    expect(await fetchTags()).toEqual({ kind: "failed" });
+  });
+
+  test("returns failed when the count of tagged products is missing", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { tags: [sinTacc] }));
 
     expect(await fetchTags()).toEqual({ kind: "failed" });
   });

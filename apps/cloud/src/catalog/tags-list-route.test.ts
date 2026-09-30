@@ -84,11 +84,56 @@ describe("GET /tags", () => {
     const response = await getTags(rawSessionId);
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual([
-      { id: kosher.id, name: "Kosher", active: false, version: 3, productCount: 1 },
-      { id: organico.id, name: "Orgánico", active: true, version: 1, productCount: 0 },
-      { id: sinTacc.id, name: "Sin TACC", active: true, version: 1, productCount: 3 },
-    ]);
+    expect(response.json()).toMatchObject({
+      tags: [
+        { id: kosher.id, name: "Kosher", active: false, version: 3, productCount: 1 },
+        { id: organico.id, name: "Orgánico", active: true, version: 1, productCount: 0 },
+        { id: sinTacc.id, name: "Sin TACC", active: true, version: 1, productCount: 3 },
+      ],
+    });
+  });
+
+  it("counts each active product carrying any tag once, however many tags it carries", async () => {
+    const sinTacc = await insertTag(db, { name: "Sin TACC" });
+    const kosher = await insertTag(db, { name: "Kosher" });
+    await insertProductWithTags(db, { name: "Miel", tagIds: [sinTacc.id, kosher.id] });
+    await insertProductWithTags(db, { name: "Galletitas", tagIds: [sinTacc.id] });
+    const rawSessionId = await signedInWithPermissions(db, NOON);
+
+    const response = await getTags(rawSessionId);
+
+    expect(response.json()).toMatchObject({ taggedProductCount: 2 });
+  });
+
+  it("leaves out of that count an inactive product and a product with no tags", async () => {
+    const sinTacc = await insertTag(db, { name: "Sin TACC" });
+    await insertProductWithTags(db, { name: "Galletitas", tagIds: [sinTacc.id] });
+    await insertProductWithTags(db, { name: "Barritas", tagIds: [sinTacc.id], active: false });
+    await insertProductWithTags(db, { name: "Dátiles sueltos", tagIds: [] });
+    const rawSessionId = await signedInWithPermissions(db, NOON);
+
+    const response = await getTags(rawSessionId);
+
+    expect(response.json()).toMatchObject({ taggedProductCount: 1 });
+  });
+
+  it("counts a product carrying only an inactive tag", async () => {
+    const kosher = await insertTag(db, { name: "Kosher", active: false });
+    await insertProductWithTags(db, { name: "Miel", tagIds: [kosher.id] });
+    const rawSessionId = await signedInWithPermissions(db, NOON);
+
+    const response = await getTags(rawSessionId);
+
+    expect(response.json()).toMatchObject({ taggedProductCount: 1 });
+  });
+
+  it("counts no product when there are no tags", async () => {
+    await insertProductWithTags(db, { name: "Dátiles sueltos", tagIds: [] });
+    const rawSessionId = await signedInWithPermissions(db, NOON);
+
+    const response = await getTags(rawSessionId);
+
+    expect(response.json()).toEqual({ tags: [], taggedProductCount: 0 });
   });
 
   it("lists tags for an Administrator even without the explicit permission", async () => {
@@ -98,6 +143,6 @@ describe("GET /tags", () => {
     const response = await getTags(rawSessionId);
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject([{ name: "Sin TACC" }]);
+    expect(response.json()).toMatchObject({ tags: [{ name: "Sin TACC" }] });
   });
 });

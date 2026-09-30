@@ -140,7 +140,10 @@ test("redirects a non-permitted user's typed /catalog/brands to Mi cuenta, witho
 test("navigating directly to /catalog/tags opens the tags list, with Distintivos active between Marcas and Precios", async () => {
   window.history.pushState(null, "", "/catalog/tags");
   const services = createAppServices();
-  vi.mocked(services.tagsListScreen.fetchTags).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.tagsListScreen.fetchTags).mockResolvedValue({
+    kind: "ok",
+    value: { tags: [], taggedProductCount: 0 },
+  });
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 

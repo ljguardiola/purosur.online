@@ -1,4 +1,4 @@
-import type { TagSummary } from "@purosur/contracts";
+import type { TagList, TagSummary } from "@purosur/contracts";
 
 export const sinTacc: TagSummary = {
   id: "tag-1",
@@ -28,3 +28,7 @@ export const organico: TagSummary = {
   version: 1,
   productCount: 1,
 };
+
+export function tagList(tags: TagSummary[], taggedProductCount = 0): TagList {
+  return { tags, taggedProductCount };
+}

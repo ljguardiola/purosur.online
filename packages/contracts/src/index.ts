@@ -74,7 +74,7 @@ export type { TagCreationBody } from "./catalog/tag-creation.js";
 export { tagCreationBodySchema } from "./catalog/tag-creation.js";
 export type { TagEditBody } from "./catalog/tag-edit.js";
 export { tagEditBodySchema } from "./catalog/tag-edit.js";
-export type { TagSummary } from "./catalog/tag-summary.js";
+export type { TagList, TagSummary } from "./catalog/tag-summary.js";
 export { tagListSchema, tagSummarySchema } from "./catalog/tag-summary.js";
 export type { IssuerIdentificationBody } from "./fiscal/issuer-identification.js";
 export { issuerIdentificationSchema } from "./fiscal/issuer-identification.js";

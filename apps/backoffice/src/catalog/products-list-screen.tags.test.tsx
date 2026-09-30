@@ -7,7 +7,7 @@ import {
   openEditProductModal,
   renderScreen,
 } from "./test-support/products-list-screen";
-import { organico, sinTacc } from "./test-support/tags";
+import { organico, sinTacc, tagList } from "./test-support/tags";
 
 test("creating a tag leaves the catalog unread while the product form is open, and reads it once the form closes", async () => {
   const services = createServices();
@@ -30,7 +30,10 @@ test("creating a tag leaves the catalog unread while the product form is open, a
 
   expect(vi.mocked(services.fetchTags).mock.calls.length).toBe(tagsReads);
   expect(vi.mocked(services.fetchProducts).mock.calls.length).toBe(productsReads);
-  vi.mocked(services.fetchTags).mockResolvedValue({ kind: "ok", value: [sinTacc, organico] });
+  vi.mocked(services.fetchTags).mockResolvedValue({
+    kind: "ok",
+    value: tagList([sinTacc, organico]),
+  });
   await userEvent.click(
     screen.getByRole("dialog", { name: honey.name }).getByRole("button", { name: "Cancelar" }),
   );

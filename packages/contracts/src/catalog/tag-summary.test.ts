@@ -40,12 +40,33 @@ describe("tagSummarySchema", () => {
 });
 
 describe("tagListSchema", () => {
-  it("accepts a list of tags, empty or not", () => {
-    expect(tagListSchema.safeParse([]).data).toEqual([]);
-    expect(tagListSchema.safeParse([sinTacc, vegano]).data).toEqual([sinTacc, vegano]);
+  const list = { tags: [sinTacc, vegano], taggedProductCount: 42 };
+
+  it("accepts the tags with how many distinct products carry any of them, empty or not", () => {
+    expect(tagListSchema.safeParse(list).data).toEqual(list);
+    expect(tagListSchema.safeParse({ tags: [], taggedProductCount: 0 }).data).toEqual({
+      tags: [],
+      taggedProductCount: 0,
+    });
   });
 
-  it.each([undefined, null, {}, "tags", sinTacc])("refuses %j as a list", (body) => {
+  it.each(["tags", "taggedProductCount"])("requires %s", (field) => {
+    const { [field as keyof typeof list]: _omitted, ...rest } = list;
+
+    expect(tagListSchema.safeParse(rest).success).toBe(false);
+  });
+
+  it.each([
+    ["taggedProductCount", 1.5],
+    ["taggedProductCount", -1],
+    ["taggedProductCount", "42"],
+    ["tags", sinTacc],
+    ["tags", [{ ...sinTacc, productCount: -1 }]],
+  ])("refuses %s as %j", (field, value) => {
+    expect(tagListSchema.safeParse({ ...list, [field]: value }).success).toBe(false);
+  });
+
+  it.each([undefined, null, [], [sinTacc], "tags"])("refuses %j as a list", (body) => {
     expect(tagListSchema.safeParse(body).success).toBe(false);
   });
 });

@@ -1,4 +1,10 @@
-import type { BrandSummary, CategorySummary, ProductSummary, TagSummary } from "@purosur/contracts";
+import type {
+  BrandSummary,
+  CategorySummary,
+  ProductSummary,
+  TagList,
+  TagSummary,
+} from "@purosur/contracts";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
@@ -45,7 +51,7 @@ export function useBrandsQuery(params: {
 
 export function useTagsQuery(params: { fetchTags: typeof fetchTags; onSessionEnded: () => void }) {
   const sendToMyAccount = useSendToMyAccount();
-  return useCloudQuery<TagSummary[]>({
+  return useCloudQuery<TagList>({
     queryKey: catalogKeys.tags,
     read: params.fetchTags,
     onSessionEnded: params.onSessionEnded,
@@ -131,7 +137,7 @@ export function useReloadTag(params: {
     if (listed.kind !== "ok") {
       return { kind: "list_failed" };
     }
-    const tag = listed.value.find((listedTag) => listedTag.id === id);
+    const tag = listed.value.tags.find((listedTag) => listedTag.id === id);
     return tag ? { kind: "found", tag } : { kind: "not_found" };
   };
 }

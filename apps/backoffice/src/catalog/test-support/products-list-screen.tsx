@@ -7,6 +7,7 @@ import { ProductsListScreen } from "../products-list-screen";
 import type { ProductsListScreenServices } from "../products-list-services";
 import { type ProductsListFilters, productsListFilters } from "../routes";
 import { driedFruits, groceries } from "./products";
+import { tagList } from "./tags";
 
 export function createServices(
   overrides: Partial<ProductsListScreenServices> = {},
@@ -18,7 +19,7 @@ export function createServices(
     deactivateProduct: vi.fn(),
     fetchCategories: vi.fn(),
     fetchBrands: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
-    fetchTags: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
+    fetchTags: vi.fn().mockResolvedValue({ kind: "ok", value: tagList([]) }),
     createBrand: vi.fn(),
     createTag: vi.fn(),
     generateInternalBarcode: vi.fn(),
@@ -40,7 +41,7 @@ export function mockLoaded(
   vi.mocked(services.fetchProducts).mockResolvedValue({ kind: "ok", value: products });
   vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: categories });
   vi.mocked(services.fetchBrands).mockResolvedValue({ kind: "ok", value: brands });
-  vi.mocked(services.fetchTags).mockResolvedValue({ kind: "ok", value: tags });
+  vi.mocked(services.fetchTags).mockResolvedValue({ kind: "ok", value: tagList(tags) });
 }
 
 // A modal panel is centered by a fixed-position overlay that never grows the document's scroll

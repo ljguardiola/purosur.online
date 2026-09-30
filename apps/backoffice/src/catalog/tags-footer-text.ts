@@ -1,10 +1,8 @@
-import type { ProductSummary, TagSummary } from "@purosur/contracts";
+import type { TagSummary } from "@purosur/contracts";
 import { formatNumber, plural } from "@purosur/ui";
 
-export function tagsFooterText(tags: TagSummary[], products: ProductSummary[]): string {
+export function tagsFooterText(tags: TagSummary[], taggedProductCount: number): string {
   const inactive = tags.filter((tag) => !tag.active).length;
-  const tagIds = new Set(tags.map((tag) => tag.id));
-  const carrying = products.filter((product) => product.tagIds.some((id) => tagIds.has(id))).length;
   return [
     plural(tags.length, {
       one: "1 distintivo",
@@ -13,7 +11,10 @@ export function tagsFooterText(tags: TagSummary[], products: ProductSummary[]): 
     inactive > 0
       ? plural(inactive, { one: "1 inactivo", other: `${formatNumber(inactive)} inactivos` })
       : undefined,
-    plural(carrying, { one: "1 producto", other: `${formatNumber(carrying)} productos` }),
+    plural(taggedProductCount, {
+      one: "1 producto",
+      other: `${formatNumber(taggedProductCount)} productos`,
+    }),
   ]
     .filter((part) => part !== undefined)
     .join(" · ");

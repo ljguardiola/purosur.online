@@ -1,6 +1,7 @@
 import {
   type TagCreationBody,
   type TagEditBody,
+  type TagList,
   type TagSummary,
   tagListSchema,
   tagSummarySchema,
@@ -9,7 +10,7 @@ import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { retryAfterSeconds } from "../platform/retry-after-seconds";
 import { readValidationFailedField } from "../platform/validation-failed-field";
 
-export type FetchTagsOutcome = CloudReadOutcome<TagSummary[]>;
+export type FetchTagsOutcome = CloudReadOutcome<TagList>;
 
 type RequestRefusal =
   | { kind: "forbidden" }

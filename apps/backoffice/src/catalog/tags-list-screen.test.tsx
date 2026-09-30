@@ -1,4 +1,4 @@
-import type { ProductSummary, TagSummary } from "@purosur/contracts";
+import type { TagSummary } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
@@ -7,19 +7,11 @@ import { render } from "../shell/test-support/render-with-router";
 import { type TagsListFilters, tagsListFilters } from "./routes";
 import { TagsListScreen } from "./tags-list-screen";
 import type { TagsListScreenServices } from "./tags-list-services";
-import { almonds, honey } from "./test-support/products";
-import { organico, sinColorantes, sinTacc, vegano } from "./test-support/tags";
-
-const taggedProducts: ProductSummary[] = [
-  { ...honey, tagIds: [sinTacc.id, vegano.id] },
-  { ...almonds, tagIds: [sinTacc.id] },
-  { ...honey, id: "product-3", tagIds: [sinColorantes.id] },
-];
+import { organico, sinColorantes, sinTacc, tagList, vegano } from "./test-support/tags";
 
 function createServices(overrides: Partial<TagsListScreenServices> = {}): TagsListScreenServices {
   return {
     fetchTags: vi.fn(),
-    fetchProducts: vi.fn().mockResolvedValue({ kind: "ok", value: taggedProducts }),
     createTag: vi.fn(),
     editTag: vi.fn(),
     deactivateTag: vi.fn(),
@@ -75,8 +67,16 @@ function rowTexts(screen: Screen): string[] {
     .map((row) => row.element().textContent ?? "");
 }
 
-async function loaded(services: TagsListScreenServices, tags: TagSummary[], options = {}) {
-  vi.mocked(services.fetchTags).mockResolvedValue({ kind: "ok", value: tags });
+async function loaded(
+  services: TagsListScreenServices,
+  tags: TagSummary[],
+  options = {},
+  taggedProductCount = 0,
+) {
+  vi.mocked(services.fetchTags).mockResolvedValue({
+    kind: "ok",
+    value: tagList(tags, taggedProductCount),
+  });
   const screen = await renderScreen(services, () => {}, options);
   await expect.element(screen.getByRole("table", { name: "Distintivos" })).toBeVisible();
   return screen;
@@ -84,31 +84,30 @@ async function loaded(services: TagsListScreenServices, tags: TagSummary[], opti
 
 test("shows the breadcrumb, heading, each active tag with its product count and state, and the totals", async () => {
   const services = createServices();
-  const screen = await loaded(services, [sinTacc, vegano, sinColorantes]);
+  const screen = await loaded(services, [sinTacc, vegano, sinColorantes], {}, 3);
 
   await expect.element(screen.getByText("Catálogo").first()).toBeVisible();
   await expect
     .element(screen.getByRole("heading", { name: "Distintivos", level: 1 }))
     .toBeVisible();
   await expect.poll(() => rowTexts(screen)).toEqual(["Sin TACC34Activo", "Vegano18Activo"]);
-  await expect.element(screen.getByText("2 distintivos · 2 productos")).toBeVisible();
-  expect(services.fetchProducts).toHaveBeenCalledWith("active");
+  await expect.element(screen.getByText("2 distintivos · 3 productos")).toBeVisible();
 });
 
 test("the state filter shows the inactive tags, or every tag, counting the inactive ones", async () => {
   const services = createServices();
-  const screen = await loaded(services, [sinTacc, sinColorantes]);
+  const screen = await loaded(services, [sinTacc, sinColorantes], {}, 37);
 
   await userEvent.click(screen.getByRole("button", { name: /Estado:/ }));
   await userEvent.click(screen.getByRole("option", { name: "Inactivos" }));
 
   await expect.poll(() => rowTexts(screen)).toEqual(["Sin colorantes3Inactivo"]);
-  await expect.element(screen.getByText("1 distintivo · 1 inactivo · 1 producto")).toBeVisible();
+  await expect.element(screen.getByText("1 distintivo · 1 inactivo · 37 productos")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: /Estado:/ }));
   await userEvent.click(screen.getByRole("option", { name: "Todos" }));
 
-  await expect.element(screen.getByText("2 distintivos · 1 inactivo · 3 productos")).toBeVisible();
+  await expect.element(screen.getByText("2 distintivos · 1 inactivo · 37 productos")).toBeVisible();
 });
 
 test("lists tags by name, and the products header orders them by how many products carry them", async () => {
@@ -128,17 +127,17 @@ test("lists tags by name, and the products header orders them by how many produc
 
 test("the search field filters the tags by name, case-insensitively", async () => {
   const services = createServices();
-  const screen = await loaded(services, [sinTacc, vegano]);
+  const screen = await loaded(services, [sinTacc, vegano], {}, 40);
 
   await userEvent.fill(screen.getByPlaceholder("Buscar un distintivo"), "vEG");
 
   await expect.poll(() => rowTexts(screen).length).toBe(1);
-  await expect.element(screen.getByText("1 distintivo · 1 producto")).toBeVisible();
+  await expect.element(screen.getByText("1 distintivo · 40 productos")).toBeVisible();
 });
 
 test("shows the blank empty state when there are no tags yet, with no footer", async () => {
   const services = createServices();
-  vi.mocked(services.fetchTags).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.fetchTags).mockResolvedValue({ kind: "ok", value: tagList([]) });
 
   const screen = await renderScreen(services);
 
@@ -185,22 +184,8 @@ test("shows a load error with a retry action that starts again from the loading 
   await expect
     .element(screen.getByRole("table", { name: "Distintivos" }))
     .toHaveAttribute("aria-busy", "true");
-  retry.resolve({ kind: "ok", value: [sinTacc] });
+  retry.resolve({ kind: "ok", value: tagList([sinTacc]) });
   await expect.element(screen.getByText("Sin TACC")).toBeVisible();
-});
-
-test("fails to open when the products fail to load, and the retry reads them again", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchTags).mockResolvedValue({ kind: "ok", value: [sinTacc] });
-  vi.mocked(services.fetchProducts)
-    .mockResolvedValueOnce({ kind: "failed" })
-    .mockResolvedValueOnce({ kind: "ok", value: taggedProducts });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("No pudimos abrir los distintivos")).toBeVisible();
-
-  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
-
-  await expect.element(screen.getByText("1 distintivo · 2 productos")).toBeVisible();
 });
 
 test("shows the rate-limited notice with the time to wait", async () => {
@@ -254,8 +239,8 @@ test("the create action opens the new tag modal, and the created tag is listed",
   const services = createServices();
   const nuevo: TagSummary = { ...organico, id: "tag-9", name: "Sin conservantes", productCount: 0 };
   vi.mocked(services.fetchTags)
-    .mockResolvedValueOnce({ kind: "ok", value: [sinTacc] })
-    .mockResolvedValueOnce({ kind: "ok", value: [sinTacc, nuevo] });
+    .mockResolvedValueOnce({ kind: "ok", value: tagList([sinTacc]) })
+    .mockResolvedValueOnce({ kind: "ok", value: tagList([sinTacc, nuevo]) });
   vi.mocked(services.createTag).mockResolvedValue({ kind: "ok", tag: nuevo });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Sin TACC")).toBeVisible();
@@ -292,7 +277,7 @@ test("the edit action opens the tag's edit modal, and the saved rename is listed
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Sin gluten");
   vi.mocked(services.fetchTags).mockResolvedValue({
     kind: "ok",
-    value: [{ ...sinTacc, name: "Sin gluten", version: 2 }],
+    value: tagList([{ ...sinTacc, name: "Sin gluten", version: 2 }]),
   });
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
@@ -313,7 +298,7 @@ test("a stale version's reload refills the edit modal from the list read again",
     .toBeVisible();
   vi.mocked(services.fetchTags).mockResolvedValue({
     kind: "ok",
-    value: [{ ...sinTacc, name: "Sin gluten", version: 5 }],
+    value: tagList([{ ...sinTacc, name: "Sin gluten", version: 5 }]),
   });
 
   await userEvent.click(dialog.getByRole("button", { name: "Recargar" }));
@@ -333,7 +318,7 @@ test("deactivating asks first, then deactivates the tag and refreshes the list",
     .toBeVisible();
   vi.mocked(services.fetchTags).mockResolvedValue({
     kind: "ok",
-    value: [{ ...sinTacc, active: false, version: 2 }, sinColorantes],
+    value: tagList([{ ...sinTacc, active: false, version: 2 }, sinColorantes]),
   });
   await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
 

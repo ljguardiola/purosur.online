@@ -1,4 +1,4 @@
-import type { BrandSummary, CategorySummary, ProductSummary, TagSummary } from "@purosur/contracts";
+import type { BrandSummary, CategorySummary, ProductSummary, TagList } from "@purosur/contracts";
 import {
   Button,
   ListFilter,
@@ -44,7 +44,7 @@ export type ProductsListScreenProps = {
 const NO_PRODUCTS: ProductSummary[] = [];
 const NO_CATEGORIES: CategorySummary[] = [];
 const NO_BRANDS: BrandSummary[] = [];
-const NO_TAGS: TagSummary[] = [];
+const NO_TAG_LIST: TagList = { tags: [], taggedProductCount: 0 };
 
 type CategoryFilter = "ALL" | string;
 type UnitFilter = "ALL" | ProductSaleUnit;
@@ -133,8 +133,10 @@ export function ProductsListScreen({
     combineCloudData(combineCloudData(productsData, categoriesData), brandsData),
     tagsData,
   );
-  const [[[products, categories], brands], tags] =
-    data.status === "loaded" ? data.value : [[[NO_PRODUCTS, NO_CATEGORIES], NO_BRANDS], NO_TAGS];
+  const [[[products, categories], brands], { tags }] =
+    data.status === "loaded"
+      ? data.value
+      : [[[NO_PRODUCTS, NO_CATEGORIES], NO_BRANDS], NO_TAG_LIST];
 
   useEffect(() => {
     if (data.status === "failed") {
