@@ -12,7 +12,7 @@ import {
 } from "./process-recovery-request-job.js";
 import type { AccessEmailSender } from "./recovery-email-sender.js";
 import { flushClosedRecoveryRejectedAttemptWindows } from "./recovery-rejected-attempt-flush.js";
-import { sendFirstPinCodeEmailJob } from "./send-first-pin-code-email-job.js";
+import { findPinCodeByCode, sendFirstPinCodeEmailJob } from "./send-first-pin-code-email-job.js";
 
 export const RECOVERY_REQUEST_TASK_IDENTIFIER = "recovery-request";
 export const RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER = "recovery-rejected-attempt-flush";
@@ -66,6 +66,7 @@ export interface StartRecoveryWorkerDeps {
   processJob?: typeof processRecoveryRequestJob;
   flush?: typeof flushClosedRecoveryRejectedAttemptWindows;
   escalate?: typeof escalateOverdueAlerts;
+  findPinCode?: typeof findPinCodeByCode;
   /**
    * Owned here, not by graphile-worker's pool: it removes error handlers and calls `pgPool.end()`
    * without awaiting it once the runner stops, crashing on a client that disconnects mid-shutdown.
@@ -82,6 +83,7 @@ export async function startRecoveryWorker(
   const doProcessJob = deps.processJob ?? processRecoveryRequestJob;
   const doFlush = deps.flush ?? flushClosedRecoveryRejectedAttemptWindows;
   const doEscalate = deps.escalate ?? escalateOverdueAlerts;
+  const doFindPinCode = deps.findPinCode ?? findPinCodeByCode;
   const doCreatePool =
     deps.createPool ?? ((connectionString: string) => new pg.Pool({ connectionString }));
   const now = options.now ?? (() => new Date());
@@ -117,8 +119,13 @@ export async function startRecoveryWorker(
           await options.emailSender.sendRecoveryLink(result.send);
         }
       },
-      [FIRST_PIN_CODE_EMAIL_TASK_IDENTIFIER]: (payload) =>
-        sendFirstPinCodeEmailJob(payload, { emailSender: options.emailSender, now }),
+      [FIRST_PIN_CODE_EMAIL_TASK_IDENTIFIER]: (payload, helpers) =>
+        sendFirstPinCodeEmailJob(payload, {
+          emailSender: options.emailSender,
+          now,
+          findPinCode: (code) =>
+            helpers.withPgClient((client) => doFindPinCode(doCreateDatabase(client), code)),
+        }),
       [RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER]: async (_payload, helpers) => {
         await helpers.withPgClient((client) => doFlush(doCreateDatabase(client), { now }));
       },

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { emitFirstPinCode } from "@purosur/domain/access/use-cases";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -150,6 +150,41 @@ describe("the first PIN code email queued by an emission on a real Postgres", ()
       const [delivered] = sent.filter((input) => input.to === person.email);
       expect(stored?.codeHash).toBe(hashSecretCode(delivered?.code ?? ""));
       expect(failedOnce.has(person.email)).toBe(true);
+    } finally {
+      await worker.stop();
+    }
+  });
+
+  it("emails only the newer code when a second emission supersedes the first before the worker runs", async () => {
+    const person = await seedPersonWithoutPin();
+    const sent: SendFirstPinCodeInput[] = [];
+    const emailSender: AccessEmailSender = {
+      async sendRecoveryLink() {},
+      async sendFirstPinCode(input) {
+        sent.push(input);
+      },
+    };
+    await emit(person);
+    await emit(person);
+    expect(await queuedJobsFor(person.email)).toHaveLength(2);
+    const worker = await startRecoveryWorker({
+      databaseUrl: integrationDb.databaseUrl,
+      backofficeOrigin: "https://staging.purosur.online",
+      emailSender,
+    });
+
+    try {
+      await vi.waitFor(async () => {
+        expect(await queuedJobsFor(person.email)).toHaveLength(0);
+      }, WAIT_OPTIONS);
+
+      const delivered = sent.filter((input) => input.to === person.email);
+      expect(delivered).toHaveLength(1);
+      const [live] = await db
+        .select()
+        .from(userPinCodes)
+        .where(and(eq(userPinCodes.userId, person.userId), isNull(userPinCodes.supersededAt)));
+      expect(live?.codeHash).toBe(hashSecretCode(delivered[0]?.code ?? ""));
     } finally {
       await worker.stop();
     }

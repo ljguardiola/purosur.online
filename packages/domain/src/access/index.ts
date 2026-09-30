@@ -29,8 +29,10 @@ export {
   withRequiredPermissions,
 } from "./model/permission-requirements.js";
 export { isAcceptablePin, PIN_MIN_DIGITS } from "./model/pin.js";
-export type { PinCodeParty } from "./model/pin-code.js";
+export type { PinCodeParty, PinCodeState } from "./model/pin-code.js";
 export {
+  isPinCodeBurned,
+  isPinCodeExpired,
   isWellFormedPinCode,
   mayEmitPinCodeFor,
   normalizePinCode,

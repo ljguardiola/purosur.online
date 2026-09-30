@@ -588,13 +588,25 @@ describe("startRecoveryWorker", () => {
     expect(withPgClient).not.toHaveBeenCalled();
   });
 
-  it("sends a first PIN code email through the sender, leaving a malformed payload or a failed send to graphile-worker's retry", async () => {
+  it("sends a first PIN code email through the sender once the code read through graphile-worker's client is live, leaving a malformed payload or a failed send to graphile-worker's retry", async () => {
     const runWorker = vi.fn().mockResolvedValue(fakeRunner());
     const sendFirstPinCode = vi
       .fn()
       .mockResolvedValueOnce(undefined)
       .mockRejectedValue(new Error("down"));
     vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const fakeClient = { marker: "fake-client" };
+    const fakeDb = { marker: "fake-db" };
+    const createDatabase = vi.fn().mockReturnValue(fakeDb);
+    const withPgClient = vi.fn(async (callback: (client: unknown) => Promise<unknown>) =>
+      callback(fakeClient),
+    );
+    const findPinCode = vi.fn().mockResolvedValue({
+      expiresAt: new Date("2026-09-30T12:15:00.000Z"),
+      redeemedAt: null,
+      supersededAt: null,
+      failedAttempts: 0,
+    });
 
     await startRecoveryWorker(
       {
@@ -603,11 +615,16 @@ describe("startRecoveryWorker", () => {
         emailSender: { sendRecoveryLink: vi.fn(), sendFirstPinCode },
         now: () => new Date("2026-09-30T12:00:00.000Z"),
       },
-      { runWorker },
+      { runWorker, createDatabase, findPinCode },
     );
 
     const [options] = runWorker.mock.calls[0] as [
-      { taskList: Record<string, (payload: unknown, helpers: object) => Promise<void>> },
+      {
+        taskList: Record<
+          string,
+          (payload: unknown, helpers: { withPgClient: typeof withPgClient }) => Promise<void>
+        >;
+      },
     ];
     const task = mustExist(
       options.taskList[FIRST_PIN_CODE_EMAIL_TASK_IDENTIFIER],
@@ -619,13 +636,15 @@ describe("startRecoveryWorker", () => {
       expiresAt: "2026-09-30T12:15:00.000Z",
     };
 
-    await task(payload, {});
+    await task(payload, { withPgClient });
+    expect(createDatabase).toHaveBeenCalledExactlyOnceWith(fakeClient);
+    expect(findPinCode).toHaveBeenCalledExactlyOnceWith(fakeDb, "K3PX7WNE2QRT6MZD");
     expect(sendFirstPinCode).toHaveBeenCalledExactlyOnceWith({
       to: "grace@example.com",
       code: "K3PX7WNE2QRT6MZD",
     });
-    await expect(task(payload, {})).rejects.toThrow("down");
-    await expect(task({}, {})).rejects.toThrow("malformed job payload");
+    await expect(task(payload, { withPgClient })).rejects.toThrow("down");
+    await expect(task({}, { withPgClient })).rejects.toThrow("malformed job payload");
   });
 
   it("processes the rejected-attempt flush task through a client borrowed from graphile-worker's own pool", async () => {

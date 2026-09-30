@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { FirstPinCodeEmailSender } from "./recovery-email-sender.js";
-import { sendFirstPinCodeEmailJob } from "./send-first-pin-code-email-job.js";
+import {
+  type EmailedPinCode,
+  type SendFirstPinCodeEmailJobDeps,
+  sendFirstPinCodeEmailJob,
+} from "./send-first-pin-code-email-job.js";
 
 const NOW = new Date("2026-09-30T12:00:00.000Z");
 const PAYLOAD = {
@@ -8,6 +12,17 @@ const PAYLOAD = {
   code: "K3PX7WNE2QRT6MZD",
   expiresAt: "2026-09-30T12:15:00.000Z",
 };
+
+const LIVE_CODE: EmailedPinCode = {
+  expiresAt: new Date("2026-09-30T12:15:00.000Z"),
+  redeemedAt: null,
+  supersededAt: null,
+  failedAttempts: 0,
+};
+
+function storedAs(code: EmailedPinCode | undefined) {
+  return vi.fn<SendFirstPinCodeEmailJobDeps["findPinCode"]>().mockResolvedValue(code);
+}
 
 function sender(): FirstPinCodeEmailSender & {
   sendFirstPinCode: ReturnType<typeof vi.fn<FirstPinCodeEmailSender["sendFirstPinCode"]>>;
@@ -20,10 +35,13 @@ describe("sendFirstPinCodeEmailJob", () => {
     vi.restoreAllMocks();
   });
 
-  it("emails the code to the address", async () => {
+  it("emails the code to the address while the stored code is still live", async () => {
     const emailSender = sender();
+    const findPinCode = storedAs(LIVE_CODE);
 
-    await sendFirstPinCodeEmailJob(PAYLOAD, { emailSender, now: () => NOW });
+    await sendFirstPinCodeEmailJob(PAYLOAD, { emailSender, now: () => NOW, findPinCode });
+
+    expect(findPinCode).toHaveBeenCalledExactlyOnceWith("K3PX7WNE2QRT6MZD");
 
     expect(emailSender.sendFirstPinCode).toHaveBeenCalledExactlyOnceWith({
       to: "grace@example.com",
@@ -35,7 +53,11 @@ describe("sendFirstPinCodeEmailJob", () => {
     const emailSender = sender();
     const justBefore = new Date("2026-09-30T12:14:59.999Z");
 
-    await sendFirstPinCodeEmailJob(PAYLOAD, { emailSender, now: () => justBefore });
+    await sendFirstPinCodeEmailJob(PAYLOAD, {
+      emailSender,
+      now: () => justBefore,
+      findPinCode: storedAs(LIVE_CODE),
+    });
 
     expect(emailSender.sendFirstPinCode).toHaveBeenCalledTimes(1);
   });
@@ -45,7 +67,30 @@ describe("sendFirstPinCodeEmailJob", () => {
     const atExpiry = new Date("2026-09-30T12:15:00.000Z");
 
     await expect(
-      sendFirstPinCodeEmailJob(PAYLOAD, { emailSender, now: () => atExpiry }),
+      sendFirstPinCodeEmailJob(PAYLOAD, {
+        emailSender,
+        now: () => atExpiry,
+        findPinCode: storedAs(LIVE_CODE),
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(emailSender.sendFirstPinCode).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["superseded by a newer code", { ...LIVE_CODE, supersededAt: NOW }],
+    ["already redeemed", { ...LIVE_CODE, redeemedAt: NOW }],
+    ["burned by failed attempts", { ...LIVE_CODE, failedAttempts: 5 }],
+    ["no longer stored", undefined],
+  ])("sends nothing for a code %s, and completes", async (_state, stored) => {
+    const emailSender = sender();
+
+    await expect(
+      sendFirstPinCodeEmailJob(PAYLOAD, {
+        emailSender,
+        now: () => NOW,
+        findPinCode: storedAs(stored),
+      }),
     ).resolves.toBeUndefined();
 
     expect(emailSender.sendFirstPinCode).not.toHaveBeenCalled();
@@ -67,7 +112,11 @@ describe("sendFirstPinCodeEmailJob", () => {
 
     for (const payload of malformed) {
       await expect(
-        sendFirstPinCodeEmailJob(payload, { emailSender, now: () => NOW }),
+        sendFirstPinCodeEmailJob(payload, {
+          emailSender,
+          now: () => NOW,
+          findPinCode: storedAs(LIVE_CODE),
+        }),
       ).rejects.toThrow("malformed job payload");
     }
 
@@ -82,7 +131,12 @@ describe("sendFirstPinCodeEmailJob", () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
 
     await expect(
-      sendFirstPinCodeEmailJob(PAYLOAD, { emailSender, now: () => NOW, captureException }),
+      sendFirstPinCodeEmailJob(PAYLOAD, {
+        emailSender,
+        now: () => NOW,
+        findPinCode: storedAs(LIVE_CODE),
+        captureException,
+      }),
     ).rejects.toBe(error);
 
     expect(consoleError).toHaveBeenCalledExactlyOnceWith(expect.any(String), error);
@@ -99,6 +153,7 @@ describe("sendFirstPinCodeEmailJob", () => {
     await sendFirstPinCodeEmailJob(PAYLOAD, {
       emailSender: sender(),
       now: () => NOW,
+      findPinCode: storedAs(LIVE_CODE),
       captureException,
     });
 

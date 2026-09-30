@@ -5,6 +5,7 @@ export type {
   PermissionKey,
   PermissionRegisterMarker,
   PinCodeParty,
+  PinCodeState,
   RoleAccess,
 } from "./access/index.js";
 export {
@@ -23,6 +24,8 @@ export {
   isLockedOutOfPinSignIn,
   isPasskeyNameTooLong,
   isPermissionKey,
+  isPinCodeBurned,
+  isPinCodeExpired,
   isRoleNameTooLong,
   isWellFormedPinCode,
   lacksARequiredPermission,
