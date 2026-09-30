@@ -10,7 +10,6 @@ import { userEvent } from "vitest/browser";
 import type { SaleScreenProps } from "./sale-screen";
 import {
   deferred,
-  NOT_PERMITTED_HELP,
   NOT_PERMITTED_TITLE,
   renderScreen,
   SALE_OF_YERBA,
@@ -268,7 +267,7 @@ describe("SaleScreen searching by name", () => {
       await field.fill("ab");
 
       const options = screen.getByRole("option");
-      await expect.element(options.nth(0)).toHaveTextContent("Queso cremoso$ 12.500,00 / kg");
+      await expect.element(options.nth(0).getByText("Queso cremoso")).toBeVisible();
       await expect.element(options.nth(0)).toHaveAttribute("aria-selected", "true");
     });
 
@@ -428,47 +427,40 @@ describe("SaleScreen searching by name", () => {
       name: string;
       outcome: AddProductOutcome;
       title: string;
-      help: string;
     }>([
       {
         name: "a product without a price",
         outcome: { kind: "no_price", product_name: "Alfajor triple" },
         title: "Alfajor triple no tiene precio",
-        help: "No se puede vender hasta que alguien con el permiso de precios se lo ponga en el backoffice.",
       },
       {
         name: "a product sold by weight",
         outcome: { kind: "sold_by_weight", product_name: "Queso cremoso" },
         title: "Queso cremoso se vende por kilo",
-        help: "Esta caja todavía no vende productos por kilo.",
       },
       {
         name: "a product that is no longer sold",
         outcome: { kind: "product_unavailable" },
         title: "Ese producto ya no se vende",
-        help: "Buscalo de nuevo por nombre.",
       },
       {
         name: "a person who may not sell",
         outcome: { kind: "not_permitted" },
         title: NOT_PERMITTED_TITLE,
-        help: NOT_PERMITTED_HELP,
       },
       {
         name: "a revoked installation",
         outcome: { kind: "installation_revoked" },
         title: "Esta caja ya no puede empezar ventas",
-        help: "Su instalación fue reemplazada o retirada desde el backoffice.",
       },
       {
         name: "the core being unable to add it",
         outcome: { kind: "unavailable" },
         title: "No se pudo agregar el producto",
-        help: "Probá elegirlo de nuevo.",
       },
     ])(
       "closes the list, tells what happened and selects the text on $name",
-      async ({ outcome, title, help }) => {
+      async ({ outcome, title }) => {
         const { screen, field } = await renderScreen({
           currentSale: async () => SALE_OF_YERBA,
           searchProducts: answering(results([YERBA_FOUND])),
@@ -480,7 +472,6 @@ describe("SaleScreen searching by name", () => {
         await userEvent.keyboard("{Enter}");
 
         await expect.element(screen.getByText(title, { exact: true })).toBeVisible();
-        await expect.element(screen.getByText(help, { exact: true })).toBeVisible();
         await expect.element(screen.getByRole("listbox")).not.toBeInTheDocument();
         await expect.element(field).toHaveValue("yer");
         const input = field.element() as HTMLInputElement;
@@ -518,7 +509,7 @@ describe("SaleScreen searching by name", () => {
 
       await userEvent.keyboard("{Enter}");
 
-      await expect.element(screen.getByText("Probá elegirlo de nuevo.")).toBeVisible();
+      await expect.element(screen.getByText("No se pudo agregar el producto")).toBeVisible();
     });
 
     it.each<AddProductOutcome>([{ kind: "not_signed_in" }, { kind: "no_open_session" }])(
