@@ -37,3 +37,22 @@ export const scanProductOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("unavailable") }),
 ]);
 export type ScanProductOutcome = z.infer<typeof scanProductOutcomeSchema>;
+
+export const chargeSaleInCashOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("completed"),
+    sale_id: z.string(),
+    total: cents,
+    tendered: cents,
+    change: cents,
+  }),
+  z.object({ kind: z.literal("insufficient_cash"), amount_due: cents }),
+  z.object({ kind: z.literal("invalid_amount") }),
+  z.object({ kind: z.literal("empty_sale") }),
+  z.object({ kind: z.literal("no_open_sale") }),
+  z.object({ kind: z.literal("not_permitted") }),
+  z.object({ kind: z.literal("not_signed_in") }),
+  z.object({ kind: z.literal("no_open_session") }),
+  z.object({ kind: z.literal("unavailable") }),
+]);
+export type ChargeSaleInCashOutcome = z.infer<typeof chargeSaleInCashOutcomeSchema>;
