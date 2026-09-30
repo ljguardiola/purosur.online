@@ -25,7 +25,7 @@ import {
 } from "./access/route-access.js";
 import { SESSION_COOKIE_NAME } from "./access/session-cookie.js";
 import { generateSessionId, hashSessionId } from "./access/session-id.js";
-import { buildApp as buildRealApp } from "./app.js";
+import { buildApp as buildRealApp, databaseRouteOptions } from "./app.js";
 import {
   passkeys,
   rolePermissions,
@@ -900,8 +900,8 @@ describe("wiring the categories routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
     const edit = await app.inject({
-      method: "POST",
-      url: "/api/categories/00000000-0000-0000-0000-000000000000/edit",
+      method: "PUT",
+      url: "/api/categories/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -923,8 +923,8 @@ describe("wiring the categories routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
     const edit = await app.inject({
-      method: "POST",
-      url: "/api/categories/00000000-0000-0000-0000-000000000000/edit",
+      method: "PUT",
+      url: "/api/categories/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -942,9 +942,9 @@ describe("wiring the brands routes", () => {
     const responses = await Promise.all([
       app.inject({ method: "GET", url: "/api/brands" }),
       app.inject({ method: "POST", url: "/api/brands", headers: ORIGIN }),
-      app.inject({ method: "POST", url: `/api/brands/${ID}/edit`, headers: ORIGIN }),
-      app.inject({ method: "POST", url: `/api/brands/${ID}/deactivation`, headers: ORIGIN }),
-      app.inject({ method: "POST", url: `/api/brands/${ID}/reactivation`, headers: ORIGIN }),
+      app.inject({ method: "PUT", url: `/api/brands/${ID}`, headers: ORIGIN }),
+      app.inject({ method: "PUT", url: `/api/brands/${ID}/deactivation`, headers: ORIGIN }),
+      app.inject({ method: "DELETE", url: `/api/brands/${ID}/deactivation`, headers: ORIGIN }),
     ]);
     return responses.map((response) => response.statusCode);
   }
@@ -1007,18 +1007,18 @@ describe("wiring the products routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
     const edit = await app.inject({
-      method: "POST",
-      url: "/api/products/00000000-0000-0000-0000-000000000000/edit",
+      method: "PUT",
+      url: "/api/products/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
     const internalBarcode = await app.inject({
       method: "POST",
-      url: "/api/products/internal-barcode",
+      url: "/api/internal-barcodes",
       headers: { origin: "https://staging.purosur.online" },
     });
     const labels = await app.inject({
       method: "POST",
-      url: "/api/products/labels",
+      url: "/api/label-sheets",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1042,18 +1042,18 @@ describe("wiring the products routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
     const edit = await app.inject({
-      method: "POST",
-      url: "/api/products/00000000-0000-0000-0000-000000000000/edit",
+      method: "PUT",
+      url: "/api/products/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
     const internalBarcode = await app.inject({
       method: "POST",
-      url: "/api/products/internal-barcode",
+      url: "/api/internal-barcodes",
       headers: { origin: "https://staging.purosur.online" },
     });
     const labels = await app.inject({
       method: "POST",
-      url: "/api/products/labels",
+      url: "/api/label-sheets",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1071,13 +1071,13 @@ describe("wiring the prices routes", () => {
 
     const list = await app.inject({ method: "GET", url: "/api/prices" });
     const setPrice = await app.inject({
-      method: "POST",
-      url: "/api/products/00000000-0000-0000-0000-000000000000/price",
+      method: "PUT",
+      url: "/api/prices/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
     const confirmation = await app.inject({
       method: "POST",
-      url: "/api/products/00000000-0000-0000-0000-000000000000/price-confirmation",
+      url: "/api/prices/00000000-0000-0000-0000-000000000000/confirmations",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1094,13 +1094,13 @@ describe("wiring the prices routes", () => {
 
     const list = await app.inject({ method: "GET", url: "/api/prices" });
     const setPrice = await app.inject({
-      method: "POST",
-      url: "/api/products/00000000-0000-0000-0000-000000000000/price",
+      method: "PUT",
+      url: "/api/prices/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
     const confirmation = await app.inject({
       method: "POST",
-      url: "/api/products/00000000-0000-0000-0000-000000000000/price-confirmation",
+      url: "/api/prices/00000000-0000-0000-0000-000000000000/confirmations",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1478,33 +1478,14 @@ function productionWiredApp() {
   return buildApp({
     version: "abc1234",
     staticDir,
-    recovery: {
-      db: testDatabase.db,
-      jobQueue: { async enqueueRecoveryRequest() {} },
-      backofficeOrigin: BACKOFFICE_ORIGIN,
-    },
-    session: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    passkeys: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    users: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    roles: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    branchSettings: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    issuerIdentification: {
+    ...databaseRouteOptions({
       db: testDatabase.db,
       backofficeOrigin: BACKOFFICE_ORIGIN,
+      recoveryJobQueue: { async enqueueRecoveryRequest() {} },
       authorizedCuit: "20-12345678-6",
-    },
-    categories: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    brands: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    tags: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    products: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    alerts: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    prices: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    registers: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    devices: {
-      db: testDatabase.db,
-      rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
-      keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
-    },
+      deviceTokenRotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
+      installationKeysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+    }),
   });
 }
 
@@ -1545,7 +1526,7 @@ describe("wiring the alerts routes", () => {
 });
 
 describe("the route access inventory", () => {
-  it("declares exactly one access level for every registered route", async () => {
+  it("covers every route the production wiring registers, each with one access level", async () => {
     const app = productionWiredApp();
     await app.ready();
 
@@ -1641,8 +1622,8 @@ describe("the route access inventory", () => {
         access: permissionAccess("manage_products_and_categories"),
       },
       {
-        method: "POST",
-        url: "/api/categories/:id/edit",
+        method: "PUT",
+        url: "/api/categories/:id",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
@@ -1656,18 +1637,18 @@ describe("the route access inventory", () => {
         access: permissionAccess("manage_products_and_categories"),
       },
       {
-        method: "POST",
-        url: "/api/brands/:id/edit",
+        method: "PUT",
+        url: "/api/brands/:id",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
-        method: "POST",
+        method: "PUT",
         url: "/api/brands/:id/deactivation",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
-        method: "POST",
-        url: "/api/brands/:id/reactivation",
+        method: "DELETE",
+        url: "/api/brands/:id/deactivation",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
@@ -1706,23 +1687,23 @@ describe("the route access inventory", () => {
         access: permissionAccess("manage_products_and_categories"),
       },
       {
-        method: "POST",
-        url: "/api/products/:id/edit",
+        method: "PUT",
+        url: "/api/products/:id",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
-        method: "POST",
+        method: "PUT",
         url: "/api/products/:id/deactivation",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
         method: "POST",
-        url: "/api/products/internal-barcode",
+        url: "/api/internal-barcodes",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
         method: "POST",
-        url: "/api/products/labels",
+        url: "/api/label-sheets",
         access: permissionAccess("manage_products_and_categories"),
       },
       { method: "GET", url: "/api/alerts", access: OPEN_SESSION_ACCESS },
@@ -1739,14 +1720,59 @@ describe("the route access inventory", () => {
         access: permissionAccess("manage_prices_and_review"),
       },
       {
-        method: "POST",
-        url: "/api/products/:id/price",
+        method: "PUT",
+        url: "/api/prices/:productId",
         access: permissionAccess("manage_prices_and_review"),
       },
       {
         method: "POST",
-        url: "/api/products/:id/price-confirmation",
+        url: "/api/prices/:productId/confirmations",
         access: permissionAccess("manage_prices_and_review"),
+      },
+      {
+        method: "GET",
+        url: "/api/inventory-levels",
+        access: permissionAccess("view_stock_balances"),
+      },
+      {
+        method: "GET",
+        url: "/api/inventory-items",
+        access: permissionAccess([
+          "view_stock_balances",
+          "perform_stock_counts",
+          "adjust_stock",
+          "record_stock_losses",
+        ]),
+      },
+      {
+        method: "GET",
+        url: "/api/inventory-counts",
+        access: permissionAccess("perform_stock_counts"),
+      },
+      {
+        method: "POST",
+        url: "/api/inventory-counts",
+        access: permissionAccess("perform_stock_counts"),
+      },
+      {
+        method: "GET",
+        url: "/api/inventory-levels/:productId",
+        access: permissionAccess("view_stock_balances"),
+      },
+      {
+        method: "GET",
+        url: "/api/inventory-movements",
+        access: permissionAccess(["record_stock_losses", "adjust_stock"]),
+      },
+      {
+        method: "POST",
+        url: "/api/inventory-losses",
+        access: permissionAccess("record_stock_losses"),
+      },
+      {
+        method: "POST",
+        url: "/api/inventory-adjustments",
+        access: permissionAccess("adjust_stock"),
       },
       {
         method: "GET",

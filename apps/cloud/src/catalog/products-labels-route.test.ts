@@ -141,7 +141,7 @@ function requestLabels(
 ) {
   return app.inject({
     method: "POST",
-    url: "/products/labels",
+    url: "/label-sheets",
     headers: {
       origin: BACKOFFICE_ORIGIN,
       ...(rawSessionId ? cookieHeader(rawSessionId) : {}),
@@ -151,7 +151,21 @@ function requestLabels(
   });
 }
 
-describe("POST /products/labels", () => {
+describe("POST /label-sheets", () => {
+  it("no longer answers the old labels path", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/products/labels",
+      headers: { origin: BACKOFFICE_ORIGIN, ...cookieHeader(rawSessionId) },
+      payload: { labels: [] },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
   it("returns 401 unauthenticated when no cookie was sent", async () => {
     const response = await requestLabels(undefined, { labels: [] });
 

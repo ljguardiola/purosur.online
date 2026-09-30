@@ -205,7 +205,7 @@ test("createCategory returns failed when the request throws", async () => {
   expect(await createCategory({ name: "Semillas", parentId: null })).toEqual({ kind: "failed" });
 });
 
-test("editCategory posts the name, parentId and version and returns ok on 200", async () => {
+test("editCategory puts the name, parentId and version and returns ok on 200", async () => {
   const renamed: CategorySummary = {
     id: "category-1",
     name: "Semillas y granos",
@@ -221,14 +221,14 @@ test("editCategory posts the name, parentId and version and returns ok on 200", 
   });
 
   expect(outcome).toEqual({ kind: "ok" });
-  expect(fetch).toHaveBeenCalledWith("/api/categories/category-1/edit", {
-    method: "POST",
+  expect(fetch).toHaveBeenCalledWith("/api/categories/category-1", {
+    method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name: "Semillas y granos", parentId: null, version: 1 }),
   });
 });
 
-test("editCategory posts a chosen parentId when moving the category", async () => {
+test("editCategory puts a chosen parentId when moving the category", async () => {
   const moved: CategorySummary = {
     id: "category-3",
     name: "Untables",
@@ -244,8 +244,8 @@ test("editCategory posts a chosen parentId when moving the category", async () =
   });
 
   expect(outcome).toEqual({ kind: "ok" });
-  expect(fetch).toHaveBeenCalledWith("/api/categories/category-3/edit", {
-    method: "POST",
+  expect(fetch).toHaveBeenCalledWith("/api/categories/category-3", {
+    method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name: "Untables", parentId: "category-2", version: 1 }),
   });

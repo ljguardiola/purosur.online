@@ -130,7 +130,7 @@ function confirmPriceRequest(
 ) {
   return app.inject({
     method: "POST",
-    url: `/products/${productId}/price-confirmation`,
+    url: `/prices/${productId}/confirmations`,
     headers: {
       origin: BACKOFFICE_ORIGIN,
       ...(rawSessionId ? cookieHeader(rawSessionId) : {}),
@@ -140,7 +140,23 @@ function confirmPriceRequest(
   });
 }
 
-describe("POST /products/:id/price-confirmation", () => {
+describe("POST /prices/:productId/confirmations", () => {
+  it("no longer answers the old price confirmation path", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+    const productId = await insertProduct("Arroz");
+    const priceId = await insertPrice(productId, 1000, NOON);
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/products/${productId}/price-confirmation`,
+      headers: { origin: BACKOFFICE_ORIGIN, ...cookieHeader(rawSessionId) },
+      payload: { expectedCurrentPriceId: priceId },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
   it("returns 401 unauthenticated when no cookie was sent", async () => {
     const productId = await insertProduct("Arroz");
     const priceId = await insertPrice(productId, 1000, NOON);

@@ -183,11 +183,10 @@ test("shows a focus ring on the page heading it focuses after a keyboard navigat
   window.history.pushState(null, "", "/help/getting_started");
   const screen = await render(<App help={help} services={createAppServices()} />);
 
-  const link = screen
-    .getByRole("link", { name: "Facturación", exact: true })
-    .element() as HTMLElement;
-  link.focus();
-  await userEvent.keyboard("{Enter}");
+  const link = screen.getByRole("link", { name: "Facturación", exact: true });
+  await expect.element(link).toBeVisible();
+
+  await pressEnterOn(link.element() as HTMLElement);
 
   const heading = screen.getByRole("heading", { name: "Facturación", level: 1 });
   await expect.element(heading).toHaveFocus();

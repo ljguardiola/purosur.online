@@ -38,7 +38,8 @@ const litoral: BrandSummary = {
   productCount: 3,
 };
 
-const JSON_POST = { method: "POST", headers: { "Content-Type": "application/json" } };
+const JSON_BODY = { headers: { "Content-Type": "application/json" } };
+const JSON_POST = { method: "POST", ...JSON_BODY };
 
 describe("fetchBrands", () => {
   test("lists every brand on 200", async () => {
@@ -142,12 +143,13 @@ describe("createBrand", () => {
 });
 
 describe("editBrand", () => {
-  test("posts the name and version and returns ok on 200 whatever the body says", async () => {
+  test("puts the name and version and returns ok on 200 whatever the body says", async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { unexpected: true }));
 
     expect(await editBrand("brand-1", { name: "Granix Pro", version: 1 })).toEqual({ kind: "ok" });
-    expect(fetch).toHaveBeenCalledWith("/api/brands/brand-1/edit", {
-      ...JSON_POST,
+    expect(fetch).toHaveBeenCalledWith("/api/brands/brand-1", {
+      method: "PUT",
+      ...JSON_BODY,
       body: JSON.stringify({ name: "Granix Pro", version: 1 }),
     });
   });
@@ -195,17 +197,14 @@ describe("editBrand", () => {
 });
 
 describe.each([
-  ["deactivateBrand", deactivateBrand, "deactivation", "brand_already_inactive"],
-  ["reactivateBrand", reactivateBrand, "reactivation", "brand_already_active"],
-] as const)("%s", (_name, change, path, alreadyCode) => {
-  test(`posts to the brand's ${path} and returns ok on 200`, async () => {
+  ["deactivateBrand", deactivateBrand, "PUT", "brand_already_inactive"],
+  ["reactivateBrand", reactivateBrand, "DELETE", "brand_already_active"],
+] as const)("%s", (_name, change, method, alreadyCode) => {
+  test(`sends ${method} to the brand's deactivation and returns ok on 200`, async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
 
     expect(await change("brand-1")).toEqual({ kind: "ok" });
-    expect(fetch).toHaveBeenCalledWith(`/api/brands/brand-1/${path}`, {
-      ...JSON_POST,
-      body: JSON.stringify({}),
-    });
+    expect(fetch).toHaveBeenCalledWith("/api/brands/brand-1/deactivation", { method });
   });
 
   test.each([

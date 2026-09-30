@@ -6,10 +6,6 @@
     "rootDir": "./src",
     "outDir": "./dist",
     "noEmit": false,
-    // Overrides the root's `paths` (which points `@purosur/domain` and `@purosur/contracts` at
-    // their untranspiled source): this build resolves both as ordinary packages instead, through
-    // the project references below and node_modules, so it gets their own compiled declarations.
-    "paths": {},
     // `-b` mode's incremental build info; kept inside dist/ (already git-ignored) instead of its
     // default location next to this file.
     "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo"

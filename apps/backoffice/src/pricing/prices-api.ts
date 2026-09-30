@@ -44,12 +44,16 @@ export type ConfirmPriceOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-function postJson(path: string, body: unknown): Promise<Response> {
+function sendJson(method: "POST" | "PUT", path: string, body: unknown): Promise<Response> {
   return fetch(path, {
-    method: "POST",
+    method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+}
+
+function postJson(path: string, body: unknown): Promise<Response> {
+  return sendJson("POST", path, body);
 }
 
 export async function fetchPrices(input: FetchPricesInput): Promise<FetchPricesOutcome> {
@@ -86,7 +90,7 @@ export async function fetchPrices(input: FetchPricesInput): Promise<FetchPricesO
 export async function setPrice(productId: string, input: SetPriceInput): Promise<SetPriceOutcome> {
   let response: Response;
   try {
-    response = await postJson(`/api/products/${productId}/price`, input);
+    response = await sendJson("PUT", `/api/prices/${productId}`, input);
   } catch {
     return { kind: "failed" };
   }
@@ -125,7 +129,7 @@ export async function confirmPrice(
 ): Promise<ConfirmPriceOutcome> {
   let response: Response;
   try {
-    response = await postJson(`/api/products/${productId}/price-confirmation`, input);
+    response = await postJson(`/api/prices/${productId}/confirmations`, input);
   } catch {
     return { kind: "failed" };
   }
