@@ -167,8 +167,8 @@ function editProduct(
   headers: Record<string, string> = {},
 ) {
   return app.inject({
-    method: "POST",
-    url: `/products/${id}/edit`,
+    method: "PUT",
+    url: `/products/${id}`,
     headers: {
       origin: BACKOFFICE_ORIGIN,
       ...(rawSessionId ? cookieHeader(rawSessionId) : {}),
@@ -178,7 +178,36 @@ function editProduct(
   });
 }
 
-describe("POST /products/:id/edit", () => {
+describe("PUT /products/:id", () => {
+  it("no longer answers the old edit path", async () => {
+    const categoryId = await insertCategory("Macetas");
+    const product = await insertProduct({
+      name: "Maceta",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+    });
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/products/${product.id}/edit`,
+      headers: { origin: BACKOFFICE_ORIGIN, ...cookieHeader(rawSessionId) },
+      payload: {
+        name: "Maceta 20cm",
+        categoryId,
+        saleUnit: "UNIT",
+        barcodes: ["111"],
+        brandId: null,
+        tagIds: [],
+        version: product.version,
+      },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
   it("returns 401 unauthenticated when no cookie was sent", async () => {
     const categoryId = await insertCategory("Macetas");
     const product = await insertProduct({

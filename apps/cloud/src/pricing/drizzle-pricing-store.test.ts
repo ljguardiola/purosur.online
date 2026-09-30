@@ -1,8 +1,10 @@
 import { confirmPrice, setPrice } from "@purosur/domain/pricing/use-cases";
+import { asc, eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   auditLog,
   categories,
+  changes,
   priceLists,
   priceReviews,
   prices,
@@ -313,5 +315,96 @@ describe("confirmations committed by callers whose clocks disagree", () => {
     expect(listed.products.find((product) => product.id === productId)).toMatchObject({
       lastReviewedAt: confirmation.lastReviewedAt,
     });
+  });
+});
+
+describe("the price changes a pull hands to the registers", () => {
+  async function loggedPriceChanges() {
+    return db
+      .select({
+        entityId: changes.entityId,
+        version: changes.version,
+        op: changes.op,
+        priceListId: changes.priceListId,
+      })
+      .from(changes)
+      .where(eq(changes.entity, "price"))
+      .orderBy(asc(changes.changeSeq));
+  }
+
+  it("logs each price set as an insert of its first version, naming the price list it belongs to", async () => {
+    const priceListId = await seededPriceListId(db);
+    const actorId = await insertUser();
+    const productId = await insertProduct();
+
+    const first = await setPrice(pricingPortsAt(MOMENT), {
+      productId,
+      priceListId,
+      unitPrice: 1000,
+      expectedCurrentPriceId: null,
+      actorId,
+    });
+    if (first.kind !== "applied") {
+      throw new Error("test setup: the first price was not applied");
+    }
+    const second = await setPrice(pricingPortsAt(LATER), {
+      productId,
+      priceListId,
+      unitPrice: 1200,
+      expectedCurrentPriceId: first.price.id,
+      actorId,
+    });
+    if (second.kind !== "applied") {
+      throw new Error("test setup: the second price was not applied");
+    }
+
+    expect(await loggedPriceChanges()).toEqual([
+      { entityId: first.price.id, version: 1, op: "insert", priceListId },
+      { entityId: second.price.id, version: 1, op: "insert", priceListId },
+    ]);
+  });
+
+  it("logs nothing when the price is refused or only confirmed", async () => {
+    const priceListId = await seededPriceListId(db);
+    const actorId = await insertUser();
+    const productId = await insertProduct();
+    const first = await setPrice(pricingPortsAt(MOMENT), {
+      productId,
+      priceListId,
+      unitPrice: 1000,
+      expectedCurrentPriceId: null,
+      actorId,
+    });
+    if (first.kind !== "applied") {
+      throw new Error("test setup: the first price was not applied");
+    }
+
+    const unchanged = await setPrice(pricingPortsAt(LATER), {
+      productId,
+      priceListId,
+      unitPrice: 1000,
+      expectedCurrentPriceId: first.price.id,
+      actorId,
+    });
+    const stale = await setPrice(pricingPortsAt(LATER), {
+      productId,
+      priceListId,
+      unitPrice: 1500,
+      expectedCurrentPriceId: null,
+      actorId,
+    });
+    const confirmed = await confirmPrice(pricingPortsAt(LATER), {
+      productId,
+      priceListId,
+      expectedCurrentPriceId: first.price.id,
+      actorId,
+    });
+
+    expect([unchanged.kind, stale.kind, confirmed.kind]).toEqual([
+      "price_unchanged",
+      "stale_price",
+      "confirmed",
+    ]);
+    expect(await loggedPriceChanges()).toHaveLength(1);
   });
 });

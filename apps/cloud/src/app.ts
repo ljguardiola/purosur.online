@@ -2,13 +2,15 @@ import { extname, relative, sep } from "node:path";
 import fastifyStatic from "@fastify/static";
 import type { ErrorReportingConfiguration } from "@purosur/contracts";
 import { setupFastifyErrorHandler as defaultSetupFastifyErrorHandler } from "@sentry/node";
-import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
 import Fastify, { type FastifyInstance } from "fastify";
 import type { PasskeysListRouteOptions } from "./access/passkeys-list-route.js";
 import { registerPasskeysListRoute } from "./access/passkeys-list-route.js";
 import { registerPasskeyRegistrationRoutes } from "./access/passkeys-registration-route.js";
 import { registerPasskeyRemovalRoutes } from "./access/passkeys-removal-route.js";
+import { registerPinCodeRedemptionRoute } from "./access/pin-code-redemption-route.js";
+import type { RecoveryJobQueue } from "./access/recovery-job-queue.js";
 import { registerRecoveryRedemptionRoutes } from "./access/recovery-redemption-route.js";
 import type { RecoveryRouteOptions } from "./access/request-recovery-route.js";
 import { registerRecoveryRoutes } from "./access/request-recovery-route.js";
@@ -34,6 +36,7 @@ import { registerUserDeactivationRoutes } from "./access/user-deactivation-route
 import { registerUserEditRoutes } from "./access/user-edit-route.js";
 import { registerUserPasskeyRemovalRoutes } from "./access/user-passkey-removal-route.js";
 import { registerUserPasskeysListRoute } from "./access/user-passkeys-list-route.js";
+import { registerUserPinCodeRoutes } from "./access/user-pin-code-route.js";
 import { registerUserReactivationRoutes } from "./access/user-reactivation-route.js";
 import { registerUserReadRoute } from "./access/user-read-route.js";
 import type { UsersRouteOptions } from "./access/users-list-route.js";
@@ -125,6 +128,52 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   registers?: RegistersRouteOptions<TQueryResult>;
   stock?: StockRouteOptions<TQueryResult>;
   devices?: DeviceTokensOptions<TQueryResult>;
+}
+
+type DatabaseRouteOptions<TQueryResult extends PgQueryResultHKT> = Required<
+  Omit<
+    BuildAppOptions<TQueryResult>,
+    "version" | "errorReporting" | "edgeOriginSecret" | "setupFastifyErrorHandler" | "staticDir"
+  >
+>;
+
+interface DatabaseWiring<TQueryResult extends PgQueryResultHKT> {
+  db: PgDatabase<TQueryResult>;
+  backofficeOrigin: string;
+  recoveryJobQueue: RecoveryJobQueue;
+  authorizedCuit: string;
+  deviceTokenRotationKey: Uint8Array;
+  installationKeysEncryptionKey: Uint8Array;
+}
+
+export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
+  wiring: DatabaseWiring<TQueryResult>,
+): DatabaseRouteOptions<TQueryResult> {
+  const { db, backofficeOrigin } = wiring;
+  const backoffice = { db, backofficeOrigin };
+  return {
+    recovery: { ...backoffice, jobQueue: wiring.recoveryJobQueue },
+    session: backoffice,
+    passkeys: backoffice,
+    users: backoffice,
+    roles: backoffice,
+    branchSettings: backoffice,
+    issuerIdentification: { ...backoffice, authorizedCuit: wiring.authorizedCuit },
+    categories: backoffice,
+    brands: backoffice,
+    tags: backoffice,
+    products: backoffice,
+    alerts: backoffice,
+    prices: backoffice,
+    discounts: backoffice,
+    registers: backoffice,
+    stock: backoffice,
+    devices: {
+      db,
+      rotationKey: wiring.deviceTokenRotationKey,
+      keysEncryptionKey: wiring.installationKeysEncryptionKey,
+    },
+  };
 }
 
 const API_PREFIX = "/api";
@@ -241,6 +290,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerUserPasskeysListRoute(api, options.users);
         registerUserPasskeyRemovalRoutes(api, options.users);
         registerUserDeactivationRoutes(api, options.users);
+        registerUserPinCodeRoutes(api, options.users);
         registerUserReactivationRoutes(api, options.users);
       }
 
@@ -329,6 +379,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
       if (options.devices) {
         registerDeviceEnrollmentRoute(api, options.devices);
         registerChangesRoute(api, options.devices);
+        registerPinCodeRedemptionRoute(api, options.devices);
         registerDeviceTokenRotationRoute(api, options.devices);
       }
     },

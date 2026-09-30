@@ -73,12 +73,16 @@ export type GenerateInternalBarcodeOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-function postJson(path: string, body?: unknown): Promise<Response> {
+function sendJson(method: "POST" | "PUT", path: string, body?: unknown): Promise<Response> {
   return fetch(path, {
-    method: "POST",
+    method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body ?? {}),
   });
+}
+
+function postJson(path: string, body?: unknown): Promise<Response> {
+  return sendJson("POST", path, body);
 }
 
 async function readBarcodeTakenCodes(response: Response): Promise<string[]> {
@@ -172,7 +176,7 @@ export async function createProduct(input: CreateProductInput): Promise<CreatePr
 export async function generateInternalBarcode(): Promise<GenerateInternalBarcodeOutcome> {
   let response: Response;
   try {
-    response = await postJson("/api/products/internal-barcode");
+    response = await postJson("/api/internal-barcodes");
   } catch {
     return { kind: "failed" };
   }
@@ -210,7 +214,7 @@ export async function printLabels(labels: PrintLabelEntry[]): Promise<PrintLabel
   const requestBody: LabelSheetBody = { labels };
   let response: Response;
   try {
-    response = await postJson("/api/products/labels", requestBody);
+    response = await postJson("/api/label-sheets", requestBody);
   } catch {
     return { kind: "failed" };
   }
@@ -259,7 +263,7 @@ export async function editProduct(
   };
   let response: Response;
   try {
-    response = await postJson(`/api/products/${id}/edit`, requestBody);
+    response = await sendJson("PUT", `/api/products/${id}`, requestBody);
   } catch {
     return { kind: "failed" };
   }
@@ -320,7 +324,7 @@ export type DeactivateProductOutcome =
 export async function deactivateProduct(id: string): Promise<DeactivateProductOutcome> {
   let response: Response;
   try {
-    response = await postJson(`/api/products/${id}/deactivation`);
+    response = await fetch(`/api/products/${id}/deactivation`, { method: "PUT" });
   } catch {
     return { kind: "failed" };
   }

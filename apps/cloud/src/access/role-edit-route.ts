@@ -6,6 +6,7 @@ import type { FastifyInstance } from "fastify";
 import { openAlert } from "../alerts/open-alert.js";
 import { auditLog, rolePermissions, roles } from "../platform/db/schema.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
+import { withPendingChanges } from "../sync/change-log.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import {
@@ -69,8 +70,10 @@ export async function editRole<TQueryResult extends PgQueryResultHKT>(
   input: EditRoleInput,
   deps: EditRoleDeps,
 ): Promise<EditRoleOutcome> {
-  const outcome = await db
-    .transaction<EditRoleOutcome>(async (tx) => {
+  const outcome = await withPendingChanges<TQueryResult, EditRoleOutcome>(
+    db,
+    undefined,
+    async (tx, changes) => {
       // Locks this row so a concurrent edit against the same role waits instead of racing the version check.
       const [current] = await tx
         .select({
@@ -130,6 +133,7 @@ export async function editRole<TQueryResult extends PgQueryResultHKT>(
         .update(roles)
         .set({ name: input.name, version: nextVersion })
         .where(eq(roles.id, input.id));
+      changes.note({ entity: "role", entityId: input.id, version: nextVersion, op: "update" });
       await tx.delete(rolePermissions).where(eq(rolePermissions.roleId, input.id));
       if (input.permissionKeys.length > 0) {
         await tx.insert(rolePermissions).values(
@@ -188,13 +192,13 @@ export async function editRole<TQueryResult extends PgQueryResultHKT>(
           assignedUsers: [],
         },
       };
-    })
-    .catch((error: unknown): EditRoleOutcome => {
-      if (error instanceof RoleNameTaken || isRoleNameUniqueViolation(error)) {
-        return { kind: "name_taken" };
-      }
-      throw error;
-    });
+    },
+  ).catch((error: unknown): EditRoleOutcome => {
+    if (error instanceof RoleNameTaken || isRoleNameUniqueViolation(error)) {
+      return { kind: "name_taken" };
+    }
+    throw error;
+  });
 
   if (outcome.kind !== "applied") {
     return outcome;

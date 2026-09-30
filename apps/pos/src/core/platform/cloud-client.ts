@@ -114,9 +114,18 @@ export function postToCloudWithBearer(
   deps: CloudClientDeps,
   path: string,
   bearerToken: string,
+  body?: unknown,
 ): Promise<CloudResponse> {
-  return requestWithRetries(deps, path, {
-    method: "POST",
-    headers: { authorization: `Bearer ${bearerToken}` },
-  });
+  const authorization = { authorization: `Bearer ${bearerToken}` };
+  return requestWithRetries(
+    deps,
+    path,
+    body === undefined
+      ? { method: "POST", headers: authorization }
+      : {
+          method: "POST",
+          headers: { ...authorization, "content-type": "application/json" },
+          body: JSON.stringify(body),
+        },
+  );
 }

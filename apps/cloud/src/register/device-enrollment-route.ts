@@ -44,7 +44,7 @@ export function registerDeviceEnrollmentRoute<TQueryResult extends PgQueryResult
   app.register(async (scope) => {
     answerErrorsWithCloudEnvelope(scope);
 
-    scope.post("/devices/enroll", { config: { access: PUBLIC_ACCESS } }, async (request, reply) => {
+    scope.post("/devices", { config: { access: PUBLIC_ACCESS } }, async (request, reply) => {
       const body = await readValidatedBody(reply, deviceEnrollmentBodySchema, request.body);
       if (!body) {
         return;

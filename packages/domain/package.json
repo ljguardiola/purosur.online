@@ -7,26 +7,37 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "@purosur/source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./access/use-cases": {
+      "@purosur/source": "./src/access/use-cases/index.ts",
+      "types": "./dist/access/use-cases/index.d.ts",
+      "default": "./dist/access/use-cases/index.js"
+    },
     "./catalog/use-cases": {
+      "@purosur/source": "./src/catalog/use-cases/index.ts",
       "types": "./dist/catalog/use-cases/index.d.ts",
       "default": "./dist/catalog/use-cases/index.js"
     },
     "./pricing/use-cases": {
+      "@purosur/source": "./src/pricing/use-cases/index.ts",
       "types": "./dist/pricing/use-cases/index.d.ts",
       "default": "./dist/pricing/use-cases/index.js"
     },
     "./stock/use-cases": {
+      "@purosur/source": "./src/stock/use-cases/index.ts",
       "types": "./dist/stock/use-cases/index.d.ts",
       "default": "./dist/stock/use-cases/index.js"
     },
     "./register/use-cases": {
+      "@purosur/source": "./src/register/use-cases/index.ts",
       "types": "./dist/register/use-cases/index.d.ts",
       "default": "./dist/register/use-cases/index.js"
     },
     "./sync/use-cases": {
+      "@purosur/source": "./src/sync/use-cases/index.ts",
       "types": "./dist/sync/use-cases/index.d.ts",
       "default": "./dist/sync/use-cases/index.js"
     }

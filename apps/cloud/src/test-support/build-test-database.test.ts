@@ -19,6 +19,7 @@ import {
   locations,
   passkeyChallenges,
   passkeys,
+  pinCodeRedemptionAttempts,
   priceLists,
   priceReviews,
   prices,
@@ -44,6 +45,8 @@ import {
   stockCounts,
   stockMovements,
   tags,
+  userPinCodes,
+  userPins,
   userRoles,
   users,
 } from "../platform/db/schema.js";
@@ -274,6 +277,11 @@ describe("buildTestDatabase", () => {
       keyValue: "203.0.113.10",
       attemptedAt: new Date("2026-01-05T12:00:00.000Z"),
     });
+    await db.insert(pinCodeRedemptionAttempts).values({
+      keyKind: "register",
+      keyValue: "a-register",
+      attemptedAt: new Date("2026-01-05T12:00:00.000Z"),
+    });
     await db.insert(auditLog).values({ entity: "users", entityId: user.id });
     const [countMovement] = await db
       .insert(stockMovements)
@@ -303,6 +311,19 @@ describe("buildTestDatabase", () => {
       deviceType: "singleDevice",
       backedUp: false,
       name: "Passkey",
+    });
+    await db.insert(userPins).values({
+      userId: user.id,
+      salt: "salt",
+      hash: "hash",
+      setAt: new Date("2026-01-05T12:00:00.000Z"),
+    });
+    await db.insert(userPinCodes).values({
+      userId: user.id,
+      codeHash: "pin-code-hash",
+      issuedBy: user.id,
+      issuedAt: new Date("2026-01-05T12:00:00.000Z"),
+      expiresAt: new Date("2026-01-05T12:15:00.000Z"),
     });
     await db.insert(recoveryTokens).values({
       userId: user.id,

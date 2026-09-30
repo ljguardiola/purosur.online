@@ -1,7 +1,7 @@
 import { Button, InlineNotice, Modal } from "@purosur/ui";
 import { Check, KeySquare, RotateCcw, ShieldX, TriangleAlert } from "lucide-react";
+import { groupedCode } from "../platform/grouped-code";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { groupedCode } from "./enrollment-code";
 import type { RegisterSummary } from "./registers-api";
 
 export type EmissionState =

@@ -169,6 +169,23 @@ describe("GET /users", () => {
     ]);
   });
 
+  it("lists users for a holder of only reset_user_pin though not an Administrator", async () => {
+    const locationId = await seededLocationId(db);
+    const roleId = await insertCashierRole("Encargada", ["reset_user_pin"]);
+    const userId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId,
+      locationId,
+    });
+    const rawSessionId = await insertSession(userId);
+
+    const response = await getUsers(rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toHaveLength(1);
+  });
+
   it("excludes an inactive user from the list for a holder of only deactivate_users", async () => {
     const locationId = await seededLocationId(db);
     const holderRoleId = await insertCashierRole("Encargada", ["deactivate_users"]);

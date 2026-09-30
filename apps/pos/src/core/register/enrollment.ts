@@ -73,7 +73,7 @@ export async function enroll(deps: EnrollmentDeps, typedCode: string): Promise<E
     return { kind: "not_stored" };
   }
 
-  const response = await deps.postToCloud("/api/devices/enroll", request.data);
+  const response = await deps.postToCloud("/api/devices", request.data);
   if (response.kind === "unreachable") {
     return { kind: "unreachable" };
   }

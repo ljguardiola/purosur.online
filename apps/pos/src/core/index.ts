@@ -3,6 +3,7 @@ import { hostname, release, version } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import {
+  type CoreToRendererMessage,
   mainToCoreMessageSchema,
   rendererToCoreMessageSchema,
   scrubErrorReport,
@@ -17,6 +18,11 @@ import {
   sentryEnvironmentFromCoreArguments,
 } from "../shared/channel";
 import { CORE_READY_MESSAGE } from "../shared/core-readiness";
+import { redeemPinCode } from "./access/pin-code-redemption";
+import { hashPin } from "./access/pin-hash";
+import { applyRedeemedPin } from "./access/redeemed-pin";
+import { signIn } from "./access/sign-in";
+import { SqliteSignInStore } from "./access/sqlite-sign-in-store";
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
 import {
   type CloudClientDeps,
@@ -24,13 +30,13 @@ import {
   postToCloud,
   postToCloudWithBearer,
 } from "./platform/cloud-client";
-import { openLocalDatabase } from "./platform/local-database";
+import { type LocalDatabase, openLocalDatabase } from "./platform/local-database";
 import { LOCAL_MIGRATIONS } from "./platform/local-migrations";
 import { createMainRequests } from "./platform/main-requests";
 import { rotateDeviceToken } from "./register/device-token-rotation";
 import { startDeviceTokenRotationSchedule } from "./register/device-token-rotation-schedule";
 import { enroll, generatePepper, installationReportFrom } from "./register/enrollment";
-import { answerRendererRequest } from "./register/renderer-requests";
+import { answerRendererRequest, type RendererRequestDeps } from "./register/renderer-requests";
 import { createRendererConnection } from "./renderer-connection";
 import { pullFromCloud, pullResultOf } from "./sync/pull-from-cloud";
 import { createPullSchedule } from "./sync/pull-schedule";
@@ -82,27 +88,34 @@ const cloudClient: CloudClientDeps | undefined =
 const LOCAL_DATABASE_FILE = "register.sqlite";
 const PULL_INTERVAL_MS = 30_000;
 const PULL_FAILURE_BACKOFF = { baseMs: 2000, maxMs: 60_000 };
+const PULLED_NOTICE: CoreToRendererMessage = { type: "pulled" };
 
-function openLocalReplica(): SqliteLocalReplica | undefined {
+function openLocalDatabaseFile(): LocalDatabase | undefined {
   const localDataFolder = localDataFolderFromCoreArguments(process.argv);
   if (localDataFolder === undefined) {
-    console.error("core: no local data folder was handed over, so it can't pull");
+    console.error("core: no local data folder was handed over, so it can't pull or sign anyone in");
     return undefined;
   }
   try {
-    const replica = new SqliteLocalReplica(
-      openLocalDatabase(join(localDataFolder, LOCAL_DATABASE_FILE), LOCAL_MIGRATIONS),
+    const database = openLocalDatabase(
+      join(localDataFolder, LOCAL_DATABASE_FILE),
+      LOCAL_MIGRATIONS,
     );
     console.info("core: the local database is ready");
-    return replica;
+    return database;
   } catch (error) {
-    console.error("core: the local database could not be opened, so it can't pull", error);
+    console.error(
+      "core: the local database could not be opened, so it can't pull or sign anyone in",
+      error,
+    );
     Sentry.captureException(error);
     return undefined;
   }
 }
 
-const replica = openLocalReplica();
+const localDatabase = openLocalDatabaseFile();
+const replica = localDatabase === undefined ? undefined : new SqliteLocalReplica(localDatabase);
+const signInStore = localDatabase === undefined ? undefined : new SqliteSignInStore(localDatabase);
 
 // An unreachable cloud is how a register without internet looks, so only an unexpected stop is
 // reported; the next pull resumes from the cursor already saved either way.
@@ -134,10 +147,12 @@ const pullSchedule = createPullSchedule({
   onFailure: (error) => {
     console.error("core: the pull failed", error);
   },
+  afterEachPull: () => rendererConnection.tell(PULLED_NOTICE),
 });
 
-const rendererRequestDeps = {
+const rendererRequestDeps: RendererRequestDeps = {
   credentialsPresent: () => mainRequests.credentialsPresent(),
+  registerName: () => replica?.registerName(),
   enroll: async (typedCode: string) => {
     const outcome = await enroll(
       {
@@ -157,6 +172,46 @@ const rendererRequestDeps = {
       pullSchedule.pullNow();
     }
     return outcome;
+  },
+  redeemPinCode: (typedCode: string, newPin: string) =>
+    redeemPinCode(
+      {
+        readCredentials: () => mainRequests.readCredentials(),
+        postToCloud:
+          cloudClient === undefined
+            ? undefined
+            : (path, bearerToken, body) =>
+                postToCloudWithBearer(cloudClient, path, bearerToken, body),
+        applyRedeemedPin:
+          localDatabase === undefined
+            ? undefined
+            : (pepper, redemption) => applyRedeemedPin(localDatabase, pepper, redemption),
+        reportLocalFailure: (error) => {
+          console.error("core: the redeemed PIN could not be kept locally", error);
+          Sentry.captureException(error);
+        },
+      },
+      typedCode,
+      newPin,
+    ),
+  signInUsers: signInStore === undefined ? undefined : () => signInStore.signableUsers(),
+  signIn:
+    signInStore === undefined
+      ? undefined
+      : (userId, pin) =>
+          signIn(
+            {
+              store: signInStore,
+              readPepper: async () => (await mainRequests.readCredentials())?.pepper,
+              hashPin,
+              now: () => new Date(),
+            },
+            userId,
+            pin,
+          ),
+  reportFailure: (context, error) => {
+    console.error(`core: ${context} failed`, error);
+    Sentry.captureException(error);
   },
 };
 

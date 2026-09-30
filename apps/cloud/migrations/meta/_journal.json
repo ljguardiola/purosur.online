@@ -285,8 +285,43 @@
     {
       "idx": 40,
       "version": "7",
-      "when": 1790739928591,
-      "tag": "0040_discounts",
+      "when": 1790741705498,
+      "tag": "0040_user_pin_codes",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1790743912402,
+      "tag": "0041_catalog_changes",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1790745101159,
+      "tag": "0042_users_and_roles_changes",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1790751722013,
+      "tag": "0043_pin_code_redemption_attempts",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1790760438921,
+      "tag": "0044_registers_changes",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1790770776585,
+      "tag": "0045_discounts",
       "breakpoints": true
     }
   ]

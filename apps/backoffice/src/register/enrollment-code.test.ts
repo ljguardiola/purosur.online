@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { groupedCode, minutesElapsed, minutesRemaining } from "./enrollment-code";
+import { minutesElapsed, minutesRemaining } from "./enrollment-code";
 
 const NOW = new Date("2026-09-25T12:00:00.000Z");
 
@@ -19,9 +19,4 @@ test("rounds the minutes left up to the next whole minute", () => {
 
 test("leaves at least one minute for a code about to expire", () => {
   expect(minutesRemaining("2026-09-25T12:00:00.000Z", NOW)).toBe(1);
-});
-
-test("groups a code in fours", () => {
-  expect(groupedCode("P4NX7KWE2QRT8MZD")).toBe("P4NX 7KWE 2QRT 8MZD");
-  expect(groupedCode("P4NX7K")).toBe("P4NX 7K");
 });

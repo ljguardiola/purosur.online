@@ -19,10 +19,63 @@ describe("rendererToCoreMessageSchema", () => {
     expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
+  it("accepts a request for the register's own name", () => {
+    const message = { type: "register-name-request", request_id: REQUEST_ID };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
   it("accepts an enrollment with the code as typed", () => {
     const message = { type: "enroll", request_id: REQUEST_ID, code: "p4nx 7kwe 2qrt 6mzd" };
 
     expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts a PIN code redemption with the code as typed and the new PIN", () => {
+    const message = {
+      type: "redeem-pin-code",
+      request_id: REQUEST_ID,
+      reset_code: "p4nx 7kwe 2qrt 5mzd",
+      new_pin: "482913",
+    };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each(["request_id", "reset_code", "new_pin"])(
+    "rejects a PIN code redemption without its %s",
+    (field) => {
+      const message = {
+        type: "redeem-pin-code",
+        request_id: REQUEST_ID,
+        reset_code: "P4NX7KWE2QRT5MZD",
+        new_pin: "482913",
+        [field]: undefined,
+      };
+
+      expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+    },
+  );
+
+  it("accepts a request for the users who can sign in", () => {
+    const message = { type: "sign-in-users", request_id: REQUEST_ID };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts a sign-in with the chosen user and the PIN as typed", () => {
+    const message = { type: "sign-in", request_id: REQUEST_ID, user_id: "u1", pin: "0042" };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { type: "sign-in-users" },
+    { type: "sign-in", user_id: "u1", pin: "1" },
+    { type: "sign-in", request_id: REQUEST_ID, pin: "1" },
+    { type: "sign-in", request_id: REQUEST_ID, user_id: "u1" },
+  ])("rejects a sign-in request missing a field: %j", (message) => {
+    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
   });
 
   it("rejects a request without its request id", () => {
@@ -30,6 +83,9 @@ describe("rendererToCoreMessageSchema", () => {
       rendererToCoreMessageSchema.safeParse({ type: "enrollment-status-request" }).success,
     ).toBe(false);
     expect(rendererToCoreMessageSchema.safeParse({ type: "enroll", code: "x" }).success).toBe(
+      false,
+    );
+    expect(rendererToCoreMessageSchema.safeParse({ type: "register-name-request" }).success).toBe(
       false,
     );
   });
@@ -53,6 +109,26 @@ describe("coreToRendererMessageSchema", () => {
     expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
+  it.each(["Caja 1", null])("accepts the register's own name, or none yet: %s", (name) => {
+    const message = { type: "register-name", request_id: REQUEST_ID, name };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a register name that is not text or null", () => {
+    expect(
+      coreToRendererMessageSchema.safeParse({
+        type: "register-name",
+        request_id: REQUEST_ID,
+        name: 3,
+      }).success,
+    ).toBe(false);
+    expect(
+      coreToRendererMessageSchema.safeParse({ type: "register-name", request_id: REQUEST_ID })
+        .success,
+    ).toBe(false);
+  });
+
   it.each([
     { kind: "enrolled" },
     { kind: "code_rejected" },
@@ -64,6 +140,47 @@ describe("coreToRendererMessageSchema", () => {
     const message = { type: "enrollment-result", request_id: REQUEST_ID, outcome };
 
     expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "redeemed" },
+    { kind: "code_invalid" },
+    { kind: "code_expired" },
+    { kind: "code_burned" },
+    { kind: "pin_rejected" },
+    { kind: "rate_limited", retry_after_seconds: 600 },
+    { kind: "unreachable" },
+    { kind: "unavailable" },
+  ])("accepts the PIN code redemption result $kind", (outcome) => {
+    const message = { type: "pin-code-redemption-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a PIN code redemption rate limit without when to retry", () => {
+    const message = {
+      type: "pin-code-redemption-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "rate_limited" },
+    };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("rejects a PIN code redemption result it does not know or without its request id", () => {
+    expect(
+      coreToRendererMessageSchema.safeParse({
+        type: "pin-code-redemption-result",
+        request_id: REQUEST_ID,
+        outcome: { kind: "not_stored" },
+      }).success,
+    ).toBe(false);
+    expect(
+      coreToRendererMessageSchema.safeParse({
+        type: "pin-code-redemption-result",
+        outcome: { kind: "redeemed" },
+      }).success,
+    ).toBe(false);
   });
 
   it("rejects a rate limit without when to retry", () => {
@@ -82,11 +199,134 @@ describe("coreToRendererMessageSchema", () => {
     expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 
+  it("accepts the notice that a pull finished, which answers no request", () => {
+    const message = { type: "pulled" };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
   it("rejects an enrollment status without whether it is enrolled", () => {
     expect(
       coreToRendererMessageSchema.safeParse({ type: "enrollment-status", request_id: REQUEST_ID })
         .success,
     ).toBe(false);
+  });
+});
+
+describe("sign-in answers", () => {
+  it("accepts the users who can sign in, by id and first name", () => {
+    const message = {
+      type: "sign-in-users",
+      request_id: REQUEST_ID,
+      users: [
+        { id: "u1", first_name: "Ada" },
+        { id: "u2", first_name: "Bruno" },
+      ],
+    };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts that the users cannot be read", () => {
+    const message = { type: "sign-in-users-unavailable", request_id: REQUEST_ID };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts an empty list of users", () => {
+    const message = { type: "sign-in-users", request_id: REQUEST_ID, users: [] };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("drops anything else a listed user carries", () => {
+    const message = {
+      type: "sign-in-users",
+      request_id: REQUEST_ID,
+      users: [{ id: "u1", first_name: "Ada", salt: "s" }],
+    };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual({
+      ...message,
+      users: [{ id: "u1", first_name: "Ada" }],
+    });
+  });
+
+  it("rejects a listed user without its first name", () => {
+    const message = { type: "sign-in-users", request_id: REQUEST_ID, users: [{ id: "u1" }] };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it.each([
+    {
+      kind: "signed_in",
+      person: { first_name: "Ada", permission_keys: ["sell_and_charge", "void_sale"] },
+    },
+    { kind: "signed_in", person: { first_name: "Ada", permission_keys: [] } },
+    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 7 },
+    { kind: "wrong_pin", retry_after_seconds: 30, attempts_left: 1 },
+    { kind: "rate_limited", retry_after_seconds: 4, attempts_left: 5 },
+    { kind: "locked", consecutive_failures: 8 },
+    { kind: "no_register_permission" },
+    { kind: "unavailable" },
+  ])("accepts the sign-in result $kind", (outcome) => {
+    const message = { type: "sign-in-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a locked result that counts a different number of failures", () => {
+    const outcome = { kind: "locked", consecutive_failures: 7 };
+    const message = { type: "sign-in-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("rejects a locked result without the failures that locked the person", () => {
+    const message = {
+      type: "sign-in-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "locked" },
+    };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("does not let a signed-in result carry a role", () => {
+    const message = {
+      type: "sign-in-result",
+      request_id: REQUEST_ID,
+      outcome: {
+        kind: "signed_in",
+        person: { first_name: "Ada", permission_keys: [], role_name: "Cajera" },
+      },
+    };
+
+    expect(JSON.stringify(coreToRendererMessageSchema.parse(message))).not.toContain("Cajera");
+  });
+
+  it.each([
+    { kind: "signed_in" },
+    { kind: "signed_in", person: { first_name: "Ada" } },
+    { kind: "x" },
+    { kind: "wrong_pin" },
+    { kind: "wrong_pin", retry_after_seconds: 0 },
+    { kind: "wrong_pin", attempts_left: 7 },
+    { kind: "wrong_pin", retry_after_seconds: -1, attempts_left: 7 },
+    { kind: "wrong_pin", retry_after_seconds: 31, attempts_left: 7 },
+    { kind: "wrong_pin", retry_after_seconds: 1.5, attempts_left: 7 },
+    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 0 },
+    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 8 },
+    { kind: "rate_limited" },
+    { kind: "rate_limited", retry_after_seconds: 0, attempts_left: 5 },
+    { kind: "rate_limited", retry_after_seconds: 31, attempts_left: 5 },
+    { kind: "rate_limited", retry_after_seconds: 4, attempts_left: 0 },
+    { kind: "rate_limited", retry_after_seconds: 4, attempts_left: 8 },
+  ])("rejects a sign-in result it does not know: %j", (outcome) => {
+    const message = { type: "sign-in-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 });
 

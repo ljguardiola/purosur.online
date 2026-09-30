@@ -138,14 +138,14 @@ test("createProduct posts only the fields the cloud reads", async () => {
   );
 });
 
-test("editProduct posts only the fields the cloud reads", async () => {
+test("editProduct puts only the fields the cloud reads", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, honey));
   const withExtraFields = { ...editInput, active: false };
 
   await editProduct("product-1", withExtraFields);
 
   expect(fetch).toHaveBeenCalledWith(
-    "/api/products/product-1/edit",
+    "/api/products/product-1",
     expect.objectContaining({ body: JSON.stringify(editInput) }),
   );
 });
@@ -252,15 +252,15 @@ test("createProduct returns failed when the request throws", async () => {
 
 const editInput = { ...createInput, version: 1 };
 
-test("editProduct posts the fields and version and returns ok on 200", async () => {
+test("editProduct puts the fields and version and returns ok on 200", async () => {
   const applied: ProductSummary = { ...honey, version: 2 };
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, applied));
 
   const outcome = await editProduct("product-1", editInput);
 
   expect(outcome).toEqual({ kind: "ok" });
-  expect(fetch).toHaveBeenCalledWith("/api/products/product-1/edit", {
-    method: "POST",
+  expect(fetch).toHaveBeenCalledWith("/api/products/product-1", {
+    method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(editInput),
   });
@@ -313,14 +313,14 @@ test("editProduct returns stale_version on a 409 carrying that code", async () =
   expect(await editProduct("product-1", editInput)).toEqual({ kind: "stale_version" });
 });
 
-test("editProduct posts the product's brand", async () => {
+test("editProduct puts the product's brand", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { ...honey, brandId: "brand-1" }));
   const withBrand = { ...editInput, brandId: "brand-1" };
 
   await editProduct("product-1", withBrand);
 
   expect(fetch).toHaveBeenCalledWith(
-    "/api/products/product-1/edit",
+    "/api/products/product-1",
     expect.objectContaining({ body: JSON.stringify(withBrand) }),
   );
 });
@@ -394,7 +394,7 @@ test("generateInternalBarcode posts with no body and returns the generated code 
   const outcome = await generateInternalBarcode();
 
   expect(outcome).toEqual({ kind: "ok", code: "2000000000015" });
-  expect(fetch).toHaveBeenCalledWith("/api/products/internal-barcode", {
+  expect(fetch).toHaveBeenCalledWith("/api/internal-barcodes", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({}),
@@ -441,7 +441,7 @@ test("printLabels posts the requested labels and returns the pdf blob on 200", a
 
   expect(outcome.kind).toBe("ok");
   expect(outcome.kind === "ok" && outcome.blob).toBeInstanceOf(Blob);
-  expect(fetch).toHaveBeenCalledWith("/api/products/labels", {
+  expect(fetch).toHaveBeenCalledWith("/api/label-sheets", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ labels: labelRequest }),
@@ -504,17 +504,13 @@ test("printLabels returns failed when the request throws", async () => {
   expect(await printLabels(labelRequest)).toEqual({ kind: "failed" });
 });
 
-test("deactivateProduct posts with no body and returns ok on 200", async () => {
+test("deactivateProduct puts the deactivation with no body and returns ok on 200", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
 
   const outcome = await deactivateProduct("product-1");
 
   expect(outcome).toEqual({ kind: "ok" });
-  expect(fetch).toHaveBeenCalledWith("/api/products/product-1/deactivation", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({}),
-  });
+  expect(fetch).toHaveBeenCalledWith("/api/products/product-1/deactivation", { method: "PUT" });
 });
 
 test("deactivateProduct returns not_found on 404 for a missing or already-inactive product", async () => {

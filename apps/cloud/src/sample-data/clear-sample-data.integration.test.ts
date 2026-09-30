@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { createCategory, createProduct, createTag } from "@purosur/domain/catalog/use-cases";
 import { confirmPrice, createDiscount, setPrice } from "@purosur/domain/pricing/use-cases";
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterEach, describe, expect, it } from "vitest";
@@ -18,6 +18,7 @@ import {
   changes,
   deviceState,
   passkeyChallenges,
+  prices,
   products,
   recoveryTokens,
   registerContingencyTicketKeys,
@@ -471,6 +472,164 @@ describe("clearSampleData", () => {
     expect(await tableCount(db, "registers")).toBe(0);
     expect(await tableCount(db, "register_installations")).toBe(0);
     expect(await tableCount(db, "device_state")).toBe(0);
+  }, 120_000);
+
+  it("logs every category, product and price it removes as a delete of the version after its last one", async () => {
+    const db = await freshOwnerDatabase();
+    await seedActiveAdministrator(db);
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    const removedCategories = await db
+      .select({ id: categories.id, version: categories.version })
+      .from(categories);
+    const removedProducts = await db
+      .select({ id: products.id, version: products.version })
+      .from(products);
+    const removedTags = await db.select({ id: tags.id, version: tags.version }).from(tags);
+    const removedPrices = await db
+      .select({ id: prices.id, priceListId: prices.priceListId })
+      .from(prices);
+    expect(removedTags.length).toBeGreaterThan(0);
+    expect(removedProducts.some((product) => product.version > 1)).toBe(true);
+
+    expect((await clearSampleData(db)).kind).toBe("cleared");
+
+    const deletes = (
+      await db
+        .select({
+          entity: changes.entity,
+          entityId: changes.entityId,
+          version: changes.version,
+          priceListId: changes.priceListId,
+        })
+        .from(changes)
+        .where(eq(changes.op, "delete"))
+    ).filter((row) => !["user", "role", "register"].includes(row.entity));
+    const byKey = (row: { entity: string; entityId: string }) => `${row.entity}:${row.entityId}`;
+    expect(deletes.map(byKey).sort()).toEqual(
+      [
+        ...removedCategories.map((row) => `category:${row.id}`),
+        ...removedProducts.map((row) => `product:${row.id}`),
+        ...removedTags.map((row) => `tag:${row.id}`),
+        ...removedPrices.map((row) => `price:${row.id}`),
+      ].sort(),
+    );
+    const deleteOf = (entity: string, id: string) =>
+      deletes.find((row) => row.entity === entity && row.entityId === id);
+    for (const category of removedCategories) {
+      expect(deleteOf("category", category.id)).toMatchObject({ version: category.version + 1 });
+    }
+    for (const product of removedProducts) {
+      expect(deleteOf("product", product.id)).toMatchObject({ version: product.version + 1 });
+    }
+    for (const tag of removedTags) {
+      expect(deleteOf("tag", tag.id)).toMatchObject({ version: tag.version + 1 });
+    }
+    for (const price of removedPrices) {
+      expect(deleteOf("price", price.id)).toMatchObject({
+        version: 2,
+        priceListId: price.priceListId,
+      });
+    }
+  }, 120_000);
+
+  it("logs every user and role it removes as a delete of the version after its last one, each user with its branch", async () => {
+    const db = await freshOwnerDatabase();
+    const bootstrap = await seedActiveAdministrator(db);
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    const removedUsers = (
+      await db
+        .select({ id: users.id, version: users.version, locationId: users.locationId })
+        .from(users)
+    ).filter((user) => user.id !== bootstrap.id);
+    const removedRoles = await db
+      .select({ id: roles.id, version: roles.version })
+      .from(roles)
+      .where(eq(roles.isAdministrator, false));
+    expect(removedUsers.some((user) => user.version > 1)).toBe(true);
+    expect(removedRoles.length).toBeGreaterThan(0);
+
+    expect((await clearSampleData(db)).kind).toBe("cleared");
+
+    const deletes = await db
+      .select({
+        entity: changes.entity,
+        entityId: changes.entityId,
+        version: changes.version,
+        locationId: changes.locationId,
+      })
+      .from(changes)
+      .where(eq(changes.op, "delete"));
+    const deleteOf = (entity: string, id: string) =>
+      deletes.find((row) => row.entity === entity && row.entityId === id);
+    expect(deletes.filter((row) => row.entity === "user")).toHaveLength(removedUsers.length);
+    expect(deletes.filter((row) => row.entity === "role")).toHaveLength(removedRoles.length);
+    for (const user of removedUsers) {
+      expect(deleteOf("user", user.id)).toMatchObject({
+        version: user.version + 1,
+        locationId: user.locationId,
+      });
+    }
+    for (const role of removedRoles) {
+      expect(deleteOf("role", role.id)).toMatchObject({
+        version: role.version + 1,
+        locationId: null,
+      });
+    }
+  }, 120_000);
+
+  it("logs every register it removes as a delete of the version after its last one, and none it leaves in place", async () => {
+    const db = await freshOwnerDatabase();
+    const bootstrap = await seedActiveAdministrator(db);
+    const realRegister = await createRegister(db, {
+      locationId: bootstrap.locationId,
+      name: "Caja Real",
+      actorId: bootstrap.id,
+    });
+    if (realRegister.kind !== "created") throw new Error("test setup: real register collided");
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    const removedRegisters = (
+      await db.select({ id: registers.id, version: registers.version }).from(registers)
+    ).filter((register) => register.id !== realRegister.register.id);
+    expect(removedRegisters.length).toBeGreaterThan(0);
+
+    expect((await clearSampleData(db)).kind).toBe("cleared");
+
+    const deletes = await db
+      .select({
+        entityId: changes.entityId,
+        version: changes.version,
+        locationId: changes.locationId,
+      })
+      .from(changes)
+      .where(and(eq(changes.op, "delete"), eq(changes.entity, "register")));
+    expect(deletes.map((row) => row.entityId).sort()).toEqual(
+      removedRegisters.map((register) => register.id).sort(),
+    );
+    for (const register of removedRegisters) {
+      expect(deletes.find((row) => row.entityId === register.id)).toMatchObject({
+        version: register.version + 1,
+        locationId: null,
+      });
+    }
+  }, 120_000);
+
+  it("logs nothing about a real category, product or price it leaves in place", async () => {
+    const db = await freshOwnerDatabase();
+    await seedActiveAdministrator(db);
+    const realCategory = await createCategory(new DrizzleCatalogStore(db), {
+      name: "Categoría Real",
+      parentId: null,
+    });
+    if (realCategory.kind !== "created") throw new Error("test setup: real category collided");
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+
+    expect((await clearSampleData(db)).kind).toBe("cleared");
+
+    const deletes = await db
+      .select({ entityId: changes.entityId })
+      .from(changes)
+      .where(eq(changes.op, "delete"));
+    expect(deletes.map((row) => row.entityId)).not.toContain(realCategory.category.id);
   }, 120_000);
 
   it("logs the branch settings it set back as a change, so registers pull them", async () => {

@@ -13,6 +13,7 @@ import {
   users,
 } from "../platform/db/schema.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
+import { withPendingChanges } from "../sync/change-log.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
 import { type BranchUserRow, findBranchUser, toBranchUserWire } from "./branch-users.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
@@ -161,8 +162,10 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      const outcome = await options.db
-        .transaction<EditOutcome>(async (tx) => {
+      const outcome = await withPendingChanges<TQueryResult, EditOutcome>(
+        options.db,
+        undefined,
+        async (tx, changes) => {
           // Locks the single Administrator role row before counting its active holders, so two
           // concurrent role changes serialize on it instead of both reading "not the last one".
           const [administratorRole] = await tx
@@ -233,6 +236,13 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
                 ...(emailChanged ? { email: parsedBody.email } : {}),
               })
               .where(eq(users.id, target.id));
+            changes.note({
+              entity: "user",
+              entityId: target.id,
+              version: currentUser.version + 1,
+              op: "update",
+              locationId: openSession.locationId,
+            });
           }
 
           if (emailChanged) {
@@ -316,13 +326,13 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
             throw new Error("edited user is no longer an active user of this branch");
           }
           return { kind: "applied", user: edited };
-        })
-        .catch((error: unknown): EditOutcome => {
-          if (isEmailUniqueViolation(error)) {
-            return { kind: "email_taken" };
-          }
-          throw error;
-        });
+        },
+      ).catch((error: unknown): EditOutcome => {
+        if (isEmailUniqueViolation(error)) {
+          return { kind: "email_taken" };
+        }
+        throw error;
+      });
 
       if (outcome.kind === "stale_version") {
         await reply.code(409).send(STALE_VERSION_RESPONSE);

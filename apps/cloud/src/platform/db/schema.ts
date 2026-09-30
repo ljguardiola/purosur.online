@@ -32,6 +32,7 @@ export const locations = pgTable("locations", {
 export const priceLists = pgTable("price_lists", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
+  version: integer("version").notNull().default(1),
 });
 
 export const branchSettings = pgTable("branch_settings", {
@@ -456,6 +457,7 @@ export const registers = pgTable(
       .notNull()
       .references(() => locations.id),
     name: text("name").notNull(),
+    version: integer("version").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -543,7 +545,7 @@ export const deviceState = pgTable("device_state", {
   lastPulledAt: timestamp("last_pulled_at", { withTimezone: true }).notNull(),
 });
 
-export const changeOp = pgEnum("change_op", ["insert", "update"]);
+export const changeOp = pgEnum("change_op", ["insert", "update", "delete"]);
 
 // Append-only and never pruned: a register returning after any time offline catches up from it.
 // `origin_device_id` has no foreign key so a change outlives the installation that made it.
@@ -557,9 +559,17 @@ export const changes = pgTable(
     op: changeOp("op").notNull(),
     at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
     originDeviceId: uuid("origin_device_id"),
+    // Set on a price's changes only, so the feed can tell which branch's list a price belongs to
+    // after the price itself is gone.
+    priceListId: uuid("price_list_id"),
+    // Set on a user's changes only, so the feed can tell which branch a user belongs to after the
+    // user itself is gone.
+    locationId: uuid("location_id"),
   },
   (table) => [
     index("changes_entity_entity_id_idx").on(table.entity, table.entityId, table.changeSeq),
+    index("changes_entity_price_list_id_idx").on(table.entity, table.priceListId, table.changeSeq),
+    index("changes_entity_location_id_idx").on(table.entity, table.locationId, table.changeSeq),
   ],
 );
 
@@ -583,6 +593,29 @@ export const registerEnrollmentAttempts = pgTable(
       table.attemptedAt,
     ),
     index("register_enrollment_attempts_attempted_at_idx").on(table.attemptedAt),
+  ],
+);
+
+export const pinCodeRedemptionAttemptKeyKind = pgEnum("pin_code_redemption_attempt_key_kind", [
+  "source_address",
+  "register",
+]);
+
+export const pinCodeRedemptionAttempts = pgTable(
+  "pin_code_redemption_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    keyKind: pinCodeRedemptionAttemptKeyKind("key_kind").notNull(),
+    keyValue: text("key_value").notNull(),
+    attemptedAt: timestamp("attempted_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index("pin_code_redemption_attempts_key_idx").on(
+      table.keyKind,
+      table.keyValue,
+      table.attemptedAt,
+    ),
+    index("pin_code_redemption_attempts_attempted_at_idx").on(table.attemptedAt),
   ],
 );
 
@@ -617,6 +650,38 @@ export const passkeys = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex("passkeys_credential_id_key").on(table.credentialId)],
+);
+
+export const userPins = pgTable("user_pins", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id),
+  salt: text("salt").notNull(),
+  hash: text("hash").notNull(),
+  setAt: timestamp("set_at", { withTimezone: true }).notNull(),
+});
+
+export const userPinCodes = pgTable(
+  "user_pin_codes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    codeHash: text("code_hash").notNull(),
+    issuedBy: uuid("issued_by")
+      .notNull()
+      .references(() => users.id),
+    issuedAt: timestamp("issued_at", { withTimezone: true }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    failedAttempts: integer("failed_attempts").notNull().default(0),
+    redeemedAt: timestamp("redeemed_at", { withTimezone: true }),
+    supersededAt: timestamp("superseded_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("user_pin_codes_code_hash_key").on(table.codeHash),
+    index("user_pin_codes_user_id_issued_at_idx").on(table.userId, table.issuedAt),
+  ],
 );
 
 export const recoveryTokens = pgTable(

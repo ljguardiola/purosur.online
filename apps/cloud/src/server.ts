@@ -17,7 +17,12 @@ import {
   type RecoveryEmailSenderEnv,
   selectRecoveryEmailSender,
 } from "./access/select-recovery-email-sender.js";
-import { type BackofficeErrorReporting, type BuildAppOptions, buildApp } from "./app.js";
+import {
+  type BackofficeErrorReporting,
+  type BuildAppOptions,
+  buildApp,
+  databaseRouteOptions,
+} from "./app.js";
 import { parseCuit } from "./fiscal/cuit.js";
 import { runShutdownSteps } from "./platform/run-shutdown-steps.js";
 import { initSentry } from "./platform/sentry.js";
@@ -356,79 +361,14 @@ export async function startServer(
     staticDir: resolveStaticDir(env, DEFAULT_STATIC_DIR),
     ...(errorReporting ? { errorReporting } : {}),
     ...(database
-      ? {
-          recovery: {
-            db: database.recovery.db,
-            jobQueue: database.recovery.jobQueue,
-            backofficeOrigin: database.recovery.backofficeOrigin,
-          },
-          session: {
-            db: database.recovery.db,
-            backofficeOrigin: database.recovery.backofficeOrigin,
-          },
-          passkeys: {
-            db: database.recovery.db,
-            backofficeOrigin: database.recovery.backofficeOrigin,
-          },
-          users: {
-            db: database.recovery.db,
-            backofficeOrigin: database.recovery.backofficeOrigin,
-          },
-          roles: {
-            db: database.recovery.db,
-            backofficeOrigin: database.recovery.backofficeOrigin,
-          },
-          branchSettings: {
-            db: database.recovery.db,
-            backofficeOrigin: database.recovery.backofficeOrigin,
-          },
-          issuerIdentification: {
-            db: database.recovery.db,
-            backofficeOrigin: database.recovery.backofficeOrigin,
-            authorizedCuit: database.authorizedCuit,
-          },
-          categories: {
-            db: database.recovery.db,
-            backofficeOrigin: database.recovery.backofficeOrigin,
-          },
-          brands: {
-            db: database.recovery.db,
-            backofficeOrigin: database.recovery.backofficeOrigin,
-          },
-          tags: {
-            db: database.recovery.db,
-            backofficeOrigin: database.recovery.backofficeOrigin,
-          },
-          products: {
-            db: database.recovery.db,
-            backofficeOrigin: database.recovery.backofficeOrigin,
-          },
-          alerts: {
-            db: database.recovery.db,
-            backofficeOrigin: database.recovery.backofficeOrigin,
-          },
-          prices: {
-            db: database.recovery.db,
-            backofficeOrigin: database.recovery.backofficeOrigin,
-          },
-          discounts: {
-            db: database.recovery.db,
-            backofficeOrigin: database.recovery.backofficeOrigin,
-          },
-          registers: {
-            db: database.recovery.db,
-            backofficeOrigin: database.recovery.backofficeOrigin,
-          },
-          stock: {
-            db: database.recovery.db,
-            backofficeOrigin: database.recovery.backofficeOrigin,
-          },
-          devices: {
-            db: database.recovery.db,
-            rotationKey: database.deviceTokenRotationKey,
-            keysEncryptionKey: database.installationKeysEncryptionKey,
-          },
-        }
+      ? databaseRouteOptions({
+          db: database.recovery.db,
+          backofficeOrigin: database.recovery.backofficeOrigin,
+          recoveryJobQueue: database.recovery.jobQueue,
+          authorizedCuit: database.authorizedCuit,
+          deviceTokenRotationKey: database.deviceTokenRotationKey,
+          installationKeysEncryptionKey: database.installationKeysEncryptionKey,
+        })
       : {}),
   });
   if (database) {

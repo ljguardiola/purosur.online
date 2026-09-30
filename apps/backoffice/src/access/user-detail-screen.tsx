@@ -28,7 +28,7 @@ import {
   type BackofficeAccess,
   canDeactivateUser,
   canReactivateUser,
-  canSeeUsersArea,
+  canResetUserPin,
 } from "./backoffice-access";
 import { DeactivateUserModal } from "./deactivate-user-modal";
 import { EditUserModal } from "./edit-user-modal";
@@ -38,6 +38,7 @@ import { ReactivateUserModal } from "./reactivate-user-modal";
 import { RemoveUserPasskeyModal } from "./remove-user-passkey-modal";
 import { roleDisplayName } from "./role-display";
 import type { UserDetailScreenServices } from "./user-detail-services";
+import { UserPinSection } from "./user-pin-section";
 import type { BranchUserRole } from "./users-api";
 
 export type UserDetailScreenProps = {
@@ -132,6 +133,12 @@ function UserDetailView({
   // session's own.
   const isOwnAccount = signedInUserId.toLowerCase() === userId.toLowerCase();
   const isInactive = user?.active === false;
+  const showsPinSection = user
+    ? canResetUserPin(access, signedInUserId, {
+        ...user,
+        isAdministrator: user.role.isAdministrator,
+      })
+    : canResetUserPin(access, signedInUserId, { id: userId, isAdministrator: false });
 
   return (
     <>
@@ -237,19 +244,29 @@ function UserDetailView({
                   ))}
               </div>
             ) : null}
-            {!user && canSeeUsersArea(access) && !isOwnAccount && (
-              <div className="flex items-center justify-end">
-                <Button
-                  variant="secondary"
-                  size="small"
-                  destructive
-                  icon={<UserX />}
-                  dataStatus={data.status}
-                >
-                  Desactivar
-                </Button>
-              </div>
-            )}
+            {showsPinSection ? (
+              <UserPinSection
+                user={user}
+                dataStatus={data.status}
+                onSessionEnded={onSessionEnded}
+                services={services}
+              />
+            ) : null}
+            {!user &&
+              (canReactivateUser(access) || access.permissions.includes("deactivate_users")) &&
+              !isOwnAccount && (
+                <div className="flex items-center justify-end">
+                  <Button
+                    variant="secondary"
+                    size="small"
+                    destructive
+                    icon={<UserX />}
+                    dataStatus={data.status}
+                  >
+                    Desactivar
+                  </Button>
+                </div>
+              )}
             {user && !isInactive && canDeactivateUser(access, user.role) && !isOwnAccount && (
               <div className="flex items-center gap-3">
                 <p className="flex-1 text-text-subtle text-detail">

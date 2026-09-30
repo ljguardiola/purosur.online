@@ -24,6 +24,7 @@ import { branchPriceListId } from "../pricing/branch-price-list.js";
 import { DrizzleDiscountStore } from "../pricing/drizzle-discount-store.js";
 import { DrizzlePricingStore } from "../pricing/drizzle-pricing-store.js";
 import { createRegister } from "../register/register-creation-route.js";
+import { PendingChanges } from "../sync/change-log.js";
 import { branchSettingsAreAtDefaults } from "./sample-branch-settings.js";
 import {
   SAMPLE_ADMINISTRATOR,
@@ -112,6 +113,8 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
         throw new Error("sample-data: no location is seeded in the database");
       }
 
+      const pending = new PendingChanges();
+
       const administratorOutcome = await createUser(
         tx,
         {
@@ -122,6 +125,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
           actorId: bootstrapAdministrator.id,
         },
         deps,
+        pending,
       );
       const sampleAdministrator = expectOutcome(
         administratorOutcome,
@@ -132,11 +136,15 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
 
       const roleIdByName = new Map<string, string>();
       for (const rolePlan of SAMPLE_ROLES) {
-        const outcome = await createRole(tx, {
-          name: rolePlan.name,
-          permissionKeys: [...rolePlan.permissionKeys],
-          actorId,
-        });
+        const outcome = await createRole(
+          tx,
+          {
+            name: rolePlan.name,
+            permissionKeys: [...rolePlan.permissionKeys],
+            actorId,
+          },
+          pending,
+        );
         const created = expectOutcome(outcome, "created", `role "${rolePlan.name}"`);
         roleIdByName.set(rolePlan.name, created.role.id);
       }
@@ -158,15 +166,20 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
               actorId,
             },
             deps,
+            pending,
           );
           const created = expectOutcome(outcome, "created", `user "${userPlan.firstName}"`);
           sampleUserIdsInOrder.push(created.id);
           if (!userPlan.active) {
-            const deactivated = await deactivateUser(tx, {
-              id: created.id,
-              actorId,
-              at: deps.now(),
-            });
+            const deactivated = await deactivateUser(
+              tx,
+              {
+                id: created.id,
+                actorId,
+                at: deps.now(),
+              },
+              pending,
+            );
             expectOutcome(deactivated, "deactivated", `deactivating user "${userPlan.firstName}"`);
           }
         }
@@ -176,8 +189,8 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
       const recentMoment = deps.now();
       const overdueReviewMoment = new Date(recentMoment.getTime() - OVERDUE_PRICE_REVIEW_AGE_MS);
 
-      const catalogStore = new DrizzleCatalogStore(tx);
-      const pricingStore = new DrizzlePricingStore(tx);
+      const catalogStore = new DrizzleCatalogStore(tx, pending);
+      const pricingStore = new DrizzlePricingStore(tx, pending);
       const pricingPortsAt = (moment: Date) => ({
         store: pricingStore,
         clock: { now: () => moment },
@@ -319,11 +332,11 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
       }
 
       for (const registerName of SAMPLE_REGISTER_NAMES) {
-        const outcome = await createRegister(tx, {
-          locationId: location.id,
-          name: registerName,
-          actorId,
-        });
+        const outcome = await createRegister(
+          tx,
+          { locationId: location.id, name: registerName, actorId },
+          pending,
+        );
         expectOutcome(outcome, "created", `register "${registerName}"`);
       }
 
@@ -335,12 +348,16 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
         if (!currentBranchSettings) {
           throw new Error("sample-data: no branch settings are seeded for the location");
         }
-        const settingsOutcome = await editBranchSettings(tx, {
-          ...SAMPLE_BRANCH_SETTINGS,
-          locationId: location.id,
-          actorId,
-          version: currentBranchSettings.version,
-        });
+        const settingsOutcome = await editBranchSettings(
+          tx,
+          {
+            ...SAMPLE_BRANCH_SETTINGS,
+            locationId: location.id,
+            actorId,
+            version: currentBranchSettings.version,
+          },
+          pending,
+        );
         expectOutcome(settingsOutcome, "applied", "the branch settings");
       }
 
@@ -428,6 +445,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
         { now: deps.now },
       );
       expectOutcome(closedCriticalOutcome, "closed", "closing the critical alert");
+      await pending.log(tx);
 
       return {
         kind: "loaded",

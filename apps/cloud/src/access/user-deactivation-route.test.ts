@@ -10,6 +10,7 @@ import {
   userRoles,
   users,
 } from "../platform/db/schema.js";
+import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { PASSKEY_AUTHORIZATION_WINDOW_MS } from "./passkey-authorization-guard.js";
@@ -339,6 +340,33 @@ describe("PUT /users/:id/deactivation", () => {
       previousValue: { active: true },
       newValue: { active: false },
     });
+  });
+
+  it("logs the deactivation as an update of the user's next version, in the user's branch", async () => {
+    const rawSessionId = await insertSession(administratorId);
+    const mark = await lastLoggedChangeSeq(db);
+
+    await deactivateUser(targetId, rawSessionId);
+
+    expect(await changesLoggedAfter(db, mark)).toEqual([
+      {
+        entity: "user",
+        entityId: targetId,
+        version: 2,
+        op: "update",
+        locationId: await seededLocationId(db),
+      },
+    ]);
+  });
+
+  it("logs nothing for a second deactivation of the same user", async () => {
+    const rawSessionId = await insertSession(administratorId);
+    await deactivateUser(targetId, rawSessionId);
+    const mark = await lastLoggedChangeSeq(db);
+
+    await deactivateUser(targetId, rawSessionId);
+
+    expect(await changesLoggedAfter(db, mark)).toEqual([]);
   });
 
   it("allows a holder of only deactivate_users, not an Administrator, to deactivate a user", async () => {

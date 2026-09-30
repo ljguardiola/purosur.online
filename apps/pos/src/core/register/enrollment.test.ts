@@ -47,7 +47,7 @@ describe("enroll", () => {
 
     expect(posted).toEqual([
       {
-        path: "/api/devices/enroll",
+        path: "/api/devices",
         body: {
           code: "P4NX7KWE2QRT6MZD",
           hostname: "CAJA-MOSTRADOR",

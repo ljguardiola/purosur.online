@@ -10,8 +10,10 @@ import {
   branchHours,
   branchSettings,
   categories,
+  changes,
   discounts,
   priceReviews,
+  prices,
   productBarcodes,
   products,
   productTags,
@@ -275,6 +277,142 @@ describe("loadSampleData", () => {
       alertDeliveries: await tableCount(db, "alert_deliveries"),
     }).toEqual(beforeSecondRun);
   }, 120_000);
+  it("logs every category, product and price it loads as an insert, each price with its price list, and every deactivation as an update", async () => {
+    const db = await freshDatabase();
+    await seedActiveAdministrator(db);
+
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+
+    const logged = await db
+      .select({
+        entity: changes.entity,
+        entityId: changes.entityId,
+        version: changes.version,
+        op: changes.op,
+        priceListId: changes.priceListId,
+      })
+      .from(changes);
+    const latestLogged = (entity: string, entityId: string) =>
+      logged
+        .filter((change) => change.entity === entity && change.entityId === entityId)
+        .sort((a, b) => a.version - b.version)
+        .at(-1);
+    const loadedCategories = await db
+      .select({ id: categories.id, version: categories.version })
+      .from(categories);
+    const loadedProducts = await db
+      .select({ id: products.id, version: products.version })
+      .from(products);
+    const loadedTags = await db.select({ id: tags.id, version: tags.version }).from(tags);
+    expect(loadedTags.length).toBeGreaterThan(0);
+    const loadedPrices = await db
+      .select({ id: prices.id, priceListId: prices.priceListId })
+      .from(prices);
+    expect(loadedCategories.length).toBeGreaterThan(0);
+    expect(loadedProducts.length).toBeGreaterThan(0);
+    expect(loadedPrices.length).toBeGreaterThan(0);
+
+    for (const category of loadedCategories) {
+      expect(latestLogged("category", category.id)).toMatchObject({ version: category.version });
+    }
+    for (const product of loadedProducts) {
+      expect(latestLogged("product", product.id)).toMatchObject({
+        version: product.version,
+        op: product.version === 1 ? "insert" : "update",
+      });
+    }
+    for (const tag of loadedTags) {
+      expect(latestLogged("tag", tag.id)).toMatchObject({ version: tag.version });
+    }
+    for (const price of loadedPrices) {
+      expect(latestLogged("price", price.id)).toMatchObject({
+        version: 1,
+        op: "insert",
+        priceListId: price.priceListId,
+      });
+    }
+    expect(loadedProducts.some((product) => product.version > 1)).toBe(true);
+  }, 120_000);
+
+  it("logs every user it loads with its branch and every role it loads, the deactivated users as an update", async () => {
+    const db = await freshDatabase();
+    await seedActiveAdministrator(db);
+
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+
+    const logged = await db
+      .select({
+        entity: changes.entity,
+        entityId: changes.entityId,
+        version: changes.version,
+        op: changes.op,
+        locationId: changes.locationId,
+      })
+      .from(changes);
+    const latestLogged = (entity: string, entityId: string) =>
+      logged
+        .filter((change) => change.entity === entity && change.entityId === entityId)
+        .sort((a, b) => a.version - b.version)
+        .at(-1);
+    const loadedUsers = await db
+      .select({ id: users.id, version: users.version, locationId: users.locationId })
+      .from(users)
+      .where(sql`${users.email} like ${`%@${SAMPLE_EMAIL_DOMAIN}`}`);
+    const loadedRoles = await db
+      .select({ id: roles.id, version: roles.version })
+      .from(roles)
+      .where(eq(roles.isAdministrator, false));
+    expect(loadedUsers.length).toBeGreaterThan(0);
+    expect(loadedUsers.some((user) => user.version > 1)).toBe(true);
+    expect(loadedRoles.length).toBeGreaterThan(0);
+
+    for (const user of loadedUsers) {
+      expect(latestLogged("user", user.id)).toMatchObject({
+        version: user.version,
+        op: user.version === 1 ? "insert" : "update",
+        locationId: user.locationId,
+      });
+    }
+    for (const role of loadedRoles) {
+      expect(latestLogged("role", role.id)).toMatchObject({
+        version: role.version,
+        op: "insert",
+        locationId: null,
+      });
+    }
+  }, 120_000);
+
+  it("logs every register it loads as an insert at its version, scoped to no branch", async () => {
+    const db = await freshDatabase();
+    await seedActiveAdministrator(db);
+
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+
+    const loadedRegisters = await db
+      .select({ id: registers.id, version: registers.version })
+      .from(registers);
+    const logged = await db
+      .select({
+        entityId: changes.entityId,
+        version: changes.version,
+        op: changes.op,
+        locationId: changes.locationId,
+      })
+      .from(changes)
+      .where(eq(changes.entity, "register"));
+    expect(loadedRegisters).toHaveLength(SAMPLE_REGISTER_NAMES.length);
+    expect(logged.map((row) => row.entityId).sort()).toEqual(
+      loadedRegisters.map((register) => register.id).sort(),
+    );
+    for (const register of loadedRegisters) {
+      expect(logged.find((row) => row.entityId === register.id)).toMatchObject({
+        version: register.version,
+        op: "insert",
+        locationId: null,
+      });
+    }
+  }, 120_000);
+
   it("leaves branch settings that were already configured untouched", async () => {
     const db = await freshDatabase();
     await seedActiveAdministrator(db);

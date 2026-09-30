@@ -15,7 +15,7 @@ import {
 } from "../access/route-access.js";
 import { auditLog, branchHours, branchSettings } from "../platform/db/schema.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
-import { logChange } from "../sync/change-log.js";
+import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import type {
   BranchHoursRange,
   BranchHoursRow,
@@ -131,93 +131,98 @@ function nextHoursRows(input: BranchSettingsEditInput): BranchHoursRow[] {
 export async function editBranchSettings<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: EditBranchSettingsInput,
+  pending?: PendingChanges,
 ): Promise<EditBranchSettingsOutcome> {
-  return db.transaction<EditBranchSettingsOutcome>(async (tx) => {
-    // `for("update")` row-locks this branch so a concurrent save waits instead of racing the
-    // version check, hours read and write below.
-    const [current] = await tx
-      .select({
-        address: branchSettings.address,
-        whatsappNumber: branchSettings.whatsappNumber,
-        instagramHandle: branchSettings.instagramHandle,
-        expiringLotAlertDays: branchSettings.expiringLotAlertDays,
-        unreviewedPriceAlertDays: branchSettings.unreviewedPriceAlertDays,
-        goodConditionReturnDays: branchSettings.goodConditionReturnDays,
-        version: branchSettings.version,
-      })
-      .from(branchSettings)
-      .where(eq(branchSettings.locationId, input.locationId))
-      .for("update");
-    if (!current) {
-      throw new Error(`branch settings missing for location ${input.locationId}`);
-    }
-    if (current.version !== input.version) {
-      return { kind: "stale_version" };
-    }
+  return withPendingChanges<TQueryResult, EditBranchSettingsOutcome>(
+    db,
+    pending,
+    async (tx, changes) => {
+      // `for("update")` row-locks this branch so a concurrent save waits instead of racing the
+      // version check, hours read and write below.
+      const [current] = await tx
+        .select({
+          address: branchSettings.address,
+          whatsappNumber: branchSettings.whatsappNumber,
+          instagramHandle: branchSettings.instagramHandle,
+          expiringLotAlertDays: branchSettings.expiringLotAlertDays,
+          unreviewedPriceAlertDays: branchSettings.unreviewedPriceAlertDays,
+          goodConditionReturnDays: branchSettings.goodConditionReturnDays,
+          version: branchSettings.version,
+        })
+        .from(branchSettings)
+        .where(eq(branchSettings.locationId, input.locationId))
+        .for("update");
+      if (!current) {
+        throw new Error(`branch settings missing for location ${input.locationId}`);
+      }
+      if (current.version !== input.version) {
+        return { kind: "stale_version" };
+      }
 
-    const currentHours = await tx
-      .select({
-        dayOfWeek: branchHours.dayOfWeek,
-        position: branchHours.position,
-        opensAt: branchHours.opensAt,
-        closesAt: branchHours.closesAt,
-      })
-      .from(branchHours)
-      .where(eq(branchHours.locationId, input.locationId))
-      .orderBy(asc(branchHours.dayOfWeek), asc(branchHours.position));
+      const currentHours = await tx
+        .select({
+          dayOfWeek: branchHours.dayOfWeek,
+          position: branchHours.position,
+          opensAt: branchHours.opensAt,
+          closesAt: branchHours.closesAt,
+        })
+        .from(branchHours)
+        .where(eq(branchHours.locationId, input.locationId))
+        .orderBy(asc(branchHours.dayOfWeek), asc(branchHours.position));
 
-    const next: Omit<BranchSettingsRow, "version" | "hours"> = {
-      address: input.address,
-      whatsappNumber: input.whatsappNumber,
-      instagramHandle: input.instagramHandle,
-      expiringLotAlertDays: input.expiringLotAlertDays,
-      unreviewedPriceAlertDays: input.unreviewedPriceAlertDays,
-      goodConditionReturnDays: input.goodConditionReturnDays,
-    };
-    const unchanged =
-      current.address === next.address &&
-      current.whatsappNumber === next.whatsappNumber &&
-      current.instagramHandle === next.instagramHandle &&
-      current.expiringLotAlertDays === next.expiringLotAlertDays &&
-      current.unreviewedPriceAlertDays === next.unreviewedPriceAlertDays &&
-      current.goodConditionReturnDays === next.goodConditionReturnDays &&
-      hoursUnchangedInOrder(currentHours, input);
+      const next: Omit<BranchSettingsRow, "version" | "hours"> = {
+        address: input.address,
+        whatsappNumber: input.whatsappNumber,
+        instagramHandle: input.instagramHandle,
+        expiringLotAlertDays: input.expiringLotAlertDays,
+        unreviewedPriceAlertDays: input.unreviewedPriceAlertDays,
+        goodConditionReturnDays: input.goodConditionReturnDays,
+      };
+      const unchanged =
+        current.address === next.address &&
+        current.whatsappNumber === next.whatsappNumber &&
+        current.instagramHandle === next.instagramHandle &&
+        current.expiringLotAlertDays === next.expiringLotAlertDays &&
+        current.unreviewedPriceAlertDays === next.unreviewedPriceAlertDays &&
+        current.goodConditionReturnDays === next.goodConditionReturnDays &&
+        hoursUnchangedInOrder(currentHours, input);
 
-    if (unchanged) {
-      return { kind: "applied", row: { ...current, hours: currentHours } };
-    }
+      if (unchanged) {
+        return { kind: "applied", row: { ...current, hours: currentHours } };
+      }
 
-    const nextVersion = current.version + 1;
-    await tx
-      .update(branchSettings)
-      .set({ ...next, version: nextVersion })
-      .where(eq(branchSettings.locationId, input.locationId));
-
-    await tx.delete(branchHours).where(eq(branchHours.locationId, input.locationId));
-    const nextHours = nextHoursRows(input);
-    if (nextHours.length > 0) {
+      const nextVersion = current.version + 1;
       await tx
-        .insert(branchHours)
-        .values(nextHours.map((row) => ({ ...row, locationId: input.locationId })));
-    }
+        .update(branchSettings)
+        .set({ ...next, version: nextVersion })
+        .where(eq(branchSettings.locationId, input.locationId));
 
-    await logChange(tx, {
-      entity: "branch_settings",
-      entityId: input.locationId,
-      version: nextVersion,
-      op: "update",
-    });
+      await tx.delete(branchHours).where(eq(branchHours.locationId, input.locationId));
+      const nextHours = nextHoursRows(input);
+      if (nextHours.length > 0) {
+        await tx
+          .insert(branchHours)
+          .values(nextHours.map((row) => ({ ...row, locationId: input.locationId })));
+      }
 
-    await tx.insert(auditLog).values({
-      entity: "branch_settings",
-      entityId: input.locationId,
-      actorId: input.actorId,
-      previousValue: toBranchSettingsWire({ ...current, hours: currentHours }),
-      newValue: toBranchSettingsWire({ ...next, version: nextVersion, hours: nextHours }),
-    });
+      changes.note({
+        entity: "branch_settings",
+        entityId: input.locationId,
+        version: nextVersion,
+        op: "update",
+      });
 
-    return { kind: "applied", row: { ...next, version: nextVersion, hours: nextHours } };
-  });
+      await tx.insert(auditLog).values({
+        entity: "branch_settings",
+        entityId: input.locationId,
+        actorId: input.actorId,
+        previousValue: toBranchSettingsWire({ ...current, hours: currentHours }),
+        newValue: toBranchSettingsWire({ ...next, version: nextVersion, hours: nextHours }),
+      });
+
+      return { kind: "applied", row: { ...next, version: nextVersion, hours: nextHours } };
+    },
+  );
 }
 
 export function registerBranchSettingsEditRoute<TQueryResult extends PgQueryResultHKT>(

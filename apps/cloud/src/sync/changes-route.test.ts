@@ -1,17 +1,54 @@
 import { changesPageSchema, cloudErrorSchema } from "@purosur/contracts";
-import { eq } from "drizzle-orm";
+import {
+  createCategory,
+  createProduct,
+  createTag,
+  deactivateProduct,
+  deactivateTag,
+  editProduct,
+} from "@purosur/domain/catalog/use-cases";
+import { setPrice } from "@purosur/domain/pricing/use-cases";
+import { eq, inArray, sql } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { createRole } from "../access/role-creation-route.js";
 import { registerRouteAccess } from "../access/route-access.js";
+import { createUser } from "../access/user-creation-route.js";
+import { deactivateUser } from "../access/user-deactivation-route.js";
 import { editBranchSettings } from "../branch/branch-settings-edit-route.js";
-import { branchSettings, changes, deviceState, locations, users } from "../platform/db/schema.js";
+import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
+import {
+  branchSettings,
+  categories,
+  changes,
+  deviceState,
+  locations,
+  priceLists,
+  priceReviews,
+  prices,
+  productBarcodes,
+  products,
+  registerInstallations,
+  registers,
+  rolePermissions,
+  roles,
+  tags,
+  userPins,
+  userRoles,
+  users,
+} from "../platform/db/schema.js";
+import { DrizzlePricingStore } from "../pricing/drizzle-pricing-store.js";
 import { issueDeviceToken } from "../register/device-token.js";
+import { createRegister } from "../register/register-creation-route.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
+import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
+import { logChange } from "./change-log.js";
 import { registerChangesRoute } from "./changes-route.js";
+import { DrizzleChangeLog } from "./drizzle-change-log.js";
 
 const NOW = new Date("2026-09-29T12:00:00.000Z");
 
@@ -124,6 +161,17 @@ function settingsEdit(locationId: string, actorId: string, version: number, addr
   };
 }
 
+async function administratorRoleId(): Promise<string> {
+  const [administratorRole] = await db
+    .select({ id: roles.id })
+    .from(roles)
+    .where(eq(roles.isAdministrator, true));
+  if (!administratorRole) {
+    throw new Error("test setup: no Administrator role seeded");
+  }
+  return administratorRole.id;
+}
+
 describe("GET /changes", () => {
   it("gives a brand-new installation its branch's settings, with their version, from the very first cursor", async () => {
     const { deviceToken, locationId } = await insertEnrolledInstallation(db);
@@ -138,8 +186,20 @@ describe("GET /changes", () => {
           entity_id: locationId,
           row: DEFAULT_SETTINGS_ROW,
         },
+        {
+          change_seq: 2,
+          entity: "price_list",
+          entity_id: await seededPriceListId(db),
+          row: { name: "Lista general", version: 1 },
+        },
+        {
+          change_seq: 3,
+          entity: "role",
+          entity_id: await administratorRoleId(),
+          row: { name: null, is_administrator: true, permission_keys: [], version: 1 },
+        },
       ],
-      cursor: 1,
+      cursor: 3,
       has_more: false,
     });
   });
@@ -155,18 +215,23 @@ describe("GET /changes", () => {
 
     expect(response.statusCode).toBe(200);
     const page = changesPageSchema.parse(response.json());
-    expect(page.changes.map((change) => change.entity_id)).toEqual([locationId]);
+    expect(page.changes.map((change) => change.entity_id)).toEqual([
+      locationId,
+      await seededPriceListId(db),
+      await administratorRoleId(),
+    ]);
   });
 
   it("gives nothing and keeps the cursor once the register has every change", async () => {
     const { deviceToken } = await insertEnrolledInstallation(db);
 
-    expect(await pullPage(1, deviceToken)).toEqual({ changes: [], cursor: 1, has_more: false });
+    expect(await pullPage(3, deviceToken)).toEqual({ changes: [], cursor: 3, has_more: false });
   });
 
   it("reaches a register only on its next pull after a backoffice edit, with the edited row and its new version", async () => {
     const { deviceToken, locationId } = await insertEnrolledInstallation(db);
     const first = await pullPage(0, deviceToken);
+    expect(first.cursor).toBe(3);
 
     await editBranchSettings(
       db,
@@ -176,7 +241,7 @@ describe("GET /changes", () => {
 
     expect(next.changes).toEqual([
       {
-        change_seq: 2,
+        change_seq: 4,
         entity: "branch_settings",
         entity_id: locationId,
         row: {
@@ -187,7 +252,7 @@ describe("GET /changes", () => {
         },
       },
     ]);
-    expect(next).toMatchObject({ cursor: 2, has_more: false });
+    expect(next).toMatchObject({ cursor: 4, has_more: false });
   });
 
   it("pages more than 500 changes through, 500 at a time, until none is left", async () => {
@@ -206,19 +271,19 @@ describe("GET /changes", () => {
 
     expect(first.changes).toHaveLength(500);
     expect(first).toMatchObject({ cursor: 500, has_more: true });
-    expect(second.changes).toHaveLength(101);
+    expect(second.changes).toHaveLength(103);
     expect(second.changes[0]?.change_seq).toBe(501);
-    expect(second).toMatchObject({ cursor: 601, has_more: false });
+    expect(second).toMatchObject({ cursor: 603, has_more: false });
   });
 
   it("records the cursor each device last asked from and when", async () => {
     const { deviceId, deviceToken } = await insertEnrolledInstallation(db);
 
     await pullPage(0, deviceToken);
-    await pullPage(1, deviceToken);
+    await pullPage(3, deviceToken);
 
     expect(await db.select().from(deviceState).where(eq(deviceState.deviceId, deviceId))).toEqual([
-      { deviceId, lastPullSince: 1, lastPulledAt: NOW },
+      { deviceId, lastPullSince: 3, lastPulledAt: NOW },
     ]);
   });
 
@@ -285,5 +350,706 @@ describe("GET /changes", () => {
     expect(response.statusCode).toBe(500);
     expect(cloudErrorSchema.parse(response.json())).toMatchObject({ code: "internal_error" });
     expect(response.body).not.toContain("register_installations");
+  });
+});
+
+describe("GET /changes carrying the catalog and the prices", () => {
+  const AT = new Date("2026-09-29T09:30:00.000Z");
+  const catalogStore = () => new DrizzleCatalogStore(db);
+
+  async function newCategory(name: string, parentId: string | null = null): Promise<string> {
+    const outcome = await createCategory(catalogStore(), { name, parentId });
+    if (outcome.kind !== "created") {
+      throw new Error(`test setup: creating the category ended as ${outcome.kind}`);
+    }
+    return outcome.category.id;
+  }
+
+  async function newTag(name: string): Promise<string> {
+    const outcome = await createTag(catalogStore(), { name });
+    if (outcome.kind !== "created") {
+      throw new Error(`test setup: creating the tag ended as ${outcome.kind}`);
+    }
+    return outcome.tag.id;
+  }
+
+  async function newProduct(
+    categoryId: string,
+    barcodes: string[],
+    name = "Arroz",
+    tagIds: string[] = [],
+  ) {
+    const outcome = await createProduct(catalogStore(), {
+      name,
+      categoryId,
+      brandId: null,
+      saleUnit: "UNIT",
+      barcodes,
+      netContent: { quantity: 1, unit: "KG" },
+      tagIds,
+    });
+    if (outcome.kind !== "created") {
+      throw new Error(`test setup: creating the product ended as ${outcome.kind}`);
+    }
+    return outcome.product;
+  }
+
+  async function newPrice(productId: string, priceListId: string, unitPrice: number) {
+    const outcome = await setPrice(
+      { store: new DrizzlePricingStore(db), clock: { now: () => AT } },
+      {
+        productId,
+        priceListId,
+        unitPrice,
+        expectedCurrentPriceId: null,
+        actorId: await anActor(),
+      },
+    );
+    if (outcome.kind !== "applied") {
+      throw new Error(`test setup: setting the price ended as ${outcome.kind}`);
+    }
+    return outcome.price;
+  }
+
+  async function anActor(): Promise<string> {
+    const [existing] = await db.select({ id: users.id }).from(users).limit(1);
+    if (existing) {
+      return existing.id;
+    }
+    const [location] = await db.select({ id: locations.id }).from(locations).limit(1);
+    if (!location) {
+      throw new Error("test setup: no location seeded");
+    }
+    return insertActor(location.id);
+  }
+
+  async function insertOtherPriceList(): Promise<string> {
+    const [priceList] = await db
+      .insert(priceLists)
+      .values({ name: "Lista mayorista" })
+      .returning({ id: priceLists.id });
+    if (!priceList) {
+      throw new Error("test setup: seeding the other price list returned no row");
+    }
+    await logChange(db, {
+      entity: "price_list",
+      entityId: priceList.id,
+      version: 1,
+      op: "insert",
+    });
+    return priceList.id;
+  }
+
+  async function pullSinceSeeded(deviceToken: string) {
+    return pullPage(3, deviceToken);
+  }
+
+  it("gives the categories, the products with their barcodes in order, and the branch's price list's prices, each with its version", async () => {
+    const { deviceToken } = await insertEnrolledInstallation(db);
+    const priceListId = await seededPriceListId(db);
+    const parentId = await newCategory("Almacén");
+    const leafId = await newCategory("Secos", parentId);
+    const tagId = await newTag("Sin TACC");
+    const product = await newProduct(leafId, ["7790001000011", "7790001000028"], "Arroz", [tagId]);
+    const price = await newPrice(product.id, priceListId, 125050);
+
+    const page = await pullSinceSeeded(deviceToken);
+
+    expect(page.changes).toEqual([
+      {
+        change_seq: 4,
+        entity: "category",
+        entity_id: parentId,
+        row: { name: "Almacén", parent_id: null, version: 1 },
+      },
+      {
+        change_seq: 5,
+        entity: "category",
+        entity_id: leafId,
+        row: { name: "Secos", parent_id: parentId, version: 1 },
+      },
+      {
+        change_seq: 6,
+        entity: "tag",
+        entity_id: tagId,
+        row: { name: "Sin TACC", active: true, version: 1 },
+      },
+      {
+        change_seq: 7,
+        entity: "product",
+        entity_id: product.id,
+        row: {
+          name: "Arroz",
+          category_id: leafId,
+          brand_id: null,
+          sale_unit: "UNIT",
+          active: true,
+          net_content: { quantity: 1, unit: "KG" },
+          barcodes: [
+            { position: 0, code: "7790001000011" },
+            { position: 1, code: "7790001000028" },
+          ],
+          tag_ids: [tagId],
+          version: 1,
+        },
+      },
+      {
+        change_seq: 8,
+        entity: "price",
+        entity_id: price.id,
+        row: {
+          product_id: product.id,
+          price_list_id: priceListId,
+          unit_price: 125050,
+          valid_from: AT.toISOString(),
+          version: 1,
+        },
+      },
+    ]);
+    expect(page).toMatchObject({ cursor: 8, has_more: false });
+  });
+
+  it("gives a deactivated tag marked inactive, at its version, and a removed tag as a removal", async () => {
+    const { deviceToken } = await insertEnrolledInstallation(db);
+    const deactivatedId = await newTag("Vegano");
+    const removedId = await newTag("Temporal");
+    await deactivateTag(catalogStore(), deactivatedId);
+    await db.delete(tags).where(eq(tags.id, removedId));
+    await db
+      .insert(changes)
+      .values({ entity: "tag", entityId: removedId, version: 2, op: "delete" });
+
+    const page = await pullSinceSeeded(deviceToken);
+
+    expect(page.changes).toEqual([
+      {
+        change_seq: 4,
+        entity: "tag",
+        entity_id: deactivatedId,
+        row: { name: "Vegano", active: false, version: 2 },
+      },
+      { change_seq: 5, entity: "removal", entity_id: removedId, removed_entity: "tag", version: 2 },
+      {
+        change_seq: 6,
+        entity: "tag",
+        entity_id: deactivatedId,
+        row: { name: "Vegano", active: false, version: 2 },
+      },
+      { change_seq: 7, entity: "removal", entity_id: removedId, removed_entity: "tag", version: 2 },
+    ]);
+  });
+
+  it("gives every change of a row the row as it is now, so a deactivated product arrives marked with the barcodes it kept", async () => {
+    const { deviceToken } = await insertEnrolledInstallation(db);
+    const categoryId = await newCategory("Almacén");
+    const product = await newProduct(categoryId, ["7790001000011", "7790001000028"]);
+    await editProduct(catalogStore(), {
+      id: product.id,
+      name: "Arroz largo fino",
+      categoryId,
+      brandId: null,
+      saleUnit: "UNIT",
+      barcodes: ["7790001000011", "7790001000028"],
+      netContent: null,
+      tagIds: [],
+      version: 1,
+    });
+    await deactivateProduct(catalogStore(), product.id);
+
+    const page = await pullSinceSeeded(deviceToken);
+
+    const productChanges = page.changes.filter((change) => change.entity === "product");
+    expect(productChanges.map((change) => change.change_seq)).toEqual([5, 6, 7]);
+    for (const change of productChanges) {
+      expect(change).toMatchObject({
+        entity_id: product.id,
+        row: {
+          name: "Arroz largo fino",
+          active: false,
+          net_content: null,
+          barcodes: [
+            { position: 0, code: "7790001000011" },
+            { position: 1, code: "7790001000028" },
+          ],
+          version: 3,
+        },
+      });
+    }
+  });
+
+  it("gives the branch's own price list but neither another list nor its prices", async () => {
+    const { deviceToken } = await insertEnrolledInstallation(db);
+    const otherPriceListId = await insertOtherPriceList();
+    const product = await newProduct(await newCategory("Almacén"), ["7790001000011"]);
+    const branchPrice = await newPrice(product.id, await seededPriceListId(db), 1000);
+    await newPrice(product.id, otherPriceListId, 900);
+
+    const page = await pullSinceSeeded(deviceToken);
+
+    expect(page.changes.map((change) => change.entity)).toEqual(["category", "product", "price"]);
+    expect(page.changes.at(-1)?.entity_id).toBe(branchPrice.id);
+    expect(page.changes.map((change) => change.entity_id)).not.toContain(otherPriceListId);
+  });
+
+  it("gives a removal in place of a row that no longer exists, at the version of its latest change", async () => {
+    const { deviceToken } = await insertEnrolledInstallation(db);
+    const priceListId = await seededPriceListId(db);
+    const categoryId = await newCategory("Almacén");
+    const emptyCategoryId = await newCategory("Vacía");
+    const product = await newProduct(categoryId, ["7790001000011"]);
+    const price = await newPrice(product.id, priceListId, 1000);
+    await db.execute(sql`alter table products disable trigger products_reject_deletion`);
+    await db.delete(priceReviews).where(eq(priceReviews.priceId, price.id));
+    await db.delete(prices).where(eq(prices.id, price.id));
+    await db.delete(productBarcodes).where(eq(productBarcodes.productId, product.id));
+    await db.delete(products).where(eq(products.id, product.id));
+    await db.delete(categories).where(eq(categories.id, emptyCategoryId));
+    await db.insert(changes).values([
+      { entity: "price", entityId: price.id, version: 2, op: "delete", priceListId },
+      { entity: "product", entityId: product.id, version: 2, op: "delete" },
+      { entity: "category", entityId: emptyCategoryId, version: 2, op: "delete" },
+    ]);
+
+    const page = await pullSinceSeeded(deviceToken);
+
+    expect(page.changes).toEqual([
+      {
+        change_seq: 4,
+        entity: "category",
+        entity_id: categoryId,
+        row: { name: "Almacén", parent_id: null, version: 1 },
+      },
+      {
+        change_seq: 5,
+        entity: "removal",
+        entity_id: emptyCategoryId,
+        removed_entity: "category",
+        version: 2,
+      },
+      {
+        change_seq: 6,
+        entity: "removal",
+        entity_id: product.id,
+        removed_entity: "product",
+        version: 2,
+      },
+      {
+        change_seq: 7,
+        entity: "removal",
+        entity_id: price.id,
+        removed_entity: "price",
+        version: 2,
+      },
+      {
+        change_seq: 8,
+        entity: "removal",
+        entity_id: price.id,
+        removed_entity: "price",
+        version: 2,
+      },
+      {
+        change_seq: 9,
+        entity: "removal",
+        entity_id: product.id,
+        removed_entity: "product",
+        version: 2,
+      },
+      {
+        change_seq: 10,
+        entity: "removal",
+        entity_id: emptyCategoryId,
+        removed_entity: "category",
+        version: 2,
+      },
+    ]);
+  });
+
+  it("gives no removal of a price of another price list, even though the price is gone", async () => {
+    const { deviceToken } = await insertEnrolledInstallation(db);
+    const otherPriceListId = await insertOtherPriceList();
+    await db.insert(changes).values({
+      entity: "price",
+      entityId: "00000000-0000-4000-8000-000000000001",
+      version: 2,
+      op: "delete",
+      priceListId: otherPriceListId,
+    });
+
+    expect(await pullSinceSeeded(deviceToken)).toEqual({
+      changes: [],
+      cursor: 3,
+      has_more: false,
+    });
+  });
+
+  it("pages catalog changes through 500 at a time, each carrying its row", async () => {
+    const { deviceToken } = await insertEnrolledInstallation(db);
+    const inserted = await db
+      .insert(categories)
+      .values(Array.from({ length: 600 }, (_, index) => ({ name: `Categoría ${index}` })))
+      .returning({ id: categories.id });
+    await db.insert(changes).values(
+      inserted.map(({ id }) => ({
+        entity: "category",
+        entityId: id,
+        version: 1,
+        op: "insert" as const,
+      })),
+    );
+
+    const first = await pullPage(3, deviceToken);
+    const second = await pullPage(first.cursor, deviceToken);
+
+    expect(first.changes).toHaveLength(500);
+    expect(first).toMatchObject({ cursor: 503, has_more: true });
+    expect(second.changes).toHaveLength(100);
+    expect(second).toMatchObject({ cursor: 603, has_more: false });
+    expect(
+      new Set([...first.changes, ...second.changes].map((change) => change.entity_id)),
+    ).toEqual(new Set(inserted.map(({ id }) => id)));
+    expect(second.changes.every((change) => change.entity === "category")).toBe(true);
+  });
+});
+
+describe("GET /changes carrying the users and the roles", () => {
+  const SEEDED_CHANGES = 3;
+  const NOW_FOR_ALERTS = { now: () => NOW };
+
+  async function newRole(name: string, permissionKeys: string[]): Promise<string> {
+    const outcome = await createRole(db, { name, permissionKeys, actorId: await anActor() });
+    if (outcome.kind !== "created") {
+      throw new Error(`test setup: creating the role ended as ${outcome.kind}`);
+    }
+    return outcome.role.id;
+  }
+
+  async function newUser(firstName: string, email: string, roleId: string): Promise<string> {
+    const outcome = await createUser(
+      db,
+      {
+        firstName,
+        email,
+        roleId,
+        locationId: await seededLocationId(db),
+        actorId: await anActor(),
+      },
+      NOW_FOR_ALERTS,
+    );
+    if (outcome.kind !== "created") {
+      throw new Error(`test setup: creating the user ended as ${outcome.kind}`);
+    }
+    return outcome.id;
+  }
+
+  async function anActor(): Promise<string> {
+    const [existing] = await db.select({ id: users.id }).from(users).limit(1);
+    return existing?.id ?? (await insertActor(await seededLocationId(db)));
+  }
+
+  async function newUserOfAnotherBranch(otherLocationId: string, roleId: string): Promise<string> {
+    const [user] = await db
+      .insert(users)
+      .values({
+        firstName: "Barbara",
+        email: "barbara@example.com",
+        locationId: otherLocationId,
+      })
+      .returning({ id: users.id });
+    if (!user) {
+      throw new Error("test setup: seeding the other branch's user returned no row");
+    }
+    await db.insert(userRoles).values({ userId: user.id, roleId });
+    await logChange(db, {
+      entity: "user",
+      entityId: user.id,
+      version: 1,
+      op: "insert",
+      locationId: otherLocationId,
+    });
+    return user.id;
+  }
+
+  async function setPin(userId: string, locationId: string) {
+    const [user] = await db
+      .update(users)
+      .set({ version: 2 })
+      .where(eq(users.id, userId))
+      .returning({ version: users.version });
+    await db.insert(userPins).values({ userId, salt: "c2FsdA", hash: "aGFzaA", setAt: NOW });
+    await logChange(db, {
+      entity: "user",
+      entityId: userId,
+      version: user?.version ?? 0,
+      op: "update",
+      locationId,
+    });
+  }
+
+  it("gives a brand-new installation the Administrator role, which grants no listed permission, from the first cursor", async () => {
+    const { deviceToken } = await insertEnrolledInstallation(db);
+    const [administratorRole] = await db
+      .select({ id: roles.id })
+      .from(roles)
+      .where(eq(roles.isAdministrator, true));
+
+    const page = await pullPage(2, deviceToken);
+
+    expect(page.changes).toEqual([
+      {
+        change_seq: 3,
+        entity: "role",
+        entity_id: administratorRole?.id,
+        row: { name: null, is_administrator: true, permission_keys: [], version: 1 },
+      },
+    ]);
+  });
+
+  it("gives the branch's users with their role, salt and PIN hash and the roles with their permissions, never a user's email", async () => {
+    const { deviceToken } = await insertEnrolledInstallation(db);
+    const cashierRoleId = await newRole("Cajera", ["sell_and_charge", "adjust_stock"]);
+    const adaId = await newUser("Ada", "ada.l@example.com", cashierRoleId);
+    const graceId = await newUser("Grace", "grace@example.com", cashierRoleId);
+    await setPin(graceId, await seededLocationId(db));
+
+    const page = await pullPage(SEEDED_CHANGES, deviceToken);
+
+    expect(page.changes.map(({ change_seq, ...change }) => change)).toEqual([
+      {
+        entity: "role",
+        entity_id: cashierRoleId,
+        row: {
+          name: "Cajera",
+          is_administrator: false,
+          permission_keys: ["adjust_stock", "sell_and_charge"],
+          version: 1,
+        },
+      },
+      {
+        entity: "user",
+        entity_id: adaId,
+        row: {
+          first_name: "Ada",
+          role_id: cashierRoleId,
+          salt: null,
+          pin_hash: null,
+          active: true,
+          version: 1,
+        },
+      },
+      ...[graceId, graceId].map((id) => ({
+        entity: "user",
+        entity_id: id,
+        row: {
+          first_name: "Grace",
+          role_id: cashierRoleId,
+          salt: "c2FsdA",
+          pin_hash: "aGFzaA",
+          active: true,
+          version: 2,
+        },
+      })),
+    ]);
+    expect(JSON.stringify(page)).not.toContain("example.com");
+  });
+
+  it("gives a user of another branch to nobody but that branch, and every role to every branch", async () => {
+    const { deviceToken } = await insertEnrolledInstallation(db);
+    const otherLocationId = await insertOtherBranch();
+    const cashierRoleId = await newRole("Cajera", []);
+    await newUserOfAnotherBranch(otherLocationId, cashierRoleId);
+
+    const page = await pullPage(SEEDED_CHANGES, deviceToken);
+
+    expect(page.changes.map((change) => change.entity)).toEqual(["role"]);
+    expect(page.changes[0]?.entity_id).toBe(cashierRoleId);
+  });
+
+  it("gives a user who lost their PIN with no salt and no PIN hash, at the version of the change", async () => {
+    const { deviceToken, locationId } = await insertEnrolledInstallation(db);
+    const cashierRoleId = await newRole("Cajera", []);
+    const graceId = await newUser("Grace", "grace@example.com", cashierRoleId);
+    await setPin(graceId, locationId);
+    await db.delete(userPins).where(eq(userPins.userId, graceId));
+    await db.update(users).set({ version: 3 }).where(eq(users.id, graceId));
+    await logChange(db, {
+      entity: "user",
+      entityId: graceId,
+      version: 3,
+      op: "update",
+      locationId,
+    });
+
+    const page = await pullPage(SEEDED_CHANGES, deviceToken);
+
+    const last = page.changes.at(-1);
+    expect(last).toMatchObject({
+      entity: "user",
+      entity_id: graceId,
+      row: { salt: null, pin_hash: null, version: 3 },
+    });
+  });
+
+  it("gives a deactivated user marked inactive, at its version", async () => {
+    const { deviceToken } = await insertEnrolledInstallation(db);
+    const cashierRoleId = await newRole("Cajera", []);
+    const graceId = await newUser("Grace", "grace@example.com", cashierRoleId);
+    await deactivateUser(db, { id: graceId, actorId: await anActor(), at: NOW });
+
+    const page = await pullPage(SEEDED_CHANGES, deviceToken);
+
+    expect(page.changes.at(-1)).toMatchObject({
+      entity: "user",
+      entity_id: graceId,
+      row: { active: false, version: 2 },
+    });
+  });
+
+  it("gives a removal in place of a user or a role that no longer exists, at the version of its latest change, and none for another branch's user", async () => {
+    const { deviceToken, locationId } = await insertEnrolledInstallation(db);
+    const otherLocationId = await insertOtherBranch();
+    const removedRoleId = await newRole("Temporal", ["adjust_stock"]);
+    const graceId = await newUser("Grace", "grace@example.com", removedRoleId);
+    const barbaraId = await newUserOfAnotherBranch(otherLocationId, removedRoleId);
+    await db.delete(userRoles).where(inArray(userRoles.userId, [graceId, barbaraId]));
+    await db.delete(users).where(inArray(users.id, [graceId, barbaraId]));
+    await db.delete(rolePermissions).where(eq(rolePermissions.roleId, removedRoleId));
+    await db.delete(roles).where(eq(roles.id, removedRoleId));
+    await db.insert(changes).values([
+      { entity: "user", entityId: graceId, version: 2, op: "delete", locationId },
+      {
+        entity: "user",
+        entityId: barbaraId,
+        version: 2,
+        op: "delete",
+        locationId: otherLocationId,
+      },
+      { entity: "role", entityId: removedRoleId, version: 2, op: "delete" },
+    ]);
+
+    const page = await pullPage(SEEDED_CHANGES, deviceToken);
+
+    expect(page.changes.map(({ change_seq, ...change }) => change)).toEqual([
+      { entity: "removal", entity_id: removedRoleId, removed_entity: "role", version: 2 },
+      { entity: "removal", entity_id: graceId, removed_entity: "user", version: 2 },
+      { entity: "removal", entity_id: graceId, removed_entity: "user", version: 2 },
+      { entity: "removal", entity_id: removedRoleId, removed_entity: "role", version: 2 },
+    ]);
+  });
+
+  it("pages user changes through 500 at a time, each carrying its row", async () => {
+    const { deviceToken, locationId } = await insertEnrolledInstallation(db);
+    const cashierRoleId = await newRole("Cajera", []);
+    const inserted = await db
+      .insert(users)
+      .values(
+        Array.from({ length: 600 }, (_, index) => ({
+          firstName: `Persona ${index}`,
+          email: `persona-${index}@example.com`,
+          locationId,
+        })),
+      )
+      .returning({ id: users.id });
+    await db
+      .insert(userRoles)
+      .values(inserted.map(({ id }) => ({ userId: id, roleId: cashierRoleId })));
+    await db.insert(changes).values(
+      inserted.map(({ id }) => ({
+        entity: "user",
+        entityId: id,
+        version: 1,
+        op: "insert" as const,
+        locationId,
+      })),
+    );
+
+    const first = await pullPage(SEEDED_CHANGES + 1, deviceToken);
+    const second = await pullPage(first.cursor, deviceToken);
+
+    expect(first.changes).toHaveLength(500);
+    expect(second.changes).toHaveLength(100);
+    expect(
+      new Set([...first.changes, ...second.changes].map((change) => change.entity_id)),
+    ).toEqual(new Set(inserted.map(({ id }) => id)));
+  });
+});
+
+describe("GET /changes carrying the register's own row", () => {
+  const SEEDED_CHANGES = 3;
+
+  async function newRegister(name: string): Promise<string> {
+    const [actor] = await db.select({ id: users.id }).from(users).limit(1);
+    const outcome = await createRegister(db, {
+      locationId: await seededLocationId(db),
+      name,
+      actorId: actor?.id ?? (await insertActor(await seededLocationId(db))),
+    });
+    if (outcome.kind !== "created") {
+      throw new Error(`test setup: creating the register ended as ${outcome.kind}`);
+    }
+    return outcome.register.id;
+  }
+
+  it("gives a register its own name and version once it was created", async () => {
+    const registerId = await newRegister("Caja 1");
+    const { deviceToken } = await insertEnrolledInstallation(db, {
+      existingRegisterId: registerId,
+    });
+
+    const page = await pullPage(SEEDED_CHANGES, deviceToken);
+
+    expect(page.changes.map(({ change_seq, ...change }) => change)).toEqual([
+      { entity: "register", entity_id: registerId, row: { name: "Caja 1", version: 1 } },
+    ]);
+  });
+
+  it("gives a register nothing of another register of the same branch", async () => {
+    const ownId = await newRegister("Caja 1");
+    const otherId = await newRegister("Caja 2");
+    const { deviceToken } = await insertEnrolledInstallation(db, { existingRegisterId: ownId });
+
+    const page = await pullPage(SEEDED_CHANGES, deviceToken);
+
+    expect(page.changes.map((change) => change.entity_id)).toEqual([ownId]);
+    expect(page.changes.map((change) => change.entity_id)).not.toContain(otherId);
+  });
+
+  it("gives the register as it is now, at its version, for every change logged for it", async () => {
+    const registerId = await newRegister("Caja 1");
+    const { deviceToken } = await insertEnrolledInstallation(db, {
+      existingRegisterId: registerId,
+    });
+    await db
+      .update(registers)
+      .set({ name: "Caja principal", version: 2 })
+      .where(eq(registers.id, registerId));
+    await logChange(db, { entity: "register", entityId: registerId, version: 2, op: "update" });
+
+    const page = await pullPage(SEEDED_CHANGES, deviceToken);
+
+    expect(page.changes.map(({ change_seq, ...change }) => change)).toEqual([
+      { entity: "register", entity_id: registerId, row: { name: "Caja principal", version: 2 } },
+      { entity: "register", entity_id: registerId, row: { name: "Caja principal", version: 2 } },
+    ]);
+  });
+});
+
+describe("the change log read for a register whose row is gone", () => {
+  const SEEDED_CHANGES = 3;
+
+  it("gives a removal at the version of its latest change", async () => {
+    const { registerId, locationId } = await insertEnrolledInstallation(db);
+    await logChange(db, { entity: "register", entityId: registerId, version: 1, op: "insert" });
+    await db.delete(registerInstallations).where(eq(registerInstallations.registerId, registerId));
+    await db.delete(registers).where(eq(registers.id, registerId));
+    await logChange(db, { entity: "register", entityId: registerId, version: 2, op: "delete" });
+
+    const pulled = await new DrizzleChangeLog(db).transaction((tx) =>
+      tx.changesAfter({ locationId, registerId }, SEEDED_CHANGES, 500),
+    );
+
+    expect(pulled.map(({ changeSeq, ...change }) => change)).toEqual([
+      { entity: "removal", entityId: registerId, removedEntity: "register", version: 2 },
+      { entity: "removal", entityId: registerId, removedEntity: "register", version: 2 },
+    ]);
   });
 });

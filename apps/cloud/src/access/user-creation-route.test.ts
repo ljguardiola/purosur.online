@@ -13,6 +13,7 @@ import {
   userRoles,
   users,
 } from "../platform/db/schema.js";
+import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { PASSKEY_AUTHORIZATION_WINDOW_MS } from "./passkey-authorization-guard.js";
@@ -234,6 +235,41 @@ describe("POST /users", () => {
       previousValue: null,
       newValue: { firstName: "New Hire", email: "newhire@example.com", roleId: cashierRoleId },
     });
+  });
+
+  it("logs the created user as an insert of its first version, in the session's branch", async () => {
+    const cashierRoleId = await insertCashierRole("Cajera");
+    const rawSessionId = await insertSession(administratorId);
+    const mark = await lastLoggedChangeSeq(db);
+
+    const response = await createUser(rawSessionId, {
+      first_name: "New Hire",
+      email: "newhire@example.com",
+      role_id: cashierRoleId,
+    });
+
+    expect(await changesLoggedAfter(db, mark)).toEqual([
+      {
+        entity: "user",
+        entityId: response.json().id,
+        version: 1,
+        op: "insert",
+        locationId: await seededLocationId(db),
+      },
+    ]);
+  });
+
+  it("logs nothing when the email is already taken", async () => {
+    const rawSessionId = await insertSession(administratorId);
+    const mark = await lastLoggedChangeSeq(db);
+
+    await createUser(rawSessionId, {
+      first_name: "Someone Else",
+      email: "ada@example.com",
+      role_id: await seededAdministratorRoleId(),
+    });
+
+    expect(await changesLoggedAfter(db, mark)).toEqual([]);
   });
 
   it("rejects an unknown role id, creating nothing", async () => {

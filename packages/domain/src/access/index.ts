@@ -26,7 +26,34 @@ export {
   permissionsRequiring,
   withRequiredPermissions,
 } from "./model/permission-requirements.js";
-export { uncoveredRegisterPermissions } from "./model/register-coverage.js";
+export { isAcceptablePin, PIN_MIN_DIGITS } from "./model/pin.js";
+export type { PinCodeParty } from "./model/pin-code.js";
+export {
+  isWellFormedPinCode,
+  mayEmitPinCodeFor,
+  normalizePinCode,
+  PIN_CODE_HOURLY_LIMIT,
+  PIN_CODE_MAX_FAILED_ATTEMPTS,
+  PIN_CODE_VALIDITY_MS,
+  PIN_CODE_WINDOW_MS,
+  pinCodeExpiresAt,
+  pinCodeRetryAfterSeconds,
+  pinCodeWindowStart,
+} from "./model/pin-code.js";
+export { pinCodeRedemptionAttemptWindowStart } from "./model/pin-code-redemption-attempt-limit.js";
+export { decodePinSalt, encodePinHash, PIN_HASH_SCHEME } from "./model/pin-hash-scheme.js";
+export {
+  isLockedOutOfPinSignIn,
+  PIN_SIGN_IN_LOCKOUT_FAILURES,
+  PIN_SIGN_IN_MAX_DELAY_SECONDS,
+  pinSignInAttemptsLeft,
+  pinSignInDelaySeconds,
+  pinSignInRetryAfterSeconds,
+} from "./model/pin-sign-in-failures.js";
+export {
+  holdsARegisterPermission,
+  uncoveredRegisterPermissions,
+} from "./model/register-coverage.js";
 export {
   isAdministratorRoleName,
   isRoleNameTooLong,

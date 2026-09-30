@@ -8,6 +8,13 @@ export type { PasskeyRegistrationChallengeWire } from "./access/passkey-registra
 export { passkeyRegistrationChallengeSchema } from "./access/passkey-registration-challenge.js";
 export type { PasskeySummaryWire } from "./access/passkey-summary.js";
 export { passkeyListSchema, passkeySummarySchema } from "./access/passkey-summary.js";
+export type { PinCodeRedemption, PinCodeRedemptionBody } from "./access/pin-code-redemption.js";
+export {
+  newPinSchema,
+  PIN_MIN_DIGITS,
+  pinCodeRedemptionBodySchema,
+  pinCodeRedemptionSchema,
+} from "./access/pin-code-redemption.js";
 export type { RecoveryRedemptionBody } from "./access/recovery-redemption.js";
 export { recoveryRedemptionBodySchema } from "./access/recovery-redemption.js";
 export type { RecoveryRegistrationOptionsWire } from "./access/recovery-registration-options.js";
@@ -40,6 +47,8 @@ export type { UserCreationBody } from "./access/user-creation.js";
 export { userCreationBodySchema } from "./access/user-creation.js";
 export type { UserEditBody } from "./access/user-edit.js";
 export { userEditBodySchema } from "./access/user-edit.js";
+export type { UserPinCodeWire } from "./access/user-pin-code.js";
+export { userPinCodeSchema } from "./access/user-pin-code.js";
 export type { AlertDetail } from "./alerts/alert-detail.js";
 export { alertDetailSchema } from "./alerts/alert-detail.js";
 export type { AlertListPage, AlertSummary } from "./alerts/alert-summary.js";
@@ -116,7 +125,10 @@ export type {
   CoreToRendererMessage,
   EnrollmentOutcome,
   MainToCoreMessage,
+  PinCodeRedemptionOutcome,
   RendererToCoreMessage,
+  SignInOutcome,
+  SignInUser,
 } from "./register/core-messages.js";
 export {
   coreStatusMessageSchema,

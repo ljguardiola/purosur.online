@@ -1,6 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { auditLog, locations, roles, userRoles, users } from "../platform/db/schema.js";
+import { withPendingChanges } from "../sync/change-log.js";
 
 export interface CreateFirstAdministratorInput {
   name: string;
@@ -54,7 +55,7 @@ export async function createFirstAdministrator<TQueryResult extends PgQueryResul
   const name = normalizeName(input.name);
   const email = normalizeEmail(input.email);
 
-  return db.transaction(async (tx) => {
+  return withPendingChanges(db, undefined, async (tx, changes) => {
     // Serializes concurrent runs: only one can pass the "no users yet" check below.
     await tx.execute(sql`LOCK TABLE users IN EXCLUSIVE MODE`);
 
@@ -80,10 +81,17 @@ export async function createFirstAdministrator<TQueryResult extends PgQueryResul
     const [createdUser] = await tx
       .insert(users)
       .values({ firstName: name, email, locationId: location.id })
-      .returning({ id: users.id });
+      .returning({ id: users.id, version: users.version });
     if (!createdUser) {
       throw new Error("inserting the first administrator returned no row");
     }
+    changes.note({
+      entity: "user",
+      entityId: createdUser.id,
+      version: createdUser.version,
+      op: "insert",
+      locationId: location.id,
+    });
 
     await tx.insert(userRoles).values({ userId: createdUser.id, roleId: administratorRole.id });
 

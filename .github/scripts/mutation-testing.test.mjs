@@ -77,6 +77,14 @@ const DOMAIN_FIXTURE_SOURCE = `export function isPositive(value: number): boolea
 }
 `;
 
+const DOMAIN_ENTRY_SOURCE = `export const LOWEST_LIMIT_NAME = "low";
+`;
+
+const CONTRACTS_USING_DOMAIN_SOURCE = `import { LOWEST_LIMIT_NAME } from "@purosur/domain";
+
+export const lowestLimitName: "low" = LOWEST_LIMIT_NAME;
+`;
+
 const DOMAIN_FIXTURE_TEST = `import { expect, it } from "vitest";
 import { isPositive } from "./sign.js";
 
@@ -99,7 +107,39 @@ async function runMutationOnFixture() {
     await writeFixtureFile(dir, "packages/contracts/src/limits.test.ts", FIXTURE_TEST);
     await writeFixtureFile(dir, "packages/domain/src/sign.ts", DOMAIN_FIXTURE_SOURCE);
     await writeFixtureFile(dir, "packages/domain/src/sign.test.ts", DOMAIN_FIXTURE_TEST);
-    await writeFixtureFile(dir, "tsconfig.json", `{ "compilerOptions": { "strict": true } }\n`);
+    await writeFixtureFile(dir, "packages/domain/src/index.ts", DOMAIN_ENTRY_SOURCE);
+    await writeFixtureFile(
+      dir,
+      "packages/domain/package.json",
+      JSON.stringify({
+        name: "@purosur/domain",
+        type: "module",
+        exports: { ".": { "@purosur/source": "./src/index.ts" } },
+      }),
+    );
+    await writeFixtureFile(
+      dir,
+      "packages/contracts/src/lowest-limit-name.ts",
+      CONTRACTS_USING_DOMAIN_SOURCE,
+    );
+    await mkdir(join(dir, "packages/contracts/node_modules/@purosur"), { recursive: true });
+    await symlink(
+      "../../../domain",
+      join(dir, "packages/contracts/node_modules/@purosur/domain"),
+      "junction",
+    );
+    await writeFixtureFile(
+      dir,
+      "tsconfig.json",
+      JSON.stringify({
+        compilerOptions: {
+          strict: true,
+          module: "ESNext",
+          moduleResolution: "Bundler",
+          customConditions: ["@purosur/source"],
+        },
+      }),
+    );
     await writeFixtureFile(
       dir,
       "packages/contracts/tsconfig.json",
@@ -108,6 +148,12 @@ async function runMutationOnFixture() {
     await writeFixtureFile(dir, ".env", "DATABASE_URL=postgres://local\n");
     await writeFixtureFile(dir, "apps/cloud/dist/server.js", "export {};\n");
     await cp(join(repoRoot, "vitest.mutation.config.ts"), join(dir, "vitest.mutation.config.ts"));
+    for (const guardFile of ["without-package-output.mjs", "without-package-output.d.mts"]) {
+      await cp(
+        join(repoRoot, ".github/scripts", guardFile),
+        join(dir, ".github/scripts", guardFile),
+      );
+    }
     await writeFixtureFile(
       dir,
       "stryker.fixture.config.mjs",
@@ -137,7 +183,7 @@ function reportedLines(output) {
 
 const fixtureRun = await runMutationOnFixture();
 
-test("reports every change no test catches with its file and line, and nothing a test or the type check catches", () => {
+test("reports every change no test catches with its file and line, and nothing a test or the type check catches, even across packages", () => {
   assert.deepEqual(
     reportedLines(fixtureRun.stdout),
     [
@@ -152,7 +198,7 @@ test("reports every change no test catches with its file and line, and nothing a
 test("runs on a copy of the rule packages alone, leaving out local files such as secrets and builds", () => {
   const plain = stripVTControlCharacters(fixtureRun.stdout + fixtureRun.stderr);
 
-  assert.match(plain, /Found 2 of 7 file\(s\) to be mutated/, plain);
+  assert.match(plain, /Found 4 of 12 file\(s\) to be mutated/, plain);
 });
 
 test("fails the run when a change goes uncaught", () => {

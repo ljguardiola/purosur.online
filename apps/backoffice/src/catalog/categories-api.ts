@@ -37,12 +37,16 @@ export type EditCategoryOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-function postJson(path: string, body?: unknown): Promise<Response> {
+function sendJson(method: "POST" | "PUT", path: string, body?: unknown): Promise<Response> {
   return fetch(path, {
-    method: "POST",
+    method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body ?? {}),
   });
+}
+
+function postJson(path: string, body?: unknown): Promise<Response> {
+  return sendJson("POST", path, body);
 }
 
 export async function fetchCategories(): Promise<FetchCategoriesOutcome> {
@@ -115,7 +119,7 @@ export async function editCategory(
   };
   let response: Response;
   try {
-    response = await postJson(`/api/categories/${id}/edit`, requestBody);
+    response = await sendJson("PUT", `/api/categories/${id}`, requestBody);
   } catch {
     return { kind: "failed" };
   }

@@ -16,7 +16,7 @@ export default {
       comment:
         "packages/domain/src imports nothing outside packages/domain/src: not an npm " +
         "package (installed or not), not a Node builtin, not another workspace " +
-        "package (even through its tsconfig alias), and not anything under apps/.",
+        "package, and not anything under apps/.",
       severity: "error",
       from: { path: "^packages/domain/src/" },
       to: { pathNot: "^packages/domain/src/" },
@@ -254,6 +254,10 @@ export default {
     tsPreCompilationDeps: true,
     tsConfig: {
       fileName: "tsconfig.json",
+    },
+    enhancedResolveOptions: {
+      exportsFields: ["exports"],
+      conditionNames: ["@purosur/source", "import", "require", "node", "default", "types"],
     },
   },
 };

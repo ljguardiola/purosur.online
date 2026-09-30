@@ -27,7 +27,17 @@ function buildFailingRouter(shouldThrow: () => boolean) {
   });
   return createRegisterRouter(
     rootRoute.addChildren([failingRoute]),
-    { coreStatus: "up", enrollment: "enrolled", enroll: async () => ({ kind: "enrolled" }) },
+    {
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: undefined,
+      enroll: async () => ({ kind: "enrolled" }),
+      registerName: async () => null,
+      signInUsers: async () => [],
+      signIn: async () => ({ kind: "unavailable" }),
+      signOut: () => {},
+      redeemPinCode: async () => ({ kind: "redeemed" }),
+    },
     "/",
   );
 }

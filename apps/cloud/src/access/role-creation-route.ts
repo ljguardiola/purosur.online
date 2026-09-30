@@ -4,6 +4,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { auditLog, rolePermissions, roles } from "../platform/db/schema.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
+import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import type { RoleSummaryRow, RolesRouteOptions } from "./roles-list-route.js";
@@ -56,51 +57,56 @@ export type CreateRoleOutcome = { kind: "name_taken" } | { kind: "created"; role
 export async function createRole<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: CreateRoleInput,
+  pending?: PendingChanges,
 ): Promise<CreateRoleOutcome> {
-  const created = await db
-    .transaction(async (tx) => {
-      const [existing] = await tx
-        .select({ id: roles.id })
-        .from(roles)
-        .where(sql`lower(${roles.name}) = lower(${input.name})`)
-        .limit(1);
-      if (existing) {
-        throw new RoleNameTaken();
-      }
+  const created = await withPendingChanges(db, pending, async (tx, changes) => {
+    const [existing] = await tx
+      .select({ id: roles.id })
+      .from(roles)
+      .where(sql`lower(${roles.name}) = lower(${input.name})`)
+      .limit(1);
+    if (existing) {
+      throw new RoleNameTaken();
+    }
 
-      const [newRole] = await tx
-        .insert(roles)
-        .values({ name: input.name, isAdministrator: false })
-        .returning({ id: roles.id });
-      if (!newRole) {
-        throw new Error("inserting the role returned no row");
-      }
-
-      if (input.permissionKeys.length > 0) {
-        await tx.insert(rolePermissions).values(
-          input.permissionKeys.map((permissionKey) => ({
-            roleId: newRole.id,
-            permissionKey,
-          })),
-        );
-      }
-
-      await tx.insert(auditLog).values({
-        entity: "role",
-        entityId: newRole.id,
-        actorId: input.actorId,
-        previousValue: null,
-        newValue: { name: input.name, permissions: input.permissionKeys },
-      });
-
-      return newRole;
-    })
-    .catch((error: unknown) => {
-      if (error instanceof RoleNameTaken || isRoleNameUniqueViolation(error)) {
-        return undefined;
-      }
-      throw error;
+    const [newRole] = await tx
+      .insert(roles)
+      .values({ name: input.name, isAdministrator: false })
+      .returning({ id: roles.id, version: roles.version });
+    if (!newRole) {
+      throw new Error("inserting the role returned no row");
+    }
+    changes.note({
+      entity: "role",
+      entityId: newRole.id,
+      version: newRole.version,
+      op: "insert",
     });
+
+    if (input.permissionKeys.length > 0) {
+      await tx.insert(rolePermissions).values(
+        input.permissionKeys.map((permissionKey) => ({
+          roleId: newRole.id,
+          permissionKey,
+        })),
+      );
+    }
+
+    await tx.insert(auditLog).values({
+      entity: "role",
+      entityId: newRole.id,
+      actorId: input.actorId,
+      previousValue: null,
+      newValue: { name: input.name, permissions: input.permissionKeys },
+    });
+
+    return newRole;
+  }).catch((error: unknown) => {
+    if (error instanceof RoleNameTaken || isRoleNameUniqueViolation(error)) {
+      return undefined;
+    }
+    throw error;
+  });
 
   if (!created) {
     return { kind: "name_taken" };

@@ -25,7 +25,7 @@ import {
 } from "./access/route-access.js";
 import { SESSION_COOKIE_NAME } from "./access/session-cookie.js";
 import { generateSessionId, hashSessionId } from "./access/session-id.js";
-import { buildApp as buildRealApp } from "./app.js";
+import { buildApp as buildRealApp, databaseRouteOptions } from "./app.js";
 import {
   passkeys,
   rolePermissions,
@@ -111,7 +111,7 @@ describe("GET /api/changes", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(changesPageSchema.parse(response.json()).changes).toHaveLength(1);
+    expect(changesPageSchema.parse(response.json()).changes).toHaveLength(3);
   });
 });
 
@@ -900,8 +900,8 @@ describe("wiring the categories routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
     const edit = await app.inject({
-      method: "POST",
-      url: "/api/categories/00000000-0000-0000-0000-000000000000/edit",
+      method: "PUT",
+      url: "/api/categories/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -923,8 +923,8 @@ describe("wiring the categories routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
     const edit = await app.inject({
-      method: "POST",
-      url: "/api/categories/00000000-0000-0000-0000-000000000000/edit",
+      method: "PUT",
+      url: "/api/categories/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -942,9 +942,9 @@ describe("wiring the brands routes", () => {
     const responses = await Promise.all([
       app.inject({ method: "GET", url: "/api/brands" }),
       app.inject({ method: "POST", url: "/api/brands", headers: ORIGIN }),
-      app.inject({ method: "POST", url: `/api/brands/${ID}/edit`, headers: ORIGIN }),
-      app.inject({ method: "POST", url: `/api/brands/${ID}/deactivation`, headers: ORIGIN }),
-      app.inject({ method: "POST", url: `/api/brands/${ID}/reactivation`, headers: ORIGIN }),
+      app.inject({ method: "PUT", url: `/api/brands/${ID}`, headers: ORIGIN }),
+      app.inject({ method: "PUT", url: `/api/brands/${ID}/deactivation`, headers: ORIGIN }),
+      app.inject({ method: "DELETE", url: `/api/brands/${ID}/deactivation`, headers: ORIGIN }),
     ]);
     return responses.map((response) => response.statusCode);
   }
@@ -1007,18 +1007,18 @@ describe("wiring the products routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
     const edit = await app.inject({
-      method: "POST",
-      url: "/api/products/00000000-0000-0000-0000-000000000000/edit",
+      method: "PUT",
+      url: "/api/products/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
     const internalBarcode = await app.inject({
       method: "POST",
-      url: "/api/products/internal-barcode",
+      url: "/api/internal-barcodes",
       headers: { origin: "https://staging.purosur.online" },
     });
     const labels = await app.inject({
       method: "POST",
-      url: "/api/products/labels",
+      url: "/api/label-sheets",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1042,18 +1042,18 @@ describe("wiring the products routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
     const edit = await app.inject({
-      method: "POST",
-      url: "/api/products/00000000-0000-0000-0000-000000000000/edit",
+      method: "PUT",
+      url: "/api/products/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
     const internalBarcode = await app.inject({
       method: "POST",
-      url: "/api/products/internal-barcode",
+      url: "/api/internal-barcodes",
       headers: { origin: "https://staging.purosur.online" },
     });
     const labels = await app.inject({
       method: "POST",
-      url: "/api/products/labels",
+      url: "/api/label-sheets",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1101,13 +1101,13 @@ describe("wiring the prices routes", () => {
 
     const list = await app.inject({ method: "GET", url: "/api/prices" });
     const setPrice = await app.inject({
-      method: "POST",
-      url: "/api/products/00000000-0000-0000-0000-000000000000/price",
+      method: "PUT",
+      url: "/api/prices/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
     const confirmation = await app.inject({
       method: "POST",
-      url: "/api/products/00000000-0000-0000-0000-000000000000/price-confirmation",
+      url: "/api/prices/00000000-0000-0000-0000-000000000000/confirmations",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1124,13 +1124,13 @@ describe("wiring the prices routes", () => {
 
     const list = await app.inject({ method: "GET", url: "/api/prices" });
     const setPrice = await app.inject({
-      method: "POST",
-      url: "/api/products/00000000-0000-0000-0000-000000000000/price",
+      method: "PUT",
+      url: "/api/prices/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
     const confirmation = await app.inject({
       method: "POST",
-      url: "/api/products/00000000-0000-0000-0000-000000000000/price-confirmation",
+      url: "/api/prices/00000000-0000-0000-0000-000000000000/confirmations",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1223,7 +1223,7 @@ describe("wiring the registers routes", () => {
     });
     const emitCode = await app.inject({
       method: "POST",
-      url: "/api/registers/00000000-0000-0000-0000-000000000000/enrollment-code",
+      url: "/api/registers/00000000-0000-0000-0000-000000000000/device-codes",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1249,7 +1249,7 @@ describe("wiring the registers routes", () => {
     });
     const emitCode = await app.inject({
       method: "POST",
-      url: "/api/registers/00000000-0000-0000-0000-000000000000/enrollment-code",
+      url: "/api/registers/00000000-0000-0000-0000-000000000000/device-codes",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1263,15 +1263,15 @@ describe("wiring the registers routes", () => {
 });
 
 describe("wiring the device enrollment route", () => {
-  it("does not register POST /api/devices/enroll when no devices option is given", async () => {
+  it("does not register POST /api/devices when no devices option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
-    const response = await app.inject({ method: "POST", url: "/api/devices/enroll", payload: {} });
+    const response = await app.inject({ method: "POST", url: "/api/devices", payload: {} });
 
     expect(response.statusCode).toBe(404);
   });
 
-  it("registers POST /api/devices/enroll, answering without a session, when a devices option is given", async () => {
+  it("registers POST /api/devices, answering without a session, when a devices option is given", async () => {
     const app = buildApp({
       version: "abc1234",
       devices: {
@@ -1281,7 +1281,7 @@ describe("wiring the device enrollment route", () => {
       },
     });
 
-    const response = await app.inject({ method: "POST", url: "/api/devices/enroll", payload: {} });
+    const response = await app.inject({ method: "POST", url: "/api/devices", payload: {} });
 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ code: "validation_failed" });
@@ -1289,15 +1289,15 @@ describe("wiring the device enrollment route", () => {
 });
 
 describe("wiring the device token rotation route", () => {
-  it("does not register POST /api/devices/rotate-token when no devices option is given", async () => {
+  it("does not register POST /api/devices/current/tokens when no devices option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
-    const response = await app.inject({ method: "POST", url: "/api/devices/rotate-token" });
+    const response = await app.inject({ method: "POST", url: "/api/devices/current/tokens" });
 
     expect(response.statusCode).toBe(404);
   });
 
-  it("registers POST /api/devices/rotate-token, refusing a request without a device token, when a devices option is given", async () => {
+  it("registers POST /api/devices/current/tokens, refusing a request without a device token, when a devices option is given", async () => {
     const app = buildApp({
       version: "abc1234",
       devices: {
@@ -1307,7 +1307,7 @@ describe("wiring the device token rotation route", () => {
       },
     });
 
-    const response = await app.inject({ method: "POST", url: "/api/devices/rotate-token" });
+    const response = await app.inject({ method: "POST", url: "/api/devices/current/tokens" });
 
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ code: "device_token_rejected" });
@@ -1508,36 +1508,38 @@ function productionWiredApp() {
   return buildApp({
     version: "abc1234",
     staticDir,
-    recovery: {
-      db: testDatabase.db,
-      jobQueue: { async enqueueRecoveryRequest() {} },
-      backofficeOrigin: BACKOFFICE_ORIGIN,
-    },
-    session: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    passkeys: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    users: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    roles: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    branchSettings: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    issuerIdentification: {
+    ...databaseRouteOptions({
       db: testDatabase.db,
       backofficeOrigin: BACKOFFICE_ORIGIN,
+      recoveryJobQueue: { async enqueueRecoveryRequest() {} },
       authorizedCuit: "20-12345678-6",
-    },
-    categories: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    brands: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    tags: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    products: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    alerts: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    prices: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    discounts: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    registers: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    devices: {
-      db: testDatabase.db,
-      rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
-      keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
-    },
+      deviceTokenRotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
+      installationKeysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+    }),
   });
 }
+
+describe("wiring the register and device routes", () => {
+  it("no longer answers the former register and device paths", async () => {
+    const app = productionWiredApp();
+    const formerRequests = [
+      {
+        method: "POST",
+        url: "/api/registers/00000000-0000-0000-0000-000000000000/enrollment-code",
+      },
+      { method: "POST", url: "/api/devices/enroll" },
+      { method: "POST", url: "/api/devices/rotate-token" },
+    ] as const;
+
+    const responses = await Promise.all(
+      formerRequests.map((request) =>
+        app.inject({ ...request, headers: { origin: BACKOFFICE_ORIGIN } }),
+      ),
+    );
+
+    expect(responses.map((response) => response.statusCode)).toEqual(formerRequests.map(() => 404));
+  });
+});
 
 describe("wiring the alerts routes", () => {
   it("no longer answers the former alert closing path", async () => {
@@ -1554,7 +1556,7 @@ describe("wiring the alerts routes", () => {
 });
 
 describe("the route access inventory", () => {
-  it("declares exactly one access level for every registered route", async () => {
+  it("covers every route the production wiring registers, each with one access level", async () => {
     const app = productionWiredApp();
     await app.ready();
 
@@ -1585,12 +1587,12 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/users",
-        access: permissionAccess(["deactivate_users", "reactivate_users"]),
+        access: permissionAccess(["deactivate_users", "reactivate_users", "reset_user_pin"]),
       },
       {
         method: "GET",
         url: "/api/users/:id",
-        access: permissionAccess(["deactivate_users", "reactivate_users"]),
+        access: permissionAccess(["deactivate_users", "reactivate_users", "reset_user_pin"]),
       },
       { method: "POST", url: "/api/users", access: ADMINISTRATOR_ACCESS },
       { method: "PUT", url: "/api/users/:id", access: ADMINISTRATOR_ACCESS },
@@ -1604,6 +1606,11 @@ describe("the route access inventory", () => {
         method: "PUT",
         url: "/api/users/:id/deactivation",
         access: permissionAccess("deactivate_users"),
+      },
+      {
+        method: "POST",
+        url: "/api/users/:id/pin-codes",
+        access: permissionAccess("reset_user_pin"),
       },
       {
         method: "DELETE",
@@ -1645,8 +1652,8 @@ describe("the route access inventory", () => {
         access: permissionAccess("manage_products_and_categories"),
       },
       {
-        method: "POST",
-        url: "/api/categories/:id/edit",
+        method: "PUT",
+        url: "/api/categories/:id",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
@@ -1660,18 +1667,18 @@ describe("the route access inventory", () => {
         access: permissionAccess("manage_products_and_categories"),
       },
       {
-        method: "POST",
-        url: "/api/brands/:id/edit",
+        method: "PUT",
+        url: "/api/brands/:id",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
-        method: "POST",
+        method: "PUT",
         url: "/api/brands/:id/deactivation",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
-        method: "POST",
-        url: "/api/brands/:id/reactivation",
+        method: "DELETE",
+        url: "/api/brands/:id/deactivation",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
@@ -1710,23 +1717,23 @@ describe("the route access inventory", () => {
         access: permissionAccess("manage_products_and_categories"),
       },
       {
-        method: "POST",
-        url: "/api/products/:id/edit",
+        method: "PUT",
+        url: "/api/products/:id",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
-        method: "POST",
+        method: "PUT",
         url: "/api/products/:id/deactivation",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
         method: "POST",
-        url: "/api/products/internal-barcode",
+        url: "/api/internal-barcodes",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
         method: "POST",
-        url: "/api/products/labels",
+        url: "/api/label-sheets",
         access: permissionAccess("manage_products_and_categories"),
       },
       { method: "GET", url: "/api/alerts", access: OPEN_SESSION_ACCESS },
@@ -1743,13 +1750,13 @@ describe("the route access inventory", () => {
         access: permissionAccess("manage_prices_and_review"),
       },
       {
-        method: "POST",
-        url: "/api/products/:id/price",
+        method: "PUT",
+        url: "/api/prices/:productId",
         access: permissionAccess("manage_prices_and_review"),
       },
       {
         method: "POST",
-        url: "/api/products/:id/price-confirmation",
+        url: "/api/prices/:productId/confirmations",
         access: permissionAccess("manage_prices_and_review"),
       },
       {
@@ -1774,6 +1781,51 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/api/inventory-levels",
+        access: permissionAccess("view_stock_balances"),
+      },
+      {
+        method: "GET",
+        url: "/api/inventory-items",
+        access: permissionAccess([
+          "view_stock_balances",
+          "perform_stock_counts",
+          "adjust_stock",
+          "record_stock_losses",
+        ]),
+      },
+      {
+        method: "GET",
+        url: "/api/inventory-counts",
+        access: permissionAccess("perform_stock_counts"),
+      },
+      {
+        method: "POST",
+        url: "/api/inventory-counts",
+        access: permissionAccess("perform_stock_counts"),
+      },
+      {
+        method: "GET",
+        url: "/api/inventory-levels/:productId",
+        access: permissionAccess("view_stock_balances"),
+      },
+      {
+        method: "GET",
+        url: "/api/inventory-movements",
+        access: permissionAccess(["record_stock_losses", "adjust_stock"]),
+      },
+      {
+        method: "POST",
+        url: "/api/inventory-losses",
+        access: permissionAccess("record_stock_losses"),
+      },
+      {
+        method: "POST",
+        url: "/api/inventory-adjustments",
+        access: permissionAccess("adjust_stock"),
+      },
+      {
+        method: "GET",
         url: "/api/registers",
         access: permissionAccess("enroll_register_devices"),
       },
@@ -1789,13 +1841,14 @@ describe("the route access inventory", () => {
       },
       {
         method: "POST",
-        url: "/api/registers/:id/enrollment-code",
+        url: "/api/registers/:id/device-codes",
         access: permissionAccess("enroll_register_devices"),
       },
       { method: "GET", url: "/api/health", access: PUBLIC_ACCESS },
-      { method: "POST", url: "/api/devices/enroll", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/api/devices", access: PUBLIC_ACCESS },
       { method: "GET", url: "/api/changes", access: PUBLIC_ACCESS },
-      { method: "POST", url: "/api/devices/rotate-token", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/api/pin-code-redemptions", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/api/devices/current/tokens", access: PUBLIC_ACCESS },
       { method: "HEAD", url: "/*", access: PUBLIC_ACCESS },
       { method: "GET", url: "/*", access: PUBLIC_ACCESS },
     ]);
