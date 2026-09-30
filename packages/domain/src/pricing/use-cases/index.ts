@@ -7,7 +7,9 @@ export type {
   DiscountPorts,
   DiscountStore,
   DiscountStoreTransaction,
+  EditDiscountPorts,
   LockAssignableTargetResult,
+  LockDiscountedProductResult,
   LockDiscountResult,
 } from "./discount-store.js";
 export type { EditDiscountInput, EditDiscountOutcome } from "./edit-discount.js";

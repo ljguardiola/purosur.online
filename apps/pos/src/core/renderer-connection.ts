@@ -16,6 +16,7 @@ export interface RendererConnection {
 // page, so the one it replaces is closed instead of lingering.
 export function createRendererConnection(
   onMessage: (data: unknown, reply: ReplyToRenderer) => void,
+  onPageConnected: () => void,
 ): RendererConnection {
   let current: RendererPort | undefined;
 
@@ -23,6 +24,7 @@ export function createRendererConnection(
     adopt(port) {
       current?.close();
       current = port;
+      onPageConnected();
       port.on("message", (event) => {
         if (port === current) {
           onMessage(event.data, (message) => {

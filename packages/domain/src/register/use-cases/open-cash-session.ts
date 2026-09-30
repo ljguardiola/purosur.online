@@ -1,6 +1,6 @@
 import { holdsPermission } from "../../access/index.js";
 import { isValidCashAmount } from "../model/cash-amount.js";
-import type { CashSession } from "../model/cash-session.js";
+import type { OpenedCashSession } from "../model/cash-session.js";
 import type { CashLedger, IdGenerator } from "./cash-ledger.js";
 import type { Clock } from "./register-store.js";
 
@@ -20,7 +20,7 @@ export type OpenCashSessionOutcome =
   | { kind: "not_permitted" }
   | { kind: "already_open" }
   | { kind: "unavailable" }
-  | { kind: "opened"; session: CashSession };
+  | { kind: "opened"; session: OpenedCashSession };
 
 export function openCashSession(
   { ledger, clock, ids }: OpenCashSessionPorts,
@@ -44,7 +44,7 @@ export function openCashSession(
     }
 
     const openedAt = clock.now();
-    const session: CashSession = {
+    const session: OpenedCashSession = {
       id: ids.next(),
       registerId: identity.registerId,
       deviceId: identity.deviceId,

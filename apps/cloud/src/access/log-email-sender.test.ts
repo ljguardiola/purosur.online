@@ -20,4 +20,16 @@ describe("createLogRecoveryEmailSender", () => {
     expect(line).toContain("ada@example.com");
     expect(line).toContain("http://localhost:5173/account-recovery/passkey#abc123");
   });
+
+  it("writes the recipient and the first PIN code to the process log instead of sending mail", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const sender = createLogRecoveryEmailSender();
+
+    await sender.sendFirstPinCode({ to: "ada@example.com", code: "P4NX7KWE2QRT5MZD" });
+
+    expect(log).toHaveBeenCalledTimes(1);
+    const [line] = log.mock.calls[0] as [string];
+    expect(line).toContain("ada@example.com");
+    expect(line).toContain("P4NX7KWE2QRT5MZD");
+  });
 });

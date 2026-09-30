@@ -214,6 +214,26 @@ test("shows the sale unit the cloud refuses on its own field, as on create", asy
   expect(dialog.getByText("No se pudo guardar el cambio").query()).toBeNull();
 });
 
+test("shows on the sale unit field the discount that keeps the product sold by the unit", async () => {
+  const services = createServices();
+  vi.mocked(services.editProduct).mockResolvedValue({
+    kind: "sale_unit_held_by_discount",
+    discountName: "3x2 Yerba",
+  });
+  const { dialog } = await renderModal(honey, services);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect
+    .element(
+      dialog.getByText(
+        'No se puede vender por peso mientras la promoción "3x2 Yerba" no esté desactivada o terminada.',
+      ),
+    )
+    .toBeVisible();
+  expect(dialog.getByText("No se pudo guardar el cambio").query()).toBeNull();
+});
+
 test("shows the generic failure notice on edit when the cloud refuses the version", async () => {
   const services = createServices();
   vi.mocked(services.editProduct).mockResolvedValue({

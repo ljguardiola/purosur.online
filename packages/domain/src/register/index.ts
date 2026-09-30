@@ -1,10 +1,21 @@
 export { isValidCashAmount, MAX_CASH_AMOUNT_CENTS } from "./model/cash-amount.js";
+export type { CashMovementKind } from "./model/cash-movement-kind.js";
+export {
+  CASH_MOVEMENT_KINDS,
+  CASH_MOVEMENT_REASON_MAX_LENGTH,
+  cashMovementPermission,
+  cashMovementReason,
+  isValidCashMovementAmount,
+} from "./model/cash-movement-kind.js";
 export type {
   CashMovement,
   CashMovementType,
   CashSession,
   CashSessionState,
+  ClosedCashSession,
+  OpenedCashSession,
 } from "./model/cash-session.js";
+export { CASH_MOVEMENT_TYPES } from "./model/cash-session.js";
 export { isDeviceTokenRotationDue } from "./model/device-token.js";
 export { enrollmentAttemptWindowStart } from "./model/enrollment-attempt-limit.js";
 export {
@@ -14,6 +25,8 @@ export {
   isWellFormedEnrollmentCode,
   normalizeEnrollmentCode,
 } from "./model/enrollment-code.js";
+export type { CashBreakdown } from "./model/expected-cash.js";
+export { cashBreakdown, expectedCash } from "./model/expected-cash.js";
 export {
   INSTALLATION_KEY_BYTES,
   isWellFormedInstallationKey,

@@ -4,4 +4,4 @@ export type CashSessionState =
   | { status: "unknown" }
   | { status: "none" }
   | { status: "unavailable" }
-  | { status: "open"; openedAt: string; openedBy: SignedInPerson };
+  | { status: "open"; id: string; openedAt: string; openedBy: SignedInPerson };

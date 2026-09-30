@@ -187,17 +187,20 @@ describe("giving a category a product and a subcategory concurrently on a real P
         order,
         almacen.id,
         () =>
-          editProduct(new DrizzleCatalogStore(db), {
-            id: product.id,
-            name: product.name,
-            categoryId: almacen.id,
-            brandId: null,
-            saleUnit: product.saleUnit,
-            barcodes: product.barcodes,
-            tagIds: [],
-            netContent: null,
-            version: product.version,
-          }),
+          editProduct(
+            { store: new DrizzleCatalogStore(db), clock: { now: () => new Date() } },
+            {
+              id: product.id,
+              name: product.name,
+              categoryId: almacen.id,
+              brandId: null,
+              saleUnit: product.saleUnit,
+              barcodes: product.barcodes,
+              tagIds: [],
+              netContent: null,
+              version: product.version,
+            },
+          ),
         () =>
           editCategory(new DrizzleCatalogStore(db), {
             id: infusiones.id,

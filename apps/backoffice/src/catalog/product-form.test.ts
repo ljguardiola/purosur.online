@@ -11,6 +11,7 @@ import {
   productFormValues,
   productMessage,
   productRequestFrom,
+  saleUnitHeldByDiscountError,
   saleUnitMessage,
   tagInactiveError,
   tagsMessage,
@@ -228,6 +229,14 @@ describe("the product's tags", () => {
   it("says a chosen tag was deactivated when the form does not know the refused one", () => {
     expect(tagInactiveError([sinTacc], vegano.id)).toBe(
       "Un distintivo elegido se dio de baja. Quitalo para guardar.",
+    );
+  });
+});
+
+describe("saleUnitHeldByDiscountError", () => {
+  it("names the discount that keeps the product sold by the unit", () => {
+    expect(saleUnitHeldByDiscountError("3x2 Yerba")).toBe(
+      'No se puede vender por peso mientras la promoción "3x2 Yerba" no esté desactivada o terminada.',
     );
   });
 });

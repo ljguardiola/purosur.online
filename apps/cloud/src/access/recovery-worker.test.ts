@@ -1,15 +1,16 @@
 import { EventEmitter } from "node:events";
 import type { Pool } from "pg";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { RecoveryEmailSender } from "./recovery-email-sender.js";
+import type { AccessEmailSender } from "./recovery-email-sender.js";
 import {
   ALERT_ESCALATION_TASK_IDENTIFIER,
+  FIRST_PIN_CODE_EMAIL_TASK_IDENTIFIER,
   RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER,
   RECOVERY_REQUEST_TASK_IDENTIFIER,
   startRecoveryWorker,
 } from "./recovery-worker.js";
 
-const emailSender: RecoveryEmailSender = { sendRecoveryLink: vi.fn() };
+const emailSender: AccessEmailSender = { sendRecoveryLink: vi.fn(), sendFirstPinCode: vi.fn() };
 
 function fakeRunner() {
   return { stop: vi.fn().mockResolvedValue(undefined) };
@@ -413,7 +414,7 @@ describe("startRecoveryWorker", () => {
       {
         databaseUrl: "postgres://user:pass@db/purosur",
         backofficeOrigin: "https://staging.purosur.online",
-        emailSender: { sendRecoveryLink },
+        emailSender: { sendRecoveryLink, sendFirstPinCode: vi.fn() },
       },
       { runWorker, processJob },
     );
@@ -461,7 +462,7 @@ describe("startRecoveryWorker", () => {
       {
         databaseUrl: "postgres://user:pass@db/purosur",
         backofficeOrigin: "https://staging.purosur.online",
-        emailSender: { sendRecoveryLink },
+        emailSender: { sendRecoveryLink, sendFirstPinCode: vi.fn() },
       },
       { runWorker, processJob },
     );
@@ -505,7 +506,7 @@ describe("startRecoveryWorker", () => {
       {
         databaseUrl: "postgres://user:pass@db/purosur",
         backofficeOrigin: "https://staging.purosur.online",
-        emailSender: { sendRecoveryLink },
+        emailSender: { sendRecoveryLink, sendFirstPinCode: vi.fn() },
       },
       { runWorker, processJob },
     );
@@ -585,6 +586,64 @@ describe("startRecoveryWorker", () => {
       ),
     ).rejects.toThrow();
     expect(withPgClient).not.toHaveBeenCalled();
+  });
+
+  it("sends a first PIN code email through the sender once the code read through graphile-worker's client is live, leaving a malformed payload or a failed send to graphile-worker's retry", async () => {
+    const runWorker = vi.fn().mockResolvedValue(fakeRunner());
+    const sendFirstPinCode = vi
+      .fn()
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValue(new Error("down"));
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const fakeClient = { marker: "fake-client" };
+    const fakeDb = { marker: "fake-db" };
+    const createDatabase = vi.fn().mockReturnValue(fakeDb);
+    const withPgClient = vi.fn(async (callback: (client: unknown) => Promise<unknown>) =>
+      callback(fakeClient),
+    );
+    const findPinCode = vi.fn().mockResolvedValue({
+      expiresAt: new Date("2026-09-30T12:15:00.000Z"),
+      redeemedAt: null,
+      supersededAt: null,
+      failedAttempts: 0,
+    });
+
+    await startRecoveryWorker(
+      {
+        databaseUrl: "postgres://user:pass@db/purosur",
+        backofficeOrigin: "https://staging.purosur.online",
+        emailSender: { sendRecoveryLink: vi.fn(), sendFirstPinCode },
+        now: () => new Date("2026-09-30T12:00:00.000Z"),
+      },
+      { runWorker, createDatabase, findPinCode },
+    );
+
+    const [options] = runWorker.mock.calls[0] as [
+      {
+        taskList: Record<
+          string,
+          (payload: unknown, helpers: { withPgClient: typeof withPgClient }) => Promise<void>
+        >;
+      },
+    ];
+    const task = mustExist(
+      options.taskList[FIRST_PIN_CODE_EMAIL_TASK_IDENTIFIER],
+      "the registered first PIN code email task",
+    );
+    const payload = {
+      email: "grace@example.com",
+      code: "K3PX7WNE2QRT6MZD",
+    };
+
+    await task(payload, { withPgClient });
+    expect(createDatabase).toHaveBeenCalledExactlyOnceWith(fakeClient);
+    expect(findPinCode).toHaveBeenCalledExactlyOnceWith(fakeDb, "K3PX7WNE2QRT6MZD");
+    expect(sendFirstPinCode).toHaveBeenCalledExactlyOnceWith({
+      to: "grace@example.com",
+      code: "K3PX7WNE2QRT6MZD",
+    });
+    await expect(task(payload, { withPgClient })).rejects.toThrow("down");
+    await expect(task({}, { withPgClient })).rejects.toThrow("malformed job payload");
   });
 
   it("processes the rejected-attempt flush task through a client borrowed from graphile-worker's own pool", async () => {

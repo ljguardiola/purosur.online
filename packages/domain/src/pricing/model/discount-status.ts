@@ -15,3 +15,8 @@ export function discountStatus(discount: DiscountSchedule, today: string): Disco
   }
   return today > discount.validTo ? "ended" : "current";
 }
+
+export function isDiscountLive(discount: DiscountSchedule, today: string): boolean {
+  const status = discountStatus(discount, today);
+  return status === "current" || status === "scheduled";
+}

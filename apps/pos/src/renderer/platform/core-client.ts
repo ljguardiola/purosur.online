@@ -1,10 +1,19 @@
 import type {
+  Authorization,
+  CashBalance,
+  CloseCashSessionOutcome,
   CoreToRendererMessage,
+  CurrentSaleAnswer,
   EnrollmentOutcome,
+  FirstPinCodeRequestOutcome,
+  ListedCashMovement,
   OpenCashSession,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
+  RecordCashMovementOutcome,
+  RecordCashMovementRequest,
   RendererToCoreMessage,
+  ScanProductOutcome,
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
@@ -19,6 +28,8 @@ export interface CorePort {
   close(): void;
 }
 
+export type CashMovementInput = RecordCashMovementRequest;
+
 export interface CoreClient {
   connect(port: CorePort): void;
   enrollmentStatus(): Promise<boolean>;
@@ -29,9 +40,21 @@ export interface CoreClient {
   authorizers(permission: AuthorizablePermissionKey): Promise<SignInUser[]>;
   signIn(userId: string, pin: string): Promise<SignInOutcome>;
   signInLookup(email: string): Promise<SignInLookupOutcome>;
+  requestFirstPinCode(userId: string): Promise<FirstPinCodeRequestOutcome>;
   firstSignIn(userId: string, pin: string): Promise<SignInOutcome>;
-  openCashSession(userId: string, openingFloat: number): Promise<OpenCashSessionOutcome>;
+  signOut(): Promise<void>;
+  openCashSession(openingFloat: number): Promise<OpenCashSessionOutcome>;
   cashSession(): Promise<OpenCashSession | null | "unavailable">;
+  recordCashMovement(input: CashMovementInput): Promise<RecordCashMovementOutcome>;
+  cashMovements(): Promise<ListedCashMovement[] | null | "unavailable">;
+  scanProduct(code: string): Promise<ScanProductOutcome>;
+  currentSale(): Promise<CurrentSaleAnswer>;
+  closeCashSession(
+    sessionId: string,
+    countedCash: number,
+    authorization?: Authorization,
+  ): Promise<CloseCashSessionOutcome>;
+  cashBalance(): Promise<CashBalance | null | "unavailable">;
   onPulled(listener: () => void): () => void;
 }
 
@@ -171,20 +194,26 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         answer.type === "sign-in-lookup-result" ? answer.outcome : undefined,
       );
     },
+    requestFirstPinCode(userId) {
+      return ask(
+        { type: "first-pin-code-request", request_id: deps.newRequestId(), user_id: userId },
+        (answer) => (answer.type === "first-pin-code-request-result" ? answer.outcome : undefined),
+      );
+    },
     firstSignIn(userId, pin) {
       return ask(
         { type: "first-sign-in", request_id: deps.newRequestId(), user_id: userId, pin },
         (answer) => (answer.type === "sign-in-result" ? answer.outcome : undefined),
       );
     },
-    openCashSession(userId, openingFloat) {
+    signOut() {
+      return ask({ type: "sign-out", request_id: deps.newRequestId() }, (answer) =>
+        answer.type === "signed-out" ? true : undefined,
+      ).then(() => {});
+    },
+    openCashSession(openingFloat) {
       return ask(
-        {
-          type: "open-cash-session",
-          request_id: deps.newRequestId(),
-          user_id: userId,
-          opening_float: openingFloat,
-        },
+        { type: "open-cash-session", request_id: deps.newRequestId(), opening_float: openingFloat },
         (answer) => (answer.type === "open-cash-session-result" ? answer.outcome : undefined),
       );
     },
@@ -196,6 +225,69 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
             return "unavailable";
           }
           return answer.type === "cash-session" ? answer.session : undefined;
+        },
+      );
+    },
+    recordCashMovement({ kind, amount, reason, authorization }) {
+      return ask(
+        {
+          type: "record-cash-movement",
+          request_id: deps.newRequestId(),
+          kind,
+          amount,
+          reason,
+          ...(authorization === undefined ? {} : { authorization }),
+        },
+        (answer) => (answer.type === "record-cash-movement-result" ? answer.outcome : undefined),
+      );
+    },
+    cashMovements() {
+      return ask(
+        { type: "cash-movements-request", request_id: deps.newRequestId() },
+        (answer): ListedCashMovement[] | null | "unavailable" | undefined => {
+          if (answer.type === "cash-movements-unavailable") {
+            return "unavailable";
+          }
+          return answer.type === "cash-movements" ? answer.movements : undefined;
+        },
+      );
+    },
+    scanProduct(code) {
+      return ask({ type: "scan-product", request_id: deps.newRequestId(), code }, (answer) =>
+        answer.type === "scan-product-result" ? answer.outcome : undefined,
+      );
+    },
+    currentSale() {
+      return ask({ type: "sale-request", request_id: deps.newRequestId() }, (answer) => {
+        if (answer.type === "sale-unavailable") {
+          throw new Error("the core could not read the sale in progress");
+        }
+        if (answer.type === "sale-not-permitted") {
+          return "not_permitted";
+        }
+        return answer.type === "sale" ? answer.sale : undefined;
+      });
+    },
+    closeCashSession(sessionId, countedCash, authorization) {
+      return ask(
+        {
+          type: "close-cash-session",
+          request_id: deps.newRequestId(),
+          session_id: sessionId,
+          counted_cash: countedCash,
+          ...(authorization === undefined ? {} : { authorization }),
+        },
+        (answer) => (answer.type === "close-cash-session-result" ? answer.outcome : undefined),
+      );
+    },
+    cashBalance() {
+      return ask(
+        { type: "cash-balance-request", request_id: deps.newRequestId() },
+        (answer): CashBalance | null | "unavailable" | undefined => {
+          if (answer.type === "cash-balance-unavailable") {
+            return "unavailable";
+          }
+          return answer.type === "cash-balance" ? answer.balance : undefined;
         },
       );
     },

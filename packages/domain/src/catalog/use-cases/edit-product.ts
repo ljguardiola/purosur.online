@@ -1,5 +1,7 @@
+import { isDiscountLive } from "../../pricing/index.js";
+import { argentinaCalendarDay } from "../../shared/index.js";
 import type { SaleUnit } from "../model/product.js";
-import type { CatalogNetContent, CatalogProduct, CatalogStore } from "./catalog-store.js";
+import type { CatalogNetContent, CatalogPorts, CatalogProduct } from "./catalog-store.js";
 import { CatalogBarcodeConflict } from "./catalog-store.js";
 import { refuseUnassignableTags } from "./refuse-unassignable-tags.js";
 
@@ -23,11 +25,12 @@ export type EditProductOutcome =
   | { kind: "brand_inactive" }
   | { kind: "tag_not_found" }
   | { kind: "tag_inactive"; tagId: string }
+  | { kind: "sale_unit_held_by_discount"; discountName: string }
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "applied"; product: CatalogProduct };
 
 export async function editProduct(
-  store: CatalogStore,
+  { store, clock }: CatalogPorts,
   input: EditProductInput,
 ): Promise<EditProductOutcome> {
   try {
@@ -36,6 +39,20 @@ export async function editProduct(
       const locked = await tx.lockProduct(input.id);
       if (locked.kind === "not_found" || locked.product.version !== input.version) {
         return { kind: "stale_version" };
+      }
+
+      if (locked.product.saleUnit === "UNIT" && input.saleUnit === "KG") {
+        // The product row is already locked and the discounts are only read, never locked: a
+        // discount created meanwhile waits on this product row, so it either commits before this
+        // read or sees the product sold by weight.
+        const today = argentinaCalendarDay(clock.now());
+        const [holding] = (await tx.buyNPayMDiscountsOn(input.id))
+          .filter((discount) => isDiscountLive(discount, today))
+          .map((discount) => discount.name)
+          .sort();
+        if (holding !== undefined) {
+          return { kind: "sale_unit_held_by_discount", discountName: holding };
+        }
       }
 
       const lockedCategory = await tx.lockLeafCategory(input.categoryId);

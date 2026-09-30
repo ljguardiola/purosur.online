@@ -96,6 +96,22 @@ export const yerbaThreeForTwo: DiscountSummary = {
   version: 2,
 };
 
+export const almondsThreeForTwo: DiscountSummary = {
+  id: "0b1f3c1e-4f6a-4d0e-9d6e-000000000007",
+  name: "Almendras 3x2",
+  benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+  target: {
+    kind: "PRODUCT",
+    id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000104",
+    name: "Almendras peladas",
+  },
+  validFrom: "2026-09-15",
+  validTo: "2026-10-15",
+  weekdays: [],
+  active: false,
+  version: 3,
+};
+
 export function discountList(discounts: DiscountSummary[]): DiscountList {
   return { discounts };
 }

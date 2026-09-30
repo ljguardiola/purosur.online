@@ -29,7 +29,7 @@ import { Package, Percent } from "lucide-react";
 import { createElement } from "react";
 import { categoriesInTreeOrder, categoryPathLabels } from "../catalog/category-path";
 import { formatNetContent } from "../catalog/net-content";
-import { DISCOUNT_TARGET_KIND_LABELS } from "./discount-texts";
+import { DISCOUNT_KIND_LABELS, DISCOUNT_TARGET_KIND_LABELS } from "./discount-texts";
 
 export type DiscountFormValues = {
   name: string;
@@ -150,6 +150,10 @@ const TARGET_UNAVAILABLE_MESSAGES = {
 
 export const TARGET_SOLD_BY_WEIGHT_MESSAGE = "Se vende por peso. Elegí otro producto.";
 
+export function productSoldByWeightMessage(productName: string): string {
+  return `"${productName}" se vende por peso: esta promoción solo aplica a productos por unidad.`;
+}
+
 export function targetUnavailableMessage(kind: DiscountTargetKind): string {
   return TARGET_UNAVAILABLE_MESSAGES[kind];
 }
@@ -217,8 +221,10 @@ export const WEEKDAY_OPTIONS = [
 ] as const;
 
 const INACTIVE_TARGET_STATUS = "Inactivo";
+const SOLD_BY_WEIGHT_TARGET_STATUS = "Por peso";
 
 type CurrentTarget = { kind: DiscountTargetKind; id: string; name: string };
+type KeptTarget = CurrentTarget & { status: string };
 
 const nameOrder = textOrder((named: { name: string }) => named.name);
 
@@ -285,13 +291,38 @@ function listedTargets(
   return kind === "CATEGORY" ? sources.categories : sources.tags;
 }
 
-export function unlistedTarget(
+export function keptTarget(
   sources: DiscountTargets,
-  current: CurrentTarget | undefined,
-): CurrentTarget | undefined {
-  return current !== undefined &&
-    !listedTargets(current.kind, sources).some((target) => target.id === current.id)
-    ? current
+  current: Pick<DiscountSummary, "benefit" | "target"> | undefined,
+): KeptTarget | undefined {
+  if (current === undefined) {
+    return undefined;
+  }
+  const { target, benefit } = current;
+  if (!listedTargets(target.kind, sources).some((listed) => listed.id === target.id)) {
+    return { ...target, status: INACTIVE_TARGET_STATUS };
+  }
+  return benefit.kind === "BUY_N_PAY_M" &&
+    target.kind === "PRODUCT" &&
+    isSoldByWeightProduct(sources, target.id)
+    ? { ...target, status: SOLD_BY_WEIGHT_TARGET_STATUS }
+    : undefined;
+}
+
+function isSoldByWeightProduct(sources: DiscountTargets, productId: string | null): boolean {
+  return sources.products.some(
+    (product) => product.id === productId && !isBuyNPayMSaleUnit(product.saleUnit),
+  );
+}
+
+export function soldByWeightHelp(
+  values: DiscountFormValues,
+  sources: DiscountTargets,
+): string | undefined {
+  return values.benefitKind === "BUY_N_PAY_M" &&
+    values.targetKind === "PRODUCT" &&
+    isSoldByWeightProduct(sources, values.targetId)
+    ? `Este producto se vende por peso: ${DISCOUNT_KIND_LABELS.BUY_N_PAY_M} no se le aplica.`
     : undefined;
 }
 
@@ -313,14 +344,14 @@ export function targetForKind(
 export function targetOptions(
   kind: DiscountTargetKind,
   sources: DiscountTargets,
-  current?: CurrentTarget,
+  current?: KeptTarget,
 ): Options<ComboBoxOption<string>> | undefined {
   const offered = offeredTargets(kind, sources);
   const keptCurrent: ComboBoxOption<string>[] =
     current !== undefined &&
     current.kind === kind &&
     !offered.some((option) => option.value === current.id)
-      ? [{ value: current.id, label: current.name, status: INACTIVE_TARGET_STATUS }]
+      ? [{ value: current.id, label: current.name, status: current.status }]
       : [];
   const [first, ...rest] = [...keptCurrent, ...offered];
   return first === undefined ? undefined : [first, ...rest];

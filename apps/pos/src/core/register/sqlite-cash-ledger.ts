@@ -1,4 +1,10 @@
-import type { CashMovement, CashSession } from "@purosur/domain";
+import type { ListedCashMovement } from "@purosur/contracts";
+import type {
+  CashMovement,
+  CashMovementType,
+  ClosedCashSession,
+  OpenedCashSession,
+} from "@purosur/domain";
 import type {
   CashLedger,
   CashLedgerTransaction,
@@ -17,7 +23,7 @@ interface SessionRow {
   opening_float: number;
 }
 
-export function readOpenSession(database: LocalDatabase): CashSession | undefined {
+export function readOpenSession(database: LocalDatabase): OpenedCashSession | undefined {
   const row = database
     .prepare<[], SessionRow>(
       `SELECT id, register_id, device_id, opened_by, opened_at, opening_float
@@ -35,6 +41,104 @@ export function readOpenSession(database: LocalDatabase): CashSession | undefine
         openingFloat: row.opening_float,
         state: "OPEN",
       };
+}
+
+interface ListedMovementRow {
+  id: string;
+  type: CashMovementType;
+  amount: number;
+  reason: string | null;
+  occurred_at: string;
+  actor_id: string;
+  actor_first_name: string;
+  authorized_by: string | null;
+  authorizer_first_name: string | null;
+}
+
+export function readOpenSessionMovements(
+  database: LocalDatabase,
+): ListedCashMovement[] | undefined {
+  const session = readOpenSession(database);
+  if (session === undefined) {
+    return undefined;
+  }
+  return database
+    .prepare<[string], ListedMovementRow>(
+      `SELECT cash_movements.id AS id, cash_movements.type AS type,
+              cash_movements.amount AS amount, cash_movements.reason AS reason,
+              cash_movements.occurred_at AS occurred_at, cash_movements.actor_id AS actor_id,
+              actor.first_name AS actor_first_name,
+              cash_movements.authorized_by AS authorized_by,
+              authorizer.first_name AS authorizer_first_name
+       FROM cash_movements
+       JOIN users AS actor ON actor.id = cash_movements.actor_id
+       LEFT JOIN users AS authorizer ON authorizer.id = cash_movements.authorized_by
+       WHERE cash_movements.session_id = ?
+       ORDER BY cash_movements.occurred_at, cash_movements.rowid`,
+    )
+    .all(session.id)
+    .map((row) => ({
+      id: row.id,
+      type: row.type,
+      amount: row.amount,
+      reason: row.reason,
+      occurred_at: row.occurred_at,
+      actor: { user_id: row.actor_id, first_name: row.actor_first_name },
+      authorized_by:
+        row.authorized_by === null || row.authorizer_first_name === null
+          ? null
+          : { user_id: row.authorized_by, first_name: row.authorizer_first_name },
+    }));
+}
+
+interface MovementRow {
+  id: string;
+  session_id: string;
+  type: CashMovementType;
+  amount: number;
+  reason: string | null;
+  ref_type: string | null;
+  ref_id: string | null;
+  actor_id: string;
+  authorized_by: string | null;
+  occurred_at: string;
+}
+
+function movementOf(row: MovementRow): CashMovement {
+  return {
+    id: row.id,
+    sessionId: row.session_id,
+    type: row.type,
+    amount: row.amount,
+    actorId: row.actor_id,
+    occurredAt: new Date(row.occurred_at),
+    ...(row.reason === null ? {} : { reason: row.reason }),
+    ...(row.ref_type === null || row.ref_id === null
+      ? {}
+      : { ref: { type: row.ref_type, id: row.ref_id } }),
+    ...(row.authorized_by === null ? {} : { authorizedBy: row.authorized_by }),
+  };
+}
+
+export function readSessionMovements(database: LocalDatabase, sessionId: string): CashMovement[] {
+  return database
+    .prepare<[string], MovementRow>(
+      `SELECT id, session_id, type, amount, reason, ref_type, ref_id, actor_id, authorized_by, occurred_at
+       FROM cash_movements WHERE session_id = ? ORDER BY rowid`,
+    )
+    .all(sessionId)
+    .map(movementOf);
+}
+
+function readOpenSaleTotal(database: LocalDatabase): number | undefined {
+  return database
+    .prepare<[], { total: number }>(
+      `SELECT sum(sale_lines.line_total) AS total
+       FROM sales JOIN sale_lines ON sale_lines.sale_id = sales.id
+       WHERE sales.state = 'OPEN'
+       GROUP BY sales.id`,
+    )
+    .get()?.total;
 }
 
 export class SqliteCashLedger implements CashLedger {
@@ -60,8 +164,11 @@ export class SqliteCashLedger implements CashLedger {
     return {
       openerAccess: (userId) => this.people.activePerson(userId)?.access,
       openSession: () => readOpenSession(this.database),
+      openSaleTotal: () => readOpenSaleTotal(this.database),
+      sessionMovements: (sessionId) => readSessionMovements(this.database, sessionId),
       registerIdentity: () => this.registerIdentity(),
       recordOpenedSession: (session) => this.recordOpenedSession(session),
+      recordClosedSession: (session) => this.recordClosedSession(session),
       recordCashMovement: (movement) => this.recordCashMovement(movement),
       appendOutboxEvent: (draft) => appendOutboxEvent(this.database, this.outboxChainKey, draft),
     };
@@ -78,7 +185,7 @@ export class SqliteCashLedger implements CashLedger {
     return row === undefined ? undefined : { registerId: row.register_id, deviceId: row.device_id };
   }
 
-  private recordOpenedSession(session: CashSession): void {
+  private recordOpenedSession(session: OpenedCashSession): void {
     this.database
       .prepare(
         `INSERT INTO cash_sessions (
@@ -93,6 +200,25 @@ export class SqliteCashLedger implements CashLedger {
         opened_at: session.openedAt.toISOString(),
         opening_float: session.openingFloat,
         state: session.state,
+      });
+  }
+
+  private recordClosedSession(session: ClosedCashSession): void {
+    this.database
+      .prepare(
+        `UPDATE cash_sessions SET
+           state = @state, closed_by = @closed_by, closed_at = @closed_at,
+           expected_cash = @expected_cash, counted_cash = @counted_cash, difference = @difference
+         WHERE id = @id`,
+      )
+      .run({
+        id: session.id,
+        state: session.state,
+        closed_by: session.closedBy,
+        closed_at: session.closedAt.toISOString(),
+        expected_cash: session.expectedCash,
+        counted_cash: session.countedCash,
+        difference: session.difference,
       });
   }
 

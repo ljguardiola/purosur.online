@@ -11,7 +11,7 @@
 
 Runs the cloud, its database, and the backoffice on one origin, with no real mail provider and no production or staging credential. Requires Docker or Podman (with the compose plugin) for the database.
 
-1. `cp .env.example .env`. The defaults need no real credential: `RECOVERY_EMAIL_TRANSPORT=log` writes the recovery link to the cloud's own log instead of sending mail.
+1. `cp .env.example .env`. The defaults need no real credential: `RECOVERY_EMAIL_TRANSPORT=log` writes the recovery link and the first-PIN codes to the cloud's own log instead of sending mail.
 2. `pnpm dev:db` — starts Postgres (`docker-compose.yml`) in the background.
 3. `pnpm dev:migrate` — builds the cloud and applies its migrations against `DATABASE_URL`.
 4. `pnpm dev:create-first-administrator --name "Your Name" --email you@example.com` — creates the first Administrator.

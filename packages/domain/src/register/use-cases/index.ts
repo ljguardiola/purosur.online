@@ -10,6 +10,12 @@ export type {
   RegisterIdentity,
 } from "./cash-ledger.js";
 export type {
+  CloseCashSessionInput,
+  CloseCashSessionOutcome,
+  CloseCashSessionPorts,
+} from "./close-cash-session.js";
+export { closeCashSession } from "./close-cash-session.js";
+export type {
   EnrollInstallationInput,
   EnrollInstallationOutcome,
 } from "./enroll-installation.js";
@@ -21,6 +27,12 @@ export type {
   OpenCashSessionPorts,
 } from "./open-cash-session.js";
 export { openCashSession } from "./open-cash-session.js";
+export type {
+  RecordCashMovementInput,
+  RecordCashMovementOutcome,
+  RecordCashMovementPorts,
+} from "./record-cash-movement.js";
+export { recordCashMovement } from "./record-cash-movement.js";
 export type {
   Clock,
   DeviceTokenIssuer,

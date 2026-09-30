@@ -99,7 +99,8 @@ export function usePinAttempt(target: PinTarget | null) {
     locked,
     secondsLeft,
     notice,
-    pinRefused: notice !== undefined && refusal?.kind !== "unavailable",
+    pinRefused:
+      notice !== undefined && (refusal?.kind === "wrong_pin" || refusal?.kind === "rate_limited"),
     canSubmit: target !== null && pin !== "" && !submitting && secondsLeft === 0,
     noticeId,
     pinInput,

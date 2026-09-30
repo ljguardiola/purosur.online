@@ -101,7 +101,7 @@ describe("writing a discount while another writer holds the change log, on a rea
     const outcome = await holdingTheChangeLog(
       () =>
         editDiscount(
-          { store: new DrizzleDiscountStore(db) },
+          { store: new DrizzleDiscountStore(db), clock: { now: () => new Date() } },
           { ...discountOn(tagId), id: created.id, version: 1, active: false },
         ),
       () => sql`update discounts set name = 'Otra' where id = ${created.id}`.then(() => undefined),

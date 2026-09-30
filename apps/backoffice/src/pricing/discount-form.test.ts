@@ -18,11 +18,13 @@ import {
   discountRequestFrom,
   EMPTY_DISCOUNT_FORM,
   eligibleTargets,
+  keptTarget,
+  productSoldByWeightMessage,
+  soldByWeightHelp,
   targetForKind,
   targetOptions,
   targetPlaceholder,
   targetUnavailableMessage,
-  unlistedTarget,
   WEEKDAY_OPTIONS,
 } from "./discount-form";
 import {
@@ -270,6 +272,14 @@ describe("targetUnavailableMessage", () => {
   });
 });
 
+describe("productSoldByWeightMessage", () => {
+  test("names the product that cannot take a live buy-N-pay-M promotion", () => {
+    expect(productSoldByWeightMessage("Queso cremoso")).toBe(
+      '"Queso cremoso" se vende por peso: esta promoción solo aplica a productos por unidad.',
+    );
+  });
+});
+
 describe("option lists", () => {
   test("offers a card for each kind of promotion", () => {
     expect(
@@ -415,7 +425,7 @@ describe("targetOptions", () => {
     const options = targetOptions(
       "PRODUCT",
       { ...nothing, products: [honey] },
-      { kind: "PRODUCT", id: "gone", name: "Aceite" },
+      { kind: "PRODUCT", id: "gone", name: "Aceite", status: "Inactivo" },
     );
 
     expect(options).toEqual([
@@ -428,7 +438,7 @@ describe("targetOptions", () => {
     const options = targetOptions(
       "TAG",
       { ...nothing, tags: [sinTacc] },
-      { kind: "TAG", id: "tag-3", name: "Sin colorantes" },
+      { kind: "TAG", id: "tag-3", name: "Sin colorantes", status: "Inactivo" },
     );
 
     expect(options).toEqual([
@@ -437,11 +447,24 @@ describe("targetOptions", () => {
     ]);
   });
 
+  test("keeps a current product with the status it carries", () => {
+    const options = targetOptions(
+      "PRODUCT",
+      { ...nothing, products: [rice] },
+      { kind: "PRODUCT", id: "almonds", name: "Almendras", status: "Por peso" },
+    );
+
+    expect(options).toEqual([
+      { value: "almonds", label: "Almendras", status: "Por peso" },
+      { value: "product-3", label: "Arroz", searchKeywords: [] },
+    ]);
+  });
+
   test("does not offer the current target of another kind", () => {
     const options = targetOptions(
       "TAG",
       { ...nothing, tags: [sinTacc] },
-      { kind: "PRODUCT", id: "gone", name: "Aceite" },
+      { kind: "PRODUCT", id: "gone", name: "Aceite", status: "Inactivo" },
     );
 
     expect(options).toEqual([{ value: "tag-1", label: "Sin TACC" }]);
@@ -451,7 +474,7 @@ describe("targetOptions", () => {
     const options = targetOptions(
       "PRODUCT",
       { ...nothing, products: [honey] },
-      { kind: "PRODUCT", id: honey.id, name: honey.name },
+      { kind: "PRODUCT", id: honey.id, name: honey.name, status: "Inactivo" },
     );
 
     expect(options).toEqual([
@@ -474,27 +497,77 @@ describe("eligibleTargets", () => {
   });
 });
 
-describe("unlistedTarget", () => {
-  test("keeps a current target missing from the targets of its kind", () => {
-    const retired = { kind: "PRODUCT", id: "gone", name: "Aceite" } as const;
+describe("keptTarget", () => {
+  const threeForTwoBenefit = { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 } as const;
+  const retired = { kind: "PRODUCT", id: "gone", name: "Aceite" } as const;
+  const almonds = { kind: "PRODUCT", id: almondsProduct.id, name: almondsProduct.name } as const;
+  const yerba = { kind: "PRODUCT", id: yerbaProduct.id, name: yerbaProduct.name } as const;
 
-    expect(unlistedTarget(discountTargets, retired)).toEqual(retired);
+  test("keeps a current target missing from the targets of its kind, marked inactive", () => {
+    expect(keptTarget(discountTargets, { benefit: threeForTwoBenefit, target: retired })).toEqual({
+      ...retired,
+      status: "Inactivo",
+    });
   });
 
-  test("drops a current target listed among the targets of its kind", () => {
-    const almonds = { kind: "PRODUCT", id: almondsProduct.id, name: almondsProduct.name } as const;
+  test("keeps the product of a buy-N-pay-M promotion that is now sold by weight, marked by weight", () => {
+    expect(keptTarget(discountTargets, { benefit: threeForTwoBenefit, target: almonds })).toEqual({
+      ...almonds,
+      status: "Por peso",
+    });
+  });
 
-    expect(unlistedTarget(discountTargets, almonds)).toBeUndefined();
+  test("drops a product sold by the unit that a buy-N-pay-M promotion can take", () => {
+    expect(
+      keptTarget(discountTargets, { benefit: threeForTwoBenefit, target: yerba }),
+    ).toBeUndefined();
+  });
+
+  test("drops a product sold by weight that a percentage promotion can take", () => {
+    expect(
+      keptTarget(discountTargets, {
+        benefit: { kind: "PERCENT_OFF", percent: 10 },
+        target: almonds,
+      }),
+    ).toBeUndefined();
   });
 
   test("looks for the current target only among the targets of its kind", () => {
     const productNamedLikeTag = { kind: "TAG", id: almondsProduct.id, name: "Aceite" } as const;
 
-    expect(unlistedTarget(discountTargets, productNamedLikeTag)).toEqual(productNamedLikeTag);
+    expect(
+      keptTarget(discountTargets, { benefit: threeForTwoBenefit, target: productNamedLikeTag }),
+    ).toEqual({ ...productNamedLikeTag, status: "Inactivo" });
   });
 
   test("has nothing to keep without a current target", () => {
-    expect(unlistedTarget(discountTargets, undefined)).toBeUndefined();
+    expect(keptTarget(discountTargets, undefined)).toBeUndefined();
+  });
+});
+
+describe("soldByWeightHelp", () => {
+  const onAlmonds = { ...threeForTwo, targetId: almondsProduct.id };
+
+  test("says a product sold by weight does not take a buy-N-pay-M promotion", () => {
+    expect(soldByWeightHelp(onAlmonds, discountTargets)).toBe(
+      "Este producto se vende por peso: Lleve N, pague M no se le aplica.",
+    );
+  });
+
+  test("says nothing for a product sold by the unit", () => {
+    expect(
+      soldByWeightHelp({ ...threeForTwo, targetId: yerbaProduct.id }, discountTargets),
+    ).toBeUndefined();
+  });
+
+  test("says nothing for a percentage promotion", () => {
+    expect(
+      soldByWeightHelp({ ...onAlmonds, benefitKind: "PERCENT_OFF" }, discountTargets),
+    ).toBeUndefined();
+  });
+
+  test("says nothing without a chosen product", () => {
+    expect(soldByWeightHelp({ ...threeForTwo, targetId: null }, discountTargets)).toBeUndefined();
   });
 });
 
