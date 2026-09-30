@@ -69,18 +69,19 @@ export function AuthorizationSection({
   disabled = false,
 }: AuthorizationSectionProps) {
   const noticeId = useId();
-  const { refusal, pinInput } = authorization;
+  const { refusal, pinInput, secondsLeft } = authorization;
 
   useEffect(() => {
     if (
       !disabled &&
+      secondsLeft === 0 &&
       refusal !== undefined &&
       refusal.kind !== "lacks_permission" &&
       refusal.kind !== "locked"
     ) {
       pinInput.current?.focus();
     }
-  }, [disabled, refusal, pinInput]);
+  }, [disabled, secondsLeft, refusal, pinInput]);
 
   if (!authorization.required) {
     return null;

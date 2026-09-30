@@ -265,6 +265,7 @@ describe("an action guarded by another person's PIN", () => {
 
       await vi.advanceTimersByTimeAsync(1000);
       await expect.element(screen.getByLabelText("PIN")).toBeEnabled();
+      await expect.element(screen.getByLabelText("PIN")).toHaveFocus();
       await expect
         .element(
           screen.getByText(
