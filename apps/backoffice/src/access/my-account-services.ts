@@ -1,4 +1,5 @@
 import { startAuthentication, startRegistration } from "@simplewebauthn/browser";
+import type { EmitUserPinCodeModalServices } from "./emit-user-pin-code-modal";
 import {
   fetchPasskeyRegistrationChallenge,
   fetchPasskeys,
@@ -9,17 +10,20 @@ import type { RegisterOwnPasskeyModalServices } from "./register-own-passkey-mod
 import type { RemoveOwnPasskeyModalServices } from "./remove-own-passkey-modal";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./session-api";
 import { signalUnknownCredential } from "./signal-unknown-credential";
+import { emitUserPinCode } from "./users-api";
 
 export type MyAccountScreenServices = {
   fetchPasskeys: typeof fetchPasskeys;
 } & RegisterOwnPasskeyModalServices &
-  RemoveOwnPasskeyModalServices;
+  RemoveOwnPasskeyModalServices &
+  EmitUserPinCodeModalServices;
 
 export const defaultMyAccountScreenServices: MyAccountScreenServices = {
   fetchPasskeys,
   fetchPasskeyRegistrationChallenge,
   registerPasskey,
   removePasskey,
+  emitUserPinCode,
   fetchSessionAuthorizationOptions,
   authorizeSession,
   startAuthentication,

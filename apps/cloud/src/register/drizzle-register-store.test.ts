@@ -15,6 +15,7 @@ import {
   registerSnapshotKeys,
   registers,
 } from "../platform/db/schema.js";
+import { hashSecretCode } from "../platform/secret-code.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
@@ -22,10 +23,7 @@ import { issueDeviceToken } from "./device-token.js";
 import { DrizzleRegisterStore } from "./drizzle-register-store.js";
 import { generateInstallationKey } from "./installation-key.js";
 import { installationKeyCipher } from "./installation-key-cipher.js";
-import {
-  hashRegisterEnrollmentCode,
-  registerEnrollmentCodeMatches,
-} from "./register-enrollment-code.js";
+import { registerEnrollmentCodeMatches } from "./register-enrollment-code.js";
 
 const NOW = new Date("2026-09-29T12:00:00.000Z");
 const CODE = "P4NX7KWE2QRT6MZD";
@@ -69,7 +67,7 @@ async function insertCode(
   await db.insert(registerEnrollmentCodes).values({
     registerId,
     codeLookup: code.slice(0, 4),
-    codeHash: hashRegisterEnrollmentCode(code),
+    codeHash: hashSecretCode(code),
     issuedAt: minutesAgo(5),
     expiresAt: minutesAgo(-10),
     redeemedAt: overrides.redeemedAt ?? null,
@@ -143,7 +141,7 @@ describe("DrizzleRegisterStore", () => {
 
     expect(locked.map((code) => code.registerId)).toEqual([first, second].sort());
     expect(locked.find((code) => code.registerId === second)).toMatchObject({
-      codeHash: hashRegisterEnrollmentCode("P4NXAAAAAAAAAAAA"),
+      codeHash: hashSecretCode("P4NXAAAAAAAAAAAA"),
       failedAttempts: 2,
       redeemedAt: null,
       expiresAt: minutesAgo(-10),

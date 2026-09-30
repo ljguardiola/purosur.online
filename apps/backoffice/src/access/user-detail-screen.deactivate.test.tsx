@@ -8,6 +8,7 @@ import {
   NO_DEACTIVATE_ACCESS,
   openDeactivateModal,
   REACTIVATE_USERS_ACCESS,
+  RESET_USER_PIN_ACCESS,
   renderScreen,
 } from "./test-support/user-detail-screen";
 
@@ -152,6 +153,18 @@ test("while the user loads, shows no Desactivar without deactivate or reactivate
   vi.mocked(services.fetchUser).mockReturnValue(new Promise(() => {}));
 
   const screen = await renderScreen(services, () => {}, "user-1", "user-2", NO_DEACTIVATE_ACCESS);
+
+  await expect.element(screen.getByRole("status").first()).toHaveTextContent("Cargando…");
+  expect(screen.getByRole("button", { name: "Desactivar" }).query()).toBeNull();
+});
+
+test("while the user loads, shows no Desactivar to someone who may only reset PINs", async () => {
+  const services = createServices({
+    fetchUserPasskeys: vi.fn().mockResolvedValue({ kind: "forbidden" }),
+  });
+  vi.mocked(services.fetchUser).mockReturnValue(new Promise(() => {}));
+
+  const screen = await renderScreen(services, () => {}, "user-1", "user-2", RESET_USER_PIN_ACCESS);
 
   await expect.element(screen.getByRole("status").first()).toHaveTextContent("Cargando…");
   expect(screen.getByRole("button", { name: "Desactivar" }).query()).toBeNull();

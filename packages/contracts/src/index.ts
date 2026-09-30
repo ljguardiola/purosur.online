@@ -40,6 +40,8 @@ export type { UserCreationBody } from "./access/user-creation.js";
 export { userCreationBodySchema } from "./access/user-creation.js";
 export type { UserEditBody } from "./access/user-edit.js";
 export { userEditBodySchema } from "./access/user-edit.js";
+export type { UserPinCodeWire } from "./access/user-pin-code.js";
+export { userPinCodeSchema } from "./access/user-pin-code.js";
 export type { AlertDetail } from "./alerts/alert-detail.js";
 export { alertDetailSchema } from "./alerts/alert-detail.js";
 export type { AlertListPage, AlertSummary } from "./alerts/alert-summary.js";

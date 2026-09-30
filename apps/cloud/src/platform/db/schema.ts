@@ -527,6 +527,7 @@ export const changes = pgTable(
   },
   (table) => [
     index("changes_entity_entity_id_idx").on(table.entity, table.entityId, table.changeSeq),
+    index("changes_entity_price_list_id_idx").on(table.entity, table.priceListId, table.changeSeq),
   ],
 );
 
@@ -584,6 +585,38 @@ export const passkeys = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex("passkeys_credential_id_key").on(table.credentialId)],
+);
+
+export const userPins = pgTable("user_pins", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id),
+  salt: text("salt").notNull(),
+  hash: text("hash").notNull(),
+  setAt: timestamp("set_at", { withTimezone: true }).notNull(),
+});
+
+export const userPinCodes = pgTable(
+  "user_pin_codes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    codeHash: text("code_hash").notNull(),
+    issuedBy: uuid("issued_by")
+      .notNull()
+      .references(() => users.id),
+    issuedAt: timestamp("issued_at", { withTimezone: true }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    failedAttempts: integer("failed_attempts").notNull().default(0),
+    redeemedAt: timestamp("redeemed_at", { withTimezone: true }),
+    supersededAt: timestamp("superseded_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("user_pin_codes_code_hash_key").on(table.codeHash),
+    index("user_pin_codes_user_id_issued_at_idx").on(table.userId, table.issuedAt),
+  ],
 );
 
 export const recoveryTokens = pgTable(

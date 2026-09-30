@@ -285,8 +285,15 @@
     {
       "idx": 40,
       "version": "7",
-      "when": 1790738379339,
-      "tag": "0040_catalog_changes",
+      "when": 1790741705498,
+      "tag": "0040_user_pin_codes",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1790743912402,
+      "tag": "0041_catalog_changes",
       "breakpoints": true
     }
   ]

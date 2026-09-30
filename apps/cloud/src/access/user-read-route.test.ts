@@ -154,6 +154,23 @@ describe("GET /users/:id", () => {
     });
   });
 
+  it("returns the user's shape for a holder of only reset_user_pin though not an Administrator", async () => {
+    const locationId = await seededLocationId(db);
+    const roleId = await insertCashierRole("Encargada", ["reset_user_pin"]);
+    const userId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId,
+      locationId,
+    });
+    const rawSessionId = await insertSession(userId);
+
+    const response = await getUser(userId, rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ id: userId, first_name: "Ada Lovelace" });
+  });
+
   it("returns the user's shape for an id in the session's own branch", async () => {
     const locationId = await seededLocationId(db);
     const administratorRoleId = await seededAdministratorRoleId();

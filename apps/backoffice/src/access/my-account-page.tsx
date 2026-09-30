@@ -11,6 +11,8 @@ export function MyAccountPage(): ReactElement {
   return (
     <MyAccountScreen
       displayName={session.displayName}
+      userId={session.userId}
+      access={session}
       onSessionEnded={sessionActions.sessionEnded}
       services={services.myAccountScreen}
     />

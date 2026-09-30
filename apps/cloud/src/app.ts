@@ -34,6 +34,7 @@ import { registerUserDeactivationRoutes } from "./access/user-deactivation-route
 import { registerUserEditRoutes } from "./access/user-edit-route.js";
 import { registerUserPasskeyRemovalRoutes } from "./access/user-passkey-removal-route.js";
 import { registerUserPasskeysListRoute } from "./access/user-passkeys-list-route.js";
+import { registerUserPinCodeRoutes } from "./access/user-pin-code-route.js";
 import { registerUserReactivationRoutes } from "./access/user-reactivation-route.js";
 import { registerUserReadRoute } from "./access/user-read-route.js";
 import type { UsersRouteOptions } from "./access/users-list-route.js";
@@ -235,6 +236,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerUserPasskeysListRoute(api, options.users);
         registerUserPasskeyRemovalRoutes(api, options.users);
         registerUserDeactivationRoutes(api, options.users);
+        registerUserPinCodeRoutes(api, options.users);
         registerUserReactivationRoutes(api, options.users);
       }
 

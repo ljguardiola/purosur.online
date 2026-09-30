@@ -12,6 +12,7 @@ import {
   registerInstallations,
   registers,
 } from "../platform/db/schema.js";
+import { hashSecretCode } from "../platform/secret-code.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import {
   createIntegrationDatabase,
@@ -19,7 +20,6 @@ import {
 } from "../test-support/integration-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerDeviceEnrollmentRoute } from "./device-enrollment-route.js";
-import { hashRegisterEnrollmentCode } from "./register-enrollment-code.js";
 
 // Runs as the limited `cloud_app` role the cloud connects with, which PGlite does not model.
 const CODE = "P4NX7KWE2QRT6MZD";
@@ -77,7 +77,7 @@ async function insertRegisterWithCode(): Promise<string> {
   await db.insert(registerEnrollmentCodes).values({
     registerId: register.id,
     codeLookup: CODE.slice(0, 4),
-    codeHash: hashRegisterEnrollmentCode(CODE),
+    codeHash: hashSecretCode(CODE),
     issuedAt,
     expiresAt: new Date(issuedAt.getTime() + 15 * 60 * 1000),
   });

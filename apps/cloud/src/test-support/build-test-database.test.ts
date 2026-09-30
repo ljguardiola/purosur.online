@@ -43,6 +43,8 @@ import {
   stockCounts,
   stockMovements,
   tags,
+  userPinCodes,
+  userPins,
   userRoles,
   users,
 } from "../platform/db/schema.js";
@@ -294,6 +296,19 @@ describe("buildTestDatabase", () => {
       deviceType: "singleDevice",
       backedUp: false,
       name: "Passkey",
+    });
+    await db.insert(userPins).values({
+      userId: user.id,
+      salt: "salt",
+      hash: "hash",
+      setAt: new Date("2026-01-05T12:00:00.000Z"),
+    });
+    await db.insert(userPinCodes).values({
+      userId: user.id,
+      codeHash: "pin-code-hash",
+      issuedBy: user.id,
+      issuedAt: new Date("2026-01-05T12:00:00.000Z"),
+      expiresAt: new Date("2026-01-05T12:15:00.000Z"),
     });
     await db.insert(recoveryTokens).values({
       userId: user.id,

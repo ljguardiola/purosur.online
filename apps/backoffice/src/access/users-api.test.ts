@@ -4,6 +4,7 @@ import {
   createUser,
   deactivateUser,
   editUser,
+  emitUserPinCode,
   fetchUser,
   fetchUserPasskeys,
   fetchUsers,
@@ -672,4 +673,87 @@ test("reactivateUser reports failed on any other status or a network failure", a
 
   vi.mocked(fetch).mockRejectedValue(new TypeError("network down"));
   await expect(reactivateUser("user-2")).resolves.toEqual({ kind: "failed" });
+});
+
+test("emitUserPinCode posts to the user's pin-codes route with no body and returns the code and its expiry on 201", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(201, { code: "K7QM2XPA7DTR4HWN", expires_at: "2026-09-30T12:15:00.000Z" }),
+  );
+
+  const outcome = await emitUserPinCode("user-2");
+
+  expect(outcome).toEqual({
+    kind: "ok",
+    value: { code: "K7QM2XPA7DTR4HWN", expiresAt: "2026-09-30T12:15:00.000Z" },
+  });
+  expect(fetch).toHaveBeenCalledWith("/api/users/user-2/pin-codes", { method: "POST" });
+});
+
+test.each([
+  ["without a code", { expires_at: "2026-09-30T12:15:00.000Z" }],
+  ["with a malformed code", { code: "short", expires_at: "2026-09-30T12:15:00.000Z" }],
+  ["without an expiry", { code: "K7QM2XPA7DTR4HWN" }],
+])("emitUserPinCode reports failed on a 201 %s", async (_name, body) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(201, body));
+
+  await expect(emitUserPinCode("user-2")).resolves.toEqual({ kind: "failed" });
+});
+
+test("emitUserPinCode reports failed on a 201 that is not JSON", async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response("not json", { status: 201 }));
+
+  await expect(emitUserPinCode("user-2")).resolves.toEqual({ kind: "failed" });
+});
+
+test("emitUserPinCode reports not_found on 404", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(404, { code: "not_found" }));
+
+  await expect(emitUserPinCode("user-2")).resolves.toEqual({ kind: "not_found" });
+});
+
+test("emitUserPinCode reports inactive on a 409 user_inactive", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "user_inactive" }));
+
+  await expect(emitUserPinCode("user-2")).resolves.toEqual({ kind: "inactive" });
+});
+
+test("emitUserPinCode reports failed on any other 409", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "something_else" }));
+
+  await expect(emitUserPinCode("user-2")).resolves.toEqual({ kind: "failed" });
+});
+
+test("emitUserPinCode reports authorization_required on 401 with that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "authorization_required" }));
+
+  await expect(emitUserPinCode("user-2")).resolves.toEqual({ kind: "authorization_required" });
+});
+
+test("emitUserPinCode reports unauthenticated on a plain 401", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "unauthenticated" }));
+
+  await expect(emitUserPinCode("user-2")).resolves.toEqual({ kind: "unauthenticated" });
+});
+
+test("emitUserPinCode reports forbidden on 403", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(403, { code: "forbidden" }));
+
+  await expect(emitUserPinCode("user-2")).resolves.toEqual({ kind: "forbidden" });
+});
+
+test("emitUserPinCode reports rate_limited with the Retry-After seconds on 429", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "90" }));
+
+  await expect(emitUserPinCode("user-2")).resolves.toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 90,
+  });
+});
+
+test("emitUserPinCode reports failed on any other status or a network failure", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(500));
+  await expect(emitUserPinCode("user-2")).resolves.toEqual({ kind: "failed" });
+
+  vi.mocked(fetch).mockRejectedValue(new TypeError("network down"));
+  await expect(emitUserPinCode("user-2")).resolves.toEqual({ kind: "failed" });
 });

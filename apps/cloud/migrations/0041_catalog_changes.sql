@@ -1,6 +1,7 @@
 ALTER TYPE "public"."change_op" ADD VALUE 'delete';--> statement-breakpoint
 ALTER TABLE "changes" ADD COLUMN "price_list_id" uuid;--> statement-breakpoint
-ALTER TABLE "price_lists" ADD COLUMN "version" integer DEFAULT 1 NOT NULL;
+ALTER TABLE "price_lists" ADD COLUMN "version" integer DEFAULT 1 NOT NULL;--> statement-breakpoint
+CREATE INDEX "changes_entity_price_list_id_idx" ON "changes" USING btree ("entity","price_list_id","change_seq");
 --> statement-breakpoint
 -- Everything already in the catalog before its changes were logged is logged once, so a register
 -- pulling from the very first cursor receives it.

@@ -27,7 +27,10 @@ export function registerUsersListRoute<TQueryResult extends PgQueryResultHKT>(
     "/users",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
-      config: { access: permissionAccess(["deactivate_users", "reactivate_users"]), sessionSource },
+      config: {
+        access: permissionAccess(["deactivate_users", "reactivate_users", "reset_user_pin"]),
+        sessionSource,
+      },
     },
     async (request, reply) => {
       const openSession = openSessionOf(request);
