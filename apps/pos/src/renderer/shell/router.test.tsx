@@ -43,6 +43,7 @@ function contextWith(
     enrollment,
     person: person ?? undefined,
     enroll: async () => ({ kind: "enrolled" }),
+    registerName: async () => null,
     signInUsers: async () => [{ id: "u1", first_name: "Ada" }],
     signIn: async () => ({ kind: "signed_in", person: PERSON }),
     redeemPinCode: async () => ({ kind: "redeemed" }),
@@ -213,6 +214,45 @@ describe("the register's router", () => {
     await expect
       .element(screen.getByRole("complementary", { name: "Persona en la caja" }))
       .toHaveTextContent("Ada");
+  });
+
+  it("names the register in the signed-in screen's eyebrow", async () => {
+    const router = createRegisterRouter(
+      routeTree,
+      { ...contextWith("up"), registerName: async () => "Caja 1" },
+      "/",
+    );
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screen.getByText("Caja 1 · Sin sesión abierta")).toBeVisible();
+  });
+
+  it("leaves the register's name out of the sign-in screen's eyebrow when reading it fails", async () => {
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", null),
+        registerName: () => Promise.reject(new Error("the core connection was replaced")),
+      },
+      "/sign-in",
+    );
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screen.getByText("Sin sesión abierta", { exact: true })).toBeVisible();
+  });
+
+  it("shows the core-down notice without waiting for the register's name", async () => {
+    const router = createRegisterRouter(
+      routeTree,
+      { ...contextWith("down"), registerName: () => new Promise<string | null>(() => {}) },
+      "/core-down",
+    );
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screen.getByText(CORE_DOWN_TITLE)).toBeVisible();
   });
 
   it("renders the PIN code redemption screen while enrolled and nobody is signed in", async () => {

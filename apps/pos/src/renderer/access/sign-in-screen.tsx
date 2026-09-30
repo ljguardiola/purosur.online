@@ -48,11 +48,13 @@ function noticeFor(refusal: Refusal): Notice {
 export type SignInScreenProps = {
   loadUsers: () => Promise<SignInUser[]>;
   signIn: (userId: string, pin: string) => Promise<SignInOutcome>;
+  registerName: string | null;
 };
 
 function SignInPanel({
   loadUsers,
   signIn,
+  registerName,
   onRetryLoading,
 }: SignInScreenProps & { onRetryLoading: () => void }) {
   const headingId = useId();
@@ -131,7 +133,7 @@ function SignInPanel({
   return (
     <main className="flex w-full max-w-110 flex-col gap-6">
       <div className="flex flex-col gap-1.5">
-        <SessionEyebrow />
+        <SessionEyebrow registerName={registerName} />
         <h1 id={headingId} className="text-display text-text-accent">
           ¿Quién abre la caja?
         </h1>

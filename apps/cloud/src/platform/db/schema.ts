@@ -420,6 +420,7 @@ export const registers = pgTable(
       .notNull()
       .references(() => locations.id),
     name: text("name").notNull(),
+    version: integer("version").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

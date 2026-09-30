@@ -7,7 +7,7 @@ const PERSON = { first_name: "Ada", permission_keys: ["sell_and_charge", "void_s
 
 describe("SignedInScreen", () => {
   it("asks what to do, with no session open", async () => {
-    const screen = await render(<SignedInScreen person={PERSON} />);
+    const screen = await render(<SignedInScreen person={PERSON} registerName={null} />);
 
     await expect.element(screen.getByText("Sin sesión abierta")).toBeVisible();
     await expect.element(screen.getByRole("heading", { name: "¿Qué querés hacer?" })).toBeVisible();
@@ -15,7 +15,7 @@ describe("SignedInScreen", () => {
   });
 
   it("shows only the first name of the person who is in", async () => {
-    const screen = await render(<SignedInScreen person={PERSON} />);
+    const screen = await render(<SignedInScreen person={PERSON} registerName={null} />);
 
     await expect
       .element(screen.getByRole("complementary", { name: "Persona en la caja" }))
@@ -24,7 +24,7 @@ describe("SignedInScreen", () => {
   });
 
   it("offers nothing to do yet", async () => {
-    const screen = await render(<SignedInScreen person={PERSON} />);
+    const screen = await render(<SignedInScreen person={PERSON} registerName={null} />);
 
     await expect.element(screen.getByRole("button")).not.toBeInTheDocument();
     await expect.element(screen.getByRole("link")).not.toBeInTheDocument();

@@ -10,6 +10,7 @@ export type {
   CloudChangeFeed,
   CloudChangeFeedAnswer,
   LocalReplica,
+  PullAudience,
   PulledChange,
   PullPage,
   PullPorts,

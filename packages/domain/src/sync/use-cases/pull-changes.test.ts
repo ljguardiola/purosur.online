@@ -6,6 +6,7 @@ const NOW = new Date("2026-09-29T12:00:00.000Z");
 const BRANCH = "branch-a";
 const OTHER_BRANCH = "branch-b";
 const DEVICE = "device-1";
+const REGISTER = "register-1";
 
 function changesFor(locationId: string, firstSeq: number, count: number): FakeLoggedChange[] {
   return Array.from({ length: count }, (_, index) => ({
@@ -17,7 +18,7 @@ function changesFor(locationId: string, firstSeq: number, count: number): FakeLo
 function pull(changeLog: FakeChangeLog, since: number) {
   return pullChanges(
     { changeLog, clock: { now: () => NOW } },
-    { deviceId: DEVICE, locationId: BRANCH, since },
+    { deviceId: DEVICE, locationId: BRANCH, registerId: REGISTER, since },
   );
 }
 
@@ -52,7 +53,20 @@ describe("pulling changes", () => {
     const page = await pull(changeLog, 0);
 
     expect(page).toEqual({ changes: changesFor(BRANCH, 1, 500), cursor: 500, hasMore: true });
-    expect(changeLog.readRequests).toEqual([{ locationId: BRANCH, since: 0, limit: 501 }]);
+    expect(changeLog.readRequests).toEqual([
+      { audience: { locationId: BRANCH, registerId: REGISTER }, since: 0, limit: 501 },
+    ]);
+  });
+
+  it("asks for the changes of the branch and of the register that pulls", async () => {
+    const changeLog = new FakeChangeLog(changesFor(BRANCH, 1, 1));
+
+    await pull(changeLog, 0);
+
+    expect(changeLog.readRequests[0]?.audience).toEqual({
+      locationId: BRANCH,
+      registerId: REGISTER,
+    });
   });
 
   it("keeps the cursor when nothing is left", async () => {

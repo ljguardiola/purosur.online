@@ -36,7 +36,7 @@ afterAll(async () => {
 
 describe("a pull run as the role the deployed cloud connects with", () => {
   it("gives a page holding every kind of catalog, price, user and role change", async () => {
-    const { deviceId, locationId } = await insertEnrolledInstallation(db);
+    const { deviceId, locationId, registerId } = await insertEnrolledInstallation(db);
     const store = new DrizzleCatalogStore(db);
     const category = await createCategory(store, { name: "Almacén", parentId: null });
     const tag = await createTag(store, { name: "Sin TACC" });
@@ -90,7 +90,7 @@ describe("a pull run as the role the deployed cloud connects with", () => {
     );
     const ports = { changeLog: new DrizzleChangeLog(db), clock: { now: () => new Date() } };
 
-    const page = await pullChanges(ports, { deviceId, locationId, since: 0 });
+    const page = await pullChanges(ports, { deviceId, locationId, registerId, since: 0 });
 
     expect(page.changes.map((change) => change.entity).sort()).toEqual([
       "branch_settings",

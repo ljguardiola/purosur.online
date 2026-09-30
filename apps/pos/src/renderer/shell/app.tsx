@@ -30,6 +30,7 @@ export function App({ core }: { core: CoreClient }) {
 
   const services = {
     enroll,
+    registerName: () => core.registerName(),
     signInUsers: () => core.signInUsers(),
     signIn,
     redeemPinCode: (typedCode: string, newPin: string) => core.redeemPinCode(typedCode, newPin),
@@ -55,6 +56,8 @@ export function App({ core }: { core: CoreClient }) {
       current = false;
     };
   }, [core, coreStatus]);
+
+  useEffect(() => core.onPulled(() => void router.invalidate()), [core, router]);
 
   useEffect(() => {
     router.navigate({ to: routeFor({ coreStatus, enrollment, person }), replace: true });
