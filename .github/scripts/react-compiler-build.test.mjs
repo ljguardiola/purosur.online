@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
-import { test } from "node:test";
+import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { failWhenHeldOpen } from "./test-support/fail-when-held-open.mjs";
 
 const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 const backofficeDir = join(repoRoot, "apps/backoffice");
@@ -18,13 +19,25 @@ const COMPILER_RUNTIME_MARKER = "react.memo_cache_sentinel";
 // leaving discovery on hangs `server.close()` forever.
 const NO_DEPENDENCY_DISCOVERY = { noDiscovery: true };
 
+// A file watcher's initial scan can still be running when `server.close()` returns, and the
+// watches it opens afterwards keep the process alive; nothing here needs to see a file change.
+const CHECK_SERVER = { middlewareMode: true, hmr: false, ws: false, watch: null };
+
+const CHECK_DEADLINE = { timeout: 30_000 };
+
+after(() => failWhenHeldOpen(10_000));
+
 function requireFrom(packageJsonDir) {
   return createRequire(join(packageJsonDir, "package.json"));
 }
 
-async function withServer(config, run) {
-  const vite = await import(requireFrom(backofficeDir).resolve("vite"));
-  const server = await vite.createServer(config);
+async function withServer(vite, config, run) {
+  const server = await vite.createServer({
+    ...config,
+    configFile: false,
+    optimizeDeps: NO_DEPENDENCY_DISCOVERY,
+    server: CHECK_SERVER,
+  });
   try {
     return await run(server);
   } finally {
@@ -32,19 +45,17 @@ async function withServer(config, run) {
   }
 }
 
-async function transformWithBackofficeConfig(url) {
-  return withServer(
-    {
-      configFile: join(backofficeDir, "vite.config.ts"),
-      root: backofficeDir,
-      optimizeDeps: NO_DEPENDENCY_DISCOVERY,
-      server: { middlewareMode: true, hmr: false, ws: false },
-    },
-    (server) => server.transformRequest(url),
+async function withBackofficeServer(run) {
+  const vite = await import(requireFrom(backofficeDir).resolve("vite"));
+  const loaded = await vite.loadConfigFromFile(
+    { command: "serve", mode: "development" },
+    join(backofficeDir, "vite.config.ts"),
+    backofficeDir,
   );
+  return withServer(vite, { ...loaded.config, root: backofficeDir }, run);
 }
 
-async function transformWithRendererConfig(url) {
+async function withRendererServer(run) {
   const requireFromPos = requireFrom(posDir);
   const electronVite = await import(requireFromPos.resolve("electron-vite"));
   const loaded = await electronVite.loadConfigFromFile(
@@ -55,21 +66,10 @@ async function transformWithRendererConfig(url) {
   const renderer = loaded.config.renderer;
 
   const vite = await import(requireFromPos.resolve("vite"));
-  const server = await vite.createServer({
-    ...renderer,
-    root: resolve(posDir, renderer.root ?? "."),
-    configFile: false,
-    optimizeDeps: NO_DEPENDENCY_DISCOVERY,
-    server: { middlewareMode: true, hmr: false, ws: false },
-  });
-  try {
-    return await server.transformRequest(url);
-  } finally {
-    await server.close();
-  }
+  return withServer(vite, { ...renderer, root: resolve(posDir, renderer.root ?? ".") }, run);
 }
 
-async function transformWithTestProjectConfig(projectName, url) {
+async function withTestProjectServer(projectName, run) {
   const vite = await import(requireFrom(backofficeDir).resolve("vite"));
   const loaded = await vite.loadConfigFromFile(
     { command: "serve", mode: "test" },
@@ -84,59 +84,105 @@ async function transformWithTestProjectConfig(projectName, url) {
   );
   assert.ok(testProject, `the root vitest config no longer declares a "${projectName}" project`);
 
-  const server = await vite.createServer({
-    root: repoRoot,
-    resolve: loaded.config.resolve,
-    plugins: testProject.plugins,
-    configFile: false,
-    logLevel: "silent",
-    optimizeDeps: NO_DEPENDENCY_DISCOVERY,
-    server: { middlewareMode: true, hmr: false, ws: false },
-  });
-  try {
-    return await server.transformRequest(url);
-  } finally {
-    await server.close();
-  }
+  return withServer(
+    vite,
+    {
+      root: repoRoot,
+      resolve: loaded.config.resolve,
+      plugins: testProject.plugins,
+      logLevel: "silent",
+    },
+    run,
+  );
 }
 
-test("the backoffice's Vite build compiles a real screen component with the React Compiler", async () => {
-  const result = await transformWithBackofficeConfig("/src/access/access-layout.tsx");
+async function transformWithBackofficeConfig(url) {
+  return withBackofficeServer((server) => server.transformRequest(url));
+}
 
-  assert.ok(result, "the backoffice's dev server could not transform the component");
-  assert.ok(result.code.includes(COMPILER_RUNTIME_MARKER));
-});
+async function transformWithRendererConfig(url) {
+  return withRendererServer((server) => server.transformRequest(url));
+}
 
-test("the backoffice's Vite build leaves a plain, non-component module untouched by the compiler", async () => {
-  const result = await transformWithBackofficeConfig("/src/platform/es-ar-number.ts");
+async function transformWithTestProjectConfig(projectName, url) {
+  return withTestProjectServer(projectName, (server) => server.transformRequest(url));
+}
 
-  assert.ok(result, "the backoffice's dev server could not transform the module");
-  assert.ok(!result.code.includes(COMPILER_RUNTIME_MARKER));
-});
+test(
+  "the backoffice's Vite build compiles a real screen component with the React Compiler",
+  CHECK_DEADLINE,
+  async () => {
+    const result = await transformWithBackofficeConfig("/src/access/access-layout.tsx");
 
-test("the register renderer's Vite build compiles a real screen component with the React Compiler", async () => {
-  const result = await transformWithRendererConfig("/shell/core-down-notice.tsx");
+    assert.ok(result, "the backoffice's dev server could not transform the component");
+    assert.ok(result.code.includes(COMPILER_RUNTIME_MARKER));
+  },
+);
 
-  assert.ok(result, "the renderer's dev server could not transform the component");
-  assert.ok(result.code.includes(COMPILER_RUNTIME_MARKER));
-});
+test(
+  "the backoffice's Vite build leaves a plain, non-component module untouched by the compiler",
+  CHECK_DEADLINE,
+  async () => {
+    const result = await transformWithBackofficeConfig("/src/platform/es-ar-number.ts");
 
-test("the root vitest config's browser project compiles a packages/ui component with the React Compiler", async () => {
-  const result = await transformWithTestProjectConfig(
-    "browser",
-    "/packages/ui/src/components/forms/icon-button.tsx",
-  );
+    assert.ok(result, "the backoffice's dev server could not transform the module");
+    assert.ok(!result.code.includes(COMPILER_RUNTIME_MARKER));
+  },
+);
 
-  assert.ok(result, "the browser project's dev server could not transform the component");
-  assert.ok(result.code.includes(COMPILER_RUNTIME_MARKER));
-});
+test(
+  "the register renderer's Vite build compiles a real screen component with the React Compiler",
+  CHECK_DEADLINE,
+  async () => {
+    const result = await transformWithRendererConfig("/shell/core-down-notice.tsx");
 
-test("the root vitest config's catalog-visual project compiles a packages/ui component with the React Compiler", async () => {
-  const result = await transformWithTestProjectConfig(
-    "catalog-visual",
-    "/packages/ui/src/components/forms/icon-button.tsx",
-  );
+    assert.ok(result, "the renderer's dev server could not transform the component");
+    assert.ok(result.code.includes(COMPILER_RUNTIME_MARKER));
+  },
+);
 
-  assert.ok(result, "the catalog-visual project's dev server could not transform the component");
-  assert.ok(result.code.includes(COMPILER_RUNTIME_MARKER));
-});
+test(
+  "the root vitest config's browser project compiles a packages/ui component with the React Compiler",
+  CHECK_DEADLINE,
+  async () => {
+    const result = await transformWithTestProjectConfig(
+      "browser",
+      "/packages/ui/src/components/forms/icon-button.tsx",
+    );
+
+    assert.ok(result, "the browser project's dev server could not transform the component");
+    assert.ok(result.code.includes(COMPILER_RUNTIME_MARKER));
+  },
+);
+
+test(
+  "the root vitest config's catalog-visual project compiles a packages/ui component with the React Compiler",
+  CHECK_DEADLINE,
+  async () => {
+    const result = await transformWithTestProjectConfig(
+      "catalog-visual",
+      "/packages/ui/src/components/forms/icon-button.tsx",
+    );
+
+    assert.ok(result, "the catalog-visual project's dev server could not transform the component");
+    assert.ok(result.code.includes(COMPILER_RUNTIME_MARKER));
+  },
+);
+
+test(
+  "none of the dev servers these checks start watches the file system",
+  CHECK_DEADLINE,
+  async () => {
+    const servers = [
+      ["backoffice", withBackofficeServer],
+      ["register renderer", withRendererServer],
+      ["browser project", (run) => withTestProjectServer("browser", run)],
+    ];
+
+    for (const [name, withKindOfServer] of servers) {
+      const watchOptions = await withKindOfServer((server) => server.config.server.watch);
+
+      assert.equal(watchOptions, null, `the ${name} dev server watches files`);
+    }
+  },
+);
