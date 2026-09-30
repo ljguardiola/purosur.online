@@ -1,5 +1,6 @@
+import type { DiscountCreationBody } from "@purosur/contracts";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { fetchDiscounts } from "./discounts-api";
+import { createDiscount, fetchDiscounts } from "./discounts-api";
 import { almacenTuesdays, discountList, yerbaOff } from "./test-support/discounts";
 
 function jsonResponse(status: number, body?: unknown, headers?: Record<string, string>): Response {
@@ -59,5 +60,82 @@ describe("fetchDiscounts", () => {
     vi.mocked(fetch).mockRejectedValue(new Error("network down"));
 
     expect(await fetchDiscounts()).toEqual({ kind: "failed" });
+  });
+});
+
+const JSON_POST = { method: "POST", headers: { "Content-Type": "application/json" } };
+
+const creation: DiscountCreationBody = {
+  name: "Yerba de septiembre",
+  benefit: { kind: "PERCENT_OFF", percent: 15 },
+  target: { kind: "PRODUCT", id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000101" },
+  validFrom: "2026-09-12",
+  validTo: "2026-09-30",
+  weekdays: [1, 3],
+};
+
+describe("createDiscount", () => {
+  test("posts the promotion and answers the created one on 201", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(201, yerbaOff));
+
+    expect(await createDiscount(creation)).toEqual({ kind: "ok", discount: yerbaOff });
+    expect(fetch).toHaveBeenCalledWith("/api/discounts", {
+      ...JSON_POST,
+      body: JSON.stringify(creation),
+    });
+  });
+
+  test("returns failed when the created promotion does not have the expected shape", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(201, { id: "discount-9" }));
+
+    expect(await createDiscount(creation)).toEqual({ kind: "failed" });
+  });
+
+  test("returns validation_failed with the field the cloud refused", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse(400, { code: "validation_failed", details: [{ field: "validTo" }] }),
+    );
+
+    expect(await createDiscount(creation)).toEqual({ kind: "validation_failed", field: "validTo" });
+  });
+
+  test("returns failed on a 400 that is not a validation failure", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(400, { code: "other" }));
+
+    expect(await createDiscount(creation)).toEqual({ kind: "failed" });
+  });
+
+  test("returns target_not_found when the target is gone", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "discount_target_not_found" }));
+
+    expect(await createDiscount(creation)).toEqual({ kind: "target_not_found" });
+  });
+
+  test("returns failed on a 409 that names another code", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "other" }));
+
+    expect(await createDiscount(creation)).toEqual({ kind: "failed" });
+  });
+
+  test.each([
+    [401, { kind: "unauthenticated" }],
+    [403, { kind: "forbidden" }],
+    [500, { kind: "failed" }],
+  ])("answers a %i as %j", async (status, outcome) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+    expect(await createDiscount(creation)).toEqual(outcome);
+  });
+
+  test("returns rate_limited with the Retry-After header on 429", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "30" }));
+
+    expect(await createDiscount(creation)).toEqual({ kind: "rate_limited", retryAfterSeconds: 30 });
+  });
+
+  test("returns failed when the request throws", async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+    expect(await createDiscount(creation)).toEqual({ kind: "failed" });
   });
 });

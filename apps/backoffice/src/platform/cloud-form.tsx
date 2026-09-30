@@ -15,6 +15,7 @@ import {
   BoundSegmentedControl,
   BoundSelect,
   BoundTextField,
+  BoundToggleChipGroup,
 } from "./cloud-form-fields";
 
 const { useAppForm } = createFormHook({
@@ -27,6 +28,7 @@ const { useAppForm } = createFormHook({
     QuantityUnitField: BoundQuantityUnitField,
     OptionCardGroup: BoundOptionCardGroup,
     SegmentedControl: BoundSegmentedControl,
+    ToggleChipGroup: BoundToggleChipGroup,
   },
   formComponents: {},
 });

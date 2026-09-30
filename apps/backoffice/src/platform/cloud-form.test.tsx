@@ -991,3 +991,54 @@ test("a segmented control submits the segment that was chosen", async () => {
   await expect.poll(() => onSubmit.mock.calls.length).toBe(1);
   expect(onSubmit).toHaveBeenCalledWith("subtract");
 });
+
+const DAY_CHIPS = [
+  { value: "1", label: "Lun", accessibleName: "Lunes" },
+  { value: "2", label: "Mar", accessibleName: "Martes" },
+  { value: "3", label: "Mié", accessibleName: "Miércoles" },
+] as const;
+
+function ChipsProbe({ onSubmit }: { onSubmit: (days: string[]) => Promise<void> }) {
+  const { form, submit } = useCloudForm({
+    defaultValues: { days: [] as string[] },
+    request: {
+      schema: z.object({ days: z.array(z.string()).min(1) }),
+      from: ({ days }) => ({ days }),
+    },
+    fields: { days: "days" },
+    messages: { days: "Elegí al menos un día." },
+    onSubmit: (request) => onSubmit(request.days),
+  });
+  return (
+    <>
+      <form.AppField name="days">
+        {(field) => <field.ToggleChipGroup label="Días" options={DAY_CHIPS} />}
+      </form.AppField>
+      <button type="button" onClick={() => void submit()}>
+        Enviar
+      </button>
+    </>
+  );
+}
+
+test("a toggle chip group shows its field's message after a failed submit and clears it once a chip is chosen", async () => {
+  const screen = await render(<ChipsProbe onSubmit={() => Promise.resolve()} />);
+
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+  await expect.element(screen.getByText("Elegí al menos un día.")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Martes" }));
+
+  await expect.poll(() => screen.getByText("Elegí al menos un día.").query()).toBeNull();
+});
+
+test("a toggle chip group submits the chips that were chosen, in the order of its options", async () => {
+  const onSubmit = vi.fn<(days: string[]) => Promise<void>>(() => Promise.resolve());
+  const screen = await render(<ChipsProbe onSubmit={onSubmit} />);
+
+  await userEvent.click(screen.getByRole("button", { name: "Miércoles" }));
+  await userEvent.click(screen.getByRole("button", { name: "Lunes" }));
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+  await expect.poll(() => onSubmit.mock.calls.length).toBe(1);
+  expect(onSubmit).toHaveBeenCalledWith(["1", "3"]);
+});

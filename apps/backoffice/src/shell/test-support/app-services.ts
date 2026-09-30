@@ -90,6 +90,12 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     },
     discountsListScreen: {
       fetchDiscounts: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchProducts: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
+      fetchCategories: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
+      fetchTags: vi
+        .fn()
+        .mockResolvedValue({ kind: "ok", value: { tags: [], taggedProductCount: 0 } }),
+      createDiscount: vi.fn(),
     },
     stockBalancesScreen: {
       fetchStockBalances: vi.fn().mockReturnValue(new Promise(() => {})),

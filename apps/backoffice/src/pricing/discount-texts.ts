@@ -12,7 +12,7 @@ export const DISCOUNT_STATUS_PRESENTATION = {
   deactivated: { label: "Desactivada", tone: "neutral" },
 } satisfies Record<DiscountStatus, { label: string; tone: Tone }>;
 
-const DISCOUNT_TARGET_KIND_LABELS = {
+export const DISCOUNT_TARGET_KIND_LABELS = {
   PRODUCT: "Producto",
   CATEGORY: "Categoría",
   TAG: "Distintivo",

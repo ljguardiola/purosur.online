@@ -5,7 +5,17 @@ import { render } from "../../shell/test-support/render-with-router";
 import { DiscountsListScreen } from "../discounts-list-screen";
 import type { DiscountsListScreenServices } from "../discounts-list-services";
 import { type DiscountsListFilters, discountsListFilters } from "../routes";
-import { discountList } from "./discounts";
+import {
+  almacenCategory,
+  almondsProduct,
+  discountList,
+  retiredProduct,
+  retiredTag,
+  sinTaccTag,
+  veganoTag,
+  yerbaProduct,
+  yerbasCategory,
+} from "./discounts";
 
 const TODAY = () => new Date("2026-09-30T15:00:00.000Z");
 
@@ -14,6 +24,18 @@ export function createServices(
 ): DiscountsListScreenServices {
   return {
     fetchDiscounts: vi.fn(),
+    fetchProducts: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: [yerbaProduct, almondsProduct, retiredProduct],
+    }),
+    fetchCategories: vi
+      .fn()
+      .mockResolvedValue({ kind: "ok", value: [almacenCategory, yerbasCategory] }),
+    fetchTags: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: { tags: [sinTaccTag, veganoTag, retiredTag], taggedProductCount: 5 },
+    }),
+    createDiscount: vi.fn(),
     ...overrides,
   };
 }

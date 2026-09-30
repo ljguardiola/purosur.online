@@ -1,4 +1,10 @@
-import type { DiscountList, DiscountSummary } from "@purosur/contracts";
+import type {
+  CategorySummary,
+  DiscountList,
+  DiscountSummary,
+  ProductSummary,
+  TagSummary,
+} from "@purosur/contracts";
 
 export const yerbaOff: DiscountSummary = {
   id: "0b1f3c1e-4f6a-4d0e-9d6e-000000000001",
@@ -83,3 +89,71 @@ export const switchedOffPromotion: DiscountSummary = {
 export function discountList(discounts: DiscountSummary[]): DiscountList {
   return { discounts };
 }
+
+export const yerbaProduct: ProductSummary = {
+  id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000101",
+  name: "Yerba Playadito 1 kg",
+  categoryId: "7a1f3c1e-4f6a-4d0e-9d6e-000000000202",
+  categoryName: "Yerbas",
+  brandId: null,
+  saleUnit: "UNIT",
+  barcodes: ["7790000000101"],
+  tagIds: [],
+  netContent: null,
+  active: true,
+  version: 1,
+};
+
+export const almondsProduct: ProductSummary = {
+  ...yerbaProduct,
+  id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000104",
+  name: "Almendras peladas",
+  saleUnit: "KG",
+  barcodes: ["7790000000104"],
+};
+
+export const retiredProduct: ProductSummary = {
+  ...yerbaProduct,
+  id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000105",
+  name: "Café en grano",
+  barcodes: ["7790000000105"],
+  active: false,
+};
+
+export const almacenCategory: CategorySummary = {
+  id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000201",
+  name: "Almacén",
+  version: 1,
+  parentId: null,
+};
+
+export const yerbasCategory: CategorySummary = {
+  id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000202",
+  name: "Yerbas",
+  version: 1,
+  parentId: "7a1f3c1e-4f6a-4d0e-9d6e-000000000201",
+};
+
+export const sinTaccTag: TagSummary = {
+  id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000301",
+  name: "Sin TACC",
+  active: true,
+  version: 1,
+  productCount: 3,
+};
+
+export const veganoTag: TagSummary = {
+  id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000302",
+  name: "Vegano",
+  active: true,
+  version: 1,
+  productCount: 2,
+};
+
+export const retiredTag: TagSummary = {
+  id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000303",
+  name: "Sin colorantes",
+  active: false,
+  version: 2,
+  productCount: 1,
+};

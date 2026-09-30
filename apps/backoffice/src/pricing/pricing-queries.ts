@@ -101,3 +101,8 @@ export function useDiscountsQuery(params: {
     onForbidden: sendToMyAccount,
   });
 }
+
+export function useRefreshDiscounts(): () => Promise<void> {
+  const client = useQueryClient();
+  return () => client.invalidateQueries({ queryKey: pricesKey });
+}

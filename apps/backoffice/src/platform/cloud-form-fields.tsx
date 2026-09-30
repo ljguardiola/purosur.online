@@ -12,6 +12,8 @@ import {
   type SelectProps,
   TextField,
   type TextFieldProps,
+  ToggleChipGroup,
+  type ToggleChipGroupProps,
 } from "@purosur/ui";
 import { type ReactNode, useId } from "react";
 import { useFieldContext } from "./cloud-form-context";
@@ -102,6 +104,20 @@ export function BoundSegmentedControl<Value extends string>(
 ) {
   const field = useFieldContext<Value>();
   return <SegmentedControl {...props} value={field.state.value} onChange={field.handleChange} />;
+}
+
+export function BoundToggleChipGroup<Value extends string>(
+  props: DistributiveOmit<ToggleChipGroupProps<Value>, FieldValueProps>,
+) {
+  const field = useFieldContext<Value[]>();
+  return (
+    <ToggleChipGroup
+      {...props}
+      value={field.state.value}
+      onChange={field.handleChange}
+      errorMessage={fieldErrorMessage(field.state.meta.errors)}
+    />
+  );
 }
 
 type SharedFieldErrorProps = {

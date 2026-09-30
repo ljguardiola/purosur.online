@@ -1,6 +1,13 @@
-import type { DiscountSummary } from "@purosur/contracts";
+import type {
+  CategorySummary,
+  DiscountSummary,
+  ProductSummary,
+  TagSummary,
+} from "@purosur/contracts";
 import { argentinaCalendarDay, type DiscountStatus, discountStatus } from "@purosur/domain";
 import {
+  Button,
+  FloatingNotification,
   ListFilter,
   SearchField,
   StatusIndicator,
@@ -11,9 +18,11 @@ import {
   textOrder,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
-import { BadgePercent, Search, SearchX } from "lucide-react";
-import { useEffect, useEffectEvent, useState } from "react";
+import { BadgePercent, Check, Plus, Search, SearchX } from "lucide-react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useCategoriesQuery, useProductsQuery, useTagsQuery } from "../catalog/catalog-queries";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { combineCloudData } from "../platform/combine-cloud-data";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import {
@@ -26,7 +35,8 @@ import {
 import { DiscountWeekdays } from "./discount-weekdays";
 import { discountsFooterText } from "./discounts-footer-text";
 import type { DiscountsListScreenServices } from "./discounts-list-services";
-import { useDiscountsQuery } from "./pricing-queries";
+import { NewDiscountModal } from "./new-discount-modal";
+import { useDiscountsQuery, useRefreshDiscounts } from "./pricing-queries";
 import type { DiscountsListFilters } from "./routes";
 
 export type DiscountsListScreenProps = {
@@ -42,6 +52,11 @@ type DiscountKindFilter = DiscountsListFilters["kind"];
 type DiscountSortColumn = DiscountsListFilters["sortBy"];
 
 const NO_DISCOUNTS: DiscountSummary[] = [];
+const NO_PRODUCTS: ProductSummary[] = [];
+const NO_CATEGORIES: CategorySummary[] = [];
+const NO_TAGS: TagSummary[] = [];
+
+type ScreenNotice = { id: number; title: string; description: string };
 
 const CLOCK_REFRESH_MS = 60_000;
 
@@ -98,11 +113,32 @@ export function DiscountsListScreen({
   now,
 }: DiscountsListScreenProps) {
   const clock = now ?? (() => new Date());
-  const data = useDiscountsQuery({ fetchDiscounts: services.fetchDiscounts, onSessionEnded });
+  const discountsData = useDiscountsQuery({
+    fetchDiscounts: services.fetchDiscounts,
+    onSessionEnded,
+  });
+  const productsData = useProductsQuery({
+    status: "active",
+    fetchProducts: services.fetchProducts,
+    onSessionEnded,
+  });
+  const categoriesData = useCategoriesQuery({
+    fetchCategories: services.fetchCategories,
+    onSessionEnded,
+  });
+  const tagsData = useTagsQuery({ fetchTags: services.fetchTags, onSessionEnded });
+  const data = combineCloudData(
+    combineCloudData(combineCloudData(discountsData, productsData), categoriesData),
+    tagsData,
+  );
+  const refreshDiscounts = useRefreshDiscounts();
   const [today, setToday] = useState(() => argentinaCalendarDay(clock()));
   const [search, setSearch] = useState(filters.search);
   const [kindFilter, setKindFilter] = useState<DiscountKindFilter>(filters.kind);
   const [statusFilter, setStatusFilter] = useState<DiscountStatusFilter>(filters.status);
+  const [newModalOpen, setNewModalOpen] = useState(false);
+  const [notice, setNotice] = useState<ScreenNotice | null>(null);
+  const lastNoticeId = useRef(0);
   const [sort, setSort] = useState<TableSort<DiscountSortColumn>>({
     column: filters.sortBy,
     direction: filters.sort,
@@ -135,7 +171,10 @@ export function DiscountsListScreen({
     return () => window.clearInterval(intervalId);
   }, []);
 
-  const discounts = data.status === "loaded" ? data.value.discounts : NO_DISCOUNTS;
+  const [[[{ discounts }, products], categories], { tags }] =
+    data.status === "loaded"
+      ? data.value
+      : [[[{ discounts: NO_DISCOUNTS }, NO_PRODUCTS], NO_CATEGORIES], { tags: NO_TAGS }];
   const statusOf = (discount: DiscountSummary) => discountStatus(discount, today);
   const statusOrder: TableItemOrder<DiscountSummary> = (a, b) =>
     STATUS_RANK[statusOf(a)] - STATUS_RANK[statusOf(b)] || nameOrder(a, b);
@@ -204,83 +243,125 @@ export function DiscountsListScreen({
   const matched = rows.map((row) => row.item);
   const currentCount = matched.filter((discount) => statusOf(discount) === "current").length;
 
+  function showNotice(shown: Omit<ScreenNotice, "id">) {
+    lastNoticeId.current += 1;
+    setNotice({ ...shown, id: lastNoticeId.current });
+  }
+
   return (
-    <ScreenLayout
-      topBar={
-        <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
-          <div className="flex flex-col justify-center">
-            <p className="text-text-subtle text-detail">Catálogo</p>
-            <ScreenTitle>Promociones</ScreenTitle>
+    <>
+      <ScreenLayout
+        topBar={
+          <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
+            <div className="flex flex-col justify-center">
+              <p className="text-text-subtle text-detail">Catálogo</p>
+              <ScreenTitle>Promociones</ScreenTitle>
+            </div>
+            <Button
+              variant="primary"
+              icon={<Plus />}
+              dataStatus={data.status}
+              onPress={() => setNewModalOpen(true)}
+            >
+              Nueva promoción
+            </Button>
           </div>
-        </div>
-      }
-      bodyClassName="gap-4 p-6"
-    >
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="w-105">
-          <SearchField
-            value={search}
-            onChange={setSearch}
-            placeholder="Buscar una promoción"
-            icon={<Search />}
+        }
+        bodyClassName="gap-4 p-6"
+      >
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="w-105">
+            <SearchField
+              value={search}
+              onChange={setSearch}
+              placeholder="Buscar una promoción"
+              icon={<Search />}
+            />
+          </div>
+          <ListFilter
+            label="Tipo:"
+            options={kindFilterOptions}
+            value={kindFilter}
+            onChange={setKindFilter}
+          />
+          <ListFilter
+            label="Estado:"
+            options={statusFilterOptions}
+            value={statusFilter}
+            onChange={setStatusFilter}
           />
         </div>
-        <ListFilter
-          label="Tipo:"
-          options={kindFilterOptions}
-          value={kindFilter}
-          onChange={setKindFilter}
-        />
-        <ListFilter
-          label="Estado:"
-          options={statusFilterOptions}
-          value={statusFilter}
-          onChange={setStatusFilter}
-        />
-      </div>
-      <Table
-        aria-label="Promociones"
-        columns={columns}
-        sort={sort}
-        onSortChange={setSort}
-        {...cloudTableState(data, "las promociones")}
-        rows={rows}
-        empty={
-          discounts.length === 0
-            ? {
-                icon: <BadgePercent />,
-                title: "Todavía no hay promociones",
-                description:
-                  "Se cargan para ofrecer un descuento sobre un producto, una categoría o un distintivo.",
-                variant: "blank",
-              }
-            : search.trim() === ""
+        <Table
+          aria-label="Promociones"
+          columns={columns}
+          sort={sort}
+          onSortChange={setSort}
+          {...cloudTableState(data, "las promociones")}
+          rows={rows}
+          empty={
+            discounts.length === 0
               ? {
-                  icon: <SearchX />,
-                  title: DISCOUNT_STATUS_EMPTY_TITLE[statusFilter],
-                  ...(statusFilter === "open"
-                    ? {
-                        description:
-                          "Las promociones terminadas se ven cambiando el filtro de estado.",
-                      }
-                    : {}),
-                  variant: "filtered",
+                  icon: <BadgePercent />,
+                  title: "Todavía no hay promociones",
+                  description:
+                    "Se cargan para ofrecer un descuento sobre un producto, una categoría o un distintivo.",
+                  variant: "blank",
                 }
-              : {
-                  icon: <SearchX />,
-                  title: "Sin resultados",
-                  description: "Probá con otro nombre.",
-                  variant: "filtered",
-                }
-        }
-        footer={
-          matchCount === 0 ? undefined : (
-            <p className="text-text-subtle text-detail">
-              {discountsFooterText({ shown: matchCount, current: currentCount })}
-            </p>
-          )
-        }
+              : search.trim() === ""
+                ? {
+                    icon: <SearchX />,
+                    title: DISCOUNT_STATUS_EMPTY_TITLE[statusFilter],
+                    ...(statusFilter === "open"
+                      ? {
+                          description:
+                            "Las promociones terminadas se ven cambiando el filtro de estado.",
+                        }
+                      : {}),
+                    variant: "filtered",
+                  }
+                : {
+                    icon: <SearchX />,
+                    title: "Sin resultados",
+                    description: "Probá con otro nombre.",
+                    variant: "filtered",
+                  }
+          }
+          footer={
+            matchCount === 0 ? undefined : (
+              <p className="text-text-subtle text-detail">
+                {discountsFooterText({ shown: matchCount, current: currentCount })}
+              </p>
+            )
+          }
+        />
+      </ScreenLayout>
+      <NewDiscountModal
+        open={newModalOpen}
+        products={products}
+        categories={categories}
+        tags={tags}
+        services={services}
+        onCreated={(created) => {
+          setNewModalOpen(false);
+          void refreshDiscounts();
+          showNotice({
+            title: "Promoción creada",
+            description: `«${created.name}» ya está en la lista.`,
+          });
+        }}
+        onClose={() => setNewModalOpen(false)}
+        onSessionEnded={onSessionEnded}
       />
-    </ScreenLayout>
+      {notice ? (
+        <FloatingNotification
+          key={notice.id}
+          tone="success"
+          icon={<Check />}
+          title={notice.title}
+          description={notice.description}
+          onDismiss={() => setNotice(null)}
+        />
+      ) : null}
+    </>
   );
 }
