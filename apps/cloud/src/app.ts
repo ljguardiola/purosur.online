@@ -9,6 +9,7 @@ import type { PasskeysListRouteOptions } from "./access/passkeys-list-route.js";
 import { registerPasskeysListRoute } from "./access/passkeys-list-route.js";
 import { registerPasskeyRegistrationRoutes } from "./access/passkeys-registration-route.js";
 import { registerPasskeyRemovalRoutes } from "./access/passkeys-removal-route.js";
+import { registerPinCodeRedemptionRoute } from "./access/pin-code-redemption-route.js";
 import type { RecoveryJobQueue } from "./access/recovery-job-queue.js";
 import { registerRecoveryRedemptionRoutes } from "./access/recovery-redemption-route.js";
 import type { RecoveryRouteOptions } from "./access/request-recovery-route.js";
@@ -364,6 +365,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
       if (options.devices) {
         registerDeviceEnrollmentRoute(api, options.devices);
         registerChangesRoute(api, options.devices);
+        registerPinCodeRedemptionRoute(api, options.devices);
         registerDeviceTokenRotationRoute(api, options.devices);
       }
     },

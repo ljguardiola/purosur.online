@@ -34,6 +34,7 @@ export {
   passkeyNameLength,
   permissionsRequiring,
   pinCodeExpiresAt,
+  pinCodeRedemptionAttemptWindowStart,
   pinCodeRetryAfterSeconds,
   pinCodeWindowStart,
   ROLE_NAME_MAX_LENGTH,
