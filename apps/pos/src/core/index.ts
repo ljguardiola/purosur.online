@@ -138,6 +138,7 @@ const pullSchedule = createPullSchedule({
 
 const rendererRequestDeps = {
   credentialsPresent: () => mainRequests.credentialsPresent(),
+  registerName: () => replica?.registerName(),
   enroll: async (typedCode: string) => {
     const outcome = await enroll(
       {

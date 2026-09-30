@@ -27,7 +27,7 @@ const screenFor: Record<
 };
 
 function contextWith(coreStatus: CoreStatus, enrollment: Enrollment = "enrolled"): RouterContext {
-  return { coreStatus, enrollment, enroll: async () => ({ kind: "enrolled" }) };
+  return { coreStatus, enrollment, registerName: null, enroll: async () => ({ kind: "enrolled" }) };
 }
 
 function routerAt(path: RoutePath, coreStatus: CoreStatus, enrollment?: Enrollment) {

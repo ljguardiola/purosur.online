@@ -11,13 +11,20 @@ const BRAND_LOGO_ALT = "Puro Sur";
 const CORE_DOWN_TITLE = "Esperá un momento";
 const ENROLLMENT_TITLE = "Dar de alta esta caja";
 
-function coreAnswering(enrolled: boolean, outcome: EnrollmentOutcome = { kind: "enrolled" }) {
+function coreAnswering(
+  enrolled: boolean,
+  outcome: EnrollmentOutcome = { kind: "enrolled" },
+  registerName: string | null = null,
+) {
   const asked: string[] = [];
   const core: CoreClient = {
     connect() {},
     async enrollmentStatus() {
       asked.push("enrollment-status");
       return enrolled;
+    },
+    async registerName() {
+      return registerName;
     },
     async enroll() {
       return outcome;
@@ -61,6 +68,24 @@ describe("App", () => {
     await expect.element(screen.getByText(SHELL_READY_TEXT)).toBeVisible();
 
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("shows the register's name on the ready screen once it is known", async () => {
+    const screen = await render(<App core={coreAnswering(true, undefined, "Caja 1").core} />);
+
+    postCoreStatus("up");
+
+    await expect.element(screen.getByRole("heading", { name: "Caja 1" })).toBeVisible();
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("shows no heading on the ready screen while the register's name isn't known", async () => {
+    const screen = await render(<App core={enrolledCore} />);
+
+    postCoreStatus("up");
+
+    await expect.element(screen.getByText(SHELL_READY_TEXT)).toBeVisible();
+    await expect.element(screen.getByRole("heading")).not.toBeInTheDocument();
   });
 
   it("replaces the whole screen with the core-down notice once the core reports it is down", async () => {

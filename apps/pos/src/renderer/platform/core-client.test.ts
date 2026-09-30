@@ -48,6 +48,18 @@ describe("createCoreClient", () => {
     expect(port.posted).toEqual([{ type: "enrollment-status-request", request_id: "request-1" }]);
   });
 
+  it.each(["Caja 1", null])("asks the core for the register's own name: %s", async (name) => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.registerName();
+    port.answer({ type: "register-name", request_id: "request-1", name });
+
+    expect(await asked).toBe(name);
+    expect(port.posted).toEqual([{ type: "register-name-request", request_id: "request-1" }]);
+  });
+
   it("asks the core to enroll with the code as typed and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();

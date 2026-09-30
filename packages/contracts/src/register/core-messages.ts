@@ -11,6 +11,11 @@ const enrollmentStatusRequestMessageSchema = z.object({
   request_id: requestId,
 });
 
+const registerNameRequestMessageSchema = z.object({
+  type: z.literal("register-name-request"),
+  request_id: requestId,
+});
+
 const enrollMessageSchema = z.object({
   type: z.literal("enroll"),
   request_id: requestId,
@@ -20,6 +25,7 @@ const enrollMessageSchema = z.object({
 export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   rendererPingMessageSchema,
   enrollmentStatusRequestMessageSchema,
+  registerNameRequestMessageSchema,
   enrollMessageSchema,
 ]);
 export type RendererToCoreMessage = z.infer<typeof rendererToCoreMessageSchema>;
@@ -36,6 +42,11 @@ export type EnrollmentOutcome = z.infer<typeof enrollmentOutcomeSchema>;
 
 export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("enrollment-status"), request_id: requestId, enrolled: z.boolean() }),
+  z.object({
+    type: z.literal("register-name"),
+    request_id: requestId,
+    name: z.string().nullable(),
+  }),
   z.object({
     type: z.literal("enrollment-result"),
     request_id: requestId,

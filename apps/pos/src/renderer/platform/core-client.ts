@@ -15,6 +15,7 @@ export interface CorePort {
 export interface CoreClient {
   connect(port: CorePort): void;
   enrollmentStatus(): Promise<boolean>;
+  registerName(): Promise<string | null>;
   enroll(typedCode: string): Promise<EnrollmentOutcome>;
 }
 
@@ -94,6 +95,11 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       return ask(
         { type: "enrollment-status-request", request_id: deps.newRequestId() },
         (answer) => (answer.type === "enrollment-status" ? answer.enrolled : undefined),
+      );
+    },
+    registerName() {
+      return ask({ type: "register-name-request", request_id: deps.newRequestId() }, (answer) =>
+        answer.type === "register-name" ? answer.name : undefined,
       );
     },
     enroll(typedCode) {

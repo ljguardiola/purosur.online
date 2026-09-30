@@ -20,6 +20,7 @@ export type Enrollment = "unknown" | "enrolled" | "not_enrolled";
 export interface RouterContext {
   coreStatus: CoreStatus;
   enrollment: Enrollment;
+  registerName: string | null;
   enroll: (typedCode: string) => Promise<EnrollmentOutcome>;
 }
 
@@ -27,7 +28,10 @@ type ScreenPath = "/" | "/enroll" | "/starting" | "/core-down";
 
 // Until the core says whether this installation is enrolled, the register stays on the brand panel
 // instead of guessing between the enrollment screen and the rest of the register.
-export function routeFor({ coreStatus, enrollment }: Omit<RouterContext, "enroll">): ScreenPath {
+export function routeFor({
+  coreStatus,
+  enrollment,
+}: Pick<RouterContext, "coreStatus" | "enrollment">): ScreenPath {
   if (coreStatus === "down") {
     return "/core-down";
   }
@@ -52,7 +56,10 @@ const readyRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
   beforeLoad: ({ context }) => requireRoute("/", context),
-  component: ReadyScreen,
+  component: function ReadyRoute() {
+    const { registerName } = readyRoute.useRouteContext();
+    return <ReadyScreen registerName={registerName} />;
+  },
 });
 
 const enrollRoute = createRoute({
@@ -102,7 +109,7 @@ export function createRegisterRouter<TRouteTree extends AnyRoute>(
 export function createAppRouter(enroll: RouterContext["enroll"]) {
   return createRegisterRouter(
     routeTree,
-    { coreStatus: "starting", enrollment: "unknown", enroll },
+    { coreStatus: "starting", enrollment: "unknown", registerName: null, enroll },
     "/starting",
   );
 }

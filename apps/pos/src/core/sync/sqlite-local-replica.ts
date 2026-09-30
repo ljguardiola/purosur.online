@@ -5,6 +5,7 @@ import type { LocalDatabase } from "../platform/local-database";
 import { prepareAccessPageWrites } from "./access-page-writes";
 import { prepareCatalogPageWrites } from "./catalog-page-writes";
 import type { RegisterPulledChange } from "./pulled-change";
+import { prepareRegisterPageWrites } from "./register-page-writes";
 
 const DAY_FIELDS = [
   "monday_hours",
@@ -57,6 +58,7 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
       if (reset.changes > 0) {
         this.database.prepare("UPDATE users SET removed = 1").run();
         this.database.prepare("DELETE FROM pin_verifiers").run();
+        this.database.prepare("DELETE FROM own_register").run();
       }
     })();
   }
@@ -75,6 +77,7 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
   async savePage(page: PullPage<RegisterPulledChange>): Promise<void> {
     const catalog = prepareCatalogPageWrites(this.database);
     const access = prepareAccessPageWrites(this.database, this.pepper);
+    const register = prepareRegisterPageWrites(this.database);
     const saveBranchSettings = this.database.prepare(
       `INSERT INTO branch_settings (
          location_id, address, whatsapp_number, instagram_handle, weekly_hours,
@@ -139,13 +142,13 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
             access.role(change);
             break;
           case "register":
+            register.save(change);
             break;
           case "removal": {
             const { removed_entity } = change;
             if (removed_entity === "register") {
-              break;
-            }
-            if (removed_entity === "user" || removed_entity === "role") {
+              register.removal({ ...change, removed_entity });
+            } else if (removed_entity === "user" || removed_entity === "role") {
               access.removal({ ...change, removed_entity });
             } else {
               catalog.removal({ ...change, removed_entity });
@@ -156,6 +159,12 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
       }
       saveCursor.run(page.cursor);
     })();
+  }
+
+  registerName(): string | undefined {
+    return this.database
+      .prepare<[], { name: string }>("SELECT name FROM own_register WHERE removed = 0")
+      .get()?.name;
   }
 
   branchSettings(locationId: string): BranchSettingsBody | undefined {
