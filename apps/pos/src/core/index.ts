@@ -238,15 +238,18 @@ if (cloudClient !== undefined) {
   });
 }
 
-const rendererConnection = createRendererConnection((data, reply) => {
-  gateFromRenderer(data, (message) => {
-    void answerRendererRequest(rendererRequestDeps, message).then((answer) => {
-      if (answer !== undefined) {
-        reply(answer);
-      }
+const rendererConnection = createRendererConnection(
+  (data, reply) => {
+    gateFromRenderer(data, (message) => {
+      void answerRendererRequest(rendererRequestDeps, message).then((answer) => {
+        if (answer !== undefined) {
+          reply(answer);
+        }
+      });
     });
-  });
-});
+  },
+  () => signedInPerson.clear(),
+);
 
 process.parentPort.on("message", (event) => {
   const [rendererPort] = event.ports;
