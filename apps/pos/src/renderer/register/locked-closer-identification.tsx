@@ -8,6 +8,7 @@ import { EmptyState, InlineNotice, LoadFailure, LoadingPlaceholder } from "@puro
 import { ArrowLeft, Lock, ShieldX, TriangleAlert, UsersRound, UserX } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { PinAttemptControls } from "../access/pin-attempt-controls";
+import { waitDescription } from "../access/pin-attempt-text";
 import type { PinNotice } from "../access/pin-refusal";
 import { SignInLockout } from "../access/sign-in-lockout";
 import type { SignedInPerson } from "../access/signed-in-person";
@@ -39,14 +40,27 @@ export type LockedCloserIdentificationProps = {
   onIdentified: (closer: IdentifiedCloser) => void;
 };
 
+function lacksPermissionNotice(firstName: string): PinNotice {
+  return {
+    icon: <UserX />,
+    title: `${firstName} no puede cerrar la caja`,
+    description: "Elegí a otra persona con permiso.",
+  };
+}
+
 function returnedNotice({ refusal, firstName }: ReturnedCloser): PinNotice {
   switch (refusal.kind) {
     case "wrong_pin":
-    case "rate_limited":
       return {
         icon: <ShieldX />,
         title: `El PIN de ${firstName} cambió`,
         description: "Elegí de nuevo quién cierra la caja.",
+      };
+    case "rate_limited":
+      return {
+        icon: <ShieldX />,
+        title: "Todavía no se puede volver a intentar",
+        description: waitDescription(refusal.retry_after_seconds, refusal.attempts_left),
       };
     case "locked":
       return {
@@ -55,11 +69,7 @@ function returnedNotice({ refusal, firstName }: ReturnedCloser): PinNotice {
         description: `Se equivocó ${refusal.consecutive_failures} veces seguidas con el PIN. Elegí a otra persona con permiso.`,
       };
     case "lacks_permission":
-      return {
-        icon: <UserX />,
-        title: `${firstName} no puede cerrar la caja`,
-        description: "Elegí a otra persona con permiso.",
-      };
+      return lacksPermissionNotice(firstName);
     case "not_locked":
       return {
         icon: <TriangleAlert />,
@@ -101,7 +111,13 @@ function IdentificationPanel({
         },
   );
   const { refusal, locked, submitting } = attempt;
-  const notice = chosen === null && returned !== undefined ? returnedNotice(returned) : undefined;
+  const [returnedShown, setReturnedShown] = useState(true);
+  let notice: PinNotice | undefined;
+  if (refusal?.kind === "lacks_permission") {
+    notice = lacksPermissionNotice(refusal.firstName);
+  } else if (returnedShown && returned !== undefined) {
+    notice = returnedNotice(returned);
+  }
 
   useEffect(() => {
     let current = true;
@@ -126,6 +142,9 @@ function IdentificationPanel({
   }, [loadClosers, opener.user_id]);
 
   function reset(user: SignInUser | null) {
+    if (user !== null) {
+      setReturnedShown(false);
+    }
     setChosen(user);
     attempt.reset();
   }

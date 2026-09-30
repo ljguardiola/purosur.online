@@ -46,11 +46,6 @@ export function noticeFor(refusal: Refusal, secondsLeft: number): PinNotice | un
         description: "Solo puede ingresar quien la abrió.",
       };
     case "lacks_permission":
-      return {
-        icon: <UserX />,
-        title: `${refusal.firstName} no puede cerrar la caja`,
-        description: "Elegí a otra persona con permiso.",
-      };
     case "locked":
       return undefined;
     case "unavailable":

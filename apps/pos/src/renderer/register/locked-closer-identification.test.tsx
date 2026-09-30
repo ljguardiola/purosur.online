@@ -145,13 +145,48 @@ describe("LockedCloserIdentification", () => {
 
   it.each<[ReturnedCloser["refusal"], string]>([
     [{ kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 4 }, "El PIN de Sofía cambió"],
-    [{ kind: "rate_limited", retry_after_seconds: 5, attempts_left: 4 }, "El PIN de Sofía cambió"],
     [{ kind: "locked", consecutive_failures: 8 }, "Sofía está bloqueado"],
     [{ kind: "not_locked" }, "No se pudo cerrar la caja"],
   ])("says why it came back from the count: %j", async (refusal, title) => {
     const { screen } = await renderStep({ returned: { refusal, firstName: "Sofía" } });
 
     await expect.element(screen.getByText(title)).toBeVisible();
+  });
+
+  it("says the person has to wait before trying again when the close answered so", async () => {
+    const { screen } = await renderStep({
+      returned: {
+        refusal: { kind: "rate_limited", retry_after_seconds: 5, attempts_left: 4 },
+        firstName: "Sofía",
+      },
+    });
+
+    await expect.element(screen.getByText("Todavía no se puede volver a intentar")).toBeVisible();
+    await expect
+      .element(
+        screen.getByText(
+          "Esperá 5 segundos para volver a intentar. Quedan 4 intentos antes de que el usuario se bloquee.",
+        ),
+      )
+      .toBeVisible();
+    await expect.element(screen.getByText(/cambió/)).not.toBeInTheDocument();
+  });
+
+  it("does not bring back why it came back from the count once someone else was tried", async () => {
+    const { screen } = await renderStep({
+      loadClosers: async () => [...CLOSERS, { id: "u4", first_name: "Tomás" }],
+      identify: async () => ({ kind: "locked", consecutive_failures: 8 }),
+      returned: { refusal: { kind: "lacks_permission" }, firstName: "Sofía" },
+    });
+    await expect.element(screen.getByText("Sofía no puede cerrar la caja")).toBeVisible();
+
+    await identifyAs(screen, "Tomás", "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Volver a la lista" }));
+
+    await expect
+      .element(screen.getByRole("heading", { name: "¿Quién cierra la caja?" }))
+      .toBeVisible();
+    await expect.element(screen.getByText("Sofía no puede cerrar la caja")).not.toBeInTheDocument();
   });
 
   it("shows the people with permission are loading", async () => {
