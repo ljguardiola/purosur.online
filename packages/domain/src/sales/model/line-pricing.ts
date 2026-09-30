@@ -26,7 +26,7 @@ export function chargeLine(
   const amount = lineAmount(quantity, unitPrice);
   const listTotal = roundHalfUp(amount);
   let best: LineCharge = { promotionId: null, discountAmount: 0, lineTotal: listTotal };
-  for (const promotion of [...promotions].sort((a, b) => a.id.localeCompare(b.id))) {
+  for (const promotion of inIdentifierOrder(promotions)) {
     const lineTotal = roundHalfUp(promotedAmount(quantity, unitPrice, amount, promotion));
     const discountAmount = listTotal - lineTotal;
     if (discountAmount > best.discountAmount) {
@@ -34,6 +34,11 @@ export function chargeLine(
     }
   }
   return best;
+}
+
+function inIdentifierOrder(promotions: readonly LinePromotion[]): LinePromotion[] {
+  const ids = promotions.map(({ id }) => id).sort();
+  return [...promotions].sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
 }
 
 function promotedAmount(

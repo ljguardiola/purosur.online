@@ -256,6 +256,13 @@ describe("chargeLine choosing among promotions", () => {
     expect(chargeLine(units(1), 1000, [nine, ten]).promotionId).toBe("10");
   });
 
+  it("compares identifiers by their characters, not by any language's alphabetical order", () => {
+    const lower: LinePromotion = { id: "a", benefit: { kind: "PERCENT_OFF", percent: 20 } };
+    const upper: LinePromotion = { id: "B", benefit: { kind: "PERCENT_OFF", percent: 20 } };
+
+    expect(chargeLine(units(1), 1000, [lower, upper]).promotionId).toBe("B");
+  });
+
   it("ignores a buy N, pay M offer beside a percentage on a weight line", () => {
     expect(chargeLine(weight(3000), 1000, [THREE_FOR_TWO, TEN_PERCENT]).promotionId).toBe("ten");
   });
