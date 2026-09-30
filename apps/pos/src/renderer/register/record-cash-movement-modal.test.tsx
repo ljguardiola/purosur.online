@@ -220,6 +220,29 @@ describe("RecordCashMovementModal", () => {
     expect(onRecorded).not.toHaveBeenCalled();
   });
 
+  it("tells the drawer's cash counted by the core's refusal once the amount is corrected", async () => {
+    const { screen } = await renderModal({
+      expectedCash: 1_250_000,
+      outcome: { kind: "exceeds_expected_cash", expected: 4_200_000 },
+    });
+    await choose(screen, "Retiro");
+    await fill(screen, "50.000", "Caja fuerte");
+
+    await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
+    await expect
+      .element(screen.getByText("No hay tanto efectivo en la caja: se esperan $ 42.000,00."))
+      .toBeVisible();
+
+    await userEvent.fill(screen.getByRole("textbox", { name: "Importe" }), "40.000");
+
+    await expect
+      .element(screen.getByText("Hay $ 42.000,00 en la caja antes de este retiro."))
+      .toBeVisible();
+    await expect
+      .element(screen.getByText("Hay $ 12.500,00 en la caja antes de este retiro."))
+      .not.toBeInTheDocument();
+  });
+
   it("drops the expected cash refusal on switching to an Ingreso, which has no such limit", async () => {
     const { screen } = await renderModal({
       outcome: { kind: "exceeds_expected_cash", expected: 4_200_000 },
