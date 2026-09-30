@@ -106,7 +106,7 @@ async function issueToken(overrides: IssueTokenOverrides = {}): Promise<string> 
 function postOptions(body: Record<string, unknown>, headers: Record<string, string> = {}) {
   return app.inject({
     method: "POST",
-    url: "/users/recovery/registration-options",
+    url: "/account-recovery-challenges",
     headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.10", ...headers },
     payload: body,
   });
@@ -115,7 +115,7 @@ function postOptions(body: Record<string, unknown>, headers: Record<string, stri
 function postRedeem(body: Record<string, unknown>, headers: Record<string, string> = {}) {
   return app.inject({
     method: "POST",
-    url: "/users/recovery/redeem",
+    url: "/account-recovery-redemptions",
     headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.10", ...headers },
     payload: body,
   });
@@ -129,7 +129,18 @@ async function getRegistrationOptions(rawToken: string) {
   return response.json().passkey_registration_options;
 }
 
-describe("POST /users/recovery/registration-options", () => {
+describe("POST /account-recovery-challenges", () => {
+  it("no longer answers the old registration-options path", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/users/recovery/registration-options",
+      headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.10" },
+      payload: { recovery_token: "a-token" },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
   it("returns creation options and the account's display name for a valid token", async () => {
     const rawToken = await issueToken();
 
@@ -270,7 +281,7 @@ describe("POST /users/recovery/registration-options", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/users/recovery/registration-options",
+      url: "/account-recovery-challenges",
       headers: { "x-real-ip": "203.0.113.10" },
       payload: { recovery_token: rawToken },
     });
@@ -307,7 +318,18 @@ describe("POST /users/recovery/registration-options", () => {
   });
 });
 
-describe("POST /users/recovery/redeem", () => {
+describe("POST /account-recovery-redemptions", () => {
+  it("no longer answers the old redeem path", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/users/recovery/redeem",
+      headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.10" },
+      payload: { recovery_token: "a-token" },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
   it("registers exactly one passkey, burns the token, audits both, and opens no session", async () => {
     const rawToken = await issueToken();
     const options = await getRegistrationOptions(rawToken);
@@ -627,7 +649,7 @@ describe("POST /users/recovery/redeem", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/users/recovery/redeem",
+      url: "/account-recovery-redemptions",
       headers: { "x-real-ip": "203.0.113.10" },
       payload: { recovery_token: rawToken },
     });
@@ -654,7 +676,7 @@ describe("POST /users/recovery/redeem", () => {
   });
 });
 
-describe("POST /users/recovery/redeem passkey_name", () => {
+describe("POST /account-recovery-redemptions passkey_name", () => {
   async function redeemWithoutName() {
     const rawToken = await issueToken();
     const options = await getRegistrationOptions(rawToken);
@@ -924,8 +946,8 @@ describe("auditing rejected recovery redemptions", () => {
           payload: { recovery_token: rawToken },
         });
 
-      const rateLimitedOptions = await postObserved("/users/recovery/registration-options");
-      const rateLimitedRedeem = await postObserved("/users/recovery/redeem");
+      const rateLimitedOptions = await postObserved("/account-recovery-challenges");
+      const rateLimitedRedeem = await postObserved("/account-recovery-redemptions");
       await observedApp.close();
 
       expect(rateLimitedOptions.statusCode).toBe(429);
@@ -984,7 +1006,7 @@ describe("auditing rejected recovery redemptions", () => {
       const postTicking = (rawToken: string) =>
         tickingApp.inject({
           method: "POST",
-          url: "/users/recovery/redeem",
+          url: "/account-recovery-redemptions",
           headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.10" },
           payload: { recovery_token: rawToken },
         });
@@ -1039,7 +1061,7 @@ describe("auditing rejected recovery redemptions", () => {
 
       const response = await failingApp.inject({
         method: "POST",
-        url: "/users/recovery/registration-options",
+        url: "/account-recovery-challenges",
         headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.10" },
         payload: { recovery_token: "an-unknown-raw-token" },
       });

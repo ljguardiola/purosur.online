@@ -25,7 +25,7 @@ export function registerSessionStatusRoute<TQueryResult extends PgQueryResultHKT
   const sessionSource = routeSessionSource({ db: options.db, now });
 
   app.get(
-    "/users/session/status",
+    "/sessions/current/expiration",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
       config: { access: OPEN_SESSION_PEEK_ACCESS, sessionSource },

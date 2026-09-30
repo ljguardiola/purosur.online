@@ -79,7 +79,7 @@ async function insertSession(overrides: InsertSessionOverrides = {}): Promise<st
 function getStatus(rawSessionId?: string) {
   return app.inject({
     method: "GET",
-    url: "/users/session/status",
+    url: "/sessions/current/expiration",
     headers: rawSessionId ? { cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` } : {},
   });
 }
@@ -92,7 +92,19 @@ async function sessionRow(rawSessionId: string) {
   return row;
 }
 
-describe("GET /users/session/status", () => {
+describe("GET /sessions/current/expiration", () => {
+  it("no longer answers the old status path", async () => {
+    const rawSessionId = await insertSession();
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/users/session/status",
+      headers: { cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
   it("returns 401 unauthenticated when no cookie was sent", async () => {
     const response = await getStatus();
 
@@ -203,7 +215,7 @@ describe("GET /users/session/status", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/users/session/status",
+      url: "/sessions/current/expiration",
       headers: {
         cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}`,
         origin: "https://attacker.example",

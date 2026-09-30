@@ -60,7 +60,7 @@ test("fetchPasskeys returns the account's own passkeys on 200", async () => {
       },
     ],
   });
-  expect(fetch).toHaveBeenCalledWith("/api/users/passkeys");
+  expect(fetch).toHaveBeenCalledWith("/api/account/passkeys");
 });
 
 test("fetchPasskeys reports failed on a 200 whose body is not JSON", async () => {
@@ -111,7 +111,7 @@ test("fetchPasskeyRegistrationChallenge posts with no body and returns the regis
 
   expect(outcome).toEqual({ kind: "ok", value: { registrationOptions } });
   expect(fetch).toHaveBeenCalledWith(
-    "/api/users/passkeys/registration-options",
+    "/api/account/passkey-challenges",
     expect.objectContaining({ method: "POST" }),
   );
 });
@@ -174,7 +174,7 @@ test("registerPasskey posts the registration and trimmed name, reading nothing f
 
   expect(outcome).toEqual({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith(
-    "/api/users/passkeys",
+    "/api/account/passkeys",
     expect.objectContaining({
       method: "POST",
       body: JSON.stringify({
@@ -254,16 +254,13 @@ test("registerPasskey reports rate_limited with the Retry-After seconds on 429, 
   });
 });
 
-test("removePasskey posts to the passkey's own removal endpoint with no body", async () => {
+test("removePasskey deletes the passkey with no body", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
 
   const outcome = await removePasskey("pk-1");
 
   expect(outcome).toEqual({ kind: "ok" });
-  expect(fetch).toHaveBeenCalledWith(
-    "/api/users/passkeys/pk-1/remove",
-    expect.objectContaining({ method: "POST" }),
-  );
+  expect(fetch).toHaveBeenCalledWith("/api/account/passkeys/pk-1", { method: "DELETE" });
 });
 
 test("removePasskey reports unauthenticated when the session ended", async () => {
