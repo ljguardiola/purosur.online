@@ -31,13 +31,21 @@ class DrizzleFirstPinCodeStoreTransaction<TQueryResult extends PgQueryResultHKT>
       return undefined;
     }
     const [row] = await this.tx
-      .select({ active: users.active, email: users.email, pinUserId: userPins.userId })
+      .select({ active: users.active, email: users.email })
       .from(users)
       .innerJoin(registers, eq(registers.locationId, users.locationId))
-      .leftJoin(userPins, eq(userPins.userId, users.id))
       .where(and(eq(registers.id, registerId), eq(users.id, userId)))
       .for("no key update", { of: users });
-    return row && { active: row.active, email: row.email, hasPin: row.pinUserId !== null };
+    if (!row) {
+      return undefined;
+    }
+    // Read after the lock, not joined into it: a PIN committed while this waited on the lock is
+    // only visible to a statement that starts afterwards.
+    const [pin] = await this.tx
+      .select({ userId: userPins.userId })
+      .from(userPins)
+      .where(eq(userPins.userId, userId));
+    return { active: row.active, email: row.email, hasPin: pin !== undefined };
   }
 
   async pinCodesIssuedSince(userId: string, since: Date): Promise<Date[]> {
