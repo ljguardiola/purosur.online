@@ -1,5 +1,6 @@
 import type {
   FirstPinCodeEmission,
+  FirstPinCodeMailer,
   FirstPinCodeStore,
   FirstPinCodeStoreTransaction,
   FirstPinCodeTarget,
@@ -328,5 +329,24 @@ export class SequentialPinCodes implements PinCodeGenerator {
 export class FakePinHasher implements PinHasher {
   async hash(pin: string): Promise<HashedPin> {
     return { salt: `salt-for-${pin}`, pinHash: `hash-of-${pin}` };
+  }
+}
+
+export class FakeFirstPinCodeMailer implements FirstPinCodeMailer {
+  readonly sent: { email: string; code: string }[] = [];
+  private readonly store: FakePinCodeStore;
+  private readonly failure: Error | undefined;
+
+  constructor(store: FakePinCodeStore, failure?: Error) {
+    this.store = store;
+    this.failure = failure;
+  }
+
+  async sendFirstPinCode(email: string, code: string): Promise<void> {
+    this.store.operationOrder.push("sendFirstPinCode");
+    if (this.failure) {
+      throw this.failure;
+    }
+    this.sent.push({ email, code });
   }
 }

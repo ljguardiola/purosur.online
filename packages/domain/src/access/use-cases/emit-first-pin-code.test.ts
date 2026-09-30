@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { emitFirstPinCode } from "./emit-first-pin-code.js";
+import { FirstPinCodeEmailUnavailable } from "./first-pin-code-store.js";
 import {
+  FakeFirstPinCodeMailer,
   FakePinCodeStore,
   FixedClock,
   hashOfPinCode,
@@ -29,22 +31,30 @@ function storeWithUsers(): FakePinCodeStore {
   return store;
 }
 
-function emit(store: FakePinCodeStore, userId: string, registerId = "register-1") {
+function emit(
+  store: FakePinCodeStore,
+  userId: string,
+  registerId = "register-1",
+  mailer = new FakeFirstPinCodeMailer(store),
+) {
   return emitFirstPinCode(
-    { store, clock: new FixedClock(NOW), codes: new SequentialPinCodes() },
+    { store, clock: new FixedClock(NOW), codes: new SequentialPinCodes(), mailer },
     { registerId, userId },
   );
 }
 
 describe("emitFirstPinCode", () => {
   describe("a person without a PIN", () => {
-    it("gets a code, the address on file and its expiry", async () => {
-      expect(await emit(storeWithUsers(), "person-1")).toEqual({
+    it("is emailed a code at the address on file and told its expiry", async () => {
+      const store = storeWithUsers();
+      const mailer = new FakeFirstPinCodeMailer(store);
+
+      expect(await emit(store, "person-1", "register-1", mailer)).toEqual({
         kind: "emitted",
-        code: "PINCODE000000001",
-        email: "person-1@example.com",
         expiresAt: EXPIRES_AT,
       });
+
+      expect(mailer.sent).toEqual([{ email: "person-1@example.com", code: "PINCODE000000001" }]);
     });
 
     it("has the hash of the code stored, never the code, with no issuer and 15 minutes to live", async () => {
@@ -101,6 +111,29 @@ describe("emitFirstPinCode", () => {
       ]);
     });
 
+    it("has nothing stored, superseded or audited when the email cannot be sent", async () => {
+      const store = storeWithUsers();
+      store.seedCode({ userId: "person-1", issuedAt: minutesAgo(10), issuedBy: "admin-1" });
+      const mailer = new FakeFirstPinCodeMailer(store, new FirstPinCodeEmailUnavailable());
+      const before = store.snapshot();
+
+      expect(await emit(store, "person-1", "register-1", mailer)).toEqual({
+        kind: "email_unavailable",
+      });
+
+      expect(store.snapshot()).toEqual(before);
+    });
+
+    it("rolls every write back and lets an unexpected mailer failure through", async () => {
+      const store = storeWithUsers();
+      const mailer = new FakeFirstPinCodeMailer(store, new Error("mailer bug"));
+      const before = store.snapshot();
+
+      await expect(emit(store, "person-1", "register-1", mailer)).rejects.toThrow("mailer bug");
+
+      expect(store.snapshot()).toEqual(before);
+    });
+
     it("rolls every write back when one of them fails", async () => {
       for (const failing of [
         "supersedeLivePinCodes",
@@ -112,9 +145,14 @@ describe("emitFirstPinCode", () => {
         store.failingWrites.add(failing);
         const before = store.snapshot();
 
-        await expect(emit(store, "person-1")).rejects.toThrow(`${failing} failed`);
+        const mailer = new FakeFirstPinCodeMailer(store);
+
+        await expect(emit(store, "person-1", "register-1", mailer)).rejects.toThrow(
+          `${failing} failed`,
+        );
 
         expect(store.snapshot()).toEqual(before);
+        expect(mailer.sent).toEqual([]);
       }
     });
   });
@@ -124,10 +162,15 @@ describe("emitFirstPinCode", () => {
       const store = storeWithUsers();
       const before = store.snapshot();
 
-      expect(await emit(store, "person-2")).toEqual({ kind: "pin_already_set" });
+      const mailer = new FakeFirstPinCodeMailer(store);
+
+      expect(await emit(store, "person-2", "register-1", mailer)).toEqual({
+        kind: "pin_already_set",
+      });
 
       expect(store.snapshot()).toEqual(before);
       expect(store.snapshot().pins.has("person-2")).toBe(true);
+      expect(mailer.sent).toEqual([]);
     });
 
     it("is refused as such even when the hourly cap is reached", async () => {
@@ -152,10 +195,12 @@ describe("emitFirstPinCode", () => {
     it("is not found when the user does not exist", async () => {
       const store = storeWithUsers();
       const before = store.snapshot();
+      const mailer = new FakeFirstPinCodeMailer(store);
 
-      expect(await emit(store, "nobody")).toEqual({ kind: "not_found" });
+      expect(await emit(store, "nobody", "register-1", mailer)).toEqual({ kind: "not_found" });
 
       expect(store.snapshot()).toEqual(before);
+      expect(mailer.sent).toEqual([]);
     });
 
     it("is not found when the user belongs to another location", async () => {
@@ -202,13 +247,15 @@ describe("emitFirstPinCode", () => {
     it("refuses the sixth code until the oldest one leaves the hour, writing nothing", async () => {
       const store = storeWithCodesIssued(1, 2, 3, 4, 50);
       const before = store.snapshot();
+      const mailer = new FakeFirstPinCodeMailer(store);
 
-      expect(await emit(store, "person-1")).toEqual({
+      expect(await emit(store, "person-1", "register-1", mailer)).toEqual({
         kind: "rate_limited",
         retryAfterSeconds: 10 * 60,
       });
 
       expect(store.snapshot()).toEqual(before);
+      expect(mailer.sent).toEqual([]);
     });
 
     it("counts the codes an administrator's reset issued, superseded or redeemed", async () => {
@@ -238,7 +285,7 @@ describe("emitFirstPinCode", () => {
   });
 
   describe("the order it works in", () => {
-    it("locks the user before counting its codes, and counts before writing", async () => {
+    it("locks the user before counting its codes, counts before writing, and sends last", async () => {
       const store = storeWithUsers();
 
       await emit(store, "person-1");
@@ -249,6 +296,7 @@ describe("emitFirstPinCode", () => {
         "supersedeLivePinCodes",
         "recordPinCode",
         "recordFirstPinCodeEmission",
+        "sendFirstPinCode",
       ]);
     });
 

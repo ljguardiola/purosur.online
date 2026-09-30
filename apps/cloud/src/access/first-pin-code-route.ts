@@ -17,6 +17,7 @@ import {
   installationTokenPorts,
 } from "../register/installation-token-ports.js";
 import { DrizzleFirstPinCodeStore } from "./drizzle-first-pin-code-store.js";
+import { firstPinCodeMailer } from "./first-pin-code-mailer.js";
 import { generatePinCode } from "./pin-code-generator.js";
 import type { FirstPinCodeEmailSender } from "./recovery-email-sender.js";
 import { PUBLIC_ACCESS } from "./route-access.js";
@@ -44,6 +45,7 @@ export function registerFirstPinCodeRoute<TQueryResult extends PgQueryResultHKT>
     store: new DrizzleFirstPinCodeStore(options.db),
     clock: { now: options.now ?? (() => new Date()) },
     codes: { generate: generatePinCode },
+    mailer: firstPinCodeMailer(options.emailSender),
   };
 
   app.register(async (scope) => {
@@ -97,14 +99,10 @@ export function registerFirstPinCodeRoute<TQueryResult extends PgQueryResultHKT>
                 ]),
               );
             return;
+          case "email_unavailable":
+            await reply.code(cloudErrorStatus(EMAIL_UNAVAILABLE.code)).send(EMAIL_UNAVAILABLE);
+            return;
           case "emitted":
-            try {
-              await options.emailSender.sendFirstPinCode({ to: outcome.email, code: outcome.code });
-            } catch (error) {
-              request.log.error({ err: error }, "sending a first PIN code failed");
-              await reply.code(cloudErrorStatus(EMAIL_UNAVAILABLE.code)).send(EMAIL_UNAVAILABLE);
-              return;
-            }
             await reply
               .code(201)
               .send(firstPinCodeSchema.parse({ expires_at: outcome.expiresAt.toISOString() }));

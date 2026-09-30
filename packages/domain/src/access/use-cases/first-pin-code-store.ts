@@ -30,8 +30,16 @@ export interface FirstPinCodeStoreTransaction
   recordFirstPinCodeEmission(emission: FirstPinCodeEmission): Promise<void>;
 }
 
+export interface FirstPinCodeMailer {
+  sendFirstPinCode(email: string, code: string): Promise<void>;
+}
+
+// Thrown by a mailer whose email did not go out, so the emission leaves nothing behind.
+export class FirstPinCodeEmailUnavailable extends Error {}
+
 export interface FirstPinCodeEmissionPorts {
   store: FirstPinCodeStore;
   clock: Clock;
   codes: PinCodeGenerator;
+  mailer: FirstPinCodeMailer;
 }

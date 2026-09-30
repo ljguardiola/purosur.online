@@ -46,6 +46,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   await app.close();
 });
 
@@ -228,29 +229,35 @@ describe("POST /first-pin-codes", () => {
     expect(await db.select().from(userPinCodes)).toHaveLength(5);
   });
 
-  it("answers 503 email_unavailable when the email cannot be sent", async () => {
+  it("answers 503 email_unavailable when the email cannot be sent, storing and auditing nothing", async () => {
     const userId = await insertUser();
     const { deviceToken } = await insertEnrolledInstallation(db);
     sendFirstPinCode.mockRejectedValue(new Error("Resend API responded 500"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
 
     const response = await ask(deviceToken, { user_id: userId });
 
     expect(response.statusCode).toBe(503);
     expect(cloudErrorSchema.parse(response.json())).toMatchObject({ code: "email_unavailable" });
     expect(response.body).not.toContain("Resend");
+    expect(await db.select().from(userPinCodes)).toHaveLength(0);
+    expect(await db.select().from(auditLog).where(eq(auditLog.entityId, userId))).toHaveLength(0);
   });
 
-  it("lets the person ask again after a failed send, with a fresh code that supersedes the unsent one", async () => {
+  it("does not count failed sends toward the hourly cap", async () => {
     const userId = await insertUser();
     const { deviceToken } = await insertEnrolledInstallation(db);
-    sendFirstPinCode.mockRejectedValueOnce(new Error("Resend API responded 500"));
-    await ask(deviceToken, { user_id: userId });
+    sendFirstPinCode.mockRejectedValue(new Error("Resend API responded 500"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    for (const _attempt of [1, 2, 3, 4, 5]) {
+      await ask(deviceToken, { user_id: userId });
+    }
+    sendFirstPinCode.mockResolvedValue();
 
     const retry = await ask(deviceToken, { user_id: userId });
 
     expect(retry.statusCode).toBe(201);
-    const codes = await db.select().from(userPinCodes).orderBy(userPinCodes.supersededAt);
-    expect(codes.filter((code) => code.supersededAt === null)).toHaveLength(1);
+    expect(await db.select().from(userPinCodes)).toHaveLength(1);
   });
 
   it("refuses a body without a user id, before any lookup", async () => {
