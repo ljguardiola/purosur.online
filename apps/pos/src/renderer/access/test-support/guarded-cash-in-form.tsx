@@ -40,6 +40,7 @@ export function GuardedCashInForm({ person, loadAuthorizers, submit }: GuardedCa
     const outcome = await submit(authorization.value);
     setSubmitting(false);
     if (outcome.kind === "performed") {
+      authorization.performed();
       setDone(outcome.authorized_by);
     } else {
       authorization.refuse(outcome);

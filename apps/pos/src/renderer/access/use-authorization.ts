@@ -21,6 +21,7 @@ export type AuthorizationState = {
   ready: boolean;
   value: Authorization | undefined;
   refuse: (refusal: AuthorizationRefusal) => void;
+  performed: () => void;
   authorizers: LoadedAuthorizers;
   retryLoading: () => void;
   chosen: string | null;
@@ -77,6 +78,10 @@ export function useAuthorization({
       if (refused.kind === "wrong_pin") {
         setPin("");
       }
+    },
+    performed() {
+      setPin("");
+      setRefusal(undefined);
     },
     authorizers,
     retryLoading() {

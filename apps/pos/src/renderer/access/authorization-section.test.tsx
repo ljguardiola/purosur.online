@@ -167,6 +167,27 @@ describe("an action guarded by another person's PIN", () => {
       expect(submissions).toEqual([{ user_id: "u2", pin: "1234" }]);
     });
 
+    it("asks for the PIN again before the next action, since it authorized only one", async () => {
+      const { submit, submissions } = recording({
+        kind: "performed",
+        authorized_by: { user_id: "u2", first_name: "Grace" },
+      });
+      const screen = await renderForm({ submit });
+      await authorizeAs(screen, "Grace", "1234");
+      await expect.element(screen.getByText("Cargado con autorización de Grace")).toBeVisible();
+
+      await expect.element(screen.getByLabelText("PIN")).toHaveValue("");
+      await expect.element(screen.getByRole("button", { name: "Cargar" })).toBeDisabled();
+      await userEvent.type(screen.getByLabelText("PIN"), "5678");
+      await userEvent.click(screen.getByRole("button", { name: "Cargar" }));
+
+      await expect.poll(() => submissions).toHaveLength(2);
+      expect(submissions).toEqual([
+        { user_id: "u2", pin: "1234" },
+        { user_id: "u2", pin: "5678" },
+      ]);
+    });
+
     it("clears the PIN and focuses it again after a wrong PIN", async () => {
       const screen = await renderForm({ submit: recording({ kind: "wrong_pin" }).submit });
 
