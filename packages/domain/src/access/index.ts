@@ -43,6 +43,7 @@ export {
   pinCodeWindowStart,
 } from "./model/pin-code.js";
 export { pinCodeRedemptionAttemptWindowStart } from "./model/pin-code-redemption-attempt-limit.js";
+export { signInLookupAttemptWindowStart } from "./model/sign-in-lookup-attempt-limit.js";
 export { decodePinSalt, encodePinHash, PIN_HASH_SCHEME } from "./model/pin-hash-scheme.js";
 export {
   isLockedOutOfPinSignIn,
