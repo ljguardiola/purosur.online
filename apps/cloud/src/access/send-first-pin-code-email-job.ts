@@ -1,4 +1,4 @@
-import { isPinCodeBurned, isPinCodeExpired, type PinCodeState } from "@purosur/domain";
+import { isPinCodeLive, type PinCodeState } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { userPinCodes } from "../platform/db/schema.js";
@@ -9,7 +9,6 @@ import { type ReportRecoveryErrorDeps, reportRecoveryError } from "./recovery-er
 export interface FirstPinCodeEmailJobPayload {
   email: string;
   code: string;
-  expiresAt: string;
 }
 
 export interface EmailedPinCode extends PinCodeState {
@@ -38,21 +37,12 @@ export async function findPinCodeByCode<TQueryResult extends PgQueryResultHKT>(
   return row;
 }
 
-function isLive(code: EmailedPinCode | undefined, now: Date): boolean {
-  return code !== undefined && !isPinCodeBurned(code) && !isPinCodeExpired(code.expiresAt, now);
-}
-
 function isFirstPinCodeEmailJobPayload(payload: unknown): payload is FirstPinCodeEmailJobPayload {
   if (typeof payload !== "object" || payload === null) {
     return false;
   }
   const candidate = payload as Partial<Record<keyof FirstPinCodeEmailJobPayload, unknown>>;
-  return (
-    typeof candidate.email === "string" &&
-    typeof candidate.code === "string" &&
-    typeof candidate.expiresAt === "string" &&
-    !Number.isNaN(Date.parse(candidate.expiresAt))
-  );
+  return typeof candidate.email === "string" && typeof candidate.code === "string";
 }
 
 export async function sendFirstPinCodeEmailJob(
@@ -62,7 +52,8 @@ export async function sendFirstPinCodeEmailJob(
   if (!isFirstPinCodeEmailJobPayload(payload)) {
     throw new Error("first PIN code email: malformed job payload");
   }
-  if (!isLive(await findPinCode(payload.code), now())) {
+  const stored = await findPinCode(payload.code);
+  if (stored === undefined || !isPinCodeLive(stored, now())) {
     return;
   }
   try {

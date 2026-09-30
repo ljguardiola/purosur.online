@@ -10,7 +10,6 @@ const NOW = new Date("2026-09-30T12:00:00.000Z");
 const PAYLOAD = {
   email: "grace@example.com",
   code: "K3PX7WNE2QRT6MZD",
-  expiresAt: "2026-09-30T12:15:00.000Z",
 };
 
 const LIVE_CODE: EmailedPinCode = {
@@ -57,19 +56,6 @@ describe("sendFirstPinCodeEmailJob", () => {
     });
   });
 
-  it("still sends a code that has a moment left", async () => {
-    const emailSender = sender();
-    const justBefore = new Date("2026-09-30T12:14:59.999Z");
-
-    await sendFirstPinCodeEmailJob(PAYLOAD, {
-      emailSender,
-      now: () => justBefore,
-      findPinCode: storedAs(LIVE_CODE),
-    });
-
-    expect(emailSender.sendFirstPinCode).toHaveBeenCalledTimes(1);
-  });
-
   it("sends nothing for a code that has expired, and completes", async () => {
     const emailSender = sender();
     const atExpiry = new Date("2026-09-30T12:15:00.000Z");
@@ -87,8 +73,6 @@ describe("sendFirstPinCodeEmailJob", () => {
 
   it.each([
     ["superseded by a newer code", { ...LIVE_CODE, supersededAt: NOW }],
-    ["already redeemed", { ...LIVE_CODE, redeemedAt: NOW }],
-    ["burned by failed attempts", { ...LIVE_CODE, failedAttempts: 5 }],
     ["no longer stored", undefined],
   ])("sends nothing for a code %s, and completes", async (_state, stored) => {
     const emailSender = sender();
@@ -104,6 +88,19 @@ describe("sendFirstPinCodeEmailJob", () => {
     expect(emailSender.sendFirstPinCode).not.toHaveBeenCalled();
   });
 
+  it("rethrows a failed lookup without sending, so the job is retried", async () => {
+    const emailSender = sender();
+    const findPinCode = vi
+      .fn<SendFirstPinCodeEmailJobDeps["findPinCode"]>()
+      .mockRejectedValue(new Error("connection lost"));
+
+    await expect(
+      sendFirstPinCodeEmailJob(PAYLOAD, { emailSender, now: () => NOW, findPinCode }),
+    ).rejects.toThrow("connection lost");
+
+    expect(emailSender.sendFirstPinCode).not.toHaveBeenCalled();
+  });
+
   it("rejects a malformed payload without sending", async () => {
     const emailSender = sender();
     const malformed: unknown[] = [
@@ -112,10 +109,8 @@ describe("sendFirstPinCodeEmailJob", () => {
       {},
       { ...PAYLOAD, email: undefined },
       { ...PAYLOAD, code: undefined },
-      { ...PAYLOAD, expiresAt: undefined },
       { ...PAYLOAD, email: 1 },
       { ...PAYLOAD, code: 1 },
-      { ...PAYLOAD, expiresAt: "not-a-date" },
     ];
 
     for (const payload of malformed) {

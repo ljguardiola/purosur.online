@@ -31,8 +31,7 @@ export {
 export { isAcceptablePin, PIN_MIN_DIGITS } from "./model/pin.js";
 export type { PinCodeParty, PinCodeState } from "./model/pin-code.js";
 export {
-  isPinCodeBurned,
-  isPinCodeExpired,
+  isPinCodeLive,
   isWellFormedPinCode,
   mayEmitPinCodeFor,
   normalizePinCode,

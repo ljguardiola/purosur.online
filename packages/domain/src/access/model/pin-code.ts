@@ -62,3 +62,7 @@ export function isPinCodeBurned(code: PinCodeState): boolean {
 export function isPinCodeExpired(expiresAt: Date, now: Date): boolean {
   return now >= expiresAt;
 }
+
+export function isPinCodeLive(code: PinCodeState & { expiresAt: Date }, now: Date): boolean {
+  return !isPinCodeBurned(code) && !isPinCodeExpired(code.expiresAt, now);
+}
