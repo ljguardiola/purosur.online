@@ -219,6 +219,28 @@ test("picks with the keyboard: type, move down, Enter", async () => {
   await expect.element(screen.getByRole("listbox")).not.toBeInTheDocument();
 });
 
+// react-aria scrolls a keyboard-focused option into view on the next frame, and the browser
+// dispatches the scroll event that follows on the frame after that.
+async function afterTwoFrames() {
+  for (let frame = 0; frame < 2; frame++) {
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+  }
+}
+
+test("keeps its list open while the keyboard moves through it with the field as wide as the page", async () => {
+  const onChange = vi.fn();
+  const screen = await render(<Harness onPick={onChange} />);
+
+  await input(screen).fill("yerba");
+  await expect.poll(() => screen.getByRole("option").elements().length).toBe(2);
+  await userEvent.keyboard("{ArrowDown}");
+  await expect.element(screen.getByRole("option").first()).toHaveAttribute("data-focused");
+  await afterTwoFrames();
+  await userEvent.keyboard("{Enter}");
+
+  expect(onChange).toHaveBeenCalledExactlyOnceWith("yerba");
+});
+
 test("lists every option again when reopened after choosing one", async () => {
   const screen = await render(<Harness value="cafe" />);
 

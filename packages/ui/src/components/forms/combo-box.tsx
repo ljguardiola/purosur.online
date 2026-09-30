@@ -219,7 +219,15 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
           </AriaText>
         )
       )}
-      <AriaPopover offset={4} style={menuPopoverStyle} className={popoverClassName}>
+      {/* The list is exactly as wide as the field, so keeping it any distance from the page's edge
+          pushes a field that reaches that edge past the other one. The page then scrolls sideways
+          as the keyboard moves through the options, and any page scroll closes this list. */}
+      <AriaPopover
+        offset={4}
+        containerPadding={0}
+        style={menuPopoverStyle}
+        className={popoverClassName}
+      >
         <AriaVirtualizer layout={AriaListLayout} layoutOptions={listLayoutOptions}>
           <AriaListBox
             className={listBoxClassName}
