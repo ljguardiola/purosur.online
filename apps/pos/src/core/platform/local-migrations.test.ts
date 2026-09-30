@@ -178,7 +178,7 @@ describe("the register's local migrations", () => {
     }
   });
 
-  it("add the discounts over the users and verifiers a register already holds", () => {
+  it("add the discounts over the pull cursor and users a register already holds", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
       const path = join(folder, "register.sqlite");

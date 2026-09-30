@@ -1005,26 +1005,38 @@ describe("GET /changes carrying the discounts", () => {
   }
 
   it("gives a discount with its benefit, target, validity, weekdays and version, to a register of any branch", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(db);
+    const [otherBranchRegister] = await db
+      .insert(registers)
+      .values({ locationId: await insertOtherBranch(), name: "Caja 2" })
+      .returning({ id: registers.id });
+    if (!otherBranchRegister) {
+      throw new Error("test setup: seeding the other branch's register returned no row");
+    }
+    const ownBranch = await insertEnrolledInstallation(db);
+    const otherBranch = await insertEnrolledInstallation(db, {
+      existingRegisterId: otherBranchRegister.id,
+    });
     const tagId = await newTag("Infusiones");
     const discountId = await newDiscount(tagId);
 
-    const page = await pullPage(SEEDED_CHANGES, deviceToken);
+    for (const { deviceToken } of [ownBranch, otherBranch]) {
+      const page = await pullPage(SEEDED_CHANGES, deviceToken);
 
-    expect(page.changes.map(({ change_seq, ...change }) => change)).toContainEqual({
-      entity: "discount",
-      entity_id: discountId,
-      row: {
-        name: "Martes de infusiones",
-        benefit: { kind: "PERCENT_OFF", percent: 10 },
-        target: { kind: "TAG", id: tagId },
-        valid_from: "2026-10-01",
-        valid_to: "2026-10-31",
-        weekdays: [2, 4],
-        active: true,
-        version: 1,
-      },
-    });
+      expect(page.changes.map(({ change_seq, ...change }) => change)).toContainEqual({
+        entity: "discount",
+        entity_id: discountId,
+        row: {
+          name: "Martes de infusiones",
+          benefit: { kind: "PERCENT_OFF", percent: 10 },
+          target: { kind: "TAG", id: tagId },
+          valid_from: "2026-10-01",
+          valid_to: "2026-10-31",
+          weekdays: [2, 4],
+          active: true,
+          version: 1,
+        },
+      });
+    }
   });
 
   it("gives a switched off discount marked inactive, at its next version", async () => {
