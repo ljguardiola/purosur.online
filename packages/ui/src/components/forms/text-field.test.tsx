@@ -1117,3 +1117,69 @@ test("does not accept a read-only reason beside an affix", () => {
     suffix: string;
   }>().not.toExtend<TextFieldProps | TextFieldReadOnlyReasonProps>();
 });
+
+test("shows what is typed as text, with the ordinary keyboard, unless told otherwise", async () => {
+  const screen = await render(
+    <TextField kind="plain-text" label="Motivo" value="abc" onChange={() => {}} />,
+  );
+
+  const input = fieldInput(screen, "Motivo");
+  expect(input.type).toBe("text");
+  expect(input.inputMode).toBe("");
+});
+
+test("hides what is typed when its type is password", async () => {
+  const screen = await render(
+    <TextField
+      kind="plain-text"
+      type="password"
+      label="PIN nuevo"
+      value="482915"
+      onChange={() => {}}
+    />,
+  );
+
+  const input = screen.getByLabelText("PIN nuevo").element() as HTMLInputElement;
+  expect(input.type).toBe("password");
+  expect(input.value).toBe("482915");
+});
+
+test("asks for digits when its input mode is numeric", async () => {
+  const screen = await render(
+    <TextField kind="plain-text" inputMode="numeric" label="PIN" value="" onChange={() => {}} />,
+  );
+
+  expect(fieldInput(screen, "PIN").inputMode).toBe("numeric");
+});
+
+test("has no accessibility violations when it hides what is typed", async () => {
+  const screen = await render(
+    <TextField
+      kind="plain-text"
+      type="password"
+      inputMode="numeric"
+      label="PIN nuevo"
+      value="482915"
+      onChange={() => {}}
+    />,
+  );
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("does not accept a type or an input mode it does not offer", () => {
+  expectTypeOf<{
+    kind: "plain-text";
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    type: "email";
+  }>().not.toExtend<TextFieldProps>();
+  expectTypeOf<{
+    kind: "plain-text";
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    inputMode: "tel";
+  }>().not.toExtend<TextFieldProps>();
+});

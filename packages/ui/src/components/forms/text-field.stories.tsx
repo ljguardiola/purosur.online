@@ -196,3 +196,14 @@ export const Backoffice: Story = {
     ),
   ],
 };
+
+export const PasswordNumeric: Story = {
+  args: {
+    kind: "plain-text",
+    label: "PIN nuevo",
+    value: "482915",
+    onChange: () => {},
+    type: "password",
+    inputMode: "numeric",
+  },
+};
