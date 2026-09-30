@@ -17,9 +17,15 @@ const PLAYWRIGHT_SERVER_PORT = 3000;
 
 export const PLAYWRIGHT_WS_ENDPOINT_ENV = "PLAYWRIGHT_SERVER_WS_ENDPOINT";
 
+// Both browser projects list this setup, and Vitest imports it once per project in the same
+// process, so only a process-wide marker survives from one project's setup to the next.
+const STARTED_IN_THIS_RUN = Symbol.for("purosur.playwright-server.started");
+
+type RunScope = typeof globalThis & { [STARTED_IN_THIS_RUN]?: boolean };
+
 export default async function setup(): Promise<() => Promise<void>> {
-  // Both browser projects list this setup, and Vitest runs it once per project in the same process.
-  if (process.env[PLAYWRIGHT_WS_ENDPOINT_ENV] !== undefined) {
+  const runScope: RunScope = globalThis;
+  if (runScope[STARTED_IN_THIS_RUN] === true) {
     return async () => {};
   }
 
@@ -54,8 +60,10 @@ export default async function setup(): Promise<() => Promise<void>> {
 
   process.env[PLAYWRIGHT_WS_ENDPOINT_ENV] =
     `ws://${container.getHost()}:${container.getMappedPort(PLAYWRIGHT_SERVER_PORT)}/`;
+  runScope[STARTED_IN_THIS_RUN] = true;
 
   return async () => {
+    delete runScope[STARTED_IN_THIS_RUN];
     delete process.env[PLAYWRIGHT_WS_ENDPOINT_ENV];
     await container.stop();
   };
