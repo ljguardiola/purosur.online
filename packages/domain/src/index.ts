@@ -8,7 +8,10 @@ export type {
 } from "./access/index.js";
 export {
   ALERT_VIEW_PERMISSION_KEYS,
+  decodePinSalt,
+  encodePinHash,
   grantedPermissionKeys,
+  holdsARegisterPermission,
   holdsBothAlertViewPermissions,
   increasesAccess,
   isAdministratorRoleName,
@@ -27,6 +30,7 @@ export {
   PIN_CODE_MAX_FAILED_ATTEMPTS,
   PIN_CODE_VALIDITY_MS,
   PIN_CODE_WINDOW_MS,
+  PIN_HASH_SCHEME,
   passkeyNameLength,
   permissionsRequiring,
   pinCodeExpiresAt,
