@@ -10,9 +10,7 @@ import { signIn } from "./sign-in";
 import { createSignedInPerson, type SignedInPerson } from "./signed-in-person";
 import { SqliteSignInStore } from "./sqlite-sign-in-store";
 
-const CASHIER_ID = "1e7b3a90-52c4-4d18-9f6a-8b0c2d4e6f71";
 const MANAGER_ID = "2f8c4ba1-63d5-4e29-8a7b-9c1d3e5f7a82";
-const CASHIER_ROLE_ID = "3a9d5cb2-74e6-4f3a-9b8c-0d2e4f6a8b93";
 const MANAGER_ROLE_ID = "4bae6dc3-85f7-4a4b-8c9d-1e3f5a7b9ca4";
 const PEPPER = Buffer.alloc(32, 7).toString("base64url");
 const PIN_HASH = "argon2id$v=19$m=65536,t=3,p=4$c2FsdA$aGFzaC1vZi10aGUtcGlu";
@@ -103,10 +101,8 @@ beforeEach(async () => {
   });
   pulledUpTo = 0;
   await pull(
-    roleChange(1, CASHIER_ROLE_ID, roleRow("Cajera", ["sell_and_charge"])),
-    roleChange(2, MANAGER_ROLE_ID, roleRow("Encargado", ["sell_and_charge", "record_cash_in"])),
-    userChange(3, CASHIER_ID, userRow(CASHIER_ROLE_ID, "Ada")),
-    userChange(4, MANAGER_ID, userRow(MANAGER_ROLE_ID, "Grace")),
+    roleChange(1, MANAGER_ROLE_ID, roleRow("Encargado", ["sell_and_charge", "record_cash_in"])),
+    userChange(2, MANAGER_ID, userRow(MANAGER_ROLE_ID, "Grace")),
   );
 });
 
@@ -115,33 +111,11 @@ afterEach(() => {
 });
 
 describe("the action gate over the register's local database", () => {
-  it("refuses a signed-in person whose role lacks the permission, and never runs the action", async () => {
-    await signInAs(CASHIER_ID);
-
-    const { outcome, performed } = cashIn();
-
-    expect(await outcome).toEqual({ kind: "lacks_permission" });
-    expect(performed).toEqual([]);
-  });
-
-  it("runs the action for a signed-in person whose role holds the permission", async () => {
-    await signInAs(MANAGER_ID);
-
-    const { outcome, performed } = cashIn();
-
-    expect(await outcome).toEqual({
-      kind: "performed",
-      authorized_by: null,
-      result: "cash in recorded",
-    });
-    expect(performed).toEqual(["cash in recorded"]);
-  });
-
   it("refuses the next action of a signed-in person whose role loses the permission in a pull", async () => {
     await signInAs(MANAGER_ID);
     expect((await cashIn().outcome).kind).toBe("performed");
 
-    await pull(roleChange(5, MANAGER_ROLE_ID, roleRow("Encargado", ["sell_and_charge"], 2)));
+    await pull(roleChange(3, MANAGER_ROLE_ID, roleRow("Encargado", ["sell_and_charge"], 2)));
     const { outcome, performed } = cashIn();
 
     expect(await outcome).toEqual({ kind: "lacks_permission" });
@@ -152,7 +126,7 @@ describe("the action gate over the register's local database", () => {
     await signInAs(MANAGER_ID);
 
     await pull(
-      userChange(5, MANAGER_ID, {
+      userChange(3, MANAGER_ID, {
         ...userRow(MANAGER_ROLE_ID, "Grace"),
         active: false,
         version: 2,

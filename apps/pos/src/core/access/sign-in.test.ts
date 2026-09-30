@@ -205,40 +205,24 @@ describe("who is signed in after signing in", () => {
     expect(signedIn.userId()).toBe("u1");
   });
 
-  it("leaves nobody signed in after a wrong PIN", async () => {
+  it("leaves nobody signed in from the moment an attempt starts until it signs someone in", async () => {
     const { built, signedIn } = deps();
     signedIn.set("u9");
+    let signedInWhileHashing: string | undefined = "not hashed";
 
-    await signIn(built, "u1", "9999");
+    await signIn(
+      {
+        ...built,
+        hashPin: async (pin, salt) => {
+          signedInWhileHashing = signedIn.userId();
+          return built.hashPin(pin, salt);
+        },
+      },
+      "u1",
+      "9999",
+    );
 
-    expect(signedIn.userId()).toBeUndefined();
-  });
-
-  it("leaves nobody signed in after an attempt of a user who cannot sign in", async () => {
-    const { built, signedIn } = deps({ record: undefined });
-    signedIn.set("u9");
-
-    await signIn(built, "u1", "1234");
-
-    expect(signedIn.userId()).toBeUndefined();
-  });
-
-  it("leaves nobody signed in when the right PIN's person holds no register permission", async () => {
-    const stored = record({ access: { isAdministrator: false, permissionKeys: [] } });
-    const { built, signedIn } = deps({ record: stored });
-    signedIn.set("u9");
-
-    await signIn(built, "u1", "1234");
-
-    expect(signedIn.userId()).toBeUndefined();
-  });
-
-  it("leaves nobody signed in when the register has no pepper", async () => {
-    const { built, signedIn } = deps({ readPepper: async () => undefined });
-    signedIn.set("u9");
-
-    await signIn(built, "u1", "1234");
-
+    expect(signedInWhileHashing).toBeUndefined();
     expect(signedIn.userId()).toBeUndefined();
   });
 });

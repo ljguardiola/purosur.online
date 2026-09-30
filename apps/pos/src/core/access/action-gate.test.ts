@@ -204,23 +204,21 @@ describe("running a guarded action with another person's authorization", () => {
     const base = deps({ accessOf: { u1: { isAdministrator: false, permissionKeys: [] } } });
     const hashed: string[] = [];
     const counted: string[] = [];
-    const sandbox = deps({
-      accessOf: { u1: { isAdministrator: false, permissionKeys: [] } },
-      overrides: {
-        store: {
-          ...base.store,
-          signInRecord: () => record(["sell_and_charge"]),
-          recordPinSignInFailure: (userId, at) => {
-            counted.push(userId);
-            return base.store.recordPinSignInFailure(userId, at);
-          },
-        },
-        hashPin: async (pin, salt) => {
-          hashed.push(pin);
-          return base.hashPin(pin, salt);
+    const sandbox: ActionGateDeps = {
+      ...base,
+      store: {
+        ...base.store,
+        signInRecord: () => record(["sell_and_charge"]),
+        recordPinSignInFailure: (userId, at) => {
+          counted.push(userId);
+          return base.store.recordPinSignInFailure(userId, at);
         },
       },
-    });
+      hashPin: async (pin, salt) => {
+        hashed.push(pin);
+        return base.hashPin(pin, salt);
+      },
+    };
     const parsed: GuardedAction = JSON.parse(
       '{"permission":"sell_and_charge","authorization":{"user_id":"u2","pin":"1234"}}',
     );
