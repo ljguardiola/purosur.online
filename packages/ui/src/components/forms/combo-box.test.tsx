@@ -91,6 +91,36 @@ test("shows the new chosen option's label when the caller changes the value", as
   await expect.poll(() => inputElement(screen).value).toBe("Miel de abeja");
 });
 
+test("shows the chosen option's label and lists every option when that option arrives after the value", async () => {
+  const withoutMiel: BaseProps["options"] = [
+    options[0],
+    ...options.slice(1).filter((option) => option.value !== "miel"),
+  ];
+  const screen = await render(<ComboBox {...baseProps({ value: "miel", options: withoutMiel })} />);
+
+  await screen.rerender(<ComboBox {...baseProps({ value: "miel" })} />);
+
+  await expect.poll(() => inputElement(screen).value).toBe("Miel de abeja");
+  await userEvent.tab();
+  await expect.poll(() => screen.getByRole("option").elements().length).toBe(4);
+});
+
+test("shows the chosen option's new label and lists every option when its label changes", async () => {
+  const screen = await render(<ComboBox {...baseProps({ value: "cafe" })} />);
+  const renamed: BaseProps["options"] = [
+    options[0],
+    ...options
+      .slice(1)
+      .map((option) => (option.value === "cafe" ? { ...option, label: "Café en grano" } : option)),
+  ];
+
+  await screen.rerender(<ComboBox {...baseProps({ value: "cafe", options: renamed })} />);
+
+  await expect.poll(() => inputElement(screen).value).toBe("Café en grano");
+  await userEvent.tab();
+  await expect.poll(() => screen.getByRole("option").elements().length).toBe(4);
+});
+
 test("shows the placeholder while nothing is chosen", async () => {
   const screen = await render(<ComboBox {...baseProps({ placeholder: "Elegí un producto" })} />);
 

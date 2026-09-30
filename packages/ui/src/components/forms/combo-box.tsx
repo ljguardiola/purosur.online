@@ -122,23 +122,23 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
   const { invalid, errorMessage, errorMessageId } = fieldError(props);
   const { contains } = useFilter({ sensitivity: "base" });
   const chosen = options.find((option) => option.value === value);
-  const [inputValue, setInputValue] = useState(chosen?.label ?? "");
+  const [typed, setTyped] = useState<string | null>(null);
   const [shownValue, setShownValue] = useState(value);
   const [listMetrics, setListMetrics] = useState<ListMetrics | null>(null);
   if (value !== shownValue) {
     setShownValue(value);
-    setInputValue(chosen?.label ?? "");
+    setTyped(null);
   }
+  const inputValue = typed ?? chosen?.label ?? "";
 
-  // Showing the chosen option's own label is not a search: the whole list stays available.
-  const searching = inputValue !== chosen?.label;
-  const visibleOptions = searching
-    ? options.filter((option) =>
-        [option.label, option.description ?? "", ...(option.searchKeywords ?? [])].some((text) =>
-          contains(text, inputValue),
-        ),
-      )
-    : options;
+  const visibleOptions =
+    typed === null
+      ? options
+      : options.filter((option) =>
+          [option.label, option.description ?? "", ...(option.searchKeywords ?? [])].some((text) =>
+            contains(text, typed),
+          ),
+        );
 
   const hasDescriptions = options.some((option) => option.description !== undefined);
   const listLayoutOptions =
@@ -158,16 +158,17 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
       selectedKey={value}
       // With the input text controlled too, react-aria hands every commit and revert (Escape, Enter
       // with nothing highlighted, leaving the field) back here. It reports no key when the chosen
-      // option is outside the narrowed list it holds, so the label comes from every option instead.
+      // option is outside the narrowed list it holds, so the chosen value stands.
       onSelectionChange={(key) => {
         const picked = isOptionValue(key, options) ? key : value;
-        setInputValue(options.find((option) => option.value === picked)?.label ?? "");
+        setTyped(null);
         if (picked !== null && picked !== value) {
           onChange(picked);
         }
       }}
       inputValue={inputValue}
-      onInputChange={setInputValue}
+      // Showing the chosen option's own label is not a search: the whole list stays available.
+      onInputChange={(text) => setTyped(text === chosen?.label ? null : text)}
       onOpenChange={(isOpen) => {
         if (isOpen) {
           setListMetrics(readListMetrics());
