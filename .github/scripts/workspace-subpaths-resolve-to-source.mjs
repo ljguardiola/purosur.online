@@ -20,8 +20,14 @@ function findWorkspacePackages(root) {
     });
 }
 
-function exportedSpecifiers({ name, exports = {} }) {
-  return Object.keys(exports)
+function subpathEntries(exports) {
+  const isSubpathMap =
+    typeof exports === "object" && Object.keys(exports).some((key) => key.startsWith("."));
+  return isSubpathMap ? exports : { ".": exports };
+}
+
+function exportedSpecifiers({ name, exports }) {
+  return Object.keys(subpathEntries(exports))
     .filter((subpath) => extname(subpath) === "")
     .map((subpath) => (subpath === "." ? name : `${name}${subpath.slice(1)}`));
 }

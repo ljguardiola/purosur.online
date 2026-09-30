@@ -32,6 +32,7 @@ function createWorkspace({ compilerOptions = {}, exports, files = [] }) {
   writeJson(root, "packages/library/package.json", {
     name: "@example/library",
     type: "module",
+    main: "./dist/index.js",
     exports,
   });
   writeFile(root, "packages/library/src/index.ts", "export const root = 1;\n");
@@ -137,6 +138,33 @@ test("accepts a package that exports its source directly", () => {
       assert.deepEqual(findSubpathsNotResolvingToSource(root), []);
     },
   );
+});
+
+test("reads an exports string as the package's root entry", () => {
+  withWorkspace({ exports: "./src/index.ts" }, (root) => {
+    assert.deepEqual(
+      findWorkspaceSubpathImports(root).map(({ specifier }) => specifier),
+      ["@example/library"],
+    );
+  });
+});
+
+test("reads exports made only of conditions as the package's root entry", () => {
+  withWorkspace({ exports: builtExports["."], files: builtFiles }, (root) => {
+    assert.deepEqual(findSubpathsNotResolvingToSource(root).map(describeUnresolvedSubpath), [
+      "@example/library, imported from @example/shop, resolves to " +
+        "packages/library/dist/index.d.ts instead of the package's source",
+    ]);
+  });
+});
+
+test("checks the root entry of a package without exports, which resolves through its main field", () => {
+  withWorkspace({ files: builtFiles }, (root) => {
+    assert.deepEqual(findSubpathsNotResolvingToSource(root).map(describeUnresolvedSubpath), [
+      "@example/library, imported from @example/shop, resolves to " +
+        "packages/library/dist/index.d.ts instead of the package's source",
+    ]);
+  });
 });
 
 test("skips an exported stylesheet, which is not a module TypeScript resolves", () => {
