@@ -58,10 +58,12 @@ export function UserPinSection({
       return;
     }
     if (outcome.kind === "unauthenticated") {
+      setEmission({ kind: "closed" });
       onSessionEnded();
       return;
     }
     if (outcome.kind === "forbidden") {
+      setEmission({ kind: "closed" });
       sendToMyAccount();
       return;
     }

@@ -175,6 +175,7 @@ test("reports the session ended when the emission comes back unauthenticated", a
   await userEvent.click(screen.getByRole("button", { name: "Reiniciar el PIN" }));
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
 });
 
 test("sends the person to Mi cuenta when the emission comes back forbidden", async () => {
@@ -185,6 +186,7 @@ test("sends the person to Mi cuenta when the emission comes back forbidden", asy
   await userEvent.click(screen.getByRole("button", { name: "Reiniciar el PIN" }));
 
   await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
 });
 
 test("disables Reiniciar el PIN while the user's data is loading", async () => {
