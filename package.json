@@ -30,7 +30,7 @@
     "ci:verify-durations": "node .github/scripts/verify-durations.mjs"
   },
   "devDependencies": {
-    "@babel/core": "^7.29.7",
+    "@babel/core": "^8.0.6",
     "@biomejs/biome": "^2.5.14",
     "@rolldown/plugin-babel": "^0.2.4",
     "@secretlint/node": "^13.0.6",
