@@ -9,6 +9,7 @@ import {
   branchHours,
   branchSettings,
   categories,
+  discounts,
   locations,
   passkeyChallenges,
   passkeys,
@@ -39,6 +40,7 @@ import {
 import {
   SAMPLE_ADMINISTRATOR,
   SAMPLE_CATEGORY_TREE,
+  SAMPLE_DISCOUNTS,
   SAMPLE_EMAIL_DOMAIN,
   SAMPLE_LOCKOUT_SOURCE_ADDRESSES,
   SAMPLE_REGISTER_NAMES,
@@ -284,6 +286,35 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
       .delete(alerts)
       .where(inArray(alerts.id, sampleAlertIds))
       .returning({ id: alerts.id });
+
+    const sampleTagIds = (
+      await tx
+        .select({ id: tags.id })
+        .from(tags)
+        .where(
+          inArray(
+            tags.name,
+            SAMPLE_TAGS.map((tag) => tag.name),
+          ),
+        )
+    ).map((row) => row.id);
+    await tx.delete(discounts).where(
+      and(
+        inArray(
+          discounts.name,
+          SAMPLE_DISCOUNTS.map((discount) => discount.name),
+        ),
+        or(
+          inArray(discounts.categoryId, [
+            ...categoryIdsByDepth.top,
+            ...categoryIdsByDepth.mid,
+            ...categoryIdsByDepth.leaf,
+          ]),
+          inArray(discounts.productId, sampleProductIds),
+          inArray(discounts.tagId, sampleTagIds),
+        ),
+      ),
+    );
 
     await tx.delete(priceReviews).where(inArray(priceReviews.productId, sampleProductIds));
     await tx.delete(prices).where(inArray(prices.productId, sampleProductIds));

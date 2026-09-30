@@ -10,6 +10,7 @@ import {
   branchHours,
   branchSettings,
   categories,
+  discounts,
   priceReviews,
   productBarcodes,
   products,
@@ -28,10 +29,12 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { loadSampleData } from "./load-sample-data.js";
 import {
   SAMPLE_ADMINISTRATOR,
+  SAMPLE_DISCOUNTS,
   SAMPLE_EMAIL_DOMAIN,
   SAMPLE_REGISTER_NAMES,
   SAMPLE_ROLES,
   SAMPLE_TAGS,
+  sampleDiscountWindow,
 } from "./sample-catalog.js";
 
 const PRODUCIBLE_ALERT_LEVELS = new Set(
@@ -173,6 +176,34 @@ describe("loadSampleData", () => {
     expect(tagCountByProduct.size).toBeLessThan(allProducts.length);
     expect(Math.max(...tagCountByProduct.values())).toBeGreaterThan(1);
 
+    const storedDiscounts = await db
+      .select({
+        name: discounts.name,
+        percent: discounts.percent,
+        validFrom: discounts.validFrom,
+        validTo: discounts.validTo,
+        weekdays: discounts.weekdays,
+        active: discounts.active,
+        targetName: sql<string>`coalesce(${products.name}, ${categories.name}, ${tags.name})`,
+      })
+      .from(discounts)
+      .leftJoin(products, eq(products.id, discounts.productId))
+      .leftJoin(categories, eq(categories.id, discounts.categoryId))
+      .leftJoin(tags, eq(tags.id, discounts.tagId));
+    expect(storedDiscounts.map(({ name }) => name).sort()).toEqual(
+      SAMPLE_DISCOUNTS.map(({ name }) => name).sort(),
+    );
+    for (const plan of SAMPLE_DISCOUNTS) {
+      expect(storedDiscounts.find(({ name }) => name === plan.name)).toEqual({
+        name: plan.name,
+        percent: plan.percent,
+        ...sampleDiscountWindow(plan, "2026-03-15"),
+        weekdays: plan.weekdays,
+        active: true,
+        targetName: plan.target.name,
+      });
+    }
+
     const allBarcodes = await db.select({ code: productBarcodes.code }).from(productBarcodes);
     expect(allBarcodes.some((barcode) => barcode.code.startsWith("04"))).toBe(true);
     expect(allBarcodes.some((barcode) => isInternalBarcode(barcode.code))).toBe(true);
@@ -213,6 +244,7 @@ describe("loadSampleData", () => {
       categories: await tableCount(db, "categories"),
       products: await tableCount(db, "products"),
       productBarcodes: await tableCount(db, "product_barcodes"),
+      discounts: await tableCount(db, "discounts"),
       tags: await tableCount(db, "tags"),
       productTags: await tableCount(db, "product_tags"),
       prices: await tableCount(db, "prices"),
@@ -233,6 +265,7 @@ describe("loadSampleData", () => {
       categories: await tableCount(db, "categories"),
       products: await tableCount(db, "products"),
       productBarcodes: await tableCount(db, "product_barcodes"),
+      discounts: await tableCount(db, "discounts"),
       tags: await tableCount(db, "tags"),
       productTags: await tableCount(db, "product_tags"),
       prices: await tableCount(db, "prices"),

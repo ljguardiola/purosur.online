@@ -163,6 +163,16 @@ describe("GET /products", () => {
     expect(response.json()).toMatchObject({ code: "forbidden" });
   });
 
+  it("rejects a user who only has the promotions permission with 403 forbidden", async () => {
+    const userId = await insertUserWithPermission(["manage_promotions"]);
+    const rawSessionId = await insertSession(userId);
+
+    const response = await getProducts(rawSessionId);
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "forbidden" });
+  });
+
   it("rejects an Origin that is not the backoffice's own", async () => {
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);

@@ -1065,6 +1065,35 @@ describe("wiring the products routes", () => {
   });
 });
 
+describe("wiring the discounts routes", () => {
+  const ORIGIN = { origin: "https://staging.purosur.online" };
+  const ID = "00000000-0000-0000-0000-000000000000";
+
+  async function discountsResponses(app: ReturnType<typeof buildApp>): Promise<number[]> {
+    const responses = await Promise.all([
+      app.inject({ method: "GET", url: "/api/discounts" }),
+      app.inject({ method: "POST", url: "/api/discounts", headers: ORIGIN }),
+      app.inject({ method: "PUT", url: `/api/discounts/${ID}`, headers: ORIGIN }),
+    ]);
+    return responses.map((response) => response.statusCode);
+  }
+
+  it("does not register the discounts routes when no discounts option is given", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    expect(await discountsResponses(app)).toEqual([404, 404, 404]);
+  });
+
+  it("registers the discounts routes when a discounts option is given", async () => {
+    const app = buildApp({
+      version: "abc1234",
+      discounts: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+    });
+
+    expect(await discountsResponses(app)).toEqual([401, 401, 401]);
+  });
+});
+
 describe("wiring the prices routes", () => {
   it("does not register the prices routes when no prices option is given", async () => {
     const app = buildApp({ version: "abc1234" });
@@ -1499,6 +1528,7 @@ function productionWiredApp() {
     products: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     alerts: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     prices: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
+    discounts: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     registers: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     devices: {
       db: testDatabase.db,
@@ -1720,6 +1750,21 @@ describe("the route access inventory", () => {
         method: "POST",
         url: "/api/products/:id/price-confirmation",
         access: permissionAccess("manage_prices_and_review"),
+      },
+      {
+        method: "GET",
+        url: "/api/discounts",
+        access: permissionAccess("manage_promotions"),
+      },
+      {
+        method: "POST",
+        url: "/api/discounts",
+        access: permissionAccess("manage_promotions"),
+      },
+      {
+        method: "PUT",
+        url: "/api/discounts/:id",
+        access: permissionAccess("manage_promotions"),
       },
       {
         method: "GET",

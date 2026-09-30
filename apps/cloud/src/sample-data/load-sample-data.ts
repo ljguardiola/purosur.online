@@ -1,3 +1,4 @@
+import { argentinaCalendarDay } from "@purosur/domain";
 import {
   createCategory,
   createProduct,
@@ -5,7 +6,7 @@ import {
   deactivateProduct,
   deactivateTag,
 } from "@purosur/domain/catalog/use-cases";
-import { confirmPrice, setPrice } from "@purosur/domain/pricing/use-cases";
+import { confirmPrice, createDiscount, setPrice } from "@purosur/domain/pricing/use-cases";
 import { and, eq, like, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { createRole } from "../access/role-creation-route.js";
@@ -20,6 +21,7 @@ import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { allocateInternalBarcode } from "../catalog/internal-barcode-route.js";
 import { branchSettings, locations, roles, userRoles, users } from "../platform/db/schema.js";
 import { branchPriceListId } from "../pricing/branch-price-list.js";
+import { DrizzleDiscountStore } from "../pricing/drizzle-discount-store.js";
 import { DrizzlePricingStore } from "../pricing/drizzle-pricing-store.js";
 import { createRegister } from "../register/register-creation-route.js";
 import { branchSettingsAreAtDefaults } from "./sample-branch-settings.js";
@@ -27,11 +29,13 @@ import {
   SAMPLE_ADMINISTRATOR,
   SAMPLE_BRANCH_SETTINGS,
   SAMPLE_CATEGORY_TREE,
+  SAMPLE_DISCOUNTS,
   SAMPLE_EMAIL_DOMAIN,
   SAMPLE_LOCKOUT_SOURCE_ADDRESSES,
   SAMPLE_REGISTER_NAMES,
   SAMPLE_ROLES,
   SAMPLE_TAGS,
+  sampleDiscountWindow,
   sampleEmail,
 } from "./sample-catalog.js";
 
@@ -184,6 +188,8 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
         const tag = expectOutcome(tagOutcome, "created", `tag "${tagPlan.name}"`);
         tagIdByName.set(tagPlan.name, tag.tag.id);
       }
+      const categoryIdByName = new Map<string, string>();
+      const productIdByName = new Map<string, string>();
       let categoryCount = 0;
       let productCount = 0;
       for (const top of SAMPLE_CATEGORY_TREE) {
@@ -192,6 +198,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
           parentId: null,
         });
         const topCategory = expectOutcome(topOutcome, "created", `category "${top.name}"`);
+        categoryIdByName.set(top.name, topCategory.category.id);
         categoryCount += 1;
 
         for (const mid of top.mids) {
@@ -200,6 +207,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
             parentId: topCategory.category.id,
           });
           const midCategory = expectOutcome(midOutcome, "created", `category "${mid.name}"`);
+          categoryIdByName.set(mid.name, midCategory.category.id);
           categoryCount += 1;
 
           for (const leaf of mid.leaves) {
@@ -208,6 +216,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
               parentId: midCategory.category.id,
             });
             const leafCategory = expectOutcome(leafOutcome, "created", `category "${leaf.name}"`);
+            categoryIdByName.set(leaf.name, leafCategory.category.id);
             categoryCount += 1;
 
             for (const plan of leaf.products) {
@@ -231,6 +240,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
                 netContent: plan.netContent,
               });
               const product = expectOutcome(productOutcome, "created", `product "${plan.name}"`);
+              productIdByName.set(plan.name, product.product.id);
               productCount += 1;
 
               // Priced while still active: `setPrice`/`confirmPrice` only ever act on an active
@@ -282,6 +292,30 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
         }
         const deactivated = await deactivateTag(catalogStore, tagId);
         expectOutcome(deactivated, "deactivated", `deactivating tag "${tagPlan.name}"`);
+      }
+
+      const discountStore = new DrizzleDiscountStore(tx);
+      const loadDay = argentinaCalendarDay(recentMoment);
+      for (const plan of SAMPLE_DISCOUNTS) {
+        const targetId = {
+          CATEGORY: categoryIdByName,
+          PRODUCT: productIdByName,
+          TAG: tagIdByName,
+        }[plan.target.kind].get(plan.target.name);
+        if (!targetId) {
+          throw new Error(`sample-data: the target "${plan.target.name}" was not created`);
+        }
+        const discountOutcome = await createDiscount(
+          { store: discountStore },
+          {
+            name: plan.name,
+            benefit: { kind: "PERCENT_OFF", percent: plan.percent },
+            target: { kind: plan.target.kind, id: targetId },
+            ...sampleDiscountWindow(plan, loadDay),
+            weekdays: [...plan.weekdays],
+          },
+        );
+        expectOutcome(discountOutcome, "created", `discount "${plan.name}"`);
       }
 
       for (const registerName of SAMPLE_REGISTER_NAMES) {

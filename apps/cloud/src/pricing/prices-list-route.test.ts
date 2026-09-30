@@ -210,6 +210,16 @@ describe("GET /prices", () => {
     expect(response.statusCode).toBe(403);
   });
 
+  it("rejects a user who only has the promotions permission with 403 forbidden", async () => {
+    const userId = await insertUserWithPermission(["manage_promotions"]);
+    const rawSessionId = await insertSession(userId);
+
+    const response = await listPricesRequest(rawSessionId);
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "forbidden" });
+  });
+
   it("reports the branch's own unreviewed-price window as reviewWindowDays", async () => {
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);

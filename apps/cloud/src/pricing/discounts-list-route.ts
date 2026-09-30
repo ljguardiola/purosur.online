@@ -1,0 +1,91 @@
+import { type DiscountSummary, discountListSchema } from "@purosur/contracts";
+import { asc, eq, sql } from "drizzle-orm";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import type { FastifyInstance } from "fastify";
+import { sameOriginGuard } from "../access/backoffice-origin.js";
+import {
+  permissionAccess,
+  registerRouteAccess,
+  routeSessionSource,
+} from "../access/route-access.js";
+import { categories, discounts, products, tags } from "../platform/db/schema.js";
+
+export interface DiscountsRouteOptions<TQueryResult extends PgQueryResultHKT> {
+  db: PgDatabase<TQueryResult>;
+  backofficeOrigin: string;
+  now?: () => Date;
+}
+
+export async function listDiscounts<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  discountId?: string,
+): Promise<DiscountSummary[]> {
+  const rows = await db
+    .select({
+      discount: discounts,
+      targetName: sql<string>`coalesce(${products.name}, ${categories.name}, ${tags.name})`,
+    })
+    .from(discounts)
+    .leftJoin(products, eq(products.id, discounts.productId))
+    .leftJoin(categories, eq(categories.id, discounts.categoryId))
+    .leftJoin(tags, eq(tags.id, discounts.tagId))
+    .where(discountId === undefined ? undefined : eq(discounts.id, discountId))
+    .orderBy(asc(discounts.name), asc(discounts.id));
+
+  return rows.map(({ discount, targetName }) => ({
+    id: discount.id,
+    name: discount.name,
+    benefit: benefitOf(discount),
+    target: targetOf(discount, targetName),
+    validFrom: discount.validFrom,
+    validTo: discount.validTo,
+    weekdays: discount.weekdays,
+    active: discount.active,
+    version: discount.version,
+  }));
+}
+
+function benefitOf(discount: typeof discounts.$inferSelect): DiscountSummary["benefit"] {
+  if (discount.percent === null) {
+    throw new Error(`discount ${discount.id} has no percent`);
+  }
+  return { kind: "PERCENT_OFF", percent: discount.percent };
+}
+
+function targetOf(
+  discount: typeof discounts.$inferSelect,
+  name: string,
+): DiscountSummary["target"] {
+  if (discount.productId !== null) {
+    return { kind: "PRODUCT", id: discount.productId, name };
+  }
+  if (discount.categoryId !== null) {
+    return { kind: "CATEGORY", id: discount.categoryId, name };
+  }
+  if (discount.tagId !== null) {
+    return { kind: "TAG", id: discount.tagId, name };
+  }
+  throw new Error(`discount ${discount.id} has no target`);
+}
+
+export function registerDiscountsListRoute<TQueryResult extends PgQueryResultHKT>(
+  app: FastifyInstance,
+  options: DiscountsRouteOptions<TQueryResult>,
+): void {
+  const now = options.now ?? (() => new Date());
+  registerRouteAccess(app);
+  const sessionSource = routeSessionSource({ db: options.db, now });
+
+  app.get(
+    "/discounts",
+    {
+      preHandler: sameOriginGuard(options.backofficeOrigin),
+      config: { access: permissionAccess("manage_promotions"), sessionSource },
+    },
+    async (_request, reply) => {
+      await reply
+        .code(200)
+        .send(discountListSchema.parse({ discounts: await listDiscounts(options.db) }));
+    },
+  );
+}

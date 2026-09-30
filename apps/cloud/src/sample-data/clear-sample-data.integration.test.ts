@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createCategory, createProduct, createTag } from "@purosur/domain/catalog/use-cases";
-import { confirmPrice, setPrice } from "@purosur/domain/pricing/use-cases";
+import { confirmPrice, createDiscount, setPrice } from "@purosur/domain/pricing/use-cases";
 import { desc, eq, sql } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -30,6 +30,7 @@ import {
   userRoles,
   users,
 } from "../platform/db/schema.js";
+import { DrizzleDiscountStore } from "../pricing/drizzle-discount-store.js";
 import { DrizzlePricingStore } from "../pricing/drizzle-pricing-store.js";
 import { createRegister } from "../register/register-creation-route.js";
 import {
@@ -120,6 +121,7 @@ async function sampleDataSnapshot(
     "product_barcodes",
     "tags",
     "product_tags",
+    "discounts",
     "prices",
     "price_reviews",
     "registers",
@@ -260,6 +262,18 @@ describe("clearSampleData", () => {
       netContent: null,
     });
     if (realProductOutcome.kind !== "created") throw new Error("test setup: real product collided");
+    const realDiscountOutcome = await createDiscount(
+      { store: new DrizzleDiscountStore(db) },
+      {
+        name: "Martes de infusiones",
+        benefit: { kind: "PERCENT_OFF", percent: 10 },
+        target: { kind: "CATEGORY", id: realCategoryOutcome.category.id },
+        validFrom: "2026-03-01",
+        validTo: "2026-03-31",
+        weekdays: [2],
+      },
+    );
+    if (realDiscountOutcome.kind !== "created") throw new Error("test setup: real discount failed");
     const priceListRow = await db.execute<{ price_list_id: string }>(
       sql`select price_list_id from branch_settings where location_id = ${bootstrapAdmin.locationId}`,
     );
@@ -750,6 +764,36 @@ describe("clearSampleData", () => {
       netContent: null,
     });
     if (realProduct.kind !== "created") throw new Error("test setup: real product collided");
+    const beforeClear = await sampleDataSnapshot(db);
+
+    const outcome = await clearSampleData(db);
+
+    expect(outcome.kind).toBe("refused");
+    expect(await sampleDataSnapshot(db)).toEqual(beforeClear);
+  }, 120_000);
+
+  it("refuses and deletes nothing when a real discount is aimed at a sample category", async () => {
+    const db = await freshOwnerDatabase();
+    await seedActiveAdministrator(db);
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    const sampleCategoryId = await sampleCategoryIdByPath(
+      db,
+      "Almacén",
+      "Aceites y Aderezos",
+      "Aceites",
+    );
+    const realDiscount = await createDiscount(
+      { store: new DrizzleDiscountStore(db) },
+      {
+        name: "Descuento Real",
+        benefit: { kind: "PERCENT_OFF", percent: 10 },
+        target: { kind: "CATEGORY", id: sampleCategoryId },
+        validFrom: "2026-03-01",
+        validTo: "2026-03-31",
+        weekdays: [],
+      },
+    );
+    if (realDiscount.kind !== "created") throw new Error("test setup: real discount failed");
     const beforeClear = await sampleDataSnapshot(db);
 
     const outcome = await clearSampleData(db);
