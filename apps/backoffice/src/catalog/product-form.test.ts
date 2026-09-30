@@ -12,7 +12,10 @@ import {
   productMessage,
   productRequestFrom,
   saleUnitMessage,
+  tagInactiveError,
+  tagsMessage,
 } from "./product-form";
+import { sinTacc, vegano } from "./test-support/tags";
 
 const NO_BARCODES = { codes: [], scan: "" };
 
@@ -170,6 +173,7 @@ describe("the empty form", () => {
       saleUnit: null,
       netContent: { quantity: "", unit: "G" },
       barcodes: NO_BARCODES,
+      tagIds: [],
     });
   });
 });
@@ -190,6 +194,7 @@ describe("the product's brand", () => {
       categoryName: "Almacén",
       saleUnit: "UNIT" as const,
       barcodes: ["111"],
+      tagIds: [],
       netContent: null,
       active: true,
       version: 1,
@@ -200,6 +205,30 @@ describe("the product's brand", () => {
 
   it("says a brand the cloud refuses no longer exists", () => {
     expect(brandMessage()).toBe("La marca elegida ya no existe.");
+  });
+});
+
+describe("the product's tags", () => {
+  it("asks for the tags chosen, in order", () => {
+    expect(
+      productRequestFrom({ ...EMPTY_PRODUCT_FORM, tagIds: ["tag-2", "tag-1"] }).tagIds,
+    ).toEqual(["tag-2", "tag-1"]);
+  });
+
+  it("says a tag the cloud refuses no longer exists", () => {
+    expect(tagsMessage()).toBe("Un distintivo elegido ya no existe.");
+  });
+
+  it("names the deactivated tag the cloud refuses, among the tags the form has", () => {
+    expect(tagInactiveError([sinTacc, vegano], vegano.id)).toBe(
+      '"Vegano" se dio de baja. Quitalo para guardar.',
+    );
+  });
+
+  it("says a chosen tag was deactivated when the form does not know the refused one", () => {
+    expect(tagInactiveError([sinTacc], vegano.id)).toBe(
+      "Un distintivo elegido se dio de baja. Quitalo para guardar.",
+    );
   });
 });
 

@@ -1,6 +1,7 @@
 import type { SaleUnit } from "../model/product.js";
 import type { CatalogNetContent, CatalogProduct, CatalogStore } from "./catalog-store.js";
 import { CatalogBarcodeConflict } from "./catalog-store.js";
+import { refuseUnassignableTags } from "./refuse-unassignable-tags.js";
 
 export interface CreateProductInput {
   name: string;
@@ -8,6 +9,7 @@ export interface CreateProductInput {
   brandId: string | null;
   saleUnit: SaleUnit;
   barcodes: string[];
+  tagIds: string[];
   netContent: CatalogNetContent | null;
 }
 
@@ -16,6 +18,8 @@ export type CreateProductOutcome =
   | { kind: "category_not_leaf" }
   | { kind: "brand_not_found" }
   | { kind: "brand_inactive" }
+  | { kind: "tag_not_found" }
+  | { kind: "tag_inactive"; tagId: string }
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "created"; product: CatalogProduct };
 
@@ -45,6 +49,11 @@ export async function createProduct(
         }
       }
 
+      const refusedTag = await refuseUnassignableTags(tx, input.tagIds);
+      if (refusedTag) {
+        return refusedTag;
+      }
+
       const taken = await tx.activeBarcodesTaken(input.barcodes);
       if (taken.length > 0) {
         return { kind: "barcode_taken", codes: taken };
@@ -58,6 +67,7 @@ export async function createProduct(
         netContent: input.netContent,
       });
       await tx.insertProductBarcodes(created.id, input.barcodes);
+      await tx.insertProductTags(created.id, input.tagIds);
 
       return {
         kind: "created",
@@ -69,6 +79,7 @@ export async function createProduct(
           brandId: input.brandId,
           saleUnit: input.saleUnit,
           barcodes: input.barcodes,
+          tagIds: input.tagIds,
           netContent: input.netContent,
           active: true,
           version: 1,

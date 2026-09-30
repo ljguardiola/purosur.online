@@ -1,6 +1,7 @@
 import type { SaleUnit } from "../model/product.js";
 import type { CatalogNetContent, CatalogProduct, CatalogStore } from "./catalog-store.js";
 import { CatalogBarcodeConflict } from "./catalog-store.js";
+import { refuseUnassignableTags } from "./refuse-unassignable-tags.js";
 
 export interface EditProductInput {
   id: string;
@@ -9,6 +10,7 @@ export interface EditProductInput {
   brandId: string | null;
   saleUnit: SaleUnit;
   barcodes: string[];
+  tagIds: string[];
   netContent: CatalogNetContent | null;
   version: number;
 }
@@ -19,6 +21,8 @@ export type EditProductOutcome =
   | { kind: "category_not_leaf" }
   | { kind: "brand_not_found" }
   | { kind: "brand_inactive" }
+  | { kind: "tag_not_found" }
+  | { kind: "tag_inactive"; tagId: string }
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "applied"; product: CatalogProduct };
 
@@ -55,6 +59,11 @@ export async function editProduct(
         }
       }
 
+      const refusedTag = await refuseUnassignableTags(tx, input.tagIds, locked.product.tagIds);
+      if (refusedTag) {
+        return refusedTag;
+      }
+
       // Skipped for an inactive product: its barcodes stay inactive, so none can conflict under
       // the active-only uniqueness rule.
       if (locked.product.active) {
@@ -74,6 +83,7 @@ export async function editProduct(
         version: nextVersion,
       });
       await tx.replaceProductBarcodes(locked.product, input.barcodes);
+      await tx.replaceProductTags(input.id, input.tagIds);
 
       return {
         kind: "applied",
@@ -85,6 +95,7 @@ export async function editProduct(
           brandId: input.brandId,
           saleUnit: input.saleUnit,
           barcodes: input.barcodes,
+          tagIds: input.tagIds,
           netContent: input.netContent,
           active: locked.product.active,
           version: nextVersion,

@@ -1,4 +1,4 @@
-import type { BrandSummary, CategorySummary, ProductSummary } from "@purosur/contracts";
+import type { BrandSummary, CategorySummary, ProductSummary, TagList } from "@purosur/contracts";
 import {
   Button,
   ListFilter,
@@ -23,6 +23,7 @@ import {
   useProductsQuery,
   useRefreshCatalog,
   useReloadProduct,
+  useTagsQuery,
 } from "./catalog-queries";
 import { categoriesInTreeOrder, categoryPathLabels, leafCategories } from "./category-path";
 import { DeactivateProductModal } from "./deactivate-product-modal";
@@ -43,6 +44,7 @@ export type ProductsListScreenProps = {
 const NO_PRODUCTS: ProductSummary[] = [];
 const NO_CATEGORIES: CategorySummary[] = [];
 const NO_BRANDS: BrandSummary[] = [];
+const NO_TAG_LIST: TagList = { tags: [], taggedProductCount: 0 };
 
 type CategoryFilter = "ALL" | string;
 type UnitFilter = "ALL" | ProductSaleUnit;
@@ -93,6 +95,7 @@ export function ProductsListScreen({
     fetchProducts: fetchProductsService,
     fetchCategories: fetchCategoriesService,
     fetchBrands: fetchBrandsService,
+    fetchTags: fetchTagsService,
   } = services;
   const [search, setSearch] = useState(filters.search);
   const [chosenCategoryFilter, setChosenCategoryFilter] = useState<CategoryFilter>(
@@ -125,9 +128,15 @@ export function ProductsListScreen({
     onSessionEnded,
   });
   const brandsData = useBrandsQuery({ fetchBrands: fetchBrandsService, onSessionEnded });
-  const data = combineCloudData(combineCloudData(productsData, categoriesData), brandsData);
-  const [[products, categories], brands] =
-    data.status === "loaded" ? data.value : [[NO_PRODUCTS, NO_CATEGORIES], NO_BRANDS];
+  const tagsData = useTagsQuery({ fetchTags: fetchTagsService, onSessionEnded });
+  const data = combineCloudData(
+    combineCloudData(combineCloudData(productsData, categoriesData), brandsData),
+    tagsData,
+  );
+  const [[[products, categories], brands], { tags }] =
+    data.status === "loaded"
+      ? data.value
+      : [[[NO_PRODUCTS, NO_CATEGORIES], NO_BRANDS], NO_TAG_LIST];
 
   useEffect(() => {
     if (data.status === "failed") {
@@ -345,6 +354,7 @@ export function ProductsListScreen({
         onSessionEnded={onSessionEnded}
         categories={categories}
         brands={brands}
+        tags={tags}
         services={services}
       />
       {data.status === "loaded" ? (
@@ -359,6 +369,7 @@ export function ProductsListScreen({
           reload={reloadProduct}
           categories={categories}
           brands={brands}
+          tags={tags}
           services={services}
         />
       ) : null}

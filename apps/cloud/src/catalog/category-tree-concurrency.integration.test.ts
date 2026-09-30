@@ -144,6 +144,7 @@ describe("giving a category a product and a subcategory concurrently on a real P
             brandId: null,
             saleUnit: "UNIT",
             barcodes: [randomUUID()],
+            tagIds: [],
             netContent: null,
           }),
         () =>
@@ -174,6 +175,7 @@ describe("giving a category a product and a subcategory concurrently on a real P
         brandId: null,
         saleUnit: "UNIT",
         barcodes: [randomUUID()],
+        tagIds: [],
         netContent: null,
       });
       if (seeded.kind !== "created") {
@@ -192,6 +194,7 @@ describe("giving a category a product and a subcategory concurrently on a real P
             brandId: null,
             saleUnit: product.saleUnit,
             barcodes: product.barcodes,
+            tagIds: [],
             netContent: null,
             version: product.version,
           }),

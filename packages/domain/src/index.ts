@@ -61,6 +61,7 @@ export {
   isInternalBarcode,
   isNetContentUnit,
   isProductNameTooLong,
+  isTagNameTooLong,
   isValidNetContentQuantity,
   LABELS_MAX_COUNT_PER_PRODUCT,
   LABELS_MAX_TOTAL_COUNT,
@@ -71,6 +72,7 @@ export {
   PRODUCT_NAME_MAX_LENGTH,
   productNameLength,
   SALE_UNITS,
+  TAG_NAME_MAX_LENGTH,
 } from "./catalog/index.js";
 export {
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,

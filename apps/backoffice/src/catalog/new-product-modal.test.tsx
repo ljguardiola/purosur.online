@@ -23,6 +23,7 @@ function createServices(overrides: Partial<NewProductModalServices> = {}): NewPr
   return {
     createProduct: vi.fn(),
     createBrand: vi.fn(),
+    createTag: vi.fn(),
     generateInternalBarcode: vi.fn(),
     ...overrides,
   };
@@ -47,6 +48,7 @@ function modalElement(open: boolean, services: NewProductModalServices, options:
           onSessionEnded={options.onSessionEnded ?? (() => {})}
           categories={options.categories ?? [groceries, driedFruits]}
           brands={options.brands ?? []}
+          tags={[]}
           services={services}
         />
       </main>
@@ -108,6 +110,7 @@ test("creates a product with a net content", async () => {
     brandId: null,
     saleUnit: "KG",
     barcodes: ["7790000000099"],
+    tagIds: [],
     netContent: { quantity: 1.5, unit: "KG" },
   });
   await expect.poll(() => onCreated.mock.calls.length).toBe(1);
@@ -441,6 +444,7 @@ test("creating includes a code typed in the scan input but not yet confirmed wit
     brandId: null,
     saleUnit: "UNIT",
     barcodes: ["7790000000099"],
+    tagIds: [],
     netContent: null,
   });
 });
@@ -498,6 +502,7 @@ test("generates an internal code, adds it to the list, and saves the product wit
     brandId: null,
     saleUnit: "KG",
     barcodes: ["2000000000015"],
+    tagIds: [],
     netContent: null,
   });
 });
@@ -699,6 +704,7 @@ test("creates a brand in a modal stacked over the product form, then selects it 
     brandId: "brand-9",
     saleUnit: "UNIT",
     barcodes: ["111"],
+    tagIds: [],
     netContent: null,
   });
 });

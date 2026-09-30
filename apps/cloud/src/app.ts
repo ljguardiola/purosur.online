@@ -63,6 +63,12 @@ import { registerProductEditRoute } from "./catalog/product-edit-route.js";
 import { registerProductLabelsRoute } from "./catalog/products-labels-route.js";
 import type { ProductsRouteOptions } from "./catalog/products-list-route.js";
 import { registerProductsListRoute } from "./catalog/products-list-route.js";
+import { registerTagCreationRoute } from "./catalog/tag-creation-route.js";
+import { registerTagDeactivationRoute } from "./catalog/tag-deactivation-route.js";
+import { registerTagEditRoute } from "./catalog/tag-edit-route.js";
+import { registerTagReactivationRoute } from "./catalog/tag-reactivation-route.js";
+import type { TagsRouteOptions } from "./catalog/tags-list-route.js";
+import { registerTagsListRoute } from "./catalog/tags-list-route.js";
 import { registerIssuerIdentificationEditRoute } from "./fiscal/issuer-identification-edit-route.js";
 import type { IssuerIdentificationRouteOptions } from "./fiscal/issuer-identification-read-route.js";
 import { registerIssuerIdentificationReadRoute } from "./fiscal/issuer-identification-read-route.js";
@@ -106,6 +112,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   issuerIdentification?: IssuerIdentificationRouteOptions<TQueryResult>;
   categories?: CategoriesRouteOptions<TQueryResult>;
   brands?: BrandsRouteOptions<TQueryResult>;
+  tags?: TagsRouteOptions<TQueryResult>;
   products?: ProductsRouteOptions<TQueryResult>;
   alerts?: AlertsRouteOptions<TQueryResult>;
   prices?: PricesRouteOptions<TQueryResult>;
@@ -260,6 +267,14 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerBrandEditRoute(api, options.brands);
         registerBrandDeactivationRoute(api, options.brands);
         registerBrandReactivationRoute(api, options.brands);
+      }
+
+      if (options.tags) {
+        registerTagsListRoute(api, options.tags);
+        registerTagCreationRoute(api, options.tags);
+        registerTagEditRoute(api, options.tags);
+        registerTagDeactivationRoute(api, options.tags);
+        registerTagReactivationRoute(api, options.tags);
       }
 
       if (options.products) {

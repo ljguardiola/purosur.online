@@ -965,6 +965,37 @@ describe("wiring the brands routes", () => {
   });
 });
 
+describe("wiring the tags routes", () => {
+  const ORIGIN = { origin: "https://staging.purosur.online" };
+  const ID = "00000000-0000-0000-0000-000000000000";
+
+  async function tagsResponses(app: ReturnType<typeof buildApp>): Promise<number[]> {
+    const responses = await Promise.all([
+      app.inject({ method: "GET", url: "/api/tags" }),
+      app.inject({ method: "POST", url: "/api/tags", headers: ORIGIN }),
+      app.inject({ method: "PUT", url: `/api/tags/${ID}`, headers: ORIGIN }),
+      app.inject({ method: "PUT", url: `/api/tags/${ID}/deactivation`, headers: ORIGIN }),
+      app.inject({ method: "DELETE", url: `/api/tags/${ID}/deactivation`, headers: ORIGIN }),
+    ]);
+    return responses.map((response) => response.statusCode);
+  }
+
+  it("does not register the tags routes when no tags option is given", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    expect(await tagsResponses(app)).toEqual([404, 404, 404, 404, 404]);
+  });
+
+  it("registers the tags routes when a tags option is given", async () => {
+    const app = buildApp({
+      version: "abc1234",
+      tags: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+    });
+
+    expect(await tagsResponses(app)).toEqual([401, 401, 401, 401, 401]);
+  });
+});
+
 describe("wiring the products routes", () => {
   it("does not register the products routes when no products option is given", async () => {
     const app = buildApp({ version: "abc1234" });
@@ -1464,6 +1495,7 @@ function productionWiredApp() {
     },
     categories: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     brands: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
+    tags: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     products: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     alerts: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     prices: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
@@ -1609,6 +1641,31 @@ describe("the route access inventory", () => {
       {
         method: "POST",
         url: "/api/brands/:id/reactivation",
+        access: permissionAccess("manage_products_and_categories"),
+      },
+      {
+        method: "GET",
+        url: "/api/tags",
+        access: permissionAccess("manage_products_and_categories"),
+      },
+      {
+        method: "POST",
+        url: "/api/tags",
+        access: permissionAccess("manage_products_and_categories"),
+      },
+      {
+        method: "PUT",
+        url: "/api/tags/:id",
+        access: permissionAccess("manage_products_and_categories"),
+      },
+      {
+        method: "PUT",
+        url: "/api/tags/:id/deactivation",
+        access: permissionAccess("manage_products_and_categories"),
+      },
+      {
+        method: "DELETE",
+        url: "/api/tags/:id/deactivation",
         access: permissionAccess("manage_products_and_categories"),
       },
       {

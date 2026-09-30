@@ -1,4 +1,9 @@
-import type { CategorySummary, ProductCreationBody, ProductSummary } from "@purosur/contracts";
+import type {
+  CategorySummary,
+  ProductCreationBody,
+  ProductSummary,
+  TagSummary,
+} from "@purosur/contracts";
 import {
   BARCODE_MAX_LENGTH,
   type BarcodeListProblem,
@@ -34,6 +39,7 @@ export type ProductFormValues = {
   saleUnit: ProductSaleUnit | null;
   netContent: NetContentValue;
   barcodes: BarcodeListValue;
+  tagIds: string[];
 };
 
 export type ProductEditFormValues = ProductFormValues & { version: number };
@@ -45,6 +51,7 @@ export const EMPTY_PRODUCT_FORM: ProductFormValues = {
   saleUnit: null,
   netContent: { quantity: "", unit: "G" },
   barcodes: { codes: [], scan: "" },
+  tagIds: [],
 };
 
 export function productFormValues(product: ProductSummary): ProductEditFormValues {
@@ -60,6 +67,7 @@ export function productFormValues(product: ProductSummary): ProductEditFormValue
         }
       : EMPTY_PRODUCT_FORM.netContent,
     barcodes: { codes: product.barcodes, scan: "" },
+    tagIds: product.tagIds,
     version: product.version,
   };
 }
@@ -87,6 +95,7 @@ export function productRequestFrom(values: ProductFormValues): ProductRequest {
     brandId: values.brandId === NO_BRAND ? null : values.brandId,
     saleUnit: values.saleUnit,
     barcodes: barcodesWithScan(values.barcodes),
+    tagIds: values.tagIds,
     netContent: netContentFrom(values.netContent),
   };
 }
@@ -103,6 +112,7 @@ export const PRODUCT_FIELDS = {
   brandId: "brandId",
   saleUnit: "saleUnit",
   barcodes: "barcodes",
+  tagIds: "tagIds",
   netContent: "netContent",
   netContentQuantity: "netContent",
 } as const;
@@ -141,6 +151,10 @@ export function brandMessage(): string {
   return "La marca elegida ya no existe.";
 }
 
+export function tagsMessage(): string {
+  return "Un distintivo elegido ya no existe.";
+}
+
 export function saleUnitMessage({ saleUnit }: ProductFormValues): string {
   return saleUnit ? "Revisá la unidad de venta." : "Elegí la unidad de venta.";
 }
@@ -171,6 +185,7 @@ export const PRODUCT_MESSAGES = {
   name: productMessage,
   categoryId: categoryMessage,
   brandId: brandMessage,
+  tagIds: tagsMessage,
   saleUnit: saleUnitMessage,
   netContent: netContentMessage,
   barcodes: barcodeListMessage,
@@ -240,6 +255,13 @@ export function categoryNameOf(categories: CategorySummary[], id: string): strin
 
 export const PRODUCT_BRAND_INACTIVE_ERROR =
   "La marca elegida se dio de baja. Elegí otra o dejala sin marca.";
+
+export function tagInactiveError(tags: TagSummary[], tagId: string): string {
+  const tag = tags.find((candidate) => candidate.id === tagId);
+  return tag
+    ? `"${tag.name}" se dio de baja. Quitalo para guardar.`
+    : "Un distintivo elegido se dio de baja. Quitalo para guardar.";
+}
 
 const PRODUCT_BARCODE_TAKEN_UNNAMED = "Alguno de los códigos ya es de otro producto.";
 

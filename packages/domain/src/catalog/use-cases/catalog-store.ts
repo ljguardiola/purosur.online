@@ -13,12 +13,20 @@ export interface CatalogProduct {
   brandId: string | null;
   saleUnit: SaleUnit;
   barcodes: string[];
+  tagIds: string[];
   netContent: CatalogNetContent | null;
   active: boolean;
   version: number;
 }
 
 export interface CatalogBrand {
+  id: string;
+  name: string;
+  active: boolean;
+  version: number;
+}
+
+export interface CatalogTag {
   id: string;
   name: string;
   active: boolean;
@@ -41,6 +49,9 @@ export class CatalogCategoryNameConflict extends Error {}
 // Thrown by a write that races the brand name uniqueness.
 export class CatalogBrandNameConflict extends Error {}
 
+// Thrown by a write that races the tag name uniqueness.
+export class CatalogTagNameConflict extends Error {}
+
 export type LockLeafCategoryResult =
   | { kind: "not_found" }
   | { kind: "not_leaf" }
@@ -56,6 +67,7 @@ export interface LockedProduct {
   version: number;
   active: boolean;
   brandId: string | null;
+  tagIds: string[];
 }
 
 export type LockProductResult = { kind: "not_found" } | { kind: "locked"; product: LockedProduct };
@@ -67,6 +79,16 @@ export type LockCategoryResult =
 export type LockBrandResult =
   | { kind: "not_found" }
   | { kind: "locked"; brand: { name: string; active: boolean; version: number } };
+
+export type LockTagResult =
+  | { kind: "not_found" }
+  | { kind: "locked"; tag: { name: string; active: boolean; version: number } };
+
+export interface TagFields {
+  name: string;
+  active: boolean;
+  version: number;
+}
 
 export interface BrandFields {
   name: string;
@@ -116,6 +138,8 @@ export interface CatalogStoreTransaction {
   insertProduct(fields: NewProductFields): Promise<{ id: string }>;
   insertProductBarcodes(productId: string, barcodes: readonly string[]): Promise<void>;
   updateProduct(productId: string, fields: ProductFields): Promise<void>;
+  insertProductTags(productId: string, tagIds: readonly string[]): Promise<void>;
+  replaceProductTags(productId: string, tagIds: readonly string[]): Promise<void>;
   // Takes the product this transaction locked, since its barcodes follow its active state.
   replaceProductBarcodes(product: LockedProduct, barcodes: readonly string[]): Promise<void>;
   deactivateProduct(productId: string, nextVersion: number): Promise<void>;
@@ -127,6 +151,11 @@ export interface CatalogStoreTransaction {
   brandNameTaken(name: string, excludingBrandId?: string): Promise<boolean>;
   insertBrand(name: string): Promise<{ id: string }>;
   updateBrand(brandId: string, fields: BrandFields): Promise<void>;
+  lockTag(tagId: string): Promise<LockTagResult>;
+  // Every tag counts, deactivated ones included, and letter case is ignored.
+  tagNameTaken(name: string, excludingTagId?: string): Promise<boolean>;
+  insertTag(name: string): Promise<{ id: string }>;
+  updateTag(tagId: string, fields: TagFields): Promise<void>;
 }
 
 export interface CatalogStore {
