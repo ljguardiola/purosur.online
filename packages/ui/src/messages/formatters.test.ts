@@ -35,6 +35,12 @@ describe("formatCents", () => {
     expect(formatCents(40_000)).toBe("$ 400,00");
     expect(formatCents(0)).toBe("$ 0,00");
   });
+
+  it("groups thousands with a dot and keeps the cents after a comma", () => {
+    expect(formatCents(750_050)).toBe("$ 7.500,50");
+    expect(formatCents(1)).toBe("$ 0,01");
+    expect(formatCents(2_147_483_647)).toBe("$ 21.474.836,47");
+  });
 });
 
 describe("formatDate", () => {

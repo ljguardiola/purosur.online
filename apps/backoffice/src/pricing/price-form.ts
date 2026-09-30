@@ -1,6 +1,7 @@
 import { type PriceSetBody, priceSetBodySchema } from "@purosur/contracts";
 import { parseAmountCents } from "@purosur/domain";
-import { formatCents, MAX_UNIT_PRICE_CENTS } from "./money";
+import { formatCents } from "@purosur/ui";
+import { MAX_UNIT_PRICE_CENTS } from "./money";
 
 const AMOUNT_REQUIRED = "Ingresá el precio nuevo.";
 const AMOUNT_MALFORMED = "Escribí el precio con coma para los decimales, por ejemplo 7.500,50.";
