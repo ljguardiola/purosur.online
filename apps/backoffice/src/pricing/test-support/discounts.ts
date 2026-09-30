@@ -107,18 +107,27 @@ export const yerbaProduct: ProductTarget = {
   id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000101",
   name: "Yerba Playadito 1 kg",
   saleUnit: "UNIT",
+  brandName: "Playadito",
+  netContent: { quantity: 1, unit: "KG" },
+  barcodes: ["7790001000101"],
 };
 
 export const almondsProduct: ProductTarget = {
   id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000104",
   name: "Almendras peladas",
   saleUnit: "KG",
+  brandName: null,
+  netContent: null,
+  barcodes: [],
 };
 
 export const retiredProduct: ProductTarget = {
   id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000105",
   name: "Café en grano",
   saleUnit: "UNIT",
+  brandName: "La Virginia",
+  netContent: { quantity: 500, unit: "G" },
+  barcodes: ["7790001000105"],
 };
 
 export const almacenCategory: DiscountTargets["categories"][number] = {

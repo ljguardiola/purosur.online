@@ -1,9 +1,11 @@
+import type { NetContentUnit } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import { SESSION_COOKIE_NAME } from "../../access/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../../access/session-id.js";
 import {
   brands,
   categories,
+  productBarcodes,
   products,
   productTags,
   rolePermissions,
@@ -130,11 +132,20 @@ export async function insertTag(
 
 export async function insertProductWithTags(
   db: Db,
-  input: { name: string; tagIds: readonly string[]; active?: boolean; saleUnit?: "UNIT" | "KG" },
+  input: {
+    name: string;
+    categoryName?: string;
+    tagIds: readonly string[];
+    active?: boolean;
+    saleUnit?: "UNIT" | "KG";
+    brandId?: string;
+    netContent?: { quantity: number; unit: NetContentUnit };
+    barcodes?: readonly { code: string; active?: boolean }[];
+  },
 ): Promise<{ id: string }> {
   const [category] = await db
     .insert(categories)
-    .values({ name: `Categoría de ${input.name}` })
+    .values({ name: input.categoryName ?? `Categoría de ${input.name}` })
     .returning({ id: categories.id });
   if (!category) {
     throw new Error("test setup: seeding the category returned no row");
@@ -145,11 +156,24 @@ export async function insertProductWithTags(
       name: input.name,
       categoryId: category.id,
       saleUnit: input.saleUnit ?? "UNIT",
+      brandId: input.brandId,
+      netContentQuantity: input.netContent?.quantity,
+      netContentUnit: input.netContent?.unit,
       active: input.active ?? true,
     })
     .returning({ id: products.id });
   if (!product) {
     throw new Error("test setup: seeding the product returned no row");
+  }
+  if (input.barcodes && input.barcodes.length > 0) {
+    await db.insert(productBarcodes).values(
+      input.barcodes.map((barcode, position) => ({
+        productId: product.id,
+        code: barcode.code,
+        position,
+        active: barcode.active ?? true,
+      })),
+    );
   }
   if (input.tagIds.length > 0) {
     await db

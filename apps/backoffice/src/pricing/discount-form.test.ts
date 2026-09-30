@@ -1,5 +1,9 @@
 import { CalendarDate } from "@internationalized/date";
-import { discountCreationBodySchema, discountEditBodySchema } from "@purosur/contracts";
+import {
+  type DiscountTargets,
+  discountCreationBodySchema,
+  discountEditBodySchema,
+} from "@purosur/contracts";
 import { DISCOUNT_NAME_MAX_LENGTH, DISCOUNT_QTY_MAX } from "@purosur/domain";
 import { describe, expect, test } from "vitest";
 import { drinks, groceries, jams, spreads } from "../catalog/test-support/categories";
@@ -305,8 +309,22 @@ describe("option lists", () => {
 
 describe("targetOptions", () => {
   const nothing = { products: [], categories: [], tags: [] };
-  const honey = { id: "product-1", name: "Miel pura de abeja 1 kg", saleUnit: "UNIT" } as const;
-  const rice = { id: "product-3", name: "Arroz", saleUnit: "UNIT" } as const;
+  const honey = {
+    id: "product-1",
+    name: "Miel pura de abeja 1 kg",
+    saleUnit: "UNIT",
+    brandName: null,
+    netContent: null,
+    barcodes: [],
+  } satisfies DiscountTargets["products"][number];
+  const rice = {
+    id: "product-3",
+    name: "Arroz",
+    saleUnit: "UNIT",
+    brandName: null,
+    netContent: null,
+    barcodes: [],
+  } satisfies DiscountTargets["products"][number];
   const sinTacc = { id: "tag-1", name: "Sin TACC" };
   const vegano = { id: "tag-2", name: "Vegano" };
   const organico = { id: "tag-4", name: "Orgánico" };
