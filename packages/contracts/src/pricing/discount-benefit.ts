@@ -3,6 +3,7 @@ import {
   DISCOUNT_PAY_QTY_MIN,
   DISCOUNT_PERCENT_MAX,
   DISCOUNT_PERCENT_MIN,
+  DISCOUNT_QTY_MAX,
   isValidDiscountBuyNPayM,
   isValidDiscountBuyQty,
   isValidDiscountPayQty,
@@ -11,8 +12,8 @@ import {
 import { z } from "zod";
 
 const PERCENT_MESSAGE = `percent must be a whole number from ${DISCOUNT_PERCENT_MIN} to ${DISCOUNT_PERCENT_MAX}`;
-const BUY_QTY_MESSAGE = `buyQty must be a whole number of ${DISCOUNT_BUY_QTY_MIN} or more`;
-const PAY_QTY_MESSAGE = `payQty must be a whole number of ${DISCOUNT_PAY_QTY_MIN} or more`;
+const BUY_QTY_MESSAGE = `buyQty must be a whole number from ${DISCOUNT_BUY_QTY_MIN} to ${DISCOUNT_QTY_MAX}`;
+const PAY_QTY_MESSAGE = `payQty must be a whole number from ${DISCOUNT_PAY_QTY_MIN} to ${DISCOUNT_QTY_MAX}`;
 
 export const discountBenefitSchema = z.discriminatedUnion(
   "kind",

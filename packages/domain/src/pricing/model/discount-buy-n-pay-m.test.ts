@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   DISCOUNT_BUY_QTY_MIN,
   DISCOUNT_PAY_QTY_MIN,
+  DISCOUNT_QTY_MAX,
   isBuyNPayMSaleUnit,
   isValidDiscountBuyNPayM,
   isValidDiscountBuyQty,
@@ -16,24 +17,28 @@ describe("buy-N-pay-M quantity bounds", () => {
     expect(DISCOUNT_BUY_QTY_MIN).toBe(2);
     expect(DISCOUNT_PAY_QTY_MIN).toBe(1);
   });
+
+  it("buys and pays at most the largest whole number a Postgres integer column holds", () => {
+    expect(DISCOUNT_QTY_MAX).toBe(2_147_483_647);
+  });
 });
 
 describe("isValidDiscountBuyQty", () => {
-  it.each([2, 3, 12, 1000])("accepts the whole number %j", (buyQty) => {
+  it.each([2, 3, 12, 1000, DISCOUNT_QTY_MAX])("accepts the whole number %j", (buyQty) => {
     expect(isValidDiscountBuyQty(buyQty)).toBe(true);
   });
 
-  it.each([1, 0, -3, ...NOT_WHOLE])("rejects %j", (buyQty) => {
+  it.each([1, 0, -3, DISCOUNT_QTY_MAX + 1, ...NOT_WHOLE])("rejects %j", (buyQty) => {
     expect(isValidDiscountBuyQty(buyQty)).toBe(false);
   });
 });
 
 describe("isValidDiscountPayQty", () => {
-  it.each([1, 2, 999])("accepts the whole number %j", (payQty) => {
+  it.each([1, 2, 999, DISCOUNT_QTY_MAX])("accepts the whole number %j", (payQty) => {
     expect(isValidDiscountPayQty(payQty)).toBe(true);
   });
 
-  it.each([0, -1, ...NOT_WHOLE])("rejects %j", (payQty) => {
+  it.each([0, -1, DISCOUNT_QTY_MAX + 1, ...NOT_WHOLE])("rejects %j", (payQty) => {
     expect(isValidDiscountPayQty(payQty)).toBe(false);
   });
 });
@@ -43,6 +48,7 @@ describe("isValidDiscountBuyNPayM", () => {
     [2, 1],
     [3, 2],
     [10, 1],
+    [DISCOUNT_QTY_MAX, DISCOUNT_QTY_MAX - 1],
   ])("accepts buying %j and paying %j", (buyQty, payQty) => {
     expect(isValidDiscountBuyNPayM(buyQty, payQty)).toBe(true);
   });
@@ -54,6 +60,8 @@ describe("isValidDiscountBuyNPayM", () => {
     [3, 0],
     [3, 1.5],
     [2.5, 1],
+    [DISCOUNT_QTY_MAX + 1, 2],
+    [DISCOUNT_QTY_MAX + 2, DISCOUNT_QTY_MAX + 1],
   ])("rejects buying %j and paying %j", (buyQty, payQty) => {
     expect(isValidDiscountBuyNPayM(buyQty, payQty)).toBe(false);
   });

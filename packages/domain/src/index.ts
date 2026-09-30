@@ -123,6 +123,7 @@ export {
   DISCOUNT_PAY_QTY_MIN,
   DISCOUNT_PERCENT_MAX,
   DISCOUNT_PERCENT_MIN,
+  DISCOUNT_QTY_MAX,
   DISCOUNT_TARGET_KINDS,
   discountAppliesOn,
   discountNameLength,

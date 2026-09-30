@@ -1,6 +1,6 @@
 import { CalendarDate } from "@internationalized/date";
 import { discountCreationBodySchema, discountEditBodySchema } from "@purosur/contracts";
-import { DISCOUNT_NAME_MAX_LENGTH } from "@purosur/domain";
+import { DISCOUNT_NAME_MAX_LENGTH, DISCOUNT_QTY_MAX } from "@purosur/domain";
 import { describe, expect, test } from "vitest";
 import { drinks, groceries, jams, spreads } from "../catalog/test-support/categories";
 import {
@@ -117,6 +117,29 @@ describe("discountRequestFrom", () => {
     },
   );
 
+  test("sends the largest quantities the cloud stores as quantities it accepts", () => {
+    const request = discountRequestFrom({
+      ...threeForTwo,
+      buyQty: String(DISCOUNT_QTY_MAX),
+      payQty: String(DISCOUNT_QTY_MAX - 1),
+    });
+
+    expect(discountCreationBodySchema.safeParse(request).success).toBe(true);
+  });
+
+  test("sends quantities the cloud refuses above the largest it stores", () => {
+    const tooMany = String(DISCOUNT_QTY_MAX + 1);
+    const buy = discountCreationBodySchema.safeParse(
+      discountRequestFrom({ ...threeForTwo, buyQty: tooMany }),
+    );
+    const pay = discountCreationBodySchema.safeParse(
+      discountRequestFrom({ ...threeForTwo, payQty: tooMany }),
+    );
+
+    expect(buy.error?.issues.map((issue) => issue.path)).toEqual([["benefit", "buyQty"]]);
+    expect(pay.error?.issues.map((issue) => issue.path)).toEqual([["benefit", "payQty"]]);
+  });
+
   test("leaves an unchosen target and unset dates for the cloud's shape to refuse", () => {
     const result = discountCreationBodySchema.safeParse(
       discountRequestFrom({ ...EMPTY_DISCOUNT_FORM, name: "Algo", percent: "10" }),
@@ -145,7 +168,7 @@ describe("field messages", () => {
     expect(DISCOUNT_MESSAGES.buyQty()).toBe("Ingresá una cantidad entera de 2 o más.");
   });
 
-  test.each([[""], ["0"], ["uno"], ["1,5"]])(
+  test.each([[""], ["0"], ["uno"], ["1,5"], [String(DISCOUNT_QTY_MAX + 1)]])(
     "asks for a whole quantity of 1 or more to pay when %j was typed",
     (payQty) => {
       expect(DISCOUNT_MESSAGES.payQty({ ...threeForTwo, payQty })).toBe(

@@ -4,6 +4,7 @@ import {
   DISCOUNT_PAY_QTY_MIN,
   DISCOUNT_PERCENT_MAX,
   DISCOUNT_PERCENT_MIN,
+  DISCOUNT_QTY_MAX,
 } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { discountCreationBodySchema } from "./discount-creation.js";
@@ -128,25 +129,32 @@ describe("discountCreationBodySchema", () => {
       ).toBe(true);
     });
 
-    it.each([DISCOUNT_BUY_QTY_MIN - 1, 0, 2.5, "3", null, undefined])(
+    it("accepts the domain's largest quantities", () => {
+      expect(
+        discountCreationBodySchema.safeParse(withQuantities(DISCOUNT_QTY_MAX, DISCOUNT_QTY_MAX - 1))
+          .success,
+      ).toBe(true);
+    });
+
+    it.each([DISCOUNT_BUY_QTY_MIN - 1, 0, DISCOUNT_QTY_MAX + 1, 2.5, "3", null, undefined])(
       "rejects the buyQty %j on benefit.buyQty",
       (buyQty) => {
         expect(failures(withQuantities(buyQty, 1))).toEqual([
           {
             path: ["benefit", "buyQty"],
-            message: `buyQty must be a whole number of ${DISCOUNT_BUY_QTY_MIN} or more`,
+            message: `buyQty must be a whole number from ${DISCOUNT_BUY_QTY_MIN} to ${DISCOUNT_QTY_MAX}`,
           },
         ]);
       },
     );
 
-    it.each([DISCOUNT_PAY_QTY_MIN - 1, -1, 1.5, "2", null, undefined])(
+    it.each([DISCOUNT_PAY_QTY_MIN - 1, -1, DISCOUNT_QTY_MAX + 1, 1.5, "2", null, undefined])(
       "rejects the payQty %j on benefit.payQty",
       (payQty) => {
         expect(failures(withQuantities(3, payQty))).toEqual([
           {
             path: ["benefit", "payQty"],
-            message: `payQty must be a whole number of ${DISCOUNT_PAY_QTY_MIN} or more`,
+            message: `payQty must be a whole number from ${DISCOUNT_PAY_QTY_MIN} to ${DISCOUNT_QTY_MAX}`,
           },
         ]);
       },
