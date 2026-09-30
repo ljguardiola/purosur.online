@@ -42,7 +42,6 @@ import {
   closeCashSessionFor,
   currentCashSession,
   openCashSessionFor,
-  resumeSignedInPerson,
 } from "./register/cash-session-requests";
 import { rotateDeviceToken } from "./register/device-token-rotation";
 import { startDeviceTokenRotationSchedule } from "./register/device-token-rotation-schedule";
@@ -144,14 +143,6 @@ const actionGate =
 function reportFailure(context: string, error: unknown): void {
   console.error(`core: ${context} failed`, error);
   Sentry.captureException(error);
-}
-
-function resumeWhoIsSignedIn(): void {
-  if (localDatabase === undefined) {
-    signedInPerson.clear();
-    return;
-  }
-  resumeSignedInPerson({ database: localDatabase, signedInPerson, reportFailure });
 }
 
 // An unreachable cloud is how a register without internet looks, so only an unexpected stop is
@@ -316,10 +307,7 @@ const rendererRequestDeps: RendererRequestDeps = {
             { sessionId, countedCash, authorization },
           ),
   cashBalance: localDatabase === undefined ? undefined : () => cashBalanceFor(localDatabase),
-  cashSession:
-    localDatabase === undefined
-      ? undefined
-      : () => currentCashSession(localDatabase, signedInPerson),
+  cashSession: localDatabase === undefined ? undefined : () => currentCashSession(localDatabase),
   reportFailure,
 };
 
@@ -340,15 +328,18 @@ if (cloudClient !== undefined) {
   });
 }
 
-const rendererConnection = createRendererConnection((data, reply) => {
-  gateFromRenderer(data, (message) => {
-    void answerRendererRequest(rendererRequestDeps, message).then((answer) => {
-      if (answer !== undefined) {
-        reply(answer);
-      }
+const rendererConnection = createRendererConnection(
+  (data, reply) => {
+    gateFromRenderer(data, (message) => {
+      void answerRendererRequest(rendererRequestDeps, message).then((answer) => {
+        if (answer !== undefined) {
+          reply(answer);
+        }
+      });
     });
-  });
-}, resumeWhoIsSignedIn);
+  },
+  () => signedInPerson.clear(),
+);
 
 process.parentPort.on("message", (event) => {
   const [rendererPort] = event.ports;

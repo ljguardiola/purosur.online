@@ -32,11 +32,11 @@ async function signInThen(
   pin: string,
   beforeSigningIn: () => void,
 ): Promise<SignInOutcome> {
+  deps.signedInPerson.clear();
   const opener = deps.cashSessionOpener();
   if (opener !== undefined && opener !== userId) {
     return { kind: "cash_session_opened_by_another" };
   }
-  deps.signedInPerson.clear();
   const signable = signableRecord(deps.store, userId);
   if (signable === undefined) {
     return { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: pinSignInAttemptsLeft(1) };
@@ -51,7 +51,6 @@ async function signInThen(
   }
   const openerAfterCheck = deps.cashSessionOpener();
   if (openerAfterCheck !== undefined && openerAfterCheck !== userId) {
-    deps.signedInPerson.set(openerAfterCheck);
     return { kind: "cash_session_opened_by_another" };
   }
   beforeSigningIn();

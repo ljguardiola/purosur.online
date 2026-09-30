@@ -13,7 +13,6 @@ import {
   closeCashSessionFor,
   currentCashSession,
   openCashSessionFor,
-  resumeSignedInPerson,
 } from "./cash-session-requests";
 import { SqliteCashLedger } from "./sqlite-cash-ledger";
 
@@ -148,17 +147,17 @@ describe("opening a cash session on the register", () => {
 
 describe("the open cash session", () => {
   it("is none while no session is open, and leaves the signed-in person signed in", () => {
-    expect(currentCashSession(database, signedInPerson)).toBeNull();
+    expect(currentCashSession(database)).toBeNull();
     expect(signedInPerson.userId()).toBe("u1");
   });
 
-  it("makes its opener the signed-in person once it is read", async () => {
+  it("leaves nobody signed in once it is read", async () => {
     await openCashSessionFor(deps(), 5000);
     signedInPerson.clear();
 
-    currentCashSession(database, signedInPerson);
+    currentCashSession(database);
 
-    expect(signedInPerson.userId()).toBe("u1");
+    expect(signedInPerson.userId()).toBeUndefined();
   });
 
   it("signs nobody in when its opener cannot be read", async () => {
@@ -166,7 +165,7 @@ describe("the open cash session", () => {
     signedInPerson.clear();
     database.exec("DROP TABLE role_permissions");
 
-    expect(() => currentCashSession(database, signedInPerson)).toThrow();
+    expect(() => currentCashSession(database)).toThrow();
     expect(signedInPerson.userId()).toBeUndefined();
   });
 
@@ -175,14 +174,14 @@ describe("the open cash session", () => {
     signedInPerson.clear();
     database.prepare("UPDATE cash_sessions SET opened_at = 'not a date'").run();
 
-    expect(() => currentCashSession(database, signedInPerson)).toThrow();
+    expect(() => currentCashSession(database)).toThrow();
     expect(signedInPerson.userId()).toBeUndefined();
   });
 
   it("names its opener with the permissions of the opener's role", async () => {
     await openCashSessionFor(deps(), 5000);
 
-    expect(currentCashSession(database, signedInPerson)).toEqual({
+    expect(currentCashSession(database)).toEqual({
       id: "id-1",
       opened_at: "2026-09-30T12:00:00.000Z",
       opened_by: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
@@ -195,9 +194,7 @@ describe("the open cash session", () => {
     signedInPerson.set("u3");
     await openCashSessionFor(deps(), 0);
 
-    expect(currentCashSession(database, signedInPerson)?.opened_by.permission_keys).toEqual([
-      ...PERMISSION_KEYS,
-    ]);
+    expect(currentCashSession(database)?.opened_by.permission_keys).toEqual([...PERMISSION_KEYS]);
   });
 
   it.each([
@@ -209,7 +206,7 @@ describe("the open cash session", () => {
     await openCashSessionFor(deps(), 5000);
     database.prepare(change).run();
 
-    expect(currentCashSession(database, signedInPerson)?.opened_by).toEqual({
+    expect(currentCashSession(database)?.opened_by).toEqual({
       user_id: "u1",
       first_name: "Ada",
       permission_keys: ["sell_and_charge"],
@@ -220,14 +217,14 @@ describe("the open cash session", () => {
     await openCashSessionFor(deps(), 5000);
     database.prepare("UPDATE roles SET removed = 1").run();
 
-    expect(currentCashSession(database, signedInPerson)?.opened_by.permission_keys).toEqual([]);
+    expect(currentCashSession(database)?.opened_by.permission_keys).toEqual([]);
   });
 
   it("is still the open session when the opener's row is gone, with no name and no permissions", async () => {
     await openCashSessionFor(deps(), 5000);
     database.prepare("DELETE FROM users").run();
 
-    expect(currentCashSession(database, signedInPerson)?.opened_by).toEqual({
+    expect(currentCashSession(database)?.opened_by).toEqual({
       user_id: "u1",
       first_name: "",
       permission_keys: [],
@@ -244,51 +241,6 @@ describe("who opened the open cash session", () => {
 
   it("is nobody while no session is open", () => {
     expect(cashSessionOpener(database)).toBeUndefined();
-  });
-});
-
-describe("who is signed in when the core starts or a page connects", () => {
-  function resume(person: SignedInPerson) {
-    const failures: unknown[] = [];
-    resumeSignedInPerson({
-      database,
-      signedInPerson: person,
-      reportFailure: (_context, error) => failures.push(error),
-    });
-    return failures;
-  }
-
-  it("is the opener of the open session after a restart", async () => {
-    await openCashSessionFor(deps(), 5000);
-    signedInPerson = createSignedInPerson();
-
-    resume(signedInPerson);
-
-    expect(signedInPerson.userId()).toBe("u1");
-  });
-
-  it("replaces whoever was signed in with the open session's opener", async () => {
-    await openCashSessionFor(deps(), 5000);
-    signedInPerson.set("u2");
-
-    resume(signedInPerson);
-
-    expect(signedInPerson.userId()).toBe("u1");
-  });
-
-  it("is nobody while no session is open", () => {
-    expect(resume(signedInPerson)).toEqual([]);
-
-    expect(signedInPerson.userId()).toBeUndefined();
-  });
-
-  it("is nobody when the open session cannot be read, and reports why", () => {
-    database.close();
-
-    const failures = resume(signedInPerson);
-
-    expect(signedInPerson.userId()).toBeUndefined();
-    expect(failures).toHaveLength(1);
   });
 });
 
