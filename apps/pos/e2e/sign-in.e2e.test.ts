@@ -30,7 +30,7 @@ describe("signing in to the register", () => {
     }
   });
 
-  it("refuses a wrong PIN and signs in the person who enters their own", async () => {
+  it("refuses a wrong PIN, signs in the person who enters their own, and leaves with Salir", async () => {
     const { page } = register;
     await page.getByText("Ana", { exact: true }).click();
 
@@ -41,5 +41,9 @@ describe("signing in to the register", () => {
     await page.getByLabel("PIN").fill("4821");
     await page.getByRole("button", { name: "Entrar" }).click();
     await page.getByRole("heading", { name: "¿Qué querés hacer?" }).waitFor();
+
+    await page.getByRole("button", { name: "Salir" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Salir" }).click();
+    await page.getByRole("button", { name: "Entrar" }).waitFor();
   });
 });
