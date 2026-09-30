@@ -244,6 +244,26 @@ export function eligibleTargets(
   };
 }
 
+function listedTargets(
+  kind: DiscountTargetKind,
+  sources: DiscountTargets,
+): readonly { id: string }[] {
+  if (kind === "PRODUCT") {
+    return sources.products;
+  }
+  return kind === "CATEGORY" ? sources.categories : sources.tags;
+}
+
+export function unlistedTarget(
+  sources: DiscountTargets,
+  current: CurrentTarget | undefined,
+): CurrentTarget | undefined {
+  return current !== undefined &&
+    !listedTargets(current.kind, sources).some((target) => target.id === current.id)
+    ? current
+    : undefined;
+}
+
 export function targetForKind(
   values: DiscountFormValues,
   benefitKind: DiscountBenefit["kind"],

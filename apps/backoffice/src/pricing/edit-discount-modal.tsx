@@ -24,6 +24,7 @@ import {
   targetOptions,
   targetPlaceholder,
   targetUnavailableMessage,
+  unlistedTarget,
   WEEKDAY_OPTIONS,
 } from "./discount-form";
 import { DISCOUNT_TARGET_KIND_LABELS } from "./discount-texts";
@@ -150,7 +151,7 @@ export function EditDiscountModal({
   const options = targetOptions(
     values.targetKind,
     eligibleTargets(values.benefitKind, targets),
-    loaded?.target,
+    unlistedTarget(targets, loaded?.target),
   );
   const targetField = (
     <form.AppField name="targetId">

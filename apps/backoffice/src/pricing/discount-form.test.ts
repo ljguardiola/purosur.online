@@ -18,6 +18,7 @@ import {
   targetOptions,
   targetPlaceholder,
   targetUnavailableMessage,
+  unlistedTarget,
   WEEKDAY_OPTIONS,
 } from "./discount-form";
 import {
@@ -380,6 +381,30 @@ describe("eligibleTargets", () => {
       categories: [],
       tags: [],
     });
+  });
+});
+
+describe("unlistedTarget", () => {
+  test("keeps a current target missing from the targets of its kind", () => {
+    const retired = { kind: "PRODUCT", id: "gone", name: "Aceite" } as const;
+
+    expect(unlistedTarget(discountTargets, retired)).toEqual(retired);
+  });
+
+  test("drops a current target listed among the targets of its kind", () => {
+    const almonds = { kind: "PRODUCT", id: almondsProduct.id, name: almondsProduct.name } as const;
+
+    expect(unlistedTarget(discountTargets, almonds)).toBeUndefined();
+  });
+
+  test("looks for the current target only among the targets of its kind", () => {
+    const productNamedLikeTag = { kind: "TAG", id: almondsProduct.id, name: "Aceite" } as const;
+
+    expect(unlistedTarget(discountTargets, productNamedLikeTag)).toEqual(productNamedLikeTag);
+  });
+
+  test("has nothing to keep without a current target", () => {
+    expect(unlistedTarget(discountTargets, undefined)).toBeUndefined();
   });
 });
 

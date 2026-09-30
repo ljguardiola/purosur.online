@@ -17,6 +17,7 @@ import {
 import {
   almacenCategory,
   almacenTuesdays,
+  almondsProduct,
   discountTargets,
   retiredProduct,
   retiredTag,
@@ -326,6 +327,20 @@ test("an inactive current target saves as is when nothing about it changes", asy
 
   await expect.poll(() => vi.mocked(services.editDiscount).mock.calls.length).toBe(1);
   expect(vi.mocked(services.editDiscount).mock.calls[0]?.[1].target.id).toBe(retiredProduct.id);
+});
+
+test("turning a percentage promotion on a product sold by weight into buy-N-pay-M does not offer that product", async () => {
+  const onAlmonds = {
+    ...yerbaOff,
+    target: { kind: "PRODUCT" as const, id: almondsProduct.id, name: almondsProduct.name },
+  };
+  const { dialog } = await renderModal(createServices(), { target: onAlmonds });
+
+  await chooseBuyNPayM(dialog);
+  await userEvent.click(dialog.getByRole("button", { name: /^Elegí un producto/ }));
+
+  await expect.element(dialog.getByRole("option", { name: /Yerba Playadito 1 kg/ })).toBeVisible();
+  expect(dialog.getByRole("option", { name: /Almendras peladas/ }).query()).toBeNull();
 });
 
 test("shows each field's message for what was cleared, without calling the cloud", async () => {
