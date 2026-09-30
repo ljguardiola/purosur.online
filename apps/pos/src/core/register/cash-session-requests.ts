@@ -80,7 +80,6 @@ export async function closeCashSessionFor(
   if (open === undefined) {
     return { kind: "no_open_session" };
   }
-  // The gate reads who is signed in in this same tick, so the ownership read here cannot go stale.
   const action =
     open.openedBy === signedInPerson.userId()
       ? ({ closesOwnCashSession: true } as const)

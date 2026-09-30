@@ -15,10 +15,10 @@ type CashBreakdownLine = Exclude<keyof CashBreakdown, "expected">;
 
 interface Treatment {
   direction: 1 | -1;
-  line: CashBreakdownLine | undefined;
+  line: CashBreakdownLine;
 }
 
-const TREATMENT: Record<CashMovementType, Treatment> = {
+const TREATMENT: Record<CashMovementType, Treatment | "not_counted"> = {
   OPENING: { direction: 1, line: "openingFloat" },
   SALE: { direction: 1, line: "cashSales" },
   CASH_IN: { direction: 1, line: "cashIn" },
@@ -26,7 +26,7 @@ const TREATMENT: Record<CashMovementType, Treatment> = {
   REFUND: { direction: -1, line: "refunds" },
   CASH_OUT: { direction: -1, line: "expenses" },
   WITHDRAWAL: { direction: -1, line: "withdrawals" },
-  CLOSING: { direction: 1, line: undefined },
+  CLOSING: "not_counted",
 };
 
 type CountedMovement = Pick<CashMovement, "type" | "amount">;
@@ -43,10 +43,10 @@ export function cashBreakdown(movements: readonly CountedMovement[]): CashBreakd
     expected: 0,
   };
   for (const { type, amount } of movements) {
-    const { direction, line } = TREATMENT[type];
-    if (line !== undefined) {
-      breakdown[line] += amount;
-      breakdown.expected += direction * amount;
+    const treatment = TREATMENT[type];
+    if (treatment !== "not_counted") {
+      breakdown[treatment.line] += amount;
+      breakdown.expected += treatment.direction * amount;
     }
   }
   return breakdown;
