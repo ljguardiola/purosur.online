@@ -73,13 +73,30 @@ const listBoxClassName = "max-h-[inherit] overflow-auto outline-none";
 
 const optionDescriptionClassName = "truncate text-detail font-normal text-text-subtle";
 
-// The virtualized list needs every row's height up front, so a row is one of two fixed heights.
+// The virtualized list needs every row's height up front in pixels, so a row is one of two fixed
+// heights, read from the same rem tokens the rows are drawn with once the page's font size is known.
 const optionClassName = `h-control-lg ${menuOptionFrameClassName} data-focused:bg-surface-subtle`;
 const optionWithDescriptionClassName = `h-control-3xl ${menuOptionFrameClassName} data-focused:bg-surface-subtle`;
-const OPTION_ROW_HEIGHT = 40;
-const OPTION_WITH_DESCRIPTION_ROW_HEIGHT = 52;
-const LIST_PADDING = 6;
-const LIST_GAP = 4;
+
+type ListMetrics = {
+  rowHeight: number;
+  rowWithDescriptionHeight: number;
+  padding: number;
+  gap: number;
+};
+
+function readListMetrics(): ListMetrics {
+  const root = getComputedStyle(document.documentElement);
+  const remPixels = Number.parseFloat(root.fontSize);
+  const tokenPixels = (name: string) => Number.parseFloat(root.getPropertyValue(name)) * remPixels;
+  const spacing = tokenPixels("--spacing");
+  return {
+    rowHeight: tokenPixels("--spacing-control-lg"),
+    rowWithDescriptionHeight: tokenPixels("--spacing-control-3xl"),
+    padding: spacing * 1.5,
+    gap: spacing,
+  };
+}
 
 export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
   const {
@@ -97,6 +114,7 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
   const chosen = options.find((option) => option.value === value);
   const [inputValue, setInputValue] = useState(chosen?.label ?? "");
   const [shownValue, setShownValue] = useState(value);
+  const [listMetrics, setListMetrics] = useState<ListMetrics | null>(null);
   if (value !== shownValue) {
     setShownValue(value);
     setInputValue(chosen?.label ?? "");
@@ -113,11 +131,14 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
     : options;
 
   const hasDescriptions = options.some((option) => option.description !== undefined);
-  const listLayoutOptions = {
-    rowHeight: hasDescriptions ? OPTION_WITH_DESCRIPTION_ROW_HEIGHT : OPTION_ROW_HEIGHT,
-    padding: LIST_PADDING,
-    gap: LIST_GAP,
-  };
+  const listLayoutOptions =
+    listMetrics === null
+      ? {}
+      : {
+          rowHeight: hasDescriptions ? listMetrics.rowWithDescriptionHeight : listMetrics.rowHeight,
+          padding: listMetrics.padding,
+          gap: listMetrics.gap,
+        };
 
   const placeholderProps = placeholder !== undefined ? { placeholder } : {};
 
@@ -137,6 +158,11 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
       }}
       inputValue={inputValue}
       onInputChange={setInputValue}
+      onOpenChange={(isOpen) => {
+        if (isOpen) {
+          setListMetrics(readListMetrics());
+        }
+      }}
       menuTrigger="focus"
       allowsEmptyCollection
       isDisabled={disabled}

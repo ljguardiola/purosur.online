@@ -1,5 +1,5 @@
 import { useId, useState } from "react";
-import { expect, expectTypeOf, test, vi } from "vitest";
+import { expect, expectTypeOf, onTestFinished, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
@@ -300,6 +300,35 @@ test("only puts a small window of a long list in the page, and still finds an op
   await expect.poll(() => screen.getByRole("option").elements().length).toBe(1);
   activate(screen.getByRole("option").element());
   expect(onChange).toHaveBeenCalledWith("p987");
+});
+
+const withoutDescriptions: [ComboBoxOption<ProductId>, ...ComboBoxOption<ProductId>[]] = [
+  { value: "yerba", label: "Yerba mate" },
+  { value: "yerba-mini", label: "Yerba mate chica" },
+  { value: "cafe", label: "Café molido" },
+  { value: "miel", label: "Miel de abeja" },
+];
+
+test.each([
+  ["with descriptions", options],
+  ["without descriptions", withoutDescriptions],
+])("keeps its options apart when the page's base font size is larger, %s", async (_, list) => {
+  document.documentElement.style.fontSize = "20px";
+  onTestFinished(() => {
+    document.documentElement.style.fontSize = "";
+  });
+  const screen = await render(<ComboBox {...baseProps({ options: list })} />);
+
+  await userEvent.tab();
+
+  await expect.poll(() => screen.getByRole("option").elements().length).toBe(4);
+  const boxes = screen
+    .getByRole("option")
+    .elements()
+    .map((el) => el.getBoundingClientRect());
+  for (const [index, box] of boxes.slice(1).entries()) {
+    expect(box.top).toBeGreaterThanOrEqual(boxes[index]?.bottom ?? Number.POSITIVE_INFINITY);
+  }
 });
 
 const withStatus: [ComboBoxOption<ProductId>, ...ComboBoxOption<ProductId>[]] = [
