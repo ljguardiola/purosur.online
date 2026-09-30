@@ -1,4 +1,10 @@
-import { createRootRoute, createRoute, createRouter, RouterProvider } from "@tanstack/react-router";
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
+} from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { createContext, useContext } from "react";
 import type { ComponentRenderOptions } from "vitest-browser-react";
@@ -13,6 +19,7 @@ function Content() {
 function createAnyPathRouter() {
   const rootRoute = createRootRoute({ component: Content });
   return createRouter({
+    history: createMemoryHistory({ initialEntries: ["/"] }),
     routeTree: rootRoute.addChildren([
       createRoute({ getParentRoute: () => rootRoute, path: "/" }),
       createRoute({ getParentRoute: () => rootRoute, path: "$" }),
@@ -23,7 +30,7 @@ function createAnyPathRouter() {
 export async function render(ui: ReactNode, options: ComponentRenderOptions = {}) {
   const router = createAnyPathRouter();
   await router.load();
-  return renderInPage(ui, {
+  const screen = await renderInPage(ui, {
     ...options,
     wrapper: ({ children }) => (
       <ContentContext value={children}>
@@ -31,4 +38,5 @@ export async function render(ui: ReactNode, options: ComponentRenderOptions = {}
       </ContentContext>
     ),
   });
+  return Object.assign(screen, { router });
 }

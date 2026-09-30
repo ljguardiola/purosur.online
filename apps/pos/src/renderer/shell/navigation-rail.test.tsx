@@ -79,7 +79,7 @@ describe("NavigationRail", () => {
 
     await userEvent.click(screen.getByRole("link", { name: "Historial" }));
 
-    expect(window.location.pathname).toBe("/sign-in");
+    expect(screen.router.state.location.pathname).toBe("/sign-in");
   });
 
   it("asks to leave when Salir is pressed", async () => {
@@ -94,12 +94,12 @@ describe("NavigationRail", () => {
   it("leaves everything as it is when Inicio is pressed", async () => {
     const onSignOut = vi.fn();
     const screen = await renderRail({ entries: [HISTORY], onSignOut });
-    const pathBefore = window.location.pathname;
+    const pathBefore = screen.router.state.location.pathname;
 
     await userEvent.click(screen.getByRole("button", { name: "Inicio" }));
 
     expect(onSignOut).not.toHaveBeenCalled();
-    expect(window.location.pathname).toBe(pathBefore);
+    expect(screen.router.state.location.pathname).toBe(pathBefore);
     await expect
       .element(screen.getByRole("button", { name: "Inicio" }))
       .toHaveAttribute("aria-current", "page");
