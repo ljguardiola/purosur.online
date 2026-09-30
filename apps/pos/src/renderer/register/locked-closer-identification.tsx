@@ -110,7 +110,7 @@ function IdentificationPanel({
           },
         },
   );
-  const { refusal, locked, submitting } = attempt;
+  const { refusal, locked, submitting, heading } = attempt;
   const [returnedShown, setReturnedShown] = useState(true);
   let notice: PinNotice | undefined;
   if (refusal?.kind === "lacks_permission") {
@@ -155,7 +155,7 @@ function IdentificationPanel({
         <SessionEyebrow registerName={registerName} openedAt={openedAt} />
         <h1
           id={headingId}
-          ref={attempt.heading}
+          ref={heading}
           tabIndex={-1}
           className="text-display text-text-accent outline-none"
         >
