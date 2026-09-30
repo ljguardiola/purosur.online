@@ -5,11 +5,15 @@ import { Package, Scale, Search, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 
-export type ProductSearchResultsProps = {
-  listboxId: string;
+export type SearchResults = {
   query: string;
   products: FoundProduct[];
   more: boolean;
+};
+
+export type ProductSearchResultsProps = {
+  listboxId: string;
+  search: SearchResults | undefined;
   activeIndex: number;
   onChoose: (product: FoundProduct) => void;
 };
@@ -18,8 +22,8 @@ export function searchOptionId(listboxId: string, index: number) {
   return `${listboxId}-option-${index}`;
 }
 
-const PANEL_CLASS_NAME =
-  "absolute inset-x-0 top-full z-overlay mt-2 overflow-hidden rounded-lg border border-border bg-surface shadow-lg";
+const PANEL_POSITION_CLASS_NAME = "absolute inset-x-0 top-full z-overlay mt-2";
+const PANEL_BOX_CLASS_NAME = "overflow-hidden rounded-lg border border-border bg-surface shadow-lg";
 
 function HighlightedName({ product }: { product: FoundProduct }) {
   const parts: ReactNode[] = [];
@@ -83,11 +87,11 @@ function ResultOption({
   );
 }
 
+// The live region stays mounted while there is nothing to tell: one that arrives already holding
+// its text is not announced.
 export function ProductSearchResults({
   listboxId,
-  query,
-  products,
-  more,
+  search,
   activeIndex,
   onChoose,
 }: ProductSearchResultsProps) {
@@ -97,21 +101,40 @@ export function ProductSearchResults({
     document.getElementById(activeId)?.scrollIntoView({ block: "nearest" });
   }, [activeId]);
 
-  if (products.length === 0) {
-    return (
-      <div role="status" className={PANEL_CLASS_NAME}>
-        <EmptyState
-          variant="filtered"
-          icon={<Search />}
-          title="Sin resultados"
-          description={`No hay productos activos que coincidan con “${query}”. Corregí lo escrito en el campo.`}
-        />
-      </div>
-    );
-  }
-
   return (
-    <div className={PANEL_CLASS_NAME}>
+    <>
+      <div role="status" className={PANEL_POSITION_CLASS_NAME}>
+        {search?.products.length === 0 ? (
+          <div className={PANEL_BOX_CLASS_NAME}>
+            <EmptyState
+              variant="filtered"
+              icon={<Search />}
+              title="Sin resultados"
+              description={`No hay productos activos que coincidan con “${search.query}”. Corregí lo escrito en el campo.`}
+            />
+          </div>
+        ) : null}
+      </div>
+      {search === undefined || search.products.length === 0 ? null : (
+        <FoundProducts
+          listboxId={listboxId}
+          search={search}
+          activeIndex={activeIndex}
+          onChoose={onChoose}
+        />
+      )}
+    </>
+  );
+}
+
+function FoundProducts({
+  listboxId,
+  search: { products, more },
+  activeIndex,
+  onChoose,
+}: ProductSearchResultsProps & { search: SearchResults }) {
+  return (
+    <div className={`${PANEL_POSITION_CLASS_NAME} ${PANEL_BOX_CLASS_NAME}`}>
       {/* Pressing an option must not take the focus away from the field. */}
       <div
         id={listboxId}

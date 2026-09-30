@@ -16,6 +16,7 @@ import { OpenSessionRail } from "../shell/open-session-rail";
 import { SessionEyebrow } from "../shell/session-eyebrow";
 import { changedLineId } from "./changed-line";
 import { PaymentPanel } from "./payment-panel";
+import type { SearchResults } from "./product-search-results";
 import { ProductSearchResults, searchOptionId } from "./product-search-results";
 import { SaleLines } from "./sale-lines";
 import type { ScanProblem } from "./scan-problem-message";
@@ -64,11 +65,7 @@ export function SaleScreen({
   const [view, setView] = useState<SaleView>({ status: "loading" });
   const [code, setCode] = useState("");
   const [problem, setProblem] = useState<ScanProblem>();
-  const [search, setSearch] = useState<{
-    query: string;
-    products: FoundProduct[];
-    more: boolean;
-  }>();
+  const [search, setSearch] = useState<SearchResults>();
   const [activeIndex, setActiveIndex] = useState(0);
   const [dismissed, setDismissed] = useState(false);
   const listboxId = useId();
@@ -265,16 +262,12 @@ export function SaleScreen({
               activeOptionId: choosing ? searchOptionId(listboxId, activeIndex) : undefined,
             }}
           />
-          {found === undefined ? null : (
-            <ProductSearchResults
-              listboxId={listboxId}
-              query={found.query}
-              products={found.products}
-              more={found.more}
-              activeIndex={activeIndex}
-              onChoose={(product) => void add(product)}
-            />
-          )}
+          <ProductSearchResults
+            listboxId={listboxId}
+            search={found}
+            activeIndex={activeIndex}
+            onChoose={(product) => void add(product)}
+          />
           <ScanProblemMessage problem={shownProblem} />
         </form>
         {view.status === "loading" ? <LoadingPlaceholder variant="list" items={4} /> : null}

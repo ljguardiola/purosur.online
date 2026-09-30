@@ -3,7 +3,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import type { ProductSearchResultsProps } from "./product-search-results";
+import type { ProductSearchResultsProps, SearchResults } from "./product-search-results";
 import { ProductSearchResults, searchOptionId } from "./product-search-results";
 
 const YERBA: FoundProduct = {
@@ -38,17 +38,19 @@ function product(position: number): FoundProduct {
   };
 }
 
-async function renderResults(overrides: Partial<ProductSearchResultsProps> = {}) {
+async function renderResults({
+  query = "yer",
+  products = [YERBA, QUESO, ALFAJOR],
+  more = false,
+  activeIndex = 0,
+  onChoose = vi.fn(),
+}: Partial<SearchResults & Pick<ProductSearchResultsProps, "activeIndex" | "onChoose">> = {}) {
   await page.viewport(1280, 720);
-  const onChoose = overrides.onChoose ?? vi.fn();
   const screen = await render(
     <ProductSearchResults
       listboxId="results"
-      query="yer"
-      products={[YERBA, QUESO, ALFAJOR]}
-      more={false}
-      activeIndex={0}
-      {...overrides}
+      search={{ query, products, more }}
+      activeIndex={activeIndex}
       onChoose={onChoose}
     />,
   );
@@ -162,9 +164,7 @@ describe("ProductSearchResults", () => {
     await screen.rerender(
       <ProductSearchResults
         listboxId="results"
-        query="gal"
-        products={products}
-        more
+        search={{ query: "gal", products, more: true }}
         activeIndex={19}
         onChoose={vi.fn()}
       />,
@@ -189,5 +189,56 @@ describe("ProductSearchResults", () => {
       .toBeVisible();
     await expect.element(screen.getByRole("listbox")).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("tells that nothing matches through a live region that is already there before the text arrives", async () => {
+    const screen = await render(
+      <ProductSearchResults
+        listboxId="results"
+        search={undefined}
+        activeIndex={0}
+        onChoose={vi.fn()}
+      />,
+    );
+    const region = screen.getByRole("status");
+    await expect.element(region).toBeInTheDocument();
+    const mounted = region.element();
+    expect(mounted.textContent).toBe("");
+
+    await screen.rerender(
+      <ProductSearchResults
+        listboxId="results"
+        search={{ query: "zzz", products: [YERBA], more: false }}
+        activeIndex={0}
+        onChoose={vi.fn()}
+      />,
+    );
+    await expect.element(screen.getByRole("listbox")).toBeVisible();
+    expect(mounted.textContent).toBe("");
+    await screen.rerender(
+      <ProductSearchResults
+        listboxId="results"
+        search={{ query: "zzz", products: [], more: false }}
+        activeIndex={0}
+        onChoose={vi.fn()}
+      />,
+    );
+
+    await expect.poll(() => mounted.textContent).toMatch(/^Sin resultados/);
+    expect(screen.getByRole("status").element()).toBe(mounted);
+  });
+
+  it("shows nothing while there is no search", async () => {
+    const screen = await render(
+      <ProductSearchResults
+        listboxId="results"
+        search={undefined}
+        activeIndex={0}
+        onChoose={vi.fn()}
+      />,
+    );
+
+    await expect.element(screen.getByRole("listbox")).not.toBeInTheDocument();
+    await expect.element(screen.getByText("Sin resultados")).not.toBeInTheDocument();
   });
 });
