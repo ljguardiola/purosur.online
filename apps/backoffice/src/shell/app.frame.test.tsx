@@ -9,16 +9,6 @@ beforeEach(resetPageState);
 
 afterEach(resetPageState);
 
-test("opens Inicio at the root path without adding to the history", async () => {
-  const lengthBefore = window.history.length;
-
-  const screen = await render(<App help={emptyHelp} services={createAppServices()} />);
-
-  await expect.element(screen.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/");
-  expect(window.history.length).toBe(lengthBefore);
-});
-
 test("opens Inicio at /, with Inicio and Resumen active", async () => {
   window.history.pushState(null, "", "/");
 

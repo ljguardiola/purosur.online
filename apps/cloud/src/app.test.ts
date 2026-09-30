@@ -454,6 +454,7 @@ describe("serving the backoffice's static build", () => {
     "/help",
     "/sign-in",
     "/account-recovery",
+    "/account-recovery/passkey",
   ])(
     "serves the backoffice page at the screen address %s with every API route wired",
     async (url) => {
