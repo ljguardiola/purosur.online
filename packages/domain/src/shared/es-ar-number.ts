@@ -14,5 +14,5 @@ export function parseEsArNumber(value: string, maxDecimals: number): EsArNumberD
   if (!match) {
     return undefined;
   }
-  return { whole: (match[1] ?? "").replaceAll(".", ""), fraction: match[2] ?? "" };
+  return { whole: (match[1] as string).replaceAll(".", ""), fraction: match[2] ?? "" };
 }

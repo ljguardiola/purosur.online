@@ -108,7 +108,7 @@ test("the backoffice's Vite build compiles a real screen component with the Reac
 });
 
 test("the backoffice's Vite build leaves a plain, non-component module untouched by the compiler", async () => {
-  const result = await transformWithBackofficeConfig("/src/platform/es-ar-number.ts");
+  const result = await transformWithBackofficeConfig("/src/platform/grouped-code.ts");
 
   assert.ok(result, "the backoffice's dev server could not transform the module");
   assert.ok(!result.code.includes(COMPILER_RUNTIME_MARKER));

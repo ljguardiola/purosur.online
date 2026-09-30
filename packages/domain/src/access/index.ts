@@ -21,6 +21,7 @@ export {
   PERMISSION_KEYS,
   repeatsAPermissionKey,
 } from "./model/permission-catalog.js";
+export { holdsPermission } from "./model/permission-holding.js";
 export {
   lacksARequiredPermission,
   permissionsRequiring,
