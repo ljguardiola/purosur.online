@@ -6,6 +6,7 @@ import { branchSettings, changes, deviceState } from "../platform/db/schema.js";
 import type { PulledCloudChange, RemovedEntity } from "./pulled-changes.js";
 import {
   readCategories,
+  readDiscounts,
   readPriceLists,
   readPrices,
   readProducts,
@@ -24,7 +25,8 @@ type LoggedEntity =
   | "price"
   | "user"
   | "role"
-  | "register";
+  | "register"
+  | "discount";
 
 interface LoggedRow {
   changeSeq: number;
@@ -72,6 +74,7 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
     const userRows = await readUsers(this.tx, idsOf(logged, "user"));
     const roleRows = await readRoles(this.tx, idsOf(logged, "role"));
     const registerRows = await readRegisters(this.tx, idsOf(logged, "register"));
+    const discountRows = await readDiscounts(this.tx, idsOf(logged, "discount"));
     const settingsRow = logged.some((row) => row.entity === "branch_settings")
       ? await this.readSettings(locationId)
       : undefined;
@@ -88,6 +91,10 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
       register: await this.latestLoggedVersions(
         "register",
         absent(logged, "register", registerRows),
+      ),
+      discount: await this.latestLoggedVersions(
+        "discount",
+        absent(logged, "discount", discountRows),
       ),
     };
 
@@ -147,6 +154,11 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
           pulled.push(row === undefined ? removal(entity) : { changeSeq, entity, entityId, row });
           break;
         }
+        case "discount": {
+          const row = discountRows.get(entityId);
+          pulled.push(row === undefined ? removal(entity) : { changeSeq, entity, entityId, row });
+          break;
+        }
       }
     }
     return pulled;
@@ -171,7 +183,7 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
           gt(changes.changeSeq, since),
           or(
             and(eq(changes.entity, "branch_settings"), eq(changes.entityId, locationId)),
-            inArray(changes.entity, ["category", "product", "tag", "role"]),
+            inArray(changes.entity, ["category", "product", "tag", "role", "discount"]),
             and(eq(changes.entity, "user"), eq(changes.locationId, locationId)),
             and(eq(changes.entity, "register"), eq(changes.entityId, registerId)),
             priceListId === undefined
@@ -243,7 +255,7 @@ export class DrizzleChangeLog<TQueryResult extends PgQueryResultHKT>
   // settings and products are read in more than one statement, so only they are share-locked, in
   // id order: every save locks the row before touching what belongs to it, and the lock waits for
   // it. Locking anything else would take locks in another order than the writers do. A user with
-  // its role and PIN, a role with its permissions, and a register are each read in one statement.
+  // its role and PIN, a role with its permissions, a register and a discount are each read in one statement.
   transaction<TOutcome>(
     work: (tx: ChangeLogTransaction<PulledCloudChange>) => Promise<TOutcome>,
   ): Promise<TOutcome> {
