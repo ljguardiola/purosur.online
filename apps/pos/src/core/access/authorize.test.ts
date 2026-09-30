@@ -1,8 +1,8 @@
 import { encodePinHash } from "@purosur/domain";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { authorize } from "./authorize";
+import type { PinCheckDeps } from "./pin-check";
 import { derivePinVerifier } from "./pin-verifier";
-import type { SignInDeps } from "./sign-in";
 import type { SignInRecord } from "./sqlite-sign-in-store";
 
 const PEPPER = Buffer.alloc(32, 7).toString("base64url");
@@ -19,9 +19,9 @@ function record(overrides: Partial<SignInRecord> = {}): SignInRecord {
   };
 }
 
-function deps(stored: SignInRecord | undefined = record(), overrides: Partial<SignInDeps> = {}) {
+function deps(stored: SignInRecord | undefined = record(), overrides: Partial<PinCheckDeps> = {}) {
   const hashed: string[] = [];
-  const built: SignInDeps = {
+  const built: PinCheckDeps = {
     store: { signInRecord: (userId) => (userId === "u2" ? stored : undefined) },
     readPepper: async () => PEPPER,
     hashPin: async (pin) => {

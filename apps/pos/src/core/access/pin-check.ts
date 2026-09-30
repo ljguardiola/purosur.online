@@ -20,6 +20,10 @@ function sameText(left: string, right: string): boolean {
   return leftBytes.length === rightBytes.length && timingSafeEqual(leftBytes, rightBytes);
 }
 
+export function pinMatches(pepper: string, pinHash: string, record: SignInRecord): boolean {
+  return sameText(derivePinVerifier(pepper, pinHash), record.verifier);
+}
+
 export async function checkPin(deps: PinCheckDeps, userId: string, pin: string): Promise<PinCheck> {
   const record = deps.store.signInRecord(userId);
   const salt = record === undefined ? undefined : decodePinSalt(record.salt);
@@ -30,8 +34,7 @@ export async function checkPin(deps: PinCheckDeps, userId: string, pin: string):
   if (pepper === undefined) {
     return { kind: "unavailable" };
   }
-  const verifier = derivePinVerifier(pepper, await deps.hashPin(pin, salt));
-  return sameText(verifier, record.verifier)
+  return pinMatches(pepper, await deps.hashPin(pin, salt), record)
     ? { kind: "right_pin", record }
     : { kind: "wrong_pin" };
 }

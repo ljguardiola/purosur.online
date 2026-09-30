@@ -5,6 +5,7 @@ import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { SqliteLocalReplica } from "../sync/sqlite-local-replica";
 import { derivePinVerifier } from "./pin-verifier";
 import { applyRedeemedPin } from "./redeemed-pin";
+import { SqliteSignInStore } from "./sqlite-sign-in-store";
 
 const USER_ID = "1e7b3a90-52c4-4d18-9f6a-8b0c2d4e6f71";
 const OTHER_USER_ID = "2f8c4ba1-63d5-4e29-8a7b-9c1d3e5f7a82";
@@ -138,5 +139,33 @@ describe("applyRedeemedPin", () => {
     await pull(USER_ID, userRow({ salt: "bmV3LXNhbHQ", pin_hash: NEW_HASH, version: 5 }), 2);
 
     expect(replica.pinVerifier(USER_ID)).toBe(applied);
+  });
+
+  it("clears the PIN sign-in failures of the user who chose the new PIN, and only theirs", async () => {
+    await pull(USER_ID, userRow());
+    await pull(OTHER_USER_ID, userRow({ first_name: "Grace" }), 2);
+    const store = new SqliteSignInStore(database);
+    const failedAt = new Date("2026-05-01T10:00:00.000Z");
+    for (const id of [USER_ID, OTHER_USER_ID]) {
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        store.recordPinSignInFailure(id, failedAt);
+      }
+    }
+
+    applyRedeemedPin(database, PEPPER, redemption);
+
+    expect(store.pinSignInFailures(USER_ID)).toBeUndefined();
+    expect(store.pinSignInFailures(OTHER_USER_ID)?.consecutiveFailures).toBe(8);
+  });
+
+  it("keeps the failures of a user marked removed, whose redemption writes nothing", async () => {
+    await pull(USER_ID, userRow());
+    const store = new SqliteSignInStore(database);
+    store.recordPinSignInFailure(USER_ID, new Date("2026-05-01T10:00:00.000Z"));
+    database.prepare("UPDATE users SET removed = 1").run();
+
+    applyRedeemedPin(database, PEPPER, redemption);
+
+    expect(store.pinSignInFailures(USER_ID)?.consecutiveFailures).toBe(1);
   });
 });

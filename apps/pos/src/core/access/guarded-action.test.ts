@@ -1,8 +1,8 @@
 import { encodePinHash } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { runGuarded } from "./guarded-action";
+import type { PinCheckDeps } from "./pin-check";
 import { derivePinVerifier } from "./pin-verifier";
-import type { SignInDeps } from "./sign-in";
 import type { SignInRecord } from "./sqlite-sign-in-store";
 
 const PEPPER = Buffer.alloc(32, 7).toString("base64url");
@@ -18,7 +18,7 @@ function record(permissionKeys: string[]): SignInRecord {
   };
 }
 
-function deps(overrides: Partial<SignInDeps> = {}): SignInDeps {
+function deps(overrides: Partial<PinCheckDeps> = {}): PinCheckDeps {
   return {
     store: { signInRecord: (userId) => (userId === "u2" ? record(["record_cash_in"]) : undefined) },
     readPepper: async () => PEPPER,
@@ -27,7 +27,7 @@ function deps(overrides: Partial<SignInDeps> = {}): SignInDeps {
   };
 }
 
-function guardedCashIn(sandbox: SignInDeps, authorization?: { user_id: string; pin: string }) {
+function guardedCashIn(sandbox: PinCheckDeps, authorization?: { user_id: string; pin: string }) {
   const performed: (string | null)[] = [];
   const outcome = runGuarded(
     sandbox,

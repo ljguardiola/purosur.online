@@ -206,6 +206,7 @@ const rendererRequestDeps: RendererRequestDeps = {
               store: signInStore,
               readPepper: async () => (await mainRequests.readCredentials())?.pepper,
               hashPin,
+              now: () => new Date(),
             },
             userId,
             pin,

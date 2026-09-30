@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
 import type { SyncChange } from "@purosur/contracts";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import type { RegisterPulledChange } from "./pulled-change";
@@ -367,5 +368,91 @@ describe("the register's local copy of the users, roles and permissions it pulls
 
     expect(unadopted.user(USER_ID)).toBeUndefined();
     expect(await unadopted.savedCursor()).toBe(0);
+  });
+
+  describe("the PIN sign-in failures held for a user", () => {
+    const FAILED_AT = new Date("2026-05-01T10:00:00.000Z");
+
+    function failTwice(userId = USER_ID): SqliteSignInStore {
+      const store = new SqliteSignInStore(database);
+      store.recordPinSignInFailure(userId, FAILED_AT);
+      store.recordPinSignInFailure(userId, FAILED_AT);
+      return store;
+    }
+
+    it("stay when a newer version of the user comes with the same PIN, as a change of role or name does", async () => {
+      await save(userChange(1, userRow()));
+      const store = failTwice();
+
+      await save(userChange(2, userRow({ first_name: "Adela", version: 2 })));
+
+      expect(store.pinSignInFailures(USER_ID)?.consecutiveFailures).toBe(2);
+    });
+
+    it("are cleared when a newer version of the user brings a new PIN", async () => {
+      await save(userChange(1, userRow()));
+      const store = failTwice();
+
+      await save(userChange(2, userRow({ pin_hash: "bmV3LWhhc2g", version: 2 })));
+
+      expect(store.pinSignInFailures(USER_ID)).toBeUndefined();
+    });
+
+    it("are cleared when a newer version of the user has no PIN", async () => {
+      await save(userChange(1, userRow()));
+      const store = failTwice();
+
+      await save(userChange(2, userRow({ salt: null, pin_hash: null, version: 2 })));
+
+      expect(store.pinSignInFailures(USER_ID)).toBeUndefined();
+    });
+
+    it("stay when a version arrives that the user's row ignores, even with another PIN", async () => {
+      await save(userChange(1, userRow({ version: 3 })));
+      const store = failTwice();
+
+      await save(userChange(2, userRow({ pin_hash: "bmV3LWhhc2g", version: 2 })));
+
+      expect(store.pinSignInFailures(USER_ID)?.consecutiveFailures).toBe(2);
+    });
+
+    it("of another user stay when a user's PIN changes", async () => {
+      await save(
+        userChange(1, userRow()),
+        userChange(2, userRow({ first_name: "Grace" }), OTHER_USER_ID),
+      );
+      const store = failTwice(OTHER_USER_ID);
+
+      await save(userChange(3, userRow({ pin_hash: "bmV3LWhhc2g", version: 2 })));
+
+      expect(store.pinSignInFailures(OTHER_USER_ID)?.consecutiveFailures).toBe(2);
+    });
+
+    it("are cleared when the user is removed", async () => {
+      await save(userChange(1, userRow()));
+      const store = failTwice();
+
+      await save(removalChange(2, "user", USER_ID, 2));
+
+      expect(store.pinSignInFailures(USER_ID)).toBeUndefined();
+    });
+
+    it("are cleared when another installation takes over", async () => {
+      await save(userChange(1, userRow()));
+      const store = failTwice();
+
+      replica.adoptDevice({ deviceId: "device-b", pepper: OTHER_PEPPER });
+
+      expect(store.pinSignInFailures(USER_ID)).toBeUndefined();
+    });
+
+    it("stay for the installation that counted them", async () => {
+      await save(userChange(1, userRow()));
+      const store = failTwice();
+
+      replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+
+      expect(store.pinSignInFailures(USER_ID)?.consecutiveFailures).toBe(2);
+    });
   });
 });

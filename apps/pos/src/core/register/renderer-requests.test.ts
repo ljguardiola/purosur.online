@@ -29,7 +29,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       signInUsers: () => [{ id: "u1", first_name: "Ada" }],
       signIn: async (userId: string, pin: string): Promise<SignInOutcome> => {
         signIns.push({ userId, pin });
-        return { kind: "wrong_pin" };
+        return { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 7 };
       },
       authorizers: (permission: AuthorizablePermissionKey) => {
         authorizerLookups.push(permission);
@@ -208,7 +208,7 @@ describe("answerRendererRequest", () => {
     expect(answer).toEqual({
       type: "sign-in-result",
       request_id: "r6",
-      outcome: { kind: "wrong_pin" },
+      outcome: { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 7 },
     });
   });
 
