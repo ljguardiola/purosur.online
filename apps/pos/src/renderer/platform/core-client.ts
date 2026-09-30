@@ -6,9 +6,12 @@ import type {
   CurrentSaleAnswer,
   EnrollmentOutcome,
   FirstPinCodeRequestOutcome,
+  ListedCashMovement,
   OpenCashSession,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
+  RecordCashMovementOutcome,
+  RecordCashMovementRequest,
   RendererToCoreMessage,
   ScanProductOutcome,
   SignInLookupOutcome,
@@ -25,6 +28,8 @@ export interface CorePort {
   close(): void;
 }
 
+export type CashMovementInput = RecordCashMovementRequest;
+
 export interface CoreClient {
   connect(port: CorePort): void;
   enrollmentStatus(): Promise<boolean>;
@@ -40,6 +45,8 @@ export interface CoreClient {
   signOut(): Promise<void>;
   openCashSession(openingFloat: number): Promise<OpenCashSessionOutcome>;
   cashSession(): Promise<OpenCashSession | null | "unavailable">;
+  recordCashMovement(input: CashMovementInput): Promise<RecordCashMovementOutcome>;
+  cashMovements(): Promise<ListedCashMovement[] | null | "unavailable">;
   scanProduct(code: string): Promise<ScanProductOutcome>;
   currentSale(): Promise<CurrentSaleAnswer>;
   closeCashSession(
@@ -218,6 +225,30 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
             return "unavailable";
           }
           return answer.type === "cash-session" ? answer.session : undefined;
+        },
+      );
+    },
+    recordCashMovement({ kind, amount, reason, authorization }) {
+      return ask(
+        {
+          type: "record-cash-movement",
+          request_id: deps.newRequestId(),
+          kind,
+          amount,
+          reason,
+          ...(authorization === undefined ? {} : { authorization }),
+        },
+        (answer) => (answer.type === "record-cash-movement-result" ? answer.outcome : undefined),
+      );
+    },
+    cashMovements() {
+      return ask(
+        { type: "cash-movements-request", request_id: deps.newRequestId() },
+        (answer): ListedCashMovement[] | null | "unavailable" | undefined => {
+          if (answer.type === "cash-movements-unavailable") {
+            return "unavailable";
+          }
+          return answer.type === "cash-movements" ? answer.movements : undefined;
         },
       );
     },

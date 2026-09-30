@@ -23,6 +23,7 @@ import { requestFirstPinCode } from "./access/first-pin-code-request";
 import { redeemPinCode } from "./access/pin-code-redemption";
 import { hashPin } from "./access/pin-hash";
 import { applyRedeemedPin } from "./access/redeemed-pin";
+import { signInRedeemedPerson } from "./access/redeemed-sign-in";
 import { firstSignIn, signIn } from "./access/sign-in";
 import { lookUpSignIn } from "./access/sign-in-lookup";
 import { createSignedInPerson } from "./access/signed-in-person";
@@ -37,13 +38,13 @@ import {
 import { type LocalDatabase, openLocalDatabase } from "./platform/local-database";
 import { LOCAL_MIGRATIONS } from "./platform/local-migrations";
 import { createMainRequests } from "./platform/main-requests";
+import { currentCashMovements, recordCashMovementFor } from "./register/cash-movement-requests";
 import {
   cashBalanceFor,
   cashSessionOpener,
   closeCashSessionFor,
   currentCashSession,
   openCashSessionFor,
-  resumeSignedInPerson,
 } from "./register/cash-session-requests";
 import { rotateDeviceToken } from "./register/device-token-rotation";
 import { startDeviceTokenRotationSchedule } from "./register/device-token-rotation-schedule";
@@ -148,14 +149,6 @@ function reportFailure(context: string, error: unknown): void {
   Sentry.captureException(error);
 }
 
-function resumeWhoIsSignedIn(): void {
-  if (localDatabase === undefined) {
-    signedInPerson.clear();
-    return;
-  }
-  resumeSignedInPerson({ database: localDatabase, signedInPerson, reportFailure });
-}
-
 // An unreachable cloud is how a register without internet looks, so only an unexpected stop is
 // reported; the next pull resumes from the cursor already saved either way.
 const pullSchedule = createPullSchedule({
@@ -229,6 +222,12 @@ const rendererRequestDeps: RendererRequestDeps = {
           console.error("core: the redeemed PIN could not be kept locally", error);
           Sentry.captureException(error);
         },
+        cashSessionOpener: () =>
+          localDatabase === undefined ? undefined : cashSessionOpener(localDatabase),
+        signInRedeemed: (userId) =>
+          signInStore === undefined
+            ? undefined
+            : signInRedeemedPerson({ store: signInStore, signedInPerson }, userId),
       },
       typedCode,
       newPin,
@@ -330,10 +329,24 @@ const rendererRequestDeps: RendererRequestDeps = {
             { sessionId, countedCash, authorization },
           ),
   cashBalance: localDatabase === undefined ? undefined : () => cashBalanceFor(localDatabase),
-  cashSession:
-    localDatabase === undefined
+  cashSession: localDatabase === undefined ? undefined : () => currentCashSession(localDatabase),
+  recordCashMovement:
+    localDatabase === undefined || actionGate === undefined
       ? undefined
-      : () => currentCashSession(localDatabase, signedInPerson),
+      : (request) =>
+          recordCashMovementFor(
+            {
+              database: localDatabase,
+              gate: actionGate,
+              readOutboxChainKey: async () =>
+                (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+              now: () => new Date(),
+              ids: uuidV7Ids,
+            },
+            request,
+          ),
+  cashMovements:
+    localDatabase === undefined ? undefined : () => currentCashMovements(localDatabase),
   scanProduct:
     localDatabase === undefined || actionGate === undefined
       ? undefined
@@ -366,15 +379,18 @@ if (cloudClient !== undefined) {
   });
 }
 
-const rendererConnection = createRendererConnection((data, reply) => {
-  gateFromRenderer(data, (message) => {
-    void answerRendererRequest(rendererRequestDeps, message).then((answer) => {
-      if (answer !== undefined) {
-        reply(answer);
-      }
+const rendererConnection = createRendererConnection(
+  (data, reply) => {
+    gateFromRenderer(data, (message) => {
+      void answerRendererRequest(rendererRequestDeps, message).then((answer) => {
+        if (answer !== undefined) {
+          reply(answer);
+        }
+      });
     });
-  });
-}, resumeWhoIsSignedIn);
+  },
+  () => signedInPerson.clear(),
+);
 
 process.parentPort.on("message", (event) => {
   const [rendererPort] = event.ports;

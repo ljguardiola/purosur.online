@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
+  insertBrand,
   insertProductWithTags,
   insertTag,
   sessionCookie,
@@ -127,8 +128,22 @@ describe("GET /discount-targets", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       products: [
-        { id: almonds.id, name: "Almendras", saleUnit: "KG" },
-        { id: yerba.id, name: "Yerba mate", saleUnit: "UNIT" },
+        {
+          id: almonds.id,
+          name: "Almendras",
+          saleUnit: "KG",
+          brandName: null,
+          netContent: null,
+          barcodes: [],
+        },
+        {
+          id: yerba.id,
+          name: "Yerba mate",
+          saleUnit: "UNIT",
+          brandName: null,
+          netContent: null,
+          barcodes: [],
+        },
       ],
       categories: [
         { id: almacen, name: "Almacén", parentId: null },
@@ -141,6 +156,49 @@ describe("GET /discount-targets", () => {
         { id: sinTacc.id, name: "Sin TACC" },
         { id: vegano.id, name: "Vegano" },
       ],
+    });
+  });
+
+  it("tells each product's brand, net content and active barcodes apart", async () => {
+    const playadito = await insertBrand(db, { name: "Playadito" });
+    const retired = await insertBrand(db, { name: "Marca retirada", active: false });
+    const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
+    const kilo = await insertProductWithTags(db, {
+      name: "Yerba mate",
+      categoryName: "Yerbas de un kilo",
+      tagIds: [],
+      brandId: playadito.id,
+      netContent: { quantity: 1, unit: "KG" },
+      barcodes: [{ code: "7790002" }, { code: "7790001" }, { code: "7790009", active: false }],
+    });
+    const half = await insertProductWithTags(db, {
+      name: "Yerba mate",
+      categoryName: "Yerbas de medio kilo",
+      tagIds: [],
+      brandId: retired.id,
+      netContent: { quantity: 0.5, unit: "KG" },
+      barcodes: [{ code: "7790003" }],
+    });
+
+    const response = await getDiscountTargets(rawSessionId);
+
+    const listed = response.json().products;
+    expect(listed).toHaveLength(2);
+    expect(listed).toContainEqual({
+      id: kilo.id,
+      name: "Yerba mate",
+      saleUnit: "UNIT",
+      brandName: "Playadito",
+      netContent: { quantity: 1, unit: "KG" },
+      barcodes: ["7790002", "7790001"],
+    });
+    expect(listed).toContainEqual({
+      id: half.id,
+      name: "Yerba mate",
+      saleUnit: "UNIT",
+      brandName: "Marca retirada",
+      netContent: { quantity: 0.5, unit: "KG" },
+      barcodes: ["7790003"],
     });
   });
 

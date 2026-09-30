@@ -67,6 +67,7 @@ async function renderScreen(
       openedBy={props.openedBy ?? ADA}
       registerName="Caja 1"
       openedAt={OPENED_AT}
+      lock={() => {}}
       loadCashBalance={props.loadCashBalance ?? (async () => BALANCE)}
       loadAuthorizers={props.loadAuthorizers ?? (async () => [])}
       closeCashSession={closeCashSession}
@@ -287,6 +288,7 @@ describe("CashCountScreen", () => {
         openedBy={ADA}
         registerName={null}
         openedAt={OPENED_AT}
+        lock={() => {}}
         loadCashBalance={() => new Promise(() => {})}
         loadAuthorizers={async () => []}
         closeCashSession={async () => CLOSED}
