@@ -34,10 +34,12 @@ import {
 import { type LocalDatabase, openLocalDatabase } from "./platform/local-database";
 import { LOCAL_MIGRATIONS } from "./platform/local-migrations";
 import { createMainRequests } from "./platform/main-requests";
+import { currentCashSession, openCashSessionFor } from "./register/cash-session-requests";
 import { rotateDeviceToken } from "./register/device-token-rotation";
 import { startDeviceTokenRotationSchedule } from "./register/device-token-rotation-schedule";
 import { enroll, generatePepper, installationReportFrom } from "./register/enrollment";
 import { answerRendererRequest, type RendererRequestDeps } from "./register/renderer-requests";
+import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
 import { pullFromCloud, pullResultOf } from "./sync/pull-from-cloud";
 import { createPullSchedule } from "./sync/pull-schedule";
@@ -215,6 +217,22 @@ const rendererRequestDeps: RendererRequestDeps = {
             pin,
           ),
   signOut: () => signedInPerson.clear(),
+  openCashSession:
+    localDatabase === undefined
+      ? undefined
+      : (userId, openingFloat) =>
+          openCashSessionFor(
+            {
+              database: localDatabase,
+              readOutboxChainKey: async () =>
+                (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+              now: () => new Date(),
+              ids: uuidV7Ids,
+            },
+            userId,
+            openingFloat,
+          ),
+  cashSession: localDatabase === undefined ? undefined : () => currentCashSession(localDatabase),
   reportFailure: (context, error) => {
     console.error(`core: ${context} failed`, error);
     Sentry.captureException(error);

@@ -335,18 +335,18 @@ test("ends the session when the load finds it closed", async () => {
 });
 
 test("navigates to Mi cuenta when the load comes back forbidden", async () => {
-  window.history.pushState(null, "", "/settings/branch");
+  window.history.pushState(null, "", "/location-settings");
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "forbidden" });
 
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
   window.history.pushState(null, "", "/");
 });
 
 test("navigates to Mi cuenta when the save comes back forbidden", async () => {
-  window.history.pushState(null, "", "/settings/branch");
+  window.history.pushState(null, "", "/location-settings");
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
   vi.mocked(services.saveBranchSettings).mockResolvedValue({ kind: "forbidden" });
@@ -357,12 +357,12 @@ test("navigates to Mi cuenta when the save comes back forbidden", async () => {
 
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
   window.history.pushState(null, "", "/");
 });
 
 test("navigates to Mi cuenta when Recargar comes back forbidden", async () => {
-  window.history.pushState(null, "", "/settings/branch");
+  window.history.pushState(null, "", "/location-settings");
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValueOnce({ kind: "ok", value: loaded });
   vi.mocked(services.saveBranchSettings).mockResolvedValue({ kind: "stale_version" });
@@ -376,7 +376,7 @@ test("navigates to Mi cuenta when Recargar comes back forbidden", async () => {
   vi.mocked(services.fetchBranchSettings).mockResolvedValueOnce({ kind: "forbidden" });
   await userEvent.click(screen.getByRole("button", { name: "Recargar" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
   window.history.pushState(null, "", "/");
 });
 

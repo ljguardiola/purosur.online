@@ -12,7 +12,7 @@ test("renders as a link to its address, named by its label, count and detail", a
         count={4}
         tone="error"
         detail="Passkey · Correo"
-        href="/home/alerts?level=critical"
+        href="/alerts?level=critical"
       />
     </main>,
   );
@@ -20,7 +20,7 @@ test("renders as a link to its address, named by its label, count and detail", a
   const link = screen.getByRole("link", {
     name: "Alertas críticas 4 Passkey · Correo",
   });
-  await expect.element(link).toHaveAttribute("href", "/home/alerts?level=critical");
+  await expect.element(link).toHaveAttribute("href", "/alerts?level=critical");
   await expectNoAccessibilityViolations(document.body);
 });
 

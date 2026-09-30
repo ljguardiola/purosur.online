@@ -212,14 +212,14 @@ test("shows the rate-limited notice with a retry action", async () => {
 });
 
 test("navigates to Mi cuenta when the registers request comes back forbidden", async () => {
-  window.history.pushState(null, "", "/settings/registers");
+  window.history.pushState(null, "", "/registers");
   try {
     const services = createServices();
     vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "forbidden" });
 
     await renderScreen(services);
 
-    await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+    await expect.poll(() => window.location.pathname).toBe("/account");
   } finally {
     window.history.pushState(null, "", "/");
   }
@@ -651,7 +651,7 @@ test("a refresh that fails shows the load error with its retry action, like a fa
 });
 
 test("navigates to Mi cuenta when emitting a code comes back forbidden", async () => {
-  window.history.pushState(null, "", "/settings/registers");
+  window.history.pushState(null, "", "/registers");
   try {
     const services = createServices();
     vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
@@ -663,7 +663,7 @@ test("navigates to Mi cuenta when emitting a code comes back forbidden", async (
       screen.getByRole("button", { name: "Emitir código de alta para Caja 1" }),
     );
 
-    await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+    await expect.poll(() => window.location.pathname).toBe("/account");
   } finally {
     window.history.pushState(null, "", "/");
   }

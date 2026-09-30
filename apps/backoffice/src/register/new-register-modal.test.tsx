@@ -184,7 +184,7 @@ test("shows the attempt-failed notice in the create modal", async () => {
 });
 
 test("navigates to Mi cuenta when creating a register comes back forbidden", async () => {
-  window.history.pushState(null, "", "/settings/registers");
+  window.history.pushState(null, "", "/registers");
   try {
     const services = createServices();
     vi.mocked(services.createRegister).mockResolvedValue({ kind: "forbidden" });
@@ -192,7 +192,7 @@ test("navigates to Mi cuenta when creating a register comes back forbidden", asy
 
     await submitName(dialog, "Caja 1");
 
-    await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+    await expect.poll(() => window.location.pathname).toBe("/account");
   } finally {
     window.history.pushState(null, "", "/");
   }

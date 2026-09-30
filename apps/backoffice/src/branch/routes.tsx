@@ -6,7 +6,7 @@ import { refuseWithout } from "../shell/signed-in-route";
 
 export const branchSettingsRoute = createRoute({
   getParentRoute: () => settingsAreaRoute,
-  path: "branch",
+  path: "location-settings",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeBranchArea),
   component: lazyScreen(() => import("./branch-settings-page"), "BranchSettingsPage"),
 });

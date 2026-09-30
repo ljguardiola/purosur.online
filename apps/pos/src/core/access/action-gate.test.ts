@@ -48,7 +48,10 @@ function deps({
   return {
     signedInPerson: signedIn,
     store: {
-      roleAccess: (userId) => accessOf[userId],
+      activePerson: (userId) => {
+        const access = accessOf[userId];
+        return access === undefined ? undefined : { firstName: "Ada", access };
+      },
       signInRecord: (userId) => (userId === "u2" ? record(["record_cash_in"]) : undefined),
       pinSignInFailures: () => failures,
       recordPinSignInFailure: (_userId, at) => ({

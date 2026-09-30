@@ -200,19 +200,19 @@ test("ends the session when removing finds it already closed", async () => {
 });
 
 test("navigates to Mi cuenta, without the authorization modal, when removing the passkey comes back forbidden", async () => {
-  window.history.pushState(null, "", "/settings/users/user-1");
+  window.history.pushState(null, "", "/users/user-1");
   const services = createServices();
   vi.mocked(services.removeUserPasskey).mockResolvedValue({ kind: "forbidden" });
   const { dialog } = await renderModal(services);
 
   await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
   expect(services.fetchSessionAuthorizationOptions).not.toHaveBeenCalled();
 });
 
 test("navigates to Mi cuenta when the removal retried after the authorization comes back forbidden", async () => {
-  window.history.pushState(null, "", "/settings/users/user-1");
+  window.history.pushState(null, "", "/users/user-1");
   const services = createServices();
   vi.mocked(services.removeUserPasskey).mockResolvedValueOnce({ kind: "authorization_required" });
   grantAuthorization(services);
@@ -226,5 +226,5 @@ test("navigates to Mi cuenta when the removal retried after the authorization co
       .getByRole("button", { name: "Usar mi passkey" }),
   );
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
 });

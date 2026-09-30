@@ -374,14 +374,14 @@ test("shows the rate-limited notice with the time to wait and a retry action", a
 });
 
 test("navigates to Mi cuenta when the products request comes back forbidden", async () => {
-  window.history.pushState(null, "", "/catalog/products");
+  window.history.pushState(null, "", "/products");
   const services = createServices();
   vi.mocked(services.fetchProducts).mockResolvedValue({ kind: "forbidden" });
   vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [] });
 
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
   window.history.pushState(null, "", "/");
 });
 

@@ -10,10 +10,10 @@ beforeEach(resetPageState);
 
 afterEach(resetPageState);
 
-test("routes /settings/users/me to Mi cuenta inside the Shell, with Config and Usuarios active and Ayuda not", async () => {
+test("routes /account to Mi cuenta inside the Shell, with Config and Usuarios active and Ayuda not", async () => {
   const services = createAppServices();
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
-  window.history.pushState(null, "", "/settings/users/me");
+  window.history.pushState(null, "", "/account");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -39,13 +39,13 @@ test("following the account name link from Help shows Mi cuenta", async () => {
   await userEvent.click(screen.getByRole("link", { name: "Lucas Guardiola" }));
 
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/settings/users/me");
+  expect(window.location.pathname).toBe("/account");
 });
 
 test("following the sidebar's Usuarios item from Mi cuenta opens the Users list, with Mi cuenta still reachable from the account name", async () => {
   const services = createAppServices();
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
-  window.history.pushState(null, "", "/settings/users/me");
+  window.history.pushState(null, "", "/account");
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
 
@@ -53,16 +53,16 @@ test("following the sidebar's Usuarios item from Mi cuenta opens the Users list,
   await userEvent.click(screen.getByRole("link", { name: "Usuarios" }));
 
   await expect.element(screen.getByRole("heading", { name: "Usuarios", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/settings/users");
+  expect(window.location.pathname).toBe("/users");
   expect(services.usersListScreen.fetchUsers).toHaveBeenCalled();
 
   await userEvent.click(screen.getByRole("link", { name: "Lucas Guardiola" }));
 
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/settings/users/me");
+  expect(window.location.pathname).toBe("/account");
 });
 
-test("opens a user's detail screen at /settings/users/:id, with Usuarios still the active sidebar item, and the browser's back button returns to the list", async () => {
+test("opens a user's detail screen at /users/:id, with Usuarios still the active sidebar item, and the browser's back button returns to the list", async () => {
   const services = createAppServices();
   const martina = {
     id: "user-2",
@@ -79,8 +79,8 @@ test("opens a user's detail screen at /settings/users/:id, with Usuarios still t
   });
   vi.mocked(services.userDetailScreen.fetchUser).mockResolvedValue({ kind: "ok", value: martina });
   vi.mocked(services.userDetailScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
-  window.history.pushState(null, "", "/settings/users");
-  window.history.pushState(null, "", "/settings/users/user-2");
+  window.history.pushState(null, "", "/users");
+  window.history.pushState(null, "", "/users/user-2");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -119,7 +119,7 @@ test("passes the signed-in Administrator's own id to the user detail screen, hid
       },
     ],
   });
-  window.history.pushState(null, "", "/settings/users/user-1");
+  window.history.pushState(null, "", "/users/user-1");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -129,7 +129,7 @@ test("passes the signed-in Administrator's own id to the user detail screen, hid
   ).toBeNull();
 });
 
-test("redirects a non-Administrator's typed /settings/users to Mi cuenta, without listing users", async () => {
+test("redirects a non-Administrator's typed /users to Mi cuenta, without listing users", async () => {
   const services = createAppServices({
     fetchSession: vi
       .fn()
@@ -138,12 +138,12 @@ test("redirects a non-Administrator's typed /settings/users to Mi cuenta, withou
       ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
-  window.history.pushState(null, "", "/settings/users");
+  window.history.pushState(null, "", "/users");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/settings/users/me");
+  expect(window.location.pathname).toBe("/account");
   expect(services.usersListScreen.fetchUsers).not.toHaveBeenCalled();
 });
 
@@ -156,7 +156,7 @@ test("shows Mi cuenta's own sidebar entry instead of Usuarios for a non-Administ
       ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
-  window.history.pushState(null, "", "/settings/users/me");
+  window.history.pushState(null, "", "/account");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -195,7 +195,7 @@ test("lets a non-Administrator holding deactivate_users open Usuarios, without N
     ],
   });
   vi.mocked(services.usersListScreen.fetchRoles).mockResolvedValue({ kind: "forbidden" });
-  window.history.pushState(null, "", "/settings/users");
+  window.history.pushState(null, "", "/users");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -203,7 +203,7 @@ test("lets a non-Administrator holding deactivate_users open Usuarios, without N
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   expect(screen.getByRole("button", { name: "Nuevo usuario" }).query()).toBeNull();
   expect(services.usersListScreen.fetchRoles).not.toHaveBeenCalled();
-  expect(window.location.pathname).toBe("/settings/users");
+  expect(window.location.pathname).toBe("/users");
   window.history.pushState(null, "", "/");
 });
 
@@ -231,7 +231,7 @@ test("opens a user's detail for a non-Administrator holding deactivate_users, of
     },
   });
   vi.mocked(services.userDetailScreen.fetchUserPasskeys).mockResolvedValue({ kind: "forbidden" });
-  window.history.pushState(null, "", "/settings/users/user-3");
+  window.history.pushState(null, "", "/users/user-3");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -241,7 +241,7 @@ test("opens a user's detail for a non-Administrator holding deactivate_users, of
     .toBeVisible();
   expect(screen.getByRole("button", { name: "Editar" }).query()).toBeNull();
   expect(services.userDetailScreen.fetchUserPasskeys).not.toHaveBeenCalled();
-  expect(window.location.pathname).toBe("/settings/users/user-3");
+  expect(window.location.pathname).toBe("/users/user-3");
   window.history.pushState(null, "", "/");
 });
 
@@ -269,20 +269,20 @@ test("lets a non-Administrator holding only reset_user_pin open Usuarios and a u
     },
   });
   vi.mocked(services.userDetailScreen.fetchUserPasskeys).mockResolvedValue({ kind: "forbidden" });
-  window.history.pushState(null, "", "/settings/users/user-3");
+  window.history.pushState(null, "", "/users/user-3");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("heading", { name: "Tomás Ruiz", level: 1 })).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Reiniciar el PIN" })).toBeVisible();
   await expect.element(screen.getByRole("link", { name: "Usuarios" })).toBeVisible();
-  expect(window.location.pathname).toBe("/settings/users/user-3");
+  expect(window.location.pathname).toBe("/users/user-3");
   window.history.pushState(null, "", "/");
 });
 
 test.each([
   {
-    path: "/settings/users/user-3",
+    path: "/users/user-3",
     adminOnlyCalls: (services: AppServices) => [
       services.userDetailScreen.fetchUser,
       services.userDetailScreen.fetchUserPasskeys,
@@ -306,7 +306,7 @@ test.each([
     await expect
       .element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 }))
       .toBeVisible();
-    expect(window.location.pathname).toBe("/settings/users/me");
+    expect(window.location.pathname).toBe("/account");
     for (const call of adminOnlyCalls(services)) {
       expect(call).not.toHaveBeenCalled();
     }

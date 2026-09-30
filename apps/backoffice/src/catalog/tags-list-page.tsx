@@ -3,7 +3,7 @@ import type { ReactElement } from "react";
 import { useDocumentTitle } from "../shell/document-title";
 import { TagsListScreen } from "./tags-list-screen";
 
-const route = getRouteApi("/signed-in/catalog/tags");
+const route = getRouteApi("/signed-in/catalog-area/tags");
 
 export function TagsListPage(): ReactElement {
   const { services, sessionActions } = route.useRouteContext();

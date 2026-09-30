@@ -9,6 +9,11 @@ export interface SignInRecord {
   access: RoleAccess;
 }
 
+export interface ActivePerson {
+  firstName: string;
+  access: RoleAccess;
+}
+
 export interface PinSignInFailures {
   consecutiveFailures: number;
   lastFailedAt: Date;
@@ -18,7 +23,7 @@ export interface SignInStore {
   signableUsers(): SignInUser[];
   authorizers(permission: AuthorizablePermissionKey): SignInUser[];
   signInRecord(userId: string): SignInRecord | undefined;
-  roleAccess(userId: string): RoleAccess | undefined;
+  activePerson(userId: string): ActivePerson | undefined;
   pinSignInFailures(userId: string): PinSignInFailures | undefined;
   recordPinSignInFailure(userId: string, at: Date): PinSignInFailures;
   withdrawPinSignInFailure(userId: string): void;
@@ -41,6 +46,7 @@ interface RecordRow {
   first_name: string;
   salt: string;
   verifier: string;
+  is_administrator: number | null;
 }
 
 export class SqliteSignInStore implements SignInStore {
@@ -71,33 +77,50 @@ export class SqliteSignInStore implements SignInStore {
     const row = this.database
       .prepare<[string], RecordRow>(
         `SELECT users.first_name AS first_name, users.salt AS salt,
-                pin_verifiers.verifier AS verifier
+                pin_verifiers.verifier AS verifier, roles.is_administrator AS is_administrator
          FROM users
          JOIN pin_verifiers ON pin_verifiers.user_id = users.id
-         WHERE users.id = ? AND users.active = 1 AND users.removed = 0 AND users.salt IS NOT NULL`,
-      )
-      .get(userId);
-    const access = row === undefined ? undefined : this.roleAccess(userId);
-    if (row === undefined || access === undefined) {
-      return undefined;
-    }
-    return { firstName: row.first_name, salt: row.salt, verifier: row.verifier, access };
-  }
-
-  roleAccess(userId: string): RoleAccess | undefined {
-    const row = this.database
-      .prepare<[string], { is_administrator: number | null }>(
-        `SELECT roles.is_administrator AS is_administrator
-         FROM users
          LEFT JOIN roles ON roles.id = users.role_id AND roles.removed = 0
-         WHERE users.id = ? AND users.active = 1 AND users.removed = 0`,
+         WHERE users.id = ? AND users.active = 1 AND users.removed = 0 AND users.salt IS NOT NULL`,
       )
       .get(userId);
     if (row === undefined) {
       return undefined;
     }
+    const access = this.roleAccess(userId, row.is_administrator);
+    return {
+      firstName: row.first_name,
+      salt: row.salt,
+      verifier: row.verifier,
+      access,
+    };
+  }
+
+  activePerson(userId: string): ActivePerson | undefined {
+    return this.person(userId, "AND users.active = 1 AND users.removed = 0");
+  }
+
+  anyPerson(userId: string): ActivePerson | undefined {
+    return this.person(userId, "");
+  }
+
+  private person(userId: string, condition: string): ActivePerson | undefined {
+    const row = this.database
+      .prepare<[string], { first_name: string; is_administrator: number | null }>(
+        `SELECT users.first_name AS first_name, roles.is_administrator AS is_administrator
+         FROM users
+         LEFT JOIN roles ON roles.id = users.role_id AND roles.removed = 0
+         WHERE users.id = ? ${condition}`,
+      )
+      .get(userId);
+    return row === undefined
+      ? undefined
+      : { firstName: row.first_name, access: this.roleAccess(userId, row.is_administrator) };
+  }
+
+  private roleAccess(userId: string, isAdministrator: number | null): RoleAccess {
     const permissionKeys =
-      row.is_administrator === null
+      isAdministrator === null
         ? []
         : this.database
             .prepare<[string], { permission_key: string }>(
@@ -108,7 +131,7 @@ export class SqliteSignInStore implements SignInStore {
             )
             .all(userId)
             .map((permission) => permission.permission_key);
-    return { isAdministrator: row.is_administrator === 1, permissionKeys };
+    return { isAdministrator: isAdministrator === 1, permissionKeys };
   }
 
   pinSignInFailures(userId: string): PinSignInFailures | undefined {

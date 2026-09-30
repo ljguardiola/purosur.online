@@ -42,17 +42,17 @@ function snapshotOf(lockfile, { name, version }) {
   throw new Error(`the lockfile holds no snapshot for ${key}`);
 }
 
-export function buildsRunByFilteredInstall({ lockfile, projects, allowBuilds, filter }) {
+export function packagesReachedByFilteredInstall({ lockfile, projects, filter }) {
   const pending = [...selectedImporters(lockfile, projects, filter)].flatMap((path) =>
     registryDependenciesOf(lockfile.importers[path]),
   );
   const visited = new Set();
-  const builds = new Set();
+  const packages = new Set();
   while (pending.length > 0) {
     const { key, installs: name } = snapshotOf(lockfile, pending.pop());
     if (visited.has(key)) continue;
     visited.add(key);
-    if (allowBuilds[name] === true) builds.add(name);
+    packages.add(name);
     const snapshot = lockfile.snapshots[key];
     for (const kind of SNAPSHOT_DEPENDENCY_KINDS) {
       for (const [dependency, dependencyVersion] of Object.entries(snapshot[kind] ?? {})) {
@@ -60,7 +60,13 @@ export function buildsRunByFilteredInstall({ lockfile, projects, allowBuilds, fi
       }
     }
   }
-  return [...builds].sort();
+  return [...packages].sort();
+}
+
+export function buildsRunByFilteredInstall({ lockfile, projects, allowBuilds, filter }) {
+  return packagesReachedByFilteredInstall({ lockfile, projects, filter }).filter(
+    (name) => allowBuilds[name] === true,
+  );
 }
 
 export function filteredInstallsIn(dockerfile) {

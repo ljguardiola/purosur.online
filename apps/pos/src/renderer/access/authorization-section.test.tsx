@@ -9,10 +9,12 @@ import type { GuardedCashInOutcome } from "./test-support/guarded-cash-in-form";
 import { GuardedCashInForm } from "./test-support/guarded-cash-in-form";
 
 const TOMAS_WITHOUT_PERMISSION: SignedInPerson = {
+  user_id: "u1",
   first_name: "Tomás",
   permission_keys: ["sell_and_charge"],
 };
 const TOMAS_WITH_PERMISSION: SignedInPerson = {
+  user_id: "u1",
   first_name: "Tomás",
   permission_keys: ["sell_and_charge", "record_cash_in"],
 };
@@ -105,6 +107,7 @@ describe("an action guarded by another person's PIN", () => {
 
     it("also holds it as an Administrator, who has every permission", async () => {
       const administrator: SignedInPerson = {
+        user_id: "u1",
         first_name: "Tomás",
         permission_keys: [...PERMISSION_KEYS],
       };

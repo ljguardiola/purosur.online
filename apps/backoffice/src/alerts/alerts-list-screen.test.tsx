@@ -398,7 +398,7 @@ test("navigates to Mi cuenta when the alerts request comes back forbidden", asyn
 
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
   window.history.pushState(null, "", "/");
 });
 

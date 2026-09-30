@@ -19,7 +19,7 @@ export type GuardedOutcome<Result> =
   | GuardedActionRefusal;
 
 export interface ActionGateDeps extends PinCheckDeps {
-  store: PinCheckDeps["store"] & Pick<SignInStore, "roleAccess">;
+  store: PinCheckDeps["store"] & Pick<SignInStore, "activePerson">;
   signedInPerson: Pick<SignedInPerson, "userId">;
 }
 
@@ -40,7 +40,7 @@ export function createActionGate(deps: ActionGateDeps): ActionGate {
     async run(action, perform) {
       const signedInUserId = deps.signedInPerson.userId();
       const access =
-        signedInUserId === undefined ? undefined : deps.store.roleAccess(signedInUserId);
+        signedInUserId === undefined ? undefined : deps.store.activePerson(signedInUserId)?.access;
       if (signedInUserId === undefined || access === undefined) {
         return { kind: "not_signed_in" };
       }
