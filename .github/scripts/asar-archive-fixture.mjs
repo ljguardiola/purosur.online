@@ -11,9 +11,12 @@ export function asarArchive(files) {
   for (const [path, file] of Object.entries(files)) {
     const parts = path.split("/");
     let directory = root;
-    for (const part of parts.slice(0, -1)) {
+    for (const part of file.directory ? parts : parts.slice(0, -1)) {
       directory.files[part] ??= { files: {} };
       directory = directory.files[part];
+    }
+    if (file.directory) {
+      continue;
     }
     const name = parts.at(-1);
     if (file.unpackedHash) {

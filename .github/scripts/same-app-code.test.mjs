@@ -79,6 +79,29 @@ test("the CLI names the files inside two app.asar archives that differ", async (
   });
 });
 
+test("the CLI says no file differs when two app.asar archives only order their files differently", async () => {
+  await withTempDir(async (dir) => {
+    const first = join(dir, "first.asar");
+    const second = join(dir, "second.asar");
+    await writeFile(
+      first,
+      asarArchive({ "out/a.js": { content: "a" }, "out/b.js": { content: "bb" } }),
+    );
+    await writeFile(
+      second,
+      asarArchive({ "out/b.js": { content: "bb" }, "out/a.js": { content: "a" } }),
+    );
+
+    const result = runCli(cliPath, [first, second]);
+
+    assert.notEqual(result.status, 0);
+    assert.match(
+      result.stderr,
+      /no file inside differs; the archives differ only in how they are laid out/,
+    );
+  });
+});
+
 test("the CLI still compares when it is run through a linked directory", async () => {
   await withTempDir(async (dir) => {
     const first = join(dir, "first.asar");

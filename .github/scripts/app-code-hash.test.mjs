@@ -169,7 +169,32 @@ test("differingFiles names no file when the same files sit at other offsets", as
   });
 });
 
-test("differingFiles reports a file that is not an asar archive", async () => {
+test("differingFiles names an empty directory only one archive holds", async () => {
+  await withTempDir(async (dir) => {
+    const result = await differingFilesBetween(
+      dir,
+      { "package.json": { content: "{}" }, "out/cache": { directory: true } },
+      { "package.json": { content: "{}" } },
+    );
+
+    assert.deepEqual(result, { ok: true, files: ["out", "out/cache"] });
+  });
+});
+
+test("differingFiles reports a first file that is not an asar archive", async () => {
+  await withTempDir(async (dir) => {
+    const first = join(dir, "first.asar");
+    const second = join(dir, "second.asar");
+    await writeFile(first, "not an archive");
+    await writeFile(second, asarArchive({ "package.json": { content: "{}" } }));
+
+    const result = await differingFiles(first, second);
+
+    assert.deepEqual(result, { ok: false, reason: `${first} is not a readable asar archive` });
+  });
+});
+
+test("differingFiles reports a second file that is not an asar archive", async () => {
   await withTempDir(async (dir) => {
     const first = join(dir, "first.asar");
     const second = join(dir, "second.asar");

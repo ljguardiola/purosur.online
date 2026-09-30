@@ -58,6 +58,7 @@ function readAsarFiles(archive) {
     for (const [name, entry] of Object.entries(directory.files)) {
       const path = `${prefix}${name}`;
       if (entry.files) {
+        files.set(path, "directory");
         walk(entry, `${path}/`);
         continue;
       }
