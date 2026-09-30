@@ -28,6 +28,6 @@ export interface CashMovement {
   actorId: string;
   occurredAt: Date;
   reason?: string;
-  ref?: string;
+  ref?: { type: string; id: string };
   authorizedBy?: string;
 }

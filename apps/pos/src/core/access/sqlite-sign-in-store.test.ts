@@ -220,6 +220,26 @@ describe("an active person", () => {
   });
 });
 
+describe("any person", () => {
+  it.each([
+    ["deactivated", { active: false }],
+    ["removed", { removed: true }],
+    ["without a PIN", { verifier: null }],
+  ])("is found when %s, with the access the role holds now", (_case, seed) => {
+    addUser({ id: "u1", firstName: "Ada", ...seed });
+    grant("cashier", "sell_and_charge");
+
+    expect(store.anyPerson("u1")).toEqual({
+      firstName: "Ada",
+      access: { isAdministrator: false, permissionKeys: ["sell_and_charge"] },
+    });
+  });
+
+  it("is not found for a person the register does not know", () => {
+    expect(store.anyPerson("nobody")).toBeUndefined();
+  });
+});
+
 describe("a user's PIN sign-in failures", () => {
   const FIRST = new Date("2026-05-01T10:00:00.000Z");
   const SECOND = new Date("2026-05-01T10:00:05.000Z");

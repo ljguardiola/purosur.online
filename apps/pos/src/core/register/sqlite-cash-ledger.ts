@@ -100,9 +100,9 @@ export class SqliteCashLedger implements CashLedger {
     this.database
       .prepare(
         `INSERT INTO cash_movements (
-           id, session_id, type, amount, reason, ref_id, actor_id, authorized_by, occurred_at
+           id, session_id, type, amount, reason, ref_type, ref_id, actor_id, authorized_by, occurred_at
          ) VALUES (
-           @id, @session_id, @type, @amount, @reason, @ref_id, @actor_id, @authorized_by, @occurred_at
+           @id, @session_id, @type, @amount, @reason, @ref_type, @ref_id, @actor_id, @authorized_by, @occurred_at
          )`,
       )
       .run({
@@ -111,7 +111,8 @@ export class SqliteCashLedger implements CashLedger {
         type: movement.type,
         amount: movement.amount,
         reason: movement.reason ?? null,
-        ref_id: movement.ref ?? null,
+        ref_type: movement.ref?.type ?? null,
+        ref_id: movement.ref?.id ?? null,
         actor_id: movement.actorId,
         authorized_by: movement.authorizedBy ?? null,
         occurred_at: movement.occurredAt.toISOString(),

@@ -131,10 +131,37 @@ describe("the open cash session", () => {
     expect(currentCashSession(database)?.opened_by.permission_keys).toEqual([...PERMISSION_KEYS]);
   });
 
-  it("cannot be read when its opener is no longer an active person", async () => {
+  it.each([
+    ["deactivated", "UPDATE users SET active = 0"],
+    ["removed", "UPDATE users SET removed = 1"],
+    ["left without a PIN", "DELETE FROM pin_verifiers"],
+  ])("is still the open session when its opener was %s", async (_case, change) => {
+    database.prepare("INSERT INTO pin_verifiers (user_id, verifier) VALUES ('u1', 'v')").run();
     await openCashSessionFor(deps(), "u1", 5000);
-    database.prepare("UPDATE users SET active = 0").run();
+    database.prepare(change).run();
 
-    expect(() => currentCashSession(database)).toThrow();
+    expect(currentCashSession(database)?.opened_by).toEqual({
+      user_id: "u1",
+      first_name: "Ada",
+      permission_keys: ["sell_and_charge"],
+    });
+  });
+
+  it("names its opener with the permissions the opener's role holds now", async () => {
+    await openCashSessionFor(deps(), "u1", 5000);
+    database.prepare("UPDATE roles SET removed = 1").run();
+
+    expect(currentCashSession(database)?.opened_by.permission_keys).toEqual([]);
+  });
+
+  it("is still the open session when the opener's row is gone, with no name and no permissions", async () => {
+    await openCashSessionFor(deps(), "u1", 5000);
+    database.prepare("DELETE FROM users").run();
+
+    expect(currentCashSession(database)?.opened_by).toEqual({
+      user_id: "u1",
+      first_name: "",
+      permission_keys: [],
+    });
   });
 });

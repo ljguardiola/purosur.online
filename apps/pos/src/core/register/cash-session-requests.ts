@@ -46,10 +46,10 @@ export function currentCashSession(database: LocalDatabase): OpenCashSession | n
   if (session === undefined) {
     return null;
   }
-  const opener = new SqliteSignInStore(database).activePerson(session.openedBy);
-  if (opener === undefined) {
-    throw new Error("the open cash session's opener is not an active person");
-  }
+  const opener = new SqliteSignInStore(database).anyPerson(session.openedBy) ?? {
+    firstName: "",
+    access: { isAdministrator: false, permissionKeys: [] },
+  };
   return {
     id: session.id,
     opened_at: session.openedAt.toISOString(),

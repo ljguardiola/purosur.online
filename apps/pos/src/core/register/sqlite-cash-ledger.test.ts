@@ -225,6 +225,25 @@ describe("a cash movement", () => {
     ]);
   });
 
+  it("keeps what it refers to as a type and an id", () => {
+    ledger.transaction((tx) => {
+      tx.recordOpenedSession(session());
+      tx.recordCashMovement({
+        id: "movement-1",
+        sessionId: "session-1",
+        type: "SALE",
+        amount: 1000,
+        actorId: "u1",
+        occurredAt: OPENED_AT,
+        ref: { type: "SALE", id: "sale-1" },
+      });
+    });
+
+    expect(database.prepare("SELECT ref_type, ref_id FROM cash_movements").all()).toEqual([
+      { ref_type: "SALE", ref_id: "sale-1" },
+    ]);
+  });
+
   it("is refused for a session that was never recorded", () => {
     expect(() =>
       ledger.transaction((tx) =>
