@@ -2,6 +2,7 @@ import type { Authorization, AuthorizationRefusal, SignInUser } from "@purosur/c
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import type { RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
+import { useCountdown } from "../platform/use-countdown";
 import type { SignedInPerson } from "./signed-in-person";
 
 type LoadedAuthorizers =
@@ -10,8 +11,9 @@ type LoadedAuthorizers =
   | { status: "loaded"; users: SignInUser[] };
 
 export type ShownRefusal =
-  | Exclude<AuthorizationRefusal, { kind: "lacks_permission" }>
-  | { kind: "lacks_permission"; firstName: string | undefined };
+  | Exclude<AuthorizationRefusal, { kind: "lacks_permission" | "locked" }>
+  | { kind: "lacks_permission"; firstName: string | undefined }
+  | { kind: "locked"; firstName: string | undefined; consecutiveFailures: number };
 
 export type UseAuthorizationInput = {
   person: SignedInPerson;
@@ -31,6 +33,7 @@ export type AuthorizationState = {
   chosen: string | null;
   choose: (userId: string) => void;
   pin: string;
+  secondsLeft: number;
   type: (digits: string) => void;
   refusal: ShownRefusal | undefined;
   pinInput: RefObject<HTMLInputElement | null>;
@@ -47,6 +50,8 @@ export function useAuthorization({
   const [chosen, setChosen] = useState<string | null>(null);
   const [pin, setPin] = useState("");
   const [refusal, setRefusal] = useState<ShownRefusal>();
+  const [wait, setWait] = useState<{ seconds: number }>();
+  const secondsLeft = useCountdown(wait);
 
   useEffect(() => {
     if (!required || authorizers.status !== "loading") {
@@ -78,24 +83,39 @@ export function useAuthorization({
     ready,
     value: required && chosen !== null && pin !== "" ? { user_id: chosen, pin } : undefined,
     refuse(refused) {
-      if (refused.kind === "lacks_permission") {
+      if (refused.kind === "lacks_permission" || refused.kind === "locked") {
         const refusedUser =
           authorizers.status === "loaded"
             ? authorizers.users.find((user) => user.id === chosen)
             : undefined;
-        setRefusal({ kind: "lacks_permission", firstName: refusedUser?.first_name });
+        setRefusal(
+          refused.kind === "locked"
+            ? {
+                kind: "locked",
+                firstName: refusedUser?.first_name,
+                consecutiveFailures: refused.consecutive_failures,
+              }
+            : { kind: "lacks_permission", firstName: refusedUser?.first_name },
+        );
         setChosen(null);
         setPin("");
-        setAuthorizers({ status: "loading" });
+        setWait(undefined);
+        if (refused.kind === "lacks_permission") {
+          setAuthorizers({ status: "loading" });
+        }
         return;
       }
       setRefusal(refused);
-      if (refused.kind === "wrong_pin") {
+      if (refused.kind === "wrong_pin" || refused.kind === "rate_limited") {
         setPin("");
+        if (refused.retry_after_seconds > 0) {
+          setWait({ seconds: refused.retry_after_seconds });
+        }
       }
     },
     performed() {
       setPin("");
+      setWait(undefined);
       setRefusal(undefined);
     },
     authorizers,
@@ -106,9 +126,11 @@ export function useAuthorization({
     choose(userId) {
       setChosen(userId);
       setPin("");
+      setWait(undefined);
       setRefusal(undefined);
     },
     pin,
+    secondsLeft,
     type(digits) {
       setPin(digits);
       setRefusal(undefined);

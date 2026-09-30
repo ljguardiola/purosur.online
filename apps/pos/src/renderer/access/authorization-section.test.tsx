@@ -1,7 +1,7 @@
 import type { Authorization, SignInUser } from "@purosur/contracts";
 import { PERMISSION_KEYS } from "@purosur/domain";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { SignedInPerson } from "./signed-in-person";
@@ -20,6 +20,16 @@ const AUTHORIZERS: SignInUser[] = [
   { id: "u3", first_name: "Sofía" },
   { id: "u2", first_name: "Grace" },
 ];
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+const NO_WAIT: GuardedCashInOutcome = {
+  kind: "wrong_pin",
+  retry_after_seconds: 0,
+  attempts_left: 7,
+};
 
 type Screen = Awaited<ReturnType<typeof render>>;
 
@@ -64,6 +74,11 @@ async function authorizeAs(screen: Screen, firstName: string, pin: string) {
   await pick(screen, firstName);
   await userEvent.type(screen.getByLabelText("PIN"), pin);
   await userEvent.click(screen.getByRole("button", { name: "Cargar" }));
+}
+
+function waitingNotice(seconds: number): string {
+  const wait = seconds === 1 ? "1 segundo" : `${seconds} segundos`;
+  return `Esperá ${wait} para volver a intentar. Quedan 6 intentos antes de que el usuario se bloquee.`;
 }
 
 describe("an action guarded by another person's PIN", () => {
@@ -189,16 +204,151 @@ describe("an action guarded by another person's PIN", () => {
     });
 
     it("clears the PIN and focuses it again after a wrong PIN", async () => {
-      const screen = await renderForm({ submit: recording({ kind: "wrong_pin" }).submit });
+      const screen = await renderForm({ submit: recording(NO_WAIT).submit });
 
       await authorizeAs(screen, "Grace", "9999");
 
       await expect.element(screen.getByText("PIN incorrecto")).toBeVisible();
-      await expect.element(screen.getByText("Revisá el PIN y volvé a escribirlo.")).toBeVisible();
+      await expect
+        .element(
+          screen.getByText(
+            "Revisá el PIN y volvé a escribirlo. Quedan 7 intentos antes de que el usuario se bloquee.",
+            { exact: true },
+          ),
+        )
+        .toBeVisible();
       await expect.element(screen.getByLabelText("PIN")).toHaveValue("");
       await expect.element(screen.getByLabelText("PIN")).toHaveFocus();
       await expect.element(screen.getByLabelText("PIN")).toBeInvalid();
       await expectNoAccessibilityViolations(screen.container);
+    });
+
+    it("says one attempt is left in the singular", async () => {
+      const screen = await renderForm({
+        submit: recording({ kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 1 }).submit,
+      });
+
+      await authorizeAs(screen, "Grace", "9999");
+
+      await expect
+        .element(
+          screen.getByText(
+            "Revisá el PIN y volvé a escribirlo. Queda 1 intento antes de que el usuario se bloquee.",
+            { exact: true },
+          ),
+        )
+        .toBeVisible();
+    });
+
+    it("holds the PIN and counts the wait down, then offers the attempts again", async () => {
+      vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+      const screen = await renderForm({
+        submit: recording({ kind: "wrong_pin", retry_after_seconds: 2, attempts_left: 6 }).submit,
+      });
+
+      await authorizeAs(screen, "Grace", "9999");
+
+      await expect.element(screen.getByText("PIN incorrecto")).toBeVisible();
+      await expect
+        .element(
+          screen.getByText(waitingNotice(2), {
+            exact: true,
+          }),
+        )
+        .toBeVisible();
+      await expect.element(screen.getByLabelText("PIN")).toBeDisabled();
+      await expect.element(screen.getByRole("button", { name: "Cargar" })).toBeDisabled();
+
+      await vi.advanceTimersByTimeAsync(1000);
+      await expect.element(screen.getByText(waitingNotice(1), { exact: true })).toBeVisible();
+      await expect.element(screen.getByLabelText("PIN")).toBeDisabled();
+
+      await vi.advanceTimersByTimeAsync(1000);
+      await expect.element(screen.getByLabelText("PIN")).toBeEnabled();
+      await expect
+        .element(
+          screen.getByText(
+            "Revisá el PIN y volvé a escribirlo. Quedan 6 intentos antes de que el usuario se bloquee.",
+            { exact: true },
+          ),
+        )
+        .toBeVisible();
+    });
+
+    it("tells the person still has to wait, then drops the notice when the wait is over", async () => {
+      vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+      const screen = await renderForm({
+        submit: recording({ kind: "rate_limited", retry_after_seconds: 1, attempts_left: 5 })
+          .submit,
+      });
+
+      await authorizeAs(screen, "Grace", "1234");
+
+      await expect.element(screen.getByText("Todavía no se puede volver a intentar")).toBeVisible();
+      await expect.element(screen.getByLabelText("PIN")).toBeDisabled();
+      await expectNoAccessibilityViolations(screen.container);
+
+      await vi.advanceTimersByTimeAsync(1000);
+      await expect
+        .element(screen.getByText("Todavía no se puede volver a intentar"))
+        .not.toBeInTheDocument();
+      await expect.element(screen.getByLabelText("PIN")).toBeEnabled();
+    });
+
+    it("drops the wait and the notice when another person is picked", async () => {
+      vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+      const screen = await renderForm({
+        submit: recording({ kind: "wrong_pin", retry_after_seconds: 20, attempts_left: 4 }).submit,
+      });
+      await authorizeAs(screen, "Grace", "9999");
+      await expect.element(screen.getByLabelText("PIN")).toBeDisabled();
+
+      await pick(screen, "Sofía");
+
+      await expect.element(screen.getByLabelText("PIN")).toBeEnabled();
+      await expect.element(screen.getByText("PIN incorrecto")).not.toBeInTheDocument();
+    });
+
+    it("says the picked person is locked and asks for someone else, without offering their PIN", async () => {
+      const screen = await renderForm({
+        submit: recording({ kind: "locked", consecutive_failures: 8 }).submit,
+      });
+
+      await authorizeAs(screen, "Sofía", "1234");
+
+      await expect.element(screen.getByText("Sofía está bloqueado")).toBeVisible();
+      await expect
+        .element(
+          screen.getByText(
+            "Se equivocó 8 veces seguidas con el PIN. Elegí a otra persona con permiso.",
+          ),
+        )
+        .toBeVisible();
+      await expect
+        .element(screen.getByRole("button", { name: /Persona que autoriza/ }))
+        .toHaveTextContent("Elegí a la persona");
+      await expect.element(screen.getByLabelText("PIN")).toBeDisabled();
+      await expect.element(screen.getByRole("button", { name: "Cargar" })).toBeDisabled();
+      await expectNoAccessibilityViolations(screen.container);
+    });
+
+    it("lets someone else authorize after a person turned out locked", async () => {
+      const { submit, submissions } = recording(() =>
+        submissions.length === 1
+          ? { kind: "locked", consecutive_failures: 8 }
+          : { kind: "performed", authorized_by: { user_id: "u2", first_name: "Grace" } },
+      );
+      const screen = await renderForm({ submit });
+      await authorizeAs(screen, "Sofía", "1234");
+      await expect.element(screen.getByText("Sofía está bloqueado")).toBeVisible();
+
+      await authorizeAs(screen, "Grace", "5678");
+
+      await expect.element(screen.getByText("Cargado con autorización de Grace")).toBeVisible();
+      expect(submissions).toEqual([
+        { user_id: "u3", pin: "1234" },
+        { user_id: "u2", pin: "5678" },
+      ]);
     });
 
     it("says the picked person cannot authorize it when they lack the permission", async () => {
@@ -256,7 +406,7 @@ describe("an action guarded by another person's PIN", () => {
     });
 
     it("drops the refusal as soon as the PIN is typed again", async () => {
-      const screen = await renderForm({ submit: recording({ kind: "wrong_pin" }).submit });
+      const screen = await renderForm({ submit: recording(NO_WAIT).submit });
       await authorizeAs(screen, "Grace", "9999");
 
       await userEvent.type(screen.getByLabelText("PIN"), "1");

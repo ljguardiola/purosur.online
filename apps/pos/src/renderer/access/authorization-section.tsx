@@ -9,20 +9,38 @@ import {
   sortedItems,
   textOrder,
 } from "@purosur/ui";
-import { ShieldX, TriangleAlert, UsersRound, UserX } from "lucide-react";
+import { Lock, ShieldX, TriangleAlert, UsersRound, UserX } from "lucide-react";
 import { useEffect, useId } from "react";
+import { waitDescription } from "./pin-attempt-text";
 import { PinField } from "./pin-field";
 import type { AuthorizationState, ShownRefusal } from "./use-authorization";
 
 type Notice = { icon: Icon; title: string; description: string };
 
-function noticeFor(refusal: ShownRefusal): Notice {
+function noticeFor(refusal: ShownRefusal, secondsLeft: number): Notice | undefined {
   switch (refusal.kind) {
     case "wrong_pin":
       return {
         icon: <ShieldX />,
         title: "PIN incorrecto",
-        description: "Revisá el PIN y volvé a escribirlo.",
+        description: waitDescription(secondsLeft, refusal.attempts_left),
+      };
+    case "rate_limited":
+      return secondsLeft === 0
+        ? undefined
+        : {
+            icon: <ShieldX />,
+            title: "Todavía no se puede volver a intentar",
+            description: waitDescription(secondsLeft, refusal.attempts_left),
+          };
+    case "locked":
+      return {
+        icon: <Lock />,
+        title:
+          refusal.firstName === undefined
+            ? "Esa persona está bloqueada"
+            : `${refusal.firstName} está bloqueado`,
+        description: `Se equivocó ${refusal.consecutiveFailures} veces seguidas con el PIN. Elegí a otra persona con permiso.`,
       };
     case "lacks_permission":
       return {
@@ -54,7 +72,12 @@ export function AuthorizationSection({
   const { refusal, pinInput } = authorization;
 
   useEffect(() => {
-    if (!disabled && refusal !== undefined && refusal.kind !== "lacks_permission") {
+    if (
+      !disabled &&
+      refusal !== undefined &&
+      refusal.kind !== "lacks_permission" &&
+      refusal.kind !== "locked"
+    ) {
       pinInput.current?.focus();
     }
   }, [disabled, refusal, pinInput]);
@@ -72,8 +95,9 @@ export function AuthorizationSection({
         }).map((user) => ({ value: user.id, label: user.first_name }))
       : [];
   const [firstOption, ...otherOptions] = options;
-  const notice = refusal === undefined ? undefined : noticeFor(refusal);
-  const pinRefused = refusal?.kind === "wrong_pin";
+  const notice = refusal === undefined ? undefined : noticeFor(refusal, authorization.secondsLeft);
+  const pinRefused =
+    notice !== undefined && (refusal?.kind === "wrong_pin" || refusal?.kind === "rate_limited");
 
   return (
     <div className="flex flex-col gap-3">
@@ -113,7 +137,7 @@ export function AuthorizationSection({
             compact
             value={authorization.pin}
             onChange={authorization.type}
-            disabled={disabled || authorization.chosen === null}
+            disabled={disabled || authorization.chosen === null || authorization.secondsLeft > 0}
             {...(pinRefused ? { errorMessageId: noticeId } : {})}
           />
         </div>
