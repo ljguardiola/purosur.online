@@ -5,6 +5,7 @@ export type {
   PermissionKey,
   PermissionRegisterMarker,
   PinCodeParty,
+  PinCodeState,
   RoleAccess,
 } from "./access/index.js";
 export {
@@ -23,6 +24,7 @@ export {
   isLockedOutOfPinSignIn,
   isPasskeyNameTooLong,
   isPermissionKey,
+  isPinCodeLive,
   isRoleNameTooLong,
   isWellFormedPinCode,
   lacksARequiredPermission,
@@ -178,6 +180,15 @@ export {
   REGISTER_NAME_MAX_LENGTH,
   registerNameLength,
 } from "./register/index.js";
+export type {
+  ListPrice,
+  Sale,
+  SaleLine,
+  SaleState,
+  SaleWithLines,
+  SoldProduct,
+} from "./sales/index.js";
+export { saleTotal } from "./sales/index.js";
 export type { EsArNumberDigits } from "./shared/index.js";
 export {
   ARGENTINA_TIME_ZONE,

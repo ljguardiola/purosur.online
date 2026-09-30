@@ -6,6 +6,7 @@ import { generateSessionId, hashSessionId } from "../access/session-id.js";
 import {
   brands,
   categories,
+  discounts,
   productBarcodes,
   products,
   productTags,
@@ -909,6 +910,45 @@ describe("PUT /products/:id", () => {
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({ code: "brand_inactive" });
     expect(await db.select().from(products)).toMatchObject([{ brandId, version: 1 }]);
+  });
+
+  it("rejects selling by weight a product a live buy-n-pay-m discount holds with 409 sale_unit_held_by_discount naming it, changing nothing", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const product = await insertProduct({
+      name: "Galletitas",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+    });
+    await db.insert(discounts).values({
+      name: "3x2 Galletitas",
+      kind: "BUY_N_PAY_M",
+      buyQty: 3,
+      payQty: 2,
+      productId: product.id,
+      validFrom: "2026-01-01",
+      validTo: "2026-01-31",
+    });
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await editProduct(rawSessionId, product.id, {
+      name: "Galletitas",
+      categoryId,
+      brandId: null,
+      saleUnit: "KG",
+      barcodes: ["111"],
+      tagIds: [],
+      version: product.version,
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toEqual({
+      code: "sale_unit_held_by_discount",
+      message: "a product cannot be sold by weight while a live buy-n-pay-m discount targets it",
+      discountName: "3x2 Galletitas",
+    });
+    expect(await db.select().from(products)).toMatchObject([{ saleUnit: "UNIT", version: 1 }]);
   });
 
   it("rejects a brandId that does not name an existing brand, changing nothing", async () => {

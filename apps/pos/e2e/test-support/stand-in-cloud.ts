@@ -9,12 +9,16 @@ import {
   cloudErrorStatus,
   deviceEnrollmentBodySchema,
   deviceEnrollmentSchema,
+  firstPinCodeBodySchema,
+  firstPinCodeSchema,
+  pinCodeRedemptionBodySchema,
+  pinCodeRedemptionSchema,
   type SyncChange,
   signInLookupBodySchema,
   signInLookupSchema,
 } from "@purosur/contracts";
 import { PULL_PAGE_MAX_CHANGES } from "@purosur/domain";
-import type { CloudChange } from "./cloud-changes";
+import { type CloudChange, pinRecord } from "./cloud-changes";
 
 export interface StandInCloud {
   readonly url: string;
@@ -25,9 +29,11 @@ export interface StandInCloud {
 
 export interface StandInCloudOptions {
   readonly signInLookups?: Readonly<Record<string, { userId: string; hasPin: boolean }>>;
+  readonly firstPinCodes?: Readonly<Record<string, string>>;
 }
 
 const ENROLLMENT_CODE = "ABCD2345EFGH6723";
+const FIRST_PIN_CODE_MINUTES = 15;
 
 function installationKey(fill: number): string {
   return Buffer.alloc(32, fill).toString("base64");
@@ -62,6 +68,7 @@ export async function startStandInCloud(
   const lastChangeSeq = feed.at(-1)?.change_seq ?? 0;
   const deviceToken = randomUUID();
   const problems: string[] = [];
+  const firstPinCodes: Record<string, string> = { ...options.firstPinCodes };
   let markFeedStored = () => {};
   let markFeedRefused = (_problem: Error) => {};
   const feedStored = new Promise<void>((resolve, reject) => {
@@ -143,6 +150,52 @@ export async function startStandInCloud(
     );
   }
 
+  function hasDeviceToken(request: IncomingMessage, response: ServerResponse, what: string) {
+    if (request.headers.authorization === `Bearer ${deviceToken}`) {
+      return true;
+    }
+    fail(`${what} without the device token it was issued`);
+    refuse(response, "device_token_rejected");
+    return false;
+  }
+
+  async function answerFirstPinCode(
+    request: IncomingMessage,
+    response: ServerResponse,
+  ): Promise<void> {
+    if (!hasDeviceToken(request, response, "a first PIN code request")) {
+      return;
+    }
+    const { user_id } = firstPinCodeBodySchema.parse(await jsonBody(request));
+    if (firstPinCodes[user_id] === undefined) {
+      refuse(response, "not_found");
+      return;
+    }
+    const expiresAt = new Date(Date.now() + FIRST_PIN_CODE_MINUTES * 60_000);
+    send(response, 201, firstPinCodeSchema.parse({ expires_at: expiresAt.toISOString() }));
+  }
+
+  async function answerPinCodeRedemption(
+    request: IncomingMessage,
+    response: ServerResponse,
+  ): Promise<void> {
+    if (!hasDeviceToken(request, response, "a PIN code redemption")) {
+      return;
+    }
+    const { reset_code, new_pin } = pinCodeRedemptionBodySchema.parse(await jsonBody(request));
+    const userId = Object.keys(firstPinCodes).find((id) => firstPinCodes[id] === reset_code);
+    if (userId === undefined) {
+      refuse(response, "reset_code_invalid");
+      return;
+    }
+    delete firstPinCodes[userId];
+    send(
+      response,
+      200,
+      pinCodeRedemptionSchema.parse({ user_id: userId, ...(await pinRecord(new_pin)) }),
+    );
+  }
+
   async function answer(
     route: string,
     url: URL,
@@ -153,6 +206,10 @@ export async function startStandInCloud(
       await enroll(request, response);
     } else if (route === "POST /api/sign-in-lookups") {
       await answerSignInLookup(request, response);
+    } else if (route === "POST /api/first-pin-codes") {
+      await answerFirstPinCode(request, response);
+    } else if (route === "POST /api/pin-code-redemptions") {
+      await answerPinCodeRedemption(request, response);
     } else if (route === "GET /api/changes") {
       pageAfter(url, request, response);
     } else {

@@ -1,5 +1,7 @@
+import type { SaleUnit } from "../../model/product.js";
 import type {
   BrandFields,
+  BuyNPayMDiscount,
   CatalogNetContent,
   CatalogStore,
   CatalogStoreTransaction,
@@ -48,10 +50,20 @@ export interface FakeProductRow {
   name: string;
   categoryId: string;
   brandId: string | null;
-  saleUnit: string;
+  saleUnit: SaleUnit;
   netContent: CatalogNetContent | null;
   active: boolean;
   version: number;
+}
+
+export interface FakeDiscountRow {
+  id: string;
+  name: string;
+  kind: "BUY_N_PAY_M" | "PERCENT_OFF";
+  productId: string;
+  active: boolean;
+  validFrom: string;
+  validTo: string;
 }
 
 interface FakeBarcodeRow {
@@ -72,6 +84,7 @@ export interface FakeCatalogState {
   products: FakeProductRow[];
   barcodes: FakeBarcodeRow[];
   productTags: FakeProductTagRow[];
+  discounts: FakeDiscountRow[];
   nextId: number;
 }
 
@@ -83,6 +96,7 @@ function emptyState(): FakeCatalogState {
     products: [],
     barcodes: [],
     productTags: [],
+    discounts: [],
     nextId: 1,
   };
 }
@@ -98,6 +112,7 @@ function cloneState(state: FakeCatalogState): FakeCatalogState {
     })),
     barcodes: state.barcodes.map((row) => ({ ...row })),
     productTags: state.productTags.map((row) => ({ ...row })),
+    discounts: state.discounts.map((row) => ({ ...row })),
     nextId: state.nextId,
   };
 }
@@ -154,12 +169,20 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
             version: product.version,
             active: product.active,
             brandId: product.brandId,
+            saleUnit: product.saleUnit,
             tagIds: this.state.productTags
               .filter((row) => row.productId === product.id)
               .map((row) => row.tagId),
           },
         }
       : { kind: "not_found" };
+  }
+
+  async buyNPayMDiscountsOn(productId: string): Promise<BuyNPayMDiscount[]> {
+    this.store.lockCallOrder.push("buyNPayMDiscountsOn");
+    return this.state.discounts
+      .filter((row) => row.kind === "BUY_N_PAY_M" && row.productId === productId)
+      .map(({ name, active, validFrom, validTo }) => ({ name, active, validFrom, validTo }));
   }
 
   async lockCategory(categoryId: string): Promise<LockCategoryResult> {
@@ -413,6 +436,10 @@ export class FakeCatalogStore implements CatalogStore {
 
   seedCategory(category: FakeCategoryRow): void {
     this.state.categories.push({ ...category });
+  }
+
+  seedDiscount(discount: FakeDiscountRow): void {
+    this.state.discounts.push({ ...discount });
   }
 
   seedProduct(

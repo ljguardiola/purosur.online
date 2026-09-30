@@ -79,6 +79,19 @@ describe("rendererToCoreMessageSchema", () => {
     expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
+  it("accepts a request for a first PIN code by the person found", () => {
+    const message = { type: "first-pin-code-request", request_id: REQUEST_ID, user_id: "u1" };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { type: "first-pin-code-request", user_id: "u1" },
+    { type: "first-pin-code-request", request_id: REQUEST_ID },
+  ])("rejects a first PIN code request missing a field: %j", (message) => {
+    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
   it("accepts a first sign-in with the person found and the PIN as typed", () => {
     const message = { type: "first-sign-in", request_id: REQUEST_ID, user_id: "u1", pin: "0042" };
 
@@ -565,6 +578,41 @@ describe("sign-in lookup answers", () => {
   });
 });
 
+describe("first PIN code request answers", () => {
+  it.each([
+    { kind: "sent" },
+    { kind: "pin_already_set" },
+    { kind: "not_found" },
+    { kind: "rate_limited", retry_after_seconds: 600 },
+    { kind: "unreachable" },
+    { kind: "unavailable" },
+  ])("accepts the first PIN code request result $kind", (outcome) => {
+    const message = { type: "first-pin-code-request-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "rate_limited" },
+    { kind: "rate_limited", retry_after_seconds: -1 },
+    { kind: "x" },
+  ])("rejects a first PIN code request result it does not know: %j", (outcome) => {
+    const message = { type: "first-pin-code-request-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("does not let a result carry the code", () => {
+    const message = {
+      type: "first-pin-code-request-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "sent", code: "P4NX7KWE2QRT5MZD" },
+    };
+
+    expect(JSON.stringify(coreToRendererMessageSchema.parse(message))).not.toContain("P4NX");
+  });
+});
+
 describe("closing a cash session requests", () => {
   const close = { type: "close-cash-session", request_id: REQUEST_ID, session_id: "s1" };
 
@@ -1037,4 +1085,116 @@ describe("cashMovementAmountSchema", () => {
       expect(cashMovementAmountSchema.safeParse(value).success).toBe(false);
     },
   );
+});
+
+describe("sale requests", () => {
+  it("accepts a scan of a code", () => {
+    const message = { type: "scan-product", request_id: REQUEST_ID, code: "7791234567890" };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("does not take who is selling from the renderer", () => {
+    const message = { type: "scan-product", request_id: REQUEST_ID, code: "1" };
+
+    expect(rendererToCoreMessageSchema.parse({ ...message, user_id: "u9" })).toEqual(message);
+  });
+
+  it.each([
+    { type: "scan-product", code: "1" },
+    { type: "scan-product", request_id: REQUEST_ID },
+    { type: "scan-product", request_id: REQUEST_ID, code: "" },
+    { type: "scan-product", request_id: REQUEST_ID, code: "x".repeat(65) },
+  ])("rejects a scan that is not well formed: %j", (message) => {
+    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("accepts a request for the sale in progress", () => {
+    const message = { type: "sale-request", request_id: REQUEST_ID };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("does not take who is selling from the sale request either", () => {
+    const message = { type: "sale-request", request_id: REQUEST_ID };
+
+    expect(rendererToCoreMessageSchema.parse({ ...message, user_id: "u9" })).toEqual(message);
+  });
+
+  it("rejects a request for the sale missing its request id", () => {
+    expect(rendererToCoreMessageSchema.safeParse({ type: "sale-request" }).success).toBe(false);
+  });
+});
+
+describe("sale answers", () => {
+  const sale = {
+    id: "s1",
+    lines: [
+      {
+        id: "l1",
+        product_id: "p1",
+        product_name: "Yerba",
+        quantity: 1,
+        list_unit_price: 1500,
+        line_total: 1500,
+      },
+    ],
+    total: 1500,
+  };
+
+  it.each([
+    { kind: "added", sale },
+    { kind: "unknown_code" },
+    { kind: "no_price", product_name: "Yerba" },
+    { kind: "not_signed_in" },
+    { kind: "unavailable" },
+  ])("accepts the scan result $kind", (outcome) => {
+    const message = { type: "scan-product-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a scan result it does not know", () => {
+    const message = {
+      type: "scan-product-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "somewhere_else" },
+    };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it.each([sale, null])("accepts the sale in progress %j", (value) => {
+    const message = { type: "sale", request_id: REQUEST_ID, sale: value };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects the sale in progress without saying whether there is one", () => {
+    expect(
+      coreToRendererMessageSchema.safeParse({ type: "sale", request_id: REQUEST_ID }).success,
+    ).toBe(false);
+  });
+
+  it("accepts that the sale in progress cannot be read", () => {
+    const message = { type: "sale-unavailable", request_id: REQUEST_ID };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects that the sale in progress cannot be read without its request id", () => {
+    expect(coreToRendererMessageSchema.safeParse({ type: "sale-unavailable" }).success).toBe(false);
+  });
+
+  it("accepts that the person signed in may not sell", () => {
+    const message = { type: "sale-not-permitted", request_id: REQUEST_ID };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects that the person signed in may not sell without its request id", () => {
+    expect(coreToRendererMessageSchema.safeParse({ type: "sale-not-permitted" }).success).toBe(
+      false,
+    );
+  });
 });

@@ -19,6 +19,7 @@ import {
 } from "../shared/channel";
 import { CORE_READY_MESSAGE } from "../shared/core-readiness";
 import { createActionGate } from "./access/action-gate";
+import { requestFirstPinCode } from "./access/first-pin-code-request";
 import { redeemPinCode } from "./access/pin-code-redemption";
 import { hashPin } from "./access/pin-hash";
 import { applyRedeemedPin } from "./access/redeemed-pin";
@@ -51,6 +52,7 @@ import { enroll, generatePepper, installationReportFrom } from "./register/enrol
 import { answerRendererRequest, type RendererRequestDeps } from "./register/renderer-requests";
 import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
+import { currentSaleFor, scanProductFor } from "./sales/sale-requests";
 import { pullFromCloud, pullResultOf } from "./sync/pull-from-cloud";
 import { createPullSchedule } from "./sync/pull-schedule";
 import { SqliteLocalReplica } from "./sync/sqlite-local-replica";
@@ -283,6 +285,18 @@ const rendererRequestDeps: RendererRequestDeps = {
             },
             email,
           ),
+  requestFirstPinCode: (userId) =>
+    requestFirstPinCode(
+      {
+        readCredentials: () => mainRequests.readCredentials(),
+        postToCloud:
+          cloudClient === undefined
+            ? undefined
+            : (path, bearerToken, body) =>
+                postToCloudWithBearer(cloudClient, path, bearerToken, body),
+      },
+      userId,
+    ),
   signOut: () => signedInPerson.clear(),
   openCashSession:
     localDatabase === undefined || actionGate === undefined
@@ -338,6 +352,18 @@ const rendererRequestDeps: RendererRequestDeps = {
           ),
   cashMovements:
     localDatabase === undefined ? undefined : () => currentCashMovements(localDatabase),
+  scanProduct:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (code) =>
+          scanProductFor(
+            { database: localDatabase, gate: actionGate, now: () => new Date(), ids: uuidV7Ids },
+            code,
+          ),
+  currentSale:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : () => currentSaleFor({ database: localDatabase, gate: actionGate }),
   reportFailure,
 };
 

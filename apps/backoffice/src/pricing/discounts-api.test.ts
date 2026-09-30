@@ -265,6 +265,32 @@ describe("editDiscount", () => {
     expect(await editDiscount("discount-1", edit)).toEqual({ kind: "target_not_sold_by_unit" });
   });
 
+  test("returns product_sold_by_weight with the product's name when it is sold by weight", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse(409, {
+        code: "discount_product_sold_by_weight",
+        productName: "Queso cremoso",
+      }),
+    );
+
+    expect(await editDiscount("discount-1", edit)).toEqual({
+      kind: "product_sold_by_weight",
+      productName: "Queso cremoso",
+    });
+  });
+
+  test.each([
+    { code: "discount_product_sold_by_weight" },
+    { code: "discount_product_sold_by_weight", productName: 2 },
+  ])(
+    "returns failed on a product_sold_by_weight 409 that does not name the product: %o",
+    async (body) => {
+      vi.mocked(fetch).mockResolvedValue(jsonResponse(409, body));
+
+      expect(await editDiscount("discount-1", edit)).toEqual({ kind: "failed" });
+    },
+  );
+
   test("returns failed on a 409 that names another code", async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "other" }));
 

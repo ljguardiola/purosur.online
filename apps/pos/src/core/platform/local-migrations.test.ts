@@ -312,4 +312,117 @@ describe("the register's local migrations", () => {
     ]);
     database.close();
   });
+
+  it("add sales and the installation's revocation over the cash sessions, discounts and pull cursor a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.slice(0, 9);
+      expect(previous.at(-1)?.name).toBe("0008_buy_n_pay_m_discounts");
+      expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
+        "0009_sales",
+      ]);
+      const before = openLocalDatabase(path, previous);
+      before
+        .prepare("UPDATE sync_state SET pull_cursor = 15, device_id = 'device-a' WHERE id = 1")
+        .run();
+      before
+        .prepare(
+          `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+           VALUES ('s1', 'r1', 'device-a', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN')`,
+        )
+        .run();
+      before
+        .prepare(
+          `INSERT INTO discounts (
+             id, name, kind, percent, buy_qty, pay_qty, target_kind, target_id, valid_from, valid_to, weekdays, active, version
+           ) VALUES ('d1', '3x2', 'BUY_N_PAY_M', NULL, 3, 2, 'TAG', 't', '2026-10-01', '2026-10-31', '[]', 1, 2)`,
+        )
+        .run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+
+      expect(after.prepare("SELECT id, buy_qty, pay_qty FROM discounts").all()).toEqual([
+        { id: "d1", buy_qty: 3, pay_qty: 2 },
+      ]);
+      expect(
+        after
+          .prepare("SELECT pull_cursor, device_id, installation_revoked_at FROM sync_state")
+          .all(),
+      ).toEqual([{ pull_cursor: 15, device_id: "device-a", installation_revoked_at: null }]);
+      expect(after.prepare("SELECT id, state FROM cash_sessions").all()).toEqual([
+        { id: "s1", state: "OPEN" },
+      ]);
+      for (const table of ["sales", "sale_lines"]) {
+        expect(after.prepare(`SELECT count(*) AS total FROM ${table}`).get()).toEqual({ total: 0 });
+      }
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  describe("hold sales that", () => {
+    function insertSale(
+      database: ReturnType<typeof openLocalDatabase>,
+      id: string,
+      state: string,
+      sessionId = "s1",
+    ) {
+      database
+        .prepare(
+          `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+           VALUES (?, 'r1', 'device-a', ?, 'u1', ?, '2026-09-30T12:00:00.000Z')`,
+        )
+        .run(id, sessionId, state);
+    }
+
+    function withSession() {
+      const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS);
+      database
+        .prepare(
+          `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+           VALUES ('s1', 'r1', 'device-a', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN')`,
+        )
+        .run();
+      return database;
+    }
+
+    it("are at most one open per session, while any number of finished ones stay", () => {
+      const database = withSession();
+      insertSale(database, "a", "COMPLETED");
+      insertSale(database, "b", "CANCELLED");
+      insertSale(database, "c", "OPEN");
+
+      expect(() => insertSale(database, "d", "OPEN")).toThrow(/UNIQUE/);
+      database.close();
+    });
+
+    it("are in a known state and belong to a known session", () => {
+      const database = withSession();
+
+      expect(() => insertSale(database, "a", "PENDING")).toThrow(/CHECK/);
+      expect(() => insertSale(database, "b", "OPEN", "missing")).toThrow(/FOREIGN KEY/);
+      database.close();
+    });
+
+    it("hold one line per product with a positive quantity", () => {
+      const database = withSession();
+      insertSale(database, "a", "OPEN");
+      const insertLine = database.prepare(
+        `INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total)
+         VALUES (@id, 'a', @position, @product_id, 'Yerba', @quantity, 1000, 'pl', 1000)`,
+      );
+      insertLine.run({ id: "l1", position: 1, product_id: "p1", quantity: 1 });
+
+      expect(() =>
+        insertLine.run({ id: "l2", position: 2, product_id: "p1", quantity: 1 }),
+      ).toThrow(/UNIQUE/);
+      expect(() =>
+        insertLine.run({ id: "l3", position: 3, product_id: "p2", quantity: 0 }),
+      ).toThrow(/CHECK/);
+      database.close();
+    });
+  });
 });

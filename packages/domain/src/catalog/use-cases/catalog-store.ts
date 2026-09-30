@@ -67,7 +67,15 @@ export interface LockedProduct {
   version: number;
   active: boolean;
   brandId: string | null;
+  saleUnit: SaleUnit;
   tagIds: string[];
+}
+
+export interface BuyNPayMDiscount {
+  name: string;
+  active: boolean;
+  validFrom: string;
+  validTo: string;
 }
 
 export type LockProductResult = { kind: "not_found" } | { kind: "locked"; product: LockedProduct };
@@ -119,10 +127,22 @@ export interface CategoryFields {
   version: number;
 }
 
+export interface Clock {
+  now(): Date;
+}
+
+export interface CatalogPorts {
+  store: CatalogStore;
+  clock: Clock;
+}
+
 export interface CatalogStoreTransaction {
   lockLeafCategory(categoryId: string): Promise<LockLeafCategoryResult>;
   lockParentForNewChild(parentId: string): Promise<LockParentForNewChildResult>;
   lockProduct(productId: string): Promise<LockProductResult>;
+  // Read only, never locking: a caller holds the product's row lock first, and the discount
+  // creation that could race it takes that same product row before inserting.
+  buyNPayMDiscountsOn(productId: string): Promise<BuyNPayMDiscount[]>;
   lockCategory(categoryId: string): Promise<LockCategoryResult>;
   // Acquired before any row lock, so two concurrent moves can never each hold their own row lock
   // and deadlock trying to lock each other's row as the new parent.

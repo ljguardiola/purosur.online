@@ -3,11 +3,14 @@ import type {
   CashBalance,
   CloseCashSessionOutcome,
   CoreStatusMessage,
+  CurrentSaleAnswer,
   EnrollmentOutcome,
+  FirstPinCodeRequestOutcome,
   ListedCashMovement,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   RecordCashMovementOutcome,
+  ScanProductOutcome,
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
@@ -30,12 +33,12 @@ import type { CashMovementInput } from "../platform/core-client";
 import { CashCountScreen } from "../register/cash-count-screen";
 import { CashScreen } from "../register/cash-screen";
 import { EnrollmentScreen } from "../register/enrollment-screen";
+import { SaleScreen } from "../sales/sale-screen";
 import { ACTION_ENTRIES } from "./action-entries";
 import { BrandPanelScreen } from "./brand-panel-screen";
 import type { CashSessionState } from "./cash-session-state";
 import { CoreDownNotice } from "./core-down-notice";
 import { NoSessionScreen } from "./no-session-screen";
-import { OpenSessionScreen } from "./open-session-screen";
 
 export type CoreStatus = CoreStatusMessage["status"];
 
@@ -67,7 +70,11 @@ export interface RouterContext {
   recordCashMovement: (input: CashMovementInput) => Promise<RecordCashMovementOutcome>;
   redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
   signInLookup: (email: string) => Promise<SignInLookupOutcome>;
+  requestFirstPinCode: (userId: string) => Promise<FirstPinCodeRequestOutcome>;
   firstSignIn: (userId: string, pin: string) => Promise<SignInOutcome>;
+  currentSale: () => Promise<CurrentSaleAnswer>;
+  scanProduct: (code: string) => Promise<ScanProductOutcome>;
+  refreshCashSession: () => Promise<void>;
 }
 
 type ScreenPath = "/" | "/sign-in" | "/session" | "/enroll" | "/starting" | "/core-down";
@@ -167,9 +174,19 @@ const openSessionRoute = createRoute({
     return { id, openedAt, openedBy };
   },
   component: function OpenSessionRoute() {
-    const { openedAt, openedBy } = openSessionRoute.useRouteContext();
+    const { openedAt, openedBy, currentSale, scanProduct, refreshCashSession } =
+      openSessionRoute.useRouteContext();
     const registerName = sessionEyebrowRoute.useLoaderData();
-    return <OpenSessionScreen person={openedBy} registerName={registerName} openedAt={openedAt} />;
+    return (
+      <SaleScreen
+        person={openedBy}
+        registerName={registerName}
+        openedAt={openedAt}
+        currentSale={currentSale}
+        scanProduct={scanProduct}
+        onSessionInvalid={() => void refreshCashSession()}
+      />
+    );
   },
 });
 
@@ -259,8 +276,16 @@ const firstSignInRoute = createRoute({
   path: "/first-sign-in",
   beforeLoad: ({ context }) => requireRoute("/sign-in", context),
   component: function FirstSignInRoute() {
-    const { signInLookup, firstSignIn } = firstSignInRoute.useRouteContext();
-    return <FirstSignInScreen lookup={signInLookup} signIn={firstSignIn} />;
+    const { signInLookup, firstSignIn, requestFirstPinCode, redeemPinCode } =
+      firstSignInRoute.useRouteContext();
+    return (
+      <FirstSignInScreen
+        lookup={signInLookup}
+        signIn={firstSignIn}
+        requestCode={requestFirstPinCode}
+        redeem={redeemPinCode}
+      />
+    );
   },
 });
 
@@ -332,7 +357,11 @@ export function createAppRouter(
     | "authorizers"
     | "redeemPinCode"
     | "signInLookup"
+    | "requestFirstPinCode"
     | "firstSignIn"
+    | "currentSale"
+    | "scanProduct"
+    | "refreshCashSession"
   >,
 ) {
   return createRegisterRouter(

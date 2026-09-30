@@ -5,6 +5,7 @@ import type {
   DiscountStore,
   DiscountStoreTransaction,
   LockAssignableTargetResult,
+  LockDiscountedProductResult,
   LockDiscountResult,
 } from "../discount-store.js";
 
@@ -12,6 +13,7 @@ export interface FakeTargetRow {
   kind: DiscountTargetKind;
   id: string;
   active: boolean;
+  name?: string;
   saleUnit?: SaleUnit;
 }
 
@@ -61,7 +63,11 @@ class FakeDiscountStoreTransaction implements DiscountStoreTransaction {
     if (row === undefined || (row.kind !== "CATEGORY" && !row.active)) {
       return { kind: "not_found" };
     }
-    return { kind: "locked", saleUnit: row.kind === "PRODUCT" ? (row.saleUnit ?? "UNIT") : null };
+    return {
+      kind: "locked",
+      name: row.name ?? row.id,
+      saleUnit: row.kind === "PRODUCT" ? (row.saleUnit ?? "UNIT") : null,
+    };
   }
 
   async insertDiscount(discount: DiscountFields): Promise<{ id: string }> {
@@ -79,6 +85,17 @@ class FakeDiscountStoreTransaction implements DiscountStoreTransaction {
     }
     const { id: _id, ...discount } = cloneRow(row);
     return { kind: "locked", discount };
+  }
+
+  async lockDiscountedProduct(productId: string): Promise<LockDiscountedProductResult> {
+    this.store.operationOrder.push("lockDiscountedProduct");
+    const row = this.state.targets.find(
+      (candidate) => candidate.kind === "PRODUCT" && candidate.id === productId,
+    );
+    if (row === undefined) {
+      return { kind: "not_found" };
+    }
+    return { kind: "locked", name: row.name ?? row.id, saleUnit: row.saleUnit ?? "UNIT" };
   }
 
   async updateDiscount(id: string, discount: DiscountFields): Promise<void> {

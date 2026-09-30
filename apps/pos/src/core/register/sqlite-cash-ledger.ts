@@ -130,6 +130,17 @@ export function readSessionMovements(database: LocalDatabase, sessionId: string)
     .map(movementOf);
 }
 
+function readOpenSaleTotal(database: LocalDatabase): number | undefined {
+  return database
+    .prepare<[], { total: number }>(
+      `SELECT sum(sale_lines.line_total) AS total
+       FROM sales JOIN sale_lines ON sale_lines.sale_id = sales.id
+       WHERE sales.state = 'OPEN'
+       GROUP BY sales.id`,
+    )
+    .get()?.total;
+}
+
 export class SqliteCashLedger implements CashLedger {
   private readonly database: LocalDatabase;
   private readonly people: Pick<SignInStore, "activePerson">;
@@ -153,7 +164,7 @@ export class SqliteCashLedger implements CashLedger {
     return {
       openerAccess: (userId) => this.people.activePerson(userId)?.access,
       openSession: () => readOpenSession(this.database),
-      openSaleTotal: () => undefined,
+      openSaleTotal: () => readOpenSaleTotal(this.database),
       sessionMovements: (sessionId) => readSessionMovements(this.database, sessionId),
       registerIdentity: () => this.registerIdentity(),
       recordOpenedSession: (session) => this.recordOpenedSession(session),

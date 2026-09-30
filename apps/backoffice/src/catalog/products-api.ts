@@ -59,6 +59,7 @@ export type EditProductOutcome =
   | { kind: "category_not_leaf" }
   | { kind: "brand_inactive" }
   | { kind: "tag_inactive"; tagId: string }
+  | { kind: "sale_unit_held_by_discount"; discountName: string }
   | { kind: "stale_version" }
   | { kind: "not_found" }
   | { kind: "forbidden" }
@@ -279,7 +280,7 @@ export async function editProduct(
   }
   if (response.status === 409) {
     const body = (await response.json().catch(() => undefined)) as
-      | { code?: string; codes?: unknown; tagId?: unknown }
+      | { code?: string; codes?: unknown; tagId?: unknown; discountName?: unknown }
       | undefined;
     if (body?.code === "stale_version") {
       return { kind: "stale_version" };
@@ -293,6 +294,11 @@ export async function editProduct(
     if (body?.code === "tag_inactive") {
       return typeof body.tagId === "string"
         ? { kind: "tag_inactive", tagId: body.tagId }
+        : { kind: "failed" };
+    }
+    if (body?.code === "sale_unit_held_by_discount") {
+      return typeof body.discountName === "string"
+        ? { kind: "sale_unit_held_by_discount", discountName: body.discountName }
         : { kind: "failed" };
     }
     const codes = Array.isArray(body?.codes)

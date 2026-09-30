@@ -21,7 +21,7 @@ import {
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import type { RecoveryEmailSender, SendRecoveryLinkInput } from "./recovery-email-sender.js";
+import type { AccessEmailSender, SendRecoveryLinkInput } from "./recovery-email-sender.js";
 import { hashDestinationAddress } from "./recovery-rate-limiter.js";
 import { hashRecoveryToken } from "./recovery-token-hash.js";
 import { RECOVERY_REQUEST_TASK_IDENTIFIER } from "./recovery-worker.js";
@@ -40,7 +40,7 @@ function createNonReapingJobQueuePool(connectionString: string): pg.Pool {
   return new pg.Pool({ connectionString, idleTimeoutMillis: 0 });
 }
 
-class FakeRecoveryEmailSender implements RecoveryEmailSender {
+class FakeRecoveryEmailSender implements AccessEmailSender {
   readonly sent: SendRecoveryLinkInput[] = [];
   private failuresRemaining: number;
 
@@ -55,6 +55,8 @@ class FakeRecoveryEmailSender implements RecoveryEmailSender {
     }
     this.sent.push(input);
   }
+
+  async sendFirstPinCode(): Promise<void> {}
 }
 
 let integrationDb: IntegrationDatabase;
@@ -134,7 +136,7 @@ async function rethrowAfter(error: unknown, cleanup: () => Promise<void>): Promi
 
 async function startRealServer(
   databaseUrl: string,
-  emailSender: RecoveryEmailSender,
+  emailSender: AccessEmailSender,
   createJobQueuePool?: (connectionString: string) => pg.Pool,
 ): Promise<StartedFixture> {
   const port = await findFreePort();

@@ -1,0 +1,1 @@
+ALTER TABLE "user_pin_codes" ALTER COLUMN "issued_by" DROP NOT NULL;
