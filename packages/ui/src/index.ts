@@ -94,6 +94,11 @@ export type {
 export { TextField } from "./components/forms/text-field";
 export type { ToggleProps } from "./components/forms/toggle";
 export { Toggle } from "./components/forms/toggle";
+export type {
+  ToggleChipGroupProps,
+  ToggleChipOption,
+} from "./components/forms/toggle-chip-group";
+export { ToggleChipGroup } from "./components/forms/toggle-chip-group";
 export type { PuroSurIsotypeProps } from "./components/layout/puro-sur-isotype";
 export { PuroSurIsotype } from "./components/layout/puro-sur-isotype";
 export type { PuroSurLogoProps } from "./components/layout/puro-sur-logo";

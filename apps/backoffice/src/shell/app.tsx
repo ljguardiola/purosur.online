@@ -63,6 +63,10 @@ import {
 import type { BackofficeHelpCatalog } from "../help/help-catalog";
 import { createQueryClient } from "../platform/query-client";
 import {
+  type DiscountsListScreenServices,
+  defaultDiscountsListScreenServices,
+} from "../pricing/discounts-list-services";
+import {
   defaultPricesListScreenServices,
   type PricesListScreenServices,
 } from "../pricing/prices-list-services";
@@ -111,6 +115,7 @@ export type AppServices = {
   tagsListScreen: TagsListScreenServices;
   productsListScreen: ProductsListScreenServices;
   pricesListScreen: PricesListScreenServices;
+  discountsListScreen: DiscountsListScreenServices;
   stockBalancesScreen: StockBalancesScreenServices;
   stockCountsScreen: StockCountsScreenServices;
   stockMovementsScreen: StockMovementsScreenServices;
@@ -138,6 +143,7 @@ const defaultAppServices: AppServices = {
   tagsListScreen: defaultTagsListScreenServices,
   productsListScreen: defaultProductsListScreenServices,
   pricesListScreen: defaultPricesListScreenServices,
+  discountsListScreen: defaultDiscountsListScreenServices,
   stockBalancesScreen: defaultStockBalancesScreenServices,
   stockCountsScreen: defaultStockCountsScreenServices,
   stockMovementsScreen: defaultStockMovementsScreenServices,
