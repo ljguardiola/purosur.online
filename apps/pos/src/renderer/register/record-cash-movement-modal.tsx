@@ -6,15 +6,15 @@ import {
   cashMovementPermission,
   cashMovementReason,
 } from "@purosur/domain";
-import type { Icon } from "@purosur/ui";
 import { Button, formatCents, InlineNotice, Modal, OptionCardGroup, TextField } from "@purosur/ui";
-import { ArrowDownToLine, ArrowUpFromLine, Receipt, TriangleAlert, X } from "lucide-react";
+import { TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
 import { AuthorizationSection } from "../access/authorization-section";
 import type { SignedInPerson } from "../access/signed-in-person";
 import { useAuthorization } from "../access/use-authorization";
 import { formatClockTime } from "../platform/clock-time";
 import type { CashMovementInput } from "../platform/core-client";
+import { CASH_MOVEMENT_ICONS } from "./cash-movement-icons";
 
 const REQUIRED_AMOUNT_MESSAGE = "Ingresá el importe.";
 const INVALID_AMOUNT_MESSAGE = "Ingresá un importe válido, por ejemplo 5.000,00.";
@@ -23,7 +23,6 @@ const NO_OPEN_SESSION_MESSAGE = "No hay una caja abierta.";
 const FAILED_MESSAGE = "No se pudo registrar el movimiento. Probá de nuevo.";
 
 type KindPresentation = {
-  icon: Icon;
   submit: string;
   authorizing: string;
   cashBefore: string | undefined;
@@ -31,19 +30,16 @@ type KindPresentation = {
 
 const PRESENTATION = {
   CASH_IN: {
-    icon: <ArrowDownToLine />,
     submit: "Registrar ingreso",
     authorizing: "registrar ingresos de efectivo",
     cashBefore: undefined,
   },
   CASH_OUT: {
-    icon: <Receipt />,
     submit: "Registrar gasto",
     authorizing: "registrar gastos",
     cashBefore: "este gasto",
   },
   WITHDRAWAL: {
-    icon: <ArrowUpFromLine />,
     submit: "Registrar retiro",
     authorizing: "retirar efectivo a la caja fuerte",
     cashBefore: "este retiro",
@@ -51,13 +47,23 @@ const PRESENTATION = {
 } as const satisfies Record<CashMovementKind, KindPresentation>;
 
 const KIND_OPTIONS = [
-  { value: "CASH_IN", label: "Ingreso", description: "Entra plata", icon: <ArrowDownToLine /> },
-  { value: "CASH_OUT", label: "Gasto", description: "Se paga algo", icon: <Receipt /> },
+  {
+    value: "CASH_IN",
+    label: "Ingreso",
+    description: "Entra plata",
+    icon: CASH_MOVEMENT_ICONS.CASH_IN,
+  },
+  {
+    value: "CASH_OUT",
+    label: "Gasto",
+    description: "Se paga algo",
+    icon: CASH_MOVEMENT_ICONS.CASH_OUT,
+  },
   {
     value: "WITHDRAWAL",
     label: "Retiro",
     description: "Sale a caja fuerte",
-    icon: <ArrowUpFromLine />,
+    icon: CASH_MOVEMENT_ICONS.WITHDRAWAL,
   },
 ] as const;
 
@@ -155,9 +161,10 @@ function MovementModal({
       case "no_open_session":
         setNotice(NO_OPEN_SESSION_MESSAGE);
         break;
-      case "not_signed_in":
-        break;
-      default:
+      case "wrong_pin":
+      case "rate_limited":
+      case "locked":
+      case "lacks_permission":
         if (authorization.required) {
           authorization.refuse(outcome);
         } else if (outcome.kind === "lacks_permission") {
@@ -165,6 +172,11 @@ function MovementModal({
         } else {
           setNotice(FAILED_MESSAGE);
         }
+        break;
+      case "unavailable":
+      case "not_signed_in":
+        setNotice(FAILED_MESSAGE);
+        break;
     }
   }
 
@@ -178,10 +190,10 @@ function MovementModal({
       }}
       width="standard"
       tone="info"
-      icon={presentation.icon}
+      icon={CASH_MOVEMENT_ICONS[kind]}
       context={eyebrowText(registerName, openedAt)}
       title="Registrar un movimiento"
-      closable
+      closable={!submitting}
       footer={
         <>
           <Button
@@ -196,7 +208,7 @@ function MovementModal({
           <Button
             size="large"
             fullWidth
-            icon={presentation.icon}
+            icon={CASH_MOVEMENT_ICONS[kind]}
             disabled={submitting || !authorization.ready}
             onPress={submit}
           >

@@ -1,25 +1,16 @@
 import type { ListedCashMovement } from "@purosur/contracts";
 import type { CashMovementType } from "@purosur/domain";
 import { CASH_MOVEMENT_TYPES } from "@purosur/domain";
-import type { Icon } from "@purosur/ui";
+import type { TableLoadingState } from "@purosur/ui";
 import { formatCents, ListFilter, plural, Table, TableCellText, tableRows } from "@purosur/ui";
-import {
-  ArrowDownToLine,
-  ArrowUpFromLine,
-  Coins,
-  Lock,
-  Receipt,
-  ShoppingBasket,
-  TriangleAlert,
-  Undo2,
-  Wallet,
-} from "lucide-react";
+import { Receipt, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { formatClockTime } from "../platform/clock-time";
+import { signedAmount } from "./cash-amounts";
+import { CASH_MOVEMENT_ICONS } from "./cash-movement-icons";
 
 type Presentation = {
   label: string;
-  icon: Icon;
   iconClassName: string;
   sign: "+" | "−" | "";
   detail: (movement: ListedCashMovement) => string | null;
@@ -32,73 +23,67 @@ const PLAIN = "text-text-subtle";
 const PRESENTATION = {
   OPENING: {
     label: "Apertura de sesión",
-    icon: <Wallet />,
     iconClassName: GREEN,
     sign: "+",
     detail: () => "Fondo inicial",
   },
   CASH_IN: {
     label: "Ingreso de efectivo",
-    icon: <ArrowDownToLine />,
     iconClassName: GREEN,
     sign: "+",
     detail: (movement) => movement.reason,
   },
   CASH_OUT: {
     label: "Gasto",
-    icon: <Receipt />,
     iconClassName: EARTH,
     sign: "−",
     detail: (movement) => movement.reason,
   },
   WITHDRAWAL: {
     label: "Retiro a caja fuerte",
-    icon: <ArrowUpFromLine />,
     iconClassName: EARTH,
     sign: "−",
     detail: (movement) => movement.reason,
   },
   SALE: {
     label: "Venta",
-    icon: <ShoppingBasket />,
     iconClassName: GREEN,
     sign: "+",
     detail: () => "Cobro en efectivo",
   },
   CHANGE: {
     label: "Vuelto",
-    icon: <Coins />,
     iconClassName: EARTH,
     sign: "−",
     detail: () => null,
   },
   REFUND: {
     label: "Devolución en efectivo",
-    icon: <Undo2 />,
     iconClassName: EARTH,
     sign: "−",
     detail: () => null,
   },
   CLOSING: {
     label: "Cierre de sesión",
-    icon: <Lock />,
     iconClassName: PLAIN,
     sign: "",
     detail: () => null,
   },
 } as const satisfies Record<CashMovementType, Presentation>;
 
-type TypeFilter = "ALL" | CashMovementType;
+type TypeFilter = "ALL" | Exclude<CashMovementType, "CLOSING">;
 
 const TYPE_FILTER_OPTIONS = [
   { value: "ALL", label: "Todos" },
-  ...CASH_MOVEMENT_TYPES.map((type) => ({ value: type, label: PRESENTATION[type].label })),
+  ...CASH_MOVEMENT_TYPES.filter((type) => type !== "CLOSING").map((type) => ({
+    value: type,
+    label: PRESENTATION[type].label,
+  })),
 ] as const;
 
 function amountText(movement: ListedCashMovement): string {
   const { sign } = PRESENTATION[movement.type];
-  const amount = formatCents(movement.amount);
-  return sign === "" ? amount : `${sign} ${amount}`;
+  return sign === "" ? formatCents(movement.amount) : signedAmount(sign, movement.amount);
 }
 
 const columns = [
@@ -120,7 +105,7 @@ const columns = [
             aria-hidden="true"
             className={`inline-flex size-icon-lg shrink-0 *:size-full ${presentation.iconClassName}`}
           >
-            {presentation.icon}
+            {CASH_MOVEMENT_ICONS[movement.type]}
           </span>
           <TableCellText description={presentation.detail(movement) ?? false}>
             {presentation.label}
@@ -153,7 +138,13 @@ const columns = [
 export type CashMovementsState =
   | { status: "loading" }
   | { status: "failed" }
-  | { status: "loaded"; movements: ListedCashMovement[] };
+  | { status: "loaded" | "refreshing"; movements: ListedCashMovement[] };
+
+const TABLE_LOADING = {
+  loading: "initial",
+  refreshing: "updating",
+  loaded: false,
+} as const satisfies Record<Exclude<CashMovementsState["status"], "failed">, TableLoadingState>;
 
 export type CashMovementsTableProps = {
   state: CashMovementsState;
@@ -161,7 +152,7 @@ export type CashMovementsTableProps = {
 };
 
 export function CashMovementsTable({ state, onRetry }: CashMovementsTableProps) {
-  const movements = state.status === "loaded" ? state.movements : [];
+  const movements = "movements" in state ? state.movements : [];
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
   const [sort, setSort] = useState<{ column: "time"; direction: "ascending" | "descending" }>({
     column: "time",
@@ -203,7 +194,7 @@ export function CashMovementsTable({ state, onRetry }: CashMovementsTableProps) 
                 onRetry,
               },
             }
-          : { loading: state.status === "loading" ? "initial" : false })}
+          : { loading: TABLE_LOADING[state.status] })}
         sort={sort}
         onSortChange={setSort}
         empty={{

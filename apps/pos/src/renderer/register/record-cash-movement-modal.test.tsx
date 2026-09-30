@@ -251,6 +251,18 @@ describe("RecordCashMovementModal", () => {
     expect(onRecorded).not.toHaveBeenCalled();
   });
 
+  it("says the movement was not recorded when the core no longer finds anyone signed in", async () => {
+    const { screen, onRecorded } = await renderModal({ outcome: { kind: "not_signed_in" } });
+    await fill(screen, "100", "Cambio");
+
+    await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
+
+    await expect
+      .poll(() => screen.getByRole("alert").query()?.textContent)
+      .toBe("No se pudo registrar el movimiento. Probá de nuevo.");
+    expect(onRecorded).not.toHaveBeenCalled();
+  });
+
   it("says when the core could not be reached, and allows trying again", async () => {
     const { screen, recordCashMovement, onRecorded } = await renderModal({
       recordCashMovement: async () => {
@@ -287,6 +299,23 @@ describe("RecordCashMovementModal", () => {
     await choose(screen, "Gasto");
     await expect.element(screen.getByRole("radio", { name: "Ingreso" })).toBeChecked();
     expect(recordCashMovement).toHaveBeenCalledOnce();
+    finish(RECORDED);
+  });
+
+  it("cannot be closed while the movement is being recorded", async () => {
+    let finish: (outcome: RecordCashMovementOutcome) => void = () => undefined;
+    const pending = new Promise<RecordCashMovementOutcome>((resolve) => {
+      finish = resolve;
+    });
+    const { screen, onClose } = await renderModal({ outcome: pending });
+    await fill(screen, "100", "Cambio");
+
+    await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
+
+    await expect.element(screen.getByRole("button", { name: "Registrar ingreso" })).toBeDisabled();
+    await expect.element(screen.getByRole("button", { name: "Cerrar" })).not.toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
+    expect(onClose).not.toHaveBeenCalled();
     finish(RECORDED);
   });
 
@@ -358,6 +387,42 @@ describe("RecordCashMovementModal", () => {
       await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
 
       await expect.element(screen.getByText("PIN incorrecto")).toBeVisible();
+      expect(onRecorded).not.toHaveBeenCalled();
+    });
+
+    it("says the movement was not recorded when the core is unavailable, not that the PIN failed", async () => {
+      const { screen, onRecorded } = await renderModal({
+        person: WITHOUT_WITHDRAWALS,
+        outcome: { kind: "unavailable" },
+      });
+      await choose(screen, "Retiro");
+      await fill(screen, "100", "Fin de turno");
+      await authorizeAs(screen, "Sofía", "1234");
+
+      await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
+
+      await expect
+        .poll(() => screen.getByRole("alert").query()?.textContent)
+        .toBe("No se pudo registrar el movimiento. Probá de nuevo.");
+      await expect.element(screen.getByText("No se pudo verificar el PIN")).not.toBeInTheDocument();
+      expect(onRecorded).not.toHaveBeenCalled();
+    });
+
+    it("says the authorizer cannot authorize the movement when the core refuses their permission", async () => {
+      const { screen, onRecorded } = await renderModal({
+        person: WITHOUT_WITHDRAWALS,
+        outcome: { kind: "lacks_permission" },
+      });
+      await choose(screen, "Retiro");
+      await fill(screen, "100", "Fin de turno");
+      await authorizeAs(screen, "Sofía", "1234");
+
+      await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
+
+      await expect
+        .element(screen.getByText("Sofía no puede autorizar esto", { exact: true }))
+        .toBeVisible();
+      await expect.element(screen.getByText(/Ya no tenés permiso/)).not.toBeInTheDocument();
       expect(onRecorded).not.toHaveBeenCalled();
     });
   });

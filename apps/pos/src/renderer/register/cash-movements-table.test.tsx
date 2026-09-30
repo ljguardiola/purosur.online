@@ -126,7 +126,7 @@ describe("CashMovementsTable", () => {
     await expect.element(screen.getByText("2 movimientos")).toBeVisible();
   });
 
-  it("offers every movement type in the filter", async () => {
+  it("offers every type an open session can hold in the filter", async () => {
     const screen = await renderTable([movement()]);
 
     await userEvent.click(screen.getByRole("button", { name: "Tipo: Todos" }));
@@ -143,7 +143,6 @@ describe("CashMovementsTable", () => {
       "Ingreso de efectivo",
       "Gasto",
       "Retiro a caja fuerte",
-      "Cierre de sesión",
     ]);
   });
 
@@ -167,6 +166,15 @@ describe("CashMovementsTable", () => {
       .element(screen.getByText("No hay movimientos de este tipo"))
       .not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("keeps the movements it shows while they are read again", async () => {
+    const screen = await renderState({ status: "refreshing", movements: [movement()] });
+
+    await expect
+      .element(screen.getByRole("table", { name: "Movimientos de la sesión" }))
+      .toHaveAttribute("aria-busy", "true");
+    expect(rowsOf(screen)).toHaveLength(1);
   });
 
   it("says the movements could not be read and offers Reintentar", async () => {
