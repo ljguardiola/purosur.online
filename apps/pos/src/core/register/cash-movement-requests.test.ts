@@ -231,6 +231,29 @@ describe("recording a cash movement", () => {
     expect(movementRows()).toEqual([]);
   });
 
+  it("refuses a withdrawal above the session's expected cash, saying how much is expected, and writes nothing", async () => {
+    const outcome = await recordCashMovementFor(
+      deps(),
+      request({ kind: "WITHDRAWAL", amount: 5001, authorization: { user_id: "u2", pin: "1234" } }),
+    );
+
+    expect(outcome).toEqual({ kind: "exceeds_expected_cash", expected: 5000 });
+    expect(movementRows()).toEqual([]);
+    expect(outboxPayloads()).toEqual([]);
+  });
+
+  it("records a withdrawal equal to the session's expected cash", async () => {
+    const outcome = await recordCashMovementFor(
+      deps(),
+      request({ kind: "WITHDRAWAL", amount: 5000, authorization: { user_id: "u2", pin: "1234" } }),
+    );
+
+    expect(outcome.kind).toBe("recorded");
+    expect(movementRows()).toEqual([
+      { type: "WITHDRAWAL", amount: 5000, reason: "Cambio", actor_id: "u1", authorized_by: "u2" },
+    ]);
+  });
+
   it("answers unavailable, writing nothing, when the register holds no outbox chain key", async () => {
     expect(
       await recordCashMovementFor(deps({ readOutboxChainKey: async () => undefined }), request()),

@@ -4,6 +4,7 @@ import {
   isValidCashMovementAmount,
 } from "../model/cash-movement-kind.js";
 import type { CashMovement } from "../model/cash-session.js";
+import { expectedCash } from "../model/expected-cash.js";
 import type { CashLedger, IdGenerator } from "./cash-ledger.js";
 import type { Clock } from "./register-store.js";
 
@@ -25,6 +26,7 @@ export type RecordCashMovementOutcome =
   | { kind: "invalid_amount" }
   | { kind: "invalid_reason" }
   | { kind: "no_open_session" }
+  | { kind: "exceeds_expected_cash"; expected: number }
   | { kind: "recorded"; movement: CashMovement };
 
 export function recordCashMovement(
@@ -43,6 +45,12 @@ export function recordCashMovement(
     const session = tx.openSession();
     if (!session) {
       return { kind: "no_open_session" };
+    }
+    if (input.kind !== "CASH_IN") {
+      const expected = expectedCash(tx.sessionMovements(session.id));
+      if (input.amount > expected) {
+        return { kind: "exceeds_expected_cash", expected };
+      }
     }
 
     const occurredAt = clock.now();

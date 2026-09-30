@@ -280,6 +280,7 @@ const recordCashMovementOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("invalid_reason") }),
   z.object({ kind: z.literal("no_open_session") }),
   z.object({ kind: z.literal("not_signed_in") }),
+  z.object({ kind: z.literal("exceeds_expected_cash"), expected: z.number() }),
   ...authorizationRefusalSchema.options,
 ]);
 export type RecordCashMovementOutcome = z.infer<typeof recordCashMovementOutcomeSchema>;
