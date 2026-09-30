@@ -1,13 +1,16 @@
 import { Button, InlineNotice } from "@purosur/ui";
 import { ArrowRight } from "lucide-react";
+import type { Ref } from "react";
 import { PinField } from "./pin-field";
 import type { PinAttempt } from "./use-pin-attempt";
 
 export function PinAttemptControls({
   attempt,
+  pinInput,
   disabled = false,
 }: {
-  attempt: PinAttempt;
+  attempt: Omit<PinAttempt, "pinInput" | "heading">;
+  pinInput: Ref<HTMLInputElement>;
   disabled?: boolean;
 }) {
   const { notice, noticeId } = attempt;
@@ -15,7 +18,7 @@ export function PinAttemptControls({
   return (
     <>
       <PinField
-        ref={attempt.pinInput}
+        ref={pinInput}
         value={attempt.pin}
         onChange={attempt.type}
         disabled={attempt.submitting || disabled}

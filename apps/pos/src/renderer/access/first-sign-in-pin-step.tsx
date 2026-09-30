@@ -43,7 +43,7 @@ export function FirstSignInPinStep({ person, signIn }: FirstSignInPinStepProps) 
       headingRef={attempt.heading}
     >
       <form className="flex flex-col gap-4" noValidate onSubmit={attempt.submit}>
-        <PinAttemptControls attempt={attempt} />
+        <PinAttemptControls attempt={attempt} pinInput={attempt.pinInput} />
         <ScreenLink to="/sign-in" icon={<ArrowLeft />} label="Volver" />
       </form>
     </FirstSignInPanel>

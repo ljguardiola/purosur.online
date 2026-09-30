@@ -127,7 +127,11 @@ function SignInPanel({
             labelledBy={headingId}
             disabled={submitting}
           />
-          <PinAttemptControls attempt={attempt} disabled={chosen === null} />
+          <PinAttemptControls
+            attempt={attempt}
+            pinInput={attempt.pinInput}
+            disabled={chosen === null}
+          />
         </form>
       ) : null}
       {locked ? null : (
