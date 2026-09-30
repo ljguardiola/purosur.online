@@ -452,6 +452,18 @@ describe("cash session answers", () => {
     expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
+  it("accepts that the open cash session cannot be read", () => {
+    const message = { type: "cash-session-unavailable", request_id: REQUEST_ID };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects that the open cash session cannot be read without its request id", () => {
+    expect(
+      coreToRendererMessageSchema.safeParse({ type: "cash-session-unavailable" }).success,
+    ).toBe(false);
+  });
+
   it.each([
     undefined,
     { id: "s1", opened_at: "2026-09-30T12:00:00.000Z" },

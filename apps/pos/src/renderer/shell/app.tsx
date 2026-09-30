@@ -10,7 +10,10 @@ import { createAppRouter, routeFor } from "./router";
 
 const UNKNOWN_SESSION: CashSessionState = { status: "unknown" };
 
-function stateOf(session: OpenCashSession | null): CashSessionState {
+function stateOf(session: OpenCashSession | null | "unavailable"): CashSessionState {
+  if (session === "unavailable") {
+    return { status: "unavailable" };
+  }
   return session === null
     ? { status: "none" }
     : { status: "open", openedAt: session.opened_at, openedBy: session.opened_by };

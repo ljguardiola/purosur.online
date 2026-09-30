@@ -298,20 +298,25 @@ describe("answerRendererRequest", () => {
     ).toEqual({ type: "cash-session", request_id: "r15", session });
   });
 
-  it("answers no cash session while none is open or the register has no database", async () => {
-    const answers = await Promise.all(
-      [deps(true).deps, deps(true, { cashSession: undefined }).deps].map((withoutSession) =>
-        answerRendererRequest(withoutSession, { type: "cash-session-request", request_id: "r16" }),
-      ),
-    );
-
-    expect(answers).toEqual([
-      { type: "cash-session", request_id: "r16", session: null },
-      { type: "cash-session", request_id: "r16", session: null },
-    ]);
+  it("answers no cash session while none is open", async () => {
+    expect(
+      await answerRendererRequest(deps(true).deps, {
+        type: "cash-session-request",
+        request_id: "r16",
+      }),
+    ).toEqual({ type: "cash-session", request_id: "r16", session: null });
   });
 
-  it("answers no cash session when it cannot be read, and reports why", async () => {
+  it("answers that the cash session cannot be read when the register has no database", async () => {
+    expect(
+      await answerRendererRequest(deps(true, { cashSession: undefined }).deps, {
+        type: "cash-session-request",
+        request_id: "r16",
+      }),
+    ).toEqual({ type: "cash-session-unavailable", request_id: "r16" });
+  });
+
+  it("answers that the cash session cannot be read when reading it fails, and reports why", async () => {
     const error = new Error("database is locked");
     const failing = deps(true, {
       cashSession: () => {
@@ -324,7 +329,7 @@ describe("answerRendererRequest", () => {
         type: "cash-session-request",
         request_id: "r17",
       }),
-    ).toEqual({ type: "cash-session", request_id: "r17", session: null });
+    ).toEqual({ type: "cash-session-unavailable", request_id: "r17" });
     expect(failing.failures).toEqual([{ context: "reading the open cash session", error }]);
   });
 

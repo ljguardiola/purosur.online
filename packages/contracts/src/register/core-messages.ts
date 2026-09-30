@@ -192,6 +192,7 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     request_id: requestId,
     session: openCashSessionSchema.nullable(),
   }),
+  z.object({ type: z.literal("cash-session-unavailable"), request_id: requestId }),
   z.object({ type: z.literal("pulled") }),
 ]);
 export type CoreToRendererMessage = z.infer<typeof coreToRendererMessageSchema>;

@@ -178,6 +178,20 @@ describe("routeFor", () => {
       cashSession: OPEN_SESSION,
       route: "/core-down",
     },
+    {
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: undefined,
+      cashSession: { status: "unavailable" },
+      route: "/core-down",
+    },
+    {
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: PERSON,
+      cashSession: { status: "unavailable" },
+      route: "/core-down",
+    },
   ])(
     "goes to $route when the core is $coreStatus, the installation $enrollment, the cash session $cashSession.status and a person may be signed in",
     ({ coreStatus, enrollment, person, cashSession = NO_SESSION, route }) => {
@@ -323,6 +337,14 @@ describe("the register's router", () => {
       coreStatus: "down",
       enrollment: "enrolled",
       cashSession: OPEN_SESSION,
+      redirectedTo: "/core-down",
+    },
+    {
+      path: "/sign-in",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: null,
+      cashSession: { status: "unavailable" },
       redirectedTo: "/core-down",
     },
   ])(

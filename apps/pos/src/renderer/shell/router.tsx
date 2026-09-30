@@ -70,6 +70,9 @@ export function routeFor({
   if (cashSession.status === "unknown") {
     return "/starting";
   }
+  if (cashSession.status === "unavailable") {
+    return "/core-down";
+  }
   if (cashSession.status === "open") {
     return "/session";
   }

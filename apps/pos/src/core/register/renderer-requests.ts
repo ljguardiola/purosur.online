@@ -58,12 +58,12 @@ async function attemptOpenCashSession(
   }
 }
 
-function readCashSession(deps: RendererRequestDeps): OpenCashSession | null {
+function readCashSession(deps: RendererRequestDeps): OpenCashSession | null | undefined {
   try {
-    return deps.cashSession?.() ?? null;
+    return deps.cashSession?.();
   } catch (error) {
     deps.reportFailure("reading the open cash session", error);
-    return null;
+    return undefined;
   }
 }
 
@@ -114,12 +114,12 @@ export async function answerRendererRequest(
         request_id: message.request_id,
         outcome: await attemptOpenCashSession(deps, message.user_id, message.opening_float),
       };
-    case "cash-session-request":
-      return {
-        type: "cash-session",
-        request_id: message.request_id,
-        session: readCashSession(deps),
-      };
+    case "cash-session-request": {
+      const session = readCashSession(deps);
+      return session === undefined
+        ? { type: "cash-session-unavailable", request_id: message.request_id }
+        : { type: "cash-session", request_id: message.request_id, session };
+    }
     case "ping":
       return undefined;
   }

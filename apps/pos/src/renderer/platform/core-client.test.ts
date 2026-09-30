@@ -147,6 +147,17 @@ describe("createCoreClient", () => {
     expect(port.posted).toEqual([{ type: "cash-session-request", request_id: "request-1" }]);
   });
 
+  it("resolves that the open cash session is unavailable when the core cannot read it", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.cashSession();
+    port.answer({ type: "cash-session-unavailable", request_id: "request-1" });
+
+    expect(await asked).toBe("unavailable");
+  });
+
   it("asks the core to enroll with the code as typed and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();

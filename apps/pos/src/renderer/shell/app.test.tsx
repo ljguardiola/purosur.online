@@ -42,7 +42,7 @@ function coreAnswering(
   outcome: EnrollmentOutcome = { kind: "enrolled" },
   signInOutcome: SignInOutcome = ADA_SIGNED_IN,
   cashDrawer: {
-    cashSession?: () => Promise<OpenCashSession | null>;
+    cashSession?: CoreClient["cashSession"];
     openOutcome?: OpenCashSessionOutcome;
   } = {},
 ) {
@@ -438,6 +438,37 @@ describe("App", () => {
     await expect
       .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
       .not.toBeInTheDocument();
+  });
+
+  it("shows that the core is down, not the sign-in, when the core cannot read the cash session", async () => {
+    const { core } = coreAnswering(true, { kind: "enrolled" }, ADA_SIGNED_IN, {
+      cashSession: async () => "unavailable",
+    });
+    const screen = await render(<App core={core} />);
+
+    postCoreStatus("up");
+
+    await expect.element(screen.getByText(CORE_DOWN_TITLE)).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .not.toBeInTheDocument();
+  });
+
+  it("asks for the cash session again when the core comes back up after it could not read it", async () => {
+    let readable = false;
+    const { core } = coreAnswering(true, { kind: "enrolled" }, ADA_SIGNED_IN, {
+      cashSession: async () => (readable ? null : "unavailable"),
+    });
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await expect.element(screen.getByText(CORE_DOWN_TITLE)).toBeVisible();
+
+    readable = true;
+    postCoreStatus("starting");
+    await expect.element(screen.getByText(CORE_DOWN_TITLE)).not.toBeInTheDocument();
+    postCoreStatus("up");
+
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
   });
 
   it("shows a cash session that was opened while the core was down", async () => {
