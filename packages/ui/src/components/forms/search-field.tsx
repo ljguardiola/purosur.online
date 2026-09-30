@@ -12,6 +12,8 @@ export type SearchFieldProps = {
   // field for assistive technology only, the same way the placeholder does when it is not.
   label?: string;
   disabled?: boolean;
+  // Makes the field the combobox of a list of suggestions the caller draws under it.
+  combobox?: { expanded: boolean; listboxId: string; activeOptionId?: string | undefined };
 };
 
 const frameClassName: Record<FieldSize, string> = {
@@ -38,7 +40,7 @@ const registerIconWrapperClassName = `${iconSlotClassName["2xl"]} text-text-acce
 const backofficeIconWrapperClassName = `${iconSlotClassName.md} text-text-subtle`;
 
 export function SearchField(props: SearchFieldProps) {
-  const { value, onChange, placeholder, icon, label, disabled = false } = props;
+  const { value, onChange, placeholder, icon, label, disabled = false, combobox } = props;
 
   const size = useFieldSize();
 
@@ -68,6 +70,15 @@ export function SearchField(props: SearchFieldProps) {
         <AriaInput
           placeholder={placeholder}
           className={`${inputBaseClassName} ${valueClassName[size]}`}
+          {...(combobox === undefined
+            ? {}
+            : {
+                role: "combobox",
+                "aria-autocomplete": "list",
+                "aria-expanded": combobox.expanded,
+                "aria-controls": combobox.expanded ? combobox.listboxId : undefined,
+                "aria-activedescendant": combobox.expanded ? combobox.activeOptionId : undefined,
+              })}
         />
       </div>
     </AriaSearchField>
