@@ -17,6 +17,7 @@ import { createUser } from "../access/user-creation-route.js";
 import { deactivateUser } from "../access/user-deactivation-route.js";
 import { editBranchSettings } from "../branch/branch-settings-edit-route.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
+import { insertProductWithTags } from "../catalog/test-support/catalog-route-fixtures.js";
 import {
   branchSettings,
   categories,
@@ -1063,6 +1064,52 @@ describe("GET /changes carrying the discounts", () => {
     expect(page.changes.filter((change) => change.entity === "discount")).toMatchObject([
       { entity_id: discountId, row: { active: false, version: 2 } },
       { entity_id: discountId, row: { active: false, version: 2 } },
+    ]);
+  });
+
+  it("gives a buy-N-pay-M discount with its quantities, and a change of them at its next version", async () => {
+    const { deviceToken } = await insertEnrolledInstallation(db);
+    const product = await insertProductWithTags(db, { name: "Alfajor", tagIds: [] });
+    const store = new DrizzleDiscountStore(db);
+    const fields = {
+      name: "Alfajores 3x2",
+      target: { kind: "PRODUCT" as const, id: product.id },
+      validFrom: "2026-10-01",
+      validTo: "2026-10-31",
+      weekdays: [],
+    };
+    const created = await createDiscount(
+      { store },
+      { ...fields, benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 } },
+    );
+    if (created.kind !== "created") {
+      throw new Error(`test setup: creating the discount ended as ${created.kind}`);
+    }
+
+    const first = await pullPage(SEEDED_CHANGES, deviceToken);
+    await editDiscount(
+      { store },
+      {
+        ...fields,
+        id: created.id,
+        version: 1,
+        benefit: { kind: "BUY_N_PAY_M", buyQty: 4, payQty: 3 },
+        active: true,
+      },
+    );
+    const second = await pullPage(first.cursor, deviceToken);
+
+    expect(first.changes.filter((change) => change.entity === "discount")).toMatchObject([
+      {
+        entity_id: created.id,
+        row: { benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 }, version: 1 },
+      },
+    ]);
+    expect(second.changes.filter((change) => change.entity === "discount")).toMatchObject([
+      {
+        entity_id: created.id,
+        row: { benefit: { kind: "BUY_N_PAY_M", buyQty: 4, payQty: 3 }, version: 2 },
+      },
     ]);
   });
 

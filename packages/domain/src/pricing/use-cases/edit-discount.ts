@@ -2,6 +2,7 @@ import type { DiscountBenefit } from "../model/discount-benefit.js";
 import type { DiscountTarget } from "../model/discount-target.js";
 import { normalizeDiscountWeekdays } from "../model/discount-weekdays.js";
 import type { DiscountPorts } from "./discount-store.js";
+import { refuseUnfitTarget, type UnfitTargetOutcome } from "./refuse-unfit-target.js";
 
 export interface EditDiscountInput {
   id: string;
@@ -18,7 +19,7 @@ export interface EditDiscountInput {
 export type EditDiscountOutcome =
   | { kind: "not_found" }
   | { kind: "stale_version" }
-  | { kind: "target_not_found" }
+  | UnfitTargetOutcome
   | { kind: "applied"; version: number };
 
 export async function editDiscount(
@@ -38,8 +39,13 @@ export async function editDiscount(
     const targetChanged =
       locked.discount.target.kind !== fields.target.kind ||
       locked.discount.target.id !== fields.target.id;
-    if (targetChanged && (await tx.lockAssignableTarget(fields.target)).kind === "not_found") {
-      return { kind: "target_not_found" };
+    const becomesBuyNPayM =
+      fields.benefit.kind === "BUY_N_PAY_M" && locked.discount.benefit.kind !== "BUY_N_PAY_M";
+    if (targetChanged || becomesBuyNPayM) {
+      const refused = await refuseUnfitTarget(tx, fields.target, fields.benefit);
+      if (refused) {
+        return refused;
+      }
     }
 
     const nextVersion = version + 1;

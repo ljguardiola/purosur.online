@@ -1,3 +1,4 @@
+import type { SaleUnit } from "@purosur/domain";
 import type {
   DiscountFields,
   DiscountStore,
@@ -21,11 +22,19 @@ function targetColumns(target: DiscountFields["target"]) {
   };
 }
 
+function benefitColumns(benefit: DiscountFields["benefit"]) {
+  switch (benefit.kind) {
+    case "PERCENT_OFF":
+      return { kind: benefit.kind, percent: benefit.percent, buyQty: null, payQty: null };
+    case "BUY_N_PAY_M":
+      return { kind: benefit.kind, percent: null, buyQty: benefit.buyQty, payQty: benefit.payQty };
+  }
+}
+
 function storedColumns(fields: DiscountFields) {
   return {
     name: fields.name,
-    kind: fields.benefit.kind,
-    percent: fields.benefit.percent,
+    ...benefitColumns(fields.benefit),
     ...targetColumns(fields.target),
     validFrom: fields.validFrom,
     validTo: fields.validTo,
@@ -48,13 +57,20 @@ function targetOf(row: DiscountRow): DiscountFields["target"] {
   throw new Error(`discount ${row.id} has no target`);
 }
 
-export function discountFieldsOf(row: DiscountRow): DiscountFields {
-  if (row.percent === null) {
-    throw new Error(`discount ${row.id} has no percent`);
+export function storedBenefit(row: DiscountRow): DiscountFields["benefit"] {
+  if (row.kind === "BUY_N_PAY_M" && row.buyQty !== null && row.payQty !== null) {
+    return { kind: "BUY_N_PAY_M", buyQty: row.buyQty, payQty: row.payQty };
   }
+  if (row.kind === "PERCENT_OFF" && row.percent !== null) {
+    return { kind: "PERCENT_OFF", percent: row.percent };
+  }
+  throw new Error(`discount ${row.id} has no benefit of its kind ${row.kind}`);
+}
+
+export function discountFieldsOf(row: DiscountRow): DiscountFields {
   return {
     name: row.name,
-    benefit: { kind: "PERCENT_OFF", percent: row.percent },
+    benefit: storedBenefit(row),
     target: targetOf(row),
     validFrom: row.validFrom,
     validTo: row.validTo,
@@ -82,7 +98,7 @@ class DrizzleDiscountStoreTransaction<TQueryResult extends PgQueryResultHKT>
       return { kind: "not_found" };
     }
     const found = await this.lockedTargetRow(target);
-    return found ? { kind: "locked" } : { kind: "not_found" };
+    return found ? { kind: "locked", saleUnit: found.saleUnit } : { kind: "not_found" };
   }
 
   async insertDiscount(fields: DiscountFields): Promise<{ id: string }> {
@@ -116,31 +132,33 @@ class DrizzleDiscountStoreTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   // A shared lock is enough: deactivating a product or a tag takes the row's update lock, which waits.
-  private async lockedTargetRow(target: DiscountFields["target"]): Promise<boolean> {
+  private async lockedTargetRow(
+    target: DiscountFields["target"],
+  ): Promise<{ saleUnit: SaleUnit | null } | undefined> {
     switch (target.kind) {
       case "PRODUCT": {
-        const rows = await this.tx
-          .select({ id: products.id })
+        const [row] = await this.tx
+          .select({ saleUnit: products.saleUnit })
           .from(products)
           .where(and(eq(products.id, target.id), eq(products.active, true)))
           .for("share");
-        return rows.length > 0;
+        return row && { saleUnit: row.saleUnit as SaleUnit };
       }
       case "TAG": {
-        const rows = await this.tx
+        const [row] = await this.tx
           .select({ id: tags.id })
           .from(tags)
           .where(and(eq(tags.id, target.id), eq(tags.active, true)))
           .for("share");
-        return rows.length > 0;
+        return row && { saleUnit: null };
       }
       case "CATEGORY": {
-        const rows = await this.tx
+        const [row] = await this.tx
           .select({ id: categories.id })
           .from(categories)
           .where(eq(categories.id, target.id))
           .for("share");
-        return rows.length > 0;
+        return row && { saleUnit: null };
       }
     }
   }

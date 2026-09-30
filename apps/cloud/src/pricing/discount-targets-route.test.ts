@@ -107,12 +107,16 @@ describe("GET /discount-targets", () => {
     expect(response.json()).toEqual({ products: [], categories: [], tags: [] });
   });
 
-  it("offers the active products and tags and every category, each by name", async () => {
+  it("offers the active products with their sale unit, the active tags and every category, each by name", async () => {
     const vegano = await insertTag(db, { name: "Vegano" });
     const sinTacc = await insertTag(db, { name: "Sin TACC" });
     await insertTag(db, { name: "Artesanal", active: false });
     const yerba = await insertProductWithTags(db, { name: "Yerba mate", tagIds: [] });
-    const almonds = await insertProductWithTags(db, { name: "Almendras", tagIds: [] });
+    const almonds = await insertProductWithTags(db, {
+      name: "Almendras",
+      tagIds: [],
+      saleUnit: "KG",
+    });
     await insertProductWithTags(db, { name: "Aceite de oliva", tagIds: [], active: false });
     const almacen = await insertCategory(db, "Almacén");
     const jams = await insertChildCategory("Mermeladas", almacen);
@@ -123,8 +127,8 @@ describe("GET /discount-targets", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       products: [
-        { id: almonds.id, name: "Almendras" },
-        { id: yerba.id, name: "Yerba mate" },
+        { id: almonds.id, name: "Almendras", saleUnit: "KG" },
+        { id: yerba.id, name: "Yerba mate", saleUnit: "UNIT" },
       ],
       categories: [
         { id: almacen, name: "Almacén", parentId: null },

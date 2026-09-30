@@ -258,6 +258,8 @@ export const discounts = pgTable(
     name: text("name").notNull(),
     kind: text("kind").notNull(),
     percent: integer("percent"),
+    buyQty: integer("buy_qty"),
+    payQty: integer("pay_qty"),
     productId: uuid("product_id").references(() => products.id),
     categoryId: uuid("category_id").references(() => categories.id),
     tagId: uuid("tag_id").references(() => tags.id),
@@ -271,10 +273,26 @@ export const discounts = pgTable(
     index("discounts_product_id_idx").on(table.productId),
     index("discounts_category_id_idx").on(table.categoryId),
     index("discounts_tag_id_idx").on(table.tagId),
-    check("discounts_kind_check", sql`${table.kind} in ('PERCENT_OFF')`),
+    check("discounts_kind_check", sql`${table.kind} in ('PERCENT_OFF', 'BUY_N_PAY_M')`),
     check(
       "discounts_percent_check",
       sql`${table.kind} <> 'PERCENT_OFF' or coalesce(${table.percent} between 1 and 99, false)`,
+    ),
+    check(
+      "discounts_buy_n_pay_m_quantities_check",
+      sql`${table.kind} <> 'BUY_N_PAY_M' or coalesce(${table.payQty} >= 1 and ${table.buyQty} > ${table.payQty}, false)`,
+    ),
+    check(
+      "discounts_percent_off_has_no_quantities_check",
+      sql`${table.kind} <> 'PERCENT_OFF' or (${table.buyQty} is null and ${table.payQty} is null)`,
+    ),
+    check(
+      "discounts_buy_n_pay_m_has_no_percent_check",
+      sql`${table.kind} <> 'BUY_N_PAY_M' or ${table.percent} is null`,
+    ),
+    check(
+      "discounts_buy_n_pay_m_product_check",
+      sql`${table.kind} <> 'BUY_N_PAY_M' or ${table.productId} is not null`,
     ),
     check(
       "discounts_exactly_one_target_check",

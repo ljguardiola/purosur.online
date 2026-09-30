@@ -16,6 +16,19 @@ export type FetchDiscountsOutcome = CloudReadOutcome<DiscountList>;
 
 export type FetchDiscountTargetsOutcome = CloudReadOutcome<DiscountTargets>;
 
+type TargetRefusal = { kind: "target_not_found" } | { kind: "target_not_sold_by_unit" };
+
+function targetRefusal(code: string | undefined): TargetRefusal | { kind: "failed" } {
+  switch (code) {
+    case "discount_target_not_found":
+      return { kind: "target_not_found" };
+    case "discount_target_not_sold_by_unit":
+      return { kind: "target_not_sold_by_unit" };
+    default:
+      return { kind: "failed" };
+  }
+}
+
 type RequestRefusal =
   | { kind: "forbidden" }
   | { kind: "unauthenticated" }
@@ -25,13 +38,13 @@ type RequestRefusal =
 export type CreateDiscountOutcome =
   | { kind: "ok"; discount: DiscountSummary }
   | { kind: "validation_failed"; field: string }
-  | { kind: "target_not_found" }
+  | TargetRefusal
   | RequestRefusal;
 
 export type EditDiscountOutcome =
   | { kind: "ok"; discount: DiscountSummary }
   | { kind: "validation_failed"; field: string }
-  | { kind: "target_not_found" }
+  | TargetRefusal
   | { kind: "stale_version" }
   | { kind: "not_found" }
   | RequestRefusal;
@@ -106,9 +119,7 @@ export async function createDiscount(input: DiscountCreationBody): Promise<Creat
     return field === undefined ? { kind: "failed" } : { kind: "validation_failed", field };
   }
   if (response.status === 409) {
-    return (await readCode(response)) === "discount_target_not_found"
-      ? { kind: "target_not_found" }
-      : { kind: "failed" };
+    return targetRefusal(await readCode(response));
   }
   return refusal(response);
 }
@@ -139,7 +150,7 @@ export async function editDiscount(
     if (code === "stale_version") {
       return { kind: "stale_version" };
     }
-    return code === "discount_target_not_found" ? { kind: "target_not_found" } : { kind: "failed" };
+    return targetRefusal(code);
   }
   return refusal(response);
 }

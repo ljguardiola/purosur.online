@@ -9,6 +9,7 @@ import {
   routeSessionSource,
 } from "../access/route-access.js";
 import { categories, discounts, products, tags } from "../platform/db/schema.js";
+import { storedBenefit } from "./drizzle-discount-store.js";
 
 export interface DiscountsRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
@@ -35,7 +36,7 @@ export async function listDiscounts<TQueryResult extends PgQueryResultHKT>(
   return rows.map(({ discount, targetName }) => ({
     id: discount.id,
     name: discount.name,
-    benefit: benefitOf(discount),
+    benefit: storedBenefit(discount),
     target: targetOf(discount, targetName),
     validFrom: discount.validFrom,
     validTo: discount.validTo,
@@ -43,13 +44,6 @@ export async function listDiscounts<TQueryResult extends PgQueryResultHKT>(
     active: discount.active,
     version: discount.version,
   }));
-}
-
-function benefitOf(discount: typeof discounts.$inferSelect): DiscountSummary["benefit"] {
-  if (discount.percent === null) {
-    throw new Error(`discount ${discount.id} has no percent`);
-  }
-  return { kind: "PERCENT_OFF", percent: discount.percent };
 }
 
 function targetOf(

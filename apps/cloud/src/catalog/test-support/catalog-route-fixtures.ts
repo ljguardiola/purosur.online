@@ -130,7 +130,7 @@ export async function insertTag(
 
 export async function insertProductWithTags(
   db: Db,
-  input: { name: string; tagIds: readonly string[]; active?: boolean },
+  input: { name: string; tagIds: readonly string[]; active?: boolean; saleUnit?: "UNIT" | "KG" },
 ): Promise<{ id: string }> {
   const [category] = await db
     .insert(categories)
@@ -144,7 +144,7 @@ export async function insertProductWithTags(
     .values({
       name: input.name,
       categoryId: category.id,
-      saleUnit: "UNIT",
+      saleUnit: input.saleUnit ?? "UNIT",
       active: input.active ?? true,
     })
     .returning({ id: products.id });

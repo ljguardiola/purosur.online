@@ -28,7 +28,7 @@ export function registerDiscountTargetsRoute<TQueryResult extends PgQueryResultH
     async (_request, reply) => {
       const [productRows, categoryRows, tagRows] = await Promise.all([
         options.db
-          .select({ id: products.id, name: products.name })
+          .select({ id: products.id, name: products.name, saleUnit: products.saleUnit })
           .from(products)
           .where(eq(products.active, true))
           .orderBy(asc(products.name)),

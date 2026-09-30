@@ -13,7 +13,7 @@ import {
 } from "./.github/scripts/slow-tests-reporter.mjs";
 import { withoutPackageOutput } from "./.github/scripts/without-package-output.mjs";
 
-const CATALOG_VISUAL_WS_ENDPOINT_ENV = "CATALOG_VISUAL_BROWSER_WS_ENDPOINT";
+const PLAYWRIGHT_WS_ENDPOINT_ENV = "PLAYWRIGHT_SERVER_WS_ENDPOINT";
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
@@ -33,6 +33,17 @@ function compiledReactProject() {
       },
     },
     optimizeDeps: { include: ["react/compiler-runtime"] },
+  };
+}
+
+function playwrightServerConnectOptions() {
+  return {
+    // A getter, not a plain value: Vite reads this config once before globalSetup runs, but the
+    // provider only calls it once it actually opens the browser.
+    get wsEndpoint() {
+      return process.env[PLAYWRIGHT_WS_ENDPOINT_ENV] ?? "";
+    },
+    exposeNetwork: "<loopback>",
   };
 }
 
@@ -106,10 +117,11 @@ export default defineConfig({
           name: "browser",
           include: ["packages/*/src/**/*.test.tsx", "apps/*/src/**/*.test.tsx"],
           setupFiles: [r("./packages/ui/src/test/setup-browser.ts")],
+          globalSetup: [r("./vitest.global-setup.playwright-server.ts")],
           browser: {
             enabled: true,
             headless: true,
-            provider: playwright(),
+            provider: playwright({ connectOptions: playwrightServerConnectOptions() }),
             // Vitest would otherwise name this project "browser (chromium)", which matches no
             // SlowTestsReporter threshold.
             instances: [{ browser: "chromium", name: "browser" }],
@@ -125,19 +137,12 @@ export default defineConfig({
             r("./packages/ui/src/test/setup-browser.ts"),
             r("./packages/ui/src/test-support/setup-catalog-visual.ts"),
           ],
-          globalSetup: [r("./packages/ui/vitest.global-setup.catalog-visual.ts")],
+          globalSetup: [r("./vitest.global-setup.playwright-server.ts")],
           browser: {
             enabled: true,
             headless: true,
             provider: playwright({
-              connectOptions: {
-                // A getter, not a plain value: Vite reads this config once before globalSetup
-                // runs, but the provider only calls it once it actually opens the browser.
-                get wsEndpoint() {
-                  return process.env[CATALOG_VISUAL_WS_ENDPOINT_ENV] ?? "";
-                },
-                exposeNetwork: "<loopback>",
-              },
+              connectOptions: playwrightServerConnectOptions(),
               contextOptions: {
                 reducedMotion: "reduce",
                 deviceScaleFactor: 1,

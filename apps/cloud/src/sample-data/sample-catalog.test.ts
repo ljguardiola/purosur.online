@@ -1,6 +1,7 @@
 import {
   isInternalBarcode,
   isPermissionKey,
+  isValidDiscountBuyNPayM,
   isValidDiscountPercent,
   isValidDiscountWeekdays,
   PRODUCT_NAME_MAX_LENGTH,
@@ -193,10 +194,27 @@ describe("SAMPLE_DISCOUNTS", () => {
     expect(new Set(names).size).toBe(names.length);
   });
 
-  it("plans a valid percent and valid weekdays for every discount", () => {
-    for (const discount of SAMPLE_DISCOUNTS) {
-      expect(isValidDiscountPercent(discount.percent)).toBe(true);
-      expect(isValidDiscountWeekdays(discount.weekdays)).toBe(true);
+  it("plans a valid benefit and valid weekdays for every discount", () => {
+    for (const { benefit, weekdays } of SAMPLE_DISCOUNTS) {
+      expect(
+        benefit.kind === "PERCENT_OFF"
+          ? isValidDiscountPercent(benefit.percent)
+          : isValidDiscountBuyNPayM(benefit.buyQty, benefit.payQty),
+      ).toBe(true);
+      expect(isValidDiscountWeekdays(weekdays)).toBe(true);
+    }
+  });
+
+  it("plans a buy-N-pay-M discount only on products sold by the unit", () => {
+    const saleUnitByName = new Map(
+      flattenProducts().map((product) => [product.name, product.saleUnit]),
+    );
+    const buyNPayM = SAMPLE_DISCOUNTS.filter(({ benefit }) => benefit.kind === "BUY_N_PAY_M");
+
+    expect(buyNPayM.length).toBeGreaterThan(0);
+    for (const { target } of buyNPayM) {
+      expect(target.kind).toBe("PRODUCT");
+      expect(saleUnitByName.get(target.name)).toBe("UNIT");
     }
   });
 

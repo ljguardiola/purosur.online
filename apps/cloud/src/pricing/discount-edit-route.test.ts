@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
+  insertProductWithTags,
   insertTag,
   sessionCookie,
   signedInWithPermissions,
@@ -229,6 +230,54 @@ describe("PUT /discounts/:id", () => {
     expect(await storedDiscount(discount.id)).toMatchObject({ categoryId: category, version: 1 });
   });
 
+  it("answers 409 discount_target_not_sold_by_unit for a switch to buy-N-pay-M on a product sold by weight, changing nothing", async () => {
+    const product = await insertProductWithTags(db, {
+      name: "Queso cremoso",
+      tagIds: [],
+      saleUnit: "KG",
+    });
+    const discount = await insertDiscount(db, { productId: product.id });
+    const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
+
+    const response = await editDiscount(
+      rawSessionId,
+      discount.id,
+      editBodyAimedAt(
+        { kind: "PRODUCT", id: product.id },
+        { benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 } },
+      ),
+    );
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "discount_target_not_sold_by_unit" });
+    expect(await storedDiscount(discount.id)).toMatchObject({
+      kind: "PERCENT_OFF",
+      percent: 15,
+      version: 1,
+    });
+  });
+
+  it("switches a discount to buy-N-pay-M on a product sold by the unit", async () => {
+    const product = await insertProductWithTags(db, { name: "Alfajor", tagIds: [] });
+    const discount = await insertDiscount(db, { productId: product.id });
+    const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
+
+    const response = await editDiscount(
+      rawSessionId,
+      discount.id,
+      editBodyAimedAt(
+        { kind: "PRODUCT", id: product.id },
+        { benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 } },
+      ),
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+      version: 2,
+    });
+  });
+
   it("logs an edit as an update of the next version, for every branch", async () => {
     const category = await insertCategory(db, "Infusiones");
     const discount = await insertDiscount(db, { categoryId: category });
@@ -263,6 +312,32 @@ describe("PUT /discounts/:id", () => {
     expect(await changesLoggedAfter(db, mark)).toEqual([
       { entity: "discount", entityId: discount.id, version: 2, op: "update", locationId: null },
       { entity: "discount", entityId: discount.id, version: 3, op: "update", locationId: null },
+    ]);
+  });
+
+  it("logs a change of a buy-N-pay-M discount's quantities as an update of the next version", async () => {
+    const product = await insertProductWithTags(db, { name: "Alfajor", tagIds: [] });
+    const discount = await insertDiscount(db, {
+      productId: product.id,
+      kind: "BUY_N_PAY_M",
+      percent: null,
+      buyQty: 3,
+      payQty: 2,
+    });
+    const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
+    const mark = await lastLoggedChangeSeq(db);
+
+    await editDiscount(
+      rawSessionId,
+      discount.id,
+      editBodyAimedAt(
+        { kind: "PRODUCT", id: product.id },
+        { benefit: { kind: "BUY_N_PAY_M", buyQty: 4, payQty: 3 } },
+      ),
+    );
+
+    expect(await changesLoggedAfter(db, mark)).toEqual([
+      { entity: "discount", entityId: discount.id, version: 2, op: "update", locationId: null },
     ]);
   });
 

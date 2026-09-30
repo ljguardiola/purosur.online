@@ -2,6 +2,15 @@ export type { DiscountRecurrence } from "./model/discount-applies.js";
 export { discountAppliesOn } from "./model/discount-applies.js";
 export type { DiscountBenefit } from "./model/discount-benefit.js";
 export {
+  DISCOUNT_BUY_QTY_MIN,
+  DISCOUNT_PAY_QTY_MIN,
+  DISCOUNT_QTY_MAX,
+  isBuyNPayMSaleUnit,
+  isValidDiscountBuyNPayM,
+  isValidDiscountBuyQty,
+  isValidDiscountPayQty,
+} from "./model/discount-buy-n-pay-m.js";
+export {
   DISCOUNT_NAME_MAX_LENGTH,
   discountNameLength,
   isDiscountNameTooLong,
