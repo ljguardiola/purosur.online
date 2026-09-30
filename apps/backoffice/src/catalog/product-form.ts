@@ -256,6 +256,10 @@ export function categoryNameOf(categories: CategorySummary[], id: string): strin
 export const PRODUCT_BRAND_INACTIVE_ERROR =
   "La marca elegida se dio de baja. Elegí otra o dejala sin marca.";
 
+export function saleUnitHeldByDiscountError(discountName: string): string {
+  return `No se puede vender por peso mientras la promoción "${discountName}" no esté desactivada o terminada.`;
+}
+
 export function tagInactiveError(tags: TagSummary[], tagId: string): string {
   const tag = tags.find((candidate) => candidate.id === tagId);
   return tag

@@ -349,6 +349,29 @@ test.each([{ code: "tag_inactive" }, { code: "tag_inactive", tagId: 2 }])(
   },
 );
 
+test("editProduct returns sale_unit_held_by_discount with the discount's name on a 409 carrying that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(409, { code: "sale_unit_held_by_discount", discountName: "3x2 Yerba" }),
+  );
+
+  expect(await editProduct("product-1", editInput)).toEqual({
+    kind: "sale_unit_held_by_discount",
+    discountName: "3x2 Yerba",
+  });
+});
+
+test.each([
+  { code: "sale_unit_held_by_discount" },
+  { code: "sale_unit_held_by_discount", discountName: 2 },
+])(
+  "editProduct fails on a sale_unit_held_by_discount 409 that does not name the discount: %o",
+  async (body) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, body));
+
+    expect(await editProduct("product-1", editInput)).toEqual({ kind: "failed" });
+  },
+);
+
 test("editProduct returns category_not_leaf on a 409 carrying that code", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "category_not_leaf" }));
 

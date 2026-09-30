@@ -45,6 +45,7 @@ export type EditDiscountOutcome =
   | { kind: "ok"; discount: DiscountSummary }
   | { kind: "validation_failed"; field: string }
   | TargetRefusal
+  | { kind: "product_sold_by_weight"; productName: string }
   | { kind: "stale_version" }
   | { kind: "not_found" }
   | RequestRefusal;
@@ -57,9 +58,16 @@ function sendJson(method: "POST" | "PUT", path: string, body: unknown): Promise<
   });
 }
 
+async function readBody(
+  response: Response,
+): Promise<{ code?: string; productName?: unknown } | undefined> {
+  return (await response.json().catch(() => undefined)) as
+    | { code?: string; productName?: unknown }
+    | undefined;
+}
+
 async function readCode(response: Response): Promise<string | undefined> {
-  const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
-  return body?.code;
+  return (await readBody(response))?.code;
 }
 
 function refusal(response: Response): RequestRefusal {
@@ -146,11 +154,16 @@ export async function editDiscount(
     return { kind: "not_found" };
   }
   if (response.status === 409) {
-    const code = await readCode(response);
-    if (code === "stale_version") {
+    const body = await readBody(response);
+    if (body?.code === "stale_version") {
       return { kind: "stale_version" };
     }
-    return targetRefusal(code);
+    if (body?.code === "discount_product_sold_by_weight") {
+      return typeof body.productName === "string"
+        ? { kind: "product_sold_by_weight", productName: body.productName }
+        : { kind: "failed" };
+    }
+    return targetRefusal(body?.code);
   }
   return refusal(response);
 }
