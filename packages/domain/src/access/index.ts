@@ -62,3 +62,4 @@ export {
   ROLE_NAME_MAX_LENGTH,
   roleNameLength,
 } from "./model/role-name.js";
+export { signInLookupAttemptWindowStart } from "./model/sign-in-lookup-attempt-limit.js";

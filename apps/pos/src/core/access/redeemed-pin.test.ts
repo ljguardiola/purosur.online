@@ -66,6 +66,22 @@ describe("applyRedeemedPin", () => {
     expect(replica.pinVerifier(USER_ID)).toBe(derivePinVerifier(PEPPER, NEW_HASH));
   });
 
+  it("remembers the user on this register", async () => {
+    await pull(USER_ID, userRow());
+
+    applyRedeemedPin(database, PEPPER, redemption);
+
+    expect(new SqliteSignInStore(database).signableUsers()).toEqual([
+      { id: USER_ID, first_name: "Ada" },
+    ]);
+  });
+
+  it("remembers nobody for a user the register has not pulled yet", () => {
+    applyRedeemedPin(database, PEPPER, redemption);
+
+    expect(database.prepare("SELECT user_id FROM remembered_users").all()).toEqual([]);
+  });
+
   it("gives a user who had no PIN its first verifier", async () => {
     await pull(USER_ID, userRow({ salt: null, pin_hash: null }));
 

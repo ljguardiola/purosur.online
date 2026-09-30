@@ -5,6 +5,7 @@ import type {
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   RendererToCoreMessage,
+  SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
 } from "@purosur/contracts";
@@ -27,6 +28,8 @@ export interface CoreClient {
   signInUsers(): Promise<SignInUser[]>;
   authorizers(permission: AuthorizablePermissionKey): Promise<SignInUser[]>;
   signIn(userId: string, pin: string): Promise<SignInOutcome>;
+  signInLookup(email: string): Promise<SignInLookupOutcome>;
+  firstSignIn(userId: string, pin: string): Promise<SignInOutcome>;
   openCashSession(userId: string, openingFloat: number): Promise<OpenCashSessionOutcome>;
   cashSession(): Promise<OpenCashSession | null | "unavailable">;
   onPulled(listener: () => void): () => void;
@@ -160,6 +163,17 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
     signIn(userId, pin) {
       return ask(
         { type: "sign-in", request_id: deps.newRequestId(), user_id: userId, pin },
+        (answer) => (answer.type === "sign-in-result" ? answer.outcome : undefined),
+      );
+    },
+    signInLookup(email) {
+      return ask({ type: "sign-in-lookup", request_id: deps.newRequestId(), email }, (answer) =>
+        answer.type === "sign-in-lookup-result" ? answer.outcome : undefined,
+      );
+    },
+    firstSignIn(userId, pin) {
+      return ask(
+        { type: "first-sign-in", request_id: deps.newRequestId(), user_id: userId, pin },
         (answer) => (answer.type === "sign-in-result" ? answer.outcome : undefined),
       );
     },
