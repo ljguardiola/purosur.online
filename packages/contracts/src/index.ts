@@ -80,6 +80,12 @@ export type { IssuerIdentificationBody } from "./fiscal/issuer-identification.js
 export { issuerIdentificationSchema } from "./fiscal/issuer-identification.js";
 export type { IssuerIdentificationEditBody } from "./fiscal/issuer-identification-edit.js";
 export { issuerIdentificationEditBodySchema } from "./fiscal/issuer-identification-edit.js";
+export type { DiscountCreationBody } from "./pricing/discount-creation.js";
+export { discountCreationBodySchema } from "./pricing/discount-creation.js";
+export type { DiscountEditBody } from "./pricing/discount-edit.js";
+export { discountEditBodySchema } from "./pricing/discount-edit.js";
+export type { DiscountList, DiscountSummary } from "./pricing/discount-summary.js";
+export { discountListSchema, discountSummarySchema } from "./pricing/discount-summary.js";
 export type { PriceConfirmationBody } from "./pricing/price-confirmation.js";
 export { priceConfirmationBodySchema } from "./pricing/price-confirmation.js";
 export type {
