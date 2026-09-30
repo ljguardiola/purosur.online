@@ -153,7 +153,7 @@ describe("SignInScreen", () => {
 
     await expect.element(screen.getByRole("button", { name: "Entrar" })).toBeDisabled();
     await userEvent.keyboard("{Enter}");
-    request.finish({ kind: "wrong_pin" });
+    request.finish({ kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 7 });
     await expect.element(screen.getByText("PIN incorrecto")).toBeVisible();
     expect(request.attempts).toHaveLength(1);
   });
@@ -176,12 +176,20 @@ describe("SignInScreen", () => {
   });
 
   it("says the PIN is wrong, clears it and asks for it again", async () => {
-    const screen = await renderScreen(answering({ kind: "wrong_pin" }).signIn);
+    const screen = await renderScreen(
+      answering({ kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 7 }).signIn,
+    );
 
     await enter(screen, "Ada", "1234");
 
     await expect.element(screen.getByText("PIN incorrecto")).toBeVisible();
-    await expect.element(screen.getByText("Revisá el PIN y volvé a escribirlo.")).toBeVisible();
+    await expect
+      .element(
+        screen.getByText(
+          "Revisá el PIN y volvé a escribirlo. Quedan 7 intentos antes de que el usuario se bloquee.",
+        ),
+      )
+      .toBeVisible();
     await expect.element(screen.getByLabelText("PIN")).toHaveValue("");
     await expect.element(screen.getByLabelText("PIN")).toHaveFocus();
     await expect.element(screen.getByLabelText("PIN")).toHaveAttribute("aria-invalid", "true");
@@ -234,7 +242,9 @@ describe("SignInScreen", () => {
   });
 
   it("drops the message once another digit is typed", async () => {
-    const screen = await renderScreen(answering({ kind: "wrong_pin" }).signIn);
+    const screen = await renderScreen(
+      answering({ kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 7 }).signIn,
+    );
     await enter(screen, "Ada", "1234");
     await expect.element(screen.getByText("PIN incorrecto")).toBeVisible();
 
