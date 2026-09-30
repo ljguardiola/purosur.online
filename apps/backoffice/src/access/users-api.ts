@@ -74,12 +74,16 @@ export type CreateUserOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-function postJson(path: string, body?: unknown): Promise<Response> {
+function sendJson(method: "POST" | "PUT", path: string, body?: unknown): Promise<Response> {
   return fetch(path, {
-    method: "POST",
+    method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body ?? {}),
   });
+}
+
+function postJson(path: string, body?: unknown): Promise<Response> {
+  return sendJson("POST", path, body);
 }
 
 function userFromWire(row: BranchUserWire) {
@@ -217,7 +221,7 @@ export async function fetchUser(id: string): Promise<FetchUserOutcome> {
 export async function editUser(id: string, input: UserEditBody): Promise<EditUserOutcome> {
   let response: Response;
   try {
-    response = await postJson(`/api/users/${id}/edit`, input);
+    response = await sendJson("PUT", `/api/users/${id}`, input);
   } catch {
     return { kind: "failed" };
   }
@@ -288,7 +292,7 @@ export async function removeUserPasskey(
 ): Promise<RemoveUserPasskeyOutcome> {
   let response: Response;
   try {
-    response = await postJson(`/api/users/${id}/passkeys/${passkeyId}/remove`);
+    response = await fetch(`/api/users/${id}/passkeys/${passkeyId}`, { method: "DELETE" });
   } catch {
     return { kind: "failed" };
   }
@@ -308,7 +312,7 @@ export async function removeUserPasskey(
 export async function deactivateUser(id: string): Promise<DeactivateUserOutcome> {
   let response: Response;
   try {
-    response = await postJson(`/api/users/${id}/deactivation`);
+    response = await fetch(`/api/users/${id}/deactivation`, { method: "PUT" });
   } catch {
     return { kind: "failed" };
   }
@@ -325,7 +329,7 @@ export async function deactivateUser(id: string): Promise<DeactivateUserOutcome>
 export async function reactivateUser(id: string): Promise<ReactivateUserOutcome> {
   let response: Response;
   try {
-    response = await postJson(`/api/users/${id}/reactivation`);
+    response = await fetch(`/api/users/${id}/deactivation`, { method: "DELETE" });
   } catch {
     return { kind: "failed" };
   }
