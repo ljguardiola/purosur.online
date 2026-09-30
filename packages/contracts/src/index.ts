@@ -137,6 +137,8 @@ export {
   retryAfterSecondsOf,
 } from "./register/cloud-error.js";
 export type {
+  CashBalance,
+  CloseCashSessionOutcome,
   CoreStatusMessage,
   CoreToRendererMessage,
   EnrollmentOutcome,
@@ -153,6 +155,7 @@ export {
   ARGENTINA_TIME_ZONE,
   coreStatusMessageSchema,
   coreToRendererMessageSchema,
+  countedCashSchema,
   mainToCoreMessageSchema,
   openingFloatSchema,
   parseAmountCents,

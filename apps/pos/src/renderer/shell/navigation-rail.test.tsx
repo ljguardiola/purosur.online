@@ -1,5 +1,5 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { Clock, History, ShoppingBasket } from "lucide-react";
+import { Clock, History, ShoppingBasket, Wallet } from "lucide-react";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { ActionEntry } from "./action-entries";
@@ -155,5 +155,71 @@ describe("NavigationRail", () => {
     expect(items).toEqual(["Venta"]);
     await expect.element(screen.getByText("Ada")).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("lists its links after the entries and marks the current one", async () => {
+    const screen = await render(
+      <NavigationRail
+        firstName="Ada"
+        entries={[]}
+        home={{ label: "Venta", icon: ShoppingBasket }}
+        links={[{ label: "Caja", icon: Wallet, to: "/cash", current: true }]}
+      />,
+    );
+
+    const rail = screen.getByRole("navigation", { name: "Menú de la caja" }).element();
+
+    const items = Array.from(rail.querySelectorAll("button, a")).map((item) => item.textContent);
+    expect(items).toEqual(["Venta", "Caja"]);
+    const caja = screen.getByRole("link", { name: "Caja" });
+    await expect.element(caja).toHaveAttribute("aria-current", "page");
+    expect(caja.element().getAttribute("href")).toBe("/cash");
+  });
+
+  it("leaves a link unmarked unless it is the current one", async () => {
+    const screen = await render(
+      <NavigationRail
+        firstName="Ada"
+        entries={[]}
+        home={{ label: "Venta", icon: ShoppingBasket }}
+        links={[{ label: "Caja", icon: Wallet, to: "/cash" }]}
+      />,
+    );
+
+    await expect
+      .element(screen.getByRole("link", { name: "Caja" }))
+      .not.toHaveAttribute("aria-current");
+  });
+
+  it("goes to a link's route when it is pressed", async () => {
+    const screen = await render(
+      <NavigationRail
+        firstName="Ada"
+        entries={[]}
+        home={{ label: "Venta", icon: ShoppingBasket }}
+        links={[{ label: "Caja", icon: Wallet, to: "/cash" }]}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("link", { name: "Caja" }));
+
+    expect(screen.router.state.location.pathname).toBe("/cash");
+  });
+
+  it("turns the home item into a link, no longer current, when it is given a route", async () => {
+    const screen = await render(
+      <NavigationRail
+        firstName="Ada"
+        entries={[]}
+        home={{ label: "Venta", icon: ShoppingBasket, to: "/session" }}
+        links={[{ label: "Caja", icon: Wallet, to: "/cash", current: true }]}
+      />,
+    );
+
+    const venta = screen.getByRole("link", { name: "Venta" });
+    expect(venta.element().getAttribute("href")).toBe("/session");
+    await expect.element(venta).not.toHaveAttribute("aria-current");
+    await userEvent.click(venta);
+    expect(screen.router.state.location.pathname).toBe("/session");
   });
 });

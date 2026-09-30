@@ -1,4 +1,7 @@
 import type {
+  Authorization,
+  CashBalance,
+  CloseCashSessionOutcome,
   EnrollmentOutcome,
   OpenCashSession,
   OpenCashSessionOutcome,
@@ -29,6 +32,16 @@ const GRACE_SESSION: OpenCashSession = {
   opened_at: "2026-09-30T12:02:00.000Z",
   opened_by: { user_id: "u2", first_name: "Grace", permission_keys: ["sell_and_charge"] },
 };
+const BALANCE: CashBalance = {
+  opening_float: 2_000_000,
+  cash_sales: 3_500_000,
+  change_given: 930_000,
+  refunds: 0,
+  cash_in: 100_000,
+  expenses: 50_000,
+  withdrawals: 0,
+  expected: 4_620_000,
+};
 const ADA_SELLS: SignInOutcome = {
   kind: "signed_in",
   person: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
@@ -46,6 +59,8 @@ function coreAnswering(
   cashDrawer: {
     cashSession?: CoreClient["cashSession"];
     openOutcome?: OpenCashSessionOutcome;
+    closeCashSession?: CoreClient["closeCashSession"];
+    cashBalance?: CoreClient["cashBalance"];
   } = {},
   sales: {
     currentSale?: () => Promise<OpenSale | null>;
@@ -55,6 +70,7 @@ function coreAnswering(
 ) {
   const cashSessionAsks: string[] = [];
   const opened: number[] = [];
+  const closed: [string, number, Authorization | undefined][] = [];
   const asked: string[] = [];
   let usersLoads = 0;
   let savedName: string | null = null;
@@ -108,6 +124,15 @@ function coreAnswering(
     async scanProduct(code) {
       return sales.scanProduct === undefined ? { kind: "unknown_code" } : sales.scanProduct(code);
     },
+    async closeCashSession(sessionId, countedCash, authorization) {
+      closed.push([sessionId, countedCash, authorization]);
+      return cashDrawer.closeCashSession === undefined
+        ? { kind: "unavailable" }
+        : cashDrawer.closeCashSession(sessionId, countedCash, authorization);
+    },
+    async cashBalance() {
+      return cashDrawer.cashBalance === undefined ? null : cashDrawer.cashBalance();
+    },
     onPulled(listener) {
       pulledListeners.add(listener);
       return () => {
@@ -121,7 +146,7 @@ function coreAnswering(
       listener();
     }
   }
-  return { core, asked, cashSessionAsks, opened, finishPull, usersLoads: () => usersLoads };
+  return { core, asked, cashSessionAsks, opened, closed, finishPull, usersLoads: () => usersLoads };
 }
 
 const enrolledCore = coreAnswering(true).core;
@@ -886,5 +911,103 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("button", { name: "Abrir la caja" }));
 
     await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+  });
+
+  describe("closing the cash session", () => {
+    async function resumeGracesSession(
+      cashDrawer: {
+        closeCashSession?: CoreClient["closeCashSession"];
+        cashSession?: CoreClient["cashSession"];
+      } = {},
+    ) {
+      await page.viewport(1280, 720);
+      onTestFinished(() => page.viewport(414, 896));
+      const fake = coreAnswering(true, { kind: "enrolled" }, ADA_SIGNED_IN, {
+        cashSession: async () => GRACE_SESSION,
+        cashBalance: async () => BALANCE,
+        ...cashDrawer,
+      });
+      const screen = await render(<App core={fake.core} />);
+      postCoreStatus("up");
+      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+      return { screen, ...fake };
+    }
+
+    async function startClosing(screen: Awaited<ReturnType<typeof render>>) {
+      await userEvent.click(screen.getByRole("link", { name: "Caja" }));
+      await expect.element(screen.getByText("$ 46.200,00", { exact: true })).toBeVisible();
+      await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
+      await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
+    }
+
+    it("opens the cash screen from the rail and keeps the person there", async () => {
+      const { screen } = await resumeGracesSession();
+
+      await userEvent.click(screen.getByRole("link", { name: "Caja" }));
+
+      await expect.element(screen.getByRole("heading", { name: "Caja" })).toBeVisible();
+      await expect.element(screen.getByText("EFECTIVO ESPERADO AHORA")).toBeVisible();
+      await expect.element(screen.getByText("$ 46.200,00", { exact: true })).toBeVisible();
+      await expect
+        .element(screen.getByRole("heading", { name: SESSION_TITLE }))
+        .not.toBeInTheDocument();
+    });
+
+    it("lands on the no-session screen, still signed in, once the session is closed", async () => {
+      const closeOutcome: CloseCashSessionOutcome = {
+        kind: "closed",
+        session: {
+          id: "s1",
+          expected_cash: 4_620_000,
+          counted_cash: 4_580_000,
+          difference: -40_000,
+        },
+      };
+      const { screen, closed } = await resumeGracesSession({
+        closeCashSession: async () => closeOutcome,
+      });
+      await startClosing(screen);
+
+      await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
+
+      await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
+      await expect.element(screen.getByRole("navigation").getByText("Grace")).toBeVisible();
+      await expect
+        .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+        .not.toBeInTheDocument();
+      await expect.element(screen.getByText("Sin sesión abierta")).toBeVisible();
+      expect(closed).toEqual([["s1", 4_580_000, undefined]]);
+    });
+
+    it("stays on the cash count and offers the sale when it is still open", async () => {
+      const { screen } = await resumeGracesSession({
+        closeCashSession: async () => ({ kind: "open_sale", total: 3_434_000 }),
+      });
+      await startClosing(screen);
+
+      await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
+      await expect.element(screen.getByText("Hay una venta abierta de $ 34.340,00")).toBeVisible();
+      await userEvent.click(screen.getByRole("button", { name: "Ir a la venta" }));
+
+      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    });
+
+    it("stays on the cash count when the core says another session is now open", async () => {
+      const other: OpenCashSession = { ...GRACE_SESSION, id: "s2" };
+      let asks = 0;
+      const { screen } = await resumeGracesSession({
+        closeCashSession: async () => ({ kind: "no_open_session" }),
+        cashSession: async () => {
+          asks += 1;
+          return asks === 1 ? GRACE_SESSION : other;
+        },
+      });
+      await startClosing(screen);
+
+      await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
+
+      await expect.poll(() => asks).toBe(2);
+      await expect.element(screen.getByRole("heading", { name: "Cerrar caja" })).toBeVisible();
+    });
   });
 });

@@ -1,11 +1,11 @@
 import type { CurrentSaleAnswer, OpenSale, ScanProductOutcome } from "@purosur/contracts";
 import { scannedCodeSchema } from "@purosur/contracts";
 import { EmptyState, LoadFailure, LoadingPlaceholder, SearchField } from "@purosur/ui";
-import { ScanBarcode, ShoppingBasket, TriangleAlert } from "lucide-react";
+import { ScanBarcode, TriangleAlert } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { SignedInPerson } from "../access/signed-in-person";
-import { NavigationRail } from "../shell/navigation-rail";
+import { OpenSessionRail } from "../shell/open-session-rail";
 import { SessionEyebrow } from "../shell/session-eyebrow";
 import { changedLineId } from "./changed-line";
 import { PaymentPanel } from "./payment-panel";
@@ -150,11 +150,7 @@ export function SaleScreen({
 
   return (
     <div className="flex h-screen w-screen bg-surface-subtle">
-      <NavigationRail
-        firstName={person.first_name}
-        entries={[]}
-        home={{ label: "Venta", icon: ShoppingBasket }}
-      />
+      <OpenSessionRail firstName={person.first_name} current="sale" />
       <main className="flex min-w-0 flex-1 flex-col gap-4 pt-6 pr-6 pb-6 pl-8">
         <div className="flex flex-col gap-1.5">
           <SessionEyebrow registerName={registerName} openedAt={openedAt} />

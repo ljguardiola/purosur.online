@@ -1,4 +1,7 @@
 import type {
+  Authorization,
+  CashBalance,
+  CloseCashSessionOutcome,
   CoreStatusMessage,
   CurrentSaleAnswer,
   EnrollmentOutcome,
@@ -23,6 +26,8 @@ import { FirstSignInScreen } from "../access/first-sign-in-screen";
 import { PinCodeRedemptionScreen } from "../access/pin-code-redemption-screen";
 import { SignInScreen } from "../access/sign-in-screen";
 import type { SignedInPerson } from "../access/signed-in-person";
+import { CashCountScreen } from "../register/cash-count-screen";
+import { CashScreen } from "../register/cash-screen";
 import { EnrollmentScreen } from "../register/enrollment-screen";
 import { SaleScreen } from "../sales/sale-screen";
 import { ACTION_ENTRIES } from "./action-entries";
@@ -50,6 +55,13 @@ export interface RouterContext {
     person: SignedInPerson,
     openingFloat: number,
   ) => Promise<OpenCashSessionOutcome>;
+  closeCashSession: (
+    person: SignedInPerson,
+    sessionId: string,
+    countedCash: number,
+    authorization?: Authorization,
+  ) => Promise<CloseCashSessionOutcome>;
+  cashBalance: () => Promise<CashBalance | null | "unavailable">;
   redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
   signInLookup: (email: string) => Promise<SignInLookupOutcome>;
   firstSignIn: (userId: string, pin: string) => Promise<SignInOutcome>;
@@ -88,6 +100,12 @@ export function routeFor({
     return "/session";
   }
   return person === undefined ? "/sign-in" : "/";
+}
+
+const SESSION_SCREENS: readonly string[] = ["/session", "/cash", "/cash-count"];
+
+export function isSessionScreen(path: string): boolean {
+  return SESSION_SCREENS.includes(path);
 }
 
 function requireRoute(expected: ScreenPath, context: RouterContext): void {
@@ -145,8 +163,8 @@ const openSessionRoute = createRoute({
   getParentRoute: () => sessionEyebrowRoute,
   path: "/session",
   beforeLoad: ({ context }) => {
-    const { openedAt, openedBy } = requireOpenSession(context);
-    return { openedAt, openedBy };
+    const { id, openedAt, openedBy } = requireOpenSession(context);
+    return { id, openedAt, openedBy };
   },
   component: function OpenSessionRoute() {
     const { openedAt, openedBy, currentSale, scanProduct, refreshCashSession } =
@@ -160,6 +178,55 @@ const openSessionRoute = createRoute({
         currentSale={currentSale}
         scanProduct={scanProduct}
         onSessionInvalid={() => void refreshCashSession()}
+      />
+    );
+  },
+});
+
+const cashRoute = createRoute({
+  getParentRoute: () => sessionEyebrowRoute,
+  path: "/cash",
+  beforeLoad: ({ context }) => {
+    const { openedAt, openedBy } = requireOpenSession(context);
+    return { openedAt, openedBy };
+  },
+  component: function CashRoute() {
+    const { openedAt, openedBy, person, cashBalance } = cashRoute.useRouteContext();
+    const registerName = sessionEyebrowRoute.useLoaderData();
+    return (
+      <CashScreen
+        person={person ?? openedBy}
+        registerName={registerName}
+        openedAt={openedAt}
+        loadCashBalance={cashBalance}
+      />
+    );
+  },
+});
+
+const cashCountRoute = createRoute({
+  getParentRoute: () => sessionEyebrowRoute,
+  path: "/cash-count",
+  beforeLoad: ({ context }) => {
+    const { id, openedAt, openedBy } = requireOpenSession(context);
+    return { id, openedAt, openedBy };
+  },
+  component: function CashCountRoute() {
+    const { id, openedAt, openedBy, person, cashBalance, authorizers, closeCashSession } =
+      cashCountRoute.useRouteContext();
+    const registerName = sessionEyebrowRoute.useLoaderData();
+    const signedIn = person ?? openedBy;
+    return (
+      <CashCountScreen
+        person={signedIn}
+        openedBy={openedBy}
+        registerName={registerName}
+        openedAt={openedAt}
+        loadCashBalance={cashBalance}
+        loadAuthorizers={authorizers}
+        closeCashSession={(countedCash, authorization) =>
+          closeCashSession(signedIn, id, countedCash, authorization)
+        }
       />
     );
   },
@@ -221,7 +288,13 @@ const coreDownRoute = createRoute({
 });
 
 export const routeTree = rootRoute.addChildren([
-  sessionEyebrowRoute.addChildren([signedInRoute, signInRoute, openSessionRoute]),
+  sessionEyebrowRoute.addChildren([
+    signedInRoute,
+    signInRoute,
+    openSessionRoute,
+    cashRoute,
+    cashCountRoute,
+  ]),
   pinCodeRedemptionRoute,
   firstSignInRoute,
   enrollRoute,
@@ -251,6 +324,8 @@ export function createAppRouter(
     | "signIn"
     | "signOut"
     | "openCashSession"
+    | "closeCashSession"
+    | "cashBalance"
     | "authorizers"
     | "redeemPinCode"
     | "signInLookup"

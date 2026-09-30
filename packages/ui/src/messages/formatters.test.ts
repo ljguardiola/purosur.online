@@ -29,6 +29,20 @@ describe("formatNumber", () => {
   });
 });
 
+describe("formatCents", () => {
+  it("writes an amount in cents as pesos with two decimals", () => {
+    expect(formatCents(5_070_000)).toBe("$ 50.700,00");
+    expect(formatCents(40_000)).toBe("$ 400,00");
+    expect(formatCents(0)).toBe("$ 0,00");
+  });
+
+  it("groups thousands with a dot and keeps the cents after a comma", () => {
+    expect(formatCents(750_050)).toBe("$ 7.500,50");
+    expect(formatCents(1)).toBe("$ 0,01");
+    expect(formatCents(2_147_483_647)).toBe("$ 21.474.836,47");
+  });
+});
+
 describe("formatDate", () => {
   it("formats a date the way it reads in Argentina", () => {
     expect(formatDate(new Date(2026, 0, 5))).toBe("5/1/2026");
@@ -54,19 +68,5 @@ describe("formatMonthAndYear", () => {
 
   it("writes a year of five digits without a thousands separator", () => {
     expect(formatMonthAndYear(10000, 1)).toBe("Enero 10000");
-  });
-});
-
-describe("formatCents", () => {
-  it.each([
-    [0, "$ 0,00"],
-    [1, "$ 0,01"],
-    [5, "$ 0,05"],
-    [750_050, "$ 7.500,50"],
-    [476_000, "$ 4.760,00"],
-    [123_456_789, "$ 1.234.567,89"],
-    [2_147_483_647, "$ 21.474.836,47"],
-  ])("writes %i cents as pesos: %s", (cents, text) => {
-    expect(formatCents(cents).replace(/\u00a0/g, " ")).toBe(text);
   });
 });

@@ -6,12 +6,16 @@ import {
   parseAmountCents,
 } from "@purosur/domain";
 import { z } from "zod";
+import { authorizationSchema, guardedActionRefusalSchema } from "../access/authorization.js";
 import { pinAttemptRefusalSchema } from "../access/pin-attempt-refusal.js";
 import { saleSchema, scannedCodeSchema, scanProductOutcomeSchema } from "../sales/sale.js";
 
 const requestId = z.string();
 
-export const openingFloatSchema = z.number().refine(isValidCashAmount);
+const cashAmountSchema = z.number().refine(isValidCashAmount);
+
+export const openingFloatSchema = cashAmountSchema;
+export const countedCashSchema = cashAmountSchema;
 
 export { ARGENTINA_TIME_ZONE, parseAmountCents };
 
@@ -78,6 +82,19 @@ const cashSessionRequestMessageSchema = z.object({
   request_id: requestId,
 });
 
+const closeCashSessionMessageSchema = z.object({
+  type: z.literal("close-cash-session"),
+  request_id: requestId,
+  session_id: z.string(),
+  counted_cash: countedCashSchema,
+  authorization: authorizationSchema.optional(),
+});
+
+const cashBalanceRequestMessageSchema = z.object({
+  type: z.literal("cash-balance-request"),
+  request_id: requestId,
+});
+
 const authorizersRequestMessageSchema = z.object({
   type: z.literal("authorizers"),
   request_id: requestId,
@@ -112,6 +129,8 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   firstSignInMessageSchema,
   openCashSessionMessageSchema,
   cashSessionRequestMessageSchema,
+  closeCashSessionMessageSchema,
+  cashBalanceRequestMessageSchema,
   authorizersRequestMessageSchema,
   scanProductMessageSchema,
   saleRequestMessageSchema,
@@ -169,6 +188,35 @@ const openCashSessionOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("unavailable") }),
 ]);
 export type OpenCashSessionOutcome = z.infer<typeof openCashSessionOutcomeSchema>;
+
+const closeCashSessionOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("closed"),
+    session: z.object({
+      id: z.string(),
+      expected_cash: z.number(),
+      counted_cash: z.number(),
+      difference: z.number(),
+    }),
+  }),
+  z.object({ kind: z.literal("invalid_counted_cash") }),
+  z.object({ kind: z.literal("no_open_session") }),
+  z.object({ kind: z.literal("open_sale"), total: z.number() }),
+  ...guardedActionRefusalSchema.options,
+]);
+export type CloseCashSessionOutcome = z.infer<typeof closeCashSessionOutcomeSchema>;
+
+const cashBalanceSchema = z.object({
+  opening_float: z.number(),
+  cash_sales: z.number(),
+  change_given: z.number(),
+  refunds: z.number(),
+  cash_in: z.number(),
+  expenses: z.number(),
+  withdrawals: z.number(),
+  expected: z.number(),
+});
+export type CashBalance = z.infer<typeof cashBalanceSchema>;
 
 const openCashSessionSchema = z.object({
   id: z.string(),
@@ -230,6 +278,17 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     request_id: requestId,
     outcome: openCashSessionOutcomeSchema,
   }),
+  z.object({
+    type: z.literal("close-cash-session-result"),
+    request_id: requestId,
+    outcome: closeCashSessionOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("cash-balance"),
+    request_id: requestId,
+    balance: cashBalanceSchema.nullable(),
+  }),
+  z.object({ type: z.literal("cash-balance-unavailable"), request_id: requestId }),
   z.object({
     type: z.literal("cash-session"),
     request_id: requestId,

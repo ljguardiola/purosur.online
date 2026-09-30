@@ -1,15 +1,28 @@
-import type { OpenCashSession, OpenCashSessionOutcome } from "@purosur/contracts";
-import { type Clock, type IdGenerator, openCashSession } from "@purosur/domain/register/use-cases";
+import type {
+  Authorization,
+  CashBalance,
+  CloseCashSessionOutcome,
+  OpenCashSession,
+  OpenCashSessionOutcome,
+} from "@purosur/contracts";
+import { cashBreakdown } from "@purosur/domain";
+import {
+  type Clock,
+  closeCashSession,
+  type IdGenerator,
+  openCashSession,
+} from "@purosur/domain/register/use-cases";
 import type { ActionGate } from "../access/action-gate";
 import { heldPermissionKeys } from "../access/held-permission-keys";
 import type { SignedInPerson } from "../access/signed-in-person";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import type { LocalDatabase } from "../platform/local-database";
-import { readOpenSession, SqliteCashLedger } from "./sqlite-cash-ledger";
+import { readOpenSession, readSessionMovements, SqliteCashLedger } from "./sqlite-cash-ledger";
 
 export interface CashSessionRequestDeps {
   database: LocalDatabase;
   gate: ActionGate;
+  signedInPerson: Pick<SignedInPerson, "userId">;
   readOutboxChainKey: () => Promise<string | undefined>;
   now: Clock["now"];
   ids: IdGenerator;
@@ -47,6 +60,78 @@ export async function openCashSessionFor(
         },
       }
     : { kind: outcome.kind };
+}
+
+export interface CloseCashSessionRequest {
+  sessionId: string;
+  countedCash: number;
+  authorization: Authorization | undefined;
+}
+
+export async function closeCashSessionFor(
+  { database, gate, signedInPerson, readOutboxChainKey, now, ids }: CashSessionRequestDeps,
+  { sessionId, countedCash, authorization }: CloseCashSessionRequest,
+): Promise<CloseCashSessionOutcome> {
+  const outboxChainKey = await readOutboxChainKey();
+  if (outboxChainKey === undefined) {
+    return { kind: "unavailable" };
+  }
+  const open = readOpenSession(database);
+  if (open === undefined) {
+    return { kind: "no_open_session" };
+  }
+  const action =
+    open.openedBy === signedInPerson.userId()
+      ? ({ closesOwnCashSession: true } as const)
+      : ({ permission: "close_anothers_register_session", authorization } as const);
+  const guarded = await gate.run(action, async (actor) =>
+    closeCashSession(
+      {
+        ledger: new SqliteCashLedger(database, new SqliteSignInStore(database), outboxChainKey),
+        clock: { now },
+        ids,
+      },
+      {
+        sessionId,
+        closerId: actor.signedInUserId,
+        authorizedBy: actor.authorizedBy?.user_id ?? null,
+        countedCash,
+      },
+    ),
+  );
+  if (guarded.kind !== "performed") {
+    return guarded;
+  }
+  const outcome = guarded.result;
+  return outcome.kind === "closed"
+    ? {
+        kind: "closed",
+        session: {
+          id: outcome.session.id,
+          expected_cash: outcome.session.expectedCash,
+          counted_cash: outcome.session.countedCash,
+          difference: outcome.session.difference,
+        },
+      }
+    : outcome;
+}
+
+export function cashBalanceFor(database: LocalDatabase): CashBalance | null {
+  const session = readOpenSession(database);
+  if (session === undefined) {
+    return null;
+  }
+  const balance = cashBreakdown(readSessionMovements(database, session.id));
+  return {
+    opening_float: balance.openingFloat,
+    cash_sales: balance.cashSales,
+    change_given: balance.changeGiven,
+    refunds: balance.refunds,
+    cash_in: balance.cashIn,
+    expenses: balance.expenses,
+    withdrawals: balance.withdrawals,
+    expected: balance.expected,
+  };
 }
 
 export function cashSessionOpener(database: LocalDatabase): string | undefined {
