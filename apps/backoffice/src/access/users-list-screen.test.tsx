@@ -191,7 +191,7 @@ test("shows no passkey helper line: a single passkey is a normal state and nothi
 });
 
 test("the row action navigates to that user's detail screen", async () => {
-  window.history.pushState(null, "", "/settings/users");
+  window.history.pushState(null, "", "/users");
   const services = createServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, martina] });
   const screen = await renderScreen(services);
@@ -199,7 +199,7 @@ test("the row action navigates to that user's detail screen", async () => {
 
   await userEvent.click(screen.getByRole("button", { name: "Editar a Martina Gómez" }));
 
-  expect(window.location.pathname).toBe("/settings/users/user-2");
+  expect(window.location.pathname).toBe("/users/user-2");
 });
 
 test("shows a load error with a retry action when the users fail to load", async () => {
@@ -257,7 +257,7 @@ test("shows the rate-limited notice with a retry action when the roles request i
 });
 
 test("navigates to Mi cuenta when the roles request comes back forbidden", async () => {
-  window.history.pushState(null, "", "/settings/users");
+  window.history.pushState(null, "", "/users");
   const services = createServices({
     fetchRoles: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });
@@ -265,7 +265,7 @@ test("navigates to Mi cuenta when the roles request comes back forbidden", async
 
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
 });
 
 test("ends the session when the users request finds no open session", async () => {
@@ -829,7 +829,7 @@ test("ends the session when authorizing finds the session already ended", async 
 });
 
 test("navigates to Mi cuenta, without the authorization modal, when creating the user comes back forbidden", async () => {
-  window.history.pushState(null, "", "/settings/users");
+  window.history.pushState(null, "", "/users");
   const services = createServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
   const screen = await renderScreen(services);
@@ -841,12 +841,12 @@ test("navigates to Mi cuenta, without the authorization modal, when creating the
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
   expect(services.fetchSessionAuthorizationOptions).not.toHaveBeenCalled();
 });
 
 test("navigates to Mi cuenta when creating the user retried after the authorization comes back forbidden", async () => {
-  window.history.pushState(null, "", "/settings/users");
+  window.history.pushState(null, "", "/users");
   const services = createServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
   const screen = await renderScreen(services);
@@ -865,7 +865,7 @@ test("navigates to Mi cuenta when creating the user retried after the authorizat
       .getByRole("button", { name: "Usar mi passkey" }),
   );
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
 });
 
 test("has no accessibility violations once loaded, and with the create modal open", async () => {
@@ -880,7 +880,7 @@ test("has no accessibility violations once loaded, and with the create modal ope
 });
 
 test("hides Nuevo usuario for a non-Administrator holding only deactivate_users", async () => {
-  window.history.pushState(null, "", "/settings/users");
+  window.history.pushState(null, "", "/users");
   const services = createServices({
     fetchRoles: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });
@@ -894,11 +894,11 @@ test("hides Nuevo usuario for a non-Administrator holding only deactivate_users"
   await expect.element(screen.getByText("Tomás Ruiz")).toBeVisible();
   expect(screen.getByRole("button", { name: "Nuevo usuario" }).query()).toBeNull();
   expect(services.fetchRoles).not.toHaveBeenCalled();
-  expect(window.location.pathname).toBe("/settings/users");
+  expect(window.location.pathname).toBe("/users");
 });
 
 test("offers a view action, not an edit one, to reach a user's detail for a non-Administrator holding only deactivate_users", async () => {
-  window.history.pushState(null, "", "/settings/users");
+  window.history.pushState(null, "", "/users");
   const services = createServices({
     fetchRoles: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });
@@ -911,7 +911,7 @@ test("offers a view action, not an edit one, to reach a user's detail for a non-
 
   await userEvent.click(screen.getByRole("button", { name: "Ver a Tomás Ruiz" }));
   expect(screen.getByRole("button", { name: "Editar a Tomás Ruiz" }).query()).toBeNull();
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/user-3");
+  await expect.poll(() => window.location.pathname).toBe("/users/user-3");
 });
 
 test("shows an Inactivo tag on a deactivated user's row and none on an active one, for an Administrator", async () => {
@@ -962,7 +962,7 @@ test("hides the Estado filter and column for a non-Administrator without reactiv
 });
 
 test("lets a reactivate-only holder open the list and reach an inactive user's detail, never reading the roles", async () => {
-  window.history.pushState(null, "", "/settings/users");
+  window.history.pushState(null, "", "/users");
   const services = createServices({
     fetchRoles: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });
@@ -976,7 +976,7 @@ test("lets a reactivate-only holder open the list and reach an inactive user's d
 
   await userEvent.click(screen.getByRole("button", { name: "Ver a Sofía Díaz" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/user-4");
+  await expect.poll(() => window.location.pathname).toBe("/users/user-4");
 });
 
 test("on a duplicate deactivated email, shows the reactivation notice and a Reactivar button, disabling Crear el usuario", async () => {
@@ -1034,7 +1034,7 @@ test("editing Correo after a duplicate-deactivated conflict clears the notice an
 });
 
 test("Reactivar a X in the create modal closes it and navigates to that user's detail", async () => {
-  window.history.pushState(null, "", "/settings/users");
+  window.history.pushState(null, "", "/users");
   const services = createServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
   const screen = await renderScreen(services);
@@ -1052,7 +1052,7 @@ test("Reactivar a X in the create modal closes it and navigates to that user's d
   await userEvent.click(dialog.getByRole("button", { name: "Reactivar a Sofía Díaz" }));
 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/user-4");
+  await expect.poll(() => window.location.pathname).toBe("/users/user-4");
 });
 
 test("opens on the state it is given", async () => {

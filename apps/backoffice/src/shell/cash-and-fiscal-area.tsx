@@ -1,20 +1,12 @@
-import { createRoute, Outlet, redirect } from "@tanstack/react-router";
+import { createRoute, Outlet } from "@tanstack/react-router";
 import { SlidersHorizontal } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
 import { signedInRoute } from "./signed-in-route";
 
 export const cashAndFiscalAreaRoute = createRoute({
   getParentRoute: () => signedInRoute,
-  path: "cash-and-fiscal",
+  id: "cash-and-fiscal-area",
   component: CashAndFiscalArea,
-});
-
-export const cashAndFiscalAreaIndexRoute = createRoute({
-  getParentRoute: () => cashAndFiscalAreaRoute,
-  path: "/",
-  beforeLoad: () => {
-    throw redirect({ to: "/help" });
-  },
 });
 
 function CashAndFiscalArea() {
@@ -32,7 +24,7 @@ function CashAndFiscalArea() {
           <ul className="flex flex-col gap-1">
             <li>
               <SectionLink
-                to="/cash-and-fiscal/fiscal-configuration"
+                to="/fiscal-settings"
                 label="Configuración fiscal"
                 icon={<SlidersHorizontal />}
                 active

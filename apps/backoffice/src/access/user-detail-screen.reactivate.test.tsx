@@ -55,7 +55,7 @@ test("shows no Inactivo tag and no Reactivar row for an active user", async () =
 });
 
 test("lets a reactivate-only holder reach an inactive user's Reactivar row, hiding Editar and Passkeys, never reading roles or passkeys", async () => {
-  window.history.pushState(null, "", "/settings/users/user-5");
+  window.history.pushState(null, "", "/users/user-5");
   const services = createServices({
     fetchUserPasskeys: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });

@@ -3,7 +3,7 @@ import type { ReactElement } from "react";
 import { useDocumentTitle } from "../shell/document-title";
 import { FiscalConfigurationScreen } from "./fiscal-configuration-screen";
 
-const route = getRouteApi("/signed-in/cash-and-fiscal/fiscal-configuration");
+const route = getRouteApi("/signed-in/cash-and-fiscal-area/fiscal-settings");
 
 export function FiscalConfigurationPage(): ReactElement {
   const { services, sessionActions } = route.useRouteContext();

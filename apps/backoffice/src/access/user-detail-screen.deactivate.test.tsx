@@ -33,7 +33,7 @@ test("shows the Desactivar row for an Administrator viewer against a non-Adminis
 });
 
 test("lets a non-Administrator holding deactivate_users deactivate the user, back to Usuarios on success", async () => {
-  window.history.pushState(null, "", "/settings/users/user-1");
+  window.history.pushState(null, "", "/users/user-1");
   const services = createServices({
     fetchUserPasskeys: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });
@@ -52,7 +52,7 @@ test("lets a non-Administrator holding deactivate_users deactivate the user, bac
 
   await expect.poll(() => vi.mocked(services.deactivateUser).mock.calls.length).toBe(1);
   expect(services.deactivateUser).toHaveBeenCalledWith("user-1");
-  await expect.poll(() => window.location.pathname).toBe("/settings/users");
+  await expect.poll(() => window.location.pathname).toBe("/users");
   expect(services.fetchUserPasskeys).not.toHaveBeenCalled();
 });
 
@@ -171,7 +171,7 @@ test("while the user loads, shows no Desactivar to someone who may only reset PI
 });
 
 test("a deactivation refreshes every access read", async () => {
-  window.history.pushState(null, "", "/settings/users/user-1");
+  window.history.pushState(null, "", "/users/user-1");
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
   vi.mocked(services.deactivateUser).mockResolvedValue({ kind: "ok" });

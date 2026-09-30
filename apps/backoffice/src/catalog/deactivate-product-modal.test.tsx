@@ -60,14 +60,14 @@ test("shows the rate-limited notice when deactivating is refused for too many re
 });
 
 test("navigates to Mi cuenta when deactivating comes back forbidden", async () => {
-  window.history.pushState(null, "", "/catalog/products");
+  window.history.pushState(null, "", "/products");
   const services = createServices();
   vi.mocked(services.deactivateProduct).mockResolvedValue({ kind: "forbidden" });
   const dialog = await renderModal(services);
 
   await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
 });
 
 test("ends the session when deactivating finds no open session", async () => {

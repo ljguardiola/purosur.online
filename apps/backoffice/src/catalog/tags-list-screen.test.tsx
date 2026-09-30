@@ -202,13 +202,13 @@ test("shows the rate-limited notice with the time to wait", async () => {
 });
 
 test("navigates to Mi cuenta when the tags request comes back forbidden", async () => {
-  window.history.pushState(null, "", "/catalog/tags");
+  window.history.pushState(null, "", "/tags");
   const services = createServices();
   vi.mocked(services.fetchTags).mockResolvedValue({ kind: "forbidden" });
 
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
   window.history.pushState(null, "", "/");
 });
 

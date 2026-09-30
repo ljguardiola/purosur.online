@@ -609,7 +609,7 @@ test("navigates to Mi cuenta when the alert read comes back forbidden", async ()
 
   await renderModal(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
   window.history.pushState(null, "", "/");
 });
 
@@ -622,7 +622,7 @@ test("navigates to Mi cuenta when closing the alert comes back forbidden", async
 
   await userEvent.click(screen.getByRole("button", { name: "Cerrar la alerta" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
   window.history.pushState(null, "", "/");
 });
 

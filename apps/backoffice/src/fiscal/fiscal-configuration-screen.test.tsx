@@ -300,13 +300,13 @@ test("Editar is disabled while the issuer identification loads and after it fail
 });
 
 test("sends to Mi cuenta when the load comes back forbidden", async () => {
-  window.history.pushState(null, "", "/cash-and-fiscal/fiscal-configuration");
+  window.history.pushState(null, "", "/fiscal-settings");
   const services = createServices();
   vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "forbidden" });
 
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
   window.history.pushState(null, "", "/");
 });
 
@@ -912,7 +912,7 @@ test("after an unsaved edit and a refresh, the save sends the version the form w
 });
 
 test("sends to Mi cuenta when saving comes back forbidden", async () => {
-  window.history.pushState(null, "", "/cash-and-fiscal/fiscal-configuration");
+  window.history.pushState(null, "", "/fiscal-settings");
   const services = createServices();
   vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
   vi.mocked(services.saveIssuerIdentification).mockResolvedValue({ kind: "forbidden" });
@@ -922,7 +922,7 @@ test("sends to Mi cuenta when saving comes back forbidden", async () => {
 
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
   window.history.pushState(null, "", "/");
 });
 

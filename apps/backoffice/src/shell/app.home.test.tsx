@@ -25,9 +25,7 @@ test("shows the Inicio item in the rail for a user holding view_branch_alerts, l
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect
-    .element(screen.getByRole("link", { name: "Inicio" }))
-    .toHaveAttribute("href", "/home");
+  await expect.element(screen.getByRole("link", { name: "Inicio" })).toHaveAttribute("href", "/");
 });
 
 test("lands a user without either alert-view permission on Inicio, telling them they have no alerts to view and offering no Alertas", async () => {
@@ -42,7 +40,7 @@ test("lands a user without either alert-view permission on Inicio, telling them 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByText("No tenés alertas para ver")).toBeVisible();
-  expect(window.location.pathname).toBe("/home");
+  expect(window.location.pathname).toBe("/");
   await expect.element(screen.getByRole("link", { name: "Resumen" })).toBeVisible();
   expect(screen.getByRole("link", { name: "Alertas" }).query()).toBeNull();
   expect(services.alertsOverviewScreen.fetchAlertsOverview).not.toHaveBeenCalled();
@@ -61,12 +59,12 @@ test("following the rail's Inicio item opens Inicio, and its Alertas section lin
   await userEvent.click(screen.getByRole("link", { name: "Inicio" }));
 
   await expect.element(screen.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/home");
+  expect(window.location.pathname).toBe("/");
 
   await userEvent.click(screen.getByRole("link", { name: "Alertas" }));
 
   await expect.element(screen.getByRole("heading", { name: "Alertas", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/home/alerts");
+  expect(window.location.pathname).toBe("/alerts");
   const homeItem = screen.getByRole("link", { name: "Inicio" }).element() as HTMLAnchorElement;
   expect(homeItem.getAttribute("aria-current")).toBe("page");
   const alertsItem = screen.getByRole("link", { name: "Alertas" }).element() as HTMLAnchorElement;
@@ -77,7 +75,7 @@ test("following the rail's Inicio item opens Inicio, and its Alertas section lin
 });
 
 test("opens the alerts list filtered by a level from that level's card on Inicio", async () => {
-  window.history.pushState(null, "", "/home");
+  window.history.pushState(null, "", "/");
   const services = createAppServices();
   vi.mocked(services.alertsOverviewScreen.fetchAlertsOverview).mockResolvedValue({
     kind: "ok",
@@ -92,7 +90,7 @@ test("opens the alerts list filtered by a level from that level's card on Inicio
   await userEvent.click(screen.getByRole("link", { name: /^Advertencias 2/ }));
 
   await expect.element(screen.getByRole("heading", { name: "Alertas", level: 1 })).toBeVisible();
-  expect(`${window.location.pathname}${window.location.search}`).toBe("/home/alerts?level=warning");
+  expect(`${window.location.pathname}${window.location.search}`).toBe("/alerts?level=warning");
   await expect
     .poll(() => services.alertsListScreen.fetchAlerts)
     .toHaveBeenCalledWith({ level: "warning", open: true, page: 1 });

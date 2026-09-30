@@ -171,7 +171,7 @@ test("a row confirmation that finds no open session ends the session", async () 
 });
 
 test("a row confirmation answered forbidden navigates to Mi cuenta", async () => {
-  window.history.pushState(null, "", "/catalog/prices");
+  window.history.pushState(null, "", "/prices");
   const services = createServices();
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",
@@ -190,7 +190,7 @@ test("a row confirmation answered forbidden navigates to Mi cuenta", async () =>
     screen.getByRole("button", { name: "Confirmar el precio de Arroz sin cambios" }),
   );
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
   window.history.pushState(null, "", "/");
 });
 
