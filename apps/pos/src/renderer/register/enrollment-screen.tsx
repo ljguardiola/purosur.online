@@ -48,13 +48,13 @@ function noticeFor(outcome: EnrollmentOutcome): Notice | undefined {
         icon: <TriangleAlert />,
         title: "Esta notebook no puede guardar el alta",
         description:
-          "El código sigue sirviendo. Reiniciá la notebook y probá de nuevo; si sigue igual, avisá al Administrador.",
+          "El código no se usó. Reiniciá la notebook y probá de nuevo; si sigue igual, avisá al Administrador.",
       };
     case "not_stored":
       return {
         icon: <TriangleAlert />,
         title: "No se pudo guardar el alta en esta notebook",
-        description: "El código ya se usó. Pedí un código nuevo en el backoffice y probá de nuevo.",
+        description: "El código ya se usó. Avisá al Administrador: hace falta un código nuevo.",
       };
   }
 }

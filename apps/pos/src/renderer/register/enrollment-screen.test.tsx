@@ -159,7 +159,7 @@ describe("EnrollmentScreen", () => {
     await expect.element(screen.getByRole("button", { name: "Dar de alta" })).toBeEnabled();
   });
 
-  it("says this notebook can't keep the alta and that the code still works when its credentials can't be stored", async () => {
+  it("says this notebook can't keep the alta and that the code wasn't used when its credentials can't be stored", async () => {
     const screen = await render(
       <EnrollmentScreen enroll={answering({ kind: "storage_unavailable" }).enroll} />,
     );
@@ -170,14 +170,14 @@ describe("EnrollmentScreen", () => {
     await expect
       .element(
         screen.getByText(
-          "El código sigue sirviendo. Reiniciá la notebook y probá de nuevo; si sigue igual, avisá al Administrador.",
+          "El código no se usó. Reiniciá la notebook y probá de nuevo; si sigue igual, avisá al Administrador.",
         ),
       )
       .toBeVisible();
     await expect.element(screen.getByRole("button", { name: "Dar de alta" })).toBeEnabled();
   });
 
-  it("asks for a new code when the alta was redeemed but couldn't be kept on this notebook", async () => {
+  it("sends the person to the Administrador for a new code when the alta was redeemed but couldn't be kept on this notebook", async () => {
     const screen = await render(
       <EnrollmentScreen enroll={answering({ kind: "not_stored" }).enroll} />,
     );
@@ -190,7 +190,7 @@ describe("EnrollmentScreen", () => {
     await expect
       .element(
         screen.getByText(
-          "El código ya se usó. Pedí un código nuevo en el backoffice y probá de nuevo.",
+          "El código ya se usó. Avisá al Administrador: hace falta un código nuevo.",
         ),
       )
       .toBeVisible();
