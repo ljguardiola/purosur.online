@@ -345,16 +345,16 @@ test("fetchUser reports failed on a 200 whose body does not match the contract",
 
 const editInput = { email: "new@example.com", role_id: "role-shift", version: 1 };
 
-test("editUser posts the wire shape and returns ok on 200", async () => {
+test("editUser puts the wire shape and returns ok on 200", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, {}));
 
   const outcome = await editUser("user-1", editInput);
 
   expect(outcome).toEqual({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith(
-    "/api/users/user-1/edit",
+    "/api/users/user-1",
     expect.objectContaining({
-      method: "POST",
+      method: "PUT",
       body: JSON.stringify({ email: "new@example.com", role_id: "role-shift", version: 1 }),
     }),
   );
@@ -539,16 +539,13 @@ test("fetchUserPasskeys reports failed on any other status or a network failure"
   await expect(fetchUserPasskeys("user-2")).resolves.toEqual({ kind: "failed" });
 });
 
-test("removeUserPasskey posts with no body and returns ok on 200", async () => {
+test("removeUserPasskey deletes the passkey with no body and returns ok on 200", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
 
   const outcome = await removeUserPasskey("user-2", "pk-1");
 
   expect(outcome).toEqual({ kind: "ok" });
-  expect(fetch).toHaveBeenCalledWith(
-    "/api/users/user-2/passkeys/pk-1/remove",
-    expect.objectContaining({ method: "POST" }),
-  );
+  expect(fetch).toHaveBeenCalledWith("/api/users/user-2/passkeys/pk-1", { method: "DELETE" });
 });
 
 test("removeUserPasskey reports not_found on 404 for an unknown user or passkey", async () => {
@@ -602,16 +599,13 @@ test("removeUserPasskey reports failed on any other status or a network failure"
   await expect(removeUserPasskey("user-2", "pk-1")).resolves.toEqual({ kind: "failed" });
 });
 
-test("deactivateUser posts with no body and returns ok on 200", async () => {
+test("deactivateUser puts the deactivation with no body and returns ok on 200", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
 
   const outcome = await deactivateUser("user-2");
 
   expect(outcome).toEqual({ kind: "ok" });
-  expect(fetch).toHaveBeenCalledWith(
-    "/api/users/user-2/deactivation",
-    expect.objectContaining({ method: "POST" }),
-  );
+  expect(fetch).toHaveBeenCalledWith("/api/users/user-2/deactivation", { method: "PUT" });
 });
 
 test("deactivateUser reports not_found on 404 for a missing, inactive, other-branch, or Administrator target", async () => {
@@ -657,16 +651,13 @@ test("deactivateUser reports failed on any other status or a network failure", a
   await expect(deactivateUser("user-2")).resolves.toEqual({ kind: "failed" });
 });
 
-test("reactivateUser posts with no body and returns ok on 200", async () => {
+test("reactivateUser deletes the deactivation with no body and returns ok on 200", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
 
   const outcome = await reactivateUser("user-2");
 
   expect(outcome).toEqual({ kind: "ok" });
-  expect(fetch).toHaveBeenCalledWith(
-    "/api/users/user-2/reactivation",
-    expect.objectContaining({ method: "POST" }),
-  );
+  expect(fetch).toHaveBeenCalledWith("/api/users/user-2/deactivation", { method: "DELETE" });
 });
 
 test("reactivateUser reports not_found on 404 for a missing, other-branch, or already-active target", async () => {

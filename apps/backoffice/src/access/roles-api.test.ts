@@ -282,7 +282,7 @@ test("fetchRole returns failed when the request throws", async () => {
   expect(await fetchRole("role-stock")).toEqual({ kind: "failed" });
 });
 
-test("editRole posts the name, permissions and version and returns ok on 200", async () => {
+test("editRole puts the name, permissions and version and returns ok on 200", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, {}));
 
   const outcome = await editRole("role-stock", {
@@ -293,9 +293,9 @@ test("editRole posts the name, permissions and version and returns ok on 200", a
 
   expect(outcome).toEqual({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith(
-    "/api/roles/role-stock/edit",
+    "/api/roles/role-stock",
     expect.objectContaining({
-      method: "POST",
+      method: "PUT",
       body: JSON.stringify({
         name: "Depósito",
         permissions: ["view_stock_balances"],

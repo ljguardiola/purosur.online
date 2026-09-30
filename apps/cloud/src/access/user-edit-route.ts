@@ -126,8 +126,8 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
     return findBranchUser(options.db, locationId, targetId);
   }
 
-  app.post<{ Params: { id: string } }>(
-    "/users/:id/edit",
+  app.put<{ Params: { id: string } }>(
+    "/users/:id",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: { access: ADMINISTRATOR_ACCESS, sessionSource },

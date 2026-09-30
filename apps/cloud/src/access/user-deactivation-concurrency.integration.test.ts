@@ -125,7 +125,7 @@ describe("deactivating the same target twice at once on a real Postgres", () => 
 
     const deactivate = () =>
       app.inject({
-        method: "POST",
+        method: "PUT",
         url: `/users/${targetId}/deactivation`,
         headers: { origin: BACKOFFICE_ORIGIN, cookie },
       });
@@ -165,14 +165,14 @@ describe("deactivating a target while it is promoted to Administrator on a real 
 
     const promote = () =>
       app.inject({
-        method: "POST",
-        url: `/users/${targetId}/edit`,
+        method: "PUT",
+        url: `/users/${targetId}`,
         headers: { origin: BACKOFFICE_ORIGIN, cookie },
         payload: { email: targetEmail, role_id: administratorRoleId, version: 1 },
       });
     const deactivate = () =>
       app.inject({
-        method: "POST",
+        method: "PUT",
         url: `/users/${targetId}/deactivation`,
         headers: { origin: BACKOFFICE_ORIGIN, cookie },
       });
@@ -242,7 +242,7 @@ describe("deactivating two different targets at once on a real Postgres", () => 
 
     const deactivate = (targetId: string) =>
       app.inject({
-        method: "POST",
+        method: "PUT",
         url: `/users/${targetId}/deactivation`,
         headers: { origin: BACKOFFICE_ORIGIN, cookie },
       });
@@ -282,7 +282,7 @@ describe("two users deactivating each other at once on a real Postgres", () => {
     const secondCookie = `${SESSION_COOKIE_NAME}=${await insertSession(secondId)}`;
     const deactivate = (targetId: string, cookie: string) => () =>
       app.inject({
-        method: "POST",
+        method: "PUT",
         url: `/users/${targetId}/deactivation`,
         headers: { origin: BACKOFFICE_ORIGIN, cookie },
       });

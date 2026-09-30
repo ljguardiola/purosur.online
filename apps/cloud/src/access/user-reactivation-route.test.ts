@@ -113,8 +113,8 @@ function reactivateUser(
   headers: Record<string, string> = {},
 ) {
   return app.inject({
-    method: "POST",
-    url: `/users/${targetId}/reactivation`,
+    method: "DELETE",
+    url: `/users/${targetId}/deactivation`,
     headers: {
       origin: BACKOFFICE_ORIGIN,
       ...(rawSessionId ? cookieHeader(rawSessionId) : {}),
@@ -147,7 +147,7 @@ afterEach(async () => {
   await app.close();
 });
 
-describe("POST /users/:id/reactivation", () => {
+describe("DELETE /users/:id/deactivation", () => {
   let cashierRoleId: string;
   let targetId: string;
 
@@ -167,6 +167,18 @@ describe("POST /users/:id/reactivation", () => {
 
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
+  });
+
+  it("no longer answers the old reactivation path", async () => {
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/users/${targetId}/reactivation`,
+      headers: { origin: BACKOFFICE_ORIGIN, ...cookieHeader(rawSessionId) },
+    });
+
+    expect(response.statusCode).toBe(404);
   });
 
   it("rejects an Origin that is not the backoffice's own", async () => {
