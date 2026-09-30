@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { asarArchive } from "./asar-archive-fixture.mjs";
 
 const cliPath = fileURLToPath(new URL("./same-app-code.mjs", import.meta.url));
 const scriptsDir = dirname(cliPath);
@@ -46,6 +47,58 @@ test("the CLI exits non-zero when two app.asar files differ", async () => {
 
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /app\.asar differs/);
+  });
+});
+
+test("the CLI names the files inside two app.asar archives that differ", async () => {
+  await withTempDir(async (dir) => {
+    const first = join(dir, "first.asar");
+    const second = join(dir, "second.asar");
+    await writeFile(
+      first,
+      asarArchive({
+        "package.json": { content: "{}" },
+        "out/main/index.js": { content: "one" },
+        "out/core.js": { content: "same" },
+      }),
+    );
+    await writeFile(
+      second,
+      asarArchive({
+        "package.json": { content: "{}" },
+        "out/main/index.js": { content: "two" },
+        "out/core.js": { content: "same" },
+      }),
+    );
+
+    const result = runCli(cliPath, [first, second]);
+
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /files inside that differ:\n {2}out\/main\/index\.js\n/);
+    assert.doesNotMatch(result.stderr, /out\/core\.js|package\.json/);
+  });
+});
+
+test("the CLI says no file differs when two app.asar archives only order their files differently", async () => {
+  await withTempDir(async (dir) => {
+    const first = join(dir, "first.asar");
+    const second = join(dir, "second.asar");
+    await writeFile(
+      first,
+      asarArchive({ "out/a.js": { content: "a" }, "out/b.js": { content: "bb" } }),
+    );
+    await writeFile(
+      second,
+      asarArchive({ "out/b.js": { content: "bb" }, "out/a.js": { content: "a" } }),
+    );
+
+    const result = runCli(cliPath, [first, second]);
+
+    assert.notEqual(result.status, 0);
+    assert.match(
+      result.stderr,
+      /no file inside differs; the archives differ only in how they are laid out/,
+    );
   });
 });
 
