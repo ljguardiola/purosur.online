@@ -235,8 +235,16 @@ describe("authorizing with another person's PIN", () => {
       const { built } = deps();
       const attempt = { ...built.store, signInRecord: () => record() };
 
-      await signIn({ ...built, store: attempt, signedInPerson }, "u2", "9999");
-      await signIn({ ...built, store: attempt, signedInPerson }, "u2", "9999");
+      await signIn(
+        { ...built, store: attempt, signedInPerson, cashSessionOpener: () => undefined },
+        "u2",
+        "9999",
+      );
+      await signIn(
+        { ...built, store: attempt, signedInPerson, cashSessionOpener: () => undefined },
+        "u2",
+        "9999",
+      );
 
       expect(await authorize(built, { user_id: "u2", pin: "9999" }, "record_cash_in")).toEqual({
         kind: "wrong_pin",
@@ -251,7 +259,13 @@ describe("authorizing with another person's PIN", () => {
       await authorize(built, { user_id: "u2", pin: "9999" }, "record_cash_in");
       await authorize(built, { user_id: "u2", pin: "9999" }, "record_cash_in");
 
-      expect(await signIn({ ...built, signedInPerson }, "u2", "9999")).toEqual({
+      expect(
+        await signIn(
+          { ...built, signedInPerson, cashSessionOpener: () => undefined },
+          "u2",
+          "9999",
+        ),
+      ).toEqual({
         kind: "wrong_pin",
         retry_after_seconds: 1,
         attempts_left: 5,

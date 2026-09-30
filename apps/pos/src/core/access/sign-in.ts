@@ -7,6 +7,7 @@ import type { SignInStore } from "./sqlite-sign-in-store";
 
 export interface SignInDeps extends PinCheckDeps {
   signedInPerson: Pick<SignedInPerson, "set" | "clear">;
+  cashSessionOpener: () => string | undefined;
 }
 
 export interface FirstSignInDeps extends SignInDeps {
@@ -31,6 +32,10 @@ async function signInThen(
   pin: string,
   beforeSigningIn: () => void,
 ): Promise<SignInOutcome> {
+  const opener = deps.cashSessionOpener();
+  if (opener !== undefined && opener !== userId) {
+    return { kind: "cash_session_opened_by_another" };
+  }
   deps.signedInPerson.clear();
   const signable = signableRecord(deps.store, userId);
   if (signable === undefined) {

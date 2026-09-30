@@ -84,6 +84,7 @@ function deps(options: Options = {}) {
       return pin === "1234" ? PIN_HASH : "hash-of-another-pin";
     },
     now: () => NOW,
+    cashSessionOpener: () => undefined,
     ...rest,
   };
   return { built, hashed, failures, signedIn, remembered };
@@ -248,6 +249,36 @@ describe("who is signed in after signing in", () => {
     await signIn(built, "u1", "1234");
 
     expect(signedIn.userId()).toBeUndefined();
+  });
+});
+
+describe("signing in while a cash session is open", () => {
+  it("refuses anyone but the opener, checking no PIN and keeping the opener signed in", async () => {
+    const { built, signedIn, hashed, failures } = deps({ cashSessionOpener: () => "u2" });
+    signedIn.set("u2");
+
+    expect(await signIn(built, "u1", "9999")).toEqual({ kind: "cash_session_opened_by_another" });
+    expect(hashed).toEqual([]);
+    expect(failures.size).toBe(0);
+    expect(signedIn.userId()).toBe("u2");
+  });
+
+  it("signs the opener in", async () => {
+    const { built, signedIn } = deps({ cashSessionOpener: () => "u1" });
+
+    expect((await signIn(built, "u1", "1234")).kind).toBe("signed_in");
+    expect(signedIn.userId()).toBe("u1");
+  });
+
+  it("refuses a first sign-in by anyone but the opener, remembering nobody", async () => {
+    const { built, signedIn, remembered } = deps({ cashSessionOpener: () => "u2" });
+    signedIn.set("u2");
+
+    expect(await firstSignIn(built, "u1", "1234")).toEqual({
+      kind: "cash_session_opened_by_another",
+    });
+    expect(remembered).toEqual([]);
+    expect(signedIn.userId()).toBe("u2");
   });
 });
 

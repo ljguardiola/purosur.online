@@ -49,6 +49,10 @@ export async function openCashSessionFor(
     : { kind: outcome.kind };
 }
 
+export function cashSessionOpener(database: LocalDatabase): string | undefined {
+  return readOpenSession(database)?.openedBy;
+}
+
 export function currentCashSession(
   database: LocalDatabase,
   signedInPerson: Pick<SignedInPerson, "set">,

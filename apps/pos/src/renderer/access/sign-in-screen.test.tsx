@@ -218,6 +218,16 @@ describe("SignInScreen", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
+  it("says only the person who opened the cash session can sign in, clearing the PIN", async () => {
+    const screen = await renderScreen(answering({ kind: "cash_session_opened_by_another" }).signIn);
+
+    await enter(screen, "Ada", "1234");
+
+    await expect.element(screen.getByText("La caja está abierta")).toBeVisible();
+    await expect.element(screen.getByText("Solo puede ingresar quien la abrió.")).toBeVisible();
+    await expect.element(screen.getByLabelText("PIN")).toHaveValue("");
+  });
+
   it("says the PIN could not be checked, keeping what was typed, when the core cannot", async () => {
     const screen = await renderScreen(answering({ kind: "unavailable" }).signIn);
 

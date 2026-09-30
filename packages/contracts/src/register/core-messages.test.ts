@@ -370,6 +370,7 @@ describe("sign-in answers", () => {
     { kind: "rate_limited", retry_after_seconds: 4, attempts_left: 5 },
     { kind: "locked", consecutive_failures: 8 },
     { kind: "no_register_permission" },
+    { kind: "cash_session_opened_by_another" },
     { kind: "unavailable" },
   ])("accepts the sign-in result $kind", (outcome) => {
     const message = { type: "sign-in-result", request_id: REQUEST_ID, outcome };

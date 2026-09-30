@@ -37,6 +37,7 @@ import { type LocalDatabase, openLocalDatabase } from "./platform/local-database
 import { LOCAL_MIGRATIONS } from "./platform/local-migrations";
 import { createMainRequests } from "./platform/main-requests";
 import {
+  cashSessionOpener,
   currentCashSession,
   openCashSessionFor,
   resumeSignedInPerson,
@@ -232,13 +233,14 @@ const rendererRequestDeps: RendererRequestDeps = {
   authorizers:
     signInStore === undefined ? undefined : (permission) => signInStore.authorizers(permission),
   signIn:
-    signInStore === undefined
+    localDatabase === undefined || signInStore === undefined
       ? undefined
       : (userId, pin) =>
           signIn(
             {
               store: signInStore,
               signedInPerson,
+              cashSessionOpener: () => cashSessionOpener(localDatabase),
               readPepper,
               hashPin,
               now: () => new Date(),
@@ -247,13 +249,14 @@ const rendererRequestDeps: RendererRequestDeps = {
             pin,
           ),
   firstSignIn:
-    signInStore === undefined
+    localDatabase === undefined || signInStore === undefined
       ? undefined
       : (userId, pin) =>
           firstSignIn(
             {
               store: signInStore,
               signedInPerson,
+              cashSessionOpener: () => cashSessionOpener(localDatabase),
               readPepper,
               hashPin,
               now: () => new Date(),

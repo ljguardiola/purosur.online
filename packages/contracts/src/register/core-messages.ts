@@ -137,6 +137,7 @@ const signInOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("signed_in"), person: signedInPersonSchema }),
   ...pinAttemptRefusalSchema.options,
   z.object({ kind: z.literal("no_register_permission") }),
+  z.object({ kind: z.literal("cash_session_opened_by_another") }),
   z.object({ kind: z.literal("unavailable") }),
 ]);
 export type SignInOutcome = z.infer<typeof signInOutcomeSchema>;
