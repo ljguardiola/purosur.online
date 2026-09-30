@@ -190,6 +190,45 @@ describe("the register's router", () => {
       .toHaveTextContent("Ada");
   });
 
+  it("names the register in the signed-in screen's eyebrow", async () => {
+    const router = createRegisterRouter(
+      routeTree,
+      { ...contextWith("up"), registerName: async () => "Caja 1" },
+      "/",
+    );
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screen.getByText("Caja 1 · Sin sesión abierta")).toBeVisible();
+  });
+
+  it("leaves the register's name out of the sign-in screen's eyebrow when reading it fails", async () => {
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", null),
+        registerName: () => Promise.reject(new Error("the core connection was replaced")),
+      },
+      "/sign-in",
+    );
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screen.getByText("Sin sesión abierta", { exact: true })).toBeVisible();
+  });
+
+  it("shows the core-down notice without waiting for the register's name", async () => {
+    const router = createRegisterRouter(
+      routeTree,
+      { ...contextWith("down"), registerName: () => new Promise<string | null>(() => {}) },
+      "/core-down",
+    );
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screen.getByText(CORE_DOWN_TITLE)).toBeVisible();
+  });
+
   it("lets an error thrown while rendering a screen propagate past the router", async () => {
     const rootRoute = createRootRouteWithContext<RouterContext>()();
     const failingRoute = createRoute({

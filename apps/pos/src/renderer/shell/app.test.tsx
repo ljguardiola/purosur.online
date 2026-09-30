@@ -100,6 +100,17 @@ describe("App", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
+  it("names the register in the sign-in screen's eyebrow once a pull saves its name", async () => {
+    const { core, finishPull } = coreAnswering(true);
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await expect.element(screen.getByText("Sin sesión abierta", { exact: true })).toBeVisible();
+
+    finishPull("Caja 1");
+
+    await expect.element(screen.getByText("Caja 1 · Sin sesión abierta")).toBeVisible();
+  });
+
   it("replaces the whole screen with the core-down notice once the core reports it is down", async () => {
     const screen = await render(<App core={enrolledCore} />);
 

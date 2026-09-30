@@ -42,7 +42,7 @@ function pending() {
 }
 
 async function renderScreen(signIn = answering(SIGNED_IN).signIn, users = USERS) {
-  return render(<SignInScreen loadUsers={async () => users} signIn={signIn} />);
+  return render(<SignInScreen loadUsers={async () => users} signIn={signIn} registerName={null} />);
 }
 
 async function choose(screen: Screen, firstName: string) {
@@ -267,6 +267,7 @@ describe("SignInScreen", () => {
       <SignInScreen
         loadUsers={() => new Promise<SignInUser[]>(() => {})}
         signIn={answering(SIGNED_IN).signIn}
+        registerName={null}
       />,
     );
 
@@ -301,7 +302,11 @@ describe("SignInScreen", () => {
       return USERS;
     };
     const screen = await render(
-      <SignInScreen loadUsers={loadUsers} signIn={answering(SIGNED_IN).signIn} />,
+      <SignInScreen
+        loadUsers={loadUsers}
+        signIn={answering(SIGNED_IN).signIn}
+        registerName={null}
+      />,
     );
     await expect.element(screen.getByText("No se pudieron cargar los usuarios")).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);

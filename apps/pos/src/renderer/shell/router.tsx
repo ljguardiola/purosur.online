@@ -73,23 +73,32 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
   component: Outlet,
 });
 
-const signedInRoute = createRoute({
+const sessionEyebrowRoute = createRoute({
   getParentRoute: () => rootRoute,
+  id: "session-eyebrow",
+  loader: ({ context }) => context.registerName().catch(() => null),
+  component: Outlet,
+});
+
+const signedInRoute = createRoute({
+  getParentRoute: () => sessionEyebrowRoute,
   path: "/",
   beforeLoad: ({ context }) => ({ person: requireSignedInPerson(context) }),
   component: function SignedInRoute() {
     const { person } = signedInRoute.useRouteContext();
-    return <SignedInScreen person={person} />;
+    const registerName = sessionEyebrowRoute.useLoaderData();
+    return <SignedInScreen person={person} registerName={registerName} />;
   },
 });
 
 const signInRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => sessionEyebrowRoute,
   path: "/sign-in",
   beforeLoad: ({ context }) => requireRoute("/sign-in", context),
   component: function SignInRoute() {
     const { signInUsers, signIn } = signInRoute.useRouteContext();
-    return <SignInScreen loadUsers={signInUsers} signIn={signIn} />;
+    const registerName = sessionEyebrowRoute.useLoaderData();
+    return <SignInScreen loadUsers={signInUsers} signIn={signIn} registerName={registerName} />;
   },
 });
 
@@ -118,8 +127,7 @@ const coreDownRoute = createRoute({
 });
 
 export const routeTree = rootRoute.addChildren([
-  signedInRoute,
-  signInRoute,
+  sessionEyebrowRoute.addChildren([signedInRoute, signInRoute]),
   enrollRoute,
   startingRoute,
   coreDownRoute,
