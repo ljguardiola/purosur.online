@@ -1,10 +1,12 @@
 import type {
+  AddProductOutcome,
   CashBalance,
   CloseCashSessionOutcome,
   OpenCashSession,
   OpenCashSessionOutcome,
   OpenSale,
   ScanProductOutcome,
+  SearchProductsOutcome,
   SignInLookupOutcome,
   SignInOutcome,
 } from "@purosur/contracts";
@@ -26,6 +28,8 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   }[] = [];
   const authorizerLookups: string[] = [];
   const scans: string[] = [];
+  const searches: string[] = [];
+  const additions: string[] = [];
   const saleLookups: string[] = [];
   const signOuts: string[] = [];
   const failures: { context: string; error: unknown }[] = [];
@@ -39,6 +43,8 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
     closings,
     authorizerLookups,
     scans,
+    searches,
+    additions,
     saleLookups,
     signOuts,
     failures,
@@ -74,6 +80,14 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       scanProduct: async (code: string): Promise<ScanProductOutcome> => {
         scans.push(code);
         return { kind: "unknown_code" };
+      },
+      searchProducts: async (query: string): Promise<SearchProductsOutcome> => {
+        searches.push(query);
+        return { kind: "results", products: [], more: false };
+      },
+      addProduct: async (productId: string): Promise<AddProductOutcome> => {
+        additions.push(productId);
+        return { kind: "product_unavailable" };
       },
       currentSale: async (): Promise<OpenSale | null> => {
         saleLookups.push("read");
@@ -503,6 +517,110 @@ describe("answerRendererRequest", () => {
       request_id: "r21",
       outcome: { kind: "unavailable" },
     });
+  });
+
+  it("searches the products by the query and answers the outcome", async () => {
+    const outcome: SearchProductsOutcome = { kind: "no_open_session" };
+    const { deps: withSearch, searches } = deps(true, { searchProducts: async () => outcome });
+    const recording = deps(true);
+
+    expect(
+      await answerRendererRequest(withSearch, {
+        type: "search-products",
+        request_id: "r30",
+        query: "yer",
+      }),
+    ).toEqual({ type: "search-products-result", request_id: "r30", outcome });
+    expect(searches).toEqual([]);
+    await answerRendererRequest(recording.deps, {
+      type: "search-products",
+      request_id: "r31",
+      query: "té",
+    });
+    expect(recording.searches).toEqual(["té"]);
+  });
+
+  it("answers that searching is unavailable when it fails or is not possible, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      searchProducts: async () => {
+        throw error;
+      },
+    });
+    const withoutDatabase = deps(true, { searchProducts: undefined });
+    const unavailable = {
+      type: "search-products-result",
+      request_id: "r32",
+      outcome: { kind: "unavailable" },
+    };
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "search-products",
+        request_id: "r32",
+        query: "a",
+      }),
+    ).toEqual(unavailable);
+    expect(failing.failures).toEqual([{ context: "searching products by name", error }]);
+    expect(
+      await answerRendererRequest(withoutDatabase.deps, {
+        type: "search-products",
+        request_id: "r32",
+        query: "a",
+      }),
+    ).toEqual(unavailable);
+  });
+
+  it("adds the searched product by its id and answers the outcome", async () => {
+    const outcome: AddProductOutcome = { kind: "no_price", product_name: "Yerba" };
+    const { deps: withAdd, additions } = deps(true, { addProduct: async () => outcome });
+    const recording = deps(true);
+
+    expect(
+      await answerRendererRequest(withAdd, {
+        type: "add-product",
+        request_id: "r33",
+        product_id: "p1",
+      }),
+    ).toEqual({ type: "add-product-result", request_id: "r33", outcome });
+    expect(additions).toEqual([]);
+    await answerRendererRequest(recording.deps, {
+      type: "add-product",
+      request_id: "r34",
+      product_id: "p7",
+    });
+    expect(recording.additions).toEqual(["p7"]);
+  });
+
+  it("answers that adding a product is unavailable when it fails or is not possible, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      addProduct: async () => {
+        throw error;
+      },
+    });
+    const withoutDatabase = deps(true, { addProduct: undefined });
+    const unavailable = {
+      type: "add-product-result",
+      request_id: "r35",
+      outcome: { kind: "unavailable" },
+    };
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "add-product",
+        request_id: "r35",
+        product_id: "p1",
+      }),
+    ).toEqual(unavailable);
+    expect(failing.failures).toEqual([{ context: "adding a searched product", error }]);
+    expect(
+      await answerRendererRequest(withoutDatabase.deps, {
+        type: "add-product",
+        request_id: "r35",
+        product_id: "p1",
+      }),
+    ).toEqual(unavailable);
   });
 
   it("answers the sale in progress", async () => {

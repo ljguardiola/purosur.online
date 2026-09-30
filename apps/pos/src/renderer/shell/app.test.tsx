@@ -121,6 +121,12 @@ function coreAnswering(
     async currentSale() {
       return sales.currentSale === undefined ? null : sales.currentSale();
     },
+    async searchProducts() {
+      return { kind: "results", products: [], more: false };
+    },
+    async addProduct() {
+      return { kind: "product_unavailable" };
+    },
     async scanProduct(code) {
       return sales.scanProduct === undefined ? { kind: "unknown_code" } : sales.scanProduct(code);
     },

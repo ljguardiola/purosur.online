@@ -1,10 +1,19 @@
-import type { CurrentSaleAnswer, OpenSale, ScanProductOutcome } from "@purosur/contracts";
+import type {
+  AddProductOutcome,
+  CurrentSaleAnswer,
+  OpenSale,
+  ScanProductOutcome,
+  SearchProductsOutcome,
+} from "@purosur/contracts";
 import { type SaleWithLines, saleTotal } from "@purosur/domain";
 import {
+  type AddScannedProductOutcome,
   addScannedProduct,
+  addSearchedProduct,
   type Clock,
   currentSale,
   type IdGenerator,
+  searchProductsByName,
 } from "@purosur/domain/sales/use-cases";
 import type { ActionGate } from "../access/action-gate";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
@@ -53,13 +62,79 @@ export async function scanProductFor(
   const outcome = guarded.result;
   switch (outcome.kind) {
     case "added":
-      return { kind: "added", sale: toOpenSale(outcome.sale) };
     case "no_price":
     case "sold_by_weight":
-      return { kind: outcome.kind, product_name: outcome.productName };
+      return toDetailOutcome(outcome);
     default:
       return { kind: outcome.kind };
   }
+}
+
+export async function addSearchedProductFor(
+  { database, gate, now, ids }: SaleRequestDeps,
+  productId: string,
+): Promise<AddProductOutcome> {
+  const guarded = await gate.run({ permission: "sell_and_charge" }, async ({ signedInUserId }) =>
+    addSearchedProduct(
+      { ledger: saleLedger(database), clock: { now }, ids },
+      { actorId: signedInUserId, productId },
+    ),
+  );
+  if (guarded.kind !== "performed") {
+    return { kind: guarded.kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };
+  }
+  const outcome = guarded.result;
+  switch (outcome.kind) {
+    case "added":
+    case "no_price":
+    case "sold_by_weight":
+      return toDetailOutcome(outcome);
+    default:
+      return { kind: outcome.kind };
+  }
+}
+
+export async function searchProductsFor(
+  { database, gate, now }: Pick<SaleRequestDeps, "database" | "gate" | "now">,
+  query: string,
+): Promise<SearchProductsOutcome> {
+  const guarded = await gate.run({ permission: "sell_and_charge" }, async ({ signedInUserId }) =>
+    searchProductsByName(
+      { ledger: saleLedger(database), clock: { now } },
+      { actorId: signedInUserId, query },
+    ),
+  );
+  if (guarded.kind !== "performed") {
+    return { kind: guarded.kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };
+  }
+  const outcome = guarded.result;
+  if (outcome.kind !== "results") {
+    return { kind: outcome.kind };
+  }
+  return {
+    kind: "results",
+    products: outcome.products.map((found) => ({
+      product_id: found.productId,
+      name: found.name,
+      sale_unit: found.saleUnit,
+      unit_price: found.unitPrice,
+      matches: found.matches,
+    })),
+    more: outcome.more,
+  };
+}
+
+type SaleDetailOutcome = Extract<
+  AddScannedProductOutcome,
+  { kind: "added" | "no_price" | "sold_by_weight" }
+>;
+
+function toDetailOutcome(
+  outcome: SaleDetailOutcome,
+): Extract<ScanProductOutcome, { kind: SaleDetailOutcome["kind"] }> {
+  return outcome.kind === "added"
+    ? { kind: "added", sale: toOpenSale(outcome.sale) }
+    : { kind: outcome.kind, product_name: outcome.productName };
 }
 
 export async function currentSaleFor({
