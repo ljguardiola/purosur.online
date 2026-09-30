@@ -89,4 +89,23 @@ describe("createRendererConnection", () => {
     expect(previous.posted).toEqual([]);
     expect(next.posted).toEqual([]);
   });
+
+  it("tells the live page something it didn't ask about", () => {
+    const connection = createRendererConnection(vi.fn());
+    const previous = new FakePort();
+    const next = new FakePort();
+
+    connection.adopt(previous);
+    connection.adopt(next);
+    connection.tell({ type: "pulled" });
+
+    expect(next.posted).toEqual([{ type: "pulled" }]);
+    expect(previous.posted).toEqual([]);
+  });
+
+  it("tells nothing before any page has connected", () => {
+    const connection = createRendererConnection(vi.fn());
+
+    expect(() => connection.tell({ type: "pulled" })).not.toThrow();
+  });
 });

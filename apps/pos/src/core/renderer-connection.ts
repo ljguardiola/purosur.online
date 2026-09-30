@@ -9,6 +9,7 @@ export type ReplyToRenderer = (message: unknown) => void;
 
 export interface RendererConnection {
   adopt(port: RendererPort): void;
+  tell(message: unknown): void;
 }
 
 // Main sends a fresh port on every page load and reload; only the latest one belongs to the live
@@ -32,6 +33,9 @@ export function createRendererConnection(
         }
       });
       port.start();
+    },
+    tell(message) {
+      current?.postMessage(message);
     },
   };
 }

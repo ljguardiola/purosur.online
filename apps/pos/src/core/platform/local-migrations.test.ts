@@ -116,4 +116,38 @@ describe("the register's local migrations", () => {
       rmSync(folder, { recursive: true, force: true });
     }
   });
+
+  it("add the register's own row over the users and cursor a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const [first, second, third] = LOCAL_MIGRATIONS;
+      if (first === undefined || second === undefined || third === undefined) {
+        throw new Error("test setup: fewer than three local migrations");
+      }
+      const before = openLocalDatabase(path, [first, second, third]);
+      before
+        .prepare("UPDATE sync_state SET pull_cursor = 11, device_id = 'device-a' WHERE id = 1")
+        .run();
+      before
+        .prepare(
+          "INSERT INTO roles (id, name, is_administrator, version) VALUES ('role', 'Cajera', 0, 2)",
+        )
+        .run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+
+      expect(after.prepare("SELECT pull_cursor, device_id FROM sync_state").all()).toEqual([
+        { pull_cursor: 11, device_id: "device-a" },
+      ]);
+      expect(after.prepare("SELECT name, version FROM roles").all()).toEqual([
+        { name: "Cajera", version: 2 },
+      ]);
+      expect(after.prepare("SELECT id FROM own_register").all()).toEqual([]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
 });

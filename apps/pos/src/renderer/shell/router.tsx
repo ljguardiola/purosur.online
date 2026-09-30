@@ -33,6 +33,7 @@ export interface RouterContext {
   enroll: (typedCode: string) => Promise<EnrollmentOutcome>;
   signInUsers: () => Promise<SignInUser[]>;
   signIn: (userId: string, pin: string) => Promise<SignInOutcome>;
+  registerName: () => Promise<string | null>;
   redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
 }
 
@@ -75,23 +76,32 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
   component: Outlet,
 });
 
-const signedInRoute = createRoute({
+const sessionEyebrowRoute = createRoute({
   getParentRoute: () => rootRoute,
+  id: "session-eyebrow",
+  loader: ({ context }) => context.registerName().catch(() => null),
+  component: Outlet,
+});
+
+const signedInRoute = createRoute({
+  getParentRoute: () => sessionEyebrowRoute,
   path: "/",
   beforeLoad: ({ context }) => ({ person: requireSignedInPerson(context) }),
   component: function SignedInRoute() {
     const { person } = signedInRoute.useRouteContext();
-    return <SignedInScreen person={person} />;
+    const registerName = sessionEyebrowRoute.useLoaderData();
+    return <SignedInScreen person={person} registerName={registerName} />;
   },
 });
 
 const signInRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => sessionEyebrowRoute,
   path: "/sign-in",
   beforeLoad: ({ context }) => requireRoute("/sign-in", context),
   component: function SignInRoute() {
     const { signInUsers, signIn } = signInRoute.useRouteContext();
-    return <SignInScreen loadUsers={signInUsers} signIn={signIn} />;
+    const registerName = sessionEyebrowRoute.useLoaderData();
+    return <SignInScreen loadUsers={signInUsers} signIn={signIn} registerName={registerName} />;
   },
 });
 
@@ -130,8 +140,7 @@ const coreDownRoute = createRoute({
 });
 
 export const routeTree = rootRoute.addChildren([
-  signedInRoute,
-  signInRoute,
+  sessionEyebrowRoute.addChildren([signedInRoute, signInRoute]),
   pinCodeRedemptionRoute,
   enrollRoute,
   startingRoute,
@@ -152,7 +161,10 @@ export function createRegisterRouter<TRouteTree extends AnyRoute>(
 }
 
 export function createAppRouter(
-  services: Pick<RouterContext, "enroll" | "signInUsers" | "signIn" | "redeemPinCode">,
+  services: Pick<
+    RouterContext,
+    "enroll" | "registerName" | "signInUsers" | "signIn" | "redeemPinCode"
+  >,
 ) {
   return createRegisterRouter(
     routeTree,

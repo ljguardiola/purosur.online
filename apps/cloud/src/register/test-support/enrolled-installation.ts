@@ -10,23 +10,38 @@ export interface EnrolledInstallation {
   deviceToken: string;
 }
 
-export async function insertEnrolledInstallation<TQueryResult extends PgQueryResultHKT>(
+async function insertRegister<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-  options: { revokedAt?: Date; tokenIssuedAt?: Date; registerName?: string } = {},
-): Promise<EnrolledInstallation> {
-  const locationId = await seededLocationId(db);
+  locationId: string,
+  name = "Caja 1",
+): Promise<string> {
   const [register] = await db
     .insert(registers)
-    .values({ locationId, name: options.registerName ?? "Caja 1" })
+    .values({ locationId, name })
     .returning({ id: registers.id });
   if (!register) {
     throw new Error("test setup: seeding the register returned no row");
   }
+  return register.id;
+}
+
+export async function insertEnrolledInstallation<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  options: {
+    revokedAt?: Date;
+    tokenIssuedAt?: Date;
+    registerName?: string;
+    existingRegisterId?: string;
+  } = {},
+): Promise<EnrolledInstallation> {
+  const locationId = await seededLocationId(db);
+  const registerId =
+    options.existingRegisterId ?? (await insertRegister(db, locationId, options.registerName));
   const { deviceToken, lookupPrefix, tokenHash } = issueDeviceToken();
   const [installation] = await db
     .insert(registerInstallations)
     .values({
-      registerId: register.id,
+      registerId,
       tokenLookupPrefix: lookupPrefix,
       tokenHash,
       tokenIssuedAt: options.tokenIssuedAt ?? new Date("2026-09-28T12:00:00.000Z"),
@@ -39,5 +54,5 @@ export async function insertEnrolledInstallation<TQueryResult extends PgQueryRes
   if (!installation) {
     throw new Error("test setup: seeding the installation returned no row");
   }
-  return { deviceId: installation.id, registerId: register.id, locationId, deviceToken };
+  return { deviceId: installation.id, registerId, locationId, deviceToken };
 }

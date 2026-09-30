@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { createCategory, createProduct, createTag } from "@purosur/domain/catalog/use-cases";
 import { confirmPrice, setPrice } from "@purosur/domain/pricing/use-cases";
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterEach, describe, expect, it } from "vitest";
@@ -489,7 +489,7 @@ describe("clearSampleData", () => {
         })
         .from(changes)
         .where(eq(changes.op, "delete"))
-    ).filter((row) => row.entity !== "user" && row.entity !== "role");
+    ).filter((row) => !["user", "role", "register"].includes(row.entity));
     const byKey = (row: { entity: string; entityId: string }) => `${row.entity}:${row.entityId}`;
     expect(deletes.map(byKey).sort()).toEqual(
       [
@@ -558,6 +558,42 @@ describe("clearSampleData", () => {
     for (const role of removedRoles) {
       expect(deleteOf("role", role.id)).toMatchObject({
         version: role.version + 1,
+        locationId: null,
+      });
+    }
+  }, 120_000);
+
+  it("logs every register it removes as a delete of the version after its last one, and none it leaves in place", async () => {
+    const db = await freshOwnerDatabase();
+    const bootstrap = await seedActiveAdministrator(db);
+    const realRegister = await createRegister(db, {
+      locationId: bootstrap.locationId,
+      name: "Caja Real",
+      actorId: bootstrap.id,
+    });
+    if (realRegister.kind !== "created") throw new Error("test setup: real register collided");
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    const removedRegisters = (
+      await db.select({ id: registers.id, version: registers.version }).from(registers)
+    ).filter((register) => register.id !== realRegister.register.id);
+    expect(removedRegisters.length).toBeGreaterThan(0);
+
+    expect((await clearSampleData(db)).kind).toBe("cleared");
+
+    const deletes = await db
+      .select({
+        entityId: changes.entityId,
+        version: changes.version,
+        locationId: changes.locationId,
+      })
+      .from(changes)
+      .where(and(eq(changes.op, "delete"), eq(changes.entity, "register")));
+    expect(deletes.map((row) => row.entityId).sort()).toEqual(
+      removedRegisters.map((register) => register.id).sort(),
+    );
+    for (const register of removedRegisters) {
+      expect(deletes.find((row) => row.entityId === register.id)).toMatchObject({
+        version: register.version + 1,
         locationId: null,
       });
     }
