@@ -1,3 +1,4 @@
+import type { CashBalance } from "@purosur/contracts";
 import { createRootRouteWithContext, createRoute, RouterProvider } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { Component } from "react";
@@ -8,12 +9,14 @@ import type { SignedInPerson } from "../access/signed-in-person";
 import { GuardedCashInForm } from "../access/test-support/guarded-cash-in-form";
 import type { CashSessionState } from "./cash-session-state";
 import type { CoreStatus, Enrollment, RouterContext } from "./router";
-import { createRegisterRouter, routeFor, routeTree } from "./router";
+import { createRegisterRouter, isSessionScreen, routeFor, routeTree } from "./router";
 
 type RoutePath =
   | "/"
   | "/sign-in"
   | "/session"
+  | "/cash"
+  | "/cash-count"
   | "/enroll"
   | "/starting"
   | "/core-down"
@@ -34,8 +37,19 @@ const OPENER: SignedInPerson = {
 const NO_SESSION: CashSessionState = { status: "none" };
 const OPEN_SESSION: CashSessionState = {
   status: "open",
+  id: "s1",
   openedAt: "2026-09-30T12:02:00.000Z",
   openedBy: OPENER,
+};
+const BALANCE: CashBalance = {
+  opening_float: 2_000_000,
+  cash_sales: 3_500_000,
+  change_given: 930_000,
+  refunds: 0,
+  cash_in: 100_000,
+  expenses: 50_000,
+  withdrawals: 0,
+  expected: 4_620_000,
 };
 const BRAND_LOGO_ALT = "Puro Sur";
 const ENROLLMENT_TITLE = "Dar de alta esta caja";
@@ -51,6 +65,8 @@ const screenFor: Record<
   "/": (screen) => screen.getByRole("heading", { name: SIGNED_IN_TITLE }),
   "/sign-in": (screen) => screen.getByRole("heading", { name: SIGN_IN_TITLE }),
   "/session": (screen) => screen.getByRole("heading", { name: SESSION_TITLE }),
+  "/cash": (screen) => screen.getByRole("heading", { name: "Caja" }),
+  "/cash-count": (screen) => screen.getByRole("heading", { name: "Cerrar caja" }),
   "/enroll": (screen) => screen.getByRole("heading", { name: ENROLLMENT_TITLE }),
   "/starting": (screen) => screen.getByRole("img", { name: BRAND_LOGO_ALT }),
   "/core-down": (screen) => screen.getByText(CORE_DOWN_TITLE),
@@ -71,6 +87,8 @@ function contextWith(
     person: person ?? undefined,
     cashSession,
     openCashSession: async () => ({ kind: "unavailable" }),
+    closeCashSession: async () => ({ kind: "unavailable" }),
+    cashBalance: async () => "unavailable",
     enroll: async () => ({ kind: "enrolled" }),
     registerName: async () => null,
     signInUsers: async () => [{ id: "u1", first_name: "Ada" }],
@@ -207,6 +225,19 @@ describe("routeFor", () => {
   );
 });
 
+describe("isSessionScreen", () => {
+  it("is true for the screens reached while a session is open, and false for the others", () => {
+    expect(["/session", "/cash", "/cash-count"].map(isSessionScreen)).toEqual([true, true, true]);
+    expect(["/", "/sign-in", "/starting", "/core-down", "/enroll"].map(isSessionScreen)).toEqual([
+      false,
+      false,
+      false,
+      false,
+      false,
+    ]);
+  });
+});
+
 describe("the register's router", () => {
   it.each<{
     path: RoutePath;
@@ -332,6 +363,29 @@ describe("the register's router", () => {
       redirectedTo: "/session",
     },
     { path: "/session", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
+    { path: "/cash", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
+    { path: "/cash-count", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
+    {
+      path: "/cash",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: null,
+      redirectedTo: "/sign-in",
+    },
+    {
+      path: "/cash-count",
+      coreStatus: "down",
+      enrollment: "enrolled",
+      cashSession: OPEN_SESSION,
+      redirectedTo: "/core-down",
+    },
+    {
+      path: "/cash",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      cashSession: { status: "unknown" },
+      redirectedTo: "/starting",
+    },
     {
       path: "/session",
       coreStatus: "up",
@@ -436,6 +490,63 @@ describe("the register's router", () => {
     await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
     await expect.element(screen.getByText("Grace")).toBeVisible();
     await expect.element(screen.getByText("Sesión abierta 09:02")).toBeVisible();
+  });
+
+  it("renders the cash screen for the open session with the expected cash from the context", async () => {
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", null, undefined, OPEN_SESSION),
+        cashBalance: async () => BALANCE,
+      },
+      "/cash",
+    );
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screen.getByRole("heading", { name: "Caja" })).toBeVisible();
+    await expect.element(screen.getByText("Grace")).toBeVisible();
+    await expect.element(screen.getByText("$ 46.200,00", { exact: true })).toBeVisible();
+  });
+
+  it("closes the session through the router context with the session it is showing", async () => {
+    const closed: [string, string, number][] = [];
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", null, undefined, OPEN_SESSION),
+        cashBalance: async () => BALANCE,
+        closeCashSession: async (person, sessionId, countedCash) => {
+          closed.push([person.user_id, sessionId, countedCash]);
+          return { kind: "unavailable" };
+        },
+      },
+      "/cash-count",
+    );
+    const screen = await render(<RouterProvider router={router} />);
+    await expect
+      .element(screen.getByRole("complementary").getByText("$ 46.200,00", { exact: true }))
+      .toBeVisible();
+
+    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
+    await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
+
+    await expect.poll(() => closed).toEqual([["u2", "s1", 4_580_000]]);
+  });
+
+  it("asks for an authorizer when the signed-in person is not the one who opened the session", async () => {
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", PERSON, undefined, OPEN_SESSION),
+        cashBalance: async () => BALANCE,
+      },
+      "/cash-count",
+    );
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO")).toBeVisible();
   });
 
   it("names the register in the open-session screen's eyebrow", async () => {

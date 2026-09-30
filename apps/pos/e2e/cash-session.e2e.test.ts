@@ -51,4 +51,16 @@ describe("the register's cash session", () => {
     await resumed.getByLabel("PIN").waitFor({ state: "detached" });
     await resumed.getByRole("button", { name: "Entrar" }).waitFor({ state: "detached" });
   });
+
+  it("closes with a cash count and leaves the person signed in without a session", async () => {
+    const { page } = register;
+    await page.getByRole("link", { name: "Caja" }).click();
+    await page.getByRole("button", { name: "Cerrar caja" }).click();
+    await page.getByLabel("Efectivo contado").fill("19.600,00");
+    await page.getByText("Faltan $ 400,00.", { exact: false }).first().waitFor();
+    await page.getByRole("button", { name: "Cerrar caja" }).click();
+
+    await page.getByRole("heading", { name: "¿Qué querés hacer?" }).waitFor();
+    await page.getByRole("button", { name: "Abrir caja" }).waitFor();
+  });
 });

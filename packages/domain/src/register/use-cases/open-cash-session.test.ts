@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MAX_CASH_AMOUNT_CENTS } from "../model/cash-amount.js";
-import type { CashSession } from "../model/cash-session.js";
+import type { CashSession, OpenedCashSession } from "../model/cash-session.js";
 import { openCashSession } from "./open-cash-session.js";
 import {
   FakeCashLedger,
@@ -13,7 +13,7 @@ import { FixedClock } from "./test-support/fake-register-store.js";
 const NOW = new Date("2026-09-30T12:34:56.789Z");
 const IDENTITY = { registerId: "register-1", deviceId: "device-1" };
 const CASHIER = { isAdministrator: false, permissionKeys: ["sell_and_charge"] };
-const EARLIER_SESSION: CashSession = {
+const EARLIER_SESSION: OpenedCashSession = {
   id: "earlier",
   registerId: "register-1",
   deviceId: "device-1",
@@ -44,7 +44,7 @@ describe("openCashSession", () => {
 
     const outcome = open(store);
 
-    const session: CashSession = {
+    const session: OpenedCashSession = {
       id: "id-1",
       registerId: "register-1",
       deviceId: "device-1",
@@ -149,7 +149,16 @@ describe("openCashSession", () => {
   });
 
   it("opens a session when the earlier ones are closed", () => {
-    const store = ledger({ sessions: [{ ...EARLIER_SESSION, state: "CLOSED" }] });
+    const closed: CashSession = {
+      ...EARLIER_SESSION,
+      state: "CLOSED",
+      closedBy: "someone",
+      closedAt: new Date("2026-09-30T11:00:00.000Z"),
+      expectedCash: 1000,
+      countedCash: 1000,
+      difference: 0,
+    };
+    const store = ledger({ sessions: [closed] });
 
     expect(open(store).kind).toBe("opened");
   });

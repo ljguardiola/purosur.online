@@ -1,4 +1,9 @@
-import type { CashMovement, CashSession } from "@purosur/domain";
+import type {
+  CashMovement,
+  CashMovementType,
+  ClosedCashSession,
+  OpenedCashSession,
+} from "@purosur/domain";
 import type {
   CashLedger,
   CashLedgerTransaction,
@@ -17,7 +22,7 @@ interface SessionRow {
   opening_float: number;
 }
 
-export function readOpenSession(database: LocalDatabase): CashSession | undefined {
+export function readOpenSession(database: LocalDatabase): OpenedCashSession | undefined {
   const row = database
     .prepare<[], SessionRow>(
       `SELECT id, register_id, device_id, opened_by, opened_at, opening_float
@@ -35,6 +40,45 @@ export function readOpenSession(database: LocalDatabase): CashSession | undefine
         openingFloat: row.opening_float,
         state: "OPEN",
       };
+}
+
+interface MovementRow {
+  id: string;
+  session_id: string;
+  type: CashMovementType;
+  amount: number;
+  reason: string | null;
+  ref_type: string | null;
+  ref_id: string | null;
+  actor_id: string;
+  authorized_by: string | null;
+  occurred_at: string;
+}
+
+function movementOf(row: MovementRow): CashMovement {
+  return {
+    id: row.id,
+    sessionId: row.session_id,
+    type: row.type,
+    amount: row.amount,
+    actorId: row.actor_id,
+    occurredAt: new Date(row.occurred_at),
+    ...(row.reason === null ? {} : { reason: row.reason }),
+    ...(row.ref_type === null || row.ref_id === null
+      ? {}
+      : { ref: { type: row.ref_type, id: row.ref_id } }),
+    ...(row.authorized_by === null ? {} : { authorizedBy: row.authorized_by }),
+  };
+}
+
+export function readSessionMovements(database: LocalDatabase, sessionId: string): CashMovement[] {
+  return database
+    .prepare<[string], MovementRow>(
+      `SELECT id, session_id, type, amount, reason, ref_type, ref_id, actor_id, authorized_by, occurred_at
+       FROM cash_movements WHERE session_id = ? ORDER BY rowid`,
+    )
+    .all(sessionId)
+    .map(movementOf);
 }
 
 export class SqliteCashLedger implements CashLedger {
@@ -60,8 +104,11 @@ export class SqliteCashLedger implements CashLedger {
     return {
       openerAccess: (userId) => this.people.activePerson(userId)?.access,
       openSession: () => readOpenSession(this.database),
+      openSaleTotal: () => undefined,
+      sessionMovements: (sessionId) => readSessionMovements(this.database, sessionId),
       registerIdentity: () => this.registerIdentity(),
       recordOpenedSession: (session) => this.recordOpenedSession(session),
+      recordClosedSession: (session) => this.recordClosedSession(session),
       recordCashMovement: (movement) => this.recordCashMovement(movement),
       appendOutboxEvent: (draft) => appendOutboxEvent(this.database, this.outboxChainKey, draft),
     };
@@ -78,7 +125,7 @@ export class SqliteCashLedger implements CashLedger {
     return row === undefined ? undefined : { registerId: row.register_id, deviceId: row.device_id };
   }
 
-  private recordOpenedSession(session: CashSession): void {
+  private recordOpenedSession(session: OpenedCashSession): void {
     this.database
       .prepare(
         `INSERT INTO cash_sessions (
@@ -93,6 +140,25 @@ export class SqliteCashLedger implements CashLedger {
         opened_at: session.openedAt.toISOString(),
         opening_float: session.openingFloat,
         state: session.state,
+      });
+  }
+
+  private recordClosedSession(session: ClosedCashSession): void {
+    this.database
+      .prepare(
+        `UPDATE cash_sessions SET
+           state = @state, closed_by = @closed_by, closed_at = @closed_at,
+           expected_cash = @expected_cash, counted_cash = @counted_cash, difference = @difference
+         WHERE id = @id`,
+      )
+      .run({
+        id: session.id,
+        state: session.state,
+        closed_by: session.closedBy,
+        closed_at: session.closedAt.toISOString(),
+        expected_cash: session.expectedCash,
+        counted_cash: session.countedCash,
+        difference: session.difference,
       });
   }
 
