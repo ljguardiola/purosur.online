@@ -4,6 +4,7 @@ import type {
   DiscountStore,
   DiscountStoreTransaction,
   LockAssignableTargetResult,
+  LockDiscountedProductResult,
   LockDiscountResult,
 } from "@purosur/domain/pricing/use-cases";
 import { and, eq } from "drizzle-orm";
@@ -126,6 +127,20 @@ class DrizzleDiscountStoreTransaction<TQueryResult extends PgQueryResultHKT>
     }
     const [row] = await this.tx.select().from(discounts).where(eq(discounts.id, id)).for("update");
     return row ? { kind: "locked", discount: discountFieldsOf(row) } : { kind: "not_found" };
+  }
+
+  async lockDiscountedProduct(productId: string): Promise<LockDiscountedProductResult> {
+    if (!UUID_PATTERN.test(productId)) {
+      return { kind: "not_found" };
+    }
+    const [row] = await this.tx
+      .select({ name: products.name, saleUnit: products.saleUnit })
+      .from(products)
+      .where(eq(products.id, productId))
+      .for("share");
+    return row
+      ? { kind: "locked", name: row.name, saleUnit: row.saleUnit as SaleUnit }
+      : { kind: "not_found" };
   }
 
   async updateDiscount(id: string, fields: DiscountFields): Promise<void> {

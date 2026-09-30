@@ -324,7 +324,7 @@ describe("editDiscount", () => {
 
       expect(outcome).toEqual({ kind: "product_sold_by_weight", productName: "Yerba" });
       expect(store.snapshot()).toEqual(before);
-      expect(store.operationOrder).toEqual(["lockDiscount", "lockAssignableTarget"]);
+      expect(store.operationOrder).toEqual(["lockDiscount", "lockDiscountedProduct"]);
     });
 
     it("refuses extending an ended one past today while its product is sold by weight", async () => {
@@ -361,7 +361,7 @@ describe("editDiscount", () => {
       expect(outcome).toEqual({ kind: "applied", version: 4 });
       expect(store.operationOrder).toEqual([
         "lockDiscount",
-        "lockAssignableTarget",
+        "lockDiscountedProduct",
         "updateDiscount",
       ]);
     });
@@ -411,9 +411,31 @@ describe("editDiscount", () => {
       expect(store.operationOrder).toEqual(["lockDiscount", "updateDiscount"]);
     });
 
-    it("switches it on when its product was deactivated meanwhile, as that is not this rule's to refuse", async () => {
+    it("refuses switching it on while its deactivated product is sold by weight, naming the product", async () => {
       const store = new FakeDiscountStore();
-      store.seedTarget({ kind: "PRODUCT", id: "product-1", active: false, saleUnit: "KG" });
+      store.seedTarget({
+        kind: "PRODUCT",
+        id: "product-1",
+        name: "Yerba",
+        active: false,
+        saleUnit: "KG",
+      });
+      store.seedDiscount({ ...stored, benefit: buyThreePayTwo, active: false });
+      const before = store.snapshot();
+
+      const outcome = await editDiscount(
+        { store, clock },
+        { ...input, benefit: buyThreePayTwo, active: true },
+      );
+
+      expect(outcome).toEqual({ kind: "product_sold_by_weight", productName: "Yerba" });
+      expect(store.snapshot()).toEqual(before);
+      expect(store.operationOrder).toEqual(["lockDiscount", "lockDiscountedProduct"]);
+    });
+
+    it("switches it on while its deactivated product is sold by the unit", async () => {
+      const store = new FakeDiscountStore();
+      store.seedTarget({ kind: "PRODUCT", id: "product-1", active: false, saleUnit: "UNIT" });
       store.seedDiscount({ ...stored, benefit: buyThreePayTwo, active: false });
 
       const outcome = await editDiscount(
@@ -422,6 +444,26 @@ describe("editDiscount", () => {
       );
 
       expect(outcome).toEqual({ kind: "applied", version: 4 });
+      expect(store.operationOrder).toEqual([
+        "lockDiscount",
+        "lockDiscountedProduct",
+        "updateDiscount",
+      ]);
+    });
+
+    it("switches on one aimed at a category without checking a product", async () => {
+      const store = new FakeDiscountStore();
+      store.seedTarget({ kind: "CATEGORY", id: "category-1", active: true });
+      const category = { kind: "CATEGORY", id: "category-1" } as const;
+      store.seedDiscount({ ...stored, benefit: buyThreePayTwo, target: category, active: false });
+
+      const outcome = await editDiscount(
+        { store, clock },
+        { ...input, benefit: buyThreePayTwo, target: category, active: true },
+      );
+
+      expect(outcome).toEqual({ kind: "applied", version: 4 });
+      expect(store.operationOrder).toEqual(["lockDiscount", "updateDiscount"]);
     });
 
     it("keeps answering target_not_sold_by_unit when it also moves to a product sold by weight", async () => {

@@ -120,6 +120,37 @@ describe("locking the target a discount points at", () => {
   });
 });
 
+describe("locking the product a discount is on", () => {
+  it("locks a product whether it is active or not, reporting how it is sold", async () => {
+    const active = await insertProductWithTags(db, { name: "Yerba", tagIds: [] });
+    const deactivated = await insertProductWithTags(db, {
+      name: "Queso cremoso",
+      tagIds: [],
+      saleUnit: "KG",
+      active: false,
+    });
+
+    const outcomes = await inTransaction(async (tx) => [
+      await tx.lockDiscountedProduct(active.id),
+      await tx.lockDiscountedProduct(deactivated.id),
+    ]);
+
+    expect(outcomes).toEqual([
+      { kind: "locked", name: "Yerba", saleUnit: "UNIT" },
+      { kind: "locked", name: "Queso cremoso", saleUnit: "KG" },
+    ]);
+  });
+
+  it("answers not found for a product that does not exist or whose id is malformed", async () => {
+    const outcomes = await inTransaction(async (tx) => [
+      await tx.lockDiscountedProduct(NEVER_STORED_ID),
+      await tx.lockDiscountedProduct("not-a-uuid"),
+    ]);
+
+    expect(outcomes).toEqual([{ kind: "not_found" }, { kind: "not_found" }]);
+  });
+});
+
 describe("storing a discount", () => {
   it.each([
     ["CATEGORY", async () => insertCategory()],

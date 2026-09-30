@@ -54,13 +54,13 @@ export async function editDiscount(
       if (refused) {
         return refused;
       }
-    } else if (becomesLiveBuyNPayM) {
+    } else if (becomesLiveBuyNPayM && fields.target.kind === "PRODUCT") {
       // Discount row first, then the product's shared lock. A product edit holds the product row
       // and only reads discounts without locking them, so the two never wait on each other in
       // opposite orders.
-      const target = await tx.lockAssignableTarget(fields.target);
-      if (target.kind === "locked" && target.saleUnit === "KG") {
-        return { kind: "product_sold_by_weight", productName: target.name };
+      const product = await tx.lockDiscountedProduct(fields.target.id);
+      if (product.kind === "locked" && product.saleUnit === "KG") {
+        return { kind: "product_sold_by_weight", productName: product.name };
       }
     }
 

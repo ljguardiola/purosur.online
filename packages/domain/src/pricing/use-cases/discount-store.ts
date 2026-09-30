@@ -27,6 +27,10 @@ export type LockAssignableTargetResult =
   | { kind: "not_found" }
   | { kind: "locked"; name: string; saleUnit: SaleUnit | null };
 
+export type LockDiscountedProductResult =
+  | { kind: "not_found" }
+  | { kind: "locked"; name: string; saleUnit: SaleUnit };
+
 export type LockDiscountResult =
   | { kind: "not_found" }
   | { kind: "locked"; discount: DiscountFields };
@@ -41,5 +45,6 @@ export interface DiscountStoreTransaction {
   lockAssignableTarget(target: DiscountTarget): Promise<LockAssignableTargetResult>;
   insertDiscount(discount: DiscountFields): Promise<{ id: string }>;
   lockDiscount(id: string): Promise<LockDiscountResult>;
+  lockDiscountedProduct(productId: string): Promise<LockDiscountedProductResult>;
   updateDiscount(id: string, discount: DiscountFields): Promise<void>;
 }
