@@ -1,9 +1,17 @@
+import { createCategory, createProduct } from "@purosur/domain/catalog/use-cases";
 import { pullChanges } from "@purosur/domain/sync/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { branchHours, branchSettings, deviceState } from "../platform/db/schema.js";
+import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
+import {
+  branchHours,
+  branchSettings,
+  deviceState,
+  productBarcodes,
+  products,
+} from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import {
   createIntegrationDatabase,
@@ -45,14 +53,14 @@ describe("two pulls of the same device overlapping, on a real Postgres", () => {
     const earlier = db.transaction(async (tx) => {
       await tx
         .update(deviceState)
-        .set({ lastPullSince: 1 })
+        .set({ lastPullSince: 2 })
         .where(eq(deviceState.deviceId, deviceId));
       markEarlierRecorded();
       await earlierMayCommit;
     });
     await earlierIsRecorded;
 
-    const later = pullChanges(ports, { deviceId, locationId, since: 1 });
+    const later = pullChanges(ports, { deviceId, locationId, since: 2 });
     try {
       await waitForLockWaiters(sql, 1);
     } finally {
@@ -60,7 +68,7 @@ describe("two pulls of the same device overlapping, on a real Postgres", () => {
     }
     await earlier;
 
-    await expect(later).resolves.toMatchObject({ cursor: 1, hasMore: false });
+    await expect(later).resolves.toMatchObject({ cursor: 2, hasMore: false });
   });
 
   it("waits for a save of the branch's settings under way, then gives its settings with its hours", async () => {
@@ -104,10 +112,80 @@ describe("two pulls of the same device overlapping, on a real Postgres", () => {
     await save;
 
     const page = await pull;
-    expect(page.changes[0]?.row).toMatchObject({
-      address: "Av. Belgrano 1450",
-      version: 2,
-      hours: [{ dayOfWeek: 1, position: 0, opensAt: "09:00:00", closesAt: "13:00:00" }],
+    expect(page.changes[0]).toMatchObject({
+      row: {
+        address: "Av. Belgrano 1450",
+        version: 2,
+        hours: [{ dayOfWeek: 1, position: 0, opensAt: "09:00:00", closesAt: "13:00:00" }],
+      },
+    });
+  });
+
+  it("waits for a product edit under way, then gives the product edited, with its new barcodes", async () => {
+    const { deviceId, locationId } = await insertEnrolledInstallation(db, {
+      registerName: "Caja 3",
+    });
+    const ports = { changeLog: new DrizzleChangeLog(db), clock: { now: () => new Date() } };
+    const store = new DrizzleCatalogStore(db);
+    const category = await createCategory(store, { name: "Almacén", parentId: null });
+    if (category.kind !== "created") {
+      throw new Error("test setup: the category was not created");
+    }
+    const created = await createProduct(store, {
+      name: "Arroz",
+      categoryId: category.category.id,
+      brandId: null,
+      saleUnit: "UNIT",
+      barcodes: ["7790001000011"],
+      netContent: null,
+    });
+    if (created.kind !== "created") {
+      throw new Error("test setup: the product was not created");
+    }
+    const productId = created.product.id;
+
+    let markEditUnderWay = () => {};
+    const editIsUnderWay = new Promise<void>((resolve) => {
+      markEditUnderWay = resolve;
+    });
+    let letEditCommit = () => {};
+    const editMayCommit = new Promise<void>((resolve) => {
+      letEditCommit = resolve;
+    });
+    const edit = db.transaction(async (tx) => {
+      await tx
+        .select({ id: products.id })
+        .from(products)
+        .where(eq(products.id, productId))
+        .for("update");
+      await tx
+        .update(products)
+        .set({ name: "Arroz largo fino", version: 2 })
+        .where(eq(products.id, productId));
+      markEditUnderWay();
+      await editMayCommit;
+      await tx.insert(productBarcodes).values({ productId, position: 1, code: "7790001000028" });
+    });
+    await editIsUnderWay;
+
+    const pull = pullChanges(ports, { deviceId, locationId, since: 0 });
+    try {
+      await waitForLockWaiters(sql, 1);
+    } finally {
+      letEditCommit();
+    }
+    await edit;
+
+    const page = await pull;
+    expect(page.changes.find((change) => change.entity === "product")).toMatchObject({
+      row: {
+        name: "Arroz largo fino",
+        version: 2,
+        barcodes: [
+          { position: 0, code: "7790001000011" },
+          { position: 1, code: "7790001000028" },
+        ],
+      },
     });
   });
 });

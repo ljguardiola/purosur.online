@@ -12,15 +12,19 @@ import { and, desc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { auditLog, priceReviews, prices, products } from "../platform/db/schema.js";
 import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
+import { PendingChanges } from "../sync/change-log.js";
 import { NEWEST_PRICE_FIRST } from "./current-price.js";
+import { PRICE_VERSION } from "./price-version.js";
 
 class DrizzlePricingStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements PricingStoreTransaction
 {
   private readonly tx: PgDatabase<TQueryResult>;
+  private readonly pending: PendingChanges;
 
-  constructor(tx: PgDatabase<TQueryResult>) {
+  constructor(tx: PgDatabase<TQueryResult>, pending: PendingChanges) {
     this.tx = tx;
+    this.pending = pending;
   }
 
   async lockActiveProduct(productId: string): Promise<LockActiveProductResult> {
@@ -63,6 +67,13 @@ class DrizzlePricingStoreTransaction<TQueryResult extends PgQueryResultHKT>
     if (!recorded) {
       throw new Error("inserting the new price returned no row");
     }
+    this.pending.note({
+      entity: "price",
+      entityId: recorded.id,
+      version: PRICE_VERSION,
+      op: "insert",
+      priceListId: price.priceListId,
+    });
     return recorded;
   }
 
@@ -101,6 +112,11 @@ export class DrizzlePricingStore<TQueryResult extends PgQueryResultHKT> implemen
   transaction<TOutcome>(
     work: (tx: PricingStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    return this.db.transaction((tx) => work(new DrizzlePricingStoreTransaction(tx)));
+    return this.db.transaction(async (tx) => {
+      const pending = new PendingChanges();
+      const outcome = await work(new DrizzlePricingStoreTransaction(tx, pending));
+      await pending.log(tx);
+      return outcome;
+    });
   }
 }

@@ -19,7 +19,8 @@ import {
   type DeviceTokensOptions,
   installationTokenPorts,
 } from "../register/installation-token-ports.js";
-import { DrizzleChangeLog, type PulledBranchSettingsChange } from "./drizzle-change-log.js";
+import { DrizzleChangeLog } from "./drizzle-change-log.js";
+import type { PulledCloudChange } from "./pulled-changes.js";
 
 export type ChangesRouteOptions<TQueryResult extends PgQueryResultHKT> =
   DeviceTokensOptions<TQueryResult>;
@@ -29,14 +30,72 @@ const DEVICE_TOKEN_REJECTED = cloudError(
   "the device token is not recognized",
 );
 
-function toChangesPageWire(page: PullPage<PulledBranchSettingsChange>): ChangesPage {
+function toChangeWire(change: PulledCloudChange): ChangesPage["changes"][number] {
+  const { changeSeq: change_seq, entityId: entity_id } = change;
+  switch (change.entity) {
+    case "branch_settings":
+      return {
+        change_seq,
+        entity: change.entity,
+        entity_id,
+        row: toBranchSettingsWire(change.row),
+      };
+    case "category":
+      return {
+        change_seq,
+        entity: change.entity,
+        entity_id,
+        row: {
+          name: change.row.name,
+          parent_id: change.row.parentId,
+          version: change.row.version,
+        },
+      };
+    case "product":
+      return {
+        change_seq,
+        entity: change.entity,
+        entity_id,
+        row: {
+          name: change.row.name,
+          category_id: change.row.categoryId,
+          brand_id: change.row.brandId,
+          sale_unit: change.row.saleUnit,
+          active: change.row.active,
+          net_content: change.row.netContent,
+          barcodes: change.row.barcodes,
+          version: change.row.version,
+        },
+      };
+    case "price_list":
+      return { change_seq, entity: change.entity, entity_id, row: change.row };
+    case "price":
+      return {
+        change_seq,
+        entity: change.entity,
+        entity_id,
+        row: {
+          product_id: change.row.productId,
+          price_list_id: change.row.priceListId,
+          unit_price: change.row.unitPrice,
+          valid_from: change.row.validFrom.toISOString(),
+          version: change.row.version,
+        },
+      };
+    case "removal":
+      return {
+        change_seq,
+        entity: change.entity,
+        entity_id,
+        removed_entity: change.removedEntity,
+        version: change.version,
+      };
+  }
+}
+
+function toChangesPageWire(page: PullPage<PulledCloudChange>): ChangesPage {
   return {
-    changes: page.changes.map((change) => ({
-      change_seq: change.changeSeq,
-      entity: change.entity,
-      entity_id: change.entityId,
-      row: toBranchSettingsWire(change.row),
-    })),
+    changes: page.changes.map(toChangeWire),
     cursor: page.cursor,
     has_more: page.hasMore,
   };

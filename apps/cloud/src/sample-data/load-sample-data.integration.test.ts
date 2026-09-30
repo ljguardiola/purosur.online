@@ -10,7 +10,9 @@ import {
   branchHours,
   branchSettings,
   categories,
+  changes,
   priceReviews,
+  prices,
   productBarcodes,
   products,
   registers,
@@ -222,6 +224,58 @@ describe("loadSampleData", () => {
       alertDeliveries: await tableCount(db, "alert_deliveries"),
     }).toEqual(beforeSecondRun);
   }, 120_000);
+  it("logs every category, product and price it loads as an insert, each price with its price list, and every deactivation as an update", async () => {
+    const db = await freshDatabase();
+    await seedActiveAdministrator(db);
+
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+
+    const logged = await db
+      .select({
+        entity: changes.entity,
+        entityId: changes.entityId,
+        version: changes.version,
+        op: changes.op,
+        priceListId: changes.priceListId,
+      })
+      .from(changes);
+    const latestLogged = (entity: string, entityId: string) =>
+      logged
+        .filter((change) => change.entity === entity && change.entityId === entityId)
+        .sort((a, b) => a.version - b.version)
+        .at(-1);
+    const loadedCategories = await db
+      .select({ id: categories.id, version: categories.version })
+      .from(categories);
+    const loadedProducts = await db
+      .select({ id: products.id, version: products.version })
+      .from(products);
+    const loadedPrices = await db
+      .select({ id: prices.id, priceListId: prices.priceListId })
+      .from(prices);
+    expect(loadedCategories.length).toBeGreaterThan(0);
+    expect(loadedProducts.length).toBeGreaterThan(0);
+    expect(loadedPrices.length).toBeGreaterThan(0);
+
+    for (const category of loadedCategories) {
+      expect(latestLogged("category", category.id)).toMatchObject({ version: category.version });
+    }
+    for (const product of loadedProducts) {
+      expect(latestLogged("product", product.id)).toMatchObject({
+        version: product.version,
+        op: product.version === 1 ? "insert" : "update",
+      });
+    }
+    for (const price of loadedPrices) {
+      expect(latestLogged("price", price.id)).toMatchObject({
+        version: 1,
+        op: "insert",
+        priceListId: price.priceListId,
+      });
+    }
+    expect(loadedProducts.some((product) => product.version > 1)).toBe(true);
+  }, 120_000);
+
   it("leaves branch settings that were already configured untouched", async () => {
     const db = await freshDatabase();
     await seedActiveAdministrator(db);

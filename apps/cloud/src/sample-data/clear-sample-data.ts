@@ -28,7 +28,8 @@ import {
   userRoles,
   users,
 } from "../platform/db/schema.js";
-import { logChange } from "../sync/change-log.js";
+import { PRICE_VERSION } from "../pricing/price-version.js";
+import { type LoggedChange, logChange, logChanges } from "../sync/change-log.js";
 import {
   BRANCH_SETTINGS_DEFAULTS,
   branchSettingsEqualSampleValues,
@@ -283,16 +284,19 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
       .returning({ id: alerts.id });
 
     await tx.delete(priceReviews).where(inArray(priceReviews.productId, sampleProductIds));
-    await tx.delete(prices).where(inArray(prices.productId, sampleProductIds));
+    const deletedPrices = await tx
+      .delete(prices)
+      .where(inArray(prices.productId, sampleProductIds))
+      .returning({ id: prices.id, priceListId: prices.priceListId });
     await tx.delete(productBarcodes).where(inArray(productBarcodes.productId, sampleProductIds));
     await tx.execute(sql`alter table products disable trigger products_reject_deletion`);
     const deletedProducts = await tx
       .delete(products)
       .where(inArray(products.id, sampleProductIds))
-      .returning({ id: products.id });
+      .returning({ id: products.id, version: products.version });
     await tx.execute(sql`alter table products enable trigger products_reject_deletion`);
 
-    let deletedCategoryCount = 0;
+    const deletedCategories: { id: string; version: number }[] = [];
     for (const depthIds of [
       categoryIdsByDepth.leaf,
       categoryIdsByDepth.mid,
@@ -301,8 +305,8 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
       const deleted = await tx
         .delete(categories)
         .where(inArray(categories.id, depthIds))
-        .returning({ id: categories.id });
-      deletedCategoryCount += deleted.length;
+        .returning({ id: categories.id, version: categories.version });
+      deletedCategories.push(...deleted);
     }
 
     const sampleEntityIds = [
@@ -419,12 +423,41 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
       }
     }
 
+    const removals: LoggedChange[] = [
+      ...deletedCategories.map(
+        (category): LoggedChange => ({
+          entity: "category",
+          entityId: category.id,
+          version: category.version + 1,
+          op: "delete",
+        }),
+      ),
+      ...deletedProducts.map(
+        (product): LoggedChange => ({
+          entity: "product",
+          entityId: product.id,
+          version: product.version + 1,
+          op: "delete",
+        }),
+      ),
+      ...deletedPrices.map(
+        (price): LoggedChange => ({
+          entity: "price",
+          entityId: price.id,
+          version: PRICE_VERSION + 1,
+          op: "delete",
+          priceListId: price.priceListId,
+        }),
+      ),
+    ];
+    await logChanges(tx, removals);
+
     return {
       kind: "cleared",
       summary: {
         users: deletedUsers.length,
         roles: deletedRoles.length,
-        categories: deletedCategoryCount,
+        categories: deletedCategories.length,
         products: deletedProducts.length,
         registers: deletedRegisters.length,
         alerts: deletedAlerts.length,

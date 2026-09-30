@@ -20,6 +20,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import { brands, categories, productBarcodes, products } from "../platform/db/schema.js";
 import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
+import { PendingChanges } from "../sync/change-log.js";
 
 const UNIQUE_VIOLATION = "23505";
 const BARCODE_UNIQUE_INDEX = "product_barcodes_code_key";
@@ -58,9 +59,11 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements CatalogStoreTransaction
 {
   private readonly tx: PgDatabase<TQueryResult>;
+  private readonly pending: PendingChanges;
 
-  constructor(tx: PgDatabase<TQueryResult>) {
+  constructor(tx: PgDatabase<TQueryResult>, pending: PendingChanges) {
     this.tx = tx;
+    this.pending = pending;
   }
 
   async lockLeafCategory(categoryId: string): Promise<LockLeafCategoryResult> {
@@ -185,11 +188,17 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
         netContentQuantity: fields.netContent?.quantity,
         netContentUnit: fields.netContent?.unit,
       })
-      .returning({ id: products.id });
+      .returning({ id: products.id, version: products.version });
     if (!product) {
       throw new Error("inserting the product returned no row");
     }
-    return product;
+    this.pending.note({
+      entity: "product",
+      entityId: product.id,
+      version: product.version,
+      op: "insert",
+    });
+    return { id: product.id };
   }
 
   async insertProductBarcodes(productId: string, barcodes: readonly string[]): Promise<void> {
@@ -209,6 +218,12 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
         version: fields.version,
       })
       .where(eq(products.id, productId));
+    this.pending.note({
+      entity: "product",
+      entityId: productId,
+      version: fields.version,
+      op: "update",
+    });
   }
 
   async replaceProductBarcodes(product: LockedProduct, barcodes: readonly string[]): Promise<void> {
@@ -225,6 +240,12 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
       .update(products)
       .set({ active: false, version: nextVersion })
       .where(eq(products.id, productId));
+    this.pending.note({
+      entity: "product",
+      entityId: productId,
+      version: nextVersion,
+      op: "update",
+    });
   }
 
   async deactivateProductBarcodes(productId: string): Promise<void> {
@@ -239,11 +260,17 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
       const [category] = await this.tx
         .insert(categories)
         .values({ name, parentId })
-        .returning({ id: categories.id });
+        .returning({ id: categories.id, version: categories.version });
       if (!category) {
         throw new Error("inserting the category returned no row");
       }
-      return category;
+      this.pending.note({
+        entity: "category",
+        entityId: category.id,
+        version: category.version,
+        op: "insert",
+      });
+      return { id: category.id };
     } catch (error) {
       throw translateCategoryNameViolation(error);
     }
@@ -255,6 +282,12 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
         .update(categories)
         .set({ name: fields.name, parentId: fields.parentId, version: fields.version })
         .where(eq(categories.id, categoryId));
+      this.pending.note({
+        entity: "category",
+        entityId: categoryId,
+        version: fields.version,
+        op: "update",
+      });
     } catch (error) {
       throw translateCategoryNameViolation(error);
     }
@@ -349,7 +382,12 @@ export class DrizzleCatalogStore<TQueryResult extends PgQueryResultHKT> implemen
   transaction<TOutcome>(
     work: (tx: CatalogStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    return this.db.transaction((tx) => work(new DrizzleCatalogStoreTransaction(tx)));
+    return this.db.transaction(async (tx) => {
+      const pending = new PendingChanges();
+      const outcome = await work(new DrizzleCatalogStoreTransaction(tx, pending));
+      await pending.log(tx);
+      return outcome;
+    });
   }
 
   activeBarcodesTaken(codes: readonly string[], excludingProductId?: string): Promise<string[]> {

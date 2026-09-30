@@ -18,6 +18,7 @@ import {
   changes,
   deviceState,
   passkeyChallenges,
+  prices,
   products,
   recoveryTokens,
   registerContingencyTicketKeys,
@@ -442,6 +443,75 @@ describe("clearSampleData", () => {
     expect(await tableCount(db, "registers")).toBe(0);
     expect(await tableCount(db, "register_installations")).toBe(0);
     expect(await tableCount(db, "device_state")).toBe(0);
+  }, 120_000);
+
+  it("logs every category, product and price it removes as a delete of the version after its last one", async () => {
+    const db = await freshOwnerDatabase();
+    await seedActiveAdministrator(db);
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    const removedCategories = await db
+      .select({ id: categories.id, version: categories.version })
+      .from(categories);
+    const removedProducts = await db
+      .select({ id: products.id, version: products.version })
+      .from(products);
+    const removedPrices = await db
+      .select({ id: prices.id, priceListId: prices.priceListId })
+      .from(prices);
+    expect(removedProducts.some((product) => product.version > 1)).toBe(true);
+
+    expect((await clearSampleData(db)).kind).toBe("cleared");
+
+    const deletes = await db
+      .select({
+        entity: changes.entity,
+        entityId: changes.entityId,
+        version: changes.version,
+        priceListId: changes.priceListId,
+      })
+      .from(changes)
+      .where(eq(changes.op, "delete"));
+    const byKey = (row: { entity: string; entityId: string }) => `${row.entity}:${row.entityId}`;
+    expect(deletes.map(byKey).sort()).toEqual(
+      [
+        ...removedCategories.map((row) => `category:${row.id}`),
+        ...removedProducts.map((row) => `product:${row.id}`),
+        ...removedPrices.map((row) => `price:${row.id}`),
+      ].sort(),
+    );
+    const deleteOf = (entity: string, id: string) =>
+      deletes.find((row) => row.entity === entity && row.entityId === id);
+    for (const category of removedCategories) {
+      expect(deleteOf("category", category.id)).toMatchObject({ version: category.version + 1 });
+    }
+    for (const product of removedProducts) {
+      expect(deleteOf("product", product.id)).toMatchObject({ version: product.version + 1 });
+    }
+    for (const price of removedPrices) {
+      expect(deleteOf("price", price.id)).toMatchObject({
+        version: 2,
+        priceListId: price.priceListId,
+      });
+    }
+  }, 120_000);
+
+  it("logs nothing about a real category, product or price it leaves in place", async () => {
+    const db = await freshOwnerDatabase();
+    await seedActiveAdministrator(db);
+    const realCategory = await createCategory(new DrizzleCatalogStore(db), {
+      name: "Categoría Real",
+      parentId: null,
+    });
+    if (realCategory.kind !== "created") throw new Error("test setup: real category collided");
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+
+    expect((await clearSampleData(db)).kind).toBe("cleared");
+
+    const deletes = await db
+      .select({ entityId: changes.entityId })
+      .from(changes)
+      .where(eq(changes.op, "delete"));
+    expect(deletes.map((row) => row.entityId)).not.toContain(realCategory.category.id);
   }, 120_000);
 
   it("logs the branch settings it set back as a change, so registers pull them", async () => {
