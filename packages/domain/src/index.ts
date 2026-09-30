@@ -48,11 +48,11 @@ export {
   pinCodeWindowStart,
   pinSignInAttemptsLeft,
   pinSignInDelaySeconds,
-  signInLookupAttemptWindowStart,
   pinSignInRetryAfterSeconds,
   ROLE_NAME_MAX_LENGTH,
   repeatsAPermissionKey,
   roleNameLength,
+  signInLookupAttemptWindowStart,
   uncoveredRegisterPermissions,
   withRequiredPermissions,
 } from "./access/index.js";

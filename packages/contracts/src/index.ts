@@ -27,8 +27,6 @@ export {
   pinCodeRedemptionBodySchema,
   pinCodeRedemptionSchema,
 } from "./access/pin-code-redemption.js";
-export type { SignInLookup, SignInLookupBody } from "./access/sign-in-lookup.js";
-export { signInLookupBodySchema, signInLookupSchema } from "./access/sign-in-lookup.js";
 export type { RecoveryRedemptionBody } from "./access/recovery-redemption.js";
 export { recoveryRedemptionBodySchema } from "./access/recovery-redemption.js";
 export type { RecoveryRegistrationOptionsWire } from "./access/recovery-registration-options.js";
@@ -57,6 +55,8 @@ export type { SessionAuthorizationOptionsWire } from "./access/session-authoriza
 export { sessionAuthorizationOptionsSchema } from "./access/session-authorization-options.js";
 export type { SessionStatusWire } from "./access/session-status.js";
 export { sessionStatusSchema } from "./access/session-status.js";
+export type { SignInLookup, SignInLookupBody } from "./access/sign-in-lookup.js";
+export { signInLookupBodySchema, signInLookupSchema } from "./access/sign-in-lookup.js";
 export type { UserCreationBody } from "./access/user-creation.js";
 export { userCreationBodySchema } from "./access/user-creation.js";
 export type { UserEditBody } from "./access/user-edit.js";

@@ -4,6 +4,11 @@ export type {
 } from "./emit-user-pin-code.js";
 export { emitUserPinCode } from "./emit-user-pin-code.js";
 export type {
+  LookUpSignInInput,
+  LookUpSignInOutcome,
+} from "./look-up-sign-in.js";
+export { lookUpSignIn } from "./look-up-sign-in.js";
+export type {
   HashedPin,
   LockedPinCode,
   PinCodeHolder,
@@ -25,11 +30,6 @@ export type {
   PinCodeStoreTransaction,
   PinCodeTarget,
 } from "./pin-code-store.js";
-export type {
-  LookUpSignInInput,
-  LookUpSignInOutcome,
-} from "./look-up-sign-in.js";
-export { lookUpSignIn } from "./look-up-sign-in.js";
 export type {
   RedeemPinCodeInput,
   RedeemPinCodeOutcome,

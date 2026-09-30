@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { lookUpSignIn } from "./look-up-sign-in.js";
-import { FakeSignInLookupStore } from "./test-support/fake-sign-in-lookup-store.js";
 import { FixedClock } from "./test-support/fake-pin-code-store.js";
+import { FakeSignInLookupStore } from "./test-support/fake-sign-in-lookup-store.js";
 
 const NOW = new Date("2026-09-30T12:00:00.000Z");
 const REGISTER = "register-1";
