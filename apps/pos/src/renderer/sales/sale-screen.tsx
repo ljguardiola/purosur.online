@@ -1,6 +1,7 @@
 import type { CurrentSaleAnswer, OpenSale, ScanProductOutcome } from "@purosur/contracts";
 import { scannedCodeSchema } from "@purosur/contracts";
 import { EmptyState, LoadFailure, LoadingPlaceholder, SearchField } from "@purosur/ui";
+import { useNavigate } from "@tanstack/react-router";
 import { ScanBarcode, TriangleAlert } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -46,6 +47,7 @@ export function SaleScreen({
   scanProduct,
   onSessionInvalid,
 }: SaleScreenProps) {
+  const navigate = useNavigate();
   const field = useRef<HTMLFormElement>(null);
   const [view, setView] = useState<SaleView>({ status: "loading" });
   const [code, setCode] = useState("");
@@ -190,7 +192,11 @@ export function SaleScreen({
           <SaleLines lines={sale?.lines ?? []} changedLineId={view.changedLineId} />
         ) : null}
       </main>
-      <PaymentPanel lineCount={sale?.lines.length ?? 0} total={sale?.total ?? 0} />
+      <PaymentPanel
+        lineCount={sale?.lines.length ?? 0}
+        total={sale?.total ?? 0}
+        onCharge={() => void navigate({ to: "/charge" })}
+      />
     </div>
   );
 }

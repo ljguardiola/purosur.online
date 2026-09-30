@@ -1,7 +1,14 @@
-import { formatCents, plural, SummaryRowGroup } from "@purosur/ui";
+import { Button, formatCents, plural, SummaryRowGroup } from "@purosur/ui";
+import { Banknote } from "lucide-react";
 import { Eyebrow } from "../shell/eyebrow";
 
-export function PaymentPanel({ lineCount, total }: { lineCount: number; total: number }) {
+export type PaymentPanelProps = {
+  lineCount: number;
+  total: number;
+  onCharge: () => void;
+};
+
+export function PaymentPanel({ lineCount, total, onCharge }: PaymentPanelProps) {
   const lines = plural(lineCount, { one: "línea", other: "líneas" });
   return (
     <aside
@@ -11,6 +18,15 @@ export function PaymentPanel({ lineCount, total }: { lineCount: number; total: n
       <Eyebrow text="Total a cobrar" />
       <p className="text-display text-text-accent">{formatCents(total)}</p>
       <SummaryRowGroup rows={[{ label: `${lineCount} ${lines}`, value: formatCents(total) }]} />
+      <Button
+        size="sale"
+        fullWidth
+        icon={<Banknote />}
+        disabled={lineCount === 0}
+        onPress={onCharge}
+      >
+        Cobrar
+      </Button>
     </aside>
   );
 }

@@ -1,6 +1,7 @@
 import type {
   Authorization,
   CashBalance,
+  ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
   CoreStatusMessage,
   CurrentSaleAnswer,
@@ -33,6 +34,7 @@ import type { CashMovementInput } from "../platform/core-client";
 import { CashCountScreen } from "../register/cash-count-screen";
 import { CashScreen } from "../register/cash-screen";
 import { EnrollmentScreen } from "../register/enrollment-screen";
+import { ChargeScreen } from "../sales/charge-screen";
 import { SaleScreen } from "../sales/sale-screen";
 import { ACTION_ENTRIES } from "./action-entries";
 import { BrandPanelScreen } from "./brand-panel-screen";
@@ -74,6 +76,7 @@ export interface RouterContext {
   firstSignIn: (userId: string, pin: string) => Promise<SignInOutcome>;
   currentSale: () => Promise<CurrentSaleAnswer>;
   scanProduct: (code: string) => Promise<ScanProductOutcome>;
+  chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
   refreshCashSession: () => Promise<void>;
 }
 
@@ -109,7 +112,7 @@ export function routeFor({
   return person === undefined ? "/sign-in" : "/";
 }
 
-const SESSION_SCREENS: readonly string[] = ["/session", "/cash", "/cash-count"];
+const SESSION_SCREENS: readonly string[] = ["/session", "/cash", "/cash-count", "/charge"];
 
 export function isSessionScreen(path: string): boolean {
   return SESSION_SCREENS.includes(path);
@@ -184,6 +187,27 @@ const openSessionRoute = createRoute({
         openedAt={openedAt}
         currentSale={currentSale}
         scanProduct={scanProduct}
+        onSessionInvalid={() => void refreshCashSession()}
+      />
+    );
+  },
+});
+
+const chargeRoute = createRoute({
+  getParentRoute: () => sessionEyebrowRoute,
+  path: "/charge",
+  beforeLoad: ({ context }) => {
+    const { openedBy } = requireOpenSession(context);
+    return { openedBy };
+  },
+  component: function ChargeRoute() {
+    const { openedBy, currentSale, chargeSaleInCash, refreshCashSession } =
+      chargeRoute.useRouteContext();
+    return (
+      <ChargeScreen
+        person={openedBy}
+        currentSale={currentSale}
+        chargeSaleInCash={chargeSaleInCash}
         onSessionInvalid={() => void refreshCashSession()}
       />
     );
@@ -318,6 +342,7 @@ export const routeTree = rootRoute.addChildren([
     signedInRoute,
     signInRoute,
     openSessionRoute,
+    chargeRoute,
     cashRoute,
     cashCountRoute,
   ]),
@@ -361,6 +386,7 @@ export function createAppRouter(
     | "firstSignIn"
     | "currentSale"
     | "scanProduct"
+    | "chargeSaleInCash"
     | "refreshCashSession"
   >,
 ) {
