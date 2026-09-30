@@ -222,7 +222,9 @@ describe("SignInScreen when the user is locked", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Tengo un código" }));
 
-    await vi.waitFor(() => expect(window.location.pathname).toBe("/pin-code-redemption"));
+    await vi.waitFor(() =>
+      expect(screen.router.state.location.pathname).toBe("/pin-code-redemption"),
+    );
   });
 
   it("goes back to the list of users with nobody chosen, no PIN and no notice", async () => {
