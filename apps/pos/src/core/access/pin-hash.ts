@@ -1,25 +1,16 @@
-import { argon2 } from "node:crypto";
 import { encodePinHash, PIN_HASH_SCHEME } from "@purosur/domain";
+import { argon2id } from "hash-wasm";
 
-export function hashPin(pin: string, salt: Uint8Array): Promise<string> {
-  return new Promise((resolve, reject) => {
-    argon2(
-      "argon2id",
-      {
-        message: pin,
-        nonce: salt,
-        memory: PIN_HASH_SCHEME.memoryKiB,
-        passes: PIN_HASH_SCHEME.passes,
-        parallelism: PIN_HASH_SCHEME.parallelism,
-        tagLength: PIN_HASH_SCHEME.hashLength,
-      },
-      (error, hash) => {
-        if (error === null) {
-          resolve(encodePinHash(hash));
-        } else {
-          reject(error);
-        }
-      },
-    );
+// Electron's Node is built on BoringSSL, which has no argon2, so node:crypto can't run it there.
+export async function hashPin(pin: string, salt: Uint8Array): Promise<string> {
+  const hash = await argon2id({
+    password: pin,
+    salt,
+    parallelism: PIN_HASH_SCHEME.parallelism,
+    iterations: PIN_HASH_SCHEME.passes,
+    memorySize: PIN_HASH_SCHEME.memoryKiB,
+    hashLength: PIN_HASH_SCHEME.hashLength,
+    outputType: "binary",
   });
+  return encodePinHash(hash);
 }
