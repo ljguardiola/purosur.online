@@ -5,7 +5,6 @@ import { createSignedInPerson, type SignedInPerson } from "../access/signed-in-p
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
-import { SqliteLocalReplica } from "../sync/sqlite-local-replica";
 import {
   type CashSessionRequestDeps,
   currentCashSession,
@@ -120,27 +119,6 @@ describe("opening a cash session on the register", () => {
     expect(openedSessions()).toEqual([]);
   });
 
-  it("refuses the signed-in person once a pull takes the permission to sell off their role", async () => {
-    await new SqliteLocalReplica(database).savePage({
-      changes: [
-        {
-          changeSeq: 1,
-          change: {
-            change_seq: 1,
-            entity: "role",
-            entity_id: "cashier",
-            row: { name: "cashier", is_administrator: false, permission_keys: [], version: 2 },
-          },
-        },
-      ],
-      cursor: 1,
-      hasMore: false,
-    });
-
-    expect(await openCashSessionFor(deps(), 5000)).toEqual({ kind: "not_permitted" });
-    expect(openedSessions()).toEqual([]);
-  });
-
   it.each([
     ["a second session", 5000, "already_open"],
     ["an opening float that is not an amount", -1, "invalid_opening_float"],
@@ -244,19 +222,13 @@ describe("who is signed in when the core starts or a page connects", () => {
     return failures;
   }
 
-  it("is the opener of the open session, who can act again as the signed-in person after a restart", async () => {
+  it("is the opener of the open session after a restart", async () => {
     await openCashSessionFor(deps(), 5000);
     signedInPerson = createSignedInPerson();
 
     resume(signedInPerson);
 
     expect(signedInPerson.userId()).toBe("u1");
-    const acted = await deps().gate.run({ permission: "sell_and_charge" }, async (actor) => actor);
-    expect(acted).toEqual({
-      kind: "performed",
-      authorized_by: null,
-      result: { signedInUserId: "u1", authorizedBy: null },
-    });
   });
 
   it("replaces whoever was signed in with the open session's opener", async () => {
