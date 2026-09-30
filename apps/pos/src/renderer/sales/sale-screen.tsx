@@ -6,7 +6,7 @@ import type {
   ScanProductOutcome,
   SearchProductsOutcome,
 } from "@purosur/contracts";
-import { scannedCodeSchema } from "@purosur/contracts";
+import { scannedCodeSchema, searchQuerySchema } from "@purosur/contracts";
 import { EmptyState, LoadFailure, LoadingPlaceholder, SearchField } from "@purosur/ui";
 import { ScanBarcode, TriangleAlert } from "lucide-react";
 import type { FormEvent, KeyboardEvent } from "react";
@@ -117,6 +117,10 @@ export function SaleScreen({
     const query = typed.trim();
     if (!LETTER.test(query)) {
       setSearch(undefined);
+      return;
+    }
+    if (!searchQuerySchema.safeParse(query).success) {
+      setSearch({ query, products: [], more: false });
       return;
     }
     searchProducts(query)
