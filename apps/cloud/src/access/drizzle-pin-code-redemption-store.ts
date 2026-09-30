@@ -2,6 +2,7 @@ import { pinCodeRedemptionAttemptWindowStart } from "@purosur/domain";
 import type {
   HashedPin,
   LockedPinCode,
+  PinCodeHolder,
   PinCodeRedemption,
   PinCodeRedemptionAttemptKey,
   PinCodeRedemptionStore,
@@ -40,20 +41,34 @@ class DrizzlePinCodeRedemptionStoreTransaction<TQueryResult extends PgQueryResul
     this.pending = pending;
   }
 
-  async lockPinCodeByHash(codeHash: string): Promise<LockedPinCode | undefined> {
+  async findPinCodeHolder(codeHash: string): Promise<string | undefined> {
+    const [row] = await this.tx
+      .select({ userId: userPinCodes.userId })
+      .from(userPinCodes)
+      .where(eq(userPinCodes.codeHash, codeHash));
+    return row?.userId;
+  }
+
+  async lockPinCodeHolder(userId: string): Promise<PinCodeHolder | undefined> {
+    const [row] = await this.tx
+      .select({ active: users.active })
+      .from(users)
+      .where(eq(users.id, userId))
+      .for("no key update");
+    return row;
+  }
+
+  async lockHeldPinCode(userId: string, codeHash: string): Promise<LockedPinCode | undefined> {
     const [row] = await this.tx
       .select({
-        userId: userPinCodes.userId,
-        userActive: users.active,
         expiresAt: userPinCodes.expiresAt,
         redeemedAt: userPinCodes.redeemedAt,
         supersededAt: userPinCodes.supersededAt,
         failedAttempts: userPinCodes.failedAttempts,
       })
       .from(userPinCodes)
-      .innerJoin(users, eq(users.id, userPinCodes.userId))
-      .where(eq(userPinCodes.codeHash, codeHash))
-      .for("update", { of: userPinCodes });
+      .where(and(eq(userPinCodes.userId, userId), eq(userPinCodes.codeHash, codeHash)))
+      .for("update");
     return row;
   }
 

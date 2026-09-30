@@ -31,9 +31,14 @@ export async function redeemPinCode(
   return store.transaction<RedeemPinCodeOutcome>(async (tx) => {
     const now = clock.now();
 
-    // The code is locked before the attempt counters, so two redemptions of the same code wait for
-    // each other before either one counts, fails or redeems it.
-    const code = await tx.lockPinCodeByHash(input.codeHash);
+    // The code's holder is locked before the code, in the order an emission for them locks both,
+    // so an emission and a redemption for the same person wait for each other. The code is locked
+    // before the attempt counters, so two redemptions of the same code wait for each other before
+    // either one counts, fails or redeems it.
+    const holderId = await tx.findPinCodeHolder(input.codeHash);
+    const holder = holderId === undefined ? undefined : await tx.lockPinCodeHolder(holderId);
+    const code =
+      holderId === undefined ? undefined : await tx.lockHeldPinCode(holderId, input.codeHash);
     // Always locked in this order, so two redemptions locking both keys cannot deadlock.
     const keys: PinCodeRedemptionAttemptKey[] = [
       { kind: "register", value: input.registerId },
@@ -55,7 +60,7 @@ export async function redeemPinCode(
     }
     await tx.recordPinCodeRedemptionAttempt(keys, now);
 
-    if (!code?.userActive) {
+    if (holderId === undefined || !holder?.active || !code) {
       return { kind: "unknown_code" };
     }
     if (isPinCodeBurned(code)) {
@@ -70,13 +75,13 @@ export async function redeemPinCode(
     }
 
     const { salt, pinHash } = await hasher.hash(input.newPin);
-    await tx.replacePin(code.userId, { salt, pinHash }, now);
+    await tx.replacePin(holderId, { salt, pinHash }, now);
     await tx.markPinCodeRedeemed(input.codeHash, now);
     await tx.recordPinCodeRedemption({
-      userId: code.userId,
+      userId: holderId,
       registerId: input.registerId,
       redeemedAt: now,
     });
-    return { kind: "redeemed", userId: code.userId, salt, pinHash };
+    return { kind: "redeemed", userId: holderId, salt, pinHash };
   });
 }

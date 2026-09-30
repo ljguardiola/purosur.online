@@ -148,13 +148,15 @@ describe("redeemPinCode", () => {
       expect(store.snapshot().redemptions).toEqual(afterFirst.redemptions);
     });
 
-    it("locks the code, then the attempts, before it writes the attempt, the PIN, the code and the audit entry in that order", async () => {
+    it("locks the code's holder, then the code, then the attempts, before it writes the attempt, the PIN, the code and the audit entry in that order", async () => {
       const store = storeWithCode();
 
       await redeem(store);
 
       expect(store.operationOrder).toEqual([
-        "lockPinCodeByHash",
+        "findPinCodeHolder",
+        "lockPinCodeHolder",
+        "lockHeldPinCode",
         "lockPinCodeRedemptionAttempts",
         "acceptedPinCodeRedemptionAttempts",
         "acceptedPinCodeRedemptionAttempts",
@@ -175,6 +177,20 @@ describe("redeemPinCode", () => {
       expect(outcome).toEqual({ kind: "unknown_code" });
       expect(store.snapshot().pins.size).toBe(0);
       expect(store.snapshot().codes[0]?.failedAttempts).toBe(0);
+    });
+
+    it("locks no holder and no code for a code nobody holds", async () => {
+      const store = storeWithCode();
+
+      await redeem(store, { codeHash: hashOfPinCode("AAAAAAAAAAAAAAAA") });
+
+      expect(store.operationOrder).toEqual([
+        "findPinCodeHolder",
+        "lockPinCodeRedemptionAttempts",
+        "acceptedPinCodeRedemptionAttempts",
+        "acceptedPinCodeRedemptionAttempts",
+        "recordPinCodeRedemptionAttempt",
+      ]);
     });
 
     it("refuses the code of a user who is no longer active, counting nothing against the code", async () => {

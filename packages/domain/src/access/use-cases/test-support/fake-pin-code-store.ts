@@ -1,6 +1,7 @@
 import type {
   HashedPin,
   LockedPinCode,
+  PinCodeHolder,
   PinCodeRedemption,
   PinCodeRedemptionAttemptKey,
   PinCodeRedemptionStore,
@@ -107,15 +108,26 @@ class FakePinCodeStoreTransaction
     this.state.emissions.push(structuredClone(emission));
   }
 
-  async lockPinCodeByHash(codeHash: string): Promise<LockedPinCode | undefined> {
-    this.store.operationOrder.push("lockPinCodeByHash");
-    const code = this.state.codes.find((candidate) => candidate.codeHash === codeHash);
+  async findPinCodeHolder(codeHash: string): Promise<string | undefined> {
+    this.store.operationOrder.push("findPinCodeHolder");
+    return this.state.codes.find((candidate) => candidate.codeHash === codeHash)?.userId;
+  }
+
+  async lockPinCodeHolder(userId: string): Promise<PinCodeHolder | undefined> {
+    this.store.operationOrder.push("lockPinCodeHolder");
+    const user = this.state.users.get(userId);
+    return user ? { active: user.active } : undefined;
+  }
+
+  async lockHeldPinCode(userId: string, codeHash: string): Promise<LockedPinCode | undefined> {
+    this.store.operationOrder.push("lockHeldPinCode");
+    const code = this.state.codes.find(
+      (candidate) => candidate.userId === userId && candidate.codeHash === codeHash,
+    );
     if (!code) {
       return undefined;
     }
     return {
-      userId: code.userId,
-      userActive: this.state.users.get(code.userId)?.active ?? false,
       expiresAt: new Date(code.expiresAt),
       failedAttempts: code.failedAttempts,
       redeemedAt: code.redeemedAt && new Date(code.redeemedAt),

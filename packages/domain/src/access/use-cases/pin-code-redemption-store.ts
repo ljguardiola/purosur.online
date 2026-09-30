@@ -14,9 +14,11 @@ export type PinCodeRedemptionAttemptKey =
   | { kind: "register"; value: string }
   | { kind: "source_address"; value: string };
 
+export interface PinCodeHolder {
+  active: boolean;
+}
+
 export interface LockedPinCode extends PinCodeState {
-  userId: string;
-  userActive: boolean;
   expiresAt: Date;
 }
 
@@ -33,7 +35,9 @@ export interface PinCodeRedemptionStore {
 }
 
 export interface PinCodeRedemptionStoreTransaction {
-  lockPinCodeByHash(codeHash: string): Promise<LockedPinCode | undefined>;
+  findPinCodeHolder(codeHash: string): Promise<string | undefined>;
+  lockPinCodeHolder(userId: string): Promise<PinCodeHolder | undefined>;
+  lockHeldPinCode(userId: string, codeHash: string): Promise<LockedPinCode | undefined>;
   lockPinCodeRedemptionAttempts(keys: readonly PinCodeRedemptionAttemptKey[]): Promise<void>;
   acceptedPinCodeRedemptionAttempts(key: PinCodeRedemptionAttemptKey, since: Date): Promise<Date[]>;
   recordPinCodeRedemptionAttempt(

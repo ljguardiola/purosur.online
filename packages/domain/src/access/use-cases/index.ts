@@ -6,6 +6,7 @@ export { emitUserPinCode } from "./emit-user-pin-code.js";
 export type {
   HashedPin,
   LockedPinCode,
+  PinCodeHolder,
   PinCodeRedemption,
   PinCodeRedemptionAttemptKey,
   PinCodeRedemptionPorts,

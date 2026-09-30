@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { redeemPinCode } from "@purosur/domain/access/use-cases";
+import { emitUserPinCode, redeemPinCode } from "@purosur/domain/access/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -7,8 +7,10 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   changes,
   pinCodeRedemptionAttempts,
+  roles,
   userPinCodes,
   userPins,
+  userRoles,
   users,
 } from "../platform/db/schema.js";
 import { hashSecretCode } from "../platform/secret-code.js";
@@ -20,10 +22,13 @@ import { runQueuedBehindHeldLock } from "../test-support/queued-behind-held-lock
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { argon2PinHasher } from "./argon2-pin-hasher.js";
 import { DrizzlePinCodeRedemptionStore } from "./drizzle-pin-code-redemption-store.js";
+import { DrizzlePinCodeStore } from "./drizzle-pin-code-store.js";
+import { generatePinCode } from "./pin-code-generator.js";
 
 // PGlite serializes every transaction, so racing redemptions can only interleave on a real
 // Postgres pool.
 const CODE = "P4NX7KWE2QRT6MZD";
+const CODE_BEING_REDEEMED = "W7HQ3NRX5KTB2MZP";
 
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
@@ -123,6 +128,48 @@ describe("redeeming the same PIN code twice at once on a real Postgres", () => {
       .from(users)
       .where(eq(users.id, userId));
     expect(user?.version).toBe(2);
+  });
+});
+
+describe("emitting a PIN code while its holder redeems one on a real Postgres", () => {
+  it("lets both finish, the emission waiting for the redemption", async () => {
+    const userId = await insertUserWithCode(CODE_BEING_REDEEMED);
+    const [role] = await db
+      .insert(roles)
+      .values({ name: `Cajera ${randomUUID()}`, isAdministrator: false })
+      .returning({ id: roles.id });
+    if (!role) {
+      throw new Error("test setup: seeding the role returned no row");
+    }
+    await db.insert(userRoles).values({ userId, roleId: role.id });
+    const locationId = await seededLocationId(db);
+    const registerId = randomUUID();
+    const now = new Date();
+
+    const [redemption, emission] = await runQueuedBehindHeldLock(
+      sql,
+      (holder) =>
+        holder`select pg_advisory_xact_lock(hashtextextended(${`pin_code_redemption:register:${registerId}`}, 0))`,
+      () =>
+        redeem({
+          code: CODE_BEING_REDEEMED,
+          registerId,
+          sourceAddress: "203.0.113.21",
+          newPin: "333333",
+        }),
+      () =>
+        emitUserPinCode(
+          {
+            store: new DrizzlePinCodeStore(db, locationId),
+            clock: { now: () => now },
+            codes: { generate: generatePinCode },
+          },
+          { actor: { id: userId, isAdministrator: true }, targetId: userId },
+        ),
+    );
+
+    expect(redemption.kind).toBe("redeemed");
+    expect(emission.kind).toBe("emitted");
   });
 });
 
