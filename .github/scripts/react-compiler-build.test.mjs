@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
-import { test } from "node:test";
+import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { failWhenHeldOpen } from "./test-support/fail-when-held-open.mjs";
 
 const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 const backofficeDir = join(repoRoot, "apps/backoffice");
@@ -21,6 +22,8 @@ const NO_DEPENDENCY_DISCOVERY = { noDiscovery: true };
 // A file watcher's initial scan can still be running when `server.close()` returns, and the
 // watches it opens afterwards keep the process alive; nothing here needs to see a file change.
 const CHECK_SERVER = { middlewareMode: true, hmr: false, ws: false, watch: null };
+
+after(() => failWhenHeldOpen(10_000));
 
 function requireFrom(packageJsonDir) {
   return createRequire(join(packageJsonDir, "package.json"));
