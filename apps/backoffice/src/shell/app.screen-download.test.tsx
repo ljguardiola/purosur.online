@@ -1,4 +1,3 @@
-import { defineHelp } from "@purosur/ui";
 import type {} from "@vitest/browser-playwright";
 import { StrictMode } from "react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
@@ -6,9 +5,8 @@ import { cdp, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { App } from "./app";
 import { ScreenDownloadFailure } from "./lazy-screen";
+import { emptyHelp } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
-
-const emptyHelp = defineHelp("es-AR", { categories: {}, articles: {} });
 
 async function blockDownloadsMatching(...patterns: string[]) {
   const session = cdp();

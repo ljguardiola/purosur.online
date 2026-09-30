@@ -130,5 +130,37 @@ export {
   scrubErrorReportBreadcrumb,
   scrubErrorReportLog,
 } from "./shared/index.js";
+export type {
+  StockBalance,
+  StockBalanceList,
+  StockCount,
+  StockCountList,
+  StockExpectedBalance,
+  StockMovement,
+  StockMovementList,
+  StockPeriodDays,
+  StockProduct,
+  StockProductList,
+} from "./stock/stock-lists.js";
+export {
+  STOCK_PERIOD_DAYS,
+  stockBalanceListSchema,
+  stockCountListSchema,
+  stockExpectedBalanceSchema,
+  stockMovementListSchema,
+  stockProductListSchema,
+} from "./stock/stock-lists.js";
+export type {
+  StockAdjustmentBody,
+  StockCountBody,
+  StockLossBody,
+} from "./stock/stock-movement-bodies.js";
+export {
+  stockAdjustmentBodySchema,
+  stockCountBodySchema,
+  stockLossBodySchema,
+} from "./stock/stock-movement-bodies.js";
+export type { StockCountResult, StockMovementResult } from "./stock/stock-results.js";
+export { stockCountResultSchema, stockMovementResultSchema } from "./stock/stock-results.js";
 export type { SyncPulledChange, SyncPullPage, SyncPullQuery } from "./sync/sync-pull.js";
 export { syncPullPageSchema, syncPullQuerySchema } from "./sync/sync-pull.js";

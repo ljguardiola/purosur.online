@@ -25,6 +25,7 @@
       "@purosur/domain": ["./packages/domain/src/index.ts"],
       "@purosur/domain/catalog/use-cases": ["./packages/domain/src/catalog/use-cases/index.ts"],
       "@purosur/domain/pricing/use-cases": ["./packages/domain/src/pricing/use-cases/index.ts"],
+      "@purosur/domain/stock/use-cases": ["./packages/domain/src/stock/use-cases/index.ts"],
       "@purosur/domain/register/use-cases": ["./packages/domain/src/register/use-cases/index.ts"],
       "@purosur/domain/sync/use-cases": ["./packages/domain/src/sync/use-cases/index.ts"],
       "@purosur/contracts": ["./packages/contracts/src/index.ts"],

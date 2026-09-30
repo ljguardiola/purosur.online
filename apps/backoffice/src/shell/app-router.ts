@@ -15,6 +15,7 @@ import { fiscalConfigurationRoute } from "../fiscal/routes";
 import { helpArticleRoute, helpCategoryRoute, helpHomeRoute } from "../help/routes";
 import { pricesListRoute } from "../pricing/routes";
 import { registersListRoute } from "../register/routes";
+import { stockBalancesRoute, stockCountsRoute, stockMovementsRoute } from "../stock/routes";
 import { cashAndFiscalAreaIndexRoute, cashAndFiscalAreaRoute } from "./cash-and-fiscal-area";
 import { catalogAreaIndexRoute, catalogAreaRoute } from "./catalog-area";
 import { helpAreaRoute } from "./help-area";
@@ -28,6 +29,7 @@ import { focusScreenTitle } from "./screen-title";
 import { parseSearch, stringifySearch } from "./search-params";
 import { settingsAreaIndexRoute, settingsAreaRoute } from "./settings-area";
 import { signedInRoute } from "./signed-in-route";
+import { stockAreaIndexRoute, stockAreaRoute } from "./stock-area";
 
 const landingRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -57,6 +59,12 @@ const routeTree = rootRoute.addChildren([
       categoriesListRoute,
       brandsListRoute,
       pricesListRoute,
+    ]),
+    stockAreaRoute.addChildren([
+      stockAreaIndexRoute,
+      stockBalancesRoute,
+      stockCountsRoute,
+      stockMovementsRoute,
     ]),
     cashAndFiscalAreaRoute.addChildren([cashAndFiscalAreaIndexRoute, fiscalConfigurationRoute]),
     settingsAreaRoute.addChildren([
