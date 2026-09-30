@@ -12,7 +12,7 @@ import { and, desc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { auditLog, priceReviews, prices, products } from "../platform/db/schema.js";
 import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
-import { PendingChanges } from "../sync/change-log.js";
+import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import { NEWEST_PRICE_FIRST } from "./current-price.js";
 import { PRICE_VERSION } from "./price-version.js";
 
@@ -104,19 +104,18 @@ class DrizzlePricingStoreTransaction<TQueryResult extends PgQueryResultHKT>
 
 export class DrizzlePricingStore<TQueryResult extends PgQueryResultHKT> implements PricingStore {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly pending: PendingChanges | undefined;
 
-  constructor(db: PgDatabase<TQueryResult>) {
+  constructor(db: PgDatabase<TQueryResult>, pending?: PendingChanges) {
     this.db = db;
+    this.pending = pending;
   }
 
   transaction<TOutcome>(
     work: (tx: PricingStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    return this.db.transaction(async (tx) => {
-      const pending = new PendingChanges();
-      const outcome = await work(new DrizzlePricingStoreTransaction(tx, pending));
-      await pending.log(tx);
-      return outcome;
-    });
+    return withPendingChanges(this.db, this.pending, (tx, pending) =>
+      work(new DrizzlePricingStoreTransaction(tx, pending)),
+    );
   }
 }

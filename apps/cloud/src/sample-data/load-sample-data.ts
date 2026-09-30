@@ -22,6 +22,7 @@ import { branchSettings, locations, roles, userRoles, users } from "../platform/
 import { branchPriceListId } from "../pricing/branch-price-list.js";
 import { DrizzlePricingStore } from "../pricing/drizzle-pricing-store.js";
 import { createRegister } from "../register/register-creation-route.js";
+import { PendingChanges } from "../sync/change-log.js";
 import { branchSettingsAreAtDefaults } from "./sample-branch-settings.js";
 import {
   SAMPLE_ADMINISTRATOR,
@@ -172,8 +173,9 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
       const recentMoment = deps.now();
       const overdueReviewMoment = new Date(recentMoment.getTime() - OVERDUE_PRICE_REVIEW_AGE_MS);
 
-      const catalogStore = new DrizzleCatalogStore(tx);
-      const pricingStore = new DrizzlePricingStore(tx);
+      const pending = new PendingChanges();
+      const catalogStore = new DrizzleCatalogStore(tx, pending);
+      const pricingStore = new DrizzlePricingStore(tx, pending);
       const pricingPortsAt = (moment: Date) => ({
         store: pricingStore,
         clock: { now: () => moment },
@@ -301,12 +303,16 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
         if (!currentBranchSettings) {
           throw new Error("sample-data: no branch settings are seeded for the location");
         }
-        const settingsOutcome = await editBranchSettings(tx, {
-          ...SAMPLE_BRANCH_SETTINGS,
-          locationId: location.id,
-          actorId,
-          version: currentBranchSettings.version,
-        });
+        const settingsOutcome = await editBranchSettings(
+          tx,
+          {
+            ...SAMPLE_BRANCH_SETTINGS,
+            locationId: location.id,
+            actorId,
+            version: currentBranchSettings.version,
+          },
+          pending,
+        );
         expectOutcome(settingsOutcome, "applied", "the branch settings");
       }
 
@@ -394,6 +400,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
         { now: deps.now },
       );
       expectOutcome(closedCriticalOutcome, "closed", "closing the critical alert");
+      await pending.log(tx);
 
       return {
         kind: "loaded",

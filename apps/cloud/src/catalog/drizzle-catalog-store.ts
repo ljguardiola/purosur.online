@@ -30,7 +30,7 @@ import {
   tags,
 } from "../platform/db/schema.js";
 import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
-import { PendingChanges } from "../sync/change-log.js";
+import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 
 const UNIQUE_VIOLATION = "23505";
 const BARCODE_UNIQUE_INDEX = "product_barcodes_code_key";
@@ -468,20 +468,19 @@ function translateTagNameViolation(error: unknown): unknown {
 
 export class DrizzleCatalogStore<TQueryResult extends PgQueryResultHKT> implements CatalogStore {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly pending: PendingChanges | undefined;
 
-  constructor(db: PgDatabase<TQueryResult>) {
+  constructor(db: PgDatabase<TQueryResult>, pending?: PendingChanges) {
     this.db = db;
+    this.pending = pending;
   }
 
   transaction<TOutcome>(
     work: (tx: CatalogStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    return this.db.transaction(async (tx) => {
-      const pending = new PendingChanges();
-      const outcome = await work(new DrizzleCatalogStoreTransaction(tx, pending));
-      await pending.log(tx);
-      return outcome;
-    });
+    return withPendingChanges(this.db, this.pending, (tx, pending) =>
+      work(new DrizzleCatalogStoreTransaction(tx, pending)),
+    );
   }
 
   activeBarcodesTaken(codes: readonly string[], excludingProductId?: string): Promise<string[]> {

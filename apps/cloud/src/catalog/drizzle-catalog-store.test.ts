@@ -9,9 +9,10 @@ import {
   editTag,
   reactivateTag,
 } from "@purosur/domain/catalog/use-cases";
-import { asc } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { changes } from "../platform/db/schema.js";
+import { PendingChanges } from "../sync/change-log.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
 
@@ -229,5 +230,40 @@ describe("the catalog changes a pull hands to the registers", () => {
       "name_taken",
     ]);
     expect(await loggedChanges()).toEqual(logged);
+  });
+
+  it("logs nothing until the caller owning the transaction logs what the store noted", async () => {
+    await db.transaction(async (outer) => {
+      const pending = new PendingChanges();
+      const created = await createCategory(new DrizzleCatalogStore(outer, pending), {
+        name: "Almacén",
+        parentId: null,
+      });
+      expect(created.kind).toBe("created");
+      expect(await outer.select().from(changes).where(eq(changes.entity, "category"))).toEqual([]);
+
+      await pending.log(outer);
+
+      expect(await outer.select().from(changes).where(eq(changes.entity, "category"))).toHaveLength(
+        1,
+      );
+    });
+  });
+
+  it("forgets what a nested operation noted when it rolled back", async () => {
+    await db.transaction(async (outer) => {
+      const pending = new PendingChanges();
+      const store = new DrizzleCatalogStore(outer, pending);
+      await store
+        .transaction(async (tx) => {
+          await tx.insertCategory("Almacén", null);
+          throw new Error("the operation failed");
+        })
+        .catch(() => undefined);
+
+      await pending.log(outer);
+
+      expect(await outer.select().from(changes).where(eq(changes.entity, "category"))).toEqual([]);
+    });
   });
 });

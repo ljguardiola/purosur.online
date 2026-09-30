@@ -46,9 +46,10 @@ export function logChange<TQueryResult extends PgQueryResultHKT>(
   return logChanges(tx, [change]);
 }
 
-// A store's writes only note the changes they make here; the store logs them once its operation
-// has written every row. The log lock is then the last lock the operation takes, so a writer
-// holding row locks never waits on the log while another holds the log and waits on those rows.
+// Writes only note the changes they make here; whoever owns the outermost transaction logs them
+// once it has written every row. The log lock is then the last lock that transaction takes, so a
+// writer holding row locks never waits on the log while another holds the log and waits on those
+// rows.
 export class PendingChanges {
   private readonly noted: LoggedChange[] = [];
 
@@ -56,7 +57,40 @@ export class PendingChanges {
     this.noted.push(change);
   }
 
+  mark(): number {
+    return this.noted.length;
+  }
+
+  // For the writes of a nested transaction that rolled back.
+  discardSince(mark: number): void {
+    this.noted.length = mark;
+  }
+
   log<TQueryResult extends PgQueryResultHKT>(tx: PgDatabase<TQueryResult>): Promise<void> {
     return logChanges(tx, this.noted);
   }
+}
+
+// Runs `work` in a transaction and logs what it noted as its last step. A caller that owns an outer
+// transaction passes the collector it will log itself, once it has written every row.
+export async function withPendingChanges<TQueryResult extends PgQueryResultHKT, TOutcome>(
+  db: PgDatabase<TQueryResult>,
+  callerOwned: PendingChanges | undefined,
+  work: (tx: PgDatabase<TQueryResult>, pending: PendingChanges) => Promise<TOutcome>,
+): Promise<TOutcome> {
+  return db.transaction(async (tx) => {
+    if (callerOwned === undefined) {
+      const pending = new PendingChanges();
+      const outcome = await work(tx, pending);
+      await pending.log(tx);
+      return outcome;
+    }
+    const mark = callerOwned.mark();
+    try {
+      return await work(tx, callerOwned);
+    } catch (error) {
+      callerOwned.discardSince(mark);
+      throw error;
+    }
+  });
 }
