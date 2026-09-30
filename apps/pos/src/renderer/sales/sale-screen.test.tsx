@@ -434,6 +434,29 @@ describe("SaleScreen", () => {
       await expect.poll(() => scanProduct.mock.calls).toEqual([["7790009"], ["7790001"]]);
     });
 
+    it("tells that no product has a code longer than any barcode, without sending it", async () => {
+      const tooLong = "7".repeat(65);
+      const scanProduct = vi.fn(
+        async (): Promise<ScanProductOutcome> => ({ kind: "added", sale: SALE_OF_YERBA }),
+      );
+      const { screen, field } = await renderScreen({ scanProduct });
+
+      await scan(field, tooLong);
+
+      await expect.element(screen.getByText("No hay ningún producto con ese código")).toBeVisible();
+      await expect
+        .element(
+          screen.getByText(
+            "Buscalo por nombre. Si no aparece, falta darlo de alta en el backoffice.",
+          ),
+        )
+        .toBeVisible();
+      await expect.element(field).toHaveValue(tooLong);
+      expect(scanProduct).not.toHaveBeenCalled();
+      await userEvent.keyboard("7790001{Enter}");
+      await expect.poll(() => scanProduct.mock.calls).toEqual([["7790001"]]);
+    });
+
     it("tells that the product could not be added when the core doesn't answer", async () => {
       const { screen, field } = await renderScreen({
         scanProduct: async () => {

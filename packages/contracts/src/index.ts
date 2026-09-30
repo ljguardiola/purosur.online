@@ -175,6 +175,7 @@ export { registerEnrollmentCodeSchema } from "./register/register-enrollment-cod
 export type { RegisterSummaryBody } from "./register/register-summary.js";
 export { registerListSchema, registerSummarySchema } from "./register/register-summary.js";
 export type { OpenSale, ScanProductOutcome } from "./sales/sale.js";
+export { scannedCodeSchema } from "./sales/sale.js";
 export type { BranchSettingsBody, ErrorReportingConfiguration } from "./shared/index.js";
 export {
   branchSettingsSchema,

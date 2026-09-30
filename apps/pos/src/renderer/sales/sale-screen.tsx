@@ -1,4 +1,5 @@
 import type { OpenSale, ScanProductOutcome } from "@purosur/contracts";
+import { scannedCodeSchema } from "@purosur/contracts";
 import { LoadFailure, LoadingPlaceholder, SearchField } from "@purosur/ui";
 import { ScanBarcode, ShoppingBasket, TriangleAlert } from "lucide-react";
 import type { FormEvent } from "react";
@@ -87,6 +88,11 @@ export function SaleScreen({
     setProblem(undefined);
   }
 
+  function refuse(refusal: ScanProblem) {
+    setProblem(refusal);
+    selectScanField(field.current);
+  }
+
   function take(submitted: string, outcome: ScanProductOutcome) {
     switch (outcome.kind) {
       case "added":
@@ -108,8 +114,7 @@ export function SaleScreen({
       case "sold_by_weight":
       case "installation_revoked":
       case "unavailable":
-        setProblem(outcome);
-        selectScanField(field.current);
+        refuse(outcome);
         break;
     }
   }
@@ -118,6 +123,10 @@ export function SaleScreen({
     event.preventDefault();
     const submitted = code.trim();
     if (submitted === "") {
+      return;
+    }
+    if (!scannedCodeSchema.safeParse(submitted).success) {
+      refuse({ kind: "unknown_code" });
       return;
     }
     const outcome = await scanProduct(submitted).catch(
