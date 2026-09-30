@@ -191,24 +191,28 @@ test("no-app-to-app flags one app importing another and allows importing within 
   assert.equal(violationsFor(controlReport, "no-app-to-app").length, 0);
 });
 
-test("domain-not-contracts flags domain importing contracts and allows contracts importing domain via its alias", async (t) => {
+test("domain-not-contracts flags domain importing contracts and allows contracts importing domain through its package", async (t) => {
   const root = await makeFixture(t, {
     "packages/domain/src/sales/model/order.ts": [
       'import type { OrderContract } from "../../../../contracts/src/index";',
       "export type Order = OrderContract;",
     ].join("\n"),
     "packages/contracts/src/index.ts": "export type OrderContract = { id: string };\n",
-    "tsconfig.json": JSON.stringify({
-      compilerOptions: {
-        baseUrl: ".",
-        paths: {
-          "@purosur/domain": ["./packages/domain/src/index.ts"],
-          "@purosur/domain/*": ["./packages/domain/src/*"],
+    "packages/domain/package.json": JSON.stringify({
+      name: "@purosur/domain",
+      type: "module",
+      exports: {
+        ".": {
+          "@purosur/source": "./src/index.ts",
+          types: "./dist/index.d.ts",
+          default: "./dist/index.js",
         },
       },
     }),
     "packages/domain/src/index.ts": "export type Id = string;\n",
   });
+  await mkdir(join(root, "packages/contracts/node_modules/@purosur"), { recursive: true });
+  await symlink("../../../domain", join(root, "packages/contracts/node_modules/@purosur/domain"));
 
   const report = await cruiseFixture(root, ["packages"]);
   const violations = violationsFor(report, "domain-not-contracts");
