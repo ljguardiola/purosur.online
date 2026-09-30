@@ -17,6 +17,7 @@ import {
   categories,
   changes,
   deviceState,
+  discounts,
   passkeyChallenges,
   prices,
   products,
@@ -503,7 +504,7 @@ describe("clearSampleData", () => {
         })
         .from(changes)
         .where(eq(changes.op, "delete"))
-    ).filter((row) => !["user", "role", "register"].includes(row.entity));
+    ).filter((row) => !["user", "role", "register", "discount"].includes(row.entity));
     const byKey = (row: { entity: string; entityId: string }) => `${row.entity}:${row.entityId}`;
     expect(deletes.map(byKey).sort()).toEqual(
       [
@@ -608,6 +609,36 @@ describe("clearSampleData", () => {
     for (const register of removedRegisters) {
       expect(deletes.find((row) => row.entityId === register.id)).toMatchObject({
         version: register.version + 1,
+        locationId: null,
+      });
+    }
+  }, 120_000);
+
+  it("logs every discount it removes as a delete of the version after its last one, for every branch", async () => {
+    const db = await freshOwnerDatabase();
+    await seedActiveAdministrator(db);
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    const removedDiscounts = await db
+      .select({ id: discounts.id, version: discounts.version })
+      .from(discounts);
+    expect(removedDiscounts.length).toBeGreaterThan(0);
+
+    expect((await clearSampleData(db)).kind).toBe("cleared");
+
+    const deletes = await db
+      .select({
+        entityId: changes.entityId,
+        version: changes.version,
+        locationId: changes.locationId,
+      })
+      .from(changes)
+      .where(and(eq(changes.op, "delete"), eq(changes.entity, "discount")));
+    expect(deletes.map((row) => row.entityId).sort()).toEqual(
+      removedDiscounts.map((discount) => discount.id).sort(),
+    );
+    for (const discount of removedDiscounts) {
+      expect(deletes.find((row) => row.entityId === discount.id)).toMatchObject({
+        version: discount.version + 1,
         locationId: null,
       });
     }

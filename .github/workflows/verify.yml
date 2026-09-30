@@ -24,6 +24,7 @@ jobs:
   scope:
     name: scope
     runs-on: ubuntu-24.04
+    timeout-minutes: 4
     outputs:
       docs_only: ${{ steps.scope.outputs.docs_only }}
       tests_needed: ${{ steps.scope.outputs.tests_needed }}
@@ -65,6 +66,7 @@ jobs:
     # it, the same fail-safe default change-scope.mjs itself applies.
     if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.docs_only != 'true') }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 6
     steps:
       # Full history, so the migration guard below can diff the working tree against the commit
       # this change is built on, and the secret scan can read every commit since it, not just the
@@ -104,6 +106,7 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -149,6 +152,7 @@ jobs:
     needs: [scope]
     if: ${{ !cancelled() && needs.scope.outputs.catalog_changed != 'false' }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -193,6 +197,7 @@ jobs:
     needs: [scope, static, tests, visual]
     if: always()
     runs-on: ubuntu-24.04
+    timeout-minutes: 3
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

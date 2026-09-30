@@ -1,5 +1,6 @@
 import { ARGENTINA_TIME_ZONE } from "@purosur/contracts";
 import { formatDate } from "@purosur/ui";
+import { Eyebrow } from "./eyebrow";
 
 function statusText(openedAt: string | undefined): string {
   if (openedAt === undefined) {
@@ -22,9 +23,5 @@ export function SessionEyebrow({
   openedAt?: string;
 }) {
   const status = statusText(openedAt);
-  return (
-    <p className="text-caption font-bold text-text-eyebrow uppercase tracking-sm">
-      {registerName === null ? status : `${registerName} · ${status}`}
-    </p>
-  );
+  return <Eyebrow text={registerName === null ? status : `${registerName} · ${status}`} />;
 }

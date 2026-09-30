@@ -178,6 +178,33 @@ describe("the register's local migrations", () => {
     }
   });
 
+  it("add the remembered users over the users and verifiers a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.slice(0, 7);
+      const before = openLocalDatabase(path, previous);
+      before
+        .prepare(
+          "INSERT INTO users (id, first_name, role_id, salt, active, version) VALUES ('u1', 'Ada', 'role', 'salt', 1, 3)",
+        )
+        .run();
+      before.prepare("INSERT INTO pin_verifiers (user_id, verifier) VALUES ('u1', 'v')").run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+
+      expect(after.prepare("SELECT first_name, version FROM users").all()).toEqual([
+        { first_name: "Ada", version: 3 },
+      ]);
+      expect(after.prepare("SELECT user_id FROM pin_verifiers").all()).toEqual([{ user_id: "u1" }]);
+      expect(after.prepare("SELECT user_id FROM remembered_users").all()).toEqual([]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
   it("add cash sessions, cash movements and the outbox over the sync state a register already holds", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
@@ -207,5 +234,54 @@ describe("the register's local migrations", () => {
     } finally {
       rmSync(folder, { recursive: true, force: true });
     }
+  });
+
+  it("add the discounts over the pull cursor and users a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.slice(0, 6);
+      const before = openLocalDatabase(path, previous);
+      before
+        .prepare("UPDATE sync_state SET pull_cursor = 14, device_id = 'device-a' WHERE id = 1")
+        .run();
+      before
+        .prepare(
+          "INSERT INTO users (id, first_name, role_id, salt, active, version) VALUES ('u1', 'Ada', 'role', 'salt', 1, 3)",
+        )
+        .run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+
+      expect(after.prepare("SELECT pull_cursor, device_id FROM sync_state").all()).toEqual([
+        { pull_cursor: 14, device_id: "device-a" },
+      ]);
+      expect(after.prepare("SELECT first_name, version FROM users").all()).toEqual([
+        { first_name: "Ada", version: 3 },
+      ]);
+      expect(after.prepare("SELECT id FROM discounts").all()).toEqual([]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("hold a discount of a kind and a percent a later migration may extend without a rewrite", () => {
+    const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS);
+    const insert = database.prepare(
+      `INSERT INTO discounts (
+         id, name, kind, percent, target_kind, target_id, valid_from, valid_to, weekdays, active, version
+       ) VALUES (@id, 'Promo', @kind, @percent, 'TAG', 't', '2026-10-01', '2026-10-31', '[]', 1, 1)`,
+    );
+
+    insert.run({ id: "percent", kind: "PERCENT_OFF", percent: 10 });
+    insert.run({ id: "another-kind", kind: "BUY_N_PAY_M", percent: null });
+
+    expect(database.prepare("SELECT id, kind, percent FROM discounts ORDER BY id").all()).toEqual([
+      { id: "another-kind", kind: "BUY_N_PAY_M", percent: null },
+      { id: "percent", kind: "PERCENT_OFF", percent: 10 },
+    ]);
+    database.close();
   });
 });

@@ -71,6 +71,28 @@ describe("rendererToCoreMessageSchema", () => {
     expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
+  it("accepts a sign-in lookup with the email as typed", () => {
+    const message = { type: "sign-in-lookup", request_id: REQUEST_ID, email: "Ada@Example.com " };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts a first sign-in with the person found and the PIN as typed", () => {
+    const message = { type: "first-sign-in", request_id: REQUEST_ID, user_id: "u1", pin: "0042" };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { type: "sign-in-lookup", email: "ada@example.com" },
+    { type: "sign-in-lookup", request_id: REQUEST_ID },
+    { type: "first-sign-in", user_id: "u1", pin: "1" },
+    { type: "first-sign-in", request_id: REQUEST_ID, pin: "1" },
+    { type: "first-sign-in", request_id: REQUEST_ID, user_id: "u1" },
+  ])("rejects a first sign-in request missing a field: %j", (message) => {
+    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
   it.each([
     { type: "sign-in-users" },
     { type: "sign-in", user_id: "u1", pin: "1" },
@@ -407,6 +429,45 @@ describe("sign-in answers", () => {
     const message = { type: "sign-in-result", request_id: REQUEST_ID, outcome };
 
     expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+});
+
+describe("sign-in lookup answers", () => {
+  it.each([
+    { kind: "has_pin", user: { id: "u1", first_name: "Ada" } },
+    { kind: "no_pin", user: { id: "u1", first_name: "Ada" } },
+    { kind: "not_found" },
+    { kind: "invalid_email" },
+    { kind: "rate_limited", retry_after_seconds: 30 },
+    { kind: "not_synced" },
+    { kind: "unreachable" },
+    { kind: "unavailable" },
+  ])("accepts the sign-in lookup result $kind", (outcome) => {
+    const message = { type: "sign-in-lookup-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "has_pin" },
+    { kind: "has_pin", user: { id: "u1" } },
+    { kind: "rate_limited" },
+    { kind: "rate_limited", retry_after_seconds: -1 },
+    { kind: "x" },
+  ])("rejects a sign-in lookup result it does not know: %j", (outcome) => {
+    const message = { type: "sign-in-lookup-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("does not let a lookup result carry the email", () => {
+    const message = {
+      type: "sign-in-lookup-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "not_found", email: "ada@example.com" },
+    };
+
+    expect(JSON.stringify(coreToRendererMessageSchema.parse(message))).not.toContain("ada@");
   });
 });
 
