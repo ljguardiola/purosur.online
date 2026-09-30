@@ -8,7 +8,7 @@ export interface SendFirstPinCodeInput {
   code: string;
 }
 
-export interface RecoveryEmailSender {
+interface RecoveryEmailSender {
   sendRecoveryLink(input: SendRecoveryLinkInput): Promise<void>;
 }
 

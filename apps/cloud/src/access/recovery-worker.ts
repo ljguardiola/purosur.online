@@ -11,8 +11,8 @@ import {
   type RecoveryRequestJobPayload,
 } from "./process-recovery-request-job.js";
 import type { AccessEmailSender } from "./recovery-email-sender.js";
-import { sendFirstPinCodeEmailJob } from "./send-first-pin-code-email-job.js";
 import { flushClosedRecoveryRejectedAttemptWindows } from "./recovery-rejected-attempt-flush.js";
+import { sendFirstPinCodeEmailJob } from "./send-first-pin-code-email-job.js";
 
 export const RECOVERY_REQUEST_TASK_IDENTIFIER = "recovery-request";
 export const RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER = "recovery-rejected-attempt-flush";

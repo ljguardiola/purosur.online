@@ -17,8 +17,8 @@ import {
   installationTokenPorts,
 } from "../register/installation-token-ports.js";
 import { DrizzleFirstPinCodeStore } from "./drizzle-first-pin-code-store.js";
-import { generatePinCode } from "./pin-code-generator.js";
 import type { EnqueueFirstPinCodeEmail } from "./graphile-first-pin-code-email-queue.js";
+import { generatePinCode } from "./pin-code-generator.js";
 import { PUBLIC_ACCESS } from "./route-access.js";
 
 export interface FirstPinCodeRouteOptions<TQueryResult extends PgQueryResultHKT>

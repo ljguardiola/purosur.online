@@ -3,7 +3,7 @@ import { type SQL, sql } from "drizzle-orm";
 import { FIRST_PIN_CODE_EMAIL_TASK_IDENTIFIER } from "./recovery-worker.js";
 import type { FirstPinCodeEmailJobPayload } from "./send-first-pin-code-email-job.js";
 
-export interface SqlExecutor {
+interface SqlExecutor {
   execute(query: SQL): PromiseLike<unknown>;
 }
 
