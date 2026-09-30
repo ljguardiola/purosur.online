@@ -111,6 +111,7 @@ const enrollmentOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("rate_limited"), retry_after_seconds: z.int().nonnegative() }),
   z.object({ kind: z.literal("unreachable") }),
   z.object({ kind: z.literal("unavailable") }),
+  z.object({ kind: z.literal("storage_unavailable") }),
   z.object({ kind: z.literal("not_stored") }),
 ]);
 export type EnrollmentOutcome = z.infer<typeof enrollmentOutcomeSchema>;

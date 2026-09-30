@@ -87,7 +87,7 @@ describe("enroll", () => {
   it("doesn't redeem the code when this machine can't store credentials", async () => {
     const { deps, posted } = depsAnswering({ kind: "ok", body: ENROLLED_BODY }, true, false);
 
-    expect(await enroll(deps, TYPED_CODE)).toEqual({ kind: "not_stored" });
+    expect(await enroll(deps, TYPED_CODE)).toEqual({ kind: "storage_unavailable" });
     expect(posted).toEqual([]);
   });
 
