@@ -175,6 +175,10 @@ const rendererRequestDeps = {
           localDatabase === undefined
             ? undefined
             : (pepper, redemption) => applyRedeemedPin(localDatabase, pepper, redemption),
+        reportLocalFailure: (error) => {
+          console.error("core: the redeemed PIN could not be kept locally", error);
+          Sentry.captureException(error);
+        },
       },
       typedCode,
       newPin,

@@ -15,6 +15,7 @@ export interface PinCodeRedemptionDeps {
     | ((path: string, bearerToken: string, body: unknown) => Promise<CloudResponse>)
     | undefined;
   applyRedeemedPin: ((pepper: string, redemption: PinCodeRedemption) => void) | undefined;
+  reportLocalFailure: (error: unknown) => void;
 }
 
 function refusalOutcome(error: CloudError): PinCodeRedemptionOutcome {
@@ -72,6 +73,12 @@ export async function redeemPinCode(
     return { kind: "unavailable" };
   }
 
-  applyRedeemedPin(credentials.pepper, redemption.data);
+  // The cloud already keeps the new PIN and the code is spent, so the redemption stands even when
+  // this register fails to keep it: its next users pull brings the same hash.
+  try {
+    applyRedeemedPin(credentials.pepper, redemption.data);
+  } catch (error) {
+    deps.reportLocalFailure(error);
+  }
   return { kind: "redeemed" };
 }

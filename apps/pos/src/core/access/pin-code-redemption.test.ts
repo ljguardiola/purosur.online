@@ -20,6 +20,7 @@ function envelope(code: string, details: unknown[] = []): CloudResponse {
 function depsAnswering(response: CloudResponse, { enrolled = true, canApply = true } = {}) {
   const posted: { path: string; bearerToken: string; body: unknown }[] = [];
   const applied: { pepper: string; redemption: PinCodeRedemption }[] = [];
+  const reported: unknown[] = [];
   const deps: PinCodeRedemptionDeps = {
     readCredentials: async () => (enrolled ? CREDENTIALS : undefined),
     postToCloud: async (path, bearerToken, body) => {
@@ -31,8 +32,11 @@ function depsAnswering(response: CloudResponse, { enrolled = true, canApply = tr
           applied.push({ pepper, redemption });
         }
       : undefined,
+    reportLocalFailure: (error) => {
+      reported.push(error);
+    },
   };
-  return { deps, posted, applied };
+  return { deps, posted, applied, reported };
 }
 
 describe("redeemPinCode", () => {
@@ -55,6 +59,25 @@ describe("redeemPinCode", () => {
 
     expect(await redeemPinCode(deps, TYPED_CODE, "482915")).toEqual({ kind: "redeemed" });
     expect(applied).toEqual([{ pepper: "pepper-1", redemption: REDEEMED_BODY }]);
+  });
+
+  it("is redeemed and reports the failure when the register cannot keep the new PIN", async () => {
+    const failure = new Error("disk full");
+    const { deps, reported } = depsAnswering({ kind: "ok", body: REDEEMED_BODY });
+    deps.applyRedeemedPin = () => {
+      throw failure;
+    };
+
+    expect(await redeemPinCode(deps, TYPED_CODE, "482915")).toEqual({ kind: "redeemed" });
+    expect(reported).toEqual([failure]);
+  });
+
+  it("reports nothing when the register keeps the new PIN", async () => {
+    const { deps, reported } = depsAnswering({ kind: "ok", body: REDEEMED_BODY });
+
+    await redeemPinCode(deps, TYPED_CODE, "482915");
+
+    expect(reported).toEqual([]);
   });
 
   it.each([
