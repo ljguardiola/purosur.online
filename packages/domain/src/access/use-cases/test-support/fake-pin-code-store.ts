@@ -1,4 +1,10 @@
 import type {
+  FirstPinCodeEmission,
+  FirstPinCodeStore,
+  FirstPinCodeStoreTransaction,
+  FirstPinCodeTarget,
+} from "../first-pin-code-store.js";
+import type {
   HashedPin,
   LockedPinCode,
   PinCodeHolder,
@@ -35,6 +41,9 @@ export interface FakePinCodeState {
   pins: Map<string, HashedPin>;
   codes: FakePinCode[];
   emissions: PinCodeEmission[];
+  firstEmissions: FirstPinCodeEmission[];
+  emails: Map<string, string>;
+  registerAccess: Map<string, string[]>;
   attempts: FakeRedemptionAttempt[];
   redemptions: PinCodeRedemption[];
   pinChanges: { userId: string; changedAt: Date }[];
@@ -45,6 +54,7 @@ type WriteOperation =
   | "removePin"
   | "recordPinCode"
   | "recordPinCodeEmission"
+  | "recordFirstPinCodeEmission"
   | "recordPinCodeRedemptionAttempt"
   | "recordFailedPinCodeRedemption"
   | "replacePin"
@@ -56,7 +66,10 @@ function cloneState(state: FakePinCodeState): FakePinCodeState {
 }
 
 class FakePinCodeStoreTransaction
-  implements PinCodeStoreTransaction, PinCodeRedemptionStoreTransaction
+  implements
+    PinCodeStoreTransaction,
+    PinCodeRedemptionStoreTransaction,
+    FirstPinCodeStoreTransaction
 {
   private readonly state: FakePinCodeState;
   private readonly store: FakePinCodeStore;
@@ -70,6 +83,28 @@ class FakePinCodeStoreTransaction
     this.store.operationOrder.push("lockPinCodeTarget");
     const target = this.state.users.get(userId);
     return target ? { ...target } : undefined;
+  }
+
+  async lockFirstPinCodeTarget(
+    registerId: string,
+    userId: string,
+  ): Promise<FirstPinCodeTarget | undefined> {
+    this.store.operationOrder.push("lockFirstPinCodeTarget");
+    const user = this.state.users.get(userId);
+    const email = this.state.emails.get(userId);
+    if (
+      !user ||
+      email === undefined ||
+      !this.state.registerAccess.get(userId)?.includes(registerId)
+    ) {
+      return undefined;
+    }
+    return { active: user.active, hasPin: this.state.pins.has(userId), email };
+  }
+
+  async recordFirstPinCodeEmission(emission: FirstPinCodeEmission): Promise<void> {
+    this.beforeWrite("recordFirstPinCodeEmission");
+    this.state.firstEmissions.push(structuredClone(emission));
   }
 
   async pinCodesIssuedSince(userId: string, since: Date): Promise<Date[]> {
@@ -202,12 +237,15 @@ class FakePinCodeStoreTransaction
   }
 }
 
-export class FakePinCodeStore implements PinCodeStore, PinCodeRedemptionStore {
+export class FakePinCodeStore implements PinCodeStore, PinCodeRedemptionStore, FirstPinCodeStore {
   private state: FakePinCodeState = {
     users: new Map(),
     pins: new Map(),
     codes: [],
     emissions: [],
+    firstEmissions: [],
+    emails: new Map(),
+    registerAccess: new Map(),
     attempts: [],
     redemptions: [],
     pinChanges: [],
@@ -217,8 +255,14 @@ export class FakePinCodeStore implements PinCodeStore, PinCodeRedemptionStore {
   operationOrder: string[] = [];
   lockedAttemptKeys: PinCodeRedemptionAttemptKey[] = [];
 
-  seedUser(userId: string, target: PinCodeTarget, options: { hasPin?: boolean } = {}): void {
+  seedUser(
+    userId: string,
+    target: PinCodeTarget,
+    options: { hasPin?: boolean; email?: string; registerIds?: string[] } = {},
+  ): void {
     this.state.users.set(userId, { ...target });
+    this.state.emails.set(userId, options.email ?? `${userId}@example.com`);
+    this.state.registerAccess.set(userId, options.registerIds ?? ["register-1"]);
     if (options.hasPin) {
       this.state.pins.set(userId, { salt: "old-salt", pinHash: "old-hash" });
     }

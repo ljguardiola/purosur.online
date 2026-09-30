@@ -1,8 +1,20 @@
 export type {
+  EmitFirstPinCodeInput,
+  EmitFirstPinCodeOutcome,
+} from "./emit-first-pin-code.js";
+export { emitFirstPinCode } from "./emit-first-pin-code.js";
+export type {
   EmitUserPinCodeInput,
   EmitUserPinCodeOutcome,
 } from "./emit-user-pin-code.js";
 export { emitUserPinCode } from "./emit-user-pin-code.js";
+export type {
+  FirstPinCodeEmission,
+  FirstPinCodeEmissionPorts,
+  FirstPinCodeStore,
+  FirstPinCodeStoreTransaction,
+  FirstPinCodeTarget,
+} from "./first-pin-code-store.js";
 export type {
   LookUpSignInInput,
   LookUpSignInOutcome,
