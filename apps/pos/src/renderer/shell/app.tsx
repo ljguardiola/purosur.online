@@ -84,6 +84,7 @@ export function App({ core }: { core: CoreClient }) {
     openCashSession,
     redeemPinCode: (typedCode: string, newPin: string) => core.redeemPinCode(typedCode, newPin),
     signInLookup: (email: string) => core.signInLookup(email),
+    requestFirstPinCode: (userId: string) => core.requestFirstPinCode(userId),
     firstSignIn,
   };
 

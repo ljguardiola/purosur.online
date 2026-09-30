@@ -1,6 +1,7 @@
 import type {
   CoreStatusMessage,
   EnrollmentOutcome,
+  FirstPinCodeRequestOutcome,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   SignInLookupOutcome,
@@ -50,6 +51,7 @@ export interface RouterContext {
   ) => Promise<OpenCashSessionOutcome>;
   redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
   signInLookup: (email: string) => Promise<SignInLookupOutcome>;
+  requestFirstPinCode: (userId: string) => Promise<FirstPinCodeRequestOutcome>;
   firstSignIn: (userId: string, pin: string) => Promise<SignInOutcome>;
 }
 
@@ -176,8 +178,16 @@ const firstSignInRoute = createRoute({
   path: "/first-sign-in",
   beforeLoad: ({ context }) => requireRoute("/sign-in", context),
   component: function FirstSignInRoute() {
-    const { signInLookup, firstSignIn } = firstSignInRoute.useRouteContext();
-    return <FirstSignInScreen lookup={signInLookup} signIn={firstSignIn} />;
+    const { signInLookup, firstSignIn, requestFirstPinCode, redeemPinCode } =
+      firstSignInRoute.useRouteContext();
+    return (
+      <FirstSignInScreen
+        lookup={signInLookup}
+        signIn={firstSignIn}
+        requestCode={requestFirstPinCode}
+        redeem={redeemPinCode}
+      />
+    );
   },
 });
 
@@ -239,6 +249,7 @@ export function createAppRouter(
     | "authorizers"
     | "redeemPinCode"
     | "signInLookup"
+    | "requestFirstPinCode"
     | "firstSignIn"
   >,
 ) {
