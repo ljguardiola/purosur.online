@@ -142,7 +142,7 @@ function readOpenSaleTotal(database: LocalDatabase): number | undefined {
 }
 
 export function insertCashMovement(database: LocalDatabase, movement: CashMovement): void {
-database
+  database
     .prepare(
       `INSERT INTO cash_movements (
          id, session_id, type, amount, reason, ref_type, ref_id, actor_id, authorized_by, occurred_at

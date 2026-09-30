@@ -1,6 +1,7 @@
 import type {
   Authorization,
   CashBalance,
+  ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
   CoreToRendererMessage,
   CurrentSaleAnswer,
@@ -18,6 +19,7 @@ import type {
   SignInUser,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
+import type { ChargeSaleInCashRequest } from "../sales/sale-requests";
 import type { CashMovementRequest } from "./cash-movement-requests";
 
 export interface RendererRequestDeps {
@@ -37,6 +39,9 @@ export interface RendererRequestDeps {
     | undefined;
   cashMovements: (() => ListedCashMovement[] | null) | undefined;
   scanProduct: ((code: string) => Promise<ScanProductOutcome>) | undefined;
+  chargeSaleInCash:
+    | ((request: ChargeSaleInCashRequest) => Promise<ChargeSaleInCashOutcome>)
+    | undefined;
   currentSale: (() => Promise<CurrentSaleAnswer>) | undefined;
   closeCashSession:
     | ((
@@ -204,6 +209,18 @@ async function attemptScanProduct(
   }
 }
 
+async function attemptChargeSaleInCash(
+  deps: RendererRequestDeps,
+  request: ChargeSaleInCashRequest,
+): Promise<ChargeSaleInCashOutcome> {
+  try {
+    return (await deps.chargeSaleInCash?.(request)) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure("charging a sale in cash", error);
+    return { kind: "unavailable" };
+  }
+}
+
 async function readCurrentSale(deps: RendererRequestDeps): Promise<CurrentSaleAnswer | undefined> {
   try {
     return await deps.currentSale?.();
@@ -306,6 +323,15 @@ export async function answerRendererRequest(
         type: "scan-product-result",
         request_id: message.request_id,
         outcome: await attemptScanProduct(deps, message.code),
+      };
+    case "charge-sale-in-cash":
+      return {
+        type: "charge-sale-in-cash-result",
+        request_id: message.request_id,
+        outcome: await attemptChargeSaleInCash(deps, {
+          saleId: message.sale_id,
+          tendered: message.tendered,
+        }),
       };
     case "sale-request": {
       const sale = await readCurrentSale(deps);

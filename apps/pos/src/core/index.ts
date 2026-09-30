@@ -52,7 +52,7 @@ import { enroll, generatePepper, installationReportFrom } from "./register/enrol
 import { answerRendererRequest, type RendererRequestDeps } from "./register/renderer-requests";
 import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
-import { currentSaleFor, scanProductFor } from "./sales/sale-requests";
+import { chargeSaleInCashFor, currentSaleFor, scanProductFor } from "./sales/sale-requests";
 import { pullFromCloud, pullResultOf } from "./sync/pull-from-cloud";
 import { createPullSchedule } from "./sync/pull-schedule";
 import { SqliteLocalReplica } from "./sync/sqlite-local-replica";
@@ -359,6 +359,21 @@ const rendererRequestDeps: RendererRequestDeps = {
           scanProductFor(
             { database: localDatabase, gate: actionGate, now: () => new Date(), ids: uuidV7Ids },
             code,
+          ),
+  chargeSaleInCash:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (request) =>
+          chargeSaleInCashFor(
+            {
+              database: localDatabase,
+              gate: actionGate,
+              readOutboxChainKey: async () =>
+                (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+              now: () => new Date(),
+              ids: uuidV7Ids,
+            },
+            request,
           ),
   currentSale:
     localDatabase === undefined || actionGate === undefined
