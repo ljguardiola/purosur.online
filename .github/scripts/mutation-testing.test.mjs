@@ -148,6 +148,12 @@ async function runMutationOnFixture() {
     await writeFixtureFile(dir, ".env", "DATABASE_URL=postgres://local\n");
     await writeFixtureFile(dir, "apps/cloud/dist/server.js", "export {};\n");
     await cp(join(repoRoot, "vitest.mutation.config.ts"), join(dir, "vitest.mutation.config.ts"));
+    for (const guardFile of ["without-package-output.mjs", "without-package-output.d.mts"]) {
+      await cp(
+        join(repoRoot, ".github/scripts", guardFile),
+        join(dir, ".github/scripts", guardFile),
+      );
+    }
     await writeFixtureFile(
       dir,
       "stryker.fixture.config.mjs",
@@ -192,7 +198,7 @@ test("reports every change no test catches with its file and line, and nothing a
 test("runs on a copy of the rule packages alone, leaving out local files such as secrets and builds", () => {
   const plain = stripVTControlCharacters(fixtureRun.stdout + fixtureRun.stderr);
 
-  assert.match(plain, /Found 4 of 10 file\(s\) to be mutated/, plain);
+  assert.match(plain, /Found 4 of 12 file\(s\) to be mutated/, plain);
 });
 
 test("fails the run when a change goes uncaught", () => {
