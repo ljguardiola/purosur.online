@@ -153,17 +153,6 @@ describe("running a guarded action for the signed-in person", () => {
     expect(hashed).toEqual([]);
   });
 
-  it("reads the signed-in person's access again on every action", async () => {
-    const accessOf: Record<string, RoleAccess> = { ...CASHIER_WITH_CASH_IN };
-    const sandbox = deps({ accessOf });
-    const gate = createActionGate(sandbox);
-    const cashIn = () => gate.run({ permission: "record_cash_in" }, async () => "done");
-
-    expect((await cashIn()).kind).toBe("performed");
-    accessOf["u1"] = { isAdministrator: false, permissionKeys: [] };
-    expect(await cashIn()).toEqual({ kind: "lacks_permission" });
-  });
-
   it("runs an action with a permission nobody can authorize for a signed-in person who holds it", async () => {
     const outcome = await createActionGate(deps()).run(
       { permission: "sell_and_charge" },

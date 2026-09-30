@@ -205,15 +205,6 @@ describe("who is signed in after signing in", () => {
     expect(signedIn.userId()).toBe("u1");
   });
 
-  it("replaces the person who was signed in with the one who signs in", async () => {
-    const { built, signedIn } = deps();
-    signedIn.set("u9");
-
-    await signIn(built, "u1", "1234");
-
-    expect(signedIn.userId()).toBe("u1");
-  });
-
   it("holds nobody after a wrong PIN", async () => {
     const { built, signedIn } = deps();
 

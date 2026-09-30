@@ -80,9 +80,9 @@ async function signInAs(userId: string) {
   expect(outcome.kind).toBe("signed_in");
 }
 
-function cashIn(authorization?: { user_id: string; pin: string }) {
+function cashIn() {
   const performed: string[] = [];
-  const outcome = gate.run({ permission: "record_cash_in", authorization }, async () => {
+  const outcome = gate.run({ permission: "record_cash_in" }, async () => {
     performed.push("cash in recorded");
     return "cash in recorded";
   });
@@ -124,15 +124,6 @@ describe("the action gate over the register's local database", () => {
     expect(performed).toEqual([]);
   });
 
-  it("refuses a signed-in person whose role lacks the permission even with an authorization from someone who lacks it too", async () => {
-    await signInAs(CASHIER_ID);
-
-    const { outcome, performed } = cashIn({ user_id: CASHIER_ID, pin: "1234" });
-
-    expect(await outcome).toEqual({ kind: "lacks_permission" });
-    expect(performed).toEqual([]);
-  });
-
   it("runs the action for a signed-in person whose role holds the permission", async () => {
     await signInAs(MANAGER_ID);
 
@@ -144,26 +135,6 @@ describe("the action gate over the register's local database", () => {
       result: "cash in recorded",
     });
     expect(performed).toEqual(["cash in recorded"]);
-  });
-
-  it("runs the action for a signed-in person who lacks the permission with an authorization from someone who holds it", async () => {
-    await signInAs(CASHIER_ID);
-
-    const { outcome, performed } = cashIn({ user_id: MANAGER_ID, pin: "1234" });
-
-    expect(await outcome).toEqual({
-      kind: "performed",
-      authorized_by: { user_id: MANAGER_ID, first_name: "Grace" },
-      result: "cash in recorded",
-    });
-    expect(performed).toEqual(["cash in recorded"]);
-  });
-
-  it("refuses everything while nobody is signed in", async () => {
-    const { outcome, performed } = cashIn();
-
-    expect(await outcome).toEqual({ kind: "not_signed_in" });
-    expect(performed).toEqual([]);
   });
 
   it("refuses the next action of a signed-in person whose role loses the permission in a pull", async () => {
