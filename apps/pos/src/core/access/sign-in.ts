@@ -49,6 +49,11 @@ async function signInThen(
   if (!holdsARegisterPermission(record.access)) {
     return { kind: "no_register_permission" };
   }
+  const openerAfterCheck = deps.cashSessionOpener();
+  if (openerAfterCheck !== undefined && openerAfterCheck !== userId) {
+    deps.signedInPerson.set(openerAfterCheck);
+    return { kind: "cash_session_opened_by_another" };
+  }
   beforeSigningIn();
   deps.signedInPerson.set(userId);
   return {

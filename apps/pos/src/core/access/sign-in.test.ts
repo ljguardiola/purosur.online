@@ -270,6 +270,27 @@ describe("signing in while a cash session is open", () => {
     expect(signedIn.userId()).toBe("u1");
   });
 
+  it("refuses an attempt whose PIN was checked while another person opened a cash session, keeping the opener signed in", async () => {
+    let opener: string | undefined;
+    const { built, signedIn, remembered } = deps({ cashSessionOpener: () => opener });
+
+    const outcome = await firstSignIn(
+      {
+        ...built,
+        hashPin: async (pin, salt) => {
+          opener = "u2";
+          return built.hashPin(pin, salt);
+        },
+      },
+      "u1",
+      "1234",
+    );
+
+    expect(outcome).toEqual({ kind: "cash_session_opened_by_another" });
+    expect(remembered).toEqual([]);
+    expect(signedIn.userId()).toBe("u2");
+  });
+
   it("refuses a first sign-in by anyone but the opener, remembering nobody", async () => {
     const { built, signedIn, remembered } = deps({ cashSessionOpener: () => "u2" });
     signedIn.set("u2");
