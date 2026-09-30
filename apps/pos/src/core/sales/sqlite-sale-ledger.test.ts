@@ -527,6 +527,16 @@ describe("the promotions that target a product", () => {
     expect(promotionIdsTargeting("p1")).toEqual(["active-tag"]);
   });
 
+  it("still include the ones aimed at a tag the product carries after that tag is deactivated", () => {
+    database
+      .prepare("INSERT INTO tags (id, name, active, version) VALUES ('gluten-free', 'Sin TACC', 0, 2)")
+      .run();
+    addProductTag("p1", "gluten-free");
+    addDiscount("deactivated-tag", { kind: "TAG", id: "gluten-free" }, tenPercent);
+
+    expect(promotionIdsTargeting("p1")).toEqual(["deactivated-tag"]);
+  });
+
   it("leave out a removed promotion and one aimed at another product", () => {
     addProduct("222", { id: "p2", name: "Azucar" });
     addDiscount("removed", { kind: "PRODUCT", id: "p1" }, tenPercent, { removed: true });
