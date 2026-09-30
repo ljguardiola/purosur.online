@@ -171,7 +171,7 @@ async function startRealServer(
 }
 
 function postRecoveryRequest(origin: string, email: string): Promise<Response> {
-  return fetch(`${origin}/users/recovery/request`, {
+  return fetch(`${origin}/api/users/recovery/request`, {
     method: "POST",
     headers: {
       "content-type": "application/json",

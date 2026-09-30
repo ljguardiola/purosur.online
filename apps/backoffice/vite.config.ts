@@ -8,7 +8,7 @@ import { preloadFont } from "./preload-font";
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 const REPO_ROOT = r("../..");
 
-// The dev cloud process refuses every request (`GET /health` excepted) without this header,
+// The dev cloud process refuses every request (`GET /api/health` excepted) without this header,
 // since there is no Cloudflare edge locally to set it.
 const EDGE_ORIGIN_SECRET_HEADER = "x-edge-origin-secret";
 
@@ -71,18 +71,7 @@ export default defineConfig(({ mode }) => {
       // Every cloud API path is forwarded through this Vite origin, so the cloud's Origin check
       // sees the same origin it does in production.
       proxy: {
-        "/health": LOCAL_CLOUD_ORIGIN,
-        "/users": cloudApiProxy,
-        "/roles": cloudApiProxy,
-        "/branch-settings": cloudApiProxy,
-        "/categories": cloudApiProxy,
-        "/brands": cloudApiProxy,
-        "/products": cloudApiProxy,
-        "/prices": cloudApiProxy,
-        "/fiscal-configuration": cloudApiProxy,
-        "/alerts": cloudApiProxy,
-        "/registers": cloudApiProxy,
-        "/error-reporting": cloudApiProxy,
+        "/api": cloudApiProxy,
       },
     },
   };

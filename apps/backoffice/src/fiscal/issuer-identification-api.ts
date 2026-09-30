@@ -43,7 +43,7 @@ function issuerIdentificationFromWire(row: IssuerIdentificationBody): IssuerIden
 export async function fetchIssuerIdentification(): Promise<FetchIssuerIdentificationOutcome> {
   let response: Response;
   try {
-    response = await fetch("/fiscal-configuration/issuer-identification");
+    response = await fetch("/api/fiscal-configuration/issuer-identification");
   } catch {
     return { kind: "failed" };
   }
@@ -73,7 +73,7 @@ export async function saveIssuerIdentification(
 ): Promise<SaveIssuerIdentificationOutcome> {
   let response: Response;
   try {
-    response = await fetch("/fiscal-configuration/issuer-identification", {
+    response = await fetch("/api/fiscal-configuration/issuer-identification", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(requestBody),

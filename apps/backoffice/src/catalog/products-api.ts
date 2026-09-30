@@ -89,7 +89,7 @@ export async function fetchProducts(
 ): Promise<FetchProductsOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/products?status=${status}`);
+    response = await fetch(`/api/products?status=${status}`);
   } catch {
     return { kind: "failed" };
   }
@@ -123,7 +123,7 @@ export async function createProduct(input: CreateProductInput): Promise<CreatePr
   };
   let response: Response;
   try {
-    response = await postJson("/products", requestBody);
+    response = await postJson("/api/products", requestBody);
   } catch {
     return { kind: "failed" };
   }
@@ -160,7 +160,7 @@ export async function createProduct(input: CreateProductInput): Promise<CreatePr
 export async function generateInternalBarcode(): Promise<GenerateInternalBarcodeOutcome> {
   let response: Response;
   try {
-    response = await postJson("/products/internal-barcode");
+    response = await postJson("/api/products/internal-barcode");
   } catch {
     return { kind: "failed" };
   }
@@ -198,7 +198,7 @@ export async function printLabels(labels: PrintLabelEntry[]): Promise<PrintLabel
   const requestBody: LabelSheetBody = { labels };
   let response: Response;
   try {
-    response = await postJson("/products/labels", requestBody);
+    response = await postJson("/api/products/labels", requestBody);
   } catch {
     return { kind: "failed" };
   }
@@ -246,7 +246,7 @@ export async function editProduct(
   };
   let response: Response;
   try {
-    response = await postJson(`/products/${id}/edit`, requestBody);
+    response = await postJson(`/api/products/${id}/edit`, requestBody);
   } catch {
     return { kind: "failed" };
   }
@@ -302,7 +302,7 @@ export type DeactivateProductOutcome =
 export async function deactivateProduct(id: string): Promise<DeactivateProductOutcome> {
   let response: Response;
   try {
-    response = await postJson(`/products/${id}/deactivation`);
+    response = await postJson(`/api/products/${id}/deactivation`);
   } catch {
     return { kind: "failed" };
   }

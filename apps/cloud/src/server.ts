@@ -95,7 +95,7 @@ function requireRecoveryEnvVar(env: ServerEnv, name: keyof ServerEnv & string): 
   return value;
 }
 
-/** Required unconditionally: the edge guard applies to every route (`GET /health` excepted). */
+/** Required unconditionally: the edge guard applies to every route (`GET /api/health` excepted). */
 function requireEdgeOriginSecret(env: ServerEnv): string {
   const value = env.EDGE_ORIGIN_SECRET;
   if (!value) {
