@@ -412,6 +412,28 @@ describe("SaleScreen", () => {
       },
     );
 
+    it.each<ScanProductOutcome>([
+      { kind: "unknown_code" },
+      { kind: "no_price", product_name: "Yerba mate 1 kg" },
+      { kind: "sold_by_weight", product_name: "Queso cremoso" },
+      { kind: "installation_revoked" },
+      { kind: "unavailable" },
+    ])("has the next code the scanner types replace one refused as $kind", async (outcome) => {
+      const scanProduct = vi
+        .fn<SaleScreenProps["scanProduct"]>()
+        .mockResolvedValueOnce(outcome)
+        .mockResolvedValueOnce({ kind: "added", sale: SALE_OF_YERBA });
+      const { screen, field } = await renderScreen({ scanProduct });
+      await expect.element(field).toHaveFocus();
+
+      await userEvent.keyboard("7790009{Enter}");
+      await expect.element(screen.getByRole("status").getByRole("paragraph").first()).toBeVisible();
+      await expect.element(field).toHaveValue("7790009");
+      await userEvent.keyboard("7790001{Enter}");
+
+      await expect.poll(() => scanProduct.mock.calls).toEqual([["7790009"], ["7790001"]]);
+    });
+
     it("tells that the product could not be added when the core doesn't answer", async () => {
       const { screen, field } = await renderScreen({
         scanProduct: async () => {

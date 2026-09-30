@@ -30,6 +30,12 @@ function focusScanField(form: HTMLFormElement | null) {
   form?.querySelector("input")?.focus();
 }
 
+// A scanner types the next code at the caret, so a refused code left unselected would be joined
+// to the next one instead of replaced by it.
+function selectScanField(form: HTMLFormElement | null) {
+  form?.querySelector("input")?.select();
+}
+
 export function SaleScreen({
   person,
   registerName,
@@ -103,6 +109,7 @@ export function SaleScreen({
       case "installation_revoked":
       case "unavailable":
         setProblem(outcome);
+        selectScanField(field.current);
         break;
     }
   }
