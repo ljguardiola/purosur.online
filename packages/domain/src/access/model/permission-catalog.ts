@@ -99,7 +99,7 @@ export interface PermissionDefinition {
   registerMarker: PermissionRegisterMarker;
 }
 
-export const PERMISSION_CATALOG: readonly PermissionDefinition[] = [
+export const PERMISSION_CATALOG = [
   { key: "sell_and_charge", area: "cashRegister", registerMarker: "register" },
   { key: "view_sales_history", area: "cashRegister", registerMarker: "register" },
   {
@@ -203,7 +203,7 @@ export const PERMISSION_CATALOG: readonly PermissionDefinition[] = [
   { key: "recover_contingency_receipts", area: "backups", registerMarker: "none" },
 
   { key: "configure_branch", area: "branch", registerMarker: "none" },
-] as const;
+] as const satisfies readonly PermissionDefinition[];
 
 // A role may hold at most one of these: the Alertas area presents them as one exclusive choice,
 // not two independent permissions.

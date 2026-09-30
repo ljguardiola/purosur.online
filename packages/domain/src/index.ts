@@ -1,4 +1,5 @@
 export type {
+  AuthorizablePermissionKey,
   PermissionArea,
   PermissionDefinition,
   PermissionKey,
@@ -13,9 +14,11 @@ export {
   grantedPermissionKeys,
   holdsARegisterPermission,
   holdsBothAlertViewPermissions,
+  holdsPermission,
   increasesAccess,
   isAcceptablePin,
   isAdministratorRoleName,
+  isAuthorizablePermissionKey,
   isEmailAddress,
   isLockedOutOfPinSignIn,
   isPasskeyNameTooLong,

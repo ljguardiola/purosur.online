@@ -5,6 +5,7 @@ import type {
   SignInOutcome,
   SignInUser,
 } from "@purosur/contracts";
+import type { AuthorizablePermissionKey } from "@purosur/domain";
 import type { AnyRoute } from "@tanstack/react-router";
 import {
   createMemoryHistory,
@@ -33,6 +34,7 @@ export interface RouterContext {
   person: SignedInPerson | undefined;
   enroll: (typedCode: string) => Promise<EnrollmentOutcome>;
   signInUsers: () => Promise<SignInUser[]>;
+  authorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   signIn: (userId: string, pin: string) => Promise<SignInOutcome>;
   registerName: () => Promise<string | null>;
   signOut: () => void;
@@ -172,7 +174,13 @@ export function createRegisterRouter<TRouteTree extends AnyRoute>(
 export function createAppRouter(
   services: Pick<
     RouterContext,
-    "enroll" | "registerName" | "signInUsers" | "signIn" | "signOut" | "redeemPinCode"
+    | "enroll"
+    | "registerName"
+    | "signInUsers"
+    | "authorizers"
+    | "signIn"
+    | "signOut"
+    | "redeemPinCode"
   >,
 ) {
   return createRegisterRouter(

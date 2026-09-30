@@ -1,5 +1,5 @@
 import type { SignInUser } from "@purosur/contracts";
-import type { RoleAccess } from "@purosur/domain";
+import { type AuthorizablePermissionKey, holdsPermission, type RoleAccess } from "@purosur/domain";
 import type { LocalDatabase } from "../platform/local-database";
 
 export interface SignInRecord {
@@ -16,6 +16,7 @@ export interface PinSignInFailures {
 
 export interface SignInStore {
   signableUsers(): SignInUser[];
+  authorizers(permission: AuthorizablePermissionKey): SignInUser[];
   signInRecord(userId: string): SignInRecord | undefined;
   pinSignInFailures(userId: string): PinSignInFailures | undefined;
   recordPinSignInFailure(userId: string, at: Date): PinSignInFailures;
@@ -57,6 +58,13 @@ export class SqliteSignInStore implements SignInStore {
          WHERE users.active = 1 AND users.removed = 0 AND users.salt IS NOT NULL`,
       )
       .all();
+  }
+
+  authorizers(permission: AuthorizablePermissionKey): SignInUser[] {
+    return this.signableUsers().filter((user) => {
+      const record = this.signInRecord(user.id);
+      return record !== undefined && holdsPermission(record.access, permission);
+    });
   }
 
   signInRecord(userId: string): SignInRecord | undefined {
