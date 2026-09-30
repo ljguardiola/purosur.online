@@ -248,6 +248,18 @@ describe("closing the signed-in person's own cash session", () => {
     expect(hashed).toEqual([]);
   });
 
+  it.each([
+    ["an action that names neither a permission nor its own cash session", "{}"],
+    ["an action that does not close its own cash session", '{"closesOwnCashSession":false}'],
+  ])("refuses %s", async (_case, json) => {
+    const parsed: GuardedAction = JSON.parse(json);
+
+    const { outcome, performed } = closeOwnCashSession(deps(), parsed);
+
+    expect(await outcome).toEqual({ kind: "lacks_permission" });
+    expect(performed).toEqual([]);
+  });
+
   it("takes no authorization", () => {
     expectTypeOf<{ closesOwnCashSession: true }>().toExtend<GuardedAction>();
     expectTypeOf<{

@@ -44,7 +44,7 @@ export function createActionGate(deps: ActionGateDeps): ActionGate {
         return { kind: "not_signed_in" };
       }
       if (!("permission" in action)) {
-        if (action.authorization !== undefined) {
+        if (action.closesOwnCashSession !== true || action.authorization !== undefined) {
           return { kind: "lacks_permission" };
         }
         return {

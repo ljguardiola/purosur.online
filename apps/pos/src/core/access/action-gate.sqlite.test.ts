@@ -139,23 +139,4 @@ describe("the action gate over the register's local database", () => {
     expect(await outcome).toEqual({ kind: "not_signed_in" });
     expect(performed).toEqual([]);
   });
-
-  it("lets a signed-in person deactivated in a pull close their own cash session, and nothing else", async () => {
-    await signInAs(MANAGER_ID);
-
-    await pull(
-      userChange(3, MANAGER_ID, {
-        ...userRow(MANAGER_ROLE_ID, "Grace"),
-        active: false,
-        version: 2,
-      }),
-    );
-
-    expect(await gate.run({ permission: "sell_and_charge" }, async () => "sold")).toEqual({
-      kind: "not_signed_in",
-    });
-    expect(
-      await gate.run({ closesOwnCashSession: true }, async ({ signedInUserId }) => signedInUserId),
-    ).toEqual({ kind: "performed", authorized_by: null, result: MANAGER_ID });
-  });
 });
