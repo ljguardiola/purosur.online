@@ -17,10 +17,6 @@ function calendarDaySchema(field: "validFrom" | "validTo") {
   return z.string({ error: message }).refine(isCalendarDay, message);
 }
 
-function isQuantityPath(path: readonly PropertyKey[]): boolean {
-  return path.length === 2 && (path[1] === "buyQty" || path[1] === "payQty");
-}
-
 export const discountCreationBodySchema = z
   .object({
     name: z
@@ -39,26 +35,15 @@ export const discountCreationBodySchema = z
       .array(z.number({ error: WEEKDAYS_MESSAGE }), { error: WEEKDAYS_MESSAGE })
       .refine(isValidDiscountWeekdays, WEEKDAYS_MESSAGE),
   })
-  .superRefine(
-    (discount, context) => {
-      if (discount.benefit.kind === "BUY_N_PAY_M" && discount.target.kind !== "PRODUCT") {
-        context.addIssue({
-          code: "custom",
-          path: ["target", "kind"],
-          message: "target.kind must be PRODUCT for a BUY_N_PAY_M benefit",
-        });
-      }
-    },
-    {
-      when: ({ issues }) =>
-        issues.every(
-          (issue) =>
-            issue.path !== undefined &&
-            issue.path[0] !== "target" &&
-            (issue.path[0] !== "benefit" || isQuantityPath(issue.path)),
-        ),
-    },
-  )
+  .superRefine((discount, context) => {
+    if (discount.benefit.kind === "BUY_N_PAY_M" && discount.target.kind !== "PRODUCT") {
+      context.addIssue({
+        code: "custom",
+        path: ["target", "kind"],
+        message: "target.kind must be PRODUCT for a BUY_N_PAY_M benefit",
+      });
+    }
+  })
   .superRefine(
     (discount, context) => {
       if (!isDiscountWindowOrdered(discount.validFrom, discount.validTo)) {

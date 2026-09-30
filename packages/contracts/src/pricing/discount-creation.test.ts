@@ -176,6 +176,24 @@ describe("discountCreationBodySchema", () => {
       ]);
     });
 
+    it("reports a non-product target next to a malformed target id", () => {
+      expect(failures({ ...buyNPayM, target: { kind: "TAG", id: "not-an-id" } })).toEqual([
+        { path: ["target", "id"], message: "target.id must be an existing target's id" },
+        {
+          path: ["target", "kind"],
+          message: "target.kind must be PRODUCT for a BUY_N_PAY_M benefit",
+        },
+      ]);
+    });
+
+    it("reports a non-product target next to an empty name", () => {
+      expect(
+        failures({ ...buyNPayM, name: "", target: { kind: "TAG", id: ID } }).map(
+          (failure) => failure.path,
+        ),
+      ).toEqual([["name"], ["target", "kind"]]);
+    });
+
     it("reports a non-product target next to the problems of other fields", () => {
       expect(
         failures({ ...withQuantities(1, 1), target: { kind: "TAG", id: ID } }).map(
