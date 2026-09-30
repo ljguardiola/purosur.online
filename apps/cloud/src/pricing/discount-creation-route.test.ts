@@ -223,6 +223,27 @@ describe("POST /discounts", () => {
     ]);
   });
 
+  it("logs a created buy-N-pay-M discount as an insert of its first version", async () => {
+    const product = await insertProductWithTags(db, { name: "Alfajor", tagIds: [] });
+    const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
+    const mark = await lastLoggedChangeSeq(db);
+
+    const response = await createDiscount(rawSessionId, {
+      ...bodyAimedAt({ kind: "PRODUCT", id: product.id }),
+      benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+    });
+
+    expect(await changesLoggedAfter(db, mark)).toEqual([
+      {
+        entity: "discount",
+        entityId: response.json().id,
+        version: 1,
+        op: "insert",
+        locationId: null,
+      },
+    ]);
+  });
+
   it("logs nothing for a discount refused because its target is deactivated", async () => {
     const tag = await insertTag(db, { name: "Kosher", active: false });
     const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);

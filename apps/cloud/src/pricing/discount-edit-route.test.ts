@@ -315,6 +315,32 @@ describe("PUT /discounts/:id", () => {
     ]);
   });
 
+  it("logs a change of a buy-N-pay-M discount's quantities as an update of the next version", async () => {
+    const product = await insertProductWithTags(db, { name: "Alfajor", tagIds: [] });
+    const discount = await insertDiscount(db, {
+      productId: product.id,
+      kind: "BUY_N_PAY_M",
+      percent: null,
+      buyQty: 3,
+      payQty: 2,
+    });
+    const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
+    const mark = await lastLoggedChangeSeq(db);
+
+    await editDiscount(
+      rawSessionId,
+      discount.id,
+      editBodyAimedAt(
+        { kind: "PRODUCT", id: product.id },
+        { benefit: { kind: "BUY_N_PAY_M", buyQty: 4, payQty: 3 } },
+      ),
+    );
+
+    expect(await changesLoggedAfter(db, mark)).toEqual([
+      { entity: "discount", entityId: discount.id, version: 2, op: "update", locationId: null },
+    ]);
+  });
+
   it("logs nothing for an edit refused as stale", async () => {
     const category = await insertCategory(db, "Infusiones");
     const discount = await insertDiscount(db, { categoryId: category });
