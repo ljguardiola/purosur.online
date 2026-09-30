@@ -41,8 +41,11 @@ export {
   pinCodeWindowStart,
 } from "./model/pin-code.js";
 export { pinCodeRedemptionAttemptWindowStart } from "./model/pin-code-redemption-attempt-limit.js";
-export { PIN_HASH_SCHEME } from "./model/pin-hash-scheme.js";
-export { uncoveredRegisterPermissions } from "./model/register-coverage.js";
+export { decodePinSalt, encodePinHash, PIN_HASH_SCHEME } from "./model/pin-hash-scheme.js";
+export {
+  holdsARegisterPermission,
+  uncoveredRegisterPermissions,
+} from "./model/register-coverage.js";
 export {
   isAdministratorRoleName,
   isRoleNameTooLong,

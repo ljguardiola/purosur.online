@@ -1,6 +1,6 @@
 import { argon2Sync } from "node:crypto";
 import { changesPageSchema, cloudErrorSchema, pinCodeRedemptionSchema } from "@purosur/contracts";
-import { PIN_HASH_SCHEME } from "@purosur/domain";
+import { decodePinSalt, encodePinHash, PIN_HASH_SCHEME } from "@purosur/domain";
 import { and, eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -121,14 +121,16 @@ describe("POST /pin-code-redemptions", () => {
     const body = pinCodeRedemptionSchema.parse(response.json());
     expect(body.user_id).toBe(userId);
     expect(body.pin_hash).toBe(
-      argon2Sync(PIN_HASH_SCHEME.algorithm, {
-        message: NEW_PIN,
-        nonce: Buffer.from(body.salt, PIN_HASH_SCHEME.encoding),
-        memory: PIN_HASH_SCHEME.memory,
-        passes: PIN_HASH_SCHEME.passes,
-        parallelism: PIN_HASH_SCHEME.parallelism,
-        tagLength: PIN_HASH_SCHEME.tagLength,
-      }).toString(PIN_HASH_SCHEME.encoding),
+      encodePinHash(
+        argon2Sync("argon2id", {
+          message: NEW_PIN,
+          nonce: decodePinSalt(body.salt) ?? new Uint8Array(),
+          memory: PIN_HASH_SCHEME.memoryKiB,
+          passes: PIN_HASH_SCHEME.passes,
+          parallelism: PIN_HASH_SCHEME.parallelism,
+          tagLength: PIN_HASH_SCHEME.hashLength,
+        }),
+      ),
     );
     expect(await db.select().from(userPins)).toEqual([
       { userId, salt: body.salt, hash: body.pin_hash, setAt: NOW },

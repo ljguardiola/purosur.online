@@ -1,6 +1,6 @@
 import { argon2, randomBytes } from "node:crypto";
 import { promisify } from "node:util";
-import { PIN_HASH_SCHEME } from "@purosur/domain";
+import { encodePinHash, PIN_HASH_SCHEME } from "@purosur/domain";
 import type { PinHasher } from "@purosur/domain/access/use-cases";
 
 const deriveArgon2 = promisify(argon2);
@@ -9,17 +9,17 @@ export function argon2PinHasher(newSalt: (length: number) => Buffer = randomByte
   return {
     async hash(pin) {
       const salt = newSalt(PIN_HASH_SCHEME.saltLength);
-      const tag = await deriveArgon2(PIN_HASH_SCHEME.algorithm, {
+      const tag = await deriveArgon2("argon2id", {
         message: pin,
         nonce: salt,
-        memory: PIN_HASH_SCHEME.memory,
+        memory: PIN_HASH_SCHEME.memoryKiB,
         passes: PIN_HASH_SCHEME.passes,
         parallelism: PIN_HASH_SCHEME.parallelism,
-        tagLength: PIN_HASH_SCHEME.tagLength,
+        tagLength: PIN_HASH_SCHEME.hashLength,
       });
       return {
-        salt: salt.toString(PIN_HASH_SCHEME.encoding),
-        pinHash: tag.toString(PIN_HASH_SCHEME.encoding),
+        salt: encodePinHash(salt),
+        pinHash: encodePinHash(tag),
       };
     },
   };

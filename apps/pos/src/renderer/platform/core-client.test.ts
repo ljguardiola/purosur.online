@@ -48,6 +48,51 @@ describe("createCoreClient", () => {
     expect(port.posted).toEqual([{ type: "enrollment-status-request", request_id: "request-1" }]);
   });
 
+  it("asks the core for the users who can sign in and resolves with them", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const users = client.signInUsers();
+    port.answer({
+      type: "sign-in-users",
+      request_id: "request-1",
+      users: [{ id: "u1", first_name: "Ada" }],
+    });
+
+    expect(await users).toEqual([{ id: "u1", first_name: "Ada" }]);
+    expect(port.posted).toEqual([{ type: "sign-in-users", request_id: "request-1" }]);
+  });
+
+  it("fails the request for the users when the core cannot read them", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const users = client.signInUsers();
+    port.answer({ type: "sign-in-users-unavailable", request_id: "request-1" });
+
+    await expect(users).rejects.toThrow();
+  });
+
+  it("asks the core to sign in the chosen user with the PIN as typed and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const outcome = client.signIn("u1", "0042");
+    port.answer({
+      type: "sign-in-result",
+      request_id: "request-1",
+      outcome: { kind: "wrong_pin" },
+    });
+
+    expect(await outcome).toEqual({ kind: "wrong_pin" });
+    expect(port.posted).toEqual([
+      { type: "sign-in", request_id: "request-1", user_id: "u1", pin: "0042" },
+    ]);
+  });
+
   it("asks the core to enroll with the code as typed and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();

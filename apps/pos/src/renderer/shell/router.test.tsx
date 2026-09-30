@@ -4,18 +4,20 @@ import { Component } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import type { SignedInPerson } from "../access/signed-in-person";
 import type { CoreStatus, Enrollment, RouterContext } from "./router";
-import { createRegisterRouter, routeTree } from "./router";
+import { createRegisterRouter, routeFor, routeTree } from "./router";
 
-type RoutePath = "/" | "/enroll" | "/starting" | "/core-down" | "/pin-code-redemption";
+type RoutePath = "/" | "/sign-in" | "/enroll" | "/starting" | "/core-down" | "/pin-code-redemption";
 type RenderedScreen = Awaited<ReturnType<typeof render>>;
 
 const CORE_DOWN_TITLE = "Esperá un momento";
-const SHELL_READY_TEXT = "Puro Sur está listo";
+const SIGNED_IN_TITLE = "¿Qué querés hacer?";
+const SIGN_IN_TITLE = "¿Quién abre la caja?";
+const PERSON: SignedInPerson = { first_name: "Ada", permission_keys: [] };
 const BRAND_LOGO_ALT = "Puro Sur";
 const ENROLLMENT_TITLE = "Dar de alta esta caja";
 const PIN_REDEMPTION_TITLE = "Cambiar el PIN";
-const PIN_REDEMPTION_LINK = "Tengo un código para cambiar el PIN";
 const OUTER_BOUNDARY_TEXT = "caught outside the router";
 const ROUTER_DEFAULT_ERROR_TEXT = "Something went wrong!";
 
@@ -23,24 +25,37 @@ const screenFor: Record<
   RoutePath,
   (screen: RenderedScreen) => ReturnType<RenderedScreen["getByText"]>
 > = {
-  "/": (screen) => screen.getByText(SHELL_READY_TEXT),
+  "/": (screen) => screen.getByRole("heading", { name: SIGNED_IN_TITLE }),
+  "/sign-in": (screen) => screen.getByRole("heading", { name: SIGN_IN_TITLE }),
   "/enroll": (screen) => screen.getByRole("heading", { name: ENROLLMENT_TITLE }),
   "/starting": (screen) => screen.getByRole("img", { name: BRAND_LOGO_ALT }),
   "/core-down": (screen) => screen.getByText(CORE_DOWN_TITLE),
   "/pin-code-redemption": (screen) => screen.getByRole("heading", { name: PIN_REDEMPTION_TITLE }),
 };
 
-function contextWith(coreStatus: CoreStatus, enrollment: Enrollment = "enrolled"): RouterContext {
+function contextWith(
+  coreStatus: CoreStatus,
+  enrollment: Enrollment = "enrolled",
+  person: SignedInPerson | null = PERSON,
+): RouterContext {
   return {
     coreStatus,
     enrollment,
+    person: person ?? undefined,
     enroll: async () => ({ kind: "enrolled" }),
+    signInUsers: async () => [{ id: "u1", first_name: "Ada" }],
+    signIn: async () => ({ kind: "signed_in", person: PERSON }),
     redeemPinCode: async () => ({ kind: "redeemed" }),
   };
 }
 
-function routerAt(path: RoutePath, coreStatus: CoreStatus, enrollment?: Enrollment) {
-  return createRegisterRouter(routeTree, contextWith(coreStatus, enrollment), path);
+function routerAt(
+  path: RoutePath,
+  coreStatus: CoreStatus,
+  enrollment?: Enrollment,
+  person?: SignedInPerson | null,
+) {
+  return createRegisterRouter(routeTree, contextWith(coreStatus, enrollment, person), path);
 }
 
 const screenFailure = new Error("screen failed to render");
@@ -68,14 +83,65 @@ function FailingScreen(): ReactNode {
   throw screenFailure;
 }
 
+describe("routeFor", () => {
+  it.each<{
+    coreStatus: CoreStatus;
+    enrollment: Enrollment;
+    person: SignedInPerson | undefined;
+    route: RoutePath;
+  }>([
+    { coreStatus: "up", enrollment: "enrolled", person: undefined, route: "/sign-in" },
+    { coreStatus: "up", enrollment: "enrolled", person: PERSON, route: "/" },
+    { coreStatus: "up", enrollment: "not_enrolled", person: PERSON, route: "/enroll" },
+    { coreStatus: "up", enrollment: "unknown", person: PERSON, route: "/starting" },
+    { coreStatus: "starting", enrollment: "enrolled", person: PERSON, route: "/starting" },
+    { coreStatus: "down", enrollment: "enrolled", person: PERSON, route: "/core-down" },
+  ])(
+    "goes to $route when the core is $coreStatus, the installation $enrollment and a person may be signed in",
+    ({ coreStatus, enrollment, person, route }) => {
+      expect(routeFor({ coreStatus, enrollment, person })).toBe(route);
+    },
+  );
+});
+
 describe("the register's router", () => {
   it.each<{
     path: RoutePath;
     coreStatus: CoreStatus;
     enrollment: Enrollment;
+    person?: null;
     redirectedTo: RoutePath;
   }>([
     { path: "/", coreStatus: "down", enrollment: "enrolled", redirectedTo: "/core-down" },
+    {
+      path: "/",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: null,
+      redirectedTo: "/sign-in",
+    },
+    { path: "/sign-in", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
+    {
+      path: "/sign-in",
+      coreStatus: "up",
+      enrollment: "not_enrolled",
+      person: null,
+      redirectedTo: "/enroll",
+    },
+    {
+      path: "/enroll",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: null,
+      redirectedTo: "/sign-in",
+    },
+    {
+      path: "/sign-in",
+      coreStatus: "down",
+      enrollment: "enrolled",
+      person: null,
+      redirectedTo: "/core-down",
+    },
     { path: "/starting", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     {
       path: "/core-down",
@@ -87,28 +153,32 @@ describe("the register's router", () => {
     { path: "/enroll", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     { path: "/", coreStatus: "up", enrollment: "unknown", redirectedTo: "/starting" },
     { path: "/enroll", coreStatus: "down", enrollment: "not_enrolled", redirectedTo: "/core-down" },
+    { path: "/pin-code-redemption", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     {
       path: "/pin-code-redemption",
       coreStatus: "up",
       enrollment: "not_enrolled",
+      person: null,
       redirectedTo: "/enroll",
     },
     {
       path: "/pin-code-redemption",
       coreStatus: "down",
       enrollment: "enrolled",
+      person: null,
       redirectedTo: "/core-down",
     },
     {
       path: "/pin-code-redemption",
       coreStatus: "up",
       enrollment: "unknown",
+      person: null,
       redirectedTo: "/starting",
     },
   ])(
     "redirects away from $path when the core is $coreStatus and the installation $enrollment",
-    async ({ path, coreStatus, enrollment, redirectedTo }) => {
-      const router = routerAt(path, coreStatus, enrollment);
+    async ({ path, coreStatus, enrollment, person, redirectedTo }) => {
+      const router = routerAt(path, coreStatus, enrollment, person === null ? null : PERSON);
 
       const screen = await render(<RouterProvider router={router} />);
 
@@ -125,39 +195,40 @@ describe("the register's router", () => {
     await expect.element(screen.getByRole("heading", { name: ENROLLMENT_TITLE })).toBeVisible();
   });
 
-  it("renders the ready route once the core is up", async () => {
+  it("renders the sign-in screen while enrolled and nobody is signed in", async () => {
+    const router = routerAt("/sign-in", "up", "enrolled", null);
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("radio", { name: "Ada" })).toBeVisible();
+  });
+
+  it("renders the signed-in screen for the person from the router context", async () => {
     const router = routerAt("/", "up");
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByText(SHELL_READY_TEXT)).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Persona en la caja" }))
+      .toHaveTextContent("Ada");
   });
 
-  it("renders the PIN code redemption screen once the core is up and the register enrolled", async () => {
-    const router = routerAt("/pin-code-redemption", "up");
+  it("renders the PIN code redemption screen while enrolled and nobody is signed in", async () => {
+    const router = routerAt("/pin-code-redemption", "up", "enrolled", null);
 
     const screen = await render(<RouterProvider router={router} />);
 
     await expect.element(screen.getByRole("heading", { name: PIN_REDEMPTION_TITLE })).toBeVisible();
   });
 
-  it("reaches the PIN code redemption screen from the start screen and comes back", async () => {
-    const router = routerAt("/", "up");
-    const screen = await render(<RouterProvider router={router} />);
-
-    await userEvent.click(screen.getByRole("link", { name: PIN_REDEMPTION_LINK }));
-    await expect.element(screen.getByRole("heading", { name: PIN_REDEMPTION_TITLE })).toBeVisible();
-    await userEvent.click(screen.getByRole("link", { name: "Volver" }));
-
-    await expect.element(screen.getByText(SHELL_READY_TEXT)).toBeVisible();
-  });
-
-  it("redeems through the context's callback and returns to the start screen from the success message", async () => {
+  it("redeems through the context's callback and returns to the sign-in screen from the success message", async () => {
     const redeemed: string[] = [];
     const router = createRegisterRouter(
       routeTree,
       {
-        ...contextWith("up"),
+        ...contextWith("up", "enrolled", null),
         redeemPinCode: async (code, pin) => {
           redeemed.push(`${code}/${pin}`);
           return { kind: "redeemed" };
@@ -174,7 +245,7 @@ describe("the register's router", () => {
     await userEvent.click(screen.getByRole("button", { name: "Volver al inicio" }));
 
     expect(redeemed).toEqual(["K7QM2XPA3DTR4HWN/482915"]);
-    await expect.element(screen.getByText(SHELL_READY_TEXT)).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
   });
 
   it("lets an error thrown while rendering a screen propagate past the router", async () => {

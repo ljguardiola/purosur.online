@@ -8,7 +8,10 @@ export type {
 } from "./access/index.js";
 export {
   ALERT_VIEW_PERMISSION_KEYS,
+  decodePinSalt,
+  encodePinHash,
   grantedPermissionKeys,
+  holdsARegisterPermission,
   holdsBothAlertViewPermissions,
   increasesAccess,
   isAcceptablePin,

@@ -119,6 +119,8 @@ export type {
   MainToCoreMessage,
   PinCodeRedemptionOutcome,
   RendererToCoreMessage,
+  SignInOutcome,
+  SignInUser,
 } from "./register/core-messages.js";
 export {
   coreStatusMessageSchema,

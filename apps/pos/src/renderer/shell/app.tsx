@@ -1,5 +1,6 @@
 import { RouterProvider } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import type { SignedInPerson } from "../access/signed-in-person";
 import type { CoreClient } from "../platform/core-client";
 import { useCoreStatus } from "../platform/use-core-status";
 import type { Enrollment } from "./router";
@@ -9,6 +10,7 @@ export function App({ core }: { core: CoreClient }) {
   const coreStatus = useCoreStatus();
   const [knownEnrollment, setKnownEnrollment] = useState<Enrollment>("unknown");
   const enrollment = coreStatus === "up" ? knownEnrollment : "unknown";
+  const [person, setPerson] = useState<SignedInPerson>();
 
   async function enroll(typedCode: string) {
     const outcome = await core.enroll(typedCode);
@@ -18,8 +20,18 @@ export function App({ core }: { core: CoreClient }) {
     return outcome;
   }
 
+  async function signIn(userId: string, pin: string) {
+    const outcome = await core.signIn(userId, pin);
+    if (outcome.kind === "signed_in") {
+      setPerson(outcome.person);
+    }
+    return outcome;
+  }
+
   const services = {
     enroll,
+    signInUsers: () => core.signInUsers(),
+    signIn,
     redeemPinCode: (typedCode: string, newPin: string) => core.redeemPinCode(typedCode, newPin),
   };
 
@@ -45,8 +57,10 @@ export function App({ core }: { core: CoreClient }) {
   }, [core, coreStatus]);
 
   useEffect(() => {
-    router.navigate({ to: routeFor({ coreStatus, enrollment }), replace: true });
-  }, [router, coreStatus, enrollment]);
+    router.navigate({ to: routeFor({ coreStatus, enrollment, person }), replace: true });
+  }, [router, coreStatus, enrollment, person]);
 
-  return <RouterProvider router={router} context={{ coreStatus, enrollment, ...services }} />;
+  return (
+    <RouterProvider router={router} context={{ coreStatus, enrollment, person, ...services }} />
+  );
 }
