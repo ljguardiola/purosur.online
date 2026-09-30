@@ -18,6 +18,11 @@ const PLAYWRIGHT_SERVER_PORT = 3000;
 export const PLAYWRIGHT_WS_ENDPOINT_ENV = "PLAYWRIGHT_SERVER_WS_ENDPOINT";
 
 export default async function setup(): Promise<() => Promise<void>> {
+  // Both browser projects list this setup, and Vitest runs it once per project in the same process.
+  if (process.env[PLAYWRIGHT_WS_ENDPOINT_ENV] !== undefined) {
+    return async () => {};
+  }
+
   let container: StartedTestContainer;
   try {
     container = await new GenericContainer(PLAYWRIGHT_SERVER_IMAGE)
@@ -51,6 +56,7 @@ export default async function setup(): Promise<() => Promise<void>> {
     `ws://${container.getHost()}:${container.getMappedPort(PLAYWRIGHT_SERVER_PORT)}/`;
 
   return async () => {
+    delete process.env[PLAYWRIGHT_WS_ENDPOINT_ENV];
     await container.stop();
   };
 }

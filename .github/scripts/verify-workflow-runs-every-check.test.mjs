@@ -1091,6 +1091,9 @@ for (const command of [
   "pnpm exec playwright install --with-deps chromium",
   "pnpm exec playwright install-deps chromium",
   "npx playwright install",
+  "npx playwright@1.63.0 install --with-deps chromium",
+  "pnpm dlx playwright@latest install-deps",
+  "playwright-core install",
 ]) {
   test(`flags a step that runs \`${command}\``, () => {
     const violations = findPlaywrightInstallViolations(workflowWithStep(command));

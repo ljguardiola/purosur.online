@@ -492,7 +492,6 @@ export function findPlaywrightImageViolations(
   return violations;
 }
 
-// An apt mirror can stall the step silently; the browsers come from the pinned Playwright image.
 export function findPlaywrightInstallViolations(workflowSource) {
   const doc = parseDocument(workflowSource);
   const jobsNode = resolveNode(doc, doc.get("jobs", true));
@@ -503,7 +502,7 @@ export function findPlaywrightInstallViolations(workflowSource) {
     const jobId = String(resolveScalar(doc, jobPair.key));
     for (const step of steps(doc, resolveNode(doc, jobPair.value))) {
       const run = resolveScalar(doc, mapGet(doc, step, "run"));
-      if (typeof run === "string" && /\bplaywright\s+install/.test(run)) {
+      if (typeof run === "string" && /\bplaywright(?:-core)?(?:@\S+)?\s+install/.test(run)) {
         violations.push(
           `verify.yml's ${jobId} job installs a Playwright browser or its system packages at CI time (\`${run.trim()}\`); an apt mirror can stall the step silently, and the browsers come from the pinned Playwright image`,
         );

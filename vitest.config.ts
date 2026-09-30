@@ -12,8 +12,7 @@ import {
   SlowTestsReporter,
 } from "./.github/scripts/slow-tests-reporter.mjs";
 import { withoutPackageOutput } from "./.github/scripts/without-package-output.mjs";
-
-const PLAYWRIGHT_WS_ENDPOINT_ENV = "PLAYWRIGHT_SERVER_WS_ENDPOINT";
+import { PLAYWRIGHT_WS_ENDPOINT_ENV } from "./vitest.global-setup.playwright-server";
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
