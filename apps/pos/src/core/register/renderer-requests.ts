@@ -1,6 +1,7 @@
 import type {
   CoreToRendererMessage,
   EnrollmentOutcome,
+  PinCodeRedemptionOutcome,
   RendererToCoreMessage,
   SignInOutcome,
   SignInUser,
@@ -9,6 +10,7 @@ import type {
 export interface RendererRequestDeps {
   credentialsPresent: () => Promise<boolean>;
   enroll: (typedCode: string) => Promise<EnrollmentOutcome>;
+  redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
   signInUsers: (() => SignInUser[]) | undefined;
   signIn: ((userId: string, pin: string) => Promise<SignInOutcome>) | undefined;
   reportFailure: (context: string, error: unknown) => void;
@@ -52,6 +54,12 @@ export async function answerRendererRequest(
         type: "enrollment-result",
         request_id: message.request_id,
         outcome: await deps.enroll(message.code),
+      };
+    case "redeem-pin-code":
+      return {
+        type: "pin-code-redemption-result",
+        request_id: message.request_id,
+        outcome: await deps.redeemPinCode(message.reset_code, message.new_pin),
       };
     case "sign-in-users": {
       const users = readSignInUsers(deps);

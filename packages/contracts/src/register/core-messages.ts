@@ -17,6 +17,13 @@ const enrollMessageSchema = z.object({
   code: z.string(),
 });
 
+const redeemPinCodeMessageSchema = z.object({
+  type: z.literal("redeem-pin-code"),
+  request_id: requestId,
+  reset_code: z.string(),
+  new_pin: z.string(),
+});
+
 const signInUsersRequestMessageSchema = z.object({
   type: z.literal("sign-in-users"),
   request_id: requestId,
@@ -33,6 +40,7 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   rendererPingMessageSchema,
   enrollmentStatusRequestMessageSchema,
   enrollMessageSchema,
+  redeemPinCodeMessageSchema,
   signInUsersRequestMessageSchema,
   signInMessageSchema,
 ]);
@@ -47,6 +55,18 @@ const enrollmentOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("not_stored") }),
 ]);
 export type EnrollmentOutcome = z.infer<typeof enrollmentOutcomeSchema>;
+
+const pinCodeRedemptionOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("redeemed") }),
+  z.object({ kind: z.literal("code_invalid") }),
+  z.object({ kind: z.literal("code_expired") }),
+  z.object({ kind: z.literal("code_burned") }),
+  z.object({ kind: z.literal("pin_rejected") }),
+  z.object({ kind: z.literal("rate_limited"), retry_after_seconds: z.int().nonnegative() }),
+  z.object({ kind: z.literal("unreachable") }),
+  z.object({ kind: z.literal("unavailable") }),
+]);
+export type PinCodeRedemptionOutcome = z.infer<typeof pinCodeRedemptionOutcomeSchema>;
 
 const signInOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({
@@ -68,6 +88,11 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("enrollment-result"),
     request_id: requestId,
     outcome: enrollmentOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("pin-code-redemption-result"),
+    request_id: requestId,
+    outcome: pinCodeRedemptionOutcomeSchema,
   }),
   z.object({
     type: z.literal("sign-in-users"),

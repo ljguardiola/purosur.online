@@ -1,8 +1,11 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
+  isPinCodeBurned,
+  isPinCodeExpired,
   isWellFormedPinCode,
   mayEmitPinCodeFor,
+  normalizePinCode,
   pinCodeExpiresAt,
   pinCodeRetryAfterSeconds,
   pinCodeWindowStart,
@@ -108,5 +111,62 @@ describe("mayEmitPinCodeFor", () => {
 
   it("lets an Administrator emit for their own account", () => {
     expect(mayEmitPinCodeFor(administrator, administrator)).toBe(true);
+  });
+});
+
+describe("normalizePinCode", () => {
+  it("strips spaces and dashes and uppercases what was typed", () => {
+    expect(normalizePinCode("p4nx-7kwe 2qrt-5mzd")).toBe("P4NX7KWE2QRT5MZD");
+  });
+
+  it("strips tabs and line breaks", () => {
+    expect(normalizePinCode("p4nx\t7kwe\n2qrt5mzd")).toBe("P4NX7KWE2QRT5MZD");
+  });
+
+  it("leaves an already normalized code as it is", () => {
+    fc.assert(
+      fc.property(
+        fc.string({
+          unit: fc.constantFrom(..."ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"),
+          minLength: 16,
+          maxLength: 16,
+        }),
+        (code) => normalizePinCode(code) === code,
+      ),
+    );
+  });
+});
+
+describe("isPinCodeBurned", () => {
+  const LIVE = { redeemedAt: null, supersededAt: null, failedAttempts: 0 };
+
+  it("keeps a code that was neither redeemed, superseded nor failed five times", () => {
+    expect(isPinCodeBurned({ ...LIVE, failedAttempts: 4 })).toBe(false);
+  });
+
+  it("burns a redeemed code", () => {
+    expect(isPinCodeBurned({ ...LIVE, redeemedAt: NOW })).toBe(true);
+  });
+
+  it("burns a superseded code", () => {
+    expect(isPinCodeBurned({ ...LIVE, supersededAt: NOW })).toBe(true);
+  });
+
+  it.each([5, 6])("burns a code with %i failed attempts", (failedAttempts) => {
+    expect(isPinCodeBurned({ ...LIVE, failedAttempts })).toBe(true);
+  });
+});
+
+describe("isPinCodeExpired", () => {
+  it("is not expired one millisecond before its expiry", () => {
+    expect(isPinCodeExpired(new Date(NOW.getTime() + 1), NOW)).toBe(false);
+  });
+
+  it("is expired at its expiry", () => {
+    expect(isPinCodeExpired(NOW, NOW)).toBe(true);
+  });
+
+  it("is expired after its expiry", () => {
+    expect(isPinCodeExpired(new Date(NOW.getTime() - 1), NOW)).toBe(true);
   });
 });

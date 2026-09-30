@@ -11,6 +11,16 @@ export interface PinCodeParty {
   isAdministrator: boolean;
 }
 
+export interface PinCodeState {
+  redeemedAt: Date | null;
+  supersededAt: Date | null;
+  failedAttempts: number;
+}
+
+export function normalizePinCode(typed: string): string {
+  return typed.replace(/[\s-]/g, "").toUpperCase();
+}
+
 export function isWellFormedPinCode(code: string): boolean {
   return WELL_FORMED_PIN_CODE.test(code);
 }
@@ -39,4 +49,16 @@ export function pinCodeRetryAfterSeconds(
 
 export function mayEmitPinCodeFor(actor: PinCodeParty, target: PinCodeParty): boolean {
   return actor.isAdministrator || (!target.isAdministrator && actor.id !== target.id);
+}
+
+export function isPinCodeBurned(code: PinCodeState): boolean {
+  return (
+    code.redeemedAt !== null ||
+    code.supersededAt !== null ||
+    code.failedAttempts >= PIN_CODE_MAX_FAILED_ATTEMPTS
+  );
+}
+
+export function isPinCodeExpired(expiresAt: Date, now: Date): boolean {
+  return now >= expiresAt;
 }

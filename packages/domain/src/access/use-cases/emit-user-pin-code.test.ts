@@ -110,7 +110,7 @@ describe("emitUserPinCode", () => {
 
       await emit(store, PERSON, "person-2");
 
-      expect(store.snapshot().pins).toEqual(new Set(["admin-1", "admin-2"]));
+      expect([...store.snapshot().pins.keys()].sort()).toEqual(["admin-1", "admin-2"]);
     });
 
     it("emits for a user who has no PIN yet", async () => {

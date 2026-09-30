@@ -28,7 +28,12 @@ export function App({ core }: { core: CoreClient }) {
     return outcome;
   }
 
-  const services = { enroll, signInUsers: () => core.signInUsers(), signIn };
+  const services = {
+    enroll,
+    signInUsers: () => core.signInUsers(),
+    signIn,
+    redeemPinCode: (typedCode: string, newPin: string) => core.redeemPinCode(typedCode, newPin),
+  };
 
   const [router] = useState(() => createAppRouter(services));
 

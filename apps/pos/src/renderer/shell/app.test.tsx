@@ -32,6 +32,9 @@ function coreAnswering(
     async enroll() {
       return outcome;
     },
+    async redeemPinCode() {
+      return { kind: "redeemed" };
+    },
     async signInUsers() {
       return [{ id: "u1", first_name: "Ada" }];
     },
