@@ -1,6 +1,8 @@
 import type {
   CoreToRendererMessage,
   EnrollmentOutcome,
+  OpenCashSession,
+  OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   RendererToCoreMessage,
   SignInLookupOutcome,
@@ -28,6 +30,8 @@ export interface CoreClient {
   signIn(userId: string, pin: string): Promise<SignInOutcome>;
   signInLookup(email: string): Promise<SignInLookupOutcome>;
   firstSignIn(userId: string, pin: string): Promise<SignInOutcome>;
+  openCashSession(userId: string, openingFloat: number): Promise<OpenCashSessionOutcome>;
+  cashSession(): Promise<OpenCashSession | null | "unavailable">;
   onPulled(listener: () => void): () => void;
 }
 
@@ -171,6 +175,28 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       return ask(
         { type: "first-sign-in", request_id: deps.newRequestId(), user_id: userId, pin },
         (answer) => (answer.type === "sign-in-result" ? answer.outcome : undefined),
+      );
+    },
+    openCashSession(userId, openingFloat) {
+      return ask(
+        {
+          type: "open-cash-session",
+          request_id: deps.newRequestId(),
+          user_id: userId,
+          opening_float: openingFloat,
+        },
+        (answer) => (answer.type === "open-cash-session-result" ? answer.outcome : undefined),
+      );
+    },
+    cashSession() {
+      return ask(
+        { type: "cash-session-request", request_id: deps.newRequestId() },
+        (answer): OpenCashSession | null | "unavailable" | undefined => {
+          if (answer.type === "cash-session-unavailable") {
+            return "unavailable";
+          }
+          return answer.type === "cash-session" ? answer.session : undefined;
+        },
       );
     },
     onPulled(listener) {

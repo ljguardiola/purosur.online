@@ -384,7 +384,7 @@ function UsersListView({
         "aria-label": access.isAdministrator
           ? `Editar a ${item.firstName}`
           : `Ver a ${item.firstName}`,
-        onPress: () => navigate({ to: "/settings/users/$userId", params: { userId: item.id } }),
+        onPress: () => navigate({ to: "/users/$userId", params: { userId: item.id } }),
       }),
     ],
   } as const;
@@ -467,7 +467,7 @@ function UsersListView({
         }}
         onReactivate={({ id }) => {
           setModalOpen(false);
-          void navigate({ to: "/settings/users/$userId", params: { userId: id } });
+          void navigate({ to: "/users/$userId", params: { userId: id } });
         }}
         onSessionEnded={onSessionEnded}
         createUser={createUser}

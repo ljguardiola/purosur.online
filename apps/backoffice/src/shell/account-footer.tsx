@@ -59,7 +59,7 @@ export function AccountFooter({ displayName, onSignedOut, services }: AccountFoo
 
   return (
     <>
-      <Link to="/settings/users/me" className={nameLinkClassName}>
+      <Link to="/account" className={nameLinkClassName}>
         {displayName}
       </Link>
       <button type="button" className={railItemClassName} onClick={openConfirm}>

@@ -4,7 +4,13 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { compareHashes, hashAsarFile, validatePathCount } from "./app-code-hash.mjs";
+import {
+  compareHashes,
+  differingFiles,
+  hashAsarFile,
+  validatePathCount,
+} from "./app-code-hash.mjs";
+import { asarArchive } from "./asar-archive-fixture.mjs";
 
 async function withTempDir(run) {
   const dir = await mkdtemp(join(tmpdir(), "app-code-hash-"));
@@ -17,6 +23,14 @@ async function withTempDir(run) {
 
 function sha256Of(content) {
   return createHash("sha256").update(content).digest("hex");
+}
+
+async function differingFilesBetween(dir, firstFiles, secondFiles) {
+  const first = join(dir, "first.asar");
+  const second = join(dir, "second.asar");
+  await writeFile(first, asarArchive(firstFiles));
+  await writeFile(second, asarArchive(secondFiles));
+  return differingFiles(first, second);
 }
 
 test("validatePathCount rejects zero paths", () => {
@@ -90,5 +104,105 @@ test("compareHashes rejects the first entry that differs from the first hash", (
   assert.deepEqual(compareHashes(entries), {
     ok: false,
     reason: "app.asar differs: a.asar (aaa) vs b.asar (bbb)",
+    first: "a.asar",
+    mismatch: "b.asar",
+  });
+});
+
+test("differingFiles names a packed file whose content differs", async () => {
+  await withTempDir(async (dir) => {
+    const result = await differingFilesBetween(
+      dir,
+      { "package.json": { content: "{}" }, "out/main/index.js": { content: "one" } },
+      { "package.json": { content: "{}" }, "out/main/index.js": { content: "two" } },
+    );
+
+    assert.deepEqual(result, { ok: true, files: ["out/main/index.js"] });
+  });
+});
+
+test("differingFiles names a packed file whose bytes differ under the same recorded hash", async () => {
+  await withTempDir(async (dir) => {
+    const result = await differingFilesBetween(
+      dir,
+      { "out/main/index.js": { content: "one", recordedHash: "recorded" } },
+      { "out/main/index.js": { content: "two", recordedHash: "recorded" } },
+    );
+
+    assert.deepEqual(result, { ok: true, files: ["out/main/index.js"] });
+  });
+});
+
+test("differingFiles names an unpacked file whose recorded hash differs", async () => {
+  await withTempDir(async (dir) => {
+    const result = await differingFilesBetween(
+      dir,
+      { "node_modules/native/build/state": { unpackedHash: "aaa" } },
+      { "node_modules/native/build/state": { unpackedHash: "bbb" } },
+    );
+
+    assert.deepEqual(result, { ok: true, files: ["node_modules/native/build/state"] });
+  });
+});
+
+test("differingFiles names the files only one archive holds", async () => {
+  await withTempDir(async (dir) => {
+    const result = await differingFilesBetween(
+      dir,
+      { "package.json": { content: "{}" }, "out/a.js": { content: "a" } },
+      { "package.json": { content: "{}" }, "out/b.js": { content: "b" } },
+    );
+
+    assert.deepEqual(result, { ok: true, files: ["out/a.js", "out/b.js"] });
+  });
+});
+
+test("differingFiles names no file when the same files sit at other offsets", async () => {
+  await withTempDir(async (dir) => {
+    const result = await differingFilesBetween(
+      dir,
+      { "out/a.js": { content: "a" }, "out/b.js": { content: "bb" } },
+      { "out/b.js": { content: "bb" }, "out/a.js": { content: "a" } },
+    );
+
+    assert.deepEqual(result, { ok: true, files: [] });
+  });
+});
+
+test("differingFiles names an empty directory only one archive holds", async () => {
+  await withTempDir(async (dir) => {
+    const result = await differingFilesBetween(
+      dir,
+      { "package.json": { content: "{}" }, "out/cache": { directory: true } },
+      { "package.json": { content: "{}" } },
+    );
+
+    assert.deepEqual(result, { ok: true, files: ["out", "out/cache"] });
+  });
+});
+
+test("differingFiles reports a first file that is not an asar archive", async () => {
+  await withTempDir(async (dir) => {
+    const first = join(dir, "first.asar");
+    const second = join(dir, "second.asar");
+    await writeFile(first, "not an archive");
+    await writeFile(second, asarArchive({ "package.json": { content: "{}" } }));
+
+    const result = await differingFiles(first, second);
+
+    assert.deepEqual(result, { ok: false, reason: `${first} is not a readable asar archive` });
+  });
+});
+
+test("differingFiles reports a second file that is not an asar archive", async () => {
+  await withTempDir(async (dir) => {
+    const first = join(dir, "first.asar");
+    const second = join(dir, "second.asar");
+    await writeFile(first, asarArchive({ "package.json": { content: "{}" } }));
+    await writeFile(second, "not an archive");
+
+    const result = await differingFiles(first, second);
+
+    assert.deepEqual(result, { ok: false, reason: `${second} is not a readable asar archive` });
   });
 });

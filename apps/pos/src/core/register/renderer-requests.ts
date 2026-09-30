@@ -1,6 +1,8 @@
 import type {
   CoreToRendererMessage,
   EnrollmentOutcome,
+  OpenCashSession,
+  OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   RendererToCoreMessage,
   SignInLookupOutcome,
@@ -18,6 +20,10 @@ export interface RendererRequestDeps {
   signIn: ((userId: string, pin: string) => Promise<SignInOutcome>) | undefined;
   firstSignIn: ((userId: string, pin: string) => Promise<SignInOutcome>) | undefined;
   signInLookup: ((email: string) => Promise<SignInLookupOutcome>) | undefined;
+  openCashSession:
+    | ((userId: string, openingFloat: number) => Promise<OpenCashSessionOutcome>)
+    | undefined;
+  cashSession: (() => OpenCashSession | null) | undefined;
   authorizers: ((permission: AuthorizablePermissionKey) => SignInUser[]) | undefined;
   reportFailure: (context: string, error: unknown) => void;
 }
@@ -82,6 +88,28 @@ async function attemptSignInLookup(
   }
 }
 
+async function attemptOpenCashSession(
+  deps: RendererRequestDeps,
+  userId: string,
+  openingFloat: number,
+): Promise<OpenCashSessionOutcome> {
+  try {
+    return (await deps.openCashSession?.(userId, openingFloat)) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure("opening a cash session", error);
+    return { kind: "unavailable" };
+  }
+}
+
+function readCashSession(deps: RendererRequestDeps): OpenCashSession | null | undefined {
+  try {
+    return deps.cashSession?.();
+  } catch (error) {
+    deps.reportFailure("reading the open cash session", error);
+    return undefined;
+  }
+}
+
 export async function answerRendererRequest(
   deps: RendererRequestDeps,
   message: RendererToCoreMessage,
@@ -135,6 +163,18 @@ export async function answerRendererRequest(
         request_id: message.request_id,
         outcome: await attemptSignInLookup(deps, message.email),
       };
+    case "open-cash-session":
+      return {
+        type: "open-cash-session-result",
+        request_id: message.request_id,
+        outcome: await attemptOpenCashSession(deps, message.user_id, message.opening_float),
+      };
+    case "cash-session-request": {
+      const session = readCashSession(deps);
+      return session === undefined
+        ? { type: "cash-session-unavailable", request_id: message.request_id }
+        : { type: "cash-session", request_id: message.request_id, session };
+    }
     case "authorizers": {
       const users = readAuthorizers(deps, message.permission);
       return users === undefined

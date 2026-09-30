@@ -392,14 +392,14 @@ test("ends the session when the cloud finds none open", async () => {
 });
 
 test("sends the user to Mi cuenta when the cloud refuses the permission", async () => {
-  window.history.pushState(null, "", "/catalog/discounts");
+  window.history.pushState(null, "", "/discounts");
   const services = createServices();
   vi.mocked(services.editDiscount).mockResolvedValue({ kind: "forbidden" });
   const { dialog } = await renderModal(services);
 
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
   window.history.pushState(null, "", "/");
 });
 

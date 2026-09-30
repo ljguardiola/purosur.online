@@ -18,6 +18,6 @@ export function refuseWithout(
   canSee: (access: BackofficeAccess) => boolean,
 ): void {
   if (!canSee(access)) {
-    throw redirect({ to: "/settings/users/me" });
+    throw redirect({ to: "/account" });
   }
 }

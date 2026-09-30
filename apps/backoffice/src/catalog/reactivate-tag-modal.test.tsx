@@ -126,7 +126,7 @@ test("shows the rate-limited notice with the time to wait", async () => {
 });
 
 test("navigates to Mi cuenta when the change comes back forbidden", async () => {
-  window.history.pushState(null, "", "/catalog/tags");
+  window.history.pushState(null, "", "/tags");
   const reactivateTag = vi
     .fn<ReactivateTagModalServices["reactivateTag"]>()
     .mockResolvedValue({ kind: "forbidden" });
@@ -134,7 +134,7 @@ test("navigates to Mi cuenta when the change comes back forbidden", async () => 
 
   await confirm(screen);
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
 });
 
 test("ends the session when the change finds no open session", async () => {

@@ -17,7 +17,7 @@ test("reopens the products list with the filters and ordering its URL carries", 
     kind: "ok",
     value: [],
   });
-  window.history.pushState(null, "", "/catalog/products?search=miel&unit=KG&status=inactive");
+  window.history.pushState(null, "", "/products?search=miel&unit=KG&status=inactive");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -40,7 +40,7 @@ test("reopens the products list searching the barcode its URL carries", async ()
     kind: "ok",
     value: [],
   });
-  window.history.pushState(null, "", `/catalog/products?search=${honey.barcodes[0]}`);
+  window.history.pushState(null, "", `/products?search=${honey.barcodes[0]}`);
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -59,7 +59,7 @@ test("keeps a products list filter change in the URL, replacing the history entr
     value: [],
   });
   window.history.pushState(null, "", "/help");
-  window.history.pushState(null, "", "/catalog/products");
+  window.history.pushState(null, "", "/products");
   const screen = await render(<App help={emptyHelp} services={services} />);
   const searchBox = screen.getByPlaceholder("Buscar por nombre o código de barras");
   await expect.element(searchBox).toBeVisible();
@@ -83,7 +83,7 @@ test("opens a list on its defaults for a filter value its URL carries that the l
     kind: "ok",
     value: [],
   });
-  window.history.pushState(null, "", "/catalog/products?status=archived&sort=sideways");
+  window.history.pushState(null, "", "/products?status=archived&sort=sideways");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -97,7 +97,7 @@ test("reopens the categories list with the search its URL carries", async () => 
     kind: "ok",
     value: [],
   });
-  window.history.pushState(null, "", "/catalog/categories?search=alma&sort=descending");
+  window.history.pushState(null, "", "/categories?search=alma&sort=descending");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -106,7 +106,7 @@ test("reopens the categories list with the search its URL carries", async () => 
 
 test("reopens the prices list with the filters its URL carries", async () => {
   const services = createAppServices();
-  window.history.pushState(null, "", "/catalog/prices?search=yerba&review=all");
+  window.history.pushState(null, "", "/prices?search=yerba&review=all");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -121,7 +121,7 @@ test("reopens the prices list with the filters its URL carries", async () => {
 
 test("reopens the promotions list with the filters its URL carries", async () => {
   const services = createAppServices();
-  window.history.pushState(null, "", "/catalog/discounts?search=yerba&status=all&kind=PERCENT_OFF");
+  window.history.pushState(null, "", "/discounts?search=yerba&status=all&kind=PERCENT_OFF");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -136,7 +136,7 @@ test("rewrites a promotions URL that names a value the list does not offer, with
   window.history.pushState(
     null,
     "",
-    "/catalog/discounts?status=archived&kind=combo&sortBy=days&sort=sideways&search=miel",
+    "/discounts?status=archived&kind=combo&sortBy=days&sort=sideways&search=miel",
   );
   const historyLength = window.history.length;
 
@@ -153,7 +153,7 @@ test("reopens the users list on the state its URL carries", async () => {
   const services = createAppServices();
   vi.mocked(services.usersListScreen.fetchUsers).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.usersListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
-  window.history.pushState(null, "", "/settings/users?state=inactive");
+  window.history.pushState(null, "", "/users?state=inactive");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -162,7 +162,7 @@ test("reopens the users list on the state its URL carries", async () => {
 
 test("reopens the alerts list with the filters and page its URL carries", async () => {
   const services = createAppServices();
-  window.history.pushState(null, "", "/home/alerts?level=critical&status=closed&page=2");
+  window.history.pushState(null, "", "/alerts?level=critical&status=closed&page=2");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -184,12 +184,12 @@ test("keeps the products list filters in the URL after following its own section
     value: [],
   });
   window.history.pushState(null, "", "/help");
-  window.history.pushState(null, "", "/catalog/products?search=miel");
+  window.history.pushState(null, "", "/products?search=miel");
   const screen = await render(<App help={emptyHelp} services={services} />);
   const searchBox = screen.getByPlaceholder("Buscar por nombre o código de barras");
   await expect.element(searchBox).toHaveValue("miel");
   const productsLink = screen.getByRole("link", { name: "Productos" });
-  await expect.element(productsLink).toHaveAttribute("href", "/catalog/products?search=miel");
+  await expect.element(productsLink).toHaveAttribute("href", "/products?search=miel");
 
   await userEvent.click(productsLink);
 
@@ -200,11 +200,11 @@ test("keeps the products list filters in the URL after following its own section
 });
 
 test.each([
-  { url: "/catalog/categories?search=alma", link: "Categorías" },
-  { url: "/catalog/prices?search=yerba", link: "Precios" },
-  { url: "/catalog/discounts?search=yerba", link: "Promociones" },
-  { url: "/settings/users?state=inactive", link: "Usuarios" },
-  { url: "/home/alerts?status=closed", link: "Alertas" },
+  { url: "/categories?search=alma", link: "Categorías" },
+  { url: "/prices?search=yerba", link: "Precios" },
+  { url: "/discounts?search=yerba", link: "Promociones" },
+  { url: "/users?state=inactive", link: "Usuarios" },
+  { url: "/alerts?status=closed", link: "Alertas" },
 ])("the $link section link carries the filters its list is showing", async ({ url, link }) => {
   const services = createAppServices();
   vi.mocked(services.categoriesListScreen.fetchCategories).mockResolvedValue({
@@ -221,7 +221,7 @@ test.each([
 });
 
 test("the Catálogo rail link keeps the filters its list is showing", async () => {
-  const url = "/catalog/products?search=miel";
+  const url = "/products?search=miel";
   const services = createAppServices();
   vi.mocked(services.productsListScreen.fetchProducts).mockResolvedValue({
     kind: "ok",
@@ -246,28 +246,28 @@ test("the Catálogo rail link keeps the filters its list is showing", async () =
 
 test.each([
   {
-    url: "/catalog/products?status=inactive&search=miel",
-    canonical: "/catalog/products?search=miel&status=inactive",
+    url: "/products?status=inactive&search=miel",
+    canonical: "/products?search=miel&status=inactive",
     status: "Estado: Inactivos",
   },
   {
-    url: "/catalog/products?search=miel&category=ALL",
-    canonical: "/catalog/products?search=miel",
+    url: "/products?search=miel&category=ALL",
+    canonical: "/products?search=miel",
     status: "Estado: Activos",
   },
   {
-    url: "/catalog/products?status=bogus",
-    canonical: "/catalog/products",
+    url: "/products?status=bogus",
+    canonical: "/products",
     status: "Estado: Activos",
   },
   {
-    url: "/catalog/products?search=miel&origin=mail",
-    canonical: "/catalog/products?search=miel",
+    url: "/products?search=miel&origin=mail",
+    canonical: "/products?search=miel",
     status: "Estado: Activos",
   },
   {
-    url: "/catalog/products?search=miel&status=inactive",
-    canonical: "/catalog/products?search=miel&status=inactive",
+    url: "/products?search=miel&status=inactive",
+    canonical: "/products?search=miel&status=inactive",
     status: "Estado: Inactivos",
   },
 ])(

@@ -32,23 +32,23 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
   const { session, services, sessionActions } = signedInRoute.useRouteContext();
   const matchRoute = useMatchRoute();
   const catalogTarget = canManageProductsAndCategories(session)
-    ? "/catalog/products"
+    ? "/products"
     : canSeePricesArea(session)
-      ? "/catalog/prices"
-      : "/catalog/discounts";
+      ? "/prices"
+      : "/discounts";
   const catalogTargetShown = Boolean(matchRoute({ to: catalogTarget }));
   const stockTarget = canSeeStockBalances(session)
-    ? "/stock/balances"
+    ? "/inventory"
     : canPerformStockCounts(session)
-      ? "/stock/counts"
-      : "/stock/adjustments-and-losses";
+      ? "/inventory-counts"
+      : "/inventory-adjustments";
   const stockTargetShown = Boolean(matchRoute({ to: stockTarget }));
   return (
     <Shell
       sectionColumnLabel={sectionColumnLabel}
       railAreas={
         <>
-          <AreaLink to="/home" label="Inicio" icon={<Home />} active={area === "home"} />
+          <AreaLink to="/" label="Inicio" icon={<Home />} active={area === "home"} />
           {canSeeCatalogArea(session) && (
             <AreaLink
               to={catalogTarget}
@@ -69,18 +69,13 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
           )}
           {canSeeCashArea(session) && (
             <AreaLink
-              to="/cash-and-fiscal/fiscal-configuration"
+              to="/fiscal-settings"
               label="Caja"
               icon={<Wallet />}
               active={area === "cash-and-fiscal"}
             />
           )}
-          <AreaLink
-            to="/settings/users/me"
-            label="Config"
-            icon={<Settings />}
-            active={area === "settings"}
-          />
+          <AreaLink to="/account" label="Config" icon={<Settings />} active={area === "settings"} />
         </>
       }
       railFooter={

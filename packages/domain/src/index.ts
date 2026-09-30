@@ -135,6 +135,12 @@ export {
   MAX_UNIT_PRICE_CENTS,
   normalizeDiscountWeekdays,
 } from "./pricing/index.js";
+export type {
+  CashMovement,
+  CashMovementType,
+  CashSession,
+  CashSessionState,
+} from "./register/index.js";
 export {
   ENROLLMENT_CODE_LENGTH,
   enrollmentAttemptWindowStart,
@@ -145,13 +151,21 @@ export {
   isDeviceTokenRotationDue,
   isInstallationReportTooLong,
   isRegisterNameTooLong,
+  isValidCashAmount,
   isWellFormedEnrollmentCode,
   isWellFormedInstallationKey,
+  MAX_CASH_AMOUNT_CENTS,
   normalizeEnrollmentCode,
   REGISTER_NAME_MAX_LENGTH,
   registerNameLength,
 } from "./register/index.js";
-export { ARGENTINA_TIME_ZONE, argentinaCalendarDay } from "./shared/index.js";
+export type { EsArNumberDigits } from "./shared/index.js";
+export {
+  ARGENTINA_TIME_ZONE,
+  argentinaCalendarDay,
+  parseAmountCents,
+  parseEsArNumber,
+} from "./shared/index.js";
 export type { AdjustmentReason, LossReason, StockDirection } from "./stock/index.js";
 export {
   ADJUSTMENT_REASONS,
@@ -167,8 +181,16 @@ export {
   STOCK_QUANTITY_PER_UNIT,
   signedDelta,
 } from "./stock/index.js";
-export type { PulledChange, PullPage } from "./sync/index.js";
+export type {
+  JsonValue,
+  OutboxEvent,
+  OutboxEventDraft,
+  PulledChange,
+  PullPage,
+} from "./sync/index.js";
 export {
+  canonicalOutboxEvent,
+  canonicalOutboxPayload,
   FIRST_PULL_CURSOR,
   isPageAfter,
   isPullCursor,

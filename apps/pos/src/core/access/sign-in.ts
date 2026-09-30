@@ -1,5 +1,6 @@
 import type { SignInOutcome } from "@purosur/contracts";
-import { holdsARegisterPermission, PERMISSION_KEYS, pinSignInAttemptsLeft } from "@purosur/domain";
+import { holdsARegisterPermission, pinSignInAttemptsLeft } from "@purosur/domain";
+import { heldPermissionKeys } from "./held-permission-keys";
 import { checkCountedPin, type PinCheckDeps, signableRecord } from "./pin-check";
 import type { SignInStore } from "./sqlite-sign-in-store";
 
@@ -29,10 +30,9 @@ export async function signIn(
   return {
     kind: "signed_in",
     person: {
+      user_id: userId,
       first_name: record.firstName,
-      permission_keys: record.access.isAdministrator
-        ? [...PERMISSION_KEYS]
-        : [...record.access.permissionKeys],
+      permission_keys: heldPermissionKeys(record.access),
     },
   };
 }

@@ -4,11 +4,23 @@ export type {
 } from "./authenticate-installation.js";
 export { authenticateInstallation } from "./authenticate-installation.js";
 export type {
+  CashLedger,
+  CashLedgerTransaction,
+  IdGenerator,
+  RegisterIdentity,
+} from "./cash-ledger.js";
+export type {
   EnrollInstallationInput,
   EnrollInstallationOutcome,
 } from "./enroll-installation.js";
 export { enrollInstallation } from "./enroll-installation.js";
 export type { InstallationKeys } from "./installation-keys.js";
+export type {
+  OpenCashSessionInput,
+  OpenCashSessionOutcome,
+  OpenCashSessionPorts,
+} from "./open-cash-session.js";
+export { openCashSession } from "./open-cash-session.js";
 export type {
   Clock,
   DeviceTokenIssuer,

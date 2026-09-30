@@ -3,7 +3,7 @@ import type { ReactElement } from "react";
 import { useDocumentTitle } from "../shell/document-title";
 import { ProductsListScreen } from "./products-list-screen";
 
-const route = getRouteApi("/signed-in/catalog/products");
+const route = getRouteApi("/signed-in/catalog-area/products");
 
 export function ProductsListPage(): ReactElement {
   const { services, sessionActions } = route.useRouteContext();

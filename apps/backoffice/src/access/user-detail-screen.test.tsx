@@ -48,13 +48,13 @@ test("shows a not-found state for a missing or other-branch id, without calling 
 });
 
 test("navigates to Mi cuenta when the user read comes back forbidden", async () => {
-  window.history.pushState(null, "", "/settings/users/user-1");
+  window.history.pushState(null, "", "/users/user-1");
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "forbidden" });
 
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
 });
 
 test("shows a load error, and Reintentar loads the user again", async () => {
@@ -175,14 +175,14 @@ test("ends the session when the passkeys list finds it closed", async () => {
 });
 
 test("navigates to Mi cuenta when the passkeys list comes back forbidden", async () => {
-  window.history.pushState(null, "", "/settings/users/user-1");
+  window.history.pushState(null, "", "/users/user-1");
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
   vi.mocked(services.fetchUserPasskeys).mockResolvedValue({ kind: "forbidden" });
 
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
 });
 
 test("shows no remove button on the signed-in Administrator's own passkeys", async () => {
@@ -282,7 +282,7 @@ test("has no accessibility violations with the passkeys section loaded and the r
 });
 
 test("hides Editar and the whole Passkeys section for a non-Administrator, never reading the passkeys", async () => {
-  window.history.pushState(null, "", "/settings/users/user-1");
+  window.history.pushState(null, "", "/users/user-1");
   const services = createServices({
     fetchUserPasskeys: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });
@@ -300,7 +300,7 @@ test("hides Editar and the whole Passkeys section for a non-Administrator, never
   expect(screen.getByRole("button", { name: "Editar" }).query()).toBeNull();
   expect(screen.getByRole("heading", { name: "Passkeys" }).query()).toBeNull();
   expect(services.fetchUserPasskeys).not.toHaveBeenCalled();
-  expect(window.location.pathname).toBe("/settings/users/user-1");
+  expect(window.location.pathname).toBe("/users/user-1");
 });
 
 test("dates each passkey's last use against the time the passkeys were last loaded", async () => {

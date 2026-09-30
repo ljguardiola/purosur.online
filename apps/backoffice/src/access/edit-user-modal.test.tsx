@@ -390,7 +390,7 @@ test("ends the session when the change itself finds it closed", async () => {
 });
 
 test("navigates to Mi cuenta, without the authorization modal, when the email change comes back forbidden", async () => {
-  window.history.pushState(null, "", "/settings/users/user-1");
+  window.history.pushState(null, "", "/users/user-1");
   const services = createServices();
   const { dialog } = await renderModal(services);
   vi.mocked(services.editUser).mockResolvedValue({ kind: "forbidden" });
@@ -398,12 +398,12 @@ test("navigates to Mi cuenta, without the authorization modal, when the email ch
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@purosur.online");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
   expect(services.fetchSessionAuthorizationOptions).not.toHaveBeenCalled();
 });
 
 test("navigates to Mi cuenta when the email change retried after the authorization comes back forbidden", async () => {
-  window.history.pushState(null, "", "/settings/users/user-1");
+  window.history.pushState(null, "", "/users/user-1");
   const services = createServices();
   const { screen, dialog } = await renderModal(services);
   vi.mocked(services.editUser).mockResolvedValueOnce({ kind: "authorization_required" });
@@ -418,7 +418,7 @@ test("navigates to Mi cuenta when the email change retried after the authorizati
       .getByRole("button", { name: "Usar mi passkey" }),
   );
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
 });
 
 test("shows a rate-limited notice when the change is rate limited", async () => {

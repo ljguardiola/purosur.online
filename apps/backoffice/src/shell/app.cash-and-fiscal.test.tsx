@@ -75,7 +75,7 @@ test("following the rail's Caja item opens Configuración fiscal, with Caja and 
   await expect
     .element(screen.getByRole("heading", { name: "Configuración fiscal", level: 1 }))
     .toBeVisible();
-  expect(window.location.pathname).toBe("/cash-and-fiscal/fiscal-configuration");
+  expect(window.location.pathname).toBe("/fiscal-settings");
   const cashItem = screen.getByRole("link", { name: "Caja" }).element() as HTMLAnchorElement;
   expect(cashItem.getAttribute("aria-current")).toBe("page");
   const sectionItem = screen
@@ -84,7 +84,7 @@ test("following the rail's Caja item opens Configuración fiscal, with Caja and 
   expect(sectionItem.getAttribute("aria-current")).toBe("page");
 });
 
-test("redirects a non-permitted user's typed /cash-and-fiscal/fiscal-configuration to Mi cuenta, without loading it", async () => {
+test("redirects a non-permitted user's typed /fiscal-settings to Mi cuenta, without loading it", async () => {
   const services = createAppServices({
     fetchSession: vi
       .fn()
@@ -93,11 +93,11 @@ test("redirects a non-permitted user's typed /cash-and-fiscal/fiscal-configurati
       ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
-  window.history.pushState(null, "", "/cash-and-fiscal/fiscal-configuration");
+  window.history.pushState(null, "", "/fiscal-settings");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/settings/users/me");
+  expect(window.location.pathname).toBe("/account");
   expect(services.fiscalConfigurationScreen.fetchIssuerIdentification).not.toHaveBeenCalled();
 });

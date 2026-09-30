@@ -77,6 +77,18 @@ test("routes a shell path to the sign-in screen when the mount check finds no se
   await expect.element(screen.getByRole("heading", { name: "Ingresar", level: 1 })).toBeVisible();
 });
 
+test("routes the root address to the sign-in screen when the mount check finds no session", async () => {
+  const services = createAppServices({
+    fetchSession: vi.fn().mockResolvedValue({ kind: "unauthenticated" }),
+  });
+  window.history.pushState(null, "", "/");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Ingresar", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/sign-in");
+});
+
 test("shows the session-expired notice when a session was open in this browser before and now answers unauthenticated", async () => {
   window.localStorage.setItem("purosur-backoffice-was-signed-in", "1");
   const services = createAppServices({
@@ -157,7 +169,7 @@ test("shows the signed-in user's name in the rail footer, and Salir signs back o
 });
 
 test("a list the previous person had open is read again from the loading placeholder after signing out and back in", async () => {
-  window.history.pushState(null, "", "/catalog/products");
+  window.history.pushState(null, "", "/products");
   const services = createAppServices();
   vi.mocked(services.productsListScreen.fetchProducts).mockResolvedValue({
     kind: "ok",
@@ -195,7 +207,7 @@ test("follows a demotion reported by real use of the open tab: Usuarios and Role
   vi.mocked(services.usersListScreen.fetchUsers).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.usersListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
-  window.history.pushState(null, "", "/settings/users");
+  window.history.pushState(null, "", "/users");
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("link", { name: "Roles" })).toBeVisible();
 
@@ -207,7 +219,7 @@ test("follows a demotion reported by real use of the open tab: Usuarios and Role
     await expect
       .element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 }))
       .toBeVisible();
-    expect(window.location.pathname).toBe("/settings/users/me");
+    expect(window.location.pathname).toBe("/account");
     expect(screen.getByRole("link", { name: "Roles" }).query()).toBeNull();
     expect(screen.getByRole("link", { name: "Usuarios" }).query()).toBeNull();
   } finally {
@@ -224,7 +236,7 @@ test("follows a promotion reported by real use of the open tab: Usuarios and Rol
       ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
-  window.history.pushState(null, "", "/settings/users/me");
+  window.history.pushState(null, "", "/account");
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
   expect(screen.getByRole("link", { name: "Roles" }).query()).toBeNull();
@@ -248,7 +260,7 @@ test("ends the session with the expired notice when Mi cuenta's passkeys request
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({
     kind: "unauthenticated",
   });
-  window.history.pushState(null, "", "/settings/users/me");
+  window.history.pushState(null, "", "/account");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 

@@ -432,22 +432,40 @@ describe("serving the backoffice's static build", () => {
     expect(response.json()).toEqual({ status: "ok", version: "abc1234" });
   });
 
-  it("serves the backoffice page at a stock screen address while the stock routes are wired", async () => {
-    const app = buildApp({
-      version: "abc1234",
-      staticDir: backofficeBuild(),
-      stock: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    });
+  it.each([
+    "/",
+    "/alerts",
+    "/products",
+    "/categories",
+    "/brands",
+    "/tags",
+    "/prices",
+    "/discounts",
+    "/inventory",
+    "/inventory-counts",
+    "/inventory-adjustments",
+    "/fiscal-settings",
+    "/location-settings",
+    "/users",
+    "/users/3f2b8c4e-6a1d-4f7e-9b0a-5d2c1e8f7a63",
+    "/account",
+    "/roles",
+    "/registers",
+    "/help",
+    "/sign-in",
+    "/account-recovery",
+    "/account-recovery/passkey",
+  ])(
+    "serves the backoffice page at the screen address %s with every API route wired",
+    async (url) => {
+      const app = productionWiredApp();
 
-    const response = await app.inject({
-      method: "GET",
-      url: "/stock/balances",
-      headers: { accept: "text/html" },
-    });
+      const response = await app.inject({ method: "GET", url, headers: { accept: "text/html" } });
 
-    expect(response.statusCode).toBe(200);
-    expect(response.body).toBe("<!doctype html><title>backoffice</title>");
-  });
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toBe("<!doctype html><title>backoffice</title>");
+    },
+  );
 
   it.each(["GET", "HEAD", "POST"] as const)(
     "answers 404 to a %s on an unknown /api path instead of serving the page",
@@ -1853,6 +1871,17 @@ describe("the route access inventory", () => {
       { method: "HEAD", url: "/*", access: PUBLIC_ACCESS },
       { method: "GET", url: "/*", access: PUBLIC_ACCESS },
     ]);
+  });
+
+  it("registers every route but the static files under the API prefix, so no screen address can reach one", async () => {
+    const app = productionWiredApp();
+    await app.ready();
+
+    const outsideApi = app
+      .routeAccessInventory()
+      .filter((route) => route.url !== "/*" && !route.url.startsWith("/api/"));
+
+    expect(outsideApi).toEqual([]);
   });
 
   it("never registers a route with no declared access", async () => {

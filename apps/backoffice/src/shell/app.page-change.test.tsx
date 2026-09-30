@@ -45,7 +45,7 @@ async function pressEnterOn(link: HTMLElement) {
 }
 
 test("moves focus to the new screen's title, with a focus ring, after choosing a section with the keyboard, not on the first load", async () => {
-  window.history.pushState(null, "", "/settings/users/me");
+  window.history.pushState(null, "", "/account");
   const services = createAppServices();
   vi.mocked(services.rolesListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -125,7 +125,7 @@ test("leaves focus where it is when only a list's filters change", async () => {
     kind: "ok",
     value: [],
   });
-  window.history.pushState(null, "", "/catalog/products");
+  window.history.pushState(null, "", "/products");
   const screen = await render(<App help={emptyHelp} services={services} />);
   const searchBox = screen.getByPlaceholder("Buscar por nombre o código de barras");
   await expect.element(searchBox).toBeVisible();

@@ -7,12 +7,12 @@ function esArNumberPattern(maxDecimals: number): RegExp {
   return new RegExp(`^(\\d+|[1-9]\\d{0,2}(?:\\.\\d{3})+)${fraction}$`);
 }
 
-/** The whole and fraction digits of an Argentine-formatted number, kept as text so a caller can
- * scale them exactly (money into cents) instead of going through a binary fraction. */
+// The digits stay text so a caller can scale them exactly, such as money into cents, without
+// going through a binary fraction.
 export function parseEsArNumber(value: string, maxDecimals: number): EsArNumberDigits | undefined {
   const match = esArNumberPattern(maxDecimals).exec(value.trim());
   if (!match) {
     return undefined;
   }
-  return { whole: (match[1] ?? "").replaceAll(".", ""), fraction: match[2] ?? "" };
+  return { whole: (match[1] as string).replaceAll(".", ""), fraction: match[2] ?? "" };
 }

@@ -182,7 +182,7 @@ describe("the register's local migrations", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
       const path = join(folder, "register.sqlite");
-      const previous = LOCAL_MIGRATIONS.slice(0, 5);
+      const previous = LOCAL_MIGRATIONS.slice(0, 6);
       const before = openLocalDatabase(path, previous);
       before
         .prepare(
@@ -199,6 +199,37 @@ describe("the register's local migrations", () => {
       ]);
       expect(after.prepare("SELECT user_id FROM pin_verifiers").all()).toEqual([{ user_id: "u1" }]);
       expect(after.prepare("SELECT user_id FROM remembered_users").all()).toEqual([]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("add cash sessions, cash movements and the outbox over the sync state a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.slice(0, 5);
+      const before = openLocalDatabase(path, previous);
+      before
+        .prepare("UPDATE sync_state SET pull_cursor = 13, device_id = 'device-a' WHERE id = 1")
+        .run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+
+      expect(
+        after
+          .prepare(
+            "SELECT pull_cursor, device_id, last_device_seq, last_chain_hmac FROM sync_state",
+          )
+          .all(),
+      ).toEqual([
+        { pull_cursor: 13, device_id: "device-a", last_device_seq: 0, last_chain_hmac: null },
+      ]);
+      for (const table of ["cash_sessions", "cash_movements", "outbox"]) {
+        expect(after.prepare(`SELECT count(*) AS total FROM ${table}`).get()).toEqual({ total: 0 });
+      }
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });

@@ -1,6 +1,7 @@
 import type {
   CoreStatusMessage,
   EnrollmentOutcome,
+  OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   SignInLookupOutcome,
   SignInOutcome,
@@ -23,8 +24,10 @@ import type { SignedInPerson } from "../access/signed-in-person";
 import { EnrollmentScreen } from "../register/enrollment-screen";
 import { ACTION_ENTRIES } from "./action-entries";
 import { BrandPanelScreen } from "./brand-panel-screen";
+import type { CashSessionState } from "./cash-session-state";
 import { CoreDownNotice } from "./core-down-notice";
 import { NoSessionScreen } from "./no-session-screen";
+import { OpenSessionScreen } from "./open-session-screen";
 
 export type CoreStatus = CoreStatusMessage["status"];
 
@@ -34,26 +37,33 @@ export interface RouterContext {
   coreStatus: CoreStatus;
   enrollment: Enrollment;
   person: SignedInPerson | undefined;
+  cashSession: CashSessionState;
   enroll: (typedCode: string) => Promise<EnrollmentOutcome>;
   signInUsers: () => Promise<SignInUser[]>;
   authorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   signIn: (userId: string, pin: string) => Promise<SignInOutcome>;
   registerName: () => Promise<string | null>;
   signOut: () => void;
+  openCashSession: (
+    person: SignedInPerson,
+    openingFloat: number,
+  ) => Promise<OpenCashSessionOutcome>;
   redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
   signInLookup: (email: string) => Promise<SignInLookupOutcome>;
   firstSignIn: (userId: string, pin: string) => Promise<SignInOutcome>;
 }
 
-type ScreenPath = "/" | "/sign-in" | "/enroll" | "/starting" | "/core-down";
+type ScreenPath = "/" | "/sign-in" | "/session" | "/enroll" | "/starting" | "/core-down";
 
 // Until the core says whether this installation is enrolled, the register stays on the brand panel
-// instead of guessing between the enrollment screen and the rest of the register.
+// instead of guessing between the enrollment screen and the rest of the register. The same goes
+// for whether a cash session is open, which decides between signing in and resuming it.
 export function routeFor({
   coreStatus,
   enrollment,
   person,
-}: Pick<RouterContext, "coreStatus" | "enrollment" | "person">): ScreenPath {
+  cashSession,
+}: Pick<RouterContext, "coreStatus" | "enrollment" | "person" | "cashSession">): ScreenPath {
   if (coreStatus === "down") {
     return "/core-down";
   }
@@ -62,6 +72,15 @@ export function routeFor({
   }
   if (enrollment !== "enrolled") {
     return "/enroll";
+  }
+  if (cashSession.status === "unknown") {
+    return "/starting";
+  }
+  if (cashSession.status === "unavailable") {
+    return "/core-down";
+  }
+  if (cashSession.status === "open") {
+    return "/session";
   }
   return person === undefined ? "/sign-in" : "/";
 }
@@ -80,6 +99,13 @@ function requireSignedInPerson(context: RouterContext): SignedInPerson {
   return context.person;
 }
 
+function requireOpenSession(context: RouterContext) {
+  if (context.cashSession.status !== "open" || routeFor(context) !== "/session") {
+    throw redirect({ to: routeFor(context) });
+  }
+  return context.cashSession;
+}
+
 const rootRoute = createRootRouteWithContext<RouterContext>()({
   component: Outlet,
 });
@@ -96,7 +122,7 @@ const signedInRoute = createRoute({
   path: "/",
   beforeLoad: ({ context }) => ({ person: requireSignedInPerson(context) }),
   component: function SignedInRoute() {
-    const { person, signOut } = signedInRoute.useRouteContext();
+    const { person, signOut, openCashSession } = signedInRoute.useRouteContext();
     const registerName = sessionEyebrowRoute.useLoaderData();
     return (
       <NoSessionScreen
@@ -104,8 +130,23 @@ const signedInRoute = createRoute({
         registerName={registerName}
         entries={ACTION_ENTRIES}
         signOut={signOut}
+        openCashSession={(openingFloat) => openCashSession(person, openingFloat)}
       />
     );
+  },
+});
+
+const openSessionRoute = createRoute({
+  getParentRoute: () => sessionEyebrowRoute,
+  path: "/session",
+  beforeLoad: ({ context }) => {
+    const { openedAt, openedBy } = requireOpenSession(context);
+    return { openedAt, openedBy };
+  },
+  component: function OpenSessionRoute() {
+    const { openedAt, openedBy } = openSessionRoute.useRouteContext();
+    const registerName = sessionEyebrowRoute.useLoaderData();
+    return <OpenSessionScreen person={openedBy} registerName={registerName} openedAt={openedAt} />;
   },
 });
 
@@ -165,7 +206,7 @@ const coreDownRoute = createRoute({
 });
 
 export const routeTree = rootRoute.addChildren([
-  sessionEyebrowRoute.addChildren([signedInRoute, signInRoute]),
+  sessionEyebrowRoute.addChildren([signedInRoute, signInRoute, openSessionRoute]),
   pinCodeRedemptionRoute,
   firstSignInRoute,
   enrollRoute,
@@ -192,9 +233,10 @@ export function createAppRouter(
     | "enroll"
     | "registerName"
     | "signInUsers"
-    | "authorizers"
     | "signIn"
     | "signOut"
+    | "openCashSession"
+    | "authorizers"
     | "redeemPinCode"
     | "signInLookup"
     | "firstSignIn"
@@ -202,7 +244,13 @@ export function createAppRouter(
 ) {
   return createRegisterRouter(
     routeTree,
-    { coreStatus: "starting", enrollment: "unknown", person: undefined, ...services },
+    {
+      coreStatus: "starting",
+      enrollment: "unknown",
+      person: undefined,
+      cashSession: { status: "unknown" },
+      ...services,
+    },
     "/starting",
   );
 }

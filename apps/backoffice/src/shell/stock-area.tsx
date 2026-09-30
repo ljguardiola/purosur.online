@@ -1,4 +1,4 @@
-import { createRoute, Outlet, redirect, useMatchRoute } from "@tanstack/react-router";
+import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { ArrowDownUp, ClipboardCheck, Scale } from "lucide-react";
 import {
   canPerformStockCounts,
@@ -10,24 +10,16 @@ import { signedInRoute } from "./signed-in-route";
 
 export const stockAreaRoute = createRoute({
   getParentRoute: () => signedInRoute,
-  path: "stock",
+  id: "stock-area",
   component: StockArea,
-});
-
-export const stockAreaIndexRoute = createRoute({
-  getParentRoute: () => stockAreaRoute,
-  path: "/",
-  beforeLoad: () => {
-    throw redirect({ to: "/help" });
-  },
 });
 
 function StockArea() {
   const { session } = stockAreaRoute.useRouteContext();
   const matchRoute = useMatchRoute();
-  const balancesShown = Boolean(matchRoute({ to: "/stock/balances" }));
-  const countsShown = Boolean(matchRoute({ to: "/stock/counts" }));
-  const movementsShown = Boolean(matchRoute({ to: "/stock/adjustments-and-losses" }));
+  const balancesShown = Boolean(matchRoute({ to: "/inventory" }));
+  const countsShown = Boolean(matchRoute({ to: "/inventory-counts" }));
+  const movementsShown = Boolean(matchRoute({ to: "/inventory-adjustments" }));
   return (
     <AreaLayout
       area="stock"
@@ -40,7 +32,7 @@ function StockArea() {
             {canSeeStockBalances(session) && (
               <li>
                 <SectionLink
-                  to="/stock/balances"
+                  to="/inventory"
                   label="Saldos"
                   icon={<Scale />}
                   search={balancesShown ? true : {}}
@@ -51,7 +43,7 @@ function StockArea() {
             {canPerformStockCounts(session) && (
               <li>
                 <SectionLink
-                  to="/stock/counts"
+                  to="/inventory-counts"
                   label="Recuentos"
                   icon={<ClipboardCheck />}
                   search={countsShown ? true : {}}
@@ -62,7 +54,7 @@ function StockArea() {
             {canSeeStockMovements(session) && (
               <li>
                 <SectionLink
-                  to="/stock/adjustments-and-losses"
+                  to="/inventory-adjustments"
                   label="Ajustes y pérdidas"
                   icon={<ArrowDownUp />}
                   search={movementsShown ? true : {}}

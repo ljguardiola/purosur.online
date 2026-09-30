@@ -90,7 +90,11 @@ describe("signing in", () => {
   it("signs in a person who enters the right PIN and holds a register permission", async () => {
     expect(await signIn(deps().built, "u1", "1234")).toEqual({
       kind: "signed_in",
-      person: { first_name: "Ada", permission_keys: ["sell_and_charge", "adjust_stock"] },
+      person: {
+        user_id: "u1",
+        first_name: "Ada",
+        permission_keys: ["sell_and_charge", "adjust_stock"],
+      },
     });
   });
 
