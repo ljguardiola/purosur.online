@@ -13,7 +13,7 @@ import { useSendToMyAccount } from "./send-to-my-account";
 import type { EmitUserPinCodeOutcome } from "./users-api";
 
 type UserPinSectionProps = {
-  user: { id: string; firstName: string };
+  user: { id: string; firstName: string } | undefined;
   dataStatus?: LoadStatus;
   onSessionEnded: () => void;
   services: EmitUserPinCodeModalServices;
@@ -42,7 +42,7 @@ export function UserPinSection({
   });
 
   async function emit() {
-    if (emission.kind === "issuing") {
+    if (!user || emission.kind === "issuing") {
       return;
     }
     latestEmission.current += 1;
