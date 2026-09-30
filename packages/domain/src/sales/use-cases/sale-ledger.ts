@@ -1,5 +1,6 @@
 import type { RoleAccess } from "../../access/index.js";
 import type { SaleUnit } from "../../catalog/index.js";
+import type { SearchableProduct } from "../model/product-search.js";
 import type { Sale, SaleLine, SaleWithLines } from "../model/sale.js";
 import type { ListPrice } from "../model/sale-line.js";
 
@@ -21,7 +22,7 @@ export interface SellingSession {
   openedBy: string;
 }
 
-export interface ScannedProduct {
+export interface SellableProduct {
   id: string;
   name: string;
   saleUnit: SaleUnit;
@@ -37,7 +38,9 @@ export interface SaleLedgerTransaction {
   openSale(sessionId: string): SaleWithLines | undefined;
   installationRevoked(): boolean;
   registerIdentity(): RegisterIdentity | undefined;
-  activeProductByBarcode(code: string): ScannedProduct | undefined;
+  activeProductByBarcode(code: string): SellableProduct | undefined;
+  activeProductById(productId: string): SellableProduct | undefined;
+  searchableProducts(): SearchableProduct[];
   priceAt(productId: string, moment: Date): ListPrice | undefined;
   recordOpenedSale(sale: Sale): void;
   recordSaleLine(saleId: string, line: SaleLine): void;

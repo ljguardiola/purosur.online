@@ -7,7 +7,7 @@ import type {
   RegisterIdentity,
   SaleLedger,
   SaleLedgerTransaction,
-  ScannedProduct,
+  SellableProduct,
   SellingSession,
 } from "../sale-ledger.js";
 
@@ -21,7 +21,7 @@ export interface FakeSaleLedgerState {
   identity: RegisterIdentity | undefined;
   revoked: boolean;
   session: SellingSession | undefined;
-  products: ScannedProduct[];
+  products: SellableProduct[];
   barcodes: Record<string, string>;
   prices: FakePrice[];
   sales: SaleWithLines[];
@@ -64,6 +64,13 @@ export class FakeSaleLedger implements SaleLedger {
       registerIdentity: () => working.identity,
       activeProductByBarcode: (code) =>
         working.products.find((product) => product.id === working.barcodes[code]),
+      activeProductById: (productId) =>
+        working.products.find((product) => product.id === productId),
+      searchableProducts: () =>
+        working.products.map((product) => ({
+          ...product,
+          timesSoldHere: completedSalesContaining(working, product.id),
+        })),
       priceAt: (productId, moment) => latestPriceAt(working.prices, productId, moment),
       recordOpenedSale: (sale) => {
         this.failIfAsked("recordOpenedSale");
@@ -93,6 +100,15 @@ export class FakeSaleLedger implements SaleLedger {
       throw new Error(`${write} failed`);
     }
   }
+}
+
+function completedSalesContaining(state: FakeSaleLedgerState, productId: string): number {
+  return state.sales.filter(
+    (sale) =>
+      sale.state === "COMPLETED" &&
+      sale.registerId === state.identity?.registerId &&
+      sale.lines.some((line) => line.productId === productId),
+  ).length;
 }
 
 function latestPriceAt(
