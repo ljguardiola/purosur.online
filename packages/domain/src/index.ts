@@ -81,7 +81,32 @@ export {
   isIssuerIdentificationGrossIncomeRegistrationTooLong,
   isIssuerIdentificationLegalNameTooLong,
 } from "./fiscal/index.js";
-export { MAX_UNIT_PRICE_CENTS } from "./pricing/index.js";
+export type {
+  DiscountBenefit,
+  DiscountRecurrence,
+  DiscountSchedule,
+  DiscountStatus,
+  DiscountTarget,
+  DiscountTargetKind,
+  IsoWeekday,
+} from "./pricing/index.js";
+export {
+  DISCOUNT_NAME_MAX_LENGTH,
+  DISCOUNT_PERCENT_MAX,
+  DISCOUNT_PERCENT_MIN,
+  DISCOUNT_TARGET_KINDS,
+  discountAppliesOn,
+  discountNameLength,
+  discountStatus,
+  isCalendarDay,
+  isDiscountNameTooLong,
+  isDiscountWindowOrdered,
+  isoWeekdayOf,
+  isValidDiscountPercent,
+  isValidDiscountWeekdays,
+  MAX_UNIT_PRICE_CENTS,
+  normalizeDiscountWeekdays,
+} from "./pricing/index.js";
 export {
   ENROLLMENT_CODE_LENGTH,
   enrollmentAttemptWindowStart,
