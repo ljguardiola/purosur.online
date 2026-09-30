@@ -4,6 +4,7 @@ import { authorize } from "./authorize";
 import type { PinCheckDeps } from "./pin-check";
 import { derivePinVerifier } from "./pin-verifier";
 import { signIn } from "./sign-in";
+import { createSignedInPerson } from "./signed-in-person";
 import type { PinSignInFailures, SignInRecord } from "./sqlite-sign-in-store";
 
 const PEPPER = Buffer.alloc(32, 7).toString("base64url");
@@ -228,12 +229,14 @@ describe("authorizing with another person's PIN", () => {
       expect([...failures.keys()]).toEqual(["u3"]);
     });
 
+    const signedInPerson = createSignedInPerson();
+
     it("adds up with the wrong PINs the same person entered to sign in", async () => {
       const { built } = deps();
       const attempt = { ...built.store, signInRecord: () => record() };
 
-      await signIn({ ...built, store: attempt }, "u2", "9999");
-      await signIn({ ...built, store: attempt }, "u2", "9999");
+      await signIn({ ...built, store: attempt, signedInPerson }, "u2", "9999");
+      await signIn({ ...built, store: attempt, signedInPerson }, "u2", "9999");
 
       expect(await authorize(built, { user_id: "u2", pin: "9999" }, "record_cash_in")).toEqual({
         kind: "wrong_pin",
@@ -248,7 +251,7 @@ describe("authorizing with another person's PIN", () => {
       await authorize(built, { user_id: "u2", pin: "9999" }, "record_cash_in");
       await authorize(built, { user_id: "u2", pin: "9999" }, "record_cash_in");
 
-      expect(await signIn(built, "u2", "9999")).toEqual({
+      expect(await signIn({ ...built, signedInPerson }, "u2", "9999")).toEqual({
         kind: "wrong_pin",
         retry_after_seconds: 1,
         attempts_left: 5,

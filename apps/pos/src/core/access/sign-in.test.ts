@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { hashPin } from "./pin-hash";
 import { derivePinVerifier } from "./pin-verifier";
 import { type SignInDeps, signIn } from "./sign-in";
+import { createSignedInPerson } from "./signed-in-person";
 import type { PinSignInFailures, SignInRecord } from "./sqlite-sign-in-store";
 
 const PEPPER = Buffer.alloc(32, 7).toString("base64url");
@@ -36,12 +37,14 @@ interface Options extends Partial<Omit<SignInDeps, "store">> {
 function deps(options: Options = {}) {
   const hashed: { pin: string; salt: Uint8Array }[] = [];
   const failures = new Map(Object.entries(options.failures ?? {}));
+  const signedIn = createSignedInPerson();
   const {
     record: stored,
     failures: _failures,
     ...rest
   } = "record" in options ? options : { record: record(), ...options };
   const built: SignInDeps = {
+    signedInPerson: signedIn,
     store: {
       signInRecord: () => stored,
       pinSignInFailures: (userId) => failures.get(userId),
@@ -79,7 +82,7 @@ function deps(options: Options = {}) {
     now: () => NOW,
     ...rest,
   };
-  return { built, hashed, failures };
+  return { built, hashed, failures, signedIn };
 }
 
 describe("signing in", () => {
@@ -190,6 +193,61 @@ describe("signing in", () => {
     expect(
       (await signIn({ ...deps({ record: stored }).built, hashPin }, "u1", "654321")).kind,
     ).toBe("wrong_pin");
+  });
+});
+
+describe("who is signed in after signing in", () => {
+  it("holds the person who signed in", async () => {
+    const { built, signedIn } = deps();
+
+    await signIn(built, "u1", "1234");
+
+    expect(signedIn.userId()).toBe("u1");
+  });
+
+  it("replaces the person who was signed in with the one who signs in", async () => {
+    const { built, signedIn } = deps();
+    signedIn.set("u9");
+
+    await signIn(built, "u1", "1234");
+
+    expect(signedIn.userId()).toBe("u1");
+  });
+
+  it("holds nobody after a wrong PIN", async () => {
+    const { built, signedIn } = deps();
+
+    await signIn(built, "u1", "9999");
+
+    expect(signedIn.userId()).toBeUndefined();
+  });
+
+  it("keeps the person who was signed in after a wrong PIN", async () => {
+    const { built, signedIn } = deps();
+    signedIn.set("u9");
+
+    await signIn(built, "u1", "9999");
+
+    expect(signedIn.userId()).toBe("u9");
+  });
+
+  it("keeps the person who was signed in when the right PIN's person holds no register permission", async () => {
+    const stored = record({ access: { isAdministrator: false, permissionKeys: [] } });
+    const { built, signedIn } = deps({ record: stored });
+    signedIn.set("u9");
+
+    await signIn(built, "u1", "1234");
+
+    expect(signedIn.userId()).toBe("u9");
+  });
+
+  it("keeps the person who was signed in when the register has no pepper", async () => {
+    const { built, signedIn } = deps({ readPepper: async () => undefined });
+    signedIn.set("u9");
+
+    await signIn(built, "u1", "1234");
+
+    expect(signedIn.userId()).toBe("u9");
   });
 });
 

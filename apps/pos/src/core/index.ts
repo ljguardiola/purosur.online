@@ -18,10 +18,12 @@ import {
   sentryEnvironmentFromCoreArguments,
 } from "../shared/channel";
 import { CORE_READY_MESSAGE } from "../shared/core-readiness";
+import { createActionGate } from "./access/action-gate";
 import { redeemPinCode } from "./access/pin-code-redemption";
 import { hashPin } from "./access/pin-hash";
 import { applyRedeemedPin } from "./access/redeemed-pin";
 import { signIn } from "./access/sign-in";
+import { createSignedInPerson } from "./access/signed-in-person";
 import { SqliteSignInStore } from "./access/sqlite-sign-in-store";
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
 import {
@@ -116,6 +118,7 @@ function openLocalDatabaseFile(): LocalDatabase | undefined {
 const localDatabase = openLocalDatabaseFile();
 const replica = localDatabase === undefined ? undefined : new SqliteLocalReplica(localDatabase);
 const signInStore = localDatabase === undefined ? undefined : new SqliteSignInStore(localDatabase);
+const signedInPerson = createSignedInPerson();
 
 // An unreachable cloud is how a register without internet looks, so only an unexpected stop is
 // reported; the next pull resumes from the cursor already saved either way.
@@ -149,6 +152,19 @@ const pullSchedule = createPullSchedule({
   },
   afterEachPull: () => rendererConnection.tell(PULLED_NOTICE),
 });
+
+const readRegisterPepper = async () => (await mainRequests.readCredentials())?.pepper;
+
+export const actionGate =
+  signInStore === undefined
+    ? undefined
+    : createActionGate({
+        store: signInStore,
+        signedInPerson,
+        readPepper: readRegisterPepper,
+        hashPin,
+        now: () => new Date(),
+      });
 
 const rendererRequestDeps: RendererRequestDeps = {
   credentialsPresent: () => mainRequests.credentialsPresent(),
@@ -204,13 +220,15 @@ const rendererRequestDeps: RendererRequestDeps = {
           signIn(
             {
               store: signInStore,
-              readPepper: async () => (await mainRequests.readCredentials())?.pepper,
+              signedInPerson,
+              readPepper: readRegisterPepper,
               hashPin,
               now: () => new Date(),
             },
             userId,
             pin,
           ),
+  signOut: () => signedInPerson.clear(),
   reportFailure: (context, error) => {
     console.error(`core: ${context} failed`, error);
     Sentry.captureException(error);

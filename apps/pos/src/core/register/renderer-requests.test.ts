@@ -8,12 +8,14 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const redemptions: { resetCode: string; newPin: string }[] = [];
   const signIns: { userId: string; pin: string }[] = [];
   const authorizerLookups: string[] = [];
+  const signOuts: string[] = [];
   const failures: { context: string; error: unknown }[] = [];
   return {
     enrolledCodes,
     redemptions,
     signIns,
     authorizerLookups,
+    signOuts,
     failures,
     deps: {
       credentialsPresent: async () => enrolled,
@@ -34,6 +36,9 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       authorizers: (permission: AuthorizablePermissionKey) => {
         authorizerLookups.push(permission);
         return [{ id: "u2", first_name: "Grace" }];
+      },
+      signOut: () => {
+        signOuts.push("signed out");
       },
       reportFailure: (context: string, error: unknown) => {
         failures.push({ context, error });
@@ -192,6 +197,35 @@ describe("answerRendererRequest", () => {
         permission: "void_sale",
       }),
     ).toEqual({ type: "authorizers-unavailable", request_id: "r12" });
+  });
+
+  it("signs out and answers that nobody is signed in", async () => {
+    const { deps: withSignOut, signOuts } = deps(true);
+
+    const answer = await answerRendererRequest(withSignOut, {
+      type: "sign-out",
+      request_id: "r10",
+    });
+
+    expect(signOuts).toHaveLength(1);
+    expect(answer).toEqual({ type: "signed-out", request_id: "r10" });
+  });
+
+  it("answers that nobody is signed in even when signing out fails, and reports why", async () => {
+    const failure = new Error("could not clear");
+    const failing = deps(true, {
+      signOut: () => {
+        throw failure;
+      },
+    });
+
+    const answer = await answerRendererRequest(failing.deps, {
+      type: "sign-out",
+      request_id: "r11",
+    });
+
+    expect(answer).toEqual({ type: "signed-out", request_id: "r11" });
+    expect(failing.failures).toEqual([{ context: "signing out", error: failure }]);
   });
 
   it("signs in the chosen user with the PIN as typed and answers the outcome", async () => {

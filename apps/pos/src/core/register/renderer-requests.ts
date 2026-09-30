@@ -16,6 +16,7 @@ export interface RendererRequestDeps {
   signInUsers: (() => SignInUser[]) | undefined;
   signIn: ((userId: string, pin: string) => Promise<SignInOutcome>) | undefined;
   authorizers: ((permission: AuthorizablePermissionKey) => SignInUser[]) | undefined;
+  signOut: () => void;
   reportFailure: (context: string, error: unknown) => void;
 }
 
@@ -50,6 +51,14 @@ async function attemptSignIn(
   } catch (error) {
     deps.reportFailure("signing in", error);
     return { kind: "unavailable" };
+  }
+}
+
+function attemptSignOut(deps: RendererRequestDeps): void {
+  try {
+    deps.signOut();
+  } catch (error) {
+    deps.reportFailure("signing out", error);
   }
 }
 
@@ -100,6 +109,9 @@ export async function answerRendererRequest(
         ? { type: "authorizers-unavailable", request_id: message.request_id }
         : { type: "authorizers", request_id: message.request_id, users };
     }
+    case "sign-out":
+      attemptSignOut(deps);
+      return { type: "signed-out", request_id: message.request_id };
     case "ping":
       return undefined;
   }

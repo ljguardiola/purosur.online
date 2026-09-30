@@ -1,8 +1,11 @@
 import type { SignInOutcome } from "@purosur/contracts";
 import { holdsARegisterPermission, PERMISSION_KEYS, pinSignInAttemptsLeft } from "@purosur/domain";
 import { checkCountedPin, type PinCheckDeps, signableRecord } from "./pin-check";
+import type { SignedInPerson } from "./signed-in-person";
 
-export type SignInDeps = PinCheckDeps;
+export interface SignInDeps extends PinCheckDeps {
+  signedInPerson: Pick<SignedInPerson, "set">;
+}
 
 export async function signIn(
   deps: SignInDeps,
@@ -21,6 +24,7 @@ export async function signIn(
   if (!holdsARegisterPermission(record.access)) {
     return { kind: "no_register_permission" };
   }
+  deps.signedInPerson.set(userId);
   return {
     kind: "signed_in",
     person: {

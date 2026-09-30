@@ -349,3 +349,65 @@ describe("a user's PIN sign-in failures", () => {
     }
   });
 });
+
+describe("role access", () => {
+  it("reads the current permissions of an active user through their role", () => {
+    addUser({ id: "u1" });
+    grant("cashier", "sell_and_charge");
+    grant("cashier", "record_cash_in");
+
+    const access = store.roleAccess("u1");
+    expect(access?.isAdministrator).toBe(false);
+    expect([...(access?.permissionKeys ?? [])].sort()).toEqual([
+      "record_cash_in",
+      "sell_and_charge",
+    ]);
+  });
+
+  it("reads the access of a user with no PIN", () => {
+    addUser({ id: "u1", verifier: null, salt: null });
+    grant("cashier", "sell_and_charge");
+
+    expect(store.roleAccess("u1")).toEqual({
+      isAdministrator: false,
+      permissionKeys: ["sell_and_charge"],
+    });
+  });
+
+  it("reads an Administrator as one", () => {
+    addRole("admin", { isAdministrator: true });
+    addUser({ id: "u1", roleId: "admin" });
+
+    expect(store.roleAccess("u1")).toEqual({ isAdministrator: true, permissionKeys: [] });
+  });
+
+  it("leaves out a permission taken off the role", () => {
+    addUser({ id: "u1" });
+    grant("cashier", "sell_and_charge");
+    grant("cashier", "record_cash_in", false);
+
+    expect(store.roleAccess("u1")?.permissionKeys).toEqual(["sell_and_charge"]);
+  });
+
+  it("gives no permissions to a user whose role was removed", () => {
+    addRole("gone", { removed: true });
+    grant("gone", "sell_and_charge");
+    addUser({ id: "u1", roleId: "gone" });
+
+    expect(store.roleAccess("u1")).toEqual({ isAdministrator: false, permissionKeys: [] });
+  });
+
+  it.each([
+    ["deactivated", { active: false }],
+    ["removed", { removed: true }],
+  ])("has no access for a user who is %s", (_state, seed) => {
+    addUser({ id: "u1", ...seed });
+    grant("cashier", "sell_and_charge");
+
+    expect(store.roleAccess("u1")).toBeUndefined();
+  });
+
+  it("has no access for a user it does not know", () => {
+    expect(store.roleAccess("nobody")).toBeUndefined();
+  });
+});
