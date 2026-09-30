@@ -641,33 +641,39 @@ test("removing the deactivated tag drops the help line and the tag, which is not
   );
 });
 
-test("a tag chosen is appended after the product's own, and the tag just created too, before the tags are read again", async () => {
+test("a tag chosen is appended after the product's own, and every tag just created too, before the tags are read again", async () => {
   const services = createServices();
   const miel: ProductSummary = { ...honey, tagIds: [sinTacc.id] };
-  vi.mocked(services.createTag).mockResolvedValue({ kind: "ok", tag: organico });
+  const kosher: TagSummary = { ...organico, id: "tag-9", name: "Kosher" };
+  vi.mocked(services.createTag)
+    .mockResolvedValueOnce({ kind: "ok", tag: organico })
+    .mockResolvedValueOnce({ kind: "ok", tag: kosher });
   vi.mocked(services.editProduct).mockResolvedValue({ kind: "ok" });
   const { dialog } = await renderModal(miel, services, { tags: [sinTacc, vegano] });
 
   await userEvent.click(addTagButton(dialog));
   await userEvent.click(page.getByRole("menuitem", { name: "Vegano" }));
-  await userEvent.click(addTagButton(dialog));
-  await userEvent.click(page.getByRole("menuitem", { name: "Crear distintivo…" }));
-  const tagDialog = page.getByRole("dialog", { name: "Nuevo distintivo" });
-  await expect.element(tagDialog).toBeVisible();
-  await userEvent.fill(tagDialog.getByRole("textbox", { name: /^Nombre/ }), "Orgánico");
-  await userEvent.click(tagDialog.getByRole("button", { name: "Crear el distintivo" }));
+  for (const name of ["Orgánico", "Kosher"]) {
+    await userEvent.click(addTagButton(dialog));
+    await userEvent.click(page.getByRole("menuitem", { name: "Crear distintivo…" }));
+    const tagDialog = page.getByRole("dialog", { name: "Nuevo distintivo" });
+    await expect.element(tagDialog).toBeVisible();
+    await userEvent.fill(tagDialog.getByRole("textbox", { name: /^Nombre/ }), name);
+    await userEvent.click(tagDialog.getByRole("button", { name: "Crear el distintivo" }));
+    await expect
+      .poll(() => page.getByRole("dialog", { name: "Nuevo distintivo" }).query())
+      .toBeNull();
+  }
 
-  await expect
-    .poll(() => page.getByRole("dialog", { name: "Nuevo distintivo" }).query())
-    .toBeNull();
   const productForm = page.getByRole("dialog", { name: honey.name });
   await expect.element(productForm.getByRole("button", { name: "Quitar Orgánico" })).toBeVisible();
+  await expect.element(productForm.getByRole("button", { name: "Quitar Kosher" })).toBeVisible();
   await userEvent.click(productForm.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.editProduct).mock.calls.length).toBe(1);
   expect(services.editProduct).toHaveBeenCalledWith(
     "product-1",
-    expect.objectContaining({ tagIds: [sinTacc.id, vegano.id, organico.id] }),
+    expect.objectContaining({ tagIds: [sinTacc.id, vegano.id, organico.id, kosher.id] }),
   );
 });
 

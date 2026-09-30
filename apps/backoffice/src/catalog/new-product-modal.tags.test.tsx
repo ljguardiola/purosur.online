@@ -144,6 +144,34 @@ test("creates a tag in a modal stacked over the product form, appends it as a ch
   );
 });
 
+test("keeps every tag created from the stacked modal as a chip, each removable and sent", async () => {
+  const services = createServices();
+  vi.mocked(services.createTag)
+    .mockResolvedValueOnce({ kind: "ok", tag: organico })
+    .mockResolvedValueOnce({ kind: "ok", tag: vegano });
+  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok" });
+  const { screen, dialog: productDialog } = await renderModal(services, [sinTacc]);
+  await fillNewProduct(productDialog);
+
+  for (const name of ["Orgánico", "Vegano"]) {
+    const tagDialog = await openStackedNewTagModal(productDialog);
+    await userEvent.fill(tagDialog.getByRole("textbox", { name: /^Nombre/ }), name);
+    await userEvent.click(tagDialog.getByRole("button", { name: "Crear el distintivo" }));
+    await expect
+      .poll(() => screen.getByRole("dialog", { name: "Nuevo distintivo" }).query())
+      .toBeNull();
+  }
+
+  const productForm = screen.getByRole("dialog", { name: "Nuevo producto" });
+  await expect.element(productForm.getByRole("button", { name: "Quitar Orgánico" })).toBeVisible();
+  await expect.element(productForm.getByRole("button", { name: "Quitar Vegano" })).toBeVisible();
+  await submit(productForm);
+  await expect.poll(() => vi.mocked(services.createProduct).mock.calls.length).toBe(1);
+  expect(services.createProduct).toHaveBeenCalledWith(
+    expect.objectContaining({ tagIds: [organico.id, vegano.id] }),
+  );
+});
+
 test("a tag name already taken shows the error in the stacked modal and keeps the product form", async () => {
   const services = createServices();
   vi.mocked(services.createTag).mockResolvedValue({ kind: "name_taken" });

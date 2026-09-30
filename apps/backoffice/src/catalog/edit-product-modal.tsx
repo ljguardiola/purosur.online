@@ -44,7 +44,7 @@ import {
   productFormValues,
   SALE_UNIT_OPTIONS,
 } from "./product-form";
-import { TagsField, useStackedTagCreation, withCreatedTag } from "./product-tags-field";
+import { TagsField, useStackedTagCreation, withCreatedTags } from "./product-tags-field";
 import type { editProduct, generateInternalBarcode } from "./products-api";
 import type { createTag } from "./tags-api";
 
@@ -379,7 +379,7 @@ export function EditProductModal({
           <form.AppField name="tagIds">
             {() => (
               <TagsField
-                tags={withCreatedTag(tags, tagCreation.created)}
+                tags={withCreatedTags(tags, tagCreation.created)}
                 onCreateTag={tagCreation.start}
                 disabled={busy}
               />

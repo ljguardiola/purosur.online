@@ -1,6 +1,6 @@
 import type { TagSummary } from "@purosur/contracts";
 import { describe, expect, test } from "vitest";
-import { tagFieldHelp, tagOptions, withCreatedTag } from "./product-tags-field";
+import { tagFieldHelp, tagOptions, withCreatedTags } from "./product-tags-field";
 import { organico, sinColorantes, sinTacc, vegano } from "./test-support/tags";
 
 const dietetico: TagSummary = { ...vegano, id: "tag-7", name: "Dietético", active: false };
@@ -50,14 +50,18 @@ describe("tagFieldHelp", () => {
   });
 });
 
-describe("withCreatedTag", () => {
-  test("appends the created tag once", () => {
-    expect(withCreatedTag([sinTacc], vegano)).toEqual([sinTacc, vegano]);
-    expect(withCreatedTag([sinTacc, vegano], vegano)).toEqual([sinTacc, vegano]);
+describe("withCreatedTags", () => {
+  test("appends each created tag once", () => {
+    expect(withCreatedTags([sinTacc], [vegano, organico])).toEqual([sinTacc, vegano, organico]);
+    expect(withCreatedTags([sinTacc, vegano], [vegano, organico])).toEqual([
+      sinTacc,
+      vegano,
+      organico,
+    ]);
   });
 
   test("keeps the tags as they are when nothing was created", () => {
     const tags = [sinTacc];
-    expect(withCreatedTag(tags, null)).toBe(tags);
+    expect(withCreatedTags(tags, [])).toBe(tags);
   });
 });

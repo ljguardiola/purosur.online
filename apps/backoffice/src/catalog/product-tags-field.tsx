@@ -39,13 +39,14 @@ export function tagFieldHelp(
   };
 }
 
-export function withCreatedTag(tags: TagSummary[], created: TagSummary | null): TagSummary[] {
-  return created && !tags.some((tag) => tag.id === created.id) ? [...tags, created] : tags;
+export function withCreatedTags(tags: TagSummary[], created: TagSummary[]): TagSummary[] {
+  const missing = created.filter((tag) => !tags.some((known) => known.id === tag.id));
+  return missing.length === 0 ? tags : [...tags, ...missing];
 }
 
 type StackedTagCreation = {
   open: boolean;
-  created: TagSummary | null;
+  created: TagSummary[];
   start: () => void;
   reset: () => void;
   close: () => void;
@@ -54,30 +55,30 @@ type StackedTagCreation = {
 };
 
 // The tag modal opens over the product form, which stays mounted with everything typed in it.
-// Reading the catalog again while that form is open could fail and close it, so the tag it
-// creates is kept here and the catalog is only read again once the form closes.
+// Reading the catalog again while that form is open could fail and close it, so the tags it
+// creates are kept here and the catalog is only read again once the form closes.
 export function useStackedTagCreation(chooseTag: (tagId: string) => void): StackedTagCreation {
   const markCatalogStale = useMarkCatalogStale();
   const refreshCatalog = useRefreshCatalog();
   const [open, setOpen] = useState(false);
-  const [created, setCreated] = useState<TagSummary | null>(null);
+  const [created, setCreated] = useState<TagSummary[]>([]);
   return {
     open,
     created,
     start: () => setOpen(true),
     reset: () => {
       setOpen(false);
-      setCreated(null);
+      setCreated([]);
     },
     close: () => setOpen(false),
     select: (tag) => {
-      setCreated(tag);
+      setCreated((previous) => [...previous, tag]);
       chooseTag(tag.id);
       setOpen(false);
       void markCatalogStale();
     },
     finish: () => {
-      if (created) {
+      if (created.length > 0) {
         void refreshCatalog();
       }
     },
