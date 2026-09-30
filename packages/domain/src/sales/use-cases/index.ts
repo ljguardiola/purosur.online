@@ -5,6 +5,12 @@ export type {
 } from "./add-scanned-product.js";
 export { addScannedProduct } from "./add-scanned-product.js";
 export type {
+  ChargeSaleInCashInput,
+  ChargeSaleInCashOutcome,
+  ChargeSaleInCashPorts,
+} from "./charge-sale-in-cash.js";
+export { chargeSaleInCash } from "./charge-sale-in-cash.js";
+export type {
   CurrentSaleInput,
   CurrentSaleOutcome,
   CurrentSalePorts,
