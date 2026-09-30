@@ -17,9 +17,7 @@ export interface RendererRequestDeps {
   redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
   signInUsers: (() => SignInUser[]) | undefined;
   signIn: ((userId: string, pin: string) => Promise<SignInOutcome>) | undefined;
-  openCashSession:
-    | ((userId: string, openingFloat: number) => Promise<OpenCashSessionOutcome>)
-    | undefined;
+  openCashSession: ((openingFloat: number) => Promise<OpenCashSessionOutcome>) | undefined;
   cashSession: (() => OpenCashSession | null) | undefined;
   authorizers: ((permission: AuthorizablePermissionKey) => SignInUser[]) | undefined;
   signOut: () => void;
@@ -62,11 +60,10 @@ async function attemptSignIn(
 
 async function attemptOpenCashSession(
   deps: RendererRequestDeps,
-  userId: string,
   openingFloat: number,
 ): Promise<OpenCashSessionOutcome> {
   try {
-    return (await deps.openCashSession?.(userId, openingFloat)) ?? { kind: "unavailable" };
+    return (await deps.openCashSession?.(openingFloat)) ?? { kind: "unavailable" };
   } catch (error) {
     deps.reportFailure("opening a cash session", error);
     return { kind: "unavailable" };
@@ -127,7 +124,7 @@ export async function answerRendererRequest(
       return {
         type: "open-cash-session-result",
         request_id: message.request_id,
-        outcome: await attemptOpenCashSession(deps, message.user_id, message.opening_float),
+        outcome: await attemptOpenCashSession(deps, message.opening_float),
       };
     case "cash-session-request": {
       const session = readCashSession(deps);

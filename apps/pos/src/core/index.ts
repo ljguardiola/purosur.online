@@ -18,6 +18,7 @@ import {
   sentryEnvironmentFromCoreArguments,
 } from "../shared/channel";
 import { CORE_READY_MESSAGE } from "../shared/core-readiness";
+import { createActionGate } from "./access/action-gate";
 import { redeemPinCode } from "./access/pin-code-redemption";
 import { hashPin } from "./access/pin-hash";
 import { applyRedeemedPin } from "./access/redeemed-pin";
@@ -120,6 +121,17 @@ const localDatabase = openLocalDatabaseFile();
 const replica = localDatabase === undefined ? undefined : new SqliteLocalReplica(localDatabase);
 const signInStore = localDatabase === undefined ? undefined : new SqliteSignInStore(localDatabase);
 const signedInPerson = createSignedInPerson();
+const readPepper = async () => (await mainRequests.readCredentials())?.pepper;
+const actionGate =
+  signInStore === undefined
+    ? undefined
+    : createActionGate({
+        store: signInStore,
+        signedInPerson,
+        readPepper,
+        hashPin,
+        now: () => new Date(),
+      });
 
 // An unreachable cloud is how a register without internet looks, so only an unexpected stop is
 // reported; the next pull resumes from the cursor already saved either way.
@@ -209,7 +221,7 @@ const rendererRequestDeps: RendererRequestDeps = {
             {
               store: signInStore,
               signedInPerson,
-              readPepper: async () => (await mainRequests.readCredentials())?.pepper,
+              readPepper,
               hashPin,
               now: () => new Date(),
             },
@@ -218,18 +230,18 @@ const rendererRequestDeps: RendererRequestDeps = {
           ),
   signOut: () => signedInPerson.clear(),
   openCashSession:
-    localDatabase === undefined
+    localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (userId, openingFloat) =>
+      : (openingFloat) =>
           openCashSessionFor(
             {
               database: localDatabase,
+              gate: actionGate,
               readOutboxChainKey: async () =>
                 (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
               now: () => new Date(),
               ids: uuidV7Ids,
             },
-            userId,
             openingFloat,
           ),
   cashSession: localDatabase === undefined ? undefined : () => currentCashSession(localDatabase),

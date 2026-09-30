@@ -130,24 +130,20 @@ describe("rendererToCoreMessageSchema", () => {
 });
 
 describe("cash session requests", () => {
-  it("accepts a request to open a cash session with the opener and the float in cents", () => {
-    const message = {
-      type: "open-cash-session",
-      request_id: REQUEST_ID,
-      user_id: "u1",
-      opening_float: 150000,
-    };
+  it("accepts a request to open a cash session with the float in cents", () => {
+    const message = { type: "open-cash-session", request_id: REQUEST_ID, opening_float: 150000 };
 
     expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
+  it("drops an opener sent with a request to open a cash session", () => {
+    const message = { type: "open-cash-session", request_id: REQUEST_ID, opening_float: 150000 };
+
+    expect(rendererToCoreMessageSchema.parse({ ...message, user_id: "u9" })).toEqual(message);
+  });
+
   it.each([0, MAX_CASH_AMOUNT_CENTS])("accepts an opening float of %i cents", (opening_float) => {
-    const message = {
-      type: "open-cash-session",
-      request_id: REQUEST_ID,
-      user_id: "u1",
-      opening_float,
-    };
+    const message = { type: "open-cash-session", request_id: REQUEST_ID, opening_float };
 
     expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(true);
   });
@@ -155,21 +151,15 @@ describe("cash session requests", () => {
   it.each([-1, 1.5, MAX_CASH_AMOUNT_CENTS + 1, "100", null])(
     "rejects an opening float of %j",
     (opening_float) => {
-      const message = {
-        type: "open-cash-session",
-        request_id: REQUEST_ID,
-        user_id: "u1",
-        opening_float,
-      };
+      const message = { type: "open-cash-session", request_id: REQUEST_ID, opening_float };
 
       expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
     },
   );
 
   it.each([
-    { type: "open-cash-session", user_id: "u1", opening_float: 0 },
-    { type: "open-cash-session", request_id: REQUEST_ID, opening_float: 0 },
-    { type: "open-cash-session", request_id: REQUEST_ID, user_id: "u1" },
+    { type: "open-cash-session", opening_float: 0 },
+    { type: "open-cash-session", request_id: REQUEST_ID },
   ])("rejects a request to open a cash session missing a field: %j", (message) => {
     expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
   });
@@ -435,6 +425,7 @@ describe("cash session answers", () => {
   });
 
   it.each([
+    { kind: "not_signed_in" },
     { kind: "not_permitted" },
     { kind: "already_open" },
     { kind: "invalid_opening_float" },

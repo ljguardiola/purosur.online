@@ -47,7 +47,10 @@ export function App({ core }: { core: CoreClient }) {
   }
 
   async function openCashSession(opener: SignedInPerson, openingFloat: number) {
-    const outcome = await core.openCashSession(opener.user_id, openingFloat);
+    const outcome = await core.openCashSession(openingFloat);
+    if (outcome.kind === "not_signed_in") {
+      setPerson(undefined);
+    }
     if (outcome.kind === "opened") {
       setCashSession({ status: "open", openedAt: outcome.session.opened_at, openedBy: opener });
     }

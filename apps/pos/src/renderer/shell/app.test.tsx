@@ -48,7 +48,7 @@ function coreAnswering(
   signOut: () => Promise<void> = async () => {},
 ) {
   const cashSessionAsks: string[] = [];
-  const opened: [string, number][] = [];
+  const opened: number[] = [];
   const asked: string[] = [];
   let usersLoads = 0;
   let savedName: string | null = null;
@@ -82,8 +82,8 @@ function coreAnswering(
       asked.push("sign-out");
       await signOut();
     },
-    async openCashSession(userId, openingFloat) {
-      opened.push([userId, openingFloat]);
+    async openCashSession(openingFloat) {
+      opened.push(openingFloat);
       return cashDrawer.openOutcome ?? OPENED;
     },
     async cashSession() {
@@ -642,7 +642,7 @@ describe("App", () => {
     await expect.element(screen.getByRole("navigation").getByText("Ada")).toBeVisible();
     await expect.element(screen.getByText("Sesión abierta 09:02")).toBeVisible();
     await expect.element(screen.getByRole("button", { name: "Salir" })).not.toBeInTheDocument();
-    expect(opened).toEqual([["u1", 10_000]]);
+    expect(opened).toEqual([10_000]);
   });
 
   it("shows the session that is already open when the core says so", async () => {
@@ -715,5 +715,22 @@ describe("App", () => {
     await expect
       .element(screen.getByRole("heading", { name: SESSION_TITLE }))
       .not.toBeInTheDocument();
+  });
+
+  it("goes back to sign-in when the core says nobody is signed in to open the cash session", async () => {
+    const { core } = coreAnswering(true, { kind: "enrolled" }, ADA_SELLS, {
+      openOutcome: { kind: "not_signed_in" },
+    });
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
+    await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "100");
+    await userEvent.click(screen.getByRole("button", { name: "Abrir la caja" }));
+
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
   });
 });

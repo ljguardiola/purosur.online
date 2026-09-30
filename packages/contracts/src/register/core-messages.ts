@@ -56,7 +56,6 @@ const signInMessageSchema = z.object({
 const openCashSessionMessageSchema = z.object({
   type: z.literal("open-cash-session"),
   request_id: requestId,
-  user_id: z.string(),
   opening_float: openingFloatSchema,
 });
 
@@ -132,6 +131,7 @@ const openCashSessionOutcomeSchema = z.discriminatedUnion("kind", [
     kind: z.literal("opened"),
     session: z.object({ id: z.string(), opened_at: z.string(), opening_float: z.number() }),
   }),
+  z.object({ kind: z.literal("not_signed_in") }),
   z.object({ kind: z.literal("not_permitted") }),
   z.object({ kind: z.literal("already_open") }),
   z.object({ kind: z.literal("invalid_opening_float") }),

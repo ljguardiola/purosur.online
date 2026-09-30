@@ -1,5 +1,6 @@
 import type { OpenCashSession, OpenCashSessionOutcome } from "@purosur/contracts";
 import { type Clock, type IdGenerator, openCashSession } from "@purosur/domain/register/use-cases";
+import type { ActionGate } from "../access/action-gate";
 import { heldPermissionKeys } from "../access/held-permission-keys";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import type { LocalDatabase } from "../platform/local-database";
@@ -7,28 +8,34 @@ import { readOpenSession, SqliteCashLedger } from "./sqlite-cash-ledger";
 
 export interface CashSessionRequestDeps {
   database: LocalDatabase;
+  gate: ActionGate;
   readOutboxChainKey: () => Promise<string | undefined>;
   now: Clock["now"];
   ids: IdGenerator;
 }
 
 export async function openCashSessionFor(
-  { database, readOutboxChainKey, now, ids }: CashSessionRequestDeps,
-  userId: string,
+  { database, gate, readOutboxChainKey, now, ids }: CashSessionRequestDeps,
   openingFloat: number,
 ): Promise<OpenCashSessionOutcome> {
   const outboxChainKey = await readOutboxChainKey();
   if (outboxChainKey === undefined) {
     return { kind: "unavailable" };
   }
-  const outcome = openCashSession(
-    {
-      ledger: new SqliteCashLedger(database, new SqliteSignInStore(database), outboxChainKey),
-      clock: { now },
-      ids,
-    },
-    { openerId: userId, openingFloat },
+  const guarded = await gate.run({ permission: "sell_and_charge" }, async ({ signedInUserId }) =>
+    openCashSession(
+      {
+        ledger: new SqliteCashLedger(database, new SqliteSignInStore(database), outboxChainKey),
+        clock: { now },
+        ids,
+      },
+      { openerId: signedInUserId, openingFloat },
+    ),
   );
+  if (guarded.kind !== "performed") {
+    return { kind: guarded.kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };
+  }
+  const outcome = guarded.result;
   return outcome.kind === "opened"
     ? {
         kind: "opened",

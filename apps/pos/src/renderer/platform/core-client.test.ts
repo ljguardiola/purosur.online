@@ -146,12 +146,12 @@ describe("createCoreClient", () => {
     expect(port.posted).toEqual([{ type: "sign-out", request_id: "request-1" }]);
   });
 
-  it("asks the core to open a cash session for the person with the opening float in cents and resolves with the outcome", async () => {
+  it("asks the core to open a cash session with the opening float in cents and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
     client.connect(port);
 
-    const outcome = client.openCashSession("u1", 2_000_000);
+    const outcome = client.openCashSession(2_000_000);
     port.answer({
       type: "open-cash-session-result",
       request_id: "request-1",
@@ -163,7 +163,6 @@ describe("createCoreClient", () => {
       {
         type: "open-cash-session",
         request_id: "request-1",
-        user_id: "u1",
         opening_float: 2_000_000,
       },
     ]);
