@@ -99,42 +99,28 @@ describe("creating a product with a tag while the tag is deactivated, on a real 
 
 describe("creating two products with the same tags listed in opposite orders at once, on a real Postgres", () => {
   it("creates both, with neither waiting on the other in a deadlock", async () => {
-    const store = new DrizzleCatalogStore(db);
-    const tagOutcomes = await Promise.all(
-      ["Sin TACC", "Vegano", "Kosher", "Orgánico"].map((name) =>
-        createTag(store, { name: `${name} ${randomUUID()}` }),
-      ),
-    );
-    const tagIds = tagOutcomes.map((outcome) => {
-      if (outcome.kind !== "created") {
-        throw new Error("test setup: expected every tag to be created");
-      }
-      return outcome.tag.id;
-    });
-    const category = await createCategory(store, {
-      name: `Almacén ${randomUUID()}`,
-      parentId: null,
-    });
-    if (category.kind !== "created") {
-      throw new Error("test setup: expected the category to be created");
-    }
-    const productWith = (ids: string[]) =>
+    const first = await tagAndLeafCategory();
+    const second = await tagAndLeafCategory();
+    const lowerTagId = first.tagId < second.tagId ? first.tagId : second.tagId;
+    const higherTagId = lowerTagId === first.tagId ? second.tagId : first.tagId;
+    const productWith = (categoryId: string, tagIds: string[]) => () =>
       createProduct(new DrizzleCatalogStore(db), {
         name: "Galletitas",
-        categoryId: category.category.id,
+        categoryId,
         brandId: null,
         saleUnit: "UNIT",
         barcodes: [randomUUID()],
-        tagIds: ids,
+        tagIds,
         netContent: null,
       });
 
-    const outcomes = await Promise.all(
-      Array.from({ length: 6 }, (_, index) =>
-        productWith(index % 2 === 0 ? tagIds : [...tagIds].reverse()),
-      ),
+    const outcomes = await runQueuedBehindHeldLock(
+      sql,
+      holdTagRowLock(lowerTagId),
+      productWith(first.categoryId, [lowerTagId, higherTagId]),
+      productWith(second.categoryId, [higherTagId, lowerTagId]),
     );
 
-    expect(outcomes.map((outcome) => outcome.kind)).toEqual(Array(6).fill("created"));
+    expect(outcomes.map((outcome) => outcome.kind)).toEqual(["created", "created"]);
   });
 });
