@@ -1,11 +1,15 @@
 import {
+  isCalendarDay,
   isNetContentUnit,
   isPullCursor,
+  isValidDiscountWeekdays,
   type NetContentUnit,
   PULL_PAGE_MAX_CHANGES,
   SALE_UNITS,
 } from "@purosur/domain";
 import { z } from "zod";
+import { discountBenefitSchema } from "../pricing/discount-benefit.js";
+import { discountTargetSchema } from "../pricing/discount-target.js";
 import { branchSettingsSchema } from "../shared/index.js";
 
 const SINCE_MESSAGE = "since must be the cursor of the last page already pulled, 0 the first time";
@@ -104,6 +108,23 @@ const registerChangeSchema = z.object({
   row: z.object({ name: z.string(), version: z.int() }),
 });
 
+const calendarDaySchema = z.string().refine(isCalendarDay);
+
+const discountChangeSchema = z.object({
+  ...pulledChangeShape,
+  entity: z.literal("discount"),
+  row: z.object({
+    name: z.string(),
+    benefit: discountBenefitSchema,
+    target: discountTargetSchema,
+    valid_from: calendarDaySchema,
+    valid_to: calendarDaySchema,
+    weekdays: z.array(z.number()).refine(isValidDiscountWeekdays),
+    active: z.boolean(),
+    version: z.int(),
+  }),
+});
+
 const priceChangeSchema = z.object({
   ...pulledChangeShape,
   entity: z.literal("price"),
@@ -119,7 +140,16 @@ const priceChangeSchema = z.object({
 const removalChangeSchema = z.object({
   ...pulledChangeShape,
   entity: z.literal("removal"),
-  removed_entity: z.enum(["category", "product", "tag", "price", "user", "role", "register"]),
+  removed_entity: z.enum([
+    "category",
+    "product",
+    "tag",
+    "price",
+    "user",
+    "role",
+    "register",
+    "discount",
+  ]),
   version: z.int(),
 });
 
@@ -136,6 +166,7 @@ export const changesPageSchema = z.object({
         userChangeSchema,
         roleChangeSchema,
         registerChangeSchema,
+        discountChangeSchema,
         removalChangeSchema,
       ]),
     )
