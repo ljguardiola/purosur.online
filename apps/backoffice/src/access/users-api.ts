@@ -104,7 +104,7 @@ function userFromWire(row: BranchUserWire) {
 export async function fetchUsers(): Promise<FetchUsersOutcome> {
   let response: Response;
   try {
-    response = await fetch("/users");
+    response = await fetch("/api/users");
   } catch {
     return { kind: "failed" };
   }
@@ -155,7 +155,7 @@ async function gatedActionErrorOutcome(response: Response): Promise<GatedActionE
 export async function createUser(input: UserCreationBody): Promise<CreateUserOutcome> {
   let response: Response;
   try {
-    response = await postJson("/users", input);
+    response = await postJson("/api/users", input);
   } catch {
     return { kind: "failed" };
   }
@@ -188,7 +188,7 @@ export async function createUser(input: UserCreationBody): Promise<CreateUserOut
 export async function fetchUser(id: string): Promise<FetchUserOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/users/${id}`);
+    response = await fetch(`/api/users/${id}`);
   } catch {
     return { kind: "failed" };
   }
@@ -217,7 +217,7 @@ export async function fetchUser(id: string): Promise<FetchUserOutcome> {
 export async function editUser(id: string, input: UserEditBody): Promise<EditUserOutcome> {
   let response: Response;
   try {
-    response = await postJson(`/users/${id}/edit`, input);
+    response = await postJson(`/api/users/${id}/edit`, input);
   } catch {
     return { kind: "failed" };
   }
@@ -255,7 +255,7 @@ async function forbiddenOrOwnAccount(
 export async function fetchUserPasskeys(id: string): Promise<FetchUserPasskeysOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/users/${id}/passkeys`);
+    response = await fetch(`/api/users/${id}/passkeys`);
   } catch {
     return { kind: "failed" };
   }
@@ -288,7 +288,7 @@ export async function removeUserPasskey(
 ): Promise<RemoveUserPasskeyOutcome> {
   let response: Response;
   try {
-    response = await postJson(`/users/${id}/passkeys/${passkeyId}/remove`);
+    response = await postJson(`/api/users/${id}/passkeys/${passkeyId}/remove`);
   } catch {
     return { kind: "failed" };
   }
@@ -308,7 +308,7 @@ export async function removeUserPasskey(
 export async function deactivateUser(id: string): Promise<DeactivateUserOutcome> {
   let response: Response;
   try {
-    response = await postJson(`/users/${id}/deactivation`);
+    response = await postJson(`/api/users/${id}/deactivation`);
   } catch {
     return { kind: "failed" };
   }
@@ -325,7 +325,7 @@ export async function deactivateUser(id: string): Promise<DeactivateUserOutcome>
 export async function reactivateUser(id: string): Promise<ReactivateUserOutcome> {
   let response: Response;
   try {
-    response = await postJson(`/users/${id}/reactivation`);
+    response = await postJson(`/api/users/${id}/reactivation`);
   } catch {
     return { kind: "failed" };
   }

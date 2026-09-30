@@ -8,7 +8,7 @@ import {
   requestTimeoutMs,
 } from "./verify-cloud-health.mjs";
 
-test("succeeds when /health reports ok and the expected version", () => {
+test("succeeds when /api/health reports ok and the expected version", () => {
   const decision = nextHealthPollDecision({
     result: { status: 200, body: { status: "ok", version: "abc123" } },
     expectedVersion: "abc123",
@@ -112,7 +112,7 @@ test("fetchHealth gives up on a response that never arrives once its request tim
   const timeout = t.mock.method(AbortSignal, "timeout", () => controller.signal);
   const fetchImpl = t.mock.fn(hangingFetch);
 
-  const result = fetchHealth("https://cloud.example/health", {
+  const result = fetchHealth("https://cloud.example/api/health", {
     fetchImpl,
     requestTimeoutMs: 50,
     log: () => {},
@@ -129,7 +129,7 @@ test("fetchHealth gives up on a response that never arrives once its request tim
 test("fetchHealth returns the status and parsed body of a response", async () => {
   const fetchImpl = async () => new Response(JSON.stringify({ status: "ok", version: "abc" }));
 
-  const result = await fetchHealth("https://cloud.example/health", {
+  const result = await fetchHealth("https://cloud.example/api/health", {
     fetchImpl,
     requestTimeoutMs: 1000,
     log: () => {},
@@ -151,26 +151,29 @@ test("requestTimeoutMs stays positive once the budget is spent", () => {
 });
 
 test("builds the health URL from a bare hostname", () => {
-  assert.equal(buildHealthUrl("staging.purosur.online"), "https://staging.purosur.online/health");
+  assert.equal(
+    buildHealthUrl("staging.purosur.online"),
+    "https://staging.purosur.online/api/health",
+  );
 });
 
 test("strips an https scheme already present on the domain", () => {
   assert.equal(
     buildHealthUrl("https://staging.purosur.online"),
-    "https://staging.purosur.online/health",
+    "https://staging.purosur.online/api/health",
   );
 });
 
 test("strips an http scheme, still using https for the health request", () => {
   assert.equal(
     buildHealthUrl("http://staging.purosur.online"),
-    "https://staging.purosur.online/health",
+    "https://staging.purosur.online/api/health",
   );
 });
 
-test("strips a trailing slash before appending /health", () => {
+test("strips a trailing slash before appending /api/health", () => {
   assert.equal(
     buildHealthUrl("https://staging.purosur.online/"),
-    "https://staging.purosur.online/health",
+    "https://staging.purosur.online/api/health",
   );
 });

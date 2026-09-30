@@ -1,9 +1,9 @@
 // Railway's deployment SUCCESS status only means the container started, not that the new code is
-// serving traffic; polling /health for the deployed commit SHA proves that.
+// serving traffic; polling /api/health for the deployed commit SHA proves that.
 
 export function buildHealthUrl(domain) {
   const host = domain.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
-  return `https://${host}/health`;
+  return `https://${host}/api/health`;
 }
 
 function isPlainObject(value) {

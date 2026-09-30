@@ -43,7 +43,7 @@ test("fetchProducts lists every product on 200, defaulting to the active filter"
   const outcome = await fetchProducts();
 
   expect(outcome).toEqual({ kind: "ok", value: [honey] });
-  expect(fetch).toHaveBeenCalledWith("/products?status=active");
+  expect(fetch).toHaveBeenCalledWith("/api/products?status=active");
 });
 
 test.each(["active", "inactive", "all"] as const)(
@@ -53,7 +53,7 @@ test.each(["active", "inactive", "all"] as const)(
 
     await fetchProducts(status);
 
-    expect(fetch).toHaveBeenCalledWith(`/products?status=${status}`);
+    expect(fetch).toHaveBeenCalledWith(`/api/products?status=${status}`);
   },
 );
 
@@ -102,7 +102,7 @@ test("createProduct posts the fields and returns ok on 201", async () => {
   const outcome = await createProduct(createInput);
 
   expect(outcome).toEqual({ kind: "ok" });
-  expect(fetch).toHaveBeenCalledWith("/products", {
+  expect(fetch).toHaveBeenCalledWith("/api/products", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(createInput),
@@ -117,7 +117,7 @@ test("createProduct posts a given net content", async () => {
   const outcome = await createProduct(withNetContent);
 
   expect(outcome).toEqual({ kind: "ok" });
-  expect(fetch).toHaveBeenCalledWith("/products", {
+  expect(fetch).toHaveBeenCalledWith("/api/products", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(withNetContent),
@@ -131,7 +131,7 @@ test("createProduct posts only the fields the cloud reads", async () => {
   await createProduct(withExtraFields);
 
   expect(fetch).toHaveBeenCalledWith(
-    "/products",
+    "/api/products",
     expect.objectContaining({ body: JSON.stringify(createInput) }),
   );
 });
@@ -143,7 +143,7 @@ test("editProduct posts only the fields the cloud reads", async () => {
   await editProduct("product-1", withExtraFields);
 
   expect(fetch).toHaveBeenCalledWith(
-    "/products/product-1/edit",
+    "/api/products/product-1/edit",
     expect.objectContaining({ body: JSON.stringify(editInput) }),
   );
 });
@@ -192,7 +192,7 @@ test("createProduct posts a chosen brand", async () => {
   await createProduct(withBrand);
 
   expect(fetch).toHaveBeenCalledWith(
-    "/products",
+    "/api/products",
     expect.objectContaining({ body: JSON.stringify(withBrand) }),
   );
 });
@@ -242,7 +242,7 @@ test("editProduct posts the fields and version and returns ok on 200", async () 
   const outcome = await editProduct("product-1", editInput);
 
   expect(outcome).toEqual({ kind: "ok" });
-  expect(fetch).toHaveBeenCalledWith("/products/product-1/edit", {
+  expect(fetch).toHaveBeenCalledWith("/api/products/product-1/edit", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(editInput),
@@ -303,7 +303,7 @@ test("editProduct posts the product's brand", async () => {
   await editProduct("product-1", withBrand);
 
   expect(fetch).toHaveBeenCalledWith(
-    "/products/product-1/edit",
+    "/api/products/product-1/edit",
     expect.objectContaining({ body: JSON.stringify(withBrand) }),
   );
 });
@@ -359,7 +359,7 @@ test("generateInternalBarcode posts with no body and returns the generated code 
   const outcome = await generateInternalBarcode();
 
   expect(outcome).toEqual({ kind: "ok", code: "2000000000015" });
-  expect(fetch).toHaveBeenCalledWith("/products/internal-barcode", {
+  expect(fetch).toHaveBeenCalledWith("/api/products/internal-barcode", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({}),
@@ -406,7 +406,7 @@ test("printLabels posts the requested labels and returns the pdf blob on 200", a
 
   expect(outcome.kind).toBe("ok");
   expect(outcome.kind === "ok" && outcome.blob).toBeInstanceOf(Blob);
-  expect(fetch).toHaveBeenCalledWith("/products/labels", {
+  expect(fetch).toHaveBeenCalledWith("/api/products/labels", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ labels: labelRequest }),
@@ -475,7 +475,7 @@ test("deactivateProduct posts with no body and returns ok on 200", async () => {
   const outcome = await deactivateProduct("product-1");
 
   expect(outcome).toEqual({ kind: "ok" });
-  expect(fetch).toHaveBeenCalledWith("/products/product-1/deactivation", {
+  expect(fetch).toHaveBeenCalledWith("/api/products/product-1/deactivation", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({}),
