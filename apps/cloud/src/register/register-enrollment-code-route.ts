@@ -12,10 +12,7 @@ import {
   routeSessionSource,
 } from "../access/route-access.js";
 import { auditLog, registerEnrollmentCodes, registers } from "../platform/db/schema.js";
-import {
-  generateRegisterEnrollmentCode,
-  hashRegisterEnrollmentCode,
-} from "./register-enrollment-code.js";
+import { generateSecretCode, hashSecretCode } from "../platform/secret-code.js";
 import type { RegistersRouteOptions } from "./registers-list-route.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -58,7 +55,7 @@ export async function emitRegisterEnrollmentCode<TQueryResult extends PgQueryRes
   db: PgDatabase<TQueryResult>,
   input: EmitRegisterEnrollmentCodeInput,
 ): Promise<EmittedRegisterEnrollmentCode> {
-  const rawCode = generateRegisterEnrollmentCode();
+  const rawCode = generateSecretCode();
   const codeLookup = enrollmentCodeLookup(rawCode);
   const expiresAt = enrollmentCodeExpiresAt(input.now);
 
@@ -90,7 +87,7 @@ export async function emitRegisterEnrollmentCode<TQueryResult extends PgQueryRes
       .values({
         registerId: input.registerId,
         codeLookup,
-        codeHash: hashRegisterEnrollmentCode(rawCode),
+        codeHash: hashSecretCode(rawCode),
         issuedAt: input.now,
         expiresAt,
         redeemedAt: null,
@@ -100,7 +97,7 @@ export async function emitRegisterEnrollmentCode<TQueryResult extends PgQueryRes
         target: registerEnrollmentCodes.registerId,
         set: {
           codeLookup,
-          codeHash: hashRegisterEnrollmentCode(rawCode),
+          codeHash: hashSecretCode(rawCode),
           issuedAt: input.now,
           expiresAt,
           redeemedAt: null,

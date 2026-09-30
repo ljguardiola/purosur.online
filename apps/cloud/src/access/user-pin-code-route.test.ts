@@ -12,10 +12,10 @@ import {
   userRoles,
   users,
 } from "../platform/db/schema.js";
+import { hashSecretCode } from "../platform/secret-code.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { PASSKEY_AUTHORIZATION_WINDOW_MS } from "./passkey-authorization-guard.js";
-import { hashPinCode } from "./pin-code-generator.js";
 import { SESSION_COOKIE_NAME } from "./session-cookie.js";
 import { generateSessionId, hashSessionId } from "./session-id.js";
 import { registerUserPinCodeRoutes } from "./user-pin-code-route.js";
@@ -256,7 +256,7 @@ describe("POST /users/:id/pin-codes", () => {
       const { code } = userPinCodeSchema.parse(response.json());
       expect(stored).toMatchObject({
         userId: targetId,
-        codeHash: hashPinCode(code),
+        codeHash: hashSecretCode(code),
         issuedBy: holderId,
         issuedAt: NOON,
         expiresAt: new Date("2026-01-05T12:15:00.000Z"),
@@ -323,7 +323,7 @@ describe("POST /users/:id/pin-codes", () => {
         newValue: { pin_code_expires_at: "2026-01-05T12:15:00.000Z" },
       });
       expect(JSON.stringify(audited)).not.toContain(code);
-      expect(JSON.stringify(audited)).not.toContain(hashPinCode(code));
+      expect(JSON.stringify(audited)).not.toContain(hashSecretCode(code));
     });
 
     it("emits for a user who has just been created and has no PIN", async () => {

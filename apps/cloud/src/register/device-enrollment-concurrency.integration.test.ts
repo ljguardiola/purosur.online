@@ -10,6 +10,7 @@ import {
   registers,
   users,
 } from "../platform/db/schema.js";
+import { hashSecretCode } from "../platform/secret-code.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import {
   createIntegrationDatabase,
@@ -24,10 +25,7 @@ import { issueDeviceToken } from "./device-token.js";
 import { DrizzleRegisterStore } from "./drizzle-register-store.js";
 import { generateInstallationKey } from "./installation-key.js";
 import { installationKeyCipher } from "./installation-key-cipher.js";
-import {
-  hashRegisterEnrollmentCode,
-  registerEnrollmentCodeMatches,
-} from "./register-enrollment-code.js";
+import { registerEnrollmentCodeMatches } from "./register-enrollment-code.js";
 import { emitRegisterEnrollmentCode } from "./register-enrollment-code-route.js";
 
 // PGlite runs every query over one connection, so it can never race two redemptions of the same
@@ -82,7 +80,7 @@ async function insertRegisterWithCode(): Promise<string> {
   await db.insert(registerEnrollmentCodes).values({
     registerId: register.id,
     codeLookup: CODE.slice(0, 4),
-    codeHash: hashRegisterEnrollmentCode(CODE),
+    codeHash: hashSecretCode(CODE),
     issuedAt,
     expiresAt: new Date(issuedAt.getTime() + 15 * 60 * 1000),
   });
@@ -145,7 +143,7 @@ describe("redeeming the same enrollment code twice at once on a real Postgres th
     await db.insert(registerEnrollmentCodes).values({
       registerId: register.id,
       codeLookup: CODE.slice(0, 4),
-      codeHash: hashRegisterEnrollmentCode(CODE),
+      codeHash: hashSecretCode(CODE),
       issuedAt,
       expiresAt: new Date(issuedAt.getTime() + 15 * 60 * 1000),
     });

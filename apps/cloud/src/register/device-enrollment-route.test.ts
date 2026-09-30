@@ -12,12 +12,12 @@ import {
   registerSnapshotKeys,
   registers,
 } from "../platform/db/schema.js";
+import { hashSecretCode } from "../platform/secret-code.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerDeviceEnrollmentRoute } from "./device-enrollment-route.js";
 import { hashDeviceToken } from "./device-token.js";
-import { hashRegisterEnrollmentCode } from "./register-enrollment-code.js";
 import { keyStore } from "./test-support/key-store.js";
 
 const NOW = new Date("2026-09-29T12:00:00.000Z");
@@ -69,7 +69,7 @@ async function insertRegisterWithCode(
   await db.insert(registerEnrollmentCodes).values({
     registerId: register.id,
     codeLookup: CODE.slice(0, 4),
-    codeHash: hashRegisterEnrollmentCode(CODE),
+    codeHash: hashSecretCode(CODE),
     issuedAt: minutesAgo(5),
     expiresAt: overrides.expiresAt ?? minutesAgo(-10),
     redeemedAt: overrides.redeemedAt ?? null,

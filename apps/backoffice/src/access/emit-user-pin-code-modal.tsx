@@ -1,8 +1,8 @@
 import { Button, InlineNotice, Modal } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { Check, KeyRound, RotateCcw, ShieldX, TriangleAlert } from "lucide-react";
+import { groupedCode } from "../platform/grouped-code";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { groupedCode } from "../register/enrollment-code";
 import { pinCodeValidity } from "./pin-code-validity";
 import type { authorizeSession, fetchSessionAuthorizationOptions } from "./session-api";
 import type { BranchUser, emitUserPinCode } from "./users-api";
