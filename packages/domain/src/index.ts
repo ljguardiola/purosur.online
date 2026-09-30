@@ -182,6 +182,7 @@ export {
 } from "./register/index.js";
 export type {
   ListPrice,
+  PaymentTransaction,
   Sale,
   SaleLine,
   SaleState,
