@@ -113,15 +113,13 @@ export default {
     {
       name: "renderer-types-only-from-domain",
       comment:
-        "apps/pos/src/renderer/ may depend on packages/domain only for its types and for the " +
-        "pure rules its forms share with the core (amounts and the time zone), imported from " +
-        "the package entry point; it talks to the core process over a MessagePort, never by " +
-        "calling use cases in-process.",
+        "apps/pos/src/renderer/ may depend on packages/domain only for its types; it " +
+        "talks to the core process over a MessagePort, never by calling domain code " +
+        "directly in-process.",
       severity: "error",
       from: { path: "^apps/pos/src/renderer/" },
       to: {
         path: "^packages/domain/src/",
-        pathNot: "^packages/domain/src/index\\.ts$",
         dependencyTypesNot: ["type-only"],
       },
     },
