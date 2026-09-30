@@ -2,19 +2,22 @@ import type { AddProductOutcome, ScanProductOutcome } from "@purosur/contracts";
 import type { LucideIcon } from "lucide-react";
 import { Ban, Lock, PackageX, Scale, ScanBarcode, Tag, TriangleAlert } from "lucide-react";
 
-export type ScanProblem = Extract<
-  ScanProductOutcome | AddProductOutcome,
-  {
-    kind:
-      | "unknown_code"
-      | "product_unavailable"
-      | "no_price"
-      | "sold_by_weight"
-      | "not_permitted"
-      | "installation_revoked"
-      | "unavailable";
-  }
->;
+export type ScanProblem =
+  | Extract<
+      ScanProductOutcome | AddProductOutcome,
+      {
+        kind:
+          | "unknown_code"
+          | "product_unavailable"
+          | "no_price"
+          | "sold_by_weight"
+          | "not_permitted"
+          | "installation_revoked";
+      }
+    >
+  | { kind: "scan_failed" }
+  | { kind: "add_failed" }
+  | { kind: "search_failed" };
 
 type Message = { icon: LucideIcon; title: string; help: string };
 
@@ -56,11 +59,23 @@ export function messageFor(problem: ScanProblem): Message {
         title: "Esta caja ya no puede empezar ventas",
         help: "Su instalación fue reemplazada o retirada desde el backoffice.",
       };
-    case "unavailable":
+    case "scan_failed":
       return {
         icon: TriangleAlert,
         title: "No se pudo agregar el producto",
         help: "Probá escanearlo de nuevo.",
+      };
+    case "add_failed":
+      return {
+        icon: TriangleAlert,
+        title: "No se pudo agregar el producto",
+        help: "Probá elegirlo de nuevo.",
+      };
+    case "search_failed":
+      return {
+        icon: TriangleAlert,
+        title: "No se pudo buscar el producto",
+        help: "Probá escribirlo de nuevo.",
       };
   }
 }

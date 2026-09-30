@@ -464,7 +464,7 @@ describe("SaleScreen searching by name", () => {
         name: "the core being unable to add it",
         outcome: { kind: "unavailable" },
         title: "No se pudo agregar el producto",
-        help: "Probá escanearlo de nuevo.",
+        help: "Probá elegirlo de nuevo.",
       },
     ])(
       "closes the list, tells what happened and selects the text on $name",
@@ -518,7 +518,7 @@ describe("SaleScreen searching by name", () => {
 
       await userEvent.keyboard("{Enter}");
 
-      await expect.element(screen.getByText("No se pudo agregar el producto")).toBeVisible();
+      await expect.element(screen.getByText("Probá elegirlo de nuevo.")).toBeVisible();
     });
 
     it.each<AddProductOutcome>([{ kind: "not_signed_in" }, { kind: "no_open_session" }])(
@@ -552,7 +552,7 @@ describe("SaleScreen searching by name", () => {
       {
         name: "the core cannot search",
         outcome: { kind: "unavailable" },
-        title: "No se pudo agregar el producto",
+        title: "No se pudo buscar el producto",
       },
     ])("tells what happened without opening a list when $name", async ({ outcome, title }) => {
       const { screen, field } = await renderScreen({ searchProducts: answering(outcome) });
@@ -573,7 +573,7 @@ describe("SaleScreen searching by name", () => {
 
       await field.fill("yer");
 
-      await expect.element(screen.getByText("No se pudo agregar el producto")).toBeVisible();
+      await expect.element(screen.getByText("No se pudo buscar el producto")).toBeVisible();
     });
 
     it.each<SearchProductsOutcome>([{ kind: "not_signed_in" }, { kind: "no_open_session" }])(

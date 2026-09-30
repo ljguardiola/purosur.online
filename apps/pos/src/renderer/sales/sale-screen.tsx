@@ -139,9 +139,12 @@ export function SaleScreen({
         onSessionInvalid();
         break;
       case "not_permitted":
-      case "unavailable":
         setSearch(undefined);
         setProblem(outcome);
+        break;
+      case "unavailable":
+        setSearch(undefined);
+        setProblem({ kind: "search_failed" });
         break;
     }
   }
@@ -155,7 +158,11 @@ export function SaleScreen({
     selectScanField(field.current);
   }
 
-  function take(submitted: string, outcome: ScanProductOutcome | AddProductOutcome) {
+  function take(
+    submitted: string,
+    outcome: ScanProductOutcome | AddProductOutcome,
+    failure: { kind: "scan_failed" } | { kind: "add_failed" },
+  ) {
     switch (outcome.kind) {
       case "added":
         setProblem(undefined);
@@ -176,8 +183,10 @@ export function SaleScreen({
       case "sold_by_weight":
       case "not_permitted":
       case "installation_revoked":
-      case "unavailable":
         refuse(submitted, outcome);
+        break;
+      case "unavailable":
+        refuse(submitted, failure);
         break;
     }
   }
@@ -195,7 +204,7 @@ export function SaleScreen({
     const outcome = await scanProduct(submitted).catch(
       (): ScanProductOutcome => ({ kind: "unavailable" }),
     );
-    take(submitted, outcome);
+    take(submitted, outcome, { kind: "scan_failed" });
   }
 
   async function add(product: FoundProduct) {
@@ -203,7 +212,7 @@ export function SaleScreen({
     const outcome = await addProduct(product.product_id).catch(
       (): AddProductOutcome => ({ kind: "unavailable" }),
     );
-    take(submitted, outcome);
+    take(submitted, outcome, { kind: "add_failed" });
   }
 
   const found = search?.query === code.trim() && !dismissed ? search : undefined;
