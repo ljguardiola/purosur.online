@@ -30,8 +30,6 @@ type EmitUserPinCodeModalProps = {
   onRetry: () => void;
 };
 
-// Purely presentational: the click handler starts the emission, never an effect here, so React
-// Strict Mode's extra render (or a remount) can't refire the request.
 export function EmitUserPinCodeModal({
   emission,
   onClose,

@@ -36,8 +36,6 @@ class DrizzlePinCodeStoreTransaction<TQueryResult extends PgQueryResultHKT>
     if (!UUID_PATTERN.test(userId)) {
       return undefined;
     }
-    // Only the user's row is locked: NO KEY UPDATE serializes emissions for it while leaving the
-    // foreign-key checks of the code and audit rows written below free to proceed.
     const [row] = await this.tx
       .select({ active: users.active, isAdministrator: roles.isAdministrator })
       .from(users)

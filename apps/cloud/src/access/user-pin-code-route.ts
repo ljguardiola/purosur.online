@@ -41,7 +41,6 @@ export function registerUserPinCodeRoutes<TQueryResult extends PgQueryResultHKT>
       const openSession = openSessionOf(request);
       const actor = { id: openSession.userId, isAdministrator: openSession.isAdministrator };
 
-      // Answered before the passkey authorization is asked for, so asking cannot reveal which users exist.
       const target = UUID_PATTERN.test(request.params.id)
         ? await findBranchUser(options.db, openSession.locationId, request.params.id, {
             activeScope: "any",
