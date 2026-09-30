@@ -1,4 +1,5 @@
 import type { NetContentUnit, SaleUnit } from "@purosur/domain";
+import type { DiscountFields } from "@purosur/domain/pricing/use-cases";
 import type { BranchSettingsRow } from "../branch/branch-settings-read-route.js";
 
 export interface CategoryRow {
@@ -59,7 +60,17 @@ export interface RegisterRow {
   version: number;
 }
 
-export type RemovedEntity = "category" | "product" | "tag" | "price" | "user" | "role" | "register";
+export type DiscountRow = DiscountFields;
+
+export type RemovedEntity =
+  | "category"
+  | "product"
+  | "tag"
+  | "price"
+  | "user"
+  | "role"
+  | "register"
+  | "discount";
 
 export type PulledCloudChange = { changeSeq: number; entityId: string } & (
   | { entity: "branch_settings"; row: BranchSettingsRow }
@@ -71,5 +82,6 @@ export type PulledCloudChange = { changeSeq: number; entityId: string } & (
   | { entity: "user"; row: UserRow }
   | { entity: "role"; row: RoleRow }
   | { entity: "register"; row: RegisterRow }
+  | { entity: "discount"; row: DiscountRow }
   | { entity: "removal"; removedEntity: RemovedEntity; version: number }
 );

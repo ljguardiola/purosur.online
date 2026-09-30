@@ -7,6 +7,7 @@ import {
   signedInWithPermissions,
 } from "../catalog/test-support/catalog-route-fixtures.js";
 import { discounts } from "../platform/db/schema.js";
+import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { registerDiscountCreationRoute } from "./discount-creation-route.js";
 import {
@@ -164,5 +165,36 @@ describe("POST /discounts", () => {
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({ code: "discount_target_not_found" });
     expect(await db.select().from(discounts).where(eq(discounts.tagId, tag.id))).toEqual([]);
+  });
+
+  it("logs the created discount as an insert of its first version, for every branch", async () => {
+    const category = await insertCategory(db, "Infusiones");
+    const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
+    const mark = await lastLoggedChangeSeq(db);
+
+    const response = await createDiscount(
+      rawSessionId,
+      bodyAimedAt({ kind: "CATEGORY", id: category }),
+    );
+
+    expect(await changesLoggedAfter(db, mark)).toEqual([
+      {
+        entity: "discount",
+        entityId: response.json().id,
+        version: 1,
+        op: "insert",
+        locationId: null,
+      },
+    ]);
+  });
+
+  it("logs nothing for a discount refused because its target is deactivated", async () => {
+    const tag = await insertTag(db, { name: "Kosher", active: false });
+    const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
+    const mark = await lastLoggedChangeSeq(db);
+
+    await createDiscount(rawSessionId, bodyAimedAt({ kind: "TAG", id: tag.id }));
+
+    expect(await changesLoggedAfter(db, mark)).toEqual([]);
   });
 });

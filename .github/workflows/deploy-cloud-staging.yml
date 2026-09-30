@@ -27,6 +27,7 @@ jobs:
     # Both jobs carry this gate.
     if: (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-24.04
+    timeout-minutes: 6
     permissions:
       actions: read
       contents: read
@@ -101,6 +102,7 @@ jobs:
     needs: build
     if: ((github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')) && needs.build.outputs.deploy == 'true'
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     environment: staging
     permissions:
       contents: read
