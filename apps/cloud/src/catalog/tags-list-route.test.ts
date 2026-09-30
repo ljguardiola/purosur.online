@@ -61,6 +61,15 @@ describe("GET /tags", () => {
     expect(response.json()).toMatchObject({ code: "forbidden" });
   });
 
+  it("rejects a user who only has the promotions permission with 403 forbidden", async () => {
+    const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
+
+    const response = await getTags(rawSessionId);
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "forbidden" });
+  });
+
   it("rejects an Origin that is not the backoffice's own", async () => {
     const rawSessionId = await signedInWithPermissions(db, NOON);
 

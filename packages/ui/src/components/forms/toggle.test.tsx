@@ -304,3 +304,59 @@ test("names its state checked and reports it with onCheckedChange", () => {
   expectTypeOf<ToggleProps>().not.toHaveProperty("isSelected");
   expectTypeOf<ToggleProps>().not.toHaveProperty("onChange");
 });
+
+test("shows a description under the content, aligned with it, in the subtle text color", async () => {
+  const screen = await render(
+    <Toggle checked={false} onCheckedChange={() => {}} description="Turns off for new sales.">
+      Apply discount
+    </Toggle>,
+  );
+  const content = screen.getByText("Apply discount").element() as HTMLElement;
+  const description = screen.getByText("Turns off for new sales.").element() as HTMLElement;
+
+  expect(description.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+    content.getBoundingClientRect().bottom,
+  );
+  const descriptionTextLeft =
+    description.getBoundingClientRect().left +
+    Number.parseFloat(getComputedStyle(description).paddingLeft);
+  expect(descriptionTextLeft).toBeCloseTo(content.getBoundingClientRect().left, 0);
+  expect(getComputedStyle(description).color).toBe(tokenRgb("text-subtle"));
+});
+
+test("describes the switch with the description without adding it to the switch's name", async () => {
+  const screen = await render(
+    <Toggle checked={false} onCheckedChange={() => {}} description="Turns off for new sales.">
+      Apply discount
+    </Toggle>,
+  );
+
+  await expect
+    .element(screen.getByRole("switch", { name: "Apply discount", exact: true }))
+    .toHaveAccessibleDescription("Turns off for new sales.");
+});
+
+test("has no accessibility violations with a description", async () => {
+  const screen = await render(
+    <Toggle checked={false} onCheckedChange={() => {}} description="Turns off for new sales.">
+      Apply discount
+    </Toggle>,
+  );
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("dims its description along with the rest when disabled", async () => {
+  const screen = await render(
+    <Toggle checked={false} onCheckedChange={() => {}} disabled description="Turns off.">
+      Apply discount
+    </Toggle>,
+  );
+  const description = screen.getByText("Turns off.").element() as HTMLElement;
+
+  expect(getComputedStyle(description).opacity).toBe("0.45");
+});
+
+test("accepts a description as an optional text", () => {
+  expectTypeOf<ToggleProps["description"]>().toEqualTypeOf<string | undefined>();
+});

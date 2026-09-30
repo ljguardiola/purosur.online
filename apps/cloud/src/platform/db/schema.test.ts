@@ -22,6 +22,7 @@ import { MIGRATIONS_FOLDER } from "./migrations-folder.js";
 import {
   brands,
   categories,
+  discounts,
   locations,
   passkeyChallenges,
   priceLists,
@@ -226,6 +227,149 @@ describe("product_tags", () => {
     await expect(
       db.insert(productTags).values({ productId: "00000000-0000-0000-0000-000000000000", tagId }),
     ).rejects.toMatchObject({ cause: { constraint: "product_tags_product_id_products_id_fk" } });
+  });
+});
+
+describe("discounts", () => {
+  async function seedTargets(): Promise<{ productId: string; categoryId: string; tagId: string }> {
+    const [category] = await db
+      .insert(categories)
+      .values({ name: "Almacén" })
+      .returning({ id: categories.id });
+    const [tag] = await db.insert(tags).values({ name: "Orgánico" }).returning({ id: tags.id });
+    if (!category || !tag) {
+      throw new Error("test setup: seeding the category and the tag returned no row");
+    }
+    const [product] = await db
+      .insert(products)
+      .values({ name: "Dátiles", categoryId: category.id, saleUnit: "KG" })
+      .returning({ id: products.id });
+    if (!product) {
+      throw new Error("test setup: seeding the product returned no row");
+    }
+    return { productId: product.id, categoryId: category.id, tagId: tag.id };
+  }
+
+  function discountOn(
+    target: Partial<typeof discounts.$inferInsert>,
+  ): typeof discounts.$inferInsert {
+    return {
+      name: "Semana de los frutos secos",
+      kind: "PERCENT_OFF",
+      percent: 15,
+      validFrom: "2026-10-01",
+      validTo: "2026-10-31",
+      ...target,
+    };
+  }
+
+  it("starts a discount active at version 1 with no weekday restriction", async () => {
+    const { categoryId } = await seedTargets();
+
+    const [discount] = await db.insert(discounts).values(discountOn({ categoryId })).returning();
+
+    expect(discount).toMatchObject({ active: true, version: 1, weekdays: [] });
+  });
+
+  it.each(["productId", "categoryId", "tagId"] as const)(
+    "accepts a discount aimed at exactly one %s",
+    async (column) => {
+      const targets = await seedTargets();
+
+      await expect(
+        db.insert(discounts).values(discountOn({ [column]: targets[column] })),
+      ).resolves.toBeDefined();
+    },
+  );
+
+  it("rejects a discount aimed at nothing", async () => {
+    await expect(db.insert(discounts).values(discountOn({}))).rejects.toMatchObject({
+      cause: { constraint: "discounts_exactly_one_target_check" },
+    });
+  });
+
+  it("rejects a discount aimed at two targets", async () => {
+    const { productId, tagId } = await seedTargets();
+
+    await expect(
+      db.insert(discounts).values(discountOn({ productId, tagId })),
+    ).rejects.toMatchObject({ cause: { constraint: "discounts_exactly_one_target_check" } });
+  });
+
+  it.each([
+    ["productId", "discounts_product_id_products_id_fk"],
+    ["categoryId", "discounts_category_id_categories_id_fk"],
+    ["tagId", "discounts_tag_id_tags_id_fk"],
+  ] as const)("rejects a %s that does not exist", async (column, constraint) => {
+    await expect(
+      db.insert(discounts).values(discountOn({ [column]: "00000000-0000-0000-0000-000000000000" })),
+    ).rejects.toMatchObject({ cause: { constraint } });
+  });
+
+  it("rejects a discount of a kind that is not listed", async () => {
+    const { tagId } = await seedTargets();
+
+    await expect(
+      db.insert(discounts).values(discountOn({ tagId, kind: "BUY_N_PAY_M" })),
+    ).rejects.toMatchObject({ cause: { constraint: "discounts_kind_check" } });
+  });
+
+  it.each([0, 100, -5])("rejects a percent-off discount of %s percent", async (percent) => {
+    const { tagId } = await seedTargets();
+
+    await expect(db.insert(discounts).values(discountOn({ tagId, percent }))).rejects.toMatchObject(
+      { cause: { constraint: "discounts_percent_check" } },
+    );
+  });
+
+  it("rejects a percent-off discount without a percent", async () => {
+    const { tagId } = await seedTargets();
+
+    await expect(
+      db.insert(discounts).values(discountOn({ tagId, percent: null })),
+    ).rejects.toMatchObject({ cause: { constraint: "discounts_percent_check" } });
+  });
+
+  it.each([1, 99])("accepts a percent-off discount of %s percent", async (percent) => {
+    const { tagId } = await seedTargets();
+
+    await expect(
+      db.insert(discounts).values(discountOn({ tagId, percent })),
+    ).resolves.toBeDefined();
+  });
+
+  it("accepts a discount that ends the day it starts and rejects one that ends before", async () => {
+    const { tagId } = await seedTargets();
+
+    await expect(
+      db
+        .insert(discounts)
+        .values(discountOn({ tagId, validFrom: "2026-10-01", validTo: "2026-10-01" })),
+    ).resolves.toBeDefined();
+    await expect(
+      db
+        .insert(discounts)
+        .values(discountOn({ tagId, validFrom: "2026-10-02", validTo: "2026-10-01" })),
+    ).rejects.toMatchObject({ cause: { constraint: "discounts_valid_to_not_before_from_check" } });
+  });
+
+  it.each([[[0]], [[8]], [[2, 9]]])("rejects the weekdays %j", async (weekdays) => {
+    const { tagId } = await seedTargets();
+
+    await expect(
+      db.insert(discounts).values(discountOn({ tagId, weekdays })),
+    ).rejects.toMatchObject({ cause: { constraint: "discounts_weekdays_check" } });
+  });
+
+  it("keeps the weekdays it was given", async () => {
+    const { tagId } = await seedTargets();
+
+    const [discount] = await db
+      .insert(discounts)
+      .values(discountOn({ tagId, weekdays: [2, 4] }))
+      .returning({ weekdays: discounts.weekdays });
+
+    expect(discount?.weekdays).toEqual([2, 4]);
   });
 });
 

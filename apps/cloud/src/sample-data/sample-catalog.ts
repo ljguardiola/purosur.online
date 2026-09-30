@@ -394,6 +394,78 @@ function buildSampleCategoryTree(): readonly SampleTopCategory[] {
 
 export const SAMPLE_CATEGORY_TREE: readonly SampleTopCategory[] = buildSampleCategoryTree();
 
+interface SampleDiscountPlan {
+  name: string;
+  percent: number;
+  target: { kind: "CATEGORY" | "PRODUCT" | "TAG"; name: string };
+  startsInDays: number;
+  lastsDays: number;
+  weekdays: readonly number[];
+}
+
+function firstActiveProductNameOf(leafName: string): string {
+  for (const top of SAMPLE_CATEGORY_TREE) {
+    for (const mid of top.mids) {
+      for (const leaf of mid.leaves) {
+        const product = leaf.name === leafName ? leaf.products.find((p) => p.active) : undefined;
+        if (product) {
+          return product.name;
+        }
+      }
+    }
+  }
+  throw new Error(`sample-data: no active sample product in the category "${leafName}"`);
+}
+
+export const SAMPLE_DISCOUNTS: readonly SampleDiscountPlan[] = [
+  {
+    name: "Semana de la limpieza",
+    percent: 15,
+    target: { kind: "CATEGORY", name: "Limpieza" },
+    startsInDays: -3,
+    lastsDays: 14,
+    weekdays: [],
+  },
+  {
+    name: "Martes de infusiones",
+    percent: 10,
+    target: { kind: "CATEGORY", name: "Infusiones" },
+    startsInDays: -30,
+    lastsDays: 90,
+    weekdays: [2],
+  },
+  {
+    name: "Yerba en oferta",
+    percent: 5,
+    target: { kind: "PRODUCT", name: firstActiveProductNameOf("Hierbas") },
+    startsInDays: -1,
+    lastsDays: 7,
+    weekdays: [],
+  },
+  {
+    name: "Semana sin TACC",
+    percent: 20,
+    target: { kind: "TAG", name: "Sin TACC" },
+    startsInDays: 14,
+    lastsDays: 7,
+    weekdays: [],
+  },
+];
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function dayAfter(day: string, days: number): string {
+  return new Date(Date.parse(`${day}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
+}
+
+export function sampleDiscountWindow(
+  plan: Pick<SampleDiscountPlan, "startsInDays" | "lastsDays">,
+  loadDay: string,
+): { validFrom: string; validTo: string } {
+  const validFrom = dayAfter(loadDay, plan.startsInDays);
+  return { validFrom, validTo: dayAfter(validFrom, plan.lastsDays - 1) };
+}
+
 interface SampleUserPlan {
   firstName: string;
   email: string;

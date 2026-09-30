@@ -1,6 +1,10 @@
 import { createRoute, Outlet, redirect, useMatchRoute } from "@tanstack/react-router";
-import { Factory, ListChecks, Package, Sparkles, Tags } from "lucide-react";
-import { canManageProductsAndCategories, canSeePricesArea } from "../access/backoffice-access";
+import { BadgePercent, Factory, ListChecks, Package, Sparkles, Tags } from "lucide-react";
+import {
+  canManageProductsAndCategories,
+  canManagePromotions,
+  canSeePricesArea,
+} from "../access/backoffice-access";
 import { AreaLayout, SectionLink } from "./area-layout";
 import { signedInRoute } from "./signed-in-route";
 
@@ -26,6 +30,7 @@ function CatalogArea() {
   const brandsShown = Boolean(matchRoute({ to: "/catalog/brands" }));
   const tagsShown = Boolean(matchRoute({ to: "/catalog/tags" }));
   const pricesShown = Boolean(matchRoute({ to: "/catalog/prices" }));
+  const discountsShown = Boolean(matchRoute({ to: "/catalog/discounts" }));
   return (
     <AreaLayout
       area="catalog"
@@ -83,6 +88,17 @@ function CatalogArea() {
                   icon={<ListChecks />}
                   search={pricesShown ? true : {}}
                   active={pricesShown}
+                />
+              </li>
+            )}
+            {canManagePromotions(session) && (
+              <li>
+                <SectionLink
+                  to="/catalog/discounts"
+                  label="Promociones"
+                  icon={<BadgePercent />}
+                  search={discountsShown ? true : {}}
+                  active={discountsShown}
                 />
               </li>
             )}
