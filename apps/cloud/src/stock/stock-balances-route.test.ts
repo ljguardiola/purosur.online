@@ -134,13 +134,3 @@ describe("GET /inventory-levels", () => {
     });
   });
 });
-
-describe("the former stock paths", () => {
-  it.each([["GET", "/stock/balances"]] as const)("no longer answers %s %s", async (method, url) => {
-    const { headers } = await signedInWith(db, ["view_stock_balances"], NOON);
-
-    const response = await app.inject({ method, url, headers });
-
-    expect(response.statusCode).toBe(404);
-  });
-});

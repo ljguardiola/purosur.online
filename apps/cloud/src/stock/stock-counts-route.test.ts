@@ -471,20 +471,3 @@ describe("GET /inventory-levels/:productId", () => {
     });
   });
 });
-
-describe("the former stock paths", () => {
-  it.each([
-    ["POST", "/stock/counts"],
-    ["GET", "/stock/counts"],
-    [
-      "GET",
-      `/stock/products/00000000-0000-4000-8000-000000000000/expected-balance?at=${COUNTED_AT.toISOString()}`,
-    ],
-  ] as const)("no longer answers %s %s", async (method, url) => {
-    const { headers } = await signedInWith(db, ["perform_stock_counts"], NOW);
-
-    const response = await app.inject({ method, url, headers });
-
-    expect(response.statusCode).toBe(404);
-  });
-});

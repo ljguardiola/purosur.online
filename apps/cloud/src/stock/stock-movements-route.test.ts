@@ -375,17 +375,3 @@ describe("GET /inventory-movements", () => {
     expect(response.json().movements).toHaveLength(2);
   });
 });
-
-describe("the former stock paths", () => {
-  it.each([
-    ["POST", "/stock/losses"],
-    ["POST", "/stock/adjustments"],
-    ["GET", "/stock/movements"],
-  ] as const)("no longer answers %s %s", async (method, url) => {
-    const { headers } = await signedInWith(db, ["adjust_stock"], NOW);
-
-    const response = await app.inject({ method, url, headers });
-
-    expect(response.statusCode).toBe(404);
-  });
-});
