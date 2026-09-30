@@ -641,6 +641,8 @@ describe("App", () => {
                 product_name: "Yerba mate 1 kg",
                 quantity: 1,
                 list_unit_price: 238_000,
+                discount_amount: 0,
+                promotion: null,
                 line_total: 238_000,
               },
             ],
