@@ -5,14 +5,18 @@ import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { useOwnPasskeysQuery, useRefreshAccess } from "./access-queries";
+import { type BackofficeAccess, canResetUserPin } from "./backoffice-access";
 import type { MyAccountScreenServices } from "./my-account-services";
 import type { Passkey } from "./passkey-api";
 import { passkeyRowDetail } from "./passkey-row-detail";
 import { RegisterOwnPasskeyModal } from "./register-own-passkey-modal";
 import { RemoveOwnPasskeyModal } from "./remove-own-passkey-modal";
+import { UserPinSection } from "./user-pin-section";
 
 export type MyAccountScreenProps = {
   displayName: string;
+  userId: string;
+  access: BackofficeAccess;
   onSessionEnded: () => void;
   now?: () => Date;
   services: MyAccountScreenServices;
@@ -22,6 +26,8 @@ const NO_PASSKEYS: Passkey[] = [];
 
 export function MyAccountScreen({
   displayName,
+  userId,
+  access,
   onSessionEnded,
   now,
   services,
@@ -100,6 +106,16 @@ export function MyAccountScreen({
               </ul>
             ))}
         </div>
+        {canResetUserPin(access, userId, {
+          id: userId,
+          isAdministrator: access.isAdministrator,
+        }) && (
+          <UserPinSection
+            user={{ id: userId, firstName: displayName }}
+            onSessionEnded={onSessionEnded}
+            services={services}
+          />
+        )}
       </ScreenLayout>
       <RegisterOwnPasskeyModal
         open={registerModalOpen}

@@ -4,6 +4,7 @@ import {
   branchUserSchema,
   type UserCreationBody,
   type UserEditBody,
+  userPinCodeSchema,
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { retryAfterSeconds } from "../platform/retry-after-seconds";
@@ -38,6 +39,16 @@ export type DeactivateUserOutcome =
 export type ReactivateUserOutcome =
   | { kind: "ok" }
   | { kind: "not_found" }
+  | { kind: "authorization_required" }
+  | { kind: "forbidden" }
+  | { kind: "unauthenticated" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
+  | { kind: "failed" };
+
+export type EmitUserPinCodeOutcome =
+  | { kind: "ok"; value: { code: string; expiresAt: string } }
+  | { kind: "not_found" }
+  | { kind: "inactive" }
   | { kind: "authorization_required" }
   | { kind: "forbidden" }
   | { kind: "unauthenticated" }
@@ -338,6 +349,30 @@ export async function reactivateUser(id: string): Promise<ReactivateUserOutcome>
   }
   if (response.status === 404) {
     return { kind: "not_found" };
+  }
+  return gatedActionErrorOutcome(response);
+}
+
+export async function emitUserPinCode(id: string): Promise<EmitUserPinCodeOutcome> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/users/${id}/pin-codes`, { method: "POST" });
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    const parsed = userPinCodeSchema.safeParse(await response.json().catch(() => undefined));
+    if (!parsed.success) {
+      return { kind: "failed" };
+    }
+    return { kind: "ok", value: { code: parsed.data.code, expiresAt: parsed.data.expires_at } };
+  }
+  if (response.status === 404) {
+    return { kind: "not_found" };
+  }
+  if (response.status === 409) {
+    const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
+    return body?.code === "user_inactive" ? { kind: "inactive" } : { kind: "failed" };
   }
   return gatedActionErrorOutcome(response);
 }

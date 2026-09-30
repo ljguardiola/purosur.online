@@ -23,6 +23,7 @@
     "noEmit": true,
     "paths": {
       "@purosur/domain": ["./packages/domain/src/index.ts"],
+      "@purosur/domain/access/use-cases": ["./packages/domain/src/access/use-cases/index.ts"],
       "@purosur/domain/catalog/use-cases": ["./packages/domain/src/catalog/use-cases/index.ts"],
       "@purosur/domain/pricing/use-cases": ["./packages/domain/src/pricing/use-cases/index.ts"],
       "@purosur/domain/stock/use-cases": ["./packages/domain/src/stock/use-cases/index.ts"],

@@ -1,6 +1,7 @@
 import { startAuthentication } from "@simplewebauthn/browser";
 import type { DeactivateUserModalServices } from "./deactivate-user-modal";
 import type { EditUserModalServices } from "./edit-user-modal";
+import type { EmitUserPinCodeModalServices } from "./emit-user-pin-code-modal";
 import type { ReactivateUserModalServices } from "./reactivate-user-modal";
 import type { RemoveUserPasskeyModalServices } from "./remove-user-passkey-modal";
 import { fetchRoles } from "./roles-api";
@@ -8,6 +9,7 @@ import { authorizeSession, fetchSessionAuthorizationOptions } from "./session-ap
 import {
   deactivateUser,
   editUser,
+  emitUserPinCode,
   fetchUser,
   fetchUserPasskeys,
   reactivateUser,
@@ -21,7 +23,8 @@ export type UserDetailScreenServices = {
 } & EditUserModalServices &
   RemoveUserPasskeyModalServices &
   DeactivateUserModalServices &
-  ReactivateUserModalServices;
+  ReactivateUserModalServices &
+  EmitUserPinCodeModalServices;
 
 export const defaultUserDetailScreenServices: UserDetailScreenServices = {
   fetchUser,
@@ -31,6 +34,7 @@ export const defaultUserDetailScreenServices: UserDetailScreenServices = {
   removeUserPasskey,
   deactivateUser,
   reactivateUser,
+  emitUserPinCode,
   fetchSessionAuthorizationOptions,
   authorizeSession,
   startAuthentication,

@@ -1,3 +1,5 @@
+import { mayEmitPinCodeFor } from "@purosur/domain";
+
 export type BackofficeAccess = {
   isAdministrator: boolean;
   permissions: readonly string[];
@@ -7,7 +9,26 @@ export function canSeeUsersArea(access: BackofficeAccess): boolean {
   return (
     access.isAdministrator ||
     access.permissions.includes("deactivate_users") ||
-    access.permissions.includes("reactivate_users")
+    access.permissions.includes("reactivate_users") ||
+    access.permissions.includes("reset_user_pin")
+  );
+}
+
+export function canResetUserPin(
+  access: BackofficeAccess,
+  signedInUserId: string,
+  target: { id: string; isAdministrator: boolean; active?: boolean },
+): boolean {
+  if (target.active === false) {
+    return false;
+  }
+  if (!access.isAdministrator && !access.permissions.includes("reset_user_pin")) {
+    return false;
+  }
+  // The cloud accepts a user id in any letter case.
+  return mayEmitPinCodeFor(
+    { id: signedInUserId.toLowerCase(), isAdministrator: access.isAdministrator },
+    { id: target.id.toLowerCase(), isAdministrator: target.isAdministrator },
   );
 }
 

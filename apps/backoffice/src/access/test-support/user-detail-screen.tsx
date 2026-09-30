@@ -42,6 +42,7 @@ export function createServices(
     fetchUserPasskeys: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     removeUserPasskey: vi.fn(),
     deactivateUser: vi.fn(),
+    emitUserPinCode: vi.fn(),
     reactivateUser: vi.fn(),
     fetchSessionAuthorizationOptions: vi.fn(),
     authorizeSession: vi.fn(),
@@ -107,6 +108,10 @@ export function renderScreen(
 export const DEACTIVATE_USERS_ACCESS: BackofficeAccess = {
   isAdministrator: false,
   permissions: ["deactivate_users"],
+};
+export const RESET_USER_PIN_ACCESS: BackofficeAccess = {
+  isAdministrator: false,
+  permissions: ["reset_user_pin"],
 };
 export const NO_DEACTIVATE_ACCESS: BackofficeAccess = { isAdministrator: false, permissions: [] };
 

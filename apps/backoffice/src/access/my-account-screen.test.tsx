@@ -2,6 +2,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
+import type { BackofficeAccess } from "./backoffice-access";
 import { MyAccountScreen } from "./my-account-screen";
 import type { MyAccountScreenServices } from "./my-account-services";
 import type { Passkey } from "./passkey-api";
@@ -12,6 +13,7 @@ function createServices(overrides: Partial<MyAccountScreenServices> = {}): MyAcc
     fetchPasskeyRegistrationChallenge: vi.fn(),
     registerPasskey: vi.fn(),
     removePasskey: vi.fn(),
+    emitUserPinCode: vi.fn(),
     fetchSessionAuthorizationOptions: vi.fn(),
     authorizeSession: vi.fn(),
     startAuthentication: vi.fn(),
@@ -47,11 +49,20 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-function renderScreen(services: MyAccountScreenServices, onSessionEnded: () => void = () => {}) {
+const NON_ADMINISTRATOR: BackofficeAccess = { isAdministrator: false, permissions: [] };
+const ADMINISTRATOR: BackofficeAccess = { isAdministrator: true, permissions: [] };
+
+function renderScreen(
+  services: MyAccountScreenServices,
+  onSessionEnded: () => void = () => {},
+  access: BackofficeAccess = NON_ADMINISTRATOR,
+) {
   return render(
     <main>
       <MyAccountScreen
         displayName="Lucía Pérez"
+        userId="user-1"
+        access={access}
         onSessionEnded={onSessionEnded}
         now={NOW}
         services={services}
@@ -323,6 +334,8 @@ test("dates each passkey's last use against the time the list was last refreshed
     <main>
       <MyAccountScreen
         displayName="Lucía Pérez"
+        userId="user-1"
+        access={NON_ADMINISTRATOR}
         onSessionEnded={() => {}}
         now={() => current}
         services={services}
@@ -353,6 +366,8 @@ test("dates each passkey's last use against the time the list was loaded, not th
     <main>
       <MyAccountScreen
         displayName="Lucía Pérez"
+        userId="user-1"
+        access={NON_ADMINISTRATOR}
         onSessionEnded={onSessionEnded}
         now={now}
         services={services}
@@ -436,4 +451,35 @@ test("shows the load error with a retry action when refreshing the list after a 
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
   await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
+});
+
+test("offers an Administrator to reset their own PIN, and emits the code for their own account", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
+  vi.mocked(services.emitUserPinCode).mockResolvedValue({
+    kind: "ok",
+    value: { code: "K7QM2XPA7DTR4HWN", expiresAt: "2026-09-30T12:15:00.000Z" },
+  });
+  const screen = await renderScreen(services, () => {}, ADMINISTRATOR);
+
+  await expect.element(screen.getByRole("heading", { name: "PIN de la caja" })).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Reiniciar el PIN" }));
+
+  const dialog = screen.getByRole("dialog", { name: "Código para reiniciar el PIN" });
+  await expect.element(dialog.getByText("K7QM 2XPA 7DTR 4HWN")).toBeVisible();
+  expect(services.emitUserPinCode).toHaveBeenCalledExactlyOnceWith("user-1");
+});
+
+test("offers no PIN reset to someone who is not an Administrator, even holding reset_user_pin", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
+
+  const screen = await renderScreen(services, () => {}, {
+    isAdministrator: false,
+    permissions: ["reset_user_pin"],
+  });
+
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+  expect(screen.getByRole("heading", { name: "PIN de la caja" }).query()).toBeNull();
+  expect(screen.getByRole("button", { name: "Reiniciar el PIN" }).query()).toBeNull();
 });

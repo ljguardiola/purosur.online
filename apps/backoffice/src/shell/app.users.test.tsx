@@ -245,6 +245,41 @@ test("opens a user's detail for a non-Administrator holding deactivate_users, of
   window.history.pushState(null, "", "/");
 });
 
+test("lets a non-Administrator holding only reset_user_pin open Usuarios and a user's detail, offering the PIN reset", async () => {
+  const services = createAppServices({
+    fetchSession: vi.fn().mockResolvedValue(
+      openSession({
+        userId: "user-2",
+        displayName: "Grace Hopper",
+        isAdministrator: false,
+        permissions: ["reset_user_pin"],
+      }),
+    ),
+  });
+  vi.mocked(services.userDetailScreen.fetchUser).mockResolvedValue({
+    kind: "ok",
+    value: {
+      id: "user-3",
+      firstName: "Tomás Ruiz",
+      email: "tomas@example.com",
+      version: 1,
+      role: { id: "role-shift", isAdministrator: false, name: "Atención de caja" },
+      passkeyCount: 0,
+      isLastActiveAdministrator: false,
+    },
+  });
+  vi.mocked(services.userDetailScreen.fetchUserPasskeys).mockResolvedValue({ kind: "forbidden" });
+  window.history.pushState(null, "", "/settings/users/user-3");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Tomás Ruiz", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Reiniciar el PIN" })).toBeVisible();
+  await expect.element(screen.getByRole("link", { name: "Usuarios" })).toBeVisible();
+  expect(window.location.pathname).toBe("/settings/users/user-3");
+  window.history.pushState(null, "", "/");
+});
+
 test.each([
   {
     path: "/settings/users/user-3",
