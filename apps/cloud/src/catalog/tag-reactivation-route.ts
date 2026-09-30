@@ -26,8 +26,8 @@ export function registerTagReactivationRoute<TQueryResult extends PgQueryResultH
   const now = options.now ?? (() => new Date());
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  app.post<{ Params: { id: string } }>(
-    "/tags/:id/reactivation",
+  app.delete<{ Params: { id: string } }>(
+    "/tags/:id/deactivation",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: { access: permissionAccess("manage_products_and_categories"), sessionSource },

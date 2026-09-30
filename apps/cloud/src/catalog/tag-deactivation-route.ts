@@ -26,7 +26,7 @@ export function registerTagDeactivationRoute<TQueryResult extends PgQueryResultH
   const now = options.now ?? (() => new Date());
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  app.post<{ Params: { id: string } }>(
+  app.put<{ Params: { id: string } }>(
     "/tags/:id/deactivation",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),

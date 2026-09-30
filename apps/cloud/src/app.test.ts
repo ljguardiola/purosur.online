@@ -871,9 +871,9 @@ describe("wiring the tags routes", () => {
     const responses = await Promise.all([
       app.inject({ method: "GET", url: "/tags" }),
       app.inject({ method: "POST", url: "/tags", headers: ORIGIN }),
-      app.inject({ method: "POST", url: `/tags/${ID}/edit`, headers: ORIGIN }),
-      app.inject({ method: "POST", url: `/tags/${ID}/deactivation`, headers: ORIGIN }),
-      app.inject({ method: "POST", url: `/tags/${ID}/reactivation`, headers: ORIGIN }),
+      app.inject({ method: "PUT", url: `/tags/${ID}`, headers: ORIGIN }),
+      app.inject({ method: "PUT", url: `/tags/${ID}/deactivation`, headers: ORIGIN }),
+      app.inject({ method: "DELETE", url: `/tags/${ID}/deactivation`, headers: ORIGIN }),
     ]);
     return responses.map((response) => response.statusCode);
   }
@@ -1422,18 +1422,18 @@ describe("the route access inventory", () => {
         access: permissionAccess("manage_products_and_categories"),
       },
       {
-        method: "POST",
-        url: "/tags/:id/edit",
+        method: "PUT",
+        url: "/tags/:id",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
-        method: "POST",
+        method: "PUT",
         url: "/tags/:id/deactivation",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
-        method: "POST",
-        url: "/tags/:id/reactivation",
+        method: "DELETE",
+        url: "/tags/:id/deactivation",
         access: permissionAccess("manage_products_and_categories"),
       },
       {

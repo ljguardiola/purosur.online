@@ -39,11 +39,11 @@ export type ChangeTagActivationOutcome =
   | { kind: "already_changed" }
   | RequestRefusal;
 
-function postJson(path: string, body?: unknown): Promise<Response> {
+function sendJson(method: "POST" | "PUT", path: string, body: unknown): Promise<Response> {
   return fetch(path, {
-    method: "POST",
+    method,
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body ?? {}),
+    body: JSON.stringify(body),
   });
 }
 
@@ -83,7 +83,7 @@ export async function createTag(input: { name: string }): Promise<CreateTagOutco
   const requestBody: TagCreationBody = { name: input.name };
   let response: Response;
   try {
-    response = await postJson("/tags", requestBody);
+    response = await sendJson("POST", "/tags", requestBody);
   } catch {
     return { kind: "failed" };
   }
@@ -105,7 +105,7 @@ export async function editTag(id: string, input: EditTagInput): Promise<EditTagO
   const requestBody: TagEditBody = { name: input.name, version: input.version };
   let response: Response;
   try {
-    response = await postJson(`/tags/${id}/edit`, requestBody);
+    response = await sendJson("PUT", `/tags/${id}`, requestBody);
   } catch {
     return { kind: "failed" };
   }
@@ -129,12 +129,12 @@ export async function editTag(id: string, input: EditTagInput): Promise<EditTagO
 
 async function changeTagActivation(
   id: string,
-  path: "deactivation" | "reactivation",
+  method: "PUT" | "DELETE",
   alreadyChangedCode: string,
 ): Promise<ChangeTagActivationOutcome> {
   let response: Response;
   try {
-    response = await postJson(`/tags/${id}/${path}`);
+    response = await fetch(`/tags/${id}/deactivation`, { method });
   } catch {
     return { kind: "failed" };
   }
@@ -153,9 +153,9 @@ async function changeTagActivation(
 }
 
 export function deactivateTag(id: string): Promise<ChangeTagActivationOutcome> {
-  return changeTagActivation(id, "deactivation", "tag_already_inactive");
+  return changeTagActivation(id, "PUT", "tag_already_inactive");
 }
 
 export function reactivateTag(id: string): Promise<ChangeTagActivationOutcome> {
-  return changeTagActivation(id, "reactivation", "tag_already_active");
+  return changeTagActivation(id, "DELETE", "tag_already_active");
 }

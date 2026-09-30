@@ -32,7 +32,8 @@ const sinColorantes: TagSummary = {
   productCount: 3,
 };
 
-const JSON_POST = { method: "POST", headers: { "Content-Type": "application/json" } };
+const JSON_BODY = { headers: { "Content-Type": "application/json" } };
+const JSON_POST = { method: "POST", ...JSON_BODY };
 
 describe("fetchTags", () => {
   test("lists every tag on 200", async () => {
@@ -136,12 +137,13 @@ describe("createTag", () => {
 });
 
 describe("editTag", () => {
-  test("posts the name and version and returns ok on 200 whatever the body says", async () => {
+  test("puts the name and version and returns ok on 200 whatever the body says", async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { unexpected: true }));
 
     expect(await editTag("tag-1", { name: "Sin TACC 2", version: 1 })).toEqual({ kind: "ok" });
-    expect(fetch).toHaveBeenCalledWith("/tags/tag-1/edit", {
-      ...JSON_POST,
+    expect(fetch).toHaveBeenCalledWith("/tags/tag-1", {
+      method: "PUT",
+      ...JSON_BODY,
       body: JSON.stringify({ name: "Sin TACC 2", version: 1 }),
     });
   });
@@ -189,17 +191,14 @@ describe("editTag", () => {
 });
 
 describe.each([
-  ["deactivateTag", deactivateTag, "deactivation", "tag_already_inactive"],
-  ["reactivateTag", reactivateTag, "reactivation", "tag_already_active"],
-] as const)("%s", (_name, change, path, alreadyCode) => {
-  test(`posts to the tag's ${path} and returns ok on 200`, async () => {
+  ["deactivateTag", deactivateTag, "PUT", "tag_already_inactive"],
+  ["reactivateTag", reactivateTag, "DELETE", "tag_already_active"],
+] as const)("%s", (_name, change, method, alreadyCode) => {
+  test(`sends ${method} to the tag's deactivation and returns ok on 200`, async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
 
     expect(await change("tag-1")).toEqual({ kind: "ok" });
-    expect(fetch).toHaveBeenCalledWith(`/tags/tag-1/${path}`, {
-      ...JSON_POST,
-      body: JSON.stringify({}),
-    });
+    expect(fetch).toHaveBeenCalledWith("/tags/tag-1/deactivation", { method });
   });
 
   test.each([

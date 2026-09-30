@@ -44,8 +44,8 @@ function editTag(
   headers: Record<string, string> = {},
 ) {
   return app.inject({
-    method: "POST",
-    url: `/tags/${id}/edit`,
+    method: "PUT",
+    url: `/tags/${id}`,
     headers: { origin: BACKOFFICE_ORIGIN, ...sessionCookie(rawSessionId), ...headers },
     payload: body,
   });
@@ -56,7 +56,7 @@ async function storedTag(id: string) {
   return tag;
 }
 
-describe("POST /tags/:id/edit", () => {
+describe("PUT /tags/:id", () => {
   it("returns 401 unauthenticated when no cookie was sent", async () => {
     const tag = await insertTag(db, { name: "Sin TACC" });
 
