@@ -1,5 +1,6 @@
 import { argentinaCalendarDay } from "../../shared/index.js";
 import type { DiscountBenefit } from "../model/discount-benefit.js";
+import { isBuyNPayMSaleUnit } from "../model/discount-buy-n-pay-m.js";
 import { isDiscountLive } from "../model/discount-status.js";
 import type { DiscountTarget } from "../model/discount-target.js";
 import { normalizeDiscountWeekdays } from "../model/discount-weekdays.js";
@@ -59,7 +60,7 @@ export async function editDiscount(
       // and only reads discounts without locking them, so the two never wait on each other in
       // opposite orders.
       const product = await tx.lockDiscountedProduct(fields.target.id);
-      if (product.kind === "locked" && product.saleUnit === "KG") {
+      if (product.kind === "locked" && !isBuyNPayMSaleUnit(product.saleUnit)) {
         return { kind: "product_sold_by_weight", productName: product.name };
       }
     }
