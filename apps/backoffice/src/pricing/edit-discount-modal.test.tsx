@@ -199,11 +199,15 @@ test("turning a percentage promotion into buy-N-pay-M sends the quantities on th
 test("says a product that is now sold by weight cannot take it, on the picker", async () => {
   const services = createServices();
   vi.mocked(services.editDiscount).mockResolvedValue({ kind: "target_not_sold_by_unit" });
-  const { dialog } = await renderModal(services, { target: yerbaThreeForTwo });
+  const { dialog } = await renderModal(services);
 
+  await chooseBuyNPayM(dialog);
+  await fillQuantities(dialog, "3", "2");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
-  await expect.element(dialog.getByText("Se vende por peso. Elegí otro producto.")).toBeVisible();
+  await expect
+    .element(dialog.getByRole("button", { name: /Yerba Playadito 1 kg/ }))
+    .toHaveAccessibleDescription("Se vende por peso. Elegí otro producto.");
 });
 
 test("switching the promotion off is sent with the rest of the form", async () => {
