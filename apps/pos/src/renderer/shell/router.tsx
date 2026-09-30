@@ -2,7 +2,9 @@ import type {
   CoreStatusMessage,
   EnrollmentOutcome,
   OpenCashSessionOutcome,
+  OpenSale,
   PinCodeRedemptionOutcome,
+  ScanProductOutcome,
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
@@ -22,12 +24,12 @@ import { PinCodeRedemptionScreen } from "../access/pin-code-redemption-screen";
 import { SignInScreen } from "../access/sign-in-screen";
 import type { SignedInPerson } from "../access/signed-in-person";
 import { EnrollmentScreen } from "../register/enrollment-screen";
+import { SaleScreen } from "../sales/sale-screen";
 import { ACTION_ENTRIES } from "./action-entries";
 import { BrandPanelScreen } from "./brand-panel-screen";
 import type { CashSessionState } from "./cash-session-state";
 import { CoreDownNotice } from "./core-down-notice";
 import { NoSessionScreen } from "./no-session-screen";
-import { OpenSessionScreen } from "./open-session-screen";
 
 export type CoreStatus = CoreStatusMessage["status"];
 
@@ -51,6 +53,9 @@ export interface RouterContext {
   redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
   signInLookup: (email: string) => Promise<SignInLookupOutcome>;
   firstSignIn: (userId: string, pin: string) => Promise<SignInOutcome>;
+  currentSale: (userId: string) => Promise<OpenSale | null>;
+  scanProduct: (userId: string, code: string) => Promise<ScanProductOutcome>;
+  refreshCashSession: () => Promise<void>;
 }
 
 type ScreenPath = "/" | "/sign-in" | "/session" | "/enroll" | "/starting" | "/core-down";
@@ -144,9 +149,19 @@ const openSessionRoute = createRoute({
     return { openedAt, openedBy };
   },
   component: function OpenSessionRoute() {
-    const { openedAt, openedBy } = openSessionRoute.useRouteContext();
+    const { openedAt, openedBy, currentSale, scanProduct, refreshCashSession } =
+      openSessionRoute.useRouteContext();
     const registerName = sessionEyebrowRoute.useLoaderData();
-    return <OpenSessionScreen person={openedBy} registerName={registerName} openedAt={openedAt} />;
+    return (
+      <SaleScreen
+        person={openedBy}
+        registerName={registerName}
+        openedAt={openedAt}
+        currentSale={currentSale}
+        scanProduct={scanProduct}
+        onSessionInvalid={() => void refreshCashSession()}
+      />
+    );
   },
 });
 
@@ -240,6 +255,9 @@ export function createAppRouter(
     | "redeemPinCode"
     | "signInLookup"
     | "firstSignIn"
+    | "currentSale"
+    | "scanProduct"
+    | "refreshCashSession"
   >,
 ) {
   return createRegisterRouter(

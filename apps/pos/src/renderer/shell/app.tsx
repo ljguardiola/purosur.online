@@ -70,6 +70,14 @@ export function App({ core }: { core: CoreClient }) {
     return outcome;
   }
 
+  function refreshCashSession() {
+    return core.cashSession().then(
+      (session) => setCashSession(stateOf(session)),
+      // A replaced core connection fails this request; the core coming back up asks again.
+      () => {},
+    );
+  }
+
   function signOut() {
     setPerson(undefined);
   }
@@ -85,6 +93,9 @@ export function App({ core }: { core: CoreClient }) {
     redeemPinCode: (typedCode: string, newPin: string) => core.redeemPinCode(typedCode, newPin),
     signInLookup: (email: string) => core.signInLookup(email),
     firstSignIn,
+    currentSale: (userId: string) => core.currentSale(userId),
+    scanProduct: (userId: string, code: string) => core.scanProduct(userId, code),
+    refreshCashSession,
   };
 
   const [router] = useState(() => createAppRouter(services));
