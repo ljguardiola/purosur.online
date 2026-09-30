@@ -168,7 +168,19 @@ describe("recordCashMovement", () => {
   });
 
   it("refuses when no session is open", () => {
-    const store = ledger({ sessions: [{ ...OPEN_SESSION, state: "CLOSED" }] });
+    const store = ledger({
+      sessions: [
+        {
+          ...OPEN_SESSION,
+          state: "CLOSED",
+          closedBy: "cashier",
+          closedAt: new Date("2026-09-30T13:00:00.000Z"),
+          expectedCash: 2000000,
+          countedCash: 2000000,
+          difference: 0,
+        },
+      ],
+    });
     const before = structuredClone(store.state);
 
     expect(record(store)).toEqual({ kind: "no_open_session" });
