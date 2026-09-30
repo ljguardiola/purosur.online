@@ -1,6 +1,7 @@
 import type {
   CoreToRendererMessage,
   EnrollmentOutcome,
+  FirstPinCodeRequestOutcome,
   OpenCashSession,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
@@ -20,6 +21,7 @@ export interface RendererRequestDeps {
   signIn: ((userId: string, pin: string) => Promise<SignInOutcome>) | undefined;
   firstSignIn: ((userId: string, pin: string) => Promise<SignInOutcome>) | undefined;
   signInLookup: ((email: string) => Promise<SignInLookupOutcome>) | undefined;
+  requestFirstPinCode: ((userId: string) => Promise<FirstPinCodeRequestOutcome>) | undefined;
   openCashSession:
     | ((userId: string, openingFloat: number) => Promise<OpenCashSessionOutcome>)
     | undefined;
@@ -84,6 +86,18 @@ async function attemptSignInLookup(
     return (await deps.signInLookup?.(email)) ?? { kind: "unavailable" };
   } catch {
     deps.reportFailure("looking up who signs in", new Error("the lookup failed"));
+    return { kind: "unavailable" };
+  }
+}
+
+async function attemptFirstPinCodeRequest(
+  deps: RendererRequestDeps,
+  userId: string,
+): Promise<FirstPinCodeRequestOutcome> {
+  try {
+    return (await deps.requestFirstPinCode?.(userId)) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure("asking for a first PIN code", error);
     return { kind: "unavailable" };
   }
 }
@@ -162,6 +176,12 @@ export async function answerRendererRequest(
         type: "sign-in-lookup-result",
         request_id: message.request_id,
         outcome: await attemptSignInLookup(deps, message.email),
+      };
+    case "first-pin-code-request":
+      return {
+        type: "first-pin-code-request-result",
+        request_id: message.request_id,
+        outcome: await attemptFirstPinCodeRequest(deps, message.user_id),
       };
     case "open-cash-session":
       return {

@@ -152,6 +152,24 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to email a first PIN code to the person and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const outcome = client.requestFirstPinCode("u1");
+    port.answer({
+      type: "first-pin-code-request-result",
+      request_id: "request-1",
+      outcome: { kind: "rate_limited", retry_after_seconds: 600 },
+    });
+
+    expect(await outcome).toEqual({ kind: "rate_limited", retry_after_seconds: 600 });
+    expect(port.posted).toEqual([
+      { type: "first-pin-code-request", request_id: "request-1", user_id: "u1" },
+    ]);
+  });
+
   it("asks the core to sign in for the first time with the PIN as typed and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
