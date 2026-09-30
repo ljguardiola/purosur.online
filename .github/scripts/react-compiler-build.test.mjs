@@ -18,13 +18,21 @@ const COMPILER_RUNTIME_MARKER = "react.memo_cache_sentinel";
 // leaving discovery on hangs `server.close()` forever.
 const NO_DEPENDENCY_DISCOVERY = { noDiscovery: true };
 
+// A file watcher's initial scan can still be running when `server.close()` returns, and the
+// watches it opens afterwards keep the process alive; nothing here needs to see a file change.
+const CHECK_SERVER = { middlewareMode: true, hmr: false, ws: false, watch: null };
+
 function requireFrom(packageJsonDir) {
   return createRequire(join(packageJsonDir, "package.json"));
 }
 
-async function withServer(config, run) {
-  const vite = await import(requireFrom(backofficeDir).resolve("vite"));
-  const server = await vite.createServer(config);
+async function withServer(vite, config, run) {
+  const server = await vite.createServer({
+    ...config,
+    configFile: false,
+    optimizeDeps: NO_DEPENDENCY_DISCOVERY,
+    server: CHECK_SERVER,
+  });
   try {
     return await run(server);
   } finally {
@@ -32,19 +40,17 @@ async function withServer(config, run) {
   }
 }
 
-async function transformWithBackofficeConfig(url) {
-  return withServer(
-    {
-      configFile: join(backofficeDir, "vite.config.ts"),
-      root: backofficeDir,
-      optimizeDeps: NO_DEPENDENCY_DISCOVERY,
-      server: { middlewareMode: true, hmr: false, ws: false },
-    },
-    (server) => server.transformRequest(url),
+async function withBackofficeServer(run) {
+  const vite = await import(requireFrom(backofficeDir).resolve("vite"));
+  const loaded = await vite.loadConfigFromFile(
+    { command: "serve", mode: "development" },
+    join(backofficeDir, "vite.config.ts"),
+    backofficeDir,
   );
+  return withServer(vite, { ...loaded.config, root: backofficeDir }, run);
 }
 
-async function transformWithRendererConfig(url) {
+async function withRendererServer(run) {
   const requireFromPos = requireFrom(posDir);
   const electronVite = await import(requireFromPos.resolve("electron-vite"));
   const loaded = await electronVite.loadConfigFromFile(
@@ -55,21 +61,10 @@ async function transformWithRendererConfig(url) {
   const renderer = loaded.config.renderer;
 
   const vite = await import(requireFromPos.resolve("vite"));
-  const server = await vite.createServer({
-    ...renderer,
-    root: resolve(posDir, renderer.root ?? "."),
-    configFile: false,
-    optimizeDeps: NO_DEPENDENCY_DISCOVERY,
-    server: { middlewareMode: true, hmr: false, ws: false },
-  });
-  try {
-    return await server.transformRequest(url);
-  } finally {
-    await server.close();
-  }
+  return withServer(vite, { ...renderer, root: resolve(posDir, renderer.root ?? ".") }, run);
 }
 
-async function transformWithTestProjectConfig(projectName, url) {
+async function withTestProjectServer(projectName, run) {
   const vite = await import(requireFrom(backofficeDir).resolve("vite"));
   const loaded = await vite.loadConfigFromFile(
     { command: "serve", mode: "test" },
@@ -84,20 +79,28 @@ async function transformWithTestProjectConfig(projectName, url) {
   );
   assert.ok(testProject, `the root vitest config no longer declares a "${projectName}" project`);
 
-  const server = await vite.createServer({
-    root: repoRoot,
-    resolve: loaded.config.resolve,
-    plugins: testProject.plugins,
-    configFile: false,
-    logLevel: "silent",
-    optimizeDeps: NO_DEPENDENCY_DISCOVERY,
-    server: { middlewareMode: true, hmr: false, ws: false },
-  });
-  try {
-    return await server.transformRequest(url);
-  } finally {
-    await server.close();
-  }
+  return withServer(
+    vite,
+    {
+      root: repoRoot,
+      resolve: loaded.config.resolve,
+      plugins: testProject.plugins,
+      logLevel: "silent",
+    },
+    run,
+  );
+}
+
+async function transformWithBackofficeConfig(url) {
+  return withBackofficeServer((server) => server.transformRequest(url));
+}
+
+async function transformWithRendererConfig(url) {
+  return withRendererServer((server) => server.transformRequest(url));
+}
+
+async function transformWithTestProjectConfig(projectName, url) {
+  return withTestProjectServer(projectName, (server) => server.transformRequest(url));
 }
 
 test("the backoffice's Vite build compiles a real screen component with the React Compiler", async () => {
@@ -139,4 +142,25 @@ test("the root vitest config's catalog-visual project compiles a packages/ui com
 
   assert.ok(result, "the catalog-visual project's dev server could not transform the component");
   assert.ok(result.code.includes(COMPILER_RUNTIME_MARKER));
+});
+
+test("none of the dev servers these checks start watches the file system", async () => {
+  const servers = [
+    ["backoffice", withBackofficeServer, "/src/platform/es-ar-number.ts"],
+    ["register renderer", withRendererServer, "/shell/core-down-notice.tsx"],
+    [
+      "browser project",
+      (run) => withTestProjectServer("browser", run),
+      "/packages/ui/src/components/forms/icon-button.tsx",
+    ],
+  ];
+
+  for (const [name, withKindOfServer, url] of servers) {
+    const openFileWatchers = await withKindOfServer(async (server) => {
+      await server.transformRequest(url);
+      return process.getActiveResourcesInfo().filter((resource) => resource === "FSEventWrap");
+    });
+
+    assert.deepEqual(openFileWatchers, [], `the ${name} dev server is watching files`);
+  }
 });
