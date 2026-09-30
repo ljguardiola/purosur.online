@@ -2,7 +2,8 @@ import { fileURLToPath } from "node:url";
 import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
-import { defineConfig, loadEnv, type ProxyOptions } from "vite";
+import { defaultClientConditions, defineConfig, loadEnv, type ProxyOptions } from "vite";
+import { withoutPackageOutput } from "../../.github/scripts/without-package-output.mjs";
 import { preloadFont } from "./preload-font";
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
@@ -29,14 +30,9 @@ export default defineConfig(({ mode }) => {
   };
 
   return {
-    resolve: {
-      alias: [
-        { find: /^@purosur\/contracts$/, replacement: r("../../packages/contracts/src/index.ts") },
-        { find: /^@purosur\/domain$/, replacement: r("../../packages/domain/src/index.ts") },
-        { find: /^@purosur\/ui$/, replacement: r("../../packages/ui/src/index.ts") },
-      ],
-    },
+    resolve: { conditions: ["@purosur/source", ...defaultClientConditions] },
     plugins: [
+      withoutPackageOutput(REPO_ROOT),
       react(),
       babel({ presets: [reactCompilerPreset()] }),
       tailwindcss(),
