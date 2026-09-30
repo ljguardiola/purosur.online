@@ -310,9 +310,53 @@ describe("discounts", () => {
     const { tagId } = await seedTargets();
 
     await expect(
-      db.insert(discounts).values(discountOn({ tagId, kind: "BUY_N_PAY_M" })),
+      db.insert(discounts).values(discountOn({ tagId, kind: "BUY_ONE" })),
     ).rejects.toMatchObject({ cause: { constraint: "discounts_kind_check" } });
   });
+
+  function buyNPayMOn(
+    target: Partial<typeof discounts.$inferInsert>,
+  ): typeof discounts.$inferInsert {
+    return discountOn({ kind: "BUY_N_PAY_M", percent: null, buyQty: 3, payQty: 2, ...target });
+  }
+
+  it.each([
+    [2, 1],
+    [3, 2],
+    [12, 11],
+  ])("accepts a buy-N-pay-M discount buying %s and paying %s", async (buyQty, payQty) => {
+    const { productId } = await seedTargets();
+
+    await expect(
+      db.insert(discounts).values(buyNPayMOn({ productId, buyQty, payQty })),
+    ).resolves.toBeDefined();
+  });
+
+  it.each([
+    [2, 2],
+    [3, 4],
+    [1, 0],
+    [3, 0],
+    [3, null],
+    [null, 2],
+  ])("rejects a buy-N-pay-M discount buying %s and paying %s", async (buyQty, payQty) => {
+    const { productId } = await seedTargets();
+
+    await expect(
+      db.insert(discounts).values(buyNPayMOn({ productId, buyQty, payQty })),
+    ).rejects.toMatchObject({ cause: { constraint: "discounts_buy_n_pay_m_quantities_check" } });
+  });
+
+  it.each(["categoryId", "tagId"] as const)(
+    "rejects a buy-N-pay-M discount aimed at a %s instead of a product",
+    async (column) => {
+      const targets = await seedTargets();
+
+      await expect(
+        db.insert(discounts).values(buyNPayMOn({ [column]: targets[column] })),
+      ).rejects.toMatchObject({ cause: { constraint: "discounts_buy_n_pay_m_product_check" } });
+    },
+  );
 
   it.each([0, 100, -5])("rejects a percent-off discount of %s percent", async (percent) => {
     const { tagId } = await seedTargets();

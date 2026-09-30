@@ -155,6 +155,37 @@ describe("GET /discounts", () => {
     });
   });
 
+  it("lists a buy-N-pay-M discount with its quantities", async () => {
+    const product = await insertProductWithTags(db, { name: "Alfajor", tagIds: [] });
+    const discount = await insertDiscount(db, {
+      name: "Alfajores 3x2",
+      productId: product.id,
+      kind: "BUY_N_PAY_M",
+      percent: null,
+      buyQty: 3,
+      payQty: 2,
+    });
+    const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
+
+    const response = await getDiscounts(rawSessionId);
+
+    expect(response.json()).toEqual({
+      discounts: [
+        {
+          id: discount.id,
+          name: "Alfajores 3x2",
+          benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+          target: { kind: "PRODUCT", id: product.id, name: "Alfajor" },
+          validFrom: "2026-10-01",
+          validTo: "2026-10-31",
+          weekdays: [],
+          active: true,
+          version: 1,
+        },
+      ],
+    });
+  });
+
   it("lists discounts for an Administrator even without the explicit permission", async () => {
     const rawSessionId = await signedInAsAdministrator(db, NOON);
 

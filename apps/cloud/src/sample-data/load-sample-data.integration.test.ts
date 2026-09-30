@@ -181,7 +181,10 @@ describe("loadSampleData", () => {
     const storedDiscounts = await db
       .select({
         name: discounts.name,
+        kind: discounts.kind,
         percent: discounts.percent,
+        buyQty: discounts.buyQty,
+        payQty: discounts.payQty,
         validFrom: discounts.validFrom,
         validTo: discounts.validTo,
         weekdays: discounts.weekdays,
@@ -198,7 +201,10 @@ describe("loadSampleData", () => {
     for (const plan of SAMPLE_DISCOUNTS) {
       expect(storedDiscounts.find(({ name }) => name === plan.name)).toEqual({
         name: plan.name,
-        percent: plan.percent,
+        kind: plan.benefit.kind,
+        percent: plan.benefit.kind === "PERCENT_OFF" ? plan.benefit.percent : null,
+        buyQty: plan.benefit.kind === "BUY_N_PAY_M" ? plan.benefit.buyQty : null,
+        payQty: plan.benefit.kind === "BUY_N_PAY_M" ? plan.benefit.payQty : null,
         ...sampleDiscountWindow(plan, "2026-03-15"),
         weekdays: plan.weekdays,
         active: true,

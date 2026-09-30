@@ -322,7 +322,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
           { store: discountStore },
           {
             name: plan.name,
-            benefit: { kind: "PERCENT_OFF", percent: plan.percent },
+            benefit: plan.benefit,
             target: { kind: plan.target.kind, id: targetId },
             ...sampleDiscountWindow(plan, loadDay),
             weekdays: [...plan.weekdays],

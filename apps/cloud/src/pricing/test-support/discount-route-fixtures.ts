@@ -24,7 +24,10 @@ export async function insertDiscount(
     productId?: string;
     tagId?: string;
     name?: string;
-    percent?: number;
+    kind?: "PERCENT_OFF" | "BUY_N_PAY_M";
+    percent?: number | null;
+    buyQty?: number;
+    payQty?: number;
     validFrom?: string;
     validTo?: string;
     weekdays?: number[];

@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
+  insertProductWithTags,
   insertTag,
   sessionCookie,
   signedInWithPermissions,
@@ -164,5 +165,39 @@ describe("POST /discounts", () => {
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({ code: "discount_target_not_found" });
     expect(await db.select().from(discounts).where(eq(discounts.tagId, tag.id))).toEqual([]);
+  });
+
+  it("creates a buy-N-pay-M discount on a product sold by the unit", async () => {
+    const product = await insertProductWithTags(db, { name: "Alfajor", tagIds: [] });
+    const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
+
+    const response = await createDiscount(rawSessionId, {
+      ...bodyAimedAt({ kind: "PRODUCT", id: product.id }),
+      benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({
+      benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+      target: { kind: "PRODUCT", id: product.id, name: "Alfajor" },
+    });
+  });
+
+  it("answers 409 discount_target_not_sold_by_unit for a buy-N-pay-M discount on a product sold by weight, creating nothing", async () => {
+    const product = await insertProductWithTags(db, {
+      name: "Queso cremoso",
+      tagIds: [],
+      saleUnit: "KG",
+    });
+    const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
+
+    const response = await createDiscount(rawSessionId, {
+      ...bodyAimedAt({ kind: "PRODUCT", id: product.id }),
+      benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "discount_target_not_sold_by_unit" });
+    expect(await storedDiscounts()).toEqual([]);
   });
 });
