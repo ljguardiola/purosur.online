@@ -1042,3 +1042,39 @@ test("a toggle chip group submits the chips that were chosen, in the order of it
   await expect.poll(() => onSubmit.mock.calls.length).toBe(1);
   expect(onSubmit).toHaveBeenCalledWith(["1", "3"]);
 });
+
+function ToggleProbe({ onSubmit }: { onSubmit: (active: boolean) => Promise<void> }) {
+  const { form, submit } = useCloudForm({
+    defaultValues: { active: false },
+    request: { schema: z.object({ active: z.boolean() }), from: ({ active }) => ({ active }) },
+    fields: { active: "active" },
+    messages: { active: "Revisá el estado." },
+    onSubmit: (request) => onSubmit(request.active),
+  });
+  return (
+    <>
+      <form.AppField name="active">
+        {(field) => (
+          <field.Toggle description="Deja de aplicarse al apagarlo.">Se aplica</field.Toggle>
+        )}
+      </form.AppField>
+      <button type="button" onClick={() => void submit()}>
+        Enviar
+      </button>
+    </>
+  );
+}
+
+test("a toggle shows its state and its description, and submits the state it was left in", async () => {
+  const onSubmit = vi.fn<(active: boolean) => Promise<void>>(() => Promise.resolve());
+  const screen = await render(<ToggleProbe onSubmit={onSubmit} />);
+  await expect.element(screen.getByRole("switch", { name: "Se aplica" })).not.toBeChecked();
+  await expect.element(screen.getByText("Deja de aplicarse al apagarlo.")).toBeVisible();
+
+  await userEvent.click(screen.getByText("Se aplica"));
+  await expect.element(screen.getByRole("switch", { name: "Se aplica" })).toBeChecked();
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+  await expect.poll(() => onSubmit.mock.calls.length).toBe(1);
+  expect(onSubmit).toHaveBeenCalledWith(true);
+});

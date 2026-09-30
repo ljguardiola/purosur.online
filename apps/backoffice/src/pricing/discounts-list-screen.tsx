@@ -18,7 +18,7 @@ import {
   textOrder,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
-import { BadgePercent, Check, Plus, Search, SearchX } from "lucide-react";
+import { BadgePercent, Check, Pencil, Plus, Search, SearchX } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useCategoriesQuery, useProductsQuery, useTagsQuery } from "../catalog/catalog-queries";
 import { cloudTableState } from "../platform/cloud-table-state";
@@ -35,8 +35,9 @@ import {
 import { DiscountWeekdays } from "./discount-weekdays";
 import { discountsFooterText } from "./discounts-footer-text";
 import type { DiscountsListScreenServices } from "./discounts-list-services";
+import { EditDiscountModal } from "./edit-discount-modal";
 import { NewDiscountModal } from "./new-discount-modal";
-import { useDiscountsQuery, useRefreshDiscounts } from "./pricing-queries";
+import { useDiscountsQuery, useRefreshDiscounts, useReloadDiscount } from "./pricing-queries";
 import type { DiscountsListFilters } from "./routes";
 
 export type DiscountsListScreenProps = {
@@ -132,11 +133,13 @@ export function DiscountsListScreen({
     tagsData,
   );
   const refreshDiscounts = useRefreshDiscounts();
+  const reloadDiscount = useReloadDiscount({ fetchDiscounts: services.fetchDiscounts });
   const [today, setToday] = useState(() => argentinaCalendarDay(clock()));
   const [search, setSearch] = useState(filters.search);
   const [kindFilter, setKindFilter] = useState<DiscountKindFilter>(filters.kind);
   const [statusFilter, setStatusFilter] = useState<DiscountStatusFilter>(filters.status);
   const [newModalOpen, setNewModalOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<DiscountSummary | null>(null);
   const [notice, setNotice] = useState<ScreenNotice | null>(null);
   const lastNoticeId = useRef(0);
   const [sort, setSort] = useState<TableSort<DiscountSortColumn>>({
@@ -158,6 +161,12 @@ export function DiscountsListScreen({
       reportFilters(shown);
     }
   }, [search, kindFilter, statusFilter, sort.column, sort.direction, filters]);
+
+  useEffect(() => {
+    if (data.status === "failed") {
+      setEditTarget(null);
+    }
+  }, [data.status]);
 
   const listSettled = data.status === "loaded" && !data.refreshing;
   useEffect(() => {
@@ -237,6 +246,18 @@ export function DiscountsListScreen({
         const { label, tone } = DISCOUNT_STATUS_PRESENTATION[statusOf(item)];
         return <StatusIndicator tone={tone}>{label}</StatusIndicator>;
       },
+    },
+    {
+      key: "actions",
+      kind: "actions",
+      header: "Acciones",
+      actions: [
+        (item: DiscountSummary) => ({
+          icon: <Pencil />,
+          "aria-label": `Editar la promoción ${item.name}`,
+          onPress: () => setEditTarget(item),
+        }),
+      ],
     },
   ] as const;
 
@@ -335,6 +356,26 @@ export function DiscountsListScreen({
           }
         />
       </ScreenLayout>
+      {data.status === "loaded" ? (
+        <EditDiscountModal
+          target={editTarget}
+          products={products}
+          categories={categories}
+          tags={tags}
+          services={services}
+          reload={reloadDiscount}
+          onSaved={(saved) => {
+            setEditTarget(null);
+            void refreshDiscounts();
+            showNotice({
+              title: "Promoción actualizada",
+              description: `Se guardaron los cambios de «${saved.name}».`,
+            });
+          }}
+          onClose={() => setEditTarget(null)}
+          onSessionEnded={onSessionEnded}
+        />
+      ) : null}
       <NewDiscountModal
         open={newModalOpen}
         products={products}

@@ -17,6 +17,8 @@ import {
   yerbasCategory,
 } from "./discounts";
 
+const DATA_COLUMN_COUNT = 5;
+
 const TODAY = () => new Date("2026-09-30T15:00:00.000Z");
 
 export function createServices(
@@ -36,6 +38,7 @@ export function createServices(
       value: { tags: [sinTaccTag, veganoTag, retiredTag], taggedProductCount: 5 },
     }),
     createDiscount: vi.fn(),
+    editDiscount: vi.fn(),
     ...overrides,
   };
 }
@@ -90,7 +93,11 @@ export function rowCells(screen: Screen): string[][] {
     .getByRole("row")
     .all()
     .slice(1)
-    .map((row) => [...row.element().querySelectorAll("td")].map((cell) => cell.textContent ?? ""));
+    .map((row) =>
+      [...row.element().querySelectorAll("td")]
+        .slice(0, DATA_COLUMN_COUNT)
+        .map((cell) => cell.textContent ?? ""),
+    );
 }
 
 export async function loaded(

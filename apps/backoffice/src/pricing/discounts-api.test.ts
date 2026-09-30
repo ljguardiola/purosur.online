@@ -1,6 +1,6 @@
-import type { DiscountCreationBody } from "@purosur/contracts";
+import type { DiscountCreationBody, DiscountEditBody } from "@purosur/contracts";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { createDiscount, fetchDiscounts } from "./discounts-api";
+import { createDiscount, editDiscount, fetchDiscounts } from "./discounts-api";
 import { almacenTuesdays, discountList, yerbaOff } from "./test-support/discounts";
 
 function jsonResponse(status: number, body?: unknown, headers?: Record<string, string>): Response {
@@ -137,5 +137,92 @@ describe("createDiscount", () => {
     vi.mocked(fetch).mockRejectedValue(new Error("network down"));
 
     expect(await createDiscount(creation)).toEqual({ kind: "failed" });
+  });
+});
+
+const edit: DiscountEditBody = { ...creation, version: 3, active: false };
+
+describe("editDiscount", () => {
+  test("puts the promotion with its version and switch, and answers the saved one on 200", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, yerbaOff));
+
+    expect(await editDiscount("discount-1", edit)).toEqual({ kind: "ok", discount: yerbaOff });
+    expect(fetch).toHaveBeenCalledWith("/api/discounts/discount-1", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(edit),
+    });
+  });
+
+  test("returns failed when the saved promotion does not have the expected shape", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { id: "discount-1" }));
+
+    expect(await editDiscount("discount-1", edit)).toEqual({ kind: "failed" });
+  });
+
+  test("returns validation_failed with the field the cloud refused", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse(400, { code: "validation_failed", details: [{ field: "weekdays" }] }),
+    );
+
+    expect(await editDiscount("discount-1", edit)).toEqual({
+      kind: "validation_failed",
+      field: "weekdays",
+    });
+  });
+
+  test("returns failed on a 400 that is not a validation failure", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(400, { code: "other" }));
+
+    expect(await editDiscount("discount-1", edit)).toEqual({ kind: "failed" });
+  });
+
+  test("returns not_found when the promotion is gone", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(404, { code: "not_found" }));
+
+    expect(await editDiscount("discount-1", edit)).toEqual({ kind: "not_found" });
+  });
+
+  test("returns stale_version when the promotion changed since it was loaded", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "stale_version" }));
+
+    expect(await editDiscount("discount-1", edit)).toEqual({ kind: "stale_version" });
+  });
+
+  test("returns target_not_found when the target is gone", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "discount_target_not_found" }));
+
+    expect(await editDiscount("discount-1", edit)).toEqual({ kind: "target_not_found" });
+  });
+
+  test("returns failed on a 409 that names another code", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "other" }));
+
+    expect(await editDiscount("discount-1", edit)).toEqual({ kind: "failed" });
+  });
+
+  test.each([
+    [401, { kind: "unauthenticated" }],
+    [403, { kind: "forbidden" }],
+    [500, { kind: "failed" }],
+  ])("answers a %i as %j", async (status, outcome) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+    expect(await editDiscount("discount-1", edit)).toEqual(outcome);
+  });
+
+  test("returns rate_limited with the Retry-After header on 429", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "30" }));
+
+    expect(await editDiscount("discount-1", edit)).toEqual({
+      kind: "rate_limited",
+      retryAfterSeconds: 30,
+    });
+  });
+
+  test("returns failed when the request throws", async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+    expect(await editDiscount("discount-1", edit)).toEqual({ kind: "failed" });
   });
 });

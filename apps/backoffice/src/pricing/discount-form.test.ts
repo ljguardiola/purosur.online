@@ -1,5 +1,5 @@
 import { CalendarDate } from "@internationalized/date";
-import { discountCreationBodySchema } from "@purosur/contracts";
+import { discountCreationBodySchema, discountEditBodySchema } from "@purosur/contracts";
 import { DISCOUNT_NAME_MAX_LENGTH } from "@purosur/domain";
 import { describe, expect, test } from "vitest";
 import { drinks, groceries, jams, spreads } from "../catalog/test-support/categories";
@@ -10,6 +10,8 @@ import {
   DISCOUNT_MESSAGES,
   DISCOUNT_TARGET_KIND_OPTIONS,
   type DiscountFormValues,
+  discountEditRequestFrom,
+  discountFormValues,
   discountRequestFrom,
   EMPTY_DISCOUNT_FORM,
   targetOptions,
@@ -17,6 +19,12 @@ import {
   targetUnavailableMessage,
   WEEKDAY_OPTIONS,
 } from "./discount-form";
+import {
+  almacenTuesdays,
+  sinTaccWinter,
+  switchedOffPromotion,
+  yerbaOff,
+} from "./test-support/discounts";
 
 const filled: DiscountFormValues = {
   name: "  Yerba de septiembre ",
@@ -293,5 +301,61 @@ describe("targetOptions", () => {
     );
 
     expect(options).toEqual([{ value: "product-1", label: "Miel pura de abeja 1 kg" }]);
+  });
+});
+
+describe("discountFormValues", () => {
+  test("fills the form from a promotion, weekdays as the chips' values", () => {
+    expect(discountFormValues(sinTaccWinter)).toEqual({
+      name: "Sin TACC de invierno",
+      benefitKind: "PERCENT_OFF",
+      targetKind: "TAG",
+      targetId: sinTaccWinter.target.id,
+      percent: "20",
+      validFrom: new CalendarDate(2026, 12, 1),
+      validTo: new CalendarDate(2027, 2, 28),
+      weekdays: ["1", "3", "5"],
+      active: true,
+      version: 2,
+    });
+  });
+
+  test("carries the switch and the version of a deactivated promotion", () => {
+    expect(discountFormValues(switchedOffPromotion)).toMatchObject({ active: false, version: 4 });
+  });
+
+  test("leaves no weekday marked for a promotion that runs every day", () => {
+    expect(discountFormValues(yerbaOff).weekdays).toEqual([]);
+  });
+
+  test("marks the weekdays of a promotion in week order", () => {
+    expect(discountFormValues({ ...almacenTuesdays, weekdays: [5, 2] }).weekdays).toEqual([
+      "2",
+      "5",
+    ]);
+  });
+});
+
+describe("discountEditRequestFrom", () => {
+  test("adds the loaded version and the switch to the request the cloud reads", () => {
+    const request = discountEditRequestFrom(discountFormValues(switchedOffPromotion));
+
+    expect(request).toEqual({
+      name: "Aceite apagado",
+      benefit: { kind: "PERCENT_OFF", percent: 30 },
+      target: { kind: "PRODUCT", id: switchedOffPromotion.target.id },
+      validFrom: "2026-09-01",
+      validTo: "2026-10-15",
+      weekdays: [],
+      version: 4,
+      active: false,
+    });
+    expect(discountEditBodySchema.safeParse(request).success).toBe(true);
+  });
+
+  test("sends the switch as it was left", () => {
+    const values = { ...discountFormValues(yerbaOff), active: false };
+
+    expect(discountEditRequestFrom(values).active).toBe(false);
   });
 });

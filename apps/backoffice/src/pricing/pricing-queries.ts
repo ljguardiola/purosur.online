@@ -1,4 +1,4 @@
-import type { DiscountList, PriceList, PriceProduct } from "@purosur/contracts";
+import type { DiscountList, DiscountSummary, PriceList, PriceProduct } from "@purosur/contracts";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
@@ -105,4 +105,27 @@ export function useDiscountsQuery(params: {
 export function useRefreshDiscounts(): () => Promise<void> {
   const client = useQueryClient();
   return () => client.invalidateQueries({ queryKey: pricesKey });
+}
+
+export type DiscountReload =
+  | { kind: "found"; discount: DiscountSummary }
+  | { kind: "not_found" }
+  | { kind: "list_failed" };
+
+export function useReloadDiscount(params: {
+  fetchDiscounts: typeof fetchDiscounts;
+}): (id: string) => Promise<DiscountReload> {
+  const client = useQueryClient();
+  return async (id) => {
+    void client.invalidateQueries({ queryKey: pricesKey });
+    const listed = await fetchCloudQuery(client, {
+      queryKey: discountsKey,
+      read: params.fetchDiscounts,
+    });
+    if (listed.kind !== "ok") {
+      return { kind: "list_failed" };
+    }
+    const discount = listed.value.discounts.find((listedDiscount) => listedDiscount.id === id);
+    return discount ? { kind: "found", discount } : { kind: "not_found" };
+  };
 }

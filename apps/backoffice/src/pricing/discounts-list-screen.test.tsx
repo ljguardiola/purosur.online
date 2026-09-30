@@ -41,6 +41,7 @@ test("shows the breadcrumb, heading and the current and scheduled promotions wit
     "Vigencia",
     "Días",
     "Estado",
+    "Acciones",
   ]);
   await expect
     .poll(() => rowCells(screen))

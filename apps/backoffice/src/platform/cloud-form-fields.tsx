@@ -12,8 +12,10 @@ import {
   type SelectProps,
   TextField,
   type TextFieldProps,
+  Toggle,
   ToggleChipGroup,
   type ToggleChipGroupProps,
+  type ToggleProps,
 } from "@purosur/ui";
 import { type ReactNode, useId } from "react";
 import { useFieldContext } from "./cloud-form-context";
@@ -118,6 +120,11 @@ export function BoundToggleChipGroup<Value extends string>(
       errorMessage={fieldErrorMessage(field.state.meta.errors)}
     />
   );
+}
+
+export function BoundToggle(props: Omit<ToggleProps, "checked" | "onCheckedChange">) {
+  const field = useFieldContext<boolean>();
+  return <Toggle {...props} checked={field.state.value} onCheckedChange={field.handleChange} />;
 }
 
 type SharedFieldErrorProps = {

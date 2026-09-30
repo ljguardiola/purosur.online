@@ -1,7 +1,9 @@
-import type { CalendarDate } from "@internationalized/date";
+import { type CalendarDate, parseDate } from "@internationalized/date";
 import type {
   CategorySummary,
   DiscountCreationBody,
+  DiscountEditBody,
+  DiscountSummary,
   ProductSummary,
   TagSummary,
 } from "@purosur/contracts";
@@ -12,6 +14,7 @@ import {
   type DiscountBenefit,
   type DiscountTargetKind,
   isDiscountNameTooLong,
+  normalizeDiscountWeekdays,
 } from "@purosur/domain";
 import { type Option, type Options, sortedItems, textOrder } from "@purosur/ui";
 import { Percent } from "lucide-react";
@@ -57,6 +60,33 @@ export function discountRequestFrom(values: DiscountFormValues): DiscountCreatio
   };
 }
 
+export type DiscountEditFormValues = DiscountFormValues & { active: boolean; version: number };
+
+export const EMPTY_DISCOUNT_EDIT_FORM: DiscountEditFormValues = {
+  ...EMPTY_DISCOUNT_FORM,
+  active: true,
+  version: 1,
+};
+
+export function discountFormValues(discount: DiscountSummary): DiscountEditFormValues {
+  return {
+    name: discount.name,
+    benefitKind: discount.benefit.kind,
+    targetKind: discount.target.kind,
+    targetId: discount.target.id,
+    percent: String(discount.benefit.percent),
+    validFrom: parseDate(discount.validFrom),
+    validTo: parseDate(discount.validTo),
+    weekdays: normalizeDiscountWeekdays(discount.weekdays).map(String),
+    active: discount.active,
+    version: discount.version,
+  };
+}
+
+export function discountEditRequestFrom(values: DiscountEditFormValues): DiscountEditBody {
+  return { ...discountRequestFrom(values), version: values.version, active: values.active };
+}
+
 export const DISCOUNT_FIELDS = {
   name: "name",
   benefit: "percent",
@@ -65,6 +95,8 @@ export const DISCOUNT_FIELDS = {
   validTo: "validTo",
   weekdays: "weekdays",
 } as const;
+
+export const DISCOUNT_EDIT_FIELDS = { ...DISCOUNT_FIELDS, version: null, active: null } as const;
 
 const TARGET_PLACEHOLDERS = {
   PRODUCT: "Elegí un producto",
