@@ -24,6 +24,14 @@ function storedAs(code: EmailedPinCode | undefined) {
   return vi.fn<SendFirstPinCodeEmailJobDeps["findPinCode"]>().mockResolvedValue(code);
 }
 
+function reportedText(argument: unknown): string {
+  return argument instanceof Error
+    ? `${argument.message}\n${argument.stack ?? ""}`
+    : typeof argument === "string"
+      ? argument
+      : JSON.stringify(argument);
+}
+
 function sender(): FirstPinCodeEmailSender & {
   sendFirstPinCode: ReturnType<typeof vi.fn<FirstPinCodeEmailSender["sendFirstPinCode"]>>;
 } {
@@ -141,9 +149,14 @@ describe("sendFirstPinCodeEmailJob", () => {
 
     expect(consoleError).toHaveBeenCalledExactlyOnceWith(expect.any(String), error);
     expect(captureException).toHaveBeenCalledExactlyOnceWith(error);
-    const reported = JSON.stringify([consoleError.mock.calls, captureException.mock.calls]);
-    expect(reported).not.toContain("grace@example.com");
-    expect(reported).not.toContain("K3PX7WNE2QRT6MZD");
+    const reported = [...consoleError.mock.calls, ...captureException.mock.calls]
+      .flat()
+      .map(reportedText);
+    expect(reported).toContainEqual(expect.stringContaining("Resend API responded 500"));
+    for (const text of reported) {
+      expect(text).not.toContain("grace@example.com");
+      expect(text).not.toContain("K3PX7WNE2QRT6MZD");
+    }
   });
 
   it("reports nothing when the email goes out", async () => {
