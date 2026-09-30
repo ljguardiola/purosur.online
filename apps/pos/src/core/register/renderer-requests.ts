@@ -54,14 +54,6 @@ async function attemptSignIn(
   }
 }
 
-function attemptSignOut(deps: RendererRequestDeps): void {
-  try {
-    deps.signOut();
-  } catch (error) {
-    deps.reportFailure("signing out", error);
-  }
-}
-
 export async function answerRendererRequest(
   deps: RendererRequestDeps,
   message: RendererToCoreMessage,
@@ -110,7 +102,7 @@ export async function answerRendererRequest(
         : { type: "authorizers", request_id: message.request_id, users };
     }
     case "sign-out":
-      attemptSignOut(deps);
+      deps.signOut();
       return { type: "signed-out", request_id: message.request_id };
     case "ping":
       return undefined;

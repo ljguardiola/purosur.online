@@ -211,23 +211,6 @@ describe("answerRendererRequest", () => {
     expect(answer).toEqual({ type: "signed-out", request_id: "r10" });
   });
 
-  it("answers that nobody is signed in even when signing out fails, and reports why", async () => {
-    const failure = new Error("could not clear");
-    const failing = deps(true, {
-      signOut: () => {
-        throw failure;
-      },
-    });
-
-    const answer = await answerRendererRequest(failing.deps, {
-      type: "sign-out",
-      request_id: "r11",
-    });
-
-    expect(answer).toEqual({ type: "signed-out", request_id: "r11" });
-    expect(failing.failures).toEqual([{ context: "signing out", error: failure }]);
-  });
-
   it("signs in the chosen user with the PIN as typed and answers the outcome", async () => {
     const { deps: withSignIn, signIns } = deps(true);
 
