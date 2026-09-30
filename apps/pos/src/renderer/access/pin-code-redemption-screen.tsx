@@ -118,6 +118,11 @@ export function PinCodeRedemptionScreen({ redeem }: PinCodeRedemptionScreenProps
       setNewPin("");
       setRepeat("");
     }
+    if (answered.kind === "cash_session_opened_by_another") {
+      setCode("");
+      setNewPin("");
+      setRepeat("");
+    }
     setSubmitting(false);
   }
 

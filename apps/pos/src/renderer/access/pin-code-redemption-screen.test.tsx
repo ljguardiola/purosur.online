@@ -223,6 +223,20 @@ describe("PinCodeRedemptionScreen", () => {
       .toBeVisible();
   });
 
+  it("empties the form once the code is spent for someone else, so it cannot be sent again", async () => {
+    const { redeem, calls } = answering({ kind: "cash_session_opened_by_another" });
+    const screen = await render(<PinCodeRedemptionScreen redeem={redeem} />);
+    await fillAndSave(screen);
+    await expect.element(screen.getByText("La caja está abierta")).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: SAVE }));
+
+    await expect.element(code(screen)).toHaveValue("");
+    await expect.element(screen.getByLabelText(PIN_LABEL)).toHaveValue("");
+    await expect.element(screen.getByLabelText(REPEAT_LABEL)).toHaveValue("");
+    expect(calls).toHaveLength(1);
+  });
+
   it("replaces the form with the success message and a way back to the start once redeemed", async () => {
     const screen = await render(
       <PinCodeRedemptionScreen redeem={answering({ kind: "redeemed" }).redeem} />,

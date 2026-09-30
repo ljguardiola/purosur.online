@@ -763,6 +763,24 @@ describe("the register's router", () => {
     await expect.element(screen.getByRole("heading", { name: "Caja bloqueada" })).toBeVisible();
   });
 
+  it("reaches the PIN code redemption screen from the locked register once the opener is locked out", async () => {
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", null, undefined, OPEN_SESSION),
+        signIn: async () => ({ kind: "locked", consecutive_failures: 8 }),
+      },
+      "/locked",
+    );
+    const screen = await render(<RouterProvider router={router} />);
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Retomar" }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Tengo un código" }));
+
+    await expect.element(screen.getByRole("heading", { name: PIN_REDEMPTION_TITLE })).toBeVisible();
+  });
+
   it("redeems through the context's callback and returns to the sign-in screen from the success message", async () => {
     const redeemed: string[] = [];
     const router = createRegisterRouter(

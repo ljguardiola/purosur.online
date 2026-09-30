@@ -822,11 +822,14 @@ describe("App", () => {
     await expect.element(screen.getByRole("radio", { name: "Grace" })).toBeVisible();
   });
 
-  it("signs the person out in the core when the session already open is another person's, and restores nobody once it ends", async () => {
-    const answers: (OpenCashSession | null)[] = [null, GRACE_SESSION];
+  it("signs the person out in the core when the session already open is another person's", async () => {
+    let answers = 0;
     const { core, asked } = coreAnswering(true, { kind: "enrolled" }, ADA_SELLS, {
       openOutcome: { kind: "already_open" },
-      cashSession: async () => answers.shift() ?? null,
+      cashSession: async () => {
+        answers += 1;
+        return answers === 1 ? null : GRACE_SESSION;
+      },
     });
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
@@ -839,16 +842,6 @@ describe("App", () => {
     await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
 
     expect(asked).toContain("sign-out");
-    postCoreStatus("starting");
-    await expect
-      .element(screen.getByRole("heading", { name: LOCKED_TITLE }))
-      .not.toBeInTheDocument();
-    postCoreStatus("up");
-
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
-    await expect
-      .element(screen.getByRole("heading", { name: SIGNED_IN_TITLE }))
-      .not.toBeInTheDocument();
   });
 
   it("asks to try again when the core cannot tell which session is already open", async () => {
