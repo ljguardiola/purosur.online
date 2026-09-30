@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { SaleState } from "../model/sale.js";
 import { searchProductsByName } from "./search-products-by-name.js";
 import {
   FakeSaleLedger,
@@ -72,6 +73,44 @@ describe("searchProductsByName", () => {
     expect(outcome.kind === "results" && outcome.products.map((found) => found.unitPrice)).toEqual([
       null,
       2800,
+    ]);
+  });
+
+  it("lists first the product this register's completed sales sold more", () => {
+    const sale = (id: string, productId: string, state: SaleState, registerId = "register-1") => ({
+      id,
+      registerId,
+      deviceId: "device-1",
+      sessionId: "session-0",
+      actorId: "cashier",
+      state,
+      occurredAt: LONG_AGO,
+      lines: [
+        {
+          id: `${id}-line`,
+          productId,
+          productName: productId,
+          quantity: 1,
+          listUnitPrice: 100,
+          priceListId: "list-1",
+          lineTotal: 100,
+        },
+      ],
+    });
+    const store = ledger({
+      sales: [
+        sale("sold-here", "yerba", "COMPLETED"),
+        sale("still-open", "queso", "OPEN"),
+        sale("cancelled", "queso", "CANCELLED"),
+        sale("other-register", "queso", "COMPLETED", "register-2"),
+      ],
+    });
+
+    const outcome = search(store, "de");
+
+    expect(outcome.kind === "results" && outcome.products.map((found) => found.productId)).toEqual([
+      "yerba",
+      "queso",
     ]);
   });
 
