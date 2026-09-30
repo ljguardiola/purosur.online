@@ -205,40 +205,41 @@ describe("who is signed in after signing in", () => {
     expect(signedIn.userId()).toBe("u1");
   });
 
-  it("holds nobody after a wrong PIN", async () => {
+  it("leaves nobody signed in after a wrong PIN", async () => {
     const { built, signedIn } = deps();
+    signedIn.set("u9");
 
     await signIn(built, "u1", "9999");
 
     expect(signedIn.userId()).toBeUndefined();
   });
 
-  it("keeps the person who was signed in after a wrong PIN", async () => {
-    const { built, signedIn } = deps();
+  it("leaves nobody signed in after an attempt of a user who cannot sign in", async () => {
+    const { built, signedIn } = deps({ record: undefined });
     signedIn.set("u9");
 
-    await signIn(built, "u1", "9999");
+    await signIn(built, "u1", "1234");
 
-    expect(signedIn.userId()).toBe("u9");
+    expect(signedIn.userId()).toBeUndefined();
   });
 
-  it("keeps the person who was signed in when the right PIN's person holds no register permission", async () => {
+  it("leaves nobody signed in when the right PIN's person holds no register permission", async () => {
     const stored = record({ access: { isAdministrator: false, permissionKeys: [] } });
     const { built, signedIn } = deps({ record: stored });
     signedIn.set("u9");
 
     await signIn(built, "u1", "1234");
 
-    expect(signedIn.userId()).toBe("u9");
+    expect(signedIn.userId()).toBeUndefined();
   });
 
-  it("keeps the person who was signed in when the register has no pepper", async () => {
+  it("leaves nobody signed in when the register has no pepper", async () => {
     const { built, signedIn } = deps({ readPepper: async () => undefined });
     signedIn.set("u9");
 
     await signIn(built, "u1", "1234");
 
-    expect(signedIn.userId()).toBe("u9");
+    expect(signedIn.userId()).toBeUndefined();
   });
 });
 

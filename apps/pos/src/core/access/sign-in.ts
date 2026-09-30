@@ -4,7 +4,7 @@ import { checkCountedPin, type PinCheckDeps, signableRecord } from "./pin-check"
 import type { SignedInPerson } from "./signed-in-person";
 
 export interface SignInDeps extends PinCheckDeps {
-  signedInPerson: Pick<SignedInPerson, "set">;
+  signedInPerson: Pick<SignedInPerson, "set" | "clear">;
 }
 
 export async function signIn(
@@ -12,6 +12,7 @@ export async function signIn(
   userId: string,
   pin: string,
 ): Promise<SignInOutcome> {
+  deps.signedInPerson.clear();
   const signable = signableRecord(deps.store, userId);
   if (signable === undefined) {
     return { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: pinSignInAttemptsLeft(1) };
