@@ -11,6 +11,7 @@ import {
   deviceEnrollmentSchema,
   type SyncChange,
 } from "@purosur/contracts";
+import { PULL_PAGE_MAX_CHANGES } from "@purosur/domain";
 import type { CloudChange } from "./cloud-changes";
 
 export interface StandInCloud {
@@ -51,15 +52,24 @@ export async function startStandInCloud(changes: readonly CloudChange[]): Promis
   const feed = numbered(changes);
   const lastChangeSeq = feed.at(-1)?.change_seq ?? 0;
   const deviceToken = randomUUID();
-  const unexpected: string[] = [];
+  const problems: string[] = [];
   let markFeedStored = () => {};
-  const feedStored = new Promise<void>((resolve) => {
+  let markFeedRefused = (_problem: Error) => {};
+  const feedStored = new Promise<void>((resolve, reject) => {
     markFeedStored = resolve;
+    markFeedRefused = reject;
   });
+  feedStored.catch(() => {});
+
+  function fail(problem: string): void {
+    problems.push(problem);
+    markFeedRefused(new Error(`the stand-in cloud refused the register: ${problem}`));
+  }
 
   async function enroll(request: IncomingMessage, response: ServerResponse): Promise<void> {
     const body = deviceEnrollmentBodySchema.parse(await jsonBody(request));
     if (body.code !== ENROLLMENT_CODE) {
+      fail(`enrollment code ${body.code}`);
       refuse(response, "enrollment_code_rejected");
       return;
     }
@@ -80,6 +90,7 @@ export async function startStandInCloud(changes: readonly CloudChange[]): Promis
   // page before it was stored.
   function pageAfter(url: URL, request: IncomingMessage, response: ServerResponse): void {
     if (request.headers.authorization !== `Bearer ${deviceToken}`) {
+      fail("a pull without the device token it was issued");
       refuse(response, "device_token_rejected");
       return;
     }
@@ -87,7 +98,9 @@ export async function startStandInCloud(changes: readonly CloudChange[]): Promis
     if (since >= lastChangeSeq) {
       markFeedStored();
     }
-    const pending = feed.filter((change) => change.change_seq > since);
+    const pending = feed
+      .filter((change) => change.change_seq > since)
+      .slice(0, PULL_PAGE_MAX_CHANGES);
     send(
       response,
       200,
@@ -99,17 +112,29 @@ export async function startStandInCloud(changes: readonly CloudChange[]): Promis
     );
   }
 
-  const server = createServer((request, response) => {
-    const url = new URL(request.url ?? "/", "http://stand-in");
-    const route = `${request.method} ${url.pathname}`;
+  async function answer(
+    route: string,
+    url: URL,
+    request: IncomingMessage,
+    response: ServerResponse,
+  ): Promise<void> {
     if (route === "POST /api/devices") {
-      enroll(request, response).catch(() => refuse(response, "validation_failed"));
+      await enroll(request, response);
     } else if (route === "GET /api/changes") {
       pageAfter(url, request, response);
     } else {
-      unexpected.push(route);
+      fail(`${route} has no answer`);
       response.writeHead(404).end();
     }
+  }
+
+  const server = createServer((request, response) => {
+    const url = new URL(request.url ?? "/", "http://stand-in");
+    const route = `${request.method} ${url.pathname}`;
+    answer(route, url, request, response).catch((error: unknown) => {
+      fail(`${route} failed: ${error}`);
+      refuse(response, "internal_error");
+    });
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const { port } = server.address() as AddressInfo;
@@ -121,10 +146,8 @@ export async function startStandInCloud(changes: readonly CloudChange[]): Promis
     stop: async () => {
       server.closeAllConnections();
       await new Promise<void>((resolve) => server.close(() => resolve()));
-      if (unexpected.length > 0) {
-        throw new Error(
-          `the register made calls the stand-in cloud does not answer: ${unexpected}`,
-        );
+      if (problems.length > 0) {
+        throw new Error(`the stand-in cloud refused the register: ${problems.join("; ")}`);
       }
     },
   };

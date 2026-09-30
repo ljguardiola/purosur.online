@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, it } from "vitest";
 import { roleChange, userChange } from "./test-support/cloud-changes";
-import { type EnrolledRegister, launchEnrolledRegister } from "./test-support/enrolled-register";
+import { type EnrolledRegister, enrolledRegister } from "./test-support/enrolled-register";
 import { type StandInCloud, startStandInCloud } from "./test-support/stand-in-cloud";
 
 describe("signing in to the register", () => {
@@ -18,12 +18,16 @@ describe("signing in to the register", () => {
         pin: "7390",
       }),
     ]);
-    register = await launchEnrolledRegister(cloud);
+    register = enrolledRegister(cloud);
+    await register.launch();
   }, 60_000);
 
   afterAll(async () => {
-    await register?.close();
-    await cloud?.stop();
+    try {
+      await register?.close();
+    } finally {
+      await cloud?.stop();
+    }
   });
 
   it("refuses a wrong PIN and signs in the person who enters their own", async () => {
