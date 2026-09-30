@@ -35,7 +35,7 @@
     "@testcontainers/postgresql": "^12.1.0",
     "@types/pdfkit": "^0.17.6",
     "@types/pg": "^8.23.1",
-    "drizzle-kit": "^0.31.10",
+    "drizzle-kit": "^0.31.11",
     "nid-webauthn-emulator": "^0.2.15"
   }
 }
