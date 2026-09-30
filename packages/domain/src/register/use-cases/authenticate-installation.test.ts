@@ -34,6 +34,7 @@ function storeWith(
     tokenHash: current.tokenHash,
     tokenIssuedAt: current.issuedAt,
     pendingToken: pending ? storedTokenOf(pending.token, pending.issuedAt) : null,
+    outboxChainKey: null,
     hostname: "CAJA-MOSTRADOR",
     windowsVersion: "Windows 11 Pro 10.0.26100",
     enrolledAt: ENROLLED,

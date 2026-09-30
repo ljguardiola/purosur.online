@@ -65,15 +65,28 @@ describe("deviceEnrollmentBodySchema", () => {
   );
 });
 
-describe("deviceEnrollmentSchema", () => {
-  it("carries the new installation's device id and device token", () => {
-    const body = { device_id: "a4b1", device_token: "prefix.secret" };
+const KEY = Buffer.alloc(32, 1).toString("base64");
+const ENROLLMENT = {
+  device_id: "a4b1",
+  device_token: "prefix.secret",
+  snapshot_key_versions: [{ version: 1, key: KEY }],
+  contingency_ticket_key: { version: 1, key: KEY },
+  outbox_chain_key: KEY,
+};
 
-    expect(deviceEnrollmentSchema.parse(body)).toEqual(body);
+describe("deviceEnrollmentSchema", () => {
+  it("carries the new installation's device id, device token and keys", () => {
+    expect(deviceEnrollmentSchema.parse(ENROLLMENT)).toEqual(ENROLLMENT);
   });
 
-  it.each(["device_id", "device_token"])("rejects a body without %s", (field) => {
-    const body: Record<string, string> = { device_id: "a4b1", device_token: "prefix.secret" };
+  it.each([
+    "device_id",
+    "device_token",
+    "snapshot_key_versions",
+    "contingency_ticket_key",
+    "outbox_chain_key",
+  ])("rejects a body without %s", (field) => {
+    const body: Record<string, unknown> = { ...ENROLLMENT };
     delete body[field];
 
     expect(deviceEnrollmentSchema.safeParse(body).success).toBe(false);

@@ -5,6 +5,7 @@ import type {
   DeviceCredentials,
 } from "../../shared/device-credentials-messages";
 import type { CloudResponse } from "../platform/cloud-client";
+import { installationKeysFrom } from "./installation-keys";
 
 export interface DeviceTokenRotationDeps {
   readCredentials: () => Promise<DeviceCredentials | undefined>;
@@ -27,7 +28,7 @@ type DeviceTokenRotationOutcome =
   | { kind: "not_stored" };
 
 function isDue(credentials: DeviceCredentials, now: Date): boolean {
-  if (credentials.token_received_at === undefined) {
+  if (credentials.token_received_at === undefined || credentials.keys === undefined) {
     return true;
   }
   const receivedAt = new Date(credentials.token_received_at);
@@ -64,6 +65,7 @@ export async function rotateDeviceToken(
     pepper: credentials.pepper,
     device_token: rotation.data.device_token,
     token_received_at: deps.now().toISOString(),
+    keys: installationKeysFrom(rotation.data),
   });
   return replacement === "replaced" ? { kind: "rotated" } : { kind: replacement };
 }

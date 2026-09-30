@@ -3,6 +3,7 @@ import {
   enrollmentAttemptWindowStart,
 } from "../model/enrollment-attempt-limit.js";
 import { enrollmentCodeLookup, isEnrollmentCodeUsable } from "../model/enrollment-code.js";
+import { type InstallationKeys, registerKeysHandedOver } from "./installation-keys.js";
 import type { EnrollmentAttemptKey, EnrollmentPorts } from "./register-store.js";
 
 export interface EnrollInstallationInput {
@@ -15,10 +16,16 @@ export interface EnrollInstallationInput {
 export type EnrollInstallationOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "code_rejected" }
-  | { kind: "enrolled"; registerId: string; deviceId: string; deviceToken: string };
+  | {
+      kind: "enrolled";
+      registerId: string;
+      deviceId: string;
+      deviceToken: string;
+      keys: InstallationKeys;
+    };
 
 export async function enrollInstallation(
-  { store, clock, tokens, codes }: EnrollmentPorts,
+  { store, clock, tokens, codes, keys: installationKeys }: EnrollmentPorts,
   input: EnrollInstallationInput,
 ): Promise<EnrollInstallationOutcome> {
   return store.transaction<EnrollInstallationOutcome>(async (tx) => {
@@ -62,12 +69,15 @@ export async function enrollInstallation(
     }
 
     const { revoked } = await tx.revokeActiveInstallation(matched.registerId, now);
+    const registerKeys = await registerKeysHandedOver(tx, installationKeys, matched.registerId);
+    const outboxChainKey = installationKeys.generate();
     const issued = tokens.issue();
     const { deviceId } = await tx.recordInstallation({
       registerId: matched.registerId,
       tokenLookupPrefix: issued.lookupPrefix,
       tokenHash: issued.tokenHash,
       tokenIssuedAt: now,
+      outboxChainKey,
       hostname: input.hostname,
       windowsVersion: input.windowsVersion,
       enrolledAt: now,
@@ -87,6 +97,7 @@ export async function enrollInstallation(
       registerId: matched.registerId,
       deviceId,
       deviceToken: issued.deviceToken,
+      keys: { ...registerKeys, outboxChainKey },
     };
   });
 }

@@ -5,6 +5,7 @@ import {
   normalizeEnrollmentCode,
 } from "@purosur/domain";
 import { z } from "zod";
+import { installationKeysSchema } from "./installation-keys.js";
 
 const CODE_MESSAGE = "code must be 16 base32 characters";
 
@@ -34,6 +35,7 @@ export type DeviceEnrollmentBody = z.input<typeof deviceEnrollmentBodySchema>;
 export const deviceEnrollmentSchema = z.object({
   device_id: z.string(),
   device_token: z.string(),
+  ...installationKeysSchema.shape,
 });
 
 export type DeviceEnrollment = z.output<typeof deviceEnrollmentSchema>;

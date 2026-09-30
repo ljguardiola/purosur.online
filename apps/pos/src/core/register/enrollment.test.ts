@@ -4,7 +4,12 @@ import { type EnrollmentDeps, enroll, generatePepper, installationReportFrom } f
 
 const TYPED_CODE = "p4nx 7kwe 2qrt 6mzd";
 const ENROLLED_AT = new Date("2026-09-29T12:00:00.000Z");
-const ENROLLED_BODY = { device_id: "a4b1", device_token: "prefix.secret" };
+const KEYS = {
+  snapshot_key_versions: [{ version: 1, key: Buffer.alloc(32, 1).toString("base64") }],
+  contingency_ticket_key: { version: 1, key: Buffer.alloc(32, 2).toString("base64") },
+  outbox_chain_key: Buffer.alloc(32, 3).toString("base64"),
+};
+const ENROLLED_BODY = { device_id: "a4b1", device_token: "prefix.secret", ...KEYS };
 
 function envelope(code: string, details: unknown[] = []): CloudResponse {
   return { kind: "error", error: { code, message: "x", details } } as CloudResponse;
@@ -52,15 +57,31 @@ describe("enroll", () => {
     ]);
   });
 
-  it("stores the device id and token it receives with a pepper of its own and the moment it received them, and is enrolled", async () => {
+  it("stores the device id, token and keys it receives with a pepper of its own and the moment it received them, all at once, and is enrolled", async () => {
     const { deps, storedCredentials } = depsAnswering({ kind: "ok", body: ENROLLED_BODY });
 
     const outcome = await enroll(deps, TYPED_CODE);
 
     expect(outcome).toEqual({ kind: "enrolled" });
     expect(storedCredentials).toEqual([
-      { ...ENROLLED_BODY, pepper: "pepper-1", token_received_at: "2026-09-29T12:00:00.000Z" },
+      {
+        device_id: "a4b1",
+        device_token: "prefix.secret",
+        pepper: "pepper-1",
+        token_received_at: "2026-09-29T12:00:00.000Z",
+        keys: KEYS,
+      },
     ]);
+  });
+
+  it("reads an enrollment answered without its keys as the cloud being unavailable, storing nothing", async () => {
+    const { deps, storedCredentials } = depsAnswering({
+      kind: "ok",
+      body: { device_id: "a4b1", device_token: "prefix.secret" },
+    });
+
+    expect(await enroll(deps, TYPED_CODE)).toEqual({ kind: "unavailable" });
+    expect(storedCredentials).toEqual([]);
   });
 
   it("doesn't redeem the code when this machine can't store credentials", async () => {
