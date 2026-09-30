@@ -1,7 +1,7 @@
 import type { SaleUnit } from "../model/product.js";
 import type { CatalogNetContent, CatalogProduct, CatalogStore } from "./catalog-store.js";
 import { CatalogBarcodeConflict } from "./catalog-store.js";
-import { refuseUnassignableTags } from "./lock-product-tags.js";
+import { refuseUnassignableTags } from "./refuse-unassignable-tags.js";
 
 export interface CreateProductInput {
   name: string;

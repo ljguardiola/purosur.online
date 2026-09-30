@@ -3,7 +3,7 @@ import type { CatalogStoreTransaction } from "./catalog-store.js";
 export type ProductTagsRefusal = { kind: "tag_not_found" } | { kind: "tag_inactive" };
 
 // Locks the tags in id order, so two products taking overlapping sets of tags never wait on each
-// other in opposite orders. A deactivated tag is only kept by a product that already carries it.
+// other in opposite orders.
 export async function refuseUnassignableTags(
   tx: CatalogStoreTransaction,
   tagIds: readonly string[],
