@@ -4,6 +4,7 @@ import { DISCOUNT_NAME_MAX_LENGTH } from "@purosur/domain";
 import { describe, expect, test } from "vitest";
 import { drinks, groceries, jams, spreads } from "../catalog/test-support/categories";
 import {
+  DISCOUNT_FIELDS,
   DISCOUNT_KIND_CARDS,
   DISCOUNT_MESSAGES,
   DISCOUNT_TARGET_KIND_OPTIONS,
@@ -12,6 +13,8 @@ import {
   discountFormValues,
   discountRequestFrom,
   EMPTY_DISCOUNT_FORM,
+  eligibleTargets,
+  targetForKind,
   targetOptions,
   targetPlaceholder,
   targetUnavailableMessage,
@@ -19,9 +22,13 @@ import {
 } from "./discount-form";
 import {
   almacenTuesdays,
+  almondsProduct,
+  discountTargets,
   sinTaccWinter,
   switchedOffPromotion,
   yerbaOff,
+  yerbaProduct,
+  yerbaThreeForTwo,
 } from "./test-support/discounts";
 
 const filled: DiscountFormValues = {
@@ -30,9 +37,19 @@ const filled: DiscountFormValues = {
   targetKind: "PRODUCT",
   targetId: "7a1f3c1e-4f6a-4d0e-9d6e-000000000101",
   percent: " 15 ",
+  buyQty: "",
+  payQty: "",
   validFrom: new CalendarDate(2026, 9, 12),
   validTo: new CalendarDate(2026, 9, 30),
   weekdays: ["1", "3"],
+};
+
+const threeForTwo: DiscountFormValues = {
+  ...filled,
+  benefitKind: "BUY_N_PAY_M",
+  percent: "",
+  buyQty: " 3 ",
+  payQty: "2",
 };
 
 describe("discountRequestFrom", () => {
@@ -69,6 +86,36 @@ describe("discountRequestFrom", () => {
     expect(discountRequestFrom({ ...filled, weekdays: [] }).weekdays).toEqual([]);
   });
 
+  test("builds a buy-N-pay-M request from the quantities, leaving the percentage out", () => {
+    const request = discountRequestFrom(threeForTwo);
+
+    expect(request.benefit).toEqual({ kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 });
+    expect(request.target).toEqual({ kind: "PRODUCT", id: filled.targetId });
+    expect(discountCreationBodySchema.safeParse(request).success).toBe(true);
+  });
+
+  test("builds a percentage request leaving the quantities out", () => {
+    expect(discountRequestFrom({ ...filled, buyQty: "3", payQty: "2" }).benefit).toEqual({
+      kind: "PERCENT_OFF",
+      percent: 15,
+    });
+  });
+
+  test.each([[""], ["tres"], ["2,5"], ["2.5"], ["-3"], ["1e1"]])(
+    "sends quantities the cloud refuses when %j is not a whole number",
+    (quantity) => {
+      const buy = discountCreationBodySchema.safeParse(
+        discountRequestFrom({ ...threeForTwo, buyQty: quantity }),
+      );
+      const pay = discountCreationBodySchema.safeParse(
+        discountRequestFrom({ ...threeForTwo, buyQty: "20", payQty: quantity }),
+      );
+
+      expect(buy.success).toBe(false);
+      expect(pay.success).toBe(false);
+    },
+  );
+
   test("leaves an unchosen target and unset dates for the cloud's shape to refuse", () => {
     const result = discountCreationBodySchema.safeParse(
       discountRequestFrom({ ...EMPTY_DISCOUNT_FORM, name: "Algo", percent: "10" }),
@@ -91,6 +138,25 @@ describe("field messages", () => {
       DISCOUNT_MESSAGES.name({ ...filled, name: "x".repeat(DISCOUNT_NAME_MAX_LENGTH + 1) }),
     ).toBe(`El nombre puede tener hasta ${DISCOUNT_NAME_MAX_LENGTH} caracteres.`);
     expect(DISCOUNT_MESSAGES.name(filled)).toBe("Revisá el nombre de la promoción.");
+  });
+
+  test("asks for a whole quantity of 2 or more to buy, whatever was typed", () => {
+    expect(DISCOUNT_MESSAGES.buyQty()).toBe("Ingresá una cantidad entera de 2 o más.");
+  });
+
+  test.each([[""], ["0"], ["uno"], ["1,5"]])(
+    "asks for a whole quantity of 1 or more to pay when %j was typed",
+    (payQty) => {
+      expect(DISCOUNT_MESSAGES.payQty({ ...threeForTwo, payQty })).toBe(
+        "Ingresá una cantidad entera de 1 o más.",
+      );
+    },
+  );
+
+  test("asks to pay fewer units than are bought when the quantity to pay is whole", () => {
+    expect(DISCOUNT_MESSAGES.payQty({ ...threeForTwo, payQty: "3" })).toBe(
+      "Ingresá menos unidades que en Lleve.",
+    );
   });
 
   test("states the whole percentage range, whatever was typed", () => {
@@ -136,6 +202,26 @@ describe("field messages", () => {
   });
 });
 
+describe("field declarations", () => {
+  test("puts a refused benefit on the field of the chosen kind", () => {
+    expect(DISCOUNT_FIELDS.benefit(filled)).toBe("percent");
+    expect(DISCOUNT_FIELDS.benefit(threeForTwo)).toBe("buyQty");
+  });
+
+  test("puts each refused quantity on its own field", () => {
+    const result = discountCreationBodySchema.safeParse(
+      discountRequestFrom({ ...threeForTwo, buyQty: "1", payQty: "0" }),
+    );
+
+    expect(result.error?.issues.map((issue) => issue.path.join("."))).toEqual([
+      "benefit.buyQty",
+      "benefit.payQty",
+    ]);
+    expect(DISCOUNT_FIELDS["benefit.buyQty"]).toBe("buyQty");
+    expect(DISCOUNT_FIELDS["benefit.payQty"]).toBe("payQty");
+  });
+});
+
 describe("targetPlaceholder", () => {
   test.each([
     ["PRODUCT", "Elegí un producto"],
@@ -157,7 +243,7 @@ describe("targetUnavailableMessage", () => {
 });
 
 describe("option lists", () => {
-  test("offers one kind card, the percentage one", () => {
+  test("offers a card for each kind of promotion", () => {
     expect(
       DISCOUNT_KIND_CARDS.map(({ value, label, description }) => [value, label, description]),
     ).toEqual([
@@ -166,6 +252,7 @@ describe("option lists", () => {
         "Porcentaje de descuento",
         "Sobre un producto, una categoría o un distintivo",
       ],
+      ["BUY_N_PAY_M", "Lleve N, pague M", "Sobre un producto por unidad"],
     ]);
   });
 
@@ -282,6 +369,50 @@ describe("targetOptions", () => {
   });
 });
 
+describe("eligibleTargets", () => {
+  test("offers a percentage promotion every target it is given", () => {
+    expect(eligibleTargets("PERCENT_OFF", discountTargets)).toEqual(discountTargets);
+  });
+
+  test("offers a buy-N-pay-M promotion only the products sold by the unit", () => {
+    expect(eligibleTargets("BUY_N_PAY_M", discountTargets)).toEqual({
+      products: [yerbaProduct],
+      categories: [],
+      tags: [],
+    });
+  });
+});
+
+describe("targetForKind", () => {
+  test("keeps a product sold by the unit when switching to buy-N-pay-M", () => {
+    expect(targetForKind(filled, "BUY_N_PAY_M", discountTargets)).toEqual({
+      targetKind: "PRODUCT",
+      targetId: yerbaProduct.id,
+    });
+  });
+
+  test("clears a product sold by weight when switching to buy-N-pay-M", () => {
+    expect(
+      targetForKind({ ...filled, targetId: almondsProduct.id }, "BUY_N_PAY_M", discountTargets),
+    ).toEqual({ targetKind: "PRODUCT", targetId: null });
+  });
+
+  test("turns a category or a tag into an unchosen product when switching to buy-N-pay-M", () => {
+    const category = { ...filled, targetKind: "CATEGORY", targetId: "category-1" } as const;
+
+    expect(targetForKind(category, "BUY_N_PAY_M", discountTargets)).toEqual({
+      targetKind: "PRODUCT",
+      targetId: null,
+    });
+  });
+
+  test("keeps the product when switching to a percentage, since it applies to any product", () => {
+    expect(
+      targetForKind({ ...threeForTwo, targetId: yerbaProduct.id }, "PERCENT_OFF", discountTargets),
+    ).toEqual({ targetKind: "PRODUCT", targetId: yerbaProduct.id });
+  });
+});
+
 describe("discountFormValues", () => {
   test("fills the form from a promotion, weekdays as the chips' values", () => {
     expect(discountFormValues(sinTaccWinter)).toEqual({
@@ -290,11 +421,24 @@ describe("discountFormValues", () => {
       targetKind: "TAG",
       targetId: sinTaccWinter.target.id,
       percent: "20",
+      buyQty: "",
+      payQty: "",
       validFrom: new CalendarDate(2026, 12, 1),
       validTo: new CalendarDate(2027, 2, 28),
       weekdays: ["1", "3", "5"],
       active: true,
       version: 2,
+    });
+  });
+
+  test("fills the quantities of a buy-N-pay-M promotion, leaving the percentage empty", () => {
+    expect(discountFormValues(yerbaThreeForTwo)).toMatchObject({
+      benefitKind: "BUY_N_PAY_M",
+      targetKind: "PRODUCT",
+      targetId: yerbaThreeForTwo.target.id,
+      percent: "",
+      buyQty: "3",
+      payQty: "2",
     });
   });
 

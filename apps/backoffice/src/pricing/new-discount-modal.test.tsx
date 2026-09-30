@@ -6,13 +6,22 @@ import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { NewDiscountModal, type NewDiscountModalServices } from "./new-discount-modal";
 import {
+  chooseBuyNPayM,
   chooseTarget,
+  dateSegments,
   fillNewDiscountExceptTarget,
+  fillQuantities,
   fillValidNewDiscount,
   radioLabel,
   typeDate,
 } from "./test-support/discount-modal";
-import { discountTargets, veganoTag, yerbaOff, yerbaProduct } from "./test-support/discounts";
+import {
+  discountTargets,
+  veganoTag,
+  yerbaOff,
+  yerbaProduct,
+  yerbaThreeForTwo,
+} from "./test-support/discounts";
 
 // A modal panel is centered by a fixed-position overlay that never grows the document's scroll
 // area, so a control past its clipped edge can't be scrolled into view at the default viewport.
@@ -357,6 +366,145 @@ test("shows a failure notice and keeps what was typed when the attempt fails", a
     .toHaveValue("Yerba de septiembre");
 });
 
+test("choosing buy-N-pay-M shows the product with the quantities to buy and to pay", async () => {
+  const { dialog } = await renderModal(createServices());
+
+  await chooseBuyNPayM(dialog);
+
+  await expect.element(dialog.getByRole("radio", { name: "Lleve N, pague M" })).toBeChecked();
+  await expect.element(dialog.getByText("Sobre un producto por unidad")).toBeVisible();
+  await expect.element(dialog.getByText("Producto y grupo")).toBeVisible();
+  await expect.element(dialog.getByRole("button", { name: /^Elegí un producto/ })).toBeVisible();
+  await expect.element(dialog.getByRole("textbox", { name: /^Lleve/ })).toBeVisible();
+  await expect.element(dialog.getByRole("textbox", { name: /^Pague/ })).toBeVisible();
+  expect(dialog.getByText("Se aplica sobre").query()).toBeNull();
+  expect(dialog.getByRole("textbox", { name: /^Descuento/ }).query()).toBeNull();
+});
+
+test("offers a buy-N-pay-M promotion only the products sold by the unit", async () => {
+  const { dialog } = await renderModal(createServices());
+  await chooseBuyNPayM(dialog);
+
+  await userEvent.click(dialog.getByRole("button", { name: /^Elegí un producto/ }));
+
+  expect(
+    dialog
+      .getByRole("option")
+      .all()
+      .map((option) => option.element().textContent),
+  ).toEqual(["Yerba Playadito 1 kg"]);
+});
+
+test("creates a buy-N-pay-M promotion with the request the cloud reads", async () => {
+  const services = createServices();
+  vi.mocked(services.createDiscount).mockResolvedValue({ kind: "ok", discount: yerbaThreeForTwo });
+  const onCreated = vi.fn();
+  const { dialog } = await renderModal(services, { onCreated });
+  await fillNewDiscountExceptTarget(dialog);
+  await chooseBuyNPayM(dialog);
+  await chooseTarget(dialog, "Elegí un producto", "Yerba Playadito 1 kg");
+  await fillQuantities(dialog, "3", "2");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la promoción" }));
+
+  await expect.poll(() => vi.mocked(services.createDiscount).mock.calls.length).toBe(1);
+  expect(services.createDiscount).toHaveBeenCalledWith({
+    name: "Yerba de septiembre",
+    benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+    target: { kind: "PRODUCT", id: yerbaProduct.id },
+    validFrom: "2026-09-12",
+    validTo: "2026-09-30",
+    weekdays: [],
+  });
+  await expect.poll(() => onCreated.mock.calls.length).toBe(1);
+});
+
+test("an empty buy-N-pay-M submit asks for the product and both quantities", async () => {
+  const services = createServices();
+  const { dialog } = await renderModal(services);
+  await chooseBuyNPayM(dialog);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la promoción" }));
+
+  await expect.element(dialog.getByText("Elegí un producto.")).toBeVisible();
+  await expect.element(dialog.getByText("Ingresá una cantidad entera de 2 o más.")).toBeVisible();
+  await expect.element(dialog.getByText("Ingresá una cantidad entera de 1 o más.")).toBeVisible();
+  expect(services.createDiscount).not.toHaveBeenCalled();
+});
+
+test("asks to pay fewer units than are bought, on the quantity to pay", async () => {
+  const services = createServices();
+  const { dialog } = await renderModal(services);
+  await fillNewDiscountExceptTarget(dialog);
+  await chooseBuyNPayM(dialog);
+  await chooseTarget(dialog, "Elegí un producto", "Yerba Playadito 1 kg");
+  await fillQuantities(dialog, "3", "3");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la promoción" }));
+
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Pague/ }))
+    .toHaveAccessibleDescription("Ingresá menos unidades que en Lleve.");
+  expect(services.createDiscount).not.toHaveBeenCalled();
+});
+
+test("says a product that is now sold by weight cannot take it, on the picker", async () => {
+  const services = createServices();
+  vi.mocked(services.createDiscount).mockResolvedValue({ kind: "target_not_sold_by_unit" });
+  const { dialog } = await renderModal(services);
+  await fillNewDiscountExceptTarget(dialog);
+  await chooseBuyNPayM(dialog);
+  await chooseTarget(dialog, "Elegí un producto", "Yerba Playadito 1 kg");
+  await fillQuantities(dialog, "3", "2");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la promoción" }));
+
+  await expect.element(dialog.getByText("Se vende por peso. Elegí otro producto.")).toBeVisible();
+});
+
+test("switching the kind keeps the name, dates, weekdays and a product sold by the unit", async () => {
+  const { dialog } = await renderModal(createServices());
+  await fillValidNewDiscount(dialog);
+  await userEvent.click(dialog.getByRole("button", { name: "Lunes" }));
+
+  await chooseBuyNPayM(dialog);
+
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
+    .toHaveValue("Yerba de septiembre");
+  await expect.element(dialog.getByRole("button", { name: /Yerba Playadito 1 kg/ })).toBeVisible();
+  await expect
+    .element(dialog.getByRole("button", { name: "Lunes" }))
+    .toHaveAttribute("aria-pressed", "true");
+  expect(dateSegments(dialog, "Desde")).toEqual(["12", "9", "2026"]);
+
+  await userEvent.click(radioLabel(dialog, "Porcentaje de descuento"));
+
+  await expect.element(dialog.getByRole("textbox", { name: /^Descuento/ })).toHaveValue("15");
+  await expect.element(dialog.getByRole("button", { name: /Yerba Playadito 1 kg/ })).toBeVisible();
+});
+
+test("switching to buy-N-pay-M leaves no product chosen when the chosen one is sold by weight", async () => {
+  const { dialog } = await renderModal(createServices());
+  await chooseTarget(dialog, "Elegí un producto", "Almendras peladas");
+
+  await chooseBuyNPayM(dialog);
+
+  await expect.element(dialog.getByRole("button", { name: /^Elegí un producto/ })).toBeVisible();
+});
+
+test("switching to buy-N-pay-M turns a category into a product still to choose", async () => {
+  const { dialog } = await renderModal(createServices());
+  await userEvent.click(radioLabel(dialog, "Categoría"));
+  await chooseTarget(dialog, "Elegí una categoría", "Almacén");
+
+  await chooseBuyNPayM(dialog);
+  await userEvent.click(radioLabel(dialog, "Porcentaje de descuento"));
+
+  await expect.element(dialog.getByRole("radio", { name: "Producto" })).toBeChecked();
+  await expect.element(dialog.getByRole("button", { name: /^Elegí un producto/ })).toBeVisible();
+});
+
 test("cancel closes the modal", async () => {
   const onClose = vi.fn();
   const { dialog } = await renderModal(createServices(), { onClose });
@@ -385,6 +533,15 @@ test("reopening the modal starts from empty fields", async () => {
 
 test("has no accessibility violations", async () => {
   const { dialog } = await renderModal(createServices());
+
+  await expectNoAccessibilityViolations(dialog.element());
+});
+
+test("has no accessibility violations with buy-N-pay-M chosen and its messages shown", async () => {
+  const { dialog } = await renderModal(createServices());
+  await chooseBuyNPayM(dialog);
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la promoción" }));
+  await expect.element(dialog.getByText("Ingresá una cantidad entera de 2 o más.")).toBeVisible();
 
   await expectNoAccessibilityViolations(dialog.element());
 });

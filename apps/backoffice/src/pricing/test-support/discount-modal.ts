@@ -13,6 +13,14 @@ export async function typeDate(dialog: Dialog, label: "Desde" | "Hasta", digits:
   await userEvent.keyboard(digits);
 }
 
+export function dateSegments(dialog: Dialog, label: "Desde" | "Hasta") {
+  return dialog
+    .getByRole("group", { name: new RegExp(`^${label}`) })
+    .getByRole("spinbutton")
+    .all()
+    .map((segment) => segment.element().textContent);
+}
+
 export async function chooseTarget(dialog: Dialog, placeholder: string, option: string) {
   await userEvent.click(dialog.getByRole("button", { name: new RegExp(`^${placeholder}`) }));
   await userEvent.click(dialog.getByRole("option", { name: option }));
@@ -28,6 +36,15 @@ export async function fillNewDiscountExceptTarget(dialog: Dialog) {
 export async function fillValidNewDiscount(dialog: Dialog) {
   await fillNewDiscountExceptTarget(dialog);
   await chooseTarget(dialog, "Elegí un producto", "Yerba Playadito 1 kg");
+}
+
+export async function chooseBuyNPayM(dialog: Dialog) {
+  await userEvent.click(radioLabel(dialog, "Lleve N, pague M"));
+}
+
+export async function fillQuantities(dialog: Dialog, buy: string, pay: string) {
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Lleve/ }), buy);
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Pague/ }), pay);
 }
 
 export { radioLabel };

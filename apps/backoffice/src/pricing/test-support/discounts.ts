@@ -80,6 +80,22 @@ export const switchedOffPromotion: DiscountSummary = {
   version: 4,
 };
 
+export const yerbaThreeForTwo: DiscountSummary = {
+  id: "0b1f3c1e-4f6a-4d0e-9d6e-000000000006",
+  name: "Yerba 3x2",
+  benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+  target: {
+    kind: "PRODUCT",
+    id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000101",
+    name: "Yerba Playadito 1 kg",
+  },
+  validFrom: "2026-09-15",
+  validTo: "2026-10-15",
+  weekdays: [],
+  active: true,
+  version: 2,
+};
+
 export function discountList(discounts: DiscountSummary[]): DiscountList {
   return { discounts };
 }
@@ -93,7 +109,7 @@ export const yerbaProduct: ProductTarget = {
   saleUnit: "UNIT",
 };
 
-const almondsProduct: ProductTarget = {
+export const almondsProduct: ProductTarget = {
   id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000104",
   name: "Almendras peladas",
   saleUnit: "KG",
