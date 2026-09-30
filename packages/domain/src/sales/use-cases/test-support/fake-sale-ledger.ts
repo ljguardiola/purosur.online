@@ -1,6 +1,8 @@
 import type { RoleAccess } from "../../../access/index.js";
+import type { OutboxEventDraft } from "../../../sync/index.js";
 import type { SaleWithLines } from "../../model/sale.js";
 import type { ListPrice } from "../../model/sale-line.js";
+import type { SaleLineRemoval } from "../../model/sale-line-removal.js";
 import type {
   CandidatePromotion,
   Clock,
@@ -27,9 +29,18 @@ export interface FakeSaleLedgerState {
   prices: FakePrice[];
   promotionsByProduct: Record<string, CandidatePromotion[]>;
   sales: SaleWithLines[];
+  removals: SaleLineRemoval[];
+  outbox: OutboxEventDraft[];
 }
 
-export type FakeSaleLedgerWrite = "recordOpenedSale" | "recordSaleLine" | "recordLineQuantity";
+export type FakeSaleLedgerWrite =
+  | "recordOpenedSale"
+  | "recordSaleLine"
+  | "recordLineQuantity"
+  | "recordLineRemoval"
+  | "deleteSaleLine"
+  | "markSaleCancelled"
+  | "appendOutboxEvent";
 
 export class FakeSaleLedger implements SaleLedger {
   state: FakeSaleLedgerState;
@@ -48,6 +59,8 @@ export class FakeSaleLedger implements SaleLedger {
       prices: [],
       promotionsByProduct: {},
       sales: [],
+      removals: [],
+      outbox: [],
       ...state,
     };
   }
@@ -96,6 +109,29 @@ export class FakeSaleLedger implements SaleLedger {
               : stored,
           );
         }
+      },
+      recordLineRemoval: (removal) => {
+        this.failIfAsked("recordLineRemoval");
+        working.removals.push(removal);
+      },
+      deleteSaleLine: (lineId) => {
+        this.failIfAsked("deleteSaleLine");
+        for (const sale of working.sales) {
+          sale.lines = sale.lines.filter((stored) => stored.id !== lineId);
+        }
+      },
+      saleLineRemovals: (saleId) =>
+        structuredClone(working.removals.filter((removal) => removal.saleId === saleId)),
+      markSaleCancelled: (saleId) => {
+        this.failIfAsked("markSaleCancelled");
+        const sale = working.sales.find((stored) => stored.id === saleId);
+        if (sale) {
+          sale.state = "CANCELLED";
+        }
+      },
+      appendOutboxEvent: (draft) => {
+        this.failIfAsked("appendOutboxEvent");
+        working.outbox.push(draft);
       },
     });
     this.state = working;

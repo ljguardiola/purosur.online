@@ -185,6 +185,7 @@ export type {
   ListPrice,
   Sale,
   SaleLine,
+  SaleLineRemoval,
   SaleState,
   SaleWithLines,
   SoldProduct,
