@@ -111,6 +111,8 @@ export type {
   EnrollmentOutcome,
   MainToCoreMessage,
   RendererToCoreMessage,
+  SignInOutcome,
+  SignInUser,
 } from "./register/core-messages.js";
 export {
   coreStatusMessageSchema,

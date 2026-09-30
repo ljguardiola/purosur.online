@@ -1,4 +1,4 @@
-import type { EnrollmentOutcome } from "@purosur/contracts";
+import type { EnrollmentOutcome, SignInOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -6,18 +6,24 @@ import { render } from "vitest-browser-react";
 import type { CoreClient } from "../platform/core-client";
 import { App } from "./app";
 
-const SHELL_READY_TEXT = "Puro Sur está listo";
+const SIGN_IN_TITLE = "¿Quién abre la caja?";
+const SIGNED_IN_TITLE = "¿Qué querés hacer?";
 const BRAND_LOGO_ALT = "Puro Sur";
 const CORE_DOWN_TITLE = "Esperá un momento";
 const ENROLLMENT_TITLE = "Dar de alta esta caja";
 
+const ADA_SIGNED_IN: SignInOutcome = {
+  kind: "signed_in",
+  person: { first_name: "Ada", permission_keys: ["sell_and_charge"] },
+};
+
 function coreAnswering(
   enrolled: boolean,
   outcome: EnrollmentOutcome = { kind: "enrolled" },
-  registerName: string | null = null,
+  signInOutcome: SignInOutcome = ADA_SIGNED_IN,
 ) {
   const asked: string[] = [];
-  let savedName = registerName;
+  let savedName: string | null = null;
   const pulledListeners = new Set<() => void>();
   const core: CoreClient = {
     connect() {},
@@ -30,6 +36,12 @@ function coreAnswering(
     },
     async enroll() {
       return outcome;
+    },
+    async signInUsers() {
+      return [{ id: "u1", first_name: "Ada" }];
+    },
+    async signIn() {
+      return signInOutcome;
     },
     onPulled(listener) {
       pulledListeners.add(listener);
@@ -58,59 +70,34 @@ describe("App", () => {
     const screen = await render(<App core={enrolledCore} />);
 
     await expect.element(screen.getByRole("img", { name: BRAND_LOGO_ALT })).toBeVisible();
-    await expect.element(screen.getByText(SHELL_READY_TEXT)).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .not.toBeInTheDocument();
     await expect.element(screen.getByText(CORE_DOWN_TITLE)).not.toBeInTheDocument();
   });
 
   it("leaves the register for the brand panel when a core that was up starts again", async () => {
     const screen = await render(<App core={enrolledCore} />);
     postCoreStatus("up");
-    await expect.element(screen.getByText(SHELL_READY_TEXT)).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
 
     postCoreStatus("starting");
 
     await expect.element(screen.getByRole("img", { name: BRAND_LOGO_ALT })).toBeVisible();
-    await expect.element(screen.getByText(SHELL_READY_TEXT)).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .not.toBeInTheDocument();
     await expect.element(screen.getByText(CORE_DOWN_TITLE)).not.toBeInTheDocument();
   });
 
-  it("renders the ready message once the core reports it is up", async () => {
+  it("shows who can sign in once the core reports it is up", async () => {
     const screen = await render(<App core={enrolledCore} />);
 
     postCoreStatus("up");
 
-    await expect.element(screen.getByText(SHELL_READY_TEXT)).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
 
     await expectNoAccessibilityViolations(screen.container);
-  });
-
-  it("shows the register's name on the ready screen once it is known", async () => {
-    const screen = await render(<App core={coreAnswering(true, undefined, "Caja 1").core} />);
-
-    postCoreStatus("up");
-
-    await expect.element(screen.getByRole("heading", { name: "Caja 1" })).toBeVisible();
-    await expectNoAccessibilityViolations(screen.container);
-  });
-
-  it("shows no heading on the ready screen while the register's name isn't known", async () => {
-    const screen = await render(<App core={enrolledCore} />);
-
-    postCoreStatus("up");
-
-    await expect.element(screen.getByText(SHELL_READY_TEXT)).toBeVisible();
-    await expect.element(screen.getByRole("heading")).not.toBeInTheDocument();
-  });
-
-  it("shows the name a pull saved on the ready screen once the pull finishes", async () => {
-    const { core, finishPull } = coreAnswering(true);
-    const screen = await render(<App core={core} />);
-    postCoreStatus("up");
-    await expect.element(screen.getByText(SHELL_READY_TEXT)).toBeVisible();
-
-    finishPull("Caja 1");
-
-    await expect.element(screen.getByRole("heading", { name: "Caja 1" })).toBeVisible();
   });
 
   it("replaces the whole screen with the core-down notice once the core reports it is down", async () => {
@@ -119,7 +106,9 @@ describe("App", () => {
     postCoreStatus("down");
 
     await expect.element(screen.getByText(CORE_DOWN_TITLE)).toBeVisible();
-    await expect.element(screen.getByText(SHELL_READY_TEXT)).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .not.toBeInTheDocument();
   });
 
   it("shows the notice when the core went down before the page started listening", async () => {
@@ -151,7 +140,7 @@ describe("App", () => {
 
     postCoreStatus("up");
 
-    await expect.element(screen.getByText(SHELL_READY_TEXT)).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
     await expect.element(screen.getByText(CORE_DOWN_TITLE)).not.toBeInTheDocument();
   });
 
@@ -161,10 +150,12 @@ describe("App", () => {
     postCoreStatus("up");
 
     await expect.element(screen.getByRole("heading", { name: ENROLLMENT_TITLE })).toBeVisible();
-    await expect.element(screen.getByText(SHELL_READY_TEXT)).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .not.toBeInTheDocument();
   });
 
-  it("goes on to the register once the installation is enrolled", async () => {
+  it("goes on to who opens the register once the installation is enrolled", async () => {
     const screen = await render(<App core={coreAnswering(false).core} />);
     postCoreStatus("up");
 
@@ -174,7 +165,54 @@ describe("App", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: "Dar de alta" }));
 
-    await expect.element(screen.getByText(SHELL_READY_TEXT)).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+  });
+
+  it("opens the register for the person who signs in", async () => {
+    const screen = await render(<App core={enrolledCore} />);
+    postCoreStatus("up");
+
+    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+
+    await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Persona en la caja" }))
+      .toHaveTextContent("Ada");
+    await expect
+      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .not.toBeInTheDocument();
+  });
+
+  it("stays on the sign-in screen when the PIN is wrong", async () => {
+    const { core } = coreAnswering(true, { kind: "enrolled" }, { kind: "wrong_pin" });
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+
+    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+
+    await expect.element(screen.getByText("PIN incorrecto")).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: SIGNED_IN_TITLE }))
+      .not.toBeInTheDocument();
+  });
+
+  it("stays on the sign-in screen for a person with no register permission", async () => {
+    const { core } = coreAnswering(true, { kind: "enrolled" }, { kind: "no_register_permission" });
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+
+    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+
+    await expect.element(screen.getByText("Sin permisos en la caja")).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: SIGNED_IN_TITLE }))
+      .not.toBeInTheDocument();
   });
 
   it("stays on the enrollment screen when the code doesn't work", async () => {
@@ -197,13 +235,15 @@ describe("App", () => {
     const { core, asked } = coreAnswering(true);
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await expect.element(screen.getByText(SHELL_READY_TEXT)).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
 
     postCoreStatus("starting");
-    await expect.element(screen.getByText(SHELL_READY_TEXT)).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .not.toBeInTheDocument();
     postCoreStatus("up");
 
-    await expect.element(screen.getByText(SHELL_READY_TEXT)).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
     await expect.poll(() => asked.length).toBe(2);
   });
 });

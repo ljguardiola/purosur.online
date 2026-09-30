@@ -2,12 +2,39 @@ import type {
   CoreToRendererMessage,
   EnrollmentOutcome,
   RendererToCoreMessage,
+  SignInOutcome,
+  SignInUser,
 } from "@purosur/contracts";
 
 export interface RendererRequestDeps {
   credentialsPresent: () => Promise<boolean>;
   registerName: () => string | undefined;
   enroll: (typedCode: string) => Promise<EnrollmentOutcome>;
+  signInUsers: (() => SignInUser[]) | undefined;
+  signIn: ((userId: string, pin: string) => Promise<SignInOutcome>) | undefined;
+  reportFailure: (context: string, error: unknown) => void;
+}
+
+function readSignInUsers(deps: RendererRequestDeps): SignInUser[] | undefined {
+  try {
+    return deps.signInUsers?.();
+  } catch (error) {
+    deps.reportFailure("reading the users who can sign in", error);
+    return undefined;
+  }
+}
+
+async function attemptSignIn(
+  deps: RendererRequestDeps,
+  userId: string,
+  pin: string,
+): Promise<SignInOutcome> {
+  try {
+    return (await deps.signIn?.(userId, pin)) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure("signing in", error);
+    return { kind: "unavailable" };
+  }
 }
 
 export async function answerRendererRequest(
@@ -32,6 +59,18 @@ export async function answerRendererRequest(
         type: "enrollment-result",
         request_id: message.request_id,
         outcome: await deps.enroll(message.code),
+      };
+    case "sign-in-users": {
+      const users = readSignInUsers(deps);
+      return users === undefined
+        ? { type: "sign-in-users-unavailable", request_id: message.request_id }
+        : { type: "sign-in-users", request_id: message.request_id, users };
+    }
+    case "sign-in":
+      return {
+        type: "sign-in-result",
+        request_id: message.request_id,
+        outcome: await attemptSignIn(deps, message.user_id, message.pin),
       };
     case "ping":
       return undefined;

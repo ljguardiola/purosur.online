@@ -24,9 +24,9 @@ type RouterWithParams = typeof routerWithParams;
 
 describe("the register's router types", () => {
   it("accepts navigating to a route that is actually declared", () => {
-    type ToReadyScreen = { to: "/" };
+    type ToSignInScreen = { to: "/sign-in" };
 
-    expectTypeOf<ToReadyScreen>().toExtend<ValidateNavigateOptions<AppRouter, ToReadyScreen>>();
+    expectTypeOf<ToSignInScreen>().toExtend<ValidateNavigateOptions<AppRouter, ToSignInScreen>>();
   });
 
   it("fails to type-check navigating to a route that was never declared", () => {

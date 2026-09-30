@@ -31,6 +31,27 @@ describe("rendererToCoreMessageSchema", () => {
     expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
+  it("accepts a request for the users who can sign in", () => {
+    const message = { type: "sign-in-users", request_id: REQUEST_ID };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts a sign-in with the chosen user and the PIN as typed", () => {
+    const message = { type: "sign-in", request_id: REQUEST_ID, user_id: "u1", pin: "0042" };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { type: "sign-in-users" },
+    { type: "sign-in", user_id: "u1", pin: "1" },
+    { type: "sign-in", request_id: REQUEST_ID, pin: "1" },
+    { type: "sign-in", request_id: REQUEST_ID, user_id: "u1" },
+  ])("rejects a sign-in request missing a field: %j", (message) => {
+    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
   it("rejects a request without its request id", () => {
     expect(
       rendererToCoreMessageSchema.safeParse({ type: "enrollment-status-request" }).success,
@@ -122,6 +143,90 @@ describe("coreToRendererMessageSchema", () => {
       coreToRendererMessageSchema.safeParse({ type: "enrollment-status", request_id: REQUEST_ID })
         .success,
     ).toBe(false);
+  });
+});
+
+describe("sign-in answers", () => {
+  it("accepts the users who can sign in, by id and first name", () => {
+    const message = {
+      type: "sign-in-users",
+      request_id: REQUEST_ID,
+      users: [
+        { id: "u1", first_name: "Ada" },
+        { id: "u2", first_name: "Bruno" },
+      ],
+    };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts that the users cannot be read", () => {
+    const message = { type: "sign-in-users-unavailable", request_id: REQUEST_ID };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts an empty list of users", () => {
+    const message = { type: "sign-in-users", request_id: REQUEST_ID, users: [] };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("drops anything else a listed user carries", () => {
+    const message = {
+      type: "sign-in-users",
+      request_id: REQUEST_ID,
+      users: [{ id: "u1", first_name: "Ada", salt: "s" }],
+    };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual({
+      ...message,
+      users: [{ id: "u1", first_name: "Ada" }],
+    });
+  });
+
+  it("rejects a listed user without its first name", () => {
+    const message = { type: "sign-in-users", request_id: REQUEST_ID, users: [{ id: "u1" }] };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it.each([
+    {
+      kind: "signed_in",
+      person: { first_name: "Ada", permission_keys: ["sell_and_charge", "void_sale"] },
+    },
+    { kind: "signed_in", person: { first_name: "Ada", permission_keys: [] } },
+    { kind: "wrong_pin" },
+    { kind: "no_register_permission" },
+    { kind: "unavailable" },
+  ])("accepts the sign-in result $kind", (outcome) => {
+    const message = { type: "sign-in-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("does not let a signed-in result carry a role", () => {
+    const message = {
+      type: "sign-in-result",
+      request_id: REQUEST_ID,
+      outcome: {
+        kind: "signed_in",
+        person: { first_name: "Ada", permission_keys: [], role_name: "Cajera" },
+      },
+    };
+
+    expect(JSON.stringify(coreToRendererMessageSchema.parse(message))).not.toContain("Cajera");
+  });
+
+  it.each([
+    { kind: "signed_in" },
+    { kind: "signed_in", person: { first_name: "Ada" } },
+    { kind: "x" },
+  ])("rejects a sign-in result it does not know: %j", (outcome) => {
+    const message = { type: "sign-in-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 });
 

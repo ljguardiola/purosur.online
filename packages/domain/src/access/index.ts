@@ -38,7 +38,11 @@ export {
   pinCodeRetryAfterSeconds,
   pinCodeWindowStart,
 } from "./model/pin-code.js";
-export { uncoveredRegisterPermissions } from "./model/register-coverage.js";
+export { decodePinSalt, encodePinHash, PIN_HASH_SCHEME } from "./model/pin-hash-scheme.js";
+export {
+  holdsARegisterPermission,
+  uncoveredRegisterPermissions,
+} from "./model/register-coverage.js";
 export {
   isAdministratorRoleName,
   isRoleNameTooLong,

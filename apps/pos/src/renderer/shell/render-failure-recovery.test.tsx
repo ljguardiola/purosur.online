@@ -30,8 +30,11 @@ function buildFailingRouter(shouldThrow: () => boolean) {
     {
       coreStatus: "up",
       enrollment: "enrolled",
+      person: undefined,
       enroll: async () => ({ kind: "enrolled" }),
       registerName: async () => null,
+      signInUsers: async () => [],
+      signIn: async () => ({ kind: "unavailable" }),
     },
     "/",
   );

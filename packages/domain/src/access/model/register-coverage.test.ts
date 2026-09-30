@@ -1,7 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { PERMISSION_CATALOG, PERMISSION_KEYS } from "./permission-catalog.js";
-import { uncoveredRegisterPermissions } from "./register-coverage.js";
+import { holdsARegisterPermission, uncoveredRegisterPermissions } from "./register-coverage.js";
 
 const registerPermissionKeys = PERMISSION_CATALOG.filter(
   (definition) => definition.registerMarker !== "none",
@@ -55,5 +55,54 @@ describe("uncoveredRegisterPermissions", () => {
         }
       }),
     );
+  });
+});
+
+describe("holdsARegisterPermission", () => {
+  it("holds one for an Administrator, who holds every permission", () => {
+    fc.assert(
+      fc.property(fc.subarray([...PERMISSION_KEYS]), (held) => {
+        expect(holdsARegisterPermission({ isAdministrator: true, permissionKeys: held })).toBe(
+          true,
+        );
+      }),
+    );
+  });
+
+  it("holds one when any held permission is used by the register", () => {
+    fc.assert(
+      fc.property(
+        fc.constantFrom(...registerPermissionKeys),
+        fc.subarray([...PERMISSION_KEYS]),
+        (registerKey, others) => {
+          expect(
+            holdsARegisterPermission({
+              isAdministrator: false,
+              permissionKeys: [...others, registerKey],
+            }),
+          ).toBe(true);
+        },
+      ),
+    );
+  });
+
+  it("holds none when only permissions used outside the register are held", () => {
+    const outsideTheRegister = PERMISSION_KEYS.filter(
+      (key) => !registerPermissionKeys.includes(key),
+    );
+
+    fc.assert(
+      fc.property(fc.subarray(outsideTheRegister), (held) => {
+        expect(holdsARegisterPermission({ isAdministrator: false, permissionKeys: held })).toBe(
+          false,
+        );
+      }),
+    );
+  });
+
+  it("ignores keys the catalog does not know", () => {
+    expect(
+      holdsARegisterPermission({ isAdministrator: false, permissionKeys: ["not_a_permission"] }),
+    ).toBe(false);
   });
 });
