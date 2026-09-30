@@ -17,13 +17,9 @@ export interface PinCodeRedemptionDeps {
   applyRedeemedPin: ((pepper: string, redemption: PinCodeRedemption) => void) | undefined;
   reportLocalFailure: (error: unknown) => void;
   cashSessionOpener: () => string | undefined;
-  signInRedeemed: (userId: string) => SignedInPersonAnswer | undefined;
-}
-
-export interface SignedInPersonAnswer {
-  user_id: string;
-  first_name: string;
-  permission_keys: string[];
+  signInRedeemed: (
+    userId: string,
+  ) => Extract<PinCodeRedemptionOutcome, { kind: "resumed" }>["person"] | undefined;
 }
 
 function refusalOutcome(error: CloudError): PinCodeRedemptionOutcome {
