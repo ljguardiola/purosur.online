@@ -184,7 +184,6 @@ export function CashCountScreen({
                 </p>
                 <AuthorizationSection
                   authorization={authorization}
-                  picks="authorizer"
                   action="cerrar la sesión de otra persona"
                   disabled={submitting}
                 />

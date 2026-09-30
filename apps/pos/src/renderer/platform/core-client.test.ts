@@ -470,6 +470,26 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core who closes a locked register by their PIN and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const closer = { user_id: "u2", pin: "1234" };
+    const identified = { kind: "identified", person: { user_id: "u2", first_name: "Grace" } };
+
+    const outcome = client.identifyLockedCloser(closer);
+    port.answer({
+      type: "identify-locked-closer-result",
+      request_id: "request-1",
+      outcome: identified,
+    });
+
+    expect(await outcome).toEqual(identified);
+    expect(port.posted).toEqual([
+      { type: "identify-locked-closer", request_id: "request-1", closer },
+    ]);
+  });
+
   it("sends the authorization when closing a session with one", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();

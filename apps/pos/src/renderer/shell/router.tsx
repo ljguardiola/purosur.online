@@ -7,6 +7,7 @@ import type {
   CurrentSaleAnswer,
   EnrollmentOutcome,
   FirstPinCodeRequestOutcome,
+  IdentifyLockedCloserOutcome,
   ListedCashMovement,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
@@ -34,7 +35,7 @@ import type { CashMovementInput } from "../platform/core-client";
 import { CashCountScreen } from "../register/cash-count-screen";
 import { CashScreen } from "../register/cash-screen";
 import { EnrollmentScreen } from "../register/enrollment-screen";
-import { LockedCashCountScreen } from "../register/locked-cash-count-screen";
+import { LockedCloseScreen } from "../register/locked-close-screen";
 import { SaleScreen } from "../sales/sale-screen";
 import { ACTION_ENTRIES } from "./action-entries";
 import { BrandPanelScreen } from "./brand-panel-screen";
@@ -74,6 +75,7 @@ export interface RouterContext {
     countedCash: number,
     closer: Authorization,
   ) => Promise<CloseLockedCashSessionOutcome>;
+  identifyLockedCloser: (closer: Authorization) => Promise<IdentifyLockedCloserOutcome>;
   cashBalance: () => Promise<CashBalance | null | "unavailable">;
   cashMovements: () => Promise<ListedCashMovement[] | null | "unavailable">;
   recordCashMovement: (input: CashMovementInput) => Promise<RecordCashMovementOutcome>;
@@ -302,24 +304,32 @@ const lockedRoute = createRoute({
   },
 });
 
-const lockedCashCountRoute = createRoute({
+const lockedCloseRoute = createRoute({
   getParentRoute: () => sessionEyebrowRoute,
-  path: "/locked-cash-count",
+  path: "/locked-close",
   beforeLoad: ({ context }) => {
     const { id, openedAt, openedBy } = requireLockedRegister(context);
     return { id, openedAt, openedBy };
   },
-  component: function LockedCashCountRoute() {
-    const { id, openedAt, openedBy, cashBalance, authorizers, closeLockedCashSession } =
-      lockedCashCountRoute.useRouteContext();
+  component: function LockedCloseRoute() {
+    const {
+      id,
+      openedAt,
+      openedBy,
+      cashBalance,
+      authorizers,
+      identifyLockedCloser,
+      closeLockedCashSession,
+    } = lockedCloseRoute.useRouteContext();
     const registerName = sessionEyebrowRoute.useLoaderData();
     return (
-      <LockedCashCountScreen
+      <LockedCloseScreen
         opener={openedBy}
         registerName={registerName}
         openedAt={openedAt}
         loadCashBalance={cashBalance}
         loadAuthorizers={authorizers}
+        identifyLockedCloser={identifyLockedCloser}
         closeLockedCashSession={(countedCash, closer) =>
           closeLockedCashSession(id, countedCash, closer)
         }
@@ -399,7 +409,7 @@ export const routeTree = rootRoute.addChildren([
     cashRoute,
     cashCountRoute,
     lockedRoute,
-    lockedCashCountRoute,
+    lockedCloseRoute,
   ]),
   pinCodeRedemptionRoute,
   firstSignInRoute,
@@ -432,6 +442,7 @@ export function createAppRouter(
     | "openCashSession"
     | "closeCashSession"
     | "closeLockedCashSession"
+    | "identifyLockedCloser"
     | "cashBalance"
     | "cashMovements"
     | "recordCashMovement"

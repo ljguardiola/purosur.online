@@ -18,7 +18,7 @@ type RoutePath =
   | "/cash"
   | "/cash-count"
   | "/locked"
-  | "/locked-cash-count"
+  | "/locked-close"
   | "/enroll"
   | "/starting"
   | "/core-down"
@@ -70,7 +70,7 @@ const screenFor: Record<
   "/cash": (screen) => screen.getByRole("heading", { name: "Caja" }),
   "/cash-count": (screen) => screen.getByRole("heading", { name: "Cerrar caja" }),
   "/locked": (screen) => screen.getByRole("heading", { name: "Caja bloqueada" }),
-  "/locked-cash-count": (screen) => screen.getByRole("heading", { name: "Cerrar caja" }),
+  "/locked-close": (screen) => screen.getByRole("heading", { name: "¿Quién cierra la caja?" }),
   "/enroll": (screen) => screen.getByRole("heading", { name: ENROLLMENT_TITLE }),
   "/starting": (screen) => screen.getByRole("img", { name: BRAND_LOGO_ALT }),
   "/core-down": (screen) => screen.getByText(CORE_DOWN_TITLE),
@@ -93,6 +93,7 @@ function contextWith(
     openCashSession: async () => ({ kind: "unavailable" }),
     closeCashSession: async () => ({ kind: "unavailable" }),
     closeLockedCashSession: async () => ({ kind: "unavailable" }),
+    identifyLockedCloser: async () => ({ kind: "unavailable" }),
     cashBalance: async () => "unavailable",
     cashMovements: async () => "unavailable",
     recordCashMovement: async () => ({ kind: "unavailable" }),
@@ -484,14 +485,14 @@ describe("the register's router", () => {
     },
     { path: "/locked", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     {
-      path: "/locked-cash-count",
+      path: "/locked-close",
       coreStatus: "up",
       enrollment: "enrolled",
       cashSession: OPEN_SESSION,
       redirectedTo: "/session",
     },
     {
-      path: "/locked-cash-count",
+      path: "/locked-close",
       coreStatus: "up",
       enrollment: "enrolled",
       person: null,
@@ -887,51 +888,52 @@ describe("the register's router", () => {
     await expect.element(screen.getByRole("heading", { name: "Caja bloqueada" })).toBeVisible();
   });
 
-  it("reaches the locked register's cash count from the locked register and comes back", async () => {
-    const router = createRegisterRouter(
-      routeTree,
-      {
-        ...contextWith("up", "enrolled", null, undefined, OPEN_SESSION),
-        cashBalance: async () => BALANCE,
-      },
-      "/locked",
-    );
+  it("reaches who closes the locked register from the locked register and comes back", async () => {
+    const router = routerAt("/locked", "up", "enrolled", null, OPEN_SESSION);
     const screen = await render(<RouterProvider router={router} />);
 
     await userEvent.click(screen.getByRole("link", { name: "Otra persona cierra la caja" }));
-    await expect.element(screen.getByRole("heading", { name: "Cerrar caja" })).toBeVisible();
-    await expect.element(screen.getByText("CIERRA ALGUIEN CON PERMISO")).toBeVisible();
-    await userEvent.click(screen.getByRole("button", { name: "Volver" }));
+    await expect
+      .element(screen.getByRole("heading", { name: "¿Quién cierra la caja?" }))
+      .toBeVisible();
+    await userEvent.click(screen.getByRole("link", { name: "Volver" }));
 
     await expect.element(screen.getByRole("heading", { name: "Caja bloqueada" })).toBeVisible();
   });
 
-  it("closes the locked register's session through the router context with the session it is showing", async () => {
+  it("identifies and closes the locked register's session through the router context with the session it is showing", async () => {
+    const identified: unknown[] = [];
     const closed: unknown[] = [];
     const router = createRegisterRouter(
       routeTree,
       {
         ...contextWith("up", "enrolled", null, undefined, OPEN_SESSION),
+        authorizers: async () => [{ id: "u3", first_name: "Sofía" }],
         cashBalance: async () => BALANCE,
+        identifyLockedCloser: async (closer) => {
+          identified.push(closer);
+          return { kind: "identified", person: { user_id: "u3", first_name: "Sofía" } };
+        },
         closeLockedCashSession: async (sessionId, countedCash, closer) => {
           closed.push([sessionId, countedCash, closer]);
           return { kind: "unavailable" };
         },
       },
-      "/locked-cash-count",
+      "/locked-close",
     );
     const screen = await render(<RouterProvider router={router} />);
+    await userEvent.click(screen.getByText("Sofía", { exact: true }));
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
     await expect
       .element(screen.getByRole("complementary").getByText("$ 46.200,00", { exact: true }))
       .toBeVisible();
 
     await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
-    await userEvent.click(screen.getByRole("button", { name: /Persona que cierra/ }));
-    await userEvent.click(screen.getByRole("option", { name: "Grace" }));
-    await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
 
-    await expect.poll(() => closed).toEqual([["s1", 4_580_000, { user_id: "u2", pin: "1234" }]]);
+    expect(identified).toEqual([{ user_id: "u3", pin: "1234" }]);
+    await expect.poll(() => closed).toEqual([["s1", 4_580_000, { user_id: "u3", pin: "1234" }]]);
   });
 
   it("reaches the PIN code redemption screen from the locked register once the opener is locked out", async () => {
@@ -1093,7 +1095,6 @@ describe("the register's router", () => {
       return (
         <GuardedCashInForm
           person={{ user_id: "u1", first_name: "Tomás", permission_keys: [] }}
-          picks="authorizer"
           loadAuthorizers={authorizers}
           submit={async () => ({ kind: "performed", authorized_by: null })}
         />

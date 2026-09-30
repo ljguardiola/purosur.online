@@ -74,6 +74,7 @@ function coreAnswering(
     openOutcome?: OpenCashSessionOutcome;
     closeCashSession?: CoreClient["closeCashSession"];
     closeLockedCashSession?: CoreClient["closeLockedCashSession"];
+    identifyLockedCloser?: CoreClient["identifyLockedCloser"];
     authorizers?: CoreClient["authorizers"];
     cashBalance?: CoreClient["cashBalance"];
     redeemOutcome?: PinCodeRedemptionOutcome;
@@ -167,6 +168,11 @@ function coreAnswering(
       return cashDrawer.closeLockedCashSession === undefined
         ? { kind: "unavailable" }
         : cashDrawer.closeLockedCashSession(sessionId, countedCash, closer);
+    },
+    async identifyLockedCloser(closer) {
+      return cashDrawer.identifyLockedCloser === undefined
+        ? { kind: "identified", person: { user_id: closer.user_id, first_name: "Sofía" } }
+        : cashDrawer.identifyLockedCloser(closer);
     },
     async cashBalance() {
       return cashDrawer.cashBalance === undefined ? null : cashDrawer.cashBalance();
@@ -1194,10 +1200,13 @@ describe("App", () => {
   });
 
   describe("closing a locked register's cash session by another person", () => {
-    async function closeFromLocked(cashDrawer: {
-      closeLockedCashSession: CoreClient["closeLockedCashSession"];
-      cashSession?: CoreClient["cashSession"];
-    }) {
+    async function identifyFromLocked(
+      cashDrawer: {
+        identifyLockedCloser?: CoreClient["identifyLockedCloser"];
+        closeLockedCashSession?: CoreClient["closeLockedCashSession"];
+        cashSession?: CoreClient["cashSession"];
+      } = {},
+    ) {
       await page.viewport(1280, 720);
       onTestFinished(() => page.viewport(414, 896));
       const fake = coreAnswering(true, { kind: "enrolled" }, ADA_SIGNED_IN, {
@@ -1209,15 +1218,21 @@ describe("App", () => {
       const screen = await render(<App core={fake.core} />);
       postCoreStatus("up");
       await userEvent.click(screen.getByRole("link", { name: "Otra persona cierra la caja" }));
+      await userEvent.click(screen.getByText("Sofía", { exact: true }));
+      await userEvent.type(screen.getByLabelText("PIN"), "1234");
+      await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
+      return { screen, ...fake };
+    }
+
+    async function closeFromLocked(cashDrawer: Parameters<typeof identifyFromLocked>[0]) {
+      const identified = await identifyFromLocked(cashDrawer);
+      const { screen } = identified;
       await expect
         .element(screen.getByRole("complementary").getByText("$ 46.200,00", { exact: true }))
         .toBeVisible();
       await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
-      await userEvent.click(screen.getByRole("button", { name: /Persona que cierra/ }));
-      await userEvent.click(screen.getByRole("option", { name: "Sofía" }));
-      await userEvent.type(screen.getByLabelText("PIN"), "1234");
       await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
-      return { screen, ...fake };
+      return identified;
     }
 
     it("lands on the sign-in screen with nobody signed in once the session is closed", async () => {
@@ -1239,7 +1254,7 @@ describe("App", () => {
     });
 
     it.each(["no_open_session", "not_locked"] as const)(
-      "reads the cash session again when the core answers %s",
+      "reads the cash session again when the close answers %s",
       async (kind) => {
         let asks = 0;
         const { screen } = await closeFromLocked({
@@ -1254,6 +1269,20 @@ describe("App", () => {
         await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
       },
     );
+
+    it("reads the cash session again when identifying answers that the register is not locked", async () => {
+      let asks = 0;
+      const { screen } = await identifyFromLocked({
+        identifyLockedCloser: async () => ({ kind: "not_locked" }),
+        cashSession: async () => {
+          asks += 1;
+          return asks === 1 ? GRACE_SESSION : null;
+        },
+      });
+
+      await expect.poll(() => asks).toBe(2);
+      await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    });
   });
 
   describe("recording cash movements", () => {

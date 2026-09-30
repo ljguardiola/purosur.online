@@ -1,18 +1,10 @@
-import type {
-  Authorization,
-  CashBalance,
-  CloseLockedCashSessionOutcome,
-  SignInUser,
-} from "@purosur/contracts";
-import type { AuthorizablePermissionKey } from "@purosur/domain";
+import type { CashBalance, CloseLockedCashSessionOutcome } from "@purosur/contracts";
 import { Button, formatCents, InlineNotice, TextField } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Lock, ShoppingBasket, TriangleAlert } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
-import { AuthorizationSection } from "../access/authorization-section";
 import type { SignedInPerson } from "../access/signed-in-person";
-import { useAuthorization } from "../access/use-authorization";
 import { SessionEyebrow } from "../shell/session-eyebrow";
 import { countedCashFrom, differenceNotice, INVALID_COUNTED_CASH_MESSAGE } from "./cash-amounts";
 import { CashCountStrip } from "./cash-count-strip";
@@ -21,33 +13,32 @@ import { useCashBalance } from "./use-cash-balance";
 
 const FAILED = "No se pudo cerrar la caja. Probá de nuevo.";
 
-export type LockedCashCountScreenProps = {
+export type RefusedClose = Extract<
+  CloseLockedCashSessionOutcome,
+  { kind: "wrong_pin" | "rate_limited" | "locked" | "lacks_permission" | "not_locked" }
+>;
+
+export type LockedCashCountProps = {
   opener: SignedInPerson;
+  closerName: string;
   registerName: string | null;
   openedAt: string;
   loadCashBalance: () => Promise<CashBalance | null | "unavailable">;
-  loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
-  closeLockedCashSession: (
-    countedCash: number,
-    closer: Authorization,
-  ) => Promise<CloseLockedCashSessionOutcome>;
+  close: (countedCash: number) => Promise<CloseLockedCashSessionOutcome>;
+  onRefused: (refusal: RefusedClose) => void;
 };
 
-export function LockedCashCountScreen({
+export function LockedCashCount({
   opener,
+  closerName,
   registerName,
   openedAt,
   loadCashBalance,
-  loadAuthorizers,
-  closeLockedCashSession,
-}: LockedCashCountScreenProps) {
+  close,
+  onRefused,
+}: LockedCashCountProps) {
   const navigate = useNavigate();
   const balance = useCashBalance(loadCashBalance);
-  const closer = useAuthorization({
-    person: undefined,
-    permission: "close_anothers_register_session",
-    loadAuthorizers,
-  });
   const field = useRef<HTMLDivElement>(null);
   const [typed, setTyped] = useState("");
   const [fieldMessage, setFieldMessage] = useState<string>();
@@ -86,18 +77,15 @@ export function LockedCashCountScreen({
       setFieldMessage(countedCash.message);
       return;
     }
-    if (closer.value === undefined) {
-      return;
-    }
     setFieldMessage(undefined);
     setSubmitting(true);
-    const outcome = await closeLockedCashSession(countedCash.cents, closer.value).catch(
+    const outcome = await close(countedCash.cents).catch(
       (): CloseLockedCashSessionOutcome => ({ kind: "unavailable" }),
     );
     setSubmitting(false);
     switch (outcome.kind) {
       case "closed":
-        closer.performed();
+      case "no_open_session":
         break;
       case "invalid_counted_cash":
         setFieldMessage(INVALID_COUNTED_CASH_MESSAGE);
@@ -105,18 +93,11 @@ export function LockedCashCountScreen({
       case "open_sale":
         setOpenSaleTotal(outcome.total);
         break;
-      case "wrong_pin":
-      case "rate_limited":
-      case "locked":
-      case "lacks_permission":
-        closer.refuse(outcome);
-        break;
       case "unavailable":
-      case "not_locked":
         setFailed(true);
         break;
-      case "no_open_session":
-        break;
+      default:
+        onRefused(outcome);
     }
   }
 
@@ -126,6 +107,9 @@ export function LockedCashCountScreen({
         <div className="flex flex-col gap-1.5">
           <SessionEyebrow registerName={registerName} openedAt={openedAt} />
           <h1 className="text-display text-text-accent">Cerrar caja</h1>
+          <p className="text-body text-text-subtle">
+            {`Cierra ${closerName}. La sesión es de ${opener.first_name}.`}
+          </p>
         </div>
         {openSaleTotal === undefined ? null : (
           <InlineNotice
@@ -155,17 +139,6 @@ export function LockedCashCountScreen({
           {warning === undefined ? null : (
             <InlineNotice tone="warning" icon={<TriangleAlert />} title={warning} />
           )}
-          <div className="flex flex-col gap-3">
-            <p className="text-detail text-text-subtle">
-              {`La sesión es de ${opener.first_name}: la cierra alguien con permiso para cerrar la sesión de otra persona.`}
-            </p>
-            <AuthorizationSection
-              authorization={closer}
-              picks="closer"
-              action="cerrar la sesión de otra persona"
-              disabled={submitting}
-            />
-          </div>
           {failed ? <InlineNotice tone="error" icon={<TriangleAlert />} title={FAILED} /> : null}
         </section>
       </main>
@@ -180,7 +153,7 @@ export function LockedCashCountScreen({
           fullWidth
           icon={<Lock />}
           dataStatus={balance.state.status}
-          disabled={submitting || !closer.ready}
+          disabled={submitting}
         >
           Cerrar caja
         </Button>

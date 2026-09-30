@@ -64,7 +64,7 @@ describe("LockedRegisterScreen", () => {
 
     await userEvent.click(screen.getByRole("link", { name: "Otra persona cierra la caja" }));
 
-    expect(screen.router.state.location.pathname).toBe("/locked-cash-count");
+    expect(screen.router.state.location.pathname).toBe("/locked-close");
   });
 
   it("focuses the PIN", async () => {

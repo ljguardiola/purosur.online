@@ -155,6 +155,14 @@ export function App({ core }: { core: CoreClient }) {
     return outcome satisfies CloseLockedCashSessionOutcome;
   }
 
+  async function identifyLockedCloser(closer: Authorization) {
+    const outcome = await core.identifyLockedCloser(closer);
+    if (outcome.kind === "not_locked") {
+      await core.cashSession().then(refreshCashSession, () => {});
+    }
+    return outcome;
+  }
+
   async function cashBalance() {
     const balance = await core.cashBalance();
     if (balance === null) {
@@ -197,6 +205,7 @@ export function App({ core }: { core: CoreClient }) {
     openCashSession,
     closeCashSession,
     closeLockedCashSession,
+    identifyLockedCloser,
     cashBalance,
     cashMovements,
     recordCashMovement,

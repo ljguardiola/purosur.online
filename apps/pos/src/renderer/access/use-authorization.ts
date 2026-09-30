@@ -16,14 +16,14 @@ export type ShownRefusal =
   | { kind: "locked"; firstName: string | undefined; consecutiveFailures: number };
 
 export type UseAuthorizationInput = {
-  person: SignedInPerson | undefined;
+  person: SignedInPerson;
   permission: AuthorizablePermissionKey;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   applies?: boolean;
 };
 
 export type AuthorizationState = {
-  person: SignedInPerson | undefined;
+  person: SignedInPerson;
   required: boolean;
   ready: boolean;
   value: Authorization | undefined;
@@ -46,8 +46,7 @@ export function useAuthorization({
   loadAuthorizers,
   applies = true,
 }: UseAuthorizationInput): AuthorizationState {
-  const required =
-    applies && (person === undefined || !person.permission_keys.includes(permission));
+  const required = applies && !person.permission_keys.includes(permission);
   const pinInput = useRef<HTMLInputElement>(null);
   const [authorizers, setAuthorizers] = useState<LoadedAuthorizers>({ status: "loading" });
   const [chosen, setChosen] = useState<string | null>(null);

@@ -63,7 +63,7 @@ export function LockedRegisterScreen({
               label="Tengo un código para cambiar el PIN"
             />
             <ScreenLink
-              to="/locked-cash-count"
+              to="/locked-close"
               icon={<UserLock />}
               label="Otra persona cierra la caja"
             />
