@@ -883,6 +883,8 @@ describe("sale answers", () => {
         product_name: "Yerba",
         quantity: 1,
         list_unit_price: 1500,
+        discount_amount: 0,
+        promotion: null,
         line_total: 1500,
       },
     ],
