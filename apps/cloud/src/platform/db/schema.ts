@@ -524,10 +524,14 @@ export const changes = pgTable(
     // Set on a price's changes only, so the feed can tell which branch's list a price belongs to
     // after the price itself is gone.
     priceListId: uuid("price_list_id"),
+    // Set on a user's changes only, so the feed can tell which branch a user belongs to after the
+    // user itself is gone.
+    locationId: uuid("location_id"),
   },
   (table) => [
     index("changes_entity_entity_id_idx").on(table.entity, table.entityId, table.changeSeq),
     index("changes_entity_price_list_id_idx").on(table.entity, table.priceListId, table.changeSeq),
+    index("changes_entity_location_id_idx").on(table.entity, table.locationId, table.changeSeq),
   ],
 );
 

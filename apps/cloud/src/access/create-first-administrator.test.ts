@@ -1,6 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { auditLog, locations, roles, userRoles, users } from "../platform/db/schema.js";
+import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import {
@@ -67,6 +68,25 @@ describe("createFirstAdministrator", () => {
       previousValue: null,
       newValue: { firstName: "Ada Lovelace", email: "ada@example.com", roleId },
     });
+  });
+
+  it("logs the created Administrator as an insert of its first version, in the seeded location", async () => {
+    const mark = await lastLoggedChangeSeq(db);
+
+    const result = await createFirstAdministrator(db, {
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+    });
+
+    expect(await changesLoggedAfter(db, mark)).toEqual([
+      {
+        entity: "user",
+        entityId: result.id,
+        version: 1,
+        op: "insert",
+        locationId: await seededLocationId(db),
+      },
+    ]);
   });
 
   it("assigns the created Administrator to the seeded location", async () => {

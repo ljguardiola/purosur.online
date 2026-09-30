@@ -12,6 +12,7 @@ import {
   userRoles,
   users,
 } from "../platform/db/schema.js";
+import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { SESSION_COOKIE_NAME } from "./session-cookie.js";
@@ -280,6 +281,23 @@ describe("DELETE /users/:id/deactivation", () => {
       previousValue: { active: false },
       newValue: { active: true },
     });
+  });
+
+  it("logs the reactivation as an update of the user's next version, in the user's branch", async () => {
+    const rawSessionId = await insertSession(administratorId);
+    const mark = await lastLoggedChangeSeq(db);
+
+    await reactivateUser(targetId, rawSessionId);
+
+    expect(await changesLoggedAfter(db, mark)).toEqual([
+      {
+        entity: "user",
+        entityId: targetId,
+        version: 2,
+        op: "update",
+        locationId: await seededLocationId(db),
+      },
+    ]);
   });
 
   it("opens no alert for increased access, even when the role gained permissions while the user was deactivated", async () => {

@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { auditLog, users } from "../platform/db/schema.js";
+import { withPendingChanges } from "../sync/change-log.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
 import { findBranchUser } from "./branch-users.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
@@ -58,34 +59,45 @@ export function registerUserReactivationRoutes<TQueryResult extends PgQueryResul
         return;
       }
 
-      const outcome = await options.db.transaction<ReactivationOutcome>(async (tx) => {
-        // Re-reads `active` under the row lock, so a concurrent request against the same target
-        // waits, and a second reactivation of an already-active target answers not_found instead
-        // of re-auditing it.
-        const [current] = await tx
-          .select({ active: users.active, version: users.version })
-          .from(users)
-          .where(eq(users.id, target.id))
-          .for("update");
-        if (!current || current.active) {
-          return { kind: "not_found" };
-        }
+      const outcome = await withPendingChanges<TQueryResult, ReactivationOutcome>(
+        options.db,
+        undefined,
+        async (tx, changes) => {
+          // Re-reads `active` under the row lock, so a concurrent request against the same target
+          // waits, and a second reactivation of an already-active target answers not_found instead
+          // of re-auditing it.
+          const [current] = await tx
+            .select({ active: users.active, version: users.version, locationId: users.locationId })
+            .from(users)
+            .where(eq(users.id, target.id))
+            .for("update");
+          if (!current || current.active) {
+            return { kind: "not_found" };
+          }
 
-        await tx
-          .update(users)
-          .set({ active: true, version: current.version + 1 })
-          .where(eq(users.id, target.id));
+          await tx
+            .update(users)
+            .set({ active: true, version: current.version + 1 })
+            .where(eq(users.id, target.id));
+          changes.note({
+            entity: "user",
+            entityId: target.id,
+            version: current.version + 1,
+            op: "update",
+            locationId: current.locationId,
+          });
 
-        await tx.insert(auditLog).values({
-          entity: "user",
-          entityId: target.id,
-          actorId: openSession.userId,
-          previousValue: { active: false },
-          newValue: { active: true },
-        });
+          await tx.insert(auditLog).values({
+            entity: "user",
+            entityId: target.id,
+            actorId: openSession.userId,
+            previousValue: { active: false },
+            newValue: { active: true },
+          });
 
-        return { kind: "reactivated" };
-      });
+          return { kind: "reactivated" };
+        },
+      );
 
       if (outcome.kind === "not_found") {
         await reply.code(404).send(USER_NOT_FOUND_RESPONSE);

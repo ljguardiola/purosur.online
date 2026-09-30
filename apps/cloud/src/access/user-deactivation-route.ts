@@ -2,6 +2,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { auditLog, roles, sessions, userRoles, users } from "../platform/db/schema.js";
+import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
 import { findBranchUser } from "./branch-users.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
@@ -31,45 +32,57 @@ export type DeactivateUserOutcome = { kind: "not_found" } | { kind: "deactivated
 export async function deactivateUser<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: DeactivateUserInput,
+  pending?: PendingChanges,
 ): Promise<DeactivateUserOutcome> {
-  return db.transaction<DeactivateUserOutcome>(async (tx) => {
-    const [current] = await tx
-      .select({ active: users.active, version: users.version })
-      .from(users)
-      .where(eq(users.id, input.id))
-      .for("no key update");
-    if (!current?.active) {
-      return { kind: "not_found" };
-    }
-    const [currentRole] = await tx
-      .select({ isAdministrator: roles.isAdministrator })
-      .from(userRoles)
-      .innerJoin(roles, eq(roles.id, userRoles.roleId))
-      .where(eq(userRoles.userId, input.id));
-    if (currentRole?.isAdministrator) {
-      return { kind: "not_found" };
-    }
+  return withPendingChanges<TQueryResult, DeactivateUserOutcome>(
+    db,
+    pending,
+    async (tx, changes) => {
+      const [current] = await tx
+        .select({ active: users.active, version: users.version, locationId: users.locationId })
+        .from(users)
+        .where(eq(users.id, input.id))
+        .for("no key update");
+      if (!current?.active) {
+        return { kind: "not_found" };
+      }
+      const [currentRole] = await tx
+        .select({ isAdministrator: roles.isAdministrator })
+        .from(userRoles)
+        .innerJoin(roles, eq(roles.id, userRoles.roleId))
+        .where(eq(userRoles.userId, input.id));
+      if (currentRole?.isAdministrator) {
+        return { kind: "not_found" };
+      }
 
-    await tx
-      .update(users)
-      .set({ active: false, version: current.version + 1 })
-      .where(eq(users.id, input.id));
+      await tx
+        .update(users)
+        .set({ active: false, version: current.version + 1 })
+        .where(eq(users.id, input.id));
+      changes.note({
+        entity: "user",
+        entityId: input.id,
+        version: current.version + 1,
+        op: "update",
+        locationId: current.locationId,
+      });
 
-    await tx
-      .update(sessions)
-      .set({ revokedAt: input.at })
-      .where(and(eq(sessions.userId, input.id), isNull(sessions.revokedAt)));
+      await tx
+        .update(sessions)
+        .set({ revokedAt: input.at })
+        .where(and(eq(sessions.userId, input.id), isNull(sessions.revokedAt)));
 
-    await tx.insert(auditLog).values({
-      entity: "user",
-      entityId: input.id,
-      actorId: input.actorId,
-      previousValue: { active: true },
-      newValue: { active: false },
-    });
+      await tx.insert(auditLog).values({
+        entity: "user",
+        entityId: input.id,
+        actorId: input.actorId,
+        previousValue: { active: true },
+        newValue: { active: false },
+      });
 
-    return { kind: "deactivated" };
-  });
+      return { kind: "deactivated" };
+    },
+  );
 }
 
 export function registerUserDeactivationRoutes<TQueryResult extends PgQueryResultHKT>(

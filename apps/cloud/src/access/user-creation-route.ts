@@ -5,6 +5,7 @@ import type { FastifyInstance } from "fastify";
 import { openAlert } from "../alerts/open-alert.js";
 import { auditLog, roles, userRoles, users } from "../platform/db/schema.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
+import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
 import { canReactivateUsers, toBranchUserWire } from "./branch-users.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
@@ -64,6 +65,7 @@ export async function createUser<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: CreateUserInput,
   deps: CreateUserDeps,
+  pending?: PendingChanges,
 ): Promise<CreateUserOutcome> {
   const [role] = await db
     .select({ id: roles.id, name: roles.name, isAdministrator: roles.isAdministrator })
@@ -74,51 +76,56 @@ export async function createUser<TQueryResult extends PgQueryResultHKT>(
     return { kind: "unknown_role" };
   }
 
-  const created = await db
-    .transaction(async (tx) => {
-      const [newUser] = await tx
-        .insert(users)
-        .values({
-          firstName: input.firstName,
-          email: input.email,
-          locationId: input.locationId,
-        })
-        .onConflictDoNothing({ target: users.email })
-        .returning({ id: users.id });
-      if (!newUser) {
-        throw new EmailAlreadyTaken();
-      }
-
-      await tx.insert(userRoles).values({ userId: newUser.id, roleId: role.id });
-
-      await tx.insert(auditLog).values({
-        entity: "user",
-        entityId: newUser.id,
-        actorId: input.actorId,
-        previousValue: null,
-        newValue: { firstName: input.firstName, email: input.email, roleId: role.id },
-      });
-
-      if (role.isAdministrator) {
-        await openAlert(
-          tx,
-          {
-            kind: "user_access_increased",
-            scope: newUser.id,
-            detail: { cause: "created_as_administrator", actorId: input.actorId },
-          },
-          deps,
-        );
-      }
-
-      return newUser;
-    })
-    .catch((error: unknown) => {
-      if (error instanceof EmailAlreadyTaken) {
-        return undefined;
-      }
-      throw error;
+  const created = await withPendingChanges(db, pending, async (tx, changes) => {
+    const [newUser] = await tx
+      .insert(users)
+      .values({
+        firstName: input.firstName,
+        email: input.email,
+        locationId: input.locationId,
+      })
+      .onConflictDoNothing({ target: users.email })
+      .returning({ id: users.id, version: users.version });
+    if (!newUser) {
+      throw new EmailAlreadyTaken();
+    }
+    changes.note({
+      entity: "user",
+      entityId: newUser.id,
+      version: newUser.version,
+      op: "insert",
+      locationId: input.locationId,
     });
+
+    await tx.insert(userRoles).values({ userId: newUser.id, roleId: role.id });
+
+    await tx.insert(auditLog).values({
+      entity: "user",
+      entityId: newUser.id,
+      actorId: input.actorId,
+      previousValue: null,
+      newValue: { firstName: input.firstName, email: input.email, roleId: role.id },
+    });
+
+    if (role.isAdministrator) {
+      await openAlert(
+        tx,
+        {
+          kind: "user_access_increased",
+          scope: newUser.id,
+          detail: { cause: "created_as_administrator", actorId: input.actorId },
+        },
+        deps,
+      );
+    }
+
+    return newUser;
+  }).catch((error: unknown) => {
+    if (error instanceof EmailAlreadyTaken) {
+      return undefined;
+    }
+    throw error;
+  });
 
   if (!created) {
     return { kind: "email_taken" };

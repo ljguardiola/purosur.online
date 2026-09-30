@@ -1,5 +1,5 @@
 import type { NetContentUnit, SaleUnit } from "@purosur/domain";
-import { asc, inArray } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   categories,
@@ -8,10 +8,23 @@ import {
   productBarcodes,
   products,
   productTags,
+  rolePermissions,
+  roles,
   tags,
+  userPins,
+  userRoles,
+  users,
 } from "../platform/db/schema.js";
 import { PRICE_VERSION } from "../pricing/price-version.js";
-import type { CategoryRow, PriceListRow, PriceRow, ProductRow, TagRow } from "./pulled-changes.js";
+import type {
+  CategoryRow,
+  PriceListRow,
+  PriceRow,
+  ProductRow,
+  RoleRow,
+  TagRow,
+  UserRow,
+} from "./pulled-changes.js";
 
 export async function readCategories<TQueryResult extends PgQueryResultHKT>(
   tx: PgDatabase<TQueryResult>,
@@ -161,4 +174,62 @@ export async function readPrices<TQueryResult extends PgQueryResultHKT>(
     .where(inArray(prices.id, [...ids]))
     .orderBy(asc(prices.id));
   return new Map(rows.map(({ id, ...row }) => [id, { ...row, version: PRICE_VERSION }]));
+}
+
+// Each of the two reads is one statement, so it sees one snapshot and needs no lock: a writer
+// changes a user's role and PIN, or a role's permissions, in the same transaction as the row's
+// version.
+export async function readUsers<TQueryResult extends PgQueryResultHKT>(
+  tx: PgDatabase<TQueryResult>,
+  ids: readonly string[],
+): Promise<Map<string, UserRow>> {
+  if (ids.length === 0) {
+    return new Map();
+  }
+  const rows = await tx
+    .select({
+      id: users.id,
+      firstName: users.firstName,
+      roleId: userRoles.roleId,
+      salt: userPins.salt,
+      pinHash: userPins.hash,
+      active: users.active,
+      version: users.version,
+    })
+    .from(users)
+    .innerJoin(userRoles, eq(userRoles.userId, users.id))
+    .leftJoin(userPins, eq(userPins.userId, users.id))
+    .where(inArray(users.id, [...ids]))
+    .orderBy(asc(users.id));
+  return new Map(rows.map(({ id, ...row }) => [id, row]));
+}
+
+export async function readRoles<TQueryResult extends PgQueryResultHKT>(
+  tx: PgDatabase<TQueryResult>,
+  ids: readonly string[],
+): Promise<Map<string, RoleRow>> {
+  if (ids.length === 0) {
+    return new Map();
+  }
+  const rows = await tx
+    .select({
+      id: roles.id,
+      name: roles.name,
+      isAdministrator: roles.isAdministrator,
+      version: roles.version,
+      permissionKey: rolePermissions.permissionKey,
+    })
+    .from(roles)
+    .leftJoin(rolePermissions, eq(rolePermissions.roleId, roles.id))
+    .where(inArray(roles.id, [...ids]))
+    .orderBy(asc(roles.id), asc(rolePermissions.permissionKey));
+  const pulled = new Map<string, RoleRow>();
+  for (const { id, permissionKey, ...row } of rows) {
+    const role = pulled.get(id) ?? { ...row, permissionKeys: [] };
+    if (permissionKey !== null) {
+      role.permissionKeys.push(permissionKey);
+    }
+    pulled.set(id, role);
+  }
+  return pulled;
 }

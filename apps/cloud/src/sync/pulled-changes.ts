@@ -38,7 +38,23 @@ export interface TagRow {
   version: number;
 }
 
-export type RemovedEntity = "category" | "product" | "tag" | "price";
+export interface UserRow {
+  firstName: string;
+  roleId: string;
+  salt: string | null;
+  pinHash: string | null;
+  active: boolean;
+  version: number;
+}
+
+export interface RoleRow {
+  name: string | null;
+  isAdministrator: boolean;
+  permissionKeys: string[];
+  version: number;
+}
+
+export type RemovedEntity = "category" | "product" | "tag" | "price" | "user" | "role";
 
 export type PulledCloudChange = { changeSeq: number; entityId: string } & (
   | { entity: "branch_settings"; row: BranchSettingsRow }
@@ -47,5 +63,7 @@ export type PulledCloudChange = { changeSeq: number; entityId: string } & (
   | { entity: "tag"; row: TagRow }
   | { entity: "price_list"; row: PriceListRow }
   | { entity: "price"; row: PriceRow }
+  | { entity: "user"; row: UserRow }
+  | { entity: "role"; row: RoleRow }
   | { entity: "removal"; removedEntity: RemovedEntity; version: number }
 );

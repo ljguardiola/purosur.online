@@ -50,6 +50,22 @@ const tagRow = { name: "Sin TACC", active: true, version: 1 };
 
 const priceListRow = { name: "Lista minorista", version: 1 };
 
+const userRow = {
+  first_name: "Ada",
+  role_id: "1e7b3a90-52c4-4d18-9f6a-8b0c2d4e6f71",
+  salt: "c2FsdC1vZi1hZGE",
+  pin_hash: "cGluLWhhc2gtb2YtYWRh",
+  active: true,
+  version: 2,
+};
+
+const roleRow = {
+  name: "Cajera",
+  is_administrator: false,
+  permission_keys: ["sell_and_charge", "adjust_stock"],
+  version: 3,
+};
+
 const priceRow = {
   product_id: "0b1d2f4a-6c3e-4b7d-9a58-1e2f3a4b5c6d",
   price_list_id: "5a4b3c2d-1e0f-4a9b-8c7d-6e5f4a3b2c1d",
@@ -135,6 +151,17 @@ describe("changesPageSchema", () => {
     ["the removal of a category", removal(1, "category", 2)],
     ["the removal of a product", removal(1, "product", 3)],
     ["the removal of a price", removal(1, "price", 2)],
+    ["a user", change(1, "user", userRow)],
+    ["a deactivated user", change(1, "user", { ...userRow, active: false, version: 3 })],
+    ["a user with no PIN", change(1, "user", { ...userRow, salt: null, pin_hash: null })],
+    ["a role", change(1, "role", roleRow)],
+    ["a role that grants nothing", change(1, "role", { ...roleRow, permission_keys: [] })],
+    [
+      "the Administrator role",
+      change(1, "role", { name: null, is_administrator: true, permission_keys: [], version: 1 }),
+    ],
+    ["the removal of a user", removal(1, "user", 4)],
+    ["the removal of a role", removal(1, "role", 4)],
   ])("accepts %s", (_case, entry) => {
     const page = pageOf(entry);
 
@@ -148,11 +175,21 @@ describe("changesPageSchema", () => {
       change(3, "product", productRow),
       change(4, "price_list", priceListRow),
       change(7, "tag", tagRow),
+      change(8, "user", userRow),
+      change(9, "role", roleRow),
       change(5, "price", priceRow),
       removal(6, "product", 3),
     );
 
     expect(changesPageSchema.parse(page)).toEqual(page);
+  });
+
+  it("keeps nothing of a user but the fields a register may hold", () => {
+    const page = pageOf(
+      change(1, "user", { ...userRow, email: "ada@example.com", location_id: ENTITY_ID }),
+    );
+
+    expect(changesPageSchema.parse(page).changes[0]).toEqual(change(1, "user", userRow));
   });
 
   it("accepts an empty last page", () => {
@@ -256,6 +293,28 @@ describe("changesPageSchema", () => {
       "a price without its price list",
       pageOf(change(1, "price", { ...priceRow, price_list_id: undefined })),
     ],
+    ["a user without its name", pageOf(change(1, "user", { ...userRow, first_name: undefined }))],
+    ["a user without its role", pageOf(change(1, "user", { ...userRow, role_id: undefined }))],
+    ["a user without its salt field", pageOf(change(1, "user", { ...userRow, salt: undefined }))],
+    [
+      "a user without its PIN hash field",
+      pageOf(change(1, "user", { ...userRow, pin_hash: undefined })),
+    ],
+    [
+      "a user without its active flag",
+      pageOf(change(1, "user", { ...userRow, active: undefined })),
+    ],
+    ["a user without its version", pageOf(change(1, "user", { ...userRow, version: undefined }))],
+    ["a role without its name field", pageOf(change(1, "role", { ...roleRow, name: undefined }))],
+    [
+      "a role without its Administrator flag",
+      pageOf(change(1, "role", { ...roleRow, is_administrator: undefined })),
+    ],
+    [
+      "a role without its permissions",
+      pageOf(change(1, "role", { ...roleRow, permission_keys: undefined })),
+    ],
+    ["a role without its version", pageOf(change(1, "role", { ...roleRow, version: undefined }))],
     ["a removal of an entity that is never removed", pageOf(removal(1, "price_list", 2))],
     ["a removal of the branch settings", pageOf(removal(1, "branch_settings", 2))],
     ["a removal without its version", pageOf({ ...removal(1, "product", 2), version: undefined })],

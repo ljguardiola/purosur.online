@@ -109,6 +109,8 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
         throw new Error("sample-data: no location is seeded in the database");
       }
 
+      const pending = new PendingChanges();
+
       const administratorOutcome = await createUser(
         tx,
         {
@@ -119,6 +121,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
           actorId: bootstrapAdministrator.id,
         },
         deps,
+        pending,
       );
       const sampleAdministrator = expectOutcome(
         administratorOutcome,
@@ -129,11 +132,15 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
 
       const roleIdByName = new Map<string, string>();
       for (const rolePlan of SAMPLE_ROLES) {
-        const outcome = await createRole(tx, {
-          name: rolePlan.name,
-          permissionKeys: [...rolePlan.permissionKeys],
-          actorId,
-        });
+        const outcome = await createRole(
+          tx,
+          {
+            name: rolePlan.name,
+            permissionKeys: [...rolePlan.permissionKeys],
+            actorId,
+          },
+          pending,
+        );
         const created = expectOutcome(outcome, "created", `role "${rolePlan.name}"`);
         roleIdByName.set(rolePlan.name, created.role.id);
       }
@@ -155,15 +162,20 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
               actorId,
             },
             deps,
+            pending,
           );
           const created = expectOutcome(outcome, "created", `user "${userPlan.firstName}"`);
           sampleUserIdsInOrder.push(created.id);
           if (!userPlan.active) {
-            const deactivated = await deactivateUser(tx, {
-              id: created.id,
-              actorId,
-              at: deps.now(),
-            });
+            const deactivated = await deactivateUser(
+              tx,
+              {
+                id: created.id,
+                actorId,
+                at: deps.now(),
+              },
+              pending,
+            );
             expectOutcome(deactivated, "deactivated", `deactivating user "${userPlan.firstName}"`);
           }
         }
@@ -173,7 +185,6 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
       const recentMoment = deps.now();
       const overdueReviewMoment = new Date(recentMoment.getTime() - OVERDUE_PRICE_REVIEW_AGE_MS);
 
-      const pending = new PendingChanges();
       const catalogStore = new DrizzleCatalogStore(tx, pending);
       const pricingStore = new DrizzlePricingStore(tx, pending);
       const pricingPortsAt = (moment: Date) => ({

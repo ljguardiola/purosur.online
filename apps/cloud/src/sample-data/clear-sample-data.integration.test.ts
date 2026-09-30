@@ -479,15 +479,17 @@ describe("clearSampleData", () => {
 
     expect((await clearSampleData(db)).kind).toBe("cleared");
 
-    const deletes = await db
-      .select({
-        entity: changes.entity,
-        entityId: changes.entityId,
-        version: changes.version,
-        priceListId: changes.priceListId,
-      })
-      .from(changes)
-      .where(eq(changes.op, "delete"));
+    const deletes = (
+      await db
+        .select({
+          entity: changes.entity,
+          entityId: changes.entityId,
+          version: changes.version,
+          priceListId: changes.priceListId,
+        })
+        .from(changes)
+        .where(eq(changes.op, "delete"))
+    ).filter((row) => row.entity !== "user" && row.entity !== "role");
     const byKey = (row: { entity: string; entityId: string }) => `${row.entity}:${row.entityId}`;
     expect(deletes.map(byKey).sort()).toEqual(
       [
@@ -512,6 +514,51 @@ describe("clearSampleData", () => {
       expect(deleteOf("price", price.id)).toMatchObject({
         version: 2,
         priceListId: price.priceListId,
+      });
+    }
+  }, 120_000);
+
+  it("logs every user and role it removes as a delete of the version after its last one, each user with its branch", async () => {
+    const db = await freshOwnerDatabase();
+    const bootstrap = await seedActiveAdministrator(db);
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    const removedUsers = (
+      await db
+        .select({ id: users.id, version: users.version, locationId: users.locationId })
+        .from(users)
+    ).filter((user) => user.id !== bootstrap.id);
+    const removedRoles = await db
+      .select({ id: roles.id, version: roles.version })
+      .from(roles)
+      .where(eq(roles.isAdministrator, false));
+    expect(removedUsers.some((user) => user.version > 1)).toBe(true);
+    expect(removedRoles.length).toBeGreaterThan(0);
+
+    expect((await clearSampleData(db)).kind).toBe("cleared");
+
+    const deletes = await db
+      .select({
+        entity: changes.entity,
+        entityId: changes.entityId,
+        version: changes.version,
+        locationId: changes.locationId,
+      })
+      .from(changes)
+      .where(eq(changes.op, "delete"));
+    const deleteOf = (entity: string, id: string) =>
+      deletes.find((row) => row.entity === entity && row.entityId === id);
+    expect(deletes.filter((row) => row.entity === "user")).toHaveLength(removedUsers.length);
+    expect(deletes.filter((row) => row.entity === "role")).toHaveLength(removedRoles.length);
+    for (const user of removedUsers) {
+      expect(deleteOf("user", user.id)).toMatchObject({
+        version: user.version + 1,
+        locationId: user.locationId,
+      });
+    }
+    for (const role of removedRoles) {
+      expect(deleteOf("role", role.id)).toMatchObject({
+        version: role.version + 1,
+        locationId: null,
       });
     }
   }, 120_000);
