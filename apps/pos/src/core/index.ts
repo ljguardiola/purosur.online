@@ -19,6 +19,7 @@ import {
 } from "../shared/channel";
 import { CORE_READY_MESSAGE } from "../shared/core-readiness";
 import { createActionGate } from "./access/action-gate";
+import { requestFirstPinCode } from "./access/first-pin-code-request";
 import { redeemPinCode } from "./access/pin-code-redemption";
 import { hashPin } from "./access/pin-hash";
 import { applyRedeemedPin } from "./access/redeemed-pin";
@@ -283,6 +284,18 @@ const rendererRequestDeps: RendererRequestDeps = {
             },
             email,
           ),
+  requestFirstPinCode: (userId) =>
+    requestFirstPinCode(
+      {
+        readCredentials: () => mainRequests.readCredentials(),
+        postToCloud:
+          cloudClient === undefined
+            ? undefined
+            : (path, bearerToken, body) =>
+                postToCloudWithBearer(cloudClient, path, bearerToken, body),
+      },
+      userId,
+    ),
   signOut: () => signedInPerson.clear(),
   openCashSession:
     localDatabase === undefined || actionGate === undefined

@@ -103,6 +103,9 @@ function coreAnswering(
     async signInLookup() {
       return { kind: "not_found" };
     },
+    async requestFirstPinCode() {
+      return { kind: "sent" };
+    },
     async firstSignIn() {
       return signInOutcome;
     },

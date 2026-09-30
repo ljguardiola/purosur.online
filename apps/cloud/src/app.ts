@@ -5,6 +5,10 @@ import { setupFastifyErrorHandler as defaultSetupFastifyErrorHandler } from "@se
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
 import Fastify, { type FastifyInstance } from "fastify";
+import {
+  type FirstPinCodeRouteOptions,
+  registerFirstPinCodeRoute,
+} from "./access/first-pin-code-route.js";
 import type { PasskeysListRouteOptions } from "./access/passkeys-list-route.js";
 import { registerPasskeysListRoute } from "./access/passkeys-list-route.js";
 import { registerPasskeyRegistrationRoutes } from "./access/passkeys-registration-route.js";
@@ -129,6 +133,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   registers?: RegistersRouteOptions<TQueryResult>;
   stock?: StockRouteOptions<TQueryResult>;
   devices?: DeviceTokensOptions<TQueryResult>;
+  firstPinCodes?: FirstPinCodeRouteOptions<TQueryResult>;
 }
 
 type DatabaseRouteOptions<TQueryResult extends PgQueryResultHKT> = Required<
@@ -152,6 +157,11 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
 ): DatabaseRouteOptions<TQueryResult> {
   const { db, backofficeOrigin } = wiring;
   const backoffice = { db, backofficeOrigin };
+  const devices = {
+    db,
+    rotationKey: wiring.deviceTokenRotationKey,
+    keysEncryptionKey: wiring.installationKeysEncryptionKey,
+  };
   return {
     recovery: { ...backoffice, jobQueue: wiring.recoveryJobQueue },
     session: backoffice,
@@ -169,11 +179,8 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     discounts: backoffice,
     registers: backoffice,
     stock: backoffice,
-    devices: {
-      db,
-      rotationKey: wiring.deviceTokenRotationKey,
-      keysEncryptionKey: wiring.installationKeysEncryptionKey,
-    },
+    devices,
+    firstPinCodes: devices,
   };
 }
 
@@ -383,6 +390,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerPinCodeRedemptionRoute(api, options.devices);
         registerSignInLookupRoute(api, options.devices);
         registerDeviceTokenRotationRoute(api, options.devices);
+      }
+
+      if (options.firstPinCodes) {
+        registerFirstPinCodeRoute(api, options.firstPinCodes);
       }
     },
     { prefix: API_PREFIX },

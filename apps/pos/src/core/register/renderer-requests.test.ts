@@ -1,6 +1,7 @@
 import type {
   CashBalance,
   CloseCashSessionOutcome,
+  FirstPinCodeRequestOutcome,
   OpenCashSession,
   OpenCashSessionOutcome,
   OpenSale,
@@ -18,6 +19,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const signIns: { userId: string; pin: string }[] = [];
   const firstSignIns: { userId: string; pin: string }[] = [];
   const lookups: string[] = [];
+  const codeRequests: string[] = [];
   const openings: number[] = [];
   const closings: {
     sessionId: string;
@@ -35,6 +37,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
     signIns,
     firstSignIns,
     lookups,
+    codeRequests,
     openings,
     closings,
     authorizerLookups,
@@ -65,6 +68,10 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       signInLookup: async (email: string): Promise<SignInLookupOutcome> => {
         lookups.push(email);
         return { kind: "has_pin", user: { id: "u1", first_name: "Ada" } };
+      },
+      requestFirstPinCode: async (userId: string): Promise<FirstPinCodeRequestOutcome> => {
+        codeRequests.push(userId);
+        return { kind: "sent" };
       },
       openCashSession: async (openingFloat: number): Promise<OpenCashSessionOutcome> => {
         openings.push(openingFloat);
@@ -812,6 +819,60 @@ describe("answerRendererRequest", () => {
     ).toEqual({
       type: "sign-in-lookup-result",
       request_id: "r18",
+      outcome: { kind: "unavailable" },
+    });
+  });
+
+  it("asks for a first PIN code for the person and answers the outcome", async () => {
+    const { deps: withRequest, codeRequests } = deps(true);
+
+    const answer = await answerRendererRequest(withRequest, {
+      type: "first-pin-code-request",
+      request_id: "r19",
+      user_id: "u1",
+    });
+
+    expect(codeRequests).toEqual(["u1"]);
+    expect(answer).toEqual({
+      type: "first-pin-code-request-result",
+      request_id: "r19",
+      outcome: { kind: "sent" },
+    });
+  });
+
+  it("answers that the code is unavailable when asking fails, and reports the failure", async () => {
+    const failing = deps(true, {
+      requestFirstPinCode: async () => {
+        throw new Error("boom");
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "first-pin-code-request",
+        request_id: "r20",
+        user_id: "u1",
+      }),
+    ).toEqual({
+      type: "first-pin-code-request-result",
+      request_id: "r20",
+      outcome: { kind: "unavailable" },
+    });
+    expect(failing.failures).toHaveLength(1);
+  });
+
+  it("answers that the code is unavailable when the register cannot ask for one", async () => {
+    const withoutRequest = deps(true, { requestFirstPinCode: undefined });
+
+    expect(
+      await answerRendererRequest(withoutRequest.deps, {
+        type: "first-pin-code-request",
+        request_id: "r21",
+        user_id: "u1",
+      }),
+    ).toEqual({
+      type: "first-pin-code-request-result",
+      request_id: "r21",
       outcome: { kind: "unavailable" },
     });
   });

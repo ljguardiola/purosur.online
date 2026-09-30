@@ -5,6 +5,7 @@ import type {
   CoreStatusMessage,
   CurrentSaleAnswer,
   EnrollmentOutcome,
+  FirstPinCodeRequestOutcome,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   ScanProductOutcome,
@@ -64,6 +65,7 @@ export interface RouterContext {
   cashBalance: () => Promise<CashBalance | null | "unavailable">;
   redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
   signInLookup: (email: string) => Promise<SignInLookupOutcome>;
+  requestFirstPinCode: (userId: string) => Promise<FirstPinCodeRequestOutcome>;
   firstSignIn: (userId: string, pin: string) => Promise<SignInOutcome>;
   currentSale: () => Promise<CurrentSaleAnswer>;
   scanProduct: (code: string) => Promise<ScanProductOutcome>;
@@ -258,8 +260,16 @@ const firstSignInRoute = createRoute({
   path: "/first-sign-in",
   beforeLoad: ({ context }) => requireRoute("/sign-in", context),
   component: function FirstSignInRoute() {
-    const { signInLookup, firstSignIn } = firstSignInRoute.useRouteContext();
-    return <FirstSignInScreen lookup={signInLookup} signIn={firstSignIn} />;
+    const { signInLookup, firstSignIn, requestFirstPinCode, redeemPinCode } =
+      firstSignInRoute.useRouteContext();
+    return (
+      <FirstSignInScreen
+        lookup={signInLookup}
+        signIn={firstSignIn}
+        requestCode={requestFirstPinCode}
+        redeem={redeemPinCode}
+      />
+    );
   },
 });
 
@@ -329,6 +339,7 @@ export function createAppRouter(
     | "authorizers"
     | "redeemPinCode"
     | "signInLookup"
+    | "requestFirstPinCode"
     | "firstSignIn"
     | "currentSale"
     | "scanProduct"

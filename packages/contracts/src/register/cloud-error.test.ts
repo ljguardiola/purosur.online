@@ -46,6 +46,8 @@ describe("cloudErrorStatus", () => {
     ["reset_code_invalid", 400],
     ["device_token_rejected", 401],
     ["enrollment_code_rejected", 403],
+    ["not_found", 404],
+    ["pin_already_set", 409],
     ["reset_code_expired", 410],
     ["reset_code_burned", 410],
     ["rate_limited", 429],
@@ -64,6 +66,8 @@ describe("isRetryableCloudError", () => {
   it.each([
     ["rate_limited", true],
     ["server_unavailable", true],
+    ["not_found", false],
+    ["pin_already_set", false],
     ["validation_failed", false],
     ["enrollment_code_rejected", false],
     ["reset_code_invalid", false],

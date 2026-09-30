@@ -144,6 +144,7 @@ export function App({ core }: { core: CoreClient }) {
     cashBalance,
     redeemPinCode: (typedCode: string, newPin: string) => core.redeemPinCode(typedCode, newPin),
     signInLookup: (email: string) => core.signInLookup(email),
+    requestFirstPinCode: (userId: string) => core.requestFirstPinCode(userId),
     firstSignIn,
     currentSale: () => core.currentSale(),
     scanProduct: (code: string) => core.scanProduct(code),

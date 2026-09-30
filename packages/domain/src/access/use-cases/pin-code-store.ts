@@ -20,7 +20,7 @@ export interface PinCodeTarget extends Pick<PinCodeParty, "isAdministrator"> {
 export interface NewPinCode {
   userId: string;
   codeHash: string;
-  issuedBy: string;
+  issuedBy: string | null;
   issuedAt: Date;
   expiresAt: Date;
 }

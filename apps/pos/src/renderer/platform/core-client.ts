@@ -5,6 +5,7 @@ import type {
   CoreToRendererMessage,
   CurrentSaleAnswer,
   EnrollmentOutcome,
+  FirstPinCodeRequestOutcome,
   OpenCashSession,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
@@ -34,6 +35,7 @@ export interface CoreClient {
   authorizers(permission: AuthorizablePermissionKey): Promise<SignInUser[]>;
   signIn(userId: string, pin: string): Promise<SignInOutcome>;
   signInLookup(email: string): Promise<SignInLookupOutcome>;
+  requestFirstPinCode(userId: string): Promise<FirstPinCodeRequestOutcome>;
   firstSignIn(userId: string, pin: string): Promise<SignInOutcome>;
   signOut(): Promise<void>;
   openCashSession(openingFloat: number): Promise<OpenCashSessionOutcome>;
@@ -183,6 +185,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
     signInLookup(email) {
       return ask({ type: "sign-in-lookup", request_id: deps.newRequestId(), email }, (answer) =>
         answer.type === "sign-in-lookup-result" ? answer.outcome : undefined,
+      );
+    },
+    requestFirstPinCode(userId) {
+      return ask(
+        { type: "first-pin-code-request", request_id: deps.newRequestId(), user_id: userId },
+        (answer) => (answer.type === "first-pin-code-request-result" ? answer.outcome : undefined),
       );
     },
     firstSignIn(userId, pin) {

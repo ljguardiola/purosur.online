@@ -78,6 +78,19 @@ describe("rendererToCoreMessageSchema", () => {
     expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
+  it("accepts a request for a first PIN code by the person found", () => {
+    const message = { type: "first-pin-code-request", request_id: REQUEST_ID, user_id: "u1" };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { type: "first-pin-code-request", user_id: "u1" },
+    { type: "first-pin-code-request", request_id: REQUEST_ID },
+  ])("rejects a first PIN code request missing a field: %j", (message) => {
+    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
   it("accepts a first sign-in with the person found and the PIN as typed", () => {
     const message = { type: "first-sign-in", request_id: REQUEST_ID, user_id: "u1", pin: "0042" };
 
@@ -471,6 +484,41 @@ describe("sign-in lookup answers", () => {
     };
 
     expect(JSON.stringify(coreToRendererMessageSchema.parse(message))).not.toContain("ada@");
+  });
+});
+
+describe("first PIN code request answers", () => {
+  it.each([
+    { kind: "sent" },
+    { kind: "pin_already_set" },
+    { kind: "not_found" },
+    { kind: "rate_limited", retry_after_seconds: 600 },
+    { kind: "unreachable" },
+    { kind: "unavailable" },
+  ])("accepts the first PIN code request result $kind", (outcome) => {
+    const message = { type: "first-pin-code-request-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "rate_limited" },
+    { kind: "rate_limited", retry_after_seconds: -1 },
+    { kind: "x" },
+  ])("rejects a first PIN code request result it does not know: %j", (outcome) => {
+    const message = { type: "first-pin-code-request-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("does not let a result carry the code", () => {
+    const message = {
+      type: "first-pin-code-request-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "sent", code: "P4NX7KWE2QRT5MZD" },
+    };
+
+    expect(JSON.stringify(coreToRendererMessageSchema.parse(message))).not.toContain("P4NX");
   });
 });
 

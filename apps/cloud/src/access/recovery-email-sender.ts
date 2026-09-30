@@ -3,6 +3,17 @@ export interface SendRecoveryLinkInput {
   link: string;
 }
 
-export interface RecoveryEmailSender {
+export interface SendFirstPinCodeInput {
+  to: string;
+  code: string;
+}
+
+interface RecoveryEmailSender {
   sendRecoveryLink(input: SendRecoveryLinkInput): Promise<void>;
 }
+
+export interface FirstPinCodeEmailSender {
+  sendFirstPinCode(input: SendFirstPinCodeInput): Promise<void>;
+}
+
+export type AccessEmailSender = RecoveryEmailSender & FirstPinCodeEmailSender;

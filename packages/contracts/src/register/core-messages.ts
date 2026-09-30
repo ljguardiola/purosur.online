@@ -64,6 +64,12 @@ const signInLookupMessageSchema = z.object({
   email: z.string(),
 });
 
+const firstPinCodeRequestMessageSchema = z.object({
+  type: z.literal("first-pin-code-request"),
+  request_id: requestId,
+  user_id: z.string(),
+});
+
 const firstSignInMessageSchema = z.object({
   type: z.literal("first-sign-in"),
   request_id: requestId,
@@ -126,6 +132,7 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   signInUsersRequestMessageSchema,
   signInMessageSchema,
   signInLookupMessageSchema,
+  firstPinCodeRequestMessageSchema,
   firstSignInMessageSchema,
   openCashSessionMessageSchema,
   cashSessionRequestMessageSchema,
@@ -240,6 +247,16 @@ const signInLookupOutcomeSchema = z.discriminatedUnion("kind", [
 ]);
 export type SignInLookupOutcome = z.infer<typeof signInLookupOutcomeSchema>;
 
+const firstPinCodeRequestOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("sent") }),
+  z.object({ kind: z.literal("pin_already_set") }),
+  z.object({ kind: z.literal("not_found") }),
+  z.object({ kind: z.literal("rate_limited"), retry_after_seconds: z.int().nonnegative() }),
+  z.object({ kind: z.literal("unreachable") }),
+  z.object({ kind: z.literal("unavailable") }),
+]);
+export type FirstPinCodeRequestOutcome = z.infer<typeof firstPinCodeRequestOutcomeSchema>;
+
 export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("enrollment-status"), request_id: requestId, enrolled: z.boolean() }),
   z.object({
@@ -272,6 +289,11 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("sign-in-lookup-result"),
     request_id: requestId,
     outcome: signInLookupOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("first-pin-code-request-result"),
+    request_id: requestId,
+    outcome: firstPinCodeRequestOutcomeSchema,
   }),
   z.object({
     type: z.literal("open-cash-session-result"),
