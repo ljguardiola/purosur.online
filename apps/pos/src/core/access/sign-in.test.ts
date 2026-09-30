@@ -416,7 +416,11 @@ describe("signing in for the first time on a register", () => {
 
     expect(await firstSignIn(built, "u1", "1234")).toEqual({
       kind: "signed_in",
-      person: { first_name: "Ada", permission_keys: ["sell_and_charge", "adjust_stock"] },
+      person: {
+        user_id: "u1",
+        first_name: "Ada",
+        permission_keys: ["sell_and_charge", "adjust_stock"],
+      },
     });
     expect(remembered).toEqual(["u1"]);
   });
