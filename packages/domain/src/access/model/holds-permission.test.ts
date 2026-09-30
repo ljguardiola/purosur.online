@@ -1,6 +1,10 @@
 import fc from "fast-check";
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { type AuthorizablePermissionKey, holdsPermission } from "./holds-permission.js";
+import {
+  type AuthorizablePermissionKey,
+  holdsPermission,
+  isAuthorizablePermissionKey,
+} from "./holds-permission.js";
 import { PERMISSION_CATALOG, PERMISSION_KEYS, type PermissionKey } from "./permission-catalog.js";
 
 const permissionKey = fc.constantFrom(...PERMISSION_KEYS);
@@ -53,5 +57,21 @@ describe("AuthorizablePermissionKey", () => {
   it("leaves out a permission a person must hold personally", () => {
     expectTypeOf<"sell_and_charge">().not.toExtend<AuthorizablePermissionKey>();
     expectTypeOf<"adjust_stock">().not.toExtend<AuthorizablePermissionKey>();
+  });
+});
+
+describe("isAuthorizablePermissionKey", () => {
+  it("accepts exactly the permissions the catalog lets another person's PIN authorize", () => {
+    for (const definition of PERMISSION_CATALOG) {
+      expect(isAuthorizablePermissionKey(definition.key)).toBe(
+        definition.registerMarker === "register_with_another_persons_pin",
+      );
+    }
+  });
+
+  it("refuses what is not a permission key", () => {
+    expect(isAuthorizablePermissionKey("open_the_safe")).toBe(false);
+    expect(isAuthorizablePermissionKey(undefined)).toBe(false);
+    expect(isAuthorizablePermissionKey(7)).toBe(false);
   });
 });

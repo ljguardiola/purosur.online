@@ -166,3 +166,64 @@ describe("a user's sign-in record", () => {
     expect(store.signInRecord("u1")).toBeUndefined();
   });
 });
+
+describe("the users who can authorize a permission", () => {
+  it("lists the signable users whose role grants it, by id and first name", () => {
+    grant("cashier", "record_cash_in");
+    addRole("supervisor");
+    grant("supervisor", "record_cash_in");
+    addRole("stocker");
+    grant("stocker", "adjust_stock");
+    addUser({ id: "u1", firstName: "Ada", roleId: "cashier" });
+    addUser({ id: "u2", firstName: "Bruno", roleId: "supervisor" });
+    addUser({ id: "u3", firstName: "Carla", roleId: "stocker" });
+
+    expect(store.authorizers("record_cash_in")).toEqual(
+      expect.arrayContaining([
+        { id: "u1", first_name: "Ada" },
+        { id: "u2", first_name: "Bruno" },
+      ]),
+    );
+    expect(store.authorizers("record_cash_in")).toHaveLength(2);
+  });
+
+  it("lists an Administrator for any permission", () => {
+    addRole("admin", { isAdministrator: true });
+    addUser({ id: "u1", firstName: "Ada", roleId: "admin" });
+
+    expect(store.authorizers("void_sale")).toEqual([{ id: "u1", first_name: "Ada" }]);
+  });
+
+  it("leaves out a role whose grant of the permission was withdrawn", () => {
+    grant("cashier", "record_cash_in", false);
+    addUser({ id: "u1" });
+
+    expect(store.authorizers("record_cash_in")).toEqual([]);
+  });
+
+  it("leaves out a user whose role was removed", () => {
+    addRole("gone", { isAdministrator: true, removed: true });
+    grant("gone", "record_cash_in");
+    addUser({ id: "u1", roleId: "gone" });
+
+    expect(store.authorizers("record_cash_in")).toEqual([]);
+  });
+
+  it("leaves out a user whose role was never pulled", () => {
+    addUser({ id: "u1", roleId: "unknown-role" });
+
+    expect(store.authorizers("record_cash_in")).toEqual([]);
+  });
+
+  it.each([
+    ["without a PIN", { verifier: null }],
+    ["deactivated", { active: false }],
+    ["removed", { removed: true }],
+    ["without a salt", { salt: null }],
+  ])("leaves out a user who is %s", (_case, seed) => {
+    grant("cashier", "record_cash_in");
+    addUser({ id: "u1", ...seed });
+
+    expect(store.authorizers("record_cash_in")).toEqual([]);
+  });
+});

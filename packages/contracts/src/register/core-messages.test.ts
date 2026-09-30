@@ -78,6 +78,21 @@ describe("rendererToCoreMessageSchema", () => {
     expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
   });
 
+  it("accepts a request for the people who can authorize a permission", () => {
+    const message = { type: "authorizers", request_id: REQUEST_ID, permission: "record_cash_in" };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { type: "authorizers", permission: "record_cash_in" },
+    { type: "authorizers", request_id: REQUEST_ID },
+    { type: "authorizers", request_id: REQUEST_ID, permission: "sell_and_charge" },
+    { type: "authorizers", request_id: REQUEST_ID, permission: "open_the_safe" },
+  ])("rejects a request for authorizers it cannot answer: %j", (message) => {
+    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
   it("rejects a request without its request id", () => {
     expect(
       rendererToCoreMessageSchema.safeParse({ type: "enrollment-status-request" }).success,
@@ -292,6 +307,36 @@ describe("sign-in answers", () => {
     { kind: "x" },
   ])("rejects a sign-in result it does not know: %j", (outcome) => {
     const message = { type: "sign-in-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+});
+
+describe("authorizers answers", () => {
+  it("accepts the people who can authorize, by id and first name", () => {
+    const message = {
+      type: "authorizers",
+      request_id: REQUEST_ID,
+      users: [{ id: "u2", first_name: "Grace" }],
+    };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts that nobody can authorize", () => {
+    const message = { type: "authorizers", request_id: REQUEST_ID, users: [] };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts that the authorizers cannot be read", () => {
+    const message = { type: "authorizers-unavailable", request_id: REQUEST_ID };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a listed authorizer without its first name", () => {
+    const message = { type: "authorizers", request_id: REQUEST_ID, users: [{ id: "u2" }] };
 
     expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });

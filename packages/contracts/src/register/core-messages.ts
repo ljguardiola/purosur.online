@@ -1,3 +1,4 @@
+import { type AuthorizablePermissionKey, isAuthorizablePermissionKey } from "@purosur/domain";
 import { z } from "zod";
 
 const requestId = z.string();
@@ -41,6 +42,12 @@ const signInMessageSchema = z.object({
   pin: z.string(),
 });
 
+const authorizersRequestMessageSchema = z.object({
+  type: z.literal("authorizers"),
+  request_id: requestId,
+  permission: z.custom<AuthorizablePermissionKey>(isAuthorizablePermissionKey),
+});
+
 export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   rendererPingMessageSchema,
   enrollmentStatusRequestMessageSchema,
@@ -49,6 +56,7 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   redeemPinCodeMessageSchema,
   signInUsersRequestMessageSchema,
   signInMessageSchema,
+  authorizersRequestMessageSchema,
 ]);
 export type RendererToCoreMessage = z.infer<typeof rendererToCoreMessageSchema>;
 
@@ -116,6 +124,12 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     request_id: requestId,
     outcome: signInOutcomeSchema,
   }),
+  z.object({
+    type: z.literal("authorizers"),
+    request_id: requestId,
+    users: z.array(signInUserSchema),
+  }),
+  z.object({ type: z.literal("authorizers-unavailable"), request_id: requestId }),
   z.object({ type: z.literal("pulled") }),
 ]);
 export type CoreToRendererMessage = z.infer<typeof coreToRendererMessageSchema>;

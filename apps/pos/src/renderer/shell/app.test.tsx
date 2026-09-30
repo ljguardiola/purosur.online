@@ -45,6 +45,9 @@ function coreAnswering(
       usersLoads += 1;
       return [{ id: "u1", first_name: "Ada" }];
     },
+    async authorizers() {
+      return [];
+    },
     async signIn() {
       return signInOutcome;
     },

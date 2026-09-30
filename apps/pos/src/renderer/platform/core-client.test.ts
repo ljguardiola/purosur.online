@@ -87,6 +87,35 @@ describe("createCoreClient", () => {
     await expect(users).rejects.toThrow();
   });
 
+  it("asks the core for the people who can authorize a permission and resolves with them", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const people = client.authorizers("record_cash_in");
+    port.answer({
+      type: "authorizers",
+      request_id: "request-1",
+      users: [{ id: "u2", first_name: "Grace" }],
+    });
+
+    expect(await people).toEqual([{ id: "u2", first_name: "Grace" }]);
+    expect(port.posted).toEqual([
+      { type: "authorizers", request_id: "request-1", permission: "record_cash_in" },
+    ]);
+  });
+
+  it("fails the request for the authorizers when the core cannot read them", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const people = client.authorizers("record_cash_in");
+    port.answer({ type: "authorizers-unavailable", request_id: "request-1" });
+
+    await expect(people).rejects.toThrow();
+  });
+
   it("asks the core to sign in the chosen user with the PIN as typed and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();

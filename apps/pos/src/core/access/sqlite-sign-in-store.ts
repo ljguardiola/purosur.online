@@ -1,5 +1,5 @@
 import type { SignInUser } from "@purosur/contracts";
-import type { RoleAccess } from "@purosur/domain";
+import type { AuthorizablePermissionKey, RoleAccess } from "@purosur/domain";
 import type { LocalDatabase } from "../platform/local-database";
 
 export interface SignInRecord {
@@ -11,6 +11,7 @@ export interface SignInRecord {
 
 export interface SignInStore {
   signableUsers(): SignInUser[];
+  authorizers(permission: AuthorizablePermissionKey): SignInUser[];
   signInRecord(userId: string): SignInRecord | undefined;
 }
 
@@ -36,6 +37,23 @@ export class SqliteSignInStore implements SignInStore {
          WHERE users.active = 1 AND users.removed = 0 AND users.salt IS NOT NULL`,
       )
       .all();
+  }
+
+  authorizers(permission: AuthorizablePermissionKey): SignInUser[] {
+    return this.database
+      .prepare<[string], SignInUser>(
+        `SELECT users.id AS id, users.first_name AS first_name
+         FROM users
+         JOIN pin_verifiers ON pin_verifiers.user_id = users.id
+         JOIN roles ON roles.id = users.role_id AND roles.removed = 0
+         WHERE users.active = 1 AND users.removed = 0 AND users.salt IS NOT NULL
+           AND (roles.is_administrator = 1 OR EXISTS (
+             SELECT 1 FROM role_permissions
+             WHERE role_permissions.role_id = roles.id
+               AND role_permissions.permission_key = ?
+               AND role_permissions.active = 1))`,
+      )
+      .all(permission);
   }
 
   signInRecord(userId: string): SignInRecord | undefined {

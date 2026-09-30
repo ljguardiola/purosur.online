@@ -18,6 +18,7 @@ export {
   increasesAccess,
   isAcceptablePin,
   isAdministratorRoleName,
+  isAuthorizablePermissionKey,
   isEmailAddress,
   isPasskeyNameTooLong,
   isPermissionKey,
