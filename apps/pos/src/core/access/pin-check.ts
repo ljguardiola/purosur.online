@@ -11,18 +11,10 @@ import {
 import { derivePinVerifier } from "./pin-verifier";
 import type { SignInRecord, SignInStore } from "./sqlite-sign-in-store";
 
-export interface PinCheckDeps {
-  store: Pick<SignInStore, "signInRecord">;
-  readPepper: () => Promise<string | undefined>;
-  hashPin: (pin: string, salt: Uint8Array) => Promise<string>;
-}
-
 export interface SignableRecord {
   record: SignInRecord;
   salt: Uint8Array;
 }
-
-export type PinCheck = { kind: "right_pin" } | { kind: "wrong_pin" } | { kind: "unavailable" };
 
 function sameText(left: string, right: string): boolean {
   const leftBytes = Buffer.from(left);
@@ -35,7 +27,7 @@ export function pinMatches(pepper: string, pinHash: string, record: SignInRecord
 }
 
 export function signableRecord(
-  store: PinCheckDeps["store"],
+  store: Pick<SignInStore, "signInRecord">,
   userId: string,
 ): SignableRecord | undefined {
   const record = store.signInRecord(userId);
@@ -43,9 +35,10 @@ export function signableRecord(
   return record === undefined || salt === undefined ? undefined : { record, salt };
 }
 
-export interface CountedPinCheckDeps {
+export interface PinCheckDeps {
   store: Pick<
     SignInStore,
+    | "signInRecord"
     | "pinSignInFailures"
     | "recordPinSignInFailure"
     | "withdrawPinSignInFailure"
@@ -56,14 +49,14 @@ export interface CountedPinCheckDeps {
   now: () => Date;
 }
 
-export type CountedPinCheck = { kind: "right_pin" } | PinAttemptRefusal | { kind: "unavailable" };
+export type PinCheck = { kind: "right_pin" } | PinAttemptRefusal | { kind: "unavailable" };
 
 export async function checkCountedPin(
-  deps: CountedPinCheckDeps,
+  deps: PinCheckDeps,
   userId: string,
   { record, salt }: SignableRecord,
   pin: string,
-): Promise<CountedPinCheck> {
+): Promise<PinCheck> {
   const pepper = await deps.readPepper();
   const failures = deps.store.pinSignInFailures(userId);
   if (failures !== undefined) {
@@ -108,18 +101,4 @@ export async function checkCountedPin(
   }
   deps.store.clearPinSignInFailures(userId);
   return { kind: "right_pin" };
-}
-
-export async function checkPin(
-  deps: Omit<PinCheckDeps, "store">,
-  { record, salt }: SignableRecord,
-  pin: string,
-): Promise<PinCheck> {
-  const pepper = await deps.readPepper();
-  if (pepper === undefined) {
-    return { kind: "unavailable" };
-  }
-  return pinMatches(pepper, await deps.hashPin(pin, salt), record)
-    ? { kind: "right_pin" }
-    : { kind: "wrong_pin" };
 }

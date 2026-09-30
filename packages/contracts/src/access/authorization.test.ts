@@ -45,10 +45,20 @@ describe("authorizedBySchema", () => {
 });
 
 describe("authorizationRefusalSchema", () => {
-  it.each(["wrong_pin", "lacks_permission", "unavailable"])(
-    "accepts a refusal of kind %s",
-    (kind) => {
-      expect(authorizationRefusalSchema.parse({ kind })).toEqual({ kind });
+  it.each([
+    { kind: "lacks_permission" },
+    { kind: "unavailable" },
+    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 7 },
+    { kind: "rate_limited", retry_after_seconds: 4, attempts_left: 5 },
+    { kind: "locked", consecutive_failures: 8 },
+  ])("accepts a refusal of kind $kind", (refusal) => {
+    expect(authorizationRefusalSchema.parse(refusal)).toEqual(refusal);
+  });
+
+  it.each([{ kind: "wrong_pin" }, { kind: "rate_limited" }, { kind: "locked" }])(
+    "refuses a counted refusal without its counts: %j",
+    (refusal) => {
+      expect(authorizationRefusalSchema.safeParse(refusal).success).toBe(false);
     },
   );
 

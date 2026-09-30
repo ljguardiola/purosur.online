@@ -1,11 +1,8 @@
 import type { SignInOutcome } from "@purosur/contracts";
 import { holdsARegisterPermission, PERMISSION_KEYS, pinSignInAttemptsLeft } from "@purosur/domain";
-import { type CountedPinCheckDeps, checkCountedPin, signableRecord } from "./pin-check";
-import type { SignInStore } from "./sqlite-sign-in-store";
+import { checkCountedPin, type PinCheckDeps, signableRecord } from "./pin-check";
 
-export interface SignInDeps extends CountedPinCheckDeps {
-  store: CountedPinCheckDeps["store"] & Pick<SignInStore, "signInRecord">;
-}
+export type SignInDeps = PinCheckDeps;
 
 export async function signIn(
   deps: SignInDeps,

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { runGuarded } from "./guarded-action";
 import type { PinCheckDeps } from "./pin-check";
 import { derivePinVerifier } from "./pin-verifier";
-import type { SignInRecord } from "./sqlite-sign-in-store";
+import type { PinSignInFailures, SignInRecord } from "./sqlite-sign-in-store";
 
 const PEPPER = Buffer.alloc(32, 7).toString("base64url");
 const SALT = encodePinHash(new Uint8Array(16).fill(1));
@@ -18,11 +18,26 @@ function record(permissionKeys: string[]): SignInRecord {
   };
 }
 
-function deps(overrides: Partial<PinCheckDeps> = {}): PinCheckDeps {
+const NOW = new Date("2026-05-01T10:00:00.000Z");
+
+function deps(
+  overrides: Partial<PinCheckDeps> = {},
+  failures: PinSignInFailures | undefined = undefined,
+): PinCheckDeps {
   return {
-    store: { signInRecord: (userId) => (userId === "u2" ? record(["record_cash_in"]) : undefined) },
+    store: {
+      signInRecord: (userId) => (userId === "u2" ? record(["record_cash_in"]) : undefined),
+      pinSignInFailures: () => failures,
+      recordPinSignInFailure: (_userId, at) => ({
+        consecutiveFailures: (failures?.consecutiveFailures ?? 0) + 1,
+        lastFailedAt: at,
+      }),
+      withdrawPinSignInFailure: () => {},
+      clearPinSignInFailures: () => {},
+    },
     readPepper: async () => PEPPER,
     hashPin: async (pin) => (pin === "1234" ? PIN_HASH : "hash-of-another-pin"),
+    now: () => NOW,
     ...overrides,
   };
 }
@@ -66,12 +81,35 @@ describe("running a guarded action", () => {
   it("does not run the action on a wrong PIN", async () => {
     const { outcome, performed } = guardedCashIn(deps(), { user_id: "u2", pin: "9999" });
 
-    expect(await outcome).toEqual({ kind: "wrong_pin" });
+    expect(await outcome).toEqual({ kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 7 });
+    expect(performed).toEqual([]);
+  });
+
+  it("does not run the action while the person has to wait", async () => {
+    const waiting = { consecutiveFailures: 4, lastFailedAt: new Date(NOW.getTime() - 1000) };
+    const { outcome, performed } = guardedCashIn(deps({}, waiting), { user_id: "u2", pin: "1234" });
+
+    expect(await outcome).toEqual({
+      kind: "rate_limited",
+      retry_after_seconds: 1,
+      attempts_left: 4,
+    });
+    expect(performed).toEqual([]);
+  });
+
+  it("does not run the action for a locked person", async () => {
+    const locked = { consecutiveFailures: 8, lastFailedAt: new Date(NOW.getTime() - 3600_000) };
+    const { outcome, performed } = guardedCashIn(deps({}, locked), { user_id: "u2", pin: "1234" });
+
+    expect(await outcome).toEqual({ kind: "locked", consecutive_failures: 8 });
     expect(performed).toEqual([]);
   });
 
   it("does not run the action when the person lacks the permission", async () => {
-    const lacking = deps({ store: { signInRecord: () => record(["sell_and_charge"]) } });
+    const base = deps();
+    const lacking = deps({
+      store: { ...base.store, signInRecord: () => record(["sell_and_charge"]) },
+    });
     const { outcome, performed } = guardedCashIn(lacking, { user_id: "u2", pin: "1234" });
 
     expect(await outcome).toEqual({ kind: "lacks_permission" });
@@ -81,7 +119,7 @@ describe("running a guarded action", () => {
   it("does not run the action for an unknown person", async () => {
     const { outcome, performed } = guardedCashIn(deps(), { user_id: "nobody", pin: "1234" });
 
-    expect(await outcome).toEqual({ kind: "wrong_pin" });
+    expect(await outcome).toEqual({ kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 7 });
     expect(performed).toEqual([]);
   });
 

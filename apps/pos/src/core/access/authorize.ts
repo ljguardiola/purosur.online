@@ -1,6 +1,10 @@
 import type { Authorization, AuthorizationRefusal, AuthorizedBy } from "@purosur/contracts";
-import { type AuthorizablePermissionKey, holdsPermission } from "@purosur/domain";
-import { checkPin, type PinCheckDeps, signableRecord } from "./pin-check";
+import {
+  type AuthorizablePermissionKey,
+  holdsPermission,
+  pinSignInAttemptsLeft,
+} from "@purosur/domain";
+import { checkCountedPin, type PinCheckDeps, signableRecord } from "./pin-check";
 
 export type AuthorizeOutcome = { kind: "authorized"; by: AuthorizedBy } | AuthorizationRefusal;
 
@@ -11,12 +15,12 @@ export async function authorize(
 ): Promise<AuthorizeOutcome> {
   const signable = signableRecord(deps.store, authorization.user_id);
   if (signable === undefined) {
-    return { kind: "wrong_pin" };
+    return { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: pinSignInAttemptsLeft(1) };
   }
   if (!holdsPermission(signable.record.access, permission)) {
     return { kind: "lacks_permission" };
   }
-  const check = await checkPin(deps, signable, authorization.pin);
+  const check = await checkCountedPin(deps, authorization.user_id, signable, authorization.pin);
   if (check.kind !== "right_pin") {
     return check;
   }
