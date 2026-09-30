@@ -201,7 +201,7 @@ test("ends the session when saving finds no open session", async () => {
 });
 
 test("navigates to Mi cuenta when saving comes back forbidden", async () => {
-  window.history.pushState(null, "", "/catalog/tags");
+  window.history.pushState(null, "", "/tags");
   const editTag = vi.fn<EditTagModalServices["editTag"]>().mockResolvedValue({
     kind: "forbidden",
   });
@@ -209,7 +209,7 @@ test("navigates to Mi cuenta when saving comes back forbidden", async () => {
 
   await save(screen);
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
   window.history.pushState(null, "", "/");
 });
 

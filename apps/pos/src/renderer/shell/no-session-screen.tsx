@@ -1,7 +1,9 @@
+import type { OpenCashSessionOutcome } from "@purosur/contracts";
 import { useState } from "react";
 import type { SignedInPerson } from "../access/signed-in-person";
 import type { ActionEntry } from "./action-entries";
 import { entriesFor } from "./action-entries";
+import { CashOpeningPanel } from "./cash-opening-panel";
 import { NavigationRail } from "./navigation-rail";
 import { SessionEyebrow } from "./session-eyebrow";
 import { SignOutModal } from "./sign-out-modal";
@@ -11,9 +13,16 @@ export type NoSessionScreenProps = {
   registerName: string | null;
   entries: readonly ActionEntry[];
   signOut: () => void;
+  openCashSession: (openingFloat: number) => Promise<OpenCashSessionOutcome>;
 };
 
-export function NoSessionScreen({ person, registerName, entries, signOut }: NoSessionScreenProps) {
+export function NoSessionScreen({
+  person,
+  registerName,
+  entries,
+  signOut,
+  openCashSession,
+}: NoSessionScreenProps) {
   const [leaving, setLeaving] = useState(false);
 
   return (
@@ -27,6 +36,11 @@ export function NoSessionScreen({ person, registerName, entries, signOut }: NoSe
         <SessionEyebrow registerName={registerName} />
         <h1 className="text-display text-text-accent">¿Qué querés hacer?</h1>
       </main>
+      <CashOpeningPanel
+        firstName={person.first_name}
+        canOpen={person.permission_keys.includes("sell_and_charge")}
+        open={openCashSession}
+      />
       <SignOutModal
         open={leaving}
         firstName={person.first_name}

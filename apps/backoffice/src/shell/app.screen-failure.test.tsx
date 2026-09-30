@@ -10,7 +10,7 @@ beforeEach(resetPageState);
 afterEach(resetPageState);
 
 test("offers to try again when a screen fails to render, reports the failure, and shows the screen once it works", async () => {
-  window.history.pushState(null, "", "/home/alerts");
+  window.history.pushState(null, "", "/alerts");
   const services = createAppServices();
   const unreadable = { active: true };
   const page = {
@@ -61,7 +61,7 @@ test("moves focus to the failure's title when a screen opened from the rail fail
 });
 
 test("keeps focus on the failure's title when trying again fails again", async () => {
-  window.history.pushState(null, "", "/home/alerts");
+  window.history.pushState(null, "", "/alerts");
   const services = createAppServices();
   vi.mocked(services.alertsListScreen.fetchAlerts).mockResolvedValue({
     kind: "ok",

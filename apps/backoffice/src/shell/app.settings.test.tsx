@@ -11,7 +11,7 @@ beforeEach(resetPageState);
 afterEach(resetPageState);
 
 test("shows the Roles item in the rail, only for an Administrator, linking to the roles list", async () => {
-  window.history.pushState(null, "", "/settings/users/me");
+  window.history.pushState(null, "", "/account");
   const services = createAppServices();
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -37,7 +37,7 @@ test("hides the Roles item in the rail for a non-Administrator", async () => {
 });
 
 test("following the sidebar's Roles item opens the roles list, with Config and Roles active", async () => {
-  window.history.pushState(null, "", "/settings/users/me");
+  window.history.pushState(null, "", "/account");
   const services = createAppServices();
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.rolesListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
@@ -47,7 +47,7 @@ test("following the sidebar's Roles item opens the roles list, with Config and R
   await userEvent.click(screen.getByRole("link", { name: "Roles" }));
 
   await expect.element(screen.getByRole("heading", { name: "Roles", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/settings/roles");
+  expect(window.location.pathname).toBe("/roles");
   const configItem = screen.getByRole("link", { name: "Config" }).element() as HTMLAnchorElement;
   expect(configItem.getAttribute("aria-current")).toBe("page");
   const rolesItem = screen.getByRole("link", { name: "Roles" }).element() as HTMLAnchorElement;
@@ -55,7 +55,7 @@ test("following the sidebar's Roles item opens the roles list, with Config and R
 });
 
 test("shows the Cajas registradoras item in the rail for a user holding enroll_register_devices, linking to its screen", async () => {
-  window.history.pushState(null, "", "/settings/users/me");
+  window.history.pushState(null, "", "/account");
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
@@ -90,7 +90,7 @@ test("hides the Cajas registradoras item in the rail for a user without enroll_r
 });
 
 test("following the sidebar's Cajas registradoras item opens the registers list, with Config and Cajas registradoras active", async () => {
-  window.history.pushState(null, "", "/settings/users/me");
+  window.history.pushState(null, "", "/account");
   const services = createAppServices();
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.registersListScreen.fetchRegisters).mockResolvedValue({
@@ -105,7 +105,7 @@ test("following the sidebar's Cajas registradoras item opens the registers list,
   await expect
     .element(screen.getByRole("heading", { name: "Cajas registradoras", level: 1 }))
     .toBeVisible();
-  expect(window.location.pathname).toBe("/settings/registers");
+  expect(window.location.pathname).toBe("/registers");
   const configItem = screen.getByRole("link", { name: "Config" }).element() as HTMLAnchorElement;
   expect(configItem.getAttribute("aria-current")).toBe("page");
   const registersItem = screen
@@ -114,7 +114,7 @@ test("following the sidebar's Cajas registradoras item opens the registers list,
   expect(registersItem.getAttribute("aria-current")).toBe("page");
 });
 
-test("redirects a typed /settings/registers to Mi cuenta for a user without enroll_register_devices, without calling its API", async () => {
+test("redirects a typed /registers to Mi cuenta for a user without enroll_register_devices, without calling its API", async () => {
   const services = createAppServices({
     fetchSession: vi
       .fn()
@@ -123,17 +123,17 @@ test("redirects a typed /settings/registers to Mi cuenta for a user without enro
       ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
-  window.history.pushState(null, "", "/settings/registers");
+  window.history.pushState(null, "", "/registers");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/settings/users/me");
+  expect(window.location.pathname).toBe("/account");
   expect(services.registersListScreen.fetchRegisters).not.toHaveBeenCalled();
 });
 
 test("shows the Sucursal item in the rail for a user holding configure_branch, linking to its screen", async () => {
-  window.history.pushState(null, "", "/settings/users/me");
+  window.history.pushState(null, "", "/account");
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
@@ -168,7 +168,7 @@ test("hides the Sucursal item in the rail for a user without configure_branch", 
 });
 
 test("following the sidebar's Sucursal item opens the branch settings screen, with Config and Sucursal active", async () => {
-  window.history.pushState(null, "", "/settings/users/me");
+  window.history.pushState(null, "", "/account");
   const services = createAppServices();
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.branchSettingsScreen.fetchBranchSettings).mockResolvedValue({
@@ -198,14 +198,14 @@ test("following the sidebar's Sucursal item opens the branch settings screen, wi
   await userEvent.click(screen.getByRole("link", { name: "Sucursal" }));
 
   await expect.element(screen.getByRole("heading", { name: "Sucursal", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/settings/branch");
+  expect(window.location.pathname).toBe("/location-settings");
   const configItem = screen.getByRole("link", { name: "Config" }).element() as HTMLAnchorElement;
   expect(configItem.getAttribute("aria-current")).toBe("page");
   const branchItem = screen.getByRole("link", { name: "Sucursal" }).element() as HTMLAnchorElement;
   expect(branchItem.getAttribute("aria-current")).toBe("page");
 });
 
-test("redirects a typed /settings/branch to Mi cuenta for a user without configure_branch, without calling its API", async () => {
+test("redirects a typed /location-settings to Mi cuenta for a user without configure_branch, without calling its API", async () => {
   const services = createAppServices({
     fetchSession: vi
       .fn()
@@ -214,17 +214,17 @@ test("redirects a typed /settings/branch to Mi cuenta for a user without configu
       ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
-  window.history.pushState(null, "", "/settings/branch");
+  window.history.pushState(null, "", "/location-settings");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/settings/users/me");
+  expect(window.location.pathname).toBe("/account");
   expect(services.branchSettingsScreen.fetchBranchSettings).not.toHaveBeenCalled();
 });
 
 test("opens the role editor modal, over the Roles list, from the Nuevo rol button, without submitting it", async () => {
-  window.history.pushState(null, "", "/settings/roles");
+  window.history.pushState(null, "", "/roles");
   const services = createAppServices();
   vi.mocked(services.rolesListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -233,7 +233,7 @@ test("opens the role editor modal, over the Roles list, from the Nuevo rol butto
   await userEvent.click(screen.getByRole("button", { name: "Nuevo rol" }));
 
   await expect.element(screen.getByRole("dialog").getByText("Nuevo rol")).toBeVisible();
-  expect(window.location.pathname).toBe("/settings/roles");
+  expect(window.location.pathname).toBe("/roles");
   expect(services.rolesListScreen.roleEditorModal?.createRole).not.toHaveBeenCalled();
 });
 
@@ -267,7 +267,7 @@ test("opens the role editor modal for editing, from a role's pencil action, with
       assignedUsers: [],
     },
   });
-  window.history.pushState(null, "", "/settings/roles");
+  window.history.pushState(null, "", "/roles");
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("heading", { name: "Roles", level: 1 })).toBeVisible();
 
@@ -279,7 +279,7 @@ test("opens the role editor modal for editing, from a role's pencil action, with
     .toHaveBeenCalledWith("role-stock");
   const rolesItem = screen.getByRole("link", { name: "Roles" }).element() as HTMLAnchorElement;
   expect(rolesItem.getAttribute("aria-current")).toBe("page");
-  expect(window.location.pathname).toBe("/settings/roles");
+  expect(window.location.pathname).toBe("/roles");
 });
 
 test("opens the role editor modal for duplicating, pre-filled from the source row, without refetching the list", async () => {
@@ -297,7 +297,7 @@ test("opens the role editor modal for duplicating, pre-filled from the source ro
       },
     ],
   });
-  window.history.pushState(null, "", "/settings/roles");
+  window.history.pushState(null, "", "/roles");
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("heading", { name: "Roles", level: 1 })).toBeVisible();
 
@@ -312,7 +312,7 @@ test("opens the role editor modal for duplicating, pre-filled from the source ro
   expect(fetchRoles).toHaveBeenCalledTimes(1);
 });
 
-test("redirects a non-Administrator's typed /settings/roles to Mi cuenta, without listing roles", async () => {
+test("redirects a non-Administrator's typed /roles to Mi cuenta, without listing roles", async () => {
   const services = createAppServices({
     fetchSession: vi
       .fn()
@@ -321,11 +321,11 @@ test("redirects a non-Administrator's typed /settings/roles to Mi cuenta, withou
       ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
-  window.history.pushState(null, "", "/settings/roles");
+  window.history.pushState(null, "", "/roles");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/settings/users/me");
+  expect(window.location.pathname).toBe("/account");
   expect(services.rolesListScreen.fetchRoles).not.toHaveBeenCalled();
 });

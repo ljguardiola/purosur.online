@@ -185,7 +185,7 @@ test("sends the person to Mi cuenta when the emission comes back forbidden", asy
 
   await userEvent.click(screen.getByRole("button", { name: "Reiniciar el PIN" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
 });
 

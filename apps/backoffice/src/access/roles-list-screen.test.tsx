@@ -329,13 +329,13 @@ test("ends the session when the roles request finds no open session", async () =
 });
 
 test("navigates to Mi cuenta when the roles request comes back forbidden", async () => {
-  window.history.pushState(null, "", "/settings/roles");
+  window.history.pushState(null, "", "/roles");
   const services = createServices();
   vi.mocked(services.fetchRoles).mockResolvedValue({ kind: "forbidden" });
 
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
   window.history.pushState(null, "", "/");
 });
 

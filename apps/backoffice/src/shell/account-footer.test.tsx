@@ -64,7 +64,7 @@ test("links the display name to the signed-in account's own Mi cuenta page", asy
   });
 
   const link = screen.getByRole("link", { name: "Lucas Guardiola" }).element() as HTMLAnchorElement;
-  expect(link.getAttribute("href")).toBe("/settings/users/me");
+  expect(link.getAttribute("href")).toBe("/account");
 });
 
 test("opens the confirm modal naming the account and asking to confirm", async () => {

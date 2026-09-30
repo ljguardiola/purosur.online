@@ -6,7 +6,7 @@ import { refuseWithout } from "../shell/signed-in-route";
 
 export const fiscalConfigurationRoute = createRoute({
   getParentRoute: () => cashAndFiscalAreaRoute,
-  path: "fiscal-configuration",
+  path: "fiscal-settings",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeCashArea),
   component: lazyScreen(() => import("./fiscal-configuration-page"), "FiscalConfigurationPage"),
 });

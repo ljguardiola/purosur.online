@@ -8,6 +8,7 @@ import {
   signedInWithPermissions,
 } from "../catalog/test-support/catalog-route-fixtures.js";
 import { discounts } from "../platform/db/schema.js";
+import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { registerDiscountEditRoute } from "./discount-edit-route.js";
 import {
@@ -275,5 +276,69 @@ describe("PUT /discounts/:id", () => {
       benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
       version: 2,
     });
+  });
+
+  it("logs an edit as an update of the next version, for every branch", async () => {
+    const category = await insertCategory(db, "Infusiones");
+    const discount = await insertDiscount(db, { categoryId: category });
+    const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
+    const mark = await lastLoggedChangeSeq(db);
+
+    await editDiscount(
+      rawSessionId,
+      discount.id,
+      editBodyAimedAt({ kind: "CATEGORY", id: category }),
+    );
+
+    expect(await changesLoggedAfter(db, mark)).toEqual([
+      { entity: "discount", entityId: discount.id, version: 2, op: "update", locationId: null },
+    ]);
+  });
+
+  it("logs switching a discount off and back on as one update each", async () => {
+    const category = await insertCategory(db, "Infusiones");
+    const discount = await insertDiscount(db, { categoryId: category });
+    const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
+    const mark = await lastLoggedChangeSeq(db);
+    const target = { kind: "CATEGORY", id: category };
+
+    await editDiscount(rawSessionId, discount.id, editBodyAimedAt(target, { active: false }));
+    await editDiscount(
+      rawSessionId,
+      discount.id,
+      editBodyAimedAt(target, { active: true, version: 2 }),
+    );
+
+    expect(await changesLoggedAfter(db, mark)).toEqual([
+      { entity: "discount", entityId: discount.id, version: 2, op: "update", locationId: null },
+      { entity: "discount", entityId: discount.id, version: 3, op: "update", locationId: null },
+    ]);
+  });
+
+  it("logs nothing for an edit refused as stale", async () => {
+    const category = await insertCategory(db, "Infusiones");
+    const discount = await insertDiscount(db, { categoryId: category });
+    const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
+    const mark = await lastLoggedChangeSeq(db);
+
+    await editDiscount(
+      rawSessionId,
+      discount.id,
+      editBodyAimedAt({ kind: "CATEGORY", id: category }, { version: 9 }),
+    );
+
+    expect(await changesLoggedAfter(db, mark)).toEqual([]);
+  });
+
+  it("logs nothing for an edit refused because its new target is deactivated", async () => {
+    const category = await insertCategory(db, "Infusiones");
+    const tag = await insertTag(db, { name: "Kosher", active: false });
+    const discount = await insertDiscount(db, { categoryId: category });
+    const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
+    const mark = await lastLoggedChangeSeq(db);
+
+    await editDiscount(rawSessionId, discount.id, editBodyAimedAt({ kind: "TAG", id: tag.id }));
+
+    expect(await changesLoggedAfter(db, mark)).toEqual([]);
   });
 });

@@ -299,23 +299,26 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
           ),
         )
     ).map((row) => row.id);
-    await tx.delete(discounts).where(
-      and(
-        inArray(
-          discounts.name,
-          SAMPLE_DISCOUNTS.map((discount) => discount.name),
+    const deletedDiscounts = await tx
+      .delete(discounts)
+      .where(
+        and(
+          inArray(
+            discounts.name,
+            SAMPLE_DISCOUNTS.map((discount) => discount.name),
+          ),
+          or(
+            inArray(discounts.categoryId, [
+              ...categoryIdsByDepth.top,
+              ...categoryIdsByDepth.mid,
+              ...categoryIdsByDepth.leaf,
+            ]),
+            inArray(discounts.productId, sampleProductIds),
+            inArray(discounts.tagId, sampleTagIds),
+          ),
         ),
-        or(
-          inArray(discounts.categoryId, [
-            ...categoryIdsByDepth.top,
-            ...categoryIdsByDepth.mid,
-            ...categoryIdsByDepth.leaf,
-          ]),
-          inArray(discounts.productId, sampleProductIds),
-          inArray(discounts.tagId, sampleTagIds),
-        ),
-      ),
-    );
+      )
+      .returning({ id: discounts.id, version: discounts.version });
 
     await tx.delete(priceReviews).where(inArray(priceReviews.productId, sampleProductIds));
     const deletedPrices = await tx
@@ -500,6 +503,14 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
           version: PRICE_VERSION + 1,
           op: "delete",
           priceListId: price.priceListId,
+        }),
+      ),
+      ...deletedDiscounts.map(
+        (discount): LoggedChange => ({
+          entity: "discount",
+          entityId: discount.id,
+          version: discount.version + 1,
+          op: "delete",
         }),
       ),
       ...deletedUsers.map(

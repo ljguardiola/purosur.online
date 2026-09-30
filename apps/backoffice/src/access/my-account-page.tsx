@@ -3,7 +3,7 @@ import type { ReactElement } from "react";
 import { useDocumentTitle } from "../shell/document-title";
 import { MyAccountScreen } from "./my-account-screen";
 
-const route = getRouteApi("/signed-in/settings/users/me");
+const route = getRouteApi("/signed-in/settings-area/account");
 
 export function MyAccountPage(): ReactElement {
   const { session, services, sessionActions } = route.useRouteContext();

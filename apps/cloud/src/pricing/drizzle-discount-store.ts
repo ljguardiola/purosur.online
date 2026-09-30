@@ -10,6 +10,7 @@ import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { categories, discounts, products, tags } from "../platform/db/schema.js";
 import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
+import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 
 type DiscountRow = typeof discounts.$inferSelect;
 
@@ -66,7 +67,7 @@ export function storedBenefit(row: DiscountRow): DiscountFields["benefit"] {
   throw new Error(`discount ${row.id} has no benefit of its kind ${row.kind}`);
 }
 
-function fieldsOf(row: DiscountRow): DiscountFields {
+export function discountFieldsOf(row: DiscountRow): DiscountFields {
   return {
     name: row.name,
     benefit: storedBenefit(row),
@@ -83,9 +84,11 @@ class DrizzleDiscountStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements DiscountStoreTransaction
 {
   private readonly tx: PgDatabase<TQueryResult>;
+  private readonly pending: PendingChanges;
 
-  constructor(tx: PgDatabase<TQueryResult>) {
+  constructor(tx: PgDatabase<TQueryResult>, pending: PendingChanges) {
     this.tx = tx;
+    this.pending = pending;
   }
 
   async lockAssignableTarget(
@@ -106,6 +109,12 @@ class DrizzleDiscountStoreTransaction<TQueryResult extends PgQueryResultHKT>
     if (!discount) {
       throw new Error("inserting the discount returned no row");
     }
+    this.pending.note({
+      entity: "discount",
+      entityId: discount.id,
+      version: fields.version,
+      op: "insert",
+    });
     return discount;
   }
 
@@ -114,11 +123,12 @@ class DrizzleDiscountStoreTransaction<TQueryResult extends PgQueryResultHKT>
       return { kind: "not_found" };
     }
     const [row] = await this.tx.select().from(discounts).where(eq(discounts.id, id)).for("update");
-    return row ? { kind: "locked", discount: fieldsOf(row) } : { kind: "not_found" };
+    return row ? { kind: "locked", discount: discountFieldsOf(row) } : { kind: "not_found" };
   }
 
   async updateDiscount(id: string, fields: DiscountFields): Promise<void> {
     await this.tx.update(discounts).set(storedColumns(fields)).where(eq(discounts.id, id));
+    this.pending.note({ entity: "discount", entityId: id, version: fields.version, op: "update" });
   }
 
   // A shared lock is enough: deactivating a product or a tag takes the row's update lock, which waits.
@@ -156,14 +166,18 @@ class DrizzleDiscountStoreTransaction<TQueryResult extends PgQueryResultHKT>
 
 export class DrizzleDiscountStore<TQueryResult extends PgQueryResultHKT> implements DiscountStore {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly pending: PendingChanges | undefined;
 
-  constructor(db: PgDatabase<TQueryResult>) {
+  constructor(db: PgDatabase<TQueryResult>, pending?: PendingChanges) {
     this.db = db;
+    this.pending = pending;
   }
 
   transaction<TOutcome>(
     work: (tx: DiscountStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    return this.db.transaction((tx) => work(new DrizzleDiscountStoreTransaction(tx)));
+    return withPendingChanges(this.db, this.pending, (tx, pending) =>
+      work(new DrizzleDiscountStoreTransaction(tx, pending)),
+    );
   }
 }

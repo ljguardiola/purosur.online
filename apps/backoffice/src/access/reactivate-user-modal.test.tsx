@@ -119,14 +119,14 @@ test("ends the session when reactivating finds it already closed", async () => {
 });
 
 test("navigates to Mi cuenta, without the authorization modal, when reactivating comes back forbidden", async () => {
-  window.history.pushState(null, "", "/settings/users/user-5");
+  window.history.pushState(null, "", "/users/user-5");
   const services = createServices();
   vi.mocked(services.reactivateUser).mockResolvedValue({ kind: "forbidden" });
   const { dialog } = await renderModal(services);
 
   await userEvent.click(dialog.getByRole("button", { name: "Reactivar" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
   expect(services.fetchSessionAuthorizationOptions).not.toHaveBeenCalled();
 });
 

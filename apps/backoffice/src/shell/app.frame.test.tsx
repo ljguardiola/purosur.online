@@ -9,18 +9,8 @@ beforeEach(resetPageState);
 
 afterEach(resetPageState);
 
-test("opens Inicio from the root path without leaving the root in the history", async () => {
-  const lengthBefore = window.history.length;
-
-  const screen = await render(<App help={emptyHelp} services={createAppServices()} />);
-
-  await expect.element(screen.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/home");
-  expect(window.history.length).toBe(lengthBefore);
-});
-
-test("opens Inicio at /home, with Inicio and Resumen active", async () => {
-  window.history.pushState(null, "", "/home");
+test("opens Inicio at /, with Inicio and Resumen active", async () => {
+  window.history.pushState(null, "", "/");
 
   const screen = await render(<App help={emptyHelp} services={createAppServices()} />);
 
@@ -56,11 +46,11 @@ test("a rail item is a real link to its screen, and a plain click opens that scr
   const configItem = screen.getByRole("link", { name: "Config" });
   await expect.element(configItem).toBeVisible();
 
-  expect(configItem.element().getAttribute("href")).toBe("/settings/users/me");
+  expect(configItem.element().getAttribute("href")).toBe("/account");
   await userEvent.click(configItem);
 
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/settings/users/me");
+  expect(window.location.pathname).toBe("/account");
 
   window.history.back();
 
@@ -115,7 +105,7 @@ test("provides the backoffice field size at the root, so a screen never has to a
   expect(box.getBoundingClientRect().height).toBeCloseTo(48, 0);
 });
 
-test.each(["/help", "/settings/users", "/catalog/categories", "/catalog/products"])(
+test.each(["/help", "/users", "/categories", "/products"])(
   "lists Inicio above Catálogo in the rail on %s",
   async (path) => {
     window.history.pushState(null, "", path);
@@ -145,7 +135,7 @@ test.each(["/help", "/settings/users", "/catalog/categories", "/catalog/products
   },
 );
 
-test.each(["/help", "/settings/users", "/catalog/categories", "/catalog/products"])(
+test.each(["/help", "/users", "/categories", "/products"])(
   "lists Catálogo above Config in the rail on %s",
   async (path) => {
     window.history.pushState(null, "", path);
@@ -175,42 +165,40 @@ test.each(["/help", "/settings/users", "/catalog/categories", "/catalog/products
   },
 );
 
-test.each([
-  "/help",
-  "/settings/users",
-  "/catalog/products",
-  "/cash-and-fiscal/fiscal-configuration",
-])("lists Catálogo, then Caja, then Config in the rail on %s", async (path) => {
-  window.history.pushState(null, "", path);
-  const services = createAppServices();
-  vi.mocked(services.productsListScreen.fetchProducts).mockResolvedValue({
-    kind: "ok",
-    value: [],
-  });
-  vi.mocked(services.productsListScreen.fetchCategories).mockResolvedValue({
-    kind: "ok",
-    value: [],
-  });
-  vi.mocked(services.fiscalConfigurationScreen.fetchIssuerIdentification).mockResolvedValue({
-    kind: "ok",
-    value: {
-      legalName: "María Laura Fernández",
-      grossIncomeRegistration: "1284531-06",
-      activityStartDate: "2019-03-01",
-      authorizedCuit: "27-28453196-0",
-      taxStatus: "Responsable Monotributo",
-      version: 1,
-    },
-  });
+test.each(["/help", "/users", "/products", "/fiscal-settings"])(
+  "lists Catálogo, then Caja, then Config in the rail on %s",
+  async (path) => {
+    window.history.pushState(null, "", path);
+    const services = createAppServices();
+    vi.mocked(services.productsListScreen.fetchProducts).mockResolvedValue({
+      kind: "ok",
+      value: [],
+    });
+    vi.mocked(services.productsListScreen.fetchCategories).mockResolvedValue({
+      kind: "ok",
+      value: [],
+    });
+    vi.mocked(services.fiscalConfigurationScreen.fetchIssuerIdentification).mockResolvedValue({
+      kind: "ok",
+      value: {
+        legalName: "María Laura Fernández",
+        grossIncomeRegistration: "1284531-06",
+        activityStartDate: "2019-03-01",
+        authorizedCuit: "27-28453196-0",
+        taxStatus: "Responsable Monotributo",
+        version: 1,
+      },
+    });
 
-  const screen = await render(<App help={emptyHelp} services={services} />);
+    const screen = await render(<App help={emptyHelp} services={services} />);
 
-  const rail = screen.getByRole("navigation", { name: "Áreas" });
-  await expect.element(rail.getByRole("link", { name: "Caja" })).toBeVisible();
-  const labels = rail
-    .getByRole("link")
-    .elements()
-    .map((link) => link.textContent);
-  expect(labels.indexOf("Catálogo")).toBeLessThan(labels.indexOf("Caja"));
-  expect(labels.indexOf("Caja")).toBeLessThan(labels.indexOf("Config"));
-});
+    const rail = screen.getByRole("navigation", { name: "Áreas" });
+    await expect.element(rail.getByRole("link", { name: "Caja" })).toBeVisible();
+    const labels = rail
+      .getByRole("link")
+      .elements()
+      .map((link) => link.textContent);
+    expect(labels.indexOf("Catálogo")).toBeLessThan(labels.indexOf("Caja"));
+    expect(labels.indexOf("Caja")).toBeLessThan(labels.indexOf("Config"));
+  },
+);

@@ -4,7 +4,11 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
-import { buildsRunByFilteredInstall, filteredInstallsIn } from "./image-install-builds.mjs";
+import {
+  buildsRunByFilteredInstall,
+  filteredInstallsIn,
+  packagesReachedByFilteredInstall,
+} from "./image-install-builds.mjs";
 
 const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
 
@@ -51,6 +55,30 @@ test("reports an approved build reached through an optional peer of a project's 
   });
 
   assert.deepEqual(builds, ["native-driver"]);
+});
+
+test("lists every registry package a filtered install reaches, whether or not it builds", () => {
+  const lockfile = lockfileWith({
+    importers: {
+      "apps/cloud": {
+        dependencies: {
+          "@purosur/domain": { specifier: "workspace:*", version: "link:../../packages/domain" },
+          orm: { specifier: "^1", version: "1.0.0(native-driver@2.0.0)" },
+        },
+      },
+      "packages/domain": { dependencies: { schema: { specifier: "^4", version: "4.0.0" } } },
+      "apps/pos": { dependencies: { printer: { specifier: "^1", version: "1.0.0" } } },
+    },
+    snapshots: { ...orm, "schema@4.0.0": {}, "printer@1.0.0": {} },
+  });
+
+  const packages = packagesReachedByFilteredInstall({
+    lockfile,
+    projects,
+    filter: "@purosur/cloud",
+  });
+
+  assert.deepEqual(packages, ["native-driver", "orm", "schema"]);
 });
 
 test("reports nothing when the installed graph holds no approved build", () => {
@@ -297,6 +325,27 @@ test("the cloud image's installs run no build script, since its base image has n
       buildsRunByFilteredInstall({ lockfile, projects, allowBuilds, filter }),
       [],
       `pnpm install --filter ${filter}... in apps/cloud/Dockerfile would build these packages`,
+    );
+  }
+});
+
+test("the cloud image's installs reach none of the packages the register ships beside its bundled code", async () => {
+  const lockfile = parse(await readFile(join(repoRoot, "pnpm-lock.yaml"), "utf8"));
+  const { dependencies } = JSON.parse(
+    await readFile(join(repoRoot, "apps/pos/package.json"), "utf8"),
+  );
+  const filters = filteredInstallsIn(
+    await readFile(join(repoRoot, "apps/cloud/Dockerfile"), "utf8"),
+  );
+  const projects = await workspaceProjects(lockfile);
+
+  assert.notEqual(Object.keys(dependencies).length, 0, "apps/pos declares no dependencies");
+  for (const filter of filters) {
+    const reached = packagesReachedByFilteredInstall({ lockfile, projects, filter });
+    assert.deepEqual(
+      reached.filter((name) => Object.hasOwn(dependencies, name)),
+      [],
+      `pnpm install --filter ${filter}... in apps/cloud/Dockerfile would install these register packages`,
     );
   }
 });

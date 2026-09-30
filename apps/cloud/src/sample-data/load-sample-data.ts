@@ -307,7 +307,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
         expectOutcome(deactivated, "deactivated", `deactivating tag "${tagPlan.name}"`);
       }
 
-      const discountStore = new DrizzleDiscountStore(tx);
+      const discountStore = new DrizzleDiscountStore(tx, pending);
       const loadDay = argentinaCalendarDay(recentMoment);
       for (const plan of SAMPLE_DISCOUNTS) {
         const targetId = {

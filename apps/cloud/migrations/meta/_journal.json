@@ -327,8 +327,15 @@
     {
       "idx": 46,
       "version": "7",
-      "when": 1790781602131,
-      "tag": "0046_buy_n_pay_m_discounts",
+      "when": 1790776469657,
+      "tag": "0046_discounts_changes",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1790782813382,
+      "tag": "0047_buy_n_pay_m_discounts",
       "breakpoints": true
     }
   ]

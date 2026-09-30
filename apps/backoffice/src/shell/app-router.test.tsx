@@ -37,13 +37,13 @@ test("never preloads the code of a screen the person is refused", async () => {
     sessionActions: { signedIn: vi.fn(), signedOut: vi.fn(), sessionEnded: vi.fn() },
     reportError: vi.fn(),
   });
-  const pricesPage = router.routesById["/signed-in/catalog/prices"].options.component as {
+  const pricesPage = router.routesById["/signed-in/catalog-area/prices"].options.component as {
     preload: () => Promise<void>;
   };
   const preload = vi.spyOn(pricesPage, "preload");
   onTestFinished(() => preload.mockRestore());
 
-  await router.preloadRoute({ to: "/catalog/prices" });
+  await router.preloadRoute({ to: "/prices" });
 
   expect(preload).not.toHaveBeenCalled();
 });
