@@ -162,7 +162,11 @@ describe("postToCloudWithBearer", () => {
   it("posts to the path with the token as a bearer credential and no body", async () => {
     const { deps, requests } = clientAnswering(jsonResponse(200, { ok: true }));
 
-    const response = await postToCloudWithBearer(deps, "/api/devices/rotate-token", "prefix.secret");
+    const response = await postToCloudWithBearer(
+      deps,
+      "/api/devices/rotate-token",
+      "prefix.secret",
+    );
 
     expect(response).toEqual({ kind: "ok", body: { ok: true } });
     expect(requests).toHaveLength(1);
@@ -178,7 +182,11 @@ describe("postToCloudWithBearer", () => {
       jsonResponse(401, envelope("device_token_rejected")),
     );
 
-    const response = await postToCloudWithBearer(deps, "/api/devices/rotate-token", "prefix.secret");
+    const response = await postToCloudWithBearer(
+      deps,
+      "/api/devices/rotate-token",
+      "prefix.secret",
+    );
 
     expect(response).toEqual({ kind: "error", error: envelope("device_token_rejected") });
     expect(requests).toHaveLength(1);
@@ -202,8 +210,10 @@ describe("postToCloudWithBearer", () => {
   it("answers unreachable when the cloud can't be reached", async () => {
     const { deps } = clientAnswering(new Error("offline"));
 
-    expect(await postToCloudWithBearer(deps, "/api/devices/rotate-token", "prefix.secret")).toEqual({
-      kind: "unreachable",
-    });
+    expect(await postToCloudWithBearer(deps, "/api/devices/rotate-token", "prefix.secret")).toEqual(
+      {
+        kind: "unreachable",
+      },
+    );
   });
 });
