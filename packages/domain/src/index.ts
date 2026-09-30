@@ -147,6 +147,7 @@ export {
 export type {
   CashBreakdown,
   CashMovement,
+  CashMovementKind,
   CashMovementType,
   CashSession,
   CashSessionState,
@@ -154,7 +155,12 @@ export type {
   OpenedCashSession,
 } from "./register/index.js";
 export {
+  CASH_MOVEMENT_KINDS,
+  CASH_MOVEMENT_REASON_MAX_LENGTH,
+  CASH_MOVEMENT_TYPES,
   cashBreakdown,
+  cashMovementPermission,
+  cashMovementReason,
   ENROLLMENT_CODE_LENGTH,
   enrollmentAttemptWindowStart,
   enrollmentCodeExpiresAt,
@@ -166,6 +172,7 @@ export {
   isInstallationReportTooLong,
   isRegisterNameTooLong,
   isValidCashAmount,
+  isValidCashMovementAmount,
   isWellFormedEnrollmentCode,
   isWellFormedInstallationKey,
   MAX_CASH_AMOUNT_CENTS,

@@ -3,6 +3,7 @@ import type {
   CashBalance,
   CloseCashSessionOutcome,
   EnrollmentOutcome,
+  ListedCashMovement,
   OpenCashSession,
   OpenCashSessionOutcome,
   OpenSale,
@@ -61,6 +62,8 @@ function coreAnswering(
     openOutcome?: OpenCashSessionOutcome;
     closeCashSession?: CoreClient["closeCashSession"];
     cashBalance?: CoreClient["cashBalance"];
+    cashMovements?: CoreClient["cashMovements"];
+    recordCashMovement?: CoreClient["recordCashMovement"];
   } = {},
   sales: {
     currentSale?: () => Promise<OpenSale | null>;
@@ -71,6 +74,7 @@ function coreAnswering(
   const cashSessionAsks: string[] = [];
   const opened: number[] = [];
   const closed: [string, number, Authorization | undefined][] = [];
+  const recorded: Parameters<CoreClient["recordCashMovement"]>[0][] = [];
   const asked: string[] = [];
   let usersLoads = 0;
   let savedName: string | null = null;
@@ -121,6 +125,15 @@ function coreAnswering(
       cashSessionAsks.push("cash-session");
       return cashDrawer.cashSession === undefined ? null : cashDrawer.cashSession();
     },
+    async recordCashMovement(input) {
+      recorded.push(input);
+      return cashDrawer.recordCashMovement === undefined
+        ? { kind: "no_open_session" }
+        : cashDrawer.recordCashMovement(input);
+    },
+    async cashMovements() {
+      return cashDrawer.cashMovements === undefined ? [] : cashDrawer.cashMovements();
+    },
     async currentSale() {
       return sales.currentSale === undefined ? null : sales.currentSale();
     },
@@ -149,7 +162,16 @@ function coreAnswering(
       listener();
     }
   }
-  return { core, asked, cashSessionAsks, opened, closed, finishPull, usersLoads: () => usersLoads };
+  return {
+    core,
+    asked,
+    cashSessionAsks,
+    opened,
+    closed,
+    recorded,
+    finishPull,
+    usersLoads: () => usersLoads,
+  };
 }
 
 const enrolledCore = coreAnswering(true).core;
@@ -948,7 +970,9 @@ describe("App", () => {
 
       await userEvent.click(screen.getByRole("link", { name: "Caja" }));
 
-      await expect.element(screen.getByRole("heading", { name: "Caja" })).toBeVisible();
+      await expect
+        .element(screen.getByRole("heading", { name: "Movimientos de efectivo", exact: true }))
+        .toBeVisible();
       await expect.element(screen.getByText("EFECTIVO ESPERADO AHORA")).toBeVisible();
       await expect.element(screen.getByText("$ 46.200,00", { exact: true })).toBeVisible();
       await expect
@@ -1011,6 +1035,99 @@ describe("App", () => {
 
       await expect.poll(() => asks).toBe(2);
       await expect.element(screen.getByRole("heading", { name: "Cerrar caja" })).toBeVisible();
+    });
+  });
+
+  describe("recording cash movements", () => {
+    const MOVER_SESSION: OpenCashSession = {
+      ...GRACE_SESSION,
+      opened_by: { ...GRACE_SESSION.opened_by, permission_keys: ["record_cash_in"] },
+    };
+    const OPENING: ListedCashMovement = {
+      id: "m1",
+      type: "OPENING",
+      amount: 2_000_000,
+      reason: null,
+      occurred_at: GRACE_SESSION.opened_at,
+      actor: { user_id: "u2", first_name: "Grace" },
+      authorized_by: null,
+    };
+
+    async function openCashScreen(
+      cashDrawer: {
+        cashSession?: CoreClient["cashSession"];
+        cashMovements?: CoreClient["cashMovements"];
+        recordCashMovement?: CoreClient["recordCashMovement"];
+      } = {},
+    ) {
+      await page.viewport(1280, 720);
+      onTestFinished(() => page.viewport(414, 896));
+      const fake = coreAnswering(true, { kind: "enrolled" }, ADA_SIGNED_IN, {
+        cashSession: async () => MOVER_SESSION,
+        cashBalance: async () => BALANCE,
+        cashMovements: async () => [OPENING],
+        ...cashDrawer,
+      });
+      const screen = await render(<App core={fake.core} />);
+      postCoreStatus("up");
+      await userEvent.click(screen.getByRole("link", { name: "Caja" }));
+      await expect
+        .element(
+          screen
+            .getByRole("table", { name: "Movimientos de la sesión" })
+            .getByText("Apertura de sesión", { exact: true }),
+        )
+        .toBeVisible();
+      return { screen, ...fake };
+    }
+
+    async function recordCashIn(screen: Awaited<ReturnType<typeof render>>) {
+      await userEvent.click(
+        screen.getByRole("button", { name: "Registrar movimiento", exact: true }),
+      );
+      await userEvent.fill(screen.getByRole("textbox", { name: "Importe" }), "500");
+      await userEvent.fill(screen.getByRole("textbox", { name: "Motivo" }), "Cambio");
+      await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
+    }
+
+    it("lists the movements the core has for the session", async () => {
+      const { screen } = await openCashScreen();
+
+      await expect.element(screen.getByText("1 movimiento", { exact: true })).toBeVisible();
+    });
+
+    it("records a movement through the core and reads the movements again", async () => {
+      const cashMovements = vi
+        .fn<CoreClient["cashMovements"]>()
+        .mockResolvedValueOnce([OPENING])
+        .mockResolvedValueOnce([
+          OPENING,
+          { ...OPENING, id: "m2", type: "CASH_IN", reason: "Cambio", amount: 50_000 },
+        ]);
+      const { screen, recorded } = await openCashScreen({
+        cashMovements,
+        recordCashMovement: async () => ({ kind: "recorded", authorized_by: null }),
+      });
+
+      await recordCashIn(screen);
+
+      await expect.element(screen.getByText("2 movimientos", { exact: true })).toBeVisible();
+      expect(recorded).toEqual([{ kind: "CASH_IN", amount: 50_000, reason: "Cambio" }]);
+    });
+
+    it("leaves the cash screen when the core says there is no open session", async () => {
+      let asks = 0;
+      const { screen } = await openCashScreen({
+        cashSession: async () => {
+          asks += 1;
+          return asks === 1 ? MOVER_SESSION : null;
+        },
+        recordCashMovement: async () => ({ kind: "no_open_session" }),
+      });
+
+      await recordCashIn(screen);
+
+      await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
     });
   });
 });

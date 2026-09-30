@@ -1,4 +1,4 @@
-import type { CashBalance } from "@purosur/contracts";
+import type { CashBalance, ListedCashMovement } from "@purosur/contracts";
 import { createRootRouteWithContext, createRoute, RouterProvider } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { Component } from "react";
@@ -89,6 +89,8 @@ function contextWith(
     openCashSession: async () => ({ kind: "unavailable" }),
     closeCashSession: async () => ({ kind: "unavailable" }),
     cashBalance: async () => "unavailable",
+    cashMovements: async () => "unavailable",
+    recordCashMovement: async () => ({ kind: "unavailable" }),
     enroll: async () => ({ kind: "enrolled" }),
     registerName: async () => null,
     signInUsers: async () => [{ id: "u1", first_name: "Ada" }],
@@ -545,21 +547,70 @@ describe("the register's router", () => {
     await expect.poll(() => refreshed.mock.calls.length).toBe(1);
   });
 
-  it("renders the cash screen for the open session with the expected cash from the context", async () => {
+  it("renders the cash screen for the open session with the expected cash and the movements from the context", async () => {
+    const opening: ListedCashMovement = {
+      id: "m1",
+      type: "OPENING",
+      amount: 2_000_000,
+      reason: null,
+      occurred_at: "2026-09-30T12:02:00.000Z",
+      actor: { user_id: "u2", first_name: "Grace" },
+      authorized_by: null,
+    };
     const router = createRegisterRouter(
       routeTree,
       {
         ...contextWith("up", "enrolled", null, undefined, OPEN_SESSION),
         cashBalance: async () => BALANCE,
+        cashMovements: async () => [opening],
       },
       "/cash",
     );
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByRole("heading", { name: "Caja" })).toBeVisible();
-    await expect.element(screen.getByText("Grace")).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: "Movimientos de efectivo", exact: true }))
+      .toBeVisible();
+    await expect.element(screen.getByText("Grace", { exact: true }).first()).toBeVisible();
     await expect.element(screen.getByText("$ 46.200,00", { exact: true })).toBeVisible();
+    await expect
+      .element(
+        screen
+          .getByRole("table", { name: "Movimientos de la sesión" })
+          .getByText("Apertura de sesión", { exact: true }),
+      )
+      .toBeVisible();
+  });
+
+  it("records a movement through the router context", async () => {
+    const recorded: [string, string][] = [];
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", null, undefined, {
+          ...OPEN_SESSION,
+          openedBy: { ...OPENER, permission_keys: ["record_cash_in"] },
+        }),
+        cashBalance: async () => BALANCE,
+        cashMovements: async () => [],
+        recordCashMovement: async (input) => {
+          recorded.push([input.kind, input.reason]);
+          return { kind: "unavailable" };
+        },
+      },
+      "/cash",
+    );
+    const screen = await render(<RouterProvider router={router} />);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Registrar movimiento", exact: true }),
+    );
+
+    await userEvent.fill(screen.getByRole("textbox", { name: "Importe" }), "500");
+    await userEvent.fill(screen.getByRole("textbox", { name: "Motivo" }), "Cambio");
+    await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
+
+    await expect.poll(() => recorded).toEqual([["CASH_IN", "Cambio"]]);
   });
 
   it("closes the session through the router context with the session it is showing", async () => {

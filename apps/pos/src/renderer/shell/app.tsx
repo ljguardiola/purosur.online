@@ -9,7 +9,7 @@ import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { RouterProvider } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import type { SignedInPerson } from "../access/signed-in-person";
-import type { CoreClient } from "../platform/core-client";
+import type { CashMovementInput, CoreClient } from "../platform/core-client";
 import { useCoreStatus } from "../platform/use-core-status";
 import type { CashSessionState } from "./cash-session-state";
 import type { Enrollment } from "./router";
@@ -127,6 +127,22 @@ export function App({ core }: { core: CoreClient }) {
     return balance;
   }
 
+  async function cashMovements() {
+    const movements = await core.cashMovements();
+    if (movements === null) {
+      await core.cashSession().then(refreshCashSession, () => {});
+    }
+    return movements;
+  }
+
+  async function recordCashMovement(input: CashMovementInput) {
+    const outcome = await core.recordCashMovement(input);
+    if (outcome.kind === "no_open_session") {
+      await core.cashSession().then(refreshCashSession, () => {});
+    }
+    return outcome;
+  }
+
   function signOut() {
     core.signOut().catch(() => {});
     setPerson(undefined);
@@ -142,6 +158,8 @@ export function App({ core }: { core: CoreClient }) {
     openCashSession,
     closeCashSession,
     cashBalance,
+    cashMovements,
+    recordCashMovement,
     redeemPinCode: (typedCode: string, newPin: string) => core.redeemPinCode(typedCode, newPin),
     signInLookup: (email: string) => core.signInLookup(email),
     requestFirstPinCode: (userId: string) => core.requestFirstPinCode(userId),

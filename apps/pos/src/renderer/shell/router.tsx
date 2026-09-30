@@ -6,8 +6,10 @@ import type {
   CurrentSaleAnswer,
   EnrollmentOutcome,
   FirstPinCodeRequestOutcome,
+  ListedCashMovement,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
+  RecordCashMovementOutcome,
   ScanProductOutcome,
   SignInLookupOutcome,
   SignInOutcome,
@@ -27,6 +29,7 @@ import { FirstSignInScreen } from "../access/first-sign-in-screen";
 import { PinCodeRedemptionScreen } from "../access/pin-code-redemption-screen";
 import { SignInScreen } from "../access/sign-in-screen";
 import type { SignedInPerson } from "../access/signed-in-person";
+import type { CashMovementInput } from "../platform/core-client";
 import { CashCountScreen } from "../register/cash-count-screen";
 import { CashScreen } from "../register/cash-screen";
 import { EnrollmentScreen } from "../register/enrollment-screen";
@@ -63,6 +66,8 @@ export interface RouterContext {
     authorization?: Authorization,
   ) => Promise<CloseCashSessionOutcome>;
   cashBalance: () => Promise<CashBalance | null | "unavailable">;
+  cashMovements: () => Promise<ListedCashMovement[] | null | "unavailable">;
+  recordCashMovement: (input: CashMovementInput) => Promise<RecordCashMovementOutcome>;
   redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
   signInLookup: (email: string) => Promise<SignInLookupOutcome>;
   requestFirstPinCode: (userId: string) => Promise<FirstPinCodeRequestOutcome>;
@@ -193,7 +198,15 @@ const cashRoute = createRoute({
     return { openedAt, openedBy };
   },
   component: function CashRoute() {
-    const { openedAt, openedBy, person, cashBalance } = cashRoute.useRouteContext();
+    const {
+      openedAt,
+      openedBy,
+      person,
+      cashBalance,
+      cashMovements,
+      authorizers,
+      recordCashMovement,
+    } = cashRoute.useRouteContext();
     const registerName = sessionEyebrowRoute.useLoaderData();
     return (
       <CashScreen
@@ -201,6 +214,9 @@ const cashRoute = createRoute({
         registerName={registerName}
         openedAt={openedAt}
         loadCashBalance={cashBalance}
+        loadCashMovements={cashMovements}
+        loadAuthorizers={authorizers}
+        recordCashMovement={recordCashMovement}
       />
     );
   },
@@ -336,6 +352,8 @@ export function createAppRouter(
     | "openCashSession"
     | "closeCashSession"
     | "cashBalance"
+    | "cashMovements"
+    | "recordCashMovement"
     | "authorizers"
     | "redeemPinCode"
     | "signInLookup"

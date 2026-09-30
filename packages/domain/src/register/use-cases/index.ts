@@ -28,6 +28,12 @@ export type {
 } from "./open-cash-session.js";
 export { openCashSession } from "./open-cash-session.js";
 export type {
+  RecordCashMovementInput,
+  RecordCashMovementOutcome,
+  RecordCashMovementPorts,
+} from "./record-cash-movement.js";
+export { recordCashMovement } from "./record-cash-movement.js";
+export type {
   Clock,
   DeviceTokenIssuer,
   DeviceTokenRotationPorts,

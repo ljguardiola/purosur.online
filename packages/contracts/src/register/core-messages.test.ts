@@ -1,6 +1,7 @@
-import { MAX_CASH_AMOUNT_CENTS } from "@purosur/domain";
+import { CASH_MOVEMENT_REASON_MAX_LENGTH, MAX_CASH_AMOUNT_CENTS } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
+  cashMovementAmountSchema,
   coreStatusMessageSchema,
   coreToRendererMessageSchema,
   countedCashSchema,
@@ -208,6 +209,96 @@ describe("cash session requests", () => {
 
   it("rejects a request for the open cash session without its request id", () => {
     expect(rendererToCoreMessageSchema.safeParse({ type: "cash-session-request" }).success).toBe(
+      false,
+    );
+  });
+});
+
+describe("cash movement requests", () => {
+  const movement = {
+    type: "record-cash-movement",
+    request_id: REQUEST_ID,
+    kind: "CASH_OUT",
+    amount: 2500,
+    reason: "Flete",
+  };
+
+  it("accepts a cash movement without an authorization", () => {
+    expect(rendererToCoreMessageSchema.parse(movement)).toEqual(movement);
+  });
+
+  it("accepts a cash movement authorized with another person's PIN", () => {
+    const authorized = { ...movement, authorization: { user_id: "u2", pin: "1234" } };
+
+    expect(rendererToCoreMessageSchema.parse(authorized)).toEqual(authorized);
+  });
+
+  it.each(["CASH_IN", "CASH_OUT", "WITHDRAWAL"])("accepts a cash movement of kind %s", (kind) => {
+    expect(rendererToCoreMessageSchema.safeParse({ ...movement, kind }).success).toBe(true);
+  });
+
+  it.each(["OPENING", "SALE", "cash_in", "", 1, null])(
+    "rejects a cash movement of kind %j",
+    (kind) => {
+      expect(rendererToCoreMessageSchema.safeParse({ ...movement, kind }).success).toBe(false);
+    },
+  );
+
+  it.each([1, MAX_CASH_AMOUNT_CENTS])("accepts an amount of %i cents", (amount) => {
+    expect(rendererToCoreMessageSchema.safeParse({ ...movement, amount }).success).toBe(true);
+  });
+
+  it.each([0, -1, 1.5, MAX_CASH_AMOUNT_CENTS + 1, "100", null])(
+    "rejects an amount of %j",
+    (amount) => {
+      expect(rendererToCoreMessageSchema.safeParse({ ...movement, amount }).success).toBe(false);
+    },
+  );
+
+  it.each(["Flete", " Flete ", "a".repeat(CASH_MOVEMENT_REASON_MAX_LENGTH)])(
+    "accepts the reason %j",
+    (reason) => {
+      expect(rendererToCoreMessageSchema.safeParse({ ...movement, reason }).success).toBe(true);
+    },
+  );
+
+  it.each(["", "   ", "a".repeat(CASH_MOVEMENT_REASON_MAX_LENGTH + 1), 1, null])(
+    "rejects the reason %j",
+    (reason) => {
+      expect(rendererToCoreMessageSchema.safeParse({ ...movement, reason }).success).toBe(false);
+    },
+  );
+
+  it.each(["request_id", "kind", "amount", "reason"])(
+    "rejects a cash movement without its %s",
+    (field) => {
+      expect(
+        rendererToCoreMessageSchema.safeParse({ ...movement, [field]: undefined }).success,
+      ).toBe(false);
+    },
+  );
+
+  it.each([{ user_id: "u2" }, { pin: "1234" }, "1234"])(
+    "rejects the authorization %j",
+    (authorization) => {
+      expect(rendererToCoreMessageSchema.safeParse({ ...movement, authorization }).success).toBe(
+        false,
+      );
+    },
+  );
+
+  it("drops an actor sent with a cash movement", () => {
+    expect(rendererToCoreMessageSchema.parse({ ...movement, actor_id: "u9" })).toEqual(movement);
+  });
+
+  it("accepts a request for the open session's cash movements", () => {
+    const message = { type: "cash-movements-request", request_id: REQUEST_ID };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a request for the cash movements without its request id", () => {
+    expect(rendererToCoreMessageSchema.safeParse({ type: "cash-movements-request" }).success).toBe(
       false,
     );
   });
@@ -753,6 +844,155 @@ describe("cash session answers", () => {
   });
 });
 
+describe("cash movement answers", () => {
+  it("accepts a recorded movement done by the operator alone", () => {
+    const message = {
+      type: "record-cash-movement-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "recorded", authorized_by: null },
+    };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts a recorded movement with the person who authorized it", () => {
+    const message = {
+      type: "record-cash-movement-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "recorded", authorized_by: { user_id: "u2", first_name: "Grace" } },
+    };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "recorded" },
+    { kind: "recorded", authorized_by: { user_id: "u2" } },
+    { kind: "recorded", authorized_by: { first_name: "Grace" } },
+  ])("rejects a recorded movement it does not know: %j", (outcome) => {
+    const message = { type: "record-cash-movement-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it.each([
+    { kind: "invalid_amount" },
+    { kind: "invalid_reason" },
+    { kind: "no_open_session" },
+    { kind: "not_signed_in" },
+    { kind: "lacks_permission" },
+    { kind: "unavailable" },
+    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 7 },
+    { kind: "rate_limited", retry_after_seconds: 30, attempts_left: 3 },
+    { kind: "locked", consecutive_failures: 8 },
+  ])("accepts the refusal $kind", (outcome) => {
+    const message = { type: "record-cash-movement-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([{ kind: "x" }, { kind: "wrong_pin" }, { kind: "not_permitted" }])(
+    "rejects a refusal it does not know: %j",
+    (outcome) => {
+      const message = { type: "record-cash-movement-result", request_id: REQUEST_ID, outcome };
+
+      expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+    },
+  );
+
+  const listed = {
+    id: "m1",
+    type: "CASH_IN",
+    amount: 5000,
+    reason: "Cambio de la panadería",
+    occurred_at: "2026-09-30T12:30:00.000Z",
+    actor: { user_id: "u1", first_name: "Ada" },
+    authorized_by: { user_id: "u2", first_name: "Grace" },
+  };
+
+  it("accepts the open session's movements, each with who did it and who authorized it", () => {
+    const message = { type: "cash-movements", request_id: REQUEST_ID, movements: [listed] };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts a movement without a reason or an authorizer", () => {
+    const opening = { ...listed, type: "OPENING", reason: null, authorized_by: null };
+    const message = { type: "cash-movements", request_id: REQUEST_ID, movements: [opening] };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each(["OPENING", "SALE", "CHANGE", "REFUND", "CASH_IN", "CASH_OUT", "WITHDRAWAL", "CLOSING"])(
+    "accepts a listed movement of type %s",
+    (type) => {
+      const message = {
+        type: "cash-movements",
+        request_id: REQUEST_ID,
+        movements: [{ ...listed, type }],
+      };
+
+      expect(coreToRendererMessageSchema.safeParse(message).success).toBe(true);
+    },
+  );
+
+  it("accepts an open session with no movements yet", () => {
+    const message = { type: "cash-movements", request_id: REQUEST_ID, movements: [] };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts that no cash session is open", () => {
+    const message = { type: "cash-movements", request_id: REQUEST_ID, movements: null };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts that the movements cannot be read", () => {
+    const message = { type: "cash-movements-unavailable", request_id: REQUEST_ID };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects that the movements cannot be read without its request id", () => {
+    expect(
+      coreToRendererMessageSchema.safeParse({ type: "cash-movements-unavailable" }).success,
+    ).toBe(false);
+  });
+
+  it.each([
+    ["id", undefined],
+    ["type", "TIP"],
+    ["type", undefined],
+    ["amount", undefined],
+    ["amount", "5000"],
+    ["reason", undefined],
+    ["occurred_at", undefined],
+    ["actor", undefined],
+    ["actor", { user_id: "u1" }],
+    ["actor", { first_name: "Ada" }],
+    ["actor", null],
+    ["authorized_by", undefined],
+    ["authorized_by", { user_id: "u2" }],
+    ["authorized_by", { first_name: "Grace" }],
+  ])("rejects a listed movement whose %s is %j", (field, value) => {
+    const message = {
+      type: "cash-movements",
+      request_id: REQUEST_ID,
+      movements: [{ ...listed, [field]: value }],
+    };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("rejects the movements of a session without saying whether one is open", () => {
+    expect(
+      coreToRendererMessageSchema.safeParse({ type: "cash-movements", request_id: REQUEST_ID })
+        .success,
+    ).toBe(false);
+  });
+});
+
 describe("authorizers answers", () => {
   it("accepts the people who can authorize, by id and first name", () => {
     const message = {
@@ -832,6 +1072,19 @@ describe("openingFloatSchema", () => {
   it.each([-1, 0.5, MAX_CASH_AMOUNT_CENTS + 1, Number.NaN, "100", null])("rejects %j", (value) => {
     expect(openingFloatSchema.safeParse(value).success).toBe(false);
   });
+});
+
+describe("cashMovementAmountSchema", () => {
+  it.each([1, 500_000, MAX_CASH_AMOUNT_CENTS])("accepts %i cents", (cents) => {
+    expect(cashMovementAmountSchema.safeParse(cents).success).toBe(true);
+  });
+
+  it.each([0, -1, 0.5, MAX_CASH_AMOUNT_CENTS + 1, Number.NaN, "100", null])(
+    "rejects %j",
+    (value) => {
+      expect(cashMovementAmountSchema.safeParse(value).success).toBe(false);
+    },
+  );
 });
 
 describe("sale requests", () => {
