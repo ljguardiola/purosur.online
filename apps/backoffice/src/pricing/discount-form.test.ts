@@ -14,6 +14,7 @@ import {
   discountRequestFrom,
   EMPTY_DISCOUNT_FORM,
   eligibleTargets,
+  productSoldByWeightMessage,
   targetForKind,
   targetOptions,
   targetPlaceholder,
@@ -263,6 +264,14 @@ describe("targetUnavailableMessage", () => {
     ["TAG", "Ya no está disponible. Elegí otro distintivo."],
   ] as const)("says a %s is gone and asks for another", (kind, message) => {
     expect(targetUnavailableMessage(kind)).toBe(message);
+  });
+});
+
+describe("productSoldByWeightMessage", () => {
+  test("names the product that cannot take a live buy-N-pay-M promotion", () => {
+    expect(productSoldByWeightMessage("Queso cremoso")).toBe(
+      '"Queso cremoso" se vende por peso: esta promoción solo aplica a productos por unidad.',
+    );
   });
 });
 

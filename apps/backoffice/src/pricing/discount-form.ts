@@ -143,6 +143,10 @@ const TARGET_UNAVAILABLE_MESSAGES = {
 
 export const TARGET_SOLD_BY_WEIGHT_MESSAGE = "Se vende por peso. Elegí otro producto.";
 
+export function productSoldByWeightMessage(productName: string): string {
+  return `"${productName}" se vende por peso: esta promoción solo aplica a productos por unidad.`;
+}
+
 export function targetUnavailableMessage(kind: DiscountTargetKind): string {
   return TARGET_UNAVAILABLE_MESSAGES[kind];
 }

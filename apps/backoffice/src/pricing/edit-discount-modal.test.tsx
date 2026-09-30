@@ -210,6 +210,23 @@ test("says a product that is now sold by weight cannot take it, on the picker", 
     .toHaveAccessibleDescription("Se vende por peso. Elegí otro producto.");
 });
 
+test("names on the picker the product that is now sold by weight when switching the promotion on", async () => {
+  const services = createServices();
+  vi.mocked(services.editDiscount).mockResolvedValue({
+    kind: "product_sold_by_weight",
+    productName: "Yerba Playadito 1 kg",
+  });
+  const { dialog } = await renderModal(services);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect
+    .element(dialog.getByRole("button", { name: /Yerba Playadito 1 kg/ }))
+    .toHaveAccessibleDescription(
+      '"Yerba Playadito 1 kg" se vende por peso: esta promoción solo aplica a productos por unidad.',
+    );
+});
+
 test("switching the promotion off is sent with the rest of the form", async () => {
   const services = createServices();
   vi.mocked(services.editDiscount).mockResolvedValue({ kind: "ok", discount: yerbaOff });

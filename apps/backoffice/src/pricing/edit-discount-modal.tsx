@@ -19,6 +19,7 @@ import {
   discountFormValues,
   EMPTY_DISCOUNT_EDIT_FORM,
   eligibleTargets,
+  productSoldByWeightMessage,
   TARGET_SOLD_BY_WEIGHT_MESSAGE,
   targetForKind,
   targetOptions,
@@ -107,6 +108,10 @@ export function EditDiscountModal({
       }
       if (outcome.kind === "target_not_sold_by_unit") {
         showFieldError("targetId", TARGET_SOLD_BY_WEIGHT_MESSAGE);
+        return;
+      }
+      if (outcome.kind === "product_sold_by_weight") {
+        showFieldError("targetId", productSoldByWeightMessage(outcome.productName));
         return;
       }
       if (outcome.kind === "rate_limited") {
