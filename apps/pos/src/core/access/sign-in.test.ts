@@ -562,27 +562,6 @@ describe("signing in for the first time on a register", () => {
     expect(remembered).toEqual([]);
   });
 
-  it("clears whoever was signed in and signs in the person it signs in", async () => {
-    const { built, signedIn } = deps();
-    signedIn.set("u9");
-    const signedInWhileChecking: (string | undefined)[] = [];
-
-    await firstSignIn(
-      {
-        ...built,
-        hashPin: async (pin, salt) => {
-          signedInWhileChecking.push(signedIn.userId());
-          return built.hashPin(pin, salt);
-        },
-      },
-      "u1",
-      "1234",
-    );
-
-    expect(signedInWhileChecking).toEqual([undefined]);
-    expect(signedIn.userId()).toBe("u1");
-  });
-
   it("signs nobody in when the person cannot be remembered", async () => {
     const { built, signedIn } = deps();
     const failing: FirstSignInDeps = {

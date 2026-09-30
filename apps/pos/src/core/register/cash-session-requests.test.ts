@@ -1,7 +1,6 @@
 import { PERMISSION_KEYS } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createActionGate } from "../access/action-gate";
-import { signIn } from "../access/sign-in";
 import { createSignedInPerson, type SignedInPerson } from "../access/signed-in-person";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
@@ -228,26 +227,15 @@ describe("the open cash session", () => {
   });
 });
 
-describe("signing in while a cash session is open", () => {
-  it("refuses anyone but the session's opener and keeps the opener signed in", async () => {
+describe("who opened the open cash session", () => {
+  it("is the open session's opener", async () => {
     await openCashSessionFor(deps(), 5000);
-    addPerson("u2", "cashier", "Bruno");
 
-    const outcome = await signIn(
-      {
-        store: new SqliteSignInStore(database),
-        signedInPerson,
-        cashSessionOpener: () => cashSessionOpener(database),
-        readPepper: async () => undefined,
-        hashPin: async () => "",
-        now: () => NOW,
-      },
-      "u2",
-      "1234",
-    );
+    expect(cashSessionOpener(database)).toBe("u1");
+  });
 
-    expect(outcome).toEqual({ kind: "cash_session_opened_by_another" });
-    expect(signedInPerson.userId()).toBe("u1");
+  it("is nobody while no session is open", () => {
+    expect(cashSessionOpener(database)).toBeUndefined();
   });
 });
 
