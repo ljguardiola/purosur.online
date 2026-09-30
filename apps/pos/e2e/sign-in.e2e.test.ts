@@ -5,7 +5,10 @@ import { type StandInCloud, startStandInCloud } from "./test-support/stand-in-cl
 
 const ANA_ID = "5b0b8f4e-3c2d-4a55-9c1e-0a6f6a1d0a01";
 const BRUNO_ID = "5b0b8f4e-3c2d-4a55-9c1e-0a6f6a1d0a02";
+const CARLA_ID = "5b0b8f4e-3c2d-4a55-9c1e-0a6f6a1d0a03";
 const ANA_EMAIL = "ana@example.com";
+const CARLA_EMAIL = "carla@example.com";
+const CARLA_CODE = "K7QM2XPA3DTR4HWN";
 
 describe("signing in to the register", () => {
   let cloud: StandInCloud;
@@ -27,8 +30,15 @@ describe("signing in to the register", () => {
           roleId: "role-cashier",
           pin: "7390",
         }),
+        await userChange({ id: CARLA_ID, firstName: "Carla", roleId: "role-cashier" }),
       ],
-      { signInLookups: { [ANA_EMAIL]: { userId: ANA_ID, hasPin: true } } },
+      {
+        signInLookups: {
+          [ANA_EMAIL]: { userId: ANA_ID, hasPin: true },
+          [CARLA_EMAIL]: { userId: CARLA_ID, hasPin: false },
+        },
+        firstPinCodes: { [CARLA_ID]: CARLA_CODE },
+      },
     );
     register = enrolledRegister(cloud);
     await register.launch();
@@ -62,5 +72,24 @@ describe("signing in to the register", () => {
     await page.getByRole("dialog").getByRole("button", { name: "Salir" }).click();
     await page.getByText("Ana", { exact: true }).waitFor();
     await page.getByText("Bruno", { exact: true }).waitFor({ state: "detached" });
+  });
+
+  it("gives a person with no PIN a code by email to choose one, signs them in and remembers them after Salir", async () => {
+    const { page } = register;
+
+    await page.getByRole("link", { name: "Ingresar por primera vez" }).click();
+    await page.getByLabel("Correo").fill(CARLA_EMAIL);
+    await page.getByRole("button", { name: "Continuar" }).click();
+    await page.getByRole("button", { name: "Mandarme un código por correo" }).click();
+
+    await page.getByRole("textbox", { name: "Código" }).fill(CARLA_CODE);
+    await page.getByLabel("PIN nuevo, de al menos 6 dígitos").fill("582913");
+    await page.getByLabel("Repetí el PIN nuevo").fill("582913");
+    await page.getByRole("button", { name: "Guardar y entrar" }).click();
+    await page.getByRole("heading", { name: "¿Qué querés hacer?" }).waitFor();
+
+    await page.getByRole("button", { name: "Salir" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Salir" }).click();
+    await page.getByText("Carla", { exact: true }).waitFor();
   });
 });

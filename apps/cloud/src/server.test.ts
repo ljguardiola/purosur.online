@@ -674,6 +674,11 @@ describe("startServer", () => {
         rotationKey: ROTATION_KEY_BYTES,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
+      firstPinCodes: {
+        db: fakeRecovery.db,
+        rotationKey: ROTATION_KEY_BYTES,
+        keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
+      },
     });
 
     expect(onCloseHooks).toHaveLength(1);

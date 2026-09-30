@@ -705,9 +705,7 @@ export const userPinCodes = pgTable(
       .notNull()
       .references(() => users.id),
     codeHash: text("code_hash").notNull(),
-    issuedBy: uuid("issued_by")
-      .notNull()
-      .references(() => users.id),
+    issuedBy: uuid("issued_by").references(() => users.id),
     issuedAt: timestamp("issued_at", { withTimezone: true }).notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     failedAttempts: integer("failed_attempts").notNull().default(0),

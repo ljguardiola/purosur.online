@@ -54,6 +54,16 @@ export function useAuthorization({
   const [refusal, setRefusal] = useState<ShownRefusal>();
   const [wait, setWait] = useState<{ seconds: number }>();
   const secondsLeft = useCountdown(wait);
+  const [authorizersFor, setAuthorizersFor] = useState(permission);
+
+  if (authorizersFor !== permission) {
+    setAuthorizersFor(permission);
+    setAuthorizers({ status: "loading" });
+    setChosen(null);
+    setPin("");
+    setRefusal(undefined);
+    setWait(undefined);
+  }
 
   useEffect(() => {
     if (!required || authorizers.status !== "loading") {

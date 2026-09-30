@@ -3,13 +3,16 @@ import type {
   CashBalance,
   CloseCashSessionOutcome,
   EnrollmentOutcome,
+  ListedCashMovement,
   OpenCashSession,
   OpenCashSessionOutcome,
+  OpenSale,
   PinCodeRedemptionOutcome,
+  ScanProductOutcome,
   SignInOutcome,
 } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { CoreClient } from "../platform/core-client";
@@ -57,6 +60,11 @@ const ADA_SIGNED_IN: SignInOutcome = {
   person: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
 };
 
+async function resumeLockedRegister(screen: Awaited<ReturnType<typeof render>>) {
+  await userEvent.type(screen.getByLabelText("PIN"), "1234");
+  await userEvent.click(screen.getByRole("button", { name: "Retomar" }));
+}
+
 function coreAnswering(
   enrolled: boolean,
   outcome: EnrollmentOutcome = { kind: "enrolled" },
@@ -67,12 +75,19 @@ function coreAnswering(
     closeCashSession?: CoreClient["closeCashSession"];
     cashBalance?: CoreClient["cashBalance"];
     redeemOutcome?: PinCodeRedemptionOutcome;
+    cashMovements?: CoreClient["cashMovements"];
+    recordCashMovement?: CoreClient["recordCashMovement"];
+  } = {},
+  sales: {
+    currentSale?: () => Promise<OpenSale | null>;
+    scanProduct?: (code: string) => Promise<ScanProductOutcome>;
   } = {},
   signOut: () => Promise<void> = async () => {},
 ) {
   const cashSessionAsks: string[] = [];
   const opened: number[] = [];
   const closed: [string, number, Authorization | undefined][] = [];
+  const recorded: Parameters<CoreClient["recordCashMovement"]>[0][] = [];
   const asked: string[] = [];
   let usersLoads = 0;
   let savedName: string | null = null;
@@ -105,6 +120,9 @@ function coreAnswering(
     async signInLookup() {
       return { kind: "not_found" };
     },
+    async requestFirstPinCode() {
+      return { kind: "sent" };
+    },
     async firstSignIn() {
       return signInOutcome;
     },
@@ -119,6 +137,21 @@ function coreAnswering(
     async cashSession() {
       cashSessionAsks.push("cash-session");
       return cashDrawer.cashSession === undefined ? null : cashDrawer.cashSession();
+    },
+    async recordCashMovement(input) {
+      recorded.push(input);
+      return cashDrawer.recordCashMovement === undefined
+        ? { kind: "no_open_session" }
+        : cashDrawer.recordCashMovement(input);
+    },
+    async cashMovements() {
+      return cashDrawer.cashMovements === undefined ? [] : cashDrawer.cashMovements();
+    },
+    async currentSale() {
+      return sales.currentSale === undefined ? null : sales.currentSale();
+    },
+    async scanProduct(code) {
+      return sales.scanProduct === undefined ? { kind: "unknown_code" } : sales.scanProduct(code);
     },
     async closeCashSession(sessionId, countedCash, authorization) {
       closed.push([sessionId, countedCash, authorization]);
@@ -142,7 +175,16 @@ function coreAnswering(
       listener();
     }
   }
-  return { core, asked, cashSessionAsks, opened, closed, finishPull, usersLoads: () => usersLoads };
+  return {
+    core,
+    asked,
+    cashSessionAsks,
+    opened,
+    closed,
+    recorded,
+    finishPull,
+    usersLoads: () => usersLoads,
+  };
 }
 
 const enrolledCore = coreAnswering(true).core;
@@ -151,8 +193,11 @@ function postCoreStatus(status: "starting" | "down" | "up"): void {
   window.postMessage({ channel: "core-status", payload: { type: "core-status", status } }, "*");
 }
 
-afterEach(() => {
+beforeEach(() => page.viewport(1280, 720));
+
+afterEach(async () => {
   vi.useRealTimers();
+  await page.viewport(414, 896);
 });
 
 describe("App", () => {
@@ -352,7 +397,14 @@ describe("App", () => {
   ])("asks the core to sign out and still leaves when %s", async (_case, signOut) => {
     await page.viewport(1280, 900);
     onTestFinished(() => page.viewport(414, 896));
-    const { core, asked } = coreAnswering(true, { kind: "enrolled" }, ADA_SIGNED_IN, {}, signOut);
+    const { core, asked } = coreAnswering(
+      true,
+      { kind: "enrolled" },
+      ADA_SIGNED_IN,
+      {},
+      {},
+      signOut,
+    );
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
     await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
@@ -647,6 +699,62 @@ describe("App", () => {
       await userEvent.click(screen.getByRole("link", { name: "Volver" }));
       await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
     });
+  });
+
+  it("shows the sale in progress", async () => {
+    const reads: string[] = [];
+    const { core } = coreAnswering(
+      true,
+      { kind: "enrolled" },
+      GRACE_SIGNED_IN,
+      { cashSession: async () => GRACE_SESSION },
+      {
+        currentSale: async () => {
+          reads.push("read");
+          return {
+            id: "sale-1",
+            lines: [
+              {
+                id: "line-1",
+                product_id: "p1",
+                product_name: "Yerba mate 1 kg",
+                quantity: 1,
+                list_unit_price: 238_000,
+                line_total: 238_000,
+              },
+            ],
+            total: 238_000,
+          };
+        },
+      },
+    );
+    const screen = await render(<App core={core} />);
+
+    postCoreStatus("up");
+    await resumeLockedRegister(screen);
+
+    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
+    expect(reads).toEqual(["read"]);
+  });
+
+  it("goes back to the no-session screen, still signed in, when a scan finds that the cash session is no longer open", async () => {
+    const sessions: (OpenCashSession | null)[] = [GRACE_SESSION, null];
+    const { core } = coreAnswering(
+      true,
+      { kind: "enrolled" },
+      GRACE_SIGNED_IN,
+      { cashSession: async () => sessions.shift() ?? null },
+      { scanProduct: async () => ({ kind: "no_open_session" }) },
+    );
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await resumeLockedRegister(screen);
+    const field = screen.getByRole("searchbox", { name: "Producto" });
+    await field.fill("7790001");
+
+    await userEvent.keyboard("{Enter}");
+
+    await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
   });
 
   it("asks the core for the cash session again each time it comes back up, and waits for the answer", async () => {
@@ -944,7 +1052,9 @@ describe("App", () => {
 
       await userEvent.click(screen.getByRole("link", { name: "Caja" }));
 
-      await expect.element(screen.getByRole("heading", { name: "Caja" })).toBeVisible();
+      await expect
+        .element(screen.getByRole("heading", { name: "Movimientos de efectivo", exact: true }))
+        .toBeVisible();
       await expect.element(screen.getByText("EFECTIVO ESPERADO AHORA")).toBeVisible();
       await expect.element(screen.getByText("$ 46.200,00", { exact: true })).toBeVisible();
       await expect
@@ -1070,6 +1180,108 @@ describe("App", () => {
 
       await expect.poll(() => asks).toBe(2);
       await expect.element(screen.getByRole("heading", { name: "Cerrar caja" })).toBeVisible();
+    });
+  });
+
+  describe("recording cash movements", () => {
+    const MOVER_SESSION: OpenCashSession = {
+      ...GRACE_SESSION,
+      opened_by: { ...GRACE_SESSION.opened_by, permission_keys: ["record_cash_in"] },
+    };
+    const OPENING: ListedCashMovement = {
+      id: "m1",
+      type: "OPENING",
+      amount: 2_000_000,
+      reason: null,
+      occurred_at: GRACE_SESSION.opened_at,
+      actor: { user_id: "u2", first_name: "Grace" },
+      authorized_by: null,
+    };
+
+    async function openCashScreen(
+      cashDrawer: {
+        cashSession?: CoreClient["cashSession"];
+        cashMovements?: CoreClient["cashMovements"];
+        recordCashMovement?: CoreClient["recordCashMovement"];
+      } = {},
+    ) {
+      await page.viewport(1280, 720);
+      onTestFinished(() => page.viewport(414, 896));
+      const fake = coreAnswering(
+        true,
+        { kind: "enrolled" },
+        {
+          kind: "signed_in",
+          person: { user_id: "u2", first_name: "Grace", permission_keys: ["record_cash_in"] },
+        },
+        {
+          cashSession: async () => MOVER_SESSION,
+          cashBalance: async () => BALANCE,
+          cashMovements: async () => [OPENING],
+          ...cashDrawer,
+        },
+      );
+      const screen = await render(<App core={fake.core} />);
+      postCoreStatus("up");
+      await resumeLockedRegister(screen);
+      await userEvent.click(screen.getByRole("link", { name: "Caja" }));
+      await expect
+        .element(
+          screen
+            .getByRole("table", { name: "Movimientos de la sesión" })
+            .getByText("Apertura de sesión", { exact: true }),
+        )
+        .toBeVisible();
+      return { screen, ...fake };
+    }
+
+    async function recordCashIn(screen: Awaited<ReturnType<typeof render>>) {
+      await userEvent.click(
+        screen.getByRole("button", { name: "Registrar movimiento", exact: true }),
+      );
+      await userEvent.fill(screen.getByRole("textbox", { name: "Importe" }), "500");
+      await userEvent.fill(screen.getByRole("textbox", { name: "Motivo" }), "Cambio");
+      await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
+    }
+
+    it("lists the movements the core has for the session", async () => {
+      const { screen } = await openCashScreen();
+
+      await expect.element(screen.getByText("1 movimiento", { exact: true })).toBeVisible();
+    });
+
+    it("records a movement through the core and reads the movements again", async () => {
+      const cashMovements = vi
+        .fn<CoreClient["cashMovements"]>()
+        .mockResolvedValueOnce([OPENING])
+        .mockResolvedValueOnce([
+          OPENING,
+          { ...OPENING, id: "m2", type: "CASH_IN", reason: "Cambio", amount: 50_000 },
+        ]);
+      const { screen, recorded } = await openCashScreen({
+        cashMovements,
+        recordCashMovement: async () => ({ kind: "recorded", authorized_by: null }),
+      });
+
+      await recordCashIn(screen);
+
+      await expect.element(screen.getByText("2 movimientos", { exact: true })).toBeVisible();
+      expect(recorded).toEqual([{ kind: "CASH_IN", amount: 50_000, reason: "Cambio" }]);
+    });
+
+    it("leaves the cash screen when the core says there is no open session", async () => {
+      let asks = 0;
+      const { screen } = await openCashScreen({
+        cashSession: async () => {
+          asks += 1;
+          return asks === 1 ? MOVER_SESSION : null;
+        },
+        recordCashMovement: async () => ({ kind: "no_open_session" }),
+      });
+
+      await recordCashIn(screen);
+
+      await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
     });
   });
 });

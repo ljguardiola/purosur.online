@@ -5,6 +5,7 @@ export type {
   PermissionKey,
   PermissionRegisterMarker,
   PinCodeParty,
+  PinCodeState,
   RoleAccess,
 } from "./access/index.js";
 export {
@@ -23,6 +24,7 @@ export {
   isLockedOutOfPinSignIn,
   isPasskeyNameTooLong,
   isPermissionKey,
+  isPinCodeLive,
   isRoleNameTooLong,
   isWellFormedPinCode,
   lacksARequiredPermission,
@@ -145,6 +147,7 @@ export {
 export type {
   CashBreakdown,
   CashMovement,
+  CashMovementKind,
   CashMovementType,
   CashSession,
   CashSessionState,
@@ -152,7 +155,12 @@ export type {
   OpenedCashSession,
 } from "./register/index.js";
 export {
+  CASH_MOVEMENT_KINDS,
+  CASH_MOVEMENT_REASON_MAX_LENGTH,
+  CASH_MOVEMENT_TYPES,
   cashBreakdown,
+  cashMovementPermission,
+  cashMovementReason,
   ENROLLMENT_CODE_LENGTH,
   enrollmentAttemptWindowStart,
   enrollmentCodeExpiresAt,
@@ -164,6 +172,7 @@ export {
   isInstallationReportTooLong,
   isRegisterNameTooLong,
   isValidCashAmount,
+  isValidCashMovementAmount,
   isWellFormedEnrollmentCode,
   isWellFormedInstallationKey,
   MAX_CASH_AMOUNT_CENTS,
@@ -171,6 +180,15 @@ export {
   REGISTER_NAME_MAX_LENGTH,
   registerNameLength,
 } from "./register/index.js";
+export type {
+  ListPrice,
+  Sale,
+  SaleLine,
+  SaleState,
+  SaleWithLines,
+  SoldProduct,
+} from "./sales/index.js";
+export { saleTotal } from "./sales/index.js";
 export type { EsArNumberDigits } from "./shared/index.js";
 export {
   ARGENTINA_TIME_ZONE,

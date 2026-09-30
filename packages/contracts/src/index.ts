@@ -12,6 +12,8 @@ export {
 } from "./access/authorization.js";
 export type { BranchUserWire } from "./access/branch-user.js";
 export { branchUserListSchema, branchUserSchema } from "./access/branch-user.js";
+export type { FirstPinCodeBody, FirstPinCodeWire } from "./access/first-pin-code.js";
+export { firstPinCodeBodySchema, firstPinCodeSchema } from "./access/first-pin-code.js";
 export type { OpenSessionWire } from "./access/open-session.js";
 export { openSessionSchema } from "./access/open-session.js";
 export type { PasskeyRegistrationBody } from "./access/passkey-registration.js";
@@ -142,10 +144,14 @@ export type {
   CoreStatusMessage,
   CoreToRendererMessage,
   EnrollmentOutcome,
+  FirstPinCodeRequestOutcome,
+  ListedCashMovement,
   MainToCoreMessage,
   OpenCashSession,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
+  RecordCashMovementOutcome,
+  RecordCashMovementRequest,
   RendererToCoreMessage,
   SignInLookupOutcome,
   SignInOutcome,
@@ -153,6 +159,11 @@ export type {
 } from "./register/core-messages.js";
 export {
   ARGENTINA_TIME_ZONE,
+  CASH_MOVEMENT_REASON_MAX_LENGTH,
+  CASH_MOVEMENT_TYPES,
+  cashMovementAmountSchema,
+  cashMovementPermission,
+  cashMovementReason,
   coreStatusMessageSchema,
   coreToRendererMessageSchema,
   countedCashSchema,
@@ -177,6 +188,8 @@ export type { RegisterEnrollmentCodeBody } from "./register/register-enrollment-
 export { registerEnrollmentCodeSchema } from "./register/register-enrollment-code.js";
 export type { RegisterSummaryBody } from "./register/register-summary.js";
 export { registerListSchema, registerSummarySchema } from "./register/register-summary.js";
+export type { CurrentSaleAnswer, OpenSale, ScanProductOutcome } from "./sales/sale.js";
+export { scannedCodeSchema } from "./sales/sale.js";
 export type { BranchSettingsBody, ErrorReportingConfiguration } from "./shared/index.js";
 export {
   branchSettingsSchema,

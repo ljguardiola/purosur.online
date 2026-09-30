@@ -1,18 +1,11 @@
-import { ARGENTINA_TIME_ZONE } from "@purosur/contracts";
-import { formatDate } from "@purosur/ui";
+import { formatClockTime } from "../platform/clock-time";
 import { Eyebrow } from "./eyebrow";
 
 function statusText(openedAt: string | undefined): string {
   if (openedAt === undefined) {
     return "Sin sesión abierta";
   }
-  const time = formatDate(new Date(openedAt), {
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-    timeZone: ARGENTINA_TIME_ZONE,
-  });
-  return `Sesión abierta ${time}`;
+  return `Sesión abierta ${formatClockTime(openedAt)}`;
 }
 
 export function SessionEyebrow({

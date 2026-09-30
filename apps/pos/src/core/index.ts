@@ -19,6 +19,7 @@ import {
 } from "../shared/channel";
 import { CORE_READY_MESSAGE } from "../shared/core-readiness";
 import { createActionGate } from "./access/action-gate";
+import { requestFirstPinCode } from "./access/first-pin-code-request";
 import { redeemPinCode } from "./access/pin-code-redemption";
 import { hashPin } from "./access/pin-hash";
 import { applyRedeemedPin } from "./access/redeemed-pin";
@@ -37,6 +38,7 @@ import {
 import { type LocalDatabase, openLocalDatabase } from "./platform/local-database";
 import { LOCAL_MIGRATIONS } from "./platform/local-migrations";
 import { createMainRequests } from "./platform/main-requests";
+import { currentCashMovements, recordCashMovementFor } from "./register/cash-movement-requests";
 import {
   cashBalanceFor,
   cashSessionOpener,
@@ -50,6 +52,7 @@ import { enroll, generatePepper, installationReportFrom } from "./register/enrol
 import { answerRendererRequest, type RendererRequestDeps } from "./register/renderer-requests";
 import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
+import { currentSaleFor, scanProductFor } from "./sales/sale-requests";
 import { pullFromCloud, pullResultOf } from "./sync/pull-from-cloud";
 import { createPullSchedule } from "./sync/pull-schedule";
 import { SqliteLocalReplica } from "./sync/sqlite-local-replica";
@@ -280,6 +283,18 @@ const rendererRequestDeps: RendererRequestDeps = {
             },
             email,
           ),
+  requestFirstPinCode: (userId) =>
+    requestFirstPinCode(
+      {
+        readCredentials: () => mainRequests.readCredentials(),
+        postToCloud:
+          cloudClient === undefined
+            ? undefined
+            : (path, bearerToken, body) =>
+                postToCloudWithBearer(cloudClient, path, bearerToken, body),
+      },
+      userId,
+    ),
   signOut: () => signedInPerson.clear(),
   openCashSession:
     localDatabase === undefined || actionGate === undefined
@@ -315,6 +330,35 @@ const rendererRequestDeps: RendererRequestDeps = {
           ),
   cashBalance: localDatabase === undefined ? undefined : () => cashBalanceFor(localDatabase),
   cashSession: localDatabase === undefined ? undefined : () => currentCashSession(localDatabase),
+  recordCashMovement:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (request) =>
+          recordCashMovementFor(
+            {
+              database: localDatabase,
+              gate: actionGate,
+              readOutboxChainKey: async () =>
+                (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+              now: () => new Date(),
+              ids: uuidV7Ids,
+            },
+            request,
+          ),
+  cashMovements:
+    localDatabase === undefined ? undefined : () => currentCashMovements(localDatabase),
+  scanProduct:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (code) =>
+          scanProductFor(
+            { database: localDatabase, gate: actionGate, now: () => new Date(), ids: uuidV7Ids },
+            code,
+          ),
+  currentSale:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : () => currentSaleFor({ database: localDatabase, gate: actionGate }),
   reportFailure,
 };
 

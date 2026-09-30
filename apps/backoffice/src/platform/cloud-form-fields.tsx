@@ -1,5 +1,7 @@
 import type { CalendarDate } from "@internationalized/date";
 import {
+  ComboBox,
+  type ComboBoxProps,
   DateField,
   type DateFieldProps,
   OptionCardGroup,
@@ -45,6 +47,18 @@ export function BoundSelect(props: DistributiveOmit<SelectProps<string>, FieldVa
   const field = useFieldContext<string | null>();
   return (
     <Select
+      {...props}
+      value={field.state.value}
+      onChange={field.handleChange}
+      errorMessage={fieldErrorMessage(field.state.meta.errors)}
+    />
+  );
+}
+
+export function BoundComboBox(props: DistributiveOmit<ComboBoxProps<string>, FieldValueProps>) {
+  const field = useFieldContext<string | null>();
+  return (
+    <ComboBox
       {...props}
       value={field.state.value}
       onChange={field.handleChange}

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   isPinCodeBurned,
   isPinCodeExpired,
+  isPinCodeLive,
   isWellFormedPinCode,
   mayEmitPinCodeFor,
   normalizePinCode,
@@ -168,5 +169,26 @@ describe("isPinCodeExpired", () => {
 
   it("is expired after its expiry", () => {
     expect(isPinCodeExpired(new Date(NOW.getTime() - 1), NOW)).toBe(true);
+  });
+});
+
+describe("isPinCodeLive", () => {
+  const LIVE = {
+    redeemedAt: null,
+    supersededAt: null,
+    failedAttempts: 0,
+    expiresAt: new Date(NOW.getTime() + 1),
+  };
+
+  it("is live while neither burned nor expired", () => {
+    expect(isPinCodeLive(LIVE, NOW)).toBe(true);
+  });
+
+  it("is not live once burned", () => {
+    expect(isPinCodeLive({ ...LIVE, supersededAt: NOW }, NOW)).toBe(false);
+  });
+
+  it("is not live once expired", () => {
+    expect(isPinCodeLive({ ...LIVE, expiresAt: NOW }, NOW)).toBe(false);
   });
 });
