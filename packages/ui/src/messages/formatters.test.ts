@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatCents,
   formatDate,
   formatMonthAndYear,
   formatMonthName,
@@ -53,5 +54,19 @@ describe("formatMonthAndYear", () => {
 
   it("writes a year of five digits without a thousands separator", () => {
     expect(formatMonthAndYear(10000, 1)).toBe("Enero 10000");
+  });
+});
+
+describe("formatCents", () => {
+  it.each([
+    [0, "$ 0,00"],
+    [1, "$ 0,01"],
+    [5, "$ 0,05"],
+    [750_050, "$ 7.500,50"],
+    [476_000, "$ 4.760,00"],
+    [123_456_789, "$ 1.234.567,89"],
+    [2_147_483_647, "$ 21.474.836,47"],
+  ])("writes %i cents as pesos: %s", (cents, text) => {
+    expect(formatCents(cents).replace(/\u00a0/g, " ")).toBe(text);
   });
 });

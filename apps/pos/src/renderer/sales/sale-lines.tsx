@@ -1,7 +1,6 @@
 import type { OpenSale } from "@purosur/contracts";
-import { EmptyState } from "@purosur/ui";
+import { EmptyState, formatCents } from "@purosur/ui";
 import { Package, ShoppingBasket } from "lucide-react";
-import { formatCents } from "./format-cents";
 
 type SaleLine = OpenSale["lines"][number];
 

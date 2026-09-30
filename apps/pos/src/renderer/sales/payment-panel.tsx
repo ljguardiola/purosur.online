@@ -1,6 +1,5 @@
-import { plural, SummaryRowGroup } from "@purosur/ui";
+import { formatCents, plural, SummaryRowGroup } from "@purosur/ui";
 import { Eyebrow } from "../shell/eyebrow";
-import { formatCents } from "./format-cents";
 
 export function PaymentPanel({ lineCount, total }: { lineCount: number; total: number }) {
   const lines = plural(lineCount, { one: "línea", other: "líneas" });
