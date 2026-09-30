@@ -87,14 +87,12 @@ const authorizersRequestMessageSchema = z.object({
 const scanProductMessageSchema = z.object({
   type: z.literal("scan-product"),
   request_id: requestId,
-  user_id: z.string(),
   code: scannedCodeSchema,
 });
 
 const saleRequestMessageSchema = z.object({
   type: z.literal("sale-request"),
   request_id: requestId,
-  user_id: z.string(),
 });
 
 const signOutMessageSchema = z.object({

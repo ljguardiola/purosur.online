@@ -21,8 +21,8 @@ export type SaleScreenProps = {
   person: SignedInPerson;
   registerName: string | null;
   openedAt: string;
-  currentSale: (userId: string) => Promise<OpenSale | null>;
-  scanProduct: (userId: string, code: string) => Promise<ScanProductOutcome>;
+  currentSale: () => Promise<OpenSale | null>;
+  scanProduct: (code: string) => Promise<ScanProductOutcome>;
   onSessionInvalid: () => void;
 };
 
@@ -59,7 +59,7 @@ export function SaleScreen({
       return;
     }
     let current = true;
-    currentSale(person.user_id).then(
+    currentSale().then(
       (sale) => {
         if (current) {
           setView({ status: "ready", sale, changedLineId: undefined });
@@ -74,7 +74,7 @@ export function SaleScreen({
     return () => {
       current = false;
     };
-  }, [view.status, currentSale, person.user_id]);
+  }, [view.status, currentSale]);
 
   function type(typed: string) {
     setCode(typed);
@@ -93,6 +93,7 @@ export function SaleScreen({
         setCode((typed) => (typed === submitted ? "" : typed));
         break;
       case "not_permitted":
+      case "not_signed_in":
       case "no_open_session":
         onSessionInvalid();
         break;
@@ -112,7 +113,7 @@ export function SaleScreen({
     if (submitted === "") {
       return;
     }
-    const outcome = await scanProduct(person.user_id, submitted).catch(
+    const outcome = await scanProduct(submitted).catch(
       (): ScanProductOutcome => ({ kind: "unavailable" }),
     );
     take(submitted, outcome);

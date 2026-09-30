@@ -79,6 +79,7 @@ describe("scanProductOutcomeSchema", () => {
     { kind: "no_price", product_name: "Yerba" },
     { kind: "sold_by_weight", product_name: "Queso" },
     { kind: "not_permitted" },
+    { kind: "not_signed_in" },
     { kind: "no_open_session" },
     { kind: "installation_revoked" },
     { kind: "unavailable" },

@@ -53,8 +53,8 @@ export interface RouterContext {
   redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
   signInLookup: (email: string) => Promise<SignInLookupOutcome>;
   firstSignIn: (userId: string, pin: string) => Promise<SignInOutcome>;
-  currentSale: (userId: string) => Promise<OpenSale | null>;
-  scanProduct: (userId: string, code: string) => Promise<ScanProductOutcome>;
+  currentSale: () => Promise<OpenSale | null>;
+  scanProduct: (code: string) => Promise<ScanProductOutcome>;
   refreshCashSession: () => Promise<void>;
 }
 

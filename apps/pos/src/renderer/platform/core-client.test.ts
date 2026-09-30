@@ -245,12 +245,12 @@ describe("createCoreClient", () => {
       const port = new FakePort();
       client.connect(port);
 
-      const scanned = client.scanProduct("u1", "7790001");
+      const scanned = client.scanProduct("7790001");
       port.answer({ type: "scan-product-result", request_id: "request-1", outcome });
 
       expect(await scanned).toEqual(outcome);
       expect(port.posted).toEqual([
-        { type: "scan-product", request_id: "request-1", user_id: "u1", code: "7790001" },
+        { type: "scan-product", request_id: "request-1", code: "7790001" },
       ]);
     },
   );
@@ -278,13 +278,11 @@ describe("createCoreClient", () => {
       const port = new FakePort();
       client.connect(port);
 
-      const asked = client.currentSale("u1");
+      const asked = client.currentSale();
       port.answer({ type: "sale", request_id: "request-1", sale });
 
       expect(await asked).toEqual(sale);
-      expect(port.posted).toEqual([
-        { type: "sale-request", request_id: "request-1", user_id: "u1" },
-      ]);
+      expect(port.posted).toEqual([{ type: "sale-request", request_id: "request-1" }]);
     },
   );
 
@@ -293,7 +291,7 @@ describe("createCoreClient", () => {
     const port = new FakePort();
     client.connect(port);
 
-    const asked = client.currentSale("u1");
+    const asked = client.currentSale();
     port.answer({ type: "sale-unavailable", request_id: "request-1" });
 
     await expect(asked).rejects.toThrow();

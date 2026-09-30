@@ -302,16 +302,17 @@ const rendererRequestDeps: RendererRequestDeps = {
       ? undefined
       : () => currentCashSession(localDatabase, signedInPerson),
   scanProduct:
-    localDatabase === undefined
+    localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (userId, code) =>
+      : (code) =>
           scanProductFor(
-            { database: localDatabase, now: () => new Date(), ids: uuidV7Ids },
-            userId,
+            { database: localDatabase, gate: actionGate, now: () => new Date(), ids: uuidV7Ids },
             code,
           ),
   currentSale:
-    localDatabase === undefined ? undefined : (userId) => currentSaleFor(localDatabase, userId),
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : () => currentSaleFor({ database: localDatabase, gate: actionGate }),
   reportFailure,
 };
 

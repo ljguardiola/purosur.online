@@ -103,8 +103,8 @@ export function App({ core }: { core: CoreClient }) {
     redeemPinCode: (typedCode: string, newPin: string) => core.redeemPinCode(typedCode, newPin),
     signInLookup: (email: string) => core.signInLookup(email),
     firstSignIn,
-    currentSale: (userId: string) => core.currentSale(userId),
-    scanProduct: (userId: string, code: string) => core.scanProduct(userId, code),
+    currentSale: () => core.currentSale(),
+    scanProduct: (code: string) => core.scanProduct(code),
     refreshCashSession,
   };
 

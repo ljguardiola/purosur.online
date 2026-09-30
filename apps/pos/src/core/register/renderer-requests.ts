@@ -24,8 +24,8 @@ export interface RendererRequestDeps {
   signInLookup: ((email: string) => Promise<SignInLookupOutcome>) | undefined;
   openCashSession: ((openingFloat: number) => Promise<OpenCashSessionOutcome>) | undefined;
   cashSession: (() => OpenCashSession | null) | undefined;
-  scanProduct: ((userId: string, code: string) => ScanProductOutcome) | undefined;
-  currentSale: ((userId: string) => OpenSale | null) | undefined;
+  scanProduct: ((code: string) => Promise<ScanProductOutcome>) | undefined;
+  currentSale: (() => Promise<OpenSale | null>) | undefined;
   authorizers: ((permission: AuthorizablePermissionKey) => SignInUser[]) | undefined;
   signOut: () => void;
   reportFailure: (context: string, error: unknown) => void;
@@ -112,22 +112,21 @@ function readCashSession(deps: RendererRequestDeps): OpenCashSession | null | un
   }
 }
 
-function attemptScanProduct(
+async function attemptScanProduct(
   deps: RendererRequestDeps,
-  userId: string,
   code: string,
-): ScanProductOutcome {
+): Promise<ScanProductOutcome> {
   try {
-    return deps.scanProduct?.(userId, code) ?? { kind: "unavailable" };
+    return (await deps.scanProduct?.(code)) ?? { kind: "unavailable" };
   } catch (error) {
     deps.reportFailure("scanning a product", error);
     return { kind: "unavailable" };
   }
 }
 
-function readCurrentSale(deps: RendererRequestDeps, userId: string): OpenSale | null | undefined {
+async function readCurrentSale(deps: RendererRequestDeps): Promise<OpenSale | null | undefined> {
   try {
-    return deps.currentSale?.(userId);
+    return await deps.currentSale?.();
   } catch (error) {
     deps.reportFailure("reading the sale in progress", error);
     return undefined;
@@ -203,10 +202,10 @@ export async function answerRendererRequest(
       return {
         type: "scan-product-result",
         request_id: message.request_id,
-        outcome: attemptScanProduct(deps, message.user_id, message.code),
+        outcome: await attemptScanProduct(deps, message.code),
       };
     case "sale-request": {
-      const sale = readCurrentSale(deps, message.user_id);
+      const sale = await readCurrentSale(deps);
       return sale === undefined
         ? { type: "sale-unavailable", request_id: message.request_id }
         : { type: "sale", request_id: message.request_id, sale };

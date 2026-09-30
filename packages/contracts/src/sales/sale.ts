@@ -30,6 +30,7 @@ export const scanProductOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("no_price"), product_name: z.string() }),
   z.object({ kind: z.literal("sold_by_weight"), product_name: z.string() }),
   z.object({ kind: z.literal("not_permitted") }),
+  z.object({ kind: z.literal("not_signed_in") }),
   z.object({ kind: z.literal("no_open_session") }),
   z.object({ kind: z.literal("installation_revoked") }),
   z.object({ kind: z.literal("unavailable") }),

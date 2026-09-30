@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { createActionGate } from "../access/action-gate";
+import { createSignedInPerson, type SignedInPerson } from "../access/signed-in-person";
+import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { currentSaleFor, type SaleRequestDeps, scanProductFor } from "./sale-requests";
@@ -6,11 +9,19 @@ import { currentSaleFor, type SaleRequestDeps, scanProductFor } from "./sale-req
 const NOW = new Date("2026-09-30T12:00:00.000Z");
 
 let database: LocalDatabase;
+let signedInPerson: SignedInPerson;
 
 function deps(overrides: Partial<SaleRequestDeps> = {}): SaleRequestDeps {
   let count = 0;
   return {
     database,
+    gate: createActionGate({
+      store: new SqliteSignInStore(database),
+      signedInPerson,
+      readPepper: async () => undefined,
+      hashPin: async () => "",
+      now: () => NOW,
+    }),
     now: () => NOW,
     ids: {
       next: () => {
@@ -22,7 +33,20 @@ function deps(overrides: Partial<SaleRequestDeps> = {}): SaleRequestDeps {
   };
 }
 
+function addPerson(id: string, roleId: string): void {
+  database
+    .prepare(
+      "INSERT INTO users (id, first_name, role_id, salt, active, version) VALUES (?, 'Ana', ?, 's', 1, 1)",
+    )
+    .run(id, roleId);
+}
+
 function seed(): void {
+  database
+    .prepare(
+      "INSERT INTO roles (id, name, is_administrator, version) VALUES ('guest', 'Invitada', 0, 1)",
+    )
+    .run();
   database
     .prepare(
       "INSERT INTO roles (id, name, is_administrator, version) VALUES ('cashier', 'Cajera', 0, 1)",
@@ -79,6 +103,8 @@ function seed(): void {
 beforeEach(() => {
   database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS);
   seed();
+  signedInPerson = createSignedInPerson();
+  signedInPerson.set("u1");
 });
 
 afterEach(() => {
@@ -86,10 +112,10 @@ afterEach(() => {
 });
 
 describe("scanning a product on the register", () => {
-  it("answers the sale with each line as the screen shows it and the total to charge", () => {
-    scanProductFor(deps(), "u1", "111");
+  it("answers the sale with each line as the screen shows it and the total to charge", async () => {
+    await scanProductFor(deps(), "111");
 
-    expect(scanProductFor(deps(), "u1", "111")).toEqual({
+    expect(await scanProductFor(deps(), "111")).toEqual({
       kind: "added",
       sale: {
         id: "id-1",
@@ -108,66 +134,92 @@ describe("scanning a product on the register", () => {
     });
   });
 
-  it("answers the name of a product that has no price", () => {
+  it("answers the name of a product that has no price", async () => {
     database.prepare("DELETE FROM prices").run();
 
-    expect(scanProductFor(deps(), "u1", "111")).toEqual({
+    expect(await scanProductFor(deps(), "111")).toEqual({
       kind: "no_price",
       product_name: "Yerba",
     });
   });
 
-  it("answers the name of a product sold by weight", () => {
-    expect(scanProductFor(deps(), "u1", "222")).toEqual({
+  it("answers the name of a product sold by weight", async () => {
+    expect(await scanProductFor(deps(), "222")).toEqual({
       kind: "sold_by_weight",
       product_name: "Queso",
     });
   });
 
-  it.each([
-    ["a code no product holds", "u1", "999", "unknown_code"],
-    ["a person who may not sell", "nobody", "111", "not_permitted"],
-  ])("answers the domain's refusal of %s", (_case, userId, code, kind) => {
-    expect(scanProductFor(deps(), userId, code)).toEqual({ kind });
+  it("answers the domain's refusal of a code no product holds", async () => {
+    expect(await scanProductFor(deps(), "999")).toEqual({ kind: "unknown_code" });
   });
 
-  it("answers that no session is open", () => {
+  it("answers not signed in when nobody is signed in", async () => {
+    signedInPerson.clear();
+
+    expect(await scanProductFor(deps(), "111")).toEqual({ kind: "not_signed_in" });
+  });
+
+  it("answers not permitted to a signed-in person without the permission to sell", async () => {
+    addPerson("u2", "guest");
+    signedInPerson.set("u2");
+
+    expect(await scanProductFor(deps(), "111")).toEqual({ kind: "not_permitted" });
+  });
+
+  it("answers not permitted to a person who sells but did not open the session", async () => {
+    addPerson("u3", "cashier");
+    signedInPerson.set("u3");
+
+    expect(await scanProductFor(deps(), "111")).toEqual({ kind: "not_permitted" });
+  });
+
+  it("answers that no session is open", async () => {
     database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();
 
-    expect(scanProductFor(deps(), "u1", "111")).toEqual({ kind: "no_open_session" });
+    expect(await scanProductFor(deps(), "111")).toEqual({ kind: "no_open_session" });
   });
 
-  it("answers that the installation was revoked when no sale was started", () => {
+  it("answers that the installation was revoked when no sale was started", async () => {
     database
       .prepare("UPDATE sync_state SET installation_revoked_at = '2026-09-30T11:00:00.000Z'")
       .run();
 
-    expect(scanProductFor(deps(), "u1", "111")).toEqual({ kind: "installation_revoked" });
+    expect(await scanProductFor(deps(), "111")).toEqual({ kind: "installation_revoked" });
   });
 
-  it("answers unavailable when the register does not know its own identity yet", () => {
+  it("answers unavailable when the register does not know its own identity yet", async () => {
     database.prepare("DELETE FROM own_register").run();
 
-    expect(scanProductFor(deps(), "u1", "111")).toEqual({ kind: "unavailable" });
+    expect(await scanProductFor(deps(), "111")).toEqual({ kind: "unavailable" });
   });
 });
 
 describe("the sale in progress", () => {
-  it("is none before anything was scanned", () => {
-    expect(currentSaleFor(database, "u1")).toBeNull();
+  it("is none before anything was scanned", async () => {
+    expect(await currentSaleFor(deps())).toBeNull();
   });
 
-  it("is none for a person who may not sell", () => {
-    scanProductFor(deps(), "u1", "111");
+  it("is none when nobody is signed in", async () => {
+    await scanProductFor(deps(), "111");
+    signedInPerson.clear();
 
-    expect(currentSaleFor(database, "nobody")).toBeNull();
+    expect(await currentSaleFor(deps())).toBeNull();
   });
 
-  it("is the sale with its lines and the total to charge", () => {
-    scanProductFor(deps(), "u1", "111");
-    scanProductFor(deps(), "u1", "111");
+  it("is none for a signed-in person without the permission to sell", async () => {
+    await scanProductFor(deps(), "111");
+    addPerson("u2", "guest");
+    signedInPerson.set("u2");
 
-    expect(currentSaleFor(database, "u1")).toEqual({
+    expect(await currentSaleFor(deps())).toBeNull();
+  });
+
+  it("is the sale with its lines and the total to charge", async () => {
+    await scanProductFor(deps(), "111");
+    await scanProductFor(deps(), "111");
+
+    expect(await currentSaleFor(deps())).toEqual({
       id: "id-1",
       lines: [
         {

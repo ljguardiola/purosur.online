@@ -48,8 +48,8 @@ function coreAnswering(
     openOutcome?: OpenCashSessionOutcome;
   } = {},
   sales: {
-    currentSale?: (userId: string) => Promise<OpenSale | null>;
-    scanProduct?: (userId: string, code: string) => Promise<ScanProductOutcome>;
+    currentSale?: () => Promise<OpenSale | null>;
+    scanProduct?: (code: string) => Promise<ScanProductOutcome>;
   } = {},
   signOut: () => Promise<void> = async () => {},
 ) {
@@ -102,13 +102,11 @@ function coreAnswering(
       cashSessionAsks.push("cash-session");
       return cashDrawer.cashSession === undefined ? null : cashDrawer.cashSession();
     },
-    async currentSale(userId) {
-      return sales.currentSale === undefined ? null : sales.currentSale(userId);
+    async currentSale() {
+      return sales.currentSale === undefined ? null : sales.currentSale();
     },
-    async scanProduct(userId, code) {
-      return sales.scanProduct === undefined
-        ? { kind: "unknown_code" }
-        : sales.scanProduct(userId, code);
+    async scanProduct(code) {
+      return sales.scanProduct === undefined ? { kind: "unknown_code" } : sales.scanProduct(code);
     },
     onPulled(listener) {
       pulledListeners.add(listener);
@@ -336,7 +334,14 @@ describe("App", () => {
   ])("asks the core to sign out and still leaves when %s", async (_case, signOut) => {
     await page.viewport(1280, 900);
     onTestFinished(() => page.viewport(414, 896));
-    const { core, asked } = coreAnswering(true, { kind: "enrolled" }, ADA_SIGNED_IN, {}, {}, signOut);
+    const { core, asked } = coreAnswering(
+      true,
+      { kind: "enrolled" },
+      ADA_SIGNED_IN,
+      {},
+      {},
+      signOut,
+    );
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
     await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
@@ -589,7 +594,7 @@ describe("App", () => {
     await expect.element(screen.getByText("Ada")).not.toBeInTheDocument();
   });
 
-  it("shows the sale in progress of the person who opened the session", async () => {
+  it("shows the sale in progress", async () => {
     const reads: string[] = [];
     const { core } = coreAnswering(
       true,
@@ -597,8 +602,8 @@ describe("App", () => {
       ADA_SIGNED_IN,
       { cashSession: async () => GRACE_SESSION },
       {
-        currentSale: async (userId) => {
-          reads.push(userId);
+        currentSale: async () => {
+          reads.push("read");
           return {
             id: "sale-1",
             lines: [
@@ -621,7 +626,7 @@ describe("App", () => {
     postCoreStatus("up");
 
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
-    expect(reads).toEqual(["u2"]);
+    expect(reads).toEqual(["read"]);
   });
 
   it("goes back to signing in when a scan finds that the cash session is no longer open", async () => {

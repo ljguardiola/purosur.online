@@ -6,12 +6,14 @@ import {
   currentSale,
   type IdGenerator,
 } from "@purosur/domain/sales/use-cases";
+import type { ActionGate } from "../access/action-gate";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import type { LocalDatabase } from "../platform/local-database";
 import { SqliteSaleLedger } from "./sqlite-sale-ledger";
 
 export interface SaleRequestDeps {
   database: LocalDatabase;
+  gate: ActionGate;
   now: Clock["now"];
   ids: IdGenerator;
 }
@@ -35,15 +37,20 @@ function toOpenSale(sale: SaleWithLines): OpenSale {
   };
 }
 
-export function scanProductFor(
-  { database, now, ids }: SaleRequestDeps,
-  userId: string,
+export async function scanProductFor(
+  { database, gate, now, ids }: SaleRequestDeps,
   code: string,
-): ScanProductOutcome {
-  const outcome = addScannedProduct(
-    { ledger: saleLedger(database), clock: { now }, ids },
-    { actorId: userId, code },
+): Promise<ScanProductOutcome> {
+  const guarded = await gate.run({ permission: "sell_and_charge" }, async ({ signedInUserId }) =>
+    addScannedProduct(
+      { ledger: saleLedger(database), clock: { now }, ids },
+      { actorId: signedInUserId, code },
+    ),
   );
+  if (guarded.kind !== "performed") {
+    return { kind: guarded.kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };
+  }
+  const outcome = guarded.result;
   switch (outcome.kind) {
     case "added":
       return { kind: "added", sale: toOpenSale(outcome.sale) };
@@ -55,7 +62,15 @@ export function scanProductFor(
   }
 }
 
-export function currentSaleFor(database: LocalDatabase, userId: string): OpenSale | null {
-  const outcome = currentSale({ ledger: saleLedger(database) }, { actorId: userId });
-  return outcome.kind === "open" ? toOpenSale(outcome.sale) : null;
+export async function currentSaleFor({
+  database,
+  gate,
+}: Pick<SaleRequestDeps, "database" | "gate">): Promise<OpenSale | null> {
+  const guarded = await gate.run({ permission: "sell_and_charge" }, async ({ signedInUserId }) =>
+    currentSale({ ledger: saleLedger(database) }, { actorId: signedInUserId }),
+  );
+  if (guarded.kind !== "performed" || guarded.result.kind !== "open") {
+    return null;
+  }
+  return toOpenSale(guarded.result.sale);
 }

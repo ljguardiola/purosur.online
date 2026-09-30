@@ -35,8 +35,8 @@ export interface CoreClient {
   signOut(): Promise<void>;
   openCashSession(openingFloat: number): Promise<OpenCashSessionOutcome>;
   cashSession(): Promise<OpenCashSession | null | "unavailable">;
-  scanProduct(userId: string, code: string): Promise<ScanProductOutcome>;
-  currentSale(userId: string): Promise<OpenSale | null>;
+  scanProduct(code: string): Promise<ScanProductOutcome>;
+  currentSale(): Promise<OpenSale | null>;
   onPulled(listener: () => void): () => void;
 }
 
@@ -204,22 +204,18 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         },
       );
     },
-    scanProduct(userId, code) {
-      return ask(
-        { type: "scan-product", request_id: deps.newRequestId(), user_id: userId, code },
-        (answer) => (answer.type === "scan-product-result" ? answer.outcome : undefined),
+    scanProduct(code) {
+      return ask({ type: "scan-product", request_id: deps.newRequestId(), code }, (answer) =>
+        answer.type === "scan-product-result" ? answer.outcome : undefined,
       );
     },
-    currentSale(userId) {
-      return ask(
-        { type: "sale-request", request_id: deps.newRequestId(), user_id: userId },
-        (answer) => {
-          if (answer.type === "sale-unavailable") {
-            throw new Error("the core could not read the sale in progress");
-          }
-          return answer.type === "sale" ? answer.sale : undefined;
-        },
-      );
+    currentSale() {
+      return ask({ type: "sale-request", request_id: deps.newRequestId() }, (answer) => {
+        if (answer.type === "sale-unavailable") {
+          throw new Error("the core could not read the sale in progress");
+        }
+        return answer.type === "sale" ? answer.sale : undefined;
+      });
     },
     onPulled(listener) {
       pulledListeners.add(listener);

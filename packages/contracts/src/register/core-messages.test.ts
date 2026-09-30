@@ -645,38 +645,41 @@ describe("openingFloatSchema", () => {
 });
 
 describe("sale requests", () => {
-  it("accepts a scan of a code for the person selling", () => {
-    const message = {
-      type: "scan-product",
-      request_id: REQUEST_ID,
-      user_id: "u1",
-      code: "7791234567890",
-    };
+  it("accepts a scan of a code", () => {
+    const message = { type: "scan-product", request_id: REQUEST_ID, code: "7791234567890" };
 
     expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
+  it("does not take who is selling from the renderer", () => {
+    const message = { type: "scan-product", request_id: REQUEST_ID, code: "1" };
+
+    expect(rendererToCoreMessageSchema.parse({ ...message, user_id: "u9" })).toEqual(message);
+  });
+
   it.each([
-    { type: "scan-product", user_id: "u1", code: "1" },
-    { type: "scan-product", request_id: REQUEST_ID, code: "1" },
-    { type: "scan-product", request_id: REQUEST_ID, user_id: "u1" },
-    { type: "scan-product", request_id: REQUEST_ID, user_id: "u1", code: "" },
-    { type: "scan-product", request_id: REQUEST_ID, user_id: "u1", code: "x".repeat(65) },
+    { type: "scan-product", code: "1" },
+    { type: "scan-product", request_id: REQUEST_ID },
+    { type: "scan-product", request_id: REQUEST_ID, code: "" },
+    { type: "scan-product", request_id: REQUEST_ID, code: "x".repeat(65) },
   ])("rejects a scan that is not well formed: %j", (message) => {
     expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
   });
 
-  it("accepts a request for the sale in progress of the person selling", () => {
-    const message = { type: "sale-request", request_id: REQUEST_ID, user_id: "u1" };
+  it("accepts a request for the sale in progress", () => {
+    const message = { type: "sale-request", request_id: REQUEST_ID };
 
     expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
-  it.each([
-    { type: "sale-request", user_id: "u1" },
-    { type: "sale-request", request_id: REQUEST_ID },
-  ])("rejects a request for the sale missing a field: %j", (message) => {
-    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  it("does not take who is selling from the sale request either", () => {
+    const message = { type: "sale-request", request_id: REQUEST_ID };
+
+    expect(rendererToCoreMessageSchema.parse({ ...message, user_id: "u9" })).toEqual(message);
+  });
+
+  it("rejects a request for the sale missing its request id", () => {
+    expect(rendererToCoreMessageSchema.safeParse({ type: "sale-request" }).success).toBe(false);
   });
 });
 
@@ -700,6 +703,7 @@ describe("sale answers", () => {
     { kind: "added", sale },
     { kind: "unknown_code" },
     { kind: "no_price", product_name: "Yerba" },
+    { kind: "not_signed_in" },
     { kind: "unavailable" },
   ])("accepts the scan result $kind", (outcome) => {
     const message = { type: "scan-product-result", request_id: REQUEST_ID, outcome };

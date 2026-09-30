@@ -141,7 +141,7 @@ describe("SaleScreen", () => {
       await expect.element(field).toHaveFocus();
       await userEvent.keyboard("7790001{Enter}");
 
-      await expect.poll(() => scanProduct.mock.calls).toEqual([["u1", "7790001"]]);
+      await expect.poll(() => scanProduct.mock.calls).toEqual([["7790001"]]);
     });
 
     it("leaves the focus on a button the person pressed", async () => {
@@ -178,7 +178,7 @@ describe("SaleScreen", () => {
 
       await renderScreen({ currentSale });
 
-      await expect.poll(() => currentSale.mock.calls).toEqual([["u1"]]);
+      await expect.poll(() => currentSale.mock.calls).toEqual([[]]);
     });
 
     it("shows a placeholder while it loads, with the scan field ready", async () => {
@@ -273,7 +273,7 @@ describe("SaleScreen", () => {
 
       await scan(field, "  7790001  ");
 
-      await expect.poll(() => scanProduct.mock.calls).toEqual([["u1", "7790001"]]);
+      await expect.poll(() => scanProduct.mock.calls).toEqual([["7790001"]]);
     });
 
     it("does nothing on Enter while the field is blank", async () => {
@@ -478,7 +478,11 @@ describe("SaleScreen", () => {
         .not.toBeInTheDocument();
     });
 
-    it.each<ScanProductOutcome>([{ kind: "not_permitted" }, { kind: "no_open_session" }])(
+    it.each<ScanProductOutcome>([
+      { kind: "not_permitted" },
+      { kind: "not_signed_in" },
+      { kind: "no_open_session" },
+    ])(
       "asks for the session to be read again when the core answers $kind, without any message",
       async (outcome) => {
         const onSessionInvalid = vi.fn();

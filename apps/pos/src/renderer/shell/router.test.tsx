@@ -445,19 +445,19 @@ describe("the register's router", () => {
     await expect.element(screen.getByText("Sesión abierta 09:02")).toBeVisible();
   });
 
-  it("reads the sale in progress and scans products for the person who opened the session", async () => {
+  it("reads the sale in progress and scans products through the core", async () => {
     const reads: string[] = [];
-    const scans: [string, string][] = [];
+    const scans: string[] = [];
     const router = createRegisterRouter(
       routeTree,
       {
         ...contextWith("up", "enrolled", null, undefined, OPEN_SESSION),
-        currentSale: async (userId) => {
-          reads.push(userId);
+        currentSale: async () => {
+          reads.push("read");
           return null;
         },
-        scanProduct: async (userId, code) => {
-          scans.push([userId, code]);
+        scanProduct: async (code) => {
+          scans.push(code);
           return { kind: "unknown_code" };
         },
       },
@@ -468,8 +468,8 @@ describe("the register's router", () => {
     await screen.getByRole("searchbox", { name: "Producto" }).fill("7790001");
     await userEvent.keyboard("{Enter}");
 
-    await expect.poll(() => scans).toEqual([["u2", "7790001"]]);
-    expect(reads).toEqual(["u2"]);
+    await expect.poll(() => scans).toEqual(["7790001"]);
+    expect(reads).toEqual(["read"]);
   });
 
   it("reads the cash session again when the sale screen finds it is no longer valid", async () => {
