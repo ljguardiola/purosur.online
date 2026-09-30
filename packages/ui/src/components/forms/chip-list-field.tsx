@@ -85,7 +85,7 @@ export function ChipListField<V extends string>(props: ChipListFieldProps<V>) {
   const { invalid, errorMessage, errorMessageId } = fieldError(props);
   const labelId = useId();
   const messageId = useId();
-  const chipListRef = useRef<HTMLUListElement>(null);
+  const fieldsetRef = useRef<HTMLFieldSetElement>(null);
 
   const chips = value.flatMap((chosen) => {
     const option = options.find((candidate) => candidate.value === chosen);
@@ -100,19 +100,24 @@ export function ChipListField<V extends string>(props: ChipListFieldProps<V>) {
     errorMessageId ?? (errorMessage !== undefined || showsDescription ? messageId : undefined);
 
   // The chip's own button is about to disappear, so focus is placed on what takes its position
-  // once the value has been re-rendered: the next chip, or the add pill after the last one.
+  // once the value has been re-rendered, or on the field itself when nothing in it can take focus,
+  // so focus never drops to the page.
   function remove(chosen: V, position: number) {
     flushSync(() => onChange(value.filter((other) => other !== chosen)));
-    const buttons = chipListRef.current?.querySelectorAll("button") ?? [];
-    buttons[Math.min(position, buttons.length - 1)]?.focus();
+    const buttons =
+      fieldsetRef.current?.querySelectorAll<HTMLButtonElement>("button:enabled") ?? [];
+    const target = buttons[Math.min(position, buttons.length - 1)] ?? fieldsetRef.current;
+    target?.focus();
   }
 
   return (
     <fieldset
+      ref={fieldsetRef}
+      tabIndex={-1}
       aria-labelledby={labelId}
       {...(describedBy !== undefined ? { "aria-describedby": describedBy } : {})}
       data-disabled={disabled || undefined}
-      className={`min-w-0 ${wrapperClassName}`}
+      className={`min-w-0 outline-none ${wrapperClassName}`}
     >
       <span
         id={labelId}
@@ -121,7 +126,7 @@ export function ChipListField<V extends string>(props: ChipListFieldProps<V>) {
       >
         {label}
       </span>
-      <ul ref={chipListRef} className={chipListClassName}>
+      <ul className={chipListClassName}>
         {chips.map((option, position) => {
           const { tone, removeHover } =
             chipToneClassName[option.status === undefined ? "active" : "inactive"];

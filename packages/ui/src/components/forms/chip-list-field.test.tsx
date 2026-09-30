@@ -176,6 +176,41 @@ test("moves focus to the add pill after removing the only chip, even when it was
     .toBe(screen.getByRole("button", { name: "Agregar distintivo" }).element());
 });
 
+test("moves focus to the previous chip's remove button after removing the last chip, when nothing is left to add", async () => {
+  const kept: NarrowedOption<Diet, never, "status">[] = [
+    { value: "organic", label: "Orgánico" },
+    { value: "dye-free", label: "Sin colorantes", status: "Dado de baja" },
+  ];
+  function Field() {
+    const [value, setValue] = useState<Diet[]>(["organic", "dye-free"]);
+    return <ChipListField {...baseProps({ options: kept, value, onChange: setValue })} />;
+  }
+  const screen = await render(<Field />);
+  await screen.getByRole("button", { name: "Quitar Sin colorantes" }).click();
+
+  await expect.element(screen.getByRole("button", { name: "Agregar distintivo" })).toBeDisabled();
+  await expect
+    .poll(() => document.activeElement)
+    .toBe(screen.getByRole("button", { name: "Quitar Orgánico" }).element());
+});
+
+test("keeps focus on the field after removing the only chip, when nothing is left to add", async () => {
+  const onlyInactive: NarrowedOption<Diet, never, "status">[] = [
+    { value: "dye-free", label: "Sin colorantes", status: "Dado de baja" },
+  ];
+  function Field() {
+    const [value, setValue] = useState<Diet[]>(["dye-free"]);
+    return <ChipListField {...baseProps({ options: onlyInactive, value, onChange: setValue })} />;
+  }
+  const screen = await render(<Field />);
+  await screen.getByRole("button", { name: "Quitar Sin colorantes" }).click();
+
+  await expect.element(screen.getByRole("button", { name: "Agregar distintivo" })).toBeDisabled();
+  await expect
+    .poll(() => document.activeElement)
+    .toBe(screen.getByRole("group", { name: "Distintivos" }).element());
+});
+
 test("offers, in the order given, only the options not yet chosen and without a status", async () => {
   const screen = await render(<ChipListField {...baseProps({ value: ["vegan"] })} />);
 
