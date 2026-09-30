@@ -12,6 +12,7 @@ export interface FakeTargetRow {
   kind: DiscountTargetKind;
   id: string;
   active: boolean;
+  name?: string;
   saleUnit?: SaleUnit;
 }
 
@@ -61,7 +62,11 @@ class FakeDiscountStoreTransaction implements DiscountStoreTransaction {
     if (row === undefined || (row.kind !== "CATEGORY" && !row.active)) {
       return { kind: "not_found" };
     }
-    return { kind: "locked", saleUnit: row.kind === "PRODUCT" ? (row.saleUnit ?? "UNIT") : null };
+    return {
+      kind: "locked",
+      name: row.name ?? row.id,
+      saleUnit: row.kind === "PRODUCT" ? (row.saleUnit ?? "UNIT") : null,
+    };
   }
 
   async insertDiscount(discount: DiscountFields): Promise<{ id: string }> {

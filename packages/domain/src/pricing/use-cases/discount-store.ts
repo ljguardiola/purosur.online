@@ -2,8 +2,14 @@ import type { SaleUnit } from "../../catalog/index.js";
 import type { DiscountBenefit } from "../model/discount-benefit.js";
 import type { DiscountTarget } from "../model/discount-target.js";
 
+import type { Clock } from "./pricing-store.js";
+
 export interface DiscountPorts {
   store: DiscountStore;
+}
+
+export interface EditDiscountPorts extends DiscountPorts {
+  clock: Clock;
 }
 
 export interface DiscountFields {
@@ -19,7 +25,7 @@ export interface DiscountFields {
 
 export type LockAssignableTargetResult =
   | { kind: "not_found" }
-  | { kind: "locked"; saleUnit: SaleUnit | null };
+  | { kind: "locked"; name: string; saleUnit: SaleUnit | null };
 
 export type LockDiscountResult =
   | { kind: "not_found" }

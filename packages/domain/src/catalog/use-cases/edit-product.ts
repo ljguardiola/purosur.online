@@ -1,4 +1,4 @@
-import { discountStatus } from "../../pricing/index.js";
+import { isDiscountLive } from "../../pricing/index.js";
 import { argentinaCalendarDay } from "../../shared/index.js";
 import type { SaleUnit } from "../model/product.js";
 import type { CatalogNetContent, CatalogPorts, CatalogProduct } from "./catalog-store.js";
@@ -47,10 +47,7 @@ export async function editProduct(
         // read or sees the product sold by weight.
         const today = argentinaCalendarDay(clock.now());
         const holdingDiscounts = (await tx.buyNPayMDiscountsOn(input.id))
-          .filter((discount) => {
-            const status = discountStatus(discount, today);
-            return status === "current" || status === "scheduled";
-          })
+          .filter((discount) => isDiscountLive(discount, today))
           .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
         const [holding] = holdingDiscounts;
         if (holding) {

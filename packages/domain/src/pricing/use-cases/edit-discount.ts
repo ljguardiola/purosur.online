@@ -1,7 +1,9 @@
+import { argentinaCalendarDay } from "../../shared/index.js";
 import type { DiscountBenefit } from "../model/discount-benefit.js";
+import { isDiscountLive } from "../model/discount-status.js";
 import type { DiscountTarget } from "../model/discount-target.js";
 import { normalizeDiscountWeekdays } from "../model/discount-weekdays.js";
-import type { DiscountPorts } from "./discount-store.js";
+import type { EditDiscountPorts } from "./discount-store.js";
 import { refuseUnfitTarget, type UnfitTargetOutcome } from "./refuse-unfit-target.js";
 
 export interface EditDiscountInput {
@@ -20,10 +22,11 @@ export type EditDiscountOutcome =
   | { kind: "not_found" }
   | { kind: "stale_version" }
   | UnfitTargetOutcome
+  | { kind: "product_sold_by_weight"; productName: string }
   | { kind: "applied"; version: number };
 
 export async function editDiscount(
-  { store }: DiscountPorts,
+  { store, clock }: EditDiscountPorts,
   { id, version, ...fields }: EditDiscountInput,
 ): Promise<EditDiscountOutcome> {
   return store.transaction<EditDiscountOutcome>(async (tx) => {
@@ -41,10 +44,23 @@ export async function editDiscount(
       locked.discount.target.id !== fields.target.id;
     const becomesBuyNPayM =
       fields.benefit.kind === "BUY_N_PAY_M" && locked.discount.benefit.kind !== "BUY_N_PAY_M";
+    const today = argentinaCalendarDay(clock.now());
+    const becomesLiveBuyNPayM =
+      fields.benefit.kind === "BUY_N_PAY_M" &&
+      isDiscountLive(fields, today) &&
+      !isDiscountLive(locked.discount, today);
     if (targetChanged || becomesBuyNPayM) {
       const refused = await refuseUnfitTarget(tx, fields.target, fields.benefit);
       if (refused) {
         return refused;
+      }
+    } else if (becomesLiveBuyNPayM) {
+      // Discount row first, then the product's shared lock. A product edit holds the product row
+      // and only reads discounts without locking them, so the two never wait on each other in
+      // opposite orders.
+      const target = await tx.lockAssignableTarget(fields.target);
+      if (target.kind === "locked" && target.saleUnit === "KG") {
+        return { kind: "product_sold_by_weight", productName: target.name };
       }
     }
 
