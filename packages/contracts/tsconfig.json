@@ -8,10 +8,6 @@
     "outDir": "./dist",
     "noEmit": false,
     "declaration": true,
-    // Overrides the root's `paths` (which points `@purosur/domain` at its untranspiled
-    // source): this build resolves it as an ordinary package instead, through the project
-    // reference below and node_modules, so it gets domain's own compiled declarations.
-    "paths": {},
     "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo"
   },
   "references": [{ "path": "../domain" }],
