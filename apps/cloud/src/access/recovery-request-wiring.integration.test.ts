@@ -14,6 +14,7 @@ import { EDGE_ORIGIN_SECRET_HEADER } from "../platform/edge-origin-guard.js";
 import { type RecoveryInfrastructure, setUpRecovery, startServer } from "../server.js";
 import { VALID_ARCA_CERTIFICATE } from "../test-support/arca-certificate-fixtures.js";
 import { TEST_EDGE_ORIGIN_SECRET } from "../test-support/build-test-app.js";
+import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -149,6 +150,7 @@ async function startRealServer(
         BACKOFFICE_ORIGIN,
         EDGE_ORIGIN_SECRET: TEST_EDGE_ORIGIN_SECRET,
         ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
+        DEVICE_TOKEN_ROTATION_KEY: TEST_DEVICE_TOKEN_ROTATION_KEY.toString("base64"),
       },
       {
         setUpRecovery: async (recoveryEnv) => {
@@ -171,7 +173,7 @@ async function startRealServer(
 }
 
 function postRecoveryRequest(origin: string, email: string): Promise<Response> {
-  return fetch(`${origin}/api/users/recovery/request`, {
+  return fetch(`${origin}/api/account-recoveries`, {
     method: "POST",
     headers: {
       "content-type": "application/json",

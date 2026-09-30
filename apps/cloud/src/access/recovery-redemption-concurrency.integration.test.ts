@@ -9,6 +9,7 @@ import { EDGE_ORIGIN_SECRET_HEADER } from "../platform/edge-origin-guard.js";
 import { startServer } from "../server.js";
 import { VALID_ARCA_CERTIFICATE } from "../test-support/arca-certificate-fixtures.js";
 import { TEST_EDGE_ORIGIN_SECRET } from "../test-support/build-test-app.js";
+import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -53,6 +54,7 @@ async function startRealServer(): Promise<StartedFixture> {
     BACKOFFICE_ORIGIN,
     EDGE_ORIGIN_SECRET: TEST_EDGE_ORIGIN_SECRET,
     ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
+    DEVICE_TOKEN_ROTATION_KEY: TEST_DEVICE_TOKEN_ROTATION_KEY.toString("base64"),
   });
   return { origin: `http://127.0.0.1:${port}`, close: () => app.close() };
 }
@@ -85,18 +87,15 @@ describe("redeeming the same recovery token over two concurrent HTTP requests ag
     try {
       const { userId, rawToken } = await seedUserAndToken();
 
-      const optionsResponse = await fetch(
-        `${server.origin}/api/users/recovery/registration-options`,
-        {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            origin: BACKOFFICE_ORIGIN,
-            [EDGE_ORIGIN_SECRET_HEADER]: TEST_EDGE_ORIGIN_SECRET,
-          },
-          body: JSON.stringify({ recovery_token: rawToken }),
+      const optionsResponse = await fetch(`${server.origin}/api/account-recovery-challenges`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: BACKOFFICE_ORIGIN,
+          [EDGE_ORIGIN_SECRET_HEADER]: TEST_EDGE_ORIGIN_SECRET,
         },
-      );
+        body: JSON.stringify({ recovery_token: rawToken }),
+      });
       expect(optionsResponse.status).toBe(200);
       const { passkey_registration_options: registrationOptions } = await optionsResponse.json();
 
@@ -104,7 +103,7 @@ describe("redeeming the same recovery token over two concurrent HTTP requests ag
       const credential = emulator.createJSON(BACKOFFICE_ORIGIN, registrationOptions);
 
       const redeem = () =>
-        fetch(`${server.origin}/api/users/recovery/redeem`, {
+        fetch(`${server.origin}/api/account-recovery-redemptions`, {
           method: "POST",
           headers: {
             "content-type": "application/json",

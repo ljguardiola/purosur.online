@@ -212,6 +212,9 @@ importers:
       '@purosur/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@purosur/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@purosur/ui':
         specifier: workspace:*
         version: link:../../packages/ui

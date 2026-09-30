@@ -40,6 +40,50 @@ describe("createMainRequests", () => {
     expect(posted).toEqual([{ type: "device-credentials-request", request_id: "request-1" }]);
   });
 
+  it("asks main for the stored credentials and resolves with them", async () => {
+    const { requests, posted } = requestsWithSequentialIds();
+
+    const credentials = requests.readCredentials();
+    requests.receive({
+      type: "device-credentials-read",
+      request_id: "request-1",
+      credentials: CREDENTIALS,
+    });
+
+    expect(await credentials).toEqual(CREDENTIALS);
+    expect(posted).toEqual([{ type: "device-credentials-read-request", request_id: "request-1" }]);
+  });
+
+  it("resolves with no credentials when main holds none", async () => {
+    const { requests } = requestsWithSequentialIds();
+
+    const credentials = requests.readCredentials();
+    requests.receive({ type: "device-credentials-read", request_id: "request-1" });
+
+    expect(await credentials).toBeUndefined();
+  });
+
+  it("asks main to replace the credentials holding a token and resolves with how it went", async () => {
+    const { requests, posted } = requestsWithSequentialIds();
+
+    const outcome = requests.replaceCredentials("old.token", CREDENTIALS);
+    requests.receive({
+      type: "device-credentials-replaced",
+      request_id: "request-1",
+      outcome: "superseded",
+    });
+
+    expect(await outcome).toBe("superseded");
+    expect(posted).toEqual([
+      {
+        type: "replace-device-credentials",
+        request_id: "request-1",
+        expected_device_token: "old.token",
+        credentials: CREDENTIALS,
+      },
+    ]);
+  });
+
   it("asks main whether credentials can be stored and resolves with its answer", async () => {
     const { requests, posted } = requestsWithSequentialIds();
 

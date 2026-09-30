@@ -50,7 +50,7 @@ export async function requestRecoveryLink(email: string): Promise<RecoveryReques
   const requestBody: RecoveryRequestBody = { email };
   let response: Response;
   try {
-    response = await postJson("/api/users/recovery/request", requestBody);
+    response = await postJson("/api/account-recoveries", requestBody);
   } catch {
     return { kind: "failed" };
   }
@@ -98,7 +98,7 @@ export async function fetchRegistrationOptions(
   const requestBody: RecoveryTokenBody = { recovery_token: recoveryToken };
   let response: Response;
   try {
-    response = await postJson("/api/users/recovery/registration-options", requestBody);
+    response = await postJson("/api/account-recovery-challenges", requestBody);
   } catch {
     return { kind: "failed" };
   }
@@ -133,7 +133,7 @@ export async function redeemRecovery(
   };
   let response: Response;
   try {
-    response = await postJson("/api/users/recovery/redeem", requestBody);
+    response = await postJson("/api/account-recovery-redemptions", requestBody);
   } catch {
     return { kind: "failed" };
   }

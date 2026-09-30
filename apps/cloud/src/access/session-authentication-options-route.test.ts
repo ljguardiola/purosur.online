@@ -38,12 +38,22 @@ afterEach(async () => {
 function post(headers: Record<string, string> = {}) {
   return app.inject({
     method: "POST",
-    url: "/users/session/authentication-options",
+    url: "/authentication-challenges",
     headers: { origin: BACKOFFICE_ORIGIN, ...headers },
   });
 }
 
-describe("POST /users/session/authentication-options", () => {
+describe("POST /authentication-challenges", () => {
+  it("no longer answers the old authentication-options path", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/users/session/authentication-options",
+      headers: { origin: BACKOFFICE_ORIGIN },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
   it("returns discoverable-credential request options for the backoffice's own RP", async () => {
     const response = await post();
 

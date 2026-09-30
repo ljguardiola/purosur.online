@@ -3,7 +3,7 @@ import { request as httpRequest } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { healthCheckSchema } from "@purosur/contracts";
+import { healthCheckSchema, openSessionSchema, passkeyListSchema } from "@purosur/contracts";
 import { PERMISSION_KEYS } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -21,13 +21,21 @@ import {
 import { SESSION_COOKIE_NAME } from "./access/session-cookie.js";
 import { generateSessionId, hashSessionId } from "./access/session-id.js";
 import { buildApp as buildRealApp } from "./app.js";
-import { rolePermissions, roles, sessions, userRoles, users } from "./platform/db/schema.js";
+import {
+  passkeys,
+  rolePermissions,
+  roles,
+  sessions,
+  userRoles,
+  users,
+} from "./platform/db/schema.js";
 import { insertEnrolledInstallation } from "./register/test-support/enrolled-installation.js";
 import {
   buildTestApp as buildApp,
   TEST_EDGE_ORIGIN_SECRET,
 } from "./test-support/build-test-app.js";
 import { buildTestDatabase, type TestDatabase } from "./test-support/build-test-database.js";
+import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "./test-support/device-token-rotation-key.js";
 import { seededLocationId } from "./test-support/seeded-location.js";
 
 let testDatabase: TestDatabase;
@@ -55,8 +63,13 @@ describe("GET /api/health", () => {
   });
 
   it("reaches the enrolled installations when the device routes are wired", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(testDatabase.db);
-    const app = buildApp({ version: "abc1234", devices: { db: testDatabase.db } });
+    const { deviceToken } = await insertEnrolledInstallation(testDatabase.db, {
+      tokenIssuedAt: new Date(),
+    });
+    const app = buildApp({
+      version: "abc1234",
+      devices: { db: testDatabase.db, rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY },
+    });
 
     const response = await app.inject({
       method: "GET",
@@ -386,7 +399,7 @@ describe("serving the backoffice's static build", () => {
     expect(response.json()).toEqual({ status: "ok", version: "abc1234" });
   });
 
-  it("serves the backoffice page, not the cloud's data, at a screen address named like a cloud resource", async () => {
+  it("serves the backoffice page at a stock screen address while the stock routes are wired", async () => {
     const app = buildApp({
       version: "abc1234",
       staticDir: backofficeBuild(),
@@ -408,7 +421,7 @@ describe("serving the backoffice's static build", () => {
     async (method) => {
       const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
 
-      const response = await app.inject({ method, url: "/api/stock/unknown" });
+      const response = await app.inject({ method, url: "/api/inventory-unknown" });
 
       expect(response.statusCode).toBe(404);
       expect(response.body).not.toContain("backoffice");
@@ -547,19 +560,19 @@ describe("serving the backoffice's static build", () => {
 });
 
 describe("wiring the recovery routes", () => {
-  it("does not register POST /api/users/recovery/request when no recovery option is given", async () => {
+  it("does not register POST /api/account-recoveries when no recovery option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
     const response = await app.inject({
       method: "POST",
-      url: "/api/users/recovery/request",
+      url: "/api/account-recoveries",
       payload: { email: "ada@example.com" },
     });
 
     expect(response.statusCode).toBe(404);
   });
 
-  it("registers POST /api/users/recovery/request when a recovery option is given", async () => {
+  it("registers POST /api/account-recoveries when a recovery option is given", async () => {
     const enqueued: string[] = [];
 
     const app = buildApp({
@@ -577,7 +590,7 @@ describe("wiring the recovery routes", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/api/users/recovery/request",
+      url: "/api/account-recoveries",
       headers: { origin: "https://staging.purosur.online", "x-real-ip": "203.0.113.10" },
       payload: { email: "ada@example.com" },
     });
@@ -591,12 +604,12 @@ describe("wiring the recovery routes", () => {
 
     const optionsResponse = await app.inject({
       method: "POST",
-      url: "/api/users/recovery/registration-options",
+      url: "/api/account-recovery-challenges",
       payload: { recovery_token: "a-raw-token" },
     });
     const redeemResponse = await app.inject({
       method: "POST",
-      url: "/api/users/recovery/redeem",
+      url: "/api/account-recovery-redemptions",
       payload: { recovery_token: "a-raw-token" },
     });
 
@@ -616,7 +629,7 @@ describe("wiring the recovery routes", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/api/users/recovery/registration-options",
+      url: "/api/account-recovery-challenges",
       headers: { origin: "https://staging.purosur.online", "x-real-ip": "203.0.113.10" },
       payload: { recovery_token: "an-unknown-raw-token" },
     });
@@ -627,24 +640,27 @@ describe("wiring the recovery routes", () => {
 });
 
 describe("wiring the session routes", () => {
-  it("does not register GET /api/users/session, its status route, POST /api/users/session/sign-out, or the authorization pair when no session option is given", async () => {
+  it("does not register GET /api/sessions/current, its status route, DELETE /api/sessions/current, or the authorization pair when no session option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
-    const readResponse = await app.inject({ method: "GET", url: "/api/users/session" });
-    const statusResponse = await app.inject({ method: "GET", url: "/api/users/session/status" });
+    const readResponse = await app.inject({ method: "GET", url: "/api/sessions/current" });
+    const statusResponse = await app.inject({
+      method: "GET",
+      url: "/api/sessions/current/expiration",
+    });
     const signOutResponse = await app.inject({
-      method: "POST",
-      url: "/api/users/session/sign-out",
+      method: "DELETE",
+      url: "/api/sessions/current",
       headers: { origin: "https://staging.purosur.online" },
     });
     const authorizationOptionsResponse = await app.inject({
       method: "POST",
-      url: "/api/users/session/authorization-options",
+      url: "/api/sessions/current/authorization-challenges",
       headers: { origin: "https://staging.purosur.online" },
     });
     const authorizationResponse = await app.inject({
-      method: "POST",
-      url: "/api/users/session/authorization",
+      method: "PUT",
+      url: "/api/sessions/current/authorization",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -655,27 +671,30 @@ describe("wiring the session routes", () => {
     expect(authorizationResponse.statusCode).toBe(404);
   });
 
-  it("registers GET /api/users/session, its status route, POST /api/users/session/sign-out, and the authorization pair when a session option is given", async () => {
+  it("registers GET /api/sessions/current, its status route, DELETE /api/sessions/current, and the authorization pair when a session option is given", async () => {
     const app = buildApp({
       version: "abc1234",
       session: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
 
-    const readResponse = await app.inject({ method: "GET", url: "/api/users/session" });
-    const statusResponse = await app.inject({ method: "GET", url: "/api/users/session/status" });
+    const readResponse = await app.inject({ method: "GET", url: "/api/sessions/current" });
+    const statusResponse = await app.inject({
+      method: "GET",
+      url: "/api/sessions/current/expiration",
+    });
     const signOutResponse = await app.inject({
-      method: "POST",
-      url: "/api/users/session/sign-out",
+      method: "DELETE",
+      url: "/api/sessions/current",
       headers: { origin: "https://staging.purosur.online" },
     });
     const authorizationOptionsResponse = await app.inject({
       method: "POST",
-      url: "/api/users/session/authorization-options",
+      url: "/api/sessions/current/authorization-challenges",
       headers: { origin: "https://staging.purosur.online" },
     });
     const authorizationResponse = await app.inject({
-      method: "POST",
-      url: "/api/users/session/authorization",
+      method: "PUT",
+      url: "/api/sessions/current/authorization",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1060,6 +1079,20 @@ describe("wiring the prices routes", () => {
 
 describe("wiring the stock routes", () => {
   const stockRequests = [
+    { method: "GET", url: "/api/inventory-levels" },
+    { method: "GET", url: "/api/inventory-items" },
+    { method: "GET", url: "/api/inventory-counts" },
+    { method: "POST", url: "/api/inventory-counts" },
+    {
+      method: "GET",
+      url: "/api/inventory-levels/00000000-0000-0000-0000-000000000000",
+    },
+    { method: "GET", url: "/api/inventory-movements" },
+    { method: "POST", url: "/api/inventory-losses" },
+    { method: "POST", url: "/api/inventory-adjustments" },
+  ] as const;
+
+  const formerStockRequests = [
     { method: "GET", url: "/api/stock/balances" },
     { method: "GET", url: "/api/stock/products" },
     { method: "GET", url: "/api/stock/counts" },
@@ -1095,6 +1128,23 @@ describe("wiring the stock routes", () => {
     });
 
     expect(await statusCodes(app)).toEqual(stockRequests.map(() => 401));
+  });
+
+  it("no longer answers the former stock paths", async () => {
+    const app = buildApp({
+      version: "abc1234",
+      stock: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+    });
+
+    const responses = await Promise.all(
+      formerStockRequests.map((request) =>
+        app.inject({ ...request, headers: { origin: "https://staging.purosur.online" } }),
+      ),
+    );
+
+    expect(responses.map((response) => response.statusCode)).toEqual(
+      formerStockRequests.map(() => 404),
+    );
   });
 });
 
@@ -1159,12 +1209,37 @@ describe("wiring the device enrollment route", () => {
   });
 
   it("registers POST /api/devices/enroll, answering without a session, when a devices option is given", async () => {
-    const app = buildApp({ version: "abc1234", devices: { db: testDatabase.db } });
+    const app = buildApp({
+      version: "abc1234",
+      devices: { db: testDatabase.db, rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY },
+    });
 
     const response = await app.inject({ method: "POST", url: "/api/devices/enroll", payload: {} });
 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ code: "validation_failed" });
+  });
+});
+
+describe("wiring the device token rotation route", () => {
+  it("does not register POST /api/devices/rotate-token when no devices option is given", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    const response = await app.inject({ method: "POST", url: "/api/devices/rotate-token" });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("registers POST /api/devices/rotate-token, refusing a request without a device token, when a devices option is given", async () => {
+    const app = buildApp({
+      version: "abc1234",
+      devices: { db: testDatabase.db, rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY },
+    });
+
+    const response = await app.inject({ method: "POST", url: "/api/devices/rotate-token" });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "device_token_rejected" });
   });
 });
 
@@ -1285,21 +1360,21 @@ describe("wiring the issuer identification routes", () => {
 });
 
 describe("wiring the passkeys routes", () => {
-  it("does not register GET /api/users/passkeys when no passkeys option is given", async () => {
+  it("does not register GET /api/account/passkeys when no passkeys option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
-    const response = await app.inject({ method: "GET", url: "/api/users/passkeys" });
+    const response = await app.inject({ method: "GET", url: "/api/account/passkeys" });
 
     expect(response.statusCode).toBe(404);
   });
 
-  it("registers GET /api/users/passkeys when a passkeys option is given", async () => {
+  it("registers GET /api/account/passkeys when a passkeys option is given", async () => {
     const app = buildApp({
       version: "abc1234",
       passkeys: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
 
-    const response = await app.inject({ method: "GET", url: "/api/users/passkeys" });
+    const response = await app.inject({ method: "GET", url: "/api/account/passkeys" });
 
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
@@ -1310,12 +1385,12 @@ describe("wiring the passkeys routes", () => {
 
     const registrationOptions = await app.inject({
       method: "POST",
-      url: "/api/users/passkeys/registration-options",
+      url: "/api/account/passkey-challenges",
       headers: { origin: "https://staging.purosur.online" },
     });
     const remove = await app.inject({
-      method: "POST",
-      url: "/api/users/passkeys/00000000-0000-0000-0000-000000000000/remove",
+      method: "DELETE",
+      url: "/api/account/passkeys/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1331,12 +1406,12 @@ describe("wiring the passkeys routes", () => {
 
     const registrationOptions = await app.inject({
       method: "POST",
-      url: "/api/users/passkeys/registration-options",
+      url: "/api/account/passkey-challenges",
       headers: { origin: "https://staging.purosur.online" },
     });
     const remove = await app.inject({
-      method: "POST",
-      url: "/api/users/passkeys/00000000-0000-0000-0000-000000000000/remove",
+      method: "DELETE",
+      url: "/api/account/passkeys/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1384,7 +1459,7 @@ function productionWiredApp() {
     alerts: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     prices: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     registers: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    devices: { db: testDatabase.db },
+    devices: { db: testDatabase.db, rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY },
   });
 }
 
@@ -1395,28 +1470,28 @@ describe("the route access inventory", () => {
 
     expect(app.routeAccessInventory()).toEqual([
       { method: "GET", url: "/api/error-reporting", access: PUBLIC_ACCESS },
-      { method: "POST", url: "/api/users/recovery/request", access: PUBLIC_ACCESS },
-      { method: "POST", url: "/api/users/recovery/registration-options", access: PUBLIC_ACCESS },
-      { method: "POST", url: "/api/users/recovery/redeem", access: PUBLIC_ACCESS },
-      { method: "POST", url: "/api/users/session/authentication-options", access: PUBLIC_ACCESS },
-      { method: "POST", url: "/api/users/session/authenticate", access: PUBLIC_ACCESS },
-      { method: "GET", url: "/api/users/session", access: OPEN_SESSION_ACCESS },
-      { method: "GET", url: "/api/users/session/status", access: OPEN_SESSION_PEEK_ACCESS },
-      { method: "POST", url: "/api/users/session/sign-out", access: SESSION_COOKIE_ACCESS },
+      { method: "POST", url: "/api/account-recoveries", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/api/account-recovery-challenges", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/api/account-recovery-redemptions", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/api/authentication-challenges", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/api/sessions", access: PUBLIC_ACCESS },
+      { method: "GET", url: "/api/sessions/current", access: OPEN_SESSION_ACCESS },
+      { method: "GET", url: "/api/sessions/current/expiration", access: OPEN_SESSION_PEEK_ACCESS },
+      { method: "DELETE", url: "/api/sessions/current", access: SESSION_COOKIE_ACCESS },
       {
         method: "POST",
-        url: "/api/users/session/authorization-options",
+        url: "/api/sessions/current/authorization-challenges",
         access: OPEN_SESSION_ACCESS,
       },
-      { method: "POST", url: "/api/users/session/authorization", access: OPEN_SESSION_ACCESS },
-      { method: "GET", url: "/api/users/passkeys", access: OPEN_SESSION_ACCESS },
+      { method: "PUT", url: "/api/sessions/current/authorization", access: OPEN_SESSION_ACCESS },
+      { method: "GET", url: "/api/account/passkeys", access: OPEN_SESSION_ACCESS },
       {
         method: "POST",
-        url: "/api/users/passkeys/registration-options",
+        url: "/api/account/passkey-challenges",
         access: OPEN_SESSION_ACCESS,
       },
-      { method: "POST", url: "/api/users/passkeys", access: OPEN_SESSION_ACCESS },
-      { method: "POST", url: "/api/users/passkeys/:id/remove", access: OPEN_SESSION_ACCESS },
+      { method: "POST", url: "/api/account/passkeys", access: OPEN_SESSION_ACCESS },
+      { method: "DELETE", url: "/api/account/passkeys/:id", access: OPEN_SESSION_ACCESS },
       {
         method: "GET",
         url: "/api/users",
@@ -1609,6 +1684,7 @@ describe("the route access inventory", () => {
       },
       { method: "GET", url: "/api/health", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/devices/enroll", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/api/devices/rotate-token", access: PUBLIC_ACCESS },
       { method: "HEAD", url: "/*", access: PUBLIC_ACCESS },
       { method: "GET", url: "/*", access: PUBLIC_ACCESS },
     ]);
@@ -1635,6 +1711,82 @@ describe("deleting a product", () => {
     });
 
     expect(response.statusCode).toBe(404);
+  });
+});
+
+describe("the former session and passkey read paths", () => {
+  async function signedInAdministratorWithPasskey(): Promise<string> {
+    const db = testDatabase.db;
+    const [administratorRole] = await db
+      .select({ id: roles.id })
+      .from(roles)
+      .where(eq(roles.isAdministrator, true));
+    if (!administratorRole) {
+      throw new Error("test setup: no Administrator role seeded");
+    }
+    const [user] = await db
+      .insert(users)
+      .values({
+        firstName: "Ada Lovelace",
+        email: "ada@example.com",
+        locationId: await seededLocationId(db),
+      })
+      .returning({ id: users.id });
+    if (!user) {
+      throw new Error("test setup: seeding the user returned no row");
+    }
+    await db.insert(userRoles).values({ userId: user.id, roleId: administratorRole.id });
+    await db.insert(passkeys).values({
+      userId: user.id,
+      credentialId: "credential-laptop",
+      publicKey: "cHVibGljLWtleQ",
+      counter: 0,
+      deviceType: "singleDevice",
+      backedUp: false,
+      name: "Notebook",
+    });
+    const rawSessionId = generateSessionId();
+    await db.insert(sessions).values({
+      userId: user.id,
+      sessionIdHash: hashSessionId(rawSessionId),
+      createdAt: new Date(),
+      lastSeenAt: new Date(),
+    });
+    return rawSessionId;
+  }
+
+  function get(app: ReturnType<typeof buildApp>, url: string, rawSessionId: string) {
+    return app.inject({
+      method: "GET",
+      url,
+      headers: { origin: BACKOFFICE_ORIGIN, cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` },
+    });
+  }
+
+  it("no longer returns the session to an Administrator who can read it at its current path", async () => {
+    const app = productionWiredApp();
+    const rawSessionId = await signedInAdministratorWithPasskey();
+
+    const current = await get(app, "/api/sessions/current", rawSessionId);
+    const former = await get(app, "/api/users/session", rawSessionId);
+
+    expect(openSessionSchema.safeParse(current.json()).success).toBe(true);
+    expect(current.body).toContain("Ada Lovelace");
+    expect(openSessionSchema.safeParse(former.json()).success).toBe(false);
+    expect(former.body).not.toContain("Ada Lovelace");
+  });
+
+  it("no longer returns the passkeys to an Administrator who can list them at their current path", async () => {
+    const app = productionWiredApp();
+    const rawSessionId = await signedInAdministratorWithPasskey();
+
+    const current = await get(app, "/api/account/passkeys", rawSessionId);
+    const former = await get(app, "/api/users/passkeys", rawSessionId);
+
+    expect(passkeyListSchema.safeParse(current.json()).success).toBe(true);
+    expect(current.body).toContain("Notebook");
+    expect(passkeyListSchema.safeParse(former.json()).success).toBe(false);
+    expect(former.body).not.toContain("Notebook");
   });
 });
 

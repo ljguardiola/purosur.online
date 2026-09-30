@@ -35,10 +35,10 @@ afterEach(async () => {
 });
 
 function listProducts(headers: Record<string, string>) {
-  return app.inject({ method: "GET", url: "/stock/products", headers });
+  return app.inject({ method: "GET", url: "/inventory-items", headers });
 }
 
-describe("GET /stock/products", () => {
+describe("GET /inventory-items", () => {
   it("returns 401 when no session cookie was sent", async () => {
     const response = await listProducts({ origin: BACKOFFICE_ORIGIN });
 

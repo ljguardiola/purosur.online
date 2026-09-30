@@ -106,7 +106,7 @@ async function registerFirstPasskey(forUserId: string, emulator: WebAuthnEmulato
   });
   const optionsResponse = await recoveryApp.inject({
     method: "POST",
-    url: "/users/recovery/registration-options",
+    url: "/account-recovery-challenges",
     headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.10" },
     payload: { recovery_token: rawToken },
   });
@@ -121,7 +121,7 @@ async function registerFirstPasskey(forUserId: string, emulator: WebAuthnEmulato
   );
   const redeemResponse = await recoveryApp.inject({
     method: "POST",
-    url: "/users/recovery/redeem",
+    url: "/account-recovery-redemptions",
     headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.10" },
     payload: {
       recovery_token: rawToken,
@@ -168,11 +168,7 @@ function cookieHeader(rawSessionId: string): Record<string, string> {
 // Returned untyped: nid-webauthn-emulator's bundled WebAuthn JSON types don't structurally match
 // @simplewebauthn/server's exports one-for-one, so this crosses the same JSON boundary a browser would.
 async function requestOptions(rawSessionId: string) {
-  const response = await postJson(
-    "/users/passkeys/registration-options",
-    {},
-    cookieHeader(rawSessionId),
-  );
+  const response = await postJson("/account/passkey-challenges", {}, cookieHeader(rawSessionId));
   if (response.statusCode !== 200) {
     throw new Error(
       `test setup: registration-options failed: ${response.statusCode} ${response.body}`,
@@ -181,9 +177,21 @@ async function requestOptions(rawSessionId: string) {
   return response.json();
 }
 
-describe("POST /users/passkeys/registration-options", () => {
+describe("POST /account/passkey-challenges", () => {
+  it("no longer answers the old registration-options path", async () => {
+    const rawSessionId = await insertSession(userId);
+
+    const response = await postJson(
+      "/users/passkeys/registration-options",
+      {},
+      cookieHeader(rawSessionId),
+    );
+
+    expect(response.statusCode).toBe(404);
+  });
+
   it("returns 401 unauthenticated when no cookie was sent", async () => {
-    const response = await postJson("/users/passkeys/registration-options", {});
+    const response = await postJson("/account/passkey-challenges", {});
 
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
@@ -194,7 +202,7 @@ describe("POST /users/passkeys/registration-options", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/users/passkeys/registration-options",
+      url: "/account/passkey-challenges",
       headers: { origin: "https://attacker.example", ...cookieHeader(rawSessionId) },
     });
 
@@ -206,11 +214,7 @@ describe("POST /users/passkeys/registration-options", () => {
     const rawSessionId = await insertSession(userId);
     await exhaustSessionRateLimit(db, rawSessionId, currentTime);
 
-    const response = await postJson(
-      "/users/passkeys/registration-options",
-      {},
-      cookieHeader(rawSessionId),
-    );
+    const response = await postJson("/account/passkey-challenges", {}, cookieHeader(rawSessionId));
 
     expect(response.statusCode).toBe(429);
     expect(response.json()).toMatchObject({ code: "rate_limited" });
@@ -229,11 +233,7 @@ describe("POST /users/passkeys/registration-options", () => {
     const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
     const rawSessionId = await insertSession(userId, authorizedAt);
 
-    const response = await postJson(
-      "/users/passkeys/registration-options",
-      {},
-      cookieHeader(rawSessionId),
-    );
+    const response = await postJson("/account/passkey-challenges", {}, cookieHeader(rawSessionId));
 
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ code: "authorization_required" });
@@ -306,7 +306,15 @@ describe("POST /users/passkeys/registration-options", () => {
   });
 });
 
-describe("POST /users/passkeys", () => {
+describe("POST /account/passkeys", () => {
+  it("no longer answers the old registration path", async () => {
+    const rawSessionId = await insertSession(userId);
+
+    const response = await postJson("/users/passkeys", {}, cookieHeader(rawSessionId));
+
+    expect(response.statusCode).toBe(404);
+  });
+
   async function registerSecondPasskey(rawSessionId: string, name = "Teléfono del local") {
     const options = await requestOptions(rawSessionId);
     const newEmulator = newDeviceEmulator();
@@ -315,7 +323,7 @@ describe("POST /users/passkeys", () => {
       options.passkey_registration_options,
     );
     const response = await postJson(
-      "/users/passkeys",
+      "/account/passkeys",
       { passkey_registration: passkeyRegistration, passkey_name: name },
       cookieHeader(rawSessionId),
     );
@@ -332,7 +340,7 @@ describe("POST /users/passkeys", () => {
   });
 
   it("returns 401 unauthenticated when no cookie was sent", async () => {
-    const response = await postJson("/users/passkeys", {});
+    const response = await postJson("/account/passkeys", {});
 
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
@@ -343,7 +351,7 @@ describe("POST /users/passkeys", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/users/passkeys",
+      url: "/account/passkeys",
       headers: { origin: "https://attacker.example", ...cookieHeader(rawSessionId) },
     });
 
@@ -356,7 +364,7 @@ describe("POST /users/passkeys", () => {
     const beforeCount = (await db.select().from(passkeys)).length;
     await exhaustSessionRateLimit(db, rawSessionId, currentTime);
 
-    const response = await postJson("/users/passkeys", {}, cookieHeader(rawSessionId));
+    const response = await postJson("/account/passkeys", {}, cookieHeader(rawSessionId));
 
     expect(response.statusCode).toBe(429);
     expect(response.json()).toMatchObject({ code: "rate_limited" });
@@ -430,7 +438,7 @@ describe("POST /users/passkeys", () => {
     });
 
     const response = await postJson(
-      "/users/passkeys",
+      "/account/passkeys",
       { passkey_registration: passkeyRegistration, passkey_name: "Teléfono del local" },
       cookieHeader(rawSessionId),
     );
@@ -464,10 +472,10 @@ describe("POST /users/passkeys", () => {
       options.passkey_registration_options,
     );
     const body = { passkey_registration: passkeyRegistration, passkey_name: "Teléfono del local" };
-    const first = await postJson("/users/passkeys", body, cookieHeader(rawSessionId));
+    const first = await postJson("/account/passkeys", body, cookieHeader(rawSessionId));
     expect(first.statusCode).toBe(200);
 
-    const second = await postJson("/users/passkeys", body, cookieHeader(rawSessionId));
+    const second = await postJson("/account/passkeys", body, cookieHeader(rawSessionId));
 
     expect(second.statusCode).toBe(400);
     expect(second.json()).toMatchObject({ code: "validation_failed" });
@@ -494,7 +502,7 @@ describe("POST /users/passkeys", () => {
     });
 
     const response = await postJson(
-      "/users/passkeys",
+      "/account/passkeys",
       { passkey_registration: passkeyRegistration, passkey_name: "Teléfono del local" },
       cookieHeader(rawSessionId),
     );
@@ -516,7 +524,7 @@ describe("POST /users/passkeys", () => {
     currentTime = new Date(NOON.getTime() + PASSKEY_CHALLENGE_TTL_MS);
 
     const response = await postJson(
-      "/users/passkeys",
+      "/account/passkeys",
       { passkey_registration: passkeyRegistration, passkey_name: "Teléfono" },
       cookieHeader(rawSessionId),
     );
@@ -531,7 +539,7 @@ describe("POST /users/passkeys", () => {
     const rawSessionId = await insertSession(userId);
 
     const response = await postJson(
-      "/users/passkeys",
+      "/account/passkeys",
       { passkey_registration: {}, passkey_name: "Teléfono" },
       cookieHeader(rawSessionId),
     );
@@ -548,7 +556,7 @@ describe("POST /users/passkeys", () => {
       await requestOptions(rawSessionId);
 
       const response = await postJson(
-        "/users/passkeys",
+        "/account/passkeys",
         { passkey_name: "Teléfono" },
         cookieHeader(rawSessionId),
       );
@@ -592,7 +600,7 @@ describe("POST /users/passkeys", () => {
     );
 
     const response = await postJson(
-      "/users/passkeys",
+      "/account/passkeys",
       {
         passkey_registration: passkeyRegistration,
         passkey_name: "Passkey ajena",
@@ -628,7 +636,7 @@ describe("POST /users/passkeys", () => {
         .where(eq(sessions.sessionIdHash, hashSessionId(rawSessionId)));
 
       const response = await postJson(
-        "/users/passkeys",
+        "/account/passkeys",
         { passkey_registration: passkeyRegistration, passkey_name: "Teléfono del local" },
         cookieHeader(rawSessionId),
       );
@@ -651,7 +659,7 @@ describe("POST /users/passkeys", () => {
       currentTime = new Date(authorizedAt.getTime() + (5 * 60 * 1000 + 30 * 1000));
 
       const response = await postJson(
-        "/users/passkeys",
+        "/account/passkeys",
         { passkey_registration: passkeyRegistration, passkey_name: "Teléfono del local" },
         cookieHeader(rawSessionId),
       );
@@ -677,7 +685,7 @@ describe("POST /users/passkeys", () => {
       await db.update(passkeyChallenges).set({ kind: "session_authorization" });
 
       const response = await postJson(
-        "/users/passkeys",
+        "/account/passkeys",
         { passkey_registration: passkeyRegistration, passkey_name: "Teléfono del local" },
         cookieHeader(rawSessionId),
       );

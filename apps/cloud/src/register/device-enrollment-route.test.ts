@@ -97,6 +97,8 @@ describe("POST /devices/enroll", () => {
       tokenHash: hashDeviceToken(body.device_token),
       hostname: "CAJA-MOSTRADOR",
       windowsVersion: "Windows 11 Pro 10.0.26100",
+      tokenIssuedAt: NOW,
+      pendingTokenHash: null,
       enrolledAt: NOW,
       revokedAt: null,
     });
@@ -112,6 +114,7 @@ describe("POST /devices/enroll", () => {
         tokenHash: "previous-hash",
         hostname: "VIEJA",
         windowsVersion: "Windows 10",
+        tokenIssuedAt: minutesAgo(60 * 24),
         enrolledAt: minutesAgo(60 * 24),
       })
       .returning({ id: registerInstallations.id });

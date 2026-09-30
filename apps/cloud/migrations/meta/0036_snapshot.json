@@ -1,5 +1,5 @@
 {
-  "id": "8e7fe0b8-4583-447c-98c9-323c99acee52",
+  "id": "339096b5-9eea-4a39-9fa4-5fdcb11c4bf0",
   "prevId": "bfdd320f-3e5b-42c1-9058-c4c63a7601fb",
   "version": "7",
   "dialect": "postgresql",
@@ -1317,71 +1317,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.product_tags": {
-      "name": "product_tags",
-      "schema": "",
-      "columns": {
-        "product_id": {
-          "name": "product_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "tag_id": {
-          "name": "tag_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "product_tags_tag_id_idx": {
-          "name": "product_tags_tag_id_idx",
-          "columns": [
-            {
-              "expression": "tag_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "product_tags_product_id_products_id_fk": {
-          "name": "product_tags_product_id_products_id_fk",
-          "tableFrom": "product_tags",
-          "tableTo": "products",
-          "columnsFrom": ["product_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "product_tags_tag_id_tags_id_fk": {
-          "name": "product_tags_tag_id_tags_id_fk",
-          "tableFrom": "product_tags",
-          "tableTo": "tags",
-          "columnsFrom": ["tag_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "product_tags_product_id_tag_id_pk": {
-          "name": "product_tags_product_id_tag_id_pk",
-          "columns": ["product_id", "tag_id"]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.products": {
       "name": "products",
       "schema": "",
@@ -2005,6 +1940,30 @@
           "primaryKey": false,
           "notNull": true
         },
+        "token_issued_at": {
+          "name": "token_issued_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pending_token_lookup_prefix": {
+          "name": "pending_token_lookup_prefix",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pending_token_hash": {
+          "name": "pending_token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pending_token_issued_at": {
+          "name": "pending_token_issued_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "hostname": {
           "name": "hostname",
           "type": "text",
@@ -2036,6 +1995,21 @@
           "columns": [
             {
               "expression": "token_lookup_prefix",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "register_installations_pending_token_lookup_prefix_key": {
+          "name": "register_installations_pending_token_lookup_prefix_key",
+          "columns": [
+            {
+              "expression": "pending_token_lookup_prefix",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -2788,62 +2762,6 @@
           "value": "(\"stock_movements\".\"kind\" = 'count') = (\"stock_movements\".\"reason\" is null)"
         }
       },
-      "isRLSEnabled": false
-    },
-    "public.tags": {
-      "name": "tags",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "active": {
-          "name": "active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        }
-      },
-      "indexes": {
-        "tags_name_lower_key": {
-          "name": "tags_name_lower_key",
-          "columns": [
-            {
-              "expression": "lower(\"name\")",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.user_roles": {

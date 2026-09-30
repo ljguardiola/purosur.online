@@ -42,10 +42,10 @@ afterEach(async () => {
 });
 
 function registerCountRequest(headers: Record<string, string>, payload: Record<string, unknown>) {
-  return app.inject({ method: "POST", url: "/stock/counts", headers, payload });
+  return app.inject({ method: "POST", url: "/inventory-counts", headers, payload });
 }
 
-describe("POST /stock/counts", () => {
+describe("POST /inventory-counts", () => {
   it("returns 401 when no session cookie was sent", async () => {
     const response = await registerCountRequest({ origin: BACKOFFICE_ORIGIN }, {});
 
@@ -236,10 +236,10 @@ describe("POST /stock/counts", () => {
 });
 
 function listCounts(headers: Record<string, string>, query = "") {
-  return app.inject({ method: "GET", url: `/stock/counts${query}`, headers });
+  return app.inject({ method: "GET", url: `/inventory-counts${query}`, headers });
 }
 
-describe("GET /stock/counts", () => {
+describe("GET /inventory-counts", () => {
   it("returns 401 when no session cookie was sent", async () => {
     const response = await listCounts({ origin: BACKOFFICE_ORIGIN });
 
@@ -373,12 +373,12 @@ describe("GET /stock/counts", () => {
 function expectedBalanceRequest(headers: Record<string, string>, productId: string, at: string) {
   return app.inject({
     method: "GET",
-    url: `/stock/products/${productId}/expected-balance?at=${encodeURIComponent(at)}`,
+    url: `/inventory-levels/${productId}?at=${encodeURIComponent(at)}`,
     headers,
   });
 }
 
-describe("GET /stock/products/:id/expected-balance", () => {
+describe("GET /inventory-levels/:productId", () => {
   it("rejects a user who may count but not view balances", async () => {
     const { headers } = await signedInWith(db, ["perform_stock_counts"], NOW);
     const { productId } = await insertProduct(db);
@@ -391,7 +391,11 @@ describe("GET /stock/products/:id/expected-balance", () => {
   it("answers the balance left after undoing what the branch applied after the moment", async () => {
     const { headers, locationId, userId } = await signedInWith(db, ["view_stock_balances"], NOW);
     const otherLocationId = await insertLocation(db);
-    const { productId } = await insertProduct(db);
+    const { productId, categoryId } = await insertProduct(db, {
+      name: "Almendras peladas",
+      categoryName: "Frutos secos",
+      saleUnit: "KG",
+    });
     await insertBalance(db, { productId, locationId, quantity: 16_000 });
     await insertMovement(db, {
       productId,
@@ -415,7 +419,14 @@ describe("GET /stock/products/:id/expected-balance", () => {
     const response = await expectedBalanceRequest(headers, productId, COUNTED_AT.toISOString());
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ expected: 17_000 });
+    expect(response.json()).toEqual({
+      id: productId,
+      name: "Almendras peladas",
+      categoryId,
+      categoryName: "Frutos secos",
+      saleUnit: "KG",
+      balance: 17_000,
+    });
   });
 
   it("answers zero for a product with no movement in the branch", async () => {
@@ -424,7 +435,7 @@ describe("GET /stock/products/:id/expected-balance", () => {
 
     const response = await expectedBalanceRequest(headers, productId, COUNTED_AT.toISOString());
 
-    expect(response.json()).toEqual({ expected: 0 });
+    expect(response.json()).toMatchObject({ balance: 0 });
   });
 
   it.each(["not-a-uuid", "00000000-0000-4000-8000-000000000000"])(
