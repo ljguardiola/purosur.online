@@ -322,6 +322,7 @@ describe("the register's local migrations", () => {
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
         "0009_sales",
         "0010_sale_line_promotions",
+        "0011_sale_line_removals",
       ]);
       const before = openLocalDatabase(path, previous);
       before
@@ -372,6 +373,7 @@ describe("the register's local migrations", () => {
       expect(previous.at(-1)?.name).toBe("0009_sales");
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
         "0010_sale_line_promotions",
+        "0011_sale_line_removals",
       ]);
       const before = openLocalDatabase(path, previous);
       before
@@ -400,6 +402,44 @@ describe("the register's local migrations", () => {
         after.prepare("SELECT id, line_total, promotion_id, discount_amount FROM sale_lines").all(),
       ).toEqual([{ id: "l1", line_total: 2000, promotion_id: null, discount_amount: 0 }]);
       expect(after.prepare("SELECT count(*) AS total FROM sale_line_promotions").get()).toEqual({
+        total: 0,
+      });
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("add the removals of sale lines over the open sales a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.slice(0, 11);
+      expect(previous.at(-1)?.name).toBe("0010_sale_line_promotions");
+      expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
+        "0011_sale_line_removals",
+      ]);
+      const before = openLocalDatabase(path, previous);
+      before
+        .prepare(
+          `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+           VALUES ('s1', 'r1', 'device-a', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN')`,
+        )
+        .run();
+      before
+        .prepare(
+          `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+           VALUES ('a', 'r1', 'device-a', 's1', 'u1', 'OPEN', '2026-09-30T12:00:00.000Z')`,
+        )
+        .run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+
+      expect(after.prepare("SELECT id, state FROM sales").all()).toEqual([
+        { id: "a", state: "OPEN" },
+      ]);
+      expect(after.prepare("SELECT count(*) AS total FROM sale_line_removals").get()).toEqual({
         total: 0,
       });
       after.close();

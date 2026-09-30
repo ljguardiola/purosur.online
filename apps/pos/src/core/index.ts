@@ -52,7 +52,13 @@ import { enroll, generatePepper, installationReportFrom } from "./register/enrol
 import { answerRendererRequest, type RendererRequestDeps } from "./register/renderer-requests";
 import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
-import { currentSaleFor, scanProductFor } from "./sales/sale-requests";
+import {
+  cancelSaleFor,
+  changeLineQuantityFor,
+  currentSaleFor,
+  removeSaleLineFor,
+  scanProductFor,
+} from "./sales/sale-requests";
 import { pullFromCloud, pullResultOf } from "./sync/pull-from-cloud";
 import { createPullSchedule } from "./sync/pull-schedule";
 import { SqliteLocalReplica } from "./sync/sqlite-local-replica";
@@ -355,6 +361,35 @@ const rendererRequestDeps: RendererRequestDeps = {
             { database: localDatabase, gate: actionGate, now: () => new Date(), ids: uuidV7Ids },
             code,
           ),
+  changeLineQuantity:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (lineId, quantity) =>
+          changeLineQuantityFor(
+            { database: localDatabase, gate: actionGate, now: () => new Date(), ids: uuidV7Ids },
+            lineId,
+            quantity,
+          ),
+  removeSaleLine:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (lineId) =>
+          removeSaleLineFor(
+            { database: localDatabase, gate: actionGate, now: () => new Date(), ids: uuidV7Ids },
+            lineId,
+          ),
+  cancelSale:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : () =>
+          cancelSaleFor({
+            database: localDatabase,
+            gate: actionGate,
+            readOutboxChainKey: async () =>
+              (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+            now: () => new Date(),
+            ids: uuidV7Ids,
+          }),
   currentSale:
     localDatabase === undefined || actionGate === undefined
       ? undefined

@@ -1,10 +1,20 @@
-import type { CurrentSaleAnswer, OpenSale, ScanProductOutcome } from "@purosur/contracts";
+import type {
+  CancelSaleOutcome,
+  ChangeLineQuantityOutcome,
+  CurrentSaleAnswer,
+  OpenSale,
+  RemoveSaleLineOutcome,
+  ScanProductOutcome,
+} from "@purosur/contracts";
 import { type SaleLine, type SaleWithLines, saleTotal } from "@purosur/domain";
 import {
   addScannedProduct,
   type Clock,
+  cancelSale,
+  changeLineQuantity,
   currentSale,
   type IdGenerator,
+  removeSaleLine,
 } from "@purosur/domain/sales/use-cases";
 import type { ActionGate } from "../access/action-gate";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
@@ -18,8 +28,12 @@ export interface SaleRequestDeps {
   ids: IdGenerator;
 }
 
-function saleLedger(database: LocalDatabase): SqliteSaleLedger {
-  return new SqliteSaleLedger(database, new SqliteSignInStore(database));
+export interface CancelSaleRequestDeps extends SaleRequestDeps {
+  readOutboxChainKey: () => Promise<string | undefined>;
+}
+
+function saleLedger(database: LocalDatabase, outboxChainKey?: string): SqliteSaleLedger {
+  return new SqliteSaleLedger(database, new SqliteSignInStore(database), outboxChainKey);
 }
 
 function appliedPromotion(line: SaleLine): OpenSale["lines"][number]["promotion"] {
@@ -88,4 +102,66 @@ export async function currentSaleFor({
     return "not_permitted";
   }
   return guarded.result.kind === "open" ? toOpenSale(guarded.result.sale) : null;
+}
+
+export async function changeLineQuantityFor(
+  { database, gate, now, ids }: SaleRequestDeps,
+  lineId: string,
+  quantity: number,
+): Promise<ChangeLineQuantityOutcome> {
+  const guarded = await gate.run({ permission: "sell_and_charge" }, async ({ signedInUserId }) =>
+    changeLineQuantity(
+      { ledger: saleLedger(database), clock: { now }, ids },
+      { actorId: signedInUserId, lineId, quantity },
+    ),
+  );
+  if (guarded.kind !== "performed") {
+    return { kind: guarded.kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };
+  }
+  const outcome = guarded.result;
+  return outcome.kind === "changed"
+    ? { kind: "changed", sale: toOpenSale(outcome.sale) }
+    : { kind: outcome.kind };
+}
+
+export async function removeSaleLineFor(
+  { database, gate, now, ids }: SaleRequestDeps,
+  lineId: string,
+): Promise<RemoveSaleLineOutcome> {
+  const guarded = await gate.run({ permission: "sell_and_charge" }, async ({ signedInUserId }) =>
+    removeSaleLine(
+      { ledger: saleLedger(database), clock: { now }, ids },
+      { actorId: signedInUserId, lineId },
+    ),
+  );
+  if (guarded.kind !== "performed") {
+    return { kind: guarded.kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };
+  }
+  const outcome = guarded.result;
+  return outcome.kind === "removed"
+    ? { kind: "removed", sale: toOpenSale(outcome.sale) }
+    : { kind: outcome.kind };
+}
+
+export async function cancelSaleFor({
+  database,
+  gate,
+  now,
+  ids,
+  readOutboxChainKey,
+}: CancelSaleRequestDeps): Promise<CancelSaleOutcome> {
+  const outboxChainKey = await readOutboxChainKey();
+  if (outboxChainKey === undefined) {
+    return { kind: "unavailable" };
+  }
+  const guarded = await gate.run({ permission: "sell_and_charge" }, async ({ signedInUserId }) =>
+    cancelSale(
+      { ledger: saleLedger(database, outboxChainKey), clock: { now }, ids },
+      { actorId: signedInUserId },
+    ),
+  );
+  if (guarded.kind !== "performed") {
+    return { kind: guarded.kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };
+  }
+  return { kind: guarded.result.kind };
 }

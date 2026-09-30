@@ -49,3 +49,34 @@ export const scanProductOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("unavailable") }),
 ]);
 export type ScanProductOutcome = z.infer<typeof scanProductOutcomeSchema>;
+
+const saleRefusalSchemas = [
+  z.object({ kind: z.literal("no_open_sale") }),
+  z.object({ kind: z.literal("not_permitted") }),
+  z.object({ kind: z.literal("not_signed_in") }),
+  z.object({ kind: z.literal("no_open_session") }),
+  z.object({ kind: z.literal("unavailable") }),
+] as const;
+
+export const saleLineQuantitySchema = z.int().positive();
+
+export const changeLineQuantityOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("changed"), sale: saleSchema }),
+  z.object({ kind: z.literal("unknown_line") }),
+  z.object({ kind: z.literal("invalid_quantity") }),
+  ...saleRefusalSchemas,
+]);
+export type ChangeLineQuantityOutcome = z.infer<typeof changeLineQuantityOutcomeSchema>;
+
+export const removeSaleLineOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("removed"), sale: saleSchema }),
+  z.object({ kind: z.literal("unknown_line") }),
+  ...saleRefusalSchemas,
+]);
+export type RemoveSaleLineOutcome = z.infer<typeof removeSaleLineOutcomeSchema>;
+
+export const cancelSaleOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("cancelled") }),
+  ...saleRefusalSchemas,
+]);
+export type CancelSaleOutcome = z.infer<typeof cancelSaleOutcomeSchema>;

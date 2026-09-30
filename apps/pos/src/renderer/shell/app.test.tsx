@@ -150,6 +150,15 @@ function coreAnswering(
     async currentSale() {
       return sales.currentSale === undefined ? null : sales.currentSale();
     },
+    async changeLineQuantity() {
+      return { kind: "unavailable" };
+    },
+    async removeSaleLine() {
+      return { kind: "unavailable" };
+    },
+    async cancelSale() {
+      return { kind: "unavailable" };
+    },
     async scanProduct(code) {
       return sales.scanProduct === undefined ? { kind: "unknown_code" } : sales.scanProduct(code);
     },

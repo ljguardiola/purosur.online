@@ -19,7 +19,15 @@ import {
   guardedActionRefusalSchema,
 } from "../access/authorization.js";
 import { pinAttemptRefusalSchema } from "../access/pin-attempt-refusal.js";
-import { saleSchema, scannedCodeSchema, scanProductOutcomeSchema } from "../sales/sale.js";
+import {
+  cancelSaleOutcomeSchema,
+  changeLineQuantityOutcomeSchema,
+  removeSaleLineOutcomeSchema,
+  saleLineQuantitySchema,
+  saleSchema,
+  scannedCodeSchema,
+  scanProductOutcomeSchema,
+} from "../sales/sale.js";
 
 const requestId = z.string();
 
@@ -151,6 +159,24 @@ const scanProductMessageSchema = z.object({
   code: scannedCodeSchema,
 });
 
+const changeLineQuantityMessageSchema = z.object({
+  type: z.literal("change-line-quantity"),
+  request_id: requestId,
+  line_id: z.string(),
+  quantity: saleLineQuantitySchema,
+});
+
+const removeSaleLineMessageSchema = z.object({
+  type: z.literal("remove-sale-line"),
+  request_id: requestId,
+  line_id: z.string(),
+});
+
+const cancelSaleMessageSchema = z.object({
+  type: z.literal("cancel-sale"),
+  request_id: requestId,
+});
+
 const saleRequestMessageSchema = z.object({
   type: z.literal("sale-request"),
   request_id: requestId,
@@ -180,6 +206,9 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   cashBalanceRequestMessageSchema,
   authorizersRequestMessageSchema,
   scanProductMessageSchema,
+  changeLineQuantityMessageSchema,
+  removeSaleLineMessageSchema,
+  cancelSaleMessageSchema,
   saleRequestMessageSchema,
   signOutMessageSchema,
 ]);
@@ -403,6 +432,21 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("scan-product-result"),
     request_id: requestId,
     outcome: scanProductOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("change-line-quantity-result"),
+    request_id: requestId,
+    outcome: changeLineQuantityOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("remove-sale-line-result"),
+    request_id: requestId,
+    outcome: removeSaleLineOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("cancel-sale-result"),
+    request_id: requestId,
+    outcome: cancelSaleOutcomeSchema,
   }),
   z.object({ type: z.literal("sale"), request_id: requestId, sale: saleSchema.nullable() }),
   z.object({ type: z.literal("sale-unavailable"), request_id: requestId }),

@@ -1,6 +1,8 @@
 import type {
   Authorization,
+  CancelSaleOutcome,
   CashBalance,
+  ChangeLineQuantityOutcome,
   CloseCashSessionOutcome,
   CoreToRendererMessage,
   CurrentSaleAnswer,
@@ -12,6 +14,7 @@ import type {
   PinCodeRedemptionOutcome,
   RecordCashMovementOutcome,
   RecordCashMovementRequest,
+  RemoveSaleLineOutcome,
   RendererToCoreMessage,
   ScanProductOutcome,
   SignInLookupOutcome,
@@ -49,6 +52,9 @@ export interface CoreClient {
   cashMovements(): Promise<ListedCashMovement[] | null | "unavailable">;
   scanProduct(code: string): Promise<ScanProductOutcome>;
   currentSale(): Promise<CurrentSaleAnswer>;
+  changeLineQuantity(lineId: string, quantity: number): Promise<ChangeLineQuantityOutcome>;
+  removeSaleLine(lineId: string): Promise<RemoveSaleLineOutcome>;
+  cancelSale(): Promise<CancelSaleOutcome>;
   closeCashSession(
     sessionId: string,
     countedCash: number,
@@ -255,6 +261,28 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
     scanProduct(code) {
       return ask({ type: "scan-product", request_id: deps.newRequestId(), code }, (answer) =>
         answer.type === "scan-product-result" ? answer.outcome : undefined,
+      );
+    },
+    changeLineQuantity(lineId, quantity) {
+      return ask(
+        {
+          type: "change-line-quantity",
+          request_id: deps.newRequestId(),
+          line_id: lineId,
+          quantity,
+        },
+        (answer) => (answer.type === "change-line-quantity-result" ? answer.outcome : undefined),
+      );
+    },
+    removeSaleLine(lineId) {
+      return ask(
+        { type: "remove-sale-line", request_id: deps.newRequestId(), line_id: lineId },
+        (answer) => (answer.type === "remove-sale-line-result" ? answer.outcome : undefined),
+      );
+    },
+    cancelSale() {
+      return ask({ type: "cancel-sale", request_id: deps.newRequestId() }, (answer) =>
+        answer.type === "cancel-sale-result" ? answer.outcome : undefined,
       );
     },
     currentSale() {

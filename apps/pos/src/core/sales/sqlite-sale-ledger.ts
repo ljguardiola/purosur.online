@@ -1,8 +1,10 @@
 import type {
   DiscountBenefit,
   LinePromotion,
+  OutboxEventDraft,
   Sale,
   SaleLine,
+  SaleLineRemoval,
   SaleUnit,
   SaleWithLines,
 } from "@purosur/domain";
@@ -16,6 +18,7 @@ import type {
 } from "@purosur/domain/sales/use-cases";
 import type { SignInStore } from "../access/sqlite-sign-in-store";
 import type { LocalDatabase } from "../platform/local-database";
+import { appendOutboxEvent } from "../sync/sqlite-outbox";
 
 interface SaleRow {
   id: string;
@@ -36,6 +39,17 @@ interface LineRow {
   promotion_id: string | null;
   discount_amount: number;
   line_total: number;
+}
+
+interface RemovalRow {
+  id: string;
+  sale_id: string;
+  sale_line_id: string;
+  product_id: string;
+  qty_removed: number;
+  amount_removed: number;
+  actor_id: string;
+  occurred_at: string;
 }
 
 interface BenefitColumns {
@@ -74,9 +88,16 @@ export class SqliteSaleLedger implements SaleLedger {
   private readonly database: LocalDatabase;
   private readonly people: Pick<SignInStore, "activePerson">;
 
-  constructor(database: LocalDatabase, people: Pick<SignInStore, "activePerson">) {
+  private readonly outboxChainKey: string | undefined;
+
+  constructor(
+    database: LocalDatabase,
+    people: Pick<SignInStore, "activePerson">,
+    outboxChainKey?: string,
+  ) {
     this.database = database;
     this.people = people;
+    this.outboxChainKey = outboxChainKey;
   }
 
   transaction<TOutcome>(work: (tx: SaleLedgerTransaction) => TOutcome): TOutcome {
@@ -96,6 +117,11 @@ export class SqliteSaleLedger implements SaleLedger {
       recordOpenedSale: (sale) => this.recordOpenedSale(sale),
       recordSaleLine: (saleId, line) => this.recordSaleLine(saleId, line),
       recordLineQuantity: (line) => this.recordLineQuantity(line),
+      recordLineRemoval: (removal) => this.recordLineRemoval(removal),
+      deleteSaleLine: (lineId) => this.deleteSaleLine(lineId),
+      saleLineRemovals: (saleId) => this.saleLineRemovals(saleId),
+      markSaleCancelled: (saleId) => this.markSaleCancelled(saleId),
+      appendOutboxEvent: (draft) => this.appendOutboxEvent(draft),
     };
   }
 
@@ -311,6 +337,64 @@ export class SqliteSaleLedger implements SaleLedger {
         discount_amount: line.discountAmount,
         line_total: line.lineTotal,
       });
+  }
+
+  private recordLineRemoval(removal: SaleLineRemoval): void {
+    this.database
+      .prepare(
+        `INSERT INTO sale_line_removals (
+           id, sale_id, sale_line_id, product_id, qty_removed, amount_removed, actor_id, occurred_at
+         ) VALUES (
+           @id, @sale_id, @sale_line_id, @product_id, @qty_removed, @amount_removed, @actor_id,
+           @occurred_at
+         )`,
+      )
+      .run({
+        id: removal.id,
+        sale_id: removal.saleId,
+        sale_line_id: removal.saleLineId,
+        product_id: removal.productId,
+        qty_removed: removal.qtyRemoved,
+        amount_removed: removal.amountRemoved,
+        actor_id: removal.actorId,
+        occurred_at: removal.occurredAt.toISOString(),
+      });
+  }
+
+  private deleteSaleLine(lineId: string): void {
+    this.database.prepare("DELETE FROM sale_line_promotions WHERE line_id = ?").run(lineId);
+    this.database.prepare("DELETE FROM sale_lines WHERE id = ?").run(lineId);
+  }
+
+  private saleLineRemovals(saleId: string): SaleLineRemoval[] {
+    return this.database
+      .prepare<[string], RemovalRow>(
+        `SELECT id, sale_id, sale_line_id, product_id, qty_removed, amount_removed, actor_id,
+                occurred_at
+         FROM sale_line_removals WHERE sale_id = ? ORDER BY rowid`,
+      )
+      .all(saleId)
+      .map((row) => ({
+        id: row.id,
+        saleId: row.sale_id,
+        saleLineId: row.sale_line_id,
+        productId: row.product_id,
+        qtyRemoved: row.qty_removed,
+        amountRemoved: row.amount_removed,
+        actorId: row.actor_id,
+        occurredAt: new Date(row.occurred_at),
+      }));
+  }
+
+  private markSaleCancelled(saleId: string): void {
+    this.database.prepare("UPDATE sales SET state = 'CANCELLED' WHERE id = ?").run(saleId);
+  }
+
+  private appendOutboxEvent(draft: OutboxEventDraft): void {
+    if (this.outboxChainKey === undefined) {
+      throw new Error("the sale ledger has no outbox chain key");
+    }
+    appendOutboxEvent(this.database, this.outboxChainKey, draft);
   }
 }
 

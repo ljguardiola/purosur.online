@@ -1,6 +1,8 @@
 import type {
   Authorization,
+  CancelSaleOutcome,
   CashBalance,
+  ChangeLineQuantityOutcome,
   CloseCashSessionOutcome,
   CoreToRendererMessage,
   CurrentSaleAnswer,
@@ -11,6 +13,7 @@ import type {
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   RecordCashMovementOutcome,
+  RemoveSaleLineOutcome,
   RendererToCoreMessage,
   ScanProductOutcome,
   SignInLookupOutcome,
@@ -38,6 +41,11 @@ export interface RendererRequestDeps {
   cashMovements: (() => ListedCashMovement[] | null) | undefined;
   scanProduct: ((code: string) => Promise<ScanProductOutcome>) | undefined;
   currentSale: (() => Promise<CurrentSaleAnswer>) | undefined;
+  changeLineQuantity:
+    | ((lineId: string, quantity: number) => Promise<ChangeLineQuantityOutcome>)
+    | undefined;
+  removeSaleLine: ((lineId: string) => Promise<RemoveSaleLineOutcome>) | undefined;
+  cancelSale: (() => Promise<CancelSaleOutcome>) | undefined;
   closeCashSession:
     | ((
         sessionId: string,
@@ -204,6 +212,19 @@ async function attemptScanProduct(
   }
 }
 
+async function attemptSaleChange<TOutcome extends { kind: string }>(
+  deps: RendererRequestDeps,
+  context: string,
+  change: (() => Promise<TOutcome>) | undefined,
+): Promise<TOutcome | { kind: "unavailable" }> {
+  try {
+    return (await change?.()) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure(context, error);
+    return { kind: "unavailable" };
+  }
+}
+
 async function readCurrentSale(deps: RendererRequestDeps): Promise<CurrentSaleAnswer | undefined> {
   try {
     return await deps.currentSale?.();
@@ -306,6 +327,36 @@ export async function answerRendererRequest(
         type: "scan-product-result",
         request_id: message.request_id,
         outcome: await attemptScanProduct(deps, message.code),
+      };
+    case "change-line-quantity": {
+      const { changeLineQuantity } = deps;
+      return {
+        type: "change-line-quantity-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "changing a line's quantity",
+          changeLineQuantity && (() => changeLineQuantity(message.line_id, message.quantity)),
+        ),
+      };
+    }
+    case "remove-sale-line": {
+      const { removeSaleLine } = deps;
+      return {
+        type: "remove-sale-line-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "removing a sale line",
+          removeSaleLine && (() => removeSaleLine(message.line_id)),
+        ),
+      };
+    }
+    case "cancel-sale":
+      return {
+        type: "cancel-sale-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(deps, "cancelling the sale", deps.cancelSale),
       };
     case "sale-request": {
       const sale = await readCurrentSale(deps);

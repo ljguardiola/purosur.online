@@ -1215,3 +1215,111 @@ describe("sale answers", () => {
     );
   });
 });
+
+describe("sale line requests", () => {
+  it("accepts a change of a line's quantity", () => {
+    const message = {
+      type: "change-line-quantity",
+      request_id: REQUEST_ID,
+      line_id: "l1",
+      quantity: 3,
+    };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { line_id: "l1" },
+    { quantity: 3 },
+    { line_id: "l1", quantity: 0 },
+    { line_id: "l1", quantity: -1 },
+    { line_id: "l1", quantity: 1.5 },
+    { line_id: 7, quantity: 1 },
+  ])("rejects a quantity change that is not well formed: %j", (fields) => {
+    expect(
+      rendererToCoreMessageSchema.safeParse({
+        type: "change-line-quantity",
+        request_id: REQUEST_ID,
+        ...fields,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects a quantity change missing its request id", () => {
+    expect(
+      rendererToCoreMessageSchema.safeParse({
+        type: "change-line-quantity",
+        line_id: "l1",
+        quantity: 1,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("accepts the removal of a line", () => {
+    const message = { type: "remove-sale-line", request_id: REQUEST_ID, line_id: "l1" };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { type: "remove-sale-line", request_id: REQUEST_ID },
+    { type: "remove-sale-line", line_id: "l1" },
+  ])("rejects a removal that is not well formed: %j", (message) => {
+    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("accepts the cancellation of the sale", () => {
+    const message = { type: "cancel-sale", request_id: REQUEST_ID };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a cancellation missing its request id", () => {
+    expect(rendererToCoreMessageSchema.safeParse({ type: "cancel-sale" }).success).toBe(false);
+  });
+
+  it("does not take who is selling from any of them", () => {
+    const cancel = { type: "cancel-sale", request_id: REQUEST_ID };
+
+    expect(rendererToCoreMessageSchema.parse({ ...cancel, user_id: "u9" })).toEqual(cancel);
+  });
+});
+
+describe("sale line answers", () => {
+  const sale = { id: "s1", lines: [], total: 0 };
+
+  it.each([
+    ["change-line-quantity-result", { kind: "changed", sale }],
+    ["change-line-quantity-result", { kind: "unknown_line" }],
+    ["remove-sale-line-result", { kind: "removed", sale }],
+    ["remove-sale-line-result", { kind: "no_open_sale" }],
+    ["cancel-sale-result", { kind: "cancelled" }],
+    ["cancel-sale-result", { kind: "unavailable" }],
+  ])("accepts %s with the outcome %j", (type, outcome) => {
+    const message = { type, request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each(["change-line-quantity-result", "remove-sale-line-result", "cancel-sale-result"])(
+    "rejects %s with an outcome it does not know",
+    (type) => {
+      expect(
+        coreToRendererMessageSchema.safeParse({
+          type,
+          request_id: REQUEST_ID,
+          outcome: { kind: "somewhere_else" },
+        }).success,
+      ).toBe(false);
+    },
+  );
+
+  it.each(["change-line-quantity-result", "remove-sale-line-result", "cancel-sale-result"])(
+    "rejects %s without its request id",
+    (type) => {
+      expect(
+        coreToRendererMessageSchema.safeParse({ type, outcome: { kind: "unavailable" } }).success,
+      ).toBe(false);
+    },
+  );
+});
