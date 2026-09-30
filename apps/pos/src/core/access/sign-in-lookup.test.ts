@@ -1,7 +1,9 @@
+import { encodePinHash } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import type { DeviceCredentials } from "../../shared/device-credentials-messages";
 import type { CloudResponse } from "../platform/cloud-client";
 import { lookUpSignIn, type SignInLookupDeps } from "./sign-in-lookup";
+import type { SignInRecord } from "./sqlite-sign-in-store";
 
 const USER_ID = "1e7b3a90-52c4-4d18-9f6a-8b0c2d4e6f71";
 const CREDENTIALS: DeviceCredentials = {
@@ -18,9 +20,20 @@ function found(hasPin: boolean): CloudResponse {
   return { kind: "ok", body: { kind: "found", user_id: USER_ID, has_pin: hasPin } };
 }
 
+const SIGN_IN_RECORD: SignInRecord = {
+  firstName: "Ada",
+  salt: encodePinHash(new Uint8Array(16).fill(1)),
+  verifier: "verifier",
+  access: { isAdministrator: false, permissionKeys: ["sell_and_charge"] },
+};
+
 function depsAnswering(
   response: CloudResponse,
-  { enrolled = true, firstName = "Ada" as string | null } = {},
+  {
+    enrolled = true,
+    firstName = "Ada" as string | null,
+    signInRecord = SIGN_IN_RECORD as SignInRecord | null,
+  } = {},
 ) {
   const posted: { path: string; bearerToken: string; body: unknown }[] = [];
   const deps: SignInLookupDeps = {
@@ -29,7 +42,10 @@ function depsAnswering(
       posted.push({ path, bearerToken, body });
       return response;
     },
-    firstNameOf: (userId) => (userId === USER_ID ? (firstName ?? undefined) : undefined),
+    store: {
+      firstNameOf: (userId) => (userId === USER_ID ? (firstName ?? undefined) : undefined),
+      signInRecord: (userId) => (userId === USER_ID ? (signInRecord ?? undefined) : undefined),
+    },
   };
   return { deps, posted };
 }
@@ -68,13 +84,36 @@ describe("lookUpSignIn", () => {
   });
 
   it.each([true, false])(
-    "is unavailable when the register has not pulled the person found (has a PIN: %s)",
+    "answers not_synced when the register has not pulled the person found (has a PIN: %s)",
     async (hasPin) => {
-      const { deps } = depsAnswering(found(hasPin), { firstName: null });
+      const { deps } = depsAnswering(found(hasPin), { firstName: null, signInRecord: null });
 
-      expect(await lookUpSignIn(deps, "ada@example.com")).toEqual({ kind: "unavailable" });
+      expect(await lookUpSignIn(deps, "ada@example.com")).toEqual({ kind: "not_synced" });
     },
   );
+
+  it("answers not_synced when the cloud has a PIN the register has not pulled yet", async () => {
+    const { deps } = depsAnswering(found(true), { signInRecord: null });
+
+    expect(await lookUpSignIn(deps, "ada@example.com")).toEqual({ kind: "not_synced" });
+  });
+
+  it("answers not_synced when the register holds a PIN it cannot check yet", async () => {
+    const { deps } = depsAnswering(found(true), {
+      signInRecord: { ...SIGN_IN_RECORD, salt: "not-a-salt" },
+    });
+
+    expect(await lookUpSignIn(deps, "ada@example.com")).toEqual({ kind: "not_synced" });
+  });
+
+  it("answers no_pin for a person the register holds with no PIN yet", async () => {
+    const { deps } = depsAnswering(found(false), { signInRecord: null });
+
+    expect(await lookUpSignIn(deps, "ada@example.com")).toEqual({
+      kind: "no_pin",
+      user: { id: USER_ID, first_name: "Ada" },
+    });
+  });
 
   it("answers not_found when the cloud knows nobody with that email", async () => {
     const { deps } = depsAnswering({ kind: "ok", body: { kind: "not_found" } });

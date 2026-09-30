@@ -238,7 +238,7 @@ const rendererRequestDeps: RendererRequestDeps = {
                   ? undefined
                   : (path, bearerToken, body) =>
                       postToCloudWithBearer(cloudClient, path, bearerToken, body),
-              firstNameOf: (userId) => signInStore.firstNameOf(userId),
+              store: signInStore,
             },
             email,
           ),

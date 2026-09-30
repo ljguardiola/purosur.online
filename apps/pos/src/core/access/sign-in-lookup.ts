@@ -7,13 +7,15 @@ import {
 } from "@purosur/contracts";
 import type { DeviceCredentials } from "../../shared/device-credentials-messages";
 import type { CloudResponse } from "../platform/cloud-client";
+import { signableRecord } from "./pin-check";
+import type { SignInStore } from "./sqlite-sign-in-store";
 
 export interface SignInLookupDeps {
   readCredentials: () => Promise<DeviceCredentials | undefined>;
   postToCloud:
     | ((path: string, bearerToken: string, body: unknown) => Promise<CloudResponse>)
     | undefined;
-  firstNameOf: (userId: string) => string | undefined;
+  store: Pick<SignInStore, "firstNameOf" | "signInRecord">;
 }
 
 function refusalOutcome(error: CloudError): SignInLookupOutcome {
@@ -59,9 +61,12 @@ export async function lookUpSignIn(
     return { kind: "not_found" };
   }
 
-  const firstName = deps.firstNameOf(lookup.data.user_id);
-  if (firstName === undefined) {
-    return { kind: "unavailable" };
+  const firstName = deps.store.firstNameOf(lookup.data.user_id);
+  if (
+    firstName === undefined ||
+    (lookup.data.has_pin && signableRecord(deps.store, lookup.data.user_id) === undefined)
+  ) {
+    return { kind: "not_synced" };
   }
   return {
     kind: lookup.data.has_pin ? "has_pin" : "no_pin",

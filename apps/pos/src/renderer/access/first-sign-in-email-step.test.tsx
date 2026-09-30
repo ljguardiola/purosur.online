@@ -159,6 +159,19 @@ describe("FirstSignInEmailStep", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
+  it("says this register has not received the person's data yet", async () => {
+    const screen = await renderStep(answering({ kind: "not_synced" }));
+
+    await submitEmail(screen, "ada@example.com");
+
+    await expect.element(screen.getByText("Esta caja todavía no tiene tus datos")).toBeVisible();
+    await expect
+      .element(screen.getByText("Llegan solos si hay internet. Probá de nuevo en unos minutos."))
+      .toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Continuar" })).toBeEnabled();
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
   it.each<{ how: string; request: ReturnType<typeof answering> }>([
     { how: "the core cannot", request: answering({ kind: "unavailable" }) },
     { how: "the request itself fails", request: answering(new Error("the core went away")) },
@@ -180,6 +193,7 @@ describe("FirstSignInEmailStep", () => {
   it.each<SignInLookupOutcome>([
     { kind: "not_found" },
     { kind: "invalid_email" },
+    { kind: "not_synced" },
     { kind: "unreachable" },
   ])("keeps the typed email to correct it after the lookup answers $kind", async (outcome) => {
     const screen = await renderStep(answering(outcome));

@@ -1,7 +1,7 @@
 import type { SignInLookupOutcome } from "@purosur/contracts";
 import type { Icon } from "@purosur/ui";
 import { Button, InlineNotice, TextField } from "@purosur/ui";
-import { ArrowLeft, ArrowRight, ShieldX, TriangleAlert, WifiOff } from "lucide-react";
+import { ArrowLeft, ArrowRight, RefreshCw, ShieldX, TriangleAlert, WifiOff } from "lucide-react";
 import type { FormEvent } from "react";
 import { useState } from "react";
 import { retryAfterText } from "../shell/retry-after-text";
@@ -27,6 +27,12 @@ function noticeFor(refused: Refused): Notice | undefined {
         icon: <ShieldX />,
         title: "Demasiados intentos",
         description: retryAfterText(refused.retry_after_seconds),
+      };
+    case "not_synced":
+      return {
+        icon: <RefreshCw />,
+        title: "Esta caja todavía no tiene tus datos",
+        description: "Llegan solos si hay internet. Probá de nuevo en unos minutos.",
       };
     case "unreachable":
       return {

@@ -117,6 +117,7 @@ const signInLookupOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("no_pin"), user: signInUserSchema }),
   z.object({ kind: z.literal("not_found") }),
   z.object({ kind: z.literal("invalid_email") }),
+  z.object({ kind: z.literal("not_synced") }),
   z.object({ kind: z.literal("rate_limited"), retry_after_seconds: z.int().nonnegative() }),
   z.object({ kind: z.literal("unreachable") }),
   z.object({ kind: z.literal("unavailable") }),

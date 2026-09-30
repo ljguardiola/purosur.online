@@ -374,6 +374,7 @@ describe("sign-in lookup answers", () => {
     { kind: "not_found" },
     { kind: "invalid_email" },
     { kind: "rate_limited", retry_after_seconds: 30 },
+    { kind: "not_synced" },
     { kind: "unreachable" },
     { kind: "unavailable" },
   ])("accepts the sign-in lookup result $kind", (outcome) => {
