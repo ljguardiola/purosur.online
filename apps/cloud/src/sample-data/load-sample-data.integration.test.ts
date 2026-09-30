@@ -413,6 +413,38 @@ describe("loadSampleData", () => {
     }
   }, 120_000);
 
+  it("logs every discount it loads as an insert of its first version, for every branch", async () => {
+    const db = await freshDatabase();
+    await seedActiveAdministrator(db);
+
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+
+    const loadedDiscounts = await db
+      .select({ id: discounts.id, version: discounts.version })
+      .from(discounts);
+    const logged = await db
+      .select({
+        entityId: changes.entityId,
+        version: changes.version,
+        op: changes.op,
+        locationId: changes.locationId,
+      })
+      .from(changes)
+      .where(eq(changes.entity, "discount"));
+    expect(loadedDiscounts.length).toBeGreaterThan(0);
+    expect(logged.map((change) => change.entityId).sort()).toEqual(
+      loadedDiscounts.map((discount) => discount.id).sort(),
+    );
+    for (const discount of loadedDiscounts) {
+      expect(logged.find((change) => change.entityId === discount.id)).toEqual({
+        entityId: discount.id,
+        version: discount.version,
+        op: "insert",
+        locationId: null,
+      });
+    }
+  }, 120_000);
+
   it("leaves branch settings that were already configured untouched", async () => {
     const db = await freshDatabase();
     await seedActiveAdministrator(db);

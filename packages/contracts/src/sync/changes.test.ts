@@ -68,6 +68,17 @@ const roleRow = {
 
 const registerRow = { name: "Caja 1", version: 1 };
 
+const discountRow = {
+  name: "Martes de infusiones",
+  benefit: { kind: "PERCENT_OFF", percent: 10 },
+  target: { kind: "TAG", id: "3d594650-3436-4a2b-9b14-6a1f0f3b9a11" },
+  valid_from: "2026-10-01",
+  valid_to: "2026-10-31",
+  weekdays: [2, 4],
+  active: true,
+  version: 1,
+};
+
 const priceRow = {
   product_id: "0b1d2f4a-6c3e-4b7d-9a58-1e2f3a4b5c6d",
   price_list_id: "5a4b3c2d-1e0f-4a9b-8c7d-6e5f4a3b2c1d",
@@ -166,6 +177,21 @@ describe("changesPageSchema", () => {
     ["the removal of a role", removal(1, "role", 4)],
     ["a register", change(1, "register", registerRow)],
     ["the removal of a register", removal(1, "register", 2)],
+    ["a discount", change(1, "discount", discountRow)],
+    ["a discount that applies every day", change(1, "discount", { ...discountRow, weekdays: [] })],
+    [
+      "a switched off discount",
+      change(1, "discount", { ...discountRow, active: false, version: 2 }),
+    ],
+    [
+      "a discount on a product",
+      change(1, "discount", { ...discountRow, target: { kind: "PRODUCT", id: ENTITY_ID } }),
+    ],
+    [
+      "a discount on a category",
+      change(1, "discount", { ...discountRow, target: { kind: "CATEGORY", id: ENTITY_ID } }),
+    ],
+    ["the removal of a discount", removal(1, "discount", 3)],
   ])("accepts %s", (_case, entry) => {
     const page = pageOf(entry);
 
@@ -200,6 +226,12 @@ describe("changesPageSchema", () => {
     const page = pageOf(change(1, "register", { ...registerRow, location_id: ENTITY_ID }));
 
     expect(changesPageSchema.parse(page).changes[0]).toEqual(change(1, "register", registerRow));
+  });
+
+  it("keeps nothing of a discount but the fields a register may hold", () => {
+    const page = pageOf(change(1, "discount", { ...discountRow, location_id: ENTITY_ID }));
+
+    expect(changesPageSchema.parse(page).changes[0]).toEqual(change(1, "discount", discountRow));
   });
 
   it("accepts an empty last page", () => {
@@ -286,6 +318,38 @@ describe("changesPageSchema", () => {
     ],
     ["a tag without its active flag", pageOf(change(1, "tag", { ...tagRow, active: undefined }))],
     ["a tag without its name", pageOf(change(1, "tag", { ...tagRow, name: undefined }))],
+    [
+      "a discount of a benefit kind it does not know",
+      pageOf(
+        change(1, "discount", { ...discountRow, benefit: { kind: "BUY_N_PAY_M", percent: 10 } }),
+      ),
+    ],
+    [
+      "a discount whose percent is out of range",
+      pageOf(
+        change(1, "discount", { ...discountRow, benefit: { kind: "PERCENT_OFF", percent: 100 } }),
+      ),
+    ],
+    [
+      "a discount aimed at a kind of target it does not know",
+      pageOf(change(1, "discount", { ...discountRow, target: { kind: "BRAND", id: ENTITY_ID } })),
+    ],
+    [
+      "a discount whose start is not a calendar day",
+      pageOf(change(1, "discount", { ...discountRow, valid_from: "2026-02-30" })),
+    ],
+    [
+      "a discount whose weekdays are not ISO weekdays",
+      pageOf(change(1, "discount", { ...discountRow, weekdays: [0, 8] })),
+    ],
+    [
+      "a discount whose weekdays repeat",
+      pageOf(change(1, "discount", { ...discountRow, weekdays: [2, 2] })),
+    ],
+    [
+      "a discount without its active flag",
+      pageOf(change(1, "discount", { ...discountRow, active: undefined })),
+    ],
     [
       "a product without its tags",
       pageOf(change(1, "product", { ...productRow, tag_ids: undefined })),

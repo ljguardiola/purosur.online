@@ -41,6 +41,7 @@ import {
   signInChallenges,
   signInFailures,
   signInLockouts,
+  signInLookupAttempts,
   stockBalances,
   stockCounts,
   stockMovements,
@@ -280,6 +281,10 @@ describe("buildTestDatabase", () => {
     await db.insert(pinCodeRedemptionAttempts).values({
       keyKind: "register",
       keyValue: "a-register",
+      attemptedAt: new Date("2026-01-05T12:00:00.000Z"),
+    });
+    await db.insert(signInLookupAttempts).values({
+      registerId: register.id,
       attemptedAt: new Date("2026-01-05T12:00:00.000Z"),
     });
     await db.insert(auditLog).values({ entity: "users", entityId: user.id });

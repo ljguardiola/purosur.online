@@ -4,6 +4,7 @@ import type { LocalReplica, PullPage } from "@purosur/domain/sync/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 import { prepareAccessPageWrites } from "./access-page-writes";
 import { prepareCatalogPageWrites } from "./catalog-page-writes";
+import { prepareDiscountPageWrites } from "./discount-page-writes";
 import type { RegisterPulledChange } from "./pulled-change";
 import { prepareRegisterPageWrites } from "./register-page-writes";
 
@@ -47,9 +48,9 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
   // because another branch's pull never sends a removal for them; those it still serves come back
   // as they arrive. Their PIN verifiers were derived with the pepper of the one before, and the PIN
   // hashes they came from are not kept, so they are dropped and derived again, and the wrong PINs
-  // counted against them go with them. The register row held
-  // is the previous installation's own, so it goes too. Its unsent outbox events stay, tagged with
-  // its device id: they are the only record of what it did.
+  // counted against them go with them, and so does who the register remembered. The register row
+  // held is the previous installation's own, so it goes too. Its unsent outbox events stay, tagged
+  // with its device id: they are the only record of what it did.
   adoptDevice({ deviceId, pepper }: { deviceId: string; pepper: string }): void {
     this.pepper = pepper;
     this.database.transaction(() => {
@@ -63,6 +64,7 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
         this.database.prepare("UPDATE users SET removed = 1").run();
         this.database.prepare("DELETE FROM pin_verifiers").run();
         this.database.prepare("DELETE FROM pin_sign_in_failures").run();
+        this.database.prepare("DELETE FROM remembered_users").run();
         this.database.prepare("DELETE FROM own_register").run();
       }
     })();
@@ -83,6 +85,7 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
     const catalog = prepareCatalogPageWrites(this.database);
     const access = prepareAccessPageWrites(this.database, this.pepper);
     const register = prepareRegisterPageWrites(this.database);
+    const discount = prepareDiscountPageWrites(this.database);
     const saveBranchSettings = this.database.prepare(
       `INSERT INTO branch_settings (
          location_id, address, whatsapp_number, instagram_handle, weekly_hours,
@@ -149,10 +152,15 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
           case "register":
             register.save(change);
             break;
+          case "discount":
+            discount.save(change);
+            break;
           case "removal": {
             const { removed_entity } = change;
             if (removed_entity === "register") {
               register.removal({ ...change, removed_entity });
+            } else if (removed_entity === "discount") {
+              discount.removal({ ...change, removed_entity });
             } else if (removed_entity === "user" || removed_entity === "role") {
               access.removal({ ...change, removed_entity });
             } else {
@@ -305,6 +313,39 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
         "SELECT verifier FROM pin_verifiers WHERE user_id = ?",
       )
       .get(userId)?.verifier;
+  }
+
+  discount(id: string) {
+    const record = this.database
+      .prepare<
+        [string],
+        {
+          name: string;
+          kind: string;
+          percent: number | null;
+          target_kind: string;
+          target_id: string;
+          valid_from: string;
+          valid_to: string;
+          weekdays: string;
+          active: number;
+          version: number;
+          removed: number;
+        }
+      >(
+        `SELECT name, kind, percent, target_kind, target_id, valid_from, valid_to, weekdays,
+                active, version, removed
+         FROM discounts WHERE id = ?`,
+      )
+      .get(id);
+    return (
+      record && {
+        ...record,
+        weekdays: JSON.parse(record.weekdays) as number[],
+        active: record.active === 1,
+        removed: record.removed === 1,
+      }
+    );
   }
 
   role(id: string) {

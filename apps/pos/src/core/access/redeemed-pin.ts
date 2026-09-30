@@ -1,6 +1,7 @@
 import type { PinCodeRedemption } from "@purosur/contracts";
 import type { LocalDatabase } from "../platform/local-database";
 import { derivePinVerifier } from "./pin-verifier";
+import { SqliteSignInStore } from "./sqlite-sign-in-store";
 
 // The user's version is left as pulled: the next pull of that user brings the version the
 // redemption bumped, with this same hash, and derives this same verifier again.
@@ -23,5 +24,6 @@ export function applyRedeemedPin(
       )
       .run({ user_id, verifier: derivePinVerifier(pepper, pin_hash) });
     database.prepare("DELETE FROM pin_sign_in_failures WHERE user_id = ?").run(user_id);
+    new SqliteSignInStore(database).remember(user_id);
   })();
 }
