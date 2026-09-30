@@ -65,13 +65,13 @@ describe("loading the sample data while another writer holds the change log, on 
     const load = loadSampleData(db, { now: () => new Date("2026-03-15T12:00:00.000Z") });
     let claimLastCategory: Promise<unknown> = Promise.resolve();
     try {
-      await waitForLockWaiters(sql, 1);
+      await waitForLockWaiters(sql, 1, { untilTestTimeout: true });
       claimLastCategory = sql`
         insert into categories (name) values (${lastTopCategory.name})`.then(
         () => undefined,
         (error: { code?: string }) => error.code,
       );
-      await waitForLockWaiters(sql, 2);
+      await waitForLockWaiters(sql, 2, { untilTestTimeout: true });
     } finally {
       await holder`rollback`;
       holder.release();
