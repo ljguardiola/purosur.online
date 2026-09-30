@@ -222,7 +222,6 @@ export const products = pgTable(
   ],
 );
 
-// A name is unique ignoring letter case across every tag, deactivated ones included.
 export const tags = pgTable(
   "tags",
   {

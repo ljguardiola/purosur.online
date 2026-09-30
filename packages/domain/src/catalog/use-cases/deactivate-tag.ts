@@ -5,7 +5,6 @@ export type DeactivateTagOutcome =
   | { kind: "already_inactive" }
   | { kind: "deactivated" };
 
-// Products that already carry the tag keep it: only new assignments stop being offered.
 export async function deactivateTag(
   store: CatalogStore,
   tagId: string,
