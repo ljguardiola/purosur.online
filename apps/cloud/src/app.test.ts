@@ -1872,6 +1872,17 @@ describe("the route access inventory", () => {
     ]);
   });
 
+  it("registers every route but the static files under the API prefix, so no screen address can reach one", async () => {
+    const app = productionWiredApp();
+    await app.ready();
+
+    const outsideApi = app
+      .routeAccessInventory()
+      .filter((route) => route.url !== "/*" && !route.url.startsWith("/api/"));
+
+    expect(outsideApi).toEqual([]);
+  });
+
   it("never registers a route with no declared access", async () => {
     const app = productionWiredApp();
     await app.ready();
