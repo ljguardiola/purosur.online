@@ -17,6 +17,7 @@ type RoutePath =
   | "/session"
   | "/cash"
   | "/cash-count"
+  | "/locked"
   | "/enroll"
   | "/starting"
   | "/core-down"
@@ -67,6 +68,7 @@ const screenFor: Record<
   "/session": (screen) => screen.getByRole("heading", { name: SESSION_TITLE }),
   "/cash": (screen) => screen.getByRole("heading", { name: "Caja" }),
   "/cash-count": (screen) => screen.getByRole("heading", { name: "Cerrar caja" }),
+  "/locked": (screen) => screen.getByRole("heading", { name: "Caja bloqueada" }),
   "/enroll": (screen) => screen.getByRole("heading", { name: ENROLLMENT_TITLE }),
   "/starting": (screen) => screen.getByRole("img", { name: BRAND_LOGO_ALT }),
   "/core-down": (screen) => screen.getByText(CORE_DOWN_TITLE),
@@ -173,7 +175,7 @@ describe("routeFor", () => {
       enrollment: "enrolled",
       person: undefined,
       cashSession: OPEN_SESSION,
-      route: "/session",
+      route: "/locked",
     },
     {
       coreStatus: "up",
@@ -345,7 +347,7 @@ describe("the register's router", () => {
       enrollment: "enrolled",
       person: null,
       cashSession: OPEN_SESSION,
-      redirectedTo: "/session",
+      redirectedTo: "/locked",
     },
     {
       path: "/pin-code-redemption",
@@ -353,7 +355,7 @@ describe("the register's router", () => {
       enrollment: "enrolled",
       person: null,
       cashSession: OPEN_SESSION,
-      redirectedTo: "/session",
+      redirectedTo: "/locked",
     },
     {
       path: "/starting",
@@ -399,7 +401,7 @@ describe("the register's router", () => {
       enrollment: "enrolled",
       person: null,
       cashSession: OPEN_SESSION,
-      redirectedTo: "/session",
+      redirectedTo: "/locked",
     },
     {
       path: "/session",
@@ -438,6 +440,45 @@ describe("the register's router", () => {
       cashSession: { status: "unavailable" },
       redirectedTo: "/core-down",
     },
+    {
+      path: "/session",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: null,
+      cashSession: OPEN_SESSION,
+      redirectedTo: "/locked",
+    },
+    {
+      path: "/cash",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: null,
+      cashSession: OPEN_SESSION,
+      redirectedTo: "/locked",
+    },
+    {
+      path: "/cash-count",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: null,
+      cashSession: OPEN_SESSION,
+      redirectedTo: "/locked",
+    },
+    {
+      path: "/locked",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      cashSession: OPEN_SESSION,
+      redirectedTo: "/session",
+    },
+    { path: "/locked", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
+    {
+      path: "/locked",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: null,
+      redirectedTo: "/sign-in",
+    },
   ])(
     "redirects away from $path when the core is $coreStatus and the installation $enrollment",
     async ({ path, coreStatus, enrollment, person, cashSession, redirectedTo }) => {
@@ -455,6 +496,16 @@ describe("the register's router", () => {
       await expect.element(screenFor[path](screen)).not.toBeInTheDocument();
     },
   );
+
+  it("renders the register locked in the opener's name while a session is open and nobody is signed in", async () => {
+    const router = routerAt("/locked", "up", "enrolled", null, OPEN_SESSION);
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screen.getByRole("heading", { name: "Caja bloqueada" })).toBeVisible();
+    await expect.element(screen.getByRole("radio", { name: "Grace" })).toBeVisible();
+    await expect.element(screen.getByText("Sesión abierta 09:02")).toBeVisible();
+  });
 
   it("renders the enrollment screen while the installation isn't enrolled", async () => {
     const router = routerAt("/enroll", "up", "not_enrolled");
@@ -483,7 +534,7 @@ describe("the register's router", () => {
   });
 
   it("renders the open-session screen for the person who opened the session", async () => {
-    const router = routerAt("/session", "up", "enrolled", null, OPEN_SESSION);
+    const router = routerAt("/session", "up", "enrolled", OPENER, OPEN_SESSION);
 
     const screen = await render(<RouterProvider router={router} />);
 
@@ -496,7 +547,7 @@ describe("the register's router", () => {
     const router = createRegisterRouter(
       routeTree,
       {
-        ...contextWith("up", "enrolled", null, undefined, OPEN_SESSION),
+        ...contextWith("up", "enrolled", OPENER, undefined, OPEN_SESSION),
         cashBalance: async () => BALANCE,
       },
       "/cash",
@@ -514,7 +565,7 @@ describe("the register's router", () => {
     const router = createRegisterRouter(
       routeTree,
       {
-        ...contextWith("up", "enrolled", null, undefined, OPEN_SESSION),
+        ...contextWith("up", "enrolled", OPENER, undefined, OPEN_SESSION),
         cashBalance: async () => BALANCE,
         closeCashSession: async (person, sessionId, countedCash) => {
           closed.push([person.user_id, sessionId, countedCash]);
@@ -543,7 +594,7 @@ describe("the register's router", () => {
     const router = createRegisterRouter(
       routeTree,
       {
-        ...contextWith("up", "enrolled", null, undefined, OPEN_SESSION),
+        ...contextWith("up", "enrolled", OPENER, undefined, OPEN_SESSION),
         cashBalance: async () => BALANCE,
         closeCashSession: async (
           _person,
@@ -588,7 +639,7 @@ describe("the register's router", () => {
     const router = createRegisterRouter(
       routeTree,
       {
-        ...contextWith("up", "enrolled", null, undefined, OPEN_SESSION),
+        ...contextWith("up", "enrolled", OPENER, undefined, OPEN_SESSION),
         registerName: async () => "Caja 1",
       },
       "/session",

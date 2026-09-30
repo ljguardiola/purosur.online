@@ -31,6 +31,7 @@ import { ACTION_ENTRIES } from "./action-entries";
 import { BrandPanelScreen } from "./brand-panel-screen";
 import type { CashSessionState } from "./cash-session-state";
 import { CoreDownNotice } from "./core-down-notice";
+import { LockedRegisterScreen } from "./locked-register-screen";
 import { NoSessionScreen } from "./no-session-screen";
 import { OpenSessionScreen } from "./open-session-screen";
 
@@ -66,7 +67,14 @@ export interface RouterContext {
   firstSignIn: (userId: string, pin: string) => Promise<SignInOutcome>;
 }
 
-type ScreenPath = "/" | "/sign-in" | "/session" | "/enroll" | "/starting" | "/core-down";
+type ScreenPath =
+  | "/"
+  | "/sign-in"
+  | "/session"
+  | "/locked"
+  | "/enroll"
+  | "/starting"
+  | "/core-down";
 
 // Until the core says whether this installation is enrolled, the register stays on the brand panel
 // instead of guessing between the enrollment screen and the rest of the register. The same goes
@@ -93,7 +101,7 @@ export function routeFor({
     return "/core-down";
   }
   if (cashSession.status === "open") {
-    return "/session";
+    return person === undefined ? "/locked" : "/session";
   }
   return person === undefined ? "/sign-in" : "/";
 }
@@ -119,7 +127,18 @@ function requireSignedInPerson(context: RouterContext): SignedInPerson {
 }
 
 function requireOpenSession(context: RouterContext) {
-  if (context.cashSession.status !== "open" || routeFor(context) !== "/session") {
+  if (
+    context.cashSession.status !== "open" ||
+    context.person === undefined ||
+    routeFor(context) !== "/session"
+  ) {
+    throw redirect({ to: routeFor(context) });
+  }
+  return { ...context.cashSession, person: context.person };
+}
+
+function requireLockedRegister(context: RouterContext) {
+  if (context.cashSession.status !== "open" || routeFor(context) !== "/locked") {
     throw redirect({ to: routeFor(context) });
   }
   return context.cashSession;
@@ -159,13 +178,13 @@ const openSessionRoute = createRoute({
   getParentRoute: () => sessionEyebrowRoute,
   path: "/session",
   beforeLoad: ({ context }) => {
-    const { id, openedAt, openedBy } = requireOpenSession(context);
-    return { id, openedAt, openedBy };
+    const { openedAt, person } = requireOpenSession(context);
+    return { openedAt, person };
   },
   component: function OpenSessionRoute() {
-    const { openedAt, openedBy } = openSessionRoute.useRouteContext();
+    const { openedAt, person } = openSessionRoute.useRouteContext();
     const registerName = sessionEyebrowRoute.useLoaderData();
-    return <OpenSessionScreen person={openedBy} registerName={registerName} openedAt={openedAt} />;
+    return <OpenSessionScreen person={person} registerName={registerName} openedAt={openedAt} />;
   },
 });
 
@@ -173,15 +192,15 @@ const cashRoute = createRoute({
   getParentRoute: () => sessionEyebrowRoute,
   path: "/cash",
   beforeLoad: ({ context }) => {
-    const { openedAt, openedBy } = requireOpenSession(context);
-    return { openedAt, openedBy };
+    const { openedAt, person } = requireOpenSession(context);
+    return { openedAt, person };
   },
   component: function CashRoute() {
-    const { openedAt, openedBy, person, cashBalance } = cashRoute.useRouteContext();
+    const { openedAt, person, cashBalance } = cashRoute.useRouteContext();
     const registerName = sessionEyebrowRoute.useLoaderData();
     return (
       <CashScreen
-        person={person ?? openedBy}
+        person={person}
         registerName={registerName}
         openedAt={openedAt}
         loadCashBalance={cashBalance}
@@ -195,26 +214,46 @@ const cashCountRoute = createRoute({
   path: "/cash-count",
   validateSearch: (search: { leaving?: unknown }) => ({ leaving: search.leaving === true }),
   beforeLoad: ({ context }) => {
-    const { id, openedAt, openedBy } = requireOpenSession(context);
-    return { id, openedAt, openedBy };
+    const { id, openedAt, openedBy, person } = requireOpenSession(context);
+    return { id, openedAt, openedBy, person };
   },
   component: function CashCountRoute() {
     const { id, openedAt, openedBy, person, cashBalance, authorizers, closeCashSession } =
       cashCountRoute.useRouteContext();
     const registerName = sessionEyebrowRoute.useLoaderData();
     const { leaving } = cashCountRoute.useSearch();
-    const signedIn = person ?? openedBy;
     return (
       <CashCountScreen
-        person={signedIn}
+        person={person}
         openedBy={openedBy}
         registerName={registerName}
         openedAt={openedAt}
         loadCashBalance={cashBalance}
         loadAuthorizers={authorizers}
         closeCashSession={(countedCash, authorization) =>
-          closeCashSession(signedIn, id, countedCash, authorization, leaving)
+          closeCashSession(person, id, countedCash, authorization, leaving)
         }
+      />
+    );
+  },
+});
+
+const lockedRoute = createRoute({
+  getParentRoute: () => sessionEyebrowRoute,
+  path: "/locked",
+  beforeLoad: ({ context }) => {
+    const { openedAt, openedBy } = requireLockedRegister(context);
+    return { openedAt, openedBy };
+  },
+  component: function LockedRoute() {
+    const { openedAt, openedBy, signIn } = lockedRoute.useRouteContext();
+    const registerName = sessionEyebrowRoute.useLoaderData();
+    return (
+      <LockedRegisterScreen
+        opener={openedBy}
+        registerName={registerName}
+        openedAt={openedAt}
+        signIn={signIn}
       />
     );
   },
@@ -282,6 +321,7 @@ export const routeTree = rootRoute.addChildren([
     openSessionRoute,
     cashRoute,
     cashCountRoute,
+    lockedRoute,
   ]),
   pinCodeRedemptionRoute,
   firstSignInRoute,

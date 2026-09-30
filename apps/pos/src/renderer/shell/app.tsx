@@ -33,8 +33,11 @@ export function App({ core }: { core: CoreClient }) {
   const enrollment = coreStatus === "up" ? knownEnrollment : "unknown";
   const [signedInPerson, setPerson] = useState<SignedInPerson>();
   const [cashSession, setCashSession] = useState<CashSessionState>(UNKNOWN_SESSION);
-  // An open session always belongs to the person who opened it, whoever signed in before.
-  const person = cashSession.status === "open" ? cashSession.openedBy : signedInPerson;
+  // Only the person who opened the open session can be in: anyone else leaves the register locked.
+  const person =
+    cashSession.status === "open" && signedInPerson?.user_id !== cashSession.openedBy.user_id
+      ? undefined
+      : signedInPerson;
 
   async function enroll(typedCode: string) {
     const outcome = await core.enroll(typedCode);
