@@ -21,11 +21,20 @@ const REPRINT: ActionEntry = {
   opens: vi.fn(),
 };
 
-async function renderScreen(entries: readonly ActionEntry[] = [], signOut = vi.fn()) {
+async function renderScreen(
+  entries: readonly ActionEntry[] = [],
+  signOut = vi.fn(),
+  registerName: string | null = null,
+) {
   await page.viewport(1280, 900);
   onTestFinished(() => page.viewport(414, 896));
   const screen = await render(
-    <NoSessionScreen person={PERSON} entries={entries} signOut={signOut} />,
+    <NoSessionScreen
+      person={PERSON}
+      registerName={registerName}
+      entries={entries}
+      signOut={signOut}
+    />,
   );
   return { screen, signOut };
 }
@@ -37,6 +46,12 @@ describe("NoSessionScreen", () => {
     await expect.element(screen.getByText("Sin sesión abierta")).toBeVisible();
     await expect.element(screen.getByRole("heading", { name: "¿Qué querés hacer?" })).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("names the register in the eyebrow", async () => {
+    const { screen } = await renderScreen([], vi.fn(), "Caja 1");
+
+    await expect.element(screen.getByText("Caja 1 · Sin sesión abierta")).toBeVisible();
   });
 
   it("shows only the first name of the person who is in", async () => {

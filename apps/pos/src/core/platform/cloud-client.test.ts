@@ -269,3 +269,42 @@ describe("postToCloudWithBearer", () => {
     });
   });
 });
+
+describe("postToCloudWithBearer with a body", () => {
+  it("posts the body as JSON with the token as a bearer credential", async () => {
+    const { deps, requests } = clientAnswering(jsonResponse(200, { ok: true }));
+
+    const response = await postToCloudWithBearer(
+      deps,
+      "/api/pin-code-redemptions",
+      "prefix.secret",
+      {
+        reset_code: "K7QM2XPA9DTR4HWN",
+      },
+    );
+
+    expect(response).toEqual({ kind: "ok", body: { ok: true } });
+    expect(requests[0]?.headers.get("authorization")).toBe("Bearer prefix.secret");
+    expect(requests[0]?.headers.get("content-type")).toBe("application/json");
+    expect(await requests[0]?.json()).toEqual({ reset_code: "K7QM2XPA9DTR4HWN" });
+  });
+
+  it("sends the same body and token again on every retry", async () => {
+    const { deps, requests, waits } = clientAnswering(
+      jsonResponse(503, envelope("server_unavailable")),
+      jsonResponse(200, { ok: true }),
+    );
+
+    await postToCloudWithBearer(deps, "/api/pin-code-redemptions", "prefix.secret", { a: 1 });
+
+    expect(waits).toEqual([1000]);
+    expect(await Promise.all(requests.map((request) => request.json()))).toEqual([
+      { a: 1 },
+      { a: 1 },
+    ]);
+    expect(requests.map((request) => request.headers.get("authorization"))).toEqual([
+      "Bearer prefix.secret",
+      "Bearer prefix.secret",
+    ]);
+  });
+});

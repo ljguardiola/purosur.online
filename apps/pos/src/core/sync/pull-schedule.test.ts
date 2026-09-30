@@ -13,6 +13,7 @@ const FAILED: PullResult = { kind: "failed" };
 function scheduleWith(pullOnce: () => Promise<PullResult>, random: () => number = () => 1) {
   const timers: Scheduled[] = [];
   const failures: unknown[] = [];
+  let finishedPulls = 0;
   const schedule = createPullSchedule({
     pullOnce,
     intervalMs: 30_000,
@@ -26,6 +27,9 @@ function scheduleWith(pullOnce: () => Promise<PullResult>, random: () => number 
       };
     },
     onFailure: (error) => failures.push(error),
+    afterEachPull: () => {
+      finishedPulls += 1;
+    },
   });
   const pending = () => timers.filter((timer) => !timer.cancelled);
   const fireNext = async () => {
@@ -37,7 +41,7 @@ function scheduleWith(pullOnce: () => Promise<PullResult>, random: () => number 
     next.run();
     await settle();
   };
-  return { schedule, timers, pending, fireNext, failures };
+  return { schedule, timers, pending, fireNext, failures, finishedPulls: () => finishedPulls };
 }
 
 async function settle(): Promise<void> {
@@ -63,6 +67,49 @@ describe("the pull schedule", () => {
     await fireNext();
     expect(pulls).toBe(2);
     expect(pending().map((timer) => timer.delayMs)).toEqual([30_000]);
+  });
+
+  it("tells once each pull has finished, whether it succeeded, failed or threw", async () => {
+    const outcomes: (() => PullResult)[] = [
+      () => SUCCEEDED,
+      () => FAILED,
+      () => {
+        throw new Error("disk full");
+      },
+    ];
+    const { schedule, fireNext, finishedPulls } = scheduleWith(async () => {
+      const next = outcomes.shift();
+      if (next === undefined) {
+        throw new Error("test setup: no outcome left");
+      }
+      return next();
+    });
+
+    schedule.start();
+    await settle();
+    expect(finishedPulls()).toBe(1);
+
+    await fireNext();
+    expect(finishedPulls()).toBe(2);
+
+    await fireNext();
+    expect(finishedPulls()).toBe(3);
+  });
+
+  it("tells a pull has finished only once it has", async () => {
+    const releases: (() => void)[] = [];
+    const { schedule, finishedPulls } = scheduleWith(async () => {
+      await new Promise<void>((resolve) => releases.push(resolve));
+      return SUCCEEDED;
+    });
+
+    schedule.start();
+    await settle();
+    expect(finishedPulls()).toBe(0);
+
+    releases.shift()?.();
+    await settle();
+    expect(finishedPulls()).toBe(1);
   });
 
   it("keeps pulling after a pull throws, reporting the failure", async () => {

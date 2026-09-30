@@ -1,10 +1,11 @@
 import type { SignInOutcome, SignInUser } from "@purosur/contracts";
 import type { Icon } from "@purosur/ui";
 import { Button, EmptyState, InlineNotice, LoadFailure, LoadingPlaceholder } from "@purosur/ui";
-import { ArrowRight, ShieldX, TriangleAlert, UsersRound, UserX } from "lucide-react";
+import { ArrowRight, KeyRound, ShieldX, TriangleAlert, UsersRound, UserX } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
+import { ScreenLink } from "../shell/screen-link";
 import { SessionEyebrow } from "../shell/session-eyebrow";
 import { PinField } from "./pin-field";
 import { UserPicker } from "./user-picker";
@@ -47,11 +48,13 @@ function noticeFor(refusal: Refusal): Notice {
 export type SignInScreenProps = {
   loadUsers: () => Promise<SignInUser[]>;
   signIn: (userId: string, pin: string) => Promise<SignInOutcome>;
+  registerName: string | null;
 };
 
 function SignInPanel({
   loadUsers,
   signIn,
+  registerName,
   onRetryLoading,
 }: SignInScreenProps & { onRetryLoading: () => void }) {
   const headingId = useId();
@@ -130,7 +133,7 @@ function SignInPanel({
   return (
     <main className="flex w-full max-w-110 flex-col gap-6">
       <div className="flex flex-col gap-1.5">
-        <SessionEyebrow />
+        <SessionEyebrow registerName={registerName} />
         <h1 id={headingId} className="text-display text-text-accent">
           ¿Quién abre la caja?
         </h1>
@@ -188,6 +191,11 @@ function SignInPanel({
           </Button>
         </form>
       ) : null}
+      <ScreenLink
+        to="/pin-code-redemption"
+        icon={<KeyRound />}
+        label="Tengo un código para cambiar el PIN"
+      />
     </main>
   );
 }

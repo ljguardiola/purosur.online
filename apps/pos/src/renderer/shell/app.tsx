@@ -32,7 +32,14 @@ export function App({ core }: { core: CoreClient }) {
     setPerson(undefined);
   }
 
-  const services = { enroll, signInUsers: () => core.signInUsers(), signIn, signOut };
+  const services = {
+    enroll,
+    registerName: () => core.registerName(),
+    signInUsers: () => core.signInUsers(),
+    signIn,
+    signOut,
+    redeemPinCode: (typedCode: string, newPin: string) => core.redeemPinCode(typedCode, newPin),
+  };
 
   const [router] = useState(() => createAppRouter(services));
 
@@ -54,6 +61,8 @@ export function App({ core }: { core: CoreClient }) {
       current = false;
     };
   }, [core, coreStatus]);
+
+  useEffect(() => core.onPulled(() => void router.invalidate()), [core, router]);
 
   useEffect(() => {
     router.navigate({ to: routeFor({ coreStatus, enrollment, person }), replace: true });

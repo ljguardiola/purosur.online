@@ -1,6 +1,7 @@
 import type {
   CoreStatusMessage,
   EnrollmentOutcome,
+  PinCodeRedemptionOutcome,
   SignInOutcome,
   SignInUser,
 } from "@purosur/contracts";
@@ -13,6 +14,7 @@ import {
   Outlet,
   redirect,
 } from "@tanstack/react-router";
+import { PinCodeRedemptionScreen } from "../access/pin-code-redemption-screen";
 import { SignInScreen } from "../access/sign-in-screen";
 import type { SignedInPerson } from "../access/signed-in-person";
 import { EnrollmentScreen } from "../register/enrollment-screen";
@@ -32,7 +34,9 @@ export interface RouterContext {
   enroll: (typedCode: string) => Promise<EnrollmentOutcome>;
   signInUsers: () => Promise<SignInUser[]>;
   signIn: (userId: string, pin: string) => Promise<SignInOutcome>;
+  registerName: () => Promise<string | null>;
   signOut: () => void;
+  redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
 }
 
 type ScreenPath = "/" | "/sign-in" | "/enroll" | "/starting" | "/core-down";
@@ -74,23 +78,49 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
   component: Outlet,
 });
 
-const signedInRoute = createRoute({
+const sessionEyebrowRoute = createRoute({
   getParentRoute: () => rootRoute,
+  id: "session-eyebrow",
+  loader: ({ context }) => context.registerName().catch(() => null),
+  component: Outlet,
+});
+
+const signedInRoute = createRoute({
+  getParentRoute: () => sessionEyebrowRoute,
   path: "/",
   beforeLoad: ({ context }) => ({ person: requireSignedInPerson(context) }),
   component: function SignedInRoute() {
     const { person, signOut } = signedInRoute.useRouteContext();
-    return <NoSessionScreen person={person} entries={ACTION_ENTRIES} signOut={signOut} />;
+    const registerName = sessionEyebrowRoute.useLoaderData();
+    return (
+      <NoSessionScreen
+        person={person}
+        registerName={registerName}
+        entries={ACTION_ENTRIES}
+        signOut={signOut}
+      />
+    );
   },
 });
 
 const signInRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => sessionEyebrowRoute,
   path: "/sign-in",
   beforeLoad: ({ context }) => requireRoute("/sign-in", context),
   component: function SignInRoute() {
     const { signInUsers, signIn } = signInRoute.useRouteContext();
-    return <SignInScreen loadUsers={signInUsers} signIn={signIn} />;
+    const registerName = sessionEyebrowRoute.useLoaderData();
+    return <SignInScreen loadUsers={signInUsers} signIn={signIn} registerName={registerName} />;
+  },
+});
+
+const pinCodeRedemptionRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/pin-code-redemption",
+  beforeLoad: ({ context }) => requireRoute("/sign-in", context),
+  component: function PinCodeRedemptionRoute() {
+    const { redeemPinCode } = pinCodeRedemptionRoute.useRouteContext();
+    return <PinCodeRedemptionScreen redeem={redeemPinCode} />;
   },
 });
 
@@ -119,8 +149,8 @@ const coreDownRoute = createRoute({
 });
 
 export const routeTree = rootRoute.addChildren([
-  signedInRoute,
-  signInRoute,
+  sessionEyebrowRoute.addChildren([signedInRoute, signInRoute]),
+  pinCodeRedemptionRoute,
   enrollRoute,
   startingRoute,
   coreDownRoute,
@@ -140,7 +170,10 @@ export function createRegisterRouter<TRouteTree extends AnyRoute>(
 }
 
 export function createAppRouter(
-  services: Pick<RouterContext, "enroll" | "signInUsers" | "signIn" | "signOut">,
+  services: Pick<
+    RouterContext,
+    "enroll" | "registerName" | "signInUsers" | "signIn" | "signOut" | "redeemPinCode"
+  >,
 ) {
   return createRegisterRouter(
     routeTree,

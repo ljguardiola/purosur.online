@@ -420,6 +420,7 @@ export const registers = pgTable(
       .notNull()
       .references(() => locations.id),
     name: text("name").notNull(),
+    version: integer("version").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -555,6 +556,29 @@ export const registerEnrollmentAttempts = pgTable(
       table.attemptedAt,
     ),
     index("register_enrollment_attempts_attempted_at_idx").on(table.attemptedAt),
+  ],
+);
+
+export const pinCodeRedemptionAttemptKeyKind = pgEnum("pin_code_redemption_attempt_key_kind", [
+  "source_address",
+  "register",
+]);
+
+export const pinCodeRedemptionAttempts = pgTable(
+  "pin_code_redemption_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    keyKind: pinCodeRedemptionAttemptKeyKind("key_kind").notNull(),
+    keyValue: text("key_value").notNull(),
+    attemptedAt: timestamp("attempted_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index("pin_code_redemption_attempts_key_idx").on(
+      table.keyKind,
+      table.keyValue,
+      table.attemptedAt,
+    ),
+    index("pin_code_redemption_attempts_attempted_at_idx").on(table.attemptedAt),
   ],
 );
 

@@ -7,6 +7,7 @@ export interface PullScheduleDeps {
   random: () => number;
   scheduleNext: (run: () => void, delayMs: number) => () => void;
   onFailure: (error: unknown) => void;
+  afterEachPull: () => void;
 }
 
 export interface PullSchedule {
@@ -47,6 +48,7 @@ export function createPullSchedule(deps: PullScheduleDeps): PullSchedule {
     waitingForCloud = false;
     const result = await runOnce();
     running = false;
+    deps.afterEachPull();
 
     let delayMs = deps.intervalMs;
     if (result.kind === "succeeded") {

@@ -18,6 +18,7 @@ import {
   locations,
   passkeyChallenges,
   passkeys,
+  pinCodeRedemptionAttempts,
   priceLists,
   priceReviews,
   prices,
@@ -265,6 +266,11 @@ describe("buildTestDatabase", () => {
     await db.insert(registerEnrollmentAttempts).values({
       keyKind: "source_address",
       keyValue: "203.0.113.10",
+      attemptedAt: new Date("2026-01-05T12:00:00.000Z"),
+    });
+    await db.insert(pinCodeRedemptionAttempts).values({
+      keyKind: "register",
+      keyValue: "a-register",
       attemptedAt: new Date("2026-01-05T12:00:00.000Z"),
     });
     await db.insert(auditLog).values({ entity: "users", entityId: user.id });

@@ -298,11 +298,11 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
       }
 
       for (const registerName of SAMPLE_REGISTER_NAMES) {
-        const outcome = await createRegister(tx, {
-          locationId: location.id,
-          name: registerName,
-          actorId,
-        });
+        const outcome = await createRegister(
+          tx,
+          { locationId: location.id, name: registerName, actorId },
+          pending,
+        );
         expectOutcome(outcome, "created", `register "${registerName}"`);
       }
 

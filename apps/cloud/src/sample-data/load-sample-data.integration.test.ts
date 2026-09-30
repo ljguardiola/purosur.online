@@ -349,6 +349,37 @@ describe("loadSampleData", () => {
     }
   }, 120_000);
 
+  it("logs every register it loads as an insert at its version, scoped to no branch", async () => {
+    const db = await freshDatabase();
+    await seedActiveAdministrator(db);
+
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+
+    const loadedRegisters = await db
+      .select({ id: registers.id, version: registers.version })
+      .from(registers);
+    const logged = await db
+      .select({
+        entityId: changes.entityId,
+        version: changes.version,
+        op: changes.op,
+        locationId: changes.locationId,
+      })
+      .from(changes)
+      .where(eq(changes.entity, "register"));
+    expect(loadedRegisters).toHaveLength(SAMPLE_REGISTER_NAMES.length);
+    expect(logged.map((row) => row.entityId).sort()).toEqual(
+      loadedRegisters.map((register) => register.id).sort(),
+    );
+    for (const register of loadedRegisters) {
+      expect(logged.find((row) => row.entityId === register.id)).toMatchObject({
+        version: register.version,
+        op: "insert",
+        locationId: null,
+      });
+    }
+  }, 120_000);
+
   it("leaves branch settings that were already configured untouched", async () => {
     const db = await freshDatabase();
     await seedActiveAdministrator(db);

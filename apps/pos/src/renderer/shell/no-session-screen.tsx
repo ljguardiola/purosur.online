@@ -8,11 +8,12 @@ import { SignOutModal } from "./sign-out-modal";
 
 export type NoSessionScreenProps = {
   person: SignedInPerson;
+  registerName: string | null;
   entries: readonly ActionEntry[];
   signOut: () => void;
 };
 
-export function NoSessionScreen({ person, entries, signOut }: NoSessionScreenProps) {
+export function NoSessionScreen({ person, registerName, entries, signOut }: NoSessionScreenProps) {
   const [leaving, setLeaving] = useState(false);
 
   return (
@@ -23,7 +24,7 @@ export function NoSessionScreen({ person, entries, signOut }: NoSessionScreenPro
         onSignOut={() => setLeaving(true)}
       />
       <main className="flex flex-1 flex-col gap-1.5 p-8">
-        <SessionEyebrow />
+        <SessionEyebrow registerName={registerName} />
         <h1 className="text-display text-text-accent">¿Qué querés hacer?</h1>
       </main>
       <SignOutModal

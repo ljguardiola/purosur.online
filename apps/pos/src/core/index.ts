@@ -3,6 +3,7 @@ import { hostname, release, version } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import {
+  type CoreToRendererMessage,
   mainToCoreMessageSchema,
   rendererToCoreMessageSchema,
   scrubErrorReport,
@@ -17,7 +18,9 @@ import {
   sentryEnvironmentFromCoreArguments,
 } from "../shared/channel";
 import { CORE_READY_MESSAGE } from "../shared/core-readiness";
+import { redeemPinCode } from "./access/pin-code-redemption";
 import { hashPin } from "./access/pin-hash";
+import { applyRedeemedPin } from "./access/redeemed-pin";
 import { signIn } from "./access/sign-in";
 import { SqliteSignInStore } from "./access/sqlite-sign-in-store";
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
@@ -85,6 +88,7 @@ const cloudClient: CloudClientDeps | undefined =
 const LOCAL_DATABASE_FILE = "register.sqlite";
 const PULL_INTERVAL_MS = 30_000;
 const PULL_FAILURE_BACKOFF = { baseMs: 2000, maxMs: 60_000 };
+const PULLED_NOTICE: CoreToRendererMessage = { type: "pulled" };
 
 function openLocalDatabaseFile(): LocalDatabase | undefined {
   const localDataFolder = localDataFolderFromCoreArguments(process.argv);
@@ -143,10 +147,12 @@ const pullSchedule = createPullSchedule({
   onFailure: (error) => {
     console.error("core: the pull failed", error);
   },
+  afterEachPull: () => rendererConnection.tell(PULLED_NOTICE),
 });
 
 const rendererRequestDeps: RendererRequestDeps = {
   credentialsPresent: () => mainRequests.credentialsPresent(),
+  registerName: () => replica?.registerName(),
   enroll: async (typedCode: string) => {
     const outcome = await enroll(
       {
@@ -167,6 +173,27 @@ const rendererRequestDeps: RendererRequestDeps = {
     }
     return outcome;
   },
+  redeemPinCode: (typedCode: string, newPin: string) =>
+    redeemPinCode(
+      {
+        readCredentials: () => mainRequests.readCredentials(),
+        postToCloud:
+          cloudClient === undefined
+            ? undefined
+            : (path, bearerToken, body) =>
+                postToCloudWithBearer(cloudClient, path, bearerToken, body),
+        applyRedeemedPin:
+          localDatabase === undefined
+            ? undefined
+            : (pepper, redemption) => applyRedeemedPin(localDatabase, pepper, redemption),
+        reportLocalFailure: (error) => {
+          console.error("core: the redeemed PIN could not be kept locally", error);
+          Sentry.captureException(error);
+        },
+      },
+      typedCode,
+      newPin,
+    ),
   signInUsers: signInStore === undefined ? undefined : () => signInStore.signableUsers(),
   signIn:
     signInStore === undefined

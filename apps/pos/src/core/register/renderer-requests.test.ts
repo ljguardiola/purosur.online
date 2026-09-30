@@ -4,17 +4,24 @@ import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requ
 
 function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const enrolledCodes: string[] = [];
+  const redemptions: { resetCode: string; newPin: string }[] = [];
   const signIns: { userId: string; pin: string }[] = [];
   const failures: { context: string; error: unknown }[] = [];
   return {
     enrolledCodes,
+    redemptions,
     signIns,
     failures,
     deps: {
       credentialsPresent: async () => enrolled,
+      registerName: (): string | undefined => undefined,
       enroll: async (code: string) => {
         enrolledCodes.push(code);
         return { kind: "code_rejected" as const };
+      },
+      redeemPinCode: async (resetCode: string, newPin: string) => {
+        redemptions.push({ resetCode, newPin });
+        return { kind: "code_expired" as const };
       },
       signInUsers: () => [{ id: "u1", first_name: "Ada" }],
       signIn: async (userId: string, pin: string): Promise<SignInOutcome> => {
@@ -42,6 +49,24 @@ describe("answerRendererRequest", () => {
     },
   );
 
+  it("answers the register's own name as it holds it", async () => {
+    const answer = await answerRendererRequest(deps(true, { registerName: () => "Caja 1" }).deps, {
+      type: "register-name-request",
+      request_id: "r3",
+    });
+
+    expect(answer).toEqual({ type: "register-name", request_id: "r3", name: "Caja 1" });
+  });
+
+  it("answers no name while the register holds none", async () => {
+    const answer = await answerRendererRequest(deps(true).deps, {
+      type: "register-name-request",
+      request_id: "r4",
+    });
+
+    expect(answer).toEqual({ type: "register-name", request_id: "r4", name: null });
+  });
+
   it("enrolls with the code as typed and answers the outcome", async () => {
     const { deps: withEnroll, enrolledCodes } = deps(false);
 
@@ -56,6 +81,24 @@ describe("answerRendererRequest", () => {
       type: "enrollment-result",
       request_id: "r2",
       outcome: { kind: "code_rejected" },
+    });
+  });
+
+  it("redeems the PIN code as typed and answers the outcome", async () => {
+    const { deps: withRedeem, redemptions } = deps(true);
+
+    const answer = await answerRendererRequest(withRedeem, {
+      type: "redeem-pin-code",
+      request_id: "r3",
+      reset_code: "k7qm 2xpa 3dtr 4hwn",
+      new_pin: "482915",
+    });
+
+    expect(redemptions).toEqual([{ resetCode: "k7qm 2xpa 3dtr 4hwn", newPin: "482915" }]);
+    expect(answer).toEqual({
+      type: "pin-code-redemption-result",
+      request_id: "r3",
+      outcome: { kind: "code_expired" },
     });
   });
 

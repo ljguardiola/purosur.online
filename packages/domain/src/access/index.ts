@@ -26,10 +26,12 @@ export {
   permissionsRequiring,
   withRequiredPermissions,
 } from "./model/permission-requirements.js";
+export { isAcceptablePin, PIN_MIN_DIGITS } from "./model/pin.js";
 export type { PinCodeParty } from "./model/pin-code.js";
 export {
   isWellFormedPinCode,
   mayEmitPinCodeFor,
+  normalizePinCode,
   PIN_CODE_HOURLY_LIMIT,
   PIN_CODE_MAX_FAILED_ATTEMPTS,
   PIN_CODE_VALIDITY_MS,
@@ -38,6 +40,7 @@ export {
   pinCodeRetryAfterSeconds,
   pinCodeWindowStart,
 } from "./model/pin-code.js";
+export { pinCodeRedemptionAttemptWindowStart } from "./model/pin-code-redemption-attempt-limit.js";
 export { decodePinSalt, encodePinHash, PIN_HASH_SCHEME } from "./model/pin-hash-scheme.js";
 export {
   holdsARegisterPermission,

@@ -48,6 +48,18 @@ describe("createCoreClient", () => {
     expect(port.posted).toEqual([{ type: "enrollment-status-request", request_id: "request-1" }]);
   });
 
+  it.each(["Caja 1", null])("asks the core for the register's own name: %s", async (name) => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.registerName();
+    port.answer({ type: "register-name", request_id: "request-1", name });
+
+    expect(await asked).toBe(name);
+    expect(port.posted).toEqual([{ type: "register-name-request", request_id: "request-1" }]);
+  });
+
   it("asks the core for the users who can sign in and resolves with them", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
@@ -109,6 +121,49 @@ describe("createCoreClient", () => {
     expect(port.posted).toEqual([{ type: "enroll", request_id: "request-1", code: "p4nx 7kwe" }]);
   });
 
+  it("asks the core to redeem a PIN code with the code as typed and the new PIN, and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const outcome = client.redeemPinCode("k7qm 2xpa", "482915");
+    port.answer({
+      type: "pin-code-redemption-result",
+      request_id: "request-1",
+      outcome: { kind: "code_expired" },
+    });
+
+    expect(await outcome).toEqual({ kind: "code_expired" });
+    expect(port.posted).toEqual([
+      {
+        type: "redeem-pin-code",
+        request_id: "request-1",
+        reset_code: "k7qm 2xpa",
+        new_pin: "482915",
+      },
+    ]);
+  });
+
+  it("does not take an enrollment answer for the outcome of a PIN code redemption", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const outcome = client.redeemPinCode("k7qm 2xpa", "482915");
+    port.answer({
+      type: "enrollment-result",
+      request_id: "request-1",
+      outcome: { kind: "enrolled" },
+    });
+    port.answer({
+      type: "pin-code-redemption-result",
+      request_id: "request-1",
+      outcome: { kind: "redeemed" },
+    });
+
+    expect(await outcome).toEqual({ kind: "redeemed" });
+  });
+
   it("holds a request made before the core is connected until it is", async () => {
     const client = clientWithSequentialIds();
     const enrolled = client.enrollmentStatus();
@@ -163,5 +218,41 @@ describe("createCoreClient", () => {
     next.answer({ type: "enrollment-status", request_id: "request-1", enrolled: true });
 
     expect(await enrolled).toBe(true);
+  });
+
+  it("tells each listener every time the core finishes a pull, until it stops listening", () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    let first = 0;
+    let second = 0;
+    const stopFirst = client.onPulled(() => {
+      first += 1;
+    });
+    client.onPulled(() => {
+      second += 1;
+    });
+
+    port.answer({ type: "pulled" });
+    stopFirst();
+    port.answer({ type: "pulled" });
+
+    expect(first).toBe(1);
+    expect(second).toBe(2);
+  });
+
+  it("ignores a pull notice arriving on a replaced port", () => {
+    const client = clientWithSequentialIds();
+    const previous = new FakePort();
+    client.connect(previous);
+    client.connect(new FakePort());
+    let pulls = 0;
+    client.onPulled(() => {
+      pulls += 1;
+    });
+
+    previous.answer({ type: "pulled" });
+
+    expect(pulls).toBe(0);
   });
 });
