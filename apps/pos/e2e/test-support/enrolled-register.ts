@@ -41,18 +41,23 @@ export function enrolledRegister(cloud: StandInCloud): EnrolledRegister {
   const folders = new Set([dirname(channelFile)]);
   let openApp: ElectronApplication | undefined;
   let running: RunningRegister | undefined;
+  let closed = false;
 
   // Playwright starts Electron with Chromium's basic password store, under which safeStorage on
   // Linux refuses to encrypt unless told to accept plain text; Windows encrypts regardless. The
   // reload asks the register again whether it is enrolled, which it answered before this point.
   async function start(): Promise<RunningRegister> {
     const { app, logs } = await launchApp(channelFile);
+    if (closed) {
+      await app.close();
+      throw new Error("the register was closed while it was launching");
+    }
     openApp = app;
-    const page = await app.firstWindow();
     const userData = await app.evaluate(({ app: electronApp }) => electronApp.getPath("userData"));
     for (const folder of dataFoldersOf(userData, dataFolder)) {
       folders.add(folder);
     }
+    const page = await app.firstWindow();
     if (process.platform === "linux") {
       await app.evaluate(({ safeStorage }) => safeStorage.setUsePlainTextEncryption(true));
       await page.reload();
@@ -91,10 +96,16 @@ export function enrolledRegister(cloud: StandInCloud): EnrolledRegister {
     },
     // Windows keeps a file busy for a moment after the process that held it exits.
     close: async () => {
-      await stop();
-      await Promise.all(
-        [...folders].map((folder) => rm(folder, { recursive: true, force: true, maxRetries: 10 })),
-      );
+      closed = true;
+      try {
+        await stop();
+      } finally {
+        await Promise.all(
+          [...folders].map((folder) =>
+            rm(folder, { recursive: true, force: true, maxRetries: 10 }),
+          ),
+        );
+      }
     },
   };
 }
