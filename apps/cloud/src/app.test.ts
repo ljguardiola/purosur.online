@@ -1543,6 +1543,11 @@ describe("the route access inventory", () => {
         access: permissionAccess("deactivate_users"),
       },
       {
+        method: "POST",
+        url: "/api/users/:id/pin-codes",
+        access: permissionAccess("reset_user_pin"),
+      },
+      {
         method: "DELETE",
         url: "/api/users/:id/deactivation",
         access: permissionAccess("reactivate_users"),
