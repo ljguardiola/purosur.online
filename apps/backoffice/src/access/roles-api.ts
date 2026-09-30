@@ -42,12 +42,16 @@ export type EditRoleOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-function postJson(path: string, body?: unknown): Promise<Response> {
+function sendJson(method: "POST" | "PUT", path: string, body: unknown): Promise<Response> {
   return fetch(path, {
-    method: "POST",
+    method,
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body ?? {}),
+    body: JSON.stringify(body),
   });
+}
+
+function postJson(path: string, body: unknown): Promise<Response> {
+  return sendJson("POST", path, body);
 }
 
 function roleSummaryFromWire(row: RoleSummaryWire) {
@@ -166,7 +170,7 @@ export async function fetchRole(id: string): Promise<FetchRoleOutcome> {
 export async function editRole(id: string, input: RoleEditBody): Promise<EditRoleOutcome> {
   let response: Response;
   try {
-    response = await postJson(`/api/roles/${id}/edit`, input);
+    response = await sendJson("PUT", `/api/roles/${id}`, input);
   } catch {
     return { kind: "failed" };
   }

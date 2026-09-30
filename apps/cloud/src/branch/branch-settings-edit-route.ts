@@ -229,7 +229,7 @@ export function registerBranchSettingsEditRoute<TQueryResult extends PgQueryResu
   const sessionSource = routeSessionSource({ db: options.db, now });
 
   app.put(
-    "/branch-settings",
+    "/locations/current/settings",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
       config: { access: permissionAccess("configure_branch"), sessionSource },

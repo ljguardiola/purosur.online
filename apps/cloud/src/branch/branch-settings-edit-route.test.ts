@@ -139,7 +139,7 @@ function validBody(overrides: Record<string, unknown> = {}): Record<string, unkn
 function putBranchSettings(body: Record<string, unknown>, rawSessionId?: string) {
   return app.inject({
     method: "PUT",
-    url: "/branch-settings",
+    url: "/locations/current/settings",
     headers: {
       origin: BACKOFFICE_ORIGIN,
       ...(rawSessionId ? cookieHeader(rawSessionId) : {}),
@@ -151,12 +151,31 @@ function putBranchSettings(body: Record<string, unknown>, rawSessionId?: string)
 function getBranchSettings(rawSessionId: string) {
   return app.inject({
     method: "GET",
-    url: "/branch-settings",
+    url: "/locations/current/settings",
     headers: { origin: BACKOFFICE_ORIGIN, ...cookieHeader(rawSessionId) },
   });
 }
 
-describe("PUT /branch-settings", () => {
+describe("PUT /locations/current/settings", () => {
+  it("no longer answers PUT /branch-settings", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/branch-settings",
+      headers: { origin: BACKOFFICE_ORIGIN, ...cookieHeader(rawSessionId) },
+      payload: validBody(),
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
   it("returns 401 unauthenticated when no cookie was sent", async () => {
     const response = await putBranchSettings(validBody());
 
@@ -175,7 +194,7 @@ describe("PUT /branch-settings", () => {
 
     const response = await app.inject({
       method: "PUT",
-      url: "/branch-settings",
+      url: "/locations/current/settings",
       headers: { origin: "https://attacker.example", ...cookieHeader(rawSessionId) },
       payload: validBody(),
     });
@@ -256,7 +275,7 @@ describe("PUT /branch-settings", () => {
     expect(row).toMatchObject({ address: "Av. Siempre Viva 742", version: 2 });
   });
 
-  it("makes the change visible to a subsequent GET /branch-settings", async () => {
+  it("makes the change visible to a subsequent GET /locations/current/settings", async () => {
     const administratorId = await insertUser({
       firstName: "Ada Lovelace",
       email: "ada@example.com",

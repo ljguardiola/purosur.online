@@ -98,8 +98,8 @@ describe("reactivating the same target twice at once on a real Postgres", () => 
 
     const reactivate = () =>
       app.inject({
-        method: "POST",
-        url: `/users/${targetId}/reactivation`,
+        method: "DELETE",
+        url: `/users/${targetId}/deactivation`,
         headers: { origin: BACKOFFICE_ORIGIN, cookie },
       });
 

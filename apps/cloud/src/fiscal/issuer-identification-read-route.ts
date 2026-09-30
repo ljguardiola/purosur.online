@@ -68,7 +68,7 @@ export function registerIssuerIdentificationReadRoute<TQueryResult extends PgQue
   const sessionSource = routeSessionSource({ db: options.db, now });
 
   app.get(
-    "/fiscal-configuration/issuer-identification",
+    "/fiscal-settings/issuer-identification",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
       config: { access: permissionAccess("change_fiscal_configuration"), sessionSource },

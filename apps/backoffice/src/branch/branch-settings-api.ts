@@ -94,7 +94,7 @@ function branchSettingsFromWire(row: BranchSettingsBody): BranchSettings {
 export async function fetchBranchSettings(): Promise<FetchBranchSettingsOutcome> {
   let response: Response;
   try {
-    response = await fetch("/api/branch-settings");
+    response = await fetch("/api/locations/current/settings");
   } catch {
     return { kind: "failed" };
   }
@@ -122,7 +122,7 @@ export async function saveBranchSettings(
 ): Promise<SaveBranchSettingsOutcome> {
   let response: Response;
   try {
-    response = await fetch("/api/branch-settings", {
+    response = await fetch("/api/locations/current/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(requestBody),

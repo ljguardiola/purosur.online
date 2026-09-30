@@ -48,7 +48,7 @@ test("fetchIssuerIdentification returns the issuer identification on 200", async
   const outcome = await fetchIssuerIdentification();
 
   expect(outcome).toEqual({ kind: "ok", value: issuerIdentification });
-  expect(fetch).toHaveBeenCalledWith("/api/fiscal-configuration/issuer-identification");
+  expect(fetch).toHaveBeenCalledWith("/api/fiscal-settings/issuer-identification");
 });
 
 test("fetchIssuerIdentification returns an incomplete identification with null editable fields", async () => {
@@ -133,7 +133,7 @@ test("saveIssuerIdentification PUTs the three editable fields and the version, n
   const outcome = await saveIssuerIdentification(saveInput);
 
   expect(outcome).toEqual({ kind: "ok" });
-  expect(fetch).toHaveBeenCalledWith("/api/fiscal-configuration/issuer-identification", {
+  expect(fetch).toHaveBeenCalledWith("/api/fiscal-settings/issuer-identification", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

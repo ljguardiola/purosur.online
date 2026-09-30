@@ -109,8 +109,8 @@ async function assignRole(userId: string, roleId: string) {
   });
   const [user] = await db.select({ email: users.email }).from(users).where(eq(users.id, userId));
   return app.inject({
-    method: "POST",
-    url: `/users/${userId}/edit`,
+    method: "PUT",
+    url: `/users/${userId}`,
     headers: { origin: BACKOFFICE_ORIGIN, cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` },
     payload: { email: user?.email, role_id: roleId, version: 1 },
   });
