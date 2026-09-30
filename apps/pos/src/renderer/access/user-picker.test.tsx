@@ -11,13 +11,25 @@ const USERS = [
   { id: "u1", first_name: "Ada" },
 ];
 
-function Harness({ initial = null }: { initial?: string | null }) {
+function Harness({
+  initial = null,
+  disabled = false,
+}: {
+  initial?: string | null;
+  disabled?: boolean;
+}) {
   const [chosen, setChosen] = useState<string | null>(initial);
   const headingId = useId();
   return (
     <>
       <h1 id={headingId}>¿Quién abre la caja?</h1>
-      <UserPicker users={USERS} value={chosen} onChange={setChosen} labelledBy={headingId} />
+      <UserPicker
+        users={USERS}
+        value={chosen}
+        onChange={setChosen}
+        labelledBy={headingId}
+        disabled={disabled}
+      />
     </>
   );
 }
@@ -80,6 +92,18 @@ describe("UserPicker", () => {
     await userEvent.keyboard("{ArrowDown}");
 
     await expect.element(screen.getByRole("radio", { name: "Ángela" })).toBeChecked();
+  });
+
+  it("keeps the choice while it is disabled", async () => {
+    const screen = await render(<Harness initial="u1" disabled />);
+
+    await userEvent.click(screen.getByText("Bruno"), { force: true });
+
+    await expect.element(screen.getByRole("radio", { name: "Ada" })).toBeChecked();
+    await expect.element(screen.getByRole("radio", { name: "Ada" })).toBeDisabled();
+    await expect.element(screen.getByRole("radio", { name: "Bruno" })).toBeDisabled();
+    await expect.element(screen.getByRole("radio", { name: "Bruno" })).not.toBeChecked();
+    await expectNoAccessibilityViolations(screen.container);
   });
 
   it("shows the initial of the first name in the avatar, in capitals", async () => {

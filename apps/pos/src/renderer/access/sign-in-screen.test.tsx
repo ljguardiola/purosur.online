@@ -158,6 +158,23 @@ describe("SignInScreen", () => {
     expect(request.attempts).toHaveLength(1);
   });
 
+  it("keeps the chosen user and the PIN from changing while the PIN is being checked", async () => {
+    const request = pending();
+    const screen = await renderScreen(request.signIn);
+
+    await enter(screen, "Ada", "1234");
+
+    await expect.element(screen.getByRole("radio", { name: "Ada" })).toBeDisabled();
+    await expect.element(screen.getByRole("radio", { name: "Bruno" })).toBeDisabled();
+    await expect.element(screen.getByLabelText("PIN")).toBeDisabled();
+    request.finish({ kind: "unavailable" });
+    await expect.element(screen.getByText("No se pudo verificar el PIN")).toBeVisible();
+    await expect.element(screen.getByRole("radio", { name: "Ada" })).toBeChecked();
+    await expect.element(screen.getByRole("radio", { name: "Bruno" })).toBeEnabled();
+    await expect.element(screen.getByLabelText("PIN")).toBeEnabled();
+    await expect.element(screen.getByLabelText("PIN")).toHaveValue("1234");
+  });
+
   it("says the PIN is wrong, clears it and asks for it again", async () => {
     const screen = await renderScreen(answering({ kind: "wrong_pin" }).signIn);
 
@@ -189,6 +206,7 @@ describe("SignInScreen", () => {
       )
       .toBeVisible();
     await expect.element(screen.getByLabelText("PIN")).toHaveValue("");
+    await expect.element(screen.getByLabelText("PIN")).toHaveFocus();
     await expectNoAccessibilityViolations(screen.container);
   });
 
@@ -200,6 +218,7 @@ describe("SignInScreen", () => {
     await expect.element(screen.getByText("No se pudo verificar el PIN")).toBeVisible();
     await expect.element(screen.getByText("Volvé a intentarlo en unos segundos.")).toBeVisible();
     await expect.element(screen.getByLabelText("PIN")).toHaveValue("1234");
+    await expect.element(screen.getByLabelText("PIN")).toHaveFocus();
     await expect.element(screen.getByRole("button", { name: "Entrar" })).toBeEnabled();
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -210,6 +229,7 @@ describe("SignInScreen", () => {
     await enter(screen, "Ada", "1234");
 
     await expect.element(screen.getByText("No se pudo verificar el PIN")).toBeVisible();
+    await expect.element(screen.getByLabelText("PIN")).toHaveFocus();
     await expect.element(screen.getByRole("button", { name: "Entrar" })).toBeEnabled();
   });
 

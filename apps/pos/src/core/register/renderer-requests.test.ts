@@ -5,9 +5,11 @@ import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requ
 function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const enrolledCodes: string[] = [];
   const signIns: { userId: string; pin: string }[] = [];
+  const failures: { context: string; error: unknown }[] = [];
   return {
     enrolledCodes,
     signIns,
+    failures,
     deps: {
       credentialsPresent: async () => enrolled,
       enroll: async (code: string) => {
@@ -18,6 +20,9 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       signIn: async (userId: string, pin: string): Promise<SignInOutcome> => {
         signIns.push({ userId, pin });
         return { kind: "wrong_pin" };
+      },
+      reportFailure: (context: string, error: unknown) => {
+        failures.push({ context, error });
       },
       ...overrides,
     },
@@ -67,16 +72,18 @@ describe("answerRendererRequest", () => {
     });
   });
 
-  it("answers that the users cannot be read when reading them fails", async () => {
+  it("answers that the users cannot be read when reading them fails, and reports why", async () => {
+    const error = new Error("database is locked");
     const failing = deps(true, {
       signInUsers: () => {
-        throw new Error("database is locked");
+        throw error;
       },
     });
 
     expect(
       await answerRendererRequest(failing.deps, { type: "sign-in-users", request_id: "r4" }),
     ).toEqual({ type: "sign-in-users-unavailable", request_id: "r4" });
+    expect(failing.failures).toEqual([{ context: "reading the users who can sign in", error }]);
   });
 
   it("answers that the users cannot be read when the register has no database", async () => {
@@ -108,10 +115,11 @@ describe("answerRendererRequest", () => {
     });
   });
 
-  it("answers that signing in is unavailable when it fails", async () => {
+  it("answers that signing in is unavailable when it fails, and reports why", async () => {
+    const error = new Error("no memory for argon2");
     const failing = deps(true, {
       signIn: async () => {
-        throw new Error("no memory for argon2");
+        throw error;
       },
     });
 
@@ -123,6 +131,7 @@ describe("answerRendererRequest", () => {
         pin: "1",
       }),
     ).toEqual({ type: "sign-in-result", request_id: "r7", outcome: { kind: "unavailable" } });
+    expect(failing.failures).toEqual([{ context: "signing in", error }]);
   });
 
   it("answers that signing in is unavailable when the register has no database", async () => {
@@ -136,6 +145,20 @@ describe("answerRendererRequest", () => {
         pin: "1",
       }),
     ).toEqual({ type: "sign-in-result", request_id: "r8", outcome: { kind: "unavailable" } });
+  });
+
+  it("reports nothing when the users are read and the PIN is checked", async () => {
+    const { deps: working, failures } = deps(true);
+
+    await answerRendererRequest(working, { type: "sign-in-users", request_id: "r9" });
+    await answerRendererRequest(working, {
+      type: "sign-in",
+      request_id: "r10",
+      user_id: "u1",
+      pin: "0042",
+    });
+
+    expect(failures).toEqual([]);
   });
 
   it("answers nothing to a ping", async () => {

@@ -88,6 +88,12 @@ function SignInPanel({
     }
   }, [chosen]);
 
+  useEffect(() => {
+    if (!submitting && refusal !== undefined) {
+      pinInput.current?.focus();
+    }
+  }, [submitting, refusal]);
+
   function choose(userId: string) {
     setChosen(userId);
     setPin("");
@@ -115,7 +121,6 @@ function SignInPanel({
     setPin("");
     if (outcome.kind !== "signed_in") {
       setRefusal(outcome);
-      pinInput.current?.focus();
     }
   }
 
@@ -154,12 +159,13 @@ function SignInPanel({
             value={chosen}
             onChange={choose}
             labelledBy={headingId}
+            disabled={submitting}
           />
           <PinField
             ref={pinInput}
             value={pin}
             onChange={type}
-            disabled={chosen === null}
+            disabled={submitting || chosen === null}
             {...(pinRefused ? { errorMessageId: noticeId } : {})}
           />
           {notice === undefined ? null : (

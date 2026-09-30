@@ -82,6 +82,12 @@ describe("signable users", () => {
     expect(store.signableUsers()).toEqual([]);
   });
 
+  it("leaves out a user with a PIN but no salt", () => {
+    addUser({ id: "u1", salt: null });
+
+    expect(store.signableUsers()).toEqual([]);
+  });
+
   it("leaves out a deactivated user", () => {
     addUser({ id: "u1", active: false });
 

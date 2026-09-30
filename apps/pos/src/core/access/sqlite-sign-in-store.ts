@@ -33,7 +33,7 @@ export class SqliteSignInStore implements SignInStore {
       .prepare<[], SignInUser>(
         `SELECT users.id AS id, users.first_name AS first_name
          FROM users JOIN pin_verifiers ON pin_verifiers.user_id = users.id
-         WHERE users.active = 1 AND users.removed = 0`,
+         WHERE users.active = 1 AND users.removed = 0 AND users.salt IS NOT NULL`,
       )
       .all();
   }

@@ -8,19 +8,27 @@ export type UserPickerProps = {
   value: string | null;
   onChange: (userId: string) => void;
   labelledBy: string;
+  disabled?: boolean;
 };
 
 const rowClassName =
   "flex h-15 cursor-pointer items-center gap-3 rounded-lg bg-surface p-3 inset-ring-1 inset-ring-border " +
   "hover:bg-surface-subtle " +
   "has-checked:bg-action-subtle has-checked:inset-ring-2 has-checked:inset-ring-action " +
-  "has-focus-visible:focus-ring";
+  "has-focus-visible:focus-ring " +
+  "has-disabled:cursor-default has-disabled:opacity-disabled";
 
 function initialOf(firstName: string): string {
   return (Array.from(firstName)[0] ?? "").toLocaleUpperCase("es-AR");
 }
 
-export function UserPicker({ users, value, onChange, labelledBy }: UserPickerProps) {
+export function UserPicker({
+  users,
+  value,
+  onChange,
+  labelledBy,
+  disabled = false,
+}: UserPickerProps) {
   const groupName = useId();
   const ordered = sortedItems(users, {
     order: textOrder((user: SignInUser) => user.first_name),
@@ -36,6 +44,7 @@ export function UserPicker({ users, value, onChange, labelledBy }: UserPickerPro
             name={groupName}
             value={user.id}
             checked={value === user.id}
+            disabled={disabled}
             onChange={() => onChange(user.id)}
             className="sr-only"
           />

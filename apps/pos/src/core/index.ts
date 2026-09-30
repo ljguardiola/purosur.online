@@ -181,6 +181,10 @@ const rendererRequestDeps: RendererRequestDeps = {
             userId,
             pin,
           ),
+  reportFailure: (context, error) => {
+    console.error(`core: ${context} failed`, error);
+    Sentry.captureException(error);
+  },
 };
 
 if (cloudClient !== undefined) {

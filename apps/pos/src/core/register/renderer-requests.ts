@@ -11,12 +11,14 @@ export interface RendererRequestDeps {
   enroll: (typedCode: string) => Promise<EnrollmentOutcome>;
   signInUsers: (() => SignInUser[]) | undefined;
   signIn: ((userId: string, pin: string) => Promise<SignInOutcome>) | undefined;
+  reportFailure: (context: string, error: unknown) => void;
 }
 
 function readSignInUsers(deps: RendererRequestDeps): SignInUser[] | undefined {
   try {
     return deps.signInUsers?.();
-  } catch {
+  } catch (error) {
+    deps.reportFailure("reading the users who can sign in", error);
     return undefined;
   }
 }
@@ -28,7 +30,8 @@ async function attemptSignIn(
 ): Promise<SignInOutcome> {
   try {
     return (await deps.signIn?.(userId, pin)) ?? { kind: "unavailable" };
-  } catch {
+  } catch (error) {
+    deps.reportFailure("signing in", error);
     return { kind: "unavailable" };
   }
 }
