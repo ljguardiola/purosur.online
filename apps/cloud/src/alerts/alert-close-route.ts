@@ -106,8 +106,8 @@ export function registerAlertCloseRoute<TQueryResult extends PgQueryResultHKT>(
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  app.post<{ Params: { id: string } }>(
-    "/alerts/:id/close",
+  app.put<{ Params: { id: string } }>(
+    "/alerts/:id/closure",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: { access: permissionAccess("dismiss_alerts_manually"), sessionSource },

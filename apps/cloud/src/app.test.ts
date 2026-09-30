@@ -1418,6 +1418,20 @@ function productionWiredApp() {
   });
 }
 
+describe("wiring the alerts routes", () => {
+  it("no longer answers the former alert closing path", async () => {
+    const app = productionWiredApp();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/alerts/00000000-0000-0000-0000-000000000000/close",
+      headers: { origin: BACKOFFICE_ORIGIN },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+});
+
 describe("the route access inventory", () => {
   it("declares exactly one access level for every registered route", async () => {
     const app = productionWiredApp();
@@ -1573,8 +1587,8 @@ describe("the route access inventory", () => {
       { method: "GET", url: "/api/alerts/overview", access: OPEN_SESSION_ACCESS },
       { method: "GET", url: "/api/alerts/:id", access: OPEN_SESSION_ACCESS },
       {
-        method: "POST",
-        url: "/api/alerts/:id/close",
+        method: "PUT",
+        url: "/api/alerts/:id/closure",
         access: permissionAccess("dismiss_alerts_manually"),
       },
       {

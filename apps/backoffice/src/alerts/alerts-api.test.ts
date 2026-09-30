@@ -186,8 +186,8 @@ test("closeAlert is ok on 200 whatever the body says", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { unexpected: true }));
 
   await expect(closeAlert("alert-1")).resolves.toEqual({ kind: "ok" });
-  expect(fetch).toHaveBeenCalledWith("/api/alerts/alert-1/close", {
-    method: "POST",
+  expect(fetch).toHaveBeenCalledWith("/api/alerts/alert-1/closure", {
+    method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({}),
   });
