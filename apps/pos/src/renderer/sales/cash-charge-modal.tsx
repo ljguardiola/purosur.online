@@ -1,5 +1,6 @@
 import type { ChargeSaleInCashOutcome } from "@purosur/contracts";
 import { parseAmountCents } from "@purosur/contracts";
+import { cashCharge } from "@purosur/domain";
 import { Button, formatCents, InlineNotice, Modal, SummaryRowGroup, TextField } from "@purosur/ui";
 import { ArrowLeft, Banknote, Check, TriangleAlert } from "lucide-react";
 import type { FormEvent } from "react";
@@ -44,9 +45,12 @@ export function CashChargeModal({
 
   const isBlank = typed.trim() === "";
   const tendered = isBlank ? undefined : parseAmountCents(typed);
+  const result =
+    tendered === undefined ? { kind: "invalid_amount" as const } : cashCharge(total, tendered);
   const fieldMessage =
-    refusal ?? (!isBlank && tendered === undefined ? INVALID_AMOUNT_MESSAGE : undefined);
-  const covering = tendered !== undefined && tendered >= total ? tendered : undefined;
+    refusal ?? (!isBlank && result.kind === "invalid_amount" ? INVALID_AMOUNT_MESSAGE : undefined);
+  const covered =
+    tendered !== undefined && result.kind === "covered" ? { tendered, ...result } : undefined;
 
   function type(value: string) {
     setTyped(value);
@@ -56,12 +60,12 @@ export function CashChargeModal({
 
   async function submit(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
-    if (submitting || covering === undefined) {
+    if (submitting || covered === undefined) {
       return;
     }
     setNotice(undefined);
     setSubmitting(true);
-    const outcome = await charge(covering).catch(
+    const outcome = await charge(covered.tendered).catch(
       (): ChargeSaleInCashOutcome => ({ kind: "unavailable" }),
     );
     setSubmitting(false);
@@ -121,7 +125,7 @@ export function CashChargeModal({
             fullWidth
             icon={<Check />}
             dataStatus={submitting ? "loading" : "loaded"}
-            disabled={covering === undefined}
+            disabled={covered === undefined}
             onPress={() => void submit()}
           >
             Completar venta
@@ -148,11 +152,11 @@ export function CashChargeModal({
           description={coverMessage(total)}
           errorMessage={fieldMessage}
         />
-        {covering === undefined ? null : (
+        {covered === undefined ? null : (
           <div className="flex flex-col gap-1 rounded-lg bg-surface-subtle p-4">
             <Eyebrow text="VUELTO A ENTREGAR" />
-            <p className="text-detail text-text-subtle">{`${formatCents(covering)} − ${formatCents(total)}`}</p>
-            <p className="text-display text-text-accent">{formatCents(covering - total)}</p>
+            <p className="text-detail text-text-subtle">{`${formatCents(covered.tendered)} − ${formatCents(covered.applied)}`}</p>
+            <p className="text-display text-text-accent">{formatCents(covered.change)}</p>
           </div>
         )}
         {notice === undefined ? null : (

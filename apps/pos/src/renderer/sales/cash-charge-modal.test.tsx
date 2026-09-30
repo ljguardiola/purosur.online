@@ -111,6 +111,21 @@ describe("CashChargeModal", () => {
     await expect.element(complete).toBeDisabled();
   });
 
+  it.each([["0"], ["30.000.000,00"]])(
+    "says %s is not an amount it can charge, and shows no change",
+    async (typed) => {
+      const { screen, field, complete } = await renderModal();
+
+      await userEvent.fill(field, typed);
+
+      await expect
+        .element(screen.getByText("Ingresá un importe válido, por ejemplo 5.000,00."))
+        .toBeVisible();
+      await expect.element(complete).toBeDisabled();
+      await expect.element(screen.getByText("VUELTO A ENTREGAR")).not.toBeInTheDocument();
+    },
+  );
+
   it("charges the exact cents typed and reports the completed sale", async () => {
     const { field, complete, chargeSale, callbacks } = await renderModal();
 
