@@ -1,5 +1,5 @@
 import { discountTargetsSchema } from "@purosur/contracts";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
@@ -8,7 +8,8 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
-import { categories, products, tags } from "../platform/db/schema.js";
+import { netContentRow } from "../catalog/net-content-row.js";
+import { brands, categories, productBarcodes, products, tags } from "../platform/db/schema.js";
 import type { DiscountsRouteOptions } from "./discounts-list-route.js";
 
 export function registerDiscountTargetsRoute<TQueryResult extends PgQueryResultHKT>(
@@ -26,12 +27,26 @@ export function registerDiscountTargetsRoute<TQueryResult extends PgQueryResultH
       config: { access: permissionAccess("manage_promotions"), sessionSource },
     },
     async (_request, reply) => {
-      const [productRows, categoryRows, tagRows] = await Promise.all([
+      const [productRows, barcodeRows, categoryRows, tagRows] = await Promise.all([
         options.db
-          .select({ id: products.id, name: products.name, saleUnit: products.saleUnit })
+          .select({
+            id: products.id,
+            name: products.name,
+            saleUnit: products.saleUnit,
+            brandName: brands.name,
+            netContentQuantity: products.netContentQuantity,
+            netContentUnit: products.netContentUnit,
+          })
           .from(products)
+          .leftJoin(brands, eq(brands.id, products.brandId))
           .where(eq(products.active, true))
           .orderBy(asc(products.name)),
+        options.db
+          .select({ productId: productBarcodes.productId, code: productBarcodes.code })
+          .from(productBarcodes)
+          .innerJoin(products, eq(products.id, productBarcodes.productId))
+          .where(and(eq(products.active, true), eq(productBarcodes.active, true)))
+          .orderBy(asc(productBarcodes.position)),
         options.db
           .select({ id: categories.id, name: categories.name, parentId: categories.parentId })
           .from(categories)
@@ -42,9 +57,20 @@ export function registerDiscountTargetsRoute<TQueryResult extends PgQueryResultH
           .where(eq(tags.active, true))
           .orderBy(asc(tags.name)),
       ]);
+      const barcodesByProduct = new Map<string, string[]>();
+      for (const { productId, code } of barcodeRows) {
+        barcodesByProduct.set(productId, [...(barcodesByProduct.get(productId) ?? []), code]);
+      }
       await reply.code(200).send(
         discountTargetsSchema.parse({
-          products: productRows,
+          products: productRows.map((row) => ({
+            id: row.id,
+            name: row.name,
+            saleUnit: row.saleUnit,
+            brandName: row.brandName,
+            netContent: netContentRow(row),
+            barcodes: barcodesByProduct.get(row.id) ?? [],
+          })),
           categories: categoryRows,
           tags: tagRows,
         }),

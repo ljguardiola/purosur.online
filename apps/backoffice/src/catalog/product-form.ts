@@ -18,6 +18,7 @@ import { type Option, type Options, plural } from "@purosur/ui";
 import { Package, Scale } from "lucide-react";
 import { createElement } from "react";
 import { categoriesInTreeOrder, categoryPathLabels, leafCategories } from "./category-path";
+import { NET_CONTENT_UNIT_LABELS } from "./net-content";
 import {
   formatNetContentQuantity,
   NET_CONTENT_QUANTITY_INVALID,
@@ -208,20 +209,12 @@ export const SALE_UNIT_OPTIONS = [
   },
 ] as const;
 
-const NET_CONTENT_UNIT_OPTION_LABELS = {
-  G: "g",
-  KG: "kg",
-  ML: "ml",
-  L: "l",
-  UNIT: "u",
-} satisfies Record<NetContentUnit, string>;
-
 export const NET_CONTENT_UNIT_OPTIONS: Options<Option<NetContentUnit>> = [
-  { value: "G", label: NET_CONTENT_UNIT_OPTION_LABELS.G },
-  { value: "KG", label: NET_CONTENT_UNIT_OPTION_LABELS.KG },
-  { value: "ML", label: NET_CONTENT_UNIT_OPTION_LABELS.ML },
-  { value: "L", label: NET_CONTENT_UNIT_OPTION_LABELS.L },
-  { value: "UNIT", label: NET_CONTENT_UNIT_OPTION_LABELS.UNIT },
+  { value: "G", label: NET_CONTENT_UNIT_LABELS.G },
+  { value: "KG", label: NET_CONTENT_UNIT_LABELS.KG },
+  { value: "ML", label: NET_CONTENT_UNIT_LABELS.ML },
+  { value: "L", label: NET_CONTENT_UNIT_LABELS.L },
+  { value: "UNIT", label: NET_CONTENT_UNIT_LABELS.UNIT },
 ];
 
 // Full paths disambiguate leaves that share a name under different parents.

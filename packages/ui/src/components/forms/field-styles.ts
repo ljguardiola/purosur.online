@@ -60,9 +60,11 @@ export const menuSurfaceClassName = "rounded-lg border border-border bg-surface 
 // z-index, since a positive z-index always wins that comparison over an auto one.
 export const menuPopoverStyle = { zIndex: "var(--z-index-popover)" };
 
-export const menuOptionClassName =
-  "flex h-control-lg cursor-pointer items-center justify-between rounded-md px-3 text-detail font-semibold " +
+export const menuOptionFrameClassName =
+  "flex cursor-pointer items-center justify-between rounded-md px-3 text-detail font-semibold " +
   "text-text outline-none data-hovered:bg-surface-subtle data-focus-visible:bg-surface-subtle " +
   "data-selected:bg-action-subtle data-selected:text-text-accent " +
   "data-hovered:data-selected:bg-action-subtle " +
   "data-focus-visible:data-selected:bg-action-subtle";
+
+export const menuOptionClassName = `h-control-lg ${menuOptionFrameClassName}`;
