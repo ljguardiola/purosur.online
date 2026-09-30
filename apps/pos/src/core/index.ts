@@ -18,7 +18,6 @@ import {
   sentryEnvironmentFromCoreArguments,
 } from "../shared/channel";
 import { CORE_READY_MESSAGE } from "../shared/core-readiness";
-import { createActionGate } from "./access/action-gate";
 import { redeemPinCode } from "./access/pin-code-redemption";
 import { hashPin } from "./access/pin-hash";
 import { applyRedeemedPin } from "./access/redeemed-pin";
@@ -153,19 +152,6 @@ const pullSchedule = createPullSchedule({
   afterEachPull: () => rendererConnection.tell(PULLED_NOTICE),
 });
 
-const readRegisterPepper = async () => (await mainRequests.readCredentials())?.pepper;
-
-export const actionGate =
-  signInStore === undefined
-    ? undefined
-    : createActionGate({
-        store: signInStore,
-        signedInPerson,
-        readPepper: readRegisterPepper,
-        hashPin,
-        now: () => new Date(),
-      });
-
 const rendererRequestDeps: RendererRequestDeps = {
   credentialsPresent: () => mainRequests.credentialsPresent(),
   registerName: () => replica?.registerName(),
@@ -221,7 +207,7 @@ const rendererRequestDeps: RendererRequestDeps = {
             {
               store: signInStore,
               signedInPerson,
-              readPepper: readRegisterPepper,
+              readPepper: async () => (await mainRequests.readCredentials())?.pepper,
               hashPin,
               now: () => new Date(),
             },
