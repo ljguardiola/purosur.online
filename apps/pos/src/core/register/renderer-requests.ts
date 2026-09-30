@@ -80,6 +80,8 @@ export async function answerRendererRequest(
         request_id: message.request_id,
         outcome: await attemptSignIn(deps, message.user_id, message.pin),
       };
+    case "open-cash-session":
+    case "cash-session-request":
     case "ping":
       return undefined;
   }

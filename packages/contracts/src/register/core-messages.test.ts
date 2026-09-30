@@ -1,3 +1,4 @@
+import { MAX_CASH_AMOUNT_CENTS } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
   coreStatusMessageSchema,
@@ -99,6 +100,64 @@ describe("rendererToCoreMessageSchema", () => {
   it("rejects any other message type", () => {
     expect(rendererToCoreMessageSchema.safeParse({ type: "health-check" }).success).toBe(false);
     expect(rendererToCoreMessageSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe("cash session requests", () => {
+  it("accepts a request to open a cash session with the opener and the float in cents", () => {
+    const message = {
+      type: "open-cash-session",
+      request_id: REQUEST_ID,
+      user_id: "u1",
+      opening_float: 150000,
+    };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([0, MAX_CASH_AMOUNT_CENTS])("accepts an opening float of %i cents", (opening_float) => {
+    const message = {
+      type: "open-cash-session",
+      request_id: REQUEST_ID,
+      user_id: "u1",
+      opening_float,
+    };
+
+    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(true);
+  });
+
+  it.each([-1, 1.5, MAX_CASH_AMOUNT_CENTS + 1, "100", null])(
+    "rejects an opening float of %j",
+    (opening_float) => {
+      const message = {
+        type: "open-cash-session",
+        request_id: REQUEST_ID,
+        user_id: "u1",
+        opening_float,
+      };
+
+      expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+    },
+  );
+
+  it.each([
+    { type: "open-cash-session", user_id: "u1", opening_float: 0 },
+    { type: "open-cash-session", request_id: REQUEST_ID, opening_float: 0 },
+    { type: "open-cash-session", request_id: REQUEST_ID, user_id: "u1" },
+  ])("rejects a request to open a cash session missing a field: %j", (message) => {
+    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("accepts a request for the open cash session", () => {
+    const message = { type: "cash-session-request", request_id: REQUEST_ID };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a request for the open cash session without its request id", () => {
+    expect(rendererToCoreMessageSchema.safeParse({ type: "cash-session-request" }).success).toBe(
+      false,
+    );
   });
 });
 
@@ -261,9 +320,13 @@ describe("sign-in answers", () => {
   it.each([
     {
       kind: "signed_in",
-      person: { first_name: "Ada", permission_keys: ["sell_and_charge", "void_sale"] },
+      person: {
+        user_id: "u1",
+        first_name: "Ada",
+        permission_keys: ["sell_and_charge", "void_sale"],
+      },
     },
-    { kind: "signed_in", person: { first_name: "Ada", permission_keys: [] } },
+    { kind: "signed_in", person: { user_id: "u1", first_name: "Ada", permission_keys: [] } },
     { kind: "wrong_pin" },
     { kind: "no_register_permission" },
     { kind: "unavailable" },
@@ -279,7 +342,7 @@ describe("sign-in answers", () => {
       request_id: REQUEST_ID,
       outcome: {
         kind: "signed_in",
-        person: { first_name: "Ada", permission_keys: [], role_name: "Cajera" },
+        person: { user_id: "u1", first_name: "Ada", permission_keys: [], role_name: "Cajera" },
       },
     };
 
@@ -289,9 +352,87 @@ describe("sign-in answers", () => {
   it.each([
     { kind: "signed_in" },
     { kind: "signed_in", person: { first_name: "Ada" } },
+    { kind: "signed_in", person: { first_name: "Ada", permission_keys: [] } },
     { kind: "x" },
   ])("rejects a sign-in result it does not know: %j", (outcome) => {
     const message = { type: "sign-in-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+});
+
+describe("cash session answers", () => {
+  it("accepts the session that was opened", () => {
+    const message = {
+      type: "open-cash-session-result",
+      request_id: REQUEST_ID,
+      outcome: {
+        kind: "opened",
+        session: { id: "s1", opened_at: "2026-09-30T12:00:00.000Z", opening_float: 150000 },
+      },
+    };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "not_permitted" },
+    { kind: "already_open" },
+    { kind: "invalid_opening_float" },
+    { kind: "unavailable" },
+  ])("accepts the open result $kind", (outcome) => {
+    const message = { type: "open-cash-session-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "opened" },
+    { kind: "opened", session: { id: "s1", opened_at: "2026-09-30T12:00:00.000Z" } },
+    { kind: "opened", session: { id: "s1", opening_float: 0 } },
+    { kind: "opened", session: { opened_at: "2026-09-30T12:00:00.000Z", opening_float: 0 } },
+    { kind: "x" },
+  ])("rejects an open result it does not know: %j", (outcome) => {
+    const message = { type: "open-cash-session-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("accepts the open cash session with who opened it", () => {
+    const message = {
+      type: "cash-session",
+      request_id: REQUEST_ID,
+      session: {
+        id: "s1",
+        opened_at: "2026-09-30T12:00:00.000Z",
+        opened_by: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+      },
+    };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts that no cash session is open", () => {
+    const message = { type: "cash-session", request_id: REQUEST_ID, session: null };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    undefined,
+    { id: "s1", opened_at: "2026-09-30T12:00:00.000Z" },
+    { id: "s1", opened_by: { user_id: "u1", first_name: "Ada", permission_keys: [] } },
+    {
+      opened_at: "2026-09-30T12:00:00.000Z",
+      opened_by: { user_id: "u1", first_name: "Ada", permission_keys: [] },
+    },
+    {
+      id: "s1",
+      opened_at: "2026-09-30T12:00:00.000Z",
+      opened_by: { first_name: "Ada", permission_keys: [] },
+    },
+  ])("rejects an open cash session it does not know: %j", (session) => {
+    const message = { type: "cash-session", request_id: REQUEST_ID, session };
 
     expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });

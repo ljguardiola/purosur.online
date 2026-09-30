@@ -40,6 +40,7 @@ export async function signIn(
   return {
     kind: "signed_in",
     person: {
+      user_id: userId,
       first_name: record.firstName,
       permission_keys: record.access.isAdministrator
         ? [...PERMISSION_KEYS]

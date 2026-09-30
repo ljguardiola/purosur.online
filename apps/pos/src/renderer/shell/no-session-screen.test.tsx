@@ -6,7 +6,11 @@ import type { ActionEntry } from "./action-entries";
 import { NoSessionScreen } from "./no-session-screen";
 import { render } from "./test-support/render-with-router";
 
-const PERSON = { first_name: "Ada", permission_keys: ["view_sales_history", "void_sale"] };
+const PERSON = {
+  user_id: "u1",
+  first_name: "Ada",
+  permission_keys: ["view_sales_history", "void_sale"],
+};
 
 const HISTORY: ActionEntry = {
   label: "Historial",

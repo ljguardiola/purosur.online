@@ -117,6 +117,8 @@ export type {
   CoreToRendererMessage,
   EnrollmentOutcome,
   MainToCoreMessage,
+  OpenCashSession,
+  OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   RendererToCoreMessage,
   SignInOutcome,

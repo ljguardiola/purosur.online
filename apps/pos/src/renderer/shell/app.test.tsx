@@ -14,7 +14,7 @@ const ENROLLMENT_TITLE = "Dar de alta esta caja";
 
 const ADA_SIGNED_IN: SignInOutcome = {
   kind: "signed_in",
-  person: { first_name: "Ada", permission_keys: ["sell_and_charge"] },
+  person: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
 };
 
 function coreAnswering(
