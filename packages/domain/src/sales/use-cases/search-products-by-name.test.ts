@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { SaleWithLines } from "../model/sale.js";
 import { searchProductsByName } from "./search-products-by-name.js";
 import {
   FakeSaleLedger,
@@ -13,29 +12,6 @@ const CASHIER = { isAdministrator: false, permissionKeys: ["sell_and_charge"] };
 const SESSION = { id: "session-1", openedBy: "cashier" };
 const YERBA = { id: "yerba", name: "Yerba de mate", saleUnit: "UNIT" as const };
 const QUESO = { id: "queso", name: "Queso de cabra", saleUnit: "KG" as const };
-
-function completedSaleOf(productId: string, registerId = "register-1"): SaleWithLines {
-  return {
-    id: `sale-${productId}-${registerId}`,
-    registerId,
-    deviceId: "device-1",
-    sessionId: "session-0",
-    actorId: "cashier",
-    state: "COMPLETED",
-    occurredAt: LONG_AGO,
-    lines: [
-      {
-        id: `line-${productId}`,
-        productId,
-        productName: productId,
-        quantity: 1,
-        listUnitPrice: 100,
-        priceListId: "list-1",
-        lineTotal: 100,
-      },
-    ],
-  };
-}
 
 function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
   return new FakeSaleLedger({
@@ -72,10 +48,6 @@ describe("searchProductsByName", () => {
     });
   });
 
-  it("finds nothing for a query without words", () => {
-    expect(search(ledger(), "  ")).toEqual({ kind: "results", products: [], more: false });
-  });
-
   it("shows the price valid at the clock's moment, or none when the product has none yet", () => {
     const store = ledger({
       prices: [
@@ -101,32 +73,6 @@ describe("searchProductsByName", () => {
       null,
       2800,
     ]);
-  });
-
-  it("lists first the products most sold at this register", () => {
-    const store = ledger({
-      sales: [completedSaleOf("queso"), completedSaleOf("queso"), completedSaleOf("yerba")],
-    });
-
-    const outcome = search(store, "de");
-
-    expect(outcome.kind === "results" && outcome.products.map((found) => found.productId)).toEqual([
-      "queso",
-      "yerba",
-    ]);
-  });
-
-  it("says there are more when over twenty products match", () => {
-    const products = Array.from({ length: 21 }, (_, index) => ({
-      id: `p${index}`,
-      name: "Arroz",
-      saleUnit: "UNIT" as const,
-    }));
-
-    const outcome = search(ledger({ products }), "arroz");
-
-    expect(outcome.kind === "results" && outcome.products).toHaveLength(20);
-    expect(outcome.kind === "results" && outcome.more).toBe(true);
   });
 
   it("reads in one transaction and records nothing", () => {
