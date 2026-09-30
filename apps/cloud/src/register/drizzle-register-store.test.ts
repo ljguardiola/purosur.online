@@ -1,4 +1,7 @@
-import { enrollInstallation } from "@purosur/domain/register/use-cases";
+import {
+  enrollInstallation,
+  type RegisterStoreTransaction,
+} from "@purosur/domain/register/use-cases";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { escalateOverdueAlerts } from "../alerts/alert-escalation.js";
@@ -89,6 +92,18 @@ async function insertInstallation(registerId: string, prefix: string): Promise<s
     throw new Error("test setup: seeding the installation returned no row");
   }
   return installation.id;
+}
+
+type KeyWrite = (tx: RegisterStoreTransaction, key: string) => Promise<unknown>;
+
+const MISSING_REGISTER_ID = "00000000-0000-4000-8000-000000000000";
+
+function everythingReportedOf(error: unknown): string {
+  const parts: string[] = [];
+  for (let current = error; current instanceof Error; current = current.cause) {
+    parts.push(current.message, current.stack ?? "", JSON.stringify(current));
+  }
+  return parts.join("\n");
 }
 
 function adapterStore() {
@@ -336,6 +351,52 @@ describe("DrizzleRegisterStore", () => {
     expect(before).toMatchObject({ deviceId, registerId, outboxChainKey: undefined });
     expect(after).toMatchObject({ deviceId, registerId, outboxChainKey: "outbox-key" });
   });
+
+  it.each([
+    [
+      "a snapshot key",
+      (tx: RegisterStoreTransaction, key: string) =>
+        tx.recordSnapshotKey(MISSING_REGISTER_ID, { version: 1, key }),
+    ],
+    [
+      "a contingency-ticket key",
+      (tx: RegisterStoreTransaction, key: string) =>
+        tx.recordContingencyTicketKey(MISSING_REGISTER_ID, { version: 1, key }),
+    ],
+    [
+      "an outbox-chain key",
+      (tx: RegisterStoreTransaction, key: string) => tx.recordOutboxChainKey("not-a-uuid", key),
+    ],
+    [
+      "a new installation's outbox-chain key",
+      (tx: RegisterStoreTransaction, key: string) =>
+        tx.recordInstallation({
+          registerId: MISSING_REGISTER_ID,
+          tokenLookupPrefix: "prefix",
+          tokenHash: "hash",
+          tokenIssuedAt: NOW,
+          outboxChainKey: key,
+          hostname: "CAJA",
+          windowsVersion: "Windows 11",
+          enrolledAt: NOW,
+        }),
+    ],
+  ] satisfies [string, KeyWrite][])(
+    "fails to write %s without the key in the error it raises",
+    async (_what, write) => {
+      const key = generateInstallationKey();
+
+      const error = await adapterStore()
+        .transaction<unknown>((tx) => write(tx, key))
+        .then(
+          () => undefined,
+          (raised: unknown) => raised,
+        );
+
+      expect(error).toBeInstanceOf(Error);
+      expect(everythingReportedOf(error)).not.toContain(key);
+    },
+  );
 
   it("opens the register's enrollment alert: a Warning escalating in 24 hours, of All audience, that no one has closed", async () => {
     const registerId = await insertRegister("Caja 1");

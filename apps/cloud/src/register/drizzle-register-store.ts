@@ -14,6 +14,7 @@ import type {
 import { and, asc, desc, eq, gt, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
+import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import {
   registerContingencyTicketKeys,
   registerEnrollmentAttempts,
@@ -31,6 +32,18 @@ function attemptKeyCondition(key: EnrollmentAttemptKey) {
     eq(registerEnrollmentAttempts.keyKind, key.kind),
     eq(registerEnrollmentAttempts.keyValue, key.value),
   );
+}
+
+// A failed query's error, and the driver's error under it, carry the query's parameters and go on
+// to error reporting, so a write carrying a key raises one that keeps only the Postgres error code
+// and constraint.
+async function writingKey<T>(write: PromiseLike<T>): Promise<T> {
+  try {
+    return await write;
+  } catch (error) {
+    const [driverError] = postgresErrorChain(error).filter((link) => link.code !== undefined);
+    throw Object.assign(new Error("writing an installation key failed"), driverError);
+  }
 }
 
 class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
@@ -114,10 +127,12 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   async recordInstallation(installation: NewInstallation): Promise<{ deviceId: string }> {
-    const [recorded] = await this.tx
-      .insert(registerInstallations)
-      .values(installation)
-      .returning({ id: registerInstallations.id });
+    const [recorded] = await writingKey(
+      this.tx
+        .insert(registerInstallations)
+        .values(installation)
+        .returning({ id: registerInstallations.id }),
+    );
     if (!recorded) {
       throw new Error("inserting the new installation returned no row");
     }
@@ -201,10 +216,12 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   async recordOutboxChainKey(deviceId: string, outboxChainKey: string): Promise<void> {
-    await this.tx
-      .update(registerInstallations)
-      .set({ outboxChainKey })
-      .where(eq(registerInstallations.id, deviceId));
+    await writingKey(
+      this.tx
+        .update(registerInstallations)
+        .set({ outboxChainKey })
+        .where(eq(registerInstallations.id, deviceId)),
+    );
   }
 
   // A register has no key row to lock before its first key, and locking its registers row would
@@ -225,11 +242,11 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   async recordSnapshotKey(registerId: string, key: VersionedKey): Promise<void> {
-    await this.tx.insert(registerSnapshotKeys).values({ registerId, ...key });
+    await writingKey(this.tx.insert(registerSnapshotKeys).values({ registerId, ...key }));
   }
 
   async recordContingencyTicketKey(registerId: string, key: VersionedKey): Promise<void> {
-    await this.tx.insert(registerContingencyTicketKeys).values({ registerId, ...key });
+    await writingKey(this.tx.insert(registerContingencyTicketKeys).values({ registerId, ...key }));
   }
 
   async markEnrollmentCodeRedeemed(registerId: string, redeemedAt: Date): Promise<void> {
