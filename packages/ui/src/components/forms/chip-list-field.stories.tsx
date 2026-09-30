@@ -92,6 +92,21 @@ export const MenuOpenOnlyCreate: Story = {
   play: playClickExpandsTrigger(button("Agregar distintivo")),
 };
 
+const withoutCreate: Story["render"] = ({ create: _create, ...args }) => (
+  <ChipListField {...args} />
+);
+
+export const MenuOpenWithoutCreate: Story = {
+  args: { value: ["organic"] },
+  render: withoutCreate,
+  play: playClickExpandsTrigger(button("Agregar distintivo")),
+};
+
+export const NothingToAdd: Story = {
+  args: { value: ["organic", "vegan", "local", "gluten-free", "fair-trade"] },
+  render: withoutCreate,
+};
+
 export const Invalid: Story = {
   args: { value: [], errorMessage: "Elegí al menos un distintivo." },
 };
