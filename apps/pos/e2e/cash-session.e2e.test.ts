@@ -7,6 +7,8 @@ const ANA_ID = "5b0b8f4e-3c2d-4a55-9c1e-0a6f6a1d0a01";
 const ANA_EMAIL = "ana@example.com";
 const BRUNO_ID = "5b0b8f4e-3c2d-4a55-9c1e-0a6f6a1d0a02";
 const BRUNO_EMAIL = "bruno@example.com";
+const CARLA_ID = "5b0b8f4e-3c2d-4a55-9c1e-0a6f6a1d0a03";
+const CARLA_EMAIL = "carla@example.com";
 
 describe("the register's cash session", () => {
   let cloud: StandInCloud;
@@ -29,11 +31,13 @@ describe("the register's cash session", () => {
           roleId: "role-supervisor",
           pin: "7314",
         }),
+        await userChange({ id: CARLA_ID, firstName: "Carla", roleId: "role-cashier", pin: "5260" }),
       ],
       {
         signInLookups: {
           [ANA_EMAIL]: { userId: ANA_ID, hasPin: true },
           [BRUNO_EMAIL]: { userId: BRUNO_ID, hasPin: true },
+          [CARLA_EMAIL]: { userId: CARLA_ID, hasPin: true },
         },
       },
     );
@@ -118,14 +122,19 @@ describe("the register's cash session", () => {
 
   it("is closed from the lock screen by another person with permission, who is left signed out", async () => {
     const { page } = register;
-    await page.getByRole("link", { name: "Ingresar por primera vez" }).click();
-    await page.getByLabel("Correo").fill(BRUNO_EMAIL);
-    await page.getByRole("button", { name: "Continuar" }).click();
-    await page.getByLabel("PIN").fill("7314");
-    await page.getByRole("button", { name: "Entrar" }).click();
-    await page.getByRole("heading", { name: "¿Qué querés hacer?" }).waitFor();
-    await page.getByRole("button", { name: "Salir" }).click();
-    await page.getByRole("dialog").getByRole("button", { name: "Salir" }).click();
+    for (const [email, pin] of [
+      [BRUNO_EMAIL, "7314"],
+      [CARLA_EMAIL, "5260"],
+    ] as const) {
+      await page.getByRole("link", { name: "Ingresar por primera vez" }).click();
+      await page.getByLabel("Correo").fill(email);
+      await page.getByRole("button", { name: "Continuar" }).click();
+      await page.getByLabel("PIN").fill(pin);
+      await page.getByRole("button", { name: "Entrar" }).click();
+      await page.getByRole("heading", { name: "¿Qué querés hacer?" }).waitFor();
+      await page.getByRole("button", { name: "Salir" }).click();
+      await page.getByRole("dialog").getByRole("button", { name: "Salir" }).click();
+    }
 
     await page.getByText("Ana", { exact: true }).click();
     await page.getByLabel("PIN").fill("4821");
@@ -138,10 +147,16 @@ describe("the register's cash session", () => {
     await page.getByRole("button", { name: "Dejar bloqueada" }).click();
 
     await page.getByRole("link", { name: "Otra persona cierra la caja" }).click();
-    await page.getByLabel("Efectivo contado").fill("20.000,00");
-    await page.getByRole("button", { name: /Persona que cierra/ }).click();
-    await page.getByRole("option", { name: "Bruno" }).click();
+    await page.getByRole("heading", { name: "¿Quién cierra la caja?" }).waitFor();
+    await page.getByRole("radio", { name: "Bruno" }).waitFor({ state: "attached" });
+    await page.getByRole("radio", { name: "Carla" }).waitFor({ state: "detached" });
+    await page.getByText("Efectivo contado").waitFor({ state: "detached" });
+    await page.getByText("Bruno", { exact: true }).click();
     await page.getByLabel("PIN").fill("7314");
+    await page.getByRole("button", { name: "Continuar" }).click();
+
+    await page.getByText("Cierra Bruno. La sesión es de Ana.").waitFor();
+    await page.getByLabel("Efectivo contado").fill("20.000,00");
     await page.getByRole("button", { name: "Cerrar caja" }).click();
 
     await page.getByRole("heading", { name: "¿Quién abre la caja?" }).waitFor();
