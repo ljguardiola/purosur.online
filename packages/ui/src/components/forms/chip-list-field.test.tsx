@@ -194,23 +194,6 @@ test("moves focus to the previous chip's remove button after removing the last c
     .toBe(screen.getByRole("button", { name: "Quitar Orgánico" }).element());
 });
 
-test("keeps focus on the field after removing the only chip, when nothing is left to add", async () => {
-  const onlyInactive: NarrowedOption<Diet, never, "status">[] = [
-    { value: "dye-free", label: "Sin colorantes", status: "Dado de baja" },
-  ];
-  function Field() {
-    const [value, setValue] = useState<Diet[]>(["dye-free"]);
-    return <ChipListField {...baseProps({ options: onlyInactive, value, onChange: setValue })} />;
-  }
-  const screen = await render(<Field />);
-  await screen.getByRole("button", { name: "Quitar Sin colorantes" }).click();
-
-  await expect.element(screen.getByRole("button", { name: "Agregar distintivo" })).toBeDisabled();
-  await expect
-    .poll(() => document.activeElement)
-    .toBe(screen.getByRole("group", { name: "Distintivos" }).element());
-});
-
 function OnlyInactiveField() {
   const onlyInactive: NarrowedOption<Diet, never, "status">[] = [
     { value: "dye-free", label: "Sin colorantes", status: "Dado de baja" },
@@ -218,6 +201,16 @@ function OnlyInactiveField() {
   const [value, setValue] = useState<Diet[]>(["dye-free"]);
   return <ChipListField {...baseProps({ options: onlyInactive, value, onChange: setValue })} />;
 }
+
+test("keeps focus on the field after removing the only chip, when nothing is left to add", async () => {
+  const screen = await render(<OnlyInactiveField />);
+  await screen.getByRole("button", { name: "Quitar Sin colorantes" }).click();
+
+  await expect.element(screen.getByRole("button", { name: "Agregar distintivo" })).toBeDisabled();
+  await expect
+    .poll(() => document.activeElement)
+    .toBe(screen.getByRole("group", { name: "Distintivos" }).element());
+});
 
 test("draws a focus ring on the field when a keyboard removal leaves focus on it", async () => {
   const screen = await render(<OnlyInactiveField />);
