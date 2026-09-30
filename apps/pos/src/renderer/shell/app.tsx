@@ -85,6 +85,13 @@ export function App({ core }: { core: CoreClient }) {
       return core.cashSession().then(
         (session): OpenCashSessionOutcome => {
           setCashSession(stateOf(session));
+          if (
+            session !== null &&
+            session !== "unavailable" &&
+            session.opened_by.user_id !== opener.user_id
+          ) {
+            signOut();
+          }
           return outcome;
         },
         (): OpenCashSessionOutcome => ({ kind: "unavailable" }),
