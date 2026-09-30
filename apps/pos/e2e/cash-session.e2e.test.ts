@@ -63,4 +63,21 @@ describe("the register's cash session", () => {
     await page.getByRole("heading", { name: "¿Qué querés hacer?" }).waitFor();
     await page.getByRole("button", { name: "Abrir caja" }).waitFor();
   });
+
+  it("asks to close the open session before leaving and ends at the entry screen once closed", async () => {
+    const { page } = register;
+    await page.getByRole("button", { name: "Abrir caja" }).click();
+    await page.getByLabel("Fondo inicial").fill("20.000,00");
+    await page.getByRole("button", { name: "Abrir la caja" }).click();
+    await page.getByRole("heading", { name: "Venta en curso" }).waitFor();
+
+    await page.getByRole("button", { name: "Salir" }).click();
+    const dialog = page.getByRole("dialog", { name: "Para salir, primero cerrá la caja" });
+    await dialog.getByRole("button", { name: "Cerrar caja" }).click();
+    await page.getByLabel("Efectivo contado").fill("20.000,00");
+    await page.getByRole("button", { name: "Cerrar caja" }).click();
+
+    await page.getByRole("heading", { name: "¿Quién abre la caja?" }).waitFor();
+    await page.getByRole("heading", { name: "¿Qué querés hacer?" }).waitFor({ state: "detached" });
+  });
 });
