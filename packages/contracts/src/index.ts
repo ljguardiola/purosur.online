@@ -1,3 +1,13 @@
+export type {
+  Authorization,
+  AuthorizationRefusal,
+  AuthorizedBy,
+} from "./access/authorization.js";
+export {
+  authorizationRefusalSchema,
+  authorizationSchema,
+  authorizedBySchema,
+} from "./access/authorization.js";
 export type { BranchUserWire } from "./access/branch-user.js";
 export { branchUserListSchema, branchUserSchema } from "./access/branch-user.js";
 export type { OpenSessionWire } from "./access/open-session.js";
