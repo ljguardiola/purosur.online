@@ -1,10 +1,10 @@
-CREATE TABLE pull_cursor (
+CREATE TABLE sync_state (
   id INTEGER PRIMARY KEY CHECK (id = 1),
-  change_seq INTEGER NOT NULL CHECK (change_seq >= 0),
+  pull_cursor INTEGER NOT NULL CHECK (pull_cursor >= 0),
   device_id TEXT
 );
 
-INSERT INTO pull_cursor (id, change_seq) VALUES (1, 0);
+INSERT INTO sync_state (id, pull_cursor) VALUES (1, 0);
 
 CREATE TABLE branch_settings (
   location_id TEXT PRIMARY KEY,

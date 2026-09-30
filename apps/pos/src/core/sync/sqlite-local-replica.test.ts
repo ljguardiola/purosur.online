@@ -103,6 +103,14 @@ describe("the register's local copy of what it pulls", () => {
     expect(storedBranchSettings()).toEqual(settingsRow({ version: 3, sunday_hours: [] }));
   });
 
+  it("records the installation it holds the cursor for", () => {
+    replica.adoptDevice("device-a");
+
+    expect(database.prepare("SELECT device_id FROM sync_state WHERE id = 1").get()).toEqual({
+      device_id: "device-a",
+    });
+  });
+
   it("keeps its cursor for the installation that pulled it", async () => {
     replica.adoptDevice("device-a");
     await replica.savePage({
@@ -132,7 +140,7 @@ describe("the register's local copy of what it pulls", () => {
 
   it("saves neither the data nor the cursor when the page can't be saved whole", async () => {
     database.exec(
-      "CREATE TRIGGER refuse_cursor BEFORE UPDATE ON pull_cursor BEGIN SELECT RAISE(ABORT, 'disk full'); END",
+      "CREATE TRIGGER refuse_cursor BEFORE UPDATE ON sync_state BEGIN SELECT RAISE(ABORT, 'disk full'); END",
     );
 
     await expect(

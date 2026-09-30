@@ -42,19 +42,19 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
   adoptDevice(deviceId: string): void {
     this.database
       .prepare<[string, string]>(
-        "UPDATE pull_cursor SET change_seq = 0, device_id = ? WHERE id = 1 AND device_id IS NOT ?",
+        "UPDATE sync_state SET pull_cursor = 0, device_id = ? WHERE id = 1 AND device_id IS NOT ?",
       )
       .run(deviceId, deviceId);
   }
 
   async savedCursor(): Promise<number> {
     const row = this.database
-      .prepare<[], { change_seq: number }>("SELECT change_seq FROM pull_cursor WHERE id = 1")
+      .prepare<[], { pull_cursor: number }>("SELECT pull_cursor FROM sync_state WHERE id = 1")
       .get();
     if (row === undefined) {
-      throw new Error("the local database has no pull cursor");
+      throw new Error("the local database has no sync state");
     }
-    return row.change_seq;
+    return row.pull_cursor;
   }
 
   // A version the register already has, or an older one delivered late, never overwrites it.
@@ -80,7 +80,7 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
        WHERE excluded.version > branch_settings.version`,
     );
     const saveCursor = this.database.prepare<[number]>(
-      "UPDATE pull_cursor SET change_seq = ? WHERE id = 1",
+      "UPDATE sync_state SET pull_cursor = ? WHERE id = 1",
     );
 
     this.database.transaction(() => {
