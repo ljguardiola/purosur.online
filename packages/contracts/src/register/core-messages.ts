@@ -1,10 +1,6 @@
-import {
-  type AuthorizablePermissionKey,
-  isAuthorizablePermissionKey,
-  PIN_SIGN_IN_LOCKOUT_FAILURES,
-  PIN_SIGN_IN_MAX_DELAY_SECONDS,
-} from "@purosur/domain";
+import { type AuthorizablePermissionKey, isAuthorizablePermissionKey } from "@purosur/domain";
 import { z } from "zod";
+import { pinAttemptRefusalSchema } from "../access/pin-attempt-refusal.js";
 
 const requestId = z.string();
 
@@ -87,31 +83,12 @@ const pinCodeRedemptionOutcomeSchema = z.discriminatedUnion("kind", [
 ]);
 export type PinCodeRedemptionOutcome = z.infer<typeof pinCodeRedemptionOutcomeSchema>;
 
-const pinSignInWaitSeconds = z.int().max(PIN_SIGN_IN_MAX_DELAY_SECONDS);
-const pinSignInAttemptsLeft = z
-  .int()
-  .min(1)
-  .max(PIN_SIGN_IN_LOCKOUT_FAILURES - 1);
-
 const signInOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("signed_in"),
     person: z.object({ first_name: z.string(), permission_keys: z.array(z.string()) }),
   }),
-  z.object({
-    kind: z.literal("wrong_pin"),
-    retry_after_seconds: pinSignInWaitSeconds.min(0),
-    attempts_left: pinSignInAttemptsLeft,
-  }),
-  z.object({
-    kind: z.literal("rate_limited"),
-    retry_after_seconds: pinSignInWaitSeconds.min(1),
-    attempts_left: pinSignInAttemptsLeft,
-  }),
-  z.object({
-    kind: z.literal("locked"),
-    consecutive_failures: z.literal(PIN_SIGN_IN_LOCKOUT_FAILURES),
-  }),
+  ...pinAttemptRefusalSchema.options,
   z.object({ kind: z.literal("no_register_permission") }),
   z.object({ kind: z.literal("unavailable") }),
 ]);
