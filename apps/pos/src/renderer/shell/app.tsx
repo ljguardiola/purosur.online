@@ -28,7 +28,11 @@ export function App({ core }: { core: CoreClient }) {
     return outcome;
   }
 
-  const services = { enroll, signInUsers: () => core.signInUsers(), signIn };
+  function signOut() {
+    setPerson(undefined);
+  }
+
+  const services = { enroll, signInUsers: () => core.signInUsers(), signIn, signOut };
 
   const [router] = useState(() => createAppRouter(services));
 

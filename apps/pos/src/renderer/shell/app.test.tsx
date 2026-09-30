@@ -1,7 +1,7 @@
 import type { EnrollmentOutcome, SignInOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { describe, expect, it } from "vitest";
-import { userEvent } from "vitest/browser";
+import { describe, expect, it, onTestFinished } from "vitest";
+import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { CoreClient } from "../platform/core-client";
 import { App } from "./app";
@@ -160,12 +160,47 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
     await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
-    await expect
-      .element(screen.getByRole("complementary", { name: "Persona en la caja" }))
-      .toHaveTextContent("Ada");
+    await expect.element(screen.getByText("Ada")).toBeVisible();
     await expect
       .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
       .not.toBeInTheDocument();
+  });
+
+  it("returns to the sign-in screen once the person confirms leaving the register", async () => {
+    await page.viewport(1280, 900);
+    onTestFinished(() => page.viewport(414, 896));
+    const screen = await render(<App core={enrolledCore} />);
+    postCoreStatus("up");
+    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Salir" }));
+
+    await userEvent.click(
+      screen
+        .getByRole("dialog", { name: "¿Salir de la caja?" })
+        .getByRole("button", { name: "Salir" }),
+    );
+
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: SIGNED_IN_TITLE }))
+      .not.toBeInTheDocument();
+  });
+
+  it("stays signed in when the person cancels leaving the register", async () => {
+    await page.viewport(1280, 900);
+    onTestFinished(() => page.viewport(414, 896));
+    const screen = await render(<App core={enrolledCore} />);
+    postCoreStatus("up");
+    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Salir" }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+
+    await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
   });
 
   it("stays on the sign-in screen when the PIN is wrong", async () => {

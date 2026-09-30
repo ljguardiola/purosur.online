@@ -16,9 +16,10 @@ import {
 import { SignInScreen } from "../access/sign-in-screen";
 import type { SignedInPerson } from "../access/signed-in-person";
 import { EnrollmentScreen } from "../register/enrollment-screen";
+import { ACTION_ENTRIES } from "./action-entries";
 import { BrandPanelScreen } from "./brand-panel-screen";
 import { CoreDownNotice } from "./core-down-notice";
-import { SignedInScreen } from "./signed-in-screen";
+import { NoSessionScreen } from "./no-session-screen";
 
 export type CoreStatus = CoreStatusMessage["status"];
 
@@ -31,6 +32,7 @@ export interface RouterContext {
   enroll: (typedCode: string) => Promise<EnrollmentOutcome>;
   signInUsers: () => Promise<SignInUser[]>;
   signIn: (userId: string, pin: string) => Promise<SignInOutcome>;
+  signOut: () => void;
 }
 
 type ScreenPath = "/" | "/sign-in" | "/enroll" | "/starting" | "/core-down";
@@ -77,8 +79,8 @@ const signedInRoute = createRoute({
   path: "/",
   beforeLoad: ({ context }) => ({ person: requireSignedInPerson(context) }),
   component: function SignedInRoute() {
-    const { person } = signedInRoute.useRouteContext();
-    return <SignedInScreen person={person} />;
+    const { person, signOut } = signedInRoute.useRouteContext();
+    return <NoSessionScreen person={person} entries={ACTION_ENTRIES} signOut={signOut} />;
   },
 });
 
@@ -138,7 +140,7 @@ export function createRegisterRouter<TRouteTree extends AnyRoute>(
 }
 
 export function createAppRouter(
-  services: Pick<RouterContext, "enroll" | "signInUsers" | "signIn">,
+  services: Pick<RouterContext, "enroll" | "signInUsers" | "signIn" | "signOut">,
 ) {
   return createRegisterRouter(
     routeTree,

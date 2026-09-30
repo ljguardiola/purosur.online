@@ -2,6 +2,7 @@ import { createRootRouteWithContext, createRoute, RouterProvider } from "@tansta
 import type { ReactNode } from "react";
 import { Component } from "react";
 import { describe, expect, it, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { SignedInPerson } from "../access/signed-in-person";
 import type { CoreStatus, Enrollment, RouterContext } from "./router";
@@ -34,6 +35,7 @@ function contextWith(
   coreStatus: CoreStatus,
   enrollment: Enrollment = "enrolled",
   person: SignedInPerson | null = PERSON,
+  signOut: () => void = () => {},
 ): RouterContext {
   return {
     coreStatus,
@@ -42,6 +44,7 @@ function contextWith(
     enroll: async () => ({ kind: "enrolled" }),
     signInUsers: async () => [{ id: "u1", first_name: "Ada" }],
     signIn: async () => ({ kind: "signed_in", person: PERSON }),
+    signOut,
   };
 }
 
@@ -178,15 +181,32 @@ describe("the register's router", () => {
     await expect.element(screen.getByRole("radio", { name: "Ada" })).toBeVisible();
   });
 
-  it("renders the signed-in screen for the person from the router context", async () => {
+  it("renders the no-session screen for the person from the router context", async () => {
     const router = routerAt("/", "up");
 
     const screen = await render(<RouterProvider router={router} />);
 
     await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
-    await expect
-      .element(screen.getByRole("complementary", { name: "Persona en la caja" }))
-      .toHaveTextContent("Ada");
+    await expect.element(screen.getByText("Ada")).toBeVisible();
+  });
+
+  it("signs the person out through the router context once leaving is confirmed", async () => {
+    const signOut = vi.fn();
+    const router = createRegisterRouter(
+      routeTree,
+      contextWith("up", "enrolled", PERSON, signOut),
+      "/",
+    );
+    const screen = await render(<RouterProvider router={router} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Salir" }));
+    await userEvent.click(
+      screen
+        .getByRole("dialog", { name: "¿Salir de la caja?" })
+        .getByRole("button", { name: "Salir" }),
+    );
+
+    expect(signOut).toHaveBeenCalledOnce();
   });
 
   it("lets an error thrown while rendering a screen propagate past the router", async () => {
