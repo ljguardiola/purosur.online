@@ -546,17 +546,20 @@ describe("GET /changes carrying the catalog and the prices", () => {
     const { deviceToken } = await insertEnrolledInstallation(db);
     const categoryId = await newCategory("Almacén");
     const product = await newProduct(categoryId, ["7790001000011", "7790001000028"]);
-    await editProduct(catalogStore(), {
-      id: product.id,
-      name: "Arroz largo fino",
-      categoryId,
-      brandId: null,
-      saleUnit: "UNIT",
-      barcodes: ["7790001000011", "7790001000028"],
-      netContent: null,
-      tagIds: [],
-      version: 1,
-    });
+    await editProduct(
+      { store: catalogStore(), clock: { now: () => new Date() } },
+      {
+        id: product.id,
+        name: "Arroz largo fino",
+        categoryId,
+        brandId: null,
+        saleUnit: "UNIT",
+        barcodes: ["7790001000011", "7790001000028"],
+        netContent: null,
+        tagIds: [],
+        version: 1,
+      },
+    );
     await deactivateProduct(catalogStore(), product.id);
 
     const page = await pullSinceSeeded(deviceToken);

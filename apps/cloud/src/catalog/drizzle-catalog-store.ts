@@ -1,5 +1,7 @@
+import type { SaleUnit } from "@purosur/domain";
 import {
   type BrandFields,
+  type BuyNPayMDiscount,
   CatalogBarcodeConflict,
   CatalogBrandNameConflict,
   CatalogCategoryNameConflict,
@@ -24,6 +26,7 @@ import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import {
   brands,
   categories,
+  discounts,
   productBarcodes,
   products,
   productTags,
@@ -128,6 +131,7 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
         version: products.version,
         active: products.active,
         brandId: products.brandId,
+        saleUnit: products.saleUnit,
       })
       .from(products)
       .where(eq(products.id, productId))
@@ -135,7 +139,26 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
     if (!product) {
       return { kind: "not_found" };
     }
-    return { kind: "locked", product: { ...product, tagIds: await this.tagIdsOf(productId) } };
+    return {
+      kind: "locked",
+      product: {
+        ...product,
+        saleUnit: product.saleUnit as SaleUnit,
+        tagIds: await this.tagIdsOf(productId),
+      },
+    };
+  }
+
+  async buyNPayMDiscountsOn(productId: string): Promise<BuyNPayMDiscount[]> {
+    return this.tx
+      .select({
+        name: discounts.name,
+        active: discounts.active,
+        validFrom: discounts.validFrom,
+        validTo: discounts.validTo,
+      })
+      .from(discounts)
+      .where(and(eq(discounts.productId, productId), eq(discounts.kind, "BUY_N_PAY_M")));
   }
 
   async lockCategory(categoryId: string): Promise<LockCategoryResult> {
