@@ -43,6 +43,19 @@ const signInMessageSchema = z.object({
   pin: z.string(),
 });
 
+const signInLookupMessageSchema = z.object({
+  type: z.literal("sign-in-lookup"),
+  request_id: requestId,
+  email: z.string(),
+});
+
+const firstSignInMessageSchema = z.object({
+  type: z.literal("first-sign-in"),
+  request_id: requestId,
+  user_id: z.string(),
+  pin: z.string(),
+});
+
 const authorizersRequestMessageSchema = z.object({
   type: z.literal("authorizers"),
   request_id: requestId,
@@ -57,6 +70,8 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   redeemPinCodeMessageSchema,
   signInUsersRequestMessageSchema,
   signInMessageSchema,
+  signInLookupMessageSchema,
+  firstSignInMessageSchema,
   authorizersRequestMessageSchema,
 ]);
 export type RendererToCoreMessage = z.infer<typeof rendererToCoreMessageSchema>;
@@ -97,6 +112,17 @@ export type SignInOutcome = z.infer<typeof signInOutcomeSchema>;
 const signInUserSchema = z.object({ id: z.string(), first_name: z.string() });
 export type SignInUser = z.infer<typeof signInUserSchema>;
 
+const signInLookupOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("has_pin"), user: signInUserSchema }),
+  z.object({ kind: z.literal("no_pin"), user: signInUserSchema }),
+  z.object({ kind: z.literal("not_found") }),
+  z.object({ kind: z.literal("invalid_email") }),
+  z.object({ kind: z.literal("rate_limited"), retry_after_seconds: z.int().nonnegative() }),
+  z.object({ kind: z.literal("unreachable") }),
+  z.object({ kind: z.literal("unavailable") }),
+]);
+export type SignInLookupOutcome = z.infer<typeof signInLookupOutcomeSchema>;
+
 export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("enrollment-status"), request_id: requestId, enrolled: z.boolean() }),
   z.object({
@@ -124,6 +150,11 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("sign-in-result"),
     request_id: requestId,
     outcome: signInOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("sign-in-lookup-result"),
+    request_id: requestId,
+    outcome: signInLookupOutcomeSchema,
   }),
   z.object({
     type: z.literal("authorizers"),

@@ -17,6 +17,7 @@ export interface PinSignInFailures {
 export interface SignInStore {
   signableUsers(): SignInUser[];
   remember(userId: string): void;
+  firstNameOf(userId: string): string | undefined;
   authorizers(permission: AuthorizablePermissionKey): SignInUser[];
   signInRecord(userId: string): SignInRecord | undefined;
   pinSignInFailures(userId: string): PinSignInFailures | undefined;
@@ -67,6 +68,14 @@ export class SqliteSignInStore implements SignInStore {
     this.database
       .prepare("INSERT INTO remembered_users (user_id) VALUES (?) ON CONFLICT (user_id) DO NOTHING")
       .run(userId);
+  }
+
+  firstNameOf(userId: string): string | undefined {
+    return this.database
+      .prepare<[string], { first_name: string }>(
+        "SELECT first_name FROM users WHERE id = ? AND active = 1 AND removed = 0",
+      )
+      .get(userId)?.first_name;
   }
 
   authorizers(permission: AuthorizablePermissionKey): SignInUser[] {

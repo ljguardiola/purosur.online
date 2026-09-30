@@ -3,6 +3,7 @@ import type {
   EnrollmentOutcome,
   PinCodeRedemptionOutcome,
   RendererToCoreMessage,
+  SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
 } from "@purosur/contracts";
@@ -15,6 +16,8 @@ export interface RendererRequestDeps {
   redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
   signInUsers: (() => SignInUser[]) | undefined;
   signIn: ((userId: string, pin: string) => Promise<SignInOutcome>) | undefined;
+  firstSignIn: ((userId: string, pin: string) => Promise<SignInOutcome>) | undefined;
+  signInLookup: ((email: string) => Promise<SignInLookupOutcome>) | undefined;
   authorizers: ((permission: AuthorizablePermissionKey) => SignInUser[]) | undefined;
   reportFailure: (context: string, error: unknown) => void;
 }
@@ -49,6 +52,32 @@ async function attemptSignIn(
     return (await deps.signIn?.(userId, pin)) ?? { kind: "unavailable" };
   } catch (error) {
     deps.reportFailure("signing in", error);
+    return { kind: "unavailable" };
+  }
+}
+
+async function attemptFirstSignIn(
+  deps: RendererRequestDeps,
+  userId: string,
+  pin: string,
+): Promise<SignInOutcome> {
+  try {
+    return (await deps.firstSignIn?.(userId, pin)) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure("signing in for the first time", error);
+    return { kind: "unavailable" };
+  }
+}
+
+// The failure is reported without its error: what a lookup fails on may carry the email typed.
+async function attemptSignInLookup(
+  deps: RendererRequestDeps,
+  email: string,
+): Promise<SignInLookupOutcome> {
+  try {
+    return (await deps.signInLookup?.(email)) ?? { kind: "unavailable" };
+  } catch {
+    deps.reportFailure("looking up who signs in", new Error("the lookup failed"));
     return { kind: "unavailable" };
   }
 }
@@ -93,6 +122,18 @@ export async function answerRendererRequest(
         type: "sign-in-result",
         request_id: message.request_id,
         outcome: await attemptSignIn(deps, message.user_id, message.pin),
+      };
+    case "first-sign-in":
+      return {
+        type: "sign-in-result",
+        request_id: message.request_id,
+        outcome: await attemptFirstSignIn(deps, message.user_id, message.pin),
+      };
+    case "sign-in-lookup":
+      return {
+        type: "sign-in-lookup-result",
+        request_id: message.request_id,
+        outcome: await attemptSignInLookup(deps, message.email),
       };
     case "authorizers": {
       const users = readAuthorizers(deps, message.permission);

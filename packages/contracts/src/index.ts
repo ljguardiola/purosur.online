@@ -141,6 +141,7 @@ export type {
   MainToCoreMessage,
   PinCodeRedemptionOutcome,
   RendererToCoreMessage,
+  SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
 } from "./register/core-messages.js";

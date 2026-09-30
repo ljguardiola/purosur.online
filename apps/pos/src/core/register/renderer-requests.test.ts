@@ -1,4 +1,4 @@
-import type { SignInOutcome } from "@purosur/contracts";
+import type { SignInLookupOutcome, SignInOutcome } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
@@ -7,12 +7,16 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const enrolledCodes: string[] = [];
   const redemptions: { resetCode: string; newPin: string }[] = [];
   const signIns: { userId: string; pin: string }[] = [];
+  const firstSignIns: { userId: string; pin: string }[] = [];
+  const lookups: string[] = [];
   const authorizerLookups: string[] = [];
   const failures: { context: string; error: unknown }[] = [];
   return {
     enrolledCodes,
     redemptions,
     signIns,
+    firstSignIns,
+    lookups,
     authorizerLookups,
     failures,
     deps: {
@@ -30,6 +34,14 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       signIn: async (userId: string, pin: string): Promise<SignInOutcome> => {
         signIns.push({ userId, pin });
         return { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 7 };
+      },
+      firstSignIn: async (userId: string, pin: string): Promise<SignInOutcome> => {
+        firstSignIns.push({ userId, pin });
+        return { kind: "no_register_permission" };
+      },
+      signInLookup: async (email: string): Promise<SignInLookupOutcome> => {
+        lookups.push(email);
+        return { kind: "has_pin", user: { id: "u1", first_name: "Ada" } };
       },
       authorizers: (permission: AuthorizablePermissionKey) => {
         authorizerLookups.push(permission);
@@ -260,5 +272,112 @@ describe("answerRendererRequest", () => {
 
   it("answers nothing to a ping", async () => {
     expect(await answerRendererRequest(deps(true).deps, { type: "ping" })).toBeUndefined();
+  });
+
+  it("signs in for the first time with the chosen user and the PIN as typed", async () => {
+    const { deps: withFirstSignIn, firstSignIns, signIns } = deps(true);
+
+    const answer = await answerRendererRequest(withFirstSignIn, {
+      type: "first-sign-in",
+      request_id: "r13",
+      user_id: "u1",
+      pin: "0042",
+    });
+
+    expect(firstSignIns).toEqual([{ userId: "u1", pin: "0042" }]);
+    expect(signIns).toEqual([]);
+    expect(answer).toEqual({
+      type: "sign-in-result",
+      request_id: "r13",
+      outcome: { kind: "no_register_permission" },
+    });
+  });
+
+  it("answers that a first sign-in is unavailable when it fails, and reports why", async () => {
+    const error = new Error("no memory for argon2");
+    const failing = deps(true, {
+      firstSignIn: async () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "first-sign-in",
+        request_id: "r14",
+        user_id: "u1",
+        pin: "1",
+      }),
+    ).toEqual({ type: "sign-in-result", request_id: "r14", outcome: { kind: "unavailable" } });
+    expect(failing.failures).toEqual([{ context: "signing in for the first time", error }]);
+  });
+
+  it("answers that a first sign-in is unavailable when the register has no database", async () => {
+    const withoutDatabase = deps(true, { firstSignIn: undefined });
+
+    expect(
+      await answerRendererRequest(withoutDatabase.deps, {
+        type: "first-sign-in",
+        request_id: "r15",
+        user_id: "u1",
+        pin: "1",
+      }),
+    ).toEqual({ type: "sign-in-result", request_id: "r15", outcome: { kind: "unavailable" } });
+  });
+
+  it("looks up who signs in with the email as typed and answers the outcome", async () => {
+    const { deps: withLookup, lookups } = deps(true);
+
+    const answer = await answerRendererRequest(withLookup, {
+      type: "sign-in-lookup",
+      request_id: "r16",
+      email: "Ada@Example.com",
+    });
+
+    expect(lookups).toEqual(["Ada@Example.com"]);
+    expect(answer).toEqual({
+      type: "sign-in-lookup-result",
+      request_id: "r16",
+      outcome: { kind: "has_pin", user: { id: "u1", first_name: "Ada" } },
+    });
+  });
+
+  it("answers that the lookup is unavailable when it fails, reporting neither the email nor the error", async () => {
+    const failing = deps(true, {
+      signInLookup: async (email: string) => {
+        throw new Error(`could not look up ${email}`);
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "sign-in-lookup",
+        request_id: "r17",
+        email: "ada@example.com",
+      }),
+    ).toEqual({
+      type: "sign-in-lookup-result",
+      request_id: "r17",
+      outcome: { kind: "unavailable" },
+    });
+    expect(failing.failures).toHaveLength(1);
+    expect(failing.failures[0]?.context).not.toContain("ada@example.com");
+    expect(String(failing.failures[0]?.error)).not.toContain("ada@example.com");
+  });
+
+  it("answers that the lookup is unavailable when the register has no database", async () => {
+    const withoutDatabase = deps(true, { signInLookup: undefined });
+
+    expect(
+      await answerRendererRequest(withoutDatabase.deps, {
+        type: "sign-in-lookup",
+        request_id: "r18",
+        email: "ada@example.com",
+      }),
+    ).toEqual({
+      type: "sign-in-lookup-result",
+      request_id: "r18",
+      outcome: { kind: "unavailable" },
+    });
   });
 });

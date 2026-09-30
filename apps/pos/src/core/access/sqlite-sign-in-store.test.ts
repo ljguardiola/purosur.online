@@ -136,6 +136,29 @@ describe("signable users", () => {
   });
 });
 
+describe("a user's first name", () => {
+  it("is held for an active user with or without a PIN, remembered or not", () => {
+    addUser({ id: "u1", firstName: "Ada", remembered: false });
+    addUser({ id: "u2", firstName: "Bruno", verifier: null, salt: null });
+
+    expect(store.firstNameOf("u1")).toBe("Ada");
+    expect(store.firstNameOf("u2")).toBe("Bruno");
+  });
+
+  it.each([
+    ["deactivated", { active: false }],
+    ["removed", { removed: true }],
+  ])("is not held for a user who is %s", (_case, seed) => {
+    addUser({ id: "u1", ...seed });
+
+    expect(store.firstNameOf("u1")).toBeUndefined();
+  });
+
+  it("is not held for a user the register does not know", () => {
+    expect(store.firstNameOf("nobody")).toBeUndefined();
+  });
+});
+
 describe("a user's sign-in record", () => {
   it("holds the first name, salt, verifier and the active permissions of the role", () => {
     addUser({ id: "u1", firstName: "Ada", salt: "the-salt", verifier: "the-verifier" });
