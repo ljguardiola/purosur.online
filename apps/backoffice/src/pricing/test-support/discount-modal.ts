@@ -31,12 +31,13 @@ export function productPicker(dialog: Dialog) {
   return dialog.getByRole("combobox", { name: /^Producto/ });
 }
 
-// The list opens outside the dialog. Picking with the keyboard: a pointer click on an option scrolls it into view first, which
-// closes the list.
+// The list opens outside the dialog. A locator click scrolls the option into view first, and the
+// scroll event closes the list, so the option is clicked as an element instead.
 export async function chooseProduct(dialog: Dialog, typed: string, option: string) {
   await userEvent.fill(productPicker(dialog), typed);
-  await expect.element(page.getByRole("option", { name: option })).toBeVisible();
-  await userEvent.keyboard("{ArrowDown}{Enter}");
+  const named = page.getByRole("option", { name: option });
+  await expect.element(named).toBeVisible();
+  (named.element() as HTMLElement).click();
 }
 
 export async function fillNewDiscountExceptTarget(dialog: Dialog) {
