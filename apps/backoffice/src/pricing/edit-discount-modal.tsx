@@ -19,13 +19,14 @@ import {
   discountFormValues,
   EMPTY_DISCOUNT_EDIT_FORM,
   eligibleTargets,
+  keptTarget,
   productSoldByWeightMessage,
+  soldByWeightHelp,
   TARGET_SOLD_BY_WEIGHT_MESSAGE,
   targetForKind,
   targetOptions,
   targetPlaceholder,
   targetUnavailableMessage,
-  unlistedTarget,
   WEEKDAY_OPTIONS,
 } from "./discount-form";
 import { DISCOUNT_TARGET_KIND_LABELS } from "./discount-texts";
@@ -156,8 +157,9 @@ export function EditDiscountModal({
   const options = targetOptions(
     values.targetKind,
     eligibleTargets(values.benefitKind, targets),
-    unlistedTarget(targets, loaded?.target),
+    keptTarget(targets, loaded ?? undefined),
   );
+  const help = soldByWeightHelp(values, targets);
   const targetField = (
     <form.AppField name="targetId">
       {(field) =>
@@ -166,6 +168,7 @@ export function EditDiscountModal({
             label={targetKindLabel}
             placeholder={targetPlaceholder(values.targetKind)}
             options={options}
+            {...(help !== undefined ? { description: help } : {})}
             required
           />
         ) : (

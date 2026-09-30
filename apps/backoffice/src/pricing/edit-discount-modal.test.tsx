@@ -18,6 +18,7 @@ import {
   almacenCategory,
   almacenTuesdays,
   almondsProduct,
+  almondsThreeForTwo,
   discountTargets,
   retiredProduct,
   retiredTag,
@@ -210,21 +211,40 @@ test("says a product that is now sold by weight cannot take it, on the picker", 
     .toHaveAccessibleDescription("Se vende por peso. Elegí otro producto.");
 });
 
-test("names on the picker the product that is now sold by weight when switching the promotion on", async () => {
+test("keeps the product sold by weight selected on its buy-N-pay-M promotion, tagged, with a help text", async () => {
+  const { dialog } = await renderModal(createServices(), { target: almondsThreeForTwo });
+
+  const picker = dialog.getByRole("button", { name: /Almendras peladas/ });
+  await expect.element(picker).toBeVisible();
+  await expect.element(picker.getByText("Por peso")).toBeVisible();
+  await expect
+    .element(picker)
+    .toHaveAccessibleDescription(
+      "Este producto se vende por peso: Lleve N, pague M no se le aplica.",
+    );
+});
+
+test("names on the picker the product sold by weight when switching its promotion on, instead of the help text", async () => {
   const services = createServices();
   vi.mocked(services.editDiscount).mockResolvedValue({
     kind: "product_sold_by_weight",
-    productName: "Yerba Playadito 1 kg",
+    productName: "Almendras peladas",
   });
-  const { dialog } = await renderModal(services);
+  const { dialog } = await renderModal(services, { target: almondsThreeForTwo });
 
+  await userEvent.click(dialog.getByText("Se aplica en la caja"));
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
+  const picker = dialog.getByRole("button", { name: /Almendras peladas/ });
   await expect
-    .element(dialog.getByRole("button", { name: /Yerba Playadito 1 kg/ }))
+    .element(picker)
     .toHaveAccessibleDescription(
-      '"Yerba Playadito 1 kg" se vende por peso: esta promoción solo aplica a productos por unidad.',
+      '"Almendras peladas" se vende por peso: esta promoción solo aplica a productos por unidad.',
     );
+  await expect.element(picker.getByText("Por peso")).toBeVisible();
+  expect(
+    dialog.getByText("Este producto se vende por peso: Lleve N, pague M no se le aplica.").query(),
+  ).toBeNull();
 });
 
 test("switching the promotion off is sent with the rest of the form", async () => {
