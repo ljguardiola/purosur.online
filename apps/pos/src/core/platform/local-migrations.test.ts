@@ -398,7 +398,13 @@ describe("the register's local migrations", () => {
       ]);
       const plan = after
         .prepare<[], { detail: string }>(
-          "EXPLAIN QUERY PLAN SELECT count(*) FROM sale_lines WHERE product_id = 'p1'",
+          `EXPLAIN QUERY PLAN SELECT products.id,
+             (SELECT count(*) FROM sale_lines
+              JOIN sales ON sales.id = sale_lines.sale_id
+              WHERE sale_lines.product_id = products.id AND sales.state = 'COMPLETED'
+                AND sales.register_id IN (SELECT id FROM own_register WHERE removed = 0)
+             )
+           FROM products`,
         )
         .all()
         .map((step) => step.detail);
