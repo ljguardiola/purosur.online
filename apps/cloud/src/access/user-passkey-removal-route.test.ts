@@ -103,11 +103,7 @@ function cookieHeader(rawSessionId: string): Record<string, string> {
   return { cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` };
 }
 
-function deleteRequest(
-  target: FastifyInstance,
-  url: string,
-  headers: Record<string, string> = {},
-) {
+function deleteRequest(target: FastifyInstance, url: string, headers: Record<string, string> = {}) {
   return target.inject({
     method: "DELETE",
     url,
@@ -164,11 +160,7 @@ async function registerPasskey(
   }
 }
 
-function removePasskey(
-  targetId: string,
-  passkeyId: string,
-  rawSessionId: string | undefined,
-) {
+function removePasskey(targetId: string, passkeyId: string, rawSessionId: string | undefined) {
   return deleteRequest(
     app,
     `/users/${targetId}/passkeys/${passkeyId}`,
