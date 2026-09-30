@@ -261,7 +261,10 @@ const rendererRequestDeps: RendererRequestDeps = {
             },
             openingFloat,
           ),
-  cashSession: localDatabase === undefined ? undefined : () => currentCashSession(localDatabase),
+  cashSession:
+    localDatabase === undefined
+      ? undefined
+      : () => currentCashSession(localDatabase, signedInPerson),
   reportFailure,
 };
 

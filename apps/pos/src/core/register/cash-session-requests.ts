@@ -49,8 +49,22 @@ export async function openCashSessionFor(
     : { kind: outcome.kind };
 }
 
-export function currentCashSession(database: LocalDatabase): OpenCashSession | null {
+function readOpenSessionSigningInItsOpener(
+  database: LocalDatabase,
+  signedInPerson: Pick<SignedInPerson, "set">,
+) {
   const session = readOpenSession(database);
+  if (session !== undefined) {
+    signedInPerson.set(session.openedBy);
+  }
+  return session;
+}
+
+export function currentCashSession(
+  database: LocalDatabase,
+  signedInPerson: Pick<SignedInPerson, "set">,
+): OpenCashSession | null {
+  const session = readOpenSessionSigningInItsOpener(database, signedInPerson);
   if (session === undefined) {
     return null;
   }
@@ -82,10 +96,7 @@ export function resumeSignedInPerson({
 }: ResumeSignedInPersonDeps): void {
   signedInPerson.clear();
   try {
-    const session = readOpenSession(database);
-    if (session !== undefined) {
-      signedInPerson.set(session.openedBy);
-    }
+    readOpenSessionSigningInItsOpener(database, signedInPerson);
   } catch (error) {
     reportFailure("reading who opened the open cash session", error);
   }

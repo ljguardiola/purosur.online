@@ -160,14 +160,27 @@ describe("opening a cash session on the register", () => {
 });
 
 describe("the open cash session", () => {
-  it("is none while no session is open", () => {
-    expect(currentCashSession(database)).toBeNull();
+  it("is none while no session is open, and leaves the signed-in person signed in", () => {
+    expect(currentCashSession(database, signedInPerson)).toBeNull();
+    expect(signedInPerson.userId()).toBe("u1");
+  });
+
+  it("makes its opener the signed-in person once it is read after the read at page connect failed", async () => {
+    await openCashSessionFor(deps(), 5000);
+    const unreadable = openLocalDatabase(":memory:", LOCAL_MIGRATIONS);
+    unreadable.close();
+    resumeSignedInPerson({ database: unreadable, signedInPerson, reportFailure: () => {} });
+    expect(signedInPerson.userId()).toBeUndefined();
+
+    currentCashSession(database, signedInPerson);
+
+    expect(signedInPerson.userId()).toBe("u1");
   });
 
   it("names its opener with the permissions of the opener's role", async () => {
     await openCashSessionFor(deps(), 5000);
 
-    expect(currentCashSession(database)).toEqual({
+    expect(currentCashSession(database, signedInPerson)).toEqual({
       id: "id-1",
       opened_at: "2026-09-30T12:00:00.000Z",
       opened_by: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
@@ -180,7 +193,9 @@ describe("the open cash session", () => {
     signedInPerson.set("u3");
     await openCashSessionFor(deps(), 0);
 
-    expect(currentCashSession(database)?.opened_by.permission_keys).toEqual([...PERMISSION_KEYS]);
+    expect(currentCashSession(database, signedInPerson)?.opened_by.permission_keys).toEqual([
+      ...PERMISSION_KEYS,
+    ]);
   });
 
   it.each([
@@ -192,7 +207,7 @@ describe("the open cash session", () => {
     await openCashSessionFor(deps(), 5000);
     database.prepare(change).run();
 
-    expect(currentCashSession(database)?.opened_by).toEqual({
+    expect(currentCashSession(database, signedInPerson)?.opened_by).toEqual({
       user_id: "u1",
       first_name: "Ada",
       permission_keys: ["sell_and_charge"],
@@ -203,14 +218,14 @@ describe("the open cash session", () => {
     await openCashSessionFor(deps(), 5000);
     database.prepare("UPDATE roles SET removed = 1").run();
 
-    expect(currentCashSession(database)?.opened_by.permission_keys).toEqual([]);
+    expect(currentCashSession(database, signedInPerson)?.opened_by.permission_keys).toEqual([]);
   });
 
   it("is still the open session when the opener's row is gone, with no name and no permissions", async () => {
     await openCashSessionFor(deps(), 5000);
     database.prepare("DELETE FROM users").run();
 
-    expect(currentCashSession(database)?.opened_by).toEqual({
+    expect(currentCashSession(database, signedInPerson)?.opened_by).toEqual({
       user_id: "u1",
       first_name: "",
       permission_keys: [],
