@@ -1,17 +1,17 @@
 import { PERMISSION_KEYS } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
-import { grantedPermissionKeys } from "./granted-permission-keys";
+import { heldPermissionKeys } from "./held-permission-keys";
 
-describe("grantedPermissionKeys", () => {
+describe("heldPermissionKeys", () => {
   it("gives an Administrator every permission", () => {
-    expect(grantedPermissionKeys({ isAdministrator: true, permissionKeys: [] })).toEqual([
+    expect(heldPermissionKeys({ isAdministrator: true, permissionKeys: [] })).toEqual([
       ...PERMISSION_KEYS,
     ]);
   });
 
   it("gives anyone else the permissions the role grants", () => {
     expect(
-      grantedPermissionKeys({ isAdministrator: false, permissionKeys: ["sell_and_charge"] }),
+      heldPermissionKeys({ isAdministrator: false, permissionKeys: ["sell_and_charge"] }),
     ).toEqual(["sell_and_charge"]);
   });
 });

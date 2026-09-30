@@ -1,6 +1,6 @@
 import type { OpenCashSession, OpenCashSessionOutcome } from "@purosur/contracts";
 import { type Clock, type IdGenerator, openCashSession } from "@purosur/domain/register/use-cases";
-import { grantedPermissionKeys } from "../access/granted-permission-keys";
+import { heldPermissionKeys } from "../access/held-permission-keys";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import type { LocalDatabase } from "../platform/local-database";
 import { readOpenSession, SqliteCashLedger } from "./sqlite-cash-ledger";
@@ -56,7 +56,7 @@ export function currentCashSession(database: LocalDatabase): OpenCashSession | n
     opened_by: {
       user_id: session.openedBy,
       first_name: opener.firstName,
-      permission_keys: grantedPermissionKeys(opener.access),
+      permission_keys: heldPermissionKeys(opener.access),
     },
   };
 }

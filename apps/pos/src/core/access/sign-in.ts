@@ -1,6 +1,6 @@
 import type { SignInOutcome } from "@purosur/contracts";
 import { holdsARegisterPermission, pinSignInAttemptsLeft } from "@purosur/domain";
-import { grantedPermissionKeys } from "./granted-permission-keys";
+import { heldPermissionKeys } from "./held-permission-keys";
 import { checkCountedPin, type PinCheckDeps, signableRecord } from "./pin-check";
 
 export type SignInDeps = PinCheckDeps;
@@ -27,7 +27,7 @@ export async function signIn(
     person: {
       user_id: userId,
       first_name: record.firstName,
-      permission_keys: grantedPermissionKeys(record.access),
+      permission_keys: heldPermissionKeys(record.access),
     },
   };
 }
