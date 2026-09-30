@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createResendRecoveryEmailSender } from "./resend-email-sender.js";
 
 function fakeFetch(response: { ok: boolean; status: number; body?: unknown }) {
@@ -159,5 +159,73 @@ describe("createResendRecoveryEmailSender sending a first PIN code", () => {
     await expect(
       senderWith(fetch).sendFirstPinCode({ to: "ada@example.com", code: "P4NX7KWE2QRT5MZD" }),
     ).rejects.toThrow(/422/);
+  });
+});
+
+describe("createResendRecoveryEmailSender when Resend does not answer", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function fetchThatNeverAnswers() {
+    return vi.fn<typeof globalThis.fetch>(
+      (_input, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+        }),
+    );
+  }
+
+  function senderWith(fetch: typeof globalThis.fetch) {
+    return createResendRecoveryEmailSender({
+      apiKey: "re_test_key",
+      from: "Puro Sur <acceso@mail.staging.purosur.online>",
+      replyTo: "purosur.comarca@gmail.com",
+      fetch,
+    });
+  }
+
+  it("gives up on the request after ten seconds and rejects", async () => {
+    vi.useFakeTimers();
+    const fetch = fetchThatNeverAnswers();
+    let settled = false;
+    const sending = senderWith(fetch)
+      .sendFirstPinCode({ to: "ada@example.com", code: "P4NX7KWE2QRT5MZD" })
+      .finally(() => {
+        settled = true;
+      });
+    const rejection = expect(sending).rejects.toThrow();
+
+    await vi.advanceTimersByTimeAsync(9_999);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+
+    await rejection;
+    expect(fetch.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
+  });
+
+  it("gives up on a recovery link request the same way", async () => {
+    vi.useFakeTimers();
+    const sending = senderWith(fetchThatNeverAnswers()).sendRecoveryLink({
+      to: "ada@example.com",
+      link: "https://example.com/#tok",
+    });
+    const rejection = expect(sending).rejects.toThrow();
+
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    await rejection;
+  });
+
+  it("leaves a request that answers in time untouched once it is done", async () => {
+    vi.useFakeTimers();
+    const fetch = fakeFetch({ ok: true, status: 200 });
+
+    await senderWith(fetch).sendFirstPinCode({ to: "ada@example.com", code: "P4NX7KWE2QRT5MZD" });
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    const [, init] = fetch.mock.calls[0] as [string, RequestInit];
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+    expect(init.signal?.aborted).toBe(false);
   });
 });

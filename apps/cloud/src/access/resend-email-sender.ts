@@ -8,6 +8,9 @@ export interface ResendRecoveryEmailSenderOptions {
 }
 
 const RESEND_API_URL = "https://api.resend.com/emails";
+// A first PIN code is sent while its person's row stays locked, so a Resend request that never
+// answers must not hold that lock and its connection indefinitely.
+const RESEND_TIMEOUT_MS = 10_000;
 
 function buildEmailBody(link: string): { text: string; html: string } {
   const intro = "Se pidió recuperar el acceso a tu cuenta de Puro Sur.";
@@ -38,8 +41,27 @@ export function createResendRecoveryEmailSender(
   const doFetch = options.fetch ?? globalThis.fetch;
 
   async function send(to: string, subject: string, body: { text: string; html: string }) {
+    const abort = new AbortController();
+    const timeout = setTimeout(
+      () => abort.abort(new Error(`Resend API did not answer within ${RESEND_TIMEOUT_MS} ms`)),
+      RESEND_TIMEOUT_MS,
+    );
+    try {
+      await post(to, subject, body, abort.signal);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  async function post(
+    to: string,
+    subject: string,
+    body: { text: string; html: string },
+    signal: AbortSignal,
+  ) {
     const response = await doFetch(RESEND_API_URL, {
       method: "POST",
+      signal,
       headers: {
         Authorization: `Bearer ${options.apiKey}`,
         "Content-Type": "application/json",
