@@ -68,6 +68,11 @@ export function App({ core }: { core: CoreClient }) {
     return takeSignedInPerson(await core.firstSignIn(userId, pin));
   }
 
+  function signOut() {
+    core.signOut().catch(() => {});
+    setPerson(undefined);
+  }
+
   async function openCashSession(opener: SignedInPerson, openingFloat: number) {
     const outcome = await core.openCashSession(openingFloat);
     if (outcome.kind === "not_signed_in") {
@@ -148,11 +153,6 @@ export function App({ core }: { core: CoreClient }) {
       setPerson(outcome.person);
     }
     return outcome;
-  }
-
-  function signOut() {
-    core.signOut().catch(() => {});
-    setPerson(undefined);
   }
 
   const services = {

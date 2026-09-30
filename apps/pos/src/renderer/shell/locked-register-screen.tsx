@@ -28,7 +28,7 @@ export function LockedRegisterScreen({
     firstName: opener.first_name,
     signIn: (pin) => signIn(opener.user_id, pin),
   });
-  const { refusal } = attempt;
+  const { refusal, heading, reset } = attempt;
 
   return (
     <BrandPanelScreen>
@@ -37,7 +37,7 @@ export function LockedRegisterScreen({
           <SessionEyebrow registerName={registerName} openedAt={openedAt} />
           <h1
             id={headingId}
-            ref={attempt.heading}
+            ref={heading}
             tabIndex={-1}
             className="text-display text-text-accent outline-none"
           >
@@ -48,7 +48,7 @@ export function LockedRegisterScreen({
           <SignInLockout
             consecutiveFailures={refusal.consecutiveFailures}
             backLabel="Volver"
-            onBack={attempt.reset}
+            onBack={reset}
           />
         ) : (
           <>
