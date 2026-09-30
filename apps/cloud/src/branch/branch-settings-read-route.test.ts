@@ -110,7 +110,7 @@ function cookieHeader(rawSessionId: string): Record<string, string> {
 function getBranchSettings(rawSessionId?: string) {
   return app.inject({
     method: "GET",
-    url: "/branch-settings",
+    url: "/locations/current/settings",
     headers: {
       origin: BACKOFFICE_ORIGIN,
       ...(rawSessionId ? cookieHeader(rawSessionId) : {}),
@@ -118,7 +118,25 @@ function getBranchSettings(rawSessionId?: string) {
   });
 }
 
-describe("GET /branch-settings", () => {
+describe("GET /locations/current/settings", () => {
+  it("no longer answers GET /branch-settings", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/branch-settings",
+      headers: { origin: BACKOFFICE_ORIGIN, ...cookieHeader(rawSessionId) },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
   it("returns 401 unauthenticated when no cookie was sent", async () => {
     const response = await getBranchSettings();
 
@@ -137,7 +155,7 @@ describe("GET /branch-settings", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/branch-settings",
+      url: "/locations/current/settings",
       headers: { origin: "https://attacker.example", ...cookieHeader(rawSessionId) },
     });
 

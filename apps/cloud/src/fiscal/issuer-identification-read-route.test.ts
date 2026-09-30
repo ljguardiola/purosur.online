@@ -109,7 +109,7 @@ function cookieHeader(rawSessionId: string): Record<string, string> {
 function getIssuerIdentification(rawSessionId?: string) {
   return app.inject({
     method: "GET",
-    url: "/fiscal-configuration/issuer-identification",
+    url: "/fiscal-settings/issuer-identification",
     headers: {
       origin: BACKOFFICE_ORIGIN,
       ...(rawSessionId ? cookieHeader(rawSessionId) : {}),
@@ -117,7 +117,25 @@ function getIssuerIdentification(rawSessionId?: string) {
   });
 }
 
-describe("GET /fiscal-configuration/issuer-identification", () => {
+describe("GET /fiscal-settings/issuer-identification", () => {
+  it("no longer answers GET /fiscal-configuration/issuer-identification", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/fiscal-configuration/issuer-identification",
+      headers: { origin: BACKOFFICE_ORIGIN, ...cookieHeader(rawSessionId) },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
   it("returns 401 unauthenticated when no cookie was sent", async () => {
     const response = await getIssuerIdentification();
 
@@ -136,7 +154,7 @@ describe("GET /fiscal-configuration/issuer-identification", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/fiscal-configuration/issuer-identification",
+      url: "/fiscal-settings/issuer-identification",
       headers: { origin: "https://attacker.example", ...cookieHeader(rawSessionId) },
     });
 

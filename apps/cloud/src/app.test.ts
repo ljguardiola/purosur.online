@@ -1237,15 +1237,15 @@ describe("wiring the device token rotation route", () => {
 });
 
 describe("wiring the branch settings routes", () => {
-  it("does not register GET /api/branch-settings when no branchSettings option is given", async () => {
+  it("does not register GET /api/locations/current/settings when no branchSettings option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
-    const response = await app.inject({ method: "GET", url: "/api/branch-settings" });
+    const response = await app.inject({ method: "GET", url: "/api/locations/current/settings" });
 
     expect(response.statusCode).toBe(404);
   });
 
-  it("registers GET /api/branch-settings when a branchSettings option is given", async () => {
+  it("registers GET /api/locations/current/settings when a branchSettings option is given", async () => {
     const app = buildApp({
       version: "abc1234",
       branchSettings: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
@@ -1253,7 +1253,7 @@ describe("wiring the branch settings routes", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/api/branch-settings",
+      url: "/api/locations/current/settings",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1261,15 +1261,15 @@ describe("wiring the branch settings routes", () => {
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
   });
 
-  it("does not register PUT /api/branch-settings when no branchSettings option is given", async () => {
+  it("does not register PUT /api/locations/current/settings when no branchSettings option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
-    const response = await app.inject({ method: "PUT", url: "/api/branch-settings" });
+    const response = await app.inject({ method: "PUT", url: "/api/locations/current/settings" });
 
     expect(response.statusCode).toBe(404);
   });
 
-  it("registers PUT /api/branch-settings when a branchSettings option is given", async () => {
+  it("registers PUT /api/locations/current/settings when a branchSettings option is given", async () => {
     const app = buildApp({
       version: "abc1234",
       branchSettings: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
@@ -1277,7 +1277,7 @@ describe("wiring the branch settings routes", () => {
 
     const response = await app.inject({
       method: "PUT",
-      url: "/api/branch-settings",
+      url: "/api/locations/current/settings",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1289,18 +1289,18 @@ describe("wiring the branch settings routes", () => {
 describe("wiring the issuer identification routes", () => {
   const authorizedCuit = "20-12345678-6";
 
-  it("does not register GET /api/fiscal-configuration/issuer-identification when no issuerIdentification option is given", async () => {
+  it("does not register GET /api/fiscal-settings/issuer-identification when no issuerIdentification option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
     const response = await app.inject({
       method: "GET",
-      url: "/api/fiscal-configuration/issuer-identification",
+      url: "/api/fiscal-settings/issuer-identification",
     });
 
     expect(response.statusCode).toBe(404);
   });
 
-  it("registers GET /api/fiscal-configuration/issuer-identification when an issuerIdentification option is given", async () => {
+  it("registers GET /api/fiscal-settings/issuer-identification when an issuerIdentification option is given", async () => {
     const app = buildApp({
       version: "abc1234",
       issuerIdentification: {
@@ -1312,7 +1312,7 @@ describe("wiring the issuer identification routes", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/api/fiscal-configuration/issuer-identification",
+      url: "/api/fiscal-settings/issuer-identification",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1320,18 +1320,18 @@ describe("wiring the issuer identification routes", () => {
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
   });
 
-  it("does not register PUT /api/fiscal-configuration/issuer-identification when no issuerIdentification option is given", async () => {
+  it("does not register PUT /api/fiscal-settings/issuer-identification when no issuerIdentification option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
     const response = await app.inject({
       method: "PUT",
-      url: "/api/fiscal-configuration/issuer-identification",
+      url: "/api/fiscal-settings/issuer-identification",
     });
 
     expect(response.statusCode).toBe(404);
   });
 
-  it("registers PUT /api/fiscal-configuration/issuer-identification when an issuerIdentification option is given", async () => {
+  it("registers PUT /api/fiscal-settings/issuer-identification when an issuerIdentification option is given", async () => {
     const app = buildApp({
       version: "abc1234",
       issuerIdentification: {
@@ -1343,7 +1343,7 @@ describe("wiring the issuer identification routes", () => {
 
     const response = await app.inject({
       method: "PUT",
-      url: "/api/fiscal-configuration/issuer-identification",
+      url: "/api/fiscal-settings/issuer-identification",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1532,22 +1532,22 @@ describe("the route access inventory", () => {
       { method: "POST", url: "/api/roles/:id/edit", access: ADMINISTRATOR_ACCESS },
       {
         method: "GET",
-        url: "/api/branch-settings",
+        url: "/api/locations/current/settings",
         access: permissionAccess("configure_branch"),
       },
       {
         method: "PUT",
-        url: "/api/branch-settings",
+        url: "/api/locations/current/settings",
         access: permissionAccess("configure_branch"),
       },
       {
         method: "GET",
-        url: "/api/fiscal-configuration/issuer-identification",
+        url: "/api/fiscal-settings/issuer-identification",
         access: permissionAccess("change_fiscal_configuration"),
       },
       {
         method: "PUT",
-        url: "/api/fiscal-configuration/issuer-identification",
+        url: "/api/fiscal-settings/issuer-identification",
         access: permissionAccess("change_fiscal_configuration"),
       },
       {
