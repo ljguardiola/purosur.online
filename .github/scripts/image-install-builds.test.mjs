@@ -176,6 +176,69 @@ test("reports each approved build once, however many paths reach it", () => {
   assert.deepEqual(builds, ["native-driver"]);
 });
 
+test("follows an aliased dependency under the name of the package it installs", () => {
+  const lockfile = lockfileWith({
+    importers: {
+      "apps/cloud": {
+        dependencies: {
+          "driver-alias": { specifier: "npm:native-driver@^2", version: "native-driver@2.0.0" },
+        },
+      },
+    },
+    snapshots: orm,
+  });
+
+  const builds = buildsRunByFilteredInstall({
+    lockfile,
+    projects,
+    allowBuilds: { "native-driver": true },
+    filter: "@purosur/cloud",
+  });
+
+  assert.deepEqual(builds, ["native-driver"]);
+});
+
+test("follows an aliased scoped dependency under the name of the package it installs", () => {
+  const lockfile = lockfileWith({
+    importers: {
+      "apps/cloud": {
+        dependencies: {
+          "driver-alias": { specifier: "npm:@native/driver@^2", version: "@native/driver@2.0.0" },
+        },
+      },
+    },
+    snapshots: { "@native/driver@2.0.0": {} },
+  });
+
+  const builds = buildsRunByFilteredInstall({
+    lockfile,
+    projects,
+    allowBuilds: { "@native/driver": true },
+    filter: "@purosur/cloud",
+  });
+
+  assert.deepEqual(builds, ["@native/driver"]);
+});
+
+test("rejects a dependency the lockfile holds no snapshot for, instead of skipping what it would install", () => {
+  const lockfile = lockfileWith({
+    importers: {
+      "apps/cloud": { dependencies: { orm: { specifier: "^1", version: "1.0.0" } } },
+    },
+  });
+
+  assert.throws(
+    () =>
+      buildsRunByFilteredInstall({
+        lockfile,
+        projects,
+        allowBuilds: {},
+        filter: "@purosur/cloud",
+      }),
+    /orm@1\.0\.0/,
+  );
+});
+
 test("rejects a filter that names no workspace project", () => {
   assert.throws(
     () =>
@@ -199,6 +262,15 @@ test("finds every filtered install in a Dockerfile", () => {
   ].join("\n");
 
   assert.deepEqual(filteredInstallsIn(dockerfile), ["@purosur/cloud", "@purosur/backoffice"]);
+});
+
+test("rejects a pnpm install whose filter it cannot read, instead of leaving it unchecked", () => {
+  const dockerfile = [
+    "RUN pnpm install --frozen-lockfile --filter @purosur/cloud...",
+    "RUN pnpm install --frozen-lockfile --filter=@purosur/backoffice...",
+  ].join("\n");
+
+  assert.throws(() => filteredInstallsIn(dockerfile), /--filter=@purosur\/backoffice/);
 });
 
 async function workspaceProjects(lockfile) {
