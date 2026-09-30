@@ -19,6 +19,12 @@ describe("rendererToCoreMessageSchema", () => {
     expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
+  it("accepts a request for the register's own name", () => {
+    const message = { type: "register-name-request", request_id: REQUEST_ID };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
   it("accepts an enrollment with the code as typed", () => {
     const message = { type: "enroll", request_id: REQUEST_ID, code: "p4nx 7kwe 2qrt 6mzd" };
 
@@ -79,6 +85,9 @@ describe("rendererToCoreMessageSchema", () => {
     expect(rendererToCoreMessageSchema.safeParse({ type: "enroll", code: "x" }).success).toBe(
       false,
     );
+    expect(rendererToCoreMessageSchema.safeParse({ type: "register-name-request" }).success).toBe(
+      false,
+    );
   });
 
   it("rejects an enrollment without a code", () => {
@@ -98,6 +107,26 @@ describe("coreToRendererMessageSchema", () => {
     const message = { type: "enrollment-status", request_id: REQUEST_ID, enrolled };
 
     expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each(["Caja 1", null])("accepts the register's own name, or none yet: %s", (name) => {
+    const message = { type: "register-name", request_id: REQUEST_ID, name };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a register name that is not text or null", () => {
+    expect(
+      coreToRendererMessageSchema.safeParse({
+        type: "register-name",
+        request_id: REQUEST_ID,
+        name: 3,
+      }).success,
+    ).toBe(false);
+    expect(
+      coreToRendererMessageSchema.safeParse({ type: "register-name", request_id: REQUEST_ID })
+        .success,
+    ).toBe(false);
   });
 
   it.each([
@@ -168,6 +197,12 @@ describe("coreToRendererMessageSchema", () => {
     const message = { type: "enrollment-result", request_id: REQUEST_ID, outcome: { kind: "x" } };
 
     expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("accepts the notice that a pull finished, which answers no request", () => {
+    const message = { type: "pulled" };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
   it("rejects an enrollment status without whether it is enrolled", () => {

@@ -10,7 +10,8 @@ type PulledEntity =
   | "price_list"
   | "price"
   | "user"
-  | "role";
+  | "role"
+  | "register";
 
 interface LoggedChangeFields {
   entityId: string;

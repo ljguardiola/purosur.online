@@ -33,4 +33,20 @@ describe("a logged change", () => {
       op: "update";
     }>().toExtend<LoggedChange>();
   });
+
+  it("scopes a register's change by the register alone, naming no branch", () => {
+    expectTypeOf<{
+      entity: "register";
+      entityId: string;
+      version: number;
+      op: "update";
+    }>().toExtend<LoggedChange>();
+    expectTypeOf<{
+      entity: "register";
+      entityId: string;
+      version: number;
+      op: "update";
+      locationId: string;
+    }>().not.toExtend<LoggedChange>();
+  });
 });

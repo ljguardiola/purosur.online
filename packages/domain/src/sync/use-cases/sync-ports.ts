@@ -12,9 +12,14 @@ export interface ChangeLog<TChange extends PulledChange> {
   ): Promise<TOutcome>;
 }
 
+export interface PullAudience {
+  locationId: string;
+  registerId: string;
+}
+
 export interface ChangeLogTransaction<TChange extends PulledChange> {
   recordObservedPull(deviceId: string, since: number, at: Date): Promise<void>;
-  changesAfter(locationId: string, since: number, limit: number): Promise<TChange[]>;
+  changesAfter(audience: PullAudience, since: number, limit: number): Promise<TChange[]>;
 }
 
 export interface PullPorts<TChange extends PulledChange> {

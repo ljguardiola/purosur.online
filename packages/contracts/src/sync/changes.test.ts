@@ -66,6 +66,8 @@ const roleRow = {
   version: 3,
 };
 
+const registerRow = { name: "Caja 1", version: 1 };
+
 const priceRow = {
   product_id: "0b1d2f4a-6c3e-4b7d-9a58-1e2f3a4b5c6d",
   price_list_id: "5a4b3c2d-1e0f-4a9b-8c7d-6e5f4a3b2c1d",
@@ -162,6 +164,8 @@ describe("changesPageSchema", () => {
     ],
     ["the removal of a user", removal(1, "user", 4)],
     ["the removal of a role", removal(1, "role", 4)],
+    ["a register", change(1, "register", registerRow)],
+    ["the removal of a register", removal(1, "register", 2)],
   ])("accepts %s", (_case, entry) => {
     const page = pageOf(entry);
 
@@ -190,6 +194,12 @@ describe("changesPageSchema", () => {
     );
 
     expect(changesPageSchema.parse(page).changes[0]).toEqual(change(1, "user", userRow));
+  });
+
+  it("keeps nothing of a register but the fields it may hold", () => {
+    const page = pageOf(change(1, "register", { ...registerRow, location_id: ENTITY_ID }));
+
+    expect(changesPageSchema.parse(page).changes[0]).toEqual(change(1, "register", registerRow));
   });
 
   it("accepts an empty last page", () => {
@@ -315,6 +325,14 @@ describe("changesPageSchema", () => {
       pageOf(change(1, "role", { ...roleRow, permission_keys: undefined })),
     ],
     ["a role without its version", pageOf(change(1, "role", { ...roleRow, version: undefined }))],
+    [
+      "a register without its name",
+      pageOf(change(1, "register", { ...registerRow, name: undefined })),
+    ],
+    [
+      "a register without its version",
+      pageOf(change(1, "register", { ...registerRow, version: undefined })),
+    ],
     ["a removal of an entity that is never removed", pageOf(removal(1, "price_list", 2))],
     ["a removal of the branch settings", pageOf(removal(1, "branch_settings", 2))],
     ["a removal without its version", pageOf({ ...removal(1, "product", 2), version: undefined })],
