@@ -1,6 +1,6 @@
 import type { SignInOutcome } from "@purosur/contracts";
 import type { Icon } from "@purosur/ui";
-import { ShieldX, TriangleAlert, UserX } from "lucide-react";
+import { Lock, ShieldX, TriangleAlert, UserX } from "lucide-react";
 import { waitDescription } from "./pin-attempt-text";
 
 export type Refusal =
@@ -37,6 +37,12 @@ export function noticeFor(refusal: Refusal, secondsLeft: number): PinNotice | un
         title: "Sin permisos en la caja",
         description:
           "Tu usuario no tiene ningún permiso para usar la caja. Pedile a quien administra los usuarios que te asigne uno.",
+      };
+    case "cash_session_opened_by_another":
+      return {
+        icon: <Lock />,
+        title: "La caja está abierta",
+        description: "Solo puede ingresar quien la abrió.",
       };
     case "locked":
       return undefined;

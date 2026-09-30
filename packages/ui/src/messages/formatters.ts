@@ -14,6 +14,10 @@ export function formatNumber(value: number, options?: Intl.NumberFormatOptions):
   return new Intl.NumberFormat(LOCALE, options).format(value);
 }
 
+export function formatCents(cents: number): string {
+  return `$ ${formatNumber(cents / 100, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 export function formatDate(value: Date | number, options?: Intl.DateTimeFormatOptions): string {
   return new Intl.DateTimeFormat(LOCALE, options).format(value);
 }

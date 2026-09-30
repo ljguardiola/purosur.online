@@ -170,12 +170,24 @@ describe("createCoreClient", () => {
     ]);
   });
 
-  it("asks the core to open a cash session for the person with the opening float in cents and resolves with the outcome", async () => {
+  it("asks the core to sign out and resolves once it answers", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
     client.connect(port);
 
-    const outcome = client.openCashSession("u1", 2_000_000);
+    const signedOut = client.signOut();
+    port.answer({ type: "signed-out", request_id: "request-1" });
+
+    await expect(signedOut).resolves.toBeUndefined();
+    expect(port.posted).toEqual([{ type: "sign-out", request_id: "request-1" }]);
+  });
+
+  it("asks the core to open a cash session with the opening float in cents and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const outcome = client.openCashSession(2_000_000);
     port.answer({
       type: "open-cash-session-result",
       request_id: "request-1",
@@ -187,7 +199,6 @@ describe("createCoreClient", () => {
       {
         type: "open-cash-session",
         request_id: "request-1",
-        user_id: "u1",
         opening_float: 2_000_000,
       },
     ]);
@@ -219,6 +230,84 @@ describe("createCoreClient", () => {
 
     const asked = client.cashSession();
     port.answer({ type: "cash-session-unavailable", request_id: "request-1" });
+
+    expect(await asked).toBe("unavailable");
+  });
+
+  it("asks the core to close a session with the cash counted and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const closed = {
+      kind: "closed",
+      session: { id: "s1", expected_cash: 5000, counted_cash: 4800, difference: -200 },
+    };
+
+    const outcome = client.closeCashSession("s1", 4800);
+    port.answer({ type: "close-cash-session-result", request_id: "request-1", outcome: closed });
+
+    expect(await outcome).toEqual(closed);
+    expect(port.posted).toEqual([
+      { type: "close-cash-session", request_id: "request-1", session_id: "s1", counted_cash: 4800 },
+    ]);
+  });
+
+  it("sends the authorization when closing a session with one", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const authorization = { user_id: "u2", pin: "1234" };
+
+    const outcome = client.closeCashSession("s1", 0, authorization);
+    port.answer({
+      type: "close-cash-session-result",
+      request_id: "request-1",
+      outcome: { kind: "lacks_permission" },
+    });
+
+    expect(await outcome).toEqual({ kind: "lacks_permission" });
+    expect(port.posted).toEqual([
+      {
+        type: "close-cash-session",
+        request_id: "request-1",
+        session_id: "s1",
+        counted_cash: 0,
+        authorization,
+      },
+    ]);
+  });
+
+  it.each([
+    null,
+    {
+      opening_float: 5000,
+      cash_sales: 0,
+      change_given: 0,
+      refunds: 0,
+      cash_in: 0,
+      expenses: 0,
+      withdrawals: 0,
+      expected: 5000,
+    },
+  ])("asks the core for the cash balance and resolves with it: %j", async (balance) => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.cashBalance();
+    port.answer({ type: "cash-balance", request_id: "request-1", balance });
+
+    expect(await asked).toEqual(balance);
+    expect(port.posted).toEqual([{ type: "cash-balance-request", request_id: "request-1" }]);
+  });
+
+  it("resolves that the cash balance is unavailable when the core cannot read it", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.cashBalance();
+    port.answer({ type: "cash-balance-unavailable", request_id: "request-1" });
 
     expect(await asked).toBe("unavailable");
   });

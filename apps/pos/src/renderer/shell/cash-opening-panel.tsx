@@ -80,6 +80,7 @@ function OpeningForm({
         break;
       case "opened":
       case "already_open":
+      case "not_signed_in":
         break;
     }
   }
