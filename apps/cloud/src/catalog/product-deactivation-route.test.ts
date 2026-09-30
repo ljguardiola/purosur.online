@@ -138,7 +138,7 @@ function deactivateProduct(
   headers: Record<string, string> = {},
 ) {
   return app.inject({
-    method: "POST",
+    method: "PUT",
     url: `/products/${targetId}/deactivation`,
     headers: {
       origin: BACKOFFICE_ORIGIN,
@@ -148,7 +148,7 @@ function deactivateProduct(
   });
 }
 
-describe("POST /products/:id/deactivation", () => {
+describe("PUT /products/:id/deactivation", () => {
   let categoryId: string;
   let targetId: string;
 
@@ -160,6 +160,19 @@ describe("POST /products/:id/deactivation", () => {
       barcodes: ["111", "222"],
     });
     targetId = product.id;
+  });
+
+  it("no longer answers the old deactivation method", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/products/${targetId}/deactivation`,
+      headers: { origin: BACKOFFICE_ORIGIN, cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` },
+    });
+
+    expect(response.statusCode).toBe(404);
   });
 
   it("returns 401 unauthenticated when no cookie was sent", async () => {

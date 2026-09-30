@@ -44,8 +44,8 @@ function editBrand(
   headers: Record<string, string> = {},
 ) {
   return app.inject({
-    method: "POST",
-    url: `/brands/${id}/edit`,
+    method: "PUT",
+    url: `/brands/${id}`,
     headers: { origin: BACKOFFICE_ORIGIN, ...sessionCookie(rawSessionId), ...headers },
     payload: body,
   });
@@ -56,7 +56,21 @@ async function storedBrand(id: string) {
   return brand;
 }
 
-describe("POST /brands/:id/edit", () => {
+describe("PUT /brands/:id", () => {
+  it("no longer answers the old edit path", async () => {
+    const brand = await insertBrand(db, { name: "Granix", active: true });
+    const rawSessionId = await signedInWithPermissions(db, NOON);
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/brands/${brand.id}/edit`,
+      headers: { origin: BACKOFFICE_ORIGIN, ...sessionCookie(rawSessionId) },
+      payload: { name: "Granix Pro", version: 1 },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
   it("returns 401 unauthenticated when no cookie was sent", async () => {
     const brand = await insertBrand(db, { name: "Granix" });
 

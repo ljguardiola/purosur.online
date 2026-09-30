@@ -67,8 +67,8 @@ export function registerCategoryEditRoute<TQueryResult extends PgQueryResultHKT>
   const catalogStore = new DrizzleCatalogStore(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  app.post<{ Params: { id: string } }>(
-    "/categories/:id/edit",
+  app.put<{ Params: { id: string } }>(
+    "/categories/:id",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: {

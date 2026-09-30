@@ -129,7 +129,7 @@ describe("allocateInternalBarcode", () => {
   });
 });
 
-describe("POST /products/internal-barcode", () => {
+describe("POST /internal-barcodes", () => {
   let app: FastifyInstance;
 
   beforeEach(() => {
@@ -193,7 +193,7 @@ describe("POST /products/internal-barcode", () => {
   ) {
     return app.inject({
       method: "POST",
-      url: "/products/internal-barcode",
+      url: "/internal-barcodes",
       headers: {
         origin: BACKOFFICE_ORIGIN,
         ...(rawSessionId ? cookieHeader(rawSessionId) : {}),
@@ -201,6 +201,20 @@ describe("POST /products/internal-barcode", () => {
       },
     });
   }
+
+  it("no longer answers the old internal barcode path", async () => {
+    const roleId = await insertRole("Encargada", ["manage_products_and_categories"]);
+    const userId = await insertUser(roleId);
+    const rawSessionId = await insertSession(userId);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/products/internal-barcode",
+      headers: { origin: BACKOFFICE_ORIGIN, ...cookieHeader(rawSessionId) },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
 
   it("returns 401 unauthenticated when no cookie was sent", async () => {
     const response = await requestInternalBarcode(undefined);

@@ -137,7 +137,7 @@ test("fetchPrices returns failed on a malformed body", async () => {
   expect(await fetchPrices({ review: "pending" })).toEqual({ kind: "failed" });
 });
 
-test("setPrice posts the unit price and expected current price id, returning ok on 200", async () => {
+test("setPrice puts the unit price and expected current price id, returning ok on 200", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
 
   const outcome = await setPrice("product-1", {
@@ -146,8 +146,8 @@ test("setPrice posts the unit price and expected current price id, returning ok 
   });
 
   expect(outcome).toEqual({ kind: "ok" });
-  expect(fetch).toHaveBeenCalledWith("/api/products/product-1/price", {
-    method: "POST",
+  expect(fetch).toHaveBeenCalledWith("/api/prices/product-1", {
+    method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ unitPrice: 800000, expectedCurrentPriceId: "price-1" }),
   });
@@ -158,8 +158,8 @@ test("setPrice sends a null expectedCurrentPriceId for a product with no price y
 
   await setPrice("product-1", { unitPrice: 500, expectedCurrentPriceId: null });
 
-  expect(fetch).toHaveBeenCalledWith("/api/products/product-1/price", {
-    method: "POST",
+  expect(fetch).toHaveBeenCalledWith("/api/prices/product-1", {
+    method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ unitPrice: 500, expectedCurrentPriceId: null }),
   });
@@ -264,7 +264,7 @@ test("confirmPrice posts the expected current price id, returning ok on 200", as
   const outcome = await confirmPrice("product-1", { expectedCurrentPriceId: "price-1" });
 
   expect(outcome).toEqual({ kind: "ok" });
-  expect(fetch).toHaveBeenCalledWith("/api/products/product-1/price-confirmation", {
+  expect(fetch).toHaveBeenCalledWith("/api/prices/product-1/confirmations", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ expectedCurrentPriceId: "price-1" }),

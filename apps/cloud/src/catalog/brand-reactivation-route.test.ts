@@ -44,8 +44,8 @@ function request(
   headers: Record<string, string> = {},
 ) {
   return app.inject({
-    method: "POST",
-    url: `/brands/${id}/reactivation`,
+    method: "DELETE",
+    url: `/brands/${id}/deactivation`,
     headers: { origin: BACKOFFICE_ORIGIN, ...sessionCookie(rawSessionId), ...headers },
     payload: {},
   });
@@ -56,7 +56,20 @@ async function storedBrand(id: string) {
   return brand;
 }
 
-describe("POST /brands/:id/reactivation", () => {
+describe("DELETE /brands/:id/deactivation", () => {
+  it("no longer answers the old reactivation path", async () => {
+    const brand = await insertBrand(db, { name: "Granix", active: false });
+    const rawSessionId = await signedInWithPermissions(db, NOON);
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/brands/${brand.id}/reactivation`,
+      headers: { origin: BACKOFFICE_ORIGIN, ...sessionCookie(rawSessionId) },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
   it("returns 401 unauthenticated when no cookie was sent, changing nothing", async () => {
     const brand = await insertBrand(db, { name: "Granix", active: false });
 
