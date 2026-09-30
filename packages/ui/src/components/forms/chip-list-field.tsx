@@ -117,7 +117,7 @@ export function ChipListField<V extends string>(props: ChipListFieldProps<V>) {
       aria-labelledby={labelId}
       {...(describedBy !== undefined ? { "aria-describedby": describedBy } : {})}
       data-disabled={disabled || undefined}
-      className={`min-w-0 outline-none ${wrapperClassName}`}
+      className={`min-w-0 outline-none focus-visible:focus-ring ${wrapperClassName}`}
     >
       <span
         id={labelId}

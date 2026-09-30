@@ -211,6 +211,35 @@ test("keeps focus on the field after removing the only chip, when nothing is lef
     .toBe(screen.getByRole("group", { name: "Distintivos" }).element());
 });
 
+function OnlyInactiveField() {
+  const onlyInactive: NarrowedOption<Diet, never, "status">[] = [
+    { value: "dye-free", label: "Sin colorantes", status: "Dado de baja" },
+  ];
+  const [value, setValue] = useState<Diet[]>(["dye-free"]);
+  return <ChipListField {...baseProps({ options: onlyInactive, value, onChange: setValue })} />;
+}
+
+test("draws a focus ring on the field when a keyboard removal leaves focus on it", async () => {
+  const screen = await render(<OnlyInactiveField />);
+  const group = screen.getByRole("group", { name: "Distintivos" }).element() as HTMLElement;
+
+  await userEvent.tab();
+  await userEvent.keyboard("{Enter}");
+
+  await expect.poll(() => document.activeElement).toBe(group);
+  expect(getComputedStyle(group).outlineStyle).not.toBe("none");
+});
+
+test("draws no focus ring on the field when a pointer removal leaves focus on it", async () => {
+  const screen = await render(<OnlyInactiveField />);
+  const group = screen.getByRole("group", { name: "Distintivos" }).element() as HTMLElement;
+
+  await screen.getByRole("button", { name: "Quitar Sin colorantes" }).click();
+
+  await expect.poll(() => document.activeElement).toBe(group);
+  expect(getComputedStyle(group).outlineStyle).toBe("none");
+});
+
 test("offers, in the order given, only the options not yet chosen and without a status", async () => {
   const screen = await render(<ChipListField {...baseProps({ value: ["vegan"] })} />);
 

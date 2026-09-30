@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { useId } from "react";
-import { within } from "storybook/test";
+import { useId, useState } from "react";
+import { expect, userEvent, within } from "storybook/test";
 import {
   playClickExpandsTrigger,
   playTabReachesFocusVisible,
@@ -105,6 +105,30 @@ export const MenuOpenWithoutCreate: Story = {
 export const NothingToAdd: Story = {
   args: { value: ["organic", "vegan", "local", "gluten-free", "fair-trade"] },
   render: withoutCreate,
+};
+
+function ChipListFieldLosingItsOnlyChip() {
+  const [value, setValue] = useState<Diet[]>(["dye-free"]);
+  return (
+    <ChipListField
+      label="Distintivos"
+      options={options.filter((option) => option.status !== undefined)}
+      value={value}
+      onChange={setValue}
+      addLabel="Agregar distintivo"
+    />
+  );
+}
+
+export const FocusedAfterRemovingTheOnlyChip: Story = {
+  render: () => <ChipListFieldLosingItsOnlyChip />,
+  play: async ({ canvasElement }) => {
+    await userEvent.tab();
+    await userEvent.keyboard("{Enter}");
+    const group = within(canvasElement).getByRole("group", { name: "Distintivos" });
+    await expect(group).toHaveFocus();
+    await expect(group.matches(":focus-visible")).toBe(true);
+  },
 };
 
 export const Invalid: Story = {
