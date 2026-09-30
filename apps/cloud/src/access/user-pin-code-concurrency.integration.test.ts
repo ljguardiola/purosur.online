@@ -18,6 +18,7 @@ import { registerUserPinCodeRoutes } from "./user-pin-code-route.js";
 // PGlite serializes every transaction, so racing requests can only interleave on a real Postgres
 // pool; this test pins the order by holding the target's row lock until both requests are waiting.
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
+const NOW = new Date("2026-09-30T12:00:00.000Z");
 
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
@@ -37,7 +38,7 @@ afterAll(async () => {
 
 beforeEach(() => {
   app = Fastify();
-  registerUserPinCodeRoutes(app, { db, backofficeOrigin: BACKOFFICE_ORIGIN });
+  registerUserPinCodeRoutes(app, { db, backofficeOrigin: BACKOFFICE_ORIGIN, now: () => NOW });
 });
 
 afterEach(async () => {
@@ -64,13 +65,12 @@ async function insertUser(email: string, isAdministrator: boolean): Promise<stri
 
 async function insertSession(userId: string): Promise<string> {
   const rawSessionId = generateSessionId();
-  const now = new Date();
   await db.insert(sessions).values({
     userId,
     sessionIdHash: hashSessionId(rawSessionId),
-    createdAt: now,
-    lastSeenAt: now,
-    passkeyAuthorizedAt: now,
+    createdAt: NOW,
+    lastSeenAt: NOW,
+    passkeyAuthorizedAt: NOW,
   });
   return rawSessionId;
 }
@@ -81,7 +81,7 @@ describe("emitting PIN codes for the same user at once on a real Postgres", () =
     const targetId = await insertUser(`target-${randomUUID()}@example.com`, false);
     const cookie = `${SESSION_COOKIE_NAME}=${await insertSession(actorId)}`;
     for (const minutes of [50, 40, 30, 20]) {
-      const issuedAt = new Date(Date.now() - minutes * 60 * 1000);
+      const issuedAt = new Date(NOW.getTime() - minutes * 60 * 1000);
       await db.insert(userPinCodes).values({
         userId: targetId,
         codeHash: `earlier-${randomUUID()}`,
