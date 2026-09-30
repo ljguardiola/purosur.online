@@ -2,6 +2,8 @@ import type {
   CoreToRendererMessage,
   EnrollmentOutcome,
   RendererToCoreMessage,
+  SignInOutcome,
+  SignInUser,
 } from "@purosur/contracts";
 import { coreToRendererMessageSchema } from "@purosur/contracts";
 
@@ -16,6 +18,8 @@ export interface CoreClient {
   connect(port: CorePort): void;
   enrollmentStatus(): Promise<boolean>;
   enroll(typedCode: string): Promise<EnrollmentOutcome>;
+  signInUsers(): Promise<SignInUser[]>;
+  signIn(userId: string, pin: string): Promise<SignInOutcome>;
 }
 
 type CoreRequest = Exclude<RendererToCoreMessage, { type: "ping" }>;
@@ -57,11 +61,15 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       const request: PendingRequest = {
         message,
         settle(answer) {
-          const value = read(answer);
-          if (value === undefined) {
-            return false;
+          try {
+            const value = read(answer);
+            if (value === undefined) {
+              return false;
+            }
+            resolve(value);
+          } catch (error) {
+            reject(error);
           }
-          resolve(value);
           return true;
         },
         fail: reject,
@@ -99,6 +107,20 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
     enroll(typedCode) {
       return ask({ type: "enroll", request_id: deps.newRequestId(), code: typedCode }, (answer) =>
         answer.type === "enrollment-result" ? answer.outcome : undefined,
+      );
+    },
+    signInUsers() {
+      return ask({ type: "sign-in-users", request_id: deps.newRequestId() }, (answer) => {
+        if (answer.type === "sign-in-users-unavailable") {
+          throw new Error("the core could not read the users who can sign in");
+        }
+        return answer.type === "sign-in-users" ? answer.users : undefined;
+      });
+    },
+    signIn(userId, pin) {
+      return ask(
+        { type: "sign-in", request_id: deps.newRequestId(), user_id: userId, pin },
+        (answer) => (answer.type === "sign-in-result" ? answer.outcome : undefined),
       );
     },
   };
