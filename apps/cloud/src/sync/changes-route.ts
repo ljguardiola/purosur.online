@@ -113,6 +113,22 @@ function toChangeWire(change: PulledCloudChange): ChangesPage["changes"][number]
       };
     case "register":
       return { change_seq, entity: change.entity, entity_id, row: change.row };
+    case "discount":
+      return {
+        change_seq,
+        entity: change.entity,
+        entity_id,
+        row: {
+          name: change.row.name,
+          benefit: change.row.benefit,
+          target: change.row.target,
+          valid_from: change.row.validFrom,
+          valid_to: change.row.validTo,
+          weekdays: change.row.weekdays,
+          active: change.row.active,
+          version: change.row.version,
+        },
+      };
     case "removal":
       return {
         change_seq,
