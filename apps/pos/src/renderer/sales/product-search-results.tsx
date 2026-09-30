@@ -1,4 +1,5 @@
 import type { FoundProduct } from "@purosur/contracts";
+import { SEARCH_RESULT_LIMIT } from "@purosur/contracts";
 import { EmptyState, formatCents, formatNumber, InlineNotice, plural } from "@purosur/ui";
 import { Package, Scale, Search, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
@@ -135,7 +136,7 @@ export function ProductSearchResults({
           <InlineNotice
             tone="warning"
             icon={<TriangleAlert />}
-            description="Se muestran los primeros 20 resultados y hay más. Escribí más letras para afinar la búsqueda."
+            description={`Se muestran los primeros ${formatNumber(SEARCH_RESULT_LIMIT)} resultados y hay más. Escribí más letras para afinar la búsqueda.`}
           />
         </div>
       ) : (

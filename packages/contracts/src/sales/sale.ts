@@ -1,5 +1,12 @@
-import { isBarcodeTooLong, isProductNameTooLong, SALE_UNITS } from "@purosur/domain";
+import {
+  isBarcodeTooLong,
+  isProductNameTooLong,
+  SALE_UNITS,
+  SEARCH_RESULT_LIMIT,
+} from "@purosur/domain";
 import { z } from "zod";
+
+export { SEARCH_RESULT_LIMIT };
 
 export const scannedCodeSchema = z
   .string()
@@ -77,7 +84,7 @@ export type FoundProduct = z.infer<typeof foundProductSchema>;
 export const searchProductsOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("results"),
-    products: z.array(foundProductSchema),
+    products: z.array(foundProductSchema).max(SEARCH_RESULT_LIMIT),
     more: z.boolean(),
   }),
   notPermittedOutcome,

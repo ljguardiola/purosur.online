@@ -1,4 +1,4 @@
-import { BARCODE_MAX_LENGTH, PRODUCT_NAME_MAX_LENGTH } from "@purosur/domain";
+import { BARCODE_MAX_LENGTH, PRODUCT_NAME_MAX_LENGTH, SEARCH_RESULT_LIMIT } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
   addProductOutcomeSchema,
@@ -210,6 +210,26 @@ describe("searchProductsOutcomeSchema", () => {
     ["an outcome that only adding products has", { kind: "product_unavailable" }],
   ])("rejects %s", (_case, outcome) => {
     expect(searchProductsOutcomeSchema.safeParse(outcome).success).toBe(false);
+  });
+
+  it("accepts at most as many products as a search shows", () => {
+    const products = (count: number) =>
+      Array.from({ length: count }, (_, index) => ({ ...found, product_id: `p${index}` }));
+
+    expect(
+      searchProductsOutcomeSchema.safeParse({
+        kind: "results",
+        products: products(SEARCH_RESULT_LIMIT),
+        more: true,
+      }).success,
+    ).toBe(true);
+    expect(
+      searchProductsOutcomeSchema.safeParse({
+        kind: "results",
+        products: products(SEARCH_RESULT_LIMIT + 1),
+        more: true,
+      }).success,
+    ).toBe(false);
   });
 });
 
