@@ -386,7 +386,7 @@ describe("serving the backoffice's static build", () => {
     expect(response.json()).toEqual({ status: "ok", version: "abc1234" });
   });
 
-  it("serves the backoffice page, not the cloud's data, at a screen address named like a cloud resource", async () => {
+  it("serves the backoffice page at a stock screen address while the stock routes are wired", async () => {
     const app = buildApp({
       version: "abc1234",
       staticDir: backofficeBuild(),
