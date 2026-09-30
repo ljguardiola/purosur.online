@@ -3,11 +3,13 @@ import type {
   EnrollmentAlert,
   EnrollmentAttemptKey,
   LockedEnrollmentCode,
+  LockedInstallation,
   NewInstallation,
   RegisterStore,
   RegisterStoreTransaction,
+  StoredDeviceToken,
 } from "@purosur/domain/register/use-cases";
-import { and, asc, desc, eq, gt, inArray, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
 import {
@@ -116,6 +118,78 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
       throw new Error("inserting the new installation returned no row");
     }
     return { deviceId: recorded.id };
+  }
+
+  async lockInstallationByTokenPrefix(
+    lookupPrefix: string,
+  ): Promise<LockedInstallation | undefined> {
+    const [row] = await this.tx
+      .select({
+        deviceId: registerInstallations.id,
+        revokedAt: registerInstallations.revokedAt,
+        tokenLookupPrefix: registerInstallations.tokenLookupPrefix,
+        tokenHash: registerInstallations.tokenHash,
+        tokenIssuedAt: registerInstallations.tokenIssuedAt,
+        pendingTokenLookupPrefix: registerInstallations.pendingTokenLookupPrefix,
+        pendingTokenHash: registerInstallations.pendingTokenHash,
+        pendingTokenIssuedAt: registerInstallations.pendingTokenIssuedAt,
+      })
+      .from(registerInstallations)
+      .where(
+        or(
+          eq(registerInstallations.tokenLookupPrefix, lookupPrefix),
+          eq(registerInstallations.pendingTokenLookupPrefix, lookupPrefix),
+        ),
+      )
+      .for("update");
+    if (!row) {
+      return undefined;
+    }
+    const { pendingTokenLookupPrefix, pendingTokenHash, pendingTokenIssuedAt } = row;
+    return {
+      deviceId: row.deviceId,
+      revoked: row.revokedAt !== null,
+      currentToken: {
+        lookupPrefix: row.tokenLookupPrefix,
+        tokenHash: row.tokenHash,
+        issuedAt: row.tokenIssuedAt,
+      },
+      pendingToken:
+        pendingTokenLookupPrefix !== null &&
+        pendingTokenHash !== null &&
+        pendingTokenIssuedAt !== null
+          ? {
+              lookupPrefix: pendingTokenLookupPrefix,
+              tokenHash: pendingTokenHash,
+              issuedAt: pendingTokenIssuedAt,
+            }
+          : undefined,
+    };
+  }
+
+  async promotePendingDeviceToken(deviceId: string): Promise<void> {
+    await this.tx
+      .update(registerInstallations)
+      .set({
+        tokenLookupPrefix: sql`${registerInstallations.pendingTokenLookupPrefix}`,
+        tokenHash: sql`${registerInstallations.pendingTokenHash}`,
+        tokenIssuedAt: sql`${registerInstallations.pendingTokenIssuedAt}`,
+        pendingTokenLookupPrefix: null,
+        pendingTokenHash: null,
+        pendingTokenIssuedAt: null,
+      })
+      .where(eq(registerInstallations.id, deviceId));
+  }
+
+  async recordPendingDeviceToken(deviceId: string, token: StoredDeviceToken): Promise<void> {
+    await this.tx
+      .update(registerInstallations)
+      .set({
+        pendingTokenLookupPrefix: token.lookupPrefix,
+        pendingTokenHash: token.tokenHash,
+        pendingTokenIssuedAt: token.issuedAt,
+      })
+      .where(eq(registerInstallations.id, deviceId));
   }
 
   async markEnrollmentCodeRedeemed(registerId: string, redeemedAt: Date): Promise<void> {

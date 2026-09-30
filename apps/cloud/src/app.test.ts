@@ -28,6 +28,7 @@ import {
   TEST_EDGE_ORIGIN_SECRET,
 } from "./test-support/build-test-app.js";
 import { buildTestDatabase, type TestDatabase } from "./test-support/build-test-database.js";
+import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "./test-support/device-token-rotation-key.js";
 import { seededLocationId } from "./test-support/seeded-location.js";
 
 let testDatabase: TestDatabase;
@@ -55,8 +56,13 @@ describe("GET /api/health", () => {
   });
 
   it("reaches the enrolled installations when the device routes are wired", async () => {
-    const { deviceToken } = await insertEnrolledInstallation(testDatabase.db);
-    const app = buildApp({ version: "abc1234", devices: { db: testDatabase.db } });
+    const { deviceToken } = await insertEnrolledInstallation(testDatabase.db, {
+      tokenIssuedAt: new Date(),
+    });
+    const app = buildApp({
+      version: "abc1234",
+      devices: { db: testDatabase.db, rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY },
+    });
 
     const response = await app.inject({
       method: "GET",
@@ -1128,12 +1134,37 @@ describe("wiring the device enrollment route", () => {
   });
 
   it("registers POST /api/devices/enroll, answering without a session, when a devices option is given", async () => {
-    const app = buildApp({ version: "abc1234", devices: { db: testDatabase.db } });
+    const app = buildApp({
+      version: "abc1234",
+      devices: { db: testDatabase.db, rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY },
+    });
 
     const response = await app.inject({ method: "POST", url: "/api/devices/enroll", payload: {} });
 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ code: "validation_failed" });
+  });
+});
+
+describe("wiring the device token rotation route", () => {
+  it("does not register POST /api/devices/rotate-token when no devices option is given", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    const response = await app.inject({ method: "POST", url: "/api/devices/rotate-token" });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("registers POST /api/devices/rotate-token, refusing a request without a device token, when a devices option is given", async () => {
+    const app = buildApp({
+      version: "abc1234",
+      devices: { db: testDatabase.db, rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY },
+    });
+
+    const response = await app.inject({ method: "POST", url: "/api/devices/rotate-token" });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "device_token_rejected" });
   });
 });
 
@@ -1352,7 +1383,7 @@ function productionWiredApp() {
     alerts: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     prices: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     registers: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    devices: { db: testDatabase.db },
+    devices: { db: testDatabase.db, rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY },
   });
 }
 
@@ -1552,6 +1583,7 @@ describe("the route access inventory", () => {
       },
       { method: "GET", url: "/api/health", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/devices/enroll", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/api/devices/rotate-token", access: PUBLIC_ACCESS },
       { method: "HEAD", url: "/*", access: PUBLIC_ACCESS },
       { method: "GET", url: "/*", access: PUBLIC_ACCESS },
     ]);

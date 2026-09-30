@@ -117,6 +117,8 @@ export {
   deviceEnrollmentBodySchema,
   deviceEnrollmentSchema,
 } from "./register/device-enrollment.js";
+export type { DeviceTokenRotation } from "./register/device-token-rotation.js";
+export { deviceTokenRotationSchema } from "./register/device-token-rotation.js";
 export type { HealthCheck } from "./register/health-check.js";
 export { healthCheckSchema } from "./register/health-check.js";
 export type { RegisterCreationBody } from "./register/register-creation.js";

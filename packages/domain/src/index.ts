@@ -86,6 +86,7 @@ export {
   enrollmentCodeExpiresAt,
   enrollmentCodeLookup,
   INSTALLATION_REPORT_MAX_LENGTH,
+  isDeviceTokenRotationDue,
   isInstallationReportTooLong,
   isRegisterNameTooLong,
   isWellFormedEnrollmentCode,

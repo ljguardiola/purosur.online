@@ -1,14 +1,18 @@
 import type {
   Clock,
   DeviceTokenIssuer,
+  DeviceTokenRotator,
   EnrollmentAlert,
   EnrollmentAttemptKey,
   EnrollmentCodeVerifier,
   IssuedDeviceToken,
   LockedEnrollmentCode,
+  LockedInstallation,
   NewInstallation,
+  PresentedDeviceToken,
   RegisterStore,
   RegisterStoreTransaction,
+  StoredDeviceToken,
 } from "../register-store.js";
 
 export interface FakeEnrollmentCode extends LockedEnrollmentCode {
@@ -18,6 +22,7 @@ export interface FakeEnrollmentCode extends LockedEnrollmentCode {
 export interface FakeInstallation extends NewInstallation {
   deviceId: string;
   revokedAt: Date | null;
+  pendingToken: StoredDeviceToken | null;
 }
 
 export interface FakeEnrollmentAttempt {
@@ -38,6 +43,8 @@ type WriteOperation =
   | "recordFailedEnrollmentAttempt"
   | "revokeActiveInstallation"
   | "recordInstallation"
+  | "promotePendingDeviceToken"
+  | "recordPendingDeviceToken"
   | "markEnrollmentCodeRedeemed"
   | "openEnrollmentAlert";
 
@@ -114,8 +121,54 @@ class FakeRegisterStoreTransaction implements RegisterStoreTransaction {
   async recordInstallation(installation: NewInstallation): Promise<{ deviceId: string }> {
     this.beforeWrite("recordInstallation");
     const deviceId = `device-${this.state.nextId++}`;
-    this.state.installations.push({ ...structuredClone(installation), deviceId, revokedAt: null });
+    this.state.installations.push({
+      ...structuredClone(installation),
+      deviceId,
+      revokedAt: null,
+      pendingToken: null,
+    });
     return { deviceId };
+  }
+
+  async lockInstallationByTokenPrefix(
+    lookupPrefix: string,
+  ): Promise<LockedInstallation | undefined> {
+    this.store.operationOrder.push("lockInstallationByTokenPrefix");
+    const installation = this.state.installations.find(
+      (row) =>
+        row.tokenLookupPrefix === lookupPrefix || row.pendingToken?.lookupPrefix === lookupPrefix,
+    );
+    if (!installation) {
+      return undefined;
+    }
+    return {
+      deviceId: installation.deviceId,
+      revoked: installation.revokedAt !== null,
+      currentToken: {
+        lookupPrefix: installation.tokenLookupPrefix,
+        tokenHash: installation.tokenHash,
+        issuedAt: new Date(installation.tokenIssuedAt),
+      },
+      pendingToken: installation.pendingToken
+        ? structuredClone(installation.pendingToken)
+        : undefined,
+    };
+  }
+
+  async promotePendingDeviceToken(deviceId: string): Promise<void> {
+    this.beforeWrite("promotePendingDeviceToken");
+    const installation = this.installation(deviceId);
+    if (installation.pendingToken) {
+      installation.tokenLookupPrefix = installation.pendingToken.lookupPrefix;
+      installation.tokenHash = installation.pendingToken.tokenHash;
+      installation.tokenIssuedAt = installation.pendingToken.issuedAt;
+      installation.pendingToken = null;
+    }
+  }
+
+  async recordPendingDeviceToken(deviceId: string, token: StoredDeviceToken): Promise<void> {
+    this.beforeWrite("recordPendingDeviceToken");
+    this.installation(deviceId).pendingToken = structuredClone(token);
   }
 
   async markEnrollmentCodeRedeemed(registerId: string, redeemedAt: Date): Promise<void> {
@@ -130,6 +183,14 @@ class FakeRegisterStoreTransaction implements RegisterStoreTransaction {
   async openEnrollmentAlert(alert: EnrollmentAlert): Promise<void> {
     this.beforeWrite("openEnrollmentAlert");
     this.state.enrollmentAlerts.push(structuredClone(alert));
+  }
+
+  private installation(deviceId: string): FakeInstallation {
+    const installation = this.state.installations.find((row) => row.deviceId === deviceId);
+    if (!installation) {
+      throw new Error(`no installation ${deviceId}`);
+    }
+    return installation;
   }
 
   private beforeWrite(operation: WriteOperation): void {
@@ -211,4 +272,39 @@ export const hashOfCode = (code: string): string => `hash-of-${code}`;
 
 export const plainCodeHashes: EnrollmentCodeVerifier = {
   matches: (code, codeHash) => hashOfCode(code) === codeHash,
+};
+
+const hashOfToken = (deviceToken: string): string => `hash-of-${deviceToken}`;
+
+function readToken(deviceToken: string): PresentedDeviceToken | undefined {
+  const [lookupPrefix, secret, ...rest] = deviceToken.split(".");
+  if (!lookupPrefix || !secret || rest.length > 0) {
+    return undefined;
+  }
+  return { lookupPrefix, tokenHash: hashOfToken(deviceToken) };
+}
+
+export function storedTokenOf(deviceToken: string, issuedAt: Date): StoredDeviceToken {
+  const presented = readToken(deviceToken);
+  if (!presented) {
+    throw new Error(`malformed token ${deviceToken}`);
+  }
+  return { ...presented, issuedAt };
+}
+
+export const derivedDeviceTokens: DeviceTokenRotator = {
+  read: readToken,
+  successorOf(deviceToken) {
+    const presented = readToken(deviceToken);
+    if (!presented) {
+      throw new Error(`malformed token ${deviceToken}`);
+    }
+    const secret = deviceToken.slice(presented.lookupPrefix.length + 1);
+    const successor = `next-of-${presented.lookupPrefix}.${secret}`;
+    return {
+      deviceToken: successor,
+      lookupPrefix: `next-of-${presented.lookupPrefix}`,
+      tokenHash: hashOfToken(successor),
+    };
+  },
 };

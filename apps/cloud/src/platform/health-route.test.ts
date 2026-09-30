@@ -4,8 +4,10 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { registerRouteAccess } from "../access/route-access.js";
 import { authenticateDevice } from "../register/device-authentication.js";
 import { issueDeviceToken } from "../register/device-token.js";
+import { installationTokenPorts } from "../register/installation-token-ports.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
 import { registerHealthRoute } from "./health-route.js";
 
 let testDatabase: TestDatabase;
@@ -27,7 +29,15 @@ beforeEach(async () => {
   registerRouteAccess(app);
   registerHealthRoute(app, {
     version: "abc1234",
-    authenticateDevice: (authorization) => authenticateDevice(db, authorization),
+    authenticateDevice: (authorization) =>
+      authenticateDevice(
+        installationTokenPorts({
+          db,
+          rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
+          now: () => new Date("2026-09-29T12:00:00.000Z"),
+        }),
+        authorization,
+      ),
   });
 });
 
