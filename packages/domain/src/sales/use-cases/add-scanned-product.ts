@@ -56,6 +56,18 @@ export function addScannedProduct(
     if (product.saleUnit === "KG") {
       return { kind: "sold_by_weight", productName: product.name };
     }
+    const line = existing?.lines.find((candidate) => candidate.productId === product.id);
+    if (existing && line) {
+      const updated = addUnitToLine(line);
+      tx.recordLineQuantity(updated);
+      return {
+        kind: "added",
+        sale: {
+          ...existing,
+          lines: existing.lines.map((each) => (each === line ? updated : each)),
+        },
+      };
+    }
     const moment = clock.now();
     const price = tx.priceAt(product.id, moment);
     if (!price) {
@@ -65,15 +77,6 @@ export function addScannedProduct(
     const sale = isOpenSale(target)
       ? target
       : startSale(tx, ids.next(), target, session.id, actorId, moment);
-    const line = sale.lines.find((candidate) => candidate.productId === product.id);
-    if (line) {
-      const updated = addUnitToLine(line);
-      tx.recordLineQuantity(updated);
-      return {
-        kind: "added",
-        sale: { ...sale, lines: sale.lines.map((each) => (each === line ? updated : each)) },
-      };
-    }
     const added = newSaleLine(ids.next(), product, price);
     tx.recordSaleLine(sale.id, added);
     return { kind: "added", sale: { ...sale, lines: [...sale.lines, added] } };

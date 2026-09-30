@@ -160,6 +160,18 @@ describe("addScannedProduct", () => {
     ]);
   });
 
+  it("adds a unit to a line at its price even when the product has no valid price any more", () => {
+    const store = ledger();
+    scan(store);
+    store.state.prices = [];
+
+    const outcome = scan(store);
+
+    expect(outcome.kind === "added" && outcome.sale.lines).toEqual([
+      expect.objectContaining({ priceListId: "list-1", quantity: 2, lineTotal: 5000 }),
+    ]);
+  });
+
   it("uses the latest price already valid at the clock's moment", () => {
     const store = ledger({
       prices: [
