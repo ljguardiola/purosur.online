@@ -162,13 +162,13 @@ describe("getFromCloud", () => {
   it("gets the path on the channel's cloud with the given headers and no body", async () => {
     const { deps, requests } = clientAnswering(jsonResponse(200, { ok: true }));
 
-    const response = await getFromCloud(deps, "/changes?since=4", {
+    const response = await getFromCloud(deps, "/api/changes?since=4", {
       authorization: "Bearer token",
     });
 
     expect(response).toEqual({ kind: "ok", body: { ok: true } });
     expect(requests).toHaveLength(1);
-    expect(requests[0]?.url).toBe(`${CLOUD_URL}/changes?since=4`);
+    expect(requests[0]?.url).toBe(`${CLOUD_URL}/api/changes?since=4`);
     expect(requests[0]?.method).toBe("GET");
     expect(requests[0]?.headers.get("authorization")).toBe("Bearer token");
     expect(requests[0]?.body).toBeNull();
@@ -180,7 +180,7 @@ describe("getFromCloud", () => {
       jsonResponse(200, { ok: true }),
     );
 
-    const response = await getFromCloud(deps, "/changes?since=0", {});
+    const response = await getFromCloud(deps, "/api/changes?since=0", {});
 
     expect(response).toEqual({ kind: "ok", body: { ok: true } });
     expect(requests).toHaveLength(2);
@@ -192,7 +192,7 @@ describe("getFromCloud", () => {
       jsonResponse(401, envelope("device_token_rejected")),
     );
 
-    const response = await getFromCloud(deps, "/changes?since=0", {});
+    const response = await getFromCloud(deps, "/api/changes?since=0", {});
 
     expect(response).toEqual({ kind: "error", error: envelope("device_token_rejected") });
     expect(requests).toHaveLength(1);
@@ -201,6 +201,6 @@ describe("getFromCloud", () => {
   it("answers an unreachable cloud as unreachable", async () => {
     const { deps } = clientAnswering(new TypeError("fetch failed"));
 
-    expect(await getFromCloud(deps, "/changes?since=0", {})).toEqual({ kind: "unreachable" });
+    expect(await getFromCloud(deps, "/api/changes?since=0", {})).toEqual({ kind: "unreachable" });
   });
 });

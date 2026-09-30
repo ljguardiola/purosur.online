@@ -25,7 +25,7 @@ export class CloudPullFeed implements CloudChangeFeed<RegisterPulledChange, Pull
   }
 
   async pageAfter(since: number): Promise<Answer> {
-    const response = await this.get(`/changes?since=${since}`, {
+    const response = await this.get(`/api/changes?since=${since}`, {
       authorization: `Bearer ${this.deviceToken}`,
     });
     if (response.kind === "unreachable") {

@@ -71,8 +71,8 @@ describe("a pull from the cloud", () => {
 
     expect(attempt).toEqual({ kind: "caught_up", cursor: 3 });
     expect(requests).toEqual([
-      { path: "/changes?since=0", headers: { authorization: "Bearer prefix.secret" } },
-      { path: "/changes?since=2", headers: { authorization: "Bearer prefix.secret" } },
+      { path: "/api/changes?since=0", headers: { authorization: "Bearer prefix.secret" } },
+      { path: "/api/changes?since=2", headers: { authorization: "Bearer prefix.secret" } },
     ]);
     expect(replica.branchSettings(LOCATION_ID)).toMatchObject({ version: 3 });
   });
@@ -111,7 +111,7 @@ describe("a pull from the cloud", () => {
     });
 
     expect(requests).toEqual([
-      { path: "/changes?since=0", headers: { authorization: "Bearer new.token" } },
+      { path: "/api/changes?since=0", headers: { authorization: "Bearer new.token" } },
     ]);
   });
 
