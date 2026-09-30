@@ -52,7 +52,7 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
   const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
 
   app.post(
-    "/users/passkeys/registration-options",
+    "/account/passkey-challenges",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: { access: OPEN_SESSION_ACCESS, sessionSource },
@@ -110,7 +110,7 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
   );
 
   app.post(
-    "/users/passkeys",
+    "/account/passkeys",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: { access: OPEN_SESSION_ACCESS, sessionSource },

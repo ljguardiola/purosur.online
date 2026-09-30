@@ -165,7 +165,7 @@ function postJson(url: string, body: Record<string, unknown>, rawSessionId: stri
 }
 
 async function requestRegistrationOptions(rawSessionId: string) {
-  const response = await postJson("/users/passkeys/registration-options", {}, rawSessionId);
+  const response = await postJson("/account/passkey-challenges", {}, rawSessionId);
   if (response.statusCode !== 200) {
     throw new Error(
       `test setup: registration-options failed: ${response.statusCode} ${response.body}`,
@@ -210,7 +210,7 @@ describe("a session's registration and session-authorization challenges holding 
     expect(authorizeResponse.statusCode).toBe(200);
 
     const registerResponse = await postJson(
-      "/users/passkeys",
+      "/account/passkeys",
       { passkey_registration: passkeyRegistration, passkey_name: "Teléfono del local" },
       rawSessionId,
     );

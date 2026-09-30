@@ -146,16 +146,11 @@ async function insertSession(forUserId: string, authorizedAt: Date = NOON): Prom
   return rawSessionId;
 }
 
-function postJson(
-  url: string,
-  body: Record<string, unknown>,
-  headers: Record<string, string> = {},
-) {
+function deleteRequest(url: string, headers: Record<string, string> = {}) {
   return app.inject({
-    method: "POST",
+    method: "DELETE",
     url,
     headers: { origin: BACKOFFICE_ORIGIN, ...headers },
-    payload: body,
   });
 }
 
@@ -163,7 +158,7 @@ function cookieHeader(rawSessionId: string): Record<string, string> {
   return { cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` };
 }
 
-describe("POST /users/passkeys/:id/remove", () => {
+describe("DELETE /account/passkeys/:id", () => {
   let emulatorA: WebAuthnEmulator;
   let emulatorB: WebAuthnEmulator;
 
@@ -180,13 +175,26 @@ describe("POST /users/passkeys/:id/remove", () => {
   });
 
   function removePasskey(rawSessionId: string, targetId: string) {
-    return postJson(`/users/passkeys/${targetId}/remove`, {}, cookieHeader(rawSessionId));
+    return deleteRequest(`/account/passkeys/${targetId}`, cookieHeader(rawSessionId));
   }
+
+  it("no longer answers the old removal path", async () => {
+    const rawSessionId = await insertSession(userId);
+    const [target] = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/users/passkeys/${target?.id}/remove`,
+      headers: { origin: BACKOFFICE_ORIGIN, ...cookieHeader(rawSessionId) },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
 
   it("returns 401 unauthenticated when no cookie was sent", async () => {
     const [target] = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
 
-    const response = await postJson(`/users/passkeys/${target?.id}/remove`, {});
+    const response = await deleteRequest(`/account/passkeys/${target?.id}`);
 
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
@@ -197,8 +205,8 @@ describe("POST /users/passkeys/:id/remove", () => {
     const [target] = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
 
     const response = await app.inject({
-      method: "POST",
-      url: `/users/passkeys/${target?.id}/remove`,
+      method: "DELETE",
+      url: `/account/passkeys/${target?.id}`,
       headers: { origin: "https://attacker.example", ...cookieHeader(rawSessionId) },
     });
 

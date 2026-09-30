@@ -1260,21 +1260,21 @@ describe("wiring the issuer identification routes", () => {
 });
 
 describe("wiring the passkeys routes", () => {
-  it("does not register GET /api/users/passkeys when no passkeys option is given", async () => {
+  it("does not register GET /api/account/passkeys when no passkeys option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
-    const response = await app.inject({ method: "GET", url: "/api/users/passkeys" });
+    const response = await app.inject({ method: "GET", url: "/api/account/passkeys" });
 
     expect(response.statusCode).toBe(404);
   });
 
-  it("registers GET /api/users/passkeys when a passkeys option is given", async () => {
+  it("registers GET /api/account/passkeys when a passkeys option is given", async () => {
     const app = buildApp({
       version: "abc1234",
       passkeys: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
 
-    const response = await app.inject({ method: "GET", url: "/api/users/passkeys" });
+    const response = await app.inject({ method: "GET", url: "/api/account/passkeys" });
 
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
@@ -1285,12 +1285,12 @@ describe("wiring the passkeys routes", () => {
 
     const registrationOptions = await app.inject({
       method: "POST",
-      url: "/api/users/passkeys/registration-options",
+      url: "/api/account/passkey-challenges",
       headers: { origin: "https://staging.purosur.online" },
     });
     const remove = await app.inject({
-      method: "POST",
-      url: "/api/users/passkeys/00000000-0000-0000-0000-000000000000/remove",
+      method: "DELETE",
+      url: "/api/account/passkeys/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1306,12 +1306,12 @@ describe("wiring the passkeys routes", () => {
 
     const registrationOptions = await app.inject({
       method: "POST",
-      url: "/api/users/passkeys/registration-options",
+      url: "/api/account/passkey-challenges",
       headers: { origin: "https://staging.purosur.online" },
     });
     const remove = await app.inject({
-      method: "POST",
-      url: "/api/users/passkeys/00000000-0000-0000-0000-000000000000/remove",
+      method: "DELETE",
+      url: "/api/account/passkeys/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1383,14 +1383,14 @@ describe("the route access inventory", () => {
         access: OPEN_SESSION_ACCESS,
       },
       { method: "PUT", url: "/api/sessions/current/authorization", access: OPEN_SESSION_ACCESS },
-      { method: "GET", url: "/api/users/passkeys", access: OPEN_SESSION_ACCESS },
+      { method: "GET", url: "/api/account/passkeys", access: OPEN_SESSION_ACCESS },
       {
         method: "POST",
-        url: "/api/users/passkeys/registration-options",
+        url: "/api/account/passkey-challenges",
         access: OPEN_SESSION_ACCESS,
       },
-      { method: "POST", url: "/api/users/passkeys", access: OPEN_SESSION_ACCESS },
-      { method: "POST", url: "/api/users/passkeys/:id/remove", access: OPEN_SESSION_ACCESS },
+      { method: "POST", url: "/api/account/passkeys", access: OPEN_SESSION_ACCESS },
+      { method: "DELETE", url: "/api/account/passkeys/:id", access: OPEN_SESSION_ACCESS },
       {
         method: "GET",
         url: "/api/users",

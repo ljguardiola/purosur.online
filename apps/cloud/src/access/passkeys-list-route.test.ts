@@ -100,12 +100,24 @@ async function insertPasskey(overrides: {
 function getPasskeys(rawSessionId?: string) {
   return app.inject({
     method: "GET",
-    url: "/users/passkeys",
+    url: "/account/passkeys",
     headers: rawSessionId ? { cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` } : {},
   });
 }
 
-describe("GET /users/passkeys", () => {
+describe("GET /account/passkeys", () => {
+  it("no longer answers the old list path", async () => {
+    const rawSessionId = await insertSession();
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/users/passkeys",
+      headers: { cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
   it("returns 401 unauthenticated when no cookie was sent", async () => {
     const response = await getPasskeys();
 
@@ -178,7 +190,7 @@ describe("GET /users/passkeys", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/users/passkeys",
+      url: "/account/passkeys",
       headers: {
         cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}`,
         origin: "https://attacker.example",
