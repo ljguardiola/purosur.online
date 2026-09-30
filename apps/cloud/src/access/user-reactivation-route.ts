@@ -38,8 +38,8 @@ export function registerUserReactivationRoutes<TQueryResult extends PgQueryResul
     return findBranchUser(options.db, locationId, targetId, { activeScope: "inactive" });
   }
 
-  app.post<{ Params: { id: string } }>(
-    "/users/:id/reactivation",
+  app.delete<{ Params: { id: string } }>(
+    "/users/:id/deactivation",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: { access: permissionAccess("reactivate_users"), sessionSource },

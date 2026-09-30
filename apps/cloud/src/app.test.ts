@@ -726,8 +726,8 @@ describe("wiring the users routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
     const edit = await app.inject({
-      method: "POST",
-      url: "/api/users/00000000-0000-0000-0000-000000000000/edit",
+      method: "PUT",
+      url: "/api/users/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
     const userPasskeys = await app.inject({
@@ -735,12 +735,12 @@ describe("wiring the users routes", () => {
       url: "/api/users/00000000-0000-0000-0000-000000000000/passkeys",
     });
     const userPasskeyRemove = await app.inject({
-      method: "POST",
-      url: "/api/users/00000000-0000-0000-0000-000000000000/passkeys/00000000-0000-0000-0000-000000000000/remove",
+      method: "DELETE",
+      url: "/api/users/00000000-0000-0000-0000-000000000000/passkeys/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
     const deactivation = await app.inject({
-      method: "POST",
+      method: "PUT",
       url: "/api/users/00000000-0000-0000-0000-000000000000/deactivation",
       headers: { origin: "https://staging.purosur.online" },
     });
@@ -771,8 +771,8 @@ describe("wiring the users routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
     const edit = await app.inject({
-      method: "POST",
-      url: "/api/users/00000000-0000-0000-0000-000000000000/edit",
+      method: "PUT",
+      url: "/api/users/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
     const userPasskeys = await app.inject({
@@ -780,12 +780,12 @@ describe("wiring the users routes", () => {
       url: "/api/users/00000000-0000-0000-0000-000000000000/passkeys",
     });
     const userPasskeyRemove = await app.inject({
-      method: "POST",
-      url: "/api/users/00000000-0000-0000-0000-000000000000/passkeys/00000000-0000-0000-0000-000000000000/remove",
+      method: "DELETE",
+      url: "/api/users/00000000-0000-0000-0000-000000000000/passkeys/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
     const deactivation = await app.inject({
-      method: "POST",
+      method: "PUT",
       url: "/api/users/00000000-0000-0000-0000-000000000000/deactivation",
       headers: { origin: "https://staging.purosur.online" },
     });
@@ -815,8 +815,8 @@ describe("wiring the roles routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
     const edit = await app.inject({
-      method: "POST",
-      url: "/api/roles/00000000-0000-0000-0000-000000000000/edit",
+      method: "PUT",
+      url: "/api/roles/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -844,8 +844,8 @@ describe("wiring the roles routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
     const edit = await app.inject({
-      method: "POST",
-      url: "/api/roles/00000000-0000-0000-0000-000000000000/edit",
+      method: "PUT",
+      url: "/api/roles/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1471,27 +1471,27 @@ describe("the route access inventory", () => {
         access: permissionAccess(["deactivate_users", "reactivate_users"]),
       },
       { method: "POST", url: "/api/users", access: ADMINISTRATOR_ACCESS },
-      { method: "POST", url: "/api/users/:id/edit", access: ADMINISTRATOR_ACCESS },
+      { method: "PUT", url: "/api/users/:id", access: ADMINISTRATOR_ACCESS },
       { method: "GET", url: "/api/users/:id/passkeys", access: ADMINISTRATOR_ACCESS },
       {
-        method: "POST",
-        url: "/api/users/:id/passkeys/:passkeyId/remove",
+        method: "DELETE",
+        url: "/api/users/:id/passkeys/:passkeyId",
         access: ADMINISTRATOR_ACCESS,
       },
       {
-        method: "POST",
+        method: "PUT",
         url: "/api/users/:id/deactivation",
         access: permissionAccess("deactivate_users"),
       },
       {
-        method: "POST",
-        url: "/api/users/:id/reactivation",
+        method: "DELETE",
+        url: "/api/users/:id/deactivation",
         access: permissionAccess("reactivate_users"),
       },
       { method: "GET", url: "/api/roles", access: ADMINISTRATOR_ACCESS },
       { method: "GET", url: "/api/roles/:id", access: ADMINISTRATOR_ACCESS },
       { method: "POST", url: "/api/roles", access: ADMINISTRATOR_ACCESS },
-      { method: "POST", url: "/api/roles/:id/edit", access: ADMINISTRATOR_ACCESS },
+      { method: "PUT", url: "/api/roles/:id", access: ADMINISTRATOR_ACCESS },
       {
         method: "GET",
         url: "/api/branch-settings",

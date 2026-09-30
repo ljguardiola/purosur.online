@@ -46,8 +46,8 @@ export function registerUserPasskeyRemovalRoutes<TQueryResult extends PgQueryRes
     return findBranchUser(options.db, locationId, targetId);
   }
 
-  app.post<{ Params: { id: string; passkeyId: string } }>(
-    "/users/:id/passkeys/:passkeyId/remove",
+  app.delete<{ Params: { id: string; passkeyId: string } }>(
+    "/users/:id/passkeys/:passkeyId",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: { access: ADMINISTRATOR_ACCESS, sessionSource },

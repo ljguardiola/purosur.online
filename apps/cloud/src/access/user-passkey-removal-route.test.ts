@@ -103,17 +103,15 @@ function cookieHeader(rawSessionId: string): Record<string, string> {
   return { cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` };
 }
 
-function postJson(
+function deleteRequest(
   target: FastifyInstance,
   url: string,
-  body: Record<string, unknown>,
   headers: Record<string, string> = {},
 ) {
   return target.inject({
-    method: "POST",
+    method: "DELETE",
     url,
     headers: { origin: BACKOFFICE_ORIGIN, ...headers },
-    payload: body,
   });
 }
 
@@ -170,12 +168,10 @@ function removePasskey(
   targetId: string,
   passkeyId: string,
   rawSessionId: string | undefined,
-  body: Record<string, unknown> = {},
 ) {
-  return postJson(
+  return deleteRequest(
     app,
-    `/users/${targetId}/passkeys/${passkeyId}/remove`,
-    body,
+    `/users/${targetId}/passkeys/${passkeyId}`,
     rawSessionId ? cookieHeader(rawSessionId) : {},
   );
 }
@@ -224,7 +220,7 @@ afterEach(async () => {
   await authApp.close();
 });
 
-describe("POST /users/:id/passkeys/:passkeyId/remove", () => {
+describe("DELETE /users/:id/passkeys/:passkeyId", () => {
   let targetEmulatorA: WebAuthnEmulator;
   let cashierRoleId: string;
   let targetId: string;
@@ -265,12 +261,24 @@ describe("POST /users/:id/passkeys/:passkeyId/remove", () => {
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
   });
 
-  it("rejects an Origin that is not the backoffice's own", async () => {
+  it("no longer answers the old removal path", async () => {
     const rawSessionId = await insertSession(administratorId);
 
     const response = await app.inject({
       method: "POST",
       url: `/users/${targetId}/passkeys/${targetPasskeyAId}/remove`,
+      headers: { origin: BACKOFFICE_ORIGIN, ...cookieHeader(rawSessionId) },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("rejects an Origin that is not the backoffice's own", async () => {
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: `/users/${targetId}/passkeys/${targetPasskeyAId}`,
       headers: { origin: "https://attacker.example", ...cookieHeader(rawSessionId) },
     });
 

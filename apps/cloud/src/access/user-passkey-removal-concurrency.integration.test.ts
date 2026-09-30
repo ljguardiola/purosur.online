@@ -178,8 +178,8 @@ async function prepareRemoval(targetId: string, passkeyId: string) {
   const headers = { origin: BACKOFFICE_ORIGIN, cookie: administrator.cookie };
   return () =>
     app.inject({
-      method: "POST",
-      url: `/users/${targetId}/passkeys/${passkeyId}/remove`,
+      method: "DELETE",
+      url: `/users/${targetId}/passkeys/${passkeyId}`,
       headers,
     });
 }
