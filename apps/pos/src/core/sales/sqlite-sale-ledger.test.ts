@@ -529,7 +529,9 @@ describe("the promotions that target a product", () => {
 
   it("still include the ones aimed at a tag the product carries after that tag is deactivated", () => {
     database
-      .prepare("INSERT INTO tags (id, name, active, version) VALUES ('gluten-free', 'Sin TACC', 0, 2)")
+      .prepare(
+        "INSERT INTO tags (id, name, active, version) VALUES ('gluten-free', 'Sin TACC', 0, 2)",
+      )
       .run();
     addProductTag("p1", "gluten-free");
     addDiscount("deactivated-tag", { kind: "TAG", id: "gluten-free" }, tenPercent);
