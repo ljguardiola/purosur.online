@@ -17,6 +17,9 @@ import {
   DISCOUNT_TARGET_KIND_OPTIONS,
   discountRequestFrom,
   EMPTY_DISCOUNT_FORM,
+  eligibleTargets,
+  TARGET_SOLD_BY_WEIGHT_MESSAGE,
+  targetForKind,
   targetOptions,
   targetPlaceholder,
   targetUnavailableMessage,
@@ -82,6 +85,10 @@ export function NewDiscountModal({
         showFieldError("targetId", targetUnavailableMessage(values.targetKind));
         return;
       }
+      if (outcome.kind === "target_not_sold_by_unit") {
+        showFieldError("targetId", TARGET_SOLD_BY_WEIGHT_MESSAGE);
+        return;
+      }
       if (outcome.kind === "rate_limited") {
         setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
         return;
@@ -98,7 +105,25 @@ export function NewDiscountModal({
   }, [open, reset]);
 
   const targetKindLabel = DISCOUNT_TARGET_KIND_LABELS[values.targetKind];
-  const options = targetOptions(values.targetKind, targets);
+  const options = targetOptions(values.targetKind, eligibleTargets(values.benefitKind, targets));
+  const targetField = (
+    <form.AppField name="targetId">
+      {(field) =>
+        options ? (
+          <field.Select
+            label={targetKindLabel}
+            placeholder={targetPlaceholder(values.targetKind)}
+            options={options}
+            required
+          />
+        ) : (
+          <FieldGroup label={targetKindLabel} required>
+            <SharedFieldError>{() => null}</SharedFieldError>
+          </FieldGroup>
+        )
+      }
+    </form.AppField>
+  );
 
   return (
     <Modal
@@ -159,52 +184,64 @@ export function NewDiscountModal({
           {(field) => <field.TextField kind="plain-text" label="Nombre" required />}
         </form.AppField>
         <FieldGroup label="Tipo de promoción">
-          <form.AppField name="benefitKind">
+          <form.AppField
+            name="benefitKind"
+            listeners={{
+              onChange: ({ value }) => {
+                const target = targetForKind(form.state.values, value, targets);
+                form.setFieldValue("targetKind", target.targetKind);
+                form.setFieldValue("targetId", target.targetId);
+              },
+            }}
+          >
             {(field) => (
               <field.OptionCardGroup label="Tipo de promoción" options={DISCOUNT_KIND_CARDS} />
             )}
           </form.AppField>
         </FieldGroup>
-        <FieldGroup label="Se aplica sobre">
-          <form.AppField
-            name="targetKind"
-            listeners={{ onChange: () => form.setFieldValue("targetId", null) }}
-          >
-            {(field) => (
-              <field.SegmentedControl
-                label="Se aplica sobre"
-                options={DISCOUNT_TARGET_KIND_OPTIONS}
-              />
-            )}
-          </form.AppField>
-        </FieldGroup>
-        <div className="flex items-start gap-4">
-          <div className="min-w-0 flex-1">
-            <form.AppField name="targetId">
-              {(field) =>
-                options ? (
-                  <field.Select
-                    label={targetKindLabel}
-                    placeholder={targetPlaceholder(values.targetKind)}
-                    options={options}
-                    required
+        {values.benefitKind === "PERCENT_OFF" ? (
+          <>
+            <FieldGroup label="Se aplica sobre">
+              <form.AppField
+                name="targetKind"
+                listeners={{ onChange: () => form.setFieldValue("targetId", null) }}
+              >
+                {(field) => (
+                  <field.SegmentedControl
+                    label="Se aplica sobre"
+                    options={DISCOUNT_TARGET_KIND_OPTIONS}
                   />
-                ) : (
-                  <FieldGroup label={targetKindLabel} required>
-                    <SharedFieldError>{() => null}</SharedFieldError>
-                  </FieldGroup>
-                )
-              }
-            </form.AppField>
-          </div>
-          <div className="w-40">
-            <form.AppField name="percent">
-              {(field) => (
-                <field.TextField kind="plain-text" label="Descuento" suffix="%" required />
-              )}
-            </form.AppField>
-          </div>
-        </div>
+                )}
+              </form.AppField>
+            </FieldGroup>
+            <div className="flex items-start gap-4">
+              <div className="min-w-0 flex-1">{targetField}</div>
+              <div className="w-40">
+                <form.AppField name="percent">
+                  {(field) => (
+                    <field.TextField kind="plain-text" label="Descuento" suffix="%" required />
+                  )}
+                </form.AppField>
+              </div>
+            </div>
+          </>
+        ) : (
+          <FieldGroup label="Producto y grupo">
+            <div className="flex items-start gap-3">
+              <div className="min-w-0 flex-1">{targetField}</div>
+              <div className="w-30">
+                <form.AppField name="buyQty">
+                  {(field) => <field.TextField kind="plain-text" label="Lleve" required />}
+                </form.AppField>
+              </div>
+              <div className="w-30">
+                <form.AppField name="payQty">
+                  {(field) => <field.TextField kind="plain-text" label="Pague" required />}
+                </form.AppField>
+              </div>
+            </div>
+          </FieldGroup>
+        )}
         <div className="grid grid-cols-2 gap-4">
           <form.AppField name="validFrom">
             {(field) => <field.DateField label="Desde" required />}

@@ -3,6 +3,7 @@ import { formatDate, formatNumber, type Tone } from "@purosur/ui";
 
 export const DISCOUNT_KIND_LABELS = {
   PERCENT_OFF: "Porcentaje",
+  BUY_N_PAY_M: "Lleve N, pague M",
 } satisfies Record<DiscountBenefit["kind"], string>;
 
 export const DISCOUNT_STATUS_PRESENTATION = {
@@ -31,7 +32,12 @@ const WEEKDAY_NAMES = [
 const weekdayList = new Intl.ListFormat("es-AR", { style: "long", type: "conjunction" });
 
 export function discountBenefitText(benefit: DiscountBenefit): string {
-  return `${formatNumber(benefit.percent)} % de descuento`;
+  switch (benefit.kind) {
+    case "PERCENT_OFF":
+      return `${formatNumber(benefit.percent)} % de descuento`;
+    case "BUY_N_PAY_M":
+      return `Lleve ${formatNumber(benefit.buyQty)}, pague ${formatNumber(benefit.payQty)}`;
+  }
 }
 
 export function discountTargetLine(target: { kind: DiscountTargetKind; name: string }): string {

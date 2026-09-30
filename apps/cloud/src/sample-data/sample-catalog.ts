@@ -1,5 +1,6 @@
 import {
   appendEan13CheckDigit,
+  type DiscountBenefit,
   type NetContentUnit,
   PRODUCT_NAME_MAX_LENGTH,
   type SaleUnit,
@@ -396,18 +397,23 @@ export const SAMPLE_CATEGORY_TREE: readonly SampleTopCategory[] = buildSampleCat
 
 interface SampleDiscountPlan {
   name: string;
-  percent: number;
+  benefit: DiscountBenefit;
   target: { kind: "CATEGORY" | "PRODUCT" | "TAG"; name: string };
   startsInDays: number;
   lastsDays: number;
   weekdays: readonly number[];
 }
 
-function firstActiveProductNameOf(leafName: string): string {
+function firstActiveProductNameOf(leafName: string, saleUnit?: SaleUnit): string {
   for (const top of SAMPLE_CATEGORY_TREE) {
     for (const mid of top.mids) {
       for (const leaf of mid.leaves) {
-        const product = leaf.name === leafName ? leaf.products.find((p) => p.active) : undefined;
+        const product =
+          leaf.name === leafName
+            ? leaf.products.find(
+                (p) => p.active && (saleUnit === undefined || p.saleUnit === saleUnit),
+              )
+            : undefined;
         if (product) {
           return product.name;
         }
@@ -420,7 +426,7 @@ function firstActiveProductNameOf(leafName: string): string {
 export const SAMPLE_DISCOUNTS: readonly SampleDiscountPlan[] = [
   {
     name: "Semana de la limpieza",
-    percent: 15,
+    benefit: { kind: "PERCENT_OFF", percent: 15 },
     target: { kind: "CATEGORY", name: "Limpieza" },
     startsInDays: -3,
     lastsDays: 14,
@@ -428,7 +434,7 @@ export const SAMPLE_DISCOUNTS: readonly SampleDiscountPlan[] = [
   },
   {
     name: "Martes de infusiones",
-    percent: 10,
+    benefit: { kind: "PERCENT_OFF", percent: 10 },
     target: { kind: "CATEGORY", name: "Infusiones" },
     startsInDays: -30,
     lastsDays: 90,
@@ -436,15 +442,23 @@ export const SAMPLE_DISCOUNTS: readonly SampleDiscountPlan[] = [
   },
   {
     name: "Yerba en oferta",
-    percent: 5,
+    benefit: { kind: "PERCENT_OFF", percent: 5 },
     target: { kind: "PRODUCT", name: firstActiveProductNameOf("Hierbas") },
     startsInDays: -1,
     lastsDays: 7,
     weekdays: [],
   },
   {
+    name: "Galletitas 3x2",
+    benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+    target: { kind: "PRODUCT", name: firstActiveProductNameOf("Galletitas", "UNIT") },
+    startsInDays: -2,
+    lastsDays: 30,
+    weekdays: [],
+  },
+  {
     name: "Semana sin TACC",
-    percent: 20,
+    benefit: { kind: "PERCENT_OFF", percent: 20 },
     target: { kind: "TAG", name: "Sin TACC" },
     startsInDays: 14,
     lastsDays: 7,

@@ -70,7 +70,7 @@ describe("fetchDiscounts", () => {
 
 describe("fetchDiscountTargets", () => {
   const targets = {
-    products: [{ id: "product-1", name: "Yerba Playadito 1 kg" }],
+    products: [{ id: "product-1", name: "Yerba Playadito 1 kg", saleUnit: "UNIT" }],
     categories: [{ id: "category-1", name: "Almacén", parentId: null }],
     tags: [{ id: "tag-1", name: "Sin TACC" }],
   };
@@ -165,6 +165,14 @@ describe("createDiscount", () => {
     expect(await createDiscount(creation)).toEqual({ kind: "target_not_found" });
   });
 
+  test("returns target_not_sold_by_unit when the product is sold by weight", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse(409, { code: "discount_target_not_sold_by_unit" }),
+    );
+
+    expect(await createDiscount(creation)).toEqual({ kind: "target_not_sold_by_unit" });
+  });
+
   test("returns failed on a 409 that names another code", async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "other" }));
 
@@ -247,6 +255,14 @@ describe("editDiscount", () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "discount_target_not_found" }));
 
     expect(await editDiscount("discount-1", edit)).toEqual({ kind: "target_not_found" });
+  });
+
+  test("returns target_not_sold_by_unit when the product is sold by weight", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse(409, { code: "discount_target_not_sold_by_unit" }),
+    );
+
+    expect(await editDiscount("discount-1", edit)).toEqual({ kind: "target_not_sold_by_unit" });
   });
 
   test("returns failed on a 409 that names another code", async () => {

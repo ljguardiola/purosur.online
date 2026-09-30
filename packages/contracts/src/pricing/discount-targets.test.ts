@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import { discountTargetsSchema } from "./discount-targets.js";
 
 const targets = {
-  products: [{ id: "product-1", name: "Yerba Playadito 1 kg" }],
+  products: [
+    { id: "product-1", name: "Yerba Playadito 1 kg", saleUnit: "UNIT" },
+    { id: "product-2", name: "Queso cremoso", saleUnit: "KG" },
+  ],
   categories: [
     { id: "category-1", name: "Almacén", parentId: null },
     { id: "category-2", name: "Yerbas", parentId: "category-1" },
@@ -24,12 +27,12 @@ describe("discountTargetsSchema", () => {
   it("strips what a picker does not use", () => {
     expect(
       discountTargetsSchema.safeParse({
-        products: [{ id: "product-1", name: "Yerba", active: true, version: 2 }],
+        products: [{ id: "product-1", name: "Yerba", saleUnit: "UNIT", active: true, version: 2 }],
         categories: [{ id: "category-1", name: "Almacén", parentId: null, version: 1 }],
         tags: [{ id: "tag-1", name: "Sin TACC", productCount: 4 }],
       }).data,
     ).toEqual({
-      products: [{ id: "product-1", name: "Yerba" }],
+      products: [{ id: "product-1", name: "Yerba", saleUnit: "UNIT" }],
       categories: [{ id: "category-1", name: "Almacén", parentId: null }],
       tags: [{ id: "tag-1", name: "Sin TACC" }],
     });
@@ -39,8 +42,16 @@ describe("discountTargetsSchema", () => {
     ["missing products", { ...targets, products: undefined }],
     ["missing categories", { ...targets, categories: undefined }],
     ["missing tags", { ...targets, tags: undefined }],
-    ["a product without its name", { ...targets, products: [{ id: "product-1" }] }],
-    ["a product without its id", { ...targets, products: [{ name: "Yerba" }] }],
+    [
+      "a product without its name",
+      { ...targets, products: [{ id: "product-1", saleUnit: "UNIT" }] },
+    ],
+    ["a product without its id", { ...targets, products: [{ name: "Yerba", saleUnit: "UNIT" }] }],
+    ["a product without its sale unit", { ...targets, products: [{ id: "p", name: "Yerba" }] }],
+    [
+      "a product with an unknown sale unit",
+      { ...targets, products: [{ id: "p", name: "Yerba", saleUnit: "LITER" }] },
+    ],
     ["a tag without its name", { ...targets, tags: [{ id: "tag-1" }] }],
     ["a tag without its id", { ...targets, tags: [{ name: "Sin TACC" }] }],
     ["a category without its name", { ...targets, categories: [{ id: "c", parentId: null }] }],

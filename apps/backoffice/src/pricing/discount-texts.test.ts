@@ -11,6 +11,18 @@ describe("discountBenefitText", () => {
   test("writes the percentage off with a spaced percent sign", () => {
     expect(discountBenefitText({ kind: "PERCENT_OFF", percent: 15 })).toBe("15 % de descuento");
   });
+
+  test("writes how many units are bought and how many are paid", () => {
+    expect(discountBenefitText({ kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 })).toBe(
+      "Lleve 3, pague 2",
+    );
+  });
+
+  test("writes large quantities with the Argentine thousands separator", () => {
+    expect(discountBenefitText({ kind: "BUY_N_PAY_M", buyQty: 1200, payQty: 1000 })).toBe(
+      "Lleve 1.200, pague 1.000",
+    );
+  });
 });
 
 describe("discountTargetLine", () => {

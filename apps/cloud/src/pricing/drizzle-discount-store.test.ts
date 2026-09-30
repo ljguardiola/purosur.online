@@ -66,7 +66,25 @@ describe("locking the target a discount points at", () => {
       await tx.lockAssignableTarget({ kind: "PRODUCT", id: product.id }),
     ]);
 
-    expect(outcomes).toEqual([{ kind: "locked" }, { kind: "locked" }, { kind: "locked" }]);
+    expect(outcomes).toEqual([
+      { kind: "locked", saleUnit: null },
+      { kind: "locked", saleUnit: null },
+      { kind: "locked", saleUnit: "UNIT" },
+    ]);
+  });
+
+  it("reports that a product is sold by weight", async () => {
+    const product = await insertProductWithTags(db, {
+      name: "Queso cremoso",
+      tagIds: [],
+      saleUnit: "KG",
+    });
+
+    const outcome = await inTransaction((tx) =>
+      tx.lockAssignableTarget({ kind: "PRODUCT", id: product.id }),
+    );
+
+    expect(outcome).toEqual({ kind: "locked", saleUnit: "KG" });
   });
 
   it("answers not found for a target that does not exist", async () => {
@@ -144,6 +162,47 @@ describe("storing a discount", () => {
     });
     const rows = await db.select().from(discounts).where(eq(discounts.id, id));
     expect(rows).toMatchObject([{ categoryId: null, tagId: tag.id, productId: null }]);
+  });
+});
+
+describe("storing a buy-N-pay-M discount", () => {
+  it("keeps its quantities", async () => {
+    const product = await insertProductWithTags(db, { name: "Alfajor", tagIds: [] });
+    const fields: DiscountFields = {
+      ...fieldsAimedAt({ kind: "PRODUCT", id: product.id }),
+      benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+    };
+
+    const { id } = await inTransaction((tx) => tx.insertDiscount(fields));
+
+    expect(await inTransaction((tx) => tx.lockDiscount(id))).toEqual({
+      kind: "locked",
+      discount: fields,
+    });
+    const rows = await db.select().from(discounts).where(eq(discounts.id, id));
+    expect(rows).toMatchObject([{ kind: "BUY_N_PAY_M", percent: null, buyQty: 3, payQty: 2 }]);
+  });
+
+  it("drops the percent when an edit switches a discount to buy-N-pay-M, and the quantities when it switches back", async () => {
+    const product = await insertProductWithTags(db, { name: "Alfajor", tagIds: [] });
+    const percentOff = fieldsAimedAt({ kind: "PRODUCT", id: product.id });
+    const { id } = await inTransaction((tx) => tx.insertDiscount(percentOff));
+
+    await inTransaction((tx) =>
+      tx.updateDiscount(id, {
+        ...percentOff,
+        benefit: { kind: "BUY_N_PAY_M", buyQty: 2, payQty: 1 },
+        version: 2,
+      }),
+    );
+    expect(await db.select().from(discounts).where(eq(discounts.id, id))).toMatchObject([
+      { percent: null, buyQty: 2, payQty: 1 },
+    ]);
+
+    await inTransaction((tx) => tx.updateDiscount(id, { ...percentOff, version: 3 }));
+    expect(await db.select().from(discounts).where(eq(discounts.id, id))).toMatchObject([
+      { percent: 10, buyQty: null, payQty: null },
+    ]);
   });
 });
 

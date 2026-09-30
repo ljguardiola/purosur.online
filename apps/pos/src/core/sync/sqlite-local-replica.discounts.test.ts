@@ -85,6 +85,8 @@ describe("the register's local copy of the discounts it pulls", () => {
       name: "Martes de infusiones",
       kind: "PERCENT_OFF",
       percent: 10,
+      buy_qty: null,
+      pay_qty: null,
       target_kind: "TAG",
       target_id: TAG_ID,
       valid_from: "2026-10-01",
@@ -131,6 +133,8 @@ describe("the register's local copy of the discounts it pulls", () => {
       name: "Semana de las infusiones",
       kind: "PERCENT_OFF",
       percent: 25,
+      buy_qty: null,
+      pay_qty: null,
       target_kind: "PRODUCT",
       target_id: OTHER_DISCOUNT_ID,
       valid_from: "2026-11-01",
@@ -139,6 +143,93 @@ describe("the register's local copy of the discounts it pulls", () => {
       active: false,
       version: 2,
       removed: false,
+    });
+  });
+
+  it("saves a buy-N-pay-M discount with its quantities and no percent", async () => {
+    await save(
+      discountChange(
+        1,
+        discountRow({
+          benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+          target: { kind: "PRODUCT", id: OTHER_DISCOUNT_ID },
+        }),
+      ),
+    );
+
+    expect(replica.discount(DISCOUNT_ID)).toMatchObject({
+      kind: "BUY_N_PAY_M",
+      percent: null,
+      buy_qty: 3,
+      pay_qty: 2,
+      target_kind: "PRODUCT",
+    });
+  });
+
+  it("replaces a buy-N-pay-M discount's quantities with a newer version", async () => {
+    const product = { kind: "PRODUCT", id: OTHER_DISCOUNT_ID } as const;
+    await save(
+      discountChange(
+        1,
+        discountRow({ benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 }, target: product }),
+      ),
+    );
+
+    await save(
+      discountChange(
+        2,
+        discountRow({
+          benefit: { kind: "BUY_N_PAY_M", buyQty: 4, payQty: 3 },
+          target: product,
+          version: 2,
+        }),
+      ),
+    );
+
+    expect(replica.discount(DISCOUNT_ID)).toMatchObject({ buy_qty: 4, pay_qty: 3, version: 2 });
+  });
+
+  it("keeps a buy-N-pay-M discount's quantities when an older version arrives late", async () => {
+    const product = { kind: "PRODUCT", id: OTHER_DISCOUNT_ID } as const;
+    await save(
+      discountChange(
+        1,
+        discountRow({
+          benefit: { kind: "BUY_N_PAY_M", buyQty: 4, payQty: 3 },
+          target: product,
+          version: 2,
+        }),
+      ),
+    );
+
+    await save(
+      discountChange(
+        2,
+        discountRow({ benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 }, target: product }),
+      ),
+    );
+
+    expect(replica.discount(DISCOUNT_ID)).toMatchObject({ buy_qty: 4, pay_qty: 3, version: 2 });
+  });
+
+  it("drops the quantities of a buy-N-pay-M discount that turns into a percentage off", async () => {
+    await save(
+      discountChange(
+        1,
+        discountRow({
+          benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+          target: { kind: "PRODUCT", id: OTHER_DISCOUNT_ID },
+        }),
+      ),
+    );
+
+    await save(discountChange(2, discountRow({ version: 2 })));
+
+    expect(replica.discount(DISCOUNT_ID)).toMatchObject({
+      kind: "PERCENT_OFF",
+      percent: 10,
+      buy_qty: null,
+      pay_qty: null,
     });
   });
 

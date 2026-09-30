@@ -32,10 +32,14 @@ test("keeps the promotions list filters a URL names, falling back for a value it
     sort: "descending",
   };
   expect(discountsListFilters.parse(filters)).toEqual(filters);
+  expect(discountsListFilters.parse({ ...filters, kind: "BUY_N_PAY_M" })).toEqual({
+    ...filters,
+    kind: "BUY_N_PAY_M",
+  });
   expect(
     discountsListFilters.parse({
       search: false,
-      kind: "BUY_N_PAY_M",
+      kind: "BUY_ONE",
       status: "later",
       sortBy: "days",
       sort: "sideways",

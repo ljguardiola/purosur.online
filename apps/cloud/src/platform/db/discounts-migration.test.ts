@@ -64,6 +64,6 @@ describe("the discounts migration applied to a database that already holds produ
         },
       ],
     );
-    expect(await db.select().from(discounts)).toEqual([]);
+    expect(await db.select({ id: discounts.id }).from(discounts)).toEqual([]);
   });
 });
