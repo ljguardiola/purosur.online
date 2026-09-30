@@ -15,7 +15,6 @@ import type {
 import { and, asc, desc, eq, gt, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
-import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import {
   registerContingencyTicketKeys,
   registerEnrollmentAttempts,
@@ -34,18 +33,6 @@ function attemptKeyCondition(key: EnrollmentAttemptKey) {
     eq(registerEnrollmentAttempts.keyKind, key.kind),
     eq(registerEnrollmentAttempts.keyValue, key.value),
   );
-}
-
-// A failed query's error, and the driver's error under it, carry the query's parameters and go on
-// to error reporting, so a write carrying a key raises one that keeps only the Postgres error code
-// and constraint.
-async function writingKey<T>(write: PromiseLike<T>): Promise<T> {
-  try {
-    return await write;
-  } catch (error) {
-    const [driverError] = postgresErrorChain(error).filter((link) => link.code !== undefined);
-    throw Object.assign(new Error("writing an installation key failed"), driverError);
-  }
 }
 
 const outboxChainKeyPurpose = (deviceId: string) => `outbox_chain_key:${deviceId}`;
@@ -139,16 +126,14 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
   async recordInstallation(installation: NewInstallation): Promise<{ deviceId: string }> {
     // The key is sealed for its installation, so the installation's id is chosen before the insert.
     const id = randomUUID();
-    const [recorded] = await writingKey(
-      this.tx
-        .insert(registerInstallations)
-        .values({
-          ...installation,
-          id,
-          outboxChainKey: this.cipher.seal(installation.outboxChainKey, outboxChainKeyPurpose(id)),
-        })
-        .returning({ id: registerInstallations.id }),
-    );
+    const [recorded] = await this.tx
+      .insert(registerInstallations)
+      .values({
+        ...installation,
+        id,
+        outboxChainKey: this.cipher.seal(installation.outboxChainKey, outboxChainKeyPurpose(id)),
+      })
+      .returning({ id: registerInstallations.id });
     if (!recorded) {
       throw new Error("inserting the new installation returned no row");
     }
@@ -163,7 +148,6 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
         deviceId: registerInstallations.id,
         registerId: registerInstallations.registerId,
         revokedAt: registerInstallations.revokedAt,
-        outboxChainKey: registerInstallations.outboxChainKey,
         tokenLookupPrefix: registerInstallations.tokenLookupPrefix,
         tokenHash: registerInstallations.tokenHash,
         tokenIssuedAt: registerInstallations.tokenIssuedAt,
@@ -187,10 +171,6 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
       deviceId: row.deviceId,
       registerId: row.registerId,
       revoked: row.revokedAt !== null,
-      outboxChainKey:
-        row.outboxChainKey === null
-          ? undefined
-          : this.cipher.open(row.outboxChainKey, outboxChainKeyPurpose(row.deviceId)),
       currentToken: {
         lookupPrefix: row.tokenLookupPrefix,
         tokenHash: row.tokenHash,
@@ -234,13 +214,22 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
       .where(eq(registerInstallations.id, deviceId));
   }
 
+  async outboxChainKey(deviceId: string): Promise<string | undefined> {
+    const [row] = await this.tx
+      .select({ outboxChainKey: registerInstallations.outboxChainKey })
+      .from(registerInstallations)
+      .where(eq(registerInstallations.id, deviceId));
+    if (!row || row.outboxChainKey === null) {
+      return undefined;
+    }
+    return this.cipher.open(row.outboxChainKey, outboxChainKeyPurpose(deviceId));
+  }
+
   async recordOutboxChainKey(deviceId: string, outboxChainKey: string): Promise<void> {
-    await writingKey(
-      this.tx
-        .update(registerInstallations)
-        .set({ outboxChainKey: this.cipher.seal(outboxChainKey, outboxChainKeyPurpose(deviceId)) })
-        .where(eq(registerInstallations.id, deviceId)),
-    );
+    await this.tx
+      .update(registerInstallations)
+      .set({ outboxChainKey: this.cipher.seal(outboxChainKey, outboxChainKeyPurpose(deviceId)) })
+      .where(eq(registerInstallations.id, deviceId));
   }
 
   // A register has no key row to lock before its first key, and locking its registers row would
@@ -272,23 +261,19 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   async recordSnapshotKey(registerId: string, key: VersionedKey): Promise<void> {
-    await writingKey(
-      this.tx.insert(registerSnapshotKeys).values({
-        registerId,
-        version: key.version,
-        key: this.cipher.seal(key.key, snapshotKeyPurpose(registerId, key.version)),
-      }),
-    );
+    await this.tx.insert(registerSnapshotKeys).values({
+      registerId,
+      version: key.version,
+      key: this.cipher.seal(key.key, snapshotKeyPurpose(registerId, key.version)),
+    });
   }
 
   async recordContingencyTicketKey(registerId: string, key: VersionedKey): Promise<void> {
-    await writingKey(
-      this.tx.insert(registerContingencyTicketKeys).values({
-        registerId,
-        version: key.version,
-        key: this.cipher.seal(key.key, contingencyTicketKeyPurpose(registerId, key.version)),
-      }),
-    );
+    await this.tx.insert(registerContingencyTicketKeys).values({
+      registerId,
+      version: key.version,
+      key: this.cipher.seal(key.key, contingencyTicketKeyPurpose(registerId, key.version)),
+    });
   }
 
   async markEnrollmentCodeRedeemed(registerId: string, redeemedAt: Date): Promise<void> {

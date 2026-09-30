@@ -289,10 +289,10 @@ describe("DrizzleRegisterStore", () => {
       snapshotKeys: outcome.keys.snapshotKeyVersions,
       contingencyTicketKeys: [outcome.keys.contingencyTicketKey],
     });
-    const locked = await adapterStore().transaction((tx) =>
-      tx.lockInstallationByTokenPrefix(outcome.deviceToken.split(".")[0] ?? ""),
+    const outboxChainKey = await adapterStore().transaction((tx) =>
+      tx.outboxChainKey(outcome.deviceId),
     );
-    expect(locked?.outboxChainKey).toBe(outcome.keys.outboxChainKey);
+    expect(outboxChainKey).toBe(outcome.keys.outboxChainKey);
     const [code] = await db
       .select({ redeemedAt: registerEnrollmentCodes.redeemedAt })
       .from(registerEnrollmentCodes)
@@ -369,20 +369,34 @@ describe("DrizzleRegisterStore", () => {
     },
   );
 
-  it("keeps an installation's outbox-chain key and answers it, with its register, when the installation is locked", async () => {
+  it("keeps an installation's outbox-chain key and answers it for that installation", async () => {
     const registerId = await insertRegister("Caja 1");
     const deviceId = await insertInstallation(registerId, "prefix");
+    const otherDeviceId = await insertInstallation(await insertRegister("Caja 2"), "other");
 
-    const before = await adapterStore().transaction((tx) =>
-      tx.lockInstallationByTokenPrefix("prefix"),
-    );
+    const before = await adapterStore().transaction((tx) => tx.outboxChainKey(deviceId));
     await adapterStore().transaction((tx) => tx.recordOutboxChainKey(deviceId, "outbox-key"));
-    const after = await adapterStore().transaction((tx) =>
+    const after = await adapterStore().transaction((tx) => tx.outboxChainKey(deviceId));
+    const other = await adapterStore().transaction((tx) => tx.outboxChainKey(otherDeviceId));
+
+    expect(before).toBeUndefined();
+    expect(after).toBe("outbox-key");
+    expect(other).toBeUndefined();
+  });
+
+  it("locks an installation with its register without opening its outbox-chain key", async () => {
+    const registerId = await insertRegister("Caja 1");
+    const deviceId = await insertInstallation(registerId, "prefix");
+    await db
+      .update(registerInstallations)
+      .set({ outboxChainKey: "not-a-sealed-key" })
+      .where(eq(registerInstallations.id, deviceId));
+
+    const locked = await adapterStore().transaction((tx) =>
       tx.lockInstallationByTokenPrefix("prefix"),
     );
 
-    expect(before).toMatchObject({ deviceId, registerId, outboxChainKey: undefined });
-    expect(after).toMatchObject({ deviceId, registerId, outboxChainKey: "outbox-key" });
+    expect(locked).toMatchObject({ deviceId, registerId, revoked: false });
   });
 
   it.each([
@@ -415,7 +429,7 @@ describe("DrizzleRegisterStore", () => {
         }),
     ],
   ] satisfies [string, KeyWrite][])(
-    "fails to write %s without the key in the error it raises",
+    "fails to write %s with the driver's error, which carries the key only sealed",
     async (_what, write) => {
       const key = generateInstallationKey();
 
@@ -427,6 +441,7 @@ describe("DrizzleRegisterStore", () => {
         );
 
       expect(error).toBeInstanceOf(Error);
+      expect(error).toHaveProperty("cause", expect.any(Error));
       expect(everythingReportedOf(error)).not.toContain(key);
     },
   );

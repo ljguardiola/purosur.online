@@ -51,7 +51,6 @@ export interface LockedInstallation {
   deviceId: string;
   registerId: string;
   revoked: boolean;
-  outboxChainKey: string | undefined;
   currentToken: StoredDeviceToken;
   pendingToken: StoredDeviceToken | undefined;
 }
@@ -119,6 +118,7 @@ export interface RegisterStoreTransaction {
   lockInstallationByTokenPrefix(lookupPrefix: string): Promise<LockedInstallation | undefined>;
   promotePendingDeviceToken(deviceId: string): Promise<void>;
   recordPendingDeviceToken(deviceId: string, token: StoredDeviceToken): Promise<void>;
+  outboxChainKey(deviceId: string): Promise<string | undefined>;
   recordOutboxChainKey(deviceId: string, outboxChainKey: string): Promise<void>;
   lockRegisterKeys(registerId: string): Promise<RegisterKeys>;
   recordSnapshotKey(registerId: string, key: VersionedKey): Promise<void>;

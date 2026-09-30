@@ -49,6 +49,18 @@ describe("installationKeyCipher", () => {
     );
   });
 
+  it.each([4, 8, 12])(
+    "refuses to open a value whose authentication tag was cut to %i bytes",
+    (tagBytes) => {
+      const sealed = Buffer.from(cipher.seal("", "row-a"), "base64");
+      const cut = sealed.subarray(0, 12 + tagBytes).toString("base64");
+
+      expect(() => cipher.open(cut, "row-a")).toThrow(
+        /^an installation key could not be decrypted$/,
+      );
+    },
+  );
+
   it("refuses an encryption key that is not 32 bytes", () => {
     expect(() => installationKeyCipher(Buffer.alloc(16, 7))).toThrow(
       "the installation-keys encryption key must hold exactly 32 bytes",

@@ -101,7 +101,11 @@ describe("rotateDeviceToken", () => {
 
     expect(outcome).toEqual({ kind: "rotated", deviceToken: SUCCESSOR_OF_CURRENT, keys: KEYS });
     expect(store.snapshot()).toEqual(before);
-    expect(store.operationOrder).toEqual(["lockInstallationByTokenPrefix", "lockRegisterKeys"]);
+    expect(store.operationOrder).toEqual([
+      "lockInstallationByTokenPrefix",
+      "lockRegisterKeys",
+      "outboxChainKey",
+    ]);
   });
 
   it("gives back the same token, issued anew, when the current token retries after its successor's 7 days ran out", async () => {
@@ -151,6 +155,7 @@ describe("rotateDeviceToken", () => {
       "promotePendingDeviceToken",
       "recordPendingDeviceToken",
       "lockRegisterKeys",
+      "outboxChainKey",
     ]);
   });
 
@@ -210,6 +215,7 @@ describe("rotateDeviceToken", () => {
       "lockRegisterKeys",
       "recordSnapshotKey",
       "recordContingencyTicketKey",
+      "outboxChainKey",
       "recordOutboxChainKey",
     ]);
   });

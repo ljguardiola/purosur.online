@@ -30,7 +30,9 @@ export function installationKeyCipher(encryptionKey: Uint8Array): InstallationKe
         const bytes = Buffer.from(sealed, "base64");
         const iv = bytes.subarray(0, IV_BYTES);
         const authTag = bytes.subarray(IV_BYTES, IV_BYTES + AUTH_TAG_BYTES);
-        const decipher = createDecipheriv("aes-256-gcm", encryptionKey, iv);
+        const decipher = createDecipheriv("aes-256-gcm", encryptionKey, iv, {
+          authTagLength: AUTH_TAG_BYTES,
+        });
         decipher.setAAD(Buffer.from(purpose));
         decipher.setAuthTag(authTag);
         const encrypted = bytes.subarray(IV_BYTES + AUTH_TAG_BYTES);

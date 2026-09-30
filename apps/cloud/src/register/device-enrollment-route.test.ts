@@ -119,13 +119,13 @@ describe("POST /devices/enroll", () => {
 
     const body = deviceEnrollmentSchema.parse(response.json());
     const held = await keyStore(db).transaction((tx) => tx.lockRegisterKeys(registerId));
-    const [installation] = await keyStore(db).transaction(async (tx) => [
-      await tx.lockInstallationByTokenPrefix(body.device_token.split(".")[0] ?? ""),
-    ]);
+    const outboxChainKey = await keyStore(db).transaction((tx) =>
+      tx.outboxChainKey(body.device_id),
+    );
     expect(body.snapshot_key_versions).toEqual(held.snapshotKeys);
     expect(body.snapshot_key_versions).toHaveLength(1);
     expect([body.contingency_ticket_key]).toEqual(held.contingencyTicketKeys);
-    expect(body.outbox_chain_key).toBe(installation?.outboxChainKey);
+    expect(body.outbox_chain_key).toBe(outboxChainKey);
     expect(
       new Set([
         body.snapshot_key_versions[0]?.key,

@@ -101,12 +101,10 @@ describe("POST /devices/rotate-token", () => {
       .select({ outboxChainKey: registerInstallations.outboxChainKey })
       .from(registerInstallations)
       .where(eq(registerInstallations.id, deviceId));
-    const installation = await keyStore(db).transaction((tx) =>
-      tx.lockInstallationByTokenPrefix(second.device_token.split(".")[0] ?? ""),
-    );
+    const outboxChainKey = await keyStore(db).transaction((tx) => tx.outboxChainKey(deviceId));
     expect(stored?.outboxChainKey).toEqual(expect.any(String));
     expect(stored?.outboxChainKey).not.toBe(first.outbox_chain_key);
-    expect(first.outbox_chain_key).toBe(installation?.outboxChainKey);
+    expect(first.outbox_chain_key).toBe(outboxChainKey);
     expect({ ...second, device_token: first.device_token }).toEqual(first);
   });
 

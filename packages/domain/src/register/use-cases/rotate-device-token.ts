@@ -42,7 +42,7 @@ export async function rotateDeviceToken(
 
     // The installation is locked before its register's keys, the order enrollment takes them in.
     const registerKeys = await registerKeysHandedOver(tx, keys, installation.registerId);
-    let { outboxChainKey } = installation;
+    let outboxChainKey = await tx.outboxChainKey(installation.deviceId);
     if (outboxChainKey === undefined) {
       outboxChainKey = keys.generate();
       await tx.recordOutboxChainKey(installation.deviceId, outboxChainKey);

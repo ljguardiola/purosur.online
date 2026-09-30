@@ -158,7 +158,6 @@ class FakeRegisterStoreTransaction implements RegisterStoreTransaction {
       deviceId: installation.deviceId,
       registerId: installation.registerId,
       revoked: installation.revokedAt !== null,
-      outboxChainKey: installation.outboxChainKey ?? undefined,
       currentToken: {
         lookupPrefix: installation.tokenLookupPrefix,
         tokenHash: installation.tokenHash,
@@ -184,6 +183,11 @@ class FakeRegisterStoreTransaction implements RegisterStoreTransaction {
   async recordPendingDeviceToken(deviceId: string, token: StoredDeviceToken): Promise<void> {
     this.beforeWrite("recordPendingDeviceToken");
     this.installation(deviceId).pendingToken = structuredClone(token);
+  }
+
+  async outboxChainKey(deviceId: string): Promise<string | undefined> {
+    this.store.operationOrder.push("outboxChainKey");
+    return this.installation(deviceId).outboxChainKey ?? undefined;
   }
 
   async recordOutboxChainKey(deviceId: string, outboxChainKey: string): Promise<void> {
