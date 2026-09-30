@@ -21,6 +21,7 @@ function coreAnswering(
   enrolled: boolean,
   outcome: EnrollmentOutcome = { kind: "enrolled" },
   signInOutcome: SignInOutcome = ADA_SIGNED_IN,
+  signOut: () => Promise<void> = async () => {},
 ) {
   const asked: string[] = [];
   let usersLoads = 0;
@@ -50,6 +51,10 @@ function coreAnswering(
     },
     async signIn() {
       return signInOutcome;
+    },
+    async signOut() {
+      asked.push("sign-out");
+      await signOut();
     },
     onPulled(listener) {
       pulledListeners.add(listener);
@@ -237,6 +242,54 @@ describe("App", () => {
     await expect
       .element(screen.getByRole("heading", { name: SIGNED_IN_TITLE }))
       .not.toBeInTheDocument();
+  });
+
+  it.each([
+    [
+      "the core cannot be asked",
+      () => Promise.reject(new Error("the core connection was replaced")),
+    ],
+    ["the core never answers", () => new Promise<void>(() => {})],
+  ])("asks the core to sign out and still leaves when %s", async (_case, signOut) => {
+    await page.viewport(1280, 900);
+    onTestFinished(() => page.viewport(414, 896));
+    const { core, asked } = coreAnswering(true, { kind: "enrolled" }, ADA_SIGNED_IN, signOut);
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Salir" }));
+
+    await userEvent.click(
+      screen
+        .getByRole("dialog", { name: "¿Salir de la caja?" })
+        .getByRole("button", { name: "Salir" }),
+    );
+
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    expect(asked).toContain("sign-out");
+  });
+
+  it("asks the core to sign out when the person confirms leaving the register", async () => {
+    await page.viewport(1280, 900);
+    onTestFinished(() => page.viewport(414, 896));
+    const { core, asked } = coreAnswering(true);
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Salir" }));
+    expect(asked).not.toContain("sign-out");
+
+    await userEvent.click(
+      screen
+        .getByRole("dialog", { name: "¿Salir de la caja?" })
+        .getByRole("button", { name: "Salir" }),
+    );
+
+    expect(asked.filter((question) => question === "sign-out")).toHaveLength(1);
   });
 
   it("stays signed in when the person cancels leaving the register", async () => {

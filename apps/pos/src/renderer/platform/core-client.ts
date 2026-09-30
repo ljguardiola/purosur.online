@@ -25,6 +25,7 @@ export interface CoreClient {
   signInUsers(): Promise<SignInUser[]>;
   authorizers(permission: AuthorizablePermissionKey): Promise<SignInUser[]>;
   signIn(userId: string, pin: string): Promise<SignInOutcome>;
+  signOut(): Promise<void>;
   onPulled(listener: () => void): () => void;
 }
 
@@ -158,6 +159,11 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         { type: "sign-in", request_id: deps.newRequestId(), user_id: userId, pin },
         (answer) => (answer.type === "sign-in-result" ? answer.outcome : undefined),
       );
+    },
+    signOut() {
+      return ask({ type: "sign-out", request_id: deps.newRequestId() }, (answer) =>
+        answer.type === "signed-out" ? true : undefined,
+      ).then(() => {});
     },
     onPulled(listener) {
       pulledListeners.add(listener);

@@ -134,6 +134,18 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to sign out and resolves once it answers", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const signedOut = client.signOut();
+    port.answer({ type: "signed-out", request_id: "request-1" });
+
+    await expect(signedOut).resolves.toBeUndefined();
+    expect(port.posted).toEqual([{ type: "sign-out", request_id: "request-1" }]);
+  });
+
   it("asks the core to enroll with the code as typed and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();

@@ -30,6 +30,7 @@ export function App({ core }: { core: CoreClient }) {
   }
 
   function signOut() {
+    core.signOut().catch(() => {});
     setPerson(undefined);
   }
 
