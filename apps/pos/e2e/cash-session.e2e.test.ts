@@ -31,7 +31,7 @@ describe("the register's cash session", () => {
     }
   });
 
-  it("opens with a float and is resumed after a restart without asking for a PIN", async () => {
+  it("opens with a float and, after a restart, comes back locked until the opener's PIN resumes it", async () => {
     const { page } = register;
     await page.getByRole("link", { name: "Ingresar por primera vez" }).click();
     await page.getByLabel("Correo").fill(ANA_EMAIL);
@@ -46,10 +46,27 @@ describe("the register's cash session", () => {
 
     await register.restart();
 
-    const resumed = register.page;
-    await resumed.getByRole("heading", { name: "Venta en curso" }).waitFor();
-    await resumed.getByLabel("PIN").waitFor({ state: "detached" });
-    await resumed.getByRole("button", { name: "Entrar" }).waitFor({ state: "detached" });
+    const restarted = register.page;
+    await restarted.getByRole("heading", { name: "Caja bloqueada" }).waitFor();
+    await restarted.getByRole("radio", { name: "Ana" }).waitFor();
+    await restarted
+      .getByRole("link", { name: "Ingresar por primera vez" })
+      .waitFor({ state: "detached" });
+    await restarted.getByLabel("PIN").fill("4821");
+    await restarted.getByRole("button", { name: "Retomar" }).click();
+    await restarted.getByRole("heading", { name: "Venta en curso" }).waitFor();
+  });
+
+  it("leaves the register locked from Salir and resumes it with the opener's PIN", async () => {
+    const { page } = register;
+    await page.getByRole("button", { name: "Salir" }).click();
+    await page.getByRole("button", { name: "Dejar bloqueada" }).click();
+    await page.getByRole("heading", { name: "Caja bloqueada" }).waitFor();
+
+    await page.getByLabel("PIN").fill("4821");
+    await page.getByRole("button", { name: "Retomar" }).click();
+
+    await page.getByRole("heading", { name: "Venta en curso" }).waitFor();
   });
 
   it("closes with a cash count and leaves the person signed in without a session", async () => {
@@ -72,7 +89,7 @@ describe("the register's cash session", () => {
     await page.getByRole("heading", { name: "Venta en curso" }).waitFor();
 
     await page.getByRole("button", { name: "Salir" }).click();
-    const dialog = page.getByRole("dialog", { name: "Para salir, primero cerrá la caja" });
+    const dialog = page.getByRole("dialog", { name: "¿Cerrar la caja o dejarla bloqueada?" });
     await dialog.getByRole("button", { name: "Cerrar caja" }).click();
     await page.getByLabel("Efectivo contado").fill("20.000,00");
     await page.getByRole("button", { name: "Cerrar caja" }).click();
