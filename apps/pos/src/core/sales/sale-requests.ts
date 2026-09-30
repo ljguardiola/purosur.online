@@ -5,7 +5,7 @@ import type {
   ScanProductOutcome,
   SearchProductsOutcome,
 } from "@purosur/contracts";
-import { type SaleWithLines, saleTotal } from "@purosur/domain";
+import { type SaleLine, type SaleWithLines, saleTotal } from "@purosur/domain";
 import {
   type AddScannedProductOutcome,
   addScannedProduct,
@@ -31,6 +31,16 @@ function saleLedger(database: LocalDatabase): SqliteSaleLedger {
   return new SqliteSaleLedger(database, new SqliteSignInStore(database));
 }
 
+function appliedPromotion(line: SaleLine): OpenSale["lines"][number]["promotion"] {
+  const benefit = line.promotions.find(({ id }) => id === line.promotionId)?.benefit;
+  if (benefit === undefined) {
+    return null;
+  }
+  return benefit.kind === "PERCENT_OFF"
+    ? { kind: benefit.kind, percent: benefit.percent }
+    : { kind: benefit.kind, buy_qty: benefit.buyQty, pay_qty: benefit.payQty };
+}
+
 function toOpenSale(sale: SaleWithLines): OpenSale {
   return {
     id: sale.id,
@@ -40,6 +50,8 @@ function toOpenSale(sale: SaleWithLines): OpenSale {
       product_name: line.productName,
       quantity: line.quantity,
       list_unit_price: line.listUnitPrice,
+      discount_amount: line.discountAmount,
+      promotion: appliedPromotion(line),
       line_total: line.lineTotal,
     })),
     total: saleTotal(sale.lines),

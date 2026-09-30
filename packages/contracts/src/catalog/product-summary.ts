@@ -1,10 +1,6 @@
-import { isNetContentUnit, type NetContentUnit, SALE_UNITS } from "@purosur/domain";
+import { SALE_UNITS } from "@purosur/domain";
 import { z } from "zod";
-
-const netContentSummarySchema = z.object({
-  quantity: z.number(),
-  unit: z.custom<NetContentUnit>(isNetContentUnit),
-});
+import { netContentSchema } from "../shared/index.js";
 
 export const productSummarySchema = z.object({
   id: z.string(),
@@ -15,7 +11,7 @@ export const productSummarySchema = z.object({
   saleUnit: z.enum(SALE_UNITS),
   barcodes: z.array(z.string()),
   tagIds: z.array(z.string()),
-  netContent: netContentSummarySchema.nullable(),
+  netContent: netContentSchema.nullable(),
   active: z.boolean(),
   version: z.int(),
 });

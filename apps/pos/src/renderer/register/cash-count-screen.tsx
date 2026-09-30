@@ -34,6 +34,7 @@ export type CashCountScreenProps = {
   openedBy: SignedInPerson;
   registerName: string | null;
   openedAt: string;
+  lock: () => void;
   loadCashBalance: () => Promise<CashBalance | null | "unavailable">;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   closeCashSession: (
@@ -47,6 +48,7 @@ export function CashCountScreen({
   openedBy,
   registerName,
   openedAt,
+  lock,
   loadCashBalance,
   loadAuthorizers,
   closeCashSession,
@@ -137,7 +139,12 @@ export function CashCountScreen({
 
   return (
     <div className="flex h-screen w-screen bg-surface">
-      <OpenSessionRail firstName={person.first_name} current="cash" />
+      <OpenSessionRail
+        firstName={person.first_name}
+        registerName={registerName}
+        lock={lock}
+        current="cash"
+      />
       <form className="flex flex-1" noValidate onSubmit={submit}>
         <main className="flex flex-1 flex-col gap-4 p-8">
           <div className="flex flex-col gap-1.5">

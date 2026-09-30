@@ -24,6 +24,8 @@ export const YERBA = {
   product_name: "Yerba mate 1 kg",
   quantity: 2,
   list_unit_price: 238_000,
+  discount_amount: 0,
+  promotion: null,
   line_total: 476_000,
 };
 export const ALFAJOR = {
@@ -32,6 +34,8 @@ export const ALFAJOR = {
   product_name: "Alfajor triple",
   quantity: 1,
   list_unit_price: 150_000,
+  discount_amount: 0,
+  promotion: null,
   line_total: 150_000,
 };
 export const SALE_OF_YERBA: OpenSale = { id: "sale-1", lines: [YERBA], total: 476_000 };
@@ -64,6 +68,7 @@ export async function renderScreen({ registerName = "Caja 1", ...overrides }: Ov
       person={PERSON}
       registerName={registerName}
       openedAt={OPENED_AT}
+      lock={() => {}}
       currentSale={currentSale}
       scanProduct={scanProduct}
       searchProducts={searchProducts}

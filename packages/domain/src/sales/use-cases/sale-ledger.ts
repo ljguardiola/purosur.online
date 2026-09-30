@@ -1,7 +1,8 @@
 import type { RoleAccess } from "../../access/index.js";
 import type { SaleUnit } from "../../catalog/index.js";
+import type { DiscountRecurrence } from "../../pricing/index.js";
 import type { SearchableProduct } from "../model/product-search.js";
-import type { Sale, SaleLine, SaleWithLines } from "../model/sale.js";
+import type { LinePromotion, Sale, SaleLine, SaleWithLines } from "../model/sale.js";
 import type { ListPrice } from "../model/sale-line.js";
 
 export interface RegisterIdentity {
@@ -28,6 +29,8 @@ export interface SellableProduct {
   saleUnit: SaleUnit;
 }
 
+export interface CandidatePromotion extends LinePromotion, DiscountRecurrence {}
+
 export interface SaleLedger {
   transaction<TOutcome>(work: (tx: SaleLedgerTransaction) => TOutcome): TOutcome;
 }
@@ -42,6 +45,7 @@ export interface SaleLedgerTransaction {
   activeProductById(productId: string): SellableProduct | undefined;
   searchableProducts(): SearchableProduct[];
   priceAt(productId: string, moment: Date): ListPrice | undefined;
+  promotionsTargeting(productId: string): CandidatePromotion[];
   recordOpenedSale(sale: Sale): void;
   recordSaleLine(saleId: string, line: SaleLine): void;
   recordLineQuantity(line: SaleLine): void;

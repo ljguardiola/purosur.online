@@ -5,6 +5,8 @@ const CLOUD_ERRORS = {
   reset_code_invalid: { status: 400, retryable: false },
   device_token_rejected: { status: 401, retryable: false },
   enrollment_code_rejected: { status: 403, retryable: false },
+  not_found: { status: 404, retryable: false },
+  pin_already_set: { status: 409, retryable: false },
   reset_code_expired: { status: 410, retryable: false },
   reset_code_burned: { status: 410, retryable: false },
   rate_limited: { status: 429, retryable: true },

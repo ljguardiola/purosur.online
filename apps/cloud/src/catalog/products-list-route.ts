@@ -1,6 +1,5 @@
 import { type ProductSummary, productListSchema } from "@purosur/contracts";
-import type { NetContentUnit, SaleUnit } from "@purosur/domain";
-import type { CatalogNetContent } from "@purosur/domain/catalog/use-cases";
+import type { SaleUnit } from "@purosur/domain";
 import { asc, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -11,6 +10,7 @@ import {
   routeSessionSource,
 } from "../access/route-access.js";
 import { categories, productBarcodes, products, productTags, tags } from "../platform/db/schema.js";
+import { netContentRow } from "./net-content-row.js";
 
 type ProductStatusFilter = "active" | "inactive" | "all";
 
@@ -45,16 +45,6 @@ interface ProductWithoutBarcodes {
   netContentUnit: string | null;
   active: boolean;
   version: number;
-}
-
-function netContentRow(row: {
-  netContentQuantity: number | null;
-  netContentUnit: string | null;
-}): CatalogNetContent | null {
-  if (row.netContentQuantity === null || row.netContentUnit === null) {
-    return null;
-  }
-  return { quantity: row.netContentQuantity, unit: row.netContentUnit as NetContentUnit };
 }
 
 async function barcodesByProductId<TQueryResult extends PgQueryResultHKT>(

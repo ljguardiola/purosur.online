@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { SaleWithLines } from "../model/sale.js";
 import { addSearchedProduct } from "./add-searched-product.js";
+import type { CandidatePromotion } from "./sale-ledger.js";
 import {
   FakeSaleLedger,
   type FakeSaleLedgerState,
@@ -15,6 +16,19 @@ const SESSION = { id: "session-1", openedBy: "cashier" };
 const YERBA = { id: "yerba", name: "Yerba 1 kg", saleUnit: "UNIT" as const };
 const QUESO = { id: "queso", name: "Queso cremoso", saleUnit: "KG" as const };
 const FIDEOS = { id: "fideos", name: "Fideos", saleUnit: "UNIT" as const };
+const TEN_PERCENT: CandidatePromotion = {
+  id: "ten",
+  benefit: { kind: "PERCENT_OFF", percent: 10 },
+  active: true,
+  validFrom: "2026-09-01",
+  validTo: "2026-12-31",
+  weekdays: [],
+};
+const THREE_FOR_TWO: CandidatePromotion = {
+  ...TEN_PERCENT,
+  id: "three-for-two",
+  benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+};
 
 function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
   return new FakeSaleLedger({
@@ -59,6 +73,9 @@ describe("addSearchedProduct", () => {
           quantity: 1,
           listUnitPrice: 2500,
           priceListId: "list-1",
+          promotions: [],
+          promotionId: null,
+          discountAmount: 0,
           lineTotal: 2500,
         },
       ],
@@ -75,6 +92,27 @@ describe("addSearchedProduct", () => {
 
     expect(outcome.kind === "added" && outcome.sale.lines).toEqual([
       expect.objectContaining({ quantity: 2, lineTotal: 5000 }),
+    ]);
+  });
+
+  it("freezes the chosen product's valid promotions on its line and re-picks among them as units are added", () => {
+    const store = ledger({
+      promotionsByProduct: { yerba: [TEN_PERCENT, THREE_FOR_TWO], fideos: [TEN_PERCENT] },
+    });
+
+    const outcomes = [add(store), add(store), add(store)];
+
+    expect(outcomes.map((outcome) => outcome.kind === "added" && outcome.sale.lines[0])).toEqual([
+      expect.objectContaining({
+        promotions: [
+          { id: "ten", benefit: { kind: "PERCENT_OFF", percent: 10 } },
+          { id: "three-for-two", benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 } },
+        ],
+        promotionId: "ten",
+        lineTotal: 2250,
+      }),
+      expect.objectContaining({ promotionId: "ten", lineTotal: 4500 }),
+      expect.objectContaining({ promotionId: "three-for-two", lineTotal: 5000 }),
     ]);
   });
 

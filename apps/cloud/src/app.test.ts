@@ -1306,6 +1306,32 @@ describe("wiring the device enrollment route", () => {
   });
 });
 
+describe("wiring the first PIN code route", () => {
+  it("does not register POST /api/first-pin-codes when no firstPinCodes option is given", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    const response = await app.inject({ method: "POST", url: "/api/first-pin-codes", payload: {} });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("registers POST /api/first-pin-codes, refusing a request without a device token, when a firstPinCodes option is given", async () => {
+    const app = buildApp({
+      version: "abc1234",
+      firstPinCodes: {
+        db: testDatabase.db,
+        rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
+        keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+      },
+    });
+
+    const response = await app.inject({ method: "POST", url: "/api/first-pin-codes", payload: {} });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "device_token_rejected" });
+  });
+});
+
 describe("wiring the device token rotation route", () => {
   it("does not register POST /api/devices/current/tokens when no devices option is given", async () => {
     const app = buildApp({ version: "abc1234" });
@@ -1868,6 +1894,7 @@ describe("the route access inventory", () => {
       { method: "POST", url: "/api/pin-code-redemptions", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/sign-in-lookups", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/devices/current/tokens", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/api/first-pin-codes", access: PUBLIC_ACCESS },
       { method: "HEAD", url: "/*", access: PUBLIC_ACCESS },
       { method: "GET", url: "/*", access: PUBLIC_ACCESS },
     ]);

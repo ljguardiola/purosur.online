@@ -9,7 +9,7 @@ import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { RouterProvider } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import type { SignedInPerson } from "../access/signed-in-person";
-import type { CoreClient } from "../platform/core-client";
+import type { CashMovementInput, CoreClient } from "../platform/core-client";
 import { useCoreStatus } from "../platform/use-core-status";
 import type { CashSessionState } from "./cash-session-state";
 import type { Enrollment } from "./router";
@@ -33,8 +33,11 @@ export function App({ core }: { core: CoreClient }) {
   const enrollment = coreStatus === "up" ? knownEnrollment : "unknown";
   const [signedInPerson, setPerson] = useState<SignedInPerson>();
   const [cashSession, setCashSession] = useState<CashSessionState>(UNKNOWN_SESSION);
-  // An open session always belongs to the person who opened it, whoever signed in before.
-  const person = cashSession.status === "open" ? cashSession.openedBy : signedInPerson;
+  // Only the person who opened the open session can be in: anyone else leaves the register locked.
+  const person =
+    cashSession.status === "open" && signedInPerson?.user_id !== cashSession.openedBy.user_id
+      ? undefined
+      : signedInPerson;
 
   async function enroll(typedCode: string) {
     const outcome = await core.enroll(typedCode);
@@ -65,6 +68,11 @@ export function App({ core }: { core: CoreClient }) {
     return takeSignedInPerson(await core.firstSignIn(userId, pin));
   }
 
+  function signOut() {
+    core.signOut().catch(() => {});
+    setPerson(undefined);
+  }
+
   async function openCashSession(opener: SignedInPerson, openingFloat: number) {
     const outcome = await core.openCashSession(openingFloat);
     if (outcome.kind === "not_signed_in") {
@@ -82,6 +90,13 @@ export function App({ core }: { core: CoreClient }) {
       return core.cashSession().then(
         (session): OpenCashSessionOutcome => {
           setCashSession(stateOf(session));
+          if (
+            session !== null &&
+            session !== "unavailable" &&
+            session.opened_by.user_id !== opener.user_id
+          ) {
+            signOut();
+          }
           return outcome;
         },
         (): OpenCashSessionOutcome => ({ kind: "unavailable" }),
@@ -103,14 +118,19 @@ export function App({ core }: { core: CoreClient }) {
     closer: SignedInPerson,
     sessionId: string,
     countedCash: number,
-    authorization?: Authorization,
+    authorization: Authorization | undefined,
+    leaving: boolean,
   ) {
     const outcome = await core.closeCashSession(sessionId, countedCash, authorization);
     if (outcome.kind === "not_signed_in") {
       setPerson(undefined);
     }
     if (outcome.kind === "closed") {
-      setPerson(closer);
+      if (leaving) {
+        signOut();
+      } else {
+        setPerson(closer);
+      }
       setCashSession({ status: "none" });
     }
     if (outcome.kind === "no_open_session") {
@@ -127,9 +147,28 @@ export function App({ core }: { core: CoreClient }) {
     return balance;
   }
 
-  function signOut() {
-    core.signOut().catch(() => {});
-    setPerson(undefined);
+  async function redeemPinCode(typedCode: string, newPin: string) {
+    const outcome = await core.redeemPinCode(typedCode, newPin);
+    if (outcome.kind === "resumed") {
+      setPerson(outcome.person);
+    }
+    return outcome;
+  }
+
+  async function cashMovements() {
+    const movements = await core.cashMovements();
+    if (movements === null) {
+      await core.cashSession().then(refreshCashSession, () => {});
+    }
+    return movements;
+  }
+
+  async function recordCashMovement(input: CashMovementInput) {
+    const outcome = await core.recordCashMovement(input);
+    if (outcome.kind === "no_open_session") {
+      await core.cashSession().then(refreshCashSession, () => {});
+    }
+    return outcome;
   }
 
   const services = {
@@ -142,8 +181,11 @@ export function App({ core }: { core: CoreClient }) {
     openCashSession,
     closeCashSession,
     cashBalance,
-    redeemPinCode: (typedCode: string, newPin: string) => core.redeemPinCode(typedCode, newPin),
+    cashMovements,
+    recordCashMovement,
+    redeemPinCode,
     signInLookup: (email: string) => core.signInLookup(email),
+    requestFirstPinCode: (userId: string) => core.requestFirstPinCode(userId),
     firstSignIn,
     currentSale: () => core.currentSale(),
     scanProduct: (code: string) => core.scanProduct(code),

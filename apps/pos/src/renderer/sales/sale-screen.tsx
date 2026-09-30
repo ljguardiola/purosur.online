@@ -32,6 +32,7 @@ export type SaleScreenProps = {
   person: SignedInPerson;
   registerName: string | null;
   openedAt: string;
+  lock: () => void;
   currentSale: () => Promise<CurrentSaleAnswer>;
   scanProduct: (code: string) => Promise<ScanProductOutcome>;
   searchProducts: (query: string) => Promise<SearchProductsOutcome>;
@@ -55,6 +56,7 @@ export function SaleScreen({
   person,
   registerName,
   openedAt,
+  lock,
   currentSale,
   scanProduct,
   searchProducts,
@@ -246,7 +248,12 @@ export function SaleScreen({
 
   return (
     <div className="flex h-screen w-screen bg-surface-subtle">
-      <OpenSessionRail firstName={person.first_name} current="sale" />
+      <OpenSessionRail
+        firstName={person.first_name}
+        registerName={registerName}
+        lock={lock}
+        current="sale"
+      />
       <main className="flex min-w-0 flex-1 flex-col gap-4 pt-6 pr-6 pb-6 pl-8">
         <div className="flex flex-col gap-1.5">
           <SessionEyebrow registerName={registerName} openedAt={openedAt} />

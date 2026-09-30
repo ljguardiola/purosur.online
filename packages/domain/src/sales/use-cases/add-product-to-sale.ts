@@ -1,4 +1,6 @@
-import type { Sale, SaleWithLines } from "../model/sale.js";
+import { discountAppliesOn } from "../../pricing/index.js";
+import { argentinaCalendarDay } from "../../shared/index.js";
+import type { LinePromotion, Sale, SaleWithLines } from "../model/sale.js";
 import { addUnitToLine, newSaleLine } from "../model/sale-line.js";
 import type {
   Clock,
@@ -72,9 +74,21 @@ export function addProductToSale(
   const sale = isOpenSale(target)
     ? target
     : startSale(tx, ids.next(), target, session.id, actorId, moment);
-  const added = newSaleLine(ids.next(), product, price);
+  const added = newSaleLine(ids.next(), product, price, validPromotions(tx, product.id, moment));
   tx.recordSaleLine(sale.id, added);
   return { kind: "added", sale: { ...sale, lines: [...sale.lines, added] } };
+}
+
+function validPromotions(
+  tx: SaleLedgerTransaction,
+  productId: string,
+  moment: Date,
+): LinePromotion[] {
+  const day = argentinaCalendarDay(moment);
+  return tx
+    .promotionsTargeting(productId)
+    .filter((promotion) => discountAppliesOn(promotion, day))
+    .map(({ id, benefit }) => ({ id, benefit }));
 }
 
 function startSale(

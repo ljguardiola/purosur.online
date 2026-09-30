@@ -48,21 +48,26 @@ function hashPin(pin: string, salt: Uint8Array): Promise<string> {
   });
 }
 
+export async function pinRecord(pin: string): Promise<{ salt: string; pin_hash: string }> {
+  const salt = randomBytes(PIN_HASH_SCHEME.saltLength);
+  return { salt: encodePinHash(salt), pin_hash: await hashPin(pin, salt) };
+}
+
 export async function userChange(user: {
   id: string;
   firstName: string;
   roleId: string;
-  pin: string;
+  pin?: string;
 }): Promise<CloudChange> {
-  const salt = randomBytes(PIN_HASH_SCHEME.saltLength);
+  const record =
+    user.pin === undefined ? { salt: null, pin_hash: null } : await pinRecord(user.pin);
   return {
     entity: "user",
     entity_id: user.id,
     row: {
       first_name: user.firstName,
       role_id: user.roleId,
-      salt: encodePinHash(salt),
-      pin_hash: await hashPin(user.pin, salt),
+      ...record,
       active: true,
       version: 1,
     },
@@ -125,6 +130,32 @@ export function priceChange(price: {
       price_list_id: price.priceListId,
       unit_price: price.unitPriceCents,
       valid_from: price.validFrom,
+      version: 1,
+    },
+  };
+}
+
+type DiscountRow = Extract<SyncChange, { entity: "discount" }>["row"];
+
+export function discountChange(discount: {
+  id: string;
+  name: string;
+  benefit: DiscountRow["benefit"];
+  target: DiscountRow["target"];
+  validFrom: string;
+  validTo: string;
+}): CloudChange {
+  return {
+    entity: "discount",
+    entity_id: discount.id,
+    row: {
+      name: discount.name,
+      benefit: discount.benefit,
+      target: discount.target,
+      valid_from: discount.validFrom,
+      valid_to: discount.validTo,
+      weekdays: [],
+      active: true,
       version: 1,
     },
   };

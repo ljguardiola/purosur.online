@@ -17,7 +17,17 @@ function envelope(code: string, details: unknown[] = []): CloudResponse {
   return { kind: "error", error: { code, message: "x", details } } as CloudResponse;
 }
 
-function depsAnswering(response: CloudResponse, { enrolled = true, canApply = true } = {}) {
+const OPENER_PERSON = { user_id: USER_ID, first_name: "Ada", permission_keys: ["sell_and_charge"] };
+
+function depsAnswering(
+  response: CloudResponse,
+  {
+    enrolled = true,
+    canApply = true,
+    opener,
+  }: { enrolled?: boolean; canApply?: boolean; opener?: string } = {},
+) {
+  const signedIn: string[] = [];
   const posted: { path: string; bearerToken: string; body: unknown }[] = [];
   const applied: { pepper: string; redemption: PinCodeRedemption }[] = [];
   const reported: unknown[] = [];
@@ -35,8 +45,13 @@ function depsAnswering(response: CloudResponse, { enrolled = true, canApply = tr
     reportLocalFailure: (error) => {
       reported.push(error);
     },
+    cashSessionOpener: () => opener,
+    signInRedeemed: (userId) => {
+      signedIn.push(userId);
+      return OPENER_PERSON;
+    },
   };
-  return { deps, posted, applied, reported };
+  return { deps, posted, applied, reported, signedIn };
 }
 
 describe("redeemPinCode", () => {
@@ -59,6 +74,46 @@ describe("redeemPinCode", () => {
 
     expect(await redeemPinCode(deps, TYPED_CODE, "482915")).toEqual({ kind: "redeemed" });
     expect(applied).toEqual([{ pepper: "pepper-1", redemption: REDEEMED_BODY }]);
+  });
+
+  it("resumes the session by signing in the opener who redeemed the code", async () => {
+    const { deps, applied, signedIn } = depsAnswering(
+      { kind: "ok", body: REDEEMED_BODY },
+      { opener: USER_ID },
+    );
+
+    expect(await redeemPinCode(deps, TYPED_CODE, "482915")).toEqual({
+      kind: "resumed",
+      person: OPENER_PERSON,
+    });
+    expect(applied).toHaveLength(1);
+    expect(signedIn).toEqual([USER_ID]);
+  });
+
+  it("refuses a code redeemed for anyone but the opener while a session is open, signing nobody in", async () => {
+    const { deps, signedIn } = depsAnswering(
+      { kind: "ok", body: REDEEMED_BODY },
+      { opener: "another-user" },
+    );
+
+    expect(await redeemPinCode(deps, TYPED_CODE, "482915")).toEqual({
+      kind: "cash_session_opened_by_another",
+    });
+    expect(signedIn).toEqual([]);
+  });
+
+  it("is only redeemed when the opener cannot be signed in", async () => {
+    const { deps } = depsAnswering({ kind: "ok", body: REDEEMED_BODY }, { opener: USER_ID });
+    deps.signInRedeemed = () => undefined;
+
+    expect(await redeemPinCode(deps, TYPED_CODE, "482915")).toEqual({ kind: "redeemed" });
+  });
+
+  it("signs nobody in when no session is open", async () => {
+    const { deps, signedIn } = depsAnswering({ kind: "ok", body: REDEEMED_BODY });
+
+    expect(await redeemPinCode(deps, TYPED_CODE, "482915")).toEqual({ kind: "redeemed" });
+    expect(signedIn).toEqual([]);
   });
 
   it("is redeemed and reports the failure when the register cannot keep the new PIN", async () => {

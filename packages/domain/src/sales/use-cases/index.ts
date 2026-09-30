@@ -19,6 +19,7 @@ export type {
 } from "./current-sale.js";
 export { currentSale } from "./current-sale.js";
 export type {
+  CandidatePromotion,
   Clock,
   IdGenerator,
   RegisterIdentity,

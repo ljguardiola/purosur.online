@@ -8,12 +8,16 @@ export function PinAttemptControls({
   attempt,
   pinInput,
   disabled = false,
+  submitLabel = "Entrar",
 }: {
   attempt: Omit<PinAttempt, "pinInput" | "heading">;
   pinInput: Ref<HTMLInputElement>;
   disabled?: boolean;
+  submitLabel?: string;
 }) {
   const { notice, noticeId } = attempt;
+  const submitText =
+    attempt.secondsLeft > 0 ? `${submitLabel} en ${attempt.secondsLeft} s` : submitLabel;
 
   return (
     <>
@@ -35,7 +39,7 @@ export function PinAttemptControls({
         </div>
       )}
       <Button type="submit" fullWidth icon={<ArrowRight />} disabled={!attempt.canSubmit}>
-        {attempt.secondsLeft > 0 ? `Entrar en ${attempt.secondsLeft} s` : "Entrar"}
+        {submitText}
       </Button>
     </>
   );

@@ -18,10 +18,17 @@ import {
   isValidDiscountPayQty,
   normalizeDiscountWeekdays,
 } from "@purosur/domain";
-import { type Option, type Options, sortedItems, textOrder } from "@purosur/ui";
+import {
+  type ComboBoxOption,
+  type Option,
+  type Options,
+  sortedItems,
+  textOrder,
+} from "@purosur/ui";
 import { Package, Percent } from "lucide-react";
 import { createElement } from "react";
 import { categoriesInTreeOrder, categoryPathLabels } from "../catalog/category-path";
+import { formatNetContent } from "../catalog/net-content";
 import { DISCOUNT_KIND_LABELS, DISCOUNT_TARGET_KIND_LABELS } from "./discount-texts";
 
 export type DiscountFormValues = {
@@ -221,7 +228,27 @@ type KeptTarget = CurrentTarget & { status: string };
 
 const nameOrder = textOrder((named: { name: string }) => named.name);
 
-function offeredTargets(kind: DiscountTargetKind, sources: DiscountTargets): Option<string>[] {
+type ProductTarget = DiscountTargets["products"][number];
+
+function productOption(product: ProductTarget): ComboBoxOption<string> {
+  const description = [
+    product.brandName,
+    product.netContent === null ? null : formatNetContent(product.netContent),
+  ]
+    .filter((part) => part !== null)
+    .join(" · ");
+  return {
+    value: product.id,
+    label: product.name,
+    ...(description === "" ? {} : { description }),
+    searchKeywords: product.barcodes,
+  };
+}
+
+function offeredTargets(
+  kind: DiscountTargetKind,
+  sources: DiscountTargets,
+): ComboBoxOption<string>[] {
   if (kind === "CATEGORY") {
     const labels = categoryPathLabels([...sources.categories]);
     return categoriesInTreeOrder([...sources.categories]).map((category) => ({
@@ -229,8 +256,12 @@ function offeredTargets(kind: DiscountTargetKind, sources: DiscountTargets): Opt
       label: labels.get(category.id) ?? category.name,
     }));
   }
-  const named = kind === "PRODUCT" ? sources.products : sources.tags;
-  return sortedItems(named, { order: nameOrder, direction: "ascending" }).map((item) => ({
+  if (kind === "PRODUCT") {
+    return sortedItems(sources.products, { order: nameOrder, direction: "ascending" }).map(
+      productOption,
+    );
+  }
+  return sortedItems(sources.tags, { order: nameOrder, direction: "ascending" }).map((item) => ({
     value: item.id,
     label: item.name,
   }));
@@ -314,9 +345,9 @@ export function targetOptions(
   kind: DiscountTargetKind,
   sources: DiscountTargets,
   current?: KeptTarget,
-): Options<Option<string>> | undefined {
+): Options<ComboBoxOption<string>> | undefined {
   const offered = offeredTargets(kind, sources);
-  const keptCurrent: Option<string>[] =
+  const keptCurrent: ComboBoxOption<string>[] =
     current !== undefined &&
     current.kind === kind &&
     !offered.some((option) => option.value === current.id)

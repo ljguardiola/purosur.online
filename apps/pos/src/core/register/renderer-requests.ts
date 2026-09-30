@@ -6,9 +6,12 @@ import type {
   CoreToRendererMessage,
   CurrentSaleAnswer,
   EnrollmentOutcome,
+  FirstPinCodeRequestOutcome,
+  ListedCashMovement,
   OpenCashSession,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
+  RecordCashMovementOutcome,
   RendererToCoreMessage,
   ScanProductOutcome,
   SearchProductsOutcome,
@@ -17,6 +20,7 @@ import type {
   SignInUser,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
+import type { CashMovementRequest } from "./cash-movement-requests";
 
 export interface RendererRequestDeps {
   credentialsPresent: () => Promise<boolean>;
@@ -27,8 +31,13 @@ export interface RendererRequestDeps {
   signIn: ((userId: string, pin: string) => Promise<SignInOutcome>) | undefined;
   firstSignIn: ((userId: string, pin: string) => Promise<SignInOutcome>) | undefined;
   signInLookup: ((email: string) => Promise<SignInLookupOutcome>) | undefined;
+  requestFirstPinCode: ((userId: string) => Promise<FirstPinCodeRequestOutcome>) | undefined;
   openCashSession: ((openingFloat: number) => Promise<OpenCashSessionOutcome>) | undefined;
   cashSession: (() => OpenCashSession | null) | undefined;
+  recordCashMovement:
+    | ((request: CashMovementRequest) => Promise<RecordCashMovementOutcome>)
+    | undefined;
+  cashMovements: (() => ListedCashMovement[] | null) | undefined;
   scanProduct: ((code: string) => Promise<ScanProductOutcome>) | undefined;
   searchProducts: ((query: string) => Promise<SearchProductsOutcome>) | undefined;
   addProduct: ((productId: string) => Promise<AddProductOutcome>) | undefined;
@@ -106,6 +115,18 @@ async function attemptSignInLookup(
   }
 }
 
+async function attemptFirstPinCodeRequest(
+  deps: RendererRequestDeps,
+  userId: string,
+): Promise<FirstPinCodeRequestOutcome> {
+  try {
+    return (await deps.requestFirstPinCode?.(userId)) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure("asking for a first PIN code", error);
+    return { kind: "unavailable" };
+  }
+}
+
 async function attemptOpenCashSession(
   deps: RendererRequestDeps,
   openingFloat: number,
@@ -150,6 +171,27 @@ function readCashSession(deps: RendererRequestDeps): OpenCashSession | null | un
     return deps.cashSession?.();
   } catch (error) {
     deps.reportFailure("reading the open cash session", error);
+    return undefined;
+  }
+}
+
+async function attemptRecordCashMovement(
+  deps: RendererRequestDeps,
+  request: CashMovementRequest,
+): Promise<RecordCashMovementOutcome> {
+  try {
+    return (await deps.recordCashMovement?.(request)) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure("recording a cash movement", error);
+    return { kind: "unavailable" };
+  }
+}
+
+function readCashMovements(deps: RendererRequestDeps): ListedCashMovement[] | null | undefined {
+  try {
+    return deps.cashMovements?.();
+  } catch (error) {
+    deps.reportFailure("reading the cash movements", error);
     return undefined;
   }
 }
@@ -252,6 +294,12 @@ export async function answerRendererRequest(
         request_id: message.request_id,
         outcome: await attemptSignInLookup(deps, message.email),
       };
+    case "first-pin-code-request":
+      return {
+        type: "first-pin-code-request-result",
+        request_id: message.request_id,
+        outcome: await attemptFirstPinCodeRequest(deps, message.user_id),
+      };
     case "open-cash-session":
       return {
         type: "open-cash-session-result",
@@ -263,6 +311,23 @@ export async function answerRendererRequest(
       return session === undefined
         ? { type: "cash-session-unavailable", request_id: message.request_id }
         : { type: "cash-session", request_id: message.request_id, session };
+    }
+    case "record-cash-movement":
+      return {
+        type: "record-cash-movement-result",
+        request_id: message.request_id,
+        outcome: await attemptRecordCashMovement(deps, {
+          kind: message.kind,
+          amount: message.amount,
+          reason: message.reason,
+          authorization: message.authorization,
+        }),
+      };
+    case "cash-movements-request": {
+      const movements = readCashMovements(deps);
+      return movements === undefined
+        ? { type: "cash-movements-unavailable", request_id: message.request_id }
+        : { type: "cash-movements", request_id: message.request_id, movements };
     }
     case "scan-product":
       return {

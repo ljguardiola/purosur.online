@@ -361,14 +361,56 @@ describe("the register's local migrations", () => {
     }
   });
 
-  it("find the lines of a product without reading every line, keeping the sales a register already holds", () => {
+  it("add the promotion of each sale line over the open sales a register already holds", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
       const path = join(folder, "register.sqlite");
       const previous = LOCAL_MIGRATIONS.slice(0, 10);
       expect(previous.at(-1)?.name).toBe("0009_sales");
+      expect(LOCAL_MIGRATIONS.at(previous.length)?.name).toBe("0010_sale_line_promotions");
+      const before = openLocalDatabase(path, previous);
+      before
+        .prepare(
+          `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+           VALUES ('s1', 'r1', 'device-a', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN')`,
+        )
+        .run();
+      before
+        .prepare(
+          `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+           VALUES ('a', 'r1', 'device-a', 's1', 'u1', 'OPEN', '2026-09-30T12:00:00.000Z')`,
+        )
+        .run();
+      before
+        .prepare(
+          `INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total)
+           VALUES ('l1', 'a', 1, 'p1', 'Yerba', 2, 1000, 'pl', 2000)`,
+        )
+        .run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+
+      expect(
+        after.prepare("SELECT id, line_total, promotion_id, discount_amount FROM sale_lines").all(),
+      ).toEqual([{ id: "l1", line_total: 2000, promotion_id: null, discount_amount: 0 }]);
+      expect(after.prepare("SELECT count(*) AS total FROM sale_line_promotions").get()).toEqual({
+        total: 0,
+      });
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("find the lines of a product without reading every line, keeping the sales a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.slice(0, 11);
+      expect(previous.at(-1)?.name).toBe("0010_sale_line_promotions");
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
-        "0010_sale_lines_by_product",
+        "0011_sale_lines_by_product",
       ]);
       const before = openLocalDatabase(path, previous);
       before
@@ -475,6 +517,105 @@ describe("the register's local migrations", () => {
         insertLine.run({ id: "l3", position: 3, product_id: "p2", quantity: 0 }),
       ).toThrow(/CHECK/);
       database.close();
+    });
+
+    describe("freeze the promotions of a line that", () => {
+      function withLine() {
+        const database = withSession();
+        insertSale(database, "a", "OPEN");
+        database
+          .prepare(
+            `INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total)
+             VALUES ('l1', 'a', 1, 'p1', 'Yerba', 1, 1000, 'pl', 1000)`,
+          )
+          .run();
+        return database;
+      }
+
+      function freeze(
+        database: ReturnType<typeof openLocalDatabase>,
+        values: Partial<{
+          line_id: string;
+          discount_id: string;
+          kind: string;
+          percent: number | null;
+          buy_qty: number | null;
+          pay_qty: number | null;
+        }>,
+      ) {
+        database
+          .prepare(
+            `INSERT INTO sale_line_promotions (line_id, discount_id, kind, percent, buy_qty, pay_qty)
+             VALUES (@line_id, @discount_id, @kind, @percent, @buy_qty, @pay_qty)`,
+          )
+          .run({
+            line_id: "l1",
+            discount_id: "d1",
+            kind: "PERCENT_OFF",
+            percent: 10,
+            buy_qty: null,
+            pay_qty: null,
+            ...values,
+          });
+      }
+
+      it("belongs to a known line and holds each discount once", () => {
+        const database = withLine();
+        freeze(database, {});
+
+        expect(() => freeze(database, {})).toThrow(/UNIQUE/);
+        expect(() => freeze(database, { line_id: "missing" })).toThrow(/FOREIGN KEY/);
+        database.close();
+      });
+
+      it("holds a percent from 1 to 99 and nothing of the other kind", () => {
+        const database = withLine();
+
+        freeze(database, { discount_id: "low", percent: 1 });
+        freeze(database, { discount_id: "high", percent: 99 });
+        for (const [discount_id, values] of [
+          ["zero", { percent: 0 }],
+          ["full", { percent: 100 }],
+          ["missing", { percent: null }],
+          ["with-quantities", { buy_qty: 3, pay_qty: 2 }],
+        ] as const) {
+          expect(() => freeze(database, { discount_id, ...values })).toThrow(/CHECK/);
+        }
+        database.close();
+      });
+
+      it("holds a buy quantity above a pay quantity of at least 1 and nothing of the other kind", () => {
+        const database = withLine();
+        const buyNPayM = { kind: "BUY_N_PAY_M", percent: null };
+
+        freeze(database, { discount_id: "ok", ...buyNPayM, buy_qty: 3, pay_qty: 2 });
+        for (const [discount_id, values] of [
+          ["equal", { buy_qty: 2, pay_qty: 2 }],
+          ["free", { buy_qty: 2, pay_qty: 0 }],
+          ["no-buy", { buy_qty: null, pay_qty: 1 }],
+          ["no-pay", { buy_qty: 3, pay_qty: null }],
+          ["with-percent", { percent: 10, buy_qty: 3, pay_qty: 2 }],
+        ] as const) {
+          expect(() => freeze(database, { discount_id, ...buyNPayM, ...values })).toThrow(/CHECK/);
+        }
+        database.close();
+      });
+
+      it("is of a known kind", () => {
+        const database = withLine();
+
+        expect(() => freeze(database, { kind: "TWO_FOR_ONE" })).toThrow(/CHECK/);
+        database.close();
+      });
+
+      it("never charges a negative discount", () => {
+        const database = withLine();
+
+        expect(() => database.prepare("UPDATE sale_lines SET discount_amount = -1").run()).toThrow(
+          /CHECK/,
+        );
+        database.close();
+      });
     });
   });
 });

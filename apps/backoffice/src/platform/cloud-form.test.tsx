@@ -550,6 +550,54 @@ test("a select submits the option that was chosen", async () => {
   expect(onSubmit).toHaveBeenCalledWith("stock");
 });
 
+function ComboBoxProbe({ onSubmit }: { onSubmit: (role: string) => Promise<void> }) {
+  const { form, submit } = useCloudForm({
+    defaultValues: { role: null as string | null },
+    request: {
+      schema: z.object({ role: z.string().min(1) }),
+      from: ({ role }) => ({ role: role ?? "" }),
+    },
+    fields: { role: "role" },
+    messages: { role: "Elegí un rol." },
+    onSubmit: ({ role }) => onSubmit(role),
+  });
+  return (
+    <>
+      <form.AppField name="role">
+        {(field) => <field.ComboBox label="Rol" options={ROLE_OPTIONS} required />}
+      </form.AppField>
+      <button type="button" onClick={() => void submit()}>
+        Enviar
+      </button>
+    </>
+  );
+}
+
+test("a combo box shows its field's message after a failed submit and clears it once an option is chosen", async () => {
+  const screen = await render(<ComboBoxProbe onSubmit={() => Promise.resolve()} />);
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+  await expect.element(screen.getByText("Elegí un rol.")).toBeVisible();
+
+  await userEvent.fill(screen.getByRole("combobox", { name: /Rol/ }), "dep");
+  await expect.element(screen.getByRole("option", { name: "Depósito" })).toBeVisible();
+  await userEvent.keyboard("{ArrowDown}{Enter}");
+
+  await expect.element(screen.getByText("Elegí un rol.")).not.toBeInTheDocument();
+});
+
+test("a combo box submits the option that was chosen", async () => {
+  const onSubmit = vi.fn<(role: string) => Promise<void>>(() => Promise.resolve());
+  const screen = await render(<ComboBoxProbe onSubmit={onSubmit} />);
+
+  await userEvent.fill(screen.getByRole("combobox", { name: /Rol/ }), "dep");
+  await expect.element(screen.getByRole("option", { name: "Depósito" })).toBeVisible();
+  await userEvent.keyboard("{ArrowDown}{Enter}");
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+  await expect.poll(() => onSubmit.mock.calls.length).toBe(1);
+  expect(onSubmit).toHaveBeenCalledWith("stock");
+});
+
 function DirtyProbe() {
   const { form, dirty, reset } = useCloudForm({
     defaultValues: { name: "Ana" },

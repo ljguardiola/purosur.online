@@ -164,13 +164,23 @@ export function EditDiscountModal({
     <form.AppField name="targetId">
       {(field) =>
         options ? (
-          <field.Select
-            label={targetKindLabel}
-            placeholder={targetPlaceholder(values.targetKind)}
-            options={options}
-            {...(help !== undefined ? { description: help } : {})}
-            required
-          />
+          values.targetKind === "PRODUCT" ? (
+            <field.ComboBox
+              label={targetKindLabel}
+              placeholder={targetPlaceholder(values.targetKind)}
+              options={options}
+              {...(help !== undefined ? { description: help } : {})}
+              required
+            />
+          ) : (
+            <field.Select
+              label={targetKindLabel}
+              placeholder={targetPlaceholder(values.targetKind)}
+              options={options}
+              {...(help !== undefined ? { description: help } : {})}
+              required
+            />
+          )
         ) : (
           <FieldGroup label={targetKindLabel} required>
             <SharedFieldError>{() => null}</SharedFieldError>

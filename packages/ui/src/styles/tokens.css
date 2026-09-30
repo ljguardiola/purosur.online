@@ -189,6 +189,11 @@
   grid-template-columns: minmax(4rem, max-content) minmax(0, 1fr);
 }
 
+/* react-aria caps a popover's max-height to the space the viewport leaves it. */
+@utility max-h-inherit {
+  max-height: inherit;
+}
+
 /* react-aria sets --trigger-width on a popover to its trigger's width. */
 @utility w-trigger {
   width: var(--trigger-width);

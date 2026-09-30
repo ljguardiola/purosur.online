@@ -1,6 +1,8 @@
 import {
   isBarcodeTooLong,
   isProductNameTooLong,
+  isValidDiscountBuyNPayM,
+  isValidDiscountPercent,
   SALE_UNITS,
   SEARCH_RESULT_LIMIT,
 } from "@purosur/domain";
@@ -17,12 +19,24 @@ export const searchQuerySchema = z.string().refine((query) => !isProductNameTooL
 
 const cents = z.int().nonnegative();
 
+const linePromotionSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("PERCENT_OFF"),
+    percent: z.number().refine(isValidDiscountPercent),
+  }),
+  z
+    .object({ kind: z.literal("BUY_N_PAY_M"), buy_qty: z.number(), pay_qty: z.number() })
+    .refine(({ buy_qty, pay_qty }) => isValidDiscountBuyNPayM(buy_qty, pay_qty)),
+]);
+
 const saleLineSchema = z.object({
   id: z.string(),
   product_id: z.string(),
   product_name: z.string(),
   quantity: z.int().positive(),
   list_unit_price: cents,
+  discount_amount: cents,
+  promotion: linePromotionSchema.nullable(),
   line_total: cents,
 });
 
