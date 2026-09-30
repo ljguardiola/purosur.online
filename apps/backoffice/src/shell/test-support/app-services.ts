@@ -63,6 +63,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     },
     tagsListScreen: {
       fetchTags: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchProducts: vi.fn().mockReturnValue(new Promise(() => {})),
       createTag: vi.fn(),
       editTag: vi.fn(),
       deactivateTag: vi.fn(),

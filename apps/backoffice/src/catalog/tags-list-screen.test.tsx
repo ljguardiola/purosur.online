@@ -1,4 +1,4 @@
-import type { TagSummary } from "@purosur/contracts";
+import type { ProductSummary, TagSummary } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
@@ -7,11 +7,19 @@ import { render } from "../shell/test-support/render-with-router";
 import { type TagsListFilters, tagsListFilters } from "./routes";
 import { TagsListScreen } from "./tags-list-screen";
 import type { TagsListScreenServices } from "./tags-list-services";
+import { almonds, honey } from "./test-support/products";
 import { organico, sinColorantes, sinTacc, vegano } from "./test-support/tags";
+
+const taggedProducts: ProductSummary[] = [
+  { ...honey, tagIds: [sinTacc.id, vegano.id] },
+  { ...almonds, tagIds: [sinTacc.id] },
+  { ...honey, id: "product-3", tagIds: [sinColorantes.id] },
+];
 
 function createServices(overrides: Partial<TagsListScreenServices> = {}): TagsListScreenServices {
   return {
     fetchTags: vi.fn(),
+    fetchProducts: vi.fn().mockResolvedValue({ kind: "ok", value: taggedProducts }),
     createTag: vi.fn(),
     editTag: vi.fn(),
     deactivateTag: vi.fn(),
@@ -83,7 +91,8 @@ test("shows the breadcrumb, heading, each active tag with its product count and 
     .element(screen.getByRole("heading", { name: "Distintivos", level: 1 }))
     .toBeVisible();
   await expect.poll(() => rowTexts(screen)).toEqual(["Sin TACC34Activo", "Vegano18Activo"]);
-  await expect.element(screen.getByText("2 distintivos · 52 productos")).toBeVisible();
+  await expect.element(screen.getByText("2 distintivos · 2 productos")).toBeVisible();
+  expect(services.fetchProducts).toHaveBeenCalledWith("active");
 });
 
 test("the state filter shows the inactive tags, or every tag, counting the inactive ones", async () => {
@@ -94,12 +103,12 @@ test("the state filter shows the inactive tags, or every tag, counting the inact
   await userEvent.click(screen.getByRole("option", { name: "Inactivos" }));
 
   await expect.poll(() => rowTexts(screen)).toEqual(["Sin colorantes3Inactivo"]);
-  await expect.element(screen.getByText("1 distintivo · 1 inactivo · 3 productos")).toBeVisible();
+  await expect.element(screen.getByText("1 distintivo · 1 inactivo · 1 producto")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: /Estado:/ }));
   await userEvent.click(screen.getByRole("option", { name: "Todos" }));
 
-  await expect.element(screen.getByText("2 distintivos · 1 inactivo · 37 productos")).toBeVisible();
+  await expect.element(screen.getByText("2 distintivos · 1 inactivo · 3 productos")).toBeVisible();
 });
 
 test("lists tags by name, and the products header orders them by how many products carry them", async () => {
@@ -124,7 +133,7 @@ test("the search field filters the tags by name, case-insensitively", async () =
   await userEvent.fill(screen.getByPlaceholder("Buscar un distintivo"), "vEG");
 
   await expect.poll(() => rowTexts(screen).length).toBe(1);
-  await expect.element(screen.getByText("1 distintivo · 18 productos")).toBeVisible();
+  await expect.element(screen.getByText("1 distintivo · 1 producto")).toBeVisible();
 });
 
 test("shows the blank empty state when there are no tags yet, with no footer", async () => {
@@ -178,6 +187,20 @@ test("shows a load error with a retry action that starts again from the loading 
     .toHaveAttribute("aria-busy", "true");
   retry.resolve({ kind: "ok", value: [sinTacc] });
   await expect.element(screen.getByText("Sin TACC")).toBeVisible();
+});
+
+test("fails to open when the products fail to load, and the retry reads them again", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchTags).mockResolvedValue({ kind: "ok", value: [sinTacc] });
+  vi.mocked(services.fetchProducts)
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockResolvedValueOnce({ kind: "ok", value: taggedProducts });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No pudimos abrir los distintivos")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText("1 distintivo · 2 productos")).toBeVisible();
 });
 
 test("shows the rate-limited notice with the time to wait", async () => {

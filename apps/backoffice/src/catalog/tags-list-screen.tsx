@@ -1,4 +1,4 @@
-import type { TagSummary } from "@purosur/contracts";
+import type { ProductSummary, TagSummary } from "@purosur/contracts";
 import {
   Button,
   formatNumber,
@@ -15,9 +15,10 @@ import { deepEqual } from "@tanstack/react-router";
 import { Ban, Pencil, Plus, RotateCcw, Search, SearchX, Sparkles } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { combineCloudData } from "../platform/combine-cloud-data";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
-import { useRefreshCatalog, useReloadTag, useTagsQuery } from "./catalog-queries";
+import { useProductsQuery, useRefreshCatalog, useReloadTag, useTagsQuery } from "./catalog-queries";
 import { DeactivateTagModal } from "./deactivate-tag-modal";
 import { EditTagModal } from "./edit-tag-modal";
 import { NewTagModal } from "./new-tag-modal";
@@ -37,6 +38,7 @@ type TagStatusFilter = TagsListFilters["status"];
 type TagSortColumn = TagsListFilters["sortBy"];
 
 const NO_TAGS: TagSummary[] = [];
+const NO_PRODUCTS: ProductSummary[] = [];
 
 const TAG_STATUS_EMPTY_TITLE = {
   active: "No hay distintivos activos",
@@ -59,7 +61,10 @@ export function TagsListScreen({
   onSessionEnded,
   services,
 }: TagsListScreenProps) {
-  const data = useTagsQuery({ fetchTags: services.fetchTags, onSessionEnded });
+  const data = combineCloudData(
+    useTagsQuery({ fetchTags: services.fetchTags, onSessionEnded }),
+    useProductsQuery({ status: "active", fetchProducts: services.fetchProducts, onSessionEnded }),
+  );
   const refreshCatalog = useRefreshCatalog();
   const reloadTag = useReloadTag({ fetchTags: services.fetchTags });
   const [search, setSearch] = useState(filters.search);
@@ -92,7 +97,7 @@ export function TagsListScreen({
     }
   }, [data.status]);
 
-  const tags = data.status === "loaded" ? data.value : NO_TAGS;
+  const [tags, products] = data.status === "loaded" ? data.value : [NO_TAGS, NO_PRODUCTS];
   const { rows, matchCount } = tableRows({
     items: tags,
     id: (tag) => tag.id,
@@ -223,7 +228,9 @@ export function TagsListScreen({
           }
           footer={
             matchCount === 0 ? undefined : (
-              <p className="text-text-subtle text-detail">{tagsFooterText(matchedTags)}</p>
+              <p className="text-text-subtle text-detail">
+                {tagsFooterText(matchedTags, products)}
+              </p>
             )
           }
         />
