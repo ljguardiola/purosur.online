@@ -135,6 +135,14 @@ export function App({ core }: { core: CoreClient }) {
     return balance;
   }
 
+  async function redeemPinCode(typedCode: string, newPin: string) {
+    const outcome = await core.redeemPinCode(typedCode, newPin);
+    if (outcome.kind === "resumed") {
+      setPerson(outcome.person);
+    }
+    return outcome;
+  }
+
   function signOut() {
     core.signOut().catch(() => {});
     setPerson(undefined);
@@ -150,7 +158,7 @@ export function App({ core }: { core: CoreClient }) {
     openCashSession,
     closeCashSession,
     cashBalance,
-    redeemPinCode: (typedCode: string, newPin: string) => core.redeemPinCode(typedCode, newPin),
+    redeemPinCode,
     signInLookup: (email: string) => core.signInLookup(email),
     firstSignIn,
   };

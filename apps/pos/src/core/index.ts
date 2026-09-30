@@ -22,6 +22,7 @@ import { createActionGate } from "./access/action-gate";
 import { redeemPinCode } from "./access/pin-code-redemption";
 import { hashPin } from "./access/pin-hash";
 import { applyRedeemedPin } from "./access/redeemed-pin";
+import { signInRedeemedPerson } from "./access/redeemed-sign-in";
 import { firstSignIn, signIn } from "./access/sign-in";
 import { lookUpSignIn } from "./access/sign-in-lookup";
 import { createSignedInPerson } from "./access/signed-in-person";
@@ -218,6 +219,12 @@ const rendererRequestDeps: RendererRequestDeps = {
           console.error("core: the redeemed PIN could not be kept locally", error);
           Sentry.captureException(error);
         },
+        cashSessionOpener: () =>
+          localDatabase === undefined ? undefined : cashSessionOpener(localDatabase),
+        signInRedeemed: (userId) =>
+          signInStore === undefined
+            ? undefined
+            : signInRedeemedPerson({ store: signInStore, signedInPerson }, userId),
       },
       typedCode,
       newPin,

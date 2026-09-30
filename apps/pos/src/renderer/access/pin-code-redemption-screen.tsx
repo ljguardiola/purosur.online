@@ -3,7 +3,7 @@ import { newPinSchema, PIN_MIN_DIGITS, pinCodeRedemptionBodySchema } from "@puro
 import type { Icon } from "@purosur/ui";
 import { Button, InlineNotice, TextField } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Check, CircleCheck, ShieldX, TriangleAlert, WifiOff } from "lucide-react";
+import { ArrowLeft, Check, CircleCheck, Lock, ShieldX, TriangleAlert, WifiOff } from "lucide-react";
 import type { FormEvent } from "react";
 import { useId, useState } from "react";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
@@ -19,8 +19,15 @@ const REPEAT_MESSAGE = "Los dos PIN no coinciden.";
 function noticeFor(outcome: PinCodeRedemptionOutcome): Notice | undefined {
   switch (outcome.kind) {
     case "redeemed":
+    case "resumed":
     case "pin_rejected":
       return undefined;
+    case "cash_session_opened_by_another":
+      return {
+        icon: <Lock />,
+        title: "La caja está abierta",
+        description: "Solo puede usar un código quien la abrió.",
+      };
     case "code_invalid":
       return {
         icon: <ShieldX />,
@@ -107,7 +114,7 @@ export function PinCodeRedemptionScreen({ redeem }: PinCodeRedemptionScreenProps
       (): PinCodeRedemptionOutcome => ({ kind: "unavailable" }),
     );
     setOutcome(answered);
-    if (answered.kind === "redeemed") {
+    if (answered.kind === "redeemed" || answered.kind === "resumed") {
       setNewPin("");
       setRepeat("");
     }

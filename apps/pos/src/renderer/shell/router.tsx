@@ -112,9 +112,9 @@ export function isSessionScreen(path: string): boolean {
   return SESSION_SCREENS.includes(path);
 }
 
-function requireRoute(expected: ScreenPath, context: RouterContext): void {
+function requireRoute(expected: ScreenPath | readonly ScreenPath[], context: RouterContext): void {
   const route = routeFor(context);
-  if (route !== expected) {
+  if (![expected].flat().includes(route)) {
     throw redirect({ to: route });
   }
 }
@@ -282,7 +282,7 @@ const signInRoute = createRoute({
 const pinCodeRedemptionRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/pin-code-redemption",
-  beforeLoad: ({ context }) => requireRoute("/sign-in", context),
+  beforeLoad: ({ context }) => requireRoute(["/sign-in", "/locked"], context),
   component: function PinCodeRedemptionRoute() {
     const { redeemPinCode } = pinCodeRedemptionRoute.useRouteContext();
     return <PinCodeRedemptionScreen redeem={redeemPinCode} />;

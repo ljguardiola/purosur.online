@@ -205,6 +205,20 @@ describe("PinCodeRedemptionScreen", () => {
       .toBeVisible();
   });
 
+  it("says only the opener can use a code while a session is open", async () => {
+    const screen = await render(
+      <PinCodeRedemptionScreen
+        redeem={answering({ kind: "cash_session_opened_by_another" }).redeem}
+      />,
+    );
+    await fillAndSave(screen);
+
+    await expect.element(screen.getByText("La caja está abierta")).toBeVisible();
+    await expect
+      .element(screen.getByText("Solo puede usar un código quien la abrió."))
+      .toBeVisible();
+  });
+
   it("replaces the form with the success message and a way back to the start once redeemed", async () => {
     const screen = await render(
       <PinCodeRedemptionScreen redeem={answering({ kind: "redeemed" }).redeem} />,

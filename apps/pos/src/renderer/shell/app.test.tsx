@@ -5,6 +5,7 @@ import type {
   EnrollmentOutcome,
   OpenCashSession,
   OpenCashSessionOutcome,
+  PinCodeRedemptionOutcome,
   SignInOutcome,
 } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
@@ -65,6 +66,7 @@ function coreAnswering(
     openOutcome?: OpenCashSessionOutcome;
     closeCashSession?: CoreClient["closeCashSession"];
     cashBalance?: CoreClient["cashBalance"];
+    redeemOutcome?: PinCodeRedemptionOutcome;
   } = {},
   signOut: () => Promise<void> = async () => {},
 ) {
@@ -88,7 +90,7 @@ function coreAnswering(
       return outcome;
     },
     async redeemPinCode() {
-      return { kind: "redeemed" };
+      return cashDrawer.redeemOutcome ?? { kind: "redeemed" };
     },
     async signInUsers() {
       usersLoads += 1;
@@ -605,6 +607,46 @@ describe("App", () => {
 
     await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
     await expect.element(screen.getByRole("navigation").getByText("Grace")).toBeVisible();
+  });
+
+  describe("redeeming a PIN code on a locked register", () => {
+    async function redeemFromLocked(redeemOutcome: PinCodeRedemptionOutcome) {
+      const { core } = coreAnswering(true, { kind: "enrolled" }, GRACE_SIGNED_IN, {
+        cashSession: async () => GRACE_SESSION,
+        redeemOutcome,
+      });
+      const screen = await render(<App core={core} />);
+      postCoreStatus("up");
+      await userEvent.click(
+        screen.getByRole("link", { name: "Tengo un código para cambiar el PIN" }),
+      );
+      await userEvent.fill(screen.getByRole("textbox", { name: "Código" }), "K7QM2XPA3DTR4HWN");
+      await userEvent.fill(screen.getByLabelText("PIN nuevo, de al menos 6 dígitos"), "482915");
+      await userEvent.fill(screen.getByLabelText("Repetí el PIN nuevo"), "482915");
+      await userEvent.click(screen.getByRole("button", { name: "Guardar el PIN nuevo" }));
+      return screen;
+    }
+
+    it("resumes the session when the opener redeemed the code", async () => {
+      const screen = await redeemFromLocked({
+        kind: "resumed",
+        person: { user_id: "u2", first_name: "Grace", permission_keys: ["sell_and_charge"] },
+      });
+
+      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+      await expect.element(screen.getByRole("navigation").getByText("Grace")).toBeVisible();
+    });
+
+    it("stays locked and says only the opener can use a code when someone else redeemed it", async () => {
+      const screen = await redeemFromLocked({ kind: "cash_session_opened_by_another" });
+
+      await expect.element(screen.getByText("La caja está abierta")).toBeVisible();
+      await expect
+        .element(screen.getByRole("heading", { name: SESSION_TITLE }))
+        .not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole("link", { name: "Volver" }));
+      await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
+    });
   });
 
   it("asks the core for the cash session again each time it comes back up, and waits for the answer", async () => {

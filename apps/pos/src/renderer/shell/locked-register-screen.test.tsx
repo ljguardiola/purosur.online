@@ -48,14 +48,14 @@ describe("LockedRegisterScreen", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it("offers no other way in", async () => {
+  it("offers the opener a code to change the PIN, and no other way in", async () => {
     const screen = await renderScreen();
 
     await expect
-      .element(screen.getByRole("link", { name: "Ingresar por primera vez" }))
-      .not.toBeInTheDocument();
-    await expect
       .element(screen.getByRole("link", { name: "Tengo un código para cambiar el PIN" }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole("link", { name: "Ingresar por primera vez" }))
       .not.toBeInTheDocument();
   });
 
@@ -95,7 +95,7 @@ describe("LockedRegisterScreen", () => {
     await expect.element(screen.getByText("Sin permisos en la caja")).toBeVisible();
   });
 
-  it("says the opener is locked out after too many wrong PINs, without offering to try again", async () => {
+  it("says the opener is locked out after too many wrong PINs, offering a code instead of another try", async () => {
     const screen = await renderScreen(
       answering({ kind: "locked", consecutive_failures: 8 }).signIn,
     );
@@ -106,6 +106,7 @@ describe("LockedRegisterScreen", () => {
     await expect
       .element(screen.getByText("Se equivocó 8 veces seguidas con el PIN."))
       .toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Tengo un código" })).toBeVisible();
     await expect.element(screen.getByLabelText("PIN")).not.toBeInTheDocument();
   });
 });

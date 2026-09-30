@@ -353,9 +353,8 @@ describe("the register's router", () => {
       path: "/pin-code-redemption",
       coreStatus: "up",
       enrollment: "enrolled",
-      person: null,
       cashSession: OPEN_SESSION,
-      redirectedTo: "/locked",
+      redirectedTo: "/session",
     },
     {
       path: "/starting",
@@ -749,6 +748,19 @@ describe("the register's router", () => {
     await userEvent.click(screen.getByRole("link", { name: "Volver" }));
 
     await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+  });
+
+  it("reaches the PIN code redemption screen from the locked register and comes back", async () => {
+    const router = routerAt("/locked", "up", "enrolled", null, OPEN_SESSION);
+    const screen = await render(<RouterProvider router={router} />);
+
+    await userEvent.click(
+      screen.getByRole("link", { name: "Tengo un código para cambiar el PIN" }),
+    );
+    await expect.element(screen.getByRole("heading", { name: PIN_REDEMPTION_TITLE })).toBeVisible();
+    await userEvent.click(screen.getByRole("link", { name: "Volver" }));
+
+    await expect.element(screen.getByRole("heading", { name: "Caja bloqueada" })).toBeVisible();
   });
 
   it("redeems through the context's callback and returns to the sign-in screen from the success message", async () => {

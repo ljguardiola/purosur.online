@@ -1,11 +1,12 @@
 import type { SignInOutcome } from "@purosur/contracts";
-import { InlineNotice } from "@purosur/ui";
 import { KeyRound } from "lucide-react";
 import { useId } from "react";
 import { ResumePinForm } from "../access/resume-pin-form";
+import { SignInLockout } from "../access/sign-in-lockout";
 import type { SignedInPerson } from "../access/signed-in-person";
 import { usePinAttempt } from "../access/use-pin-attempt";
 import { BrandPanelScreen } from "./brand-panel-screen";
+import { ScreenLink } from "./screen-link";
 import { SessionEyebrow } from "./session-eyebrow";
 
 export type LockedRegisterScreenProps = {
@@ -44,23 +45,24 @@ export function LockedRegisterScreen({
           </h1>
         </div>
         {refusal?.kind === "locked" ? (
+          <SignInLockout
+            consecutiveFailures={refusal.consecutiveFailures}
+            backLabel="Volver"
+            onBack={attempt.reset}
+          />
+        ) : (
           <>
-            <p className="text-body text-text">
-              Se equivocó {refusal.consecutiveFailures} veces seguidas con el PIN.
-            </p>
-            <InlineNotice
-              tone="warning"
+            <ResumePinForm
+              opener={{ id: opener.user_id, first_name: opener.first_name }}
+              attempt={attempt}
+              labelledBy={headingId}
+            />
+            <ScreenLink
+              to="/pin-code-redemption"
               icon={<KeyRound />}
-              title="Se vuelve a entrar con un código"
-              description="Alguien con permiso lo genera desde el backoffice."
+              label="Tengo un código para cambiar el PIN"
             />
           </>
-        ) : (
-          <ResumePinForm
-            opener={{ id: opener.user_id, first_name: opener.first_name }}
-            attempt={attempt}
-            labelledBy={headingId}
-          />
         )}
       </main>
     </BrandPanelScreen>
