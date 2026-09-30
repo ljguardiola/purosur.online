@@ -39,6 +39,7 @@ const SECOND_CANONICAL =
 
 interface OutboxRow {
   event_id: string;
+  device_id: string;
   device_seq: number;
   aggregate_type: string;
   aggregate_id: string;
@@ -66,6 +67,7 @@ function syncState() {
 
 beforeEach(() => {
   database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS);
+  database.prepare("UPDATE sync_state SET device_id = 'device-a'").run();
 });
 
 afterEach(() => {
@@ -80,6 +82,7 @@ describe("appending an event to the outbox", () => {
     expect(rows()).toEqual([
       {
         event_id: "018f0000-0000-7000-8000-000000000001",
+        device_id: "device-a",
         device_seq: 1,
         aggregate_type: "CashSession",
         aggregate_id: "session-1",
@@ -94,6 +97,32 @@ describe("appending an event to the outbox", () => {
       },
     ]);
     expect(syncState()).toEqual({ last_device_seq: 1, last_chain_hmac: expectedChain });
+  });
+
+  it("tags each row with the installation's device id without adding it to the chained event", () => {
+    appendOutboxEvent(database, CHAIN_KEY, draft());
+    database.prepare("UPDATE sync_state SET device_id = 'device-b', last_device_seq = 0").run();
+    appendOutboxEvent(
+      database,
+      CHAIN_KEY,
+      draft({ event_id: "018f0000-0000-7000-8000-000000000002" }),
+    );
+
+    expect(rows().map((row) => [row.device_id, row.device_seq])).toEqual([
+      ["device-a", 1],
+      ["device-b", 1],
+    ]);
+  });
+
+  it("refuses to append while the installation has no device id", () => {
+    database.prepare("UPDATE sync_state SET device_id = NULL").run();
+
+    expect(() => appendOutboxEvent(database, CHAIN_KEY, draft())).toThrow(
+      "the local database has no device id",
+    );
+
+    expect(rows()).toEqual([]);
+    expect(syncState()).toEqual({ last_device_seq: 0, last_chain_hmac: null });
   });
 
   it("numbers the next event after the last one and chains it from the previous chain value", () => {

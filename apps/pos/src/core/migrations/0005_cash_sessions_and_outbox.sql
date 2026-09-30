@@ -36,7 +36,8 @@ CREATE INDEX cash_movements_by_session ON cash_movements (session_id);
 
 CREATE TABLE outbox (
   event_id TEXT PRIMARY KEY,
-  device_seq INTEGER NOT NULL UNIQUE CHECK (device_seq > 0),
+  device_id TEXT NOT NULL,
+  device_seq INTEGER NOT NULL CHECK (device_seq > 0),
   aggregate_type TEXT NOT NULL,
   aggregate_id TEXT NOT NULL,
   event_type TEXT NOT NULL,
@@ -46,7 +47,8 @@ CREATE TABLE outbox (
   actor_id TEXT NOT NULL,
   chain_hmac TEXT NOT NULL,
   sent_at TEXT,
-  acked_at TEXT
+  acked_at TEXT,
+  UNIQUE (device_id, device_seq)
 );
 
 ALTER TABLE sync_state ADD COLUMN last_device_seq INTEGER NOT NULL DEFAULT 0 CHECK (last_device_seq >= 0);

@@ -48,7 +48,8 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
   // as they arrive. Their PIN verifiers were derived with the pepper of the one before, and the PIN
   // hashes they came from are not kept, so they are dropped and derived again, and the wrong PINs
   // counted against them go with them. The register row held
-  // is the previous installation's own, so it goes too.
+  // is the previous installation's own, so it goes too. Its unsent outbox events stay, tagged with
+  // its device id: they are the only record of what it did.
   adoptDevice({ deviceId, pepper }: { deviceId: string; pepper: string }): void {
     this.pepper = pepper;
     this.database.transaction(() => {
@@ -63,7 +64,6 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
         this.database.prepare("DELETE FROM pin_verifiers").run();
         this.database.prepare("DELETE FROM pin_sign_in_failures").run();
         this.database.prepare("DELETE FROM own_register").run();
-        this.database.prepare("DELETE FROM outbox").run();
       }
     })();
   }

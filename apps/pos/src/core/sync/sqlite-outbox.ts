@@ -9,6 +9,7 @@ import type { LocalDatabase } from "../platform/local-database";
 const CHAIN_LENGTH_BYTES = 32;
 
 interface ChainPosition {
+  device_id: string | null;
   last_device_seq: number;
   last_chain_hmac: string | null;
 }
@@ -20,10 +21,15 @@ export function appendOutboxEvent(
 ): void {
   database.transaction(() => {
     const position = database
-      .prepare<[], ChainPosition>("SELECT last_device_seq, last_chain_hmac FROM sync_state")
+      .prepare<[], ChainPosition>(
+        "SELECT device_id, last_device_seq, last_chain_hmac FROM sync_state",
+      )
       .get();
     if (position === undefined) {
       throw new Error("the local database has no sync state");
+    }
+    if (position.device_id === null) {
+      throw new Error("the local database has no device id");
     }
     const deviceSeq = position.last_device_seq + 1;
     const previousChain =
@@ -38,15 +44,16 @@ export function appendOutboxEvent(
     database
       .prepare(
         `INSERT INTO outbox (
-           event_id, device_seq, aggregate_type, aggregate_id, event_type, schema_version,
+           event_id, device_id, device_seq, aggregate_type, aggregate_id, event_type, schema_version,
            payload, occurred_at, actor_id, chain_hmac
          ) VALUES (
-           @event_id, @device_seq, @aggregate_type, @aggregate_id, @event_type, @schema_version,
+           @event_id, @device_id, @device_seq, @aggregate_type, @aggregate_id, @event_type, @schema_version,
            @payload, @occurred_at, @actor_id, @chain_hmac
          )`,
       )
       .run({
         ...draft,
+        device_id: position.device_id,
         device_seq: deviceSeq,
         payload: canonicalOutboxPayload(draft.payload),
         chain_hmac: chainHmac,

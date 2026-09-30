@@ -262,6 +262,7 @@ describe("a cash movement", () => {
 
 describe("an outbox event appended through the ledger", () => {
   it("is chained with the key the ledger was given", () => {
+    deviceId("device-1");
     ledger.transaction((tx) =>
       tx.appendOutboxEvent({
         event_id: "event-1",
@@ -293,6 +294,7 @@ describe("a transaction of the ledger", () => {
   });
 
   it("leaves nothing behind when its work throws after writing", () => {
+    deviceId("device-1");
     expect(() =>
       ledger.transaction((tx) => {
         tx.recordOpenedSession(session());
