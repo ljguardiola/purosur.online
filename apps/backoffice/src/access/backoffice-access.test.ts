@@ -7,6 +7,7 @@ import {
   canPerformStockCounts,
   canReactivateUser,
   canRecordStockLosses,
+  canResetUserPin,
   canSeeAlertsArea,
   canSeeBranchArea,
   canSeeCatalogArea,
@@ -264,4 +265,43 @@ test("canSeeStockArea is false for a non-Administrator without a stock permissio
 
 test("canSeeStockArea is true for an Administrator", () => {
   expect(canSeeStockArea({ isAdministrator: true, permissions: [] })).toBe(true);
+});
+
+test("canSeeUsersArea is true for a non-Administrator holding only reset_user_pin", () => {
+  expect(canSeeUsersArea({ isAdministrator: false, permissions: ["reset_user_pin"] })).toBe(true);
+});
+
+const holder = { isAdministrator: false, permissions: ["reset_user_pin"] };
+const cashier = { id: "user-2", isAdministrator: false };
+
+test("canResetUserPin is true for a holder of reset_user_pin against another non-Administrator", () => {
+  expect(canResetUserPin(holder, "user-1", cashier)).toBe(true);
+});
+
+test("canResetUserPin is false without reset_user_pin", () => {
+  expect(canResetUserPin({ isAdministrator: false, permissions: [] }, "user-1", cashier)).toBe(
+    false,
+  );
+});
+
+test("canResetUserPin is false for a holder against an Administrator", () => {
+  expect(canResetUserPin(holder, "user-1", { id: "user-2", isAdministrator: true })).toBe(false);
+});
+
+test("canResetUserPin is false for a holder against themselves, whatever the id's letter case", () => {
+  expect(canResetUserPin(holder, "USER-1", { id: "user-1", isAdministrator: false })).toBe(false);
+});
+
+test("canResetUserPin is true for an Administrator against another Administrator and against themselves", () => {
+  const administrator = { isAdministrator: true, permissions: [] };
+  expect(canResetUserPin(administrator, "user-1", { id: "user-2", isAdministrator: true })).toBe(
+    true,
+  );
+  expect(canResetUserPin(administrator, "user-1", { id: "user-1", isAdministrator: true })).toBe(
+    true,
+  );
+});
+
+test("canResetUserPin is false against an inactive user", () => {
+  expect(canResetUserPin(holder, "user-1", { ...cashier, active: false })).toBe(false);
 });

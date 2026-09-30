@@ -1522,12 +1522,12 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/users",
-        access: permissionAccess(["deactivate_users", "reactivate_users"]),
+        access: permissionAccess(["deactivate_users", "reactivate_users", "reset_user_pin"]),
       },
       {
         method: "GET",
         url: "/api/users/:id",
-        access: permissionAccess(["deactivate_users", "reactivate_users"]),
+        access: permissionAccess(["deactivate_users", "reactivate_users", "reset_user_pin"]),
       },
       { method: "POST", url: "/api/users", access: ADMINISTRATOR_ACCESS },
       { method: "PUT", url: "/api/users/:id", access: ADMINISTRATOR_ACCESS },

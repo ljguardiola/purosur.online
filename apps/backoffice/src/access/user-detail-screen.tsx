@@ -28,6 +28,7 @@ import {
   type BackofficeAccess,
   canDeactivateUser,
   canReactivateUser,
+  canResetUserPin,
   canSeeUsersArea,
 } from "./backoffice-access";
 import { DeactivateUserModal } from "./deactivate-user-modal";
@@ -38,6 +39,7 @@ import { ReactivateUserModal } from "./reactivate-user-modal";
 import { RemoveUserPasskeyModal } from "./remove-user-passkey-modal";
 import { roleDisplayName } from "./role-display";
 import type { UserDetailScreenServices } from "./user-detail-services";
+import { UserPinSection } from "./user-pin-section";
 import type { BranchUserRole } from "./users-api";
 
 export type UserDetailScreenProps = {
@@ -237,6 +239,18 @@ function UserDetailView({
                   ))}
               </div>
             ) : null}
+            {user &&
+              canResetUserPin(access, signedInUserId, {
+                ...user,
+                isAdministrator: user.role.isAdministrator,
+              }) && (
+                <UserPinSection
+                  user={user}
+                  dataStatus={data.status}
+                  onSessionEnded={onSessionEnded}
+                  services={services}
+                />
+              )}
             {!user && canSeeUsersArea(access) && !isOwnAccount && (
               <div className="flex items-center justify-end">
                 <Button
