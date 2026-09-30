@@ -4,12 +4,12 @@ import {
   decodePinSalt,
   holdsARegisterPermission,
   isLockedOutOfPinSignIn,
-  PERMISSION_KEYS,
   PIN_SIGN_IN_LOCKOUT_FAILURES,
   pinSignInAttemptsLeft,
   pinSignInDelaySeconds,
   pinSignInRetryAfterSeconds,
 } from "@purosur/domain";
+import { grantedPermissionKeys } from "./granted-permission-keys";
 import { derivePinVerifier } from "./pin-verifier";
 import type { SignInStore } from "./sqlite-sign-in-store";
 
@@ -95,9 +95,7 @@ export async function signIn(
     person: {
       user_id: userId,
       first_name: record.firstName,
-      permission_keys: record.access.isAdministrator
-        ? [...PERMISSION_KEYS]
-        : [...record.access.permissionKeys],
+      permission_keys: grantedPermissionKeys(record.access),
     },
   };
 }

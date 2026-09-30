@@ -162,6 +162,7 @@ export type {
 } from "./sync/index.js";
 export {
   canonicalOutboxEvent,
+  canonicalOutboxPayload,
   FIRST_PULL_CURSOR,
   isPageAfter,
   isPullCursor,

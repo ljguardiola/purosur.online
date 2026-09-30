@@ -45,3 +45,7 @@ function canonicalJson(value: JsonValue): string {
 export function canonicalOutboxEvent(event: OutboxEvent): string {
   return canonicalJson(event);
 }
+
+export function canonicalOutboxPayload(payload: OutboxEvent["payload"]): string {
+  return canonicalJson(payload);
+}

@@ -1,6 +1,11 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { canonicalOutboxEvent, type JsonValue, type OutboxEvent } from "./outbox-event.js";
+import {
+  canonicalOutboxEvent,
+  canonicalOutboxPayload,
+  type JsonValue,
+  type OutboxEvent,
+} from "./outbox-event.js";
 
 const EVENT: OutboxEvent = {
   event_id: "0199b7a0-0000-7000-8000-000000000001",
@@ -114,6 +119,17 @@ describe("canonicalOutboxEvent", () => {
           );
         },
       ),
+    );
+  });
+});
+
+describe("canonicalOutboxPayload", () => {
+  it("writes the payload exactly as it appears inside the canonical event", () => {
+    expect(canonicalOutboxPayload(EVENT.payload)).toBe(
+      '{"opened_at":"2026-09-30T12:00:00.000Z","opened_by":"user-1","opening_float":150000}',
+    );
+    expect(canonicalOutboxEvent(EVENT)).toContain(
+      `"payload":${canonicalOutboxPayload(EVENT.payload)}`,
     );
   });
 });
