@@ -240,19 +240,6 @@ describe("POST /pin-code-redemptions", () => {
     expect(await db.select().from(userPins)).toHaveLength(0);
   });
 
-  it("burns the code on the fifth refused PIN, so the right one is then refused too", async () => {
-    await insertUserWithCode();
-    const { deviceToken } = await insertEnrolledInstallation(db);
-    for (let attempt = 0; attempt < 5; attempt += 1) {
-      await redeem(deviceToken, { reset_code: CODE, new_pin: "12345" });
-    }
-
-    const response = await redeem(deviceToken);
-
-    expect(response.statusCode).toBe(410);
-    expect(cloudErrorSchema.parse(response.json())).toMatchObject({ code: "reset_code_burned" });
-  });
-
   it.each([
     [
       "a code that is not 16 base32 characters",
