@@ -129,8 +129,8 @@ function setPriceRequest(
   headers: Record<string, string> = {},
 ) {
   return app.inject({
-    method: "POST",
-    url: `/products/${productId}/price`,
+    method: "PUT",
+    url: `/prices/${productId}`,
     headers: {
       origin: BACKOFFICE_ORIGIN,
       ...(rawSessionId ? cookieHeader(rawSessionId) : {}),
@@ -140,7 +140,22 @@ function setPriceRequest(
   });
 }
 
-describe("POST /products/:id/price", () => {
+describe("PUT /prices/:productId", () => {
+  it("no longer answers the old price path", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+    const productId = await insertProduct("Arroz");
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/products/${productId}/price`,
+      headers: { origin: BACKOFFICE_ORIGIN, ...cookieHeader(rawSessionId) },
+      payload: { unitPrice: 1000, expectedCurrentPriceId: null },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
   it("returns 401 unauthenticated when no cookie was sent", async () => {
     const productId = await insertProduct("Arroz");
     const response = await setPriceRequest(undefined, productId, {

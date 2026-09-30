@@ -34,14 +34,14 @@ export function registerPriceConfirmationRoute<TQueryResult extends PgQueryResul
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  app.post<{ Params: { id: string } }>(
-    "/products/:id/price-confirmation",
+  app.post<{ Params: { productId: string } }>(
+    "/prices/:productId/confirmations",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
       config: { access: permissionAccess("manage_prices_and_review"), sessionSource },
     },
     async (request, reply) => {
-      const target = await findActiveProductById(options.db, request.params.id);
+      const target = await findActiveProductById(options.db, request.params.productId);
       if (!target) {
         await reply.code(404).send(NOT_FOUND_RESPONSE);
         return;

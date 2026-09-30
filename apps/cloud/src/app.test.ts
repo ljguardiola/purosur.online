@@ -1071,13 +1071,13 @@ describe("wiring the prices routes", () => {
 
     const list = await app.inject({ method: "GET", url: "/api/prices" });
     const setPrice = await app.inject({
-      method: "POST",
-      url: "/api/products/00000000-0000-0000-0000-000000000000/price",
+      method: "PUT",
+      url: "/api/prices/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
     const confirmation = await app.inject({
       method: "POST",
-      url: "/api/products/00000000-0000-0000-0000-000000000000/price-confirmation",
+      url: "/api/prices/00000000-0000-0000-0000-000000000000/confirmations",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1094,13 +1094,13 @@ describe("wiring the prices routes", () => {
 
     const list = await app.inject({ method: "GET", url: "/api/prices" });
     const setPrice = await app.inject({
-      method: "POST",
-      url: "/api/products/00000000-0000-0000-0000-000000000000/price",
+      method: "PUT",
+      url: "/api/prices/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
     const confirmation = await app.inject({
       method: "POST",
-      url: "/api/products/00000000-0000-0000-0000-000000000000/price-confirmation",
+      url: "/api/prices/00000000-0000-0000-0000-000000000000/confirmations",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1739,13 +1739,13 @@ describe("the route access inventory", () => {
         access: permissionAccess("manage_prices_and_review"),
       },
       {
-        method: "POST",
-        url: "/api/products/:id/price",
+        method: "PUT",
+        url: "/api/prices/:productId",
         access: permissionAccess("manage_prices_and_review"),
       },
       {
         method: "POST",
-        url: "/api/products/:id/price-confirmation",
+        url: "/api/prices/:productId/confirmations",
         access: permissionAccess("manage_prices_and_review"),
       },
       {
