@@ -9,6 +9,10 @@ type LoadedAuthorizers =
   | { status: "failed" }
   | { status: "loaded"; users: SignInUser[] };
 
+export type ShownRefusal =
+  | Exclude<AuthorizationRefusal, { kind: "lacks_permission" }>
+  | { kind: "lacks_permission"; firstName: string | undefined };
+
 export type UseAuthorizationInput = {
   person: SignedInPerson;
   permission: AuthorizablePermissionKey;
@@ -28,7 +32,7 @@ export type AuthorizationState = {
   choose: (userId: string) => void;
   pin: string;
   type: (digits: string) => void;
-  refusal: AuthorizationRefusal | undefined;
+  refusal: ShownRefusal | undefined;
   pinInput: RefObject<HTMLInputElement | null>;
 };
 
@@ -42,7 +46,7 @@ export function useAuthorization({
   const [authorizers, setAuthorizers] = useState<LoadedAuthorizers>({ status: "loading" });
   const [chosen, setChosen] = useState<string | null>(null);
   const [pin, setPin] = useState("");
-  const [refusal, setRefusal] = useState<AuthorizationRefusal>();
+  const [refusal, setRefusal] = useState<ShownRefusal>();
 
   useEffect(() => {
     if (!required || authorizers.status !== "loading") {
@@ -74,12 +78,20 @@ export function useAuthorization({
     ready,
     value: required && chosen !== null && pin !== "" ? { user_id: chosen, pin } : undefined,
     refuse(refused) {
+      if (refused.kind === "lacks_permission") {
+        const refusedUser =
+          authorizers.status === "loaded"
+            ? authorizers.users.find((user) => user.id === chosen)
+            : undefined;
+        setRefusal({ kind: "lacks_permission", firstName: refusedUser?.first_name });
+        setChosen(null);
+        setPin("");
+        setAuthorizers({ status: "loading" });
+        return;
+      }
       setRefusal(refused);
       if (refused.kind === "wrong_pin") {
         setPin("");
-      }
-      if (refused.kind === "lacks_permission") {
-        setAuthorizers({ status: "loading" });
       }
     },
     performed() {

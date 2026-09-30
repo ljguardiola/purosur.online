@@ -1,4 +1,4 @@
-import type { AuthorizationRefusal, SignInUser } from "@purosur/contracts";
+import type { SignInUser } from "@purosur/contracts";
 import type { Icon } from "@purosur/ui";
 import {
   EmptyState,
@@ -12,11 +12,11 @@ import {
 import { ShieldX, TriangleAlert, UsersRound, UserX } from "lucide-react";
 import { useEffect, useId } from "react";
 import { PinField } from "./pin-field";
-import type { AuthorizationState } from "./use-authorization";
+import type { AuthorizationState, ShownRefusal } from "./use-authorization";
 
 type Notice = { icon: Icon; title: string; description: string };
 
-function noticeFor(refusal: AuthorizationRefusal, chosen: SignInUser | undefined): Notice {
+function noticeFor(refusal: ShownRefusal): Notice {
   switch (refusal.kind) {
     case "wrong_pin":
       return {
@@ -27,7 +27,7 @@ function noticeFor(refusal: AuthorizationRefusal, chosen: SignInUser | undefined
     case "lacks_permission":
       return {
         icon: <UserX />,
-        title: `${chosen?.first_name ?? "Esa persona"} no puede autorizar esto`,
+        title: `${refusal.firstName ?? "Esa persona"} no puede autorizar esto`,
         description: "Elegí a otra persona con permiso.",
       };
     case "unavailable":
@@ -72,11 +72,7 @@ export function AuthorizationSection({
         }).map((user) => ({ value: user.id, label: user.first_name }))
       : [];
   const [firstOption, ...otherOptions] = options;
-  const chosenUser =
-    authorizers.status === "loaded"
-      ? authorizers.users.find((user) => user.id === authorization.chosen)
-      : undefined;
-  const notice = refusal === undefined ? undefined : noticeFor(refusal, chosenUser);
+  const notice = refusal === undefined ? undefined : noticeFor(refusal);
   const pinRefused = refusal?.kind === "wrong_pin";
 
   return (

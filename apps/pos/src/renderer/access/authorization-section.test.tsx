@@ -211,6 +211,19 @@ describe("an action guarded by another person's PIN", () => {
       await expectNoAccessibilityViolations(screen.container);
     });
 
+    it("unpicks the person who lacks the permission, still naming them", async () => {
+      const screen = await renderForm({ submit: recording({ kind: "lacks_permission" }).submit });
+
+      await authorizeAs(screen, "Sofía", "1234");
+
+      await expect.element(screen.getByText("Sofía no puede autorizar esto")).toBeVisible();
+      await expect
+        .element(screen.getByRole("button", { name: /Persona que autoriza/ }))
+        .toHaveTextContent("Elegí a la persona");
+      await expect.element(screen.getByLabelText("PIN")).toHaveValue("");
+      await expect.element(screen.getByRole("button", { name: "Cargar" })).toBeDisabled();
+    });
+
     it("reads the authorizers again when the picked person lacks the permission", async () => {
       const answers = [AUTHORIZERS, [{ id: "u2", first_name: "Grace" }]];
       let loads = 0;
@@ -225,6 +238,7 @@ describe("an action guarded by another person's PIN", () => {
 
       await authorizeAs(screen, "Sofía", "1234");
       await expect.poll(() => loads).toBe(2);
+      await expect.element(screen.getByText("Sofía no puede autorizar esto")).toBeVisible();
       await userEvent.click(screen.getByRole("button", { name: /Persona que autoriza/ }));
 
       await expect.element(screen.getByRole("option", { name: "Grace" })).toBeVisible();
