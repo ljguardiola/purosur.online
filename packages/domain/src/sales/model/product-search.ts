@@ -10,7 +10,7 @@ export interface SearchableProduct {
   timesSoldHere: number;
 }
 
-export interface ProductSearchHit {
+interface ProductSearchHit {
   product: SearchableProduct;
   matches: NameMatch[];
 }

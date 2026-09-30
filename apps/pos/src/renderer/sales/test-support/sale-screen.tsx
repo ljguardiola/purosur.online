@@ -12,8 +12,8 @@ import { SaleScreen } from "../sale-screen";
 
 const PERSON = { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] };
 // 12:02 UTC is 09:02 in Argentina.
-export const OPENED_AT = "2026-09-30T12:02:00.000Z";
-export const FIELD_NAME = "Producto";
+const OPENED_AT = "2026-09-30T12:02:00.000Z";
+const FIELD_NAME = "Producto";
 export const PLACEHOLDER = "Escaneá o escribí el nombre del producto";
 export const NOT_PERMITTED_TITLE = "No tenés el permiso de vender y cobrar";
 export const NOT_PERMITTED_HELP = "Quien administra los roles te lo puede dar en el backoffice.";
