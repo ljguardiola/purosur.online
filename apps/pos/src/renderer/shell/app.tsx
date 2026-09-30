@@ -42,6 +42,12 @@ export function App({ core }: { core: CoreClient }) {
     if (outcome.kind === "signed_in") {
       setPerson(outcome.person);
     }
+    if (outcome.kind === "cash_session_opened_by_another") {
+      await core.cashSession().then(
+        (session) => setCashSession(stateOf(session)),
+        () => {},
+      );
+    }
     return outcome;
   }
 

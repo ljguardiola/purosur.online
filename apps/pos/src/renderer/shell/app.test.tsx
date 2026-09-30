@@ -434,6 +434,56 @@ describe("App", () => {
       .not.toBeInTheDocument();
   });
 
+  it("shows the cash session another person opened when the core refuses a sign-in for it", async () => {
+    let answers = 0;
+    const { core } = coreAnswering(
+      true,
+      { kind: "enrolled" },
+      { kind: "cash_session_opened_by_another" },
+      {
+        cashSession: async () => {
+          answers += 1;
+          return answers === 1 ? null : GRACE_SESSION;
+        },
+      },
+    );
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+
+    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+
+    await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("navigation").getByText("Grace")).toBeVisible();
+  });
+
+  it("still says the cash session is open when the core cannot tell which one after refusing a sign-in", async () => {
+    let answers = 0;
+    const { core } = coreAnswering(
+      true,
+      { kind: "enrolled" },
+      { kind: "cash_session_opened_by_another" },
+      {
+        cashSession: async () => {
+          answers += 1;
+          if (answers === 1) {
+            return null;
+          }
+          throw new Error("the core connection was replaced");
+        },
+      },
+    );
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+
+    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+
+    await expect.element(screen.getByText("La caja está abierta")).toBeVisible();
+  });
+
   it("stays on the enrollment screen when the code doesn't work", async () => {
     const screen = await render(
       <App core={coreAnswering(false, { kind: "code_rejected" }).core} />,
