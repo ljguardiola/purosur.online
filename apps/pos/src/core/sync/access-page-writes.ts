@@ -8,8 +8,8 @@ type ChangeOf<TEntity extends SyncChange["entity"]> = Extract<SyncChange, { enti
 // Every save is guarded by the row's version, so a version the register already has, or an older
 // one delivered late, never overwrites it, and nothing is ever deleted. A user left behind by a
 // change of installation is brought back only by its own version, which the cloud never serves
-// again once it removed that user. The PIN hash is turned into
-// a verifier on its way in and is not kept.
+// again once it removed that user. The PIN hash is turned into a verifier on its way in and is not
+// kept.
 export function prepareAccessPageWrites(database: LocalDatabase, pepper: string | undefined) {
   const saveUser = database.prepare(
     `INSERT INTO users (id, first_name, role_id, salt, active, version, removed)
