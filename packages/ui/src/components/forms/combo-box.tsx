@@ -96,6 +96,11 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
   const { contains } = useFilter({ sensitivity: "base" });
   const chosen = options.find((option) => option.value === value);
   const [inputValue, setInputValue] = useState(chosen?.label ?? "");
+  const [shownValue, setShownValue] = useState(value);
+  if (value !== shownValue) {
+    setShownValue(value);
+    setInputValue(chosen?.label ?? "");
+  }
 
   // Showing the chosen option's own label is not a search: the whole list stays available.
   const searching = inputValue !== chosen?.label;
@@ -120,12 +125,17 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
     <AriaComboBox
       items={visibleOptions}
       selectedKey={value}
+      // With the input text controlled too, react-aria hands every commit and revert (Escape, Enter
+      // with nothing highlighted, leaving the field) back here. It reports no key when the chosen
+      // option is outside the narrowed list it holds, so the label comes from every option instead.
       onSelectionChange={(key) => {
-        if (isOptionValue(key, options)) {
-          onChange(key);
+        const picked = isOptionValue(key, options) ? key : value;
+        setInputValue(options.find((option) => option.value === picked)?.label ?? "");
+        if (picked !== null && picked !== value) {
+          onChange(picked);
         }
       }}
-      defaultInputValue={chosen?.label ?? ""}
+      inputValue={inputValue}
       onInputChange={setInputValue}
       menuTrigger="focus"
       allowsEmptyCollection

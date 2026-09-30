@@ -83,6 +83,14 @@ test("names the input with the label and shows the chosen option's label as its 
   expect(inputElement(screen).value).toBe("Café molido");
 });
 
+test("shows the new chosen option's label when the caller changes the value", async () => {
+  const screen = await render(<ComboBox {...baseProps({ value: "cafe" })} />);
+
+  await screen.rerender(<ComboBox {...baseProps({ value: "miel" })} />);
+
+  await expect.poll(() => inputElement(screen).value).toBe("Miel de abeja");
+});
+
 test("shows the placeholder while nothing is chosen", async () => {
   const screen = await render(<ComboBox {...baseProps({ placeholder: "Elegí un producto" })} />);
 
@@ -209,6 +217,30 @@ test("puts the chosen label back when the typed text is abandoned", async () => 
 
   await input(screen).fill("mie");
   await userEvent.tab();
+
+  await expect.poll(() => inputElement(screen).value).toBe("Café molido");
+  expect(onChange).not.toHaveBeenCalled();
+});
+
+test("puts the chosen label back, without reporting a change, on Escape after typing text that hides it", async () => {
+  const onChange = vi.fn();
+  const screen = await render(<Harness value="cafe" onPick={onChange} />);
+
+  await input(screen).fill("mie");
+  await expect.poll(() => optionNames(screen)).toEqual(["Miel de abeja"]);
+  await userEvent.keyboard("{Escape}");
+
+  await expect.poll(() => inputElement(screen).value).toBe("Café molido");
+  expect(onChange).not.toHaveBeenCalled();
+});
+
+test("puts the chosen label back, without reporting a change, on Enter with no option highlighted after typing text that hides it", async () => {
+  const onChange = vi.fn();
+  const screen = await render(<Harness value="cafe" onPick={onChange} />);
+
+  await input(screen).fill("mie");
+  await expect.poll(() => optionNames(screen)).toEqual(["Miel de abeja"]);
+  await userEvent.keyboard("{Enter}");
 
   await expect.poll(() => inputElement(screen).value).toBe("Café molido");
   expect(onChange).not.toHaveBeenCalled();
