@@ -5,11 +5,13 @@ import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
+import { defaultClientConditions, defaultServerConditions } from "vite";
 import { configDefaults, defineConfig } from "vitest/config";
 import {
   ROOT_SLOW_TEST_THRESHOLD,
   SlowTestsReporter,
 } from "./.github/scripts/slow-tests-reporter.mjs";
+import { withoutPackageOutput } from "./.github/scripts/without-package-output.mjs";
 
 const CATALOG_VISUAL_WS_ENDPOINT_ENV = "CATALOG_VISUAL_BROWSER_WS_ENDPOINT";
 
@@ -35,33 +37,20 @@ function compiledReactProject() {
 }
 
 export default defineConfig({
+  plugins: [withoutPackageOutput(r("."))],
   resolve: {
     dedupe: ["react", "react-dom"],
-    alias: [
-      { find: /^@purosur\/domain$/, replacement: r("./packages/domain/src/index.ts") },
-      {
-        find: /^@purosur\/domain\/catalog\/use-cases$/,
-        replacement: r("./packages/domain/src/catalog/use-cases/index.ts"),
-      },
-      {
-        find: /^@purosur\/domain\/pricing\/use-cases$/,
-        replacement: r("./packages/domain/src/pricing/use-cases/index.ts"),
-      },
-      {
-        find: /^@purosur\/domain\/stock\/use-cases$/,
-        replacement: r("./packages/domain/src/stock/use-cases/index.ts"),
-      },
-      {
-        find: /^@purosur\/domain\/register\/use-cases$/,
-        replacement: r("./packages/domain/src/register/use-cases/index.ts"),
-      },
-      {
-        find: /^@purosur\/domain\/sync\/use-cases$/,
-        replacement: r("./packages/domain/src/sync/use-cases/index.ts"),
-      },
-      { find: /^@purosur\/contracts$/, replacement: r("./packages/contracts/src/index.ts") },
-      { find: /^@purosur\/ui$/, replacement: r("./packages/ui/src/index.ts") },
-    ],
+    conditions: ["@purosur/source", ...defaultClientConditions],
+  },
+  ssr: {
+    resolve: {
+      // Vitest's own default leaves out `module`, which some dependencies point at ES modules Node
+      // cannot load (extensionless relative imports); replacing the conditions must keep that out.
+      conditions: [
+        "@purosur/source",
+        ...defaultServerConditions.filter((condition) => condition !== "module"),
+      ],
+    },
   },
   test: {
     passWithNoTests: true,

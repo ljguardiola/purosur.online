@@ -3,9 +3,9 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import reactCompiler from "babel-plugin-react-compiler";
 import { defineConfig } from "electron-vite";
-import type { Plugin } from "vite";
+import { defaultClientConditions, defaultServerConditions, type Plugin } from "vite";
+import { withoutPackageOutput } from "../../.github/scripts/without-package-output.mjs";
 import { buildContentSecurityPolicy } from "./src/main/content-security-policy";
-import { withoutPackageOutput } from "./src/without-package-output";
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
@@ -33,18 +33,7 @@ function contentSecurityPolicyMeta(): Plugin {
 export default defineConfig({
   main: {
     plugins: [withoutPackageOutput(repoRoot)],
-    resolve: {
-      // Contracts' and domain's package.json point `main` at their compiled dist/, which the register's
-      // build never produces, so it reads their source instead.
-      alias: [
-        { find: /^@purosur\/contracts$/, replacement: r("../../packages/contracts/src/index.ts") },
-        { find: /^@purosur\/domain$/, replacement: r("../../packages/domain/src/index.ts") },
-        {
-          find: /^@purosur\/domain\/sync\/use-cases$/,
-          replacement: r("../../packages/domain/src/sync/use-cases/index.ts"),
-        },
-      ],
-    },
+    ssr: { resolve: { conditions: ["@purosur/source", ...defaultServerConditions] } },
     build: {
       // electron-vite externalizes every package.json dependency by default, which would leave
       // workspace packages as bare imports at runtime; only `electron`, Node built-ins and
@@ -72,13 +61,7 @@ export default defineConfig({
   },
   renderer: {
     root: "src/renderer",
-    resolve: {
-      alias: [
-        { find: /^@purosur\/contracts$/, replacement: r("../../packages/contracts/src/index.ts") },
-        { find: /^@purosur\/domain$/, replacement: r("../../packages/domain/src/index.ts") },
-        { find: /^@purosur\/ui$/, replacement: r("../../packages/ui/src/index.ts") },
-      ],
-    },
+    resolve: { conditions: ["@purosur/source", ...defaultClientConditions] },
     plugins: [
       withoutPackageOutput(repoRoot),
       react({ babel: { plugins: [reactCompiler] } }),

@@ -1,18 +1,17 @@
 import { relative, sep } from "node:path";
-import type { Plugin } from "vite";
 
-export function withoutPackageOutput(repoRoot: string) {
+export function withoutPackageOutput(repoRoot) {
   return {
     name: "purosur:without-package-output",
     enforce: "pre",
-    load(id: string): undefined {
+    load(id) {
       const path = relative(repoRoot, id).split(sep).join("/");
       if (/^packages\/[^/]+\/dist\//.test(path)) {
         throw new Error(
-          `${path} is a workspace package's compiled output, which a clean checkout does not have; the register must build from the package's source`,
+          `${path} is a workspace package's compiled output, which a clean checkout does not have; workspace packages load from their source`,
         );
       }
       return undefined;
     },
-  } satisfies Plugin;
+  };
 }

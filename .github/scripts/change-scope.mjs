@@ -63,6 +63,7 @@ const CATALOG_INPUT_FILES = new Set([
   "tsconfig.json",
   ".github/workflows/verify.yml",
   ".github/scripts/slow-tests-reporter.mjs",
+  ".github/scripts/without-package-output.mjs",
 ]);
 
 export function isCatalogInput(path) {
