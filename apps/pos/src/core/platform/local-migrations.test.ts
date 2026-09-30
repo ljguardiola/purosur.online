@@ -313,11 +313,15 @@ describe("the register's local migrations", () => {
     database.close();
   });
 
-  it("add sales and the installation's revocation over the cash sessions and pull cursor a register already holds", () => {
+  it("add sales and the installation's revocation over the cash sessions, discounts and pull cursor a register already holds", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
       const path = join(folder, "register.sqlite");
-      const previous = LOCAL_MIGRATIONS.slice(0, 7);
+      const previous = LOCAL_MIGRATIONS.slice(0, 9);
+      expect(previous.at(-1)?.name).toBe("0008_buy_n_pay_m_discounts");
+      expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
+        "0009_sales",
+      ]);
       const before = openLocalDatabase(path, previous);
       before
         .prepare("UPDATE sync_state SET pull_cursor = 15, device_id = 'device-a' WHERE id = 1")
@@ -328,10 +332,20 @@ describe("the register's local migrations", () => {
            VALUES ('s1', 'r1', 'device-a', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN')`,
         )
         .run();
+      before
+        .prepare(
+          `INSERT INTO discounts (
+             id, name, kind, percent, buy_qty, pay_qty, target_kind, target_id, valid_from, valid_to, weekdays, active, version
+           ) VALUES ('d1', '3x2', 'BUY_N_PAY_M', NULL, 3, 2, 'TAG', 't', '2026-10-01', '2026-10-31', '[]', 1, 2)`,
+        )
+        .run();
       before.close();
 
       const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
 
+      expect(after.prepare("SELECT id, buy_qty, pay_qty FROM discounts").all()).toEqual([
+        { id: "d1", buy_qty: 3, pay_qty: 2 },
+      ]);
       expect(
         after
           .prepare("SELECT pull_cursor, device_id, installation_revoked_at FROM sync_state")
