@@ -113,14 +113,16 @@ describe("readDeviceCredentialsRequest", () => {
       { ...CREDENTIALS.keys, contingency_ticket_key: { version: 1, key: null } },
     ],
     ["an outbox-chain key that isn't a string", { ...CREDENTIALS.keys, outbox_chain_key: 7 }],
-  ])("reads nothing from credentials with %s", (_case, keys) => {
+  ])("reads credentials with %s as holding no keys, so they are fetched again", (_case, keys) => {
+    const { keys: _unreadable, ...withoutKeys } = CREDENTIALS;
+
     expect(
       readDeviceCredentialsRequest({
         type: "store-device-credentials",
         request_id: "r1",
         credentials: { ...CREDENTIALS, keys },
       }),
-    ).toBeUndefined();
+    ).toEqual({ type: "store-device-credentials", request_id: "r1", credentials: withoutKeys });
   });
 
   it("keeps only the key fields it knows", () => {

@@ -89,11 +89,10 @@ export function readDeviceCredentials(value: unknown): DeviceCredentials | undef
   if (token_received_at !== undefined) {
     credentials.token_received_at = token_received_at;
   }
-  if (keys === undefined) {
-    return credentials;
-  }
+  // Unreadable keys are left out rather than the whole credentials, since the token alone gets
+  // them handed over again at its next rotation.
   const installationKeys = readInstallationKeys(keys);
-  return installationKeys === undefined ? undefined : { ...credentials, keys: installationKeys };
+  return installationKeys === undefined ? credentials : { ...credentials, keys: installationKeys };
 }
 
 export function readDeviceCredentialsRequest(
