@@ -22,5 +22,6 @@ export function applyRedeemedPin(
          ON CONFLICT (user_id) DO UPDATE SET verifier = excluded.verifier`,
       )
       .run({ user_id, verifier: derivePinVerifier(pepper, pin_hash) });
+    database.prepare("DELETE FROM pin_sign_in_failures WHERE user_id = ?").run(user_id);
   })();
 }

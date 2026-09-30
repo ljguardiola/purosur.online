@@ -1,18 +1,31 @@
 import type { SignInOutcome, SignInUser } from "@purosur/contracts";
 import type { Icon } from "@purosur/ui";
-import { Button, EmptyState, InlineNotice, LoadFailure, LoadingPlaceholder } from "@purosur/ui";
+import {
+  Button,
+  EmptyState,
+  InlineNotice,
+  LoadFailure,
+  LoadingPlaceholder,
+  plural,
+} from "@purosur/ui";
 import { ArrowRight, KeyRound, ShieldX, TriangleAlert, UsersRound, UserX } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
+import { useCountdown } from "../platform/use-countdown";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
 import { ScreenLink } from "../shell/screen-link";
 import { SessionEyebrow } from "../shell/session-eyebrow";
 import { PinField } from "./pin-field";
+import { SignInLockout } from "./sign-in-lockout";
 import { UserPicker } from "./user-picker";
 
 type Notice = { icon: Icon; title: string; description: string };
 
-type Refusal = Exclude<SignInOutcome, { kind: "signed_in" }>;
+type Refusal =
+  | Exclude<SignInOutcome, { kind: "signed_in" | "locked" }>
+  | { kind: "locked"; firstName: string; consecutiveFailures: number };
+
+type Wait = { seconds: number };
 
 type LoadedUsers =
   | { status: "loading" }
@@ -25,14 +38,38 @@ const UNAVAILABLE_NOTICE: Notice = {
   description: "Volvé a intentarlo en unos segundos.",
 };
 
-function noticeFor(refusal: Refusal): Notice {
+function attemptsLeftText(attemptsLeft: number): string {
+  const attempts = plural(attemptsLeft, {
+    one: "Queda 1 intento",
+    other: `Quedan ${attemptsLeft} intentos`,
+  });
+  return `${attempts} antes de que el usuario se bloquee.`;
+}
+
+function waitDescription(secondsLeft: number, attemptsLeft: number): string {
+  const instruction =
+    secondsLeft > 0
+      ? `Esperá ${plural(secondsLeft, { one: "1 segundo", other: `${secondsLeft} segundos` })} para volver a intentar.`
+      : "Revisá el PIN y volvé a escribirlo.";
+  return `${instruction} ${attemptsLeftText(attemptsLeft)}`;
+}
+
+function noticeFor(refusal: Refusal, secondsLeft: number): Notice | undefined {
   switch (refusal.kind) {
     case "wrong_pin":
       return {
         icon: <ShieldX />,
         title: "PIN incorrecto",
-        description: "Revisá el PIN y volvé a escribirlo.",
+        description: waitDescription(secondsLeft, refusal.attempts_left),
       };
+    case "rate_limited":
+      return secondsLeft === 0
+        ? undefined
+        : {
+            icon: <ShieldX />,
+            title: "Todavía no se puede volver a intentar",
+            description: waitDescription(secondsLeft, refusal.attempts_left),
+          };
     case "no_register_permission":
       return {
         icon: <UserX />,
@@ -40,6 +77,8 @@ function noticeFor(refusal: Refusal): Notice {
         description:
           "Tu usuario no tiene ningún permiso para usar la caja. Pedile a quien administra los usuarios que te asigne uno.",
       };
+    case "locked":
+      return undefined;
     case "unavailable":
       return UNAVAILABLE_NOTICE;
   }
@@ -60,11 +99,16 @@ function SignInPanel({
   const headingId = useId();
   const noticeId = useId();
   const pinInput = useRef<HTMLInputElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const wasLocked = useRef(false);
   const [loaded, setLoaded] = useState<LoadedUsers>({ status: "loading" });
-  const [chosen, setChosen] = useState<string | null>(null);
+  const [chosen, setChosen] = useState<SignInUser | null>(null);
   const [pin, setPin] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [refusal, setRefusal] = useState<Refusal>();
+  const [wait, setWait] = useState<Wait>();
+  const secondsLeft = useCountdown(wait);
+  const locked = refusal?.kind === "locked";
 
   useEffect(() => {
     let current = true;
@@ -97,49 +141,88 @@ function SignInPanel({
     }
   }, [submitting, refusal]);
 
-  function choose(userId: string) {
-    setChosen(userId);
+  useEffect(() => {
+    if (locked !== wasLocked.current) {
+      wasLocked.current = locked;
+      heading.current?.focus();
+    }
+  }, [locked]);
+
+  function reset(user: SignInUser | null) {
+    setChosen(user);
     setPin("");
     setRefusal(undefined);
+    setWait(undefined);
   }
 
   function type(digits: string) {
     setPin(digits);
-    setRefusal(undefined);
+    if (secondsLeft === 0) {
+      setRefusal(undefined);
+    }
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (submitting || chosen === null || pin === "") {
+    if (submitting || secondsLeft > 0 || chosen === null || pin === "") {
       return;
     }
     setRefusal(undefined);
     setSubmitting(true);
-    const outcome = await signIn(chosen, pin).catch((): SignInOutcome => ({ kind: "unavailable" }));
+    const outcome = await signIn(chosen.id, pin).catch(
+      (): SignInOutcome => ({ kind: "unavailable" }),
+    );
     setSubmitting(false);
     if (outcome.kind === "unavailable") {
       setRefusal(outcome);
       return;
     }
     setPin("");
-    if (outcome.kind !== "signed_in") {
+    if (outcome.kind === "locked") {
+      setRefusal({
+        kind: "locked",
+        firstName: chosen.first_name,
+        consecutiveFailures: outcome.consecutive_failures,
+      });
+    } else if (outcome.kind !== "signed_in") {
       setRefusal(outcome);
+    }
+    if (
+      (outcome.kind === "wrong_pin" || outcome.kind === "rate_limited") &&
+      outcome.retry_after_seconds > 0
+    ) {
+      setWait({ seconds: outcome.retry_after_seconds });
     }
   }
 
-  const notice = refusal === undefined ? undefined : noticeFor(refusal);
-  const pinRefused = refusal?.kind === "wrong_pin" || refusal?.kind === "no_register_permission";
+  const notice = refusal === undefined ? undefined : noticeFor(refusal, secondsLeft);
+  const pinRefused = notice !== undefined && refusal?.kind !== "unavailable";
 
   return (
     <main className="flex w-full max-w-110 flex-col gap-6">
       <div className="flex flex-col gap-1.5">
         <SessionEyebrow registerName={registerName} />
-        <h1 id={headingId} className="text-display text-text-accent">
-          ¿Quién abre la caja?
+        <h1
+          id={headingId}
+          ref={heading}
+          tabIndex={-1}
+          className="text-display text-text-accent outline-none"
+        >
+          {refusal?.kind === "locked"
+            ? `${refusal.firstName} está bloqueado`
+            : "¿Quién abre la caja?"}
         </h1>
       </div>
-      {loaded.status === "loading" ? <LoadingPlaceholder variant="list" items={3} /> : null}
-      {loaded.status === "failed" ? (
+      {refusal?.kind === "locked" ? (
+        <SignInLockout
+          consecutiveFailures={refusal.consecutiveFailures}
+          onBack={() => reset(null)}
+        />
+      ) : null}
+      {!locked && loaded.status === "loading" ? (
+        <LoadingPlaceholder variant="list" items={3} />
+      ) : null}
+      {!locked && loaded.status === "failed" ? (
         <LoadFailure
           icon={<TriangleAlert />}
           title="No se pudieron cargar los usuarios"
@@ -147,7 +230,7 @@ function SignInPanel({
           onRetry={onRetryLoading}
         />
       ) : null}
-      {loaded.status === "loaded" && loaded.users.length === 0 ? (
+      {!locked && loaded.status === "loaded" && loaded.users.length === 0 ? (
         <EmptyState
           variant="blank"
           icon={<UsersRound />}
@@ -155,12 +238,12 @@ function SignInPanel({
           description="Cuando alguien elija su PIN con un código, va a aparecer acá."
         />
       ) : null}
-      {loaded.status === "loaded" && loaded.users.length > 0 ? (
+      {!locked && loaded.status === "loaded" && loaded.users.length > 0 ? (
         <form className="flex flex-col gap-4" noValidate onSubmit={submit}>
           <UserPicker
             users={loaded.users}
-            value={chosen}
-            onChange={choose}
+            value={chosen?.id ?? null}
+            onChange={reset}
             labelledBy={headingId}
             disabled={submitting}
           />
@@ -185,17 +268,19 @@ function SignInPanel({
             type="submit"
             fullWidth
             icon={<ArrowRight />}
-            disabled={submitting || chosen === null || pin === ""}
+            disabled={submitting || secondsLeft > 0 || chosen === null || pin === ""}
           >
-            Entrar
+            {secondsLeft > 0 ? `Entrar en ${secondsLeft} s` : "Entrar"}
           </Button>
         </form>
       ) : null}
-      <ScreenLink
-        to="/pin-code-redemption"
-        icon={<KeyRound />}
-        label="Tengo un código para cambiar el PIN"
-      />
+      {locked ? null : (
+        <ScreenLink
+          to="/pin-code-redemption"
+          icon={<KeyRound />}
+          label="Tengo un código para cambiar el PIN"
+        />
+      )}
     </main>
   );
 }

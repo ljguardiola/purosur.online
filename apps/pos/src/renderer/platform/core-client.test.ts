@@ -96,10 +96,10 @@ describe("createCoreClient", () => {
     port.answer({
       type: "sign-in-result",
       request_id: "request-1",
-      outcome: { kind: "wrong_pin" },
+      outcome: { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 7 },
     });
 
-    expect(await outcome).toEqual({ kind: "wrong_pin" });
+    expect(await outcome).toEqual({ kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 7 });
     expect(port.posted).toEqual([
       { type: "sign-in", request_id: "request-1", user_id: "u1", pin: "0042" },
     ]);

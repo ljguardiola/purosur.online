@@ -264,13 +264,33 @@ describe("sign-in answers", () => {
       person: { first_name: "Ada", permission_keys: ["sell_and_charge", "void_sale"] },
     },
     { kind: "signed_in", person: { first_name: "Ada", permission_keys: [] } },
-    { kind: "wrong_pin" },
+    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 7 },
+    { kind: "wrong_pin", retry_after_seconds: 30, attempts_left: 1 },
+    { kind: "rate_limited", retry_after_seconds: 4, attempts_left: 5 },
+    { kind: "locked", consecutive_failures: 8 },
     { kind: "no_register_permission" },
     { kind: "unavailable" },
   ])("accepts the sign-in result $kind", (outcome) => {
     const message = { type: "sign-in-result", request_id: REQUEST_ID, outcome };
 
     expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a locked result that counts a different number of failures", () => {
+    const outcome = { kind: "locked", consecutive_failures: 7 };
+    const message = { type: "sign-in-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("rejects a locked result without the failures that locked the person", () => {
+    const message = {
+      type: "sign-in-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "locked" },
+    };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 
   it("does not let a signed-in result carry a role", () => {
@@ -290,6 +310,19 @@ describe("sign-in answers", () => {
     { kind: "signed_in" },
     { kind: "signed_in", person: { first_name: "Ada" } },
     { kind: "x" },
+    { kind: "wrong_pin" },
+    { kind: "wrong_pin", retry_after_seconds: 0 },
+    { kind: "wrong_pin", attempts_left: 7 },
+    { kind: "wrong_pin", retry_after_seconds: -1, attempts_left: 7 },
+    { kind: "wrong_pin", retry_after_seconds: 31, attempts_left: 7 },
+    { kind: "wrong_pin", retry_after_seconds: 1.5, attempts_left: 7 },
+    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 0 },
+    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 8 },
+    { kind: "rate_limited" },
+    { kind: "rate_limited", retry_after_seconds: 0, attempts_left: 5 },
+    { kind: "rate_limited", retry_after_seconds: 31, attempts_left: 5 },
+    { kind: "rate_limited", retry_after_seconds: 4, attempts_left: 0 },
+    { kind: "rate_limited", retry_after_seconds: 4, attempts_left: 8 },
   ])("rejects a sign-in result it does not know: %j", (outcome) => {
     const message = { type: "sign-in-result", request_id: REQUEST_ID, outcome };
 

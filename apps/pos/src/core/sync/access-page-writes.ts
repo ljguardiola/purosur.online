@@ -9,7 +9,8 @@ type ChangeOf<TEntity extends SyncChange["entity"]> = Extract<SyncChange, { enti
 // one delivered late, never overwrites it, and nothing is ever deleted. A user left behind by a
 // change of installation is brought back only by its own version, which the cloud never serves
 // again once it removed that user. The PIN hash is turned into a verifier on its way in and is not
-// kept.
+// kept. The wrong PINs counted against a user are cleared only by a verifier that differs from the
+// one held, so a version that changes just a role or a name does not lift a lockout.
 export function prepareAccessPageWrites(database: LocalDatabase, pepper: string | undefined) {
   const saveUser = database.prepare(
     `INSERT INTO users (id, first_name, role_id, salt, active, version, removed)
@@ -28,7 +29,11 @@ export function prepareAccessPageWrites(database: LocalDatabase, pepper: string 
     `INSERT INTO pin_verifiers (user_id, verifier) VALUES (@user_id, @verifier)
      ON CONFLICT (user_id) DO UPDATE SET verifier = excluded.verifier`,
   );
+  const readVerifier = database.prepare<[string], { verifier: string }>(
+    "SELECT verifier FROM pin_verifiers WHERE user_id = ?",
+  );
   const deleteVerifier = database.prepare("DELETE FROM pin_verifiers WHERE user_id = ?");
+  const clearFailures = database.prepare("DELETE FROM pin_sign_in_failures WHERE user_id = ?");
   const saveRole = database.prepare(
     `INSERT INTO roles (id, name, is_administrator, version, removed)
      VALUES (@id, @name, @is_administrator, @version, 0)
@@ -75,9 +80,14 @@ export function prepareAccessPageWrites(database: LocalDatabase, pepper: string 
       }
       if (row.pin_hash === null) {
         deleteVerifier.run(entity_id);
-      } else {
-        saveVerifier.run({ user_id: entity_id, verifier: derivePinVerifier(pepper, row.pin_hash) });
+        clearFailures.run(entity_id);
+        return;
       }
+      const verifier = derivePinVerifier(pepper, row.pin_hash);
+      if (readVerifier.get(entity_id)?.verifier !== verifier) {
+        clearFailures.run(entity_id);
+      }
+      saveVerifier.run({ user_id: entity_id, verifier });
     },
 
     role({ entity_id, row }: ChangeOf<"role">): void {
@@ -103,6 +113,7 @@ export function prepareAccessPageWrites(database: LocalDatabase, pepper: string 
       if (removed_entity === "user") {
         if (removeUser.run({ id: entity_id, version }).changes > 0) {
           deleteVerifier.run(entity_id);
+          clearFailures.run(entity_id);
         }
         return;
       }

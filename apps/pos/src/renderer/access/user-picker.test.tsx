@@ -26,7 +26,7 @@ function Harness({
       <UserPicker
         users={USERS}
         value={chosen}
-        onChange={setChosen}
+        onChange={(user) => setChosen(user.id)}
         labelledBy={headingId}
         disabled={disabled}
       />
