@@ -15,7 +15,11 @@ import type { SignInStore } from "./sqlite-sign-in-store";
 export interface SignInDeps {
   store: Pick<
     SignInStore,
-    "signInRecord" | "pinSignInFailures" | "recordPinSignInFailure" | "clearPinSignInFailures"
+    | "signInRecord"
+    | "pinSignInFailures"
+    | "recordPinSignInFailure"
+    | "withdrawPinSignInFailure"
+    | "clearPinSignInFailures"
   >;
   readPepper: () => Promise<string | undefined>;
   hashPin: (pin: string, salt: Uint8Array) => Promise<string>;
@@ -63,7 +67,14 @@ export async function signIn(
   // Counted before hashing, with no await since the check above, so an attempt in flight
   // cannot let another one for the same person through the wait or the lockout.
   const failed = deps.store.recordPinSignInFailure(userId, deps.now());
-  const verifier = derivePinVerifier(pepper, await deps.hashPin(pin, salt));
+  let pinHash: string;
+  try {
+    pinHash = await deps.hashPin(pin, salt);
+  } catch (error) {
+    deps.store.withdrawPinSignInFailure(userId);
+    throw error;
+  }
+  const verifier = derivePinVerifier(pepper, pinHash);
   if (!sameText(verifier, record.verifier)) {
     if (isLockedOutOfPinSignIn(failed.consecutiveFailures)) {
       return { kind: "locked" };

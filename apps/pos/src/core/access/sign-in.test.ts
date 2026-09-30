@@ -53,6 +53,20 @@ function deps(options: Options = {}) {
         failures.set(userId, next);
         return next;
       },
+      withdrawPinSignInFailure: (userId) => {
+        const current = failures.get(userId);
+        if (current === undefined) {
+          return;
+        }
+        if (current.consecutiveFailures === 1) {
+          failures.delete(userId);
+        } else {
+          failures.set(userId, {
+            ...current,
+            consecutiveFailures: current.consecutiveFailures - 1,
+          });
+        }
+      },
       clearPinSignInFailures: (userId) => {
         failures.delete(userId);
       },
@@ -338,6 +352,42 @@ describe("signing in after wrong PINs", () => {
     expect(await attempts).toEqual([{ kind: "locked" }, { kind: "locked" }]);
     expect(hashed).toHaveLength(1);
     expect(failures.get("u1")?.consecutiveFailures).toBe(8);
+  });
+
+  it("withdraws the attempt it counted when hashing the PIN fails, and fails", async () => {
+    const failure = new Error("hashing failed");
+    const { built, failures } = deps({
+      failures: { u1: failuresAt(2) },
+      hashPin: async () => {
+        throw failure;
+      },
+    });
+
+    await expect(signIn(built, "u1", "1234")).rejects.toBe(failure);
+    expect(failures.get("u1")?.consecutiveFailures).toBe(2);
+  });
+
+  it("does not lock out a person one wrong PIN from the lockout when hashing the PIN fails", async () => {
+    const { built, failures } = deps({
+      failures: { u1: failuresAt(7) },
+      hashPin: async () => {
+        throw new Error("hashing failed");
+      },
+    });
+
+    await expect(signIn(built, "u1", "1234")).rejects.toThrow("hashing failed");
+    expect(failures.get("u1")?.consecutiveFailures).toBe(7);
+  });
+
+  it("leaves no failures behind when hashing the first attempt's PIN fails", async () => {
+    const { built, failures } = deps({
+      hashPin: async () => {
+        throw new Error("hashing failed");
+      },
+    });
+
+    await expect(signIn(built, "u1", "1234")).rejects.toThrow("hashing failed");
+    expect(failures.has("u1")).toBe(false);
   });
 
   it("counts nothing for a user who cannot sign in", async () => {

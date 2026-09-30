@@ -19,6 +19,7 @@ export interface SignInStore {
   signInRecord(userId: string): SignInRecord | undefined;
   pinSignInFailures(userId: string): PinSignInFailures | undefined;
   recordPinSignInFailure(userId: string, at: Date): PinSignInFailures;
+  withdrawPinSignInFailure(userId: string): void;
   clearPinSignInFailures(userId: string): void;
 }
 
@@ -116,6 +117,19 @@ export class SqliteSignInStore implements SignInStore {
       throw new Error("the PIN sign-in failure was not recorded");
     }
     return failuresOf(row);
+  }
+
+  withdrawPinSignInFailure(userId: string): void {
+    this.database.transaction(() => {
+      this.database
+        .prepare("DELETE FROM pin_sign_in_failures WHERE user_id = ? AND consecutive_failures = 1")
+        .run(userId);
+      this.database
+        .prepare(
+          "UPDATE pin_sign_in_failures SET consecutive_failures = consecutive_failures - 1 WHERE user_id = ?",
+        )
+        .run(userId);
+    })();
   }
 
   clearPinSignInFailures(userId: string): void {

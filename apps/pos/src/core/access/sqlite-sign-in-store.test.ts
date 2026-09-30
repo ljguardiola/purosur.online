@@ -230,6 +230,37 @@ describe("a user's PIN sign-in failures", () => {
     expect(store.recordPinSignInFailure("u1", SECOND).consecutiveFailures).toBe(1);
   });
 
+  it("give back one withdrawn failure, keeping the others", () => {
+    addUser({ id: "u1" });
+    store.recordPinSignInFailure("u1", FIRST);
+    store.recordPinSignInFailure("u1", SECOND);
+
+    store.withdrawPinSignInFailure("u1");
+
+    expect(store.pinSignInFailures("u1")?.consecutiveFailures).toBe(1);
+  });
+
+  it("are none once their only failure is withdrawn", () => {
+    addUser({ id: "u1" });
+    store.recordPinSignInFailure("u1", FIRST);
+
+    store.withdrawPinSignInFailure("u1");
+
+    expect(store.pinSignInFailures("u1")).toBeUndefined();
+    expect(store.recordPinSignInFailure("u1", SECOND).consecutiveFailures).toBe(1);
+  });
+
+  it("stay none when a failure is withdrawn from a user who has none", () => {
+    addUser({ id: "u1" });
+    addUser({ id: "u2" });
+    store.recordPinSignInFailure("u2", FIRST);
+
+    store.withdrawPinSignInFailure("u1");
+
+    expect(store.pinSignInFailures("u1")).toBeUndefined();
+    expect(store.pinSignInFailures("u2")?.consecutiveFailures).toBe(1);
+  });
+
   it("survive the register restarting", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-sign-in-failures-"));
     try {
