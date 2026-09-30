@@ -6,7 +6,7 @@ import { useId } from "react";
 export type UserPickerProps = {
   users: readonly SignInUser[];
   value: string | null;
-  onChange: (userId: string) => void;
+  onChange: (user: SignInUser) => void;
   labelledBy: string;
   disabled?: boolean;
 };
@@ -45,7 +45,7 @@ export function UserPicker({
             value={user.id}
             checked={value === user.id}
             disabled={disabled}
-            onChange={() => onChange(user.id)}
+            onChange={() => onChange(user)}
             className="sr-only"
           />
           <span

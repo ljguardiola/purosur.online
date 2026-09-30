@@ -21,7 +21,9 @@ import { UserPicker } from "./user-picker";
 
 type Notice = { icon: Icon; title: string; description: string };
 
-type Refusal = Exclude<SignInOutcome, { kind: "signed_in" }>;
+type Refusal =
+  | Exclude<SignInOutcome, { kind: "signed_in" | "locked" }>
+  | { kind: "locked"; firstName: string };
 
 type Wait = { seconds: number };
 
@@ -100,7 +102,7 @@ function SignInPanel({
   const heading = useRef<HTMLHeadingElement>(null);
   const wasLocked = useRef(false);
   const [loaded, setLoaded] = useState<LoadedUsers>({ status: "loading" });
-  const [chosen, setChosen] = useState<string | null>(null);
+  const [chosen, setChosen] = useState<SignInUser | null>(null);
   const [pin, setPin] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [refusal, setRefusal] = useState<Refusal>();
@@ -146,8 +148,8 @@ function SignInPanel({
     }
   }, [locked]);
 
-  function reset(userId: string | null) {
-    setChosen(userId);
+  function reset(user: SignInUser | null) {
+    setChosen(user);
     setPin("");
     setRefusal(undefined);
     setWait(undefined);
@@ -167,14 +169,18 @@ function SignInPanel({
     }
     setRefusal(undefined);
     setSubmitting(true);
-    const outcome = await signIn(chosen, pin).catch((): SignInOutcome => ({ kind: "unavailable" }));
+    const outcome = await signIn(chosen.id, pin).catch(
+      (): SignInOutcome => ({ kind: "unavailable" }),
+    );
     setSubmitting(false);
     if (outcome.kind === "unavailable") {
       setRefusal(outcome);
       return;
     }
     setPin("");
-    if (outcome.kind !== "signed_in") {
+    if (outcome.kind === "locked") {
+      setRefusal({ kind: "locked", firstName: chosen.first_name });
+    } else if (outcome.kind !== "signed_in") {
       setRefusal(outcome);
     }
     if (
@@ -187,10 +193,6 @@ function SignInPanel({
 
   const notice = refusal === undefined ? undefined : noticeFor(refusal, secondsLeft);
   const pinRefused = notice !== undefined && refusal?.kind !== "unavailable";
-  const lockedName =
-    loaded.status === "loaded"
-      ? (loaded.users.find((user) => user.id === chosen)?.first_name ?? "Este usuario")
-      : "Este usuario";
 
   return (
     <main className="flex w-full max-w-110 flex-col gap-6">
@@ -202,7 +204,9 @@ function SignInPanel({
           tabIndex={-1}
           className="text-display text-text-accent outline-none"
         >
-          {locked ? `${lockedName} está bloqueado` : "¿Quién abre la caja?"}
+          {refusal?.kind === "locked"
+            ? `${refusal.firstName} está bloqueado`
+            : "¿Quién abre la caja?"}
         </h1>
       </div>
       {locked ? <SignInLockout onBack={() => reset(null)} /> : null}
@@ -229,7 +233,7 @@ function SignInPanel({
         <form className="flex flex-col gap-4" noValidate onSubmit={submit}>
           <UserPicker
             users={loaded.users}
-            value={chosen}
+            value={chosen?.id ?? null}
             onChange={reset}
             labelledBy={headingId}
             disabled={submitting}
