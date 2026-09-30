@@ -54,7 +54,12 @@ import { enroll, generatePepper, installationReportFrom } from "./register/enrol
 import { answerRendererRequest, type RendererRequestDeps } from "./register/renderer-requests";
 import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
-import { currentSaleFor, scanProductFor } from "./sales/sale-requests";
+import {
+  addSearchedProductFor,
+  currentSaleFor,
+  scanProductFor,
+  searchProductsFor,
+} from "./sales/sale-requests";
 import { pullFromCloud, pullResultOf } from "./sync/pull-from-cloud";
 import { createPullSchedule } from "./sync/pull-schedule";
 import { SqliteLocalReplica } from "./sync/sqlite-local-replica";
@@ -376,6 +381,22 @@ const rendererRequestDeps: RendererRequestDeps = {
           scanProductFor(
             { database: localDatabase, gate: actionGate, now: () => new Date(), ids: uuidV7Ids },
             code,
+          ),
+  searchProducts:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (query) =>
+          searchProductsFor(
+            { database: localDatabase, gate: actionGate, now: () => new Date() },
+            query,
+          ),
+  addProduct:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (productId) =>
+          addSearchedProductFor(
+            { database: localDatabase, gate: actionGate, now: () => new Date(), ids: uuidV7Ids },
+            productId,
           ),
   currentSale:
     localDatabase === undefined || actionGate === undefined

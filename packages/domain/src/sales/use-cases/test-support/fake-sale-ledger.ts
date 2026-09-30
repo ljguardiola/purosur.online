@@ -2,12 +2,13 @@ import type { RoleAccess } from "../../../access/index.js";
 import type { SaleWithLines } from "../../model/sale.js";
 import type { ListPrice } from "../../model/sale-line.js";
 import type {
+  CandidatePromotion,
   Clock,
   IdGenerator,
   RegisterIdentity,
   SaleLedger,
   SaleLedgerTransaction,
-  ScannedProduct,
+  SellableProduct,
   SellingSession,
 } from "../sale-ledger.js";
 
@@ -21,9 +22,10 @@ export interface FakeSaleLedgerState {
   identity: RegisterIdentity | undefined;
   revoked: boolean;
   session: SellingSession | undefined;
-  products: ScannedProduct[];
+  products: SellableProduct[];
   barcodes: Record<string, string>;
   prices: FakePrice[];
+  promotionsByProduct: Record<string, CandidatePromotion[]>;
   sales: SaleWithLines[];
 }
 
@@ -32,6 +34,7 @@ export type FakeSaleLedgerWrite = "recordOpenedSale" | "recordSaleLine" | "recor
 export class FakeSaleLedger implements SaleLedger {
   state: FakeSaleLedgerState;
   transactions = 0;
+  promotionReads = 0;
   failOn: FakeSaleLedgerWrite | undefined;
 
   constructor(state: Partial<FakeSaleLedgerState> = {}) {
@@ -43,6 +46,7 @@ export class FakeSaleLedger implements SaleLedger {
       products: [],
       barcodes: {},
       prices: [],
+      promotionsByProduct: {},
       sales: [],
       ...state,
     };
@@ -64,7 +68,18 @@ export class FakeSaleLedger implements SaleLedger {
       registerIdentity: () => working.identity,
       activeProductByBarcode: (code) =>
         working.products.find((product) => product.id === working.barcodes[code]),
+      activeProductById: (productId) =>
+        working.products.find((product) => product.id === productId),
+      searchableProducts: () =>
+        working.products.map((product) => ({
+          ...product,
+          timesSoldHere: completedSalesContaining(working, product.id),
+        })),
       priceAt: (productId, moment) => latestPriceAt(working.prices, productId, moment),
+      promotionsTargeting: (productId) => {
+        this.promotionReads += 1;
+        return structuredClone(working.promotionsByProduct[productId] ?? []);
+      },
       recordOpenedSale: (sale) => {
         this.failIfAsked("recordOpenedSale");
         working.sales.push({ ...sale, lines: [] });
@@ -78,7 +93,13 @@ export class FakeSaleLedger implements SaleLedger {
         for (const sale of working.sales) {
           sale.lines = sale.lines.map((stored) =>
             stored.id === line.id
-              ? { ...stored, quantity: line.quantity, lineTotal: line.lineTotal }
+              ? {
+                  ...stored,
+                  quantity: line.quantity,
+                  promotionId: line.promotionId,
+                  discountAmount: line.discountAmount,
+                  lineTotal: line.lineTotal,
+                }
               : stored,
           );
         }
@@ -93,6 +114,15 @@ export class FakeSaleLedger implements SaleLedger {
       throw new Error(`${write} failed`);
     }
   }
+}
+
+function completedSalesContaining(state: FakeSaleLedgerState, productId: string): number {
+  return state.sales.filter(
+    (sale) =>
+      sale.state === "COMPLETED" &&
+      sale.registerId === state.identity?.registerId &&
+      sale.lines.some((line) => line.productId === productId),
+  ).length;
 }
 
 function latestPriceAt(

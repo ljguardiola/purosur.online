@@ -9,6 +9,8 @@ function line(id: string, quantity: number) {
     product_name: id,
     quantity,
     list_unit_price: 100,
+    discount_amount: 0,
+    promotion: null,
     line_total: 100 * quantity,
   };
 }

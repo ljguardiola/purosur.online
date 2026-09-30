@@ -1,78 +1,20 @@
 import type { OpenSale, ScanProductOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { describe, expect, it, onTestFinished, vi } from "vitest";
-import { page, userEvent } from "vitest/browser";
-import { render } from "../shell/test-support/render-with-router";
+import { describe, expect, it, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 import type { SaleScreenProps } from "./sale-screen";
-import { SaleScreen } from "./sale-screen";
-
-const PERSON = { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] };
-// 12:02 UTC is 09:02 in Argentina.
-const OPENED_AT = "2026-09-30T12:02:00.000Z";
-const FIELD_NAME = "Producto";
-const PLACEHOLDER = "Escaneá o escribí el nombre del producto";
-const NOT_PERMITTED_TITLE = "No tenés el permiso de vender y cobrar";
-const NOT_PERMITTED_HELP = "Quien administra los roles te lo puede dar en el backoffice.";
-
-const YERBA = {
-  id: "line-1",
-  product_id: "p1",
-  product_name: "Yerba mate 1 kg",
-  quantity: 2,
-  list_unit_price: 238_000,
-  line_total: 476_000,
-};
-const ALFAJOR = {
-  id: "line-2",
-  product_id: "p2",
-  product_name: "Alfajor triple",
-  quantity: 1,
-  list_unit_price: 150_000,
-  line_total: 150_000,
-};
-const SALE_OF_YERBA: OpenSale = { id: "sale-1", lines: [YERBA], total: 476_000 };
-const SALE_OF_YERBA_AND_ALFAJOR: OpenSale = {
-  id: "sale-1",
-  lines: [YERBA, ALFAJOR],
-  total: 626_000,
-};
-
-type Overrides = Partial<SaleScreenProps> & { registerName?: string | null };
-
-async function renderScreen({ registerName = "Caja 1", ...overrides }: Overrides = {}) {
-  await page.viewport(1280, 720);
-  onTestFinished(() => page.viewport(414, 896));
-  const currentSale = overrides.currentSale ?? vi.fn(async () => null);
-  const scanProduct =
-    overrides.scanProduct ??
-    vi.fn(async (): Promise<ScanProductOutcome> => ({ kind: "unknown_code" }));
-  const onSessionInvalid = overrides.onSessionInvalid ?? vi.fn();
-  const screen = await render(
-    <SaleScreen
-      person={PERSON}
-      registerName={registerName}
-      openedAt={OPENED_AT}
-      lock={() => {}}
-      currentSale={currentSale}
-      scanProduct={scanProduct}
-      onSessionInvalid={onSessionInvalid}
-    />,
-  );
-  return { screen, field: screen.getByRole("searchbox", { name: FIELD_NAME }) };
-}
-
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((settle) => {
-    resolve = settle;
-  });
-  return { promise, resolve };
-}
-
-async function scan(field: ReturnType<typeof page.getByRole>, code: string) {
-  await field.fill(code);
-  await userEvent.keyboard("{Enter}");
-}
+import {
+  ALFAJOR,
+  deferred,
+  NOT_PERMITTED_HELP,
+  NOT_PERMITTED_TITLE,
+  PLACEHOLDER,
+  renderScreen,
+  SALE_OF_YERBA,
+  SALE_OF_YERBA_AND_ALFAJOR,
+  scan,
+  YERBA,
+} from "./test-support/sale-screen";
 
 describe("SaleScreen", () => {
   it("says that the sale is underway", async () => {
@@ -129,7 +71,7 @@ describe("SaleScreen", () => {
 
     await expect.element(field).toHaveFocus();
     await expect.element(field).toHaveAttribute("placeholder", PLACEHOLDER);
-    await expect.element(screen.getByRole("searchbox")).toBeVisible();
+    await expect.element(screen.getByRole("combobox")).toBeVisible();
   });
 
   describe("keeping the scan field ready", () => {
@@ -251,6 +193,52 @@ describe("SaleScreen", () => {
       await expectNoAccessibilityViolations(screen.container);
     });
 
+    it("shows under the name the promotion a line was charged with, and the amount it had without it", async () => {
+      const promoted = {
+        ...YERBA,
+        discount_amount: 47_600,
+        promotion: { kind: "PERCENT_OFF", percent: 10 } as const,
+        line_total: 428_400,
+      };
+      const { screen } = await renderScreen({
+        currentSale: async () => ({ id: "sale-1", lines: [promoted, ALFAJOR], total: 578_400 }),
+      });
+
+      const lines = screen.getByRole("list").getByRole("listitem");
+      const yerba = lines.first();
+      await expect.element(yerba.getByText("10 % de descuento")).toBeVisible();
+      const withoutPromotion = yerba.getByText("$ 4.760,00");
+      await expect.element(withoutPromotion).toBeVisible();
+      expect(withoutPromotion.element().tagName).toBe("S");
+      await expect.element(yerba.getByText("$ 4.284,00")).toBeVisible();
+      await expectNoAccessibilityViolations(screen.container);
+    });
+
+    it("writes a buy N pay M promotion as a purchase and a payment quantity", async () => {
+      const promoted = {
+        ...ALFAJOR,
+        quantity: 3,
+        discount_amount: 150_000,
+        promotion: { kind: "BUY_N_PAY_M", buy_qty: 3, pay_qty: 2 } as const,
+        line_total: 300_000,
+      };
+      const { screen } = await renderScreen({
+        currentSale: async () => ({ id: "sale-1", lines: [promoted], total: 300_000 }),
+      });
+
+      await expect.element(screen.getByText("Lleve 3, pague 2")).toBeVisible();
+      await expect.element(screen.getByText("$ 4.500,00")).toBeVisible();
+    });
+
+    it("shows nothing more than the name and the amount on a line without a promotion", async () => {
+      const { screen } = await renderScreen({ currentSale: async () => SALE_OF_YERBA });
+
+      const yerba = screen.getByRole("list").getByRole("listitem").first();
+      await expect.element(yerba.getByText("$ 4.760,00")).toBeVisible();
+      expect(yerba.element().querySelector("s")).toBeNull();
+      expect(yerba.element().textContent).toBe("Yerba mate 1 kg2$ 4.760,00");
+    });
+
     it("writes 1 línea in the singular", async () => {
       const { screen } = await renderScreen({ currentSale: async () => SALE_OF_YERBA });
 
@@ -346,6 +334,16 @@ describe("SaleScreen", () => {
             .first(),
         )
         .toBeVisible();
+    });
+
+    it("clears the field when the code had blanks around it", async () => {
+      const { field } = await renderScreen({
+        scanProduct: async () => ({ kind: "added", sale: SALE_OF_YERBA }),
+      });
+
+      await scan(field, "7790001 ");
+
+      await expect.element(field).toHaveValue("");
     });
 
     it("marks the line whose quantity went up when the same product is scanned again", async () => {

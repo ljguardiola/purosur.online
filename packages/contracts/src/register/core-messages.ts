@@ -19,7 +19,14 @@ import {
   guardedActionRefusalSchema,
 } from "../access/authorization.js";
 import { pinAttemptRefusalSchema } from "../access/pin-attempt-refusal.js";
-import { saleSchema, scannedCodeSchema, scanProductOutcomeSchema } from "../sales/sale.js";
+import {
+  addProductOutcomeSchema,
+  saleSchema,
+  scannedCodeSchema,
+  scanProductOutcomeSchema,
+  searchProductsOutcomeSchema,
+  searchQuerySchema,
+} from "../sales/sale.js";
 
 const requestId = z.string();
 
@@ -165,6 +172,18 @@ const scanProductMessageSchema = z.object({
   code: scannedCodeSchema,
 });
 
+const searchProductsMessageSchema = z.object({
+  type: z.literal("search-products"),
+  request_id: requestId,
+  query: searchQuerySchema,
+});
+
+const addProductMessageSchema = z.object({
+  type: z.literal("add-product"),
+  request_id: requestId,
+  product_id: z.string(),
+});
+
 const saleRequestMessageSchema = z.object({
   type: z.literal("sale-request"),
   request_id: requestId,
@@ -196,6 +215,8 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   cashBalanceRequestMessageSchema,
   authorizersRequestMessageSchema,
   scanProductMessageSchema,
+  searchProductsMessageSchema,
+  addProductMessageSchema,
   saleRequestMessageSchema,
   signOutMessageSchema,
 ]);
@@ -314,6 +335,7 @@ const recordCashMovementOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("invalid_reason") }),
   z.object({ kind: z.literal("no_open_session") }),
   z.object({ kind: z.literal("not_signed_in") }),
+  z.object({ kind: z.literal("exceeds_expected_cash"), expected: z.number() }),
   ...authorizationRefusalSchema.options,
 ]);
 export type RecordCashMovementOutcome = z.infer<typeof recordCashMovementOutcomeSchema>;
@@ -447,6 +469,16 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("scan-product-result"),
     request_id: requestId,
     outcome: scanProductOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("search-products-result"),
+    request_id: requestId,
+    outcome: searchProductsOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("add-product-result"),
+    request_id: requestId,
+    outcome: addProductOutcomeSchema,
   }),
   z.object({ type: z.literal("sale"), request_id: requestId, sale: saleSchema.nullable() }),
   z.object({ type: z.literal("sale-unavailable"), request_id: requestId }),

@@ -63,6 +63,7 @@ interface ProductOptions {
   id?: string;
   name?: string;
   unit?: string;
+  categoryId?: string;
   active?: boolean;
   removed?: boolean;
 }
@@ -72,11 +73,12 @@ function addProduct(code: string | undefined, options: ProductOptions = {}): str
   database
     .prepare(
       `INSERT INTO products (id, name, category_id, sale_unit, active, version, removed)
-       VALUES (?, ?, 'c', ?, ?, 1, ?)`,
+       VALUES (?, ?, ?, ?, ?, 1, ?)`,
     )
     .run(
       id,
       options.name ?? "Yerba",
+      options.categoryId ?? "c",
       options.unit ?? "UNIT",
       options.active === false ? 0 : 1,
       options.removed ? 1 : 0,
@@ -115,6 +117,68 @@ function addPrice(
       options.version ?? 1,
       options.removed ? 1 : 0,
     );
+}
+
+function addCategory(id: string, parentId: string | null = null): void {
+  database
+    .prepare("INSERT INTO categories (id, name, parent_id, version) VALUES (?, ?, ?, 1)")
+    .run(id, id, parentId);
+}
+
+function addProductTag(productId: string, tagId: string, active = true): void {
+  database
+    .prepare("INSERT INTO product_tags (product_id, tag_id, active) VALUES (?, ?, ?)")
+    .run(productId, tagId, active ? 1 : 0);
+}
+
+type Benefit =
+  | { kind: "PERCENT_OFF"; percent: number }
+  | { kind: "BUY_N_PAY_M"; buyQty: number; payQty: number };
+
+interface DiscountOptions {
+  active?: boolean;
+  removed?: boolean;
+  validFrom?: string;
+  validTo?: string;
+  weekdays?: number[];
+}
+
+function addDiscount(
+  id: string,
+  target: { kind: "PRODUCT" | "CATEGORY" | "TAG"; id: string },
+  benefit: Benefit,
+  options: DiscountOptions = {},
+): void {
+  database
+    .prepare(
+      `INSERT INTO discounts (
+         id, name, kind, percent, buy_qty, pay_qty, target_kind, target_id, valid_from, valid_to,
+         weekdays, active, version, removed
+       ) VALUES (
+         @id, 'Promo', @kind, @percent, @buy_qty, @pay_qty, @target_kind, @target_id, @valid_from,
+         @valid_to, @weekdays, @active, 1, @removed
+       )`,
+    )
+    .run({
+      id,
+      kind: benefit.kind,
+      percent: benefit.kind === "PERCENT_OFF" ? benefit.percent : null,
+      buy_qty: benefit.kind === "BUY_N_PAY_M" ? benefit.buyQty : null,
+      pay_qty: benefit.kind === "BUY_N_PAY_M" ? benefit.payQty : null,
+      target_kind: target.kind,
+      target_id: target.id,
+      valid_from: options.validFrom ?? "2026-09-01",
+      valid_to: options.validTo ?? "2026-12-31",
+      weekdays: JSON.stringify(options.weekdays ?? []),
+      active: options.active === false ? 0 : 1,
+      removed: options.removed ? 1 : 0,
+    });
+}
+
+function promotionIdsTargeting(productId: string): string[] {
+  return ledger
+    .transaction((tx) => tx.promotionsTargeting(productId))
+    .map((promotion) => promotion.id);
 }
 
 function readySeller(): void {
@@ -346,6 +410,9 @@ describe("the sale being built", () => {
           quantity: 1,
           listUnitPrice: 1000,
           priceListId: "list-1",
+          promotions: [],
+          promotionId: null,
+          discountAmount: 0,
           lineTotal: 1000,
         });
         throw new Error("boom");
@@ -415,5 +482,269 @@ describe("the installation's revocation", () => {
       .run();
 
     expect(ledger.transaction((tx) => tx.installationRevoked())).toBe(true);
+  });
+});
+
+function addSale(id: string, state: string, productIds: string[], registerId = "register-1"): void {
+  database
+    .prepare(
+      `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+       VALUES (?, ?, 'device-1', 'session-1', 'u1', ?, '2026-09-30T09:00:00.000Z')`,
+    )
+    .run(id, registerId, state);
+  productIds.forEach((productId, index) => {
+    database
+      .prepare(
+        `INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total)
+         VALUES (?, ?, ?, ?, 'any', 1, 100, 'list-1', 100)`,
+      )
+      .run(`${id}-line-${index}`, id, index + 1, productId);
+  });
+}
+
+function searchable() {
+  return ledger.transaction((tx) => tx.searchableProducts());
+}
+
+describe("the products a name search looks through", () => {
+  beforeEach(readySeller);
+
+  it("are the active products that were not removed, with their sale unit", () => {
+    addProduct(undefined, { id: "p1", name: "Yerba" });
+    addProduct(undefined, { id: "p2", name: "Queso", unit: "KG" });
+    addProduct(undefined, { id: "p3", name: "Retirado", active: false });
+    addProduct(undefined, { id: "p4", name: "Borrado", removed: true });
+
+    expect(searchable()).toEqual([
+      { id: "p1", name: "Yerba", saleUnit: "UNIT", timesSoldHere: 0 },
+      { id: "p2", name: "Queso", saleUnit: "KG", timesSoldHere: 0 },
+    ]);
+  });
+
+  it("count the completed sales of this register that contain them, once per sale", () => {
+    addProduct(undefined, { id: "p1" });
+    addProduct(undefined, { id: "p2", name: "Azucar" });
+    addSale("s1", "COMPLETED", ["p1", "p2"]);
+    addSale("s2", "COMPLETED", ["p1"]);
+
+    expect(searchable().map(({ id, timesSoldHere }) => [id, timesSoldHere])).toEqual([
+      ["p1", 2],
+      ["p2", 1],
+    ]);
+  });
+
+  it.each([
+    ["an open sale", "OPEN", "register-1"],
+    ["a cancelled sale", "CANCELLED", "register-1"],
+    ["a voided sale", "VOIDED", "register-1"],
+    ["a completed sale of another register", "COMPLETED", "register-2"],
+  ])("do not count %s", (_case, state, registerId) => {
+    addProduct(undefined, { id: "p1" });
+    addSale("s1", state, ["p1"], registerId);
+
+    expect(searchable().map((product) => product.timesSoldHere)).toEqual([0]);
+  });
+
+  it("count nothing while the register has no identity yet", () => {
+    addProduct(undefined, { id: "p1" });
+    addSale("s1", "COMPLETED", ["p1"]);
+    database.prepare("DELETE FROM own_register").run();
+
+    expect(searchable().map((product) => product.timesSoldHere)).toEqual([0]);
+  });
+});
+
+describe("reading an active product by its id", () => {
+  beforeEach(readySeller);
+
+  function byId(id: string) {
+    return ledger.transaction((tx) => tx.activeProductById(id));
+  }
+
+  it("finds it with its name and sale unit", () => {
+    addProduct(undefined, { id: "p2", name: "Queso", unit: "KG" });
+
+    expect(byId("p2")).toEqual({ id: "p2", name: "Queso", saleUnit: "KG" });
+  });
+
+  it.each([
+    ["an inactive product", { active: false }],
+    ["a removed product", { removed: true }],
+  ])("does not find %s", (_case, options) => {
+    addProduct(undefined, { id: "p2", ...options });
+
+    expect(byId("p2")).toBeUndefined();
+  });
+
+  it("does not find an id no product has", () => {
+    expect(byId("missing")).toBeUndefined();
+  });
+});
+
+describe("the promotions that target a product", () => {
+  const tenPercent: Benefit = { kind: "PERCENT_OFF", percent: 10 };
+
+  beforeEach(() => {
+    addCategory("root");
+    addCategory("middle", "root");
+    addCategory("c", "middle");
+    addProduct("111");
+  });
+
+  it("are the ones aimed at the product itself", () => {
+    addDiscount("d1", { kind: "PRODUCT", id: "p1" }, tenPercent);
+
+    expect(promotionIdsTargeting("p1")).toEqual(["d1"]);
+  });
+
+  it("are the ones aimed at its category and at every category above it", () => {
+    addDiscount("own", { kind: "CATEGORY", id: "c" }, tenPercent);
+    addDiscount("parent", { kind: "CATEGORY", id: "middle" }, tenPercent);
+    addDiscount("grandparent", { kind: "CATEGORY", id: "root" }, tenPercent);
+
+    expect(promotionIdsTargeting("p1")).toEqual(["grandparent", "own", "parent"]);
+  });
+
+  it("do not include the ones aimed at a category below or beside its own", () => {
+    addCategory("child", "c");
+    addCategory("sibling", "middle");
+    addDiscount("below", { kind: "CATEGORY", id: "child" }, tenPercent);
+    addDiscount("beside", { kind: "CATEGORY", id: "sibling" }, tenPercent);
+
+    expect(promotionIdsTargeting("p1")).toEqual([]);
+  });
+
+  it("are the ones aimed at its active tags, and not at an inactive one", () => {
+    addProductTag("p1", "on");
+    addProductTag("p1", "off", false);
+    addDiscount("active-tag", { kind: "TAG", id: "on" }, tenPercent);
+    addDiscount("inactive-tag", { kind: "TAG", id: "off" }, tenPercent);
+
+    expect(promotionIdsTargeting("p1")).toEqual(["active-tag"]);
+  });
+
+  it("still include the ones aimed at a tag the product carries after that tag is deactivated", () => {
+    database
+      .prepare(
+        "INSERT INTO tags (id, name, active, version) VALUES ('gluten-free', 'Sin TACC', 0, 2)",
+      )
+      .run();
+    addProductTag("p1", "gluten-free");
+    addDiscount("deactivated-tag", { kind: "TAG", id: "gluten-free" }, tenPercent);
+
+    expect(promotionIdsTargeting("p1")).toEqual(["deactivated-tag"]);
+  });
+
+  it("leave out a removed promotion and one aimed at another product", () => {
+    addProduct("222", { id: "p2", name: "Azucar" });
+    addDiscount("removed", { kind: "PRODUCT", id: "p1" }, tenPercent, { removed: true });
+    addDiscount("other", { kind: "PRODUCT", id: "p2" }, tenPercent);
+
+    expect(promotionIdsTargeting("p1")).toEqual([]);
+  });
+
+  it("carry their benefit and schedule whatever the day, leaving validity to the domain", () => {
+    addDiscount(
+      "percent",
+      { kind: "PRODUCT", id: "p1" },
+      { kind: "PERCENT_OFF", percent: 15 },
+      { active: false, validFrom: "2025-01-01", validTo: "2025-01-31", weekdays: [1, 3] },
+    );
+    addDiscount(
+      "buy",
+      { kind: "PRODUCT", id: "p1" },
+      { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+    );
+
+    expect(ledger.transaction((tx) => tx.promotionsTargeting("p1"))).toEqual([
+      {
+        id: "buy",
+        benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+        active: true,
+        validFrom: "2026-09-01",
+        validTo: "2026-12-31",
+        weekdays: [],
+      },
+      {
+        id: "percent",
+        benefit: { kind: "PERCENT_OFF", percent: 15 },
+        active: false,
+        validFrom: "2025-01-01",
+        validTo: "2025-01-31",
+        weekdays: [1, 3],
+      },
+    ]);
+  });
+});
+
+describe("a line's promotions", () => {
+  beforeEach(() => {
+    readySeller();
+    addProduct("111");
+    addPrice("p1", "2026-09-01T00:00:00.000Z", 1000);
+    addDiscount("ten", { kind: "PRODUCT", id: "p1" }, { kind: "PERCENT_OFF", percent: 10 });
+    addDiscount(
+      "three-for-two",
+      { kind: "PRODUCT", id: "p1" },
+      { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+    );
+  });
+
+  it("are frozen with the line and read back after the sale is reopened", () => {
+    scan("111");
+
+    const outcome = currentSale({ ledger }, { actorId: "u1" });
+
+    expect(outcome.kind === "open" && outcome.sale.lines[0]).toMatchObject({
+      promotions: [
+        { id: "ten", benefit: { kind: "PERCENT_OFF", percent: 10 } },
+        { id: "three-for-two", benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 } },
+      ],
+      promotionId: "ten",
+      discountAmount: 100,
+      lineTotal: 900,
+    });
+  });
+
+  it("keep the frozen set when the catalog changes their promotions afterwards", () => {
+    scan("111");
+    database.prepare("UPDATE discounts SET removed = 1 WHERE id = 'ten'").run();
+    addDiscount("late", { kind: "PRODUCT", id: "p1" }, { kind: "PERCENT_OFF", percent: 50 });
+
+    scan("111");
+    const outcome = currentSale({ ledger }, { actorId: "u1" });
+
+    expect(
+      outcome.kind === "open" && outcome.sale.lines[0]?.promotions.map((promotion) => promotion.id),
+    ).toEqual(["ten", "three-for-two"]);
+  });
+
+  it("switch the applied promotion, and the discount charged, as the quantity grows", () => {
+    const appliedAfterEachScan = [1, 2, 3].map(() => {
+      scan("111");
+      return database
+        .prepare("SELECT quantity, promotion_id, discount_amount, line_total FROM sale_lines")
+        .get();
+    });
+
+    expect(appliedAfterEachScan).toEqual([
+      { quantity: 1, promotion_id: "ten", discount_amount: 100, line_total: 900 },
+      { quantity: 2, promotion_id: "ten", discount_amount: 200, line_total: 1800 },
+      { quantity: 3, promotion_id: "three-for-two", discount_amount: 1000, line_total: 2000 },
+    ]);
+  });
+
+  it("are not stored for a product nothing targets", () => {
+    addProduct("222", { id: "p2", name: "Azucar" });
+    addPrice("p2", "2026-09-01T00:00:00.000Z", 500);
+
+    scan("222");
+
+    expect(database.prepare("SELECT count(*) AS total FROM sale_line_promotions").get()).toEqual({
+      total: 0,
+    });
+    expect(database.prepare("SELECT promotion_id, discount_amount FROM sale_lines").all()).toEqual([
+      { promotion_id: null, discount_amount: 0 },
+    ]);
   });
 });

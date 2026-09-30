@@ -215,6 +215,8 @@ export function App({ core }: { core: CoreClient }) {
     firstSignIn,
     currentSale: () => core.currentSale(),
     scanProduct: (code: string) => core.scanProduct(code),
+    searchProducts: (query: string) => core.searchProducts(query),
+    addProduct: (productId: string) => core.addProduct(productId),
     // A replaced core connection fails this request; the core coming back up asks again.
     refreshCashSession: () => core.cashSession().then(refreshCashSession, () => {}),
   };

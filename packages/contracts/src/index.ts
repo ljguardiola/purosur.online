@@ -190,8 +190,15 @@ export type { RegisterEnrollmentCodeBody } from "./register/register-enrollment-
 export { registerEnrollmentCodeSchema } from "./register/register-enrollment-code.js";
 export type { RegisterSummaryBody } from "./register/register-summary.js";
 export { registerListSchema, registerSummarySchema } from "./register/register-summary.js";
-export type { CurrentSaleAnswer, OpenSale, ScanProductOutcome } from "./sales/sale.js";
-export { scannedCodeSchema } from "./sales/sale.js";
+export type {
+  AddProductOutcome,
+  CurrentSaleAnswer,
+  FoundProduct,
+  OpenSale,
+  ScanProductOutcome,
+  SearchProductsOutcome,
+} from "./sales/sale.js";
+export { SEARCH_RESULT_LIMIT, scannedCodeSchema, searchQuerySchema } from "./sales/sale.js";
 export type { BranchSettingsBody, ErrorReportingConfiguration } from "./shared/index.js";
 export {
   branchSettingsSchema,

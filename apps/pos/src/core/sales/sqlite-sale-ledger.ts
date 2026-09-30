@@ -1,9 +1,18 @@
-import type { Sale, SaleLine, SaleUnit, SaleWithLines } from "@purosur/domain";
 import type {
+  DiscountBenefit,
+  LinePromotion,
+  Sale,
+  SaleLine,
+  SaleUnit,
+  SaleWithLines,
+} from "@purosur/domain";
+import type {
+  CandidatePromotion,
   RegisterIdentity,
   SaleLedger,
   SaleLedgerTransaction,
-  ScannedProduct,
+  SearchableProduct,
+  SellableProduct,
   SellingSession,
 } from "@purosur/domain/sales/use-cases";
 import type { SignInStore } from "../access/sqlite-sign-in-store";
@@ -25,7 +34,41 @@ interface LineRow {
   quantity: number;
   list_unit_price: number;
   price_list_id: string;
+  promotion_id: string | null;
+  discount_amount: number;
   line_total: number;
+}
+
+interface BenefitColumns {
+  kind: DiscountBenefit["kind"];
+  percent: number | null;
+  buy_qty: number | null;
+  pay_qty: number | null;
+}
+
+interface FrozenPromotionRow extends BenefitColumns {
+  line_id: string;
+  discount_id: string;
+}
+
+interface CandidatePromotionRow extends BenefitColumns {
+  id: string;
+  active: number;
+  valid_from: string;
+  valid_to: string;
+  weekdays: string;
+}
+
+function toBenefit(columns: BenefitColumns): DiscountBenefit {
+  return columns.kind === "PERCENT_OFF"
+    ? { kind: "PERCENT_OFF", percent: columns.percent as number }
+    : { kind: "BUY_N_PAY_M", buyQty: columns.buy_qty as number, payQty: columns.pay_qty as number };
+}
+
+function benefitColumns(benefit: DiscountBenefit): BenefitColumns {
+  return benefit.kind === "PERCENT_OFF"
+    ? { kind: benefit.kind, percent: benefit.percent, buy_qty: null, pay_qty: null }
+    : { kind: benefit.kind, percent: null, buy_qty: benefit.buyQty, pay_qty: benefit.payQty };
 }
 
 export class SqliteSaleLedger implements SaleLedger {
@@ -49,7 +92,10 @@ export class SqliteSaleLedger implements SaleLedger {
       installationRevoked: () => this.installationRevoked(),
       registerIdentity: () => this.registerIdentity(),
       activeProductByBarcode: (code) => this.activeProductByBarcode(code),
+      activeProductById: (productId) => this.activeProductById(productId),
+      searchableProducts: () => this.searchableProducts(),
       priceAt: (productId, moment) => this.priceAt(productId, moment),
+      promotionsTargeting: (productId) => this.promotionsTargeting(productId),
       recordOpenedSale: (sale) => this.recordOpenedSale(sale),
       recordSaleLine: (saleId, line) => this.recordSaleLine(saleId, line),
       recordLineQuantity: (line) => this.recordLineQuantity(line),
@@ -77,8 +123,20 @@ export class SqliteSaleLedger implements SaleLedger {
     }
     const lines = this.database
       .prepare<[string], LineRow>(
-        `SELECT id, product_id, product_name, quantity, list_unit_price, price_list_id, line_total
+        `SELECT id, product_id, product_name, quantity, list_unit_price, price_list_id,
+                promotion_id, discount_amount, line_total
          FROM sale_lines WHERE sale_id = ? ORDER BY position`,
+      )
+      .all(sale.id);
+    const frozen = this.database
+      .prepare<[string], FrozenPromotionRow>(
+        `SELECT sale_line_promotions.line_id, sale_line_promotions.discount_id,
+                sale_line_promotions.kind, sale_line_promotions.percent,
+                sale_line_promotions.buy_qty, sale_line_promotions.pay_qty
+         FROM sale_line_promotions
+         JOIN sale_lines ON sale_lines.id = sale_line_promotions.line_id
+         WHERE sale_lines.sale_id = ?
+         ORDER BY sale_line_promotions.discount_id`,
       )
       .all(sale.id);
     return {
@@ -89,7 +147,12 @@ export class SqliteSaleLedger implements SaleLedger {
       actorId: sale.actor_id,
       state: "OPEN",
       occurredAt: new Date(sale.occurred_at),
-      lines: lines.map(toSaleLine),
+      lines: lines.map((line) =>
+        toSaleLine(
+          line,
+          frozen.filter((promotion) => promotion.line_id === line.id).map(toLinePromotion),
+        ),
+      ),
     };
   }
 
@@ -113,7 +176,7 @@ export class SqliteSaleLedger implements SaleLedger {
     return row === undefined ? undefined : { registerId: row.register_id, deviceId: row.device_id };
   }
 
-  private activeProductByBarcode(code: string): ScannedProduct | undefined {
+  private activeProductByBarcode(code: string): SellableProduct | undefined {
     const row = this.database
       .prepare<[string], { id: string; name: string; sale_unit: string }>(
         `SELECT products.id AS id, products.name AS name, products.sale_unit AS sale_unit
@@ -128,6 +191,40 @@ export class SqliteSaleLedger implements SaleLedger {
     return row === undefined
       ? undefined
       : { id: row.id, name: row.name, saleUnit: row.sale_unit as SaleUnit };
+  }
+
+  private activeProductById(productId: string): SellableProduct | undefined {
+    const row = this.database
+      .prepare<[string], { id: string; name: string; sale_unit: string }>(
+        `SELECT id, name, sale_unit FROM products
+         WHERE id = ? AND active = 1 AND removed = 0`,
+      )
+      .get(productId);
+    return row === undefined
+      ? undefined
+      : { id: row.id, name: row.name, saleUnit: row.sale_unit as SaleUnit };
+  }
+
+  private searchableProducts(): SearchableProduct[] {
+    return this.database
+      .prepare<[], { id: string; name: string; sale_unit: string; times_sold_here: number }>(
+        `SELECT products.id AS id, products.name AS name, products.sale_unit AS sale_unit,
+           (SELECT count(*) FROM sale_lines
+            JOIN sales ON sales.id = sale_lines.sale_id
+            WHERE sale_lines.product_id = products.id AND sales.state = 'COMPLETED'
+              AND sales.register_id IN (SELECT id FROM own_register WHERE removed = 0)
+           ) AS times_sold_here
+         FROM products
+         WHERE products.active = 1 AND products.removed = 0
+         ORDER BY products.id`,
+      )
+      .all()
+      .map((row) => ({
+        id: row.id,
+        name: row.name,
+        saleUnit: row.sale_unit as SaleUnit,
+        timesSoldHere: row.times_sold_here,
+      }));
   }
 
   private priceAt(
@@ -145,6 +242,40 @@ export class SqliteSaleLedger implements SaleLedger {
     return row === undefined
       ? undefined
       : { priceListId: row.price_list_id, unitPrice: row.unit_price };
+  }
+
+  private promotionsTargeting(productId: string): CandidatePromotion[] {
+    return this.database
+      .prepare<[string, string, string], CandidatePromotionRow>(
+        `SELECT id, kind, percent, buy_qty, pay_qty, active, valid_from, valid_to, weekdays
+         FROM discounts
+         WHERE removed = 0 AND (
+           (target_kind = 'PRODUCT' AND target_id = ?)
+           OR (target_kind = 'CATEGORY' AND target_id IN (
+             WITH RECURSIVE category_and_ancestors (id) AS (
+               SELECT category_id FROM products WHERE id = ?
+               UNION
+               SELECT categories.parent_id
+               FROM categories JOIN category_and_ancestors ON categories.id = category_and_ancestors.id
+               WHERE categories.parent_id IS NOT NULL
+             )
+             SELECT id FROM category_and_ancestors
+           ))
+           OR (target_kind = 'TAG' AND target_id IN (
+             SELECT tag_id FROM product_tags WHERE product_id = ? AND active = 1
+           ))
+         )
+         ORDER BY id`,
+      )
+      .all(productId, productId, productId)
+      .map((row) => ({
+        id: row.id,
+        benefit: toBenefit(row),
+        active: row.active === 1,
+        validFrom: row.valid_from,
+        validTo: row.valid_to,
+        weekdays: JSON.parse(row.weekdays) as number[],
+      }));
   }
 
   private recordOpenedSale(sale: Sale): void {
@@ -168,11 +299,13 @@ export class SqliteSaleLedger implements SaleLedger {
     this.database
       .prepare(
         `INSERT INTO sale_lines (
-           id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total
+           id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id,
+           promotion_id, discount_amount, line_total
          ) VALUES (
            @id, @sale_id,
            (SELECT coalesce(max(position), 0) + 1 FROM sale_lines WHERE sale_id = @sale_id),
-           @product_id, @product_name, @quantity, @list_unit_price, @price_list_id, @line_total
+           @product_id, @product_name, @quantity, @list_unit_price, @price_list_id,
+           @promotion_id, @discount_amount, @line_total
          )`,
       )
       .run({
@@ -183,20 +316,46 @@ export class SqliteSaleLedger implements SaleLedger {
         quantity: line.quantity,
         list_unit_price: line.listUnitPrice,
         price_list_id: line.priceListId,
+        promotion_id: line.promotionId,
+        discount_amount: line.discountAmount,
         line_total: line.lineTotal,
       });
+    const freeze = this.database.prepare(
+      `INSERT INTO sale_line_promotions (line_id, discount_id, kind, percent, buy_qty, pay_qty)
+       VALUES (@line_id, @discount_id, @kind, @percent, @buy_qty, @pay_qty)`,
+    );
+    for (const promotion of line.promotions) {
+      freeze.run({
+        line_id: line.id,
+        discount_id: promotion.id,
+        ...benefitColumns(promotion.benefit),
+      });
+    }
   }
 
   private recordLineQuantity(line: SaleLine): void {
     this.database
       .prepare(
-        "UPDATE sale_lines SET quantity = @quantity, line_total = @line_total WHERE id = @id",
+        `UPDATE sale_lines
+         SET quantity = @quantity, promotion_id = @promotion_id,
+             discount_amount = @discount_amount, line_total = @line_total
+         WHERE id = @id`,
       )
-      .run({ id: line.id, quantity: line.quantity, line_total: line.lineTotal });
+      .run({
+        id: line.id,
+        quantity: line.quantity,
+        promotion_id: line.promotionId,
+        discount_amount: line.discountAmount,
+        line_total: line.lineTotal,
+      });
   }
 }
 
-function toSaleLine(row: LineRow): SaleLine {
+function toLinePromotion(row: FrozenPromotionRow): LinePromotion {
+  return { id: row.discount_id, benefit: toBenefit(row) };
+}
+
+function toSaleLine(row: LineRow, promotions: LinePromotion[]): SaleLine {
   return {
     id: row.id,
     productId: row.product_id,
@@ -204,6 +363,9 @@ function toSaleLine(row: LineRow): SaleLine {
     quantity: row.quantity,
     listUnitPrice: row.list_unit_price,
     priceListId: row.price_list_id,
+    promotions,
+    promotionId: row.promotion_id,
+    discountAmount: row.discount_amount,
     lineTotal: row.line_total,
   };
 }

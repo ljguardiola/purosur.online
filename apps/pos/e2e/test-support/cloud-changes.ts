@@ -134,3 +134,29 @@ export function priceChange(price: {
     },
   };
 }
+
+type DiscountRow = Extract<SyncChange, { entity: "discount" }>["row"];
+
+export function discountChange(discount: {
+  id: string;
+  name: string;
+  benefit: DiscountRow["benefit"];
+  target: DiscountRow["target"];
+  validFrom: string;
+  validTo: string;
+}): CloudChange {
+  return {
+    entity: "discount",
+    entity_id: discount.id,
+    row: {
+      name: discount.name,
+      benefit: discount.benefit,
+      target: discount.target,
+      valid_from: discount.validFrom,
+      valid_to: discount.validTo,
+      weekdays: [],
+      active: true,
+      version: 1,
+    },
+  };
+}

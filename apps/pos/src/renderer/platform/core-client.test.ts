@@ -375,6 +375,48 @@ describe("createCoreClient", () => {
   );
 
   it.each([
+    { kind: "results", products: [], more: true },
+    { kind: "no_open_session" },
+    { kind: "unavailable" },
+  ])(
+    "asks the core to search the products by name and resolves with the outcome: %j",
+    async (outcome) => {
+      const client = clientWithSequentialIds();
+      const port = new FakePort();
+      client.connect(port);
+
+      const searched = client.searchProducts("té ver");
+      port.answer({ type: "search-products-result", request_id: "request-1", outcome });
+
+      expect(await searched).toEqual(outcome);
+      expect(port.posted).toEqual([
+        { type: "search-products", request_id: "request-1", query: "té ver" },
+      ]);
+    },
+  );
+
+  it.each([
+    { kind: "product_unavailable" },
+    { kind: "no_price", product_name: "Yerba" },
+    { kind: "unavailable" },
+  ])(
+    "asks the core to add the product by its id and resolves with the outcome: %j",
+    async (outcome) => {
+      const client = clientWithSequentialIds();
+      const port = new FakePort();
+      client.connect(port);
+
+      const added = client.addProduct("p1");
+      port.answer({ type: "add-product-result", request_id: "request-1", outcome });
+
+      expect(await added).toEqual(outcome);
+      expect(port.posted).toEqual([
+        { type: "add-product", request_id: "request-1", product_id: "p1" },
+      ]);
+    },
+  );
+
+  it.each([
     null,
     {
       id: "sale-1",
@@ -385,6 +427,8 @@ describe("createCoreClient", () => {
           product_name: "Yerba",
           quantity: 2,
           list_unit_price: 2_380,
+          discount_amount: 0,
+          promotion: null,
           line_total: 4_760,
         },
       ],

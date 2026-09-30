@@ -97,12 +97,14 @@ function MovementModal({
   person,
   registerName,
   openedAt,
-  expectedCash,
+  expectedCash: givenExpectedCash,
   loadAuthorizers,
   recordCashMovement,
   onClose,
   onRecorded,
 }: Omit<RecordCashMovementModalProps, "open">) {
+  const [refusedExpectedCash, setRefusedExpectedCash] = useState<number>();
+  const expectedCash = refusedExpectedCash ?? givenExpectedCash;
   const [kind, setKind] = useState<CashMovementKind>("CASH_IN");
   const [typedAmount, setTypedAmount] = useState("");
   const [typedReason, setTypedReason] = useState("");
@@ -121,6 +123,7 @@ function MovementModal({
     if (!submitting) {
       setKind(next);
       setNotice(undefined);
+      setAmountMessage(undefined);
     }
   }
 
@@ -155,6 +158,12 @@ function MovementModal({
         break;
       case "invalid_amount":
         setAmountMessage(INVALID_AMOUNT_MESSAGE);
+        break;
+      case "exceeds_expected_cash":
+        setRefusedExpectedCash(outcome.expected);
+        setAmountMessage(
+          `No hay tanto efectivo en la caja: se esperan ${formatCents(outcome.expected)}.`,
+        );
         break;
       case "invalid_reason":
         setReasonMessage(INVALID_REASON_MESSAGE);

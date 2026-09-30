@@ -1,3 +1,5 @@
+import type { DiscountBenefit } from "../../pricing/index.js";
+
 export type SaleState = "OPEN" | "COMPLETED" | "CANCELLED" | "VOIDED";
 
 export interface Sale {
@@ -10,6 +12,11 @@ export interface Sale {
   occurredAt: Date;
 }
 
+export interface LinePromotion {
+  id: string;
+  benefit: DiscountBenefit;
+}
+
 export interface SaleLine {
   id: string;
   productId: string;
@@ -17,6 +24,9 @@ export interface SaleLine {
   quantity: number;
   listUnitPrice: number;
   priceListId: string;
+  promotions: LinePromotion[];
+  promotionId: string | null;
+  discountAmount: number;
   lineTotal: number;
 }
 

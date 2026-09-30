@@ -1,4 +1,5 @@
-import type { SaleLine } from "./sale.js";
+import { chargeLine } from "./line-pricing.js";
+import type { LinePromotion, SaleLine } from "./sale.js";
 
 export interface SoldProduct {
   id: string;
@@ -10,21 +11,39 @@ export interface ListPrice {
   unitPrice: number;
 }
 
-export function newSaleLine(id: string, product: SoldProduct, price: ListPrice): SaleLine {
-  return {
-    id,
-    productId: product.id,
-    productName: product.name,
-    quantity: 1,
-    listUnitPrice: price.unitPrice,
-    priceListId: price.priceListId,
-    lineTotal: price.unitPrice,
-  };
+export function newSaleLine(
+  id: string,
+  product: SoldProduct,
+  price: ListPrice,
+  promotions: readonly LinePromotion[],
+): SaleLine {
+  return priced(
+    {
+      id,
+      productId: product.id,
+      productName: product.name,
+      listUnitPrice: price.unitPrice,
+      priceListId: price.priceListId,
+      promotions: [...promotions],
+    },
+    1,
+  );
 }
 
 export function addUnitToLine(line: SaleLine): SaleLine {
-  const quantity = line.quantity + 1;
-  return { ...line, quantity, lineTotal: quantity * line.listUnitPrice };
+  return priced(line, line.quantity + 1);
+}
+
+function priced(
+  line: Omit<SaleLine, "quantity" | "promotionId" | "discountAmount" | "lineTotal">,
+  quantity: number,
+): SaleLine {
+  const { promotionId, discountAmount, lineTotal } = chargeLine(
+    { saleUnit: "UNIT", units: quantity },
+    line.listUnitPrice,
+    line.promotions,
+  );
+  return { ...line, quantity, promotionId, discountAmount, lineTotal };
 }
 
 export function saleTotal(lines: readonly SaleLine[]): number {

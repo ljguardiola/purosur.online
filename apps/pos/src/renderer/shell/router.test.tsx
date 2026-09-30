@@ -109,6 +109,8 @@ function contextWith(
     firstSignIn: async () => ({ kind: "signed_in", person: PERSON }),
     currentSale: async () => null,
     scanProduct: async () => ({ kind: "unknown_code" }),
+    searchProducts: async () => ({ kind: "results", products: [], more: false }),
+    addProduct: async () => ({ kind: "product_unavailable" }),
     refreshCashSession: async () => {},
   };
 }
@@ -589,7 +591,7 @@ describe("the register's router", () => {
     );
     const screen = await render(<RouterProvider router={router} />);
 
-    await screen.getByRole("searchbox", { name: "Producto" }).fill("7790001");
+    await screen.getByRole("combobox", { name: "Producto" }).fill("7790001");
     await userEvent.keyboard("{Enter}");
 
     await expect.poll(() => scans).toEqual(["7790001"]);
@@ -609,7 +611,7 @@ describe("the register's router", () => {
     );
     const screen = await render(<RouterProvider router={router} />);
 
-    await screen.getByRole("searchbox", { name: "Producto" }).fill("7790001");
+    await screen.getByRole("combobox", { name: "Producto" }).fill("7790001");
     await userEvent.keyboard("{Enter}");
 
     await expect.poll(() => refreshed.mock.calls.length).toBe(1);
