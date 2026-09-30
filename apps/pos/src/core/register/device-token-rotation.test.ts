@@ -7,11 +7,28 @@ const RECEIVED_AT = new Date("2026-09-28T12:00:00.000Z");
 const DUE_AT = new Date("2026-09-29T12:00:00.000Z");
 const BEFORE_DUE = new Date("2026-09-29T11:59:59.999Z");
 
+const key = (fill: number) => Buffer.alloc(32, fill).toString("base64");
+const HELD_KEYS = {
+  snapshot_key_versions: [{ version: 1, key: key(1) }],
+  contingency_ticket_key: { version: 1, key: key(2) },
+  outbox_chain_key: key(3),
+};
+const CURRENT_KEYS = {
+  snapshot_key_versions: [
+    { version: 1, key: key(1) },
+    { version: 2, key: key(4) },
+  ],
+  contingency_ticket_key: { version: 2, key: key(5) },
+  outbox_chain_key: key(3),
+};
+const ROTATED_BODY = { device_token: "new-prefix.new-secret", ...CURRENT_KEYS };
+
 const CREDENTIALS: DeviceCredentials = {
   device_id: "a4b1",
   device_token: "old-prefix.old-secret",
   pepper: "cGVwcGVy",
   token_received_at: RECEIVED_AT.toISOString(),
+  keys: HELD_KEYS,
 };
 
 function rotationWith(options: {
@@ -27,7 +44,7 @@ function rotationWith(options: {
     readCredentials: async () => ("credentials" in options ? options.credentials : CREDENTIALS),
     postToCloud: async (path, bearerToken) => {
       posted.push({ path, bearerToken });
-      return options.response ?? { kind: "ok", body: { device_token: "new-prefix.new-secret" } };
+      return options.response ?? { kind: "ok", body: ROTATED_BODY };
     },
     replaceCredentials: async (expectedDeviceToken, credentials) => {
       replacedTokens.push(expectedDeviceToken);
@@ -57,7 +74,7 @@ describe("rotateDeviceToken", () => {
     ]);
   });
 
-  it("keeps the same device and pepper, swaps in the new token and records when it arrived", async () => {
+  it("keeps the same device and pepper, swaps in the new token and the keys handed back with it, and records when it arrived", async () => {
     const { deps, storedCredentials } = rotationWith({ now: DUE_AT });
 
     expect(await rotateDeviceToken(deps)).toEqual({ kind: "rotated" });
@@ -67,8 +84,29 @@ describe("rotateDeviceToken", () => {
         pepper: "cGVwcGVy",
         device_token: "new-prefix.new-secret",
         token_received_at: "2026-09-29T12:00:00.000Z",
+        keys: CURRENT_KEYS,
       },
     ]);
+  });
+
+  it("rotates at once, before the token is a day old, when the register holds no keys yet", async () => {
+    const { keys: _notHandedOver, ...withoutKeys } = CREDENTIALS;
+    const { deps, storedCredentials } = rotationWith({
+      credentials: withoutKeys,
+      now: BEFORE_DUE,
+    });
+
+    expect(await rotateDeviceToken(deps)).toEqual({ kind: "rotated" });
+    expect(storedCredentials[0]?.keys).toEqual(CURRENT_KEYS);
+  });
+
+  it("reads a rotation answered without the keys as the cloud being unavailable, keeping the old token", async () => {
+    const { deps, storedCredentials } = rotationWith({
+      response: { kind: "ok", body: { device_token: "new-prefix.new-secret" } },
+    });
+
+    expect(await rotateDeviceToken(deps)).toEqual({ kind: "unavailable" });
+    expect(storedCredentials).toEqual([]);
   });
 
   it("leaves the token alone before it is a day old", async () => {

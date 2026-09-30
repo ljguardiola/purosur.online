@@ -1,11 +1,23 @@
 // Main keeps the device credentials but may not depend on packages/contracts, so the messages it
 // exchanges with the core about them are read here, with no library, like the core's ready message.
 
+interface VersionedInstallationKey {
+  version: number;
+  key: string;
+}
+
+export interface InstallationKeys {
+  snapshot_key_versions: VersionedInstallationKey[];
+  contingency_ticket_key: VersionedInstallationKey;
+  outbox_chain_key: string;
+}
+
 export interface DeviceCredentials {
   device_id: string;
   device_token: string;
   pepper: string;
   token_received_at?: string;
+  keys?: InstallationKeys;
 }
 
 export type CredentialsReplacement = "replaced" | "superseded" | "not_stored";
@@ -35,22 +47,52 @@ function fieldsOf(value: unknown): Fields | undefined {
   return typeof value === "object" && value !== null ? (value as Fields) : undefined;
 }
 
-export function readDeviceCredentials(value: unknown): DeviceCredentials | undefined {
+function readVersionedKey(value: unknown): VersionedInstallationKey | undefined {
+  const { version, key } = fieldsOf(value) ?? {};
+  return typeof version === "number" && typeof key === "string" ? { version, key } : undefined;
+}
+
+function readInstallationKeys(value: unknown): InstallationKeys | undefined {
   const fields = fieldsOf(value);
-  const { device_id, device_token, pepper, token_received_at } = fields ?? {};
+  const snapshotKeyVersions = fields?.["snapshot_key_versions"];
+  const contingencyTicketKey = readVersionedKey(fields?.["contingency_ticket_key"]);
+  const outboxChainKey = fields?.["outbox_chain_key"];
   if (
-    typeof device_id !== "string" ||
-    typeof device_token !== "string" ||
-    typeof pepper !== "string"
+    !Array.isArray(snapshotKeyVersions) ||
+    contingencyTicketKey === undefined ||
+    typeof outboxChainKey !== "string"
   ) {
     return undefined;
   }
-  if (token_received_at === undefined) {
-    return { device_id, device_token, pepper };
-  }
-  return typeof token_received_at === "string"
-    ? { device_id, device_token, pepper, token_received_at }
+  const versions = snapshotKeyVersions.map(readVersionedKey);
+  return versions.every((version) => version !== undefined)
+    ? {
+        snapshot_key_versions: versions,
+        contingency_ticket_key: contingencyTicketKey,
+        outbox_chain_key: outboxChainKey,
+      }
     : undefined;
+}
+
+export function readDeviceCredentials(value: unknown): DeviceCredentials | undefined {
+  const fields = fieldsOf(value);
+  const { device_id, device_token, pepper, token_received_at, keys } = fields ?? {};
+  if (
+    typeof device_id !== "string" ||
+    typeof device_token !== "string" ||
+    typeof pepper !== "string" ||
+    (token_received_at !== undefined && typeof token_received_at !== "string")
+  ) {
+    return undefined;
+  }
+  const credentials: DeviceCredentials = { device_id, device_token, pepper };
+  if (token_received_at !== undefined) {
+    credentials.token_received_at = token_received_at;
+  }
+  // Unreadable keys are left out rather than the whole credentials, since the token alone gets
+  // them handed over again at its next rotation.
+  const installationKeys = readInstallationKeys(keys);
+  return installationKeys === undefined ? credentials : { ...credentials, keys: installationKeys };
 }
 
 export function readDeviceCredentialsRequest(

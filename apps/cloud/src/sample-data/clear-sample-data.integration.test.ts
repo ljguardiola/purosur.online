@@ -20,7 +20,9 @@ import {
   passkeyChallenges,
   products,
   recoveryTokens,
+  registerContingencyTicketKeys,
   registerInstallations,
+  registerSnapshotKeys,
   registers,
   roles,
   sessions,
@@ -464,6 +466,26 @@ describe("clearSampleData", () => {
       version: settings?.version,
       op: "update",
     });
+  }, 120_000);
+
+  it("clears a sample register that was handed its keys, with those keys", async () => {
+    const db = await freshOwnerDatabase();
+    await seedActiveAdministrator(db);
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    const [sampleRegister] = await db.select({ id: registers.id }).from(registers).limit(1);
+    if (!sampleRegister) throw new Error("test setup: no sample register was loaded");
+    await db
+      .insert(registerSnapshotKeys)
+      .values({ registerId: sampleRegister.id, version: 1, key: "snapshot" });
+    await db
+      .insert(registerContingencyTicketKeys)
+      .values({ registerId: sampleRegister.id, version: 1, key: "ticket" });
+
+    expect((await clearSampleData(db)).kind).toBe("cleared");
+
+    expect(await tableCount(db, "registers")).toBe(0);
+    expect(await tableCount(db, "register_snapshot_keys")).toBe(0);
+    expect(await tableCount(db, "register_contingency_ticket_keys")).toBe(0);
   }, 120_000);
 
   it("refuses and deletes nothing when a sample user reviewed a real product's price", async () => {

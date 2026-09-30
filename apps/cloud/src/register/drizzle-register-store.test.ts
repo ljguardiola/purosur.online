@@ -1,19 +1,27 @@
-import { enrollInstallation } from "@purosur/domain/register/use-cases";
+import {
+  enrollInstallation,
+  type RegisterStoreTransaction,
+} from "@purosur/domain/register/use-cases";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { escalateOverdueAlerts } from "../alerts/alert-escalation.js";
 import { openAlert } from "../alerts/open-alert.js";
 import {
   alerts,
+  registerContingencyTicketKeys,
   registerEnrollmentAttempts,
   registerEnrollmentCodes,
   registerInstallations,
+  registerSnapshotKeys,
   registers,
 } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { issueDeviceToken } from "./device-token.js";
 import { DrizzleRegisterStore } from "./drizzle-register-store.js";
+import { generateInstallationKey } from "./installation-key.js";
+import { installationKeyCipher } from "./installation-key-cipher.js";
 import {
   hashRegisterEnrollmentCode,
   registerEnrollmentCodeMatches,
@@ -88,8 +96,20 @@ async function insertInstallation(registerId: string, prefix: string): Promise<s
   return installation.id;
 }
 
+type KeyWrite = (tx: RegisterStoreTransaction, key: string) => Promise<unknown>;
+
+const MISSING_REGISTER_ID = "00000000-0000-4000-8000-000000000000";
+
+function everythingReportedOf(error: unknown): string {
+  const parts: string[] = [];
+  for (let current = error; current instanceof Error; current = current.cause) {
+    parts.push(current.message, current.stack ?? "", JSON.stringify(current));
+  }
+  return parts.join("\n");
+}
+
 function adapterStore() {
-  return new DrizzleRegisterStore(db);
+  return new DrizzleRegisterStore(db, installationKeyCipher(TEST_INSTALLATION_KEYS_ENCRYPTION_KEY));
 }
 
 function enrollWithCode(code: string, now = NOW) {
@@ -99,6 +119,7 @@ function enrollWithCode(code: string, now = NOW) {
       clock: { now: () => now },
       tokens: { issue: issueDeviceToken },
       codes: { matches: registerEnrollmentCodeMatches },
+      keys: { generate: generateInstallationKey },
     },
     {
       code,
@@ -219,6 +240,7 @@ describe("DrizzleRegisterStore", () => {
         clock: { now: () => NOW },
         tokens: { issue: issueDeviceToken },
         codes: { matches: registerEnrollmentCodeMatches },
+        keys: { generate: generateInstallationKey },
       },
       {
         code: CODE,
@@ -243,12 +265,186 @@ describe("DrizzleRegisterStore", () => {
       revokedAt: null,
     });
     expect(JSON.stringify(installations)).not.toContain(outcome.deviceToken);
+    const storedOutboxKey = installations.find(
+      (row) => row.id === outcome.deviceId,
+    )?.outboxChainKey;
+    const storedSnapshotKeys = await db
+      .select({ key: registerSnapshotKeys.key })
+      .from(registerSnapshotKeys)
+      .where(eq(registerSnapshotKeys.registerId, registerId));
+    const storedTicketKeys = await db
+      .select({ key: registerContingencyTicketKeys.key })
+      .from(registerContingencyTicketKeys)
+      .where(eq(registerContingencyTicketKeys.registerId, registerId));
+    expect(storedOutboxKey).toEqual(expect.any(String));
+    expect(storedOutboxKey).not.toBe(outcome.keys.outboxChainKey);
+    expect(storedSnapshotKeys.map((row) => row.key)).not.toContain(
+      outcome.keys.snapshotKeyVersions[0]?.key,
+    );
+    expect(storedTicketKeys.map((row) => row.key)).not.toContain(
+      outcome.keys.contingencyTicketKey.key,
+    );
+    const held = await adapterStore().transaction((tx) => tx.lockRegisterKeys(registerId));
+    expect(held).toEqual({
+      snapshotKeys: outcome.keys.snapshotKeyVersions,
+      contingencyTicketKeys: [outcome.keys.contingencyTicketKey],
+    });
+    const outboxChainKey = await adapterStore().transaction((tx) =>
+      tx.outboxChainKey(outcome.deviceId),
+    );
+    expect(outboxChainKey).toBe(outcome.keys.outboxChainKey);
     const [code] = await db
       .select({ redeemedAt: registerEnrollmentCodes.redeemedAt })
       .from(registerEnrollmentCodes)
       .where(eq(registerEnrollmentCodes.registerId, registerId));
     expect(code?.redeemedAt).toEqual(NOW);
   });
+
+  it("keeps each of a register's snapshot and contingency-ticket key versions, and answers only that register's", async () => {
+    const registerId = await insertRegister("Caja 1");
+    const otherRegisterId = await insertRegister("Caja 2");
+
+    await adapterStore().transaction(async (tx) => {
+      await tx.recordSnapshotKey(registerId, { version: 1, key: "snapshot-1" });
+      await tx.recordSnapshotKey(registerId, { version: 2, key: "snapshot-2" });
+      await tx.recordContingencyTicketKey(registerId, { version: 1, key: "ticket-1" });
+      await tx.recordSnapshotKey(otherRegisterId, { version: 1, key: "other-snapshot" });
+      await tx.recordContingencyTicketKey(otherRegisterId, { version: 1, key: "other-ticket" });
+    });
+    const held = await adapterStore().transaction((tx) => tx.lockRegisterKeys(registerId));
+
+    expect({
+      snapshotKeys: [...held.snapshotKeys].sort((a, b) => a.version - b.version),
+      contingencyTicketKeys: held.contingencyTicketKeys,
+    }).toEqual({
+      snapshotKeys: [
+        { version: 1, key: "snapshot-1" },
+        { version: 2, key: "snapshot-2" },
+      ],
+      contingencyTicketKeys: [{ version: 1, key: "ticket-1" }],
+    });
+  });
+
+  it("answers no key for a register that was never handed any", async () => {
+    const registerId = await insertRegister("Caja 1");
+
+    const held = await adapterStore().transaction((tx) => tx.lockRegisterKeys(registerId));
+
+    expect(held).toEqual({ snapshotKeys: [], contingencyTicketKeys: [] });
+  });
+
+  it("refuses to open a key copied from one row to another", async () => {
+    const registerId = await insertRegister("Caja 1");
+    const otherRegisterId = await insertRegister("Caja 2");
+    await adapterStore().transaction(async (tx) => {
+      await tx.recordSnapshotKey(registerId, { version: 1, key: generateInstallationKey() });
+      await tx.recordSnapshotKey(otherRegisterId, { version: 1, key: generateInstallationKey() });
+    });
+    const [copied] = await db
+      .select({ key: registerSnapshotKeys.key })
+      .from(registerSnapshotKeys)
+      .where(eq(registerSnapshotKeys.registerId, registerId));
+    await db
+      .update(registerSnapshotKeys)
+      .set({ key: copied?.key ?? "" })
+      .where(eq(registerSnapshotKeys.registerId, otherRegisterId));
+
+    await expect(
+      adapterStore().transaction((tx) => tx.lockRegisterKeys(otherRegisterId)),
+    ).rejects.toThrow("an installation key could not be decrypted");
+  });
+
+  it.each([
+    ["snapshot", registerSnapshotKeys],
+    ["contingency-ticket", registerContingencyTicketKeys],
+  ] as const)(
+    "refuses a second %s key of the same version for one register",
+    async (_kind, table) => {
+      const registerId = await insertRegister("Caja 1");
+      await db.insert(table).values({ registerId, version: 1, key: "first" });
+
+      await expect(
+        db.insert(table).values({ registerId, version: 1, key: "second" }),
+      ).rejects.toThrow();
+    },
+  );
+
+  it("keeps an installation's outbox-chain key and answers it for that installation", async () => {
+    const registerId = await insertRegister("Caja 1");
+    const deviceId = await insertInstallation(registerId, "prefix");
+    const otherDeviceId = await insertInstallation(await insertRegister("Caja 2"), "other");
+
+    const before = await adapterStore().transaction((tx) => tx.outboxChainKey(deviceId));
+    await adapterStore().transaction((tx) => tx.recordOutboxChainKey(deviceId, "outbox-key"));
+    const after = await adapterStore().transaction((tx) => tx.outboxChainKey(deviceId));
+    const other = await adapterStore().transaction((tx) => tx.outboxChainKey(otherDeviceId));
+
+    expect(before).toBeUndefined();
+    expect(after).toBe("outbox-key");
+    expect(other).toBeUndefined();
+  });
+
+  it("locks an installation with its register without opening its outbox-chain key", async () => {
+    const registerId = await insertRegister("Caja 1");
+    const deviceId = await insertInstallation(registerId, "prefix");
+    await db
+      .update(registerInstallations)
+      .set({ outboxChainKey: "not-a-sealed-key" })
+      .where(eq(registerInstallations.id, deviceId));
+
+    const locked = await adapterStore().transaction((tx) =>
+      tx.lockInstallationByTokenPrefix("prefix"),
+    );
+
+    expect(locked).toMatchObject({ deviceId, registerId, revoked: false });
+  });
+
+  it.each([
+    [
+      "a snapshot key",
+      (tx: RegisterStoreTransaction, key: string) =>
+        tx.recordSnapshotKey(MISSING_REGISTER_ID, { version: 1, key }),
+    ],
+    [
+      "a contingency-ticket key",
+      (tx: RegisterStoreTransaction, key: string) =>
+        tx.recordContingencyTicketKey(MISSING_REGISTER_ID, { version: 1, key }),
+    ],
+    [
+      "an outbox-chain key",
+      (tx: RegisterStoreTransaction, key: string) => tx.recordOutboxChainKey("not-a-uuid", key),
+    ],
+    [
+      "a new installation's outbox-chain key",
+      (tx: RegisterStoreTransaction, key: string) =>
+        tx.recordInstallation({
+          registerId: MISSING_REGISTER_ID,
+          tokenLookupPrefix: "prefix",
+          tokenHash: "hash",
+          tokenIssuedAt: NOW,
+          outboxChainKey: key,
+          hostname: "CAJA",
+          windowsVersion: "Windows 11",
+          enrolledAt: NOW,
+        }),
+    ],
+  ] satisfies [string, KeyWrite][])(
+    "fails to write %s with the driver's error, which carries the key only sealed",
+    async (_what, write) => {
+      const key = generateInstallationKey();
+
+      const error = await adapterStore()
+        .transaction<unknown>((tx) => write(tx, key))
+        .then(
+          () => undefined,
+          (raised: unknown) => raised,
+        );
+
+      expect(error).toBeInstanceOf(Error);
+      expect(error).toHaveProperty("cause", expect.any(Error));
+      expect(everythingReportedOf(error)).not.toContain(key);
+    },
+  );
 
   it("opens the register's enrollment alert: a Warning escalating in 24 hours, of All audience, that no one has closed", async () => {
     const registerId = await insertRegister("Caja 1");

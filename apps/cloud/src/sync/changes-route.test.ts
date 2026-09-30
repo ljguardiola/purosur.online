@@ -9,6 +9,7 @@ import { issueDeviceToken } from "../register/device-token.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
+import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { registerChangesRoute } from "./changes-route.js";
 
@@ -48,7 +49,12 @@ beforeEach(async () => {
   await testDatabase.clear();
   app = Fastify();
   registerRouteAccess(app);
-  registerChangesRoute(app, { db, rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY, now: () => NOW });
+  registerChangesRoute(app, {
+    db,
+    rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
+    keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+    now: () => NOW,
+  });
 });
 
 afterEach(async () => {
@@ -266,6 +272,7 @@ describe("GET /changes", () => {
     registerChangesRoute(failing, {
       db: broken.db,
       rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
+      keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
     });
 
     const response = await failing.inject({

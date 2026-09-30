@@ -10,6 +10,7 @@ import {
   registers,
   users,
 } from "../platform/db/schema.js";
+import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -21,6 +22,8 @@ import {
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { issueDeviceToken } from "./device-token.js";
 import { DrizzleRegisterStore } from "./drizzle-register-store.js";
+import { generateInstallationKey } from "./installation-key.js";
+import { installationKeyCipher } from "./installation-key-cipher.js";
 import {
   hashRegisterEnrollmentCode,
   registerEnrollmentCodeMatches,
@@ -54,10 +57,14 @@ function enroll(hostname: string) {
   const now = new Date();
   return enrollInstallation(
     {
-      store: new DrizzleRegisterStore(db),
+      store: new DrizzleRegisterStore(
+        db,
+        installationKeyCipher(TEST_INSTALLATION_KEYS_ENCRYPTION_KEY),
+      ),
       clock: { now: () => now },
       tokens: { issue: issueDeviceToken },
       codes: { matches: registerEnrollmentCodeMatches },
+      keys: { generate: generateInstallationKey },
     },
     { code: CODE, sourceAddress: `203.0.113.${hostname.length}`, hostname, windowsVersion: "11" },
   );

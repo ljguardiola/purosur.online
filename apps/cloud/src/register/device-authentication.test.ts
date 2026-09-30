@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
+import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import { authenticateDevice } from "./device-authentication.js";
 import { issueDeviceToken } from "./device-token.js";
 import { installationTokenPorts } from "./installation-token-ports.js";
@@ -18,6 +19,7 @@ beforeAll(async () => {
   ports = installationTokenPorts({
     db,
     rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
+    keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
     now: () => NOW,
   });
 });

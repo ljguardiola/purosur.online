@@ -5,7 +5,8 @@ import type { FastifyInstance } from "fastify";
 import { PUBLIC_ACCESS } from "../access/route-access.js";
 import { answerErrorsWithCloudEnvelope } from "./cloud-error-handler.js";
 import { readBearerDeviceToken } from "./device-authentication.js";
-import { type DeviceTokensOptions, installationTokenPorts } from "./installation-token-ports.js";
+import { installationKeysBody } from "./installation-keys-body.js";
+import { type DeviceTokensOptions, deviceTokenRotationPorts } from "./installation-token-ports.js";
 
 const DEVICE_TOKEN_REJECTED = cloudError(
   "device_token_rejected",
@@ -16,7 +17,7 @@ export function registerDeviceTokenRotationRoute<TQueryResult extends PgQueryRes
   app: FastifyInstance,
   options: DeviceTokensOptions<TQueryResult>,
 ): void {
-  const ports = installationTokenPorts(options);
+  const ports = deviceTokenRotationPorts(options);
 
   app.register(async (scope) => {
     answerErrorsWithCloudEnvelope(scope);
@@ -38,9 +39,12 @@ export function registerDeviceTokenRotationRoute<TQueryResult extends PgQueryRes
           return;
         }
 
-        await reply
-          .code(200)
-          .send(deviceTokenRotationSchema.parse({ device_token: outcome.deviceToken }));
+        await reply.code(200).send(
+          deviceTokenRotationSchema.parse({
+            device_token: outcome.deviceToken,
+            ...installationKeysBody(outcome.keys),
+          }),
+        );
       },
     );
   });

@@ -5,22 +5,26 @@ import type {
   EnrollmentAlert,
   EnrollmentAttemptKey,
   EnrollmentCodeVerifier,
+  InstallationKeyGenerator,
   IssuedDeviceToken,
   LockedEnrollmentCode,
   LockedInstallation,
   NewInstallation,
   PresentedDeviceToken,
+  RegisterKeys,
   RegisterStore,
   RegisterStoreTransaction,
   StoredDeviceToken,
+  VersionedKey,
 } from "../register-store.js";
 
 export interface FakeEnrollmentCode extends LockedEnrollmentCode {
   lookup: string;
 }
 
-export interface FakeInstallation extends NewInstallation {
+export interface FakeInstallation extends Omit<NewInstallation, "outboxChainKey"> {
   deviceId: string;
+  outboxChainKey: string | null;
   revokedAt: Date | null;
   pendingToken: StoredDeviceToken | null;
 }
@@ -30,10 +34,16 @@ export interface FakeEnrollmentAttempt {
   attemptedAt: Date;
 }
 
+export interface FakeRegisterKey extends VersionedKey {
+  registerId: string;
+}
+
 export interface FakeRegisterState {
   codes: FakeEnrollmentCode[];
   attempts: FakeEnrollmentAttempt[];
   installations: FakeInstallation[];
+  snapshotKeys: FakeRegisterKey[];
+  contingencyTicketKeys: FakeRegisterKey[];
   enrollmentAlerts: EnrollmentAlert[];
   nextId: number;
 }
@@ -45,6 +55,9 @@ type WriteOperation =
   | "recordInstallation"
   | "promotePendingDeviceToken"
   | "recordPendingDeviceToken"
+  | "recordOutboxChainKey"
+  | "recordSnapshotKey"
+  | "recordContingencyTicketKey"
   | "markEnrollmentCodeRedeemed"
   | "openEnrollmentAlert";
 
@@ -143,6 +156,7 @@ class FakeRegisterStoreTransaction implements RegisterStoreTransaction {
     }
     return {
       deviceId: installation.deviceId,
+      registerId: installation.registerId,
       revoked: installation.revokedAt !== null,
       currentToken: {
         lookupPrefix: installation.tokenLookupPrefix,
@@ -169,6 +183,38 @@ class FakeRegisterStoreTransaction implements RegisterStoreTransaction {
   async recordPendingDeviceToken(deviceId: string, token: StoredDeviceToken): Promise<void> {
     this.beforeWrite("recordPendingDeviceToken");
     this.installation(deviceId).pendingToken = structuredClone(token);
+  }
+
+  async outboxChainKey(deviceId: string): Promise<string | undefined> {
+    this.store.operationOrder.push("outboxChainKey");
+    return this.installation(deviceId).outboxChainKey ?? undefined;
+  }
+
+  async recordOutboxChainKey(deviceId: string, outboxChainKey: string): Promise<void> {
+    this.beforeWrite("recordOutboxChainKey");
+    this.installation(deviceId).outboxChainKey = outboxChainKey;
+  }
+
+  async lockRegisterKeys(registerId: string): Promise<RegisterKeys> {
+    this.store.operationOrder.push("lockRegisterKeys");
+    const ofRegister = (keys: FakeRegisterKey[]): VersionedKey[] =>
+      keys
+        .filter((key) => key.registerId === registerId)
+        .map(({ version, key }) => ({ version, key }));
+    return {
+      snapshotKeys: ofRegister(this.state.snapshotKeys),
+      contingencyTicketKeys: ofRegister(this.state.contingencyTicketKeys),
+    };
+  }
+
+  async recordSnapshotKey(registerId: string, key: VersionedKey): Promise<void> {
+    this.beforeWrite("recordSnapshotKey");
+    this.state.snapshotKeys.push({ registerId, ...key });
+  }
+
+  async recordContingencyTicketKey(registerId: string, key: VersionedKey): Promise<void> {
+    this.beforeWrite("recordContingencyTicketKey");
+    this.state.contingencyTicketKeys.push({ registerId, ...key });
   }
 
   async markEnrollmentCodeRedeemed(registerId: string, redeemedAt: Date): Promise<void> {
@@ -206,6 +252,8 @@ export class FakeRegisterStore implements RegisterStore {
     codes: [],
     attempts: [],
     installations: [],
+    snapshotKeys: [],
+    contingencyTicketKeys: [],
     enrollmentAlerts: [],
     nextId: 1,
   };
@@ -224,6 +272,14 @@ export class FakeRegisterStore implements RegisterStore {
 
   seedInstallation(installation: FakeInstallation): void {
     this.state.installations.push(structuredClone(installation));
+  }
+
+  seedSnapshotKey(key: FakeRegisterKey): void {
+    this.state.snapshotKeys.push({ ...key });
+  }
+
+  seedContingencyTicketKey(key: FakeRegisterKey): void {
+    this.state.contingencyTicketKeys.push({ ...key });
   }
 
   snapshot(): FakeRegisterState {
@@ -265,6 +321,15 @@ export class SequentialDeviceTokens implements DeviceTokenIssuer {
       lookupPrefix: `prefix-${this.issued}`,
       tokenHash: `hash-of-token-${this.issued}`,
     };
+  }
+}
+
+export class SequentialInstallationKeys implements InstallationKeyGenerator {
+  private generated = 0;
+
+  generate(): string {
+    this.generated += 1;
+    return `key-${this.generated}`;
   }
 }
 

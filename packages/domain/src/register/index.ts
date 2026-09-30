@@ -8,6 +8,10 @@ export {
   normalizeEnrollmentCode,
 } from "./model/enrollment-code.js";
 export {
+  INSTALLATION_KEY_BYTES,
+  isWellFormedInstallationKey,
+} from "./model/installation-key.js";
+export {
   INSTALLATION_REPORT_MAX_LENGTH,
   isInstallationReportTooLong,
 } from "./model/installation-report.js";

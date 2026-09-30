@@ -11,6 +11,7 @@ const REQUIRED_ENV: Record<string, string> = {
   RESEND_API_KEY: "resend-api-key",
   EDGE_ORIGIN_SECRET: "edge-origin-secret",
   DEVICE_TOKEN_ROTATION_KEY: "device-token-rotation-key",
+  INSTALLATION_KEYS_ENCRYPTION_KEY: "installation-keys-encryption-key",
   CLOUD_APP_DATABASE_PASSWORD: "cloud-app-password",
   ARCA_CERTIFICATE: "arca-certificate-pem",
 };
@@ -107,6 +108,14 @@ describe("the Cloud Server service's environment", () => {
     expect(cloud.variables?.["DEVICE_TOKEN_ROTATION_KEY"]).toEqual({
       type: "literal",
       value: "device-token-rotation-key",
+    });
+  });
+
+  it("carries the installation keys encryption key from the deploying environment", async () => {
+    const cloud = findService(await compile(), "Cloud Server");
+    expect(cloud.variables?.["INSTALLATION_KEYS_ENCRYPTION_KEY"]).toEqual({
+      type: "literal",
+      value: "installation-keys-encryption-key",
     });
   });
 

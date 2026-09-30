@@ -6,6 +6,7 @@ import {
   hashOfCode,
   plainCodeHashes,
   SequentialDeviceTokens,
+  SequentialInstallationKeys,
 } from "./test-support/fake-register-store.js";
 
 const NOW = new Date("2026-09-29T12:00:00.000Z");
@@ -50,6 +51,7 @@ function enroll(store: FakeRegisterStore, code = CODE, sourceAddress = SOURCE) {
       clock: new FixedClock(NOW),
       tokens: new SequentialDeviceTokens(),
       codes: plainCodeHashes,
+      keys: new SequentialInstallationKeys(),
     },
     {
       code,
@@ -74,7 +76,7 @@ const NINE = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const TEN_OLDEST_FIFTY_MINUTES_AGO = [...NINE, 50];
 
 describe("enrollInstallation", () => {
-  it("enrolls the installation for the code's register and hands it a device id and token", async () => {
+  it("enrolls the installation for the code's register and hands it a device id, a token and its keys", async () => {
     const store = storeWithCode();
 
     const outcome = await enroll(store);
@@ -84,7 +86,101 @@ describe("enrollInstallation", () => {
       registerId: "register-1",
       deviceId: "device-1",
       deviceToken: "prefix-1.secret-1",
+      keys: {
+        snapshotKeyVersions: [{ version: 1, key: "key-1" }],
+        contingencyTicketKey: { version: 1, key: "key-2" },
+        outboxChainKey: "key-3",
+      },
     });
+  });
+
+  it("generates the first snapshot and contingency-ticket keys of a register that has none, and keeps them for the register", async () => {
+    const store = storeWithCode();
+
+    await enroll(store);
+
+    expect(store.snapshot().snapshotKeys).toEqual([
+      { registerId: "register-1", version: 1, key: "key-1" },
+    ]);
+    expect(store.snapshot().contingencyTicketKeys).toEqual([
+      { registerId: "register-1", version: 1, key: "key-2" },
+    ]);
+  });
+
+  it("hands over every snapshot key version and the latest contingency-ticket key the register already holds, generating none of them", async () => {
+    const store = storeWithCode();
+    store.seedSnapshotKey({ registerId: "register-1", version: 2, key: "snapshot-2" });
+    store.seedSnapshotKey({ registerId: "register-1", version: 1, key: "snapshot-1" });
+    store.seedSnapshotKey({ registerId: "register-other", version: 3, key: "other-snapshot" });
+    store.seedContingencyTicketKey({ registerId: "register-1", version: 2, key: "ticket-2" });
+    store.seedContingencyTicketKey({ registerId: "register-1", version: 1, key: "ticket-1" });
+    store.seedContingencyTicketKey({ registerId: "register-other", version: 3, key: "other" });
+    const before = store.snapshot();
+
+    const outcome = await enroll(store);
+
+    expect(outcome).toMatchObject({
+      keys: {
+        snapshotKeyVersions: [
+          { version: 1, key: "snapshot-1" },
+          { version: 2, key: "snapshot-2" },
+        ],
+        contingencyTicketKey: { version: 2, key: "ticket-2" },
+        outboxChainKey: "key-1",
+      },
+    });
+    expect(store.snapshot().snapshotKeys).toEqual(before.snapshotKeys);
+    expect(store.snapshot().contingencyTicketKeys).toEqual(before.contingencyTicketKeys);
+    expect(store.operationOrder).not.toContain("recordSnapshotKey");
+    expect(store.operationOrder).not.toContain("recordContingencyTicketKey");
+  });
+
+  it("gives a new installation of the register its own outbox-chain key, while the register keeps its keys", async () => {
+    const store = storeWithCode();
+    store.seedSnapshotKey({ registerId: "register-1", version: 1, key: "snapshot-1" });
+    store.seedContingencyTicketKey({ registerId: "register-1", version: 1, key: "ticket-1" });
+    store.seedInstallation({
+      deviceId: "device-old",
+      registerId: "register-1",
+      tokenLookupPrefix: "old",
+      tokenHash: "hash-old",
+      tokenIssuedAt: EARLIER,
+      pendingToken: null,
+      outboxChainKey: "old-outbox-chain-key",
+      hostname: "CAJA-VIEJA",
+      windowsVersion: "Windows 10",
+      enrolledAt: EARLIER,
+      revokedAt: null,
+    });
+
+    const outcome = await enroll(store);
+
+    expect(outcome).toMatchObject({
+      keys: {
+        snapshotKeyVersions: [{ version: 1, key: "snapshot-1" }],
+        contingencyTicketKey: { version: 1, key: "ticket-1" },
+        outboxChainKey: "key-1",
+      },
+    });
+    const installations = store.snapshot().installations;
+    expect(installations.find((row) => row.deviceId === "device-1")?.outboxChainKey).toBe("key-1");
+    expect(installations.find((row) => row.deviceId === "device-old")?.outboxChainKey).toBe(
+      "old-outbox-chain-key",
+    );
+  });
+
+  it.each([
+    ["a wrong code", "P4NXZZZZZZZZZZZZ"],
+    ["a code of another group", "AAAAAAAAAAAAAAAA"],
+  ])("generates and hands over no key for %s", async (_case, code) => {
+    const store = storeWithCode();
+
+    const outcome = await enroll(store, code);
+
+    expect(outcome).toEqual({ kind: "code_rejected" });
+    expect(store.snapshot().snapshotKeys).toEqual([]);
+    expect(store.snapshot().contingencyTicketKeys).toEqual([]);
+    expect(store.operationOrder).not.toContain("lockRegisterKeys");
   });
 
   it("keeps only the token's hash and lookup prefix, with the hostname and Windows version reported", async () => {
@@ -100,6 +196,7 @@ describe("enrollInstallation", () => {
         tokenHash: "hash-of-token-1",
         tokenIssuedAt: NOW,
         pendingToken: null,
+        outboxChainKey: "key-3",
         hostname: "CAJA-MOSTRADOR",
         windowsVersion: "Windows 11 Pro 10.0.26100",
         enrolledAt: NOW,
@@ -126,6 +223,7 @@ describe("enrollInstallation", () => {
       tokenHash: "old-hash",
       tokenIssuedAt: EARLIER,
       pendingToken: null,
+      outboxChainKey: null,
       hostname: "VIEJA",
       windowsVersion: "Windows 10 Pro 10.0.19045",
       enrolledAt: EARLIER,
@@ -148,13 +246,16 @@ describe("enrollInstallation", () => {
     expect(installations.find((row) => row.deviceId === "device-1")?.revokedAt).toBeNull();
   });
 
-  it("revokes the previous installation before it records the new one, and opens the alert last", async () => {
+  it("revokes the previous installation, then locks the register's keys, before it records the new one, and opens the alert last", async () => {
     const store = storeWithCode();
 
     await enroll(store);
 
-    expect(store.operationOrder.slice(-4)).toEqual([
+    expect(store.operationOrder.slice(-7)).toEqual([
       "revokeActiveInstallation",
+      "lockRegisterKeys",
+      "recordSnapshotKey",
+      "recordContingencyTicketKey",
       "recordInstallation",
       "markEnrollmentCodeRedeemed",
       "openEnrollmentAlert",
@@ -189,6 +290,7 @@ describe("enrollInstallation", () => {
       enrolledAt: EARLIER,
       tokenIssuedAt: EARLIER,
       pendingToken: null,
+      outboxChainKey: null,
       deviceId: "device-old",
       revokedAt: null,
     });
@@ -210,6 +312,7 @@ describe("enrollInstallation", () => {
       enrolledAt: EARLIER,
       tokenIssuedAt: EARLIER,
       pendingToken: null,
+      outboxChainKey: null,
     };
     store.seedInstallation({
       ...previous,
@@ -256,6 +359,7 @@ describe("enrollInstallation", () => {
       tokenHash: "old-hash",
       tokenIssuedAt: EARLIER,
       pendingToken: null,
+      outboxChainKey: null,
       hostname: "VIEJA",
       windowsVersion: "Windows 10",
       enrolledAt: EARLIER,
@@ -475,6 +579,8 @@ describe("enrollInstallation", () => {
 
   it.each([
     "revokeActiveInstallation",
+    "recordSnapshotKey",
+    "recordContingencyTicketKey",
     "recordInstallation",
     "markEnrollmentCodeRedeemed",
     "openEnrollmentAlert",

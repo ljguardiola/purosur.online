@@ -5,16 +5,20 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { registerRouteAccess } from "../access/route-access.js";
 import {
   alerts,
+  registerContingencyTicketKeys,
   registerEnrollmentAttempts,
   registerEnrollmentCodes,
   registerInstallations,
+  registerSnapshotKeys,
   registers,
 } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerDeviceEnrollmentRoute } from "./device-enrollment-route.js";
 import { hashDeviceToken } from "./device-token.js";
 import { hashRegisterEnrollmentCode } from "./register-enrollment-code.js";
+import { keyStore } from "./test-support/key-store.js";
 
 const NOW = new Date("2026-09-29T12:00:00.000Z");
 const CODE = "P4NX7KWE2QRT6MZD";
@@ -37,7 +41,11 @@ beforeEach(async () => {
   await testDatabase.clear();
   app = Fastify();
   registerRouteAccess(app);
-  registerDeviceEnrollmentRoute(app, { db, now: () => NOW });
+  registerDeviceEnrollmentRoute(app, {
+    db,
+    keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+    now: () => NOW,
+  });
 });
 
 afterEach(async () => {
@@ -102,6 +110,50 @@ describe("POST /devices/enroll", () => {
       enrolledAt: NOW,
       revokedAt: null,
     });
+  });
+
+  it("answers the installation's keys: its register's snapshot key versions and contingency-ticket key, and its own outbox-chain key", async () => {
+    const registerId = await insertRegisterWithCode();
+
+    const response = await enroll();
+
+    const body = deviceEnrollmentSchema.parse(response.json());
+    const held = await keyStore(db).transaction((tx) => tx.lockRegisterKeys(registerId));
+    const outboxChainKey = await keyStore(db).transaction((tx) =>
+      tx.outboxChainKey(body.device_id),
+    );
+    expect(body.snapshot_key_versions).toEqual(held.snapshotKeys);
+    expect(body.snapshot_key_versions).toHaveLength(1);
+    expect([body.contingency_ticket_key]).toEqual(held.contingencyTicketKeys);
+    expect(body.outbox_chain_key).toBe(outboxChainKey);
+    expect(
+      new Set([
+        body.snapshot_key_versions[0]?.key,
+        body.contingency_ticket_key.key,
+        body.outbox_chain_key,
+      ]).size,
+    ).toBe(3);
+  });
+
+  it("stores none of the keys it hands over as they were handed over", async () => {
+    await insertRegisterWithCode();
+
+    const body = deviceEnrollmentSchema.parse((await enroll()).json());
+
+    const [snapshotRows, ticketRows, installationRows] = await Promise.all([
+      db.select({ key: registerSnapshotKeys.key }).from(registerSnapshotKeys),
+      db.select({ key: registerContingencyTicketKeys.key }).from(registerContingencyTicketKeys),
+      db.select({ key: registerInstallations.outboxChainKey }).from(registerInstallations),
+    ]);
+    const stored = [...snapshotRows, ...ticketRows, ...installationRows].map((row) => row.key);
+    expect(stored).toHaveLength(3);
+    for (const handedOver of [
+      body.snapshot_key_versions[0]?.key,
+      body.contingency_ticket_key.key,
+      body.outbox_chain_key,
+    ]) {
+      expect(stored).not.toContain(handedOver);
+    }
   });
 
   it("revokes the installation that held the register before", async () => {

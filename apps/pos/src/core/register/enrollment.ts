@@ -8,6 +8,7 @@ import {
 } from "@purosur/contracts";
 import type { DeviceCredentials } from "../../shared/device-credentials-messages";
 import type { CloudResponse } from "../platform/cloud-client";
+import { installationKeysFrom } from "./installation-keys";
 
 const PEPPER_BYTES = 32;
 
@@ -89,6 +90,7 @@ export async function enroll(deps: EnrollmentDeps, typedCode: string): Promise<E
     device_token: enrollment.data.device_token,
     pepper: deps.generatePepper(),
     token_received_at: deps.now().toISOString(),
+    keys: installationKeysFrom(enrollment.data),
   });
   return stored ? { kind: "enrolled" } : { kind: "not_stored" };
 }
