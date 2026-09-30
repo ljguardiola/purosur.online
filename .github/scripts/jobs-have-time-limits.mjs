@@ -44,3 +44,7 @@ export function checkFiles(paths, readFile = (path) => readFileSync(path, "utf8"
 export function findWorkflowFiles(cwd = process.cwd()) {
   return globSync(".github/workflows/*.{yml,yaml}", { cwd }).sort();
 }
+
+export function describeViolation({ path, line, message }) {
+  return `${path}:${line}: ${message}`;
+}

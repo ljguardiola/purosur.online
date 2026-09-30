@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { checkFiles, findWorkflowFiles } from "./jobs-have-time-limits.mjs";
+import { checkFiles, describeViolation, findWorkflowFiles } from "./jobs-have-time-limits.mjs";
 
 function check(source) {
   return checkFiles(["a.yml"], () => source);
@@ -83,6 +83,36 @@ test("resolves a job that is itself an alias", () => {
   assert.deepEqual(check(source), []);
 });
 
+test("resolves a jobs: value that is itself an alias", () => {
+  const source = [
+    "x-jobs: &all-jobs",
+    "  build:",
+    "    runs-on: ubuntu-24.04",
+    "jobs: *all-jobs",
+  ].join("\n");
+
+  assert.equal(check(source).length, 1);
+});
+
+test("resolves a timeout-minutes value that is itself an alias", () => {
+  const source = [
+    "jobs:",
+    "  build:",
+    "    timeout-minutes: &short-limit 5",
+    "  deploy:",
+    "    timeout-minutes: *short-limit",
+  ].join("\n");
+
+  assert.deepEqual(check(source), []);
+});
+
+test("describes a violation with its file, line and message", () => {
+  assert.equal(
+    describeViolation({ path: "a.yml", line: 2, message: "job build has no timeout-minutes" }),
+    "a.yml:2: job build has no timeout-minutes",
+  );
+});
+
 test("reports a workflow that does not parse as YAML instead of passing it silently", () => {
   const source = ["jobs:", "  build:", '    runs-on: "ubuntu-24.04'].join("\n");
 
@@ -99,7 +129,7 @@ test("every job in every workflow has a time limit", () => {
   const violations = checkFiles(files);
 
   assert.deepEqual(
-    violations.map(({ path, line, message }) => `${path}:${line}: ${message}`),
+    violations.map(describeViolation),
     [],
     "a job with no timeout-minutes that gets stuck keeps its runner busy for GitHub's " +
       "six-hour default; set timeout-minutes a little above the job's normal duration.",
