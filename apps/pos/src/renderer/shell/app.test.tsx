@@ -23,6 +23,7 @@ function coreAnswering(
   signInOutcome: SignInOutcome = ADA_SIGNED_IN,
 ) {
   const asked: string[] = [];
+  let usersLoads = 0;
   let savedName: string | null = null;
   const pulledListeners = new Set<() => void>();
   const core: CoreClient = {
@@ -38,6 +39,7 @@ function coreAnswering(
       return outcome;
     },
     async signInUsers() {
+      usersLoads += 1;
       return [{ id: "u1", first_name: "Ada" }];
     },
     async signIn() {
@@ -56,7 +58,7 @@ function coreAnswering(
       listener();
     }
   }
-  return { core, asked, finishPull };
+  return { core, asked, finishPull, usersLoads: () => usersLoads };
 }
 
 const enrolledCore = coreAnswering(true).core;
@@ -109,6 +111,21 @@ describe("App", () => {
     finishPull("Caja 1");
 
     await expect.element(screen.getByText("Caja 1 · Sin sesión abierta")).toBeVisible();
+  });
+
+  it("keeps the chosen person and the typed PIN when a pull refreshes the sign-in screen", async () => {
+    const { core, finishPull, usersLoads } = coreAnswering(true);
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+    await userEvent.type(screen.getByLabelText("PIN"), "12");
+
+    finishPull("Caja 1");
+
+    await expect.element(screen.getByText("Caja 1 · Sin sesión abierta")).toBeVisible();
+    await expect.element(screen.getByRole("radio", { name: "Ada" })).toBeChecked();
+    await expect.element(screen.getByLabelText("PIN")).toHaveValue("12");
+    expect(usersLoads()).toBe(1);
   });
 
   it("replaces the whole screen with the core-down notice once the core reports it is down", async () => {
