@@ -10,6 +10,8 @@ export {
 } from "./access/authorization.js";
 export type { BranchUserWire } from "./access/branch-user.js";
 export { branchUserListSchema, branchUserSchema } from "./access/branch-user.js";
+export type { FirstPinCodeBody, FirstPinCodeWire } from "./access/first-pin-code.js";
+export { firstPinCodeBodySchema, firstPinCodeSchema } from "./access/first-pin-code.js";
 export type { OpenSessionWire } from "./access/open-session.js";
 export { openSessionSchema } from "./access/open-session.js";
 export type { PasskeyRegistrationBody } from "./access/passkey-registration.js";
@@ -138,6 +140,7 @@ export type {
   CoreStatusMessage,
   CoreToRendererMessage,
   EnrollmentOutcome,
+  FirstPinCodeRequestOutcome,
   MainToCoreMessage,
   OpenCashSession,
   OpenCashSessionOutcome,
