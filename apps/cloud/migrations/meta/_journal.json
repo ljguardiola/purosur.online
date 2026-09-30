@@ -337,6 +337,13 @@
       "when": 1790783204635,
       "tag": "0047_sign_in_lookup_attempts",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1790785237122,
+      "tag": "0048_first_pin_codes",
+      "breakpoints": true
     }
   ]
 }
