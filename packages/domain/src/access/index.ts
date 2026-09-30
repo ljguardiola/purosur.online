@@ -28,8 +28,10 @@ export {
 } from "./model/permission-requirements.js";
 export type { PinCodeParty } from "./model/pin-code.js";
 export {
+  isWellFormedPinCode,
   mayEmitPinCodeFor,
   PIN_CODE_HOURLY_LIMIT,
+  PIN_CODE_LENGTH,
   PIN_CODE_MAX_FAILED_ATTEMPTS,
   PIN_CODE_VALIDITY_MS,
   PIN_CODE_WINDOW_MS,

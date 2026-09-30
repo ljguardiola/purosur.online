@@ -1,7 +1,8 @@
+import { isWellFormedPinCode } from "@purosur/domain";
 import { z } from "zod";
 
 export const userPinCodeSchema = z.object({
-  code: z.string().regex(/^[A-Z2-7]{16}$/),
+  code: z.string().refine(isWellFormedPinCode),
   expires_at: z.iso.datetime(),
 });
 

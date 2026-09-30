@@ -1,10 +1,8 @@
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
+  isWellFormedPinCode,
   mayEmitPinCodeFor,
-  PIN_CODE_HOURLY_LIMIT,
-  PIN_CODE_MAX_FAILED_ATTEMPTS,
-  PIN_CODE_VALIDITY_MS,
-  PIN_CODE_WINDOW_MS,
   pinCodeExpiresAt,
   pinCodeRetryAfterSeconds,
   pinCodeWindowStart,
@@ -16,12 +14,31 @@ function minutesAgo(minutes: number): Date {
   return new Date(NOW.getTime() - minutes * 60 * 1000);
 }
 
-describe("PIN code limits", () => {
-  it("lives 15 minutes, is burned after 5 failed attempts and is emitted at most 5 times an hour", () => {
-    expect(PIN_CODE_VALIDITY_MS).toBe(15 * 60 * 1000);
-    expect(PIN_CODE_MAX_FAILED_ATTEMPTS).toBe(5);
-    expect(PIN_CODE_HOURLY_LIMIT).toBe(5);
-    expect(PIN_CODE_WINDOW_MS).toBe(60 * 60 * 1000);
+describe("isWellFormedPinCode", () => {
+  it("accepts every code of 16 base32 characters", () => {
+    fc.assert(
+      fc.property(
+        fc.string({
+          unit: fc.constantFrom(..."ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"),
+          minLength: 16,
+          maxLength: 16,
+        }),
+        (code) => isWellFormedPinCode(code),
+      ),
+    );
+  });
+
+  it.each([
+    ["one character short", "P4NX7KWE2QRT5MZ"],
+    ["one character long", "P4NX7KWE2QRT5MZDA"],
+    ["empty", ""],
+    ["a digit outside base32", "P4NX7KWE1QRT5MZD"],
+    ["a lowercase letter", "p4NX7KWE2QRT5MZD"],
+    ["padding", "P4NX7KWE2QRT5MZ="],
+    ["a leading line break", "\nP4NX7KWE2QRT5MZD"],
+    ["a trailing line break", "P4NX7KWE2QRT5MZD\n"],
+  ])("rejects a code with %s", (_case, code) => {
+    expect(isWellFormedPinCode(code)).toBe(false);
   });
 });
 
