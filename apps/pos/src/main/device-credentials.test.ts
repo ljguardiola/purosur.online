@@ -1,4 +1,14 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  closeSync,
+  fsyncSync,
+  mkdtempSync,
+  openSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+  writeSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -273,8 +283,9 @@ describe("answerCoreCredentialsRequest", () => {
 });
 
 describe("credentialsFileAt durability", () => {
-  function recordingFileSystem(failOn?: string) {
+  function recordingFileSystem(failOn?: string, bytesPerWrite = Number.POSITIVE_INFINITY) {
     const calls: string[] = [];
+    const written: Buffer[] = [];
     let nextDescriptor = 10;
     const descriptorPaths = new Map<number, string>();
     function record(call: string): void {
@@ -290,12 +301,17 @@ describe("credentialsFileAt durability", () => {
         record(`open ${path}`);
         return descriptor;
       },
-      writeSync: (descriptor) => record(`write ${descriptorPaths.get(descriptor)}`),
+      writeSync: (descriptor, contents) => {
+        record(`write ${descriptorPaths.get(descriptor)}`);
+        const chunk = contents.subarray(0, bytesPerWrite);
+        written.push(chunk);
+        return chunk.length;
+      },
       fsyncSync: (descriptor) => record(`fsync ${descriptorPaths.get(descriptor)}`),
       closeSync: (descriptor) => record(`close ${descriptorPaths.get(descriptor)}`),
       renameSync: (from, to) => record(`rename ${from} ${to}`),
     };
-    return { fileSystem, calls };
+    return { fileSystem, calls, written: () => Buffer.concat(written) };
   }
 
   it("flushes the temporary file before renaming it and the folder after, on Linux", () => {
@@ -347,14 +363,68 @@ describe("credentialsFileAt durability", () => {
     expect(calls.at(-1)).toBe("close /data/device-credentials.bin.partial");
   });
 
-  it("fails the write when the folder can't be flushed off Windows, and closes it", () => {
-    const { fileSystem, calls } = recordingFileSystem("fsync /data");
+  it("writes every byte before renaming when the disk takes the contents in pieces", () => {
+    const { fileSystem, calls, written } = recordingFileSystem(undefined, 2);
+
+    credentialsFileAt("/data/device-credentials.bin", {
+      fileSystem,
+      platform: "linux",
+    }).write(Buffer.from("secret"));
+
+    expect(written().toString()).toBe("secret");
+    expect(calls).toContain(
+      "rename /data/device-credentials.bin.partial /data/device-credentials.bin",
+    );
+  });
+
+  it("never renames a temporary file the disk stopped taking bytes for, and closes it", () => {
+    const { fileSystem, calls } = recordingFileSystem(undefined, 0);
     const file = credentialsFileAt("/data/device-credentials.bin", {
       fileSystem,
       platform: "linux",
     });
 
     expect(() => file.write(Buffer.from("secret"))).toThrow();
-    expect(calls.at(-1)).toBe("close /data");
+    expect(calls.some((call) => call.startsWith("rename"))).toBe(false);
+    expect(calls.at(-1)).toBe("close /data/device-credentials.bin.partial");
+  });
+
+  it("keeps the stored credentials when only the folder can't be flushed, and closes it", () => {
+    const folder = temporaryFolder();
+    const folderDescriptors = new Set<number>();
+    const closed: number[] = [];
+    const fileSystem: DurableFileSystem = {
+      openSync: (path, flags) => {
+        const descriptor = openSync(path, flags);
+        if (path === folder) {
+          folderDescriptors.add(descriptor);
+        }
+        return descriptor;
+      },
+      writeSync: (descriptor, contents) => writeSync(descriptor, contents),
+      fsyncSync: (descriptor) => {
+        if (folderDescriptors.has(descriptor)) {
+          throw new Error("fsync of the folder failed");
+        }
+        fsyncSync(descriptor);
+      },
+      closeSync: (descriptor) => {
+        closed.push(descriptor);
+        closeSync(descriptor);
+      },
+      renameSync,
+    };
+    const store = createDeviceCredentialsStore({
+      encryption: reversingEncryption,
+      file: credentialsFileAt(join(folder, "device-credentials.bin"), {
+        fileSystem,
+        platform: "linux",
+      }),
+    });
+
+    expect(store.store(CREDENTIALS)).toBe(true);
+    expect(store.read()).toEqual(CREDENTIALS);
+    expect(folderDescriptors.size).toBe(1);
+    expect(closed).toEqual(expect.arrayContaining([...folderDescriptors]));
   });
 });

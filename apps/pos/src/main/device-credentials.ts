@@ -31,7 +31,7 @@ export interface DeviceCredentialsStore {
 
 export interface DurableFileSystem {
   openSync(path: string, flags: string): number;
-  writeSync(descriptor: number, contents: Buffer): unknown;
+  writeSync(descriptor: number, contents: Buffer): number;
   fsyncSync(descriptor: number): void;
   closeSync(descriptor: number): void;
   renameSync(from: string, to: string): void;
@@ -44,6 +44,17 @@ const nodeFileSystem: DurableFileSystem = {
   closeSync,
   renameSync,
 };
+
+function writeAll(fileSystem: DurableFileSystem, descriptor: number, contents: Buffer): void {
+  let written = 0;
+  while (written < contents.length) {
+    const count = fileSystem.writeSync(descriptor, contents.subarray(written));
+    if (count <= 0) {
+      throw new Error("The disk took no more bytes");
+    }
+    written += count;
+  }
+}
 
 function withOpenFile(
   fileSystem: DurableFileSystem,
@@ -79,15 +90,19 @@ export function credentialsFileAt(
     write(contents) {
       const partial = `${path}.partial`;
       withOpenFile(fileSystem, partial, "w", (descriptor) => {
-        fileSystem.writeSync(descriptor, contents);
+        writeAll(fileSystem, descriptor, contents);
         fileSystem.fsyncSync(descriptor);
       });
       fileSystem.renameSync(partial, path);
       // Windows can't open a folder to flush it, and NTFS journals the rename itself.
       if (platform !== "win32") {
-        withOpenFile(fileSystem, dirname(path), "r", (descriptor) =>
-          fileSystem.fsyncSync(descriptor),
-        );
+        try {
+          withOpenFile(fileSystem, dirname(path), "r", (descriptor) =>
+            fileSystem.fsyncSync(descriptor),
+          );
+        } catch {
+          // The new file already replaced the old one; only its survival of a power cut is at risk.
+        }
       }
     },
   };
