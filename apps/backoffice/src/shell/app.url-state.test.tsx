@@ -119,6 +119,36 @@ test("reopens the prices list with the filters its URL carries", async () => {
     });
 });
 
+test("reopens the promotions list with the filters its URL carries", async () => {
+  const services = createAppServices();
+  window.history.pushState(null, "", "/catalog/discounts?search=yerba&status=all&kind=PERCENT_OFF");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByPlaceholder("Buscar una promoción")).toHaveValue("yerba");
+  await expect.element(screen.getByRole("button", { name: "Estado: Todas" })).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Tipo: Porcentaje" })).toBeVisible();
+});
+
+test("rewrites a promotions URL that names a value the list does not offer, without adding a history entry", async () => {
+  const services = createAppServices();
+  window.history.pushState(null, "", "/help");
+  window.history.pushState(
+    null,
+    "",
+    "/catalog/discounts?status=archived&kind=combo&sortBy=days&sort=sideways&search=miel",
+  );
+  const historyLength = window.history.length;
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .element(screen.getByRole("button", { name: "Estado: Vigentes y programadas" }))
+    .toBeVisible();
+  await expect.poll(() => window.location.search).toBe("?search=miel");
+  expect(window.history.length).toBe(historyLength);
+});
+
 test("reopens the users list on the state its URL carries", async () => {
   const services = createAppServices();
   vi.mocked(services.usersListScreen.fetchUsers).mockResolvedValue({ kind: "ok", value: [] });
@@ -172,6 +202,7 @@ test("keeps the products list filters in the URL after following its own section
 test.each([
   { url: "/catalog/categories?search=alma", link: "Categorías" },
   { url: "/catalog/prices?search=yerba", link: "Precios" },
+  { url: "/catalog/discounts?search=yerba", link: "Promociones" },
   { url: "/settings/users?state=inactive", link: "Usuarios" },
   { url: "/home/alerts?status=closed", link: "Alertas" },
 ])("the $link section link carries the filters its list is showing", async ({ url, link }) => {
