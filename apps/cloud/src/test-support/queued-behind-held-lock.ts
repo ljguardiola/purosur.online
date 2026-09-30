@@ -9,12 +9,12 @@ export async function countLockWaiters(sql: postgres.Sql): Promise<number> {
   return row?.waiting ?? 0;
 }
 
+// Bounded only by the calling test's own timeout: how long the queries take to get in line depends
+// on the work they do first.
 export async function waitForLockWaiters(sql: postgres.Sql, count: number): Promise<void> {
-  for (let attempt = 0; attempt < 500; attempt += 1) {
-    if ((await countLockWaiters(sql)) >= count) return;
+  while ((await countLockWaiters(sql)) < count) {
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
-  throw new Error(`test setup: ${count} queries never queued behind the held lock`);
 }
 
 // Postgres grants waiters on the same lock in the order they queued. Both are settled even when

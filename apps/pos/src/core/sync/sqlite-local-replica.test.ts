@@ -397,15 +397,12 @@ describe("the register's local copy of what it pulls", () => {
     expect(replica.priceList(PRICE_LIST_ID)).toEqual({ name: "Nueva", version: 3 });
   });
 
-  it("keeps a price when an older or the same version of it arrives", async () => {
-    await save(priceChange(1, priceRow({ unit_price: 999, version: 3 })));
+  it("keeps a price as it first arrived when the same price is delivered again", async () => {
+    await save(priceChange(1, priceRow({ unit_price: 999 })));
 
-    await save(
-      priceChange(2, priceRow({ unit_price: 1, version: 2 })),
-      priceChange(3, priceRow({ unit_price: 2, version: 3 })),
-    );
+    await save(priceChange(2, priceRow({ unit_price: 1 })));
 
-    expect(replica.price(PRICE_ID)).toMatchObject({ unit_price: 999, version: 3 });
+    expect(replica.price(PRICE_ID)).toMatchObject({ unit_price: 999, version: 1, removed: false });
   });
 
   it("replaces a category and a price list with a newer version", async () => {
@@ -459,13 +456,11 @@ describe("the register's local copy of what it pulls", () => {
     await save(
       categoryChange(1, categoryRow({ version: 3 })),
       productChange(2, productRow({ version: 3 })),
-      priceChange(3, priceRow({ version: 3 })),
     );
 
     await save(
       removalChange(4, "category", CATEGORY_ID, 3),
       removalChange(5, "product", PRODUCT_ID, 2),
-      removalChange(6, "price", PRICE_ID, 1),
     );
 
     expect(replica.category(CATEGORY_ID)).toMatchObject({ removed: false, version: 3 });
@@ -474,7 +469,6 @@ describe("the register's local copy of what it pulls", () => {
       version: 3,
       barcodes: [{ active: true }, { active: true }],
     });
-    expect(replica.price(PRICE_ID)).toMatchObject({ removed: false, version: 3 });
   });
 
   it("changes nothing for a removal of a row it never held", async () => {
