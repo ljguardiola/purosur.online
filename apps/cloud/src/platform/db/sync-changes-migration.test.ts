@@ -44,8 +44,8 @@ describe("the sync changes migration applied over a database that already holds 
     );
     const { rows: installationRows } = await client.query<{ id: string }>(
       `insert into register_installations
-         (register_id, token_lookup_prefix, token_hash, hostname, windows_version, enrolled_at)
-       values ($1, 'prefix', 'hash', 'CAJA', 'Windows 11', now()) returning id`,
+         (register_id, token_lookup_prefix, token_hash, token_issued_at, hostname, windows_version, enrolled_at)
+       values ($1, 'prefix', 'hash', now(), 'CAJA', 'Windows 11', now()) returning id`,
       [registerRows[0]?.id],
     );
 
