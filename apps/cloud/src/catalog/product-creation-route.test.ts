@@ -567,7 +567,7 @@ describe("POST /products", () => {
     },
   );
 
-  it("rejects a deactivated tag with 409 tag_inactive, creating nothing", async () => {
+  it("rejects a deactivated tag with 409 tag_inactive naming it, creating nothing", async () => {
     const categoryId = await insertCategory("Almacén");
     const tagId = (await insertTag(db, { name: "Kosher", active: false })).id;
     const userId = await insertUserWithPermission();
@@ -582,7 +582,7 @@ describe("POST /products", () => {
     });
 
     expect(response.statusCode).toBe(409);
-    expect(response.json()).toMatchObject({ code: "tag_inactive" });
+    expect(response.json()).toMatchObject({ code: "tag_inactive", tagId });
     expect(await db.select().from(products)).toHaveLength(0);
     expect(await db.select().from(productTags)).toHaveLength(0);
   });

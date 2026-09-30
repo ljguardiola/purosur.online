@@ -676,7 +676,7 @@ describe("editProduct", () => {
       version: 1,
     });
 
-    expect(outcome).toEqual({ kind: "tag_inactive" });
+    expect(outcome).toEqual({ kind: "tag_inactive", tagId: "tag-2" });
     expect(store.snapshot().products).toMatchObject([{ name: "Yerba", version: 1 }]);
     expect(store.snapshot().productTags).toEqual([{ productId: "product-1", tagId: "tag-1" }]);
   });
@@ -756,6 +756,6 @@ describe("editProduct", () => {
       version: 1,
     });
 
-    expect(outcome).toEqual({ kind: "tag_inactive" });
+    expect(outcome).toEqual({ kind: "tag_inactive", tagId: "tag-1" });
   });
 });

@@ -113,7 +113,7 @@ export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
         return;
       }
       if (outcome.kind === "tag_inactive") {
-        await reply.code(409).send(TAG_INACTIVE_RESPONSE);
+        await reply.code(409).send({ ...TAG_INACTIVE_RESPONSE, tagId: outcome.tagId });
         return;
       }
       if (outcome.kind === "barcode_taken") {

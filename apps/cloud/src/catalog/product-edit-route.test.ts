@@ -1010,7 +1010,7 @@ describe("POST /products/:id/edit", () => {
     expect(await storedTagIds(product.id)).toEqual([tagId]);
   });
 
-  it("rejects a deactivated tag the product does not carry with 409 tag_inactive, changing nothing", async () => {
+  it("rejects a deactivated tag the product does not carry with 409 tag_inactive naming it, changing nothing", async () => {
     const categoryId = await insertCategory("Almacén");
     const carriedId = (await insertTag(db, { name: "Sin TACC" })).id;
     const inactiveId = (await insertTag(db, { name: "Kosher", active: false })).id;
@@ -1025,7 +1025,7 @@ describe("POST /products/:id/edit", () => {
     const response = await editWithTags(product, categoryId, [carriedId, inactiveId]);
 
     expect(response.statusCode).toBe(409);
-    expect(response.json()).toMatchObject({ code: "tag_inactive" });
+    expect(response.json()).toMatchObject({ code: "tag_inactive", tagId: inactiveId });
     expect(await storedTagIds(product.id)).toEqual([carriedId]);
     expect(await db.select().from(products)).toMatchObject([{ version: 1 }]);
   });

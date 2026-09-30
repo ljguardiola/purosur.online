@@ -497,7 +497,7 @@ describe("createProduct", () => {
       netContent: null,
     });
 
-    expect(outcome).toEqual({ kind: "tag_inactive" });
+    expect(outcome).toEqual({ kind: "tag_inactive", tagId: "tag-2" });
     expect(store.snapshot().products).toEqual([]);
   });
 

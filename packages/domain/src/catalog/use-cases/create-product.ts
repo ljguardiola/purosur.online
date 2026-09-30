@@ -19,7 +19,7 @@ export type CreateProductOutcome =
   | { kind: "brand_not_found" }
   | { kind: "brand_inactive" }
   | { kind: "tag_not_found" }
-  | { kind: "tag_inactive" }
+  | { kind: "tag_inactive"; tagId: string }
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "created"; product: CatalogProduct };
 
