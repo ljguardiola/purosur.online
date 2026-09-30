@@ -1,6 +1,7 @@
 import { CASH_MOVEMENT_REASON_MAX_LENGTH, MAX_CASH_AMOUNT_CENTS } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
+  cashMovementAmountSchema,
   coreStatusMessageSchema,
   coreToRendererMessageSchema,
   mainToCoreMessageSchema,
@@ -881,4 +882,17 @@ describe("openingFloatSchema", () => {
   it.each([-1, 0.5, MAX_CASH_AMOUNT_CENTS + 1, Number.NaN, "100", null])("rejects %j", (value) => {
     expect(openingFloatSchema.safeParse(value).success).toBe(false);
   });
+});
+
+describe("cashMovementAmountSchema", () => {
+  it.each([1, 500_000, MAX_CASH_AMOUNT_CENTS])("accepts %i cents", (cents) => {
+    expect(cashMovementAmountSchema.safeParse(cents).success).toBe(true);
+  });
+
+  it.each([0, -1, 0.5, MAX_CASH_AMOUNT_CENTS + 1, Number.NaN, "100", null])(
+    "rejects %j",
+    (value) => {
+      expect(cashMovementAmountSchema.safeParse(value).success).toBe(false);
+    },
+  );
 });

@@ -20,6 +20,8 @@ const requestId = z.string();
 
 export const openingFloatSchema = z.number().refine(isValidCashAmount);
 
+export const cashMovementAmountSchema = openingFloatSchema.refine((amount) => amount > 0);
+
 export { ARGENTINA_TIME_ZONE, parseAmountCents };
 
 const rendererPingMessageSchema = z.object({
@@ -89,10 +91,7 @@ const recordCashMovementMessageSchema = z.object({
   type: z.literal("record-cash-movement"),
   request_id: requestId,
   kind: z.enum(CASH_MOVEMENT_KINDS),
-  amount: z
-    .number()
-    .refine(isValidCashAmount)
-    .refine((amount) => amount > 0),
+  amount: cashMovementAmountSchema,
   reason: z.string().refine((reason) => cashMovementReason(reason) !== undefined),
   authorization: authorizationSchema.optional(),
 });

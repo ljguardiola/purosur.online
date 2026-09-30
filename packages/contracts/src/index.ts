@@ -153,6 +153,7 @@ export type {
 } from "./register/core-messages.js";
 export {
   ARGENTINA_TIME_ZONE,
+  cashMovementAmountSchema,
   coreStatusMessageSchema,
   coreToRendererMessageSchema,
   mainToCoreMessageSchema,
