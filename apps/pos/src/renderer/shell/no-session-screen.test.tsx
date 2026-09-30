@@ -1,3 +1,4 @@
+import type { OpenCashSessionOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { History } from "lucide-react";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
@@ -29,6 +30,7 @@ async function renderScreen(
   entries: readonly ActionEntry[] = [],
   signOut = vi.fn(),
   registerName: string | null = null,
+  openCashSession = vi.fn(async (): Promise<OpenCashSessionOutcome> => ({ kind: "unavailable" })),
 ) {
   await page.viewport(1280, 900);
   onTestFinished(() => page.viewport(414, 896));
@@ -38,9 +40,10 @@ async function renderScreen(
       registerName={registerName}
       entries={entries}
       signOut={signOut}
+      openCashSession={openCashSession}
     />,
   );
-  return { screen, signOut };
+  return { screen, signOut, openCashSession };
 }
 
 describe("NoSessionScreen", () => {
@@ -61,7 +64,8 @@ describe("NoSessionScreen", () => {
   it("shows only the first name of the person who is in", async () => {
     const { screen } = await renderScreen();
 
-    await expect.element(screen.getByText("Ada")).toBeVisible();
+    await expect.element(screen.getByRole("navigation").getByText("Ada")).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Ada" })).toBeVisible();
     expect(screen.container.textContent).not.toContain("void_sale");
   });
 
@@ -113,5 +117,37 @@ describe("NoSessionScreen", () => {
 
     await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
     expect(signOut).not.toHaveBeenCalled();
+  });
+
+  it("offers to open the cash drawer only to a person who can sell and charge", async () => {
+    const { screen } = await renderScreen();
+
+    await expect
+      .element(screen.getByRole("button", { name: "Abrir caja" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("opens the cash drawer for the person with the float they typed", async () => {
+    await page.viewport(1280, 900);
+    onTestFinished(() => page.viewport(414, 896));
+    const openCashSession = vi.fn(
+      async (): Promise<OpenCashSessionOutcome> => ({ kind: "unavailable" }),
+    );
+    const screen = await render(
+      <NoSessionScreen
+        person={{ ...PERSON, permission_keys: ["sell_and_charge"] }}
+        registerName={null}
+        entries={[]}
+        signOut={vi.fn()}
+        openCashSession={openCashSession}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
+    await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "150");
+    await userEvent.click(screen.getByRole("button", { name: "Abrir la caja" }));
+
+    expect(openCashSession).toHaveBeenCalledExactlyOnceWith(15_000);
+    await expectNoAccessibilityViolations(screen.container);
   });
 });

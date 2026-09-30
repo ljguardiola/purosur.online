@@ -105,6 +105,48 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to open a cash session for the person with the opening float in cents and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const outcome = client.openCashSession("u1", 2_000_000);
+    port.answer({
+      type: "open-cash-session-result",
+      request_id: "request-1",
+      outcome: { kind: "not_permitted" },
+    });
+
+    expect(await outcome).toEqual({ kind: "not_permitted" });
+    expect(port.posted).toEqual([
+      {
+        type: "open-cash-session",
+        request_id: "request-1",
+        user_id: "u1",
+        opening_float: 2_000_000,
+      },
+    ]);
+  });
+
+  it.each([
+    null,
+    {
+      id: "s1",
+      opened_at: "2026-09-30T12:02:00.000Z",
+      opened_by: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+    },
+  ])("asks the core for the open cash session and resolves with it: %j", async (session) => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.cashSession();
+    port.answer({ type: "cash-session", request_id: "request-1", session });
+
+    expect(await asked).toEqual(session);
+    expect(port.posted).toEqual([{ type: "cash-session-request", request_id: "request-1" }]);
+  });
+
   it("asks the core to enroll with the code as typed and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
