@@ -6,10 +6,12 @@ import { render } from "vitest-browser-react";
 import { PinField } from "./pin-field";
 
 function Harness({
+  compact = false,
   disabled = false,
   explained = false,
   initial = "",
 }: {
+  compact?: boolean;
   disabled?: boolean;
   explained?: boolean;
   initial?: string;
@@ -23,6 +25,7 @@ function Harness({
         value={value}
         onChange={setValue}
         disabled={disabled}
+        compact={compact}
         {...(explained ? { errorMessageId: explanationId } : {})}
       />
     </>
@@ -110,5 +113,29 @@ describe("PinField", () => {
     const screen = await render(<Harness />);
 
     await expect.element(screen.getByLabelText("PIN")).not.toHaveAttribute("aria-invalid", "true");
+  });
+
+  describe("compact", () => {
+    it("fits its label and six slots in a box 200 pixels wide and 48 tall", async () => {
+      const screen = await render(<Harness compact />);
+
+      const box = screen.getByLabelText("PIN").element().parentElement?.getBoundingClientRect();
+      const label = screen.getByText("PIN").element().getBoundingClientRect();
+
+      expect(box?.width).toBe(200);
+      expect(box?.height).toBe(48);
+      expect(label.left).toBeGreaterThanOrEqual(box?.left ?? Number.POSITIVE_INFINITY);
+      expect(label.right).toBeLessThanOrEqual(box?.right ?? 0);
+      expect(dots(screen)).toEqual({ total: 6, filled: 0 });
+      await expectNoAccessibilityViolations(screen.container);
+    });
+
+    it("fills a slot for each digit typed and stays labelled PIN", async () => {
+      const screen = await render(<Harness compact />);
+
+      await userEvent.type(screen.getByLabelText("PIN"), "42");
+
+      expect(dots(screen)).toEqual({ total: 6, filled: 2 });
+    });
   });
 });
