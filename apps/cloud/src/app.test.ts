@@ -25,7 +25,7 @@ import {
 } from "./access/route-access.js";
 import { SESSION_COOKIE_NAME } from "./access/session-cookie.js";
 import { generateSessionId, hashSessionId } from "./access/session-id.js";
-import { buildApp as buildRealApp } from "./app.js";
+import { buildApp as buildRealApp, databaseRouteOptions } from "./app.js";
 import {
   passkeys,
   rolePermissions,
@@ -1478,33 +1478,14 @@ function productionWiredApp() {
   return buildApp({
     version: "abc1234",
     staticDir,
-    recovery: {
-      db: testDatabase.db,
-      jobQueue: { async enqueueRecoveryRequest() {} },
-      backofficeOrigin: BACKOFFICE_ORIGIN,
-    },
-    session: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    passkeys: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    users: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    roles: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    branchSettings: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    issuerIdentification: {
+    ...databaseRouteOptions({
       db: testDatabase.db,
       backofficeOrigin: BACKOFFICE_ORIGIN,
+      recoveryJobQueue: { async enqueueRecoveryRequest() {} },
       authorizedCuit: "20-12345678-6",
-    },
-    categories: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    brands: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    tags: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    products: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    alerts: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    prices: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    registers: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    devices: {
-      db: testDatabase.db,
-      rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
-      keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
-    },
+      deviceTokenRotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
+      installationKeysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+    }),
   });
 }
 
@@ -1545,7 +1526,7 @@ describe("wiring the alerts routes", () => {
 });
 
 describe("the route access inventory", () => {
-  it("declares exactly one access level for every registered route", async () => {
+  it("covers every route the production wiring registers, each with one access level", async () => {
     const app = productionWiredApp();
     await app.ready();
 
@@ -1747,6 +1728,51 @@ describe("the route access inventory", () => {
         method: "POST",
         url: "/api/prices/:productId/confirmations",
         access: permissionAccess("manage_prices_and_review"),
+      },
+      {
+        method: "GET",
+        url: "/api/inventory-levels",
+        access: permissionAccess("view_stock_balances"),
+      },
+      {
+        method: "GET",
+        url: "/api/inventory-items",
+        access: permissionAccess([
+          "view_stock_balances",
+          "perform_stock_counts",
+          "adjust_stock",
+          "record_stock_losses",
+        ]),
+      },
+      {
+        method: "GET",
+        url: "/api/inventory-counts",
+        access: permissionAccess("perform_stock_counts"),
+      },
+      {
+        method: "POST",
+        url: "/api/inventory-counts",
+        access: permissionAccess("perform_stock_counts"),
+      },
+      {
+        method: "GET",
+        url: "/api/inventory-levels/:productId",
+        access: permissionAccess("view_stock_balances"),
+      },
+      {
+        method: "GET",
+        url: "/api/inventory-movements",
+        access: permissionAccess(["record_stock_losses", "adjust_stock"]),
+      },
+      {
+        method: "POST",
+        url: "/api/inventory-losses",
+        access: permissionAccess("record_stock_losses"),
+      },
+      {
+        method: "POST",
+        url: "/api/inventory-adjustments",
+        access: permissionAccess("adjust_stock"),
       },
       {
         method: "GET",
