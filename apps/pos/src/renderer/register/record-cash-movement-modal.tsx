@@ -156,6 +156,11 @@ function MovementModal({
       case "invalid_amount":
         setAmountMessage(INVALID_AMOUNT_MESSAGE);
         break;
+      case "exceeds_expected_cash":
+        setAmountMessage(
+          `No hay tanto efectivo en la caja: se esperan ${formatCents(outcome.expected)}.`,
+        );
+        break;
       case "invalid_reason":
         setReasonMessage(INVALID_REASON_MESSAGE);
         break;

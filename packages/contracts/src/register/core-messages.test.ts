@@ -885,20 +885,24 @@ describe("cash movement answers", () => {
     { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 7 },
     { kind: "rate_limited", retry_after_seconds: 30, attempts_left: 3 },
     { kind: "locked", consecutive_failures: 8 },
+    { kind: "exceeds_expected_cash", expected: 4_200_000 },
   ])("accepts the refusal $kind", (outcome) => {
     const message = { type: "record-cash-movement-result", request_id: REQUEST_ID, outcome };
 
     expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
-  it.each([{ kind: "x" }, { kind: "wrong_pin" }, { kind: "not_permitted" }])(
-    "rejects a refusal it does not know: %j",
-    (outcome) => {
-      const message = { type: "record-cash-movement-result", request_id: REQUEST_ID, outcome };
+  it.each([
+    { kind: "x" },
+    { kind: "wrong_pin" },
+    { kind: "not_permitted" },
+    { kind: "exceeds_expected_cash" },
+    { kind: "exceeds_expected_cash", expected: "42" },
+  ])("rejects a refusal it does not know: %j", (outcome) => {
+    const message = { type: "record-cash-movement-result", request_id: REQUEST_ID, outcome };
 
-      expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
-    },
-  );
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
 
   const listed = {
     id: "m1",

@@ -36,9 +36,14 @@ export async function recordCashMovementFor(
     return guarded;
   }
   const outcome = guarded.result;
-  return outcome.kind === "recorded"
-    ? { kind: "recorded", authorized_by: guarded.authorized_by }
-    : { kind: outcome.kind };
+  switch (outcome.kind) {
+    case "recorded":
+      return { kind: "recorded", authorized_by: guarded.authorized_by };
+    case "exceeds_expected_cash":
+      return outcome;
+    default:
+      return { kind: outcome.kind };
+  }
 }
 
 export function currentCashMovements(database: LocalDatabase): ListedCashMovement[] | null {

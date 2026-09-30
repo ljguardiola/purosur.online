@@ -205,6 +205,21 @@ describe("RecordCashMovementModal", () => {
     expect(onRecorded).not.toHaveBeenCalled();
   });
 
+  it("tells how much cash is expected beside the amount when the core refuses it as more than that", async () => {
+    const { screen, onRecorded } = await renderModal({
+      outcome: { kind: "exceeds_expected_cash", expected: 4_200_000 },
+    });
+    await choose(screen, "Retiro");
+    await fill(screen, "50.000", "Caja fuerte");
+
+    await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
+
+    await expect
+      .element(screen.getByText("No hay tanto efectivo en la caja: se esperan $ 42.000,00."))
+      .toBeVisible();
+    expect(onRecorded).not.toHaveBeenCalled();
+  });
+
   it("clears a field's message as it is typed into again", async () => {
     const { screen } = await renderModal();
     await fill(screen, "", "Cambio");
