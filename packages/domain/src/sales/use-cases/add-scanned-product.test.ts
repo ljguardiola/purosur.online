@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { SaleWithLines } from "../model/sale.js";
 import { addScannedProduct } from "./add-scanned-product.js";
+import type { CandidatePromotion } from "./sale-ledger.js";
 import {
   FakeSaleLedger,
   type FakeSaleLedgerState,
@@ -25,6 +26,20 @@ const OPEN_SALE: SaleWithLines = {
   state: "OPEN",
   occurredAt: new Date("2026-09-30T12:00:00.000Z"),
   lines: [],
+};
+
+const TEN_PERCENT: CandidatePromotion = {
+  id: "ten",
+  benefit: { kind: "PERCENT_OFF", percent: 10 },
+  active: true,
+  validFrom: "2026-09-01",
+  validTo: "2026-12-31",
+  weekdays: [],
+};
+const THREE_FOR_TWO: CandidatePromotion = {
+  ...TEN_PERCENT,
+  id: "three-for-two",
+  benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
 };
 
 function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
@@ -382,5 +397,130 @@ describe("addScannedProduct", () => {
 
     expect(() => scan(store)).toThrow("recordLineQuantity failed");
     nothingRecorded(store, before);
+  });
+
+  describe("promotions", () => {
+    it("adds a new line with the best promotion valid now and freezes the valid ones on it", () => {
+      const store = ledger({ promotionsByProduct: { yerba: [TEN_PERCENT, THREE_FOR_TWO] } });
+
+      const outcome = scan(store);
+
+      const expected = expect.objectContaining({
+        promotions: [
+          { id: "ten", benefit: { kind: "PERCENT_OFF", percent: 10 } },
+          { id: "three-for-two", benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 } },
+        ],
+        promotionId: "ten",
+        discountAmount: 250,
+        lineTotal: 2250,
+      });
+      expect(outcome.kind === "added" && outcome.sale.lines).toEqual([expected]);
+      expect(store.state.sales[0]?.lines).toEqual([expected]);
+    });
+
+    it("switches to buy 3 pay 2 when the third unit is scanned, among the promotions frozen with the line", () => {
+      const store = ledger({ promotionsByProduct: { yerba: [TEN_PERCENT, THREE_FOR_TWO] } });
+
+      const applied = [scan(store), scan(store), scan(store)].map(
+        (outcome) => outcome.kind === "added" && outcome.sale.lines[0]?.promotionId,
+      );
+
+      expect(applied).toEqual(["ten", "ten", "three-for-two"]);
+      expect(store.state.sales[0]?.lines[0]).toEqual(
+        expect.objectContaining({
+          promotionId: "three-for-two",
+          discountAmount: 2500,
+          lineTotal: 5000,
+        }),
+      );
+    });
+
+    it.each<[string, Partial<CandidatePromotion>]>([
+      ["deactivated", { active: false }],
+      ["not started yet", { validFrom: "2026-10-01" }],
+      ["already ended", { validTo: "2026-09-29" }],
+      ["limited to other days of the week", { weekdays: [1, 2] }],
+    ])("does not apply a promotion that is %s", (_name, change) => {
+      const store = ledger({ promotionsByProduct: { yerba: [{ ...TEN_PERCENT, ...change }] } });
+
+      const outcome = scan(store);
+
+      expect(outcome.kind === "added" && outcome.sale.lines).toEqual([
+        expect.objectContaining({
+          promotions: [],
+          promotionId: null,
+          discountAmount: 0,
+          lineTotal: 2500,
+        }),
+      ]);
+    });
+
+    it("applies a promotion limited to the weekday of the clock's moment", () => {
+      const wednesday = 3;
+      const store = ledger({
+        promotionsByProduct: { yerba: [{ ...TEN_PERCENT, weekdays: [wednesday] }] },
+      });
+
+      const outcome = scan(store);
+
+      expect(outcome.kind === "added" && outcome.sale.lines[0]?.promotionId).toBe("ten");
+    });
+
+    it("judges validity on the store's calendar day, not the UTC day", () => {
+      const lateEvening = new Date("2026-10-01T01:30:00.000Z");
+      const store = ledger({
+        promotionsByProduct: {
+          yerba: [
+            { ...TEN_PERCENT, id: "ends-that-day", validTo: "2026-09-30" },
+            { ...TEN_PERCENT, id: "starts-next-day", validFrom: "2026-10-01" },
+          ],
+        },
+      });
+
+      const outcome = addScannedProduct(
+        { ledger: store, clock: new FixedClock(lateEvening), ids: new SequentialIds() },
+        { actorId: "cashier", code: "7790001" },
+      );
+
+      expect(outcome.kind === "added" && outcome.sale.lines[0]?.promotions).toEqual([
+        { id: "ends-that-day", benefit: { kind: "PERCENT_OFF", percent: 10 } },
+      ]);
+    });
+
+    it("does not read promotions again when a unit is added to an existing line", () => {
+      const store = ledger({ promotionsByProduct: { yerba: [TEN_PERCENT] } });
+      scan(store);
+      store.state.promotionsByProduct = {
+        yerba: [{ ...TEN_PERCENT, id: "new", benefit: { kind: "PERCENT_OFF", percent: 90 } }],
+      };
+      store.promotionReads = 0;
+
+      const outcome = scan(store);
+
+      expect(store.promotionReads).toBe(0);
+      expect(outcome.kind === "added" && outcome.sale.lines[0]).toEqual(
+        expect.objectContaining({ promotionId: "ten", lineTotal: 4500 }),
+      );
+    });
+
+    it("does not look for promotions of a product it refuses", () => {
+      const store = ledger({ prices: [], promotionsByProduct: { yerba: [TEN_PERCENT] } });
+
+      scan(store);
+
+      expect(store.promotionReads).toBe(0);
+    });
+
+    it("reads the promotions of the scanned product", () => {
+      const store = ledger({
+        promotionsByProduct: { fideos: [TEN_PERCENT], yerba: [THREE_FOR_TWO] },
+      });
+
+      const outcome = scan(store);
+
+      expect(outcome.kind === "added" && outcome.sale.lines[0]?.promotions).toEqual([
+        { id: "three-for-two", benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 } },
+      ]);
+    });
   });
 });
