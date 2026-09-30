@@ -7,7 +7,7 @@ import {
   deactivateTag,
   editProduct,
 } from "@purosur/domain/catalog/use-cases";
-import { setPrice } from "@purosur/domain/pricing/use-cases";
+import { createDiscount, editDiscount, setPrice } from "@purosur/domain/pricing/use-cases";
 import { eq, inArray, sql } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -22,6 +22,7 @@ import {
   categories,
   changes,
   deviceState,
+  discounts,
   locations,
   priceLists,
   priceReviews,
@@ -37,6 +38,7 @@ import {
   userRoles,
   users,
 } from "../platform/db/schema.js";
+import { DrizzleDiscountStore } from "../pricing/drizzle-discount-store.js";
 import { DrizzlePricingStore } from "../pricing/drizzle-pricing-store.js";
 import { issueDeviceToken } from "../register/device-token.js";
 import { createRegister } from "../register/register-creation-route.js";
@@ -970,6 +972,115 @@ describe("GET /changes carrying the users and the roles", () => {
     expect(
       new Set([...first.changes, ...second.changes].map((change) => change.entity_id)),
     ).toEqual(new Set(inserted.map(({ id }) => id)));
+  });
+});
+
+describe("GET /changes carrying the discounts", () => {
+  const SEEDED_CHANGES = 3;
+
+  async function newTag(name: string): Promise<string> {
+    const outcome = await createTag(new DrizzleCatalogStore(db), { name });
+    if (outcome.kind !== "created") {
+      throw new Error(`test setup: creating the tag ended as ${outcome.kind}`);
+    }
+    return outcome.tag.id;
+  }
+
+  async function newDiscount(tagId: string): Promise<string> {
+    const outcome = await createDiscount(
+      { store: new DrizzleDiscountStore(db) },
+      {
+        name: "Martes de infusiones",
+        benefit: { kind: "PERCENT_OFF", percent: 10 },
+        target: { kind: "TAG", id: tagId },
+        validFrom: "2026-10-01",
+        validTo: "2026-10-31",
+        weekdays: [4, 2],
+      },
+    );
+    if (outcome.kind !== "created") {
+      throw new Error(`test setup: creating the discount ended as ${outcome.kind}`);
+    }
+    return outcome.id;
+  }
+
+  it("gives a discount with its benefit, target, validity, weekdays and version, to a register of any branch", async () => {
+    const [otherBranchRegister] = await db
+      .insert(registers)
+      .values({ locationId: await insertOtherBranch(), name: "Caja 2" })
+      .returning({ id: registers.id });
+    if (!otherBranchRegister) {
+      throw new Error("test setup: seeding the other branch's register returned no row");
+    }
+    const ownBranch = await insertEnrolledInstallation(db);
+    const otherBranch = await insertEnrolledInstallation(db, {
+      existingRegisterId: otherBranchRegister.id,
+    });
+    const tagId = await newTag("Infusiones");
+    const discountId = await newDiscount(tagId);
+
+    for (const { deviceToken } of [ownBranch, otherBranch]) {
+      const page = await pullPage(SEEDED_CHANGES, deviceToken);
+
+      expect(page.changes.map(({ change_seq, ...change }) => change)).toContainEqual({
+        entity: "discount",
+        entity_id: discountId,
+        row: {
+          name: "Martes de infusiones",
+          benefit: { kind: "PERCENT_OFF", percent: 10 },
+          target: { kind: "TAG", id: tagId },
+          valid_from: "2026-10-01",
+          valid_to: "2026-10-31",
+          weekdays: [2, 4],
+          active: true,
+          version: 1,
+        },
+      });
+    }
+  });
+
+  it("gives a switched off discount marked inactive, at its next version", async () => {
+    const { deviceToken } = await insertEnrolledInstallation(db);
+    const tagId = await newTag("Infusiones");
+    const discountId = await newDiscount(tagId);
+    await editDiscount(
+      { store: new DrizzleDiscountStore(db) },
+      {
+        id: discountId,
+        version: 1,
+        name: "Martes de infusiones",
+        benefit: { kind: "PERCENT_OFF", percent: 10 },
+        target: { kind: "TAG", id: tagId },
+        validFrom: "2026-10-01",
+        validTo: "2026-10-31",
+        weekdays: [2, 4],
+        active: false,
+      },
+    );
+
+    const page = await pullPage(SEEDED_CHANGES, deviceToken);
+
+    expect(page.changes.filter((change) => change.entity === "discount")).toMatchObject([
+      { entity_id: discountId, row: { active: false, version: 2 } },
+      { entity_id: discountId, row: { active: false, version: 2 } },
+    ]);
+  });
+
+  it("gives a removal in place of a discount that no longer exists, at the version of its latest change", async () => {
+    const { deviceToken } = await insertEnrolledInstallation(db);
+    const discountId = await newDiscount(await newTag("Infusiones"));
+    await db.delete(discounts).where(eq(discounts.id, discountId));
+    await db
+      .insert(changes)
+      .values({ entity: "discount", entityId: discountId, version: 2, op: "delete" });
+
+    const page = await pullPage(SEEDED_CHANGES, deviceToken);
+
+    const removals = page.changes.filter((change) => change.entity === "removal");
+    expect(removals.map(({ change_seq, ...change }) => change)).toEqual([
+      { entity: "removal", entity_id: discountId, removed_entity: "discount", version: 2 },
+      { entity: "removal", entity_id: discountId, removed_entity: "discount", version: 2 },
+    ]);
   });
 });
 

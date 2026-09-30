@@ -4,6 +4,7 @@ import type { LocalReplica, PullPage } from "@purosur/domain/sync/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 import { prepareAccessPageWrites } from "./access-page-writes";
 import { prepareCatalogPageWrites } from "./catalog-page-writes";
+import { prepareDiscountPageWrites } from "./discount-page-writes";
 import type { RegisterPulledChange } from "./pulled-change";
 import { prepareRegisterPageWrites } from "./register-page-writes";
 
@@ -84,6 +85,7 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
     const catalog = prepareCatalogPageWrites(this.database);
     const access = prepareAccessPageWrites(this.database, this.pepper);
     const register = prepareRegisterPageWrites(this.database);
+    const discount = prepareDiscountPageWrites(this.database);
     const saveBranchSettings = this.database.prepare(
       `INSERT INTO branch_settings (
          location_id, address, whatsapp_number, instagram_handle, weekly_hours,
@@ -150,10 +152,15 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
           case "register":
             register.save(change);
             break;
+          case "discount":
+            discount.save(change);
+            break;
           case "removal": {
             const { removed_entity } = change;
             if (removed_entity === "register") {
               register.removal({ ...change, removed_entity });
+            } else if (removed_entity === "discount") {
+              discount.removal({ ...change, removed_entity });
             } else if (removed_entity === "user" || removed_entity === "role") {
               access.removal({ ...change, removed_entity });
             } else {
@@ -306,6 +313,39 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
         "SELECT verifier FROM pin_verifiers WHERE user_id = ?",
       )
       .get(userId)?.verifier;
+  }
+
+  discount(id: string) {
+    const record = this.database
+      .prepare<
+        [string],
+        {
+          name: string;
+          kind: string;
+          percent: number | null;
+          target_kind: string;
+          target_id: string;
+          valid_from: string;
+          valid_to: string;
+          weekdays: string;
+          active: number;
+          version: number;
+          removed: number;
+        }
+      >(
+        `SELECT name, kind, percent, target_kind, target_id, valid_from, valid_to, weekdays,
+                active, version, removed
+         FROM discounts WHERE id = ?`,
+      )
+      .get(id);
+    return (
+      record && {
+        ...record,
+        weekdays: JSON.parse(record.weekdays) as number[],
+        active: record.active === 1,
+        removed: record.removed === 1,
+      }
+    );
   }
 
   role(id: string) {

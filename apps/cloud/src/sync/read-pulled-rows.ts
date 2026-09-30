@@ -3,6 +3,7 @@ import { asc, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   categories,
+  discounts,
   priceLists,
   prices,
   productBarcodes,
@@ -16,9 +17,11 @@ import {
   userRoles,
   users,
 } from "../platform/db/schema.js";
+import { discountFieldsOf } from "../pricing/drizzle-discount-store.js";
 import { PRICE_VERSION } from "../pricing/price-version.js";
 import type {
   CategoryRow,
+  DiscountRow,
   PriceListRow,
   PriceRow,
   ProductRow,
@@ -249,4 +252,19 @@ export async function readRegisters<TQueryResult extends PgQueryResultHKT>(
     .where(inArray(registers.id, [...ids]))
     .orderBy(asc(registers.id));
   return new Map(rows.map(({ id, ...row }) => [id, row]));
+}
+
+export async function readDiscounts<TQueryResult extends PgQueryResultHKT>(
+  tx: PgDatabase<TQueryResult>,
+  ids: readonly string[],
+): Promise<Map<string, DiscountRow>> {
+  if (ids.length === 0) {
+    return new Map();
+  }
+  const rows = await tx
+    .select()
+    .from(discounts)
+    .where(inArray(discounts.id, [...ids]))
+    .orderBy(asc(discounts.id));
+  return new Map(rows.map((row) => [row.id, discountFieldsOf(row)]));
 }
