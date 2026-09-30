@@ -5,7 +5,7 @@ import {
   CASH_MOVEMENT_REASON_MAX_LENGTH,
   type CashMovementKind,
 } from "../model/cash-movement-kind.js";
-import type { CashSession } from "../model/cash-session.js";
+import type { CashMovement, CashSession } from "../model/cash-session.js";
 import { type RecordCashMovementInput, recordCashMovement } from "./record-cash-movement.js";
 import {
   FakeCashLedger,
@@ -26,8 +26,17 @@ const OPEN_SESSION: CashSession = {
   state: "OPEN",
 };
 
+const OPENING: CashMovement = {
+  id: "opening-1",
+  sessionId: "session-1",
+  type: "OPENING",
+  amount: 4200000,
+  actorId: "cashier",
+  occurredAt: new Date("2026-09-30T09:02:00.000Z"),
+};
+
 function ledger(state: Partial<FakeCashLedgerState> = {}): FakeCashLedger {
-  return new FakeCashLedger({ sessions: [OPEN_SESSION], ...state });
+  return new FakeCashLedger({ sessions: [OPEN_SESSION], movements: [OPENING], ...state });
 }
 
 function record(store: FakeCashLedger, input: Partial<RecordCashMovementInput> = {}) {
@@ -66,7 +75,7 @@ describe("recordCashMovement", () => {
         occurredAt: NOW,
       };
       expect(outcome).toStrictEqual({ kind: "recorded", movement });
-      expect(store.state.movements).toStrictEqual([movement]);
+      expect(store.state.movements).toStrictEqual([OPENING, movement]);
     },
   );
 
@@ -75,9 +84,9 @@ describe("recordCashMovement", () => {
 
     record(store, { authorizedBy: "manager" });
 
-    expect(store.state.movements).toEqual([
+    expect(store.state.movements.at(-1)).toEqual(
       expect.objectContaining({ actorId: "cashier", authorizedBy: "manager" }),
-    ]);
+    );
   });
 
   it("records the reason without the spaces around it", () => {
@@ -85,7 +94,7 @@ describe("recordCashMovement", () => {
 
     record(store, { reason: "  Cambio para el vuelto  " });
 
-    expect(store.state.movements[0]?.reason).toBe("Cambio para el vuelto");
+    expect(store.state.movements.at(-1)?.reason).toBe("Cambio para el vuelto");
   });
 
   it("queues a cash_movement_recorded event for the session", () => {
@@ -135,7 +144,71 @@ describe("recordCashMovement", () => {
   });
 
   it.each([1, MAX_CASH_AMOUNT_CENTS])("accepts an amount of %i cents", (amount) => {
-    expect(record(ledger(), { amount }).kind).toBe("recorded");
+    expect(record(ledger(), { kind: "CASH_IN", amount }).kind).toBe("recorded");
+  });
+
+  it.each<CashMovementKind>(["CASH_OUT", "WITHDRAWAL"])(
+    "refuses a %s above the session's expected cash, saying how much is expected",
+    (kind) => {
+      const store = ledger();
+      const before = structuredClone(store.state);
+
+      expect(record(store, { kind, amount: 40000000 })).toEqual({
+        kind: "exceeds_expected_cash",
+        expected: 4200000,
+      });
+      nothingRecorded(store, before);
+    },
+  );
+
+  it.each<CashMovementKind>(["CASH_OUT", "WITHDRAWAL"])(
+    "records a %s of exactly the session's expected cash",
+    (kind) => {
+      expect(record(ledger(), { kind, amount: 4200000 }).kind).toBe("recorded");
+    },
+  );
+
+  it("refuses a withdrawal one cent above the session's expected cash", () => {
+    expect(record(ledger(), { amount: 4200001 })).toEqual({
+      kind: "exceeds_expected_cash",
+      expected: 4200000,
+    });
+  });
+
+  it("counts every movement of the session, and only of that session, in the expected cash", () => {
+    const store = ledger({
+      movements: [
+        OPENING,
+        { ...OPENING, id: "in-1", type: "CASH_IN", amount: 500000 },
+        { ...OPENING, id: "out-1", type: "CASH_OUT", amount: 200000 },
+        { ...OPENING, id: "other-1", sessionId: "session-0", type: "CASH_IN", amount: 9000000 },
+      ],
+    });
+
+    expect(record(store, { amount: 4500001 })).toEqual({
+      kind: "exceeds_expected_cash",
+      expected: 4500000,
+    });
+    expect(record(store, { amount: 4500000 }).kind).toBe("recorded");
+  });
+
+  it("lets cash brought in pay an expense above what the session held", () => {
+    const store = ledger();
+
+    record(store, { kind: "CASH_IN", amount: 800000 });
+
+    expect(record(store, { kind: "CASH_OUT", amount: 5000000 }).kind).toBe("recorded");
+  });
+
+  it("refuses a second withdrawal once the first took the expected cash", () => {
+    const store = ledger();
+    record(store, { amount: 4200000 });
+
+    expect(record(store, { amount: 1 })).toEqual({ kind: "exceeds_expected_cash", expected: 0 });
+  });
+
+  it("brings in any amount of cash regardless of the expected cash", () => {
+    expect(record(ledger({ movements: [] }), { kind: "CASH_IN", amount: 1 }).kind).toBe("recorded");
   });
 
   it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, MAX_CASH_AMOUNT_CENTS + 1])(
