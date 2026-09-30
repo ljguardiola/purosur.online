@@ -163,7 +163,7 @@ export function SaleScreen({
           sale: outcome.sale,
           changedLineId: changedLineId(now.status === "ready" ? now.sale : null, outcome.sale),
         }));
-        setCode((typed) => (typed === submitted ? "" : typed));
+        setCode((typed) => (typed.trim() === submitted ? "" : typed));
         break;
       case "not_signed_in":
       case "no_open_session":

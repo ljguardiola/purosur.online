@@ -402,6 +402,20 @@ describe("SaleScreen searching by name", () => {
       await expect.element(screen.getByRole("listbox")).not.toBeInTheDocument();
     });
 
+    it("clears the field and closes the list even when the text had blanks around it", async () => {
+      const { screen, field } = await renderScreen({
+        searchProducts: answering(results([YERBA_FOUND])),
+        addProduct: async () => ({ kind: "added", sale: SALE_OF_YERBA }),
+      });
+      await field.fill("yer ");
+      await expect.element(screen.getByRole("listbox")).toBeVisible();
+
+      await userEvent.keyboard("{Enter}");
+
+      await expect.element(field).toHaveValue("");
+      await expect.element(screen.getByRole("listbox")).not.toBeInTheDocument();
+    });
+
     it("adds the product of the option that is clicked, keeping the focus in the field", async () => {
       const addProduct = vi.fn<SaleScreenProps["addProduct"]>(async () => ({
         kind: "added",

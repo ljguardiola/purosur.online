@@ -291,6 +291,16 @@ describe("SaleScreen", () => {
         .toBeVisible();
     });
 
+    it("clears the field when the code had blanks around it", async () => {
+      const { field } = await renderScreen({
+        scanProduct: async () => ({ kind: "added", sale: SALE_OF_YERBA }),
+      });
+
+      await scan(field, "7790001 ");
+
+      await expect.element(field).toHaveValue("");
+    });
+
     it("marks the line whose quantity went up when the same product is scanned again", async () => {
       const again: OpenSale = {
         id: "sale-1",
