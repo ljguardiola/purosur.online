@@ -13,6 +13,7 @@ import type { CategoriesListScreenProps } from "../catalog/categories-list-scree
 import type { ProductsListScreenProps } from "../catalog/products-list-screen";
 import type { TagsListScreenProps } from "../catalog/tags-list-screen";
 import type { FiscalConfigurationScreenProps } from "../fiscal/fiscal-configuration-screen";
+import type { DiscountsListScreenProps } from "../pricing/discounts-list-screen";
 import type { PricesListScreenProps } from "../pricing/prices-list-screen";
 import type { RegistersListScreenProps } from "../register/registers-list-screen";
 import type { AppServices } from "./app";
@@ -65,6 +66,9 @@ test("makes every screen require its services", () => {
   >();
   expectTypeOf<ServicesProp<PricesListScreenProps>>().toEqualTypeOf<
     Required<ServicesProp<PricesListScreenProps>>
+  >();
+  expectTypeOf<ServicesProp<DiscountsListScreenProps>>().toEqualTypeOf<
+    Required<ServicesProp<DiscountsListScreenProps>>
   >();
   expectTypeOf<ServicesProp<FiscalConfigurationScreenProps>>().toEqualTypeOf<
     Required<ServicesProp<FiscalConfigurationScreenProps>>

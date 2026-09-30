@@ -7,6 +7,7 @@ import {
   canPerformStockCounts,
   canSeeCashArea,
   canSeeCatalogArea,
+  canSeePricesArea,
   canSeeStockArea,
   canSeeStockBalances,
 } from "../access/backoffice-access";
@@ -32,7 +33,9 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
   const matchRoute = useMatchRoute();
   const catalogTarget = canManageProductsAndCategories(session)
     ? "/catalog/products"
-    : "/catalog/prices";
+    : canSeePricesArea(session)
+      ? "/catalog/prices"
+      : "/catalog/discounts";
   const catalogTargetShown = Boolean(matchRoute({ to: catalogTarget }));
   const stockTarget = canSeeStockBalances(session)
     ? "/stock/balances"

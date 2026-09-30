@@ -1,6 +1,8 @@
 import {
   isInternalBarcode,
   isPermissionKey,
+  isValidDiscountPercent,
+  isValidDiscountWeekdays,
   PRODUCT_NAME_MAX_LENGTH,
   SALE_UNITS,
   type SaleUnit,
@@ -10,11 +12,13 @@ import {
   SAMPLE_ADMINISTRATOR,
   SAMPLE_BRANCH_SETTINGS,
   SAMPLE_CATEGORY_TREE,
+  SAMPLE_DISCOUNTS,
   SAMPLE_EMAIL_DOMAIN,
   SAMPLE_LOCKOUT_SOURCE_ADDRESSES,
   SAMPLE_REGISTER_NAMES,
   SAMPLE_ROLES,
   SAMPLE_TAGS,
+  sampleDiscountWindow,
   sampleEmail,
 } from "./sample-catalog.js";
 
@@ -180,6 +184,89 @@ describe("SAMPLE_TAGS", () => {
   it("puts every tag on at least one product, the deactivated ones too", () => {
     const used = new Set(flattenProducts().flatMap((product) => product.tagNames));
     expect(used).toEqual(new Set(SAMPLE_TAGS.map((tag) => tag.name)));
+  });
+});
+
+describe("SAMPLE_DISCOUNTS", () => {
+  it("names every discount uniquely", () => {
+    const names = SAMPLE_DISCOUNTS.map((discount) => discount.name);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  it("plans a valid percent and valid weekdays for every discount", () => {
+    for (const discount of SAMPLE_DISCOUNTS) {
+      expect(isValidDiscountPercent(discount.percent)).toBe(true);
+      expect(isValidDiscountWeekdays(discount.weekdays)).toBe(true);
+    }
+  });
+
+  it("aims at a category, a product and a tag, and at least one discount on some weekdays only", () => {
+    expect(new Set(SAMPLE_DISCOUNTS.map((discount) => discount.target.kind))).toEqual(
+      new Set(["CATEGORY", "PRODUCT", "TAG"]),
+    );
+    expect(SAMPLE_DISCOUNTS.some((discount) => discount.weekdays.length > 0)).toBe(true);
+  });
+
+  it("aims only at sample categories, active sample products and active sample tags", () => {
+    const categoryNames = new Set(
+      SAMPLE_CATEGORY_TREE.flatMap((top) => [
+        top.name,
+        ...top.mids.flatMap((mid) => [mid.name, ...mid.leaves.map((leaf) => leaf.name)]),
+      ]),
+    );
+    const activeProductNames = new Set(
+      flattenProducts()
+        .filter((product) => product.active)
+        .map((product) => product.name),
+    );
+    const activeTagNames = new Set(SAMPLE_TAGS.filter((tag) => tag.active).map((tag) => tag.name));
+    const namesByKind = {
+      CATEGORY: categoryNames,
+      PRODUCT: activeProductNames,
+      TAG: activeTagNames,
+    };
+
+    for (const discount of SAMPLE_DISCOUNTS) {
+      expect(namesByKind[discount.target.kind].has(discount.target.name)).toBe(true);
+    }
+  });
+
+  it("plans some discounts running on the load day and some starting after it", () => {
+    const loadDay = "2026-03-15";
+    const windows = SAMPLE_DISCOUNTS.map((discount) => sampleDiscountWindow(discount, loadDay));
+
+    expect(
+      windows.some(({ validFrom, validTo }) => validFrom <= loadDay && loadDay <= validTo),
+    ).toBe(true);
+    expect(windows.some(({ validFrom }) => validFrom > loadDay)).toBe(true);
+  });
+});
+
+describe("sampleDiscountWindow", () => {
+  const plan = {
+    name: "Verano",
+    percent: 10,
+    target: { kind: "TAG", name: "Vegano" },
+    weekdays: [],
+  } as const;
+
+  it("starts the given number of days from the load day and lasts the given number of days, both ends included", () => {
+    expect(
+      sampleDiscountWindow({ ...plan, startsInDays: -3, lastsDays: 14 }, "2026-03-15"),
+    ).toEqual({ validFrom: "2026-03-12", validTo: "2026-03-25" });
+  });
+
+  it("ends the day it starts when it lasts one day", () => {
+    expect(sampleDiscountWindow({ ...plan, startsInDays: 0, lastsDays: 1 }, "2026-03-15")).toEqual({
+      validFrom: "2026-03-15",
+      validTo: "2026-03-15",
+    });
+  });
+
+  it("counts across the end of a month and a year", () => {
+    expect(
+      sampleDiscountWindow({ ...plan, startsInDays: 10, lastsDays: 30 }, "2026-12-25"),
+    ).toEqual({ validFrom: "2027-01-04", validTo: "2027-02-02" });
   });
 });
 
