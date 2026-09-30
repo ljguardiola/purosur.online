@@ -131,7 +131,7 @@ function deactivateUser(
   headers: Record<string, string> = {},
 ) {
   return app.inject({
-    method: "POST",
+    method: "PUT",
     url: `/users/${targetId}/deactivation`,
     headers: {
       origin: BACKOFFICE_ORIGIN,
@@ -165,7 +165,7 @@ afterEach(async () => {
   await app.close();
 });
 
-describe("POST /users/:id/deactivation", () => {
+describe("PUT /users/:id/deactivation", () => {
   let cashierRoleId: string;
   let targetId: string;
 
@@ -184,6 +184,18 @@ describe("POST /users/:id/deactivation", () => {
 
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
+  });
+
+  it("no longer answers the old deactivation path", async () => {
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/users/${targetId}/deactivation`,
+      headers: { origin: BACKOFFICE_ORIGIN, ...cookieHeader(rawSessionId) },
+    });
+
+    expect(response.statusCode).toBe(404);
   });
 
   it("rejects an Origin that is not the backoffice's own", async () => {
@@ -377,7 +389,7 @@ describe("POST /users/:id/deactivation", () => {
     });
 
     const response = await racedApp.inject({
-      method: "POST",
+      method: "PUT",
       url: `/users/${targetId}/deactivation`,
       headers: { origin: BACKOFFICE_ORIGIN, ...cookieHeader(rawSessionId) },
     });

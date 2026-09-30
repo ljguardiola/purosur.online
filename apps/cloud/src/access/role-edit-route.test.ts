@@ -95,14 +95,14 @@ function cookieHeader(rawSessionId: string): Record<string, string> {
   return { cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` };
 }
 
-function postJson(
+function putJson(
   target: FastifyInstance,
   url: string,
   body: Record<string, unknown>,
   headers: Record<string, string> = {},
 ) {
   return target.inject({
-    method: "POST",
+    method: "PUT",
     url,
     headers: { origin: BACKOFFICE_ORIGIN, ...headers },
     payload: body,
@@ -115,9 +115,9 @@ function editRoleRequest(
   body: Record<string, unknown>,
   headers: Record<string, string> = {},
 ) {
-  return postJson(
+  return putJson(
     app,
-    `/roles/${roleId}/edit`,
+    `/roles/${roleId}`,
     body,
     rawSessionId ? { ...cookieHeader(rawSessionId), ...headers } : headers,
   );
@@ -143,7 +143,7 @@ afterEach(async () => {
   await app.close();
 });
 
-describe("POST /roles/:id/edit", () => {
+describe("PUT /roles/:id", () => {
   let roleId: string;
 
   beforeEach(async () => {
@@ -161,12 +161,25 @@ describe("POST /roles/:id/edit", () => {
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
   });
 
-  it("rejects an Origin that is not the backoffice's own", async () => {
+  it("no longer answers the old edit path", async () => {
     const rawSessionId = await insertSession(administratorId);
 
     const response = await app.inject({
       method: "POST",
       url: `/roles/${roleId}/edit`,
+      headers: { origin: BACKOFFICE_ORIGIN, ...cookieHeader(rawSessionId) },
+      payload: { name: "Cajera", permissions: [], version: 1 },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("rejects an Origin that is not the backoffice's own", async () => {
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await app.inject({
+      method: "PUT",
+      url: `/roles/${roleId}`,
       headers: { origin: "https://attacker.example", ...cookieHeader(rawSessionId) },
     });
 
@@ -416,7 +429,7 @@ describe("POST /roles/:id/edit", () => {
   });
 });
 
-describe("POST /roles/:id/edit and the alert for increased access", () => {
+describe("PUT /roles/:id and the alert for increased access", () => {
   let roleId: string;
 
   async function accessIncreasedAlerts() {

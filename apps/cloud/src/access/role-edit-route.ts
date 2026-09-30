@@ -214,8 +214,8 @@ export function registerRoleEditRoutes<TQueryResult extends PgQueryResultHKT>(
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  app.post<{ Params: { id: string } }>(
-    "/roles/:id/edit",
+  app.put<{ Params: { id: string } }>(
+    "/roles/:id",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: { access: ADMINISTRATOR_ACCESS, sessionSource },

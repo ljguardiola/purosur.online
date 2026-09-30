@@ -91,8 +91,8 @@ describe("two users editing each other at once on a real Postgres", () => {
     const secondNewEmail = `second-${randomUUID()}@example.com`;
     const edit = (targetId: string, email: string, cookie: string) => () =>
       app.inject({
-        method: "POST",
-        url: `/users/${targetId}/edit`,
+        method: "PUT",
+        url: `/users/${targetId}`,
         headers: { origin: BACKOFFICE_ORIGIN, cookie },
         payload: { email, role_id: administratorRoleId, version: 1 },
       });
