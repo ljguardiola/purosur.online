@@ -61,6 +61,7 @@ async function renderScreen(
       person={PERSON}
       registerName={props.registerName === undefined ? "Caja 1" : props.registerName}
       openedAt={OPENED_AT}
+      lock={() => {}}
       loadCashBalance={props.loadCashBalance ?? (async () => BALANCE)}
       loadCashMovements={props.loadCashMovements ?? (async () => [OPENING, FLETE])}
       loadAuthorizers={async () => []}
