@@ -242,6 +242,13 @@ describe("chargeLine choosing among promotions", () => {
     expect(chargeLine(units(1), 1000, [a, b]).promotionId).toBe("a");
   });
 
+  it("keeps the larger discount over a lower identifier giving less", () => {
+    const b: LinePromotion = { id: "b", benefit: { kind: "PERCENT_OFF", percent: 20 } };
+    const a: LinePromotion = { id: "a", benefit: { kind: "PERCENT_OFF", percent: 10 } };
+
+    expect(chargeLine(units(1), 1000, [b, a]).promotionId).toBe("b");
+  });
+
   it("compares identifiers as strings", () => {
     const ten: LinePromotion = { id: "10", benefit: { kind: "PERCENT_OFF", percent: 20 } };
     const nine: LinePromotion = { id: "9", benefit: { kind: "PERCENT_OFF", percent: 20 } };

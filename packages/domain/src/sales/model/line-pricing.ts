@@ -26,10 +26,10 @@ export function chargeLine(
   const amount = lineAmount(quantity, unitPrice);
   const listTotal = roundHalfUp(amount);
   let best: LineCharge = { promotionId: null, discountAmount: 0, lineTotal: listTotal };
-  for (const promotion of promotions) {
+  for (const promotion of [...promotions].sort((a, b) => a.id.localeCompare(b.id))) {
     const lineTotal = roundHalfUp(promotedAmount(quantity, unitPrice, amount, promotion));
     const discountAmount = listTotal - lineTotal;
-    if (isBetter(discountAmount, promotion.id, best)) {
+    if (discountAmount > best.discountAmount) {
       best = { promotionId: promotion.id, discountAmount, lineTotal };
     }
   }
@@ -55,14 +55,4 @@ function promotedAmount(
   const units = BigInt(quantity.units);
   const chargedUnits = (units / buy) * BigInt(benefit.payQty) + (units % buy);
   return { numerator: chargedUnits * BigInt(unitPrice), denominator: 1n };
-}
-
-function isBetter(discountAmount: number, id: string, best: LineCharge): boolean {
-  if (discountAmount <= 0) {
-    return false;
-  }
-  return (
-    discountAmount > best.discountAmount ||
-    (discountAmount === best.discountAmount && best.promotionId !== null && id < best.promotionId)
-  );
 }

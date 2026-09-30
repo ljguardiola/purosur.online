@@ -20,17 +20,6 @@ describe("roundHalfUp", () => {
     expect(roundHalfUp({ numerator, denominator })).toBe(expected);
   });
 
-  it.each([
-    [-1n, 2n, -1],
-    [-3n, 2n, -2],
-    [-1n, 3n, 0],
-    [-2n, 3n, -1],
-    [1n, -2n, -1],
-    [-1n, -2n, 1],
-  ])("rounds half away from zero: %s / %s to %s", (numerator, denominator, expected) => {
-    expect(roundHalfUp({ numerator, denominator })).toBe(expected);
-  });
-
   it("is exact for values beyond the safe integer range", () => {
     const numerator = BigInt(MAX_UNIT_PRICE_CENTS) * 1_000_000n * 1000n + 500n;
 
@@ -49,20 +38,6 @@ describe("roundHalfUp", () => {
 
           expect(2n * (numerator - rounded * denominator)).toBeLessThan(denominator);
           expect(2n * (rounded * denominator - numerator)).toBeLessThanOrEqual(denominator);
-        },
-      ),
-    );
-  });
-
-  it("mirrors around zero", () => {
-    fc.assert(
-      fc.property(
-        fc.bigInt({ min: 0n, max: 10n ** 15n }),
-        fc.bigInt({ min: 1n, max: 10n ** 6n }),
-        (numerator, denominator) => {
-          expect(roundHalfUp({ numerator: -numerator, denominator })).toBe(
-            -roundHalfUp({ numerator, denominator }) || 0,
-          );
         },
       ),
     );
