@@ -13,10 +13,23 @@ export interface FirstSignInDeps extends SignInDeps {
   store: SignInDeps["store"] & Pick<SignInStore, "remember">;
 }
 
-export async function signIn(
+export function signIn(deps: SignInDeps, userId: string, pin: string): Promise<SignInOutcome> {
+  return signInThen(deps, userId, pin, () => {});
+}
+
+export function firstSignIn(
+  deps: FirstSignInDeps,
+  userId: string,
+  pin: string,
+): Promise<SignInOutcome> {
+  return signInThen(deps, userId, pin, () => deps.store.remember(userId));
+}
+
+async function signInThen(
   deps: SignInDeps,
   userId: string,
   pin: string,
+  beforeSigningIn: () => void,
 ): Promise<SignInOutcome> {
   deps.signedInPerson.clear();
   const signable = signableRecord(deps.store, userId);
@@ -31,6 +44,7 @@ export async function signIn(
   if (!holdsARegisterPermission(record.access)) {
     return { kind: "no_register_permission" };
   }
+  beforeSigningIn();
   deps.signedInPerson.set(userId);
   return {
     kind: "signed_in",
@@ -40,16 +54,4 @@ export async function signIn(
       permission_keys: heldPermissionKeys(record.access),
     },
   };
-}
-
-export async function firstSignIn(
-  deps: FirstSignInDeps,
-  userId: string,
-  pin: string,
-): Promise<SignInOutcome> {
-  const outcome = await signIn(deps, userId, pin);
-  if (outcome.kind === "signed_in") {
-    deps.store.remember(userId);
-  }
-  return outcome;
 }
