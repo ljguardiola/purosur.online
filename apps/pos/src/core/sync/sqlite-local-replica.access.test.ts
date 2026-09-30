@@ -314,6 +314,27 @@ describe("the register's local copy of the users, roles and permissions it pulls
     expect(replica.user(USER_ID)).toMatchObject({ first_name: "Ada", version: 1 });
   });
 
+  it("holds none of the previous branch's users once it joins another branch, keeping their rows", async () => {
+    await save(userChange(1, userRow()));
+
+    replica.adoptDevice({ deviceId: "device-b", pepper: OTHER_PEPPER });
+    await save(userChange(1, userRow({ first_name: "Grace" }), OTHER_USER_ID));
+
+    expect(replica.user(USER_ID)).toMatchObject({ first_name: "Ada", version: 1, removed: true });
+    expect(replica.pinVerifier(USER_ID)).toBeUndefined();
+    expect(replica.user(OTHER_USER_ID)).toMatchObject({ first_name: "Grace", removed: false });
+  });
+
+  it("does not let an older version bring back a user it held before joining another installation", async () => {
+    await save(userChange(1, userRow({ version: 3 })));
+
+    replica.adoptDevice({ deviceId: "device-b", pepper: OTHER_PEPPER });
+    await save(userChange(1, userRow({ first_name: "Vieja", version: 2 })));
+
+    expect(replica.user(USER_ID)).toMatchObject({ first_name: "Ada", version: 3, removed: true });
+    expect(replica.pinVerifier(USER_ID)).toBeUndefined();
+  });
+
   it("keeps its verifiers for the installation that derived them", async () => {
     await save(userChange(1, userRow()));
 

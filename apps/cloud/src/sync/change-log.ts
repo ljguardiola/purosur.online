@@ -12,15 +12,17 @@ type PulledEntity =
   | "user"
   | "role";
 
-export interface LoggedChange {
-  entity: PulledEntity;
+interface LoggedChangeFields {
   entityId: string;
   version: number;
   op: "insert" | "update" | "delete";
   originDeviceId?: string;
   priceListId?: string;
-  locationId?: string;
 }
+
+export type LoggedChange =
+  | (LoggedChangeFields & { entity: "user"; locationId: string })
+  | (LoggedChangeFields & { entity: Exclude<PulledEntity, "user">; locationId?: never });
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]

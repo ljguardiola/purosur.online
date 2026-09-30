@@ -6,7 +6,9 @@ import type { RemovalOf } from "./pulled-change";
 type ChangeOf<TEntity extends SyncChange["entity"]> = Extract<SyncChange, { entity: TEntity }>;
 
 // Every save is guarded by the row's version, so a version the register already has, or an older
-// one delivered late, never overwrites it, and nothing is ever deleted. The PIN hash is turned into
+// one delivered late, never overwrites it, and nothing is ever deleted. A user left behind by a
+// change of installation is brought back only by its own version, which the cloud never serves
+// again once it removed that user. The PIN hash is turned into
 // a verifier on its way in and is not kept.
 export function prepareAccessPageWrites(database: LocalDatabase, pepper: string | undefined) {
   const saveUser = database.prepare(
@@ -19,18 +21,12 @@ export function prepareAccessPageWrites(database: LocalDatabase, pepper: string 
        active = excluded.active,
        version = excluded.version,
        removed = 0
-     WHERE excluded.version > users.version`,
-  );
-  const userVersion = database.prepare<[string], { version: number }>(
-    "SELECT version FROM users WHERE id = ?",
+     WHERE excluded.version > users.version
+        OR (excluded.version = users.version AND users.removed = 1)`,
   );
   const saveVerifier = database.prepare(
     `INSERT INTO pin_verifiers (user_id, verifier) VALUES (@user_id, @verifier)
      ON CONFLICT (user_id) DO UPDATE SET verifier = excluded.verifier`,
-  );
-  const restoreVerifier = database.prepare(
-    `INSERT INTO pin_verifiers (user_id, verifier) VALUES (@user_id, @verifier)
-     ON CONFLICT (user_id) DO NOTHING`,
   );
   const deleteVerifier = database.prepare("DELETE FROM pin_verifiers WHERE user_id = ?");
   const saveRole = database.prepare(
@@ -74,17 +70,13 @@ export function prepareAccessPageWrites(database: LocalDatabase, pepper: string 
         active: row.active ? 1 : 0,
         version: row.version,
       });
-      if (row.pin_hash === null) {
-        if (saved.changes > 0) {
-          deleteVerifier.run(entity_id);
-        }
+      if (saved.changes === 0) {
         return;
       }
-      const verifier = { user_id: entity_id, verifier: derivePinVerifier(pepper, row.pin_hash) };
-      if (saved.changes > 0) {
-        saveVerifier.run(verifier);
-      } else if (userVersion.get(entity_id)?.version === row.version) {
-        restoreVerifier.run(verifier);
+      if (row.pin_hash === null) {
+        deleteVerifier.run(entity_id);
+      } else {
+        saveVerifier.run({ user_id: entity_id, verifier: derivePinVerifier(pepper, row.pin_hash) });
       }
     },
 
