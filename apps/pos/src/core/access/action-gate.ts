@@ -15,7 +15,7 @@ export type GuardedAction =
   | { permission: Exclude<PermissionKey, AuthorizablePermissionKey>; authorization?: undefined }
   | { closesOwnCashSession: true; authorization?: undefined };
 
-export type GuardedOutcome<Result> =
+type GuardedOutcome<Result> =
   | { kind: "performed"; authorized_by: AuthorizedBy | null; result: Result }
   | GuardedActionRefusal;
 
