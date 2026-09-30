@@ -121,6 +121,7 @@ function MovementModal({
     if (!submitting) {
       setKind(next);
       setNotice(undefined);
+      setAmountMessage(undefined);
     }
   }
 
