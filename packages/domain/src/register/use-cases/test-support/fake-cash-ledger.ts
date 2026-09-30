@@ -1,6 +1,6 @@
 import type { RoleAccess } from "../../../access/index.js";
 import type { OutboxEventDraft } from "../../../sync/index.js";
-import type { CashMovement, CashSession } from "../../model/cash-session.js";
+import type { CashMovement, CashSession, OpenedCashSession } from "../../model/cash-session.js";
 import type {
   CashLedger,
   CashLedgerTransaction,
@@ -13,11 +13,13 @@ export interface FakeCashLedgerState {
   identity: RegisterIdentity | undefined;
   sessions: CashSession[];
   movements: CashMovement[];
+  openSaleTotal: number | undefined;
   outbox: OutboxEventDraft[];
 }
 
 export type FakeCashLedgerWrite =
   | "recordOpenedSession"
+  | "recordClosedSession"
   | "recordCashMovement"
   | "appendOutboxEvent";
 
@@ -32,6 +34,7 @@ export class FakeCashLedger implements CashLedger {
       identity: undefined,
       sessions: [],
       movements: [],
+      openSaleTotal: undefined,
       outbox: [],
       ...state,
     };
@@ -42,11 +45,21 @@ export class FakeCashLedger implements CashLedger {
     const working = structuredClone(this.state);
     const outcome = work({
       openerAccess: (userId) => working.accesses[userId],
-      openSession: () => working.sessions.find((session) => session.state === "OPEN"),
+      openSession: () =>
+        working.sessions.find((session): session is OpenedCashSession => session.state === "OPEN"),
+      openSaleTotal: () => working.openSaleTotal,
+      sessionMovements: (sessionId) =>
+        working.movements.filter((movement) => movement.sessionId === sessionId),
       registerIdentity: () => working.identity,
       recordOpenedSession: (session) => {
         this.failIfAsked("recordOpenedSession");
         working.sessions.push(session);
+      },
+      recordClosedSession: (session) => {
+        this.failIfAsked("recordClosedSession");
+        working.sessions = working.sessions.map((existing) =>
+          existing.id === session.id ? session : existing,
+        );
       },
       recordCashMovement: (movement) => {
         this.failIfAsked("recordCashMovement");

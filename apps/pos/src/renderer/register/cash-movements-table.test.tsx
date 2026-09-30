@@ -1,9 +1,10 @@
 import type { ListedCashMovement } from "@purosur/contracts";
 import type { CashMovementType } from "@purosur/domain";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import type { CashMovementsState } from "./cash-movements-table";
 import { CashMovementsTable } from "./cash-movements-table";
 
 const ADA = { user_id: "u1", first_name: "Ada" };
@@ -22,9 +23,13 @@ function movement(overrides: Partial<ListedCashMovement> = {}): ListedCashMoveme
   };
 }
 
-async function renderTable(movements: ListedCashMovement[]) {
+async function renderState(state: CashMovementsState, onRetry: () => void = () => {}) {
   await page.viewport(1280, 720);
-  return render(<CashMovementsTable movements={movements} />);
+  return render(<CashMovementsTable state={state} onRetry={onRetry} />);
+}
+
+function renderTable(movements: ListedCashMovement[]) {
+  return renderState({ status: "loaded", movements });
 }
 
 function rowsOf(screen: Awaited<ReturnType<typeof renderTable>>) {
@@ -149,6 +154,30 @@ describe("CashMovementsTable", () => {
     await userEvent.click(screen.getByRole("option", { name: "Gasto" }));
 
     await expect.element(screen.getByText("No hay movimientos de este tipo")).toBeVisible();
+  });
+
+  it("shows no movement while they load", async () => {
+    const screen = await renderState({ status: "loading" });
+
+    await expect
+      .element(screen.getByRole("table", { name: "Movimientos de la sesión" }))
+      .toHaveAttribute("aria-busy", "true");
+    expect(rowsOf(screen).join("")).toBe("");
+    await expect
+      .element(screen.getByText("No hay movimientos de este tipo"))
+      .not.toBeInTheDocument();
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("says the movements could not be read and offers Reintentar", async () => {
+    const onRetry = vi.fn();
+    const screen = await renderState({ status: "failed" }, onRetry);
+
+    await expect.element(screen.getByText("No se pudieron leer los movimientos")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+    expect(onRetry).toHaveBeenCalledOnce();
+    await expectNoAccessibilityViolations(screen.container);
   });
 
   it("has no accessibility violations", async () => {

@@ -33,6 +33,7 @@ function deps(overrides: Partial<CashSessionRequestDeps> = {}): CashSessionReque
       hashPin: async (pin) => (pin === "1234" ? PIN_HASH : "hash-of-another-pin"),
       now: () => NOW,
     }),
+    signedInPerson,
     readOutboxChainKey: async () => CHAIN_KEY,
     now: () => NOW,
     ids: {

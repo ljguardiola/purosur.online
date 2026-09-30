@@ -2,7 +2,7 @@ import type { ListedCashMovement } from "@purosur/contracts";
 import type { CashMovementType } from "@purosur/domain";
 import { CASH_MOVEMENT_TYPES } from "@purosur/domain";
 import type { Icon } from "@purosur/ui";
-import { ListFilter, plural, Table, TableCellText, tableRows } from "@purosur/ui";
+import { formatCents, ListFilter, plural, Table, TableCellText, tableRows } from "@purosur/ui";
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
@@ -10,12 +10,12 @@ import {
   Lock,
   Receipt,
   ShoppingBasket,
+  TriangleAlert,
   Undo2,
   Wallet,
 } from "lucide-react";
 import { useState } from "react";
 import { formatClockTime } from "../platform/clock-time";
-import { formatCents } from "../platform/money";
 
 type Presentation = {
   label: string;
@@ -150,11 +150,18 @@ const columns = [
   },
 ] as const;
 
+export type CashMovementsState =
+  | { status: "loading" }
+  | { status: "failed" }
+  | { status: "loaded"; movements: ListedCashMovement[] };
+
 export type CashMovementsTableProps = {
-  movements: ListedCashMovement[];
+  state: CashMovementsState;
+  onRetry: () => void;
 };
 
-export function CashMovementsTable({ movements }: CashMovementsTableProps) {
+export function CashMovementsTable({ state, onRetry }: CashMovementsTableProps) {
+  const movements = state.status === "loaded" ? state.movements : [];
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
   const [sort, setSort] = useState<{ column: "time"; direction: "ascending" | "descending" }>({
     column: "time",
@@ -187,6 +194,16 @@ export function CashMovementsTable({ movements }: CashMovementsTableProps) {
         aria-label="Movimientos de la sesión"
         columns={columns}
         rows={rows}
+        {...(state.status === "failed"
+          ? {
+              failure: {
+                icon: <TriangleAlert />,
+                title: "No se pudieron leer los movimientos",
+                description: "Volvé a intentarlo en unos segundos.",
+                onRetry,
+              },
+            }
+          : { loading: state.status === "loading" ? "initial" : false })}
         sort={sort}
         onSortChange={setSort}
         empty={{

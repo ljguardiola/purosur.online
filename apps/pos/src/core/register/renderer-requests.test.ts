@@ -1,4 +1,6 @@
 import type {
+  CashBalance,
+  CloseCashSessionOutcome,
   ListedCashMovement,
   OpenCashSession,
   OpenCashSessionOutcome,
@@ -19,6 +21,11 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const lookups: string[] = [];
   const openings: number[] = [];
   const cashMovementRequests: CashMovementRequest[] = [];
+  const closings: {
+    sessionId: string;
+    countedCash: number;
+    authorization: { user_id: string; pin: string } | undefined;
+  }[] = [];
   const authorizerLookups: string[] = [];
   const signOuts: string[] = [];
   const failures: { context: string; error: unknown }[] = [];
@@ -30,6 +37,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
     lookups,
     openings,
     cashMovementRequests,
+    closings,
     authorizerLookups,
     signOuts,
     failures,
@@ -69,6 +77,15 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         return { kind: "no_open_session" };
       },
       cashMovements: (): ListedCashMovement[] | null => null,
+      closeCashSession: async (
+        sessionId: string,
+        countedCash: number,
+        authorization: { user_id: string; pin: string } | undefined,
+      ): Promise<CloseCashSessionOutcome> => {
+        closings.push({ sessionId, countedCash, authorization });
+        return { kind: "no_open_session" };
+      },
+      cashBalance: (): CashBalance | null => null,
       authorizers: (permission: AuthorizablePermissionKey) => {
         authorizerLookups.push(permission);
         return [{ id: "u2", first_name: "Grace" }];
@@ -563,6 +580,130 @@ describe("answerRendererRequest", () => {
       }),
     ).toEqual({ type: "cash-movements-unavailable", request_id: "r26" });
     expect(failing.failures).toEqual([{ context: "reading the cash movements", error }]);
+  });
+
+  it("closes a cash session with the session, the count and the authorization as sent, and answers the outcome", async () => {
+    const closed: CloseCashSessionOutcome = {
+      kind: "closed",
+      session: { id: "s1", expected_cash: 5000, counted_cash: 4800, difference: -200 },
+    };
+    const authorization = { user_id: "u2", pin: "1234" };
+    const closing = deps(true);
+    const { deps: withClosing } = deps(true, { closeCashSession: async () => closed });
+
+    const answer = await answerRendererRequest(withClosing, {
+      type: "close-cash-session",
+      request_id: "r20",
+      session_id: "s1",
+      counted_cash: 4800,
+    });
+    await answerRendererRequest(closing.deps, {
+      type: "close-cash-session",
+      request_id: "r21",
+      session_id: "s1",
+      counted_cash: 4800,
+      authorization,
+    });
+
+    expect(answer).toEqual({
+      type: "close-cash-session-result",
+      request_id: "r20",
+      outcome: closed,
+    });
+    expect(closing.closings).toEqual([{ sessionId: "s1", countedCash: 4800, authorization }]);
+  });
+
+  it("answers that closing a cash session is unavailable when it fails, and reports why", async () => {
+    const error = new Error("disk full");
+    const failing = deps(true, {
+      closeCashSession: async () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "close-cash-session",
+        request_id: "r22",
+        session_id: "s1",
+        counted_cash: 0,
+      }),
+    ).toEqual({
+      type: "close-cash-session-result",
+      request_id: "r22",
+      outcome: { kind: "unavailable" },
+    });
+    expect(failing.failures).toEqual([{ context: "closing a cash session", error }]);
+  });
+
+  it("answers that closing a cash session is unavailable when the register has no database", async () => {
+    expect(
+      await answerRendererRequest(deps(true, { closeCashSession: undefined }).deps, {
+        type: "close-cash-session",
+        request_id: "r23",
+        session_id: "s1",
+        counted_cash: 0,
+      }),
+    ).toEqual({
+      type: "close-cash-session-result",
+      request_id: "r23",
+      outcome: { kind: "unavailable" },
+    });
+  });
+
+  it("answers the cash balance of the open session", async () => {
+    const balance: CashBalance = {
+      opening_float: 5000,
+      cash_sales: 0,
+      change_given: 0,
+      refunds: 0,
+      cash_in: 0,
+      expenses: 0,
+      withdrawals: 0,
+      expected: 5000,
+    };
+
+    expect(
+      await answerRendererRequest(deps(true, { cashBalance: () => balance }).deps, {
+        type: "cash-balance-request",
+        request_id: "r24",
+      }),
+    ).toEqual({ type: "cash-balance", request_id: "r24", balance });
+  });
+
+  it("answers no cash balance while no session is open", async () => {
+    expect(
+      await answerRendererRequest(deps(true).deps, {
+        type: "cash-balance-request",
+        request_id: "r25",
+      }),
+    ).toEqual({ type: "cash-balance", request_id: "r25", balance: null });
+  });
+
+  it("answers that the cash balance cannot be read when the register has no database", async () => {
+    expect(
+      await answerRendererRequest(deps(true, { cashBalance: undefined }).deps, {
+        type: "cash-balance-request",
+        request_id: "r26",
+      }),
+    ).toEqual({ type: "cash-balance-unavailable", request_id: "r26" });
+  });
+
+  it("answers that the cash balance cannot be read when reading it fails, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      cashBalance: () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "cash-balance-request",
+        request_id: "r27",
+      }),
+    ).toEqual({ type: "cash-balance-unavailable", request_id: "r27" });
+    expect(failing.failures).toEqual([{ context: "reading the cash balance", error }]);
   });
 
   it("answers nothing to a ping", async () => {

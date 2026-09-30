@@ -1,4 +1,7 @@
 import type {
+  Authorization,
+  CashBalance,
+  CloseCashSessionOutcome,
   CoreToRendererMessage,
   EnrollmentOutcome,
   ListedCashMovement,
@@ -40,6 +43,12 @@ export interface CoreClient {
   cashSession(): Promise<OpenCashSession | null | "unavailable">;
   recordCashMovement(input: CashMovementInput): Promise<RecordCashMovementOutcome>;
   cashMovements(): Promise<ListedCashMovement[] | null | "unavailable">;
+  closeCashSession(
+    sessionId: string,
+    countedCash: number,
+    authorization?: Authorization,
+  ): Promise<CloseCashSessionOutcome>;
+  cashBalance(): Promise<CashBalance | null | "unavailable">;
   onPulled(listener: () => void): () => void;
 }
 
@@ -228,6 +237,29 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
             return "unavailable";
           }
           return answer.type === "cash-movements" ? answer.movements : undefined;
+        },
+      );
+    },
+    closeCashSession(sessionId, countedCash, authorization) {
+      return ask(
+        {
+          type: "close-cash-session",
+          request_id: deps.newRequestId(),
+          session_id: sessionId,
+          counted_cash: countedCash,
+          ...(authorization === undefined ? {} : { authorization }),
+        },
+        (answer) => (answer.type === "close-cash-session-result" ? answer.outcome : undefined),
+      );
+    },
+    cashBalance() {
+      return ask(
+        { type: "cash-balance-request", request_id: deps.newRequestId() },
+        (answer): CashBalance | null | "unavailable" | undefined => {
+          if (answer.type === "cash-balance-unavailable") {
+            return "unavailable";
+          }
+          return answer.type === "cash-balance" ? answer.balance : undefined;
         },
       );
     },

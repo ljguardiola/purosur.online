@@ -7,7 +7,7 @@ import {
   cashMovementReason,
 } from "@purosur/domain";
 import type { Icon } from "@purosur/ui";
-import { Button, InlineNotice, Modal, OptionCardGroup, TextField } from "@purosur/ui";
+import { Button, formatCents, InlineNotice, Modal, OptionCardGroup, TextField } from "@purosur/ui";
 import { ArrowDownToLine, ArrowUpFromLine, Receipt, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
 import { AuthorizationSection } from "../access/authorization-section";
@@ -15,7 +15,6 @@ import type { SignedInPerson } from "../access/signed-in-person";
 import { useAuthorization } from "../access/use-authorization";
 import { formatClockTime } from "../platform/clock-time";
 import type { CashMovementInput } from "../platform/core-client";
-import { formatCents } from "../platform/money";
 
 const REQUIRED_AMOUNT_MESSAGE = "Ingresá el importe.";
 const INVALID_AMOUNT_MESSAGE = "Ingresá un importe válido, por ejemplo 5.000,00.";

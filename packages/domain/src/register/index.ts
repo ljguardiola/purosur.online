@@ -12,6 +12,8 @@ export type {
   CashMovementType,
   CashSession,
   CashSessionState,
+  ClosedCashSession,
+  OpenedCashSession,
 } from "./model/cash-session.js";
 export { CASH_MOVEMENT_TYPES } from "./model/cash-session.js";
 export { isDeviceTokenRotationDue } from "./model/device-token.js";
@@ -23,6 +25,8 @@ export {
   isWellFormedEnrollmentCode,
   normalizeEnrollmentCode,
 } from "./model/enrollment-code.js";
+export type { CashBreakdown } from "./model/expected-cash.js";
+export { cashBreakdown, expectedCash } from "./model/expected-cash.js";
 export {
   INSTALLATION_KEY_BYTES,
   isWellFormedInstallationKey,

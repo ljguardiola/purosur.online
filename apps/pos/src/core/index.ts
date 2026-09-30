@@ -38,7 +38,9 @@ import { LOCAL_MIGRATIONS } from "./platform/local-migrations";
 import { createMainRequests } from "./platform/main-requests";
 import { currentCashMovements, recordCashMovementFor } from "./register/cash-movement-requests";
 import {
+  cashBalanceFor,
   cashSessionOpener,
+  closeCashSessionFor,
   currentCashSession,
   openCashSessionFor,
   resumeSignedInPerson,
@@ -290,6 +292,7 @@ const rendererRequestDeps: RendererRequestDeps = {
             {
               database: localDatabase,
               gate: actionGate,
+              signedInPerson,
               readOutboxChainKey: async () =>
                 (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
               now: () => new Date(),
@@ -297,6 +300,23 @@ const rendererRequestDeps: RendererRequestDeps = {
             },
             openingFloat,
           ),
+  closeCashSession:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (sessionId, countedCash, authorization) =>
+          closeCashSessionFor(
+            {
+              database: localDatabase,
+              gate: actionGate,
+              signedInPerson,
+              readOutboxChainKey: async () =>
+                (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+              now: () => new Date(),
+              ids: uuidV7Ids,
+            },
+            { sessionId, countedCash, authorization },
+          ),
+  cashBalance: localDatabase === undefined ? undefined : () => cashBalanceFor(localDatabase),
   cashSession:
     localDatabase === undefined
       ? undefined

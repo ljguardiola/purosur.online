@@ -4,6 +4,7 @@ import {
   cashMovementAmountSchema,
   coreStatusMessageSchema,
   coreToRendererMessageSchema,
+  countedCashSchema,
   mainToCoreMessageSchema,
   openingFloatSchema,
   rendererToCoreMessageSchema,
@@ -561,6 +562,147 @@ describe("sign-in lookup answers", () => {
     };
 
     expect(JSON.stringify(coreToRendererMessageSchema.parse(message))).not.toContain("ada@");
+  });
+});
+
+describe("closing a cash session requests", () => {
+  const close = { type: "close-cash-session", request_id: REQUEST_ID, session_id: "s1" };
+
+  it("accepts a request to close a session with the cash counted in cents", () => {
+    const message = { ...close, counted_cash: 152500 };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts a request to close a session with someone's authorization", () => {
+    const message = {
+      ...close,
+      counted_cash: 0,
+      authorization: { user_id: "u2", pin: "1234" },
+    };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("drops a closer sent with a request to close a session", () => {
+    const message = { ...close, counted_cash: 100 };
+
+    expect(rendererToCoreMessageSchema.parse({ ...message, closed_by: "u9" })).toEqual(message);
+  });
+
+  it.each([-1, 1.5, MAX_CASH_AMOUNT_CENTS + 1, "100", null])(
+    "rejects a counted cash of %j",
+    (counted_cash) => {
+      expect(rendererToCoreMessageSchema.safeParse({ ...close, counted_cash }).success).toBe(false);
+      expect(countedCashSchema.safeParse(counted_cash).success).toBe(false);
+    },
+  );
+
+  it.each([
+    { type: "close-cash-session", session_id: "s1", counted_cash: 0 },
+    { type: "close-cash-session", request_id: REQUEST_ID, counted_cash: 0 },
+    { type: "close-cash-session", request_id: REQUEST_ID, session_id: "s1" },
+  ])("rejects a request to close a session missing a field: %j", (message) => {
+    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("accepts a request for the cash balance of the open session", () => {
+    const message = { type: "cash-balance-request", request_id: REQUEST_ID };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a request for the cash balance without its request id", () => {
+    expect(rendererToCoreMessageSchema.safeParse({ type: "cash-balance-request" }).success).toBe(
+      false,
+    );
+  });
+});
+
+describe("closing a cash session answers", () => {
+  it("accepts the session that was closed with its expected cash, counted cash and difference", () => {
+    const message = {
+      type: "close-cash-session-result",
+      request_id: REQUEST_ID,
+      outcome: {
+        kind: "closed",
+        session: { id: "s1", expected_cash: 150000, counted_cash: 149000, difference: -1000 },
+      },
+    };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "invalid_counted_cash" },
+    { kind: "no_open_session" },
+    { kind: "open_sale", total: 4500 },
+    { kind: "not_signed_in" },
+    { kind: "lacks_permission" },
+    { kind: "unavailable" },
+    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
+  ])("accepts the close result $kind", (outcome) => {
+    const message = { type: "close-cash-session-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "closed" },
+    { kind: "closed", session: { id: "s1", expected_cash: 0, counted_cash: 0 } },
+    { kind: "open_sale" },
+    { kind: "x" },
+  ])("rejects a close result it does not know: %j", (outcome) => {
+    const message = { type: "close-cash-session-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("accepts the cash balance of the open session line by line", () => {
+    const message = {
+      type: "cash-balance",
+      request_id: REQUEST_ID,
+      balance: {
+        opening_float: 10000,
+        cash_sales: 5000,
+        change_given: 500,
+        refunds: 200,
+        cash_in: 300,
+        expenses: 100,
+        withdrawals: 1000,
+        expected: 13500,
+      },
+    };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts that no cash session is open to balance", () => {
+    const message = { type: "cash-balance", request_id: REQUEST_ID, balance: null };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a cash balance missing a line", () => {
+    const message = {
+      type: "cash-balance",
+      request_id: REQUEST_ID,
+      balance: { opening_float: 0, expected: 0 },
+    };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("accepts that the cash balance cannot be read", () => {
+    const message = { type: "cash-balance-unavailable", request_id: REQUEST_ID };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects that the cash balance cannot be read without its request id", () => {
+    expect(
+      coreToRendererMessageSchema.safeParse({ type: "cash-balance-unavailable" }).success,
+    ).toBe(false);
   });
 });
 

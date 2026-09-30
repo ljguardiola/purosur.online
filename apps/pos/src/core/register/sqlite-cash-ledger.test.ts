@@ -1,5 +1,5 @@
 import { createHmac } from "node:crypto";
-import type { CashMovement, CashSession } from "@purosur/domain";
+import type { CashMovement, ClosedCashSession, OpenedCashSession } from "@purosur/domain";
 import { openCashSession } from "@purosur/domain/register/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
@@ -14,7 +14,7 @@ const OPENED_AT = new Date("2026-09-30T12:00:00.000Z");
 let database: LocalDatabase;
 let ledger: SqliteCashLedger;
 
-function session(overrides: Partial<CashSession> = {}): CashSession {
+function session(overrides: Partial<OpenedCashSession> = {}): OpenedCashSession {
   return {
     id: "session-1",
     registerId: "register-1",
@@ -172,6 +172,97 @@ describe("the open session", () => {
     expect(() =>
       ledger.transaction((tx) => tx.recordOpenedSession(session({ openingFloat: -1 }))),
     ).toThrow();
+  });
+});
+
+describe("the movements of a session", () => {
+  function movement(id: string, sessionId: string, amount: number): CashMovement {
+    return { id, sessionId, type: "SALE", amount, actorId: "u1", occurredAt: OPENED_AT };
+  }
+
+  it("are those recorded against it, as the domain holds them, and none of another session's", () => {
+    ledger.transaction((tx) => {
+      tx.recordOpenedSession(session());
+      tx.recordCashMovement(movement("m-1", "session-1", 300));
+      tx.recordCashMovement({
+        ...movement("m-2", "session-1", 200),
+        authorizedBy: "u2",
+        reason: "tip",
+        ref: { type: "sale", id: "sale-1" },
+      });
+    });
+    database
+      .prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = ?")
+      .run("2026-09-30T20:00:00.000Z");
+    ledger.transaction((tx) => {
+      tx.recordOpenedSession(session({ id: "session-2" }));
+      tx.recordCashMovement(movement("m-3", "session-2", 999));
+    });
+
+    expect(ledger.transaction((tx) => tx.sessionMovements("session-1"))).toEqual([
+      movement("m-1", "session-1", 300),
+      {
+        ...movement("m-2", "session-1", 200),
+        authorizedBy: "u2",
+        reason: "tip",
+        ref: { type: "sale", id: "sale-1" },
+      },
+    ]);
+  });
+});
+
+describe("the open sale", () => {
+  it("is none until sales are kept on the register", () => {
+    ledger.transaction((tx) => tx.recordOpenedSession(session()));
+
+    expect(ledger.transaction((tx) => tx.openSaleTotal())).toBeUndefined();
+  });
+});
+
+describe("a closed session", () => {
+  const closed: ClosedCashSession = {
+    ...session(),
+    state: "CLOSED",
+    closedBy: "u2",
+    closedAt: new Date("2026-09-30T20:00:00.000Z"),
+    expectedCash: 5300,
+    countedCash: 5000,
+    difference: -300,
+  };
+
+  it("keeps who closed it, when, and what was expected, counted and missing", () => {
+    ledger.transaction((tx) => {
+      tx.recordOpenedSession(session());
+      tx.recordClosedSession(closed);
+    });
+
+    expect(database.prepare("SELECT * FROM cash_sessions").all()).toEqual([
+      {
+        id: "session-1",
+        register_id: "register-1",
+        device_id: "device-1",
+        opened_by: "u1",
+        opened_at: "2026-09-30T12:00:00.000Z",
+        opening_float: 5000,
+        state: "CLOSED",
+        closed_by: "u2",
+        closed_at: "2026-09-30T20:00:00.000Z",
+        expected_cash: 5300,
+        counted_cash: 5000,
+        difference: -300,
+      },
+    ]);
+    expect(ledger.transaction((tx) => tx.openSession())).toBeUndefined();
+  });
+
+  it("can be followed by a new session", () => {
+    ledger.transaction((tx) => {
+      tx.recordOpenedSession(session());
+      tx.recordClosedSession(closed);
+      tx.recordOpenedSession(session({ id: "session-2" }));
+    });
+
+    expect(ledger.transaction((tx) => tx.openSession()?.id)).toBe("session-2");
   });
 });
 

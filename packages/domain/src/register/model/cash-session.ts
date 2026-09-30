@@ -13,15 +13,29 @@ export const CASH_MOVEMENT_TYPES = [
 
 export type CashMovementType = (typeof CASH_MOVEMENT_TYPES)[number];
 
-export interface CashSession {
+interface CashSessionOpening {
   id: string;
   registerId: string;
   deviceId: string;
   openedBy: string;
   openedAt: Date;
   openingFloat: number;
-  state: CashSessionState;
 }
+
+export interface OpenedCashSession extends CashSessionOpening {
+  state: "OPEN";
+}
+
+export interface ClosedCashSession extends CashSessionOpening {
+  state: "CLOSED";
+  closedBy: string;
+  closedAt: Date;
+  expectedCash: number;
+  countedCash: number;
+  difference: number;
+}
+
+export type CashSession = OpenedCashSession | ClosedCashSession;
 
 export interface CashMovement {
   id: string;

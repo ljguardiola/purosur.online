@@ -137,6 +137,8 @@ export {
   retryAfterSecondsOf,
 } from "./register/cloud-error.js";
 export type {
+  CashBalance,
+  CloseCashSessionOutcome,
   CoreStatusMessage,
   CoreToRendererMessage,
   EnrollmentOutcome,
@@ -157,6 +159,7 @@ export {
   cashMovementAmountSchema,
   coreStatusMessageSchema,
   coreToRendererMessageSchema,
+  countedCashSchema,
   mainToCoreMessageSchema,
   openingFloatSchema,
   parseAmountCents,
