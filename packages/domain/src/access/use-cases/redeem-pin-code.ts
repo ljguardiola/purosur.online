@@ -39,7 +39,6 @@ export async function redeemPinCode(
     const holder = holderId === undefined ? undefined : await tx.lockPinCodeHolder(holderId);
     const code =
       holderId === undefined ? undefined : await tx.lockHeldPinCode(holderId, input.codeHash);
-    // Always locked in this order, so two redemptions locking both keys cannot deadlock.
     const keys: PinCodeRedemptionAttemptKey[] = [
       { kind: "register", value: input.registerId },
       { kind: "source_address", value: input.sourceAddress },

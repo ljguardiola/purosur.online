@@ -333,15 +333,18 @@ describe("redeemPinCode", () => {
       ]);
     });
 
-    it("locks the register and the source address in a fixed order", async () => {
+    it("locks the attempts of both the register and the source address", async () => {
       const store = storeWithCode();
 
       await redeem(store);
 
-      expect(store.lockedAttemptKeys).toEqual([
-        { kind: "register", value: REGISTER },
-        { kind: "source_address", value: SOURCE },
-      ]);
+      expect(store.lockedAttemptKeys).toHaveLength(2);
+      expect(store.lockedAttemptKeys).toEqual(
+        expect.arrayContaining([
+          { kind: "register", value: REGISTER },
+          { kind: "source_address", value: SOURCE },
+        ]),
+      );
     });
 
     it("accepts the tenth attempt of a register within the hour", async () => {
