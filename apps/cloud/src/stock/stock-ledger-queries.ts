@@ -1,7 +1,7 @@
 import type { CoveringCount, ProductStockKey } from "@purosur/domain/stock/use-cases";
 import { and, asc, eq, gt, gte, isNull, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { products, stockBalances, stockMovements } from "../platform/db/schema.js";
+import { categories, products, stockBalances, stockMovements } from "../platform/db/schema.js";
 import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 
 function movementsOf(key: ProductStockKey) {
@@ -47,18 +47,25 @@ export async function appliedDeltaAfter<TQueryResult extends PgQueryResultHKT>(
   return row?.total ?? 0;
 }
 
-export async function isActiveProduct<TQueryResult extends PgQueryResultHKT>(
+export async function findActiveProduct<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   productId: string,
-): Promise<boolean> {
+) {
   if (!UUID_PATTERN.test(productId)) {
-    return false;
+    return undefined;
   }
   const [product] = await db
-    .select({ id: products.id })
+    .select({
+      id: products.id,
+      name: products.name,
+      categoryId: products.categoryId,
+      categoryName: categories.name,
+      saleUnit: products.saleUnit,
+    })
     .from(products)
+    .innerJoin(categories, eq(products.categoryId, categories.id))
     .where(and(eq(products.id, productId), eq(products.active, true)));
-  return product !== undefined;
+  return product;
 }
 
 export async function currentBalance<TQueryResult extends PgQueryResultHKT>(

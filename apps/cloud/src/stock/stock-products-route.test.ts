@@ -35,10 +35,10 @@ afterEach(async () => {
 });
 
 function listProducts(headers: Record<string, string>) {
-  return app.inject({ method: "GET", url: "/stock/products", headers });
+  return app.inject({ method: "GET", url: "/inventory-items", headers });
 }
 
-describe("GET /stock/products", () => {
+describe("GET /inventory-items", () => {
   it("returns 401 when no session cookie was sent", async () => {
     const response = await listProducts({ origin: BACKOFFICE_ORIGIN });
 
@@ -105,5 +105,15 @@ describe("GET /stock/products", () => {
         },
       ],
     });
+  });
+});
+
+describe("the former stock paths", () => {
+  it.each([["GET", "/stock/products"]] as const)("no longer answers %s %s", async (method, url) => {
+    const { headers } = await signedInWith(db, ["view_stock_balances"], NOON);
+
+    const response = await app.inject({ method, url, headers });
+
+    expect(response.statusCode).toBe(404);
   });
 });

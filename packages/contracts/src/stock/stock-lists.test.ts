@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   STOCK_PERIOD_DAYS,
   stockBalanceListSchema,
+  stockBalanceSchema,
   stockCountListSchema,
-  stockExpectedBalanceSchema,
   stockMovementListSchema,
   stockProductListSchema,
 } from "./stock-lists.js";
@@ -71,6 +71,19 @@ describe("stockBalanceListSchema", () => {
   });
 });
 
+describe("stockBalanceSchema", () => {
+  it("accepts a product with the balance it holds", () => {
+    expect(stockBalanceSchema.safeParse(balance).data).toEqual(balance);
+  });
+
+  it.each([
+    ["balance", 0.5],
+    ["balance", undefined],
+  ])("refuses %s as %j", (field, value) => {
+    expect(stockBalanceSchema.safeParse({ ...balance, [field]: value }).success).toBe(false);
+  });
+});
+
 describe("stockCountListSchema", () => {
   it("accepts counts with what was expected, counted and the difference", () => {
     const list = { counts: [count, { ...count, id: "movement-3", superseded: true }] };
@@ -111,18 +124,6 @@ describe("stockMovementListSchema", () => {
     expect(
       stockMovementListSchema.safeParse({ movements: [{ ...movement, [field]: value }] }).success,
     ).toBe(false);
-  });
-});
-
-describe("stockExpectedBalanceSchema", () => {
-  it("accepts the balance expected at a moment", () => {
-    expect(stockExpectedBalanceSchema.safeParse({ expected: -4000 }).data).toEqual({
-      expected: -4000,
-    });
-  });
-
-  it("refuses a fraction of a thousandth", () => {
-    expect(stockExpectedBalanceSchema.safeParse({ expected: 0.5 }).success).toBe(false);
   });
 });
 

@@ -408,7 +408,7 @@ describe("serving the backoffice's static build", () => {
     async (method) => {
       const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
 
-      const response = await app.inject({ method, url: "/api/stock/unknown" });
+      const response = await app.inject({ method, url: "/api/inventory-unknown" });
 
       expect(response.statusCode).toBe(404);
       expect(response.body).not.toContain("backoffice");
@@ -1029,6 +1029,20 @@ describe("wiring the prices routes", () => {
 
 describe("wiring the stock routes", () => {
   const stockRequests = [
+    { method: "GET", url: "/api/inventory-levels" },
+    { method: "GET", url: "/api/inventory-items" },
+    { method: "GET", url: "/api/inventory-counts" },
+    { method: "POST", url: "/api/inventory-counts" },
+    {
+      method: "GET",
+      url: "/api/inventory-levels/00000000-0000-0000-0000-000000000000",
+    },
+    { method: "GET", url: "/api/inventory-movements" },
+    { method: "POST", url: "/api/inventory-losses" },
+    { method: "POST", url: "/api/inventory-adjustments" },
+  ] as const;
+
+  const formerStockRequests = [
     { method: "GET", url: "/api/stock/balances" },
     { method: "GET", url: "/api/stock/products" },
     { method: "GET", url: "/api/stock/counts" },
@@ -1064,6 +1078,23 @@ describe("wiring the stock routes", () => {
     });
 
     expect(await statusCodes(app)).toEqual(stockRequests.map(() => 401));
+  });
+
+  it("no longer answers the former stock paths", async () => {
+    const app = buildApp({
+      version: "abc1234",
+      stock: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+    });
+
+    const responses = await Promise.all(
+      formerStockRequests.map((request) =>
+        app.inject({ ...request, headers: { origin: "https://staging.purosur.online" } }),
+      ),
+    );
+
+    expect(responses.map((response) => response.statusCode)).toEqual(
+      formerStockRequests.map(() => 404),
+    );
   });
 });
 

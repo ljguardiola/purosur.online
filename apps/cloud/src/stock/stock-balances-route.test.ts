@@ -36,10 +36,10 @@ afterEach(async () => {
 });
 
 function listBalances(headers: Record<string, string>) {
-  return app.inject({ method: "GET", url: "/stock/balances", headers });
+  return app.inject({ method: "GET", url: "/inventory-levels", headers });
 }
 
-describe("GET /stock/balances", () => {
+describe("GET /inventory-levels", () => {
   it("returns 401 when no session cookie was sent", async () => {
     const response = await listBalances({ origin: BACKOFFICE_ORIGIN });
 
@@ -132,5 +132,15 @@ describe("GET /stock/balances", () => {
         },
       ],
     });
+  });
+});
+
+describe("the former stock paths", () => {
+  it.each([["GET", "/stock/balances"]] as const)("no longer answers %s %s", async (method, url) => {
+    const { headers } = await signedInWith(db, ["view_stock_balances"], NOON);
+
+    const response = await app.inject({ method, url, headers });
+
+    expect(response.statusCode).toBe(404);
   });
 });
