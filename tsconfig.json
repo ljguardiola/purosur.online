@@ -28,7 +28,7 @@
     "packages/ui/.storybook",
     "vitest.config.ts",
     "vitest.mutation.config.ts",
-    "packages/ui/vitest.global-setup.catalog-visual.ts",
+    "vitest.global-setup.playwright-server.ts",
     ".railway/railway.ts",
     ".railway/railway.test.ts"
   ]
