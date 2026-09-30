@@ -347,6 +347,30 @@ describe("discounts", () => {
     ).rejects.toMatchObject({ cause: { constraint: "discounts_buy_n_pay_m_quantities_check" } });
   });
 
+  it("rejects a buy-N-pay-M discount that also carries a percent", async () => {
+    const { productId } = await seedTargets();
+
+    await expect(
+      db.insert(discounts).values(buyNPayMOn({ productId, percent: 15 })),
+    ).rejects.toMatchObject({
+      cause: { constraint: "discounts_buy_n_pay_m_has_no_percent_check" },
+    });
+  });
+
+  it.each([
+    [3, 2],
+    [3, null],
+    [null, 2],
+  ])("rejects a percent-off discount that also buys %s and pays %s", async (buyQty, payQty) => {
+    const { tagId } = await seedTargets();
+
+    await expect(
+      db.insert(discounts).values(discountOn({ tagId, buyQty, payQty })),
+    ).rejects.toMatchObject({
+      cause: { constraint: "discounts_percent_off_has_no_quantities_check" },
+    });
+  });
+
   it.each(["categoryId", "tagId"] as const)(
     "rejects a buy-N-pay-M discount aimed at a %s instead of a product",
     async (column) => {

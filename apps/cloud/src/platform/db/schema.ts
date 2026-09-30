@@ -283,6 +283,14 @@ export const discounts = pgTable(
       sql`${table.kind} <> 'BUY_N_PAY_M' or coalesce(${table.payQty} >= 1 and ${table.buyQty} > ${table.payQty}, false)`,
     ),
     check(
+      "discounts_percent_off_has_no_quantities_check",
+      sql`${table.kind} <> 'PERCENT_OFF' or (${table.buyQty} is null and ${table.payQty} is null)`,
+    ),
+    check(
+      "discounts_buy_n_pay_m_has_no_percent_check",
+      sql`${table.kind} <> 'BUY_N_PAY_M' or ${table.percent} is null`,
+    ),
+    check(
       "discounts_buy_n_pay_m_product_check",
       sql`${table.kind} <> 'BUY_N_PAY_M' or ${table.productId} is not null`,
     ),
