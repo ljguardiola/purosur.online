@@ -28,6 +28,8 @@ import {
   prices,
   productBarcodes,
   products,
+  registerInstallations,
+  registers,
   rolePermissions,
   roles,
   tags,
@@ -37,6 +39,7 @@ import {
 } from "../platform/db/schema.js";
 import { DrizzlePricingStore } from "../pricing/drizzle-pricing-store.js";
 import { issueDeviceToken } from "../register/device-token.js";
+import { createRegister } from "../register/register-creation-route.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
@@ -45,6 +48,7 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { logChange } from "./change-log.js";
 import { registerChangesRoute } from "./changes-route.js";
+import { DrizzleChangeLog } from "./drizzle-change-log.js";
 
 const NOW = new Date("2026-09-29T12:00:00.000Z");
 
@@ -966,5 +970,86 @@ describe("GET /changes carrying the users and the roles", () => {
     expect(
       new Set([...first.changes, ...second.changes].map((change) => change.entity_id)),
     ).toEqual(new Set(inserted.map(({ id }) => id)));
+  });
+});
+
+describe("GET /changes carrying the register's own row", () => {
+  const SEEDED_CHANGES = 3;
+
+  async function newRegister(name: string): Promise<string> {
+    const [actor] = await db.select({ id: users.id }).from(users).limit(1);
+    const outcome = await createRegister(db, {
+      locationId: await seededLocationId(db),
+      name,
+      actorId: actor?.id ?? (await insertActor(await seededLocationId(db))),
+    });
+    if (outcome.kind !== "created") {
+      throw new Error(`test setup: creating the register ended as ${outcome.kind}`);
+    }
+    return outcome.register.id;
+  }
+
+  it("gives a register its own name and version once it was created", async () => {
+    const registerId = await newRegister("Caja 1");
+    const { deviceToken } = await insertEnrolledInstallation(db, {
+      existingRegisterId: registerId,
+    });
+
+    const page = await pullPage(SEEDED_CHANGES, deviceToken);
+
+    expect(page.changes.map(({ change_seq, ...change }) => change)).toEqual([
+      { entity: "register", entity_id: registerId, row: { name: "Caja 1", version: 1 } },
+    ]);
+  });
+
+  it("gives a register nothing of another register of the same branch", async () => {
+    const ownId = await newRegister("Caja 1");
+    const otherId = await newRegister("Caja 2");
+    const { deviceToken } = await insertEnrolledInstallation(db, { existingRegisterId: ownId });
+
+    const page = await pullPage(SEEDED_CHANGES, deviceToken);
+
+    expect(page.changes.map((change) => change.entity_id)).toEqual([ownId]);
+    expect(page.changes.map((change) => change.entity_id)).not.toContain(otherId);
+  });
+
+  it("gives the register as it is now, at its version, for every change logged for it", async () => {
+    const registerId = await newRegister("Caja 1");
+    const { deviceToken } = await insertEnrolledInstallation(db, {
+      existingRegisterId: registerId,
+    });
+    await db
+      .update(registers)
+      .set({ name: "Caja principal", version: 2 })
+      .where(eq(registers.id, registerId));
+    await logChange(db, { entity: "register", entityId: registerId, version: 2, op: "update" });
+
+    const page = await pullPage(SEEDED_CHANGES, deviceToken);
+
+    expect(page.changes.map(({ change_seq, ...change }) => change)).toEqual([
+      { entity: "register", entity_id: registerId, row: { name: "Caja principal", version: 2 } },
+      { entity: "register", entity_id: registerId, row: { name: "Caja principal", version: 2 } },
+    ]);
+  });
+});
+
+describe("the change log read for a register whose row is gone", () => {
+  const SEEDED_CHANGES = 3;
+
+  it("gives a removal at the version of its latest change", async () => {
+    const { registerId, locationId } = await insertEnrolledInstallation(db);
+    await logChange(db, { entity: "register", entityId: registerId, version: 1, op: "insert" });
+    await db.delete(registerInstallations).where(eq(registerInstallations.registerId, registerId));
+    await db.delete(registers).where(eq(registers.id, registerId));
+    await logChange(db, { entity: "register", entityId: registerId, version: 2, op: "delete" });
+
+    const pulled = await new DrizzleChangeLog(db).transaction((tx) =>
+      tx.changesAfter({ locationId, registerId }, SEEDED_CHANGES, 500),
+    );
+
+    expect(pulled.map(({ changeSeq, ...change }) => change)).toEqual([
+      { entity: "removal", entityId: registerId, removedEntity: "register", version: 2 },
+      { entity: "removal", entityId: registerId, removedEntity: "register", version: 2 },
+    ]);
   });
 });

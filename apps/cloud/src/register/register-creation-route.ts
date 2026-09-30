@@ -12,6 +12,7 @@ import {
 } from "../access/route-access.js";
 import { auditLog, registers } from "../platform/db/schema.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
+import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import type { RegistersRouteOptions } from "./registers-list-route.js";
 
 const REGISTER_NAME_TAKEN_RESPONSE = {
@@ -61,47 +62,52 @@ export type CreateRegisterOutcome =
 export async function createRegister<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: CreateRegisterInput,
+  pending?: PendingChanges,
 ): Promise<CreateRegisterOutcome> {
-  const created = await db
-    .transaction(async (tx) => {
-      const [existing] = await tx
-        .select({ id: registers.id })
-        .from(registers)
-        .where(
-          and(
-            eq(registers.locationId, input.locationId),
-            sql`lower(${registers.name}) = lower(${input.name})`,
-          ),
-        )
-        .limit(1);
-      if (existing) {
-        throw new RegisterNameTaken();
-      }
+  const created = await withPendingChanges(db, pending, async (tx, changes) => {
+    const [existing] = await tx
+      .select({ id: registers.id })
+      .from(registers)
+      .where(
+        and(
+          eq(registers.locationId, input.locationId),
+          sql`lower(${registers.name}) = lower(${input.name})`,
+        ),
+      )
+      .limit(1);
+    if (existing) {
+      throw new RegisterNameTaken();
+    }
 
-      const [newRegister] = await tx
-        .insert(registers)
-        .values({ locationId: input.locationId, name: input.name })
-        .returning({ id: registers.id, name: registers.name });
-      if (!newRegister) {
-        throw new Error("inserting the register returned no row");
-      }
-
-      await tx.insert(auditLog).values({
-        entity: "register",
-        entityId: newRegister.id,
-        actorId: input.actorId,
-        previousValue: null,
-        newValue: { name: newRegister.name, location_id: input.locationId },
-      });
-
-      return newRegister;
-    })
-    .catch((error: unknown) => {
-      if (error instanceof RegisterNameTaken || isRegisterNameUniqueViolation(error)) {
-        return undefined;
-      }
-      throw error;
+    const [newRegister] = await tx
+      .insert(registers)
+      .values({ locationId: input.locationId, name: input.name })
+      .returning({ id: registers.id, name: registers.name, version: registers.version });
+    if (!newRegister) {
+      throw new Error("inserting the register returned no row");
+    }
+    changes.note({
+      entity: "register",
+      entityId: newRegister.id,
+      version: newRegister.version,
+      op: "insert",
     });
+
+    await tx.insert(auditLog).values({
+      entity: "register",
+      entityId: newRegister.id,
+      actorId: input.actorId,
+      previousValue: null,
+      newValue: { name: newRegister.name, location_id: input.locationId },
+    });
+
+    return { id: newRegister.id, name: newRegister.name };
+  }).catch((error: unknown) => {
+    if (error instanceof RegisterNameTaken || isRegisterNameUniqueViolation(error)) {
+      return undefined;
+    }
+    throw error;
+  });
 
   if (!created) {
     return { kind: "name_taken" };

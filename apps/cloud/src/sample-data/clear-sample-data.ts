@@ -418,7 +418,7 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
     const deletedRegisters = await tx
       .delete(registers)
       .where(inArray(registers.id, sampleRegisterIds))
-      .returning({ id: registers.id });
+      .returning({ id: registers.id, version: registers.version });
 
     if (settingsAreStillTheLoads) {
       const [reset] = await tx
@@ -485,6 +485,14 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
           entity: "role",
           entityId: role.id,
           version: role.version + 1,
+          op: "delete",
+        }),
+      ),
+      ...deletedRegisters.map(
+        (register): LoggedChange => ({
+          entity: "register",
+          entityId: register.id,
+          version: register.version + 1,
           op: "delete",
         }),
       ),

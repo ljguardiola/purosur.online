@@ -13,6 +13,7 @@ import {
   userRoles,
   users,
 } from "../platform/db/schema.js";
+import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerRegisterCreationRoute } from "./register-creation-route.js";
@@ -219,6 +220,37 @@ describe("POST /registers", () => {
       previousValue: null,
       newValue: { name: "Caja 1", location_id: locationId },
     });
+  });
+
+  it("logs the created register's insert at its version, scoped to no branch", async () => {
+    const locationId = await seededLocationId(db);
+    const userId = await insertUserWithPermission(locationId);
+    const rawSessionId = await insertSession(userId);
+    const mark = await lastLoggedChangeSeq(db);
+
+    const response = await createRegister(rawSessionId, { name: "Caja 1" });
+
+    expect(await changesLoggedAfter(db, mark)).toEqual([
+      {
+        entity: "register",
+        entityId: response.json().id,
+        version: 1,
+        op: "insert",
+        locationId: null,
+      },
+    ]);
+  });
+
+  it("logs nothing when the name is already taken", async () => {
+    const locationId = await seededLocationId(db);
+    await db.insert(registers).values({ locationId, name: "Caja 1" });
+    const userId = await insertUserWithPermission(locationId);
+    const rawSessionId = await insertSession(userId);
+    const mark = await lastLoggedChangeSeq(db);
+
+    await createRegister(rawSessionId, { name: "CAJA 1" });
+
+    expect(await changesLoggedAfter(db, mark)).toEqual([]);
   });
 
   it("rejects a name already taken in the same branch, case-insensitively, creating nothing", async () => {

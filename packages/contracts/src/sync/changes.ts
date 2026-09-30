@@ -98,6 +98,12 @@ const roleChangeSchema = z.object({
   }),
 });
 
+const registerChangeSchema = z.object({
+  ...pulledChangeShape,
+  entity: z.literal("register"),
+  row: z.object({ name: z.string(), version: z.int() }),
+});
+
 const priceChangeSchema = z.object({
   ...pulledChangeShape,
   entity: z.literal("price"),
@@ -113,7 +119,7 @@ const priceChangeSchema = z.object({
 const removalChangeSchema = z.object({
   ...pulledChangeShape,
   entity: z.literal("removal"),
-  removed_entity: z.enum(["category", "product", "tag", "price", "user", "role"]),
+  removed_entity: z.enum(["category", "product", "tag", "price", "user", "role", "register"]),
   version: z.int(),
 });
 
@@ -129,6 +135,7 @@ export const changesPageSchema = z.object({
         priceChangeSchema,
         userChangeSchema,
         roleChangeSchema,
+        registerChangeSchema,
         removalChangeSchema,
       ]),
     )

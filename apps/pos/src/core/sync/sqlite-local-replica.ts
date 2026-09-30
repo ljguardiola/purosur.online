@@ -138,8 +138,13 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
           case "role":
             access.role(change);
             break;
+          case "register":
+            break;
           case "removal": {
             const { removed_entity } = change;
+            if (removed_entity === "register") {
+              break;
+            }
             if (removed_entity === "user" || removed_entity === "role") {
               access.removal({ ...change, removed_entity });
             } else {

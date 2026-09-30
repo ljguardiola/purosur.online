@@ -111,6 +111,8 @@ function toChangeWire(change: PulledCloudChange): ChangesPage["changes"][number]
           version: change.row.version,
         },
       };
+    case "register":
+      return { change_seq, entity: change.entity, entity_id, row: change.row };
     case "removal":
       return {
         change_seq,
@@ -161,7 +163,7 @@ export function registerChangesRoute<TQueryResult extends PgQueryResultHKT>(
 
       const { deviceId } = authentication.installation;
       const [installation] = await options.db
-        .select({ locationId: registers.locationId })
+        .select({ registerId: registers.id, locationId: registers.locationId })
         .from(registerInstallations)
         .innerJoin(registers, eq(registers.id, registerInstallations.registerId))
         .where(eq(registerInstallations.id, deviceId));
@@ -172,6 +174,7 @@ export function registerChangesRoute<TQueryResult extends PgQueryResultHKT>(
       const page = await pullChanges(ports, {
         deviceId,
         locationId: installation.locationId,
+        registerId: installation.registerId,
         since: query.since,
       });
       await reply.code(200).send(changesPageSchema.parse(toChangesPageWire(page)));

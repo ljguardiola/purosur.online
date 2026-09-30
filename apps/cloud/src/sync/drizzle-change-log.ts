@@ -1,4 +1,4 @@
-import type { ChangeLog, ChangeLogTransaction } from "@purosur/domain/sync/use-cases";
+import type { ChangeLog, ChangeLogTransaction, PullAudience } from "@purosur/domain/sync/use-cases";
 import { and, asc, eq, gt, inArray, max, or } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { readBranchSettings } from "../branch/branch-settings-read-route.js";
@@ -9,6 +9,7 @@ import {
   readPriceLists,
   readPrices,
   readProducts,
+  readRegisters,
   readRoles,
   readTags,
   readUsers,
@@ -22,7 +23,8 @@ type LoggedEntity =
   | "price_list"
   | "price"
   | "user"
-  | "role";
+  | "role"
+  | "register";
 
 interface LoggedRow {
   changeSeq: number;
@@ -54,11 +56,12 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   async changesAfter(
-    locationId: string,
+    audience: PullAudience,
     since: number,
     limit: number,
   ): Promise<PulledCloudChange[]> {
-    const logged = await this.loggedAfter(locationId, since, limit);
+    const { locationId } = audience;
+    const logged = await this.loggedAfter(audience, since, limit);
 
     // Every change carries the row as it is now, so one read serves every change of that row.
     const categoryRows = await readCategories(this.tx, idsOf(logged, "category"));
@@ -68,6 +71,7 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
     const priceRows = await readPrices(this.tx, idsOf(logged, "price"));
     const userRows = await readUsers(this.tx, idsOf(logged, "user"));
     const roleRows = await readRoles(this.tx, idsOf(logged, "role"));
+    const registerRows = await readRegisters(this.tx, idsOf(logged, "register"));
     const settingsRow = logged.some((row) => row.entity === "branch_settings")
       ? await this.readSettings(locationId)
       : undefined;
@@ -81,6 +85,10 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
       price: await this.latestLoggedVersions("price", absent(logged, "price", priceRows)),
       user: await this.latestLoggedVersions("user", absent(logged, "user", userRows)),
       role: await this.latestLoggedVersions("role", absent(logged, "role", roleRows)),
+      register: await this.latestLoggedVersions(
+        "register",
+        absent(logged, "register", registerRows),
+      ),
     };
 
     const pulled: PulledCloudChange[] = [];
@@ -134,13 +142,18 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
           pulled.push(row === undefined ? removal(entity) : { changeSeq, entity, entityId, row });
           break;
         }
+        case "register": {
+          const row = registerRows.get(entityId);
+          pulled.push(row === undefined ? removal(entity) : { changeSeq, entity, entityId, row });
+          break;
+        }
       }
     }
     return pulled;
   }
 
   private async loggedAfter(
-    locationId: string,
+    { locationId, registerId }: PullAudience,
     since: number,
     limit: number,
   ): Promise<LoggedRow[]> {
@@ -160,6 +173,7 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
             and(eq(changes.entity, "branch_settings"), eq(changes.entityId, locationId)),
             inArray(changes.entity, ["category", "product", "tag", "role"]),
             and(eq(changes.entity, "user"), eq(changes.locationId, locationId)),
+            and(eq(changes.entity, "register"), eq(changes.entityId, registerId)),
             priceListId === undefined
               ? undefined
               : and(eq(changes.entity, "price_list"), eq(changes.entityId, priceListId)),
@@ -229,7 +243,7 @@ export class DrizzleChangeLog<TQueryResult extends PgQueryResultHKT>
   // settings and products are read in more than one statement, so only they are share-locked, in
   // id order: every save locks the row before touching what belongs to it, and the lock waits for
   // it. Locking anything else would take locks in another order than the writers do. A user with
-  // its role and PIN, and a role with its permissions, are each read in one statement.
+  // its role and PIN, a role with its permissions, and a register are each read in one statement.
   transaction<TOutcome>(
     work: (tx: ChangeLogTransaction<PulledCloudChange>) => Promise<TOutcome>,
   ): Promise<TOutcome> {
