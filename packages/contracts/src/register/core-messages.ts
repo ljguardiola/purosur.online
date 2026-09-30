@@ -69,7 +69,6 @@ const firstSignInMessageSchema = z.object({
 const openCashSessionMessageSchema = z.object({
   type: z.literal("open-cash-session"),
   request_id: requestId,
-  user_id: z.string(),
   opening_float: openingFloatSchema,
 });
 
@@ -82,6 +81,11 @@ const authorizersRequestMessageSchema = z.object({
   type: z.literal("authorizers"),
   request_id: requestId,
   permission: z.custom<AuthorizablePermissionKey>(isAuthorizablePermissionKey),
+});
+
+const signOutMessageSchema = z.object({
+  type: z.literal("sign-out"),
+  request_id: requestId,
 });
 
 export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
@@ -97,6 +101,7 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   openCashSessionMessageSchema,
   cashSessionRequestMessageSchema,
   authorizersRequestMessageSchema,
+  signOutMessageSchema,
 ]);
 export type RendererToCoreMessage = z.infer<typeof rendererToCoreMessageSchema>;
 
@@ -133,6 +138,7 @@ const signInOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("signed_in"), person: signedInPersonSchema }),
   ...pinAttemptRefusalSchema.options,
   z.object({ kind: z.literal("no_register_permission") }),
+  z.object({ kind: z.literal("cash_session_opened_by_another") }),
   z.object({ kind: z.literal("unavailable") }),
 ]);
 export type SignInOutcome = z.infer<typeof signInOutcomeSchema>;
@@ -142,6 +148,7 @@ const openCashSessionOutcomeSchema = z.discriminatedUnion("kind", [
     kind: z.literal("opened"),
     session: z.object({ id: z.string(), opened_at: z.string(), opening_float: z.number() }),
   }),
+  z.object({ kind: z.literal("not_signed_in") }),
   z.object({ kind: z.literal("not_permitted") }),
   z.object({ kind: z.literal("already_open") }),
   z.object({ kind: z.literal("invalid_opening_float") }),
@@ -221,6 +228,7 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     users: z.array(signInUserSchema),
   }),
   z.object({ type: z.literal("authorizers-unavailable"), request_id: requestId }),
+  z.object({ type: z.literal("signed-out"), request_id: requestId }),
   z.object({ type: z.literal("pulled") }),
 ]);
 export type CoreToRendererMessage = z.infer<typeof coreToRendererMessageSchema>;

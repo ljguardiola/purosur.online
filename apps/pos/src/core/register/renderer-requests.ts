@@ -20,11 +20,10 @@ export interface RendererRequestDeps {
   signIn: ((userId: string, pin: string) => Promise<SignInOutcome>) | undefined;
   firstSignIn: ((userId: string, pin: string) => Promise<SignInOutcome>) | undefined;
   signInLookup: ((email: string) => Promise<SignInLookupOutcome>) | undefined;
-  openCashSession:
-    | ((userId: string, openingFloat: number) => Promise<OpenCashSessionOutcome>)
-    | undefined;
+  openCashSession: ((openingFloat: number) => Promise<OpenCashSessionOutcome>) | undefined;
   cashSession: (() => OpenCashSession | null) | undefined;
   authorizers: ((permission: AuthorizablePermissionKey) => SignInUser[]) | undefined;
+  signOut: () => void;
   reportFailure: (context: string, error: unknown) => void;
 }
 
@@ -90,11 +89,10 @@ async function attemptSignInLookup(
 
 async function attemptOpenCashSession(
   deps: RendererRequestDeps,
-  userId: string,
   openingFloat: number,
 ): Promise<OpenCashSessionOutcome> {
   try {
-    return (await deps.openCashSession?.(userId, openingFloat)) ?? { kind: "unavailable" };
+    return (await deps.openCashSession?.(openingFloat)) ?? { kind: "unavailable" };
   } catch (error) {
     deps.reportFailure("opening a cash session", error);
     return { kind: "unavailable" };
@@ -167,7 +165,7 @@ export async function answerRendererRequest(
       return {
         type: "open-cash-session-result",
         request_id: message.request_id,
-        outcome: await attemptOpenCashSession(deps, message.user_id, message.opening_float),
+        outcome: await attemptOpenCashSession(deps, message.opening_float),
       };
     case "cash-session-request": {
       const session = readCashSession(deps);
@@ -181,6 +179,9 @@ export async function answerRendererRequest(
         ? { type: "authorizers-unavailable", request_id: message.request_id }
         : { type: "authorizers", request_id: message.request_id, users };
     }
+    case "sign-out":
+      deps.signOut();
+      return { type: "signed-out", request_id: message.request_id };
     case "ping":
       return undefined;
   }

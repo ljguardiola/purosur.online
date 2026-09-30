@@ -31,7 +31,7 @@ class FakePort implements RendererPort {
 describe("createRendererConnection", () => {
   it("starts the adopted port and passes along every message it receives", () => {
     const onMessage = vi.fn();
-    const connection = createRendererConnection(onMessage);
+    const connection = createRendererConnection(onMessage, vi.fn());
     const port = new FakePort();
 
     connection.adopt(port);
@@ -42,7 +42,7 @@ describe("createRendererConnection", () => {
   });
 
   it("closes the previous renderer port when a new one replaces it", () => {
-    const connection = createRendererConnection(vi.fn());
+    const connection = createRendererConnection(vi.fn(), vi.fn());
     const previous = new FakePort();
     const next = new FakePort();
 
@@ -55,7 +55,7 @@ describe("createRendererConnection", () => {
 
   it("ignores anything still arriving on a replaced port", () => {
     const onMessage = vi.fn();
-    const connection = createRendererConnection(onMessage);
+    const connection = createRendererConnection(onMessage, vi.fn());
     const previous = new FakePort();
 
     connection.adopt(previous);
@@ -66,7 +66,10 @@ describe("createRendererConnection", () => {
   });
 
   it("answers on the port the message arrived on", () => {
-    const connection = createRendererConnection((_data, reply) => reply({ type: "answer" }));
+    const connection = createRendererConnection(
+      (_data, reply) => reply({ type: "answer" }),
+      vi.fn(),
+    );
     const port = new FakePort();
 
     connection.adopt(port);
@@ -77,7 +80,7 @@ describe("createRendererConnection", () => {
 
   it("drops an answer whose port was replaced before it was ready", () => {
     const replies: ((message: unknown) => void)[] = [];
-    const connection = createRendererConnection((_data, reply) => replies.push(reply));
+    const connection = createRendererConnection((_data, reply) => replies.push(reply), vi.fn());
     const previous = new FakePort();
     const next = new FakePort();
 
@@ -91,7 +94,7 @@ describe("createRendererConnection", () => {
   });
 
   it("tells the live page something it didn't ask about", () => {
-    const connection = createRendererConnection(vi.fn());
+    const connection = createRendererConnection(vi.fn(), vi.fn());
     const previous = new FakePort();
     const next = new FakePort();
 
@@ -103,8 +106,23 @@ describe("createRendererConnection", () => {
     expect(previous.posted).toEqual([]);
   });
 
+  it("tells that a page connected each time it adopts a port, before the page can ask anything", () => {
+    const events: string[] = [];
+    const connection = createRendererConnection(
+      () => events.push("message"),
+      () => events.push("page connected"),
+    );
+    const first = new FakePort();
+
+    connection.adopt(first);
+    first.receive({ type: "ping" });
+    connection.adopt(new FakePort());
+
+    expect(events).toEqual(["page connected", "message", "page connected"]);
+  });
+
   it("tells nothing before any page has connected", () => {
-    const connection = createRendererConnection(vi.fn());
+    const connection = createRendererConnection(vi.fn(), vi.fn());
 
     expect(() => connection.tell({ type: "pulled" })).not.toThrow();
   });

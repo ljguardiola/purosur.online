@@ -45,9 +45,10 @@ function coreAnswering(
     cashSession?: CoreClient["cashSession"];
     openOutcome?: OpenCashSessionOutcome;
   } = {},
+  signOut: () => Promise<void> = async () => {},
 ) {
   const cashSessionAsks: string[] = [];
-  const opened: [string, number][] = [];
+  const opened: number[] = [];
   const asked: string[] = [];
   let usersLoads = 0;
   let savedName: string | null = null;
@@ -83,8 +84,12 @@ function coreAnswering(
     async firstSignIn() {
       return signInOutcome;
     },
-    async openCashSession(userId, openingFloat) {
-      opened.push([userId, openingFloat]);
+    async signOut() {
+      asked.push("sign-out");
+      await signOut();
+    },
+    async openCashSession(openingFloat) {
+      opened.push(openingFloat);
       return cashDrawer.openOutcome ?? OPENED;
     },
     async cashSession() {
@@ -305,6 +310,77 @@ describe("App", () => {
       .not.toBeInTheDocument();
   });
 
+  it.each([
+    [
+      "the core cannot be asked",
+      () => Promise.reject(new Error("the core connection was replaced")),
+    ],
+    ["the core never answers", () => new Promise<void>(() => {})],
+  ])("asks the core to sign out and still leaves when %s", async (_case, signOut) => {
+    await page.viewport(1280, 900);
+    onTestFinished(() => page.viewport(414, 896));
+    const { core, asked } = coreAnswering(true, { kind: "enrolled" }, ADA_SIGNED_IN, {}, signOut);
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Salir" }));
+
+    await userEvent.click(
+      screen
+        .getByRole("dialog", { name: "¿Salir de la caja?" })
+        .getByRole("button", { name: "Salir" }),
+    );
+
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    expect(asked).toContain("sign-out");
+  });
+
+  it("asks the core to sign out when the person confirms leaving the register", async () => {
+    await page.viewport(1280, 900);
+    onTestFinished(() => page.viewport(414, 896));
+    const { core, asked } = coreAnswering(true);
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Salir" }));
+    expect(asked).not.toContain("sign-out");
+
+    await userEvent.click(
+      screen
+        .getByRole("dialog", { name: "¿Salir de la caja?" })
+        .getByRole("button", { name: "Salir" }),
+    );
+
+    expect(asked.filter((question) => question === "sign-out")).toHaveLength(1);
+  });
+
+  it.each(["down", "starting"] as const)(
+    "asks who opens the register again once the core is back up after reporting it is %s",
+    async (status) => {
+      const screen = await render(<App core={enrolledCore} />);
+      postCoreStatus("up");
+      await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+      await userEvent.type(screen.getByLabelText("PIN"), "1234");
+      await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+      await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
+
+      postCoreStatus(status);
+      await expect
+        .element(screen.getByRole("heading", { name: SIGNED_IN_TITLE }))
+        .not.toBeInTheDocument();
+      postCoreStatus("up");
+
+      await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+      await expect
+        .element(screen.getByRole("heading", { name: SIGNED_IN_TITLE }))
+        .not.toBeInTheDocument();
+    },
+  );
+
   it("stays signed in when the person cancels leaving the register", async () => {
     await page.viewport(1280, 900);
     onTestFinished(() => page.viewport(414, 896));
@@ -356,6 +432,56 @@ describe("App", () => {
     await expect
       .element(screen.getByRole("heading", { name: SIGNED_IN_TITLE }))
       .not.toBeInTheDocument();
+  });
+
+  it("shows the cash session another person opened when the core refuses a sign-in for it", async () => {
+    let answers = 0;
+    const { core } = coreAnswering(
+      true,
+      { kind: "enrolled" },
+      { kind: "cash_session_opened_by_another" },
+      {
+        cashSession: async () => {
+          answers += 1;
+          return answers === 1 ? null : GRACE_SESSION;
+        },
+      },
+    );
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+
+    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+
+    await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("navigation").getByText("Grace")).toBeVisible();
+  });
+
+  it("still says the cash session is open when the core cannot tell which one after refusing a sign-in", async () => {
+    let answers = 0;
+    const { core } = coreAnswering(
+      true,
+      { kind: "enrolled" },
+      { kind: "cash_session_opened_by_another" },
+      {
+        cashSession: async () => {
+          answers += 1;
+          if (answers === 1) {
+            return null;
+          }
+          throw new Error("the core connection was replaced");
+        },
+      },
+    );
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+
+    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+
+    await expect.element(screen.getByText("La caja está abierta")).toBeVisible();
   });
 
   it("stays on the enrollment screen when the code doesn't work", async () => {
@@ -594,7 +720,7 @@ describe("App", () => {
     await expect.element(screen.getByRole("navigation").getByText("Ada")).toBeVisible();
     await expect.element(screen.getByText("Sesión abierta 09:02")).toBeVisible();
     await expect.element(screen.getByRole("button", { name: "Salir" })).not.toBeInTheDocument();
-    expect(opened).toEqual([["u1", 10_000]]);
+    expect(opened).toEqual([10_000]);
   });
 
   it("shows the session that is already open when the core says so", async () => {
@@ -667,5 +793,22 @@ describe("App", () => {
     await expect
       .element(screen.getByRole("heading", { name: SESSION_TITLE }))
       .not.toBeInTheDocument();
+  });
+
+  it("goes back to sign-in when the core says nobody is signed in to open the cash session", async () => {
+    const { core } = coreAnswering(true, { kind: "enrolled" }, ADA_SELLS, {
+      openOutcome: { kind: "not_signed_in" },
+    });
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
+    await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "100");
+    await userEvent.click(screen.getByRole("button", { name: "Abrir la caja" }));
+
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
   });
 });

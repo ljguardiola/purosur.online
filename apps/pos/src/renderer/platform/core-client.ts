@@ -30,7 +30,8 @@ export interface CoreClient {
   signIn(userId: string, pin: string): Promise<SignInOutcome>;
   signInLookup(email: string): Promise<SignInLookupOutcome>;
   firstSignIn(userId: string, pin: string): Promise<SignInOutcome>;
-  openCashSession(userId: string, openingFloat: number): Promise<OpenCashSessionOutcome>;
+  signOut(): Promise<void>;
+  openCashSession(openingFloat: number): Promise<OpenCashSessionOutcome>;
   cashSession(): Promise<OpenCashSession | null | "unavailable">;
   onPulled(listener: () => void): () => void;
 }
@@ -177,14 +178,14 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         (answer) => (answer.type === "sign-in-result" ? answer.outcome : undefined),
       );
     },
-    openCashSession(userId, openingFloat) {
+    signOut() {
+      return ask({ type: "sign-out", request_id: deps.newRequestId() }, (answer) =>
+        answer.type === "signed-out" ? true : undefined,
+      ).then(() => {});
+    },
+    openCashSession(openingFloat) {
       return ask(
-        {
-          type: "open-cash-session",
-          request_id: deps.newRequestId(),
-          user_id: userId,
-          opening_float: openingFloat,
-        },
+        { type: "open-cash-session", request_id: deps.newRequestId(), opening_float: openingFloat },
         (answer) => (answer.type === "open-cash-session-result" ? answer.outcome : undefined),
       );
     },

@@ -18,11 +18,13 @@ import {
   sentryEnvironmentFromCoreArguments,
 } from "../shared/channel";
 import { CORE_READY_MESSAGE } from "../shared/core-readiness";
+import { createActionGate } from "./access/action-gate";
 import { redeemPinCode } from "./access/pin-code-redemption";
 import { hashPin } from "./access/pin-hash";
 import { applyRedeemedPin } from "./access/redeemed-pin";
 import { firstSignIn, signIn } from "./access/sign-in";
 import { lookUpSignIn } from "./access/sign-in-lookup";
+import { createSignedInPerson } from "./access/signed-in-person";
 import { SqliteSignInStore } from "./access/sqlite-sign-in-store";
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
 import {
@@ -34,7 +36,12 @@ import {
 import { type LocalDatabase, openLocalDatabase } from "./platform/local-database";
 import { LOCAL_MIGRATIONS } from "./platform/local-migrations";
 import { createMainRequests } from "./platform/main-requests";
-import { currentCashSession, openCashSessionFor } from "./register/cash-session-requests";
+import {
+  cashSessionOpener,
+  currentCashSession,
+  openCashSessionFor,
+  resumeSignedInPerson,
+} from "./register/cash-session-requests";
 import { rotateDeviceToken } from "./register/device-token-rotation";
 import { startDeviceTokenRotationSchedule } from "./register/device-token-rotation-schedule";
 import { enroll, generatePepper, installationReportFrom } from "./register/enrollment";
@@ -119,6 +126,31 @@ function openLocalDatabaseFile(): LocalDatabase | undefined {
 const localDatabase = openLocalDatabaseFile();
 const replica = localDatabase === undefined ? undefined : new SqliteLocalReplica(localDatabase);
 const signInStore = localDatabase === undefined ? undefined : new SqliteSignInStore(localDatabase);
+const signedInPerson = createSignedInPerson();
+const readPepper = async () => (await mainRequests.readCredentials())?.pepper;
+const actionGate =
+  signInStore === undefined
+    ? undefined
+    : createActionGate({
+        store: signInStore,
+        signedInPerson,
+        readPepper,
+        hashPin,
+        now: () => new Date(),
+      });
+
+function reportFailure(context: string, error: unknown): void {
+  console.error(`core: ${context} failed`, error);
+  Sentry.captureException(error);
+}
+
+function resumeWhoIsSignedIn(): void {
+  if (localDatabase === undefined) {
+    signedInPerson.clear();
+    return;
+  }
+  resumeSignedInPerson({ database: localDatabase, signedInPerson, reportFailure });
+}
 
 // An unreachable cloud is how a register without internet looks, so only an unexpected stop is
 // reported; the next pull resumes from the cursor already saved either way.
@@ -201,13 +233,15 @@ const rendererRequestDeps: RendererRequestDeps = {
   authorizers:
     signInStore === undefined ? undefined : (permission) => signInStore.authorizers(permission),
   signIn:
-    signInStore === undefined
+    localDatabase === undefined || signInStore === undefined
       ? undefined
       : (userId, pin) =>
           signIn(
             {
               store: signInStore,
-              readPepper: async () => (await mainRequests.readCredentials())?.pepper,
+              signedInPerson,
+              cashSessionOpener: () => cashSessionOpener(localDatabase),
+              readPepper,
               hashPin,
               now: () => new Date(),
             },
@@ -215,13 +249,15 @@ const rendererRequestDeps: RendererRequestDeps = {
             pin,
           ),
   firstSignIn:
-    signInStore === undefined
+    localDatabase === undefined || signInStore === undefined
       ? undefined
       : (userId, pin) =>
           firstSignIn(
             {
               store: signInStore,
-              readPepper: async () => (await mainRequests.readCredentials())?.pepper,
+              signedInPerson,
+              cashSessionOpener: () => cashSessionOpener(localDatabase),
+              readPepper,
               hashPin,
               now: () => new Date(),
             },
@@ -244,26 +280,27 @@ const rendererRequestDeps: RendererRequestDeps = {
             },
             email,
           ),
+  signOut: () => signedInPerson.clear(),
   openCashSession:
-    localDatabase === undefined
+    localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (userId, openingFloat) =>
+      : (openingFloat) =>
           openCashSessionFor(
             {
               database: localDatabase,
+              gate: actionGate,
               readOutboxChainKey: async () =>
                 (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
               now: () => new Date(),
               ids: uuidV7Ids,
             },
-            userId,
             openingFloat,
           ),
-  cashSession: localDatabase === undefined ? undefined : () => currentCashSession(localDatabase),
-  reportFailure: (context, error) => {
-    console.error(`core: ${context} failed`, error);
-    Sentry.captureException(error);
-  },
+  cashSession:
+    localDatabase === undefined
+      ? undefined
+      : () => currentCashSession(localDatabase, signedInPerson),
+  reportFailure,
 };
 
 if (cloudClient !== undefined) {
@@ -291,7 +328,7 @@ const rendererConnection = createRendererConnection((data, reply) => {
       }
     });
   });
-});
+}, resumeWhoIsSignedIn);
 
 process.parentPort.on("message", (event) => {
   const [rendererPort] = event.ports;
