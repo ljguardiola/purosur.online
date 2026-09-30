@@ -9,7 +9,14 @@ import { GuardedCashInForm } from "../access/test-support/guarded-cash-in-form";
 import type { CoreStatus, Enrollment, RouterContext } from "./router";
 import { createRegisterRouter, routeFor, routeTree } from "./router";
 
-type RoutePath = "/" | "/sign-in" | "/enroll" | "/starting" | "/core-down" | "/pin-code-redemption";
+type RoutePath =
+  | "/"
+  | "/sign-in"
+  | "/enroll"
+  | "/starting"
+  | "/core-down"
+  | "/pin-code-redemption"
+  | "/first-sign-in";
 type RenderedScreen = Awaited<ReturnType<typeof render>>;
 
 const CORE_DOWN_TITLE = "Esperá un momento";
@@ -19,6 +26,7 @@ const PERSON: SignedInPerson = { first_name: "Ada", permission_keys: [] };
 const BRAND_LOGO_ALT = "Puro Sur";
 const ENROLLMENT_TITLE = "Dar de alta esta caja";
 const PIN_REDEMPTION_TITLE = "Cambiar el PIN";
+const FIRST_SIGN_IN_TITLE = "Ingresar por primera vez";
 const OUTER_BOUNDARY_TEXT = "caught outside the router";
 const ROUTER_DEFAULT_ERROR_TEXT = "Something went wrong!";
 
@@ -32,6 +40,7 @@ const screenFor: Record<
   "/starting": (screen) => screen.getByRole("img", { name: BRAND_LOGO_ALT }),
   "/core-down": (screen) => screen.getByText(CORE_DOWN_TITLE),
   "/pin-code-redemption": (screen) => screen.getByRole("heading", { name: PIN_REDEMPTION_TITLE }),
+  "/first-sign-in": (screen) => screen.getByRole("heading", { name: FIRST_SIGN_IN_TITLE }),
 };
 
 function contextWith(
@@ -51,6 +60,8 @@ function contextWith(
     signIn: async () => ({ kind: "signed_in", person: PERSON }),
     signOut,
     redeemPinCode: async () => ({ kind: "redeemed" }),
+    signInLookup: async () => ({ kind: "not_found" }),
+    firstSignIn: async () => ({ kind: "signed_in", person: PERSON }),
   };
 }
 
@@ -175,6 +186,28 @@ describe("the register's router", () => {
     },
     {
       path: "/pin-code-redemption",
+      coreStatus: "up",
+      enrollment: "unknown",
+      person: null,
+      redirectedTo: "/starting",
+    },
+    { path: "/first-sign-in", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
+    {
+      path: "/first-sign-in",
+      coreStatus: "up",
+      enrollment: "not_enrolled",
+      person: null,
+      redirectedTo: "/enroll",
+    },
+    {
+      path: "/first-sign-in",
+      coreStatus: "down",
+      enrollment: "enrolled",
+      person: null,
+      redirectedTo: "/core-down",
+    },
+    {
+      path: "/first-sign-in",
       coreStatus: "up",
       enrollment: "unknown",
       person: null,
@@ -320,6 +353,52 @@ describe("the register's router", () => {
 
     expect(redeemed).toEqual(["K7QM2XPA3DTR4HWN/482915"]);
     await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+  });
+
+  it("renders the first sign-in screen while enrolled and nobody is signed in", async () => {
+    const router = routerAt("/first-sign-in", "up", "enrolled", null);
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screenFor["/first-sign-in"](screen)).toBeVisible();
+  });
+
+  it("reaches the first sign-in screen from the sign-in screen and comes back", async () => {
+    const router = routerAt("/sign-in", "up", "enrolled", null);
+    const screen = await render(<RouterProvider router={router} />);
+
+    await userEvent.click(screen.getByRole("link", { name: "Ingresar por primera vez" }));
+    await expect.element(screenFor["/first-sign-in"](screen)).toBeVisible();
+    await userEvent.click(screen.getByRole("link", { name: "Volver" }));
+
+    await expect.element(screenFor["/sign-in"](screen)).toBeVisible();
+  });
+
+  it("looks the email up and signs in through the context's callbacks", async () => {
+    const calls: string[] = [];
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", null),
+        signInLookup: async (email) => {
+          calls.push(`lookup ${email}`);
+          return { kind: "has_pin", user: { id: "u1", first_name: "Ada" } };
+        },
+        firstSignIn: async (userId, pin) => {
+          calls.push(`sign-in ${userId}/${pin}`);
+          return { kind: "signed_in", person: PERSON };
+        },
+      },
+      "/first-sign-in",
+    );
+    const screen = await render(<RouterProvider router={router} />);
+
+    await userEvent.type(screen.getByRole("textbox", { name: "Correo" }), "ada@example.com");
+    await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
+    await userEvent.type(screen.getByLabelText("PIN"), "0042");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+
+    await vi.waitFor(() => expect(calls).toEqual(["lookup ada@example.com", "sign-in u1/0042"]));
   });
 
   it("lets an error thrown while rendering a screen propagate past the router", async () => {

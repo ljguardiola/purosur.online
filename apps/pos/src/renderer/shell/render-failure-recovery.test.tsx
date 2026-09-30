@@ -38,6 +38,8 @@ function buildFailingRouter(shouldThrow: () => boolean) {
       signIn: async () => ({ kind: "unavailable" }),
       signOut: () => {},
       redeemPinCode: async () => ({ kind: "redeemed" }),
+      signInLookup: async () => ({ kind: "unavailable" }),
+      firstSignIn: async () => ({ kind: "unavailable" }),
     },
     "/",
   );

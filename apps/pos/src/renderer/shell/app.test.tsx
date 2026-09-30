@@ -51,6 +51,12 @@ function coreAnswering(
     async signIn() {
       return signInOutcome;
     },
+    async signInLookup() {
+      return { kind: "not_found" };
+    },
+    async firstSignIn() {
+      return signInOutcome;
+    },
     onPulled(listener) {
       pulledListeners.add(listener);
       return () => {
@@ -214,6 +220,28 @@ describe("App", () => {
     await expect.element(screen.getByText("Ada")).toBeVisible();
     await expect
       .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .not.toBeInTheDocument();
+  });
+
+  it("opens the register for a person who signs in for the first time with their email", async () => {
+    const core: CoreClient = {
+      ...enrolledCore,
+      async signInLookup() {
+        return { kind: "has_pin", user: { id: "u1", first_name: "Ada" } };
+      },
+    };
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+
+    await userEvent.click(screen.getByRole("link", { name: "Ingresar por primera vez" }));
+    await userEvent.type(screen.getByRole("textbox", { name: "Correo" }), "ada@example.com");
+    await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+
+    await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: "Ingresá tu PIN" }))
       .not.toBeInTheDocument();
   });
 

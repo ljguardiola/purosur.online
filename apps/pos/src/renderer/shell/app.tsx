@@ -1,3 +1,4 @@
+import type { SignInOutcome } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { RouterProvider } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -21,12 +22,19 @@ export function App({ core }: { core: CoreClient }) {
     return outcome;
   }
 
-  async function signIn(userId: string, pin: string) {
-    const outcome = await core.signIn(userId, pin);
+  async function takeSignedInPerson(outcome: SignInOutcome) {
     if (outcome.kind === "signed_in") {
       setPerson(outcome.person);
     }
     return outcome;
+  }
+
+  async function signIn(userId: string, pin: string) {
+    return takeSignedInPerson(await core.signIn(userId, pin));
+  }
+
+  async function firstSignIn(userId: string, pin: string) {
+    return takeSignedInPerson(await core.firstSignIn(userId, pin));
   }
 
   function signOut() {
@@ -41,6 +49,8 @@ export function App({ core }: { core: CoreClient }) {
     signIn,
     signOut,
     redeemPinCode: (typedCode: string, newPin: string) => core.redeemPinCode(typedCode, newPin),
+    signInLookup: (email: string) => core.signInLookup(email),
+    firstSignIn,
   };
 
   const [router] = useState(() => createAppRouter(services));

@@ -37,6 +37,12 @@ describe("the register's router types", () => {
     >();
   });
 
+  it("accepts navigating to the first sign-in screen", () => {
+    type ToFirstSignIn = { to: "/first-sign-in" };
+
+    expectTypeOf<ToFirstSignIn>().toExtend<ValidateNavigateOptions<AppRouter, ToFirstSignIn>>();
+  });
+
   it("fails to type-check navigating to a route that was never declared", () => {
     type ToUndeclaredScreen = { to: "/does-not-exist" };
 

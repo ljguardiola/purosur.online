@@ -2,6 +2,7 @@ import type {
   CoreStatusMessage,
   EnrollmentOutcome,
   PinCodeRedemptionOutcome,
+  SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
 } from "@purosur/contracts";
@@ -15,6 +16,7 @@ import {
   Outlet,
   redirect,
 } from "@tanstack/react-router";
+import { FirstSignInScreen } from "../access/first-sign-in-screen";
 import { PinCodeRedemptionScreen } from "../access/pin-code-redemption-screen";
 import { SignInScreen } from "../access/sign-in-screen";
 import type { SignedInPerson } from "../access/signed-in-person";
@@ -39,6 +41,8 @@ export interface RouterContext {
   registerName: () => Promise<string | null>;
   signOut: () => void;
   redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
+  signInLookup: (email: string) => Promise<SignInLookupOutcome>;
+  firstSignIn: (userId: string, pin: string) => Promise<SignInOutcome>;
 }
 
 type ScreenPath = "/" | "/sign-in" | "/enroll" | "/starting" | "/core-down";
@@ -126,6 +130,16 @@ const pinCodeRedemptionRoute = createRoute({
   },
 });
 
+const firstSignInRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/first-sign-in",
+  beforeLoad: ({ context }) => requireRoute("/sign-in", context),
+  component: function FirstSignInRoute() {
+    const { signInLookup, firstSignIn } = firstSignInRoute.useRouteContext();
+    return <FirstSignInScreen lookup={signInLookup} signIn={firstSignIn} />;
+  },
+});
+
 const enrollRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/enroll",
@@ -153,6 +167,7 @@ const coreDownRoute = createRoute({
 export const routeTree = rootRoute.addChildren([
   sessionEyebrowRoute.addChildren([signedInRoute, signInRoute]),
   pinCodeRedemptionRoute,
+  firstSignInRoute,
   enrollRoute,
   startingRoute,
   coreDownRoute,
@@ -181,6 +196,8 @@ export function createAppRouter(
     | "signIn"
     | "signOut"
     | "redeemPinCode"
+    | "signInLookup"
+    | "firstSignIn"
   >,
 ) {
   return createRegisterRouter(
