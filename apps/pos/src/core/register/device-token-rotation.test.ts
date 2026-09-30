@@ -70,7 +70,7 @@ describe("rotateDeviceToken", () => {
     await rotateDeviceToken(deps);
 
     expect(posted).toEqual([
-      { path: "/api/devices/rotate-token", bearerToken: "old-prefix.old-secret" },
+      { path: "/api/devices/current/tokens", bearerToken: "old-prefix.old-secret" },
     ]);
   });
 
