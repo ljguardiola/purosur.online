@@ -1,3 +1,10 @@
+export { isValidCashAmount, MAX_CASH_AMOUNT_CENTS } from "./model/cash-amount.js";
+export type {
+  CashMovement,
+  CashMovementType,
+  CashSession,
+  CashSessionState,
+} from "./model/cash-session.js";
 export { isDeviceTokenRotationDue } from "./model/device-token.js";
 export { enrollmentAttemptWindowStart } from "./model/enrollment-attempt-limit.js";
 export {

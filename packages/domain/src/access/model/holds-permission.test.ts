@@ -33,6 +33,16 @@ describe("holdsPermission", () => {
     ).toBe(false);
   });
 
+  it("holds exactly the permissions in the list when not an Administrator", () => {
+    fc.assert(
+      fc.property(fc.subarray([...PERMISSION_KEYS]), permissionKey, (granted, key) => {
+        expect(holdsPermission({ isAdministrator: false, permissionKeys: granted }, key)).toBe(
+          granted.includes(key),
+        );
+      }),
+    );
+  });
+
   it("holds nothing without a role", () => {
     fc.assert(
       fc.property(permissionKey, (key) => {

@@ -6,6 +6,14 @@ type WithoutChangeSeq<TChange> = TChange extends SyncChange ? Omit<TChange, "cha
 
 export type CloudChange = WithoutChangeSeq<SyncChange>;
 
+export function registerChange(register: { id: string; name: string }): CloudChange {
+  return {
+    entity: "register",
+    entity_id: register.id,
+    row: { name: register.name, version: 1 },
+  };
+}
+
 export function roleChange(role: {
   id: string;
   name: string;
