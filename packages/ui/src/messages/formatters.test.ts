@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatCents,
   formatDate,
   formatMonthAndYear,
   formatMonthName,
@@ -25,6 +26,14 @@ describe("formatNumber", () => {
 
   it("passes formatting options through to Intl.NumberFormat", () => {
     expect(formatNumber(1234.5, { minimumFractionDigits: 2 })).toBe("1.234,50");
+  });
+});
+
+describe("formatCents", () => {
+  it("writes an amount in cents as pesos with two decimals", () => {
+    expect(formatCents(5_070_000)).toBe("$ 50.700,00");
+    expect(formatCents(40_000)).toBe("$ 400,00");
+    expect(formatCents(0)).toBe("$ 0,00");
   });
 });
 

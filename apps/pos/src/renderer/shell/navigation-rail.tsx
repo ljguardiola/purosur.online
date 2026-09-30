@@ -48,10 +48,26 @@ function RailButton({
   );
 }
 
+export type RailLink = {
+  label: string;
+  icon: LucideIcon;
+  to: ActionEntry["to"];
+  current?: boolean;
+};
+
+function RailLinkItem({ label, icon, to, current = false }: RailLink) {
+  return (
+    <Link to={to} aria-current={current ? "page" : undefined} className={itemClassNameFor(current)}>
+      <RailItemContent label={label} icon={icon} />
+    </Link>
+  );
+}
+
 export type NavigationRailProps = {
   firstName: string;
   entries: readonly ActionEntry[];
-  home?: { label: string; icon: LucideIcon };
+  home?: { label: string; icon: LucideIcon; to?: ActionEntry["to"] };
+  links?: readonly RailLink[];
   onSignOut?: () => void;
 };
 
@@ -61,6 +77,7 @@ export function NavigationRail({
   firstName,
   entries,
   home = INICIO,
+  links = [],
   onSignOut,
 }: NavigationRailProps) {
   return (
@@ -68,11 +85,18 @@ export function NavigationRail({
       aria-label="Menú de la caja"
       className="flex h-full w-22 shrink-0 flex-col items-center gap-2 overflow-hidden border-r border-border bg-surface py-4"
     >
-      <RailButton label={home.label} icon={home.icon} current onPress={() => {}} />
+      {home.to === undefined ? (
+        <RailButton label={home.label} icon={home.icon} current onPress={() => {}} />
+      ) : (
+        <RailLinkItem label={home.label} icon={home.icon} to={home.to} />
+      )}
       {entries.map((entry) => (
         <Link key={entry.label} to={entry.to} className={itemClassNameFor(false)}>
           <RailItemContent label={entry.label} icon={entry.icon} />
         </Link>
+      ))}
+      {links.map((link) => (
+        <RailLinkItem key={link.label} {...link} />
       ))}
       <div className="flex-1" />
       <p className="w-full truncate px-2 text-center text-caption font-semibold text-text-subtle">

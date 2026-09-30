@@ -1,4 +1,10 @@
-import type { OpenCashSession, OpenCashSessionOutcome, SignInOutcome } from "@purosur/contracts";
+import type {
+  Authorization,
+  CloseCashSessionOutcome,
+  OpenCashSession,
+  OpenCashSessionOutcome,
+  SignInOutcome,
+} from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { RouterProvider } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -7,7 +13,7 @@ import type { CoreClient } from "../platform/core-client";
 import { useCoreStatus } from "../platform/use-core-status";
 import type { CashSessionState } from "./cash-session-state";
 import type { Enrollment } from "./router";
-import { createAppRouter, routeFor } from "./router";
+import { createAppRouter, isSessionScreen, routeFor } from "./router";
 
 const UNKNOWN_SESSION: CashSessionState = { status: "unknown" };
 const CASH_SESSION_RETRY_MS = 5000;
@@ -84,6 +90,43 @@ export function App({ core }: { core: CoreClient }) {
     return outcome;
   }
 
+  function refreshCashSession(session: OpenCashSession | null | "unavailable") {
+    const next = stateOf(session);
+    setCashSession((previous) =>
+      previous.status === "open" && next.status === "open" && previous.id === next.id
+        ? previous
+        : next,
+    );
+  }
+
+  async function closeCashSession(
+    closer: SignedInPerson,
+    sessionId: string,
+    countedCash: number,
+    authorization?: Authorization,
+  ) {
+    const outcome = await core.closeCashSession(sessionId, countedCash, authorization);
+    if (outcome.kind === "not_signed_in") {
+      setPerson(undefined);
+    }
+    if (outcome.kind === "closed") {
+      setPerson(closer);
+      setCashSession({ status: "none" });
+    }
+    if (outcome.kind === "no_open_session") {
+      await core.cashSession().then(refreshCashSession, () => {});
+    }
+    return outcome satisfies CloseCashSessionOutcome;
+  }
+
+  async function cashBalance() {
+    const balance = await core.cashBalance();
+    if (balance === null) {
+      await core.cashSession().then(refreshCashSession, () => {});
+    }
+    return balance;
+  }
+
   function signOut() {
     core.signOut().catch(() => {});
     setPerson(undefined);
@@ -97,6 +140,8 @@ export function App({ core }: { core: CoreClient }) {
     signIn,
     signOut,
     openCashSession,
+    closeCashSession,
+    cashBalance,
     redeemPinCode: (typedCode: string, newPin: string) => core.redeemPinCode(typedCode, newPin),
     signInLookup: (email: string) => core.signInLookup(email),
     firstSignIn,
@@ -169,10 +214,11 @@ export function App({ core }: { core: CoreClient }) {
   useEffect(() => core.onPulled(() => void router.invalidate()), [core, router]);
 
   useEffect(() => {
-    router.navigate({
-      to: routeFor({ coreStatus, enrollment, person, cashSession }),
-      replace: true,
-    });
+    const to = routeFor({ coreStatus, enrollment, person, cashSession });
+    if (to === "/session" && isSessionScreen(router.state.location.pathname)) {
+      return;
+    }
+    router.navigate({ to, replace: true });
   }, [router, coreStatus, enrollment, person, cashSession]);
 
   return (
