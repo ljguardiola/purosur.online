@@ -42,9 +42,9 @@ function post(url: string, headers: Record<string, string>, payload: Record<stri
   return app.inject({ method: "POST", url, headers, payload });
 }
 
-describe("POST /stock/losses", () => {
+describe("POST /inventory-losses", () => {
   it("returns 401 when no session cookie was sent", async () => {
-    const response = await post("/stock/losses", { origin: BACKOFFICE_ORIGIN }, {});
+    const response = await post("/inventory-losses", { origin: BACKOFFICE_ORIGIN }, {});
 
     expect(response.statusCode).toBe(401);
   });
@@ -53,7 +53,7 @@ describe("POST /stock/losses", () => {
     const { headers } = await signedInWith(db, ["record_stock_losses"], NOW);
 
     const response = await post(
-      "/stock/losses",
+      "/inventory-losses",
       { ...headers, origin: "https://attacker.example" },
       {},
     );
@@ -65,7 +65,7 @@ describe("POST /stock/losses", () => {
   it("rejects a user who may adjust stock but not record losses", async () => {
     const { headers } = await signedInWith(db, ["adjust_stock", "perform_stock_counts"], NOW);
 
-    const response = await post("/stock/losses", headers, {});
+    const response = await post("/inventory-losses", headers, {});
 
     expect(response.statusCode).toBe(403);
   });
@@ -74,7 +74,7 @@ describe("POST /stock/losses", () => {
     const { headers } = await signedInWith(db, ["record_stock_losses"], NOW);
     const { productId } = await insertProduct(db);
 
-    const response = await post("/stock/losses", headers, {
+    const response = await post("/inventory-losses", headers, {
       productId,
       reason: "supplier_return",
       quantity: 1000,
@@ -92,7 +92,7 @@ describe("POST /stock/losses", () => {
     const { productId } = await insertProduct(db);
     await insertBalance(db, { productId, locationId, quantity: 24_000 });
 
-    const response = await post("/stock/losses", headers, {
+    const response = await post("/inventory-losses", headers, {
       productId,
       reason: "broken_or_spilled",
       quantity: 1000,
@@ -116,7 +116,7 @@ describe("POST /stock/losses", () => {
     const { headers } = await signedInWith(db, ["record_stock_losses"], NOW);
     const { productId } = await insertProduct(db, { active: false });
 
-    const response = await post("/stock/losses", headers, {
+    const response = await post("/inventory-losses", headers, {
       productId,
       reason: "theft",
       quantity: 1000,
@@ -130,7 +130,7 @@ describe("POST /stock/losses", () => {
     const { headers } = await signedInWith(db, ["record_stock_losses"], NOW);
     const { productId } = await insertProduct(db, { saleUnit: "UNIT" });
 
-    const response = await post("/stock/losses", headers, {
+    const response = await post("/inventory-losses", headers, {
       productId,
       reason: "theft",
       quantity: 500,
@@ -144,11 +144,11 @@ describe("POST /stock/losses", () => {
   });
 });
 
-describe("POST /stock/adjustments", () => {
+describe("POST /inventory-adjustments", () => {
   it("rejects a user who may record losses but not adjust stock", async () => {
     const { headers } = await signedInWith(db, ["record_stock_losses", "view_stock_balances"], NOW);
 
-    const response = await post("/stock/adjustments", headers, {});
+    const response = await post("/inventory-adjustments", headers, {});
 
     expect(response.statusCode).toBe(403);
   });
@@ -157,7 +157,7 @@ describe("POST /stock/adjustments", () => {
     const { headers } = await signedInWith(db, ["adjust_stock"], NOW);
     const { productId } = await insertProduct(db);
 
-    const response = await post("/stock/adjustments", headers, {
+    const response = await post("/inventory-adjustments", headers, {
       productId,
       reason: "supplier_return",
       direction: "add",
@@ -176,7 +176,7 @@ describe("POST /stock/adjustments", () => {
     const { productId } = await insertProduct(db);
     await insertBalance(db, { productId, locationId, quantity: 19_000 });
 
-    const response = await post("/stock/adjustments", headers, {
+    const response = await post("/inventory-adjustments", headers, {
       productId,
       reason: "purchase_correction",
       direction: "add",
@@ -192,7 +192,7 @@ describe("POST /stock/adjustments", () => {
   it("answers 404 for an unknown product", async () => {
     const { headers } = await signedInWith(db, ["adjust_stock"], NOW);
 
-    const response = await post("/stock/adjustments", headers, {
+    const response = await post("/inventory-adjustments", headers, {
       productId: "00000000-0000-4000-8000-000000000000",
       reason: "batch_correction",
       direction: "subtract",
@@ -206,7 +206,7 @@ describe("POST /stock/adjustments", () => {
     const { headers } = await signedInWith(db, ["adjust_stock"], NOW);
     const { productId } = await insertProduct(db, { saleUnit: "UNIT" });
 
-    const response = await post("/stock/adjustments", headers, {
+    const response = await post("/inventory-adjustments", headers, {
       productId,
       reason: "batch_correction",
       direction: "subtract",
@@ -219,7 +219,7 @@ describe("POST /stock/adjustments", () => {
 });
 
 function listMovements(headers: Record<string, string>, query = "") {
-  return app.inject({ method: "GET", url: `/stock/movements${query}`, headers });
+  return app.inject({ method: "GET", url: `/inventory-movements${query}`, headers });
 }
 
 async function seedLossAndAdjustment(locationId: string, actorId: string) {
@@ -282,7 +282,7 @@ async function seedLossAndAdjustment(locationId: string, actorId: string) {
   return { honey, peanut, loss, adjustment };
 }
 
-describe("GET /stock/movements", () => {
+describe("GET /inventory-movements", () => {
   it("returns 401 when no session cookie was sent", async () => {
     const response = await listMovements({ origin: BACKOFFICE_ORIGIN });
 

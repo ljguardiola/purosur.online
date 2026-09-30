@@ -44,7 +44,7 @@ test("fetchStockBalances reads the balances list", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, balances));
 
   expect(await fetchStockBalances()).toEqual({ kind: "ok", value: balances });
-  expect(fetch).toHaveBeenCalledWith("/api/stock/balances");
+  expect(fetch).toHaveBeenCalledWith("/api/inventory-levels");
 });
 
 test.each([
@@ -80,7 +80,7 @@ test("fetchStockCounts asks for the period's days", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, counts));
 
   expect(await fetchStockCounts(90)).toEqual({ kind: "ok", value: counts });
-  expect(fetch).toHaveBeenCalledWith("/api/stock/counts?days=90");
+  expect(fetch).toHaveBeenCalledWith("/api/inventory-counts?days=90");
 });
 
 test("fetchStockMovements asks for the period's days", async () => {
@@ -88,17 +88,25 @@ test("fetchStockMovements asks for the period's days", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, movements));
 
   expect(await fetchStockMovements(7)).toEqual({ kind: "ok", value: movements });
-  expect(fetch).toHaveBeenCalledWith("/api/stock/movements?days=7");
+  expect(fetch).toHaveBeenCalledWith("/api/inventory-movements?days=7");
 });
 
 test("fetchExpectedBalance asks for the product's balance at the moment", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { expected: 17_000 }));
+  const level = {
+    id: PRODUCT_ID,
+    name: "Almendras peladas",
+    categoryId: "category-1",
+    categoryName: "Frutos secos",
+    saleUnit: "KG",
+    balance: 17_000,
+  };
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, level));
 
   const outcome = await fetchExpectedBalance(PRODUCT_ID, "2026-09-15T21:32:00.000Z");
 
-  expect(outcome).toEqual({ kind: "ok", value: { expected: 17_000 } });
+  expect(outcome).toEqual({ kind: "ok", value: level });
   expect(fetch).toHaveBeenCalledWith(
-    `/api/stock/products/${PRODUCT_ID}/expected-balance?at=2026-09-15T21%3A32%3A00.000Z`,
+    `/api/inventory-levels/${PRODUCT_ID}?at=2026-09-15T21%3A32%3A00.000Z`,
   );
 });
 
@@ -119,7 +127,7 @@ test("recordLoss posts the loss and reads its result", async () => {
     kind: "ok",
     value: { balance: 23_000, superseded: false },
   });
-  expect(fetch).toHaveBeenCalledWith("/api/stock/losses", {
+  expect(fetch).toHaveBeenCalledWith("/api/inventory-losses", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(lossBody),
@@ -137,7 +145,7 @@ test("recordAdjustment posts the adjustment", async () => {
 
   expect(await recordAdjustment(body)).toMatchObject({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith(
-    "/api/stock/adjustments",
+    "/api/inventory-adjustments",
     expect.objectContaining({ body: JSON.stringify(body) }),
   );
 });
@@ -181,7 +189,7 @@ test("registerCount posts the count and reads what it expected and changed", asy
 
   expect(await registerCount(countBody)).toEqual({ kind: "ok", value: result });
   expect(fetch).toHaveBeenCalledWith(
-    "/api/stock/counts",
+    "/api/inventory-counts",
     expect.objectContaining({ method: "POST" }),
   );
 });
@@ -217,5 +225,5 @@ test("fetchStockProducts reads the products a movement can be registered for", a
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, products));
 
   expect(await fetchStockProducts()).toEqual({ kind: "ok", value: listed });
-  expect(fetch).toHaveBeenCalledWith("/api/stock/products");
+  expect(fetch).toHaveBeenCalledWith("/api/inventory-items");
 });

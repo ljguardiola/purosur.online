@@ -20,7 +20,7 @@ export function registerStockProductsRoute<TQueryResult extends PgQueryResultHKT
   const sessionSource = routeSessionSource({ db: options.db, now });
 
   app.get(
-    "/stock/products",
+    "/inventory-items",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
       config: {
