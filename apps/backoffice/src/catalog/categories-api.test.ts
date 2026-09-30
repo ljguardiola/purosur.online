@@ -36,7 +36,7 @@ test("fetchCategories lists every category, with its parentId, on 200", async ()
   const outcome = await fetchCategories();
 
   expect(outcome).toEqual({ kind: "ok", value: [seeds, groceries] });
-  expect(fetch).toHaveBeenCalledWith("/categories");
+  expect(fetch).toHaveBeenCalledWith("/api/categories");
 });
 
 test("fetchCategories returns unauthenticated on 401", async () => {
@@ -75,7 +75,7 @@ test("createCategory posts the name and parentId and returns ok on 201", async (
   const outcome = await createCategory({ name: "Semillas", parentId: null });
 
   expect(outcome).toEqual({ kind: "ok" });
-  expect(fetch).toHaveBeenCalledWith("/categories", {
+  expect(fetch).toHaveBeenCalledWith("/api/categories", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name: "Semillas", parentId: null }),
@@ -94,7 +94,7 @@ test("createCategory posts a chosen parentId as a subcategory", async () => {
   const outcome = await createCategory({ name: "Untables", parentId: "category-2" });
 
   expect(outcome).toEqual({ kind: "ok" });
-  expect(fetch).toHaveBeenCalledWith("/categories", {
+  expect(fetch).toHaveBeenCalledWith("/api/categories", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name: "Untables", parentId: "category-2" }),
@@ -221,7 +221,7 @@ test("editCategory posts the name, parentId and version and returns ok on 200", 
   });
 
   expect(outcome).toEqual({ kind: "ok" });
-  expect(fetch).toHaveBeenCalledWith("/categories/category-1/edit", {
+  expect(fetch).toHaveBeenCalledWith("/api/categories/category-1/edit", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name: "Semillas y granos", parentId: null, version: 1 }),
@@ -244,7 +244,7 @@ test("editCategory posts a chosen parentId when moving the category", async () =
   });
 
   expect(outcome).toEqual({ kind: "ok" });
-  expect(fetch).toHaveBeenCalledWith("/categories/category-3/edit", {
+  expect(fetch).toHaveBeenCalledWith("/api/categories/category-3/edit", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name: "Untables", parentId: "category-2", version: 1 }),

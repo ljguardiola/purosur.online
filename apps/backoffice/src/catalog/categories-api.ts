@@ -48,7 +48,7 @@ function postJson(path: string, body?: unknown): Promise<Response> {
 export async function fetchCategories(): Promise<FetchCategoriesOutcome> {
   let response: Response;
   try {
-    response = await fetch("/categories");
+    response = await fetch("/api/categories");
   } catch {
     return { kind: "failed" };
   }
@@ -75,7 +75,7 @@ export async function createCategory(input: CreateCategoryInput): Promise<Create
   const requestBody: CategoryCreationBody = { name: input.name, parentId: input.parentId };
   let response: Response;
   try {
-    response = await postJson("/categories", requestBody);
+    response = await postJson("/api/categories", requestBody);
   } catch {
     return { kind: "failed" };
   }
@@ -115,7 +115,7 @@ export async function editCategory(
   };
   let response: Response;
   try {
-    response = await postJson(`/categories/${id}/edit`, requestBody);
+    response = await postJson(`/api/categories/${id}/edit`, requestBody);
   } catch {
     return { kind: "failed" };
   }

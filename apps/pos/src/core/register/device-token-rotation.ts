@@ -45,7 +45,7 @@ export async function rotateDeviceToken(
     return { kind: "not_due" };
   }
 
-  const response = await deps.postToCloud("/devices/rotate-token", credentials.device_token);
+  const response = await deps.postToCloud("/api/devices/rotate-token", credentials.device_token);
   if (response.kind === "unreachable") {
     return { kind: "unreachable" };
   }

@@ -75,7 +75,7 @@ function postJson(path: string, body?: unknown): Promise<Response> {
 export async function fetchSession(): Promise<SessionOutcome> {
   let response: Response;
   try {
-    response = await fetch("/users/session");
+    response = await fetch("/api/users/session");
   } catch {
     return { kind: "failed" };
   }
@@ -109,7 +109,7 @@ export async function fetchSession(): Promise<SessionOutcome> {
 export async function checkSessionStatus(): Promise<SessionStatusOutcome> {
   let response: Response;
   try {
-    response = await fetch("/users/session/status");
+    response = await fetch("/api/users/session/status");
   } catch {
     return { kind: "failed" };
   }
@@ -135,7 +135,7 @@ export async function checkSessionStatus(): Promise<SessionStatusOutcome> {
 export async function fetchAuthenticationOptions(): Promise<AuthenticationOptionsOutcome> {
   let response: Response;
   try {
-    response = await postJson("/users/session/authentication-options");
+    response = await postJson("/api/users/session/authentication-options");
   } catch {
     return { kind: "failed" };
   }
@@ -158,7 +158,7 @@ export async function authenticate(
   const requestBody: SessionAuthenticationBody = { assertion };
   let response: Response;
   try {
-    response = await postJson("/users/session/authenticate", requestBody);
+    response = await postJson("/api/users/session/authenticate", requestBody);
   } catch {
     return { kind: "failed" };
   }
@@ -183,7 +183,7 @@ export async function authenticate(
 export async function signOut(): Promise<SignOutOutcome> {
   let response: Response;
   try {
-    response = await postJson("/users/session/sign-out");
+    response = await postJson("/api/users/session/sign-out");
   } catch {
     return { kind: "failed" };
   }
@@ -202,7 +202,7 @@ export async function signOut(): Promise<SignOutOutcome> {
 export async function fetchSessionAuthorizationOptions(): Promise<SessionAuthorizationOptionsOutcome> {
   let response: Response;
   try {
-    response = await postJson("/users/session/authorization-options");
+    response = await postJson("/api/users/session/authorization-options");
   } catch {
     return { kind: "failed" };
   }
@@ -233,7 +233,7 @@ export async function authorizeSession(
   const requestBody: SessionAuthorizationBody = { authorization: assertion };
   let response: Response;
   try {
-    response = await postJson("/users/session/authorization", requestBody);
+    response = await postJson("/api/users/session/authorization", requestBody);
   } catch {
     return { kind: "failed" };
   }

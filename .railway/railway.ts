@@ -126,7 +126,7 @@ export default defineRailway((ctx) => {
       // accepts a single command string here (at most one array item), and only `apply` rejects
       // more, not `plan`.
       preDeployCommand: ["node dist/wait-for-ready.js"],
-      healthcheckPath: "/health",
+      healthcheckPath: "/api/health",
     },
     env: {
       DATABASE_URL: cloudAppDatabaseUrl(cloudAppDatabasePassword),

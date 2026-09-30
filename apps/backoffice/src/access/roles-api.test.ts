@@ -37,7 +37,7 @@ test("fetchRoles lists every role on 200", async () => {
   const outcome = await fetchRoles();
 
   expect(outcome).toEqual({ kind: "ok", value: [administrator] });
-  expect(fetch).toHaveBeenCalledWith("/roles");
+  expect(fetch).toHaveBeenCalledWith("/api/roles");
 });
 
 test("fetchRoles maps a role with no users and no permissions", async () => {
@@ -109,7 +109,7 @@ test("createRole posts the name and permissions and returns ok on 201", async ()
 
   expect(outcome).toEqual({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith(
-    "/roles",
+    "/api/roles",
     expect.objectContaining({
       method: "POST",
       body: JSON.stringify({ name: "Depósito", permissions: ["view_stock_balances"] }),
@@ -213,7 +213,7 @@ test("fetchRole reads one role's current values and version on 200", async () =>
   const outcome = await fetchRole("role-stock");
 
   expect(outcome).toEqual({ kind: "ok", value: stockDetail });
-  expect(fetch).toHaveBeenCalledWith("/roles/role-stock");
+  expect(fetch).toHaveBeenCalledWith("/api/roles/role-stock");
 });
 
 test("fetchRole parses the role's assigned people, in the order the server sent them", async () => {
@@ -293,7 +293,7 @@ test("editRole posts the name, permissions and version and returns ok on 200", a
 
   expect(outcome).toEqual({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith(
-    "/roles/role-stock/edit",
+    "/api/roles/role-stock/edit",
     expect.objectContaining({
       method: "POST",
       body: JSON.stringify({

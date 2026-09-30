@@ -74,21 +74,21 @@ async function readList<T>(path: string, schema: Schema<T>): Promise<CloudReadOu
 }
 
 export function fetchStockBalances(): Promise<CloudReadOutcome<StockBalanceList>> {
-  return readList("/stock/balances", stockBalanceListSchema);
+  return readList("/api/stock/balances", stockBalanceListSchema);
 }
 
 export function fetchStockProducts(): Promise<CloudReadOutcome<StockProductList>> {
-  return readList("/stock/products", stockProductListSchema);
+  return readList("/api/stock/products", stockProductListSchema);
 }
 
 export function fetchStockCounts(days: StockPeriodDays): Promise<CloudReadOutcome<StockCountList>> {
-  return readList(`/stock/counts?days=${days}`, stockCountListSchema);
+  return readList(`/api/stock/counts?days=${days}`, stockCountListSchema);
 }
 
 export function fetchStockMovements(
   days: StockPeriodDays,
 ): Promise<CloudReadOutcome<StockMovementList>> {
-  return readList(`/stock/movements?days=${days}`, stockMovementListSchema);
+  return readList(`/api/stock/movements?days=${days}`, stockMovementListSchema);
 }
 
 export type FetchExpectedBalanceOutcome =
@@ -101,7 +101,7 @@ export function fetchExpectedBalance(
 ): Promise<FetchExpectedBalanceOutcome> {
   const query = new URLSearchParams({ at });
   return read(
-    `/stock/products/${productId}/expected-balance?${query.toString()}`,
+    `/api/stock/products/${productId}/expected-balance?${query.toString()}`,
     stockExpectedBalanceSchema,
   );
 }
@@ -152,11 +152,11 @@ async function post<T, Refusal extends { kind: string }>(
 export type RecordMovementOutcome = WriteOutcome<StockMovementResult, never>;
 
 export function recordLoss(body: StockLossBody): Promise<RecordMovementOutcome> {
-  return post("/stock/losses", body, stockMovementResultSchema);
+  return post("/api/stock/losses", body, stockMovementResultSchema);
 }
 
 export function recordAdjustment(body: StockAdjustmentBody): Promise<RecordMovementOutcome> {
-  return post("/stock/adjustments", body, stockMovementResultSchema);
+  return post("/api/stock/adjustments", body, stockMovementResultSchema);
 }
 
 export type RegisterCountOutcome = WriteOutcome<
@@ -165,7 +165,7 @@ export type RegisterCountOutcome = WriteOutcome<
 >;
 
 export function registerCount(body: StockCountBody): Promise<RegisterCountOutcome> {
-  return post("/stock/counts", body, stockCountResultSchema, [
+  return post("/api/stock/counts", body, stockCountResultSchema, [
     "occurred_in_the_future",
     "count_at_same_moment",
   ]);

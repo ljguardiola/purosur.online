@@ -115,14 +115,14 @@ async function readCloud<T>(
 }
 
 export function fetchRegisters(): Promise<FetchRegistersOutcome> {
-  return readCloud("/registers", (body) =>
+  return readCloud("/api/registers", (body) =>
     registerListSchema.safeParse(body).data?.map(registerFromWire),
   );
 }
 
 export function fetchRegisterCoverage(): Promise<FetchRegisterCoverageOutcome> {
   return readCloud(
-    "/registers/coverage",
+    "/api/registers/coverage",
     (body) => registerCoverageSchema.safeParse(body).data?.uncovered_permissions,
   );
 }
@@ -130,7 +130,7 @@ export function fetchRegisterCoverage(): Promise<FetchRegisterCoverageOutcome> {
 export async function createRegister(input: CreateRegisterInput): Promise<CreateRegisterOutcome> {
   let response: Response;
   try {
-    response = await postJson("/registers", input);
+    response = await postJson("/api/registers", input);
   } catch {
     return { kind: "failed" };
   }
@@ -150,7 +150,7 @@ export async function createRegister(input: CreateRegisterInput): Promise<Create
 export async function emitEnrollmentCode(id: string): Promise<EmitEnrollmentCodeOutcome> {
   let response: Response;
   try {
-    response = await postJson(`/registers/${id}/enrollment-code`);
+    response = await postJson(`/api/registers/${id}/enrollment-code`);
   } catch {
     return { kind: "failed" };
   }

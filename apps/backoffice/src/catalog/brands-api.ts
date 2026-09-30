@@ -68,7 +68,7 @@ function refusal(response: Response): RequestRefusal {
 export async function fetchBrands(): Promise<FetchBrandsOutcome> {
   let response: Response;
   try {
-    response = await fetch("/brands");
+    response = await fetch("/api/brands");
   } catch {
     return { kind: "failed" };
   }
@@ -83,7 +83,7 @@ export async function createBrand(input: { name: string }): Promise<CreateBrandO
   const requestBody: BrandCreationBody = { name: input.name };
   let response: Response;
   try {
-    response = await postJson("/brands", requestBody);
+    response = await postJson("/api/brands", requestBody);
   } catch {
     return { kind: "failed" };
   }
@@ -105,7 +105,7 @@ export async function editBrand(id: string, input: EditBrandInput): Promise<Edit
   const requestBody: BrandEditBody = { name: input.name, version: input.version };
   let response: Response;
   try {
-    response = await postJson(`/brands/${id}/edit`, requestBody);
+    response = await postJson(`/api/brands/${id}/edit`, requestBody);
   } catch {
     return { kind: "failed" };
   }
@@ -134,7 +134,7 @@ async function changeBrandActivation(
 ): Promise<ChangeBrandActivationOutcome> {
   let response: Response;
   try {
-    response = await postJson(`/brands/${id}/${path}`);
+    response = await postJson(`/api/brands/${id}/${path}`);
   } catch {
     return { kind: "failed" };
   }

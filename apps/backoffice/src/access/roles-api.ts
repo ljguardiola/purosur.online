@@ -63,7 +63,7 @@ function roleSummaryFromWire(row: RoleSummaryWire) {
 export async function fetchRoles(): Promise<FetchRolesOutcome> {
   let response: Response;
   try {
-    response = await fetch("/roles");
+    response = await fetch("/api/roles");
   } catch {
     return { kind: "failed" };
   }
@@ -113,7 +113,7 @@ async function roleActionErrorOutcome(
 export async function createRole(input: RoleCreationBody): Promise<CreateRoleOutcome> {
   let response: Response;
   try {
-    response = await postJson("/roles", input);
+    response = await postJson("/api/roles", input);
   } catch {
     return { kind: "failed" };
   }
@@ -137,7 +137,7 @@ function roleDetailFromWire(row: RoleDetailWire) {
 export async function fetchRole(id: string): Promise<FetchRoleOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/roles/${id}`);
+    response = await fetch(`/api/roles/${id}`);
   } catch {
     return { kind: "failed" };
   }
@@ -166,7 +166,7 @@ export async function fetchRole(id: string): Promise<FetchRoleOutcome> {
 export async function editRole(id: string, input: RoleEditBody): Promise<EditRoleOutcome> {
   let response: Response;
   try {
-    response = await postJson(`/roles/${id}/edit`, input);
+    response = await postJson(`/api/roles/${id}/edit`, input);
   } catch {
     return { kind: "failed" };
   }
