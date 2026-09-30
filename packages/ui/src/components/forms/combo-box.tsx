@@ -1,8 +1,9 @@
-import { Check, ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { Check, ChevronDown, ChevronUp } from "lucide-react";
+import { useContext, useState } from "react";
 import {
   Button as AriaButton,
   ComboBox as AriaComboBox,
+  ComboBoxStateContext as AriaComboBoxStateContext,
   Input as AriaInput,
   Label as AriaLabel,
   ListBox as AriaListBox,
@@ -98,6 +99,15 @@ function readListMetrics(): ListMetrics {
   };
 }
 
+function Chevron() {
+  const state = useContext(AriaComboBoxStateContext);
+  return state?.isOpen ? (
+    <ChevronUp aria-hidden="true" className={chevronClassName} />
+  ) : (
+    <ChevronDown aria-hidden="true" className={chevronClassName} />
+  );
+}
+
 export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
   const {
     label,
@@ -185,7 +195,7 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
           </Tag>
         ) : null}
         <AriaButton className={chevronButtonClassName}>
-          <ChevronDown aria-hidden="true" className={chevronClassName} />
+          <Chevron />
         </AriaButton>
       </div>
       {errorMessage !== undefined ? (

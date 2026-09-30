@@ -275,6 +275,19 @@ test("opens from the chevron button", async () => {
   await expect.element(screen.getByRole("listbox")).toBeVisible();
 });
 
+test("points its chevron down while the list is closed and up while it is open", async () => {
+  const screen = await render(<ComboBox {...baseProps()} />);
+  const button = screen.getByRole("button", { name: /Producto/ }).element();
+  const chevron = () => button.querySelector("svg");
+
+  expect(chevron()?.classList.contains("lucide-chevron-down")).toBe(true);
+
+  await userEvent.tab();
+  await expect.element(screen.getByRole("listbox")).toBeVisible();
+
+  expect(chevron()?.classList.contains("lucide-chevron-up")).toBe(true);
+});
+
 test("only puts a small window of a long list in the page, and still finds an option far down it", async () => {
   const many: [ComboBoxOption<string>, ...ComboBoxOption<string>[]] = [
     { value: "p0", label: "Producto 0" },
