@@ -3,6 +3,7 @@ import {
   type CategorySummary,
   type ProductSummary,
   productEditBodySchema,
+  type TagSummary,
 } from "@purosur/contracts";
 import { Button, FieldGroup, InlineNotice, Modal } from "@purosur/ui";
 import { Check, Pencil, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
@@ -20,6 +21,7 @@ import {
 import type { createBrand } from "./brands-api";
 import type { ProductReload } from "./catalog-queries";
 import { NewBrandModal } from "./new-brand-modal";
+import { NewTagModal } from "./new-tag-modal";
 import {
   BrandFieldWithCreation,
   brandFieldHelp,
@@ -37,15 +39,19 @@ import {
   PRODUCT_CATEGORY_NOT_LEAF_ERROR,
   PRODUCT_EDIT_FIELDS,
   PRODUCT_MESSAGES,
+  PRODUCT_TAG_INACTIVE_ERROR,
   productEditRequestFrom,
   productFormValues,
   SALE_UNIT_OPTIONS,
 } from "./product-form";
+import { TagsField, useStackedTagCreation, withCreatedTag } from "./product-tags-field";
 import type { editProduct, generateInternalBarcode } from "./products-api";
+import type { createTag } from "./tags-api";
 
 export type EditProductModalServices = {
   editProduct: typeof editProduct;
   createBrand: typeof createBrand;
+  createTag: typeof createTag;
   generateInternalBarcode: typeof generateInternalBarcode;
 };
 
@@ -57,6 +63,7 @@ type EditProductModalProps = {
   reload: (id: string) => Promise<ProductReload>;
   categories: CategorySummary[];
   brands: BrandSummary[];
+  tags: TagSummary[];
   services: EditProductModalServices;
 };
 
@@ -75,9 +82,10 @@ export function EditProductModal({
   reload,
   categories,
   brands,
+  tags,
   services,
 }: EditProductModalProps) {
-  const { editProduct, createBrand, generateInternalBarcode } = services;
+  const { editProduct, createBrand, createTag, generateInternalBarcode } = services;
   const sendToMyAccount = useSendToMyAccount();
   const open = target !== null;
   const [title, setTitle] = useState("");
@@ -139,6 +147,10 @@ export function EditProductModal({
         showFieldError("brandId", PRODUCT_BRAND_INACTIVE_ERROR);
         return;
       }
+      if (outcome.kind === "tag_inactive") {
+        showFieldError("tagIds", PRODUCT_TAG_INACTIVE_ERROR);
+        return;
+      }
       if (outcome.kind === "rate_limited") {
         setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
         return;
@@ -167,8 +179,12 @@ export function EditProductModal({
   const brandCreation = useStackedBrandCreation((brandId) =>
     form.setFieldValue("brandId", brandId),
   );
+  const tagCreation = useStackedTagCreation((tagId) =>
+    form.setFieldValue("tagIds", [...form.state.values.tagIds, tagId]),
+  );
   const closeForm = () => {
     brandCreation.finish();
+    tagCreation.finish();
     onClose();
   };
 
@@ -182,8 +198,9 @@ export function EditProductModal({
       setReloading(false);
       generate.reset();
       brandCreation.reset();
+      tagCreation.reset();
     }
-  }, [open, target, reset, chips.reset, generate.reset, brandCreation.reset]);
+  }, [open, target, reset, chips.reset, generate.reset, brandCreation.reset, tagCreation.reset]);
 
   const categoryOptions = categorySelectOptions(categories);
 
@@ -359,6 +376,15 @@ export function EditProductModal({
               />
             )}
           </form.AppField>
+          <form.AppField name="tagIds">
+            {() => (
+              <TagsField
+                tags={withCreatedTag(tags, tagCreation.created)}
+                onCreateTag={tagCreation.start}
+                disabled={busy}
+              />
+            )}
+          </form.AppField>
           <FieldGroup label="Unidad de venta" required>
             <form.AppField name="saleUnit">
               {(field) => (
@@ -386,6 +412,14 @@ export function EditProductModal({
             createBrand={createBrand}
             onCreated={brandCreation.select}
             onClose={brandCreation.close}
+            onSessionEnded={onSessionEnded}
+          />
+          <NewTagModal
+            open={tagCreation.open}
+            context="Distintivos"
+            services={{ createTag }}
+            onCreated={tagCreation.select}
+            onClose={tagCreation.close}
             onSessionEnded={onSessionEnded}
           />
         </div>

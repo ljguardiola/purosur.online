@@ -107,7 +107,7 @@ export const PRODUCT_FIELDS = {
   brandId: "brandId",
   saleUnit: "saleUnit",
   barcodes: "barcodes",
-  tagIds: null,
+  tagIds: "tagIds",
   netContent: "netContent",
   netContentQuantity: "netContent",
 } as const;
@@ -146,6 +146,10 @@ export function brandMessage(): string {
   return "La marca elegida ya no existe.";
 }
 
+export function tagsMessage(): string {
+  return "Un distintivo elegido ya no existe.";
+}
+
 export function saleUnitMessage({ saleUnit }: ProductFormValues): string {
   return saleUnit ? "Revisá la unidad de venta." : "Elegí la unidad de venta.";
 }
@@ -176,6 +180,7 @@ export const PRODUCT_MESSAGES = {
   name: productMessage,
   categoryId: categoryMessage,
   brandId: brandMessage,
+  tagIds: tagsMessage,
   saleUnit: saleUnitMessage,
   netContent: netContentMessage,
   barcodes: barcodeListMessage,
@@ -245,6 +250,9 @@ export function categoryNameOf(categories: CategorySummary[], id: string): strin
 
 export const PRODUCT_BRAND_INACTIVE_ERROR =
   "La marca elegida se dio de baja. Elegí otra o dejala sin marca.";
+
+export const PRODUCT_TAG_INACTIVE_ERROR =
+  "Un distintivo elegido se dio de baja. Quitalo para guardar.";
 
 const PRODUCT_BARCODE_TAKEN_UNNAMED = "Alguno de los códigos ya es de otro producto.";
 

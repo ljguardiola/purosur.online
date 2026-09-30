@@ -2,6 +2,7 @@ import {
   type BrandSummary,
   type CategorySummary,
   productCreationBodySchema,
+  type TagSummary,
 } from "@purosur/contracts";
 import { Button, FieldGroup, InlineNotice, Modal } from "@purosur/ui";
 import { Check, PackagePlus, ShieldX, TriangleAlert, X } from "lucide-react";
@@ -18,6 +19,7 @@ import {
 } from "./barcode-chips";
 import type { createBrand } from "./brands-api";
 import { NewBrandModal } from "./new-brand-modal";
+import { NewTagModal } from "./new-tag-modal";
 import {
   BrandFieldWithCreation,
   brandFieldHelp,
@@ -35,14 +37,18 @@ import {
   PRODUCT_CATEGORY_NOT_LEAF_ERROR,
   PRODUCT_FIELDS,
   PRODUCT_MESSAGES,
+  PRODUCT_TAG_INACTIVE_ERROR,
   productRequestFrom,
   SALE_UNIT_OPTIONS,
 } from "./product-form";
+import { TagsField, useStackedTagCreation, withCreatedTag } from "./product-tags-field";
 import type { createProduct, generateInternalBarcode } from "./products-api";
+import type { createTag } from "./tags-api";
 
 export type NewProductModalServices = {
   createProduct: typeof createProduct;
   createBrand: typeof createBrand;
+  createTag: typeof createTag;
   generateInternalBarcode: typeof generateInternalBarcode;
 };
 
@@ -53,6 +59,7 @@ type NewProductModalProps = {
   onSessionEnded: () => void;
   categories: CategorySummary[];
   brands: BrandSummary[];
+  tags: TagSummary[];
   services: NewProductModalServices;
 };
 
@@ -63,9 +70,10 @@ export function NewProductModal({
   onSessionEnded,
   categories,
   brands,
+  tags,
   services,
 }: NewProductModalProps) {
-  const { createProduct, createBrand, generateInternalBarcode } = services;
+  const { createProduct, createBrand, createTag, generateInternalBarcode } = services;
   const sendToMyAccount = useSendToMyAccount();
   const [notice, setNotice] = useState<
     | { kind: "attemptFailed" }
@@ -116,6 +124,10 @@ export function NewProductModal({
         showFieldError("brandId", PRODUCT_BRAND_INACTIVE_ERROR);
         return;
       }
+      if (outcome.kind === "tag_inactive") {
+        showFieldError("tagIds", PRODUCT_TAG_INACTIVE_ERROR);
+        return;
+      }
       if (outcome.kind === "rate_limited") {
         setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
         return;
@@ -144,8 +156,12 @@ export function NewProductModal({
   const brandCreation = useStackedBrandCreation((brandId) =>
     form.setFieldValue("brandId", brandId),
   );
+  const tagCreation = useStackedTagCreation((tagId) =>
+    form.setFieldValue("tagIds", [...form.state.values.tagIds, tagId]),
+  );
   const closeForm = () => {
     brandCreation.finish();
+    tagCreation.finish();
     onClose();
   };
 
@@ -156,8 +172,9 @@ export function NewProductModal({
       setNotice(null);
       generate.reset();
       brandCreation.reset();
+      tagCreation.reset();
     }
-  }, [open, reset, chips.reset, generate.reset, brandCreation.reset]);
+  }, [open, reset, chips.reset, generate.reset, brandCreation.reset, tagCreation.reset]);
 
   const categoryOptions = categorySelectOptions(categories);
 
@@ -262,6 +279,15 @@ export function NewProductModal({
             />
           )}
         </form.AppField>
+        <form.AppField name="tagIds">
+          {() => (
+            <TagsField
+              tags={withCreatedTag(tags, tagCreation.created)}
+              onCreateTag={tagCreation.start}
+              disabled={submitting}
+            />
+          )}
+        </form.AppField>
         <FieldGroup label="Unidad de venta" required>
           <form.AppField name="saleUnit">
             {(field) => (
@@ -285,6 +311,14 @@ export function NewProductModal({
           createBrand={createBrand}
           onCreated={brandCreation.select}
           onClose={brandCreation.close}
+          onSessionEnded={onSessionEnded}
+        />
+        <NewTagModal
+          open={tagCreation.open}
+          context="Distintivos"
+          services={{ createTag }}
+          onCreated={tagCreation.select}
+          onClose={tagCreation.close}
           onSessionEnded={onSessionEnded}
         />
       </div>

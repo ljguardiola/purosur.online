@@ -1,4 +1,4 @@
-import type { BrandSummary, CategorySummary, ProductSummary } from "@purosur/contracts";
+import type { BrandSummary, CategorySummary, ProductSummary, TagSummary } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { beforeEach, expect, test, vi } from "vitest";
 import { type Locator, page, userEvent } from "vitest/browser";
@@ -8,6 +8,7 @@ import { EditProductModal, type EditProductModalServices } from "./edit-product-
 import type { GenerateInternalBarcodeOutcome } from "./products-api";
 import { scanInputOf } from "./test-support/product-form";
 import { almonds, driedFruits, groceries, honey } from "./test-support/products";
+import { organico, sinColorantes, sinTacc, vegano } from "./test-support/tags";
 
 // A modal panel is centered by a fixed-position overlay that never grows the document's scroll
 // area, so a control past its clipped edge can't be scrolled into view at the default viewport.
@@ -21,6 +22,7 @@ function createServices(
   return {
     editProduct: vi.fn(),
     createBrand: vi.fn(),
+    createTag: vi.fn(),
     generateInternalBarcode: vi.fn(),
     ...overrides,
   };
@@ -29,6 +31,7 @@ function createServices(
 type ModalOptions = {
   categories?: CategorySummary[];
   brands?: BrandSummary[];
+  tags?: TagSummary[];
   reload?: (id: string) => Promise<ProductReload>;
   onClose?: () => void;
   onSaved?: () => void;
@@ -51,6 +54,7 @@ function modalElement(
           reload={options.reload ?? vi.fn()}
           categories={options.categories ?? [groceries, driedFruits]}
           brands={options.brands ?? []}
+          tags={options.tags ?? []}
           services={services}
         />
       </main>
@@ -581,4 +585,102 @@ test("the brand just created is selected even before the brands are read again",
   await expect
     .element(brandSelect(page.getByRole("dialog", { name: honey.name })))
     .toHaveTextContent("Dulcor");
+});
+
+function addTagButton(dialog: Locator) {
+  return dialog.getByRole("button", { name: "Agregar distintivo" });
+}
+
+test("editing a product with a deactivated tag shows it as a removable chip with the help line, and keeps it on save", async () => {
+  const services = createServices();
+  const miel: ProductSummary = { ...honey, tagIds: [sinTacc.id, sinColorantes.id] };
+  vi.mocked(services.editProduct).mockResolvedValue({ kind: "ok" });
+  const { dialog } = await renderModal(miel, services, { tags: [sinTacc, sinColorantes, vegano] });
+
+  await expect.element(dialog.getByRole("button", { name: "Quitar Sin TACC" })).toBeVisible();
+  await expect
+    .element(dialog.getByRole("listitem").filter({ hasText: /Sin colorantes\s*Inactivo/ }))
+    .toBeVisible();
+  await expect
+    .element(
+      dialog.getByText('"Sin colorantes" está dado de baja. No se ofrece para productos nuevos.'),
+    )
+    .toBeVisible();
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => vi.mocked(services.editProduct).mock.calls.length).toBe(1);
+  expect(services.editProduct).toHaveBeenCalledWith(
+    "product-1",
+    expect.objectContaining({ tagIds: [sinTacc.id, sinColorantes.id] }),
+  );
+});
+
+test("removing the deactivated tag drops the help line and the tag, which is not offered again", async () => {
+  const services = createServices();
+  const miel: ProductSummary = { ...honey, tagIds: [sinTacc.id, sinColorantes.id] };
+  vi.mocked(services.editProduct).mockResolvedValue({ kind: "ok" });
+  const { dialog } = await renderModal(miel, services, { tags: [sinTacc, sinColorantes, vegano] });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Quitar Sin colorantes" }));
+
+  expect(dialog.getByText(/está dado de baja/).query()).toBeNull();
+  await userEvent.click(addTagButton(dialog));
+  expect(
+    page
+      .getByRole("menuitem")
+      .all()
+      .map((item) => item.element().textContent),
+  ).toEqual(["Vegano", "Crear distintivo…"]);
+  await userEvent.keyboard("{Escape}");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => vi.mocked(services.editProduct).mock.calls.length).toBe(1);
+  expect(services.editProduct).toHaveBeenCalledWith(
+    "product-1",
+    expect.objectContaining({ tagIds: [sinTacc.id] }),
+  );
+});
+
+test("a tag chosen is appended after the product's own, and the tag just created too, before the tags are read again", async () => {
+  const services = createServices();
+  const miel: ProductSummary = { ...honey, tagIds: [sinTacc.id] };
+  vi.mocked(services.createTag).mockResolvedValue({ kind: "ok", tag: organico });
+  vi.mocked(services.editProduct).mockResolvedValue({ kind: "ok" });
+  const { dialog } = await renderModal(miel, services, { tags: [sinTacc, vegano] });
+
+  await userEvent.click(addTagButton(dialog));
+  await userEvent.click(page.getByRole("menuitem", { name: "Vegano" }));
+  await userEvent.click(addTagButton(dialog));
+  await userEvent.click(page.getByRole("menuitem", { name: "Crear distintivo…" }));
+  const tagDialog = page.getByRole("dialog", { name: "Nuevo distintivo" });
+  await expect.element(tagDialog).toBeVisible();
+  await userEvent.fill(tagDialog.getByRole("textbox", { name: /^Nombre/ }), "Orgánico");
+  await userEvent.click(tagDialog.getByRole("button", { name: "Crear el distintivo" }));
+
+  await expect
+    .poll(() => page.getByRole("dialog", { name: "Nuevo distintivo" }).query())
+    .toBeNull();
+  const productForm = page.getByRole("dialog", { name: honey.name });
+  await expect.element(productForm.getByRole("button", { name: "Quitar Orgánico" })).toBeVisible();
+  await userEvent.click(productForm.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => vi.mocked(services.editProduct).mock.calls.length).toBe(1);
+  expect(services.editProduct).toHaveBeenCalledWith(
+    "product-1",
+    expect.objectContaining({ tagIds: [sinTacc.id, vegano.id, organico.id] }),
+  );
+});
+
+test("shows on the tags field that a tag chosen was deactivated meanwhile", async () => {
+  const services = createServices();
+  vi.mocked(services.editProduct).mockResolvedValue({ kind: "tag_inactive" });
+  const { dialog } = await renderModal(honey, services, { tags: [vegano] });
+  await userEvent.click(addTagButton(dialog));
+  await userEvent.click(page.getByRole("menuitem", { name: "Vegano" }));
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect
+    .element(dialog.getByText("Un distintivo elegido se dio de baja. Quitalo para guardar."))
+    .toBeVisible();
 });

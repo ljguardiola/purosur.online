@@ -35,6 +35,7 @@ export type CreateProductOutcome =
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "category_not_leaf" }
   | { kind: "brand_inactive" }
+  | { kind: "tag_inactive" }
   | { kind: "forbidden" }
   | { kind: "unauthenticated" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
@@ -57,6 +58,7 @@ export type EditProductOutcome =
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "category_not_leaf" }
   | { kind: "brand_inactive" }
+  | { kind: "tag_inactive" }
   | { kind: "stale_version" }
   | { kind: "not_found" }
   | { kind: "forbidden" }
@@ -145,6 +147,9 @@ export async function createProduct(input: CreateProductInput): Promise<CreatePr
     }
     if (body?.code === "brand_inactive") {
       return { kind: "brand_inactive" };
+    }
+    if (body?.code === "tag_inactive") {
+      return { kind: "tag_inactive" };
     }
     return { kind: "barcode_taken", codes: await readBarcodeTakenCodes(response) };
   }
@@ -276,6 +281,9 @@ export async function editProduct(
     }
     if (body?.code === "brand_inactive") {
       return { kind: "brand_inactive" };
+    }
+    if (body?.code === "tag_inactive") {
+      return { kind: "tag_inactive" };
     }
     const codes = Array.isArray(body?.codes)
       ? body.codes.filter((code): code is string => typeof code === "string")

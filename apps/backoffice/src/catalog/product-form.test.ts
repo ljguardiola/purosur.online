@@ -8,10 +8,12 @@ import {
   categorySelectOptions,
   EMPTY_PRODUCT_FORM,
   netContentMessage,
+  PRODUCT_TAG_INACTIVE_ERROR,
   productFormValues,
   productMessage,
   productRequestFrom,
   saleUnitMessage,
+  tagsMessage,
 } from "./product-form";
 
 const NO_BARCODES = { codes: [], scan: "" };
@@ -202,6 +204,21 @@ describe("the product's brand", () => {
 
   it("says a brand the cloud refuses no longer exists", () => {
     expect(brandMessage()).toBe("La marca elegida ya no existe.");
+  });
+});
+
+describe("the product's tags", () => {
+  it("asks for the tags chosen, in order", () => {
+    expect(
+      productRequestFrom({ ...EMPTY_PRODUCT_FORM, tagIds: ["tag-2", "tag-1"] }).tagIds,
+    ).toEqual(["tag-2", "tag-1"]);
+  });
+
+  it("says a tag the cloud refuses no longer exists, or was deactivated", () => {
+    expect(tagsMessage()).toBe("Un distintivo elegido ya no existe.");
+    expect(PRODUCT_TAG_INACTIVE_ERROR).toBe(
+      "Un distintivo elegido se dio de baja. Quitalo para guardar.",
+    );
   });
 });
 

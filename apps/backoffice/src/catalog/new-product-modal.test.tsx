@@ -23,6 +23,7 @@ function createServices(overrides: Partial<NewProductModalServices> = {}): NewPr
   return {
     createProduct: vi.fn(),
     createBrand: vi.fn(),
+    createTag: vi.fn(),
     generateInternalBarcode: vi.fn(),
     ...overrides,
   };
@@ -47,6 +48,7 @@ function modalElement(open: boolean, services: NewProductModalServices, options:
           onSessionEnded={options.onSessionEnded ?? (() => {})}
           categories={options.categories ?? [groceries, driedFruits]}
           brands={options.brands ?? []}
+          tags={[]}
           services={services}
         />
       </main>

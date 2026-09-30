@@ -1,4 +1,4 @@
-import type { BrandSummary, CategorySummary, ProductSummary } from "@purosur/contracts";
+import type { BrandSummary, CategorySummary, ProductSummary, TagSummary } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expect, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
@@ -18,7 +18,9 @@ export function createServices(
     deactivateProduct: vi.fn(),
     fetchCategories: vi.fn(),
     fetchBrands: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
+    fetchTags: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     createBrand: vi.fn(),
+    createTag: vi.fn(),
     generateInternalBarcode: vi.fn(),
     printLabels: vi.fn(),
     ...overrides,
@@ -33,10 +35,12 @@ export function mockLoaded(
   products: ProductSummary[],
   categories: CategorySummary[] = [groceries, driedFruits],
   brands: BrandSummary[] = [],
+  tags: TagSummary[] = [],
 ) {
   vi.mocked(services.fetchProducts).mockResolvedValue({ kind: "ok", value: products });
   vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: categories });
   vi.mocked(services.fetchBrands).mockResolvedValue({ kind: "ok", value: brands });
+  vi.mocked(services.fetchTags).mockResolvedValue({ kind: "ok", value: tags });
 }
 
 // A modal panel is centered by a fixed-position overlay that never grows the document's scroll
