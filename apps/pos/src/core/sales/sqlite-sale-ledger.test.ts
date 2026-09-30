@@ -2,17 +2,13 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { closeCashSession } from "@purosur/domain/register/use-cases";
-import {
-  addScannedProduct,
-  chargeSaleInCash,
-  currentSale,
-} from "@purosur/domain/sales/use-cases";
+import { addScannedProduct, chargeSaleInCash, currentSale } from "@purosur/domain/sales/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
-import { SqliteCashLedger } from "../register/sqlite-cash-ledger";
-import { cashBalanceFor } from "../register/cash-session-requests";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
+import { cashBalanceFor } from "../register/cash-session-requests";
+import { SqliteCashLedger } from "../register/sqlite-cash-ledger";
 import { SqliteSaleLedger } from "./sqlite-sale-ledger";
 
 const NOW = new Date("2026-09-30T12:00:00.000Z");
