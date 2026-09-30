@@ -37,7 +37,7 @@ export function canSeeBranchArea(access: BackofficeAccess): boolean {
   return access.isAdministrator || access.permissions.includes("configure_branch");
 }
 
-/** `manage_prices_and_review` alone also unlocks the Catálogo area, without unlocking this section. */
+/** `manage_prices_and_review` or `manage_promotions` alone also unlock the Catálogo area, without unlocking this section. */
 export function canManageProductsAndCategories(access: BackofficeAccess): boolean {
   return access.isAdministrator || access.permissions.includes("manage_products_and_categories");
 }
@@ -46,8 +46,16 @@ export function canSeePricesArea(access: BackofficeAccess): boolean {
   return access.isAdministrator || access.permissions.includes("manage_prices_and_review");
 }
 
+export function canManagePromotions(access: BackofficeAccess): boolean {
+  return access.isAdministrator || access.permissions.includes("manage_promotions");
+}
+
 export function canSeeCatalogArea(access: BackofficeAccess): boolean {
-  return canManageProductsAndCategories(access) || canSeePricesArea(access);
+  return (
+    canManageProductsAndCategories(access) ||
+    canSeePricesArea(access) ||
+    canManagePromotions(access)
+  );
 }
 
 export function canSeeCashArea(access: BackofficeAccess): boolean {

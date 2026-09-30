@@ -1,6 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import { expect, test } from "vitest";
-import { pricesKey, pricesKeys } from "./pricing-queries";
+import { discountsKey, pricesKey, pricesKeys } from "./pricing-queries";
 
 test("invalidating the prices key marks every prices list stale, whatever its filters", async () => {
   const client = new QueryClient();
@@ -40,4 +40,13 @@ test("the same filters always have the same key", () => {
   expect(pricesKeys.list({ review: "all", search: "arroz" })).toEqual(
     pricesKeys.list({ search: "arroz", review: "all" }),
   );
+});
+
+test("invalidating the prices key also marks the promotions list stale", async () => {
+  const client = new QueryClient();
+  client.setQueryData(discountsKey, { discounts: [] });
+
+  await client.invalidateQueries({ queryKey: pricesKey, refetchType: "none" });
+
+  expect(client.getQueryState(discountsKey)?.isInvalidated).toBe(true);
 });

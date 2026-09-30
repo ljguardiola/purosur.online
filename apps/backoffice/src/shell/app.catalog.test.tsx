@@ -309,3 +309,154 @@ test("hides the Precios section item for a user holding only manage_products_and
   await expect.element(screen.getByRole("heading", { name: "Productos", level: 1 })).toBeVisible();
   expect(screen.getByRole("link", { name: "Precios" }).query()).toBeNull();
 });
+
+test("navigating directly to /catalog/discounts opens the promotions list, with Promociones active after Precios", async () => {
+  window.history.pushState(null, "", "/catalog/discounts");
+  const services = createAppServices();
+  vi.mocked(services.discountsListScreen.fetchDiscounts).mockResolvedValue({
+    kind: "ok",
+    value: { discounts: [] },
+  });
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Promociones", level: 1 }))
+    .toBeVisible();
+  const promotionsItem = screen
+    .getByRole("link", { name: "Promociones" })
+    .element() as HTMLAnchorElement;
+  expect(promotionsItem.getAttribute("aria-current")).toBe("page");
+  const labels = screen
+    .getByRole("link")
+    .all()
+    .map((link) => link.element().textContent);
+  expect(
+    labels.filter((label) => ["Distintivos", "Precios", "Promociones"].includes(label ?? "")),
+  ).toEqual(["Distintivos", "Precios", "Promociones"]);
+});
+
+test("redirects a non-permitted user's typed /catalog/discounts to Mi cuenta, without listing promotions", async () => {
+  const services = createAppServices({
+    fetchSession: vi
+      .fn()
+      .mockResolvedValue(
+        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+      ),
+  });
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/catalog/discounts");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  expect(services.discountsListScreen.fetchDiscounts).not.toHaveBeenCalled();
+});
+
+test.each([["manage_products_and_categories"], ["manage_prices_and_review"]])(
+  "redirects a user holding only %s away from a typed /catalog/discounts",
+  async (permission) => {
+    const services = createAppServices({
+      fetchSession: vi.fn().mockResolvedValue(
+        openSession({
+          userId: "user-2",
+          displayName: "Grace Hopper",
+          isAdministrator: false,
+          permissions: [permission],
+        }),
+      ),
+    });
+    vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+    window.history.pushState(null, "", "/catalog/discounts");
+
+    const screen = await render(<App help={emptyHelp} services={services} />);
+
+    await expect
+      .element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 }))
+      .toBeVisible();
+    expect(services.discountsListScreen.fetchDiscounts).not.toHaveBeenCalled();
+  },
+);
+
+test.each([
+  ["manage_products_and_categories", "/catalog/products", "Productos"],
+  ["manage_prices_and_review", "/catalog/prices", "Precios"],
+])(
+  "hides the Promociones section item for a user holding only %s",
+  async (permission, path, heading) => {
+    const services = createAppServices({
+      fetchSession: vi.fn().mockResolvedValue(
+        openSession({
+          userId: "user-2",
+          displayName: "Grace Hopper",
+          isAdministrator: false,
+          permissions: [permission],
+        }),
+      ),
+    });
+    window.history.pushState(null, "", path);
+
+    const screen = await render(<App help={emptyHelp} services={services} />);
+
+    await expect.element(screen.getByRole("heading", { name: heading, level: 1 })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Promociones" }).query()).toBeNull();
+  },
+);
+
+test("shows the Promociones section, and only it, for a user holding only manage_promotions, opening it by default from the rail's Catálogo item", async () => {
+  const services = createAppServices({
+    fetchSession: vi.fn().mockResolvedValue(
+      openSession({
+        userId: "user-2",
+        displayName: "Grace Hopper",
+        isAdministrator: false,
+        permissions: ["manage_promotions"],
+      }),
+    ),
+  });
+  vi.mocked(services.discountsListScreen.fetchDiscounts).mockResolvedValue({
+    kind: "ok",
+    value: { discounts: [] },
+  });
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await userEvent.click(screen.getByRole("link", { name: "Catálogo" }));
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Promociones", level: 1 }))
+    .toBeVisible();
+  expect(window.location.pathname).toBe("/catalog/discounts");
+  expect(screen.getByRole("link", { name: "Productos" }).query()).toBeNull();
+  expect(screen.getByRole("link", { name: "Categorías" }).query()).toBeNull();
+  expect(screen.getByRole("link", { name: "Marcas" }).query()).toBeNull();
+  expect(screen.getByRole("link", { name: "Distintivos" }).query()).toBeNull();
+  expect(screen.getByRole("link", { name: "Precios" }).query()).toBeNull();
+  await expect.element(screen.getByRole("link", { name: "Promociones" })).toBeVisible();
+});
+
+test.each([["/catalog/products"], ["/catalog/prices"]])(
+  "redirects a user holding only manage_promotions away from a typed %s",
+  async (path) => {
+    const services = createAppServices({
+      fetchSession: vi.fn().mockResolvedValue(
+        openSession({
+          userId: "user-2",
+          displayName: "Grace Hopper",
+          isAdministrator: false,
+          permissions: ["manage_promotions"],
+        }),
+      ),
+    });
+    vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+    window.history.pushState(null, "", path);
+
+    const screen = await render(<App help={emptyHelp} services={services} />);
+
+    await expect
+      .element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 }))
+      .toBeVisible();
+    expect(services.productsListScreen.fetchProducts).not.toHaveBeenCalled();
+    expect(services.pricesListScreen.fetchPrices).not.toHaveBeenCalled();
+  },
+);

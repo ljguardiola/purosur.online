@@ -4,6 +4,7 @@ import {
   canCloseAlertsManually,
   canDeactivateUser,
   canManageProductsAndCategories,
+  canManagePromotions,
   canPerformStockCounts,
   canReactivateUser,
   canRecordStockLosses,
@@ -123,6 +124,40 @@ test("canSeeCatalogArea is true for a non-Administrator holding only manage_pric
   expect(
     canSeeCatalogArea({ isAdministrator: false, permissions: ["manage_prices_and_review"] }),
   ).toBe(true);
+});
+
+test("canSeeCatalogArea is true for a non-Administrator holding only manage_promotions", () => {
+  expect(canSeeCatalogArea({ isAdministrator: false, permissions: ["manage_promotions"] })).toBe(
+    true,
+  );
+});
+
+test("canManagePromotions is true for an Administrator", () => {
+  expect(canManagePromotions({ isAdministrator: true, permissions: [] })).toBe(true);
+});
+
+test("canManagePromotions is true for a non-Administrator holding manage_promotions", () => {
+  expect(canManagePromotions({ isAdministrator: false, permissions: ["manage_promotions"] })).toBe(
+    true,
+  );
+});
+
+test("canManagePromotions is false for a non-Administrator holding only the other catalog permissions", () => {
+  expect(
+    canManagePromotions({
+      isAdministrator: false,
+      permissions: ["manage_products_and_categories", "manage_prices_and_review"],
+    }),
+  ).toBe(false);
+});
+
+test("the other catalog permissions do not unlock the promotions permission's screens", () => {
+  expect(
+    canManageProductsAndCategories({ isAdministrator: false, permissions: ["manage_promotions"] }),
+  ).toBe(false);
+  expect(canSeePricesArea({ isAdministrator: false, permissions: ["manage_promotions"] })).toBe(
+    false,
+  );
 });
 
 test("canManageProductsAndCategories is true for an Administrator", () => {
