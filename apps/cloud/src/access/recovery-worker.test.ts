@@ -633,7 +633,6 @@ describe("startRecoveryWorker", () => {
     const payload = {
       email: "grace@example.com",
       code: "K3PX7WNE2QRT6MZD",
-      expiresAt: "2026-09-30T12:15:00.000Z",
     };
 
     await task(payload, { withPgClient });

@@ -73,9 +73,7 @@ function emit(person: Person, enqueueEmail?: EnqueueFirstPinCodeEmail) {
 }
 
 async function queuedJobsFor(email: string) {
-  return sql<
-    { taskIdentifier: string; payload: { email: string; code: string; expiresAt: string } }[]
-  >`
+  return sql<{ taskIdentifier: string; payload: { email: string; code: string } }[]>`
     select task.identifier as "taskIdentifier", job.payload
     from graphile_worker._private_jobs job
     join graphile_worker._private_tasks task on task.id = job.task_id
@@ -98,7 +96,7 @@ describe("the first PIN code email queued by an emission on a real Postgres", ()
       .from(userPinCodes)
       .where(eq(userPinCodes.userId, person.userId));
     expect(stored?.codeHash).toBe(hashSecretCode(job?.payload.code ?? ""));
-    expect(job?.payload.expiresAt).toBe(stored?.expiresAt.toISOString());
+    expect(Object.keys(job?.payload ?? {}).sort()).toEqual(["code", "email"]);
   });
 
   it("leaves no job when the emission rolls back after queueing the email", async () => {

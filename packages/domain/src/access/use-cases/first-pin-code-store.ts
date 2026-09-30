@@ -15,7 +15,6 @@ export interface FirstPinCodeEmission {
 export interface QueuedFirstPinCodeEmail {
   email: string;
   code: string;
-  expiresAt: Date;
 }
 
 export interface FirstPinCodeStore {

@@ -44,7 +44,7 @@ describe("emitFirstPinCode", () => {
       expect(await emit(store, "person-1")).toEqual({ kind: "emitted", expiresAt: EXPIRES_AT });
 
       expect(store.snapshot().queuedEmails).toEqual([
-        { email: "person-1@example.com", code: "PINCODE000000001", expiresAt: EXPIRES_AT },
+        { email: "person-1@example.com", code: "PINCODE000000001" },
       ]);
     });
 

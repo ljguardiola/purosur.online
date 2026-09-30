@@ -54,7 +54,7 @@ export function emitFirstPinCode(
       userId: input.userId,
       expiresAt,
     });
-    await tx.queueFirstPinCodeEmail({ email: target.email, code, expiresAt });
+    await tx.queueFirstPinCodeEmail({ email: target.email, code });
     return { kind: "emitted", expiresAt };
   });
 }

@@ -107,7 +107,6 @@ describe("POST /first-pin-codes", () => {
     expect(enqueueEmail).toHaveBeenCalledWith(expect.anything(), {
       email: "grace@example.com",
       code: expect.stringMatching(/^[A-Z2-7]{16}$/),
-      expiresAt: minutesFromNow(15),
     });
     expect(response.body).not.toContain(queuedCode());
   });

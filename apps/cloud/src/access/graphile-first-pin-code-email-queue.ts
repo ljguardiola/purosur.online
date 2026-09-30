@@ -16,9 +16,9 @@ export type EnqueueFirstPinCodeEmail = (
 // transaction; its SQL function can.
 export const enqueueFirstPinCodeEmailJob: EnqueueFirstPinCodeEmail = async (
   transaction,
-  { email, code, expiresAt },
+  { email, code },
 ) => {
-  const payload: FirstPinCodeEmailJobPayload = { email, code, expiresAt: expiresAt.toISOString() };
+  const payload: FirstPinCodeEmailJobPayload = { email, code };
   await transaction.execute(
     sql`select graphile_worker.add_job(${FIRST_PIN_CODE_EMAIL_TASK_IDENTIFIER}, ${JSON.stringify(payload)}::json)`,
   );
