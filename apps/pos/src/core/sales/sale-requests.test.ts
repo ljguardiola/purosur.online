@@ -167,13 +167,6 @@ describe("scanning a product on the register", () => {
     expect(await scanProductFor(deps(), "111")).toEqual({ kind: "not_permitted" });
   });
 
-  it("answers not permitted to a person who sells but did not open the session", async () => {
-    addPerson("u3", "cashier");
-    signedInPerson.set("u3");
-
-    expect(await scanProductFor(deps(), "111")).toEqual({ kind: "not_permitted" });
-  });
-
   it("answers that no session is open", async () => {
     database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();
 

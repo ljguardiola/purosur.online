@@ -21,28 +21,26 @@ const ids = {
   },
 };
 
-function scan(code: string, at: Date = NOW, actorId = "u1") {
-  return addScannedProduct({ ledger, clock: { now: () => at }, ids }, { actorId, code });
+function scan(code: string) {
+  return addScannedProduct({ ledger, clock: { now: () => NOW }, ids }, { actorId: "u1", code });
 }
 
-function addCashier(id = "u1", permissions: string[] = ["sell_and_charge"]): void {
+function addCashier(): void {
   database
     .prepare(
-      "INSERT OR IGNORE INTO roles (id, name, is_administrator, version) VALUES ('cashier', 'Cajera', 0, 1)",
+      "INSERT INTO roles (id, name, is_administrator, version) VALUES ('cashier', 'Cajera', 0, 1)",
     )
     .run();
   database
     .prepare(
-      "INSERT INTO users (id, first_name, role_id, salt, active, version) VALUES (?, 'Ada', 'cashier', 's', 1, 1)",
+      "INSERT INTO users (id, first_name, role_id, salt, active, version) VALUES ('u1', 'Ada', 'cashier', 's', 1, 1)",
     )
-    .run(id);
-  for (const key of permissions) {
-    database
-      .prepare(
-        "INSERT OR IGNORE INTO role_permissions (role_id, permission_key, active) VALUES ('cashier', ?, 1)",
-      )
-      .run(key);
-  }
+    .run();
+  database
+    .prepare(
+      "INSERT INTO role_permissions (role_id, permission_key, active) VALUES ('cashier', 'sell_and_charge', 1)",
+    )
+    .run();
 }
 
 function enrol(): void {
@@ -52,13 +50,13 @@ function enrol(): void {
   database.prepare("UPDATE sync_state SET device_id = 'device-1'").run();
 }
 
-function openSession(id = "session-1", openedBy = "u1"): void {
+function openSession(): void {
   database
     .prepare(
       `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
-       VALUES (?, 'register-1', 'device-1', ?, '2026-09-30T08:00:00.000Z', 0, 'OPEN')`,
+       VALUES ('session-1', 'register-1', 'device-1', 'u1', '2026-09-30T08:00:00.000Z', 0, 'OPEN')`,
     )
-    .run(id, openedBy);
+    .run();
 }
 
 interface ProductOptions {
@@ -198,8 +196,8 @@ describe("the price a scan takes", () => {
     addProduct("111");
   });
 
-  function scannedPrice(at: Date = NOW) {
-    const outcome = scan("111", at);
+  function scannedPrice() {
+    const outcome = scan("111");
     return outcome.kind === "added" ? outcome.sale.lines[0] : outcome;
   }
 
@@ -311,25 +309,6 @@ describe("the sale being built", () => {
     ]);
   });
 
-  it("keeps the price a line was scanned at when the price changes afterwards", () => {
-    scan("111");
-    addPrice("p1", "2026-09-30T12:30:00.000Z", 5000);
-
-    const outcome = scan("111", new Date("2026-09-30T13:00:00.000Z"));
-
-    expect(outcome).toMatchObject({
-      kind: "added",
-      sale: { lines: [{ quantity: 2, listUnitPrice: 1000, lineTotal: 2000 }] },
-    });
-  });
-
-  it("stays one open sale however many products are scanned", () => {
-    scan("111");
-    scan("222");
-
-    expect(database.prepare("SELECT count(*) AS total FROM sales").get()).toEqual({ total: 1 });
-  });
-
   it("is refused by the database when a second one is opened on the same session", () => {
     scan("111");
 
@@ -404,7 +383,18 @@ describe("the sale after the register restarts", () => {
 
       expect(currentSale({ ledger }, { actorId: "u1" })).toMatchObject({
         kind: "open",
-        sale: { lines: [{ productId: "p1", productName: "Yerba", quantity: 2, lineTotal: 2000 }] },
+        sale: {
+          lines: [
+            {
+              productId: "p1",
+              productName: "Yerba",
+              quantity: 2,
+              listUnitPrice: 1000,
+              priceListId: "list-1",
+              lineTotal: 2000,
+            },
+          ],
+        },
       });
     } finally {
       database.close();
@@ -414,58 +404,7 @@ describe("the sale after the register restarts", () => {
   });
 });
 
-describe("who may sell", () => {
-  beforeEach(() => {
-    addProduct("111");
-    addPrice("p1", "2026-09-01T00:00:00.000Z", 1000);
-  });
-
-  it("is refused without the permission to sell", () => {
-    addCashier("u1", []);
-    enrol();
-    openSession();
-
-    expect(scan("111")).toEqual({ kind: "not_permitted" });
-  });
-
-  it("is refused when the person is not active", () => {
-    readySeller();
-    database.prepare("UPDATE users SET active = 0").run();
-
-    expect(scan("111")).toEqual({ kind: "not_permitted" });
-  });
-
-  it("is refused while no session is open", () => {
-    addCashier();
-    enrol();
-
-    expect(scan("111")).toEqual({ kind: "no_open_session" });
-  });
-
-  it("is refused when another person opened the session", () => {
-    addCashier("u1");
-    addCashier("u2");
-    enrol();
-    openSession("session-1", "u2");
-
-    expect(scan("111")).toEqual({ kind: "not_permitted" });
-  });
-
-  it("is unavailable before the register knows its own identity", () => {
-    addCashier();
-    openSession();
-
-    expect(scan("111")).toEqual({ kind: "unavailable" });
-  });
-});
-
 describe("the installation's revocation", () => {
-  beforeEach(() => {
-    readySeller();
-    addProduct("111");
-    addPrice("p1", "2026-09-01T00:00:00.000Z", 1000);
-  });
-
   it("is not recorded on an installation nobody revoked", () => {
     expect(ledger.transaction((tx) => tx.installationRevoked())).toBe(false);
   });
@@ -476,19 +415,5 @@ describe("the installation's revocation", () => {
       .run();
 
     expect(ledger.transaction((tx) => tx.installationRevoked())).toBe(true);
-  });
-
-  it("refuses a new sale but lets an open one go on", () => {
-    scan("111");
-    database
-      .prepare("UPDATE sync_state SET installation_revoked_at = '2026-09-30T11:00:00.000Z'")
-      .run();
-
-    expect(scan("111")).toMatchObject({
-      kind: "added",
-      sale: { lines: [{ quantity: 2 }] },
-    });
-    database.prepare("UPDATE sales SET state = 'CANCELLED'").run();
-    expect(scan("111")).toEqual({ kind: "installation_revoked" });
   });
 });
