@@ -6,10 +6,18 @@ import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { EditDiscountModal, type EditDiscountModalServices } from "./edit-discount-modal";
 import type { DiscountReload } from "./pricing-queries";
-import { chooseTarget, radioLabel, typeDate } from "./test-support/discount-modal";
+import {
+  chooseBuyNPayM,
+  chooseTarget,
+  dateSegments,
+  fillQuantities,
+  radioLabel,
+  typeDate,
+} from "./test-support/discount-modal";
 import {
   almacenCategory,
   almacenTuesdays,
+  almondsProduct,
   discountTargets,
   retiredProduct,
   retiredTag,
@@ -18,6 +26,7 @@ import {
   yerbaOff,
   yerbaProduct,
   yerbasCategory,
+  yerbaThreeForTwo,
 } from "./test-support/discounts";
 
 beforeEach(async () => {
@@ -65,14 +74,6 @@ async function renderModal(services: EditDiscountModalServices, options: ModalOp
     dialog,
     rerender: (next: ModalOptions) => screen.rerender(modalElement(services, next)),
   };
-}
-
-function dateSegments(dialog: ReturnType<typeof page.getByRole>, label: "Desde" | "Hasta") {
-  return dialog
-    .getByRole("group", { name: new RegExp(`^${label}`) })
-    .getByRole("spinbutton")
-    .all()
-    .map((segment) => segment.element().textContent);
 }
 
 test("shows the header with the promotion's name, and its values filled in", async () => {
@@ -146,6 +147,67 @@ test("saves the promotion untouched with its loaded version and reports the save
   });
   await expect.poll(() => onSaved.mock.calls.length).toBe(1);
   expect(onSaved).toHaveBeenCalledWith(yerbaOff);
+});
+
+test("shows a buy-N-pay-M promotion with its product and quantities filled in", async () => {
+  const { dialog } = await renderModal(createServices(), { target: yerbaThreeForTwo });
+
+  await expect.element(dialog.getByRole("radio", { name: "Lleve N, pague M" })).toBeChecked();
+  await expect.element(dialog.getByText("Producto y grupo")).toBeVisible();
+  await expect.element(dialog.getByRole("button", { name: /Yerba Playadito 1 kg/ })).toBeVisible();
+  await expect.element(dialog.getByRole("textbox", { name: /^Lleve/ })).toHaveValue("3");
+  await expect.element(dialog.getByRole("textbox", { name: /^Pague/ })).toHaveValue("2");
+  expect(dialog.getByRole("textbox", { name: /^Descuento/ }).query()).toBeNull();
+});
+
+test("saves a buy-N-pay-M promotion untouched with its quantities and loaded version", async () => {
+  const services = createServices();
+  vi.mocked(services.editDiscount).mockResolvedValue({ kind: "ok", discount: yerbaThreeForTwo });
+  const { dialog } = await renderModal(services, { target: yerbaThreeForTwo });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => vi.mocked(services.editDiscount).mock.calls.length).toBe(1);
+  expect(services.editDiscount).toHaveBeenCalledWith(yerbaThreeForTwo.id, {
+    name: "Yerba 3x2",
+    benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+    target: { kind: "PRODUCT", id: yerbaProduct.id },
+    validFrom: "2026-09-15",
+    validTo: "2026-10-15",
+    weekdays: [],
+    version: 2,
+    active: true,
+  });
+});
+
+test("turning a percentage promotion into buy-N-pay-M sends the quantities on the same product", async () => {
+  const services = createServices();
+  vi.mocked(services.editDiscount).mockResolvedValue({ kind: "ok", discount: yerbaThreeForTwo });
+  const { dialog } = await renderModal(services);
+
+  await chooseBuyNPayM(dialog);
+  await fillQuantities(dialog, "4", "3");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => vi.mocked(services.editDiscount).mock.calls.length).toBe(1);
+  expect(vi.mocked(services.editDiscount).mock.calls[0]?.[1]).toMatchObject({
+    benefit: { kind: "BUY_N_PAY_M", buyQty: 4, payQty: 3 },
+    target: { kind: "PRODUCT", id: yerbaProduct.id },
+  });
+});
+
+test("says a product that is now sold by weight cannot take it, on the picker", async () => {
+  const services = createServices();
+  vi.mocked(services.editDiscount).mockResolvedValue({ kind: "target_not_sold_by_unit" });
+  const { dialog } = await renderModal(services);
+
+  await chooseBuyNPayM(dialog);
+  await fillQuantities(dialog, "3", "2");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect
+    .element(dialog.getByRole("button", { name: /Yerba Playadito 1 kg/ }))
+    .toHaveAccessibleDescription("Se vende por peso. Elegí otro producto.");
 });
 
 test("switching the promotion off is sent with the rest of the form", async () => {
@@ -269,6 +331,20 @@ test("an inactive current target saves as is when nothing about it changes", asy
 
   await expect.poll(() => vi.mocked(services.editDiscount).mock.calls.length).toBe(1);
   expect(vi.mocked(services.editDiscount).mock.calls[0]?.[1].target.id).toBe(retiredProduct.id);
+});
+
+test("turning a percentage promotion on a product sold by weight into buy-N-pay-M does not offer that product", async () => {
+  const onAlmonds = {
+    ...yerbaOff,
+    target: { kind: "PRODUCT" as const, id: almondsProduct.id, name: almondsProduct.name },
+  };
+  const { dialog } = await renderModal(createServices(), { target: onAlmonds });
+
+  await chooseBuyNPayM(dialog);
+  await userEvent.click(dialog.getByRole("button", { name: /^Elegí un producto/ }));
+
+  await expect.element(dialog.getByRole("option", { name: /Yerba Playadito 1 kg/ })).toBeVisible();
+  expect(dialog.getByRole("option", { name: /Almendras peladas/ }).query()).toBeNull();
 });
 
 test("shows each field's message for what was cleared, without calling the cloud", async () => {
@@ -457,6 +533,13 @@ test("renders nothing while no promotion is being edited", async () => {
 
 test("has no accessibility violations", async () => {
   const { dialog } = await renderModal(createServices(), { target: sinTaccWinter });
+
+  await expectNoAccessibilityViolations(dialog.element());
+});
+
+test("has no accessibility violations on a buy-N-pay-M promotion", async () => {
+  const { dialog } = await renderModal(createServices(), { target: yerbaThreeForTwo });
+  await expect.element(dialog.getByText("Producto y grupo")).toBeVisible();
 
   await expectNoAccessibilityViolations(dialog.element());
 });

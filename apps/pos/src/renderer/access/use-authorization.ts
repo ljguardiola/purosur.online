@@ -19,6 +19,7 @@ export type UseAuthorizationInput = {
   person: SignedInPerson;
   permission: AuthorizablePermissionKey;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
+  applies?: boolean;
 };
 
 export type AuthorizationState = {
@@ -43,8 +44,9 @@ export function useAuthorization({
   person,
   permission,
   loadAuthorizers,
+  applies = true,
 }: UseAuthorizationInput): AuthorizationState {
-  const required = !person.permission_keys.includes(permission);
+  const required = applies && !person.permission_keys.includes(permission);
   const pinInput = useRef<HTMLInputElement>(null);
   const [authorizers, setAuthorizers] = useState<LoadedAuthorizers>({ status: "loading" });
   const [chosen, setChosen] = useState<string | null>(null);

@@ -1,6 +1,6 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished } from "vitest";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { OpenSessionScreen } from "./open-session-screen";
 import { render } from "./test-support/render-with-router";
 
@@ -36,15 +36,34 @@ describe("OpenSessionScreen", () => {
     await expect.element(screen.getByText("Sesión abierta 09:02", { exact: true })).toBeVisible();
   });
 
-  it("offers only Venta and the first name of the person who opened, and no way out", async () => {
+  it("offers Venta, Caja and the first name of the person who opened, and no way out", async () => {
     const screen = await renderScreen();
 
     const rail = screen.getByRole("navigation", { name: "Menú de la caja" }).element();
 
     const items = Array.from(rail.querySelectorAll("button, a")).map((item) => item.textContent);
-    expect(items).toEqual(["Venta"]);
+    expect(items).toEqual(["Venta", "Caja"]);
     await expect.element(screen.getByText("Ada")).toBeVisible();
     expect(screen.container.textContent).not.toContain("sell_and_charge");
     await expect.element(screen.getByRole("button", { name: "Salir" })).not.toBeInTheDocument();
+  });
+
+  it("marks Venta as the current screen", async () => {
+    const screen = await renderScreen();
+
+    await expect
+      .element(screen.getByRole("button", { name: "Venta" }))
+      .toHaveAttribute("aria-current", "page");
+    await expect
+      .element(screen.getByRole("link", { name: "Caja" }))
+      .not.toHaveAttribute("aria-current");
+  });
+
+  it("goes to the cash screen when Caja is pressed", async () => {
+    const screen = await renderScreen();
+
+    await userEvent.click(screen.getByRole("link", { name: "Caja" }));
+
+    expect(screen.router.state.location.pathname).toBe("/cash");
   });
 });

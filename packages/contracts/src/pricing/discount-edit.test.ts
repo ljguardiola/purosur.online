@@ -58,6 +58,18 @@ describe("discountEditBodySchema", () => {
     expect(failures({ ...valid, benefit: { kind: "PERCENT_OFF", percent: 100 } })[0]?.path).toEqual(
       ["benefit", "percent"],
     );
+    expect(
+      failures({
+        ...valid,
+        benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+        target: { kind: "TAG", id: ID },
+      }),
+    ).toEqual([
+      {
+        path: ["target", "kind"],
+        message: "target.kind must be PRODUCT for a BUY_N_PAY_M benefit",
+      },
+    ]);
   });
 
   it("strips keys it does not know", () => {

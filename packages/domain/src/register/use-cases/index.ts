@@ -10,6 +10,12 @@ export type {
   RegisterIdentity,
 } from "./cash-ledger.js";
 export type {
+  CloseCashSessionInput,
+  CloseCashSessionOutcome,
+  CloseCashSessionPorts,
+} from "./close-cash-session.js";
+export { closeCashSession } from "./close-cash-session.js";
+export type {
   EnrollInstallationInput,
   EnrollInstallationOutcome,
 } from "./enroll-installation.js";

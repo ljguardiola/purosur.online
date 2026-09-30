@@ -191,6 +191,14 @@ describe("changesPageSchema", () => {
       "a discount on a category",
       change(1, "discount", { ...discountRow, target: { kind: "CATEGORY", id: ENTITY_ID } }),
     ],
+    [
+      "a buy-N-pay-M discount on a product",
+      change(1, "discount", {
+        ...discountRow,
+        benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+        target: { kind: "PRODUCT", id: ENTITY_ID },
+      }),
+    ],
     ["the removal of a discount", removal(1, "discount", 3)],
   ])("accepts %s", (_case, entry) => {
     const page = pageOf(entry);
@@ -321,7 +329,22 @@ describe("changesPageSchema", () => {
     [
       "a discount of a benefit kind it does not know",
       pageOf(
+        change(1, "discount", { ...discountRow, benefit: { kind: "BUNDLE_PRICE", percent: 10 } }),
+      ),
+    ],
+    [
+      "a buy-N-pay-M discount that carries a percent instead of its quantities",
+      pageOf(
         change(1, "discount", { ...discountRow, benefit: { kind: "BUY_N_PAY_M", percent: 10 } }),
+      ),
+    ],
+    [
+      "a buy-N-pay-M discount that pays as many units as it takes",
+      pageOf(
+        change(1, "discount", {
+          ...discountRow,
+          benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 3 },
+        }),
       ),
     ],
     [

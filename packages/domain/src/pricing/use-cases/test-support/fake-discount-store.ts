@@ -1,3 +1,4 @@
+import type { SaleUnit } from "../../../catalog/index.js";
 import type { DiscountTarget, DiscountTargetKind } from "../../model/discount-target.js";
 import type {
   DiscountFields,
@@ -11,6 +12,7 @@ export interface FakeTargetRow {
   kind: DiscountTargetKind;
   id: string;
   active: boolean;
+  saleUnit?: SaleUnit;
 }
 
 export interface FakeDiscountRow extends DiscountFields {
@@ -56,8 +58,10 @@ class FakeDiscountStoreTransaction implements DiscountStoreTransaction {
     const row = this.state.targets.find(
       (candidate) => candidate.kind === target.kind && candidate.id === target.id,
     );
-    const assignable = row !== undefined && (row.kind === "CATEGORY" || row.active);
-    return assignable ? { kind: "locked" } : { kind: "not_found" };
+    if (row === undefined || (row.kind !== "CATEGORY" && !row.active)) {
+      return { kind: "not_found" };
+    }
+    return { kind: "locked", saleUnit: row.kind === "PRODUCT" ? (row.saleUnit ?? "UNIT") : null };
   }
 
   async insertDiscount(discount: DiscountFields): Promise<{ id: string }> {

@@ -9,6 +9,7 @@ import {
   sinTaccWinter,
   switchedOffPromotion,
   yerbaOff,
+  yerbaThreeForTwo,
 } from "./test-support/discounts";
 import {
   createServices,
@@ -153,7 +154,7 @@ test("the state filter shows the ended, the deactivated, or every promotion, wit
   await expect.element(screen.getByText("5 promociones · 1 vigente hoy")).toBeVisible();
 });
 
-test("the kind filter offers every kind and only the percentage kind, and keeps its promotions", async () => {
+test("the kind filter offers every kind, and the percentage kind keeps its promotions", async () => {
   const services = createServices();
   const screen = await loaded(services, everyPromotion);
 
@@ -163,10 +164,47 @@ test("the kind filter offers every kind and only the percentage kind, and keeps 
       .getByRole("option")
       .all()
       .map((option) => option.element().textContent),
-  ).toEqual(["Todos", "Porcentaje"]);
+  ).toEqual(["Todos", "Porcentaje", "Lleve N, pague M"]);
   await userEvent.click(screen.getByRole("option", { name: "Porcentaje" }));
 
   await expect.poll(() => rowCells(screen)).toHaveLength(3);
+});
+
+test("the buy-N-pay-M kind keeps only its promotions, showing what is bought and paid", async () => {
+  const services = createServices();
+  const screen = await loaded(services, [...everyPromotion, yerbaThreeForTwo]);
+
+  await userEvent.click(screen.getByRole("button", { name: /Tipo:/ }));
+  await userEvent.click(screen.getByRole("option", { name: "Lleve N, pague M" }));
+
+  await expect
+    .poll(() => rowCells(screen))
+    .toEqual([
+      [
+        "Yerba 3x2Producto · Yerba Playadito 1 kg",
+        "Lleve 3, pague 2",
+        "15/09 → 15/10/2026",
+        "LMMJVSD",
+        "Vigente",
+      ],
+    ]);
+});
+
+test("orders by benefit with the percentages first, then buy-N-pay-M by what is bought and paid", async () => {
+  const twoForOne = {
+    ...yerbaThreeForTwo,
+    id: "0b1f3c1e-4f6a-4d0e-9d6e-000000000007",
+    name: "Yerba 2x1",
+    benefit: { kind: "BUY_N_PAY_M", buyQty: 2, payQty: 1 },
+  } as const;
+  const services = createServices();
+  const screen = await loaded(services, [yerbaThreeForTwo, yerbaOff, twoForOne, almacenTuesdays]);
+
+  await userEvent.click(screen.getByRole("button", { name: "Beneficio", exact: true }));
+
+  await expect
+    .poll(() => rowCells(screen).map((cells) => cells[1]))
+    .toEqual(["10 % de descuento", "15 % de descuento", "Lleve 2, pague 1", "Lleve 3, pague 2"]);
 });
 
 test("the search field matches the promotion name and the name of its target, case-insensitively", async () => {

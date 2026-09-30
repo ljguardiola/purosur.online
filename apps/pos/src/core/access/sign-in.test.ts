@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { hashPin } from "./pin-hash";
 import { derivePinVerifier } from "./pin-verifier";
 import { type FirstSignInDeps, firstSignIn, type SignInDeps, signIn } from "./sign-in";
+import { createSignedInPerson } from "./signed-in-person";
 import type { PinSignInFailures, SignInRecord } from "./sqlite-sign-in-store";
 
 const PEPPER = Buffer.alloc(32, 7).toString("base64url");
@@ -37,12 +38,14 @@ function deps(options: Options = {}) {
   const hashed: { pin: string; salt: Uint8Array }[] = [];
   const remembered: string[] = [];
   const failures = new Map(Object.entries(options.failures ?? {}));
+  const signedIn = createSignedInPerson();
   const {
     record: stored,
     failures: _failures,
     ...rest
   } = "record" in options ? options : { record: record(), ...options };
   const built: FirstSignInDeps = {
+    signedInPerson: signedIn,
     store: {
       remember: (userId) => {
         remembered.push(userId);
@@ -81,9 +84,10 @@ function deps(options: Options = {}) {
       return pin === "1234" ? PIN_HASH : "hash-of-another-pin";
     },
     now: () => NOW,
+    cashSessionOpener: () => undefined,
     ...rest,
   };
-  return { built, hashed, failures, remembered };
+  return { built, hashed, failures, signedIn, remembered };
 }
 
 describe("signing in", () => {
@@ -198,6 +202,104 @@ describe("signing in", () => {
     expect(
       (await signIn({ ...deps({ record: stored }).built, hashPin }, "u1", "654321")).kind,
     ).toBe("wrong_pin");
+  });
+});
+
+describe("who is signed in after signing in", () => {
+  it("holds the person who signed in", async () => {
+    const { built, signedIn } = deps();
+
+    await signIn(built, "u1", "1234");
+
+    expect(signedIn.userId()).toBe("u1");
+  });
+
+  it("leaves nobody signed in from the moment an attempt starts until it signs someone in", async () => {
+    const { built, signedIn } = deps();
+    signedIn.set("u9");
+    const signedInWhileChecking: (string | undefined)[] = [];
+
+    await signIn(
+      {
+        ...built,
+        store: {
+          ...built.store,
+          signInRecord: (userId) => {
+            signedInWhileChecking.push(signedIn.userId());
+            return built.store.signInRecord(userId);
+          },
+        },
+        hashPin: async (pin, salt) => {
+          signedInWhileChecking.push(signedIn.userId());
+          return built.hashPin(pin, salt);
+        },
+      },
+      "u1",
+      "9999",
+    );
+
+    expect(signedInWhileChecking).toEqual([undefined, undefined]);
+    expect(signedIn.userId()).toBeUndefined();
+  });
+
+  it("signs nobody in when the right PIN's person holds no register permission", async () => {
+    const stored = record({ access: { isAdministrator: false, permissionKeys: [] } });
+    const { built, signedIn } = deps({ record: stored });
+
+    await signIn(built, "u1", "1234");
+
+    expect(signedIn.userId()).toBeUndefined();
+  });
+});
+
+describe("signing in while a cash session is open", () => {
+  it("refuses anyone but the opener, checking no PIN and keeping the opener signed in", async () => {
+    const { built, signedIn, hashed, failures } = deps({ cashSessionOpener: () => "u2" });
+    signedIn.set("u2");
+
+    expect(await signIn(built, "u1", "9999")).toEqual({ kind: "cash_session_opened_by_another" });
+    expect(hashed).toEqual([]);
+    expect(failures.size).toBe(0);
+    expect(signedIn.userId()).toBe("u2");
+  });
+
+  it("signs the opener in", async () => {
+    const { built, signedIn } = deps({ cashSessionOpener: () => "u1" });
+
+    expect((await signIn(built, "u1", "1234")).kind).toBe("signed_in");
+    expect(signedIn.userId()).toBe("u1");
+  });
+
+  it("refuses an attempt whose PIN was checked while another person opened a cash session, keeping the opener signed in", async () => {
+    let opener: string | undefined;
+    const { built, signedIn, remembered } = deps({ cashSessionOpener: () => opener });
+
+    const outcome = await firstSignIn(
+      {
+        ...built,
+        hashPin: async (pin, salt) => {
+          opener = "u2";
+          return built.hashPin(pin, salt);
+        },
+      },
+      "u1",
+      "1234",
+    );
+
+    expect(outcome).toEqual({ kind: "cash_session_opened_by_another" });
+    expect(remembered).toEqual([]);
+    expect(signedIn.userId()).toBe("u2");
+  });
+
+  it("refuses a first sign-in by anyone but the opener, remembering nobody", async () => {
+    const { built, signedIn, remembered } = deps({ cashSessionOpener: () => "u2" });
+    signedIn.set("u2");
+
+    expect(await firstSignIn(built, "u1", "1234")).toEqual({
+      kind: "cash_session_opened_by_another",
+    });
+    expect(remembered).toEqual([]);
+    expect(signedIn.userId()).toBe("u2");
   });
 });
 
@@ -458,6 +560,22 @@ describe("signing in for the first time on a register", () => {
 
     expect(await firstSignIn(built, "u1", "1234")).toEqual({ kind: "no_register_permission" });
     expect(remembered).toEqual([]);
+  });
+
+  it("signs nobody in when the person cannot be remembered", async () => {
+    const { built, signedIn } = deps();
+    const failing: FirstSignInDeps = {
+      ...built,
+      store: {
+        ...built.store,
+        remember: () => {
+          throw new Error("the register database is unavailable");
+        },
+      },
+    };
+
+    await expect(firstSignIn(failing, "u1", "1234")).rejects.toThrow();
+    expect(signedIn.userId()).toBeUndefined();
   });
 
   it("remembers nobody who cannot sign in", async () => {

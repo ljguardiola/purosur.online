@@ -37,6 +37,8 @@ const { useAppForm } = createFormHook({
 
 type Message<Values> = string | ((values: Values) => string);
 
+type FieldDeclaration<Values, Field> = Field | null | ((values: Values) => Field);
+
 export type CloudSubmission<Values, Parsed = unknown> = {
   values: Values;
   parsed: Parsed | undefined;
@@ -55,8 +57,8 @@ type CloudFormOptions<
     schema: StandardSchemaV1<Request, Parsed>;
     from: (values: Values) => Request;
   };
-  fields: { [Wire in keyof Request & string]-?: Field | null } & Partial<
-    Record<string, Field | null>
+  fields: { [Wire in keyof Request & string]-?: FieldDeclaration<Values, Field> } & Partial<
+    Record<string, FieldDeclaration<Values, Field>>
   >;
   messages: Record<Field, Message<Values>>;
   onSubmit: (request: Request, submission: CloudSubmission<Values, Parsed>) => Promise<void>;
@@ -64,10 +66,16 @@ type CloudFormOptions<
 
 const NOTHING_STARTED: { started: Promise<void> | undefined } = { started: undefined };
 
-function issueWireField(issue: StandardSchemaV1Issue): string | undefined {
-  const [first] = issue.path ?? [];
-  const key = typeof first === "object" ? first?.key : first;
-  return typeof key === "string" ? key : undefined;
+function issueWireFields(issue: StandardSchemaV1Issue): string[] {
+  const keys: string[] = [];
+  for (const segment of issue.path ?? []) {
+    const key = typeof segment === "object" ? segment.key : segment;
+    if (typeof key !== "string") {
+      break;
+    }
+    keys.push(key);
+  }
+  return keys.map((_, index) => keys.slice(0, keys.length - index).join("."));
 }
 
 export function useCloudForm<
@@ -77,11 +85,11 @@ export function useCloudForm<
   Field extends keyof Values & string,
 >(options: CloudFormOptions<Values, Request, Parsed, Field>) {
   const { request, fields, messages } = options;
-  const wireFields: Record<string, Field | null | undefined> = fields;
-  const fieldOf = (wireField: string | undefined): Field | undefined =>
-    wireField !== undefined && Object.hasOwn(fields, wireField)
-      ? (wireFields[wireField] ?? undefined)
-      : undefined;
+  const wireFields: Record<string, FieldDeclaration<Values, Field> | undefined> = fields;
+  const fieldOf = (wireField: string, values: Values): Field | undefined => {
+    const declared = Object.hasOwn(fields, wireField) ? wireFields[wireField] : undefined;
+    return (typeof declared === "function" ? declared(values) : declared) ?? undefined;
+  };
   const messageFor = (field: Field, values: Values): string => {
     const message = messages[field];
     return typeof message === "function" ? message(values) : message;
@@ -100,7 +108,9 @@ export function useCloudForm<
   ): Partial<Record<Field, string>> | undefined => {
     const failures: Partial<Record<Field, string>> = {};
     for (const issue of issues) {
-      const field = fieldOf(issueWireField(issue));
+      const field = issueWireFields(issue)
+        .map((wireField) => fieldOf(wireField, values))
+        .find((declared) => declared !== undefined);
       if (field !== undefined) {
         failures[field] = failures[field] ?? messageFor(field, values);
       }
@@ -131,7 +141,7 @@ export function useCloudForm<
   }
 
   function showWireFieldError(wireField: string): boolean {
-    const field = fieldOf(wireField);
+    const field = fieldOf(wireField, form.state.values);
     if (field === undefined) {
       return false;
     }
@@ -149,8 +159,8 @@ export function useCloudForm<
   const [unsettled, setUnsettled] = useState(0);
 
   async function submit() {
-    for (const field of Object.values(wireFields)) {
-      if (field) {
+    for (const field of Object.keys(messages) as Field[]) {
+      if (form.getFieldMeta(field) !== undefined) {
         clearFieldError(field);
       }
     }

@@ -24,7 +24,7 @@ export const pricesListRoute = createRoute({
 
 export const discountsListFilters = z.object({
   search: z.string().default("").catch(""),
-  kind: z.enum(["ALL", "PERCENT_OFF"]).default("ALL").catch("ALL"),
+  kind: z.enum(["ALL", "PERCENT_OFF", "BUY_N_PAY_M"]).default("ALL").catch("ALL"),
   status: z.enum(["open", "ended", "deactivated", "all"]).default("open").catch("open"),
   sortBy: z
     .enum(["promotion", "benefit", "validity", "status"])

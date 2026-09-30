@@ -1,5 +1,5 @@
 {
-  "id": "b99f4d31-5961-4a95-8ac9-137cd37a1b4a",
+  "id": "ce9a3594-4835-499e-8c65-cfefb15e3274",
   "prevId": "f20304b1-3685-422b-ae2c-64301ebe4751",
   "version": "7",
   "dialect": "postgresql",
@@ -962,6 +962,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "buy_qty": {
+          "name": "buy_qty",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pay_qty": {
+          "name": "pay_qty",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "product_id": {
           "name": "product_id",
           "type": "uuid",
@@ -1096,11 +1108,27 @@
       "checkConstraints": {
         "discounts_kind_check": {
           "name": "discounts_kind_check",
-          "value": "\"discounts\".\"kind\" in ('PERCENT_OFF')"
+          "value": "\"discounts\".\"kind\" in ('PERCENT_OFF', 'BUY_N_PAY_M')"
         },
         "discounts_percent_check": {
           "name": "discounts_percent_check",
           "value": "\"discounts\".\"kind\" <> 'PERCENT_OFF' or coalesce(\"discounts\".\"percent\" between 1 and 99, false)"
+        },
+        "discounts_buy_n_pay_m_quantities_check": {
+          "name": "discounts_buy_n_pay_m_quantities_check",
+          "value": "\"discounts\".\"kind\" <> 'BUY_N_PAY_M' or coalesce(\"discounts\".\"pay_qty\" >= 1 and \"discounts\".\"buy_qty\" > \"discounts\".\"pay_qty\", false)"
+        },
+        "discounts_percent_off_has_no_quantities_check": {
+          "name": "discounts_percent_off_has_no_quantities_check",
+          "value": "\"discounts\".\"kind\" <> 'PERCENT_OFF' or (\"discounts\".\"buy_qty\" is null and \"discounts\".\"pay_qty\" is null)"
+        },
+        "discounts_buy_n_pay_m_has_no_percent_check": {
+          "name": "discounts_buy_n_pay_m_has_no_percent_check",
+          "value": "\"discounts\".\"kind\" <> 'BUY_N_PAY_M' or \"discounts\".\"percent\" is null"
+        },
+        "discounts_buy_n_pay_m_product_check": {
+          "name": "discounts_buy_n_pay_m_product_check",
+          "value": "\"discounts\".\"kind\" <> 'BUY_N_PAY_M' or \"discounts\".\"product_id\" is not null"
         },
         "discounts_exactly_one_target_check": {
           "name": "discounts_exactly_one_target_check",
@@ -3575,7 +3603,7 @@
           "name": "issued_by",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "issued_at": {
           "name": "issued_at",

@@ -1,0 +1,2 @@
+ALTER TABLE discounts ADD COLUMN buy_qty INTEGER;
+ALTER TABLE discounts ADD COLUMN pay_qty INTEGER;

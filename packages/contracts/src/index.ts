@@ -2,11 +2,13 @@ export type {
   Authorization,
   AuthorizationRefusal,
   AuthorizedBy,
+  GuardedActionRefusal,
 } from "./access/authorization.js";
 export {
   authorizationRefusalSchema,
   authorizationSchema,
   authorizedBySchema,
+  guardedActionRefusalSchema,
 } from "./access/authorization.js";
 export type { BranchUserWire } from "./access/branch-user.js";
 export { branchUserListSchema, branchUserSchema } from "./access/branch-user.js";
@@ -137,6 +139,8 @@ export {
   retryAfterSecondsOf,
 } from "./register/cloud-error.js";
 export type {
+  CashBalance,
+  CloseCashSessionOutcome,
   CoreStatusMessage,
   CoreToRendererMessage,
   EnrollmentOutcome,
@@ -154,6 +158,7 @@ export {
   ARGENTINA_TIME_ZONE,
   coreStatusMessageSchema,
   coreToRendererMessageSchema,
+  countedCashSchema,
   mainToCoreMessageSchema,
   openingFloatSchema,
   parseAmountCents,

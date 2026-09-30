@@ -2,6 +2,7 @@ import type { DiscountBenefit } from "../model/discount-benefit.js";
 import type { DiscountTarget } from "../model/discount-target.js";
 import { normalizeDiscountWeekdays } from "../model/discount-weekdays.js";
 import type { DiscountPorts } from "./discount-store.js";
+import { refuseUnfitTarget, type UnfitTargetOutcome } from "./refuse-unfit-target.js";
 
 export interface CreateDiscountInput {
   name: string;
@@ -12,17 +13,16 @@ export interface CreateDiscountInput {
   weekdays: number[];
 }
 
-export type CreateDiscountOutcome = { kind: "target_not_found" } | { kind: "created"; id: string };
+export type CreateDiscountOutcome = UnfitTargetOutcome | { kind: "created"; id: string };
 
 export async function createDiscount(
   { store }: DiscountPorts,
   input: CreateDiscountInput,
 ): Promise<CreateDiscountOutcome> {
   return store.transaction<CreateDiscountOutcome>(async (tx) => {
-    // Locks the target so it cannot be deactivated while the discount that points at it is written.
-    const locked = await tx.lockAssignableTarget(input.target);
-    if (locked.kind === "not_found") {
-      return { kind: "target_not_found" };
+    const refused = await refuseUnfitTarget(tx, input.target, input.benefit);
+    if (refused) {
+      return refused;
     }
 
     const created = await tx.insertDiscount({
