@@ -3,7 +3,6 @@ import { parseAmountCents } from "@purosur/contracts";
 import { cashCharge } from "@purosur/domain";
 import { Button, formatCents, InlineNotice, Modal, SummaryRowGroup, TextField } from "@purosur/ui";
 import { ArrowLeft, Banknote, Check, TriangleAlert } from "lucide-react";
-import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Eyebrow } from "../shell/eyebrow";
 
@@ -33,14 +32,14 @@ export function CashChargeModal({
   onSaleUnavailable,
   onSessionInvalid,
 }: CashChargeModalProps) {
-  const form = useRef<HTMLFormElement>(null);
+  const content = useRef<HTMLDivElement>(null);
   const [typed, setTyped] = useState("");
   const [refusal, setRefusal] = useState<string>();
   const [notice, setNotice] = useState<string>();
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    form.current?.querySelector("input")?.focus();
+    content.current?.querySelector("input")?.focus();
   }, []);
 
   const isBlank = typed.trim() === "";
@@ -58,8 +57,7 @@ export function CashChargeModal({
     setNotice(undefined);
   }
 
-  async function submit(event?: FormEvent<HTMLFormElement>) {
-    event?.preventDefault();
+  async function submit() {
     if (submitting || covered === undefined) {
       return;
     }
@@ -133,7 +131,7 @@ export function CashChargeModal({
         </>
       }
     >
-      <form ref={form} noValidate className="flex flex-col gap-5" onSubmit={submit}>
+      <div ref={content} className="flex flex-col gap-5">
         <SummaryRowGroup
           rows={[
             { label: "Total de la venta", value: formatCents(total) },
@@ -162,7 +160,7 @@ export function CashChargeModal({
         {notice === undefined ? null : (
           <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />
         )}
-      </form>
+      </div>
     </Modal>
   );
 }

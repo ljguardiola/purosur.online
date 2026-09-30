@@ -136,11 +136,12 @@ describe("CashChargeModal", () => {
     expect(chargeSale).toHaveBeenCalledExactlyOnceWith(500_005);
   });
 
-  it("charges when Enter is pressed in the field", async () => {
-    const { field, chargeSale } = await renderModal();
+  it("does not charge when Enter is pressed in the field, as a scanned barcode ends with one", async () => {
+    const { field, complete, chargeSale } = await renderModal();
 
     await userEvent.fill(field, "5.000,00");
     await userEvent.keyboard("{Enter}");
+    await userEvent.click(complete);
 
     await expect.poll(() => chargeSale.mock.calls).toEqual([[500_000]]);
   });
@@ -153,7 +154,7 @@ describe("CashChargeModal", () => {
     await userEvent.click(complete);
 
     await expect.element(complete).toBeDisabled();
-    await userEvent.keyboard("{Enter}");
+    complete.element().dispatchEvent(new MouseEvent("click", { bubbles: true }));
     expect(chargeSale).toHaveBeenCalledOnce();
     pending.resolve(COMPLETED);
   });
