@@ -277,6 +277,69 @@ describe("signing in after wrong PINs", () => {
     expect(failures.get("u2")?.consecutiveFailures).toBe(6);
   });
 
+  function hashingHeldUntilReleased(
+    built: SignInDeps,
+    hashed: { pin: string; salt: Uint8Array }[],
+  ) {
+    const pending: (() => void)[] = [];
+    let released = false;
+    let firstHashingStarted: () => void = () => {};
+    const firstHashing = new Promise<void>((resolve) => {
+      firstHashingStarted = resolve;
+    });
+    const held: SignInDeps = {
+      ...built,
+      hashPin: (pin, salt) => {
+        hashed.push({ pin, salt });
+        firstHashingStarted();
+        return new Promise<string>((resolve) => {
+          const finish = () => resolve(pin === "1234" ? PIN_HASH : "hash-of-another-pin");
+          if (released) {
+            finish();
+          } else {
+            pending.push(finish);
+          }
+        });
+      },
+    };
+    const release = () => {
+      released = true;
+      for (const finish of pending) {
+        finish();
+      }
+    };
+    return { held, firstHashing, release };
+  }
+
+  it("refuses a second attempt in flight for the same person with the wait the first one brings", async () => {
+    const { built, hashed, failures } = deps({ failures: { u1: failuresAt(2) } });
+    const { held, firstHashing, release } = hashingHeldUntilReleased(built, hashed);
+
+    const attempts = Promise.all([signIn(held, "u1", "9999"), signIn(held, "u1", "9999")]);
+    await firstHashing;
+    release();
+
+    expect(await attempts).toEqual([
+      { kind: "wrong_pin", retry_after_seconds: 1, attempts_left: 5 },
+      { kind: "rate_limited", retry_after_seconds: 1, attempts_left: 5 },
+    ]);
+    expect(hashed).toHaveLength(1);
+    expect(failures.get("u1")).toEqual({ consecutiveFailures: 3, lastFailedAt: NOW });
+  });
+
+  it("locks out a second attempt in flight when the first one reaches the lockout", async () => {
+    const { built, hashed, failures } = deps({ failures: { u1: failuresAt(7) } });
+    const { held, firstHashing, release } = hashingHeldUntilReleased(built, hashed);
+
+    const attempts = Promise.all([signIn(held, "u1", "9999"), signIn(held, "u1", "1234")]);
+    await firstHashing;
+    release();
+
+    expect(await attempts).toEqual([{ kind: "locked" }, { kind: "locked" }]);
+    expect(hashed).toHaveLength(1);
+    expect(failures.get("u1")?.consecutiveFailures).toBe(8);
+  });
+
   it("counts nothing for a user who cannot sign in", async () => {
     const { built, failures } = deps({ record: undefined });
 

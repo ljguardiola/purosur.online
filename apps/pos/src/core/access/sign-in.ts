@@ -38,6 +38,7 @@ export async function signIn(
   if (record === undefined || salt === undefined) {
     return { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: pinSignInAttemptsLeft(1) };
   }
+  const pepper = await deps.readPepper();
   const failures = deps.store.pinSignInFailures(userId);
   if (failures !== undefined) {
     if (isLockedOutOfPinSignIn(failures.consecutiveFailures)) {
@@ -56,13 +57,14 @@ export async function signIn(
       };
     }
   }
-  const pepper = await deps.readPepper();
   if (pepper === undefined) {
     return { kind: "unavailable" };
   }
+  // Counted before hashing, with no await since the check above, so an attempt in flight
+  // cannot let another one for the same person through the wait or the lockout.
+  const failed = deps.store.recordPinSignInFailure(userId, deps.now());
   const verifier = derivePinVerifier(pepper, await deps.hashPin(pin, salt));
   if (!sameText(verifier, record.verifier)) {
-    const failed = deps.store.recordPinSignInFailure(userId, deps.now());
     if (isLockedOutOfPinSignIn(failed.consecutiveFailures)) {
       return { kind: "locked" };
     }
