@@ -57,6 +57,7 @@ function newProductOf(brandId: string, categoryId: string) {
       brandId,
       saleUnit: "UNIT",
       barcodes: [randomUUID()],
+      tagIds: [],
       netContent: null,
     });
 }

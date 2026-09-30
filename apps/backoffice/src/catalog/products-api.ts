@@ -25,6 +25,7 @@ export type CreateProductInput = {
   brandId: string | null;
   saleUnit: ProductSaleUnit;
   barcodes: string[];
+  tagIds: string[];
   netContent: NetContent | null;
 };
 
@@ -34,6 +35,7 @@ export type CreateProductOutcome =
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "category_not_leaf" }
   | { kind: "brand_inactive" }
+  | { kind: "tag_inactive"; tagId: string }
   | { kind: "forbidden" }
   | { kind: "unauthenticated" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
@@ -45,6 +47,7 @@ export type EditProductInput = {
   brandId: string | null;
   saleUnit: ProductSaleUnit;
   barcodes: string[];
+  tagIds: string[];
   netContent: NetContent | null;
   version: number;
 };
@@ -55,6 +58,7 @@ export type EditProductOutcome =
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "category_not_leaf" }
   | { kind: "brand_inactive" }
+  | { kind: "tag_inactive"; tagId: string }
   | { kind: "stale_version" }
   | { kind: "not_found" }
   | { kind: "forbidden" }
@@ -119,6 +123,7 @@ export async function createProduct(input: CreateProductInput): Promise<CreatePr
     brandId: input.brandId,
     saleUnit: input.saleUnit,
     barcodes: input.barcodes,
+    tagIds: input.tagIds,
     netContent: input.netContent,
   };
   let response: Response;
@@ -136,12 +141,19 @@ export async function createProduct(input: CreateProductInput): Promise<CreatePr
   }
   if (response.status === 409) {
     const cloned = response.clone();
-    const body = (await cloned.json().catch(() => undefined)) as { code?: string } | undefined;
+    const body = (await cloned.json().catch(() => undefined)) as
+      | { code?: string; tagId?: unknown }
+      | undefined;
     if (body?.code === "category_not_leaf") {
       return { kind: "category_not_leaf" };
     }
     if (body?.code === "brand_inactive") {
       return { kind: "brand_inactive" };
+    }
+    if (body?.code === "tag_inactive") {
+      return typeof body.tagId === "string"
+        ? { kind: "tag_inactive", tagId: body.tagId }
+        : { kind: "failed" };
     }
     return { kind: "barcode_taken", codes: await readBarcodeTakenCodes(response) };
   }
@@ -241,6 +253,7 @@ export async function editProduct(
     brandId: input.brandId,
     saleUnit: input.saleUnit,
     barcodes: input.barcodes,
+    tagIds: input.tagIds,
     netContent: input.netContent,
     version: input.version,
   };
@@ -262,7 +275,7 @@ export async function editProduct(
   }
   if (response.status === 409) {
     const body = (await response.json().catch(() => undefined)) as
-      | { code?: string; codes?: unknown }
+      | { code?: string; codes?: unknown; tagId?: unknown }
       | undefined;
     if (body?.code === "stale_version") {
       return { kind: "stale_version" };
@@ -272,6 +285,11 @@ export async function editProduct(
     }
     if (body?.code === "brand_inactive") {
       return { kind: "brand_inactive" };
+    }
+    if (body?.code === "tag_inactive") {
+      return typeof body.tagId === "string"
+        ? { kind: "tag_inactive", tagId: body.tagId }
+        : { kind: "failed" };
     }
     const codes = Array.isArray(body?.codes)
       ? body.codes.filter((code): code is string => typeof code === "string")

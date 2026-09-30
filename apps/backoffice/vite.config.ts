@@ -48,13 +48,15 @@ export default defineConfig(({ mode }) => {
         output: {
           codeSplitting: {
             // The design system modules the entry needs are claimed first, so they never land in
-            // the lazy "ui" chunk that screens share.
+            // the lazy "ui" chunk that screens share. Rolldown would otherwise pull every
+            // dependency of a claimed module into this chunk too, whether or not the entry needs it.
             groups: [
               {
                 name: "initial",
                 tags: ["$initial"],
                 test: /[\\/](?:node_modules|packages[\\/]ui[\\/]src)[\\/]/,
                 priority: 2,
+                includeDependenciesRecursively: false,
               },
               {
                 name: "ui",

@@ -32,6 +32,16 @@ export const BRAND_INACTIVE_RESPONSE = {
   message: "a deactivated brand can only stay on a product that already carries it",
 } as const;
 
+export const TAG_NOT_FOUND_FAILURE = {
+  field: "tagIds",
+  message: "tagIds must be a list of existing tags' ids, [] for none",
+} as const;
+
+export const TAG_INACTIVE_RESPONSE = {
+  code: "tag_inactive",
+  message: "a deactivated tag can only stay on a product that already carries it",
+} as const;
+
 export function registerProductCreationRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: ProductsRouteOptions<TQueryResult>,
@@ -80,6 +90,18 @@ export function registerProductCreationRoute<TQueryResult extends PgQueryResultH
       }
       if (outcome.kind === "brand_inactive") {
         await reply.code(409).send(BRAND_INACTIVE_RESPONSE);
+        return;
+      }
+      if (outcome.kind === "tag_not_found") {
+        await reply.code(400).send({
+          code: "validation_failed",
+          message: TAG_NOT_FOUND_FAILURE.message,
+          details: [{ field: TAG_NOT_FOUND_FAILURE.field }],
+        });
+        return;
+      }
+      if (outcome.kind === "tag_inactive") {
+        await reply.code(409).send({ ...TAG_INACTIVE_RESPONSE, tagId: outcome.tagId });
         return;
       }
       if (outcome.kind === "barcode_taken") {

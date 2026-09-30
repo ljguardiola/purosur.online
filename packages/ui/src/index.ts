@@ -58,6 +58,8 @@ export type {
 export { Button } from "./components/forms/button";
 export type { CheckboxProps } from "./components/forms/checkbox";
 export { Checkbox } from "./components/forms/checkbox";
+export type { ChipListFieldProps } from "./components/forms/chip-list-field";
+export { ChipListField } from "./components/forms/chip-list-field";
 export type { DateFieldProps } from "./components/forms/date-field";
 export { DateField } from "./components/forms/date-field";
 export type { FieldGroupProps } from "./components/forms/field-group";

@@ -28,8 +28,10 @@ import {
   priceReviews,
   prices,
   products,
+  productTags,
   roles,
   sessions,
+  tags,
   userRoles,
   users,
 } from "./schema.js";
@@ -162,6 +164,68 @@ describe("products.brand_id", () => {
         brandId: "00000000-0000-0000-0000-000000000000",
       }),
     ).rejects.toMatchObject({ cause: { constraint: "products_brand_id_brands_id_fk" } });
+  });
+});
+
+describe("tags.name", () => {
+  it("rejects a second tag with the same name in another letter case, even when the first is deactivated", async () => {
+    await db.insert(tags).values({ name: "Vegano", active: false });
+
+    await expect(db.insert(tags).values({ name: "vEGANO" })).rejects.toMatchObject({
+      cause: { constraint: "tags_name_lower_key" },
+    });
+  });
+
+  it("starts a tag active at version 1", async () => {
+    const [tag] = await db.insert(tags).values({ name: "Sin TACC" }).returning();
+
+    expect(tag).toMatchObject({ name: "Sin TACC", active: true, version: 1 });
+  });
+});
+
+describe("product_tags", () => {
+  async function seedProductAndTag(): Promise<{ productId: string; tagId: string }> {
+    const [category] = await db
+      .insert(categories)
+      .values({ name: "Almacén" })
+      .returning({ id: categories.id });
+    const [tag] = await db.insert(tags).values({ name: "Orgánico" }).returning({ id: tags.id });
+    if (!category || !tag) {
+      throw new Error("test setup: seeding the category and the tag returned no row");
+    }
+    const [product] = await db
+      .insert(products)
+      .values({ name: "Dátiles", categoryId: category.id, saleUnit: "KG" })
+      .returning({ id: products.id });
+    if (!product) {
+      throw new Error("test setup: seeding the product returned no row");
+    }
+    return { productId: product.id, tagId: tag.id };
+  }
+
+  it("rejects the same tag twice on one product", async () => {
+    const { productId, tagId } = await seedProductAndTag();
+    await db.insert(productTags).values({ productId, tagId });
+
+    await expect(db.insert(productTags).values({ productId, tagId })).rejects.toMatchObject({
+      cause: { constraint: "product_tags_product_id_tag_id_pk" },
+    });
+  });
+
+  it("rejects a tag that doesn't exist", async () => {
+    const { productId } = await seedProductAndTag();
+
+    await expect(
+      db.insert(productTags).values({ productId, tagId: "00000000-0000-0000-0000-000000000000" }),
+    ).rejects.toMatchObject({ cause: { constraint: "product_tags_tag_id_tags_id_fk" } });
+  });
+
+  it("rejects a product that doesn't exist", async () => {
+    const { tagId } = await seedProductAndTag();
+
+    await expect(
+      db.insert(productTags).values({ productId: "00000000-0000-0000-0000-000000000000", tagId }),
+    ).rejects.toMatchObject({ cause: { constraint: "product_tags_product_id_products_id_fk" } });
   });
 });
 

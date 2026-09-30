@@ -10,13 +10,16 @@ import type {
   LockLeafCategoryResult,
   LockParentForNewChildResult,
   LockProductResult,
+  LockTagResult,
   NewProductFields,
   ProductFields,
+  TagFields,
 } from "../catalog-store.js";
 import {
   CatalogBarcodeConflict,
   CatalogBrandNameConflict,
   CatalogCategoryNameConflict,
+  CatalogTagNameConflict,
 } from "../catalog-store.js";
 
 export interface FakeCategoryRow {
@@ -27,6 +30,13 @@ export interface FakeCategoryRow {
 }
 
 export interface FakeBrandRow {
+  id: string;
+  name: string;
+  active: boolean;
+  version: number;
+}
+
+export interface FakeTagRow {
   id: string;
   name: string;
   active: boolean;
@@ -50,27 +60,44 @@ interface FakeBarcodeRow {
   active: boolean;
 }
 
+interface FakeProductTagRow {
+  productId: string;
+  tagId: string;
+}
+
 export interface FakeCatalogState {
   brands: FakeBrandRow[];
+  tags: FakeTagRow[];
   categories: FakeCategoryRow[];
   products: FakeProductRow[];
   barcodes: FakeBarcodeRow[];
+  productTags: FakeProductTagRow[];
   nextId: number;
 }
 
 function emptyState(): FakeCatalogState {
-  return { brands: [], categories: [], products: [], barcodes: [], nextId: 1 };
+  return {
+    brands: [],
+    tags: [],
+    categories: [],
+    products: [],
+    barcodes: [],
+    productTags: [],
+    nextId: 1,
+  };
 }
 
 function cloneState(state: FakeCatalogState): FakeCatalogState {
   return {
     brands: state.brands.map((row) => ({ ...row })),
+    tags: state.tags.map((row) => ({ ...row })),
     categories: state.categories.map((row) => ({ ...row })),
     products: state.products.map((row) => ({
       ...row,
       netContent: row.netContent ? { ...row.netContent } : null,
     })),
     barcodes: state.barcodes.map((row) => ({ ...row })),
+    productTags: state.productTags.map((row) => ({ ...row })),
     nextId: state.nextId,
   };
 }
@@ -127,6 +154,9 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
             version: product.version,
             active: product.active,
             brandId: product.brandId,
+            tagIds: this.state.productTags
+              .filter((row) => row.productId === product.id)
+              .map((row) => row.tagId),
           },
         }
       : { kind: "not_found" };
@@ -207,6 +237,17 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
         product.version = fields.version;
       }
     }
+  }
+
+  async insertProductTags(productId: string, tagIds: readonly string[]): Promise<void> {
+    for (const tagId of tagIds) {
+      this.state.productTags.push({ productId, tagId });
+    }
+  }
+
+  async replaceProductTags(productId: string, tagIds: readonly string[]): Promise<void> {
+    this.state.productTags = this.state.productTags.filter((row) => row.productId !== productId);
+    await this.insertProductTags(productId, tagIds);
   }
 
   async replaceProductBarcodes(product: LockedProduct, barcodes: readonly string[]): Promise<void> {
@@ -297,6 +338,43 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
       }
     }
   }
+
+  async lockTag(tagId: string): Promise<LockTagResult> {
+    this.store.lockCallOrder.push("lockTag");
+    this.store.lockedTagIds.push(tagId);
+    const tag = this.state.tags.find((row) => row.id === tagId);
+    return tag
+      ? { kind: "locked", tag: { name: tag.name, active: tag.active, version: tag.version } }
+      : { kind: "not_found" };
+  }
+
+  async tagNameTaken(name: string, excludingTagId?: string): Promise<boolean> {
+    return this.state.tags.some(
+      (row) => row.name.toLowerCase() === name.toLowerCase() && row.id !== excludingTagId,
+    );
+  }
+
+  async insertTag(name: string): Promise<{ id: string }> {
+    if (this.store.tagNameConflicts.has(name.toLowerCase())) {
+      throw new CatalogTagNameConflict();
+    }
+    const id = `tag-${this.state.nextId++}`;
+    this.state.tags.push({ id, name, active: true, version: 1 });
+    return { id };
+  }
+
+  async updateTag(tagId: string, fields: TagFields): Promise<void> {
+    if (this.store.tagNameConflicts.has(fields.name.toLowerCase())) {
+      throw new CatalogTagNameConflict();
+    }
+    for (const tag of this.state.tags) {
+      if (tag.id === tagId) {
+        tag.name = fields.name;
+        tag.active = fields.active;
+        tag.version = fields.version;
+      }
+    }
+  }
 }
 
 export class FakeCatalogStore implements CatalogStore {
@@ -316,12 +394,21 @@ export class FakeCatalogStore implements CatalogStore {
   // regardless of what a same-transaction `brandNameTaken` pre-check found.
   brandNameConflicts = new Set<string>();
 
+  // Tag names (already lowercased) that raise `CatalogTagNameConflict` on insert or update,
+  // regardless of what a same-transaction `tagNameTaken` pre-check found.
+  tagNameConflicts = new Set<string>();
+
   lockCallOrder: string[] = [];
+  lockedTagIds: string[] = [];
   barcodeReplacements: { product: LockedProduct; barcodes: string[] }[] = [];
   transactionCount = 0;
 
   seedBrand(brand: FakeBrandRow): void {
     this.state.brands.push({ ...brand });
+  }
+
+  seedTag(tag: FakeTagRow): void {
+    this.state.tags.push({ ...tag });
   }
 
   seedCategory(category: FakeCategoryRow): void {
@@ -331,8 +418,12 @@ export class FakeCatalogStore implements CatalogStore {
   seedProduct(
     product: FakeProductRow,
     barcodes: readonly { code: string; active?: boolean }[],
+    tagIds: readonly string[] = [],
   ): void {
     this.state.products.push({ ...product });
+    for (const tagId of tagIds) {
+      this.state.productTags.push({ productId: product.id, tagId });
+    }
     for (const barcode of barcodes) {
       this.state.barcodes.push({
         productId: product.id,

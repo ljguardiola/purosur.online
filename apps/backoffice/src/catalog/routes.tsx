@@ -57,3 +57,21 @@ export const brandsListRoute = createRoute({
   search: { middlewares: [stripSearchParams(brandsListFilters.parse({}))] },
   component: lazyScreen(() => import("./brands-list-page"), "BrandsListPage"),
 });
+
+export const tagsListFilters = z.object({
+  search: z.string().default("").catch(""),
+  status: z.enum(["active", "inactive", "all"]).default("active").catch("active"),
+  sortBy: z.enum(["tag", "products"]).default("tag").catch("tag"),
+  sort: z.enum(["ascending", "descending"]).default("ascending").catch("ascending"),
+});
+
+export type TagsListFilters = z.output<typeof tagsListFilters>;
+
+export const tagsListRoute = createRoute({
+  getParentRoute: () => catalogAreaRoute,
+  path: "tags",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canManageProductsAndCategories),
+  validateSearch: tagsListFilters,
+  search: { middlewares: [stripSearchParams(tagsListFilters.parse({}))] },
+  component: lazyScreen(() => import("./tags-list-page"), "TagsListPage"),
+});

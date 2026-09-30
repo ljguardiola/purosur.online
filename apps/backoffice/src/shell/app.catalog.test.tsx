@@ -137,6 +137,49 @@ test("redirects a non-permitted user's typed /catalog/brands to Mi cuenta, witho
   expect(services.brandsListScreen.fetchBrands).not.toHaveBeenCalled();
 });
 
+test("navigating directly to /catalog/tags opens the tags list, with Distintivos active between Marcas and Precios", async () => {
+  window.history.pushState(null, "", "/catalog/tags");
+  const services = createAppServices();
+  vi.mocked(services.tagsListScreen.fetchTags).mockResolvedValue({
+    kind: "ok",
+    value: { tags: [], taggedProductCount: 0 },
+  });
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Distintivos", level: 1 }))
+    .toBeVisible();
+  const tagsItem = screen.getByRole("link", { name: "Distintivos" }).element() as HTMLAnchorElement;
+  expect(tagsItem.getAttribute("aria-current")).toBe("page");
+  const labels = screen
+    .getByRole("link")
+    .all()
+    .map((link) => link.element().textContent);
+  expect(
+    labels.filter((label) => ["Marcas", "Distintivos", "Precios"].includes(label ?? "")),
+  ).toEqual(["Marcas", "Distintivos", "Precios"]);
+  window.history.pushState(null, "", "/");
+});
+
+test("redirects a non-permitted user's typed /catalog/tags to Mi cuenta, without listing tags", async () => {
+  const services = createAppServices({
+    fetchSession: vi
+      .fn()
+      .mockResolvedValue(
+        openSession({ userId: "user-2", displayName: "Grace Hopper", isAdministrator: false }),
+      ),
+  });
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/catalog/tags");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/settings/users/me");
+  expect(services.tagsListScreen.fetchTags).not.toHaveBeenCalled();
+});
+
 test("redirects a non-permitted user's typed /catalog/products to Mi cuenta, without listing products", async () => {
   const services = createAppServices({
     fetchSession: vi
@@ -244,6 +287,7 @@ test("shows the Precios section, and only it, for a user holding only manage_pri
   expect(screen.getByRole("link", { name: "Productos" }).query()).toBeNull();
   expect(screen.getByRole("link", { name: "Categorías" }).query()).toBeNull();
   expect(screen.getByRole("link", { name: "Marcas" }).query()).toBeNull();
+  expect(screen.getByRole("link", { name: "Distintivos" }).query()).toBeNull();
   await expect.element(screen.getByRole("link", { name: "Precios" })).toBeVisible();
 });
 

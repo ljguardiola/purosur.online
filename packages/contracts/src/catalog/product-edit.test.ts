@@ -8,6 +8,7 @@ function validBody(overrides: Record<string, unknown> = {}): Record<string, unkn
     brandId: null,
     saleUnit: "UNIT",
     barcodes: ["111"],
+    tagIds: [],
     version: 1,
     ...overrides,
   };
@@ -31,6 +32,7 @@ describe("productEditBodySchema", () => {
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       netContent: { quantity: 2, unit: "L" },
       version: 4,
     });
@@ -60,6 +62,39 @@ describe("productEditBodySchema", () => {
     expect(new Set(brandIdMessages)).toEqual(
       new Set(["brandId must be an existing brand's id, or null for none"]),
     );
+  });
+
+  it("reads the tag ids", () => {
+    expect(
+      productEditBodySchema.safeParse(validBody({ tagIds: ["tag-1", "tag-2"] })).data,
+    ).toMatchObject({ tagIds: ["tag-1", "tag-2"] });
+  });
+
+  it("requires the tagIds key so a client that omits it cannot remove a product's tags", () => {
+    const { tagIds: _omitted, ...withoutTags } = validBody();
+
+    expect(firstFailure(withoutTags)).toEqual({
+      field: "tagIds",
+      message: "tagIds must be sent, [] for none",
+    });
+  });
+
+  it("reports malformed tagIds only as malformed, never as missing", () => {
+    const result = productEditBodySchema.safeParse(validBody({ tagIds: 42 }));
+    const tagIdsMessages = result.error?.issues
+      .filter((issue) => issue.path[0] === "tagIds")
+      .map((issue) => issue.message);
+
+    expect(new Set(tagIdsMessages)).toEqual(
+      new Set(["tagIds must be a list of existing tags' ids, [] for none"]),
+    );
+  });
+
+  it("rejects a tag sent more than once", () => {
+    expect(firstFailure(validBody({ tagIds: ["tag-1", "tag-1"] }))).toEqual({
+      field: "tagIds",
+      message: "tagIds must not repeat a tag",
+    });
   });
 
   it("reads absent net content as none", () => {
