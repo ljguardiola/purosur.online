@@ -1,7 +1,7 @@
 import type { FoundProduct } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { ProductSearchResultsProps, SearchResults } from "./product-search-results";
 import { ProductSearchResults, searchOptionId } from "./product-search-results";
@@ -38,6 +38,17 @@ function product(position: number): FoundProduct {
   };
 }
 
+function ComboboxField({ expanded }: { expanded: boolean }) {
+  return (
+    <input
+      role="combobox"
+      aria-label="Producto"
+      aria-expanded={expanded}
+      aria-controls={expanded ? "results" : undefined}
+    />
+  );
+}
+
 async function renderResults({
   query = "yer",
   products = [YERBA, QUESO, ALFAJOR],
@@ -47,12 +58,15 @@ async function renderResults({
 }: Partial<SearchResults & Pick<ProductSearchResultsProps, "activeIndex" | "onChoose">> = {}) {
   await page.viewport(1280, 720);
   const screen = await render(
-    <ProductSearchResults
-      listboxId="results"
-      search={{ query, products, more }}
-      activeIndex={activeIndex}
-      onChoose={onChoose}
-    />,
+    <>
+      <ComboboxField expanded={products.length > 0} />
+      <ProductSearchResults
+        listboxId="results"
+        search={{ query, products, more }}
+        activeIndex={activeIndex}
+        onChoose={onChoose}
+      />
+    </>,
   );
   return { screen, onChoose };
 }
@@ -109,6 +123,19 @@ describe("ProductSearchResults", () => {
     await expect.element(options.nth(1)).toHaveAttribute("id", searchOptionId("results", 1));
   });
 
+  it("leaves the list and its options out of the tab order, so the keyboard stays in the field", async () => {
+    const { screen } = await renderResults({
+      products: Array.from({ length: 20 }, (_, position) => product(position)),
+      more: true,
+    });
+
+    await screen.getByRole("combobox").click();
+    await userEvent.tab();
+
+    const list = screen.getByRole("listbox").element();
+    expect(list.contains(document.activeElement)).toBe(false);
+  });
+
   it("chooses the product of the option that is pressed", async () => {
     const { screen, onChoose } = await renderResults();
 
@@ -162,12 +189,15 @@ describe("ProductSearchResults", () => {
     const list = screen.getByRole("listbox").element();
 
     await screen.rerender(
-      <ProductSearchResults
-        listboxId="results"
-        search={{ query: "gal", products, more: true }}
-        activeIndex={19}
-        onChoose={vi.fn()}
-      />,
+      <>
+        <ComboboxField expanded />
+        <ProductSearchResults
+          listboxId="results"
+          search={{ query: "gal", products, more: true }}
+          activeIndex={19}
+          onChoose={vi.fn()}
+        />
+      </>,
     );
 
     const last = screen.getByRole("option").nth(19).element();

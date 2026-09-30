@@ -135,11 +135,12 @@ function FoundProducts({
 }: ProductSearchResultsProps & { search: SearchResults }) {
   return (
     <div className={`${PANEL_POSITION_CLASS_NAME} ${PANEL_BOX_CLASS_NAME}`}>
-      {/* Pressing an option must not take the focus away from the field. */}
+      {/* Pressing an option must not take the focus away from the field, and a browser puts a
+          scrolling list in the tab order unless it is taken out explicitly. */}
       <div
         id={listboxId}
         role="listbox"
-        tabIndex={0}
+        tabIndex={-1}
         onMouseDown={(event) => event.preventDefault()}
         aria-label="Resultados de la búsqueda"
         className="flex max-h-96 flex-col overflow-y-auto"
