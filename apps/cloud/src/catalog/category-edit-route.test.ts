@@ -137,8 +137,8 @@ function editCategory(
   headers: Record<string, string> = {},
 ) {
   return app.inject({
-    method: "POST",
-    url: `/categories/${id}/edit`,
+    method: "PUT",
+    url: `/categories/${id}`,
     headers: {
       origin: BACKOFFICE_ORIGIN,
       ...(rawSessionId ? cookieHeader(rawSessionId) : {}),
@@ -148,7 +148,22 @@ function editCategory(
   });
 }
 
-describe("POST /categories/:id/edit", () => {
+describe("PUT /categories/:id", () => {
+  it("no longer answers the old edit path", async () => {
+    const category = await insertCategory("Semillas");
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/categories/${category.id}/edit`,
+      headers: { origin: BACKOFFICE_ORIGIN, ...cookieHeader(rawSessionId) },
+      payload: { name: "Macetas", version: category.version },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
   it("returns 401 unauthenticated when no cookie was sent", async () => {
     const category = await insertCategory("Semillas");
 

@@ -26,7 +26,7 @@ export function registerBrandDeactivationRoute<TQueryResult extends PgQueryResul
   const now = options.now ?? (() => new Date());
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  app.post<{ Params: { id: string } }>(
+  app.put<{ Params: { id: string } }>(
     "/brands/:id/deactivation",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),

@@ -46,8 +46,8 @@ export function registerBrandEditRoute<TQueryResult extends PgQueryResultHKT>(
   const catalogStore = new DrizzleCatalogStore(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  app.post<{ Params: { id: string } }>(
-    "/brands/:id/edit",
+  app.put<{ Params: { id: string } }>(
+    "/brands/:id",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: {

@@ -61,7 +61,7 @@ export function registerProductLabelsRoute<TQueryResult extends PgQueryResultHKT
   const sessionSource = routeSessionSource({ db: options.db, now });
 
   app.post(
-    "/products/labels",
+    "/label-sheets",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: {

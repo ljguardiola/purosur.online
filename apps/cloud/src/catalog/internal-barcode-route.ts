@@ -77,7 +77,7 @@ export function registerInternalBarcodeRoute<TQueryResult extends PgQueryResultH
   const sessionSource = routeSessionSource({ db: options.db, now });
 
   app.post(
-    "/products/internal-barcode",
+    "/internal-barcodes",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: {
