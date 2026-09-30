@@ -10,6 +10,7 @@ import {
   type CashSessionRequestDeps,
   currentCashSession,
   openCashSessionFor,
+  resumeSignedInPerson,
 } from "./cash-session-requests";
 
 const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base64");
@@ -214,5 +215,56 @@ describe("the open cash session", () => {
       first_name: "",
       permission_keys: [],
     });
+  });
+});
+
+describe("who is signed in when the core starts or a page connects", () => {
+  function resume(person: SignedInPerson) {
+    const failures: unknown[] = [];
+    resumeSignedInPerson({
+      database,
+      signedInPerson: person,
+      reportFailure: (_context, error) => failures.push(error),
+    });
+    return failures;
+  }
+
+  it("is the opener of the open session, who can act again as the signed-in person after a restart", async () => {
+    await openCashSessionFor(deps(), 5000);
+    signedInPerson = createSignedInPerson();
+
+    resume(signedInPerson);
+
+    expect(signedInPerson.userId()).toBe("u1");
+    const acted = await deps().gate.run({ permission: "sell_and_charge" }, async (actor) => actor);
+    expect(acted).toEqual({
+      kind: "performed",
+      authorized_by: null,
+      result: { signedInUserId: "u1", authorizedBy: null },
+    });
+  });
+
+  it("replaces whoever was signed in with the open session's opener", async () => {
+    await openCashSessionFor(deps(), 5000);
+    signedInPerson.set("u2");
+
+    resume(signedInPerson);
+
+    expect(signedInPerson.userId()).toBe("u1");
+  });
+
+  it("is nobody while no session is open", () => {
+    expect(resume(signedInPerson)).toEqual([]);
+
+    expect(signedInPerson.userId()).toBeUndefined();
+  });
+
+  it("is nobody when the open session cannot be read, and reports why", () => {
+    database.close();
+
+    const failures = resume(signedInPerson);
+
+    expect(signedInPerson.userId()).toBeUndefined();
+    expect(failures).toHaveLength(1);
   });
 });

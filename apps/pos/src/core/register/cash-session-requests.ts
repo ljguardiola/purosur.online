@@ -2,6 +2,7 @@ import type { OpenCashSession, OpenCashSessionOutcome } from "@purosur/contracts
 import { type Clock, type IdGenerator, openCashSession } from "@purosur/domain/register/use-cases";
 import type { ActionGate } from "../access/action-gate";
 import { heldPermissionKeys } from "../access/held-permission-keys";
+import type { SignedInPerson } from "../access/signed-in-person";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import type { LocalDatabase } from "../platform/local-database";
 import { readOpenSession, SqliteCashLedger } from "./sqlite-cash-ledger";
@@ -66,4 +67,26 @@ export function currentCashSession(database: LocalDatabase): OpenCashSession | n
       permission_keys: heldPermissionKeys(opener.access),
     },
   };
+}
+
+export interface ResumeSignedInPersonDeps {
+  database: LocalDatabase;
+  signedInPerson: Pick<SignedInPerson, "set" | "clear">;
+  reportFailure: (context: string, error: unknown) => void;
+}
+
+export function resumeSignedInPerson({
+  database,
+  signedInPerson,
+  reportFailure,
+}: ResumeSignedInPersonDeps): void {
+  signedInPerson.clear();
+  try {
+    const session = readOpenSession(database);
+    if (session !== undefined) {
+      signedInPerson.set(session.openedBy);
+    }
+  } catch (error) {
+    reportFailure("reading who opened the open cash session", error);
+  }
 }

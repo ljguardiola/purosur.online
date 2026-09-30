@@ -35,7 +35,11 @@ import {
 import { type LocalDatabase, openLocalDatabase } from "./platform/local-database";
 import { LOCAL_MIGRATIONS } from "./platform/local-migrations";
 import { createMainRequests } from "./platform/main-requests";
-import { currentCashSession, openCashSessionFor } from "./register/cash-session-requests";
+import {
+  currentCashSession,
+  openCashSessionFor,
+  resumeSignedInPerson,
+} from "./register/cash-session-requests";
 import { rotateDeviceToken } from "./register/device-token-rotation";
 import { startDeviceTokenRotationSchedule } from "./register/device-token-rotation-schedule";
 import { enroll, generatePepper, installationReportFrom } from "./register/enrollment";
@@ -132,6 +136,19 @@ const actionGate =
         hashPin,
         now: () => new Date(),
       });
+
+function reportFailure(context: string, error: unknown): void {
+  console.error(`core: ${context} failed`, error);
+  Sentry.captureException(error);
+}
+
+function resumeWhoIsSignedIn(): void {
+  if (localDatabase === undefined) {
+    signedInPerson.clear();
+    return;
+  }
+  resumeSignedInPerson({ database: localDatabase, signedInPerson, reportFailure });
+}
 
 // An unreachable cloud is how a register without internet looks, so only an unexpected stop is
 // reported; the next pull resumes from the cursor already saved either way.
@@ -245,10 +262,7 @@ const rendererRequestDeps: RendererRequestDeps = {
             openingFloat,
           ),
   cashSession: localDatabase === undefined ? undefined : () => currentCashSession(localDatabase),
-  reportFailure: (context, error) => {
-    console.error(`core: ${context} failed`, error);
-    Sentry.captureException(error);
-  },
+  reportFailure,
 };
 
 if (cloudClient !== undefined) {
@@ -268,18 +282,15 @@ if (cloudClient !== undefined) {
   });
 }
 
-const rendererConnection = createRendererConnection(
-  (data, reply) => {
-    gateFromRenderer(data, (message) => {
-      void answerRendererRequest(rendererRequestDeps, message).then((answer) => {
-        if (answer !== undefined) {
-          reply(answer);
-        }
-      });
+const rendererConnection = createRendererConnection((data, reply) => {
+  gateFromRenderer(data, (message) => {
+    void answerRendererRequest(rendererRequestDeps, message).then((answer) => {
+      if (answer !== undefined) {
+        reply(answer);
+      }
     });
-  },
-  () => signedInPerson.clear(),
-);
+  });
+}, resumeWhoIsSignedIn);
 
 process.parentPort.on("message", (event) => {
   const [rendererPort] = event.ports;
