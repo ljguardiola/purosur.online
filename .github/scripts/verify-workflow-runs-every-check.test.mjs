@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   checkRepository,
-  findCatalogVisualImageViolations,
   findCloudPostgresImageViolations,
+  findPlaywrightImageViolations,
+  findPlaywrightInstallViolations,
   findVerifyWorkflowViolations,
 } from "./verify-workflow-runs-every-check.mjs";
 
@@ -873,7 +874,23 @@ const PRE_PULLED_IMAGES = [
       findCloudPostgresImageViolations(workflowSource, setupSource),
   },
   {
-    label: "the catalog's Playwright image",
+    label: "the Playwright image",
+    job: "tests",
+    testsRun: `pnpm verify:tests --shard=\${{ matrix.shard }}/4`,
+    testsScript: "verify:tests",
+    constant: "PLAYWRIGHT_SERVER_IMAGE",
+    image: PINNED_PLAYWRIGHT_IMAGE,
+    tagOnly: "mcr.microsoft.com/playwright:v1.63.0-noble",
+    findViolations: (workflowSource, setupSource) =>
+      findPlaywrightImageViolations(
+        workflowSource,
+        setupSource,
+        INSTALLED_PLAYWRIGHT_VERSION,
+        "tests",
+      ),
+  },
+  {
+    label: "the Playwright image",
     job: "visual",
     testsRun: "pnpm verify:visual",
     testsScript: "verify:visual",
@@ -881,7 +898,12 @@ const PRE_PULLED_IMAGES = [
     image: PINNED_PLAYWRIGHT_IMAGE,
     tagOnly: "mcr.microsoft.com/playwright:v1.63.0-noble",
     findViolations: (workflowSource, setupSource) =>
-      findCatalogVisualImageViolations(workflowSource, setupSource, INSTALLED_PLAYWRIGHT_VERSION),
+      findPlaywrightImageViolations(
+        workflowSource,
+        setupSource,
+        INSTALLED_PLAYWRIGHT_VERSION,
+        "visual",
+      ),
   },
 ];
 
@@ -1011,8 +1033,8 @@ for (const spec of PRE_PULLED_IMAGES) {
   });
 }
 
-test("flags a catalog Playwright image whose tag is not the installed Playwright version", () => {
-  const [, visual] = PRE_PULLED_IMAGES;
+test("flags a Playwright image whose tag is not the installed Playwright version", () => {
+  const visual = PRE_PULLED_IMAGES[2];
   const image =
     "mcr.microsoft.com/playwright:v1.62.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27";
 
@@ -1032,11 +1054,11 @@ test("checkRepository reads the real workflow file, package.json, both image set
       "POSTGRES_IMAGE",
       PINNED_POSTGRES_IMAGE,
     ),
-    "packages/ui/vitest.global-setup.catalog-visual.ts": setupDeclaring(
+    "vitest.global-setup.playwright-server.ts": setupDeclaring(
       "PLAYWRIGHT_SERVER_IMAGE",
       PINNED_PLAYWRIGHT_IMAGE,
     ),
-    "packages/ui/node_modules/playwright/package.json": JSON.stringify({
+    "node_modules/playwright/package.json": JSON.stringify({
       version: INSTALLED_PLAYWRIGHT_VERSION,
     }),
   };
@@ -1050,6 +1072,37 @@ test("checkRepository reads the real workflow file, package.json, both image set
   });
 
   assert.deepEqual(read.sort(), Object.keys(files).sort());
+});
+
+function workflowWithStep(runLine) {
+  return [
+    "jobs:",
+    "  tests:",
+    "    runs-on: ubuntu-24.04",
+    "    steps:",
+    "      - run: pnpm install --frozen-lockfile",
+    `      - run: ${runLine}`,
+    "      - run: pnpm verify:tests",
+  ].join("\n");
+}
+
+for (const command of [
+  "pnpm exec playwright install chromium",
+  "pnpm exec playwright install --with-deps chromium",
+  "pnpm exec playwright install-deps chromium",
+  "npx playwright install",
+]) {
+  test(`flags a step that runs \`${command}\``, () => {
+    const violations = findPlaywrightInstallViolations(workflowWithStep(command));
+
+    assertSingleViolation(violations, /apt mirror can stall the step silently/);
+  });
+}
+
+test("passes a workflow whose steps never install a Playwright browser or its system packages", () => {
+  const violations = findPlaywrightInstallViolations(workflowWithStep("pnpm verify:tests"));
+
+  assert.deepEqual(violations, []);
 });
 
 test("the real Verify workflow runs every part of pnpm verify", () => {

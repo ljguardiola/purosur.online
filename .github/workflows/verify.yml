@@ -118,36 +118,6 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Read the Playwright version
-        id: playwright-version
-        run: echo "value=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
-
-      # Keyed on the Playwright version, not the lockfile: the browser only changes with it. Only
-      # main saves the cache, which every `pull_request` run can read; a copy saved on
-      # `pull_request` would serve only that branch's later runs.
-      - name: Restore Playwright browsers
-        id: playwright-cache
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.value }}
-
-      # A cache hit still needs the OS packages Playwright's browsers link against,
-      # just not another download of the (unchanged) browser binary.
-      - if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: pnpm exec playwright install-deps chromium
-
-      - if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install --with-deps chromium
-
-      # Only one shard saves it, so two shards never race to save the same cache key.
-      - name: Save Playwright browsers
-        if: matrix.shard == 1 && github.event_name == 'push' && steps.playwright-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ steps.playwright-cache.outputs.cache-primary-key }}
-
       - name: Pull the cloud's Postgres image
         timeout-minutes: 10
         run: |
@@ -158,6 +128,17 @@ jobs:
           exit 1
         env:
           POSTGRES_IMAGE: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+
+      - name: Pull the Playwright image
+        timeout-minutes: 10
+        run: |
+          for delay in 0 15 30 60; do
+            sleep "$delay"
+            timeout 120 docker pull "$PLAYWRIGHT_SERVER_IMAGE" && exit 0
+          done
+          exit 1
+        env:
+          PLAYWRIGHT_SERVER_IMAGE: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
 
       - run: pnpm verify:tests --shard=${{ matrix.shard }}/4
         env:
@@ -182,7 +163,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Pull the catalog's Playwright image
+      - name: Pull the Playwright image
         timeout-minutes: 10
         run: |
           for delay in 0 15 30 60; do

@@ -15,7 +15,7 @@ const PLAYWRIGHT_CORE_DIRECTORY = dirname(
 
 const PLAYWRIGHT_SERVER_PORT = 3000;
 
-export const CATALOG_VISUAL_WS_ENDPOINT_ENV = "CATALOG_VISUAL_BROWSER_WS_ENDPOINT";
+export const PLAYWRIGHT_WS_ENDPOINT_ENV = "PLAYWRIGHT_SERVER_WS_ENDPOINT";
 
 export default async function setup(): Promise<() => Promise<void>> {
   let container: StartedTestContainer;
@@ -40,14 +40,14 @@ export default async function setup(): Promise<() => Promise<void>> {
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     throw new Error(
-      "packages/ui's catalog-visual project requires a working Docker daemon to run a remote " +
-        `Chromium via Testcontainers (image ${PLAYWRIGHT_SERVER_IMAGE}). Starting the container ` +
+      "The browser test projects require a working Docker daemon to run a remote Chromium " +
+        `via Testcontainers (image ${PLAYWRIGHT_SERVER_IMAGE}). Starting the container ` +
         `failed: ${reason}. Start Docker and retry; these tests are never skipped.`,
       { cause: error },
     );
   }
 
-  process.env[CATALOG_VISUAL_WS_ENDPOINT_ENV] =
+  process.env[PLAYWRIGHT_WS_ENDPOINT_ENV] =
     `ws://${container.getHost()}:${container.getMappedPort(PLAYWRIGHT_SERVER_PORT)}/`;
 
   return async () => {

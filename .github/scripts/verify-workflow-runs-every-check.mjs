@@ -3,7 +3,7 @@ import { isAlias, isMap, isScalar, isSeq, parseDocument } from "yaml";
 
 const WORKFLOW_PATH = ".github/workflows/verify.yml";
 const PACKAGE_JSON_PATH = "package.json";
-const INSTALLED_PLAYWRIGHT_PACKAGE_JSON_PATH = "packages/ui/node_modules/playwright/package.json";
+const INSTALLED_PLAYWRIGHT_PACKAGE_JSON_PATH = "node_modules/playwright/package.json";
 const CLOUD_POSTGRES_IMAGE = {
   label: "the cloud's Postgres image",
   setupPath: "apps/cloud/vitest.global-setup.postgres.ts",
@@ -11,12 +11,14 @@ const CLOUD_POSTGRES_IMAGE = {
   job: "tests",
   testsScript: "verify:tests",
 };
-const CATALOG_VISUAL_IMAGE = {
-  label: "the catalog's Playwright image",
-  setupPath: "packages/ui/vitest.global-setup.catalog-visual.ts",
+const PLAYWRIGHT_IMAGE = {
+  label: "the Playwright image",
+  setupPath: "vitest.global-setup.playwright-server.ts",
   constant: "PLAYWRIGHT_SERVER_IMAGE",
-  job: "visual",
-  testsScript: "verify:visual",
+};
+const PLAYWRIGHT_IMAGE_JOBS = {
+  tests: { ...PLAYWRIGHT_IMAGE, job: "tests", testsScript: "verify:tests" },
+  visual: { ...PLAYWRIGHT_IMAGE, job: "visual", testsScript: "verify:visual" },
 };
 
 function pullWithRetriesCommand(imageEnv) {
@@ -470,20 +472,43 @@ export function findCloudPostgresImageViolations(workflowSource, postgresSetupSo
     .violations;
 }
 
-export function findCatalogVisualImageViolations(
+export function findPlaywrightImageViolations(
   workflowSource,
-  catalogVisualSetupSource,
+  playwrightServerSetupSource,
   installedPlaywrightVersion,
+  job,
 ) {
+  const spec = PLAYWRIGHT_IMAGE_JOBS[job];
   const { image, violations } = findPrePulledImageViolations(
     workflowSource,
-    catalogVisualSetupSource,
-    CATALOG_VISUAL_IMAGE,
+    playwrightServerSetupSource,
+    spec,
   );
   if (image !== undefined && !image.includes(`:v${installedPlaywrightVersion}-`)) {
     violations.push(
-      `${CATALOG_VISUAL_IMAGE.label} \`${image}\` is not the installed Playwright version ${installedPlaywrightVersion}`,
+      `${spec.label} \`${image}\` is not the installed Playwright version ${installedPlaywrightVersion}`,
     );
+  }
+  return violations;
+}
+
+// An apt mirror can stall the step silently; the browsers come from the pinned Playwright image.
+export function findPlaywrightInstallViolations(workflowSource) {
+  const doc = parseDocument(workflowSource);
+  const jobsNode = resolveNode(doc, doc.get("jobs", true));
+  if (!isMap(jobsNode)) return [];
+
+  const violations = [];
+  for (const jobPair of jobsNode.items) {
+    const jobId = String(resolveScalar(doc, jobPair.key));
+    for (const step of steps(doc, resolveNode(doc, jobPair.value))) {
+      const run = resolveScalar(doc, mapGet(doc, step, "run"));
+      if (typeof run === "string" && /\bplaywright\s+install/.test(run)) {
+        violations.push(
+          `verify.yml's ${jobId} job installs a Playwright browser or its system packages at CI time (\`${run.trim()}\`); an apt mirror can stall the step silently, and the browsers come from the pinned Playwright image`,
+        );
+      }
+    }
   }
   return violations;
 }
@@ -497,13 +522,18 @@ export function checkRepository({
   const installedPlaywrightVersion = JSON.parse(
     readFile(INSTALLED_PLAYWRIGHT_PACKAGE_JSON_PATH),
   ).version;
+  const playwrightServerSetupSource = readFile(PLAYWRIGHT_IMAGE.setupPath);
   return [
     ...findVerifyWorkflowViolations(workflowSource, readFile(packageJsonPath)),
     ...findCloudPostgresImageViolations(workflowSource, readFile(CLOUD_POSTGRES_IMAGE.setupPath)),
-    ...findCatalogVisualImageViolations(
-      workflowSource,
-      readFile(CATALOG_VISUAL_IMAGE.setupPath),
-      installedPlaywrightVersion,
+    ...Object.keys(PLAYWRIGHT_IMAGE_JOBS).flatMap((job) =>
+      findPlaywrightImageViolations(
+        workflowSource,
+        playwrightServerSetupSource,
+        installedPlaywrightVersion,
+        job,
+      ),
     ),
+    ...findPlaywrightInstallViolations(workflowSource),
   ];
 }
