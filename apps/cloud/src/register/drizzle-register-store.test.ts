@@ -5,15 +5,18 @@ import { escalateOverdueAlerts } from "../alerts/alert-escalation.js";
 import { openAlert } from "../alerts/open-alert.js";
 import {
   alerts,
+  registerContingencyTicketKeys,
   registerEnrollmentAttempts,
   registerEnrollmentCodes,
   registerInstallations,
+  registerSnapshotKeys,
   registers,
 } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { issueDeviceToken } from "./device-token.js";
 import { DrizzleRegisterStore } from "./drizzle-register-store.js";
+import { generateInstallationKey } from "./installation-key.js";
 import {
   hashRegisterEnrollmentCode,
   registerEnrollmentCodeMatches,
@@ -99,6 +102,7 @@ function enrollWithCode(code: string, now = NOW) {
       clock: { now: () => now },
       tokens: { issue: issueDeviceToken },
       codes: { matches: registerEnrollmentCodeMatches },
+      keys: { generate: generateInstallationKey },
     },
     {
       code,
@@ -219,6 +223,7 @@ describe("DrizzleRegisterStore", () => {
         clock: { now: () => NOW },
         tokens: { issue: issueDeviceToken },
         codes: { matches: registerEnrollmentCodeMatches },
+        keys: { generate: generateInstallationKey },
       },
       {
         code: CODE,
@@ -243,11 +248,93 @@ describe("DrizzleRegisterStore", () => {
       revokedAt: null,
     });
     expect(JSON.stringify(installations)).not.toContain(outcome.deviceToken);
+    expect(installations.find((row) => row.id === outcome.deviceId)?.outboxChainKey).toBe(
+      outcome.keys.outboxChainKey,
+    );
+    expect(
+      await db
+        .select({ version: registerSnapshotKeys.version, key: registerSnapshotKeys.key })
+        .from(registerSnapshotKeys)
+        .where(eq(registerSnapshotKeys.registerId, registerId)),
+    ).toEqual(outcome.keys.snapshotKeyVersions);
+    expect(
+      await db
+        .select({
+          version: registerContingencyTicketKeys.version,
+          key: registerContingencyTicketKeys.key,
+        })
+        .from(registerContingencyTicketKeys)
+        .where(eq(registerContingencyTicketKeys.registerId, registerId)),
+    ).toEqual([outcome.keys.contingencyTicketKey]);
     const [code] = await db
       .select({ redeemedAt: registerEnrollmentCodes.redeemedAt })
       .from(registerEnrollmentCodes)
       .where(eq(registerEnrollmentCodes.registerId, registerId));
     expect(code?.redeemedAt).toEqual(NOW);
+  });
+
+  it("keeps each of a register's snapshot and contingency-ticket key versions, and answers only that register's", async () => {
+    const registerId = await insertRegister("Caja 1");
+    const otherRegisterId = await insertRegister("Caja 2");
+
+    await adapterStore().transaction(async (tx) => {
+      await tx.recordSnapshotKey(registerId, { version: 1, key: "snapshot-1" });
+      await tx.recordSnapshotKey(registerId, { version: 2, key: "snapshot-2" });
+      await tx.recordContingencyTicketKey(registerId, { version: 1, key: "ticket-1" });
+      await tx.recordSnapshotKey(otherRegisterId, { version: 1, key: "other-snapshot" });
+      await tx.recordContingencyTicketKey(otherRegisterId, { version: 1, key: "other-ticket" });
+    });
+    const held = await adapterStore().transaction((tx) => tx.lockRegisterKeys(registerId));
+
+    expect({
+      snapshotKeys: [...held.snapshotKeys].sort((a, b) => a.version - b.version),
+      contingencyTicketKeys: held.contingencyTicketKeys,
+    }).toEqual({
+      snapshotKeys: [
+        { version: 1, key: "snapshot-1" },
+        { version: 2, key: "snapshot-2" },
+      ],
+      contingencyTicketKeys: [{ version: 1, key: "ticket-1" }],
+    });
+  });
+
+  it("answers no key for a register that was never handed any", async () => {
+    const registerId = await insertRegister("Caja 1");
+
+    const held = await adapterStore().transaction((tx) => tx.lockRegisterKeys(registerId));
+
+    expect(held).toEqual({ snapshotKeys: [], contingencyTicketKeys: [] });
+  });
+
+  it.each([
+    ["snapshot", registerSnapshotKeys],
+    ["contingency-ticket", registerContingencyTicketKeys],
+  ] as const)(
+    "refuses a second %s key of the same version for one register",
+    async (_kind, table) => {
+      const registerId = await insertRegister("Caja 1");
+      await db.insert(table).values({ registerId, version: 1, key: "first" });
+
+      await expect(
+        db.insert(table).values({ registerId, version: 1, key: "second" }),
+      ).rejects.toThrow();
+    },
+  );
+
+  it("keeps an installation's outbox-chain key and answers it, with its register, when the installation is locked", async () => {
+    const registerId = await insertRegister("Caja 1");
+    const deviceId = await insertInstallation(registerId, "prefix");
+
+    const before = await adapterStore().transaction((tx) =>
+      tx.lockInstallationByTokenPrefix("prefix"),
+    );
+    await adapterStore().transaction((tx) => tx.recordOutboxChainKey(deviceId, "outbox-key"));
+    const after = await adapterStore().transaction((tx) =>
+      tx.lockInstallationByTokenPrefix("prefix"),
+    );
+
+    expect(before).toMatchObject({ deviceId, registerId, outboxChainKey: undefined });
+    expect(after).toMatchObject({ deviceId, registerId, outboxChainKey: "outbox-key" });
   });
 
   it("opens the register's enrollment alert: a Warning escalating in 24 hours, of All audience, that no one has closed", async () => {

@@ -1,4 +1,7 @@
 import type { EnrollmentCodeState } from "../model/enrollment-code.js";
+import type { VersionedKey } from "../model/installation-key.js";
+
+export type { VersionedKey };
 
 export interface Clock {
   now(): Date;
@@ -30,6 +33,14 @@ export interface InstallationTokenPorts {
   tokens: DeviceTokenRotator;
 }
 
+export interface InstallationKeyGenerator {
+  generate(): string;
+}
+
+export interface DeviceTokenRotationPorts extends InstallationTokenPorts {
+  keys: InstallationKeyGenerator;
+}
+
 export interface StoredDeviceToken {
   lookupPrefix: string;
   tokenHash: string;
@@ -38,7 +49,9 @@ export interface StoredDeviceToken {
 
 export interface LockedInstallation {
   deviceId: string;
+  registerId: string;
   revoked: boolean;
+  outboxChainKey: string | undefined;
   currentToken: StoredDeviceToken;
   pendingToken: StoredDeviceToken | undefined;
 }
@@ -52,6 +65,7 @@ export interface EnrollmentPorts {
   clock: Clock;
   tokens: DeviceTokenIssuer;
   codes: EnrollmentCodeVerifier;
+  keys: InstallationKeyGenerator;
 }
 
 export interface LockedEnrollmentCode extends EnrollmentCodeState {
@@ -68,6 +82,7 @@ export interface NewInstallation {
   tokenLookupPrefix: string;
   tokenHash: string;
   tokenIssuedAt: Date;
+  outboxChainKey: string;
   hostname: string;
   windowsVersion: string;
   enrolledAt: Date;
@@ -80,6 +95,11 @@ export interface EnrollmentAlert {
   windowsVersion: string;
   replacedInstallation: boolean;
   enrolledAt: Date;
+}
+
+export interface RegisterKeys {
+  snapshotKeys: VersionedKey[];
+  contingencyTicketKeys: VersionedKey[];
 }
 
 export interface RegisterStore {
@@ -99,6 +119,10 @@ export interface RegisterStoreTransaction {
   lockInstallationByTokenPrefix(lookupPrefix: string): Promise<LockedInstallation | undefined>;
   promotePendingDeviceToken(deviceId: string): Promise<void>;
   recordPendingDeviceToken(deviceId: string, token: StoredDeviceToken): Promise<void>;
+  recordOutboxChainKey(deviceId: string, outboxChainKey: string): Promise<void>;
+  lockRegisterKeys(registerId: string): Promise<RegisterKeys>;
+  recordSnapshotKey(registerId: string, key: VersionedKey): Promise<void>;
+  recordContingencyTicketKey(registerId: string, key: VersionedKey): Promise<void>;
   markEnrollmentCodeRedeemed(registerId: string, redeemedAt: Date): Promise<void>;
   openEnrollmentAlert(alert: EnrollmentAlert): Promise<void>;
 }

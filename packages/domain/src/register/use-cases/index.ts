@@ -8,23 +8,28 @@ export type {
   EnrollInstallationOutcome,
 } from "./enroll-installation.js";
 export { enrollInstallation } from "./enroll-installation.js";
+export type { InstallationKeys } from "./installation-keys.js";
 export type {
   Clock,
   DeviceTokenIssuer,
+  DeviceTokenRotationPorts,
   DeviceTokenRotator,
   EnrollmentAlert,
   EnrollmentAttemptKey,
   EnrollmentCodeVerifier,
   EnrollmentPorts,
+  InstallationKeyGenerator,
   InstallationTokenPorts,
   IssuedDeviceToken,
   LockedEnrollmentCode,
   LockedInstallation,
   NewInstallation,
   PresentedDeviceToken,
+  RegisterKeys,
   RegisterStore,
   RegisterStoreTransaction,
   StoredDeviceToken,
+  VersionedKey,
 } from "./register-store.js";
 export type {
   RotateDeviceTokenInput,

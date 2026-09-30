@@ -5,17 +5,21 @@ import type {
   LockedEnrollmentCode,
   LockedInstallation,
   NewInstallation,
+  RegisterKeys,
   RegisterStore,
   RegisterStoreTransaction,
   StoredDeviceToken,
+  VersionedKey,
 } from "@purosur/domain/register/use-cases";
 import { and, asc, desc, eq, gt, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
 import {
+  registerContingencyTicketKeys,
   registerEnrollmentAttempts,
   registerEnrollmentCodes,
   registerInstallations,
+  registerSnapshotKeys,
 } from "../platform/db/schema.js";
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
@@ -126,7 +130,9 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
     const [row] = await this.tx
       .select({
         deviceId: registerInstallations.id,
+        registerId: registerInstallations.registerId,
         revokedAt: registerInstallations.revokedAt,
+        outboxChainKey: registerInstallations.outboxChainKey,
         tokenLookupPrefix: registerInstallations.tokenLookupPrefix,
         tokenHash: registerInstallations.tokenHash,
         tokenIssuedAt: registerInstallations.tokenIssuedAt,
@@ -148,7 +154,9 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
     const { pendingTokenLookupPrefix, pendingTokenHash, pendingTokenIssuedAt } = row;
     return {
       deviceId: row.deviceId,
+      registerId: row.registerId,
       revoked: row.revokedAt !== null,
+      outboxChainKey: row.outboxChainKey ?? undefined,
       currentToken: {
         lookupPrefix: row.tokenLookupPrefix,
         tokenHash: row.tokenHash,
@@ -190,6 +198,38 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
         pendingTokenIssuedAt: token.issuedAt,
       })
       .where(eq(registerInstallations.id, deviceId));
+  }
+
+  async recordOutboxChainKey(deviceId: string, outboxChainKey: string): Promise<void> {
+    await this.tx
+      .update(registerInstallations)
+      .set({ outboxChainKey })
+      .where(eq(registerInstallations.id, deviceId));
+  }
+
+  // A register has no key row to lock before its first key, and locking its registers row would
+  // take the register before its enrollment code, the reverse of what code emission does.
+  async lockRegisterKeys(registerId: string): Promise<RegisterKeys> {
+    await this.tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${`register_keys:${registerId}`}, 0))`,
+    );
+    const versionsOf = (table: typeof registerSnapshotKeys) =>
+      this.tx
+        .select({ version: table.version, key: table.key })
+        .from(table)
+        .where(eq(table.registerId, registerId));
+    return {
+      snapshotKeys: await versionsOf(registerSnapshotKeys),
+      contingencyTicketKeys: await versionsOf(registerContingencyTicketKeys),
+    };
+  }
+
+  async recordSnapshotKey(registerId: string, key: VersionedKey): Promise<void> {
+    await this.tx.insert(registerSnapshotKeys).values({ registerId, ...key });
+  }
+
+  async recordContingencyTicketKey(registerId: string, key: VersionedKey): Promise<void> {
+    await this.tx.insert(registerContingencyTicketKeys).values({ registerId, ...key });
   }
 
   async markEnrollmentCodeRedeemed(registerId: string, redeemedAt: Date): Promise<void> {

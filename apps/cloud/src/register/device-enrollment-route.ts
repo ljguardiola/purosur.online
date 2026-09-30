@@ -13,6 +13,7 @@ import { readValidatedBody } from "../platform/request-body-schema.js";
 import { answerErrorsWithCloudEnvelope } from "./cloud-error-handler.js";
 import { issueDeviceToken } from "./device-token.js";
 import { DrizzleRegisterStore } from "./drizzle-register-store.js";
+import { generateInstallationKey } from "./installation-key.js";
 import { registerEnrollmentCodeMatches } from "./register-enrollment-code.js";
 
 export interface DeviceEnrollmentRouteOptions<TQueryResult extends PgQueryResultHKT> {
@@ -34,6 +35,7 @@ export function registerDeviceEnrollmentRoute<TQueryResult extends PgQueryResult
     clock: { now: options.now ?? (() => new Date()) },
     tokens: { issue: issueDeviceToken },
     codes: { matches: registerEnrollmentCodeMatches },
+    keys: { generate: generateInstallationKey },
   };
 
   app.register(async (scope) => {

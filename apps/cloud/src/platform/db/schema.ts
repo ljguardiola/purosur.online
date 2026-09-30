@@ -431,6 +431,8 @@ export const registerInstallations = pgTable(
     pendingTokenLookupPrefix: text("pending_token_lookup_prefix"),
     pendingTokenHash: text("pending_token_hash"),
     pendingTokenIssuedAt: timestamp("pending_token_issued_at", { withTimezone: true }),
+    // Null only for an installation enrolled before installations were handed one.
+    outboxChainKey: text("outbox_chain_key"),
     hostname: text("hostname").notNull(),
     windowsVersion: text("windows_version").notNull(),
     enrolledAt: timestamp("enrolled_at", { withTimezone: true }).notNull(),
@@ -445,6 +447,27 @@ export const registerInstallations = pgTable(
       .on(table.registerId)
       .where(sql`${table.revokedAt} is null`),
   ],
+);
+
+function registerKeyVersions(name: string) {
+  return pgTable(
+    name,
+    {
+      registerId: uuid("register_id")
+        .notNull()
+        .references(() => registers.id),
+      version: integer("version").notNull(),
+      key: text("key").notNull(),
+      createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    },
+    (table) => [primaryKey({ columns: [table.registerId, table.version] })],
+  );
+}
+
+export const registerSnapshotKeys = registerKeyVersions("register_snapshot_keys");
+
+export const registerContingencyTicketKeys = registerKeyVersions(
+  "register_contingency_ticket_keys",
 );
 
 export const registerEnrollmentAttemptKeyKind = pgEnum("register_enrollment_attempt_key_kind", [

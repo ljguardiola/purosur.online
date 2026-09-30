@@ -4,6 +4,7 @@ import {
   derivedDeviceTokens,
   FakeRegisterStore,
   FixedClock,
+  SequentialInstallationKeys,
   storedTokenOf,
 } from "./test-support/fake-register-store.js";
 
@@ -18,12 +19,20 @@ const CURRENT = "cur.secret";
 const SUCCESSOR_OF_CURRENT = "next-of-cur.secret";
 const PENDING = "pen.secret";
 const SUCCESSOR_OF_PENDING = "next-of-pen.secret";
+const OUTBOX_CHAIN_KEY = "outbox-chain-key";
+const KEYS = {
+  snapshotKeyVersions: [{ version: 1, key: "snapshot-1" }],
+  contingencyTicketKey: { version: 1, key: "ticket-1" },
+  outboxChainKey: OUTBOX_CHAIN_KEY,
+};
 
 function storeWith(
   overrides: Partial<{
     currentIssuedAt: Date;
     pending: { token: string; issuedAt: Date } | null;
     revokedAt: Date | null;
+    outboxChainKey: string | null;
+    registerKeys: boolean;
   }> = {},
 ): FakeRegisterStore {
   const store = new FakeRegisterStore();
@@ -36,17 +45,28 @@ function storeWith(
     tokenHash: current.tokenHash,
     tokenIssuedAt: current.issuedAt,
     pendingToken: pending ? storedTokenOf(pending.token, pending.issuedAt) : null,
+    outboxChainKey:
+      overrides.outboxChainKey === undefined ? OUTBOX_CHAIN_KEY : overrides.outboxChainKey,
     hostname: "CAJA-MOSTRADOR",
     windowsVersion: "Windows 11 Pro 10.0.26100",
     enrolledAt: ENROLLED,
     revokedAt: overrides.revokedAt ?? null,
   });
+  if (overrides.registerKeys ?? true) {
+    store.seedSnapshotKey({ registerId: "register-1", version: 1, key: "snapshot-1" });
+    store.seedContingencyTicketKey({ registerId: "register-1", version: 1, key: "ticket-1" });
+  }
   return store;
 }
 
 function rotate(store: FakeRegisterStore, deviceToken: string) {
   return rotateDeviceToken(
-    { store, clock: new FixedClock(NOW), tokens: derivedDeviceTokens },
+    {
+      store,
+      clock: new FixedClock(NOW),
+      tokens: derivedDeviceTokens,
+      keys: new SequentialInstallationKeys(),
+    },
     { deviceToken },
   );
 }
@@ -57,7 +77,7 @@ describe("rotateDeviceToken", () => {
 
     const outcome = await rotate(store, CURRENT);
 
-    expect(outcome).toEqual({ kind: "rotated", deviceToken: SUCCESSOR_OF_CURRENT });
+    expect(outcome).toEqual({ kind: "rotated", deviceToken: SUCCESSOR_OF_CURRENT, keys: KEYS });
     expect(store.snapshot().installations[0]?.pendingToken).toEqual(
       storedTokenOf(SUCCESSOR_OF_CURRENT, NOW),
     );
@@ -79,9 +99,9 @@ describe("rotateDeviceToken", () => {
 
     const outcome = await rotate(store, CURRENT);
 
-    expect(outcome).toEqual({ kind: "rotated", deviceToken: SUCCESSOR_OF_CURRENT });
+    expect(outcome).toEqual({ kind: "rotated", deviceToken: SUCCESSOR_OF_CURRENT, keys: KEYS });
     expect(store.snapshot()).toEqual(before);
-    expect(store.operationOrder).toEqual(["lockInstallationByTokenPrefix"]);
+    expect(store.operationOrder).toEqual(["lockInstallationByTokenPrefix", "lockRegisterKeys"]);
   });
 
   it("gives back the same token, issued anew, when the current token retries after its successor's 7 days ran out", async () => {
@@ -92,7 +112,7 @@ describe("rotateDeviceToken", () => {
 
     const outcome = await rotate(store, CURRENT);
 
-    expect(outcome).toEqual({ kind: "rotated", deviceToken: SUCCESSOR_OF_CURRENT });
+    expect(outcome).toEqual({ kind: "rotated", deviceToken: SUCCESSOR_OF_CURRENT, keys: KEYS });
     expect(store.snapshot().installations[0]?.pendingToken).toEqual(
       storedTokenOf(SUCCESSOR_OF_CURRENT, NOW),
     );
@@ -103,7 +123,7 @@ describe("rotateDeviceToken", () => {
 
     const outcome = await rotate(store, CURRENT);
 
-    expect(outcome).toEqual({ kind: "rotated", deviceToken: SUCCESSOR_OF_CURRENT });
+    expect(outcome).toEqual({ kind: "rotated", deviceToken: SUCCESSOR_OF_CURRENT, keys: KEYS });
     expect(store.snapshot().installations[0]?.pendingToken).toEqual(
       storedTokenOf(SUCCESSOR_OF_CURRENT, NOW),
     );
@@ -115,7 +135,7 @@ describe("rotateDeviceToken", () => {
     const outcome = await rotate(store, PENDING);
 
     const installation = store.snapshot().installations[0];
-    expect(outcome).toEqual({ kind: "rotated", deviceToken: SUCCESSOR_OF_PENDING });
+    expect(outcome).toEqual({ kind: "rotated", deviceToken: SUCCESSOR_OF_PENDING, keys: KEYS });
     expect(installation?.tokenLookupPrefix).toBe("pen");
     expect(installation?.tokenIssuedAt).toEqual(MINUTES_AGO_5);
     expect(installation?.pendingToken).toEqual(storedTokenOf(SUCCESSOR_OF_PENDING, NOW));
@@ -130,15 +150,89 @@ describe("rotateDeviceToken", () => {
       "lockInstallationByTokenPrefix",
       "promotePendingDeviceToken",
       "recordPendingDeviceToken",
+      "lockRegisterKeys",
     ]);
   });
+
+  it("hands back every snapshot key version and the latest contingency-ticket key the register holds now, with the installation's own outbox-chain key", async () => {
+    const store = storeWith();
+    store.seedSnapshotKey({ registerId: "register-1", version: 2, key: "snapshot-2" });
+    store.seedContingencyTicketKey({ registerId: "register-1", version: 2, key: "ticket-2" });
+    store.seedSnapshotKey({ registerId: "register-other", version: 3, key: "other-snapshot" });
+    store.seedContingencyTicketKey({ registerId: "register-other", version: 3, key: "other" });
+
+    const outcome = await rotate(store, CURRENT);
+
+    expect(outcome).toEqual({
+      kind: "rotated",
+      deviceToken: SUCCESSOR_OF_CURRENT,
+      keys: {
+        snapshotKeyVersions: [
+          { version: 1, key: "snapshot-1" },
+          { version: 2, key: "snapshot-2" },
+        ],
+        contingencyTicketKey: { version: 2, key: "ticket-2" },
+        outboxChainKey: OUTBOX_CHAIN_KEY,
+      },
+    });
+  });
+
+  it("generates and keeps the keys of an installation enrolled before it was handed any", async () => {
+    const store = storeWith({ outboxChainKey: null, registerKeys: false });
+
+    const outcome = await rotate(store, CURRENT);
+
+    expect(outcome).toEqual({
+      kind: "rotated",
+      deviceToken: SUCCESSOR_OF_CURRENT,
+      keys: {
+        snapshotKeyVersions: [{ version: 1, key: "key-1" }],
+        contingencyTicketKey: { version: 1, key: "key-2" },
+        outboxChainKey: "key-3",
+      },
+    });
+    const state = store.snapshot();
+    expect(state.installations[0]?.outboxChainKey).toBe("key-3");
+    expect(state.snapshotKeys).toEqual([{ registerId: "register-1", version: 1, key: "key-1" }]);
+    expect(state.contingencyTicketKeys).toEqual([
+      { registerId: "register-1", version: 1, key: "key-2" },
+    ]);
+  });
+
+  it("locks the installation before its register's keys", async () => {
+    const store = storeWith({ outboxChainKey: null, registerKeys: false });
+
+    await rotate(store, CURRENT);
+
+    expect(store.operationOrder).toEqual([
+      "lockInstallationByTokenPrefix",
+      "recordPendingDeviceToken",
+      "lockRegisterKeys",
+      "recordSnapshotKey",
+      "recordContingencyTicketKey",
+      "recordOutboxChainKey",
+    ]);
+  });
+
+  it.each(["recordSnapshotKey", "recordContingencyTicketKey", "recordOutboxChainKey"] as const)(
+    "leaves everything as it was when %s fails",
+    async (operation) => {
+      const store = storeWith({ outboxChainKey: null, registerKeys: false });
+      store.failingWrites.add(operation);
+      const before = store.snapshot();
+
+      await expect(rotate(store, CURRENT)).rejects.toThrow(`${operation} failed`);
+
+      expect(store.snapshot()).toEqual(before);
+    },
+  );
 
   it("rotates a token whose 7 days ran out", async () => {
     const store = storeWith({ currentIssuedAt: DAYS_AGO_8 });
 
     const outcome = await rotate(store, CURRENT);
 
-    expect(outcome).toEqual({ kind: "rotated", deviceToken: SUCCESSOR_OF_CURRENT });
+    expect(outcome).toEqual({ kind: "rotated", deviceToken: SUCCESSOR_OF_CURRENT, keys: KEYS });
   });
 
   it.each([

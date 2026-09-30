@@ -10,7 +10,7 @@ import {
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
 import { runQueuedBehindHeldLock } from "../test-support/queued-behind-held-lock.js";
-import { installationTokenPorts } from "./installation-token-ports.js";
+import { deviceTokenRotationPorts } from "./installation-token-ports.js";
 import { insertEnrolledInstallation } from "./test-support/enrolled-installation.js";
 
 const FIRST_ROTATION_AT = new Date("2026-09-29T12:00:00.000Z");
@@ -33,7 +33,7 @@ afterAll(async () => {
 
 function rotate(deviceToken: string, now: Date) {
   return rotateDeviceToken(
-    installationTokenPorts({ db, rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY, now: () => now }),
+    deviceTokenRotationPorts({ db, rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY, now: () => now }),
     { deviceToken },
   );
 }

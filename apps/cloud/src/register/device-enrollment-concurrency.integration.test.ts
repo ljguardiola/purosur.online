@@ -21,6 +21,7 @@ import {
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { issueDeviceToken } from "./device-token.js";
 import { DrizzleRegisterStore } from "./drizzle-register-store.js";
+import { generateInstallationKey } from "./installation-key.js";
 import {
   hashRegisterEnrollmentCode,
   registerEnrollmentCodeMatches,
@@ -58,6 +59,7 @@ function enroll(hostname: string) {
       clock: { now: () => now },
       tokens: { issue: issueDeviceToken },
       codes: { matches: registerEnrollmentCodeMatches },
+      keys: { generate: generateInstallationKey },
     },
     { code: CODE, sourceAddress: `203.0.113.${hostname.length}`, hostname, windowsVersion: "11" },
   );

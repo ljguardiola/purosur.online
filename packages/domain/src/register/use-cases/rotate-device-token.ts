@@ -1,6 +1,7 @@
 import { isDeviceTokenExpired } from "../model/device-token.js";
+import { type InstallationKeys, registerKeysHandedOver } from "./installation-keys.js";
 import { matchPresentedDeviceToken } from "./match-presented-device-token.js";
-import type { InstallationTokenPorts } from "./register-store.js";
+import type { DeviceTokenRotationPorts } from "./register-store.js";
 
 export interface RotateDeviceTokenInput {
   deviceToken: string;
@@ -8,10 +9,10 @@ export interface RotateDeviceTokenInput {
 
 export type RotateDeviceTokenOutcome =
   | { kind: "token_rejected" }
-  | { kind: "rotated"; deviceToken: string };
+  | { kind: "rotated"; deviceToken: string; keys: InstallationKeys };
 
 export async function rotateDeviceToken(
-  { store, clock, tokens }: InstallationTokenPorts,
+  { store, clock, tokens, keys }: DeviceTokenRotationPorts,
   input: RotateDeviceTokenInput,
 ): Promise<RotateDeviceTokenOutcome> {
   return store.transaction<RotateDeviceTokenOutcome>(async (tx) => {
@@ -38,6 +39,18 @@ export async function rotateDeviceToken(
         issuedAt: now,
       });
     }
-    return { kind: "rotated", deviceToken: successor.deviceToken };
+
+    // The installation is locked before its register's keys, the order enrollment takes them in.
+    const registerKeys = await registerKeysHandedOver(tx, keys, installation.registerId);
+    let { outboxChainKey } = installation;
+    if (outboxChainKey === undefined) {
+      outboxChainKey = keys.generate();
+      await tx.recordOutboxChainKey(installation.deviceId, outboxChainKey);
+    }
+    return {
+      kind: "rotated",
+      deviceToken: successor.deviceToken,
+      keys: { ...registerKeys, outboxChainKey },
+    };
   });
 }

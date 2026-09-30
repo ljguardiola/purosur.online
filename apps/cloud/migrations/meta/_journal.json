@@ -260,6 +260,13 @@
       "when": 1790726244188,
       "tag": "0036_device_token_rotation",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1790729957028,
+      "tag": "0037_installation_keys",
+      "breakpoints": true
     }
   ]
 }
