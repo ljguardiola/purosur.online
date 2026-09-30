@@ -161,6 +161,15 @@ describe("the open cash session", () => {
     expect(signedInPerson.userId()).toBeUndefined();
   });
 
+  it("signs nobody in when the time it was opened cannot be read", async () => {
+    await openCashSessionFor(deps(), 5000);
+    signedInPerson.clear();
+    database.prepare("UPDATE cash_sessions SET opened_at = 'not a date'").run();
+
+    expect(() => currentCashSession(database, signedInPerson)).toThrow();
+    expect(signedInPerson.userId()).toBeUndefined();
+  });
+
   it("names its opener with the permissions of the opener's role", async () => {
     await openCashSessionFor(deps(), 5000);
 

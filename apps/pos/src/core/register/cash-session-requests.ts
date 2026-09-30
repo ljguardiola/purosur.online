@@ -61,8 +61,7 @@ export function currentCashSession(
     firstName: "",
     access: { isAdministrator: false, permissionKeys: [] },
   };
-  signedInPerson.set(session.openedBy);
-  return {
+  const answer = {
     id: session.id,
     opened_at: session.openedAt.toISOString(),
     opened_by: {
@@ -71,6 +70,8 @@ export function currentCashSession(
       permission_keys: heldPermissionKeys(opener.access),
     },
   };
+  signedInPerson.set(session.openedBy);
+  return answer;
 }
 
 export interface ResumeSignedInPersonDeps {
