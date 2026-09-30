@@ -581,7 +581,6 @@ describe("App", () => {
     await expect
       .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
       .not.toBeInTheDocument();
-    await expect.element(screen.getByRole("button", { name: "Salir" })).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
   });
 
@@ -744,7 +743,6 @@ describe("App", () => {
     await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
     await expect.element(screen.getByRole("navigation").getByText("Ada")).toBeVisible();
     await expect.element(screen.getByText("Sesión abierta 09:02")).toBeVisible();
-    await expect.element(screen.getByRole("button", { name: "Salir" })).not.toBeInTheDocument();
     expect(opened).toEqual([10_000]);
   });
 

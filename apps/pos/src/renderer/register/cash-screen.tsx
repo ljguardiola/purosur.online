@@ -21,7 +21,7 @@ export function CashScreen({ person, registerName, openedAt, loadCashBalance }: 
 
   return (
     <div className="flex h-screen w-screen bg-surface">
-      <OpenSessionRail firstName={person.first_name} current="cash" />
+      <OpenSessionRail firstName={person.first_name} registerName={registerName} current="cash" />
       <main className="flex flex-1 flex-col gap-1.5 p-8">
         <SessionEyebrow registerName={registerName} openedAt={openedAt} />
         <h1 className="text-display text-text-accent">Caja</h1>
@@ -32,7 +32,7 @@ export function CashScreen({ person, registerName, openedAt, loadCashBalance }: 
           size="large"
           fullWidth
           icon={<Lock />}
-          onPress={() => void navigate({ to: "/cash-count" })}
+          onPress={() => void navigate({ to: "/cash-count", search: { leaving: false } })}
         >
           Cerrar caja
         </Button>

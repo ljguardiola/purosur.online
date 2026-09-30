@@ -11,7 +11,7 @@ export type OpenSessionScreenProps = {
 export function OpenSessionScreen({ person, registerName, openedAt }: OpenSessionScreenProps) {
   return (
     <div className="flex h-screen w-screen bg-surface">
-      <OpenSessionRail firstName={person.first_name} current="sale" />
+      <OpenSessionRail firstName={person.first_name} registerName={registerName} current="sale" />
       <main className="flex flex-1 flex-col gap-1.5 p-8">
         <SessionEyebrow registerName={registerName} openedAt={openedAt} />
         <h1 className="text-display text-text-accent">Venta en curso</h1>

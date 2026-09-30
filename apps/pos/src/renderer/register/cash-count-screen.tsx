@@ -137,7 +137,7 @@ export function CashCountScreen({
 
   return (
     <div className="flex h-screen w-screen bg-surface">
-      <OpenSessionRail firstName={person.first_name} current="cash" />
+      <OpenSessionRail firstName={person.first_name} registerName={registerName} current="cash" />
       <form className="flex flex-1" noValidate onSubmit={submit}>
         <main className="flex flex-1 flex-col gap-4 p-8">
           <div className="flex flex-col gap-1.5">

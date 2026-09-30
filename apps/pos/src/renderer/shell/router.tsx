@@ -192,6 +192,7 @@ const cashRoute = createRoute({
 const cashCountRoute = createRoute({
   getParentRoute: () => sessionEyebrowRoute,
   path: "/cash-count",
+  validateSearch: (search: { leaving?: unknown }) => ({ leaving: search.leaving === true }),
   beforeLoad: ({ context }) => {
     const { id, openedAt, openedBy } = requireOpenSession(context);
     return { id, openedAt, openedBy };

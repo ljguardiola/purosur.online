@@ -36,16 +36,15 @@ describe("OpenSessionScreen", () => {
     await expect.element(screen.getByText("Sesión abierta 09:02", { exact: true })).toBeVisible();
   });
 
-  it("offers Venta, Caja and the first name of the person who opened, and no way out", async () => {
+  it("offers Venta, Caja and the first name of the person who opened, and a way out", async () => {
     const screen = await renderScreen();
 
     const rail = screen.getByRole("navigation", { name: "Menú de la caja" }).element();
 
     const items = Array.from(rail.querySelectorAll("button, a")).map((item) => item.textContent);
-    expect(items).toEqual(["Venta", "Caja"]);
+    expect(items).toEqual(["Venta", "Caja", "Salir"]);
     await expect.element(screen.getByText("Ada")).toBeVisible();
     expect(screen.container.textContent).not.toContain("sell_and_charge");
-    await expect.element(screen.getByRole("button", { name: "Salir" })).not.toBeInTheDocument();
   });
 
   it("marks Venta as the current screen", async () => {
