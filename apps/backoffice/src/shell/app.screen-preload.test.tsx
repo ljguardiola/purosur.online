@@ -1,11 +1,9 @@
-import { defineHelp } from "@purosur/ui";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { App } from "./app";
+import { emptyHelp } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
-
-const emptyHelp = defineHelp("es-AR", { categories: {}, articles: {} });
 
 let requested: string[] = [];
 let requests: PerformanceObserver;
