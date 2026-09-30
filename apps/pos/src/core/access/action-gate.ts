@@ -12,7 +12,8 @@ import type { SignInStore } from "./sqlite-sign-in-store";
 
 export type GuardedAction =
   | { permission: AuthorizablePermissionKey; authorization?: Authorization | undefined }
-  | { permission: Exclude<PermissionKey, AuthorizablePermissionKey>; authorization?: undefined };
+  | { permission: Exclude<PermissionKey, AuthorizablePermissionKey>; authorization?: undefined }
+  | { closesOwnCashSession: true; authorization?: undefined };
 
 export type GuardedOutcome<Result> =
   | { kind: "performed"; authorized_by: AuthorizedBy | null; result: Result }
@@ -39,9 +40,21 @@ export function createActionGate(deps: ActionGateDeps): ActionGate {
   return {
     async run(action, perform) {
       const signedInUserId = deps.signedInPerson.userId();
-      const access =
-        signedInUserId === undefined ? undefined : deps.store.activePerson(signedInUserId)?.access;
-      if (signedInUserId === undefined || access === undefined) {
+      if (signedInUserId === undefined) {
+        return { kind: "not_signed_in" };
+      }
+      if (!("permission" in action)) {
+        if (action.authorization !== undefined) {
+          return { kind: "lacks_permission" };
+        }
+        return {
+          kind: "performed",
+          authorized_by: null,
+          result: await perform({ signedInUserId, authorizedBy: null }),
+        };
+      }
+      const access = deps.store.activePerson(signedInUserId)?.access;
+      if (access === undefined) {
         return { kind: "not_signed_in" };
       }
       if (action.authorization === undefined) {

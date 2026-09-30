@@ -189,6 +189,74 @@ describe("running a guarded action for the signed-in person", () => {
   });
 });
 
+describe("closing the signed-in person's own cash session", () => {
+  function closeOwnCashSession(
+    sandbox: ActionGateDeps,
+    action: GuardedAction = { closesOwnCashSession: true },
+  ) {
+    const performed: GuardedActor[] = [];
+    const outcome = createActionGate(sandbox).run(action, async (actor) => {
+      performed.push(actor);
+      return "cash session closed";
+    });
+    return { outcome, performed };
+  }
+
+  it("runs for a signed-in person who holds no permission", async () => {
+    const { outcome, performed } = closeOwnCashSession(
+      deps({ accessOf: { u1: { isAdministrator: false, permissionKeys: [] } } }),
+    );
+
+    expect(await outcome).toEqual({
+      kind: "performed",
+      authorized_by: null,
+      result: "cash session closed",
+    });
+    expect(performed).toEqual([{ signedInUserId: "u1", authorizedBy: null }]);
+  });
+
+  it("runs for a signed-in person who no longer has any access", async () => {
+    const { outcome, performed } = closeOwnCashSession(deps({ accessOf: {} }));
+
+    expect((await outcome).kind).toBe("performed");
+    expect(performed).toEqual([{ signedInUserId: "u1", authorizedBy: null }]);
+  });
+
+  it("refuses when nobody is signed in", async () => {
+    const { outcome, performed } = closeOwnCashSession(deps({ signedInAs: null }));
+
+    expect(await outcome).toEqual({ kind: "not_signed_in" });
+    expect(performed).toEqual([]);
+  });
+
+  it("refuses an authorization, without checking the PIN", async () => {
+    const hashed: string[] = [];
+    const { outcome, performed } = closeOwnCashSession(
+      deps({
+        overrides: {
+          hashPin: async (pin) => {
+            hashed.push(pin);
+            return PIN_HASH;
+          },
+        },
+      }),
+      JSON.parse('{"closesOwnCashSession":true,"authorization":{"user_id":"u2","pin":"1234"}}'),
+    );
+
+    expect(await outcome).toEqual({ kind: "lacks_permission" });
+    expect(performed).toEqual([]);
+    expect(hashed).toEqual([]);
+  });
+
+  it("takes no authorization", () => {
+    expectTypeOf<{ closesOwnCashSession: true }>().toExtend<GuardedAction>();
+    expectTypeOf<{
+      closesOwnCashSession: true;
+      authorization: Authorization;
+    }>().not.toExtend<GuardedAction>();
+  });
+});
+
 describe("running a guarded action with another person's authorization", () => {
   it("runs the action with the person who authorized it, though the signed-in person lacks the permission", async () => {
     const { outcome, performed } = guardedCashIn(deps(), { user_id: "u2", pin: "1234" });
