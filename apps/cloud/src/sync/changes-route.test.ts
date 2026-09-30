@@ -8,6 +8,7 @@ import { branchSettings, changes, deviceState, locations, users } from "../platf
 import { issueDeviceToken } from "../register/device-token.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { registerChangesRoute } from "./changes-route.js";
 
@@ -47,7 +48,7 @@ beforeEach(async () => {
   await testDatabase.clear();
   app = Fastify();
   registerRouteAccess(app);
-  registerChangesRoute(app, { db, now: () => NOW });
+  registerChangesRoute(app, { db, rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY, now: () => NOW });
 });
 
 afterEach(async () => {
@@ -262,7 +263,10 @@ describe("GET /changes", () => {
     await broken.close();
     const failing = Fastify();
     registerRouteAccess(failing);
-    registerChangesRoute(failing, { db: broken.db });
+    registerChangesRoute(failing, {
+      db: broken.db,
+      rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
+    });
 
     const response = await failing.inject({
       method: "GET",

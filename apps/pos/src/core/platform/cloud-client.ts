@@ -109,3 +109,14 @@ export function getFromCloud(
 ): Promise<CloudResponse> {
   return requestWithRetries(deps, path, { method: "GET", headers });
 }
+
+export function postToCloudWithBearer(
+  deps: CloudClientDeps,
+  path: string,
+  bearerToken: string,
+): Promise<CloudResponse> {
+  return requestWithRetries(deps, path, {
+    method: "POST",
+    headers: { authorization: `Bearer ${bearerToken}` },
+  });
+}

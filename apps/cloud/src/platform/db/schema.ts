@@ -428,6 +428,10 @@ export const registerInstallations = pgTable(
       .references(() => registers.id),
     tokenLookupPrefix: text("token_lookup_prefix").notNull(),
     tokenHash: text("token_hash").notNull(),
+    tokenIssuedAt: timestamp("token_issued_at", { withTimezone: true }).notNull(),
+    pendingTokenLookupPrefix: text("pending_token_lookup_prefix"),
+    pendingTokenHash: text("pending_token_hash"),
+    pendingTokenIssuedAt: timestamp("pending_token_issued_at", { withTimezone: true }),
     hostname: text("hostname").notNull(),
     windowsVersion: text("windows_version").notNull(),
     enrolledAt: timestamp("enrolled_at", { withTimezone: true }).notNull(),
@@ -435,6 +439,9 @@ export const registerInstallations = pgTable(
   },
   (table) => [
     uniqueIndex("register_installations_token_lookup_prefix_key").on(table.tokenLookupPrefix),
+    uniqueIndex("register_installations_pending_token_lookup_prefix_key").on(
+      table.pendingTokenLookupPrefix,
+    ),
     uniqueIndex("register_installations_active_register_id_key")
       .on(table.registerId)
       .where(sql`${table.revokedAt} is null`),

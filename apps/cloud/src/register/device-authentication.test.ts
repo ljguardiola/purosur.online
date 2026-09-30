@@ -1,15 +1,25 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
 import { authenticateDevice } from "./device-authentication.js";
 import { issueDeviceToken } from "./device-token.js";
+import { installationTokenPorts } from "./installation-token-ports.js";
 import { insertEnrolledInstallation } from "./test-support/enrolled-installation.js";
+
+const NOW = new Date("2026-09-29T12:00:00.000Z");
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
+let ports: ReturnType<typeof installationTokenPorts>;
 
 beforeAll(async () => {
   testDatabase = await buildTestDatabase();
   db = testDatabase.db;
+  ports = installationTokenPorts({
+    db,
+    rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
+    now: () => NOW,
+  });
 });
 
 afterAll(async () => {
@@ -22,13 +32,13 @@ beforeEach(async () => {
 
 describe("authenticateDevice", () => {
   it("treats a request without an Authorization header as anonymous", async () => {
-    expect(await authenticateDevice(db, undefined)).toEqual({ kind: "anonymous" });
+    expect(await authenticateDevice(ports, undefined)).toEqual({ kind: "anonymous" });
   });
 
   it("identifies the installation that holds the presented device token", async () => {
     const { deviceId, registerId, locationId, deviceToken } = await insertEnrolledInstallation(db);
 
-    expect(await authenticateDevice(db, `Bearer ${deviceToken}`)).toEqual({
+    expect(await authenticateDevice(ports, `Bearer ${deviceToken}`)).toEqual({
       kind: "installation",
       installation: { deviceId, registerId, locationId, revoked: false },
     });
@@ -39,7 +49,7 @@ describe("authenticateDevice", () => {
       revokedAt: new Date("2026-09-29T09:00:00.000Z"),
     });
 
-    expect(await authenticateDevice(db, `Bearer ${deviceToken}`)).toEqual({
+    expect(await authenticateDevice(ports, `Bearer ${deviceToken}`)).toEqual({
       kind: "installation",
       installation: { deviceId, registerId, locationId, revoked: true },
     });
@@ -48,7 +58,7 @@ describe("authenticateDevice", () => {
   it("reads the Bearer scheme regardless of its case", async () => {
     const { deviceId, registerId, locationId, deviceToken } = await insertEnrolledInstallation(db);
 
-    expect(await authenticateDevice(db, `bearer ${deviceToken}`)).toEqual({
+    expect(await authenticateDevice(ports, `bearer ${deviceToken}`)).toEqual({
       kind: "installation",
       installation: { deviceId, registerId, locationId, revoked: false },
     });
@@ -59,7 +69,7 @@ describe("authenticateDevice", () => {
     const [lookupPrefix] = deviceToken.split(".");
     const [, otherSecret] = issueDeviceToken().deviceToken.split(".");
 
-    expect(await authenticateDevice(db, `Bearer ${lookupPrefix}.${otherSecret}`)).toEqual({
+    expect(await authenticateDevice(ports, `Bearer ${lookupPrefix}.${otherSecret}`)).toEqual({
       kind: "rejected",
     });
   });
@@ -67,7 +77,7 @@ describe("authenticateDevice", () => {
   it("rejects a well-formed token no installation holds", async () => {
     await insertEnrolledInstallation(db);
 
-    expect(await authenticateDevice(db, `Bearer ${issueDeviceToken().deviceToken}`)).toEqual({
+    expect(await authenticateDevice(ports, `Bearer ${issueDeviceToken().deviceToken}`)).toEqual({
       kind: "rejected",
     });
   });
@@ -81,6 +91,6 @@ describe("authenticateDevice", () => {
   ])("rejects an Authorization header with %s", async (_case, header) => {
     const { deviceToken } = await insertEnrolledInstallation(db);
 
-    expect(await authenticateDevice(db, header(deviceToken))).toEqual({ kind: "rejected" });
+    expect(await authenticateDevice(ports, header(deviceToken))).toEqual({ kind: "rejected" });
   });
 });

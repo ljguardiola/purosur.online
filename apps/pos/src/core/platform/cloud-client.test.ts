@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { type CloudClientDeps, getFromCloud, postToCloud } from "./cloud-client";
+import {
+  type CloudClientDeps,
+  getFromCloud,
+  postToCloud,
+  postToCloudWithBearer,
+} from "./cloud-client";
 
 const CLOUD_URL = "https://staging.purosur.online";
 
@@ -202,5 +207,65 @@ describe("getFromCloud", () => {
     const { deps } = clientAnswering(new TypeError("fetch failed"));
 
     expect(await getFromCloud(deps, "/api/changes?since=0", {})).toEqual({ kind: "unreachable" });
+  });
+});
+
+describe("postToCloudWithBearer", () => {
+  it("posts to the path with the token as a bearer credential and no body", async () => {
+    const { deps, requests } = clientAnswering(jsonResponse(200, { ok: true }));
+
+    const response = await postToCloudWithBearer(
+      deps,
+      "/api/devices/rotate-token",
+      "prefix.secret",
+    );
+
+    expect(response).toEqual({ kind: "ok", body: { ok: true } });
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.url).toBe(`${CLOUD_URL}/api/devices/rotate-token`);
+    expect(requests[0]?.method).toBe("POST");
+    expect(requests[0]?.headers.get("authorization")).toBe("Bearer prefix.secret");
+    expect(requests[0]?.headers.get("content-type")).toBeNull();
+    expect(await requests[0]?.text()).toBe("");
+  });
+
+  it("answers a refusal without retrying it when the cloud marks it not retryable", async () => {
+    const { deps, requests } = clientAnswering(
+      jsonResponse(401, envelope("device_token_rejected")),
+    );
+
+    const response = await postToCloudWithBearer(
+      deps,
+      "/api/devices/rotate-token",
+      "prefix.secret",
+    );
+
+    expect(response).toEqual({ kind: "error", error: envelope("device_token_rejected") });
+    expect(requests).toHaveLength(1);
+  });
+
+  it("presents the token again on every retry of an unavailable server", async () => {
+    const { deps, requests, waits } = clientAnswering(
+      jsonResponse(503, envelope("server_unavailable")),
+      jsonResponse(200, { ok: true }),
+    );
+
+    await postToCloudWithBearer(deps, "/api/devices/rotate-token", "prefix.secret");
+
+    expect(waits).toEqual([1000]);
+    expect(requests.map((request) => request.headers.get("authorization"))).toEqual([
+      "Bearer prefix.secret",
+      "Bearer prefix.secret",
+    ]);
+  });
+
+  it("answers unreachable when the cloud can't be reached", async () => {
+    const { deps } = clientAnswering(new Error("offline"));
+
+    expect(await postToCloudWithBearer(deps, "/api/devices/rotate-token", "prefix.secret")).toEqual(
+      {
+        kind: "unreachable",
+      },
+    );
   });
 });

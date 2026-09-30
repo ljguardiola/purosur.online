@@ -1,4 +1,5 @@
 import {
+  type CredentialsReplacement,
   type DeviceCredentials,
   type DeviceCredentialsAnswer,
   type DeviceCredentialsRequest,
@@ -8,6 +9,10 @@ import {
 export interface MainRequests {
   canStoreCredentials(): Promise<boolean>;
   storeCredentials(credentials: DeviceCredentials): Promise<boolean>;
+  replaceCredentials(
+    expectedDeviceToken: string,
+    credentials: DeviceCredentials,
+  ): Promise<CredentialsReplacement>;
   credentialsPresent(): Promise<boolean>;
   readCredentials(): Promise<DeviceCredentials | undefined>;
   receive(message: unknown): boolean;
@@ -52,6 +57,17 @@ export function createMainRequests(deps: {
         (answer) => (answer.type === "device-credentials-stored" ? answer.stored : undefined),
       );
     },
+    replaceCredentials(expectedDeviceToken, credentials) {
+      return ask(
+        (requestId) => ({
+          type: "replace-device-credentials",
+          request_id: requestId,
+          expected_device_token: expectedDeviceToken,
+          credentials,
+        }),
+        (answer) => (answer.type === "device-credentials-replaced" ? answer.outcome : undefined),
+      );
+    },
     credentialsPresent() {
       return ask(
         (requestId) => ({ type: "device-credentials-request", request_id: requestId }),
@@ -61,10 +77,9 @@ export function createMainRequests(deps: {
     async readCredentials() {
       const { credentials } = await ask(
         (requestId) => ({ type: "device-credentials-read-request", request_id: requestId }),
-        (answer) =>
-          answer.type === "device-credentials" ? { credentials: answer.credentials } : undefined,
+        (answer) => (answer.type === "device-credentials-read" ? answer : undefined),
       );
-      return credentials ?? undefined;
+      return credentials;
     },
     receive(message) {
       const answer = readDeviceCredentialsAnswer(message);

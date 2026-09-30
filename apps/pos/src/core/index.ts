@@ -18,10 +18,17 @@ import {
 } from "../shared/channel";
 import { CORE_READY_MESSAGE } from "../shared/core-readiness";
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
-import { type CloudClientDeps, getFromCloud, postToCloud } from "./platform/cloud-client";
+import {
+  type CloudClientDeps,
+  getFromCloud,
+  postToCloud,
+  postToCloudWithBearer,
+} from "./platform/cloud-client";
 import { openLocalDatabase } from "./platform/local-database";
 import { LOCAL_MIGRATIONS } from "./platform/local-migrations";
 import { createMainRequests } from "./platform/main-requests";
+import { rotateDeviceToken } from "./register/device-token-rotation";
+import { startDeviceTokenRotationSchedule } from "./register/device-token-rotation-schedule";
 import { enroll, generatePepper, installationReportFrom } from "./register/enrollment";
 import { answerRendererRequest } from "./register/renderer-requests";
 import { createRendererConnection } from "./renderer-connection";
@@ -142,6 +149,7 @@ const rendererRequestDeps = {
         canStoreCredentials: () => mainRequests.canStoreCredentials(),
         generatePepper,
         storeCredentials: (credentials) => mainRequests.storeCredentials(credentials),
+        now: () => new Date(),
       },
       typedCode,
     );
@@ -151,6 +159,23 @@ const rendererRequestDeps = {
     return outcome;
   },
 };
+
+if (cloudClient !== undefined) {
+  startDeviceTokenRotationSchedule({
+    rotate: () =>
+      rotateDeviceToken({
+        readCredentials: () => mainRequests.readCredentials(),
+        postToCloud: (path, bearerToken) => postToCloudWithBearer(cloudClient, path, bearerToken),
+        replaceCredentials: (expectedDeviceToken, credentials) =>
+          mainRequests.replaceCredentials(expectedDeviceToken, credentials),
+        now: () => new Date(),
+      }),
+    schedule: (run, delayMs) => {
+      const id = setTimeout(run, delayMs);
+      return () => clearTimeout(id);
+    },
+  });
+}
 
 const rendererConnection = createRendererConnection((data, reply) => {
   gateFromRenderer(data, (message) => {

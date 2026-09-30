@@ -12,7 +12,7 @@ export interface EnrolledInstallation {
 
 export async function insertEnrolledInstallation<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-  options: { revokedAt?: Date; registerName?: string } = {},
+  options: { revokedAt?: Date; tokenIssuedAt?: Date; registerName?: string } = {},
 ): Promise<EnrolledInstallation> {
   const locationId = await seededLocationId(db);
   const [register] = await db
@@ -29,6 +29,7 @@ export async function insertEnrolledInstallation<TQueryResult extends PgQueryRes
       registerId: register.id,
       tokenLookupPrefix: lookupPrefix,
       tokenHash,
+      tokenIssuedAt: options.tokenIssuedAt ?? new Date("2026-09-28T12:00:00.000Z"),
       hostname: "CAJA-MOSTRADOR",
       windowsVersion: "Windows 11 Pro 10.0.26100",
       enrolledAt: new Date("2026-09-28T12:00:00.000Z"),

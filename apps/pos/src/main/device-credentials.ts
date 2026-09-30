@@ -1,5 +1,7 @@
-import { readFileSync, renameSync, writeFileSync } from "node:fs";
+import { closeSync, fsyncSync, openSync, readFileSync, renameSync, writeSync } from "node:fs";
+import { dirname } from "node:path";
 import {
+  type CredentialsReplacement,
   type DeviceCredentials,
   type DeviceCredentialsAnswer,
   type DeviceCredentialsRequest,
@@ -22,11 +24,58 @@ export interface CredentialsFile {
 export interface DeviceCredentialsStore {
   canStore(): boolean;
   store(credentials: DeviceCredentials): boolean;
-  isPresent(): boolean;
+  replace(expectedDeviceToken: string, credentials: DeviceCredentials): CredentialsReplacement;
   read(): DeviceCredentials | undefined;
+  isPresent(): boolean;
 }
 
-export function credentialsFileAt(path: string): CredentialsFile {
+export interface DurableFileSystem {
+  openSync(path: string, flags: string): number;
+  writeSync(descriptor: number, contents: Buffer): number;
+  fsyncSync(descriptor: number): void;
+  closeSync(descriptor: number): void;
+  renameSync(from: string, to: string): void;
+}
+
+const nodeFileSystem: DurableFileSystem = {
+  openSync,
+  writeSync,
+  fsyncSync,
+  closeSync,
+  renameSync,
+};
+
+function writeAll(fileSystem: DurableFileSystem, descriptor: number, contents: Buffer): void {
+  let written = 0;
+  while (written < contents.length) {
+    const count = fileSystem.writeSync(descriptor, contents.subarray(written));
+    if (count <= 0) {
+      throw new Error("The disk took no more bytes");
+    }
+    written += count;
+  }
+}
+
+function withOpenFile(
+  fileSystem: DurableFileSystem,
+  path: string,
+  flags: string,
+  use: (descriptor: number) => void,
+): void {
+  const descriptor = fileSystem.openSync(path, flags);
+  try {
+    use(descriptor);
+  } finally {
+    fileSystem.closeSync(descriptor);
+  }
+}
+
+export function credentialsFileAt(
+  path: string,
+  options: { fileSystem?: DurableFileSystem; platform?: NodeJS.Platform } = {},
+): CredentialsFile {
+  const fileSystem = options.fileSystem ?? nodeFileSystem;
+  const platform = options.platform ?? process.platform;
   return {
     read() {
       try {
@@ -35,11 +84,26 @@ export function credentialsFileAt(path: string): CredentialsFile {
         return undefined;
       }
     },
-    // Written beside the file and renamed over it, so a crash mid-write never leaves half a file.
+    // Written beside the file and renamed over it, so a crash mid-write never leaves half a file;
+    // flushed before the rename and the folder after it, so a power cut can't leave the rename
+    // undone or the new file empty.
     write(contents) {
       const partial = `${path}.partial`;
-      writeFileSync(partial, contents);
-      renameSync(partial, path);
+      withOpenFile(fileSystem, partial, "w", (descriptor) => {
+        writeAll(fileSystem, descriptor, contents);
+        fileSystem.fsyncSync(descriptor);
+      });
+      fileSystem.renameSync(partial, path);
+      // Windows can't open a folder to flush it, and NTFS journals the rename itself.
+      if (platform !== "win32") {
+        try {
+          withOpenFile(fileSystem, dirname(path), "r", (descriptor) =>
+            fileSystem.fsyncSync(descriptor),
+          );
+        } catch {
+          // The new file already replaced the old one; only its survival of a power cut is at risk.
+        }
+      }
     },
   };
 }
@@ -48,18 +112,6 @@ export function createDeviceCredentialsStore(deps: {
   encryption: SecretEncryption;
   file: CredentialsFile;
 }): DeviceCredentialsStore {
-  function read(): DeviceCredentials | undefined {
-    const contents = deps.file.read();
-    if (contents === undefined) {
-      return undefined;
-    }
-    try {
-      return readDeviceCredentials(JSON.parse(deps.encryption.decryptString(contents)));
-    } catch {
-      return undefined;
-    }
-  }
-
   return {
     canStore() {
       return deps.encryption.isEncryptionAvailable();
@@ -75,10 +127,26 @@ export function createDeviceCredentialsStore(deps: {
         return false;
       }
     },
-    isPresent() {
-      return read() !== undefined;
+    read() {
+      const contents = deps.file.read();
+      if (contents === undefined) {
+        return undefined;
+      }
+      try {
+        return readDeviceCredentials(JSON.parse(deps.encryption.decryptString(contents)));
+      } catch {
+        return undefined;
+      }
     },
-    read,
+    replace(expectedDeviceToken, credentials) {
+      if (this.read()?.device_token !== expectedDeviceToken) {
+        return "superseded";
+      }
+      return this.store(credentials) ? "replaced" : "not_stored";
+    },
+    isPresent() {
+      return this.read() !== undefined;
+    },
   };
 }
 
@@ -93,11 +161,11 @@ export function answerCoreCredentialsRequest(
       stored: store.store(message.credentials),
     };
   }
-  if (message.type === "device-credentials-read-request") {
+  if (message.type === "replace-device-credentials") {
     return {
-      type: "device-credentials",
+      type: "device-credentials-replaced",
       request_id: message.request_id,
-      credentials: store.read() ?? null,
+      outcome: store.replace(message.expected_device_token, message.credentials),
     };
   }
   if (message.type === "device-credentials-storable-request") {
@@ -106,6 +174,12 @@ export function answerCoreCredentialsRequest(
       request_id: message.request_id,
       storable: store.canStore(),
     };
+  }
+  if (message.type === "device-credentials-read-request") {
+    const credentials = store.read();
+    return credentials === undefined
+      ? { type: "device-credentials-read", request_id: message.request_id }
+      : { type: "device-credentials-read", request_id: message.request_id, credentials };
   }
   return {
     type: "device-credentials-presence",

@@ -1,6 +1,6 @@
 {
-  "id": "339096b5-9eea-4a39-9fa4-5fdcb11c4bf0",
-  "prevId": "bfdd320f-3e5b-42c1-9058-c4c63a7601fb",
+  "id": "af4ffb03-0f9c-4ac9-860a-8861b434da78",
+  "prevId": "339096b5-9eea-4a39-9fa4-5fdcb11c4bf0",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -739,6 +739,132 @@
           "value": "\"categories\".\"parent_id\" <> \"categories\".\"id\""
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.changes": {
+      "name": "changes",
+      "schema": "",
+      "columns": {
+        "change_seq": {
+          "name": "change_seq",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "entity": {
+          "name": "entity",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "op": {
+          "name": "op",
+          "type": "change_op",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "at": {
+          "name": "at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "origin_device_id": {
+          "name": "origin_device_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "changes_entity_entity_id_idx": {
+          "name": "changes_entity_entity_id_idx",
+          "columns": [
+            {
+              "expression": "entity",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "change_seq",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.device_state": {
+      "name": "device_state",
+      "schema": "",
+      "columns": {
+        "device_id": {
+          "name": "device_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "last_pull_since": {
+          "name": "last_pull_since",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_pulled_at": {
+          "name": "last_pulled_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "device_state_device_id_register_installations_id_fk": {
+          "name": "device_state_device_id_register_installations_id_fk",
+          "tableFrom": "device_state",
+          "tableTo": "register_installations",
+          "columnsFrom": ["device_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.issuer_identification": {
@@ -2933,6 +3059,11 @@
       "name": "backoffice_rate_limit_key_kind",
       "schema": "public",
       "values": ["session", "source_address"]
+    },
+    "public.change_op": {
+      "name": "change_op",
+      "schema": "public",
+      "values": ["insert", "update"]
     },
     "public.passkey_management_challenge_kind": {
       "name": "passkey_management_challenge_kind",

@@ -257,8 +257,15 @@
     {
       "idx": 36,
       "version": "7",
-      "when": 1790726450850,
-      "tag": "0036_sync_changes",
+      "when": 1790726244188,
+      "tag": "0036_device_token_rotation",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1790729960377,
+      "tag": "0037_sync_changes",
       "breakpoints": true
     }
   ]

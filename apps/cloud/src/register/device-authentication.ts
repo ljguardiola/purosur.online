@@ -1,12 +1,10 @@
-import { and, eq } from "drizzle-orm";
-import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { registerInstallations, registers } from "../platform/db/schema.js";
-import { hashDeviceToken } from "./device-token.js";
+import {
+  authenticateInstallation,
+  type InstallationTokenPorts,
+} from "@purosur/domain/register/use-cases";
 
 interface AuthenticatedInstallation {
   deviceId: string;
-  registerId: string;
-  locationId: string;
   revoked: boolean;
 }
 
@@ -15,47 +13,29 @@ export type DeviceAuthentication =
   | { kind: "rejected" }
   | { kind: "installation"; installation: AuthenticatedInstallation };
 
-const BEARER_DEVICE_TOKEN =
-  /^bearer +(?<deviceToken>(?<lookupPrefix>[A-Za-z0-9_-]+)\.[A-Za-z0-9_-]+)$/i;
+const BEARER_DEVICE_TOKEN = /^bearer +(?<deviceToken>[A-Za-z0-9_.-]+)$/i;
 
-const REJECTED: DeviceAuthentication = { kind: "rejected" };
+export function readBearerDeviceToken(authorization: string): string | undefined {
+  return BEARER_DEVICE_TOKEN.exec(authorization)?.groups?.["deviceToken"];
+}
 
-export async function authenticateDevice<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
+export async function authenticateDevice(
+  ports: InstallationTokenPorts,
   authorization: string | undefined,
 ): Promise<DeviceAuthentication> {
   if (authorization === undefined) {
     return { kind: "anonymous" };
   }
-  const { deviceToken, lookupPrefix } = BEARER_DEVICE_TOKEN.exec(authorization)?.groups ?? {};
-  if (deviceToken === undefined || lookupPrefix === undefined) {
-    return REJECTED;
+  const deviceToken = readBearerDeviceToken(authorization);
+  if (deviceToken === undefined) {
+    return { kind: "rejected" };
   }
-  const [installation] = await db
-    .select({
-      deviceId: registerInstallations.id,
-      registerId: registers.id,
-      locationId: registers.locationId,
-      revokedAt: registerInstallations.revokedAt,
-    })
-    .from(registerInstallations)
-    .innerJoin(registers, eq(registers.id, registerInstallations.registerId))
-    .where(
-      and(
-        eq(registerInstallations.tokenLookupPrefix, lookupPrefix),
-        eq(registerInstallations.tokenHash, hashDeviceToken(deviceToken)),
-      ),
-    );
-  if (!installation) {
-    return REJECTED;
+  const outcome = await authenticateInstallation(ports, { deviceToken });
+  if (outcome.kind === "rejected") {
+    return { kind: "rejected" };
   }
   return {
     kind: "installation",
-    installation: {
-      deviceId: installation.deviceId,
-      registerId: installation.registerId,
-      locationId: installation.locationId,
-      revoked: installation.revokedAt !== null,
-    },
+    installation: { deviceId: outcome.deviceId, revoked: outcome.revoked },
   };
 }
