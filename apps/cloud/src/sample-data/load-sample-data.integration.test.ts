@@ -270,6 +270,8 @@ describe("loadSampleData", () => {
     const loadedProducts = await db
       .select({ id: products.id, version: products.version })
       .from(products);
+    const loadedTags = await db.select({ id: tags.id, version: tags.version }).from(tags);
+    expect(loadedTags.length).toBeGreaterThan(0);
     const loadedPrices = await db
       .select({ id: prices.id, priceListId: prices.priceListId })
       .from(prices);
@@ -285,6 +287,9 @@ describe("loadSampleData", () => {
         version: product.version,
         op: product.version === 1 ? "insert" : "update",
       });
+    }
+    for (const tag of loadedTags) {
+      expect(latestLogged("tag", tag.id)).toMatchObject({ version: tag.version });
     }
     for (const price of loadedPrices) {
       expect(latestLogged("price", price.id)).toMatchObject({

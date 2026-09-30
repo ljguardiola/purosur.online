@@ -2,7 +2,9 @@ import { changesPageSchema, cloudErrorSchema } from "@purosur/contracts";
 import {
   createCategory,
   createProduct,
+  createTag,
   deactivateProduct,
+  deactivateTag,
   editProduct,
 } from "@purosur/domain/catalog/use-cases";
 import { setPrice } from "@purosur/domain/pricing/use-cases";
@@ -23,6 +25,7 @@ import {
   prices,
   productBarcodes,
   products,
+  tags,
   users,
 } from "../platform/db/schema.js";
 import { DrizzlePricingStore } from "../pricing/drizzle-pricing-store.js";
@@ -332,7 +335,20 @@ describe("GET /changes carrying the catalog and the prices", () => {
     return outcome.category.id;
   }
 
-  async function newProduct(categoryId: string, barcodes: string[], name = "Arroz") {
+  async function newTag(name: string): Promise<string> {
+    const outcome = await createTag(catalogStore(), { name });
+    if (outcome.kind !== "created") {
+      throw new Error(`test setup: creating the tag ended as ${outcome.kind}`);
+    }
+    return outcome.tag.id;
+  }
+
+  async function newProduct(
+    categoryId: string,
+    barcodes: string[],
+    name = "Arroz",
+    tagIds: string[] = [],
+  ) {
     const outcome = await createProduct(catalogStore(), {
       name,
       categoryId,
@@ -340,6 +356,7 @@ describe("GET /changes carrying the catalog and the prices", () => {
       saleUnit: "UNIT",
       barcodes,
       netContent: { quantity: 1, unit: "KG" },
+      tagIds,
     });
     if (outcome.kind !== "created") {
       throw new Error(`test setup: creating the product ended as ${outcome.kind}`);
@@ -402,7 +419,8 @@ describe("GET /changes carrying the catalog and the prices", () => {
     const priceListId = await seededPriceListId(db);
     const parentId = await newCategory("Almacén");
     const leafId = await newCategory("Secos", parentId);
-    const product = await newProduct(leafId, ["7790001000011", "7790001000028"]);
+    const tagId = await newTag("Sin TACC");
+    const product = await newProduct(leafId, ["7790001000011", "7790001000028"], "Arroz", [tagId]);
     const price = await newPrice(product.id, priceListId, 125050);
 
     const page = await pullSinceSeeded(deviceToken);
@@ -422,6 +440,12 @@ describe("GET /changes carrying the catalog and the prices", () => {
       },
       {
         change_seq: 5,
+        entity: "tag",
+        entity_id: tagId,
+        row: { name: "Sin TACC", active: true, version: 1 },
+      },
+      {
+        change_seq: 6,
         entity: "product",
         entity_id: product.id,
         row: {
@@ -435,11 +459,12 @@ describe("GET /changes carrying the catalog and the prices", () => {
             { position: 0, code: "7790001000011" },
             { position: 1, code: "7790001000028" },
           ],
+          tag_ids: [tagId],
           version: 1,
         },
       },
       {
-        change_seq: 6,
+        change_seq: 7,
         entity: "price",
         entity_id: price.id,
         row: {
@@ -451,7 +476,37 @@ describe("GET /changes carrying the catalog and the prices", () => {
         },
       },
     ]);
-    expect(page).toMatchObject({ cursor: 6, has_more: false });
+    expect(page).toMatchObject({ cursor: 7, has_more: false });
+  });
+
+  it("gives a deactivated tag marked inactive, at its version, and a removed tag as a removal", async () => {
+    const { deviceToken } = await insertEnrolledInstallation(db);
+    const deactivatedId = await newTag("Vegano");
+    const removedId = await newTag("Temporal");
+    await deactivateTag(catalogStore(), deactivatedId);
+    await db.delete(tags).where(eq(tags.id, removedId));
+    await db
+      .insert(changes)
+      .values({ entity: "tag", entityId: removedId, version: 2, op: "delete" });
+
+    const page = await pullSinceSeeded(deviceToken);
+
+    expect(page.changes).toEqual([
+      {
+        change_seq: 3,
+        entity: "tag",
+        entity_id: deactivatedId,
+        row: { name: "Vegano", active: false, version: 2 },
+      },
+      { change_seq: 4, entity: "removal", entity_id: removedId, removed_entity: "tag", version: 2 },
+      {
+        change_seq: 5,
+        entity: "tag",
+        entity_id: deactivatedId,
+        row: { name: "Vegano", active: false, version: 2 },
+      },
+      { change_seq: 6, entity: "removal", entity_id: removedId, removed_entity: "tag", version: 2 },
+    ]);
   });
 
   it("gives every change of a row the row as it is now, so a deactivated product arrives marked with the barcodes it kept", async () => {
@@ -466,6 +521,7 @@ describe("GET /changes carrying the catalog and the prices", () => {
       saleUnit: "UNIT",
       barcodes: ["7790001000011", "7790001000028"],
       netContent: null,
+      tagIds: [],
       version: 1,
     });
     await deactivateProduct(catalogStore(), product.id);

@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { changes } from "../platform/db/schema.js";
 
-type PulledEntity = "branch_settings" | "category" | "product" | "price_list" | "price";
+type PulledEntity = "branch_settings" | "category" | "product" | "tag" | "price_list" | "price";
 
 export interface LoggedChange {
   entity: PulledEntity;

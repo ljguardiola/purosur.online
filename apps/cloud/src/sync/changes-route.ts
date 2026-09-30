@@ -64,9 +64,12 @@ function toChangeWire(change: PulledCloudChange): ChangesPage["changes"][number]
           active: change.row.active,
           net_content: change.row.netContent,
           barcodes: change.row.barcodes,
+          tag_ids: change.row.tagIds,
           version: change.row.version,
         },
       };
+    case "tag":
+      return { change_seq, entity: change.entity, entity_id, row: change.row };
     case "price_list":
       return { change_seq, entity: change.entity, entity_id, row: change.row };
     case "price":

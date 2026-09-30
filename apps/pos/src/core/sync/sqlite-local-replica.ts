@@ -110,6 +110,9 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
           case "product":
             catalog.product(change);
             break;
+          case "tag":
+            catalog.tag(change);
+            break;
           case "price_list":
             catalog.priceList(change);
             break;
@@ -180,9 +183,15 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
         "SELECT position, code, active FROM product_barcodes WHERE product_id = ? ORDER BY position",
       )
       .all(id);
+    const tagIds = this.database
+      .prepare<[string], { tag_id: string; active: number }>(
+        "SELECT tag_id, active FROM product_tags WHERE product_id = ? ORDER BY tag_id",
+      )
+      .all(id);
     return {
       ...fields,
       active: record.active === 1,
+      tag_ids: tagIds.map((tag) => ({ tag_id: tag.tag_id, active: tag.active === 1 })),
       net_content:
         net_content_quantity === null || net_content_unit === null
           ? null
@@ -190,6 +199,15 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
       barcodes: barcodes.map((barcode) => ({ ...barcode, active: barcode.active === 1 })),
       removed: record.removed === 1,
     };
+  }
+
+  tag(id: string) {
+    const record = this.database
+      .prepare<[string], { name: string; active: number; version: number; removed: number }>(
+        "SELECT name, active, version, removed FROM tags WHERE id = ?",
+      )
+      .get(id);
+    return record && { ...record, active: record.active === 1, removed: record.removed === 1 };
   }
 
   priceList(id: string) {

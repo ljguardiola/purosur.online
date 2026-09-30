@@ -347,11 +347,15 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
 
   async insertTag(name: string): Promise<{ id: string }> {
     try {
-      const [tag] = await this.tx.insert(tags).values({ name }).returning({ id: tags.id });
+      const [tag] = await this.tx
+        .insert(tags)
+        .values({ name })
+        .returning({ id: tags.id, version: tags.version });
       if (!tag) {
         throw new Error("inserting the tag returned no row");
       }
-      return tag;
+      this.pending.note({ entity: "tag", entityId: tag.id, version: tag.version, op: "insert" });
+      return { id: tag.id };
     } catch (error) {
       throw translateTagNameViolation(error);
     }
@@ -363,6 +367,7 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
         .update(tags)
         .set({ name: fields.name, active: fields.active, version: fields.version })
         .where(eq(tags.id, tagId));
+      this.pending.note({ entity: "tag", entityId: tagId, version: fields.version, op: "update" });
     } catch (error) {
       throw translateTagNameViolation(error);
     }

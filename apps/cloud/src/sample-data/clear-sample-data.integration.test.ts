@@ -470,9 +470,11 @@ describe("clearSampleData", () => {
     const removedProducts = await db
       .select({ id: products.id, version: products.version })
       .from(products);
+    const removedTags = await db.select({ id: tags.id, version: tags.version }).from(tags);
     const removedPrices = await db
       .select({ id: prices.id, priceListId: prices.priceListId })
       .from(prices);
+    expect(removedTags.length).toBeGreaterThan(0);
     expect(removedProducts.some((product) => product.version > 1)).toBe(true);
 
     expect((await clearSampleData(db)).kind).toBe("cleared");
@@ -491,6 +493,7 @@ describe("clearSampleData", () => {
       [
         ...removedCategories.map((row) => `category:${row.id}`),
         ...removedProducts.map((row) => `product:${row.id}`),
+        ...removedTags.map((row) => `tag:${row.id}`),
         ...removedPrices.map((row) => `price:${row.id}`),
       ].sort(),
     );
@@ -501,6 +504,9 @@ describe("clearSampleData", () => {
     }
     for (const product of removedProducts) {
       expect(deleteOf("product", product.id)).toMatchObject({ version: product.version + 1 });
+    }
+    for (const tag of removedTags) {
+      expect(deleteOf("tag", tag.id)).toMatchObject({ version: tag.version + 1 });
     }
     for (const price of removedPrices) {
       expect(deleteOf("price", price.id)).toMatchObject({

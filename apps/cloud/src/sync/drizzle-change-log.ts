@@ -4,9 +4,15 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { readBranchSettings } from "../branch/branch-settings-read-route.js";
 import { branchSettings, changes, deviceState } from "../platform/db/schema.js";
 import type { PulledCloudChange, RemovedEntity } from "./pulled-changes.js";
-import { readCategories, readPriceLists, readPrices, readProducts } from "./read-pulled-rows.js";
+import {
+  readCategories,
+  readPriceLists,
+  readPrices,
+  readProducts,
+  readTags,
+} from "./read-pulled-rows.js";
 
-type LoggedEntity = "branch_settings" | "category" | "product" | "price_list" | "price";
+type LoggedEntity = "branch_settings" | "category" | "product" | "tag" | "price_list" | "price";
 
 interface LoggedRow {
   changeSeq: number;
@@ -47,6 +53,7 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
     // Every change carries the row as it is now, so one read serves every change of that row.
     const categoryRows = await readCategories(this.tx, idsOf(logged, "category"));
     const productRows = await readProducts(this.tx, idsOf(logged, "product"));
+    const tagRows = await readTags(this.tx, idsOf(logged, "tag"));
     const priceListRows = await readPriceLists(this.tx, idsOf(logged, "price_list"));
     const priceRows = await readPrices(this.tx, idsOf(logged, "price"));
     const settingsRow = logged.some((row) => row.entity === "branch_settings")
@@ -58,6 +65,7 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
         absent(logged, "category", categoryRows),
       ),
       product: await this.latestLoggedVersions("product", absent(logged, "product", productRows)),
+      tag: await this.latestLoggedVersions("tag", absent(logged, "tag", tagRows)),
       price: await this.latestLoggedVersions("price", absent(logged, "price", priceRows)),
     };
 
@@ -92,6 +100,11 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
           pulled.push(row === undefined ? removal(entity) : { changeSeq, entity, entityId, row });
           break;
         }
+        case "tag": {
+          const row = tagRows.get(entityId);
+          pulled.push(row === undefined ? removal(entity) : { changeSeq, entity, entityId, row });
+          break;
+        }
         case "price": {
           const row = priceRows.get(entityId);
           pulled.push(row === undefined ? removal(entity) : { changeSeq, entity, entityId, row });
@@ -121,7 +134,7 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
           gt(changes.changeSeq, since),
           or(
             and(eq(changes.entity, "branch_settings"), eq(changes.entityId, locationId)),
-            inArray(changes.entity, ["category", "product"]),
+            inArray(changes.entity, ["category", "product", "tag"]),
             priceListId === undefined
               ? undefined
               : and(eq(changes.entity, "price_list"), eq(changes.entityId, priceListId)),

@@ -138,6 +138,7 @@ describe("two pulls of the same device overlapping, on a real Postgres", () => {
       saleUnit: "UNIT",
       barcodes: ["7790001000011"],
       netContent: null,
+      tagIds: [],
     });
     if (created.kind !== "created") {
       throw new Error("test setup: the product was not created");

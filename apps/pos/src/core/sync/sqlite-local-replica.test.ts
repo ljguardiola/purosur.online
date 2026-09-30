@@ -36,11 +36,14 @@ function branchSettingsChange(changeSeq: number, row: BranchSettingsBody): Regis
 
 const CATEGORY_ID = "9b2f1c3e-58a4-4f0e-8a4d-3c1f7a5e2d10";
 const PRODUCT_ID = "0b1d2f4a-6c3e-4b7d-9a58-1e2f3a4b5c6d";
+const TAG_ID = "3d594650-3436-4a2b-9b14-6a1f0f3b9a11";
+const OTHER_TAG_ID = "6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f";
 const PRICE_LIST_ID = "5a4b3c2d-1e0f-4a9b-8c7d-6e5f4a3b2c1d";
 const PRICE_ID = "7c9e6679-7425-40de-944b-e07fc1f90ae7";
 
 type CategoryRow = Extract<SyncChange, { entity: "category" }>["row"];
 type ProductRow = Extract<SyncChange, { entity: "product" }>["row"];
+type TagRow = Extract<SyncChange, { entity: "tag" }>["row"];
 type PriceListRow = Extract<SyncChange, { entity: "price_list" }>["row"];
 type PriceRow = Extract<SyncChange, { entity: "price" }>["row"];
 
@@ -60,9 +63,14 @@ function productRow(overrides: Partial<ProductRow> = {}): ProductRow {
       { position: 0, code: "7790001000011" },
       { position: 1, code: "7790001000028" },
     ],
+    tag_ids: [],
     version: 1,
     ...overrides,
   };
+}
+
+function tagRow(overrides: Partial<TagRow> = {}): TagRow {
+  return { name: "Sin TACC", active: true, version: 1, ...overrides };
 }
 
 function priceListRow(overrides: Partial<PriceListRow> = {}): PriceListRow {
@@ -92,6 +100,10 @@ function productChange(changeSeq: number, row: ProductRow): RegisterPulledChange
   return pulled({ change_seq: changeSeq, entity: "product", entity_id: PRODUCT_ID, row });
 }
 
+function tagChange(changeSeq: number, row: TagRow): RegisterPulledChange {
+  return pulled({ change_seq: changeSeq, entity: "tag", entity_id: TAG_ID, row });
+}
+
 function priceListChange(changeSeq: number, row: PriceListRow): RegisterPulledChange {
   return pulled({ change_seq: changeSeq, entity: "price_list", entity_id: PRICE_LIST_ID, row });
 }
@@ -102,7 +114,7 @@ function priceChange(changeSeq: number, row: PriceRow): RegisterPulledChange {
 
 function removalChange(
   changeSeq: number,
-  removedEntity: "category" | "product" | "price",
+  removedEntity: "category" | "product" | "tag" | "price",
   entityId: string,
   version: number,
 ): RegisterPulledChange {
@@ -506,5 +518,65 @@ describe("the register's local copy of what it pulls", () => {
     expect(replica.category(CATEGORY_ID)).toBeUndefined();
     expect(replica.product(PRODUCT_ID)).toBeUndefined();
     expect(await replica.savedCursor()).toBe(0);
+  });
+
+  it("saves a tag with its version, and a newer version replaces it while an older or the same one does not", async () => {
+    await save(tagChange(1, tagRow({ name: "Sin TACC", version: 2 })));
+    expect(replica.tag(TAG_ID)).toEqual({ ...tagRow({ version: 2 }), removed: false });
+
+    await save(
+      tagChange(2, tagRow({ name: "Vieja", version: 1 })),
+      tagChange(3, tagRow({ name: "Otra", version: 2 })),
+    );
+    expect(replica.tag(TAG_ID)).toMatchObject({ name: "Sin TACC", version: 2 });
+
+    await save(tagChange(4, tagRow({ name: "Libre de gluten", active: false, version: 3 })));
+    expect(replica.tag(TAG_ID)).toEqual({
+      name: "Libre de gluten",
+      active: false,
+      version: 3,
+      removed: false,
+    });
+  });
+
+  it("marks a removed tag as removed at its version, keeping it, and ignores a removal of a tag it never held or an older one", async () => {
+    await save(tagChange(1, tagRow({ version: 3 })));
+
+    await save(removalChange(2, "tag", TAG_ID, 3), removalChange(3, "tag", OTHER_TAG_ID, 2));
+    expect(replica.tag(TAG_ID)).toMatchObject({ removed: false, version: 3 });
+    expect(replica.tag(OTHER_TAG_ID)).toBeUndefined();
+
+    await save(removalChange(4, "tag", TAG_ID, 4));
+    expect(replica.tag(TAG_ID)).toEqual({ ...tagRow({ version: 4 }), removed: true });
+  });
+
+  it("saves the tags a product carries, marking the ones a newer version no longer carries as inactive instead of deleting them", async () => {
+    await save(productChange(1, productRow({ tag_ids: [TAG_ID, OTHER_TAG_ID] })));
+    expect(replica.product(PRODUCT_ID)?.tag_ids).toEqual([
+      { tag_id: TAG_ID, active: true },
+      { tag_id: OTHER_TAG_ID, active: true },
+    ]);
+
+    await save(productChange(2, productRow({ tag_ids: [TAG_ID], version: 2 })));
+    expect(replica.product(PRODUCT_ID)?.tag_ids).toEqual([
+      { tag_id: TAG_ID, active: true },
+      { tag_id: OTHER_TAG_ID, active: false },
+    ]);
+
+    await save(productChange(3, productRow({ tag_ids: [OTHER_TAG_ID, TAG_ID], version: 3 })));
+    expect(replica.product(PRODUCT_ID)?.tag_ids).toEqual([
+      { tag_id: TAG_ID, active: true },
+      { tag_id: OTHER_TAG_ID, active: true },
+    ]);
+  });
+
+  it("keeps a product's tags when an older version of it arrives, and marks them inactive when the product is removed", async () => {
+    await save(productChange(1, productRow({ tag_ids: [TAG_ID], version: 3 })));
+
+    await save(productChange(2, productRow({ tag_ids: [], version: 2 })));
+    expect(replica.product(PRODUCT_ID)?.tag_ids).toEqual([{ tag_id: TAG_ID, active: true }]);
+
+    await save(removalChange(3, "product", PRODUCT_ID, 4));
+    expect(replica.product(PRODUCT_ID)?.tag_ids).toEqual([{ tag_id: TAG_ID, active: false }]);
   });
 });

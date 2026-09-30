@@ -15,6 +15,7 @@ export interface ProductRow {
   active: boolean;
   netContent: { quantity: number; unit: NetContentUnit } | null;
   barcodes: { position: number; code: string }[];
+  tagIds: string[];
   version: number;
 }
 
@@ -31,12 +32,19 @@ export interface PriceRow {
   version: number;
 }
 
-export type RemovedEntity = "category" | "product" | "price";
+export interface TagRow {
+  name: string;
+  active: boolean;
+  version: number;
+}
+
+export type RemovedEntity = "category" | "product" | "tag" | "price";
 
 export type PulledCloudChange = { changeSeq: number; entityId: string } & (
   | { entity: "branch_settings"; row: BranchSettingsRow }
   | { entity: "category"; row: CategoryRow }
   | { entity: "product"; row: ProductRow }
+  | { entity: "tag"; row: TagRow }
   | { entity: "price_list"; row: PriceListRow }
   | { entity: "price"; row: PriceRow }
   | { entity: "removal"; removedEntity: RemovedEntity; version: number }

@@ -57,8 +57,15 @@ const productChangeSchema = z.object({
       .object({ quantity: z.number(), unit: z.custom<NetContentUnit>(isNetContentUnit) })
       .nullable(),
     barcodes: z.array(z.object({ position: z.int(), code: z.string() })),
+    tag_ids: z.array(z.string()),
     version: z.int(),
   }),
+});
+
+const tagChangeSchema = z.object({
+  ...pulledChangeShape,
+  entity: z.literal("tag"),
+  row: z.object({ name: z.string(), active: z.boolean(), version: z.int() }),
 });
 
 const priceListChangeSchema = z.object({
@@ -82,7 +89,7 @@ const priceChangeSchema = z.object({
 const removalChangeSchema = z.object({
   ...pulledChangeShape,
   entity: z.literal("removal"),
-  removed_entity: z.enum(["category", "product", "price"]),
+  removed_entity: z.enum(["category", "product", "tag", "price"]),
   version: z.int(),
 });
 
@@ -93,6 +100,7 @@ export const changesPageSchema = z.object({
         branchSettingsChangeSchema,
         categoryChangeSchema,
         productChangeSchema,
+        tagChangeSchema,
         priceListChangeSchema,
         priceChangeSchema,
         removalChangeSchema,

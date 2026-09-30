@@ -27,6 +27,21 @@ CREATE TABLE product_barcodes (
   PRIMARY KEY (product_id, position)
 );
 
+CREATE TABLE product_tags (
+  product_id TEXT NOT NULL REFERENCES products (id),
+  tag_id TEXT NOT NULL,
+  active INTEGER NOT NULL CHECK (active IN (0, 1)),
+  PRIMARY KEY (product_id, tag_id)
+);
+
+CREATE TABLE tags (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  active INTEGER NOT NULL CHECK (active IN (0, 1)),
+  version INTEGER NOT NULL,
+  removed INTEGER NOT NULL DEFAULT 0 CHECK (removed IN (0, 1))
+);
+
 CREATE TABLE price_lists (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,

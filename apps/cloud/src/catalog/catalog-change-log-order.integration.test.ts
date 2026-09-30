@@ -39,6 +39,7 @@ describe("editing a product while another writer holds the change log, on a real
       saleUnit: "UNIT",
       barcodes: ["7790001000011"],
       netContent: null,
+      tagIds: [],
     });
     if (created.kind !== "created") {
       throw new Error("test setup: the product was not created");
@@ -56,6 +57,7 @@ describe("editing a product while another writer holds the change log, on a real
       saleUnit: "UNIT",
       barcodes: ["7790001000011", "7790001000028"],
       netContent: null,
+      tagIds: [],
       version: 1,
     });
     let claimNewBarcode: Promise<unknown> = Promise.resolve();

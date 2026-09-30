@@ -7,9 +7,11 @@ import {
   prices,
   productBarcodes,
   products,
+  productTags,
+  tags,
 } from "../platform/db/schema.js";
 import { PRICE_VERSION } from "../pricing/price-version.js";
-import type { CategoryRow, PriceListRow, PriceRow, ProductRow } from "./pulled-changes.js";
+import type { CategoryRow, PriceListRow, PriceRow, ProductRow, TagRow } from "./pulled-changes.js";
 
 // Every read takes a share lock on the rows it returns, so a row an operation is still writing
 // is read once that operation commits, and a row it removed is not read at all.
@@ -72,6 +74,20 @@ export async function readProducts<TQueryResult extends PgQueryResultHKT>(
       ),
     )
     .orderBy(asc(productBarcodes.position));
+  const assignedTags = await tx
+    .select({ productId: productTags.productId, tagId: productTags.tagId })
+    .from(productTags)
+    .where(
+      inArray(
+        productTags.productId,
+        rows.map((row) => row.id),
+      ),
+    )
+    .orderBy(asc(productTags.tagId));
+  const tagIdsByProduct = new Map<string, string[]>();
+  for (const { productId, tagId } of assignedTags) {
+    tagIdsByProduct.set(productId, [...(tagIdsByProduct.get(productId) ?? []), tagId]);
+  }
   const barcodesByProduct = new Map<string, { position: number; code: string }[]>();
   for (const { productId, position, code } of barcodes) {
     barcodesByProduct.set(productId, [
@@ -93,10 +109,27 @@ export async function readProducts<TQueryResult extends PgQueryResultHKT>(
             ? null
             : { quantity: row.netContentQuantity, unit: row.netContentUnit as NetContentUnit },
         barcodes: barcodesByProduct.get(row.id) ?? [],
+        tagIds: tagIdsByProduct.get(row.id) ?? [],
         version: row.version,
       },
     ]),
   );
+}
+
+export async function readTags<TQueryResult extends PgQueryResultHKT>(
+  tx: PgDatabase<TQueryResult>,
+  ids: readonly string[],
+): Promise<Map<string, TagRow>> {
+  if (ids.length === 0) {
+    return new Map();
+  }
+  const rows = await tx
+    .select({ id: tags.id, name: tags.name, active: tags.active, version: tags.version })
+    .from(tags)
+    .where(inArray(tags.id, [...ids]))
+    .orderBy(asc(tags.id))
+    .for("share");
+  return new Map(rows.map(({ id, ...row }) => [id, row]));
 }
 
 export async function readPriceLists<TQueryResult extends PgQueryResultHKT>(

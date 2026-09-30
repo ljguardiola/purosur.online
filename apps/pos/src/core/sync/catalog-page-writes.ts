@@ -44,6 +44,21 @@ export function prepareCatalogPageWrites(database: LocalDatabase) {
      WHERE product_id = @product_id
        AND position NOT IN (SELECT value FROM json_each(@positions))`,
   );
+  const saveProductTag = database.prepare(
+    `INSERT INTO product_tags (product_id, tag_id, active) VALUES (@product_id, @tag_id, 1)
+     ON CONFLICT (product_id, tag_id) DO UPDATE SET active = 1`,
+  );
+  const deactivateTagsOutside = database.prepare(
+    `UPDATE product_tags SET active = 0
+     WHERE product_id = @product_id AND tag_id NOT IN (SELECT value FROM json_each(@tag_ids))`,
+  );
+  const saveTag = database.prepare(
+    `INSERT INTO tags (id, name, active, version, removed)
+     VALUES (@id, @name, @active, @version, 0)
+     ON CONFLICT (id) DO UPDATE SET
+       name = excluded.name, active = excluded.active, version = excluded.version, removed = 0
+     WHERE excluded.version > tags.version`,
+  );
   const savePriceList = database.prepare(
     `INSERT INTO price_lists (id, name, version) VALUES (@id, @name, @version)
      ON CONFLICT (id) DO UPDATE SET name = excluded.name, version = excluded.version
@@ -68,12 +83,18 @@ export function prepareCatalogPageWrites(database: LocalDatabase) {
     product: database.prepare(
       "UPDATE products SET removed = 1, version = @version WHERE id = @id AND version < @version",
     ),
+    tag: database.prepare(
+      "UPDATE tags SET removed = 1, version = @version WHERE id = @id AND version < @version",
+    ),
     price: database.prepare(
       "UPDATE prices SET removed = 1, version = @version WHERE id = @id AND version < @version",
     ),
   };
   const deactivateBarcodes = database.prepare(
     "UPDATE product_barcodes SET active = 0 WHERE product_id = ?",
+  );
+  const deactivateProductTags = database.prepare(
+    "UPDATE product_tags SET active = 0 WHERE product_id = ?",
   );
 
   return {
@@ -104,9 +125,22 @@ export function prepareCatalogPageWrites(database: LocalDatabase) {
       for (const barcode of row.barcodes) {
         saveBarcode.run({ product_id: entity_id, position: barcode.position, code: barcode.code });
       }
+      for (const tagId of row.tag_ids) {
+        saveProductTag.run({ product_id: entity_id, tag_id: tagId });
+      }
+      deactivateTagsOutside.run({ product_id: entity_id, tag_ids: JSON.stringify(row.tag_ids) });
       deactivateBarcodesOutside.run({
         product_id: entity_id,
         positions: JSON.stringify(row.barcodes.map((barcode) => barcode.position)),
+      });
+    },
+
+    tag({ entity_id, row }: ChangeOf<"tag">): void {
+      saveTag.run({
+        id: entity_id,
+        name: row.name,
+        active: row.active ? 1 : 0,
+        version: row.version,
       });
     },
 
@@ -129,6 +163,7 @@ export function prepareCatalogPageWrites(database: LocalDatabase) {
       const removed = removals[removed_entity].run({ id: entity_id, version });
       if (removed_entity === "product" && removed.changes > 0) {
         deactivateBarcodes.run(entity_id);
+        deactivateProductTags.run(entity_id);
       }
     },
   };
