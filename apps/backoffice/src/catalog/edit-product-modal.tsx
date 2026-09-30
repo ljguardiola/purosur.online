@@ -42,6 +42,7 @@ import {
   productEditRequestFrom,
   productFormValues,
   SALE_UNIT_OPTIONS,
+  saleUnitHeldByDiscountError,
   tagInactiveError,
 } from "./product-form";
 import { TagsField, useStackedTagCreation, withCreatedTags } from "./product-tags-field";
@@ -149,6 +150,10 @@ export function EditProductModal({
       }
       if (outcome.kind === "tag_inactive") {
         showFieldError("tagIds", tagInactiveError(tags, outcome.tagId));
+        return;
+      }
+      if (outcome.kind === "sale_unit_held_by_discount") {
+        showFieldError("saleUnit", saleUnitHeldByDiscountError(outcome.discountName));
         return;
       }
       if (outcome.kind === "rate_limited") {
