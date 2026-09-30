@@ -22,6 +22,7 @@ import {
   Bell,
   Check,
   KeyRound,
+  Laptop,
   LifeBuoy,
   Mail,
   ShieldAlert,
@@ -105,6 +106,8 @@ function alertIcon(kind: string): Icon {
       return <ShieldAlert />;
     case "user_access_increased":
       return <ShieldPlus />;
+    case "register_enrolled":
+      return <Laptop />;
     default:
       return <Bell />;
   }
@@ -191,6 +194,22 @@ function accessIncreaseDescription(detail: Record<string, unknown>, targetName: 
   return "";
 }
 
+function registerEnrollmentDescription(
+  detail: Record<string, unknown>,
+  registerName: string,
+): string {
+  const { hostname, windowsVersion, replacedInstallation } = detail;
+  if (
+    typeof hostname !== "string" ||
+    typeof windowsVersion !== "string" ||
+    typeof replacedInstallation !== "boolean"
+  ) {
+    return "";
+  }
+  const replaced = replacedInstallation ? " La instalación que tenía antes dejó de funcionar." : "";
+  return `La caja «${registerName}» se dio de alta en el equipo «${hostname}» (${windowsVersion}).${replaced} Si no se reconoce esta alta, conviene revisarla desde Cajas registradoras.`;
+}
+
 function alertTitle(alert: AlertDetail): string {
   switch (alert.kind) {
     case "backoffice_passkey_changed": {
@@ -207,6 +226,8 @@ function alertTitle(alert: AlertDetail): string {
       return "Se bloqueó un origen de ingreso";
     case "user_access_increased":
       return "Se amplió el acceso de un usuario";
+    case "register_enrolled":
+      return "Se dio de alta una caja";
     default:
       return alert.kind;
   }
@@ -259,6 +280,8 @@ function alertDescription(alert: AlertDetail): string {
     }
     case "user_access_increased":
       return accessIncreaseDescription(alert.detail, targetName);
+    case "register_enrolled":
+      return registerEnrollmentDescription(alert.detail, targetName);
     default:
       return "";
   }

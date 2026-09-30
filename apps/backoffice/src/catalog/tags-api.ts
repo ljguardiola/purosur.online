@@ -68,7 +68,7 @@ function refusal(response: Response): RequestRefusal {
 export async function fetchTags(): Promise<FetchTagsOutcome> {
   let response: Response;
   try {
-    response = await fetch("/tags");
+    response = await fetch("/api/tags");
   } catch {
     return { kind: "failed" };
   }
@@ -83,7 +83,7 @@ export async function createTag(input: { name: string }): Promise<CreateTagOutco
   const requestBody: TagCreationBody = { name: input.name };
   let response: Response;
   try {
-    response = await sendJson("POST", "/tags", requestBody);
+    response = await sendJson("POST", "/api/tags", requestBody);
   } catch {
     return { kind: "failed" };
   }
@@ -105,7 +105,7 @@ export async function editTag(id: string, input: EditTagInput): Promise<EditTagO
   const requestBody: TagEditBody = { name: input.name, version: input.version };
   let response: Response;
   try {
-    response = await sendJson("PUT", `/tags/${id}`, requestBody);
+    response = await sendJson("PUT", `/api/tags/${id}`, requestBody);
   } catch {
     return { kind: "failed" };
   }
@@ -134,7 +134,7 @@ async function changeTagActivation(
 ): Promise<ChangeTagActivationOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/tags/${id}/deactivation`, { method });
+    response = await fetch(`/api/tags/${id}/deactivation`, { method });
   } catch {
     return { kind: "failed" };
   }

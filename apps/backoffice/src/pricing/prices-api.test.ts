@@ -52,7 +52,7 @@ test("fetchPrices lists the products, the pending count, the review window and t
       categories,
     },
   });
-  expect(fetch).toHaveBeenCalledWith("/prices?review=pending");
+  expect(fetch).toHaveBeenCalledWith("/api/prices?review=pending");
 });
 
 test("fetchPrices sends categoryId and search alongside review", async () => {
@@ -68,7 +68,7 @@ test("fetchPrices sends categoryId and search alongside review", async () => {
 
   await fetchPrices({ review: "all", categoryId: "category-1", search: "arroz" });
 
-  expect(fetch).toHaveBeenCalledWith("/prices?review=all&categoryId=category-1&search=arroz");
+  expect(fetch).toHaveBeenCalledWith("/api/prices?review=all&categoryId=category-1&search=arroz");
 });
 
 test("fetchPrices returns unauthenticated on 401", async () => {
@@ -146,7 +146,7 @@ test("setPrice posts the unit price and expected current price id, returning ok 
   });
 
   expect(outcome).toEqual({ kind: "ok" });
-  expect(fetch).toHaveBeenCalledWith("/products/product-1/price", {
+  expect(fetch).toHaveBeenCalledWith("/api/products/product-1/price", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ unitPrice: 800000, expectedCurrentPriceId: "price-1" }),
@@ -158,7 +158,7 @@ test("setPrice sends a null expectedCurrentPriceId for a product with no price y
 
   await setPrice("product-1", { unitPrice: 500, expectedCurrentPriceId: null });
 
-  expect(fetch).toHaveBeenCalledWith("/products/product-1/price", {
+  expect(fetch).toHaveBeenCalledWith("/api/products/product-1/price", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ unitPrice: 500, expectedCurrentPriceId: null }),
@@ -264,7 +264,7 @@ test("confirmPrice posts the expected current price id, returning ok on 200", as
   const outcome = await confirmPrice("product-1", { expectedCurrentPriceId: "price-1" });
 
   expect(outcome).toEqual({ kind: "ok" });
-  expect(fetch).toHaveBeenCalledWith("/products/product-1/price-confirmation", {
+  expect(fetch).toHaveBeenCalledWith("/api/products/product-1/price-confirmation", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ expectedCurrentPriceId: "price-1" }),

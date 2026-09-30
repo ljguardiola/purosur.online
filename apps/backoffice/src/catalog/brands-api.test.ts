@@ -45,7 +45,7 @@ describe("fetchBrands", () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [granix, litoral]));
 
     expect(await fetchBrands()).toEqual({ kind: "ok", value: [granix, litoral] });
-    expect(fetch).toHaveBeenCalledWith("/brands");
+    expect(fetch).toHaveBeenCalledWith("/api/brands");
   });
 
   test("returns failed when a listed brand does not have the expected shape", async () => {
@@ -83,7 +83,7 @@ describe("createBrand", () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(201, dulcor));
 
     expect(await createBrand({ name: "Dulcor" })).toEqual({ kind: "ok", brand: dulcor });
-    expect(fetch).toHaveBeenCalledWith("/brands", {
+    expect(fetch).toHaveBeenCalledWith("/api/brands", {
       ...JSON_POST,
       body: JSON.stringify({ name: "Dulcor" }),
     });
@@ -146,7 +146,7 @@ describe("editBrand", () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { unexpected: true }));
 
     expect(await editBrand("brand-1", { name: "Granix Pro", version: 1 })).toEqual({ kind: "ok" });
-    expect(fetch).toHaveBeenCalledWith("/brands/brand-1/edit", {
+    expect(fetch).toHaveBeenCalledWith("/api/brands/brand-1/edit", {
       ...JSON_POST,
       body: JSON.stringify({ name: "Granix Pro", version: 1 }),
     });
@@ -202,7 +202,7 @@ describe.each([
     vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
 
     expect(await change("brand-1")).toEqual({ kind: "ok" });
-    expect(fetch).toHaveBeenCalledWith(`/brands/brand-1/${path}`, {
+    expect(fetch).toHaveBeenCalledWith(`/api/brands/brand-1/${path}`, {
       ...JSON_POST,
       body: JSON.stringify({}),
     });

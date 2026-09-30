@@ -12,6 +12,7 @@ import {
   BoundDateField,
   BoundOptionCardGroup,
   BoundQuantityUnitField,
+  BoundSegmentedControl,
   BoundSelect,
   BoundTextField,
 } from "./cloud-form-fields";
@@ -25,6 +26,7 @@ const { useAppForm } = createFormHook({
     DateField: BoundDateField,
     QuantityUnitField: BoundQuantityUnitField,
     OptionCardGroup: BoundOptionCardGroup,
+    SegmentedControl: BoundSegmentedControl,
   },
   formComponents: {},
 });

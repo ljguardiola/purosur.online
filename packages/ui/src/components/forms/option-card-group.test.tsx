@@ -37,7 +37,10 @@ const options: [
   },
 ];
 
-type BaseGroupProps = Omit<OptionCardGroupProps<MovementValue>, keyof FieldErrorProps>;
+type BaseGroupProps = Omit<
+  Extract<OptionCardGroupProps<MovementValue>, { layout?: "row" }>,
+  keyof FieldErrorProps
+>;
 
 function baseProps(overrides: Partial<BaseGroupProps> = {}): BaseGroupProps {
   return {
@@ -339,8 +342,8 @@ test("exposes each card as a radio button named by its title and described by it
   expect(radioInput(screen, "Expense").checked).toBe(true);
 });
 
-test("does not accept an option without an icon, label or description", () => {
-  type CardOptions = OptionCardGroupProps<"income">["options"];
+test("does not accept a row option without an icon, label or description", () => {
+  type CardOptions = Extract<OptionCardGroupProps<"income">, { layout?: "row" }>["options"];
   expectTypeOf<
     [{ value: "income"; label: string; description: string }]
   >().not.toExtend<CardOptions>();
@@ -560,4 +563,91 @@ test("reports the chosen card's value, never null", () => {
   expectTypeOf<OptionCardGroupProps<MovementValue>["onChange"]>().parameters.toEqualTypeOf<
     [MovementValue]
   >();
+});
+
+type ReasonValue = "broken" | "spoiled" | "waste" | "tasting" | "consumption" | "theft";
+
+const reasonOptions: [NarrowedOption<ReasonValue>, ...NarrowedOption<ReasonValue>[]] = [
+  { value: "broken", label: "Broken or spilled" },
+  { value: "spoiled", label: "Spoiled" },
+  { value: "waste", label: "Portioning waste" },
+  { value: "tasting", label: "Tasting or sample" },
+  { value: "consumption", label: "Store consumption" },
+  { value: "theft", label: "Theft" },
+];
+
+test("lays a grid of cards out three to a row, equally wide, 12px apart both ways", async () => {
+  const screen = await render(
+    <OptionCardGroup
+      layout="grid"
+      label="Reason"
+      options={reasonOptions}
+      value="broken"
+      onChange={() => {}}
+    />,
+  );
+  const rects = reasonOptions.map((option) =>
+    radioCard(screen, option.label).getBoundingClientRect(),
+  );
+  const [first, second, third, fourth] = rects;
+  if (!first || !second || !third || !fourth) {
+    throw new Error("test setup: expected six cards");
+  }
+
+  expect(second.top).toBeCloseTo(first.top, 0);
+  expect(third.top).toBeCloseTo(first.top, 0);
+  expect(fourth.left).toBeCloseTo(first.left, 0);
+  expect(second.width).toBeCloseTo(first.width, 0);
+  expect(second.left - first.right).toBeCloseTo(12, 0);
+  expect(fourth.top - first.bottom).toBeCloseTo(12, 0);
+});
+
+test("names a grid card by its title alone, with no icon and no help text", async () => {
+  const screen = await render(
+    <OptionCardGroup
+      layout="grid"
+      label="Reason"
+      options={reasonOptions}
+      value={null}
+      onChange={() => {}}
+    />,
+  );
+
+  const card = radioCard(screen, "Theft");
+  expect(card.querySelector("svg")).toBeNull();
+  expect(radioInput(screen, "Theft").getAttribute("aria-describedby")).toBeNull();
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("reports the grid card chosen", async () => {
+  const onChange = vi.fn();
+  const screen = await render(
+    <OptionCardGroup
+      layout="grid"
+      label="Reason"
+      options={reasonOptions}
+      value={null}
+      onChange={onChange}
+    />,
+  );
+
+  await userEvent.click(radioCard(screen, "Spoiled"));
+
+  expect(onChange).toHaveBeenCalledWith("spoiled");
+});
+
+test("requires an icon and help text on every card of a row, and neither in a grid", () => {
+  expectTypeOf<{
+    label: string;
+    options: typeof reasonOptions;
+    value: ReasonValue;
+    onChange: (value: ReasonValue) => void;
+  }>().not.toExtend<OptionCardGroupProps<ReasonValue>>();
+  expectTypeOf<{
+    layout: "grid";
+    label: string;
+    options: typeof reasonOptions;
+    value: ReasonValue;
+    onChange: (value: ReasonValue) => void;
+  }>().toExtend<OptionCardGroupProps<ReasonValue>>();
 });

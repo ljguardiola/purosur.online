@@ -21,7 +21,7 @@ RUN pnpm install --frozen-lockfile --filter @purosur/backoffice...
 RUN pnpm --filter @purosur/backoffice build
 
 FROM base AS runtime
-# Baked in at build time (the commit SHA); GET /health reports it back so a deploy can be verified.
+# Baked in at build time (the commit SHA); GET /api/health reports it back so a deploy can be verified.
 ARG APP_VERSION
 ENV APP_VERSION=$APP_VERSION
 ENV NODE_ENV=production

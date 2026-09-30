@@ -61,7 +61,7 @@ export function passkeyListFromWire(body: unknown): Passkey[] | undefined {
 export async function fetchPasskeys(): Promise<FetchPasskeysOutcome> {
   let response: Response;
   try {
-    response = await fetch("/users/passkeys");
+    response = await fetch("/api/users/passkeys");
   } catch {
     return { kind: "failed" };
   }
@@ -84,7 +84,7 @@ export async function fetchPasskeys(): Promise<FetchPasskeysOutcome> {
 export async function fetchPasskeyRegistrationChallenge(): Promise<FetchPasskeyRegistrationChallengeOutcome> {
   let response: Response;
   try {
-    response = await postJson("/users/passkeys/registration-options");
+    response = await postJson("/api/users/passkeys/registration-options");
   } catch {
     return { kind: "failed" };
   }
@@ -123,7 +123,7 @@ export async function registerPasskey(
   };
   let response: Response;
   try {
-    response = await postJson("/users/passkeys", requestBody);
+    response = await postJson("/api/users/passkeys", requestBody);
   } catch {
     return { kind: "failed" };
   }
@@ -149,7 +149,7 @@ export async function registerPasskey(
 export async function removePasskey(id: string): Promise<RemovePasskeyOutcome> {
   let response: Response;
   try {
-    response = await postJson(`/users/passkeys/${id}/remove`);
+    response = await postJson(`/api/users/passkeys/${id}/remove`);
   } catch {
     return { kind: "failed" };
   }

@@ -2,6 +2,7 @@ import { ALERT_AUDIENCES, ALERT_LEVELS } from "@purosur/domain";
 import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
+  bigint,
   boolean,
   check,
   date,
@@ -329,6 +330,75 @@ export const priceReviews = pgTable(
       table.reviewedAt,
     ),
   ],
+);
+
+// Append-only like prices: a quantity is in thousandths of the product's sale unit, and a movement
+// dated at or before a later-registered count keeps superseded_by_count_id set from its insert on,
+// never changing the balance.
+export const stockMovements = pgTable(
+  "stock_movements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    kind: text("kind").notNull(),
+    reason: text("reason"),
+    delta: bigint("delta", { mode: "number" }).notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => users.id),
+    supersededByCountId: uuid("superseded_by_count_id").references(
+      (): AnyPgColumn => stockMovements.id,
+    ),
+  },
+  (table) => [
+    check("stock_movements_kind_check", sql`${table.kind} in ('loss', 'adjustment', 'count')`),
+    check(
+      "stock_movements_reason_unless_count_check",
+      sql`(${table.kind} = 'count') = (${table.reason} is null)`,
+    ),
+    index("stock_movements_product_id_location_id_occurred_at_idx").on(
+      table.productId,
+      table.locationId,
+      table.occurredAt,
+    ),
+    index("stock_movements_location_id_occurred_at_idx").on(table.locationId, table.occurredAt),
+  ],
+);
+
+// Append-only like stock_movements.
+export const stockCounts = pgTable(
+  "stock_counts",
+  {
+    movementId: uuid("movement_id")
+      .primaryKey()
+      .references(() => stockMovements.id),
+    counted: bigint("counted", { mode: "number" }).notNull(),
+    expected: bigint("expected", { mode: "number" }).notNull(),
+  },
+  (table) => [check("stock_counts_counted_non_negative", sql`${table.counted} >= 0`)],
+);
+
+// The running total of a product's applied movements in a branch, only ever changed by adding a
+// movement's delta in SQL within the transaction that inserts the movement.
+export const stockBalances = pgTable(
+  "stock_balances",
+  {
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    quantity: bigint("quantity", { mode: "number" }).notNull().default(0),
+  },
+  (table) => [primaryKey({ columns: [table.productId, table.locationId] })],
 );
 
 // A 12-digit EAN-13 body inside GS1's 20-29 restricted-circulation prefix range, for a product

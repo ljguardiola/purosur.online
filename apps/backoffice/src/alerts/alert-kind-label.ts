@@ -6,6 +6,7 @@ const ALERT_KIND_LABELS = {
   user_email_changed: "Correo",
   backoffice_sign_in_lockout: "Bloqueo de ingreso",
   user_access_increased: "Acceso ampliado",
+  register_enrolled: "Alta de caja",
 } satisfies Record<AlertKind, string>;
 
 export function alertKindLabel(kind: string): string {

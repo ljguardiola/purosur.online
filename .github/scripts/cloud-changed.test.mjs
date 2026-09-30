@@ -300,7 +300,7 @@ test("fetchPreviousRunVerdict deploys when the runs listing cannot be reached", 
   assert.match(verdict.reason, /fetch failed/);
 });
 
-test("fetchStagingVersion reads the commit SHA out of a successful /health response", async () => {
+test("fetchStagingVersion reads the commit SHA out of a successful /api/health response", async () => {
   const fetchImpl = async () =>
     new Response(JSON.stringify({ status: "ok", version: STAGING_SHA }));
 
@@ -313,7 +313,7 @@ test("fetchStagingVersion reads the commit SHA out of a successful /health respo
   assert.equal(version, STAGING_SHA);
 });
 
-test("fetchStagingVersion returns null when /health does not answer with status 200", async () => {
+test("fetchStagingVersion returns null when /api/health does not answer with status 200", async () => {
   const fetchImpl = async () =>
     new Response(JSON.stringify({ status: "ok", version: STAGING_SHA }), { status: 503 });
 

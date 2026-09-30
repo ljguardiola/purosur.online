@@ -86,6 +86,11 @@ import { registerRegisterCreationRoute } from "./register/register-creation-rout
 import { registerRegisterEnrollmentCodeRoute } from "./register/register-enrollment-code-route.js";
 import type { RegistersRouteOptions } from "./register/registers-list-route.js";
 import { registerRegistersListRoute } from "./register/registers-list-route.js";
+import { registerStockBalancesRoute } from "./stock/stock-balances-route.js";
+import { registerStockCountsRoutes } from "./stock/stock-counts-route.js";
+import { registerStockMovementsRoutes } from "./stock/stock-movements-route.js";
+import { registerStockProductsRoute } from "./stock/stock-products-route.js";
+import type { StockRouteOptions } from "./stock/stock-route-options.js";
 
 export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = PostgresJsQueryResultHKT> {
   version: string;
@@ -107,9 +112,11 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   alerts?: AlertsRouteOptions<TQueryResult>;
   prices?: PricesRouteOptions<TQueryResult>;
   registers?: RegistersRouteOptions<TQueryResult>;
+  stock?: StockRouteOptions<TQueryResult>;
   devices?: DeviceEnrollmentRouteOptions<TQueryResult>;
 }
 
+const API_PREFIX = "/api";
 const STRICT_TRANSPORT_SECURITY = "max-age=63072000; includeSubDomains";
 
 export interface BackofficeErrorReporting {
@@ -175,121 +182,137 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
   registerEdgeOriginGuard(app, options.edgeOriginSecret);
 
-  const devices = options.devices;
-  registerHealthRoute(app, {
-    version: options.version,
-    ...(devices && {
-      authenticateDevice: (authorization) => authenticateDevice(devices.db, authorization),
-    }),
-  });
+  app.register(
+    async (api) => {
+      const devices = options.devices;
+      registerHealthRoute(api, {
+        version: options.version,
+        ...(devices && {
+          authenticateDevice: (authorization) => authenticateDevice(devices.db, authorization),
+        }),
+      });
 
-  const errorReporting: ErrorReportingConfiguration = options.errorReporting
-    ? { enabled: true, ...options.errorReporting, release: options.version }
-    : { enabled: false };
-  app.get("/error-reporting", { config: { access: PUBLIC_ACCESS } }, async () => errorReporting);
+      const errorReporting: ErrorReportingConfiguration = options.errorReporting
+        ? { enabled: true, ...options.errorReporting, release: options.version }
+        : { enabled: false };
+      api.get(
+        "/error-reporting",
+        { config: { access: PUBLIC_ACCESS } },
+        async () => errorReporting,
+      );
 
-  if (options.recovery) {
-    registerRecoveryRoutes(app, options.recovery);
-    registerRecoveryRedemptionRoutes(app, options.recovery);
-  }
+      if (options.recovery) {
+        registerRecoveryRoutes(api, options.recovery);
+        registerRecoveryRedemptionRoutes(api, options.recovery);
+      }
 
-  if (options.session) {
-    registerSessionAuthenticationOptionsRoute(app, options.session);
-    registerSessionAuthenticateRoute(app, options.session);
-    registerSessionReadRoute(app, options.session);
-    registerSessionStatusRoute(app, options.session);
-    registerSessionSignOutRoute(app, options.session);
-    registerSessionAuthorizationRoutes(app, options.session);
-  }
+      if (options.session) {
+        registerSessionAuthenticationOptionsRoute(api, options.session);
+        registerSessionAuthenticateRoute(api, options.session);
+        registerSessionReadRoute(api, options.session);
+        registerSessionStatusRoute(api, options.session);
+        registerSessionSignOutRoute(api, options.session);
+        registerSessionAuthorizationRoutes(api, options.session);
+      }
 
-  if (options.passkeys) {
-    registerPasskeysListRoute(app, options.passkeys);
-    registerPasskeyRegistrationRoutes(app, options.passkeys);
-    registerPasskeyRemovalRoutes(app, options.passkeys);
-  }
+      if (options.passkeys) {
+        registerPasskeysListRoute(api, options.passkeys);
+        registerPasskeyRegistrationRoutes(api, options.passkeys);
+        registerPasskeyRemovalRoutes(api, options.passkeys);
+      }
 
-  if (options.users) {
-    registerUsersListRoute(app, options.users);
-    registerUserReadRoute(app, options.users);
-    registerUserCreationRoutes(app, options.users);
-    registerUserEditRoutes(app, options.users);
-    registerUserPasskeysListRoute(app, options.users);
-    registerUserPasskeyRemovalRoutes(app, options.users);
-    registerUserDeactivationRoutes(app, options.users);
-    registerUserReactivationRoutes(app, options.users);
-  }
+      if (options.users) {
+        registerUsersListRoute(api, options.users);
+        registerUserReadRoute(api, options.users);
+        registerUserCreationRoutes(api, options.users);
+        registerUserEditRoutes(api, options.users);
+        registerUserPasskeysListRoute(api, options.users);
+        registerUserPasskeyRemovalRoutes(api, options.users);
+        registerUserDeactivationRoutes(api, options.users);
+        registerUserReactivationRoutes(api, options.users);
+      }
 
-  if (options.roles) {
-    registerRolesListRoute(app, options.roles);
-    registerRoleReadRoute(app, options.roles);
-    registerRoleCreationRoutes(app, options.roles);
-    registerRoleEditRoutes(app, options.roles);
-  }
+      if (options.roles) {
+        registerRolesListRoute(api, options.roles);
+        registerRoleReadRoute(api, options.roles);
+        registerRoleCreationRoutes(api, options.roles);
+        registerRoleEditRoutes(api, options.roles);
+      }
 
-  if (options.branchSettings) {
-    registerBranchSettingsReadRoute(app, options.branchSettings);
-    registerBranchSettingsEditRoute(app, options.branchSettings);
-  }
+      if (options.branchSettings) {
+        registerBranchSettingsReadRoute(api, options.branchSettings);
+        registerBranchSettingsEditRoute(api, options.branchSettings);
+      }
 
-  if (options.issuerIdentification) {
-    registerIssuerIdentificationReadRoute(app, options.issuerIdentification);
-    registerIssuerIdentificationEditRoute(app, options.issuerIdentification);
-  }
+      if (options.issuerIdentification) {
+        registerIssuerIdentificationReadRoute(api, options.issuerIdentification);
+        registerIssuerIdentificationEditRoute(api, options.issuerIdentification);
+      }
 
-  if (options.categories) {
-    registerCategoriesListRoute(app, options.categories);
-    registerCategoryCreationRoute(app, options.categories);
-    registerCategoryEditRoute(app, options.categories);
-  }
+      if (options.categories) {
+        registerCategoriesListRoute(api, options.categories);
+        registerCategoryCreationRoute(api, options.categories);
+        registerCategoryEditRoute(api, options.categories);
+      }
 
-  if (options.brands) {
-    registerBrandsListRoute(app, options.brands);
-    registerBrandCreationRoute(app, options.brands);
-    registerBrandEditRoute(app, options.brands);
-    registerBrandDeactivationRoute(app, options.brands);
-    registerBrandReactivationRoute(app, options.brands);
-  }
+      if (options.brands) {
+        registerBrandsListRoute(api, options.brands);
+        registerBrandCreationRoute(api, options.brands);
+        registerBrandEditRoute(api, options.brands);
+        registerBrandDeactivationRoute(api, options.brands);
+        registerBrandReactivationRoute(api, options.brands);
+      }
 
-  if (options.tags) {
-    registerTagsListRoute(app, options.tags);
-    registerTagCreationRoute(app, options.tags);
-    registerTagEditRoute(app, options.tags);
-    registerTagDeactivationRoute(app, options.tags);
-    registerTagReactivationRoute(app, options.tags);
-  }
+      if (options.tags) {
+        registerTagsListRoute(api, options.tags);
+        registerTagCreationRoute(api, options.tags);
+        registerTagEditRoute(api, options.tags);
+        registerTagDeactivationRoute(api, options.tags);
+        registerTagReactivationRoute(api, options.tags);
+      }
 
-  if (options.products) {
-    registerProductsListRoute(app, options.products);
-    registerProductCreationRoute(app, options.products);
-    registerProductEditRoute(app, options.products);
-    registerProductDeactivationRoute(app, options.products);
-    registerInternalBarcodeRoute(app, options.products);
-    registerProductLabelsRoute(app, options.products);
-  }
+      if (options.products) {
+        registerProductsListRoute(api, options.products);
+        registerProductCreationRoute(api, options.products);
+        registerProductEditRoute(api, options.products);
+        registerProductDeactivationRoute(api, options.products);
+        registerInternalBarcodeRoute(api, options.products);
+        registerProductLabelsRoute(api, options.products);
+      }
 
-  if (options.alerts) {
-    registerAlertsListRoute(app, options.alerts);
-    registerAlertsOverviewRoute(app, options.alerts);
-    registerAlertReadRoute(app, options.alerts);
-    registerAlertCloseRoute(app, options.alerts);
-  }
+      if (options.alerts) {
+        registerAlertsListRoute(api, options.alerts);
+        registerAlertsOverviewRoute(api, options.alerts);
+        registerAlertReadRoute(api, options.alerts);
+        registerAlertCloseRoute(api, options.alerts);
+      }
 
-  if (options.prices) {
-    registerPricesListRoute(app, options.prices);
-    registerPriceSetRoute(app, options.prices);
-    registerPriceConfirmationRoute(app, options.prices);
-  }
+      if (options.prices) {
+        registerPricesListRoute(api, options.prices);
+        registerPriceSetRoute(api, options.prices);
+        registerPriceConfirmationRoute(api, options.prices);
+      }
 
-  if (options.registers) {
-    registerRegistersListRoute(app, options.registers);
-    registerRegisterCreationRoute(app, options.registers);
-    registerRegisterCoverageRoute(app, options.registers);
-    registerRegisterEnrollmentCodeRoute(app, options.registers);
-  }
+      if (options.stock) {
+        registerStockBalancesRoute(api, options.stock);
+        registerStockProductsRoute(api, options.stock);
+        registerStockCountsRoutes(api, options.stock);
+        registerStockMovementsRoutes(api, options.stock);
+      }
 
-  if (options.devices) {
-    registerDeviceEnrollmentRoute(app, options.devices);
-  }
+      if (options.registers) {
+        registerRegistersListRoute(api, options.registers);
+        registerRegisterCreationRoute(api, options.registers);
+        registerRegisterCoverageRoute(api, options.registers);
+        registerRegisterEnrollmentCodeRoute(api, options.registers);
+      }
+
+      if (options.devices) {
+        registerDeviceEnrollmentRoute(api, options.devices);
+      }
+    },
+    { prefix: API_PREFIX },
+  );
 
   const staticDir = options.staticDir;
   const securityHeaders = backofficeSecurityHeaders(options.errorReporting);
@@ -305,7 +328,11 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
       });
     });
     app.setNotFoundHandler((request, reply) => {
-      const isClientRoute = extname(new URL(request.url, "http://localhost").pathname) === "";
+      const { pathname } = new URL(request.url, "http://localhost");
+      const isClientRoute =
+        extname(pathname) === "" &&
+        pathname !== API_PREFIX &&
+        !pathname.startsWith(`${API_PREFIX}/`);
       if ((request.method !== "GET" && request.method !== "HEAD") || !isClientRoute) {
         reply.code(404).send();
         return;

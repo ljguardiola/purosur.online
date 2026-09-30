@@ -44,7 +44,7 @@ test("fetchAlerts answers one page of visible alerts and the open-alert counts o
   const outcome = await fetchAlerts();
 
   expect(outcome).toEqual({ kind: "ok", value: body });
-  expect(fetch).toHaveBeenCalledWith("/alerts");
+  expect(fetch).toHaveBeenCalledWith("/api/alerts");
 });
 
 test("fetchAlerts sends the level, open, page and search as query params", async () => {
@@ -58,7 +58,7 @@ test("fetchAlerts sends the level, open, page and search as query params", async
   });
 
   expect(fetch).toHaveBeenCalledWith(
-    "/alerts?level=critical&open=true&page=2&q=recu&kinds=backoffice_recovery_requested%2Cuser_email_changed",
+    "/api/alerts?level=critical&open=true&page=2&q=recu&kinds=backoffice_recovery_requested%2Cuser_email_changed",
   );
 });
 
@@ -138,7 +138,7 @@ test("fetchAlert shows one alert's detail on 200", async () => {
   const outcome = await fetchAlert("alert-1");
 
   expect(outcome).toEqual({ kind: "ok", value: alertDetail });
-  expect(fetch).toHaveBeenCalledWith("/alerts/alert-1");
+  expect(fetch).toHaveBeenCalledWith("/api/alerts/alert-1");
 });
 
 test.each([
@@ -186,7 +186,7 @@ test("closeAlert is ok on 200 whatever the body says", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { unexpected: true }));
 
   await expect(closeAlert("alert-1")).resolves.toEqual({ kind: "ok" });
-  expect(fetch).toHaveBeenCalledWith("/alerts/alert-1/close", {
+  expect(fetch).toHaveBeenCalledWith("/api/alerts/alert-1/close", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({}),
@@ -246,7 +246,7 @@ test("fetchAlertsOverview answers the open visible alerts of each level on 200",
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, overview));
 
   await expect(fetchAlertsOverview()).resolves.toEqual({ kind: "ok", value: overview });
-  expect(fetch).toHaveBeenCalledWith("/alerts/overview");
+  expect(fetch).toHaveBeenCalledWith("/api/alerts/overview");
 });
 
 test.each([

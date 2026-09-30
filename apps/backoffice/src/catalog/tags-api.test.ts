@@ -40,7 +40,7 @@ describe("fetchTags", () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [sinTacc, sinColorantes]));
 
     expect(await fetchTags()).toEqual({ kind: "ok", value: [sinTacc, sinColorantes] });
-    expect(fetch).toHaveBeenCalledWith("/tags");
+    expect(fetch).toHaveBeenCalledWith("/api/tags");
   });
 
   test("returns failed when a listed tag does not have the expected shape", async () => {
@@ -78,7 +78,7 @@ describe("createTag", () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(201, vegano));
 
     expect(await createTag({ name: "Vegano" })).toEqual({ kind: "ok", tag: vegano });
-    expect(fetch).toHaveBeenCalledWith("/tags", {
+    expect(fetch).toHaveBeenCalledWith("/api/tags", {
       ...JSON_POST,
       body: JSON.stringify({ name: "Vegano" }),
     });
@@ -141,7 +141,7 @@ describe("editTag", () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { unexpected: true }));
 
     expect(await editTag("tag-1", { name: "Sin TACC 2", version: 1 })).toEqual({ kind: "ok" });
-    expect(fetch).toHaveBeenCalledWith("/tags/tag-1", {
+    expect(fetch).toHaveBeenCalledWith("/api/tags/tag-1", {
       method: "PUT",
       ...JSON_BODY,
       body: JSON.stringify({ name: "Sin TACC 2", version: 1 }),
@@ -198,7 +198,7 @@ describe.each([
     vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
 
     expect(await change("tag-1")).toEqual({ kind: "ok" });
-    expect(fetch).toHaveBeenCalledWith("/tags/tag-1/deactivation", { method });
+    expect(fetch).toHaveBeenCalledWith("/api/tags/tag-1/deactivation", { method });
   });
 
   test.each([

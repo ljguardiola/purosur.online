@@ -44,11 +44,11 @@ beforeEach(async () => {
   await testDatabase.clear();
 });
 
-describe("GET /health", () => {
+describe("GET /api/health", () => {
   it("responds 200 with status ok and the given version", async () => {
     const app = buildApp({ version: "abc1234" });
 
-    const response = await app.inject({ method: "GET", url: "/health" });
+    const response = await app.inject({ method: "GET", url: "/api/health" });
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ status: "ok", version: "abc1234" });
@@ -60,7 +60,7 @@ describe("GET /health", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/health",
+      url: "/api/health",
       headers: { authorization: `Bearer ${deviceToken}` },
     });
 
@@ -69,13 +69,13 @@ describe("GET /health", () => {
   });
 });
 
-describe("GET /error-reporting", () => {
+describe("GET /api/error-reporting", () => {
   const dsn = "https://key@errors.example.test/1";
 
   it("says reporting is off when no backoffice DSN is configured", async () => {
     const app = buildApp({ version: "abc1234" });
 
-    const response = await app.inject({ method: "GET", url: "/error-reporting" });
+    const response = await app.inject({ method: "GET", url: "/api/error-reporting" });
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ enabled: false });
@@ -87,7 +87,7 @@ describe("GET /error-reporting", () => {
       errorReporting: { dsn, environment: "staging" },
     });
 
-    const response = await app.inject({ method: "GET", url: "/error-reporting" });
+    const response = await app.inject({ method: "GET", url: "/api/error-reporting" });
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
@@ -101,7 +101,7 @@ describe("GET /error-reporting", () => {
   it("answers without a session", async () => {
     const app = buildApp({ version: "abc1234", errorReporting: { dsn, environment: "staging" } });
 
-    const response = await app.inject({ method: "GET", url: "/error-reporting" });
+    const response = await app.inject({ method: "GET", url: "/api/error-reporting" });
 
     expect(response.statusCode).toBe(200);
   });
@@ -153,18 +153,18 @@ describe("the edge origin guard", () => {
     expect(response.statusCode).toBe(404);
   });
 
-  it("exempts GET /health even with no edge secret header", async () => {
+  it("exempts GET /api/health even with no edge secret header", async () => {
     const app = buildRealApp({ version: "abc1234", edgeOriginSecret: TEST_EDGE_ORIGIN_SECRET });
 
-    const response = await app.inject({ method: "GET", url: "/health" });
+    const response = await app.inject({ method: "GET", url: "/api/health" });
 
     expect(response.statusCode).toBe(200);
   });
 
-  it("exempts GET /health with a query string even with no edge secret header", async () => {
+  it("exempts GET /api/health with a query string even with no edge secret header", async () => {
     const app = buildRealApp({ version: "abc1234", edgeOriginSecret: TEST_EDGE_ORIGIN_SECRET });
 
-    const response = await app.inject({ method: "GET", url: "/health?probe=1" });
+    const response = await app.inject({ method: "GET", url: "/api/health?probe=1" });
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ status: "ok", version: "abc1234" });
@@ -212,15 +212,15 @@ describe("the edge origin guard", () => {
       });
     }
 
-    it("exempts GET /health with no edge secret header", async () => {
-      const response = await getRawPath("/health");
+    it("exempts GET /api/health with no edge secret header", async () => {
+      const response = await getRawPath("/api/health");
 
       expect(response.statusCode).toBe(200);
       expect(JSON.parse(response.body)).toEqual({ status: "ok", version: "abc1234" });
     });
 
-    it.each(["/./health", "/x/../health", "/%2e%2e/health", "/health/"])(
-      "refuses GET %s with no edge secret header because it is not the /health route",
+    it.each(["/api/./health", "/api/x/../health", "/api/%2e%2e/health", "/api/health/"])(
+      "refuses GET %s with no edge secret header because it is not the /api/health route",
       async (path) => {
         const response = await getRawPath(path);
 
@@ -287,7 +287,7 @@ describe("Strict-Transport-Security", () => {
   }
 
   it.each([
-    ["a route", "GET", "/health", 200],
+    ["a route", "GET", "/api/health", 200],
     ["a static asset", "GET", "/assets/app.js", 200],
     ["the page served for a client route", "GET", "/help/getting_started", 200],
     ["a HEAD to a client route", "HEAD", "/help/getting_started", 200],
@@ -377,13 +377,63 @@ describe("serving the backoffice's static build", () => {
     expect(response.body).toBe("<!doctype html><title>backoffice</title>");
   });
 
-  it("still serves /health normally instead of falling back to index.html", async () => {
+  it("still serves /api/health normally instead of falling back to index.html", async () => {
     const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
 
-    const response = await app.inject({ method: "GET", url: "/health" });
+    const response = await app.inject({ method: "GET", url: "/api/health" });
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ status: "ok", version: "abc1234" });
+  });
+
+  it("serves the backoffice page, not the cloud's data, at a screen address named like a cloud resource", async () => {
+    const app = buildApp({
+      version: "abc1234",
+      staticDir: backofficeBuild(),
+      stock: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/stock/balances",
+      headers: { accept: "text/html" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toBe("<!doctype html><title>backoffice</title>");
+  });
+
+  it.each(["GET", "HEAD", "POST"] as const)(
+    "answers 404 to a %s on an unknown /api path instead of serving the page",
+    async (method) => {
+      const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
+
+      const response = await app.inject({ method, url: "/api/stock/unknown" });
+
+      expect(response.statusCode).toBe(404);
+      expect(response.body).not.toContain("backoffice");
+    },
+  );
+
+  it.each(["/api", "/api/", "/api?view=all"])(
+    "answers 404 to %s instead of serving the page",
+    async (url) => {
+      const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
+
+      const response = await app.inject({ method: "GET", url });
+
+      expect(response.statusCode).toBe(404);
+      expect(response.body).not.toContain("backoffice");
+    },
+  );
+
+  it("serves the page at an address that only starts with the letters of the API prefix", async () => {
+    const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
+
+    const response = await app.inject({ method: "GET", url: "/apiaries" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toBe("<!doctype html><title>backoffice</title>");
   });
 
   it("falls back to index.html for a HEAD to a client route, same as a GET", async () => {
@@ -497,19 +547,19 @@ describe("serving the backoffice's static build", () => {
 });
 
 describe("wiring the recovery routes", () => {
-  it("does not register POST /users/recovery/request when no recovery option is given", async () => {
+  it("does not register POST /api/users/recovery/request when no recovery option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
     const response = await app.inject({
       method: "POST",
-      url: "/users/recovery/request",
+      url: "/api/users/recovery/request",
       payload: { email: "ada@example.com" },
     });
 
     expect(response.statusCode).toBe(404);
   });
 
-  it("registers POST /users/recovery/request when a recovery option is given", async () => {
+  it("registers POST /api/users/recovery/request when a recovery option is given", async () => {
     const enqueued: string[] = [];
 
     const app = buildApp({
@@ -527,7 +577,7 @@ describe("wiring the recovery routes", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/users/recovery/request",
+      url: "/api/users/recovery/request",
       headers: { origin: "https://staging.purosur.online", "x-real-ip": "203.0.113.10" },
       payload: { email: "ada@example.com" },
     });
@@ -541,12 +591,12 @@ describe("wiring the recovery routes", () => {
 
     const optionsResponse = await app.inject({
       method: "POST",
-      url: "/users/recovery/registration-options",
+      url: "/api/users/recovery/registration-options",
       payload: { recovery_token: "a-raw-token" },
     });
     const redeemResponse = await app.inject({
       method: "POST",
-      url: "/users/recovery/redeem",
+      url: "/api/users/recovery/redeem",
       payload: { recovery_token: "a-raw-token" },
     });
 
@@ -566,7 +616,7 @@ describe("wiring the recovery routes", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/users/recovery/registration-options",
+      url: "/api/users/recovery/registration-options",
       headers: { origin: "https://staging.purosur.online", "x-real-ip": "203.0.113.10" },
       payload: { recovery_token: "an-unknown-raw-token" },
     });
@@ -577,24 +627,24 @@ describe("wiring the recovery routes", () => {
 });
 
 describe("wiring the session routes", () => {
-  it("does not register GET /users/session, its status route, POST /users/session/sign-out, or the authorization pair when no session option is given", async () => {
+  it("does not register GET /api/users/session, its status route, POST /api/users/session/sign-out, or the authorization pair when no session option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
-    const readResponse = await app.inject({ method: "GET", url: "/users/session" });
-    const statusResponse = await app.inject({ method: "GET", url: "/users/session/status" });
+    const readResponse = await app.inject({ method: "GET", url: "/api/users/session" });
+    const statusResponse = await app.inject({ method: "GET", url: "/api/users/session/status" });
     const signOutResponse = await app.inject({
       method: "POST",
-      url: "/users/session/sign-out",
+      url: "/api/users/session/sign-out",
       headers: { origin: "https://staging.purosur.online" },
     });
     const authorizationOptionsResponse = await app.inject({
       method: "POST",
-      url: "/users/session/authorization-options",
+      url: "/api/users/session/authorization-options",
       headers: { origin: "https://staging.purosur.online" },
     });
     const authorizationResponse = await app.inject({
       method: "POST",
-      url: "/users/session/authorization",
+      url: "/api/users/session/authorization",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -605,27 +655,27 @@ describe("wiring the session routes", () => {
     expect(authorizationResponse.statusCode).toBe(404);
   });
 
-  it("registers GET /users/session, its status route, POST /users/session/sign-out, and the authorization pair when a session option is given", async () => {
+  it("registers GET /api/users/session, its status route, POST /api/users/session/sign-out, and the authorization pair when a session option is given", async () => {
     const app = buildApp({
       version: "abc1234",
       session: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
 
-    const readResponse = await app.inject({ method: "GET", url: "/users/session" });
-    const statusResponse = await app.inject({ method: "GET", url: "/users/session/status" });
+    const readResponse = await app.inject({ method: "GET", url: "/api/users/session" });
+    const statusResponse = await app.inject({ method: "GET", url: "/api/users/session/status" });
     const signOutResponse = await app.inject({
       method: "POST",
-      url: "/users/session/sign-out",
+      url: "/api/users/session/sign-out",
       headers: { origin: "https://staging.purosur.online" },
     });
     const authorizationOptionsResponse = await app.inject({
       method: "POST",
-      url: "/users/session/authorization-options",
+      url: "/api/users/session/authorization-options",
       headers: { origin: "https://staging.purosur.online" },
     });
     const authorizationResponse = await app.inject({
       method: "POST",
-      url: "/users/session/authorization",
+      url: "/api/users/session/authorization",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -646,33 +696,33 @@ describe("wiring the users routes", () => {
   it("does not register the users routes when no users option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
-    const list = await app.inject({ method: "GET", url: "/users" });
+    const list = await app.inject({ method: "GET", url: "/api/users" });
     const read = await app.inject({
       method: "GET",
-      url: "/users/00000000-0000-0000-0000-000000000000",
+      url: "/api/users/00000000-0000-0000-0000-000000000000",
     });
     const create = await app.inject({
       method: "POST",
-      url: "/users",
+      url: "/api/users",
       headers: { origin: "https://staging.purosur.online" },
     });
     const edit = await app.inject({
       method: "POST",
-      url: "/users/00000000-0000-0000-0000-000000000000/edit",
+      url: "/api/users/00000000-0000-0000-0000-000000000000/edit",
       headers: { origin: "https://staging.purosur.online" },
     });
     const userPasskeys = await app.inject({
       method: "GET",
-      url: "/users/00000000-0000-0000-0000-000000000000/passkeys",
+      url: "/api/users/00000000-0000-0000-0000-000000000000/passkeys",
     });
     const userPasskeyRemove = await app.inject({
       method: "POST",
-      url: "/users/00000000-0000-0000-0000-000000000000/passkeys/00000000-0000-0000-0000-000000000000/remove",
+      url: "/api/users/00000000-0000-0000-0000-000000000000/passkeys/00000000-0000-0000-0000-000000000000/remove",
       headers: { origin: "https://staging.purosur.online" },
     });
     const deactivation = await app.inject({
       method: "POST",
-      url: "/users/00000000-0000-0000-0000-000000000000/deactivation",
+      url: "/api/users/00000000-0000-0000-0000-000000000000/deactivation",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -691,33 +741,33 @@ describe("wiring the users routes", () => {
       users: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
 
-    const list = await app.inject({ method: "GET", url: "/users" });
+    const list = await app.inject({ method: "GET", url: "/api/users" });
     const read = await app.inject({
       method: "GET",
-      url: "/users/00000000-0000-0000-0000-000000000000",
+      url: "/api/users/00000000-0000-0000-0000-000000000000",
     });
     const create = await app.inject({
       method: "POST",
-      url: "/users",
+      url: "/api/users",
       headers: { origin: "https://staging.purosur.online" },
     });
     const edit = await app.inject({
       method: "POST",
-      url: "/users/00000000-0000-0000-0000-000000000000/edit",
+      url: "/api/users/00000000-0000-0000-0000-000000000000/edit",
       headers: { origin: "https://staging.purosur.online" },
     });
     const userPasskeys = await app.inject({
       method: "GET",
-      url: "/users/00000000-0000-0000-0000-000000000000/passkeys",
+      url: "/api/users/00000000-0000-0000-0000-000000000000/passkeys",
     });
     const userPasskeyRemove = await app.inject({
       method: "POST",
-      url: "/users/00000000-0000-0000-0000-000000000000/passkeys/00000000-0000-0000-0000-000000000000/remove",
+      url: "/api/users/00000000-0000-0000-0000-000000000000/passkeys/00000000-0000-0000-0000-000000000000/remove",
       headers: { origin: "https://staging.purosur.online" },
     });
     const deactivation = await app.inject({
       method: "POST",
-      url: "/users/00000000-0000-0000-0000-000000000000/deactivation",
+      url: "/api/users/00000000-0000-0000-0000-000000000000/deactivation",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -735,19 +785,19 @@ describe("wiring the roles routes", () => {
   it("does not register the roles routes when no roles option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
-    const list = await app.inject({ method: "GET", url: "/roles" });
+    const list = await app.inject({ method: "GET", url: "/api/roles" });
     const read = await app.inject({
       method: "GET",
-      url: "/roles/00000000-0000-0000-0000-000000000000",
+      url: "/api/roles/00000000-0000-0000-0000-000000000000",
     });
     const create = await app.inject({
       method: "POST",
-      url: "/roles",
+      url: "/api/roles",
       headers: { origin: "https://staging.purosur.online" },
     });
     const edit = await app.inject({
       method: "POST",
-      url: "/roles/00000000-0000-0000-0000-000000000000/edit",
+      url: "/api/roles/00000000-0000-0000-0000-000000000000/edit",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -763,20 +813,20 @@ describe("wiring the roles routes", () => {
       roles: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
 
-    const list = await app.inject({ method: "GET", url: "/roles" });
+    const list = await app.inject({ method: "GET", url: "/api/roles" });
     const read = await app.inject({
       method: "GET",
-      url: "/roles/00000000-0000-0000-0000-000000000000",
+      url: "/api/roles/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
     const create = await app.inject({
       method: "POST",
-      url: "/roles",
+      url: "/api/roles",
       headers: { origin: "https://staging.purosur.online" },
     });
     const edit = await app.inject({
       method: "POST",
-      url: "/roles/00000000-0000-0000-0000-000000000000/edit",
+      url: "/api/roles/00000000-0000-0000-0000-000000000000/edit",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -791,15 +841,15 @@ describe("wiring the categories routes", () => {
   it("does not register the categories routes when no categories option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
-    const list = await app.inject({ method: "GET", url: "/categories" });
+    const list = await app.inject({ method: "GET", url: "/api/categories" });
     const create = await app.inject({
       method: "POST",
-      url: "/categories",
+      url: "/api/categories",
       headers: { origin: "https://staging.purosur.online" },
     });
     const edit = await app.inject({
       method: "POST",
-      url: "/categories/00000000-0000-0000-0000-000000000000/edit",
+      url: "/api/categories/00000000-0000-0000-0000-000000000000/edit",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -814,15 +864,15 @@ describe("wiring the categories routes", () => {
       categories: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
 
-    const list = await app.inject({ method: "GET", url: "/categories" });
+    const list = await app.inject({ method: "GET", url: "/api/categories" });
     const create = await app.inject({
       method: "POST",
-      url: "/categories",
+      url: "/api/categories",
       headers: { origin: "https://staging.purosur.online" },
     });
     const edit = await app.inject({
       method: "POST",
-      url: "/categories/00000000-0000-0000-0000-000000000000/edit",
+      url: "/api/categories/00000000-0000-0000-0000-000000000000/edit",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -838,11 +888,11 @@ describe("wiring the brands routes", () => {
 
   async function brandsResponses(app: ReturnType<typeof buildApp>): Promise<number[]> {
     const responses = await Promise.all([
-      app.inject({ method: "GET", url: "/brands" }),
-      app.inject({ method: "POST", url: "/brands", headers: ORIGIN }),
-      app.inject({ method: "POST", url: `/brands/${ID}/edit`, headers: ORIGIN }),
-      app.inject({ method: "POST", url: `/brands/${ID}/deactivation`, headers: ORIGIN }),
-      app.inject({ method: "POST", url: `/brands/${ID}/reactivation`, headers: ORIGIN }),
+      app.inject({ method: "GET", url: "/api/brands" }),
+      app.inject({ method: "POST", url: "/api/brands", headers: ORIGIN }),
+      app.inject({ method: "POST", url: `/api/brands/${ID}/edit`, headers: ORIGIN }),
+      app.inject({ method: "POST", url: `/api/brands/${ID}/deactivation`, headers: ORIGIN }),
+      app.inject({ method: "POST", url: `/api/brands/${ID}/reactivation`, headers: ORIGIN }),
     ]);
     return responses.map((response) => response.statusCode);
   }
@@ -869,11 +919,11 @@ describe("wiring the tags routes", () => {
 
   async function tagsResponses(app: ReturnType<typeof buildApp>): Promise<number[]> {
     const responses = await Promise.all([
-      app.inject({ method: "GET", url: "/tags" }),
-      app.inject({ method: "POST", url: "/tags", headers: ORIGIN }),
-      app.inject({ method: "PUT", url: `/tags/${ID}`, headers: ORIGIN }),
-      app.inject({ method: "PUT", url: `/tags/${ID}/deactivation`, headers: ORIGIN }),
-      app.inject({ method: "DELETE", url: `/tags/${ID}/deactivation`, headers: ORIGIN }),
+      app.inject({ method: "GET", url: "/api/tags" }),
+      app.inject({ method: "POST", url: "/api/tags", headers: ORIGIN }),
+      app.inject({ method: "PUT", url: `/api/tags/${ID}`, headers: ORIGIN }),
+      app.inject({ method: "PUT", url: `/api/tags/${ID}/deactivation`, headers: ORIGIN }),
+      app.inject({ method: "DELETE", url: `/api/tags/${ID}/deactivation`, headers: ORIGIN }),
     ]);
     return responses.map((response) => response.statusCode);
   }
@@ -898,25 +948,25 @@ describe("wiring the products routes", () => {
   it("does not register the products routes when no products option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
-    const list = await app.inject({ method: "GET", url: "/products" });
+    const list = await app.inject({ method: "GET", url: "/api/products" });
     const create = await app.inject({
       method: "POST",
-      url: "/products",
+      url: "/api/products",
       headers: { origin: "https://staging.purosur.online" },
     });
     const edit = await app.inject({
       method: "POST",
-      url: "/products/00000000-0000-0000-0000-000000000000/edit",
+      url: "/api/products/00000000-0000-0000-0000-000000000000/edit",
       headers: { origin: "https://staging.purosur.online" },
     });
     const internalBarcode = await app.inject({
       method: "POST",
-      url: "/products/internal-barcode",
+      url: "/api/products/internal-barcode",
       headers: { origin: "https://staging.purosur.online" },
     });
     const labels = await app.inject({
       method: "POST",
-      url: "/products/labels",
+      url: "/api/products/labels",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -933,25 +983,25 @@ describe("wiring the products routes", () => {
       products: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
 
-    const list = await app.inject({ method: "GET", url: "/products" });
+    const list = await app.inject({ method: "GET", url: "/api/products" });
     const create = await app.inject({
       method: "POST",
-      url: "/products",
+      url: "/api/products",
       headers: { origin: "https://staging.purosur.online" },
     });
     const edit = await app.inject({
       method: "POST",
-      url: "/products/00000000-0000-0000-0000-000000000000/edit",
+      url: "/api/products/00000000-0000-0000-0000-000000000000/edit",
       headers: { origin: "https://staging.purosur.online" },
     });
     const internalBarcode = await app.inject({
       method: "POST",
-      url: "/products/internal-barcode",
+      url: "/api/products/internal-barcode",
       headers: { origin: "https://staging.purosur.online" },
     });
     const labels = await app.inject({
       method: "POST",
-      url: "/products/labels",
+      url: "/api/products/labels",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -967,15 +1017,15 @@ describe("wiring the prices routes", () => {
   it("does not register the prices routes when no prices option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
-    const list = await app.inject({ method: "GET", url: "/prices" });
+    const list = await app.inject({ method: "GET", url: "/api/prices" });
     const setPrice = await app.inject({
       method: "POST",
-      url: "/products/00000000-0000-0000-0000-000000000000/price",
+      url: "/api/products/00000000-0000-0000-0000-000000000000/price",
       headers: { origin: "https://staging.purosur.online" },
     });
     const confirmation = await app.inject({
       method: "POST",
-      url: "/products/00000000-0000-0000-0000-000000000000/price-confirmation",
+      url: "/api/products/00000000-0000-0000-0000-000000000000/price-confirmation",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -990,15 +1040,15 @@ describe("wiring the prices routes", () => {
       prices: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
 
-    const list = await app.inject({ method: "GET", url: "/prices" });
+    const list = await app.inject({ method: "GET", url: "/api/prices" });
     const setPrice = await app.inject({
       method: "POST",
-      url: "/products/00000000-0000-0000-0000-000000000000/price",
+      url: "/api/products/00000000-0000-0000-0000-000000000000/price",
       headers: { origin: "https://staging.purosur.online" },
     });
     const confirmation = await app.inject({
       method: "POST",
-      url: "/products/00000000-0000-0000-0000-000000000000/price-confirmation",
+      url: "/api/products/00000000-0000-0000-0000-000000000000/price-confirmation",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1008,23 +1058,63 @@ describe("wiring the prices routes", () => {
   });
 });
 
+describe("wiring the stock routes", () => {
+  const stockRequests = [
+    { method: "GET", url: "/api/stock/balances" },
+    { method: "GET", url: "/api/stock/products" },
+    { method: "GET", url: "/api/stock/counts" },
+    { method: "POST", url: "/api/stock/counts" },
+    {
+      method: "GET",
+      url: "/api/stock/products/00000000-0000-0000-0000-000000000000/expected-balance",
+    },
+    { method: "GET", url: "/api/stock/movements" },
+    { method: "POST", url: "/api/stock/losses" },
+    { method: "POST", url: "/api/stock/adjustments" },
+  ] as const;
+
+  async function statusCodes(app: ReturnType<typeof buildApp>): Promise<number[]> {
+    const responses = await Promise.all(
+      stockRequests.map((request) =>
+        app.inject({ ...request, headers: { origin: "https://staging.purosur.online" } }),
+      ),
+    );
+    return responses.map((response) => response.statusCode);
+  }
+
+  it("does not register the stock routes when no stock option is given", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    expect(await statusCodes(app)).toEqual(stockRequests.map(() => 404));
+  });
+
+  it("registers the stock routes when a stock option is given", async () => {
+    const app = buildApp({
+      version: "abc1234",
+      stock: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+    });
+
+    expect(await statusCodes(app)).toEqual(stockRequests.map(() => 401));
+  });
+});
+
 describe("wiring the registers routes", () => {
   it("does not register the registers routes when no registers option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
-    const list = await app.inject({ method: "GET", url: "/registers" });
+    const list = await app.inject({ method: "GET", url: "/api/registers" });
     const create = await app.inject({
       method: "POST",
-      url: "/registers",
+      url: "/api/registers",
       headers: { origin: "https://staging.purosur.online" },
     });
     const emitCode = await app.inject({
       method: "POST",
-      url: "/registers/00000000-0000-0000-0000-000000000000/enrollment-code",
+      url: "/api/registers/00000000-0000-0000-0000-000000000000/enrollment-code",
       headers: { origin: "https://staging.purosur.online" },
     });
 
-    const coverage = await app.inject({ method: "GET", url: "/registers/coverage" });
+    const coverage = await app.inject({ method: "GET", url: "/api/registers/coverage" });
 
     expect(list.statusCode).toBe(404);
     expect(create.statusCode).toBe(404);
@@ -1038,19 +1128,19 @@ describe("wiring the registers routes", () => {
       registers: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
 
-    const list = await app.inject({ method: "GET", url: "/registers" });
+    const list = await app.inject({ method: "GET", url: "/api/registers" });
     const create = await app.inject({
       method: "POST",
-      url: "/registers",
+      url: "/api/registers",
       headers: { origin: "https://staging.purosur.online" },
     });
     const emitCode = await app.inject({
       method: "POST",
-      url: "/registers/00000000-0000-0000-0000-000000000000/enrollment-code",
+      url: "/api/registers/00000000-0000-0000-0000-000000000000/enrollment-code",
       headers: { origin: "https://staging.purosur.online" },
     });
 
-    const coverage = await app.inject({ method: "GET", url: "/registers/coverage" });
+    const coverage = await app.inject({ method: "GET", url: "/api/registers/coverage" });
 
     expect(list.statusCode).toBe(401);
     expect(create.statusCode).toBe(401);
@@ -1060,18 +1150,18 @@ describe("wiring the registers routes", () => {
 });
 
 describe("wiring the device enrollment route", () => {
-  it("does not register POST /devices/enroll when no devices option is given", async () => {
+  it("does not register POST /api/devices/enroll when no devices option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
-    const response = await app.inject({ method: "POST", url: "/devices/enroll", payload: {} });
+    const response = await app.inject({ method: "POST", url: "/api/devices/enroll", payload: {} });
 
     expect(response.statusCode).toBe(404);
   });
 
-  it("registers POST /devices/enroll, answering without a session, when a devices option is given", async () => {
+  it("registers POST /api/devices/enroll, answering without a session, when a devices option is given", async () => {
     const app = buildApp({ version: "abc1234", devices: { db: testDatabase.db } });
 
-    const response = await app.inject({ method: "POST", url: "/devices/enroll", payload: {} });
+    const response = await app.inject({ method: "POST", url: "/api/devices/enroll", payload: {} });
 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ code: "validation_failed" });
@@ -1079,15 +1169,15 @@ describe("wiring the device enrollment route", () => {
 });
 
 describe("wiring the branch settings routes", () => {
-  it("does not register GET /branch-settings when no branchSettings option is given", async () => {
+  it("does not register GET /api/branch-settings when no branchSettings option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
-    const response = await app.inject({ method: "GET", url: "/branch-settings" });
+    const response = await app.inject({ method: "GET", url: "/api/branch-settings" });
 
     expect(response.statusCode).toBe(404);
   });
 
-  it("registers GET /branch-settings when a branchSettings option is given", async () => {
+  it("registers GET /api/branch-settings when a branchSettings option is given", async () => {
     const app = buildApp({
       version: "abc1234",
       branchSettings: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
@@ -1095,7 +1185,7 @@ describe("wiring the branch settings routes", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/branch-settings",
+      url: "/api/branch-settings",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1103,15 +1193,15 @@ describe("wiring the branch settings routes", () => {
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
   });
 
-  it("does not register PUT /branch-settings when no branchSettings option is given", async () => {
+  it("does not register PUT /api/branch-settings when no branchSettings option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
-    const response = await app.inject({ method: "PUT", url: "/branch-settings" });
+    const response = await app.inject({ method: "PUT", url: "/api/branch-settings" });
 
     expect(response.statusCode).toBe(404);
   });
 
-  it("registers PUT /branch-settings when a branchSettings option is given", async () => {
+  it("registers PUT /api/branch-settings when a branchSettings option is given", async () => {
     const app = buildApp({
       version: "abc1234",
       branchSettings: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
@@ -1119,7 +1209,7 @@ describe("wiring the branch settings routes", () => {
 
     const response = await app.inject({
       method: "PUT",
-      url: "/branch-settings",
+      url: "/api/branch-settings",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1131,18 +1221,18 @@ describe("wiring the branch settings routes", () => {
 describe("wiring the issuer identification routes", () => {
   const authorizedCuit = "20-12345678-6";
 
-  it("does not register GET /fiscal-configuration/issuer-identification when no issuerIdentification option is given", async () => {
+  it("does not register GET /api/fiscal-configuration/issuer-identification when no issuerIdentification option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
     const response = await app.inject({
       method: "GET",
-      url: "/fiscal-configuration/issuer-identification",
+      url: "/api/fiscal-configuration/issuer-identification",
     });
 
     expect(response.statusCode).toBe(404);
   });
 
-  it("registers GET /fiscal-configuration/issuer-identification when an issuerIdentification option is given", async () => {
+  it("registers GET /api/fiscal-configuration/issuer-identification when an issuerIdentification option is given", async () => {
     const app = buildApp({
       version: "abc1234",
       issuerIdentification: {
@@ -1154,7 +1244,7 @@ describe("wiring the issuer identification routes", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/fiscal-configuration/issuer-identification",
+      url: "/api/fiscal-configuration/issuer-identification",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1162,18 +1252,18 @@ describe("wiring the issuer identification routes", () => {
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
   });
 
-  it("does not register PUT /fiscal-configuration/issuer-identification when no issuerIdentification option is given", async () => {
+  it("does not register PUT /api/fiscal-configuration/issuer-identification when no issuerIdentification option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
     const response = await app.inject({
       method: "PUT",
-      url: "/fiscal-configuration/issuer-identification",
+      url: "/api/fiscal-configuration/issuer-identification",
     });
 
     expect(response.statusCode).toBe(404);
   });
 
-  it("registers PUT /fiscal-configuration/issuer-identification when an issuerIdentification option is given", async () => {
+  it("registers PUT /api/fiscal-configuration/issuer-identification when an issuerIdentification option is given", async () => {
     const app = buildApp({
       version: "abc1234",
       issuerIdentification: {
@@ -1185,7 +1275,7 @@ describe("wiring the issuer identification routes", () => {
 
     const response = await app.inject({
       method: "PUT",
-      url: "/fiscal-configuration/issuer-identification",
+      url: "/api/fiscal-configuration/issuer-identification",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1195,21 +1285,21 @@ describe("wiring the issuer identification routes", () => {
 });
 
 describe("wiring the passkeys routes", () => {
-  it("does not register GET /users/passkeys when no passkeys option is given", async () => {
+  it("does not register GET /api/users/passkeys when no passkeys option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
-    const response = await app.inject({ method: "GET", url: "/users/passkeys" });
+    const response = await app.inject({ method: "GET", url: "/api/users/passkeys" });
 
     expect(response.statusCode).toBe(404);
   });
 
-  it("registers GET /users/passkeys when a passkeys option is given", async () => {
+  it("registers GET /api/users/passkeys when a passkeys option is given", async () => {
     const app = buildApp({
       version: "abc1234",
       passkeys: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
 
-    const response = await app.inject({ method: "GET", url: "/users/passkeys" });
+    const response = await app.inject({ method: "GET", url: "/api/users/passkeys" });
 
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
@@ -1220,12 +1310,12 @@ describe("wiring the passkeys routes", () => {
 
     const registrationOptions = await app.inject({
       method: "POST",
-      url: "/users/passkeys/registration-options",
+      url: "/api/users/passkeys/registration-options",
       headers: { origin: "https://staging.purosur.online" },
     });
     const remove = await app.inject({
       method: "POST",
-      url: "/users/passkeys/00000000-0000-0000-0000-000000000000/remove",
+      url: "/api/users/passkeys/00000000-0000-0000-0000-000000000000/remove",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1241,12 +1331,12 @@ describe("wiring the passkeys routes", () => {
 
     const registrationOptions = await app.inject({
       method: "POST",
-      url: "/users/passkeys/registration-options",
+      url: "/api/users/passkeys/registration-options",
       headers: { origin: "https://staging.purosur.online" },
     });
     const remove = await app.inject({
       method: "POST",
-      url: "/users/passkeys/00000000-0000-0000-0000-000000000000/remove",
+      url: "/api/users/passkeys/00000000-0000-0000-0000-000000000000/remove",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1304,213 +1394,221 @@ describe("the route access inventory", () => {
     await app.ready();
 
     expect(app.routeAccessInventory()).toEqual([
-      { method: "GET", url: "/error-reporting", access: PUBLIC_ACCESS },
-      { method: "POST", url: "/users/recovery/request", access: PUBLIC_ACCESS },
-      { method: "POST", url: "/users/recovery/registration-options", access: PUBLIC_ACCESS },
-      { method: "POST", url: "/users/recovery/redeem", access: PUBLIC_ACCESS },
-      { method: "POST", url: "/users/session/authentication-options", access: PUBLIC_ACCESS },
-      { method: "POST", url: "/users/session/authenticate", access: PUBLIC_ACCESS },
-      { method: "GET", url: "/users/session", access: OPEN_SESSION_ACCESS },
-      { method: "GET", url: "/users/session/status", access: OPEN_SESSION_PEEK_ACCESS },
-      { method: "POST", url: "/users/session/sign-out", access: SESSION_COOKIE_ACCESS },
-      { method: "POST", url: "/users/session/authorization-options", access: OPEN_SESSION_ACCESS },
-      { method: "POST", url: "/users/session/authorization", access: OPEN_SESSION_ACCESS },
-      { method: "GET", url: "/users/passkeys", access: OPEN_SESSION_ACCESS },
-      { method: "POST", url: "/users/passkeys/registration-options", access: OPEN_SESSION_ACCESS },
-      { method: "POST", url: "/users/passkeys", access: OPEN_SESSION_ACCESS },
-      { method: "POST", url: "/users/passkeys/:id/remove", access: OPEN_SESSION_ACCESS },
-      {
-        method: "GET",
-        url: "/users",
-        access: permissionAccess(["deactivate_users", "reactivate_users"]),
-      },
-      {
-        method: "GET",
-        url: "/users/:id",
-        access: permissionAccess(["deactivate_users", "reactivate_users"]),
-      },
-      { method: "POST", url: "/users", access: ADMINISTRATOR_ACCESS },
-      { method: "POST", url: "/users/:id/edit", access: ADMINISTRATOR_ACCESS },
-      { method: "GET", url: "/users/:id/passkeys", access: ADMINISTRATOR_ACCESS },
+      { method: "GET", url: "/api/error-reporting", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/api/users/recovery/request", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/api/users/recovery/registration-options", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/api/users/recovery/redeem", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/api/users/session/authentication-options", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/api/users/session/authenticate", access: PUBLIC_ACCESS },
+      { method: "GET", url: "/api/users/session", access: OPEN_SESSION_ACCESS },
+      { method: "GET", url: "/api/users/session/status", access: OPEN_SESSION_PEEK_ACCESS },
+      { method: "POST", url: "/api/users/session/sign-out", access: SESSION_COOKIE_ACCESS },
       {
         method: "POST",
-        url: "/users/:id/passkeys/:passkeyId/remove",
+        url: "/api/users/session/authorization-options",
+        access: OPEN_SESSION_ACCESS,
+      },
+      { method: "POST", url: "/api/users/session/authorization", access: OPEN_SESSION_ACCESS },
+      { method: "GET", url: "/api/users/passkeys", access: OPEN_SESSION_ACCESS },
+      {
+        method: "POST",
+        url: "/api/users/passkeys/registration-options",
+        access: OPEN_SESSION_ACCESS,
+      },
+      { method: "POST", url: "/api/users/passkeys", access: OPEN_SESSION_ACCESS },
+      { method: "POST", url: "/api/users/passkeys/:id/remove", access: OPEN_SESSION_ACCESS },
+      {
+        method: "GET",
+        url: "/api/users",
+        access: permissionAccess(["deactivate_users", "reactivate_users"]),
+      },
+      {
+        method: "GET",
+        url: "/api/users/:id",
+        access: permissionAccess(["deactivate_users", "reactivate_users"]),
+      },
+      { method: "POST", url: "/api/users", access: ADMINISTRATOR_ACCESS },
+      { method: "POST", url: "/api/users/:id/edit", access: ADMINISTRATOR_ACCESS },
+      { method: "GET", url: "/api/users/:id/passkeys", access: ADMINISTRATOR_ACCESS },
+      {
+        method: "POST",
+        url: "/api/users/:id/passkeys/:passkeyId/remove",
         access: ADMINISTRATOR_ACCESS,
       },
       {
         method: "POST",
-        url: "/users/:id/deactivation",
+        url: "/api/users/:id/deactivation",
         access: permissionAccess("deactivate_users"),
       },
       {
         method: "POST",
-        url: "/users/:id/reactivation",
+        url: "/api/users/:id/reactivation",
         access: permissionAccess("reactivate_users"),
       },
-      { method: "GET", url: "/roles", access: ADMINISTRATOR_ACCESS },
-      { method: "GET", url: "/roles/:id", access: ADMINISTRATOR_ACCESS },
-      { method: "POST", url: "/roles", access: ADMINISTRATOR_ACCESS },
-      { method: "POST", url: "/roles/:id/edit", access: ADMINISTRATOR_ACCESS },
+      { method: "GET", url: "/api/roles", access: ADMINISTRATOR_ACCESS },
+      { method: "GET", url: "/api/roles/:id", access: ADMINISTRATOR_ACCESS },
+      { method: "POST", url: "/api/roles", access: ADMINISTRATOR_ACCESS },
+      { method: "POST", url: "/api/roles/:id/edit", access: ADMINISTRATOR_ACCESS },
       {
         method: "GET",
-        url: "/branch-settings",
+        url: "/api/branch-settings",
         access: permissionAccess("configure_branch"),
       },
       {
         method: "PUT",
-        url: "/branch-settings",
+        url: "/api/branch-settings",
         access: permissionAccess("configure_branch"),
       },
       {
         method: "GET",
-        url: "/fiscal-configuration/issuer-identification",
+        url: "/api/fiscal-configuration/issuer-identification",
         access: permissionAccess("change_fiscal_configuration"),
       },
       {
         method: "PUT",
-        url: "/fiscal-configuration/issuer-identification",
+        url: "/api/fiscal-configuration/issuer-identification",
         access: permissionAccess("change_fiscal_configuration"),
       },
       {
         method: "GET",
-        url: "/categories",
+        url: "/api/categories",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
         method: "POST",
-        url: "/categories",
+        url: "/api/categories",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
         method: "POST",
-        url: "/categories/:id/edit",
+        url: "/api/categories/:id/edit",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
         method: "GET",
-        url: "/brands",
+        url: "/api/brands",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
         method: "POST",
-        url: "/brands",
+        url: "/api/brands",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
         method: "POST",
-        url: "/brands/:id/edit",
+        url: "/api/brands/:id/edit",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
         method: "POST",
-        url: "/brands/:id/deactivation",
+        url: "/api/brands/:id/deactivation",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
         method: "POST",
-        url: "/brands/:id/reactivation",
+        url: "/api/brands/:id/reactivation",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
         method: "GET",
-        url: "/tags",
+        url: "/api/tags",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
         method: "POST",
-        url: "/tags",
+        url: "/api/tags",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
         method: "PUT",
-        url: "/tags/:id",
+        url: "/api/tags/:id",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
         method: "PUT",
-        url: "/tags/:id/deactivation",
+        url: "/api/tags/:id/deactivation",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
         method: "DELETE",
-        url: "/tags/:id/deactivation",
+        url: "/api/tags/:id/deactivation",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
         method: "GET",
-        url: "/products",
+        url: "/api/products",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
         method: "POST",
-        url: "/products",
+        url: "/api/products",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
         method: "POST",
-        url: "/products/:id/edit",
+        url: "/api/products/:id/edit",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
         method: "POST",
-        url: "/products/:id/deactivation",
+        url: "/api/products/:id/deactivation",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
         method: "POST",
-        url: "/products/internal-barcode",
+        url: "/api/products/internal-barcode",
         access: permissionAccess("manage_products_and_categories"),
       },
       {
         method: "POST",
-        url: "/products/labels",
+        url: "/api/products/labels",
         access: permissionAccess("manage_products_and_categories"),
       },
-      { method: "GET", url: "/alerts", access: OPEN_SESSION_ACCESS },
-      { method: "GET", url: "/alerts/overview", access: OPEN_SESSION_ACCESS },
-      { method: "GET", url: "/alerts/:id", access: OPEN_SESSION_ACCESS },
+      { method: "GET", url: "/api/alerts", access: OPEN_SESSION_ACCESS },
+      { method: "GET", url: "/api/alerts/overview", access: OPEN_SESSION_ACCESS },
+      { method: "GET", url: "/api/alerts/:id", access: OPEN_SESSION_ACCESS },
       {
         method: "POST",
-        url: "/alerts/:id/close",
+        url: "/api/alerts/:id/close",
         access: permissionAccess("dismiss_alerts_manually"),
       },
       {
         method: "GET",
-        url: "/prices",
+        url: "/api/prices",
         access: permissionAccess("manage_prices_and_review"),
       },
       {
         method: "POST",
-        url: "/products/:id/price",
+        url: "/api/products/:id/price",
         access: permissionAccess("manage_prices_and_review"),
       },
       {
         method: "POST",
-        url: "/products/:id/price-confirmation",
+        url: "/api/products/:id/price-confirmation",
         access: permissionAccess("manage_prices_and_review"),
       },
       {
         method: "GET",
-        url: "/registers",
+        url: "/api/registers",
         access: permissionAccess("enroll_register_devices"),
       },
       {
         method: "POST",
-        url: "/registers",
+        url: "/api/registers",
         access: permissionAccess("enroll_register_devices"),
       },
       {
         method: "GET",
-        url: "/registers/coverage",
+        url: "/api/registers/coverage",
         access: permissionAccess("enroll_register_devices"),
       },
       {
         method: "POST",
-        url: "/registers/:id/enrollment-code",
+        url: "/api/registers/:id/enrollment-code",
         access: permissionAccess("enroll_register_devices"),
       },
-      { method: "GET", url: "/health", access: PUBLIC_ACCESS },
-      { method: "POST", url: "/devices/enroll", access: PUBLIC_ACCESS },
+      { method: "GET", url: "/api/health", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/api/devices/enroll", access: PUBLIC_ACCESS },
       { method: "HEAD", url: "/*", access: PUBLIC_ACCESS },
       { method: "GET", url: "/*", access: PUBLIC_ACCESS },
     ]);
@@ -1532,7 +1630,7 @@ describe("deleting a product", () => {
 
     const response = await app.inject({
       method: "DELETE",
-      url: "/products/00000000-0000-0000-0000-000000000000",
+      url: "/api/products/00000000-0000-0000-0000-000000000000",
       headers: { origin: BACKOFFICE_ORIGIN },
     });
 

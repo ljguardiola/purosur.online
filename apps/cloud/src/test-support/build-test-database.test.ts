@@ -35,6 +35,9 @@ import {
   signInChallenges,
   signInFailures,
   signInLockouts,
+  stockBalances,
+  stockCounts,
+  stockMovements,
   tags,
   userRoles,
   users,
@@ -231,6 +234,26 @@ describe("buildTestDatabase", () => {
       attemptedAt: new Date("2026-01-05T12:00:00.000Z"),
     });
     await db.insert(auditLog).values({ entity: "users", entityId: user.id });
+    const [countMovement] = await db
+      .insert(stockMovements)
+      .values({
+        productId: product.id,
+        locationId: await seededLocationId(db),
+        kind: "count",
+        delta: 3000,
+        occurredAt: new Date("2026-01-05T12:00:00.000Z"),
+        actorId: user.id,
+      })
+      .returning({ id: stockMovements.id });
+    if (!countMovement) {
+      throw new Error("seeding stock movements returned no row");
+    }
+    await db
+      .insert(stockCounts)
+      .values({ movementId: countMovement.id, counted: 3000, expected: 0 });
+    await db
+      .insert(stockBalances)
+      .values({ productId: product.id, locationId: await seededLocationId(db), quantity: 3000 });
     await db.insert(passkeys).values({
       userId: user.id,
       credentialId: "credential-1",

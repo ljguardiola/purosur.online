@@ -63,7 +63,7 @@ export async function fetchPrices(input: FetchPricesInput): Promise<FetchPricesO
 
   let response: Response;
   try {
-    response = await fetch(`/prices?${query.toString()}`);
+    response = await fetch(`/api/prices?${query.toString()}`);
   } catch {
     return { kind: "failed" };
   }
@@ -86,7 +86,7 @@ export async function fetchPrices(input: FetchPricesInput): Promise<FetchPricesO
 export async function setPrice(productId: string, input: SetPriceInput): Promise<SetPriceOutcome> {
   let response: Response;
   try {
-    response = await postJson(`/products/${productId}/price`, input);
+    response = await postJson(`/api/products/${productId}/price`, input);
   } catch {
     return { kind: "failed" };
   }
@@ -125,7 +125,7 @@ export async function confirmPrice(
 ): Promise<ConfirmPriceOutcome> {
   let response: Response;
   try {
-    response = await postJson(`/products/${productId}/price-confirmation`, input);
+    response = await postJson(`/api/products/${productId}/price-confirmation`, input);
   } catch {
     return { kind: "failed" };
   }

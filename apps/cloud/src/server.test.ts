@@ -562,6 +562,10 @@ describe("startServer", () => {
         db: fakeRecovery.db,
         backofficeOrigin: fakeRecovery.backofficeOrigin,
       },
+      stock: {
+        db: fakeRecovery.db,
+        backofficeOrigin: fakeRecovery.backofficeOrigin,
+      },
       devices: { db: fakeRecovery.db },
     });
 
@@ -620,7 +624,7 @@ describe("startServer with the real app", () => {
     try {
       const response = await app.inject({
         method: "GET",
-        url: "/users",
+        url: "/api/users",
         headers: { "x-edge-origin-secret": "edge-secret" },
       });
 

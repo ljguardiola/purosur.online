@@ -250,8 +250,15 @@
     {
       "idx": 35,
       "version": "7",
-      "when": 1790722518132,
-      "tag": "0035_tags",
+      "when": 1790718099155,
+      "tag": "0035_stock_ledger",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1790728240897,
+      "tag": "0036_tags",
       "breakpoints": true
     }
   ]

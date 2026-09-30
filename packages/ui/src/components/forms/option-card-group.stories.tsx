@@ -114,3 +114,32 @@ function OptionCardGroupWithMessageElsewhere() {
 export const InvalidMessageElsewhere: Story = {
   render: () => <OptionCardGroupWithMessageElsewhere />,
 };
+
+type ReasonValue =
+  | "broken_or_spilled"
+  | "spoiled"
+  | "portioning_waste"
+  | "tasting_or_sample"
+  | "store_consumption"
+  | "theft";
+
+const reasonOptions: [NarrowedOption<ReasonValue>, ...NarrowedOption<ReasonValue>[]] = [
+  { value: "broken_or_spilled", label: "Rotura o derrame" },
+  { value: "spoiled", label: "Mal estado" },
+  { value: "portioning_waste", label: "Merma de fraccionamiento" },
+  { value: "tasting_or_sample", label: "Degustación o muestra" },
+  { value: "store_consumption", label: "Consumo del local" },
+  { value: "theft", label: "Robo" },
+];
+
+export const Grid: Story = {
+  render: () => (
+    <OptionCardGroup
+      layout="grid"
+      label="Motivo"
+      options={reasonOptions}
+      value="broken_or_spilled"
+      onChange={() => {}}
+    />
+  ),
+};

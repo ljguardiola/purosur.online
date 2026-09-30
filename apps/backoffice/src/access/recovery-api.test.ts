@@ -25,7 +25,7 @@ test("requestRecoveryLink posts the normalized request and reports it as sent on
 
   expect(outcome).toEqual({ kind: "sent" });
   expect(fetch).toHaveBeenCalledWith(
-    "/users/recovery/request",
+    "/api/users/recovery/request",
     expect.objectContaining({
       method: "POST",
       headers: expect.objectContaining({ "Content-Type": "application/json" }),
@@ -100,7 +100,7 @@ test("fetchRegistrationOptions sends the token and returns the options and displ
     },
   });
   expect(fetch).toHaveBeenCalledWith(
-    "/users/recovery/registration-options",
+    "/api/users/recovery/registration-options",
     expect.objectContaining({
       method: "POST",
       body: JSON.stringify({ recovery_token: "the-token" }),
@@ -169,7 +169,7 @@ test("redeemRecovery sends the token and the passkey registration with its name,
 
   expect(outcome).toEqual({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith(
-    "/users/recovery/redeem",
+    "/api/users/recovery/redeem",
     expect.objectContaining({
       method: "POST",
       body: JSON.stringify({

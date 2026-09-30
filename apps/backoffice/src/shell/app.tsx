@@ -70,6 +70,18 @@ import {
   defaultRegistersListScreenServices,
   type RegistersListScreenServices,
 } from "../register/registers-list-services";
+import {
+  defaultStockBalancesScreenServices,
+  type StockBalancesScreenServices,
+} from "../stock/stock-balances-services";
+import {
+  defaultStockCountsScreenServices,
+  type StockCountsScreenServices,
+} from "../stock/stock-counts-services";
+import {
+  defaultStockMovementsScreenServices,
+  type StockMovementsScreenServices,
+} from "../stock/stock-movements-services";
 import { type AccountFooterServices, defaultAccountFooterServices } from "./account-footer";
 import { createAppRouter } from "./app-router";
 import {
@@ -99,6 +111,9 @@ export type AppServices = {
   tagsListScreen: TagsListScreenServices;
   productsListScreen: ProductsListScreenServices;
   pricesListScreen: PricesListScreenServices;
+  stockBalancesScreen: StockBalancesScreenServices;
+  stockCountsScreen: StockCountsScreenServices;
+  stockMovementsScreen: StockMovementsScreenServices;
   fiscalConfigurationScreen: FiscalConfigurationScreenServices;
   accountFooter: AccountFooterServices;
   screenFailure: ScreenFailureServices;
@@ -123,6 +138,9 @@ const defaultAppServices: AppServices = {
   tagsListScreen: defaultTagsListScreenServices,
   productsListScreen: defaultProductsListScreenServices,
   pricesListScreen: defaultPricesListScreenServices,
+  stockBalancesScreen: defaultStockBalancesScreenServices,
+  stockCountsScreen: defaultStockCountsScreenServices,
+  stockMovementsScreen: defaultStockMovementsScreenServices,
   fiscalConfigurationScreen: defaultFiscalConfigurationScreenServices,
   accountFooter: defaultAccountFooterServices,
   screenFailure: defaultScreenFailureServices,

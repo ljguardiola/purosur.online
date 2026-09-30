@@ -4,7 +4,16 @@ import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
-const CONCEPTS = ["access", "alerts", "branch", "catalog", "fiscal", "pricing", "register"];
+const CONCEPTS = [
+  "access",
+  "alerts",
+  "branch",
+  "catalog",
+  "fiscal",
+  "pricing",
+  "register",
+  "stock",
+];
 const OUTSIDE_ANY_CONCEPT = ["platform", "sample-data", "test-support"];
 const ENTRY_POINTS = [
   "app.ts",
