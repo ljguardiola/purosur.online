@@ -70,7 +70,7 @@ const chevronButtonClassName = "flex h-full shrink-0 items-center px-3 outline-n
 const chevronClassName = "size-icon-md text-text-subtle";
 
 const popoverClassName = `min-w-trigger w-trigger ${menuSurfaceClassName}`;
-const listBoxClassName = "max-h-[inherit] overflow-auto outline-none";
+const listBoxClassName = "max-h-inherit overflow-auto outline-none";
 
 const optionDescriptionClassName = "truncate text-detail font-normal text-text-subtle";
 
