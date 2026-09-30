@@ -1,4 +1,4 @@
-import { cloudErrorSchema, syncPullPageSchema } from "@purosur/contracts";
+import { changesPageSchema, cloudErrorSchema } from "@purosur/contracts";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -9,7 +9,7 @@ import { issueDeviceToken } from "../register/device-token.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
-import { registerSyncPullRoute } from "./sync-pull-route.js";
+import { registerChangesRoute } from "./changes-route.js";
 
 const NOW = new Date("2026-09-29T12:00:00.000Z");
 
@@ -47,7 +47,7 @@ beforeEach(async () => {
   await testDatabase.clear();
   app = Fastify();
   registerRouteAccess(app);
-  registerSyncPullRoute(app, { db, now: () => NOW });
+  registerChangesRoute(app, { db, now: () => NOW });
 });
 
 afterEach(async () => {
@@ -57,7 +57,7 @@ afterEach(async () => {
 function pull(query: string, authorization?: string) {
   return app.inject({
     method: "GET",
-    url: `/sync/pull${query}`,
+    url: `/changes${query}`,
     ...(authorization !== undefined && { headers: { authorization } }),
   });
 }
@@ -65,7 +65,7 @@ function pull(query: string, authorization?: string) {
 async function pullPage(since: number, deviceToken: string) {
   const response = await pull(`?since=${since}`, `Bearer ${deviceToken}`);
   expect(response.statusCode).toBe(200);
-  return syncPullPageSchema.parse(response.json());
+  return changesPageSchema.parse(response.json());
 }
 
 async function insertOtherBranch(): Promise<string> {
@@ -117,7 +117,7 @@ function settingsEdit(locationId: string, actorId: string, version: number, addr
   };
 }
 
-describe("GET /sync/pull", () => {
+describe("GET /changes", () => {
   it("gives a brand-new installation its branch's settings, with their version, from the very first cursor", async () => {
     const { deviceToken, locationId } = await insertEnrolledInstallation(db);
 
@@ -147,7 +147,7 @@ describe("GET /sync/pull", () => {
     );
 
     expect(response.statusCode).toBe(200);
-    const page = syncPullPageSchema.parse(response.json());
+    const page = changesPageSchema.parse(response.json());
     expect(page.changes.map((change) => change.entity_id)).toEqual([locationId]);
   });
 
@@ -262,11 +262,11 @@ describe("GET /sync/pull", () => {
     await broken.close();
     const failing = Fastify();
     registerRouteAccess(failing);
-    registerSyncPullRoute(failing, { db: broken.db });
+    registerChangesRoute(failing, { db: broken.db });
 
     const response = await failing.inject({
       method: "GET",
-      url: "/sync/pull?since=0",
+      url: "/changes?since=0",
       headers: { authorization: `Bearer ${issueDeviceToken().deviceToken}` },
     });
     await failing.close();

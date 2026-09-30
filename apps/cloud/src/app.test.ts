@@ -3,7 +3,7 @@ import { request as httpRequest } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { healthCheckSchema, syncPullPageSchema } from "@purosur/contracts";
+import { changesPageSchema, healthCheckSchema } from "@purosur/contracts";
 import { PERMISSION_KEYS } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -69,19 +69,19 @@ describe("GET /health", () => {
   });
 });
 
-describe("GET /sync/pull", () => {
+describe("GET /changes", () => {
   it("pulls the enrolled installation's branch changes when the device routes are wired", async () => {
     const { deviceToken } = await insertEnrolledInstallation(testDatabase.db);
     const app = buildApp({ version: "abc1234", devices: { db: testDatabase.db } });
 
     const response = await app.inject({
       method: "GET",
-      url: "/sync/pull?since=0",
+      url: "/changes?since=0",
       headers: { authorization: `Bearer ${deviceToken}` },
     });
 
     expect(response.statusCode).toBe(200);
-    expect(syncPullPageSchema.parse(response.json()).changes).toHaveLength(1);
+    expect(changesPageSchema.parse(response.json()).changes).toHaveLength(1);
   });
 });
 
@@ -1510,7 +1510,7 @@ describe("the route access inventory", () => {
       },
       { method: "GET", url: "/health", access: PUBLIC_ACCESS },
       { method: "POST", url: "/devices/enroll", access: PUBLIC_ACCESS },
-      { method: "GET", url: "/sync/pull", access: PUBLIC_ACCESS },
+      { method: "GET", url: "/changes", access: PUBLIC_ACCESS },
       { method: "HEAD", url: "/*", access: PUBLIC_ACCESS },
       { method: "GET", url: "/*", access: PUBLIC_ACCESS },
     ]);

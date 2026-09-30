@@ -1,9 +1,9 @@
 import {
+  type ChangesPage,
+  changesPageSchema,
+  changesQuerySchema,
   cloudError,
   cloudErrorStatus,
-  type SyncPullPage,
-  syncPullPageSchema,
-  syncPullQuerySchema,
 } from "@purosur/contracts";
 import { type PullPage, pullChanges } from "@purosur/domain/sync/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -15,7 +15,7 @@ import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.j
 import { authenticateDevice } from "../register/device-authentication.js";
 import { DrizzleChangeLog, type PulledBranchSettingsChange } from "./drizzle-change-log.js";
 
-export interface SyncPullRouteOptions<TQueryResult extends PgQueryResultHKT> {
+export interface ChangesRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   now?: () => Date;
 }
@@ -25,7 +25,7 @@ const DEVICE_TOKEN_REJECTED = cloudError(
   "the device token is not recognized",
 );
 
-function toSyncPullPageWire(page: PullPage<PulledBranchSettingsChange>): SyncPullPage {
+function toChangesPageWire(page: PullPage<PulledBranchSettingsChange>): ChangesPage {
   return {
     changes: page.changes.map((change) => ({
       change_seq: change.changeSeq,
@@ -39,9 +39,9 @@ function toSyncPullPageWire(page: PullPage<PulledBranchSettingsChange>): SyncPul
 }
 
 // Public to the backoffice's session guard: the device token is this route's own authentication.
-export function registerSyncPullRoute<TQueryResult extends PgQueryResultHKT>(
+export function registerChangesRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
-  options: SyncPullRouteOptions<TQueryResult>,
+  options: ChangesRouteOptions<TQueryResult>,
 ): void {
   const ports = {
     changeLog: new DrizzleChangeLog(options.db),
@@ -51,7 +51,7 @@ export function registerSyncPullRoute<TQueryResult extends PgQueryResultHKT>(
   app.register(async (scope) => {
     answerErrorsWithCloudEnvelope(scope);
 
-    scope.get("/sync/pull", { config: { access: PUBLIC_ACCESS } }, async (request, reply) => {
+    scope.get("/changes", { config: { access: PUBLIC_ACCESS } }, async (request, reply) => {
       const authentication = await authenticateDevice(options.db, request.headers.authorization);
       if (authentication.kind !== "installation" || authentication.installation.revoked) {
         await reply
@@ -61,7 +61,7 @@ export function registerSyncPullRoute<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      const query = await readValidatedBody(reply, syncPullQuerySchema, request.query);
+      const query = await readValidatedBody(reply, changesQuerySchema, request.query);
       if (!query) {
         return;
       }
@@ -71,7 +71,7 @@ export function registerSyncPullRoute<TQueryResult extends PgQueryResultHKT>(
         locationId: authentication.installation.locationId,
         since: query.since,
       });
-      await reply.code(200).send(syncPullPageSchema.parse(toSyncPullPageWire(page)));
+      await reply.code(200).send(changesPageSchema.parse(toChangesPageWire(page)));
     });
   });
 }

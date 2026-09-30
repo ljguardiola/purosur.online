@@ -1,6 +1,6 @@
-import type { SyncPulledChange } from "@purosur/contracts";
+import type { SyncChange } from "@purosur/contracts";
 
 export interface RegisterPulledChange {
   changeSeq: number;
-  change: SyncPulledChange;
+  change: SyncChange;
 }

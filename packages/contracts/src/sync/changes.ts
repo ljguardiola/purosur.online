@@ -4,7 +4,7 @@ import { branchSettingsSchema } from "../shared/index.js";
 
 const SINCE_MESSAGE = "since must be the cursor of the last page already pulled, 0 the first time";
 
-export const syncPullQuerySchema = z.object({
+export const changesQuerySchema = z.object({
   since: z
     .string({ error: SINCE_MESSAGE })
     .regex(/^(?:0|[1-9][0-9]*)$/, SINCE_MESSAGE)
@@ -12,7 +12,7 @@ export const syncPullQuerySchema = z.object({
     .refine(isPullCursor, SINCE_MESSAGE),
 });
 
-export type SyncPullQuery = z.input<typeof syncPullQuerySchema>;
+export type ChangesQuery = z.input<typeof changesQuerySchema>;
 
 const pullCursorSchema = z.int().refine(isPullCursor);
 
@@ -23,7 +23,7 @@ const branchSettingsChangeSchema = z.object({
   row: branchSettingsSchema,
 });
 
-export const syncPullPageSchema = z.object({
+export const changesPageSchema = z.object({
   changes: z
     .array(z.discriminatedUnion("entity", [branchSettingsChangeSchema]))
     .max(PULL_PAGE_MAX_CHANGES),
@@ -31,6 +31,6 @@ export const syncPullPageSchema = z.object({
   has_more: z.boolean(),
 });
 
-export type SyncPullPage = z.output<typeof syncPullPageSchema>;
+export type ChangesPage = z.output<typeof changesPageSchema>;
 
-export type SyncPulledChange = SyncPullPage["changes"][number];
+export type SyncChange = ChangesPage["changes"][number];

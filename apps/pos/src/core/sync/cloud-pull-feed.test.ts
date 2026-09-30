@@ -48,7 +48,7 @@ describe("the cloud's pull, as the register reads it", () => {
     await feed.pageAfter(4);
 
     expect(requests).toEqual([
-      { path: "/sync/pull?since=4", headers: { authorization: "Bearer prefix.secret" } },
+      { path: "/changes?since=4", headers: { authorization: "Bearer prefix.secret" } },
     ]);
   });
 

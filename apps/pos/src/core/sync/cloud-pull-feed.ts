@@ -1,4 +1,4 @@
-import { type CloudErrorCode, syncPullPageSchema } from "@purosur/contracts";
+import { type CloudErrorCode, changesPageSchema } from "@purosur/contracts";
 import type { CloudChangeFeed, CloudChangeFeedAnswer } from "@purosur/domain/sync/use-cases";
 import type { CloudResponse } from "../platform/cloud-client";
 import type { RegisterPulledChange } from "./pulled-change";
@@ -25,7 +25,7 @@ export class CloudPullFeed implements CloudChangeFeed<RegisterPulledChange, Pull
   }
 
   async pageAfter(since: number): Promise<Answer> {
-    const response = await this.get(`/sync/pull?since=${since}`, {
+    const response = await this.get(`/changes?since=${since}`, {
       authorization: `Bearer ${this.deviceToken}`,
     });
     if (response.kind === "unreachable") {
@@ -34,7 +34,7 @@ export class CloudPullFeed implements CloudChangeFeed<RegisterPulledChange, Pull
     if (response.kind === "error") {
       return { kind: "failed", failure: { kind: "refused", code: response.error.code } };
     }
-    const page = syncPullPageSchema.safeParse(response.body);
+    const page = changesPageSchema.safeParse(response.body);
     if (!page.success) {
       return { kind: "failed", failure: { kind: "unreadable" } };
     }

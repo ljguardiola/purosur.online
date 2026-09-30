@@ -85,7 +85,7 @@ import { registerStockCountsRoutes } from "./stock/stock-counts-route.js";
 import { registerStockMovementsRoutes } from "./stock/stock-movements-route.js";
 import { registerStockProductsRoute } from "./stock/stock-products-route.js";
 import type { StockRouteOptions } from "./stock/stock-route-options.js";
-import { registerSyncPullRoute } from "./sync/sync-pull-route.js";
+import { registerChangesRoute } from "./sync/changes-route.js";
 
 export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = PostgresJsQueryResultHKT> {
   version: string;
@@ -288,7 +288,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
   if (options.devices) {
     registerDeviceEnrollmentRoute(app, options.devices);
-    registerSyncPullRoute(app, options.devices);
+    registerChangesRoute(app, options.devices);
   }
 
   const staticDir = options.staticDir;

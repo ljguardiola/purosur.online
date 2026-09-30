@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { syncPullPageSchema, syncPullQuerySchema } from "./sync-pull.js";
+import { changesPageSchema, changesQuerySchema } from "./changes.js";
 
 const settingsRow = {
   address: "Av. Belgrano 1450, CABA",
@@ -27,13 +27,13 @@ function branchSettingsChange(changeSeq: number) {
   };
 }
 
-describe("syncPullQuerySchema", () => {
+describe("changesQuerySchema", () => {
   it.each([
     ["0", 0],
     ["1", 1],
     ["9007199254740991", Number.MAX_SAFE_INTEGER],
   ])("reads since=%s as the cursor %s", (since, cursor) => {
-    expect(syncPullQuerySchema.parse({ since })).toEqual({ since: cursor });
+    expect(changesQuerySchema.parse({ since })).toEqual({ since: cursor });
   });
 
   it.each([
@@ -47,7 +47,7 @@ describe("syncPullQuerySchema", () => {
     ["beyond a safe integer", { since: "9007199254740992" }],
     ["repeated", { since: ["1", "2"] }],
   ])("refuses a since that is %s, naming the field", (_case, query) => {
-    const result = syncPullQuerySchema.safeParse(query);
+    const result = changesQuerySchema.safeParse(query);
 
     expect(result.success).toBe(false);
     expect(result.error?.issues[0]?.path).toEqual(["since"]);
@@ -57,23 +57,23 @@ describe("syncPullQuerySchema", () => {
   });
 });
 
-describe("syncPullPageSchema", () => {
+describe("changesPageSchema", () => {
   it("accepts a page of branch settings changes with its cursor and whether more wait", () => {
     const page = { changes: [branchSettingsChange(4)], cursor: 4, has_more: true };
 
-    expect(syncPullPageSchema.parse(page)).toEqual(page);
+    expect(changesPageSchema.parse(page)).toEqual(page);
   });
 
   it("accepts an empty last page", () => {
     const page = { changes: [], cursor: 0, has_more: false };
 
-    expect(syncPullPageSchema.parse(page)).toEqual(page);
+    expect(changesPageSchema.parse(page)).toEqual(page);
   });
 
   it("accepts exactly 500 changes", () => {
     const changes = Array.from({ length: 500 }, (_, index) => branchSettingsChange(index + 1));
 
-    expect(syncPullPageSchema.safeParse({ changes, cursor: 500, has_more: true }).success).toBe(
+    expect(changesPageSchema.safeParse({ changes, cursor: 500, has_more: true }).success).toBe(
       true,
     );
   });
@@ -81,7 +81,7 @@ describe("syncPullPageSchema", () => {
   it("refuses more than 500 changes", () => {
     const changes = Array.from({ length: 501 }, (_, index) => branchSettingsChange(index + 1));
 
-    expect(syncPullPageSchema.safeParse({ changes, cursor: 501, has_more: true }).success).toBe(
+    expect(changesPageSchema.safeParse({ changes, cursor: 501, has_more: true }).success).toBe(
       false,
     );
   });
@@ -115,6 +115,6 @@ describe("syncPullPageSchema", () => {
     ],
     ["no has_more", { changes: [], cursor: 0 }],
   ])("refuses %s", (_case, page) => {
-    expect(syncPullPageSchema.safeParse(page).success).toBe(false);
+    expect(changesPageSchema.safeParse(page).success).toBe(false);
   });
 });

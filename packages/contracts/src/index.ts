@@ -162,5 +162,5 @@ export {
 } from "./stock/stock-movement-bodies.js";
 export type { StockCountResult, StockMovementResult } from "./stock/stock-results.js";
 export { stockCountResultSchema, stockMovementResultSchema } from "./stock/stock-results.js";
-export type { SyncPulledChange, SyncPullPage, SyncPullQuery } from "./sync/sync-pull.js";
-export { syncPullPageSchema, syncPullQuerySchema } from "./sync/sync-pull.js";
+export type { ChangesPage, ChangesQuery, SyncChange } from "./sync/changes.js";
+export { changesPageSchema, changesQuerySchema } from "./sync/changes.js";
