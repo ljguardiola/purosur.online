@@ -9,6 +9,14 @@ const CREDENTIALS = {
   device_token: "prefix.secret",
   pepper: "cGVwcGVy",
   token_received_at: "2026-09-29T12:00:00.000Z",
+  keys: {
+    snapshot_key_versions: [
+      { version: 1, key: "c25hcHNob3QtMQ==" },
+      { version: 2, key: "c25hcHNob3QtMg==" },
+    ],
+    contingency_ticket_key: { version: 1, key: "dGlja2V0" },
+    outbox_chain_key: "b3V0Ym94",
+  },
 };
 
 describe("readDeviceCredentialsRequest", () => {
@@ -67,6 +75,80 @@ describe("readDeviceCredentialsRequest", () => {
     const message = { type: "store-device-credentials", request_id: "r1", credentials: older };
 
     expect(readDeviceCredentialsRequest(message)).toEqual(message);
+  });
+
+  it("reads credentials stored before the installation was handed its keys", () => {
+    const { keys: _notHandedOver, ...older } = CREDENTIALS;
+    const message = { type: "store-device-credentials", request_id: "r1", credentials: older };
+
+    expect(readDeviceCredentialsRequest(message)).toEqual(message);
+  });
+
+  it.each([
+    ["keys that aren't an object", "keys"],
+    ["no snapshot key versions", { ...CREDENTIALS.keys, snapshot_key_versions: undefined }],
+    [
+      "snapshot key versions that aren't a list",
+      { ...CREDENTIALS.keys, snapshot_key_versions: {} },
+    ],
+    [
+      "a snapshot key version that isn't a number",
+      { ...CREDENTIALS.keys, snapshot_key_versions: [{ version: "1", key: "a2V5" }] },
+    ],
+    [
+      "a snapshot key that isn't a string",
+      { ...CREDENTIALS.keys, snapshot_key_versions: [{ version: 1, key: 7 }] },
+    ],
+    [
+      "a snapshot key version that isn't an object",
+      { ...CREDENTIALS.keys, snapshot_key_versions: [null] },
+    ],
+    ["no contingency-ticket key", { ...CREDENTIALS.keys, contingency_ticket_key: undefined }],
+    [
+      "a contingency-ticket key without its version",
+      { ...CREDENTIALS.keys, contingency_ticket_key: { key: "a2V5" } },
+    ],
+    [
+      "a contingency-ticket key that isn't a string",
+      { ...CREDENTIALS.keys, contingency_ticket_key: { version: 1, key: null } },
+    ],
+    ["an outbox-chain key that isn't a string", { ...CREDENTIALS.keys, outbox_chain_key: 7 }],
+  ])("reads nothing from credentials with %s", (_case, keys) => {
+    expect(
+      readDeviceCredentialsRequest({
+        type: "store-device-credentials",
+        request_id: "r1",
+        credentials: { ...CREDENTIALS, keys },
+      }),
+    ).toBeUndefined();
+  });
+
+  it("keeps only the key fields it knows", () => {
+    const message = {
+      type: "store-device-credentials",
+      request_id: "r1",
+      credentials: {
+        ...CREDENTIALS,
+        keys: {
+          ...CREDENTIALS.keys,
+          contingency_ticket_key: { ...CREDENTIALS.keys.contingency_ticket_key, extra: "x" },
+          snapshot_key_versions: [{ version: 1, key: "c25hcHNob3QtMQ==", extra: "y" }],
+          extra: "z",
+        },
+      },
+    };
+
+    expect(readDeviceCredentialsRequest(message)).toEqual({
+      type: "store-device-credentials",
+      request_id: "r1",
+      credentials: {
+        ...CREDENTIALS,
+        keys: {
+          ...CREDENTIALS.keys,
+          snapshot_key_versions: [{ version: 1, key: "c25hcHNob3QtMQ==" }],
+        },
+      },
+    });
   });
 
   it("reads nothing from credentials whose token arrival isn't a string", () => {

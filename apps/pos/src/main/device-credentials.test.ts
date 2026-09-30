@@ -25,6 +25,11 @@ const CREDENTIALS = {
   device_token: "lookupprefix0000.secretpartofthetoken",
   pepper: "cGVwcGVycGVwcGVycGVwcGVycGVwcGVycGVwcGVy",
   token_received_at: "2026-09-29T12:00:00.000Z",
+  keys: {
+    snapshot_key_versions: [{ version: 1, key: "c25hcHNob3Qta2V5LW9uLWRpc2s=" }],
+    contingency_ticket_key: { version: 1, key: "dGlja2V0LWtleS1vbi1kaXNr" },
+    outbox_chain_key: "b3V0Ym94LWtleS1vbi1kaXNr",
+  },
 };
 
 const temporaryFolders: string[] = [];
@@ -64,6 +69,8 @@ describe("createDeviceCredentialsStore", () => {
     const onDisk = readFileSync(join(folder, "device-credentials.bin"));
     expect(onDisk.toString("utf8")).not.toContain(CREDENTIALS.device_token);
     expect(onDisk.toString("utf8")).not.toContain(CREDENTIALS.pepper);
+    expect(onDisk.toString("utf8")).not.toContain(CREDENTIALS.keys.outbox_chain_key);
+    expect(onDisk.toString("utf8")).not.toContain(CREDENTIALS.keys.contingency_ticket_key.key);
     expect(JSON.parse(reversingEncryption.decryptString(onDisk))).toEqual(CREDENTIALS);
   });
 
@@ -88,6 +95,14 @@ describe("createDeviceCredentialsStore", () => {
   it("reads credentials stored before their token's arrival was recorded", () => {
     const folder = temporaryFolder();
     const { token_received_at: _unrecorded, ...older } = CREDENTIALS;
+    storeIn(folder).store(older);
+
+    expect(storeIn(folder).read()).toEqual(older);
+  });
+
+  it("reads credentials stored before the installation was handed its keys", () => {
+    const folder = temporaryFolder();
+    const { keys: _notHandedOver, ...older } = CREDENTIALS;
     storeIn(folder).store(older);
 
     expect(storeIn(folder).read()).toEqual(older);
