@@ -81,6 +81,8 @@ function coreAnswering(
   sales: {
     currentSale?: () => Promise<OpenSale | null>;
     scanProduct?: (code: string) => Promise<ScanProductOutcome>;
+    searchProducts?: CoreClient["searchProducts"];
+    addProduct?: CoreClient["addProduct"];
   } = {},
   signOut: () => Promise<void> = async () => {},
 ) {
@@ -158,6 +160,16 @@ function coreAnswering(
     },
     async cancelSale() {
       return { kind: "unavailable" };
+    },
+    async searchProducts(query) {
+      return sales.searchProducts === undefined
+        ? { kind: "results", products: [], more: false }
+        : sales.searchProducts(query);
+    },
+    async addProduct(productId) {
+      return sales.addProduct === undefined
+        ? { kind: "product_unavailable" }
+        : sales.addProduct(productId);
     },
     async scanProduct(code) {
       return sales.scanProduct === undefined ? { kind: "unknown_code" } : sales.scanProduct(code);
@@ -760,12 +772,57 @@ describe("App", () => {
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
     await resumeLockedRegister(screen);
-    const field = screen.getByRole("searchbox", { name: "Producto" });
+    const field = screen.getByRole("combobox", { name: "Producto" });
     await field.fill("7790001");
 
     await userEvent.keyboard("{Enter}");
 
     await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
+  });
+
+  it("searches the core by name and goes back to the no-session screen, still signed in, when adding the chosen product finds that the cash session is no longer open", async () => {
+    const sessions: (OpenCashSession | null)[] = [GRACE_SESSION, null];
+    const searched: string[] = [];
+    const added: string[] = [];
+    const { core } = coreAnswering(
+      true,
+      { kind: "enrolled" },
+      GRACE_SIGNED_IN,
+      { cashSession: async () => sessions.shift() ?? null },
+      {
+        searchProducts: async (query) => {
+          searched.push(query);
+          return {
+            kind: "results",
+            products: [
+              {
+                product_id: "p1",
+                name: "Yerba mate 1 kg",
+                sale_unit: "UNIT",
+                unit_price: 238_000,
+                matches: [],
+              },
+            ],
+            more: false,
+          };
+        },
+        addProduct: async (productId) => {
+          added.push(productId);
+          return { kind: "no_open_session" };
+        },
+      },
+    );
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await resumeLockedRegister(screen);
+    await screen.getByRole("combobox", { name: "Producto" }).fill("yer");
+    await expect.element(screen.getByRole("option")).toBeVisible();
+
+    await userEvent.keyboard("{Enter}");
+
+    await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
+    expect(searched).toEqual(["yer"]);
+    expect(added).toEqual(["p1"]);
   });
 
   it("asks the core for the cash session again each time it comes back up, and waits for the answer", async () => {

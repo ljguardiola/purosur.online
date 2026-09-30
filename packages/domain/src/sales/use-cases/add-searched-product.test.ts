@@ -1,0 +1,153 @@
+import { describe, expect, it } from "vitest";
+import type { SaleWithLines } from "../model/sale.js";
+import { addSearchedProduct } from "./add-searched-product.js";
+import type { CandidatePromotion } from "./sale-ledger.js";
+import {
+  FakeSaleLedger,
+  type FakeSaleLedgerState,
+  FixedClock,
+  SequentialIds,
+} from "./test-support/fake-sale-ledger.js";
+
+const NOW = new Date("2026-09-30T12:34:56.789Z");
+const LONG_AGO = new Date("2026-01-01T00:00:00.000Z");
+const CASHIER = { isAdministrator: false, permissionKeys: ["sell_and_charge"] };
+const SESSION = { id: "session-1", openedBy: "cashier" };
+const YERBA = { id: "yerba", name: "Yerba 1 kg", saleUnit: "UNIT" as const };
+const QUESO = { id: "queso", name: "Queso cremoso", saleUnit: "KG" as const };
+const FIDEOS = { id: "fideos", name: "Fideos", saleUnit: "UNIT" as const };
+const TEN_PERCENT: CandidatePromotion = {
+  id: "ten",
+  benefit: { kind: "PERCENT_OFF", percent: 10 },
+  active: true,
+  validFrom: "2026-09-01",
+  validTo: "2026-12-31",
+  weekdays: [],
+};
+const THREE_FOR_TWO: CandidatePromotion = {
+  ...TEN_PERCENT,
+  id: "three-for-two",
+  benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+};
+
+function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
+  return new FakeSaleLedger({
+    accesses: { cashier: CASHIER },
+    identity: { registerId: "register-1", deviceId: "device-1" },
+    session: SESSION,
+    products: [YERBA, QUESO, FIDEOS],
+    prices: [
+      { productId: "yerba", priceListId: "list-1", unitPrice: 2500, validFrom: LONG_AGO },
+      { productId: "queso", priceListId: "list-1", unitPrice: 9000, validFrom: LONG_AGO },
+    ],
+    ...state,
+  });
+}
+
+function add(store: FakeSaleLedger, productId = "yerba", actorId = "cashier") {
+  return addSearchedProduct(
+    { ledger: store, clock: new FixedClock(NOW), ids: new SequentialIds() },
+    { actorId, productId },
+  );
+}
+
+describe("addSearchedProduct", () => {
+  it("opens a sale with a line for the product at its current list price", () => {
+    const store = ledger();
+
+    const outcome = add(store);
+
+    const sale: SaleWithLines = {
+      id: "id-1",
+      registerId: "register-1",
+      deviceId: "device-1",
+      sessionId: "session-1",
+      actorId: "cashier",
+      state: "OPEN",
+      occurredAt: NOW,
+      lines: [
+        {
+          id: "id-2",
+          productId: "yerba",
+          productName: "Yerba 1 kg",
+          quantity: 1,
+          listUnitPrice: 2500,
+          priceListId: "list-1",
+          promotions: [],
+          promotionId: null,
+          discountAmount: 0,
+          lineTotal: 2500,
+        },
+      ],
+    };
+    expect(outcome).toEqual({ kind: "added", sale });
+    expect(store.state.sales).toEqual([sale]);
+  });
+
+  it("adds a unit to the line when the product is already in the sale", () => {
+    const store = ledger();
+    add(store);
+
+    const outcome = add(store);
+
+    expect(outcome.kind === "added" && outcome.sale.lines).toEqual([
+      expect.objectContaining({ quantity: 2, lineTotal: 5000 }),
+    ]);
+  });
+
+  it("freezes the chosen product's valid promotions on its line and re-picks among them as units are added", () => {
+    const store = ledger({
+      promotionsByProduct: { yerba: [TEN_PERCENT, THREE_FOR_TWO], fideos: [TEN_PERCENT] },
+    });
+
+    const outcomes = [add(store), add(store), add(store)];
+
+    expect(outcomes.map((outcome) => outcome.kind === "added" && outcome.sale.lines[0])).toEqual([
+      expect.objectContaining({
+        promotions: [
+          { id: "ten", benefit: { kind: "PERCENT_OFF", percent: 10 } },
+          { id: "three-for-two", benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 } },
+        ],
+        promotionId: "ten",
+        lineTotal: 2250,
+      }),
+      expect.objectContaining({ promotionId: "ten", lineTotal: 4500 }),
+      expect.objectContaining({ promotionId: "three-for-two", lineTotal: 5000 }),
+    ]);
+  });
+
+  it("refuses a product that is not sold any more, changing nothing", () => {
+    const store = ledger();
+    const before = structuredClone(store.state);
+
+    expect(add(store, "discontinued")).toEqual({ kind: "product_unavailable" });
+    expect(store.state).toEqual(before);
+  });
+
+  it("refuses a product without a valid price, naming it", () => {
+    expect(add(ledger(), "fideos")).toEqual({ kind: "no_price", productName: "Fideos" });
+  });
+
+  it("refuses a product sold by weight, naming it", () => {
+    expect(add(ledger(), "queso")).toEqual({
+      kind: "sold_by_weight",
+      productName: "Queso cremoso",
+    });
+  });
+
+  it("refuses to open a sale when the installation was revoked", () => {
+    expect(add(ledger({ revoked: true }))).toEqual({ kind: "installation_revoked" });
+  });
+
+  it("refuses to open a sale when the register has no identity yet", () => {
+    expect(add(ledger({ identity: undefined }))).toEqual({ kind: "unavailable" });
+  });
+
+  it("refuses an actor without the permission to sell and charge", () => {
+    expect(add(ledger(), "yerba", "stranger")).toEqual({ kind: "not_permitted" });
+  });
+
+  it("refuses without an open cash session", () => {
+    expect(add(ledger({ session: undefined }))).toEqual({ kind: "no_open_session" });
+  });
+});

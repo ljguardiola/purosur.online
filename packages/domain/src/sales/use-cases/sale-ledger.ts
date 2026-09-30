@@ -2,6 +2,7 @@ import type { RoleAccess } from "../../access/index.js";
 import type { SaleUnit } from "../../catalog/index.js";
 import type { DiscountRecurrence } from "../../pricing/index.js";
 import type { OutboxEventDraft } from "../../sync/index.js";
+import type { SearchableProduct } from "../model/product-search.js";
 import type { LinePromotion, Sale, SaleLine, SaleWithLines } from "../model/sale.js";
 import type { ListPrice } from "../model/sale-line.js";
 import type { SaleLineRemoval } from "../model/sale-line-removal.js";
@@ -24,7 +25,7 @@ export interface SellingSession {
   openedBy: string;
 }
 
-export interface ScannedProduct {
+export interface SellableProduct {
   id: string;
   name: string;
   saleUnit: SaleUnit;
@@ -42,7 +43,9 @@ export interface SaleLedgerTransaction {
   openSale(sessionId: string): SaleWithLines | undefined;
   installationRevoked(): boolean;
   registerIdentity(): RegisterIdentity | undefined;
-  activeProductByBarcode(code: string): ScannedProduct | undefined;
+  activeProductByBarcode(code: string): SellableProduct | undefined;
+  activeProductById(productId: string): SellableProduct | undefined;
+  searchableProducts(): SearchableProduct[];
   priceAt(productId: string, moment: Date): ListPrice | undefined;
   promotionsTargeting(productId: string): CandidatePromotion[];
   recordOpenedSale(sale: Sale): void;

@@ -1,4 +1,5 @@
 import type {
+  AddProductOutcome,
   Authorization,
   CancelSaleOutcome,
   CashBalance,
@@ -17,6 +18,7 @@ import type {
   RemoveSaleLineOutcome,
   RendererToCoreMessage,
   ScanProductOutcome,
+  SearchProductsOutcome,
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
@@ -51,6 +53,8 @@ export interface CoreClient {
   recordCashMovement(input: CashMovementInput): Promise<RecordCashMovementOutcome>;
   cashMovements(): Promise<ListedCashMovement[] | null | "unavailable">;
   scanProduct(code: string): Promise<ScanProductOutcome>;
+  searchProducts(query: string): Promise<SearchProductsOutcome>;
+  addProduct(productId: string): Promise<AddProductOutcome>;
   currentSale(): Promise<CurrentSaleAnswer>;
   changeLineQuantity(lineId: string, quantity: number): Promise<ChangeLineQuantityOutcome>;
   removeSaleLine(lineId: string): Promise<RemoveSaleLineOutcome>;
@@ -283,6 +287,17 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
     cancelSale() {
       return ask({ type: "cancel-sale", request_id: deps.newRequestId() }, (answer) =>
         answer.type === "cancel-sale-result" ? answer.outcome : undefined,
+      );
+    },
+    searchProducts(query) {
+      return ask({ type: "search-products", request_id: deps.newRequestId(), query }, (answer) =>
+        answer.type === "search-products-result" ? answer.outcome : undefined,
+      );
+    },
+    addProduct(productId) {
+      return ask(
+        { type: "add-product", request_id: deps.newRequestId(), product_id: productId },
+        (answer) => (answer.type === "add-product-result" ? answer.outcome : undefined),
       );
     },
     currentSale() {

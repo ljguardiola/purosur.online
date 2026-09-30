@@ -53,11 +53,13 @@ import { answerRendererRequest, type RendererRequestDeps } from "./register/rend
 import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
 import {
+  addSearchedProductFor,
   cancelSaleFor,
   changeLineQuantityFor,
   currentSaleFor,
   removeSaleLineFor,
   scanProductFor,
+  searchProductsFor,
 } from "./sales/sale-requests";
 import { pullFromCloud, pullResultOf } from "./sync/pull-from-cloud";
 import { createPullSchedule } from "./sync/pull-schedule";
@@ -390,6 +392,22 @@ const rendererRequestDeps: RendererRequestDeps = {
             now: () => new Date(),
             ids: uuidV7Ids,
           }),
+  searchProducts:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (query) =>
+          searchProductsFor(
+            { database: localDatabase, gate: actionGate, now: () => new Date() },
+            query,
+          ),
+  addProduct:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (productId) =>
+          addSearchedProductFor(
+            { database: localDatabase, gate: actionGate, now: () => new Date(), ids: uuidV7Ids },
+            productId,
+          ),
   currentSale:
     localDatabase === undefined || actionGate === undefined
       ? undefined

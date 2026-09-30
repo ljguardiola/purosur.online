@@ -13,7 +13,8 @@ import type {
   RegisterIdentity,
   SaleLedger,
   SaleLedgerTransaction,
-  ScannedProduct,
+  SearchableProduct,
+  SellableProduct,
   SellingSession,
 } from "@purosur/domain/sales/use-cases";
 import type { SignInStore } from "../access/sqlite-sign-in-store";
@@ -112,6 +113,8 @@ export class SqliteSaleLedger implements SaleLedger {
       installationRevoked: () => this.installationRevoked(),
       registerIdentity: () => this.registerIdentity(),
       activeProductByBarcode: (code) => this.activeProductByBarcode(code),
+      activeProductById: (productId) => this.activeProductById(productId),
+      searchableProducts: () => this.searchableProducts(),
       priceAt: (productId, moment) => this.priceAt(productId, moment),
       promotionsTargeting: (productId) => this.promotionsTargeting(productId),
       recordOpenedSale: (sale) => this.recordOpenedSale(sale),
@@ -199,7 +202,7 @@ export class SqliteSaleLedger implements SaleLedger {
     return row === undefined ? undefined : { registerId: row.register_id, deviceId: row.device_id };
   }
 
-  private activeProductByBarcode(code: string): ScannedProduct | undefined {
+  private activeProductByBarcode(code: string): SellableProduct | undefined {
     const row = this.database
       .prepare<[string], { id: string; name: string; sale_unit: string }>(
         `SELECT products.id AS id, products.name AS name, products.sale_unit AS sale_unit
@@ -214,6 +217,40 @@ export class SqliteSaleLedger implements SaleLedger {
     return row === undefined
       ? undefined
       : { id: row.id, name: row.name, saleUnit: row.sale_unit as SaleUnit };
+  }
+
+  private activeProductById(productId: string): SellableProduct | undefined {
+    const row = this.database
+      .prepare<[string], { id: string; name: string; sale_unit: string }>(
+        `SELECT id, name, sale_unit FROM products
+         WHERE id = ? AND active = 1 AND removed = 0`,
+      )
+      .get(productId);
+    return row === undefined
+      ? undefined
+      : { id: row.id, name: row.name, saleUnit: row.sale_unit as SaleUnit };
+  }
+
+  private searchableProducts(): SearchableProduct[] {
+    return this.database
+      .prepare<[], { id: string; name: string; sale_unit: string; times_sold_here: number }>(
+        `SELECT products.id AS id, products.name AS name, products.sale_unit AS sale_unit,
+           (SELECT count(*) FROM sale_lines
+            JOIN sales ON sales.id = sale_lines.sale_id
+            WHERE sale_lines.product_id = products.id AND sales.state = 'COMPLETED'
+              AND sales.register_id IN (SELECT id FROM own_register WHERE removed = 0)
+           ) AS times_sold_here
+         FROM products
+         WHERE products.active = 1 AND products.removed = 0
+         ORDER BY products.id`,
+      )
+      .all()
+      .map((row) => ({
+        id: row.id,
+        name: row.name,
+        saleUnit: row.sale_unit as SaleUnit,
+        timesSoldHere: row.times_sold_here,
+      }));
   }
 
   private priceAt(

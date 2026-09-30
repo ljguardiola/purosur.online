@@ -319,11 +319,7 @@ describe("the register's local migrations", () => {
       const path = join(folder, "register.sqlite");
       const previous = LOCAL_MIGRATIONS.slice(0, 9);
       expect(previous.at(-1)?.name).toBe("0008_buy_n_pay_m_discounts");
-      expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
-        "0009_sales",
-        "0010_sale_line_promotions",
-        "0011_sale_line_removals",
-      ]);
+      expect(LOCAL_MIGRATIONS.at(previous.length)?.name).toBe("0009_sales");
       const before = openLocalDatabase(path, previous);
       before
         .prepare("UPDATE sync_state SET pull_cursor = 15, device_id = 'device-a' WHERE id = 1")
@@ -371,10 +367,7 @@ describe("the register's local migrations", () => {
       const path = join(folder, "register.sqlite");
       const previous = LOCAL_MIGRATIONS.slice(0, 10);
       expect(previous.at(-1)?.name).toBe("0009_sales");
-      expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
-        "0010_sale_line_promotions",
-        "0011_sale_line_removals",
-      ]);
+      expect(LOCAL_MIGRATIONS.at(previous.length)?.name).toBe("0010_sale_line_promotions");
       const before = openLocalDatabase(path, previous);
       before
         .prepare(
@@ -414,10 +407,10 @@ describe("the register's local migrations", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
       const path = join(folder, "register.sqlite");
-      const previous = LOCAL_MIGRATIONS.slice(0, 11);
-      expect(previous.at(-1)?.name).toBe("0010_sale_line_promotions");
+      const previous = LOCAL_MIGRATIONS.slice(0, 12);
+      expect(previous.at(-1)?.name).toBe("0011_sale_lines_by_product");
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
-        "0011_sale_line_removals",
+        "0012_sale_line_removals",
       ]);
       const before = openLocalDatabase(path, previous);
       before
@@ -442,6 +435,57 @@ describe("the register's local migrations", () => {
       expect(after.prepare("SELECT count(*) AS total FROM sale_line_removals").get()).toEqual({
         total: 0,
       });
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("find the lines of a product without reading every line, keeping the sales a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.slice(0, 11);
+      expect(previous.at(-1)?.name).toBe("0010_sale_line_promotions");
+      expect(LOCAL_MIGRATIONS.at(previous.length)?.name).toBe("0011_sale_lines_by_product");
+      const before = openLocalDatabase(path, previous);
+      before
+        .prepare(
+          `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+           VALUES ('s1', 'r1', 'device-a', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN')`,
+        )
+        .run();
+      before
+        .prepare(
+          `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+           VALUES ('a', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-09-30T12:00:00.000Z')`,
+        )
+        .run();
+      before
+        .prepare(
+          `INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total)
+           VALUES ('l1', 'a', 1, 'p1', 'Yerba', 2, 1000, 'pl', 2000)`,
+        )
+        .run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+
+      expect(after.prepare("SELECT id, product_id, quantity FROM sale_lines").all()).toEqual([
+        { id: "l1", product_id: "p1", quantity: 2 },
+      ]);
+      const plan = after
+        .prepare<[], { detail: string }>(
+          `EXPLAIN QUERY PLAN SELECT products.id,
+             (SELECT count(*) FROM sale_lines
+              JOIN sales ON sales.id = sale_lines.sale_id
+              WHERE sale_lines.product_id = products.id AND sales.state = 'COMPLETED'
+                AND sales.register_id IN (SELECT id FROM own_register WHERE removed = 0)
+             )
+           FROM products`,
+        )
+        .all()
+        .map((step) => step.detail);
+      expect(plan.join("\n")).toMatch(/SEARCH sale_lines .*\(product_id=\?\)/);
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });

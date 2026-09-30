@@ -5,12 +5,14 @@ import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import {
+  addSearchedProductFor,
   type CancelSaleRequestDeps,
   cancelSaleFor,
   changeLineQuantityFor,
   currentSaleFor,
   removeSaleLineFor,
   scanProductFor,
+  searchProductsFor,
 } from "./sale-requests";
 
 const NOW = new Date("2026-09-30T12:00:00.000Z");
@@ -236,6 +238,113 @@ describe("scanning a product on the register", () => {
     database.prepare("DELETE FROM own_register").run();
 
     expect(await scanProductFor(deps(), "111")).toEqual({ kind: "unavailable" });
+  });
+});
+
+describe("searching products by name on the register", () => {
+  it("answers each product the way the screen shows it, with its price and where the name matched", async () => {
+    expect(await searchProductsFor(deps(), "yer")).toEqual({
+      kind: "results",
+      products: [
+        {
+          product_id: "p1",
+          name: "Yerba",
+          sale_unit: "UNIT",
+          unit_price: 1500,
+          matches: [{ start: 0, length: 3 }],
+        },
+      ],
+      more: false,
+    });
+  });
+
+  it("answers no price for a product that has none", async () => {
+    const outcome = await searchProductsFor(deps(), "queso");
+
+    expect(outcome.kind === "results" && outcome.products).toEqual([
+      expect.objectContaining({ product_id: "p2", sale_unit: "KG", unit_price: null }),
+    ]);
+  });
+
+  it("answers not signed in when nobody is signed in", async () => {
+    signedInPerson.clear();
+
+    expect(await searchProductsFor(deps(), "yer")).toEqual({ kind: "not_signed_in" });
+  });
+
+  it("answers not permitted to a signed-in person without the permission to sell", async () => {
+    addPerson("u2", "guest");
+    signedInPerson.set("u2");
+
+    expect(await searchProductsFor(deps(), "yer")).toEqual({ kind: "not_permitted" });
+  });
+
+  it("answers that no session is open", async () => {
+    database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();
+
+    expect(await searchProductsFor(deps(), "yer")).toEqual({ kind: "no_open_session" });
+  });
+});
+
+describe("adding a searched product on the register", () => {
+  it("answers the sale with the product as a line and the total to charge", async () => {
+    expect(await addSearchedProductFor(deps(), "p1")).toEqual({
+      kind: "added",
+      sale: {
+        id: "id-1",
+        lines: [
+          {
+            id: "id-2",
+            product_id: "p1",
+            product_name: "Yerba",
+            quantity: 1,
+            list_unit_price: 1500,
+            discount_amount: 0,
+            promotion: null,
+            line_total: 1500,
+          },
+        ],
+        total: 1500,
+      },
+    });
+  });
+
+  it("answers the name of a product that has no price or is sold by weight", async () => {
+    database.prepare("DELETE FROM prices").run();
+
+    expect(await addSearchedProductFor(deps(), "p1")).toEqual({
+      kind: "no_price",
+      product_name: "Yerba",
+    });
+    expect(await addSearchedProductFor(deps(), "p2")).toEqual({
+      kind: "sold_by_weight",
+      product_name: "Queso",
+    });
+  });
+
+  it("answers that a product that is not sold any more is unavailable", async () => {
+    database.prepare("UPDATE products SET active = 0 WHERE id = 'p1'").run();
+
+    expect(await addSearchedProductFor(deps(), "p1")).toEqual({ kind: "product_unavailable" });
+  });
+
+  it("answers not signed in when nobody is signed in", async () => {
+    signedInPerson.clear();
+
+    expect(await addSearchedProductFor(deps(), "p1")).toEqual({ kind: "not_signed_in" });
+  });
+
+  it("answers not permitted to a signed-in person without the permission to sell", async () => {
+    addPerson("u2", "guest");
+    signedInPerson.set("u2");
+
+    expect(await addSearchedProductFor(deps(), "p1")).toEqual({ kind: "not_permitted" });
+  });
+
+  it("answers the refusal of a session that is not open", async () => {
+    database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();
+
+    expect(await addSearchedProductFor(deps(), "p1")).toEqual({ kind: "no_open_session" });
   });
 });
 

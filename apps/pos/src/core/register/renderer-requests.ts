@@ -1,4 +1,5 @@
 import type {
+  AddProductOutcome,
   Authorization,
   CancelSaleOutcome,
   CashBalance,
@@ -16,6 +17,7 @@ import type {
   RemoveSaleLineOutcome,
   RendererToCoreMessage,
   ScanProductOutcome,
+  SearchProductsOutcome,
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
@@ -40,6 +42,8 @@ export interface RendererRequestDeps {
     | undefined;
   cashMovements: (() => ListedCashMovement[] | null) | undefined;
   scanProduct: ((code: string) => Promise<ScanProductOutcome>) | undefined;
+  searchProducts: ((query: string) => Promise<SearchProductsOutcome>) | undefined;
+  addProduct: ((productId: string) => Promise<AddProductOutcome>) | undefined;
   currentSale: (() => Promise<CurrentSaleAnswer>) | undefined;
   changeLineQuantity:
     | ((lineId: string, quantity: number) => Promise<ChangeLineQuantityOutcome>)
@@ -225,6 +229,30 @@ async function attemptSaleChange<TOutcome extends { kind: string }>(
   }
 }
 
+async function attemptSearchProducts(
+  deps: RendererRequestDeps,
+  query: string,
+): Promise<SearchProductsOutcome> {
+  try {
+    return (await deps.searchProducts?.(query)) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure("searching products by name", error);
+    return { kind: "unavailable" };
+  }
+}
+
+async function attemptAddProduct(
+  deps: RendererRequestDeps,
+  productId: string,
+): Promise<AddProductOutcome> {
+  try {
+    return (await deps.addProduct?.(productId)) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure("adding a searched product", error);
+    return { kind: "unavailable" };
+  }
+}
+
 async function readCurrentSale(deps: RendererRequestDeps): Promise<CurrentSaleAnswer | undefined> {
   try {
     return await deps.currentSale?.();
@@ -357,6 +385,18 @@ export async function answerRendererRequest(
         type: "cancel-sale-result",
         request_id: message.request_id,
         outcome: await attemptSaleChange(deps, "cancelling the sale", deps.cancelSale),
+      };
+    case "search-products":
+      return {
+        type: "search-products-result",
+        request_id: message.request_id,
+        outcome: await attemptSearchProducts(deps, message.query),
+      };
+    case "add-product":
+      return {
+        type: "add-product-result",
+        request_id: message.request_id,
+        outcome: await attemptAddProduct(deps, message.product_id),
       };
     case "sale-request": {
       const sale = await readCurrentSale(deps);

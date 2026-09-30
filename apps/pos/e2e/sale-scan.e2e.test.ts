@@ -108,7 +108,7 @@ describe("scanning products into a sale on the register", () => {
     await page.getByRole("button", { name: "Abrir la caja" }).click();
     await page.getByRole("heading", { name: "Venta en curso" }).waitFor();
 
-    const scanField = page.getByRole("searchbox", { name: "Producto" });
+    const scanField = page.getByRole("combobox", { name: "Producto" });
     const yerba = page.getByRole("listitem").filter({ hasText: "Yerba mate 1 kg" });
 
     await scanField.fill(YERBA_CODE);
@@ -134,7 +134,7 @@ describe("scanning products into a sale on the register", () => {
 
   it("charges a line with the promotion that gives the larger discount as its quantity grows", async () => {
     const { page } = register;
-    const scanField = page.getByRole("searchbox", { name: "Producto" });
+    const scanField = page.getByRole("combobox", { name: "Producto" });
     const fideos = page.getByRole("listitem").filter({ hasText: "Fideos 500 g" });
 
     await scanField.fill(FIDEOS_CODE);
