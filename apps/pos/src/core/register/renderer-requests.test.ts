@@ -1,6 +1,8 @@
 import type {
   OpenCashSession,
   OpenCashSessionOutcome,
+  OpenSale,
+  ScanProductOutcome,
   SignInLookupOutcome,
   SignInOutcome,
 } from "@purosur/contracts";
@@ -16,6 +18,8 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const lookups: string[] = [];
   const openings: { userId: string; openingFloat: number }[] = [];
   const authorizerLookups: string[] = [];
+  const scans: { userId: string; code: string }[] = [];
+  const saleLookups: string[] = [];
   const failures: { context: string; error: unknown }[] = [];
   return {
     enrolledCodes,
@@ -25,6 +29,8 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
     lookups,
     openings,
     authorizerLookups,
+    scans,
+    saleLookups,
     failures,
     deps: {
       credentialsPresent: async () => enrolled,
@@ -58,6 +64,14 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         return { kind: "not_permitted" };
       },
       cashSession: (): OpenCashSession | null => null,
+      scanProduct: (userId: string, code: string): ScanProductOutcome => {
+        scans.push({ userId, code });
+        return { kind: "unknown_code" };
+      },
+      currentSale: (userId: string): OpenSale | null => {
+        saleLookups.push(userId);
+        return null;
+      },
       authorizers: (permission: AuthorizablePermissionKey) => {
         authorizerLookups.push(permission);
         return [{ id: "u2", first_name: "Grace" }];
@@ -402,6 +416,142 @@ describe("answerRendererRequest", () => {
       }),
     ).toEqual({ type: "cash-session-unavailable", request_id: "r17" });
     expect(failing.failures).toEqual([{ context: "reading the open cash session", error }]);
+  });
+
+  it("scans the code for the chosen user and answers the outcome", async () => {
+    const outcome: ScanProductOutcome = { kind: "no_price", product_name: "Yerba" };
+    const { deps: withScan, scans } = deps(true, {
+      scanProduct: () => outcome,
+    });
+    const answer = await answerRendererRequest(withScan, {
+      type: "scan-product",
+      request_id: "r18",
+      user_id: "u1",
+      code: "7791234567890",
+    });
+    const recording = deps(true);
+    await answerRendererRequest(recording.deps, {
+      type: "scan-product",
+      request_id: "r19",
+      user_id: "u2",
+      code: "111",
+    });
+
+    expect(answer).toEqual({ type: "scan-product-result", request_id: "r18", outcome });
+    expect(scans).toEqual([]);
+    expect(recording.scans).toEqual([{ userId: "u2", code: "111" }]);
+  });
+
+  it("answers that scanning is unavailable when it fails, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      scanProduct: () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "scan-product",
+        request_id: "r20",
+        user_id: "u1",
+        code: "1",
+      }),
+    ).toEqual({
+      type: "scan-product-result",
+      request_id: "r20",
+      outcome: { kind: "unavailable" },
+    });
+    expect(failing.failures).toEqual([{ context: "scanning a product", error }]);
+  });
+
+  it("answers that scanning is unavailable when the register has no database", async () => {
+    const withoutDatabase = deps(true, { scanProduct: undefined });
+
+    expect(
+      await answerRendererRequest(withoutDatabase.deps, {
+        type: "scan-product",
+        request_id: "r21",
+        user_id: "u1",
+        code: "1",
+      }),
+    ).toEqual({
+      type: "scan-product-result",
+      request_id: "r21",
+      outcome: { kind: "unavailable" },
+    });
+  });
+
+  it("answers the sale in progress of the chosen user", async () => {
+    const sale: OpenSale = {
+      id: "s1",
+      lines: [
+        {
+          id: "l1",
+          product_id: "p1",
+          product_name: "Yerba",
+          quantity: 1,
+          list_unit_price: 1500,
+          line_total: 1500,
+        },
+      ],
+      total: 1500,
+    };
+    const { deps: withSale, saleLookups } = deps(true, { currentSale: () => sale });
+    const recording = deps(true);
+
+    expect(
+      await answerRendererRequest(withSale, {
+        type: "sale-request",
+        request_id: "r22",
+        user_id: "u1",
+      }),
+    ).toEqual({ type: "sale", request_id: "r22", sale });
+    expect(saleLookups).toEqual([]);
+    await answerRendererRequest(recording.deps, {
+      type: "sale-request",
+      request_id: "r23",
+      user_id: "u2",
+    });
+    expect(recording.saleLookups).toEqual(["u2"]);
+  });
+
+  it("answers no sale in progress when there is none", async () => {
+    expect(
+      await answerRendererRequest(deps(true).deps, {
+        type: "sale-request",
+        request_id: "r24",
+        user_id: "u1",
+      }),
+    ).toEqual({ type: "sale", request_id: "r24", sale: null });
+  });
+
+  it("answers that the sale in progress cannot be read when the register has no database", async () => {
+    expect(
+      await answerRendererRequest(deps(true, { currentSale: undefined }).deps, {
+        type: "sale-request",
+        request_id: "r25",
+        user_id: "u1",
+      }),
+    ).toEqual({ type: "sale-unavailable", request_id: "r25" });
+  });
+
+  it("answers that the sale in progress cannot be read when reading it fails, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      currentSale: () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "sale-request",
+        request_id: "r26",
+        user_id: "u1",
+      }),
+    ).toEqual({ type: "sale-unavailable", request_id: "r26" });
+    expect(failing.failures).toEqual([{ context: "reading the sale in progress", error }]);
   });
 
   it("answers nothing to a ping", async () => {

@@ -3,8 +3,10 @@ import type {
   EnrollmentOutcome,
   OpenCashSession,
   OpenCashSessionOutcome,
+  OpenSale,
   PinCodeRedemptionOutcome,
   RendererToCoreMessage,
+  ScanProductOutcome,
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
@@ -24,6 +26,8 @@ export interface RendererRequestDeps {
     | ((userId: string, openingFloat: number) => Promise<OpenCashSessionOutcome>)
     | undefined;
   cashSession: (() => OpenCashSession | null) | undefined;
+  scanProduct: ((userId: string, code: string) => ScanProductOutcome) | undefined;
+  currentSale: ((userId: string) => OpenSale | null) | undefined;
   authorizers: ((permission: AuthorizablePermissionKey) => SignInUser[]) | undefined;
   reportFailure: (context: string, error: unknown) => void;
 }
@@ -110,6 +114,28 @@ function readCashSession(deps: RendererRequestDeps): OpenCashSession | null | un
   }
 }
 
+function attemptScanProduct(
+  deps: RendererRequestDeps,
+  userId: string,
+  code: string,
+): ScanProductOutcome {
+  try {
+    return deps.scanProduct?.(userId, code) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure("scanning a product", error);
+    return { kind: "unavailable" };
+  }
+}
+
+function readCurrentSale(deps: RendererRequestDeps, userId: string): OpenSale | null | undefined {
+  try {
+    return deps.currentSale?.(userId);
+  } catch (error) {
+    deps.reportFailure("reading the sale in progress", error);
+    return undefined;
+  }
+}
+
 export async function answerRendererRequest(
   deps: RendererRequestDeps,
   message: RendererToCoreMessage,
@@ -174,6 +200,18 @@ export async function answerRendererRequest(
       return session === undefined
         ? { type: "cash-session-unavailable", request_id: message.request_id }
         : { type: "cash-session", request_id: message.request_id, session };
+    }
+    case "scan-product":
+      return {
+        type: "scan-product-result",
+        request_id: message.request_id,
+        outcome: attemptScanProduct(deps, message.user_id, message.code),
+      };
+    case "sale-request": {
+      const sale = readCurrentSale(deps, message.user_id);
+      return sale === undefined
+        ? { type: "sale-unavailable", request_id: message.request_id }
+        : { type: "sale", request_id: message.request_id, sale };
     }
     case "authorizers": {
       const users = readAuthorizers(deps, message.permission);

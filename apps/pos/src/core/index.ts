@@ -41,6 +41,7 @@ import { enroll, generatePepper, installationReportFrom } from "./register/enrol
 import { answerRendererRequest, type RendererRequestDeps } from "./register/renderer-requests";
 import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
+import { currentSaleFor, scanProductFor } from "./sales/sale-requests";
 import { pullFromCloud, pullResultOf } from "./sync/pull-from-cloud";
 import { createPullSchedule } from "./sync/pull-schedule";
 import { SqliteLocalReplica } from "./sync/sqlite-local-replica";
@@ -260,6 +261,17 @@ const rendererRequestDeps: RendererRequestDeps = {
             openingFloat,
           ),
   cashSession: localDatabase === undefined ? undefined : () => currentCashSession(localDatabase),
+  scanProduct:
+    localDatabase === undefined
+      ? undefined
+      : (userId, code) =>
+          scanProductFor(
+            { database: localDatabase, now: () => new Date(), ids: uuidV7Ids },
+            userId,
+            code,
+          ),
+  currentSale:
+    localDatabase === undefined ? undefined : (userId) => currentSaleFor(localDatabase, userId),
   reportFailure: (context, error) => {
     console.error(`core: ${context} failed`, error);
     Sentry.captureException(error);
