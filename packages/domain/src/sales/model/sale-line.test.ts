@@ -1,7 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { MAX_UNIT_PRICE_CENTS } from "../../pricing/index.js";
-import { addUnitToLine, newSaleLine } from "./sale-line.js";
+import { addUnitToLine, newSaleLine, saleTotal } from "./sale-line.js";
 
 const PRODUCT = { id: "product-1", name: "Yerba 1 kg" };
 const PRICE = { priceListId: "list-1", unitPrice: 2500 };
@@ -68,5 +68,44 @@ describe("addUnitToLine", () => {
 
     expect(line.quantity).toBe(1);
     expect(line.lineTotal).toBe(2500);
+  });
+});
+
+describe("saleTotal", () => {
+  it("is zero for a sale without lines", () => {
+    expect(saleTotal([])).toBe(0);
+  });
+
+  it("adds the totals of every line", () => {
+    const yerba = addUnitToLine(newSaleLine("line-1", PRODUCT, PRICE));
+    const sugar = newSaleLine(
+      "line-2",
+      { id: "product-2", name: "Azucar" },
+      {
+        priceListId: "list-1",
+        unitPrice: 1200,
+      },
+    );
+
+    expect(saleTotal([yerba, sugar])).toBe(6200);
+  });
+
+  it("is the sum of the line totals for any lines", () => {
+    fc.assert(
+      fc.property(
+        fc.array(fc.integer({ min: 0, max: MAX_UNIT_PRICE_CENTS }), { maxLength: 30 }),
+        (prices) => {
+          const lines = prices.map((unitPrice, index) =>
+            newSaleLine(
+              `line-${index}`,
+              { id: `product-${index}`, name: "P" },
+              { priceListId: "list-1", unitPrice },
+            ),
+          );
+
+          expect(saleTotal(lines)).toBe(prices.reduce((sum, price) => sum + price, 0));
+        },
+      ),
+    );
   });
 });

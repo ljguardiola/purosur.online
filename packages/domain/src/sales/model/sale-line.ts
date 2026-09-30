@@ -26,3 +26,7 @@ export function addUnitToLine(line: SaleLine): SaleLine {
   const quantity = line.quantity + 1;
   return { ...line, quantity, lineTotal: quantity * line.listUnitPrice };
 }
+
+export function saleTotal(lines: readonly SaleLine[]): number {
+  return lines.reduce((total, line) => total + line.lineTotal, 0);
+}
