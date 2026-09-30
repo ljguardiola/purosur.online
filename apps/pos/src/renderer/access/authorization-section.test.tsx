@@ -211,6 +211,27 @@ describe("an action guarded by another person's PIN", () => {
       await expectNoAccessibilityViolations(screen.container);
     });
 
+    it("reads the authorizers again when the picked person lacks the permission", async () => {
+      const answers = [AUTHORIZERS, [{ id: "u2", first_name: "Grace" }]];
+      let loads = 0;
+      const loadAuthorizers = async () => {
+        loads += 1;
+        return answers[Math.min(loads, answers.length) - 1] ?? [];
+      };
+      const screen = await renderForm({
+        loadAuthorizers,
+        submit: recording({ kind: "lacks_permission" }).submit,
+      });
+
+      await authorizeAs(screen, "Sofía", "1234");
+      await expect.poll(() => loads).toBe(2);
+      await userEvent.click(screen.getByRole("button", { name: /Persona que autoriza/ }));
+
+      await expect.element(screen.getByRole("option", { name: "Grace" })).toBeVisible();
+      await expect.element(screen.getByRole("option", { name: "Sofía" })).not.toBeInTheDocument();
+      expect(loads).toBe(2);
+    });
+
     it("says the PIN could not be checked when the register cannot verify it", async () => {
       const screen = await renderForm({ submit: recording({ kind: "unavailable" }).submit });
 

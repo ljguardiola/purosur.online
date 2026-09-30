@@ -78,6 +78,9 @@ export function useAuthorization({
       if (refused.kind === "wrong_pin") {
         setPin("");
       }
+      if (refused.kind === "lacks_permission") {
+        setAuthorizers({ status: "loading" });
+      }
     },
     performed() {
       setPin("");
