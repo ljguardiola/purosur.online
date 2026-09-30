@@ -1,8 +1,8 @@
-export type PaymentMethod = "CASH";
+type PaymentMethod = "CASH";
 
-export type PaymentProvider = "NONE";
+type PaymentProvider = "NONE";
 
-export type PaymentState = "APPROVED";
+type PaymentState = "APPROVED";
 
 export interface PaymentTransaction {
   id: string;
