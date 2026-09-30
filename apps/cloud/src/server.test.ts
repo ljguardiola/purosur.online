@@ -573,7 +573,6 @@ describe("startServer", () => {
       db: { marker: "fake-db" },
       jobQueue: { enqueueRecoveryRequest: vi.fn() },
       backofficeOrigin: "https://staging.purosur.online",
-      emailSender: { sendRecoveryLink: vi.fn(), sendFirstPinCode: vi.fn() },
       worker: { stop: vi.fn() },
       close,
     };
@@ -679,7 +678,6 @@ describe("startServer", () => {
         db: fakeRecovery.db,
         rotationKey: ROTATION_KEY_BYTES,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
-        emailSender: fakeRecovery.emailSender,
       },
     });
 
@@ -717,7 +715,6 @@ describe("startServer with the real app", () => {
       db: {},
       jobQueue: { enqueueRecoveryRequest: vi.fn() },
       backofficeOrigin: "https://staging.purosur.online",
-      emailSender: { sendRecoveryLink: vi.fn(), sendFirstPinCode: vi.fn() },
       worker: { stop: vi.fn() },
       close: vi.fn().mockResolvedValue(undefined),
     });

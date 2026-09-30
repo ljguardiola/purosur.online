@@ -1322,7 +1322,6 @@ describe("wiring the first PIN code route", () => {
         db: testDatabase.db,
         rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
         keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
-        emailSender: { sendFirstPinCode: async () => {} },
       },
     });
 
@@ -1560,7 +1559,6 @@ function productionWiredApp() {
       authorizedCuit: "20-12345678-6",
       deviceTokenRotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
       installationKeysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
-      emailSender: { sendFirstPinCode: async () => {} },
     }),
   });
 }

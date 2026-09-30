@@ -11,7 +11,7 @@ import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rot
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerFirstPinCodeRoute } from "./first-pin-code-route.js";
-import type { FirstPinCodeEmailSender } from "./recovery-email-sender.js";
+import type { EnqueueFirstPinCodeEmail } from "./graphile-first-pin-code-email-queue.js";
 import { registerRouteAccess } from "./route-access.js";
 
 const NOW = new Date("2026-09-30T12:00:00.000Z");
@@ -20,7 +20,7 @@ const MISSING_ID = "00000000-0000-0000-0000-000000000000";
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
 let app: FastifyInstance;
-let sendFirstPinCode: ReturnType<typeof vi.fn<FirstPinCodeEmailSender["sendFirstPinCode"]>>;
+let enqueueEmail: ReturnType<typeof vi.fn<EnqueueFirstPinCodeEmail>>;
 
 beforeAll(async () => {
   testDatabase = await buildTestDatabase();
@@ -33,7 +33,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testDatabase.clear();
-  sendFirstPinCode = vi.fn<FirstPinCodeEmailSender["sendFirstPinCode"]>().mockResolvedValue();
+  enqueueEmail = vi.fn<EnqueueFirstPinCodeEmail>().mockResolvedValue();
   app = Fastify();
   registerRouteAccess(app);
   registerFirstPinCodeRoute(app, {
@@ -41,7 +41,7 @@ beforeEach(async () => {
     rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
     keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
     now: () => NOW,
-    emailSender: { sendFirstPinCode },
+    enqueueEmail,
   });
 });
 
@@ -84,16 +84,16 @@ function ask(deviceToken: string | undefined, payload: object) {
   });
 }
 
-function sentCode(): string {
-  const [input] = sendFirstPinCode.mock.calls[0] ?? [];
-  if (!input) {
-    throw new Error("test setup: no code was sent");
+function queuedCode(): string {
+  const [, queued] = enqueueEmail.mock.calls[0] ?? [];
+  if (!queued) {
+    throw new Error("test setup: no email was queued");
   }
-  return input.code;
+  return queued.code;
 }
 
 describe("POST /first-pin-codes", () => {
-  it("answers 201 with the expiry and emails the code to the address on file", async () => {
+  it("answers 201 with the expiry and queues one email with the code for the address on file", async () => {
     const userId = await insertUser();
     const { deviceToken } = await insertEnrolledInstallation(db);
 
@@ -103,15 +103,16 @@ describe("POST /first-pin-codes", () => {
     expect(firstPinCodeSchema.parse(response.json())).toEqual({
       expires_at: minutesFromNow(15).toISOString(),
     });
-    expect(sendFirstPinCode).toHaveBeenCalledTimes(1);
-    expect(sendFirstPinCode).toHaveBeenCalledWith({
-      to: "grace@example.com",
+    expect(enqueueEmail).toHaveBeenCalledTimes(1);
+    expect(enqueueEmail).toHaveBeenCalledWith(expect.anything(), {
+      email: "grace@example.com",
       code: expect.stringMatching(/^[A-Z2-7]{16}$/),
+      expiresAt: minutesFromNow(15),
     });
-    expect(response.body).not.toContain(sentCode());
+    expect(response.body).not.toContain(queuedCode());
   });
 
-  it("stores only the hash of the emailed code, with no issuer, for the person", async () => {
+  it("stores only the hash of the queued code, with no issuer, for the person", async () => {
     const userId = await insertUser();
     const { deviceToken } = await insertEnrolledInstallation(db);
 
@@ -120,7 +121,7 @@ describe("POST /first-pin-codes", () => {
     expect(await db.select().from(userPinCodes)).toEqual([
       expect.objectContaining({
         userId,
-        codeHash: hashSecretCode(sentCode()),
+        codeHash: hashSecretCode(queuedCode()),
         issuedBy: null,
         issuedAt: NOW,
         expiresAt: minutesFromNow(15),
@@ -146,7 +147,7 @@ describe("POST /first-pin-codes", () => {
         register_id: registerId,
       },
     });
-    expect(JSON.stringify(entry)).not.toContain(sentCode());
+    expect(JSON.stringify(entry)).not.toContain(queuedCode());
   });
 
   it("supersedes the person's earlier live code", async () => {
@@ -166,7 +167,7 @@ describe("POST /first-pin-codes", () => {
     expect(codes.map((code) => code.supersededAt)).toEqual([null, NOW]);
   });
 
-  it("answers 409 pin_already_set for a person who has a PIN, sending and storing nothing", async () => {
+  it("answers 409 pin_already_set for a person who has a PIN, queueing and storing nothing", async () => {
     const userId = await insertUser({ hasPin: true });
     const { deviceToken } = await insertEnrolledInstallation(db);
 
@@ -174,7 +175,7 @@ describe("POST /first-pin-codes", () => {
 
     expect(response.statusCode).toBe(409);
     expect(cloudErrorSchema.parse(response.json())).toMatchObject({ code: "pin_already_set" });
-    expect(sendFirstPinCode).not.toHaveBeenCalled();
+    expect(enqueueEmail).not.toHaveBeenCalled();
     expect(await db.select().from(userPinCodes)).toHaveLength(0);
     expect(await db.select().from(userPins)).toHaveLength(1);
   });
@@ -200,7 +201,7 @@ describe("POST /first-pin-codes", () => {
 
     expect(response.statusCode).toBe(404);
     expect(cloudErrorSchema.parse(response.json())).toMatchObject({ code: "not_found" });
-    expect(sendFirstPinCode).not.toHaveBeenCalled();
+    expect(enqueueEmail).not.toHaveBeenCalled();
     expect(await db.select().from(userPinCodes)).toHaveLength(0);
   });
 
@@ -225,39 +226,21 @@ describe("POST /first-pin-codes", () => {
       code: "rate_limited",
       details: [{ retry_after_seconds: 600 }],
     });
-    expect(sendFirstPinCode).not.toHaveBeenCalled();
+    expect(enqueueEmail).not.toHaveBeenCalled();
     expect(await db.select().from(userPinCodes)).toHaveLength(5);
   });
 
-  it("answers 503 email_unavailable when the email cannot be sent, storing and auditing nothing", async () => {
+  it("answers 500 and stores, audits and queues nothing when the email cannot be queued", async () => {
     const userId = await insertUser();
     const { deviceToken } = await insertEnrolledInstallation(db);
-    sendFirstPinCode.mockRejectedValue(new Error("Resend API responded 500"));
+    enqueueEmail.mockRejectedValue(new Error("queue unavailable"));
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     const response = await ask(deviceToken, { user_id: userId });
 
-    expect(response.statusCode).toBe(503);
-    expect(cloudErrorSchema.parse(response.json())).toMatchObject({ code: "email_unavailable" });
-    expect(response.body).not.toContain("Resend");
+    expect(response.statusCode).toBe(500);
     expect(await db.select().from(userPinCodes)).toHaveLength(0);
     expect(await db.select().from(auditLog).where(eq(auditLog.entityId, userId))).toHaveLength(0);
-  });
-
-  it("does not count failed sends toward the hourly cap", async () => {
-    const userId = await insertUser();
-    const { deviceToken } = await insertEnrolledInstallation(db);
-    sendFirstPinCode.mockRejectedValue(new Error("Resend API responded 500"));
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    for (const _attempt of [1, 2, 3, 4, 5]) {
-      await ask(deviceToken, { user_id: userId });
-    }
-    sendFirstPinCode.mockResolvedValue();
-
-    const retry = await ask(deviceToken, { user_id: userId });
-
-    expect(retry.statusCode).toBe(201);
-    expect(await db.select().from(userPinCodes)).toHaveLength(1);
   });
 
   it("refuses a body without a user id, before any lookup", async () => {
@@ -285,7 +268,7 @@ describe("POST /first-pin-codes", () => {
     expect(cloudErrorSchema.parse(response.json())).toMatchObject({
       code: "device_token_rejected",
     });
-    expect(sendFirstPinCode).not.toHaveBeenCalled();
+    expect(enqueueEmail).not.toHaveBeenCalled();
     expect(await db.select().from(userPinCodes)).toHaveLength(0);
   });
 

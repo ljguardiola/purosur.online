@@ -1,9 +1,9 @@
 import type {
   FirstPinCodeEmission,
-  FirstPinCodeMailer,
   FirstPinCodeStore,
   FirstPinCodeStoreTransaction,
   FirstPinCodeTarget,
+  QueuedFirstPinCodeEmail,
 } from "../first-pin-code-store.js";
 import type {
   HashedPin,
@@ -43,6 +43,7 @@ export interface FakePinCodeState {
   codes: FakePinCode[];
   emissions: PinCodeEmission[];
   firstEmissions: FirstPinCodeEmission[];
+  queuedEmails: QueuedFirstPinCodeEmail[];
   emails: Map<string, string>;
   registerAccess: Map<string, string[]>;
   attempts: FakeRedemptionAttempt[];
@@ -56,6 +57,7 @@ type WriteOperation =
   | "recordPinCode"
   | "recordPinCodeEmission"
   | "recordFirstPinCodeEmission"
+  | "queueFirstPinCodeEmail"
   | "recordPinCodeRedemptionAttempt"
   | "recordFailedPinCodeRedemption"
   | "replacePin"
@@ -106,6 +108,11 @@ class FakePinCodeStoreTransaction
   async recordFirstPinCodeEmission(emission: FirstPinCodeEmission): Promise<void> {
     this.beforeWrite("recordFirstPinCodeEmission");
     this.state.firstEmissions.push(structuredClone(emission));
+  }
+
+  async queueFirstPinCodeEmail(email: QueuedFirstPinCodeEmail): Promise<void> {
+    this.beforeWrite("queueFirstPinCodeEmail");
+    this.state.queuedEmails.push(structuredClone(email));
   }
 
   async pinCodesIssuedSince(userId: string, since: Date): Promise<Date[]> {
@@ -245,6 +252,7 @@ export class FakePinCodeStore implements PinCodeStore, PinCodeRedemptionStore, F
     codes: [],
     emissions: [],
     firstEmissions: [],
+    queuedEmails: [],
     emails: new Map(),
     registerAccess: new Map(),
     attempts: [],
@@ -329,24 +337,5 @@ export class SequentialPinCodes implements PinCodeGenerator {
 export class FakePinHasher implements PinHasher {
   async hash(pin: string): Promise<HashedPin> {
     return { salt: `salt-for-${pin}`, pinHash: `hash-of-${pin}` };
-  }
-}
-
-export class FakeFirstPinCodeMailer implements FirstPinCodeMailer {
-  readonly sent: { email: string; code: string }[] = [];
-  private readonly store: FakePinCodeStore;
-  private readonly failure: Error | undefined;
-
-  constructor(store: FakePinCodeStore, failure?: Error) {
-    this.store = store;
-    this.failure = failure;
-  }
-
-  async sendFirstPinCode(email: string, code: string): Promise<void> {
-    this.store.operationOrder.push("sendFirstPinCode");
-    if (this.failure) {
-      throw this.failure;
-    }
-    this.sent.push({ email, code });
   }
 }

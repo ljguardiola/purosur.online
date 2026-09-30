@@ -14,7 +14,6 @@ import { registerPasskeysListRoute } from "./access/passkeys-list-route.js";
 import { registerPasskeyRegistrationRoutes } from "./access/passkeys-registration-route.js";
 import { registerPasskeyRemovalRoutes } from "./access/passkeys-removal-route.js";
 import { registerPinCodeRedemptionRoute } from "./access/pin-code-redemption-route.js";
-import type { FirstPinCodeEmailSender } from "./access/recovery-email-sender.js";
 import type { RecoveryJobQueue } from "./access/recovery-job-queue.js";
 import { registerRecoveryRedemptionRoutes } from "./access/recovery-redemption-route.js";
 import type { RecoveryRouteOptions } from "./access/request-recovery-route.js";
@@ -151,7 +150,6 @@ interface DatabaseWiring<TQueryResult extends PgQueryResultHKT> {
   authorizedCuit: string;
   deviceTokenRotationKey: Uint8Array;
   installationKeysEncryptionKey: Uint8Array;
-  emailSender: FirstPinCodeEmailSender;
 }
 
 export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
@@ -182,7 +180,7 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     registers: backoffice,
     stock: backoffice,
     devices,
-    firstPinCodes: { ...devices, emailSender: wiring.emailSender },
+    firstPinCodes: devices,
   };
 }
 

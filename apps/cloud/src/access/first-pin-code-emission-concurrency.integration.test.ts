@@ -3,7 +3,7 @@ import { emitFirstPinCode, redeemPinCode } from "@purosur/domain/access/use-case
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { registers, userPinCodes, users } from "../platform/db/schema.js";
 import { hashSecretCode } from "../platform/secret-code.js";
 import {
@@ -37,7 +37,7 @@ afterAll(async () => {
 });
 
 describe("asking for a first PIN code while the person redeems a code on a real Postgres", () => {
-  it("answers pin_already_set to the emission that waited for the redemption, sending nothing", async () => {
+  it("answers pin_already_set to the emission that waited for the redemption, queueing nothing", async () => {
     const locationId = await seededLocationId(db);
     const [register] = await db
       .insert(registers)
@@ -46,7 +46,7 @@ describe("asking for a first PIN code while the person redeems a code on a real 
     const [user] = await db
       .insert(users)
       .values({ firstName: "Grace Hopper", email: `grace-${randomUUID()}@example.com`, locationId })
-      .returning({ id: users.id });
+      .returning({ id: users.id, email: users.email });
     if (!register || !user) {
       throw new Error("test setup: seeding the register or the user returned no row");
     }
@@ -58,7 +58,6 @@ describe("asking for a first PIN code while the person redeems a code on a real 
       issuedAt,
       expiresAt: new Date(issuedAt.getTime() + 15 * 60 * 1000),
     });
-    const sendFirstPinCode = vi.fn(async () => {});
     const now = new Date();
 
     const [redemption, emission] = await runQueuedBehindHeldLock(
@@ -84,7 +83,6 @@ describe("asking for a first PIN code while the person redeems a code on a real 
             store: new DrizzleFirstPinCodeStore(db),
             clock: { now: () => now },
             codes: { generate: generatePinCode },
-            mailer: { sendFirstPinCode },
           },
           { registerId: register.id, userId: user.id },
         ),
@@ -92,7 +90,9 @@ describe("asking for a first PIN code while the person redeems a code on a real 
 
     expect(redemption.kind).toBe("redeemed");
     expect(emission).toEqual({ kind: "pin_already_set" });
-    expect(sendFirstPinCode).not.toHaveBeenCalled();
+    expect(
+      await sql`select id from graphile_worker._private_jobs where payload->>'email' = ${user.email}`,
+    ).toHaveLength(0);
     expect(
       await db.select().from(userPinCodes).where(eq(userPinCodes.userId, user.id)),
     ).toHaveLength(1);

@@ -11,12 +11,11 @@ export { emitUserPinCode } from "./emit-user-pin-code.js";
 export type {
   FirstPinCodeEmission,
   FirstPinCodeEmissionPorts,
-  FirstPinCodeMailer,
   FirstPinCodeStore,
   FirstPinCodeStoreTransaction,
   FirstPinCodeTarget,
+  QueuedFirstPinCodeEmail,
 } from "./first-pin-code-store.js";
-export { FirstPinCodeEmailUnavailable } from "./first-pin-code-store.js";
 export type {
   LookUpSignInInput,
   LookUpSignInOutcome,

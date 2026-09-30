@@ -17,14 +17,13 @@ import {
   installationTokenPorts,
 } from "../register/installation-token-ports.js";
 import { DrizzleFirstPinCodeStore } from "./drizzle-first-pin-code-store.js";
-import { firstPinCodeMailer } from "./first-pin-code-mailer.js";
 import { generatePinCode } from "./pin-code-generator.js";
-import type { FirstPinCodeEmailSender } from "./recovery-email-sender.js";
+import type { EnqueueFirstPinCodeEmail } from "./graphile-first-pin-code-email-queue.js";
 import { PUBLIC_ACCESS } from "./route-access.js";
 
 export interface FirstPinCodeRouteOptions<TQueryResult extends PgQueryResultHKT>
   extends DeviceTokensOptions<TQueryResult> {
-  emailSender: FirstPinCodeEmailSender;
+  enqueueEmail?: EnqueueFirstPinCodeEmail;
 }
 
 const DEVICE_TOKEN_REJECTED = cloudError(
@@ -33,7 +32,6 @@ const DEVICE_TOKEN_REJECTED = cloudError(
 );
 const NOT_FOUND = cloudError("not_found", "no active user with that id at this location");
 const PIN_ALREADY_SET = cloudError("pin_already_set", "the user already has a PIN");
-const EMAIL_UNAVAILABLE = cloudError("email_unavailable", "the email could not be sent");
 
 // Public to the backoffice's session guard: the device token is this route's own authentication.
 export function registerFirstPinCodeRoute<TQueryResult extends PgQueryResultHKT>(
@@ -42,10 +40,9 @@ export function registerFirstPinCodeRoute<TQueryResult extends PgQueryResultHKT>
 ): void {
   const tokenPorts = installationTokenPorts(options);
   const ports = {
-    store: new DrizzleFirstPinCodeStore(options.db),
+    store: new DrizzleFirstPinCodeStore(options.db, options.enqueueEmail),
     clock: { now: options.now ?? (() => new Date()) },
     codes: { generate: generatePinCode },
-    mailer: firstPinCodeMailer(options.emailSender),
   };
 
   app.register(async (scope) => {
@@ -98,9 +95,6 @@ export function registerFirstPinCodeRoute<TQueryResult extends PgQueryResultHKT>
                   { retry_after_seconds: outcome.retryAfterSeconds },
                 ]),
               );
-            return;
-          case "email_unavailable":
-            await reply.code(cloudErrorStatus(EMAIL_UNAVAILABLE.code)).send(EMAIL_UNAVAILABLE);
             return;
           case "emitted":
             await reply

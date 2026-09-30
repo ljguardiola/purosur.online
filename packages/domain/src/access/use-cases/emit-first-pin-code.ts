@@ -3,10 +3,7 @@ import {
   pinCodeRetryAfterSeconds,
   pinCodeWindowStart,
 } from "../model/pin-code.js";
-import {
-  FirstPinCodeEmailUnavailable,
-  type FirstPinCodeEmissionPorts,
-} from "./first-pin-code-store.js";
+import type { FirstPinCodeEmissionPorts } from "./first-pin-code-store.js";
 
 export interface EmitFirstPinCodeInput {
   registerId: string;
@@ -17,25 +14,10 @@ export type EmitFirstPinCodeOutcome =
   | { kind: "not_found" }
   | { kind: "pin_already_set" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "email_unavailable" }
   | { kind: "emitted"; expiresAt: Date };
 
-export async function emitFirstPinCode(
-  ports: FirstPinCodeEmissionPorts,
-  input: EmitFirstPinCodeInput,
-): Promise<EmitFirstPinCodeOutcome> {
-  try {
-    return await emitInTransaction(ports, input);
-  } catch (error) {
-    if (!(error instanceof FirstPinCodeEmailUnavailable)) {
-      throw error;
-    }
-    return { kind: "email_unavailable" };
-  }
-}
-
-function emitInTransaction(
-  { store, clock, codes, mailer }: FirstPinCodeEmissionPorts,
+export function emitFirstPinCode(
+  { store, clock, codes }: FirstPinCodeEmissionPorts,
   input: EmitFirstPinCodeInput,
 ): Promise<EmitFirstPinCodeOutcome> {
   return store.transaction<EmitFirstPinCodeOutcome>(async (tx) => {
@@ -72,8 +54,7 @@ function emitInTransaction(
       userId: input.userId,
       expiresAt,
     });
-    // Sent last and inside the transaction, so a failed send rolls every write above back.
-    await mailer.sendFirstPinCode(target.email, code);
+    await tx.queueFirstPinCodeEmail({ email: target.email, code, expiresAt });
     return { kind: "emitted", expiresAt };
   });
 }

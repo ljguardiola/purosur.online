@@ -8,8 +8,8 @@ export interface ResendRecoveryEmailSenderOptions {
 }
 
 const RESEND_API_URL = "https://api.resend.com/emails";
-// A first PIN code is sent while its person's row stays locked, so a Resend request that never
-// answers must not hold that lock and its connection indefinitely.
+// The worker runs two jobs at a time, so a Resend request that never answers would hold one of
+// those two slots and delay every other email.
 const RESEND_TIMEOUT_MS = 10_000;
 
 function buildEmailBody(link: string): { text: string; html: string } {

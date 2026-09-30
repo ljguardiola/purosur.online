@@ -241,7 +241,6 @@ export interface RecoveryInfrastructure {
   db: PostgresJsDatabase<Record<string, never>>;
   jobQueue: RecoveryJobQueue;
   backofficeOrigin: string;
-  emailSender: AccessEmailSender;
   worker: RecoveryWorkerHandle;
   close(): Promise<void>;
 }
@@ -322,7 +321,6 @@ export async function setUpRecovery(
     db,
     jobQueue,
     backofficeOrigin: recoveryEnv.backofficeOrigin,
-    emailSender,
     worker,
     close: () => closeRecoveryResources({ worker, workerUtils, jobQueuePool, sql }),
   };
@@ -370,7 +368,6 @@ export async function startServer(
           authorizedCuit: database.authorizedCuit,
           deviceTokenRotationKey: database.deviceTokenRotationKey,
           installationKeysEncryptionKey: database.installationKeysEncryptionKey,
-          emailSender: database.recovery.emailSender,
         })
       : {}),
   });

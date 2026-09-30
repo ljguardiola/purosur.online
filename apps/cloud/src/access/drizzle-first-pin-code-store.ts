@@ -4,11 +4,16 @@ import type {
   FirstPinCodeStoreTransaction,
   FirstPinCodeTarget,
   NewPinCode,
+  QueuedFirstPinCodeEmail,
 } from "@purosur/domain/access/use-cases";
 import { and, eq, gt, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { auditLog, registers, userPinCodes, userPins, users } from "../platform/db/schema.js";
 import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
+import {
+  type EnqueueFirstPinCodeEmail,
+  enqueueFirstPinCodeEmailJob,
+} from "./graphile-first-pin-code-email-queue.js";
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
@@ -18,9 +23,11 @@ class DrizzleFirstPinCodeStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements FirstPinCodeStoreTransaction
 {
   private readonly tx: Transaction<TQueryResult>;
+  private readonly enqueueEmail: EnqueueFirstPinCodeEmail;
 
-  constructor(tx: Transaction<TQueryResult>) {
+  constructor(tx: Transaction<TQueryResult>, enqueueEmail: EnqueueFirstPinCodeEmail) {
     this.tx = tx;
+    this.enqueueEmail = enqueueEmail;
   }
 
   async lockFirstPinCodeTarget(
@@ -84,20 +91,31 @@ class DrizzleFirstPinCodeStoreTransaction<TQueryResult extends PgQueryResultHKT>
       },
     });
   }
+
+  queueFirstPinCodeEmail(email: QueuedFirstPinCodeEmail): Promise<void> {
+    return this.enqueueEmail(this.tx, email);
+  }
 }
 
 export class DrizzleFirstPinCodeStore<TQueryResult extends PgQueryResultHKT>
   implements FirstPinCodeStore
 {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly enqueueEmail: EnqueueFirstPinCodeEmail;
 
-  constructor(db: PgDatabase<TQueryResult>) {
+  constructor(
+    db: PgDatabase<TQueryResult>,
+    enqueueEmail: EnqueueFirstPinCodeEmail = enqueueFirstPinCodeEmailJob,
+  ) {
     this.db = db;
+    this.enqueueEmail = enqueueEmail;
   }
 
   transaction<TOutcome>(
     work: (tx: FirstPinCodeStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    return this.db.transaction((tx) => work(new DrizzleFirstPinCodeStoreTransaction(tx)));
+    return this.db.transaction((tx) =>
+      work(new DrizzleFirstPinCodeStoreTransaction(tx, this.enqueueEmail)),
+    );
   }
 }

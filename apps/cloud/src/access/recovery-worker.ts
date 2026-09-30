@@ -10,11 +10,13 @@ import {
   processRecoveryRequestJob,
   type RecoveryRequestJobPayload,
 } from "./process-recovery-request-job.js";
-import type { RecoveryEmailSender } from "./recovery-email-sender.js";
+import type { AccessEmailSender } from "./recovery-email-sender.js";
+import { sendFirstPinCodeEmailJob } from "./send-first-pin-code-email-job.js";
 import { flushClosedRecoveryRejectedAttemptWindows } from "./recovery-rejected-attempt-flush.js";
 
 export const RECOVERY_REQUEST_TASK_IDENTIFIER = "recovery-request";
 export const RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER = "recovery-rejected-attempt-flush";
+export const FIRST_PIN_CODE_EMAIL_TASK_IDENTIFIER = "first-pin-code-email";
 export const ALERT_ESCALATION_TASK_IDENTIFIER = "alert-escalation";
 
 // graphile-worker 0.18's RunnerOptions takes this crontab string in place of a crontab file.
@@ -54,7 +56,7 @@ function isRecoveryRequestJobPayload(payload: unknown): payload is RecoveryReque
 export interface StartRecoveryWorkerOptions {
   databaseUrl: string;
   backofficeOrigin: string;
-  emailSender: RecoveryEmailSender;
+  emailSender: AccessEmailSender;
   now?: () => Date;
 }
 
@@ -115,6 +117,8 @@ export async function startRecoveryWorker(
           await options.emailSender.sendRecoveryLink(result.send);
         }
       },
+      [FIRST_PIN_CODE_EMAIL_TASK_IDENTIFIER]: (payload) =>
+        sendFirstPinCodeEmailJob(payload, { emailSender: options.emailSender, now }),
       [RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER]: async (_payload, helpers) => {
         await helpers.withPgClient((client) => doFlush(doCreateDatabase(client), { now }));
       },

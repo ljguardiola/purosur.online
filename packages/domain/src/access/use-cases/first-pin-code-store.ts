@@ -12,6 +12,12 @@ export interface FirstPinCodeEmission {
   expiresAt: Date;
 }
 
+export interface QueuedFirstPinCodeEmail {
+  email: string;
+  code: string;
+  expiresAt: Date;
+}
+
 export interface FirstPinCodeStore {
   transaction<TOutcome>(
     work: (tx: FirstPinCodeStoreTransaction) => Promise<TOutcome>,
@@ -28,18 +34,11 @@ export interface FirstPinCodeStoreTransaction
     userId: string,
   ): Promise<FirstPinCodeTarget | undefined>;
   recordFirstPinCodeEmission(emission: FirstPinCodeEmission): Promise<void>;
+  queueFirstPinCodeEmail(email: QueuedFirstPinCodeEmail): Promise<void>;
 }
-
-export interface FirstPinCodeMailer {
-  sendFirstPinCode(email: string, code: string): Promise<void>;
-}
-
-// Thrown by a mailer whose email did not go out, so the emission leaves nothing behind.
-export class FirstPinCodeEmailUnavailable extends Error {}
 
 export interface FirstPinCodeEmissionPorts {
   store: FirstPinCodeStore;
   clock: Clock;
   codes: PinCodeGenerator;
-  mailer: FirstPinCodeMailer;
 }
