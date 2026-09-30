@@ -33,8 +33,8 @@ export function registerPasskeyRemovalRoutes<TQueryResult extends PgQueryResultH
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  app.post(
-    "/users/passkeys/:id/remove",
+  app.delete(
+    "/account/passkeys/:id",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: { access: OPEN_SESSION_ACCESS, sessionSource },

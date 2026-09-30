@@ -25,7 +25,7 @@ export function registerSessionReadRoute<TQueryResult extends PgQueryResultHKT>(
   const sessionSource = routeSessionSource({ db: options.db, now });
 
   app.get(
-    "/users/session",
+    "/sessions/current",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
       config: { access: OPEN_SESSION_ACCESS, sessionSource },

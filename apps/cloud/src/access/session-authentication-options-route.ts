@@ -25,7 +25,7 @@ export function registerSessionAuthenticationOptionsRoute<TQueryResult extends P
   const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
 
   app.post(
-    "/users/session/authentication-options",
+    "/authentication-challenges",
     { config: { access: PUBLIC_ACCESS } },
     async (request, reply) => {
       if (!requireBackofficeOrigin(request, reply, options.backofficeOrigin)) {
