@@ -3,7 +3,12 @@ import { request as httpRequest } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { healthCheckSchema, openSessionSchema, passkeyListSchema } from "@purosur/contracts";
+import {
+  changesPageSchema,
+  healthCheckSchema,
+  openSessionSchema,
+  passkeyListSchema,
+} from "@purosur/contracts";
 import { PERMISSION_KEYS } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -79,6 +84,25 @@ describe("GET /api/health", () => {
 
     expect(response.statusCode).toBe(200);
     expect(healthCheckSchema.parse(response.json()).installation).toEqual({ revoked: false });
+  });
+});
+
+describe("GET /api/changes", () => {
+  it("pulls the enrolled installation's branch changes when the device routes are wired", async () => {
+    const { deviceToken } = await insertEnrolledInstallation(testDatabase.db);
+    const app = buildApp({
+      version: "abc1234",
+      devices: { db: testDatabase.db, rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY },
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/changes?since=0",
+      headers: { authorization: `Bearer ${deviceToken}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(changesPageSchema.parse(response.json()).changes).toHaveLength(1);
   });
 });
 
@@ -1431,6 +1455,20 @@ function productionWiredApp() {
   });
 }
 
+describe("wiring the alerts routes", () => {
+  it("no longer answers the former alert closing path", async () => {
+    const app = productionWiredApp();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/alerts/00000000-0000-0000-0000-000000000000/close",
+      headers: { origin: BACKOFFICE_ORIGIN },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+});
+
 describe("the route access inventory", () => {
   it("declares exactly one access level for every registered route", async () => {
     const app = productionWiredApp();
@@ -1586,8 +1624,8 @@ describe("the route access inventory", () => {
       { method: "GET", url: "/api/alerts/overview", access: OPEN_SESSION_ACCESS },
       { method: "GET", url: "/api/alerts/:id", access: OPEN_SESSION_ACCESS },
       {
-        method: "POST",
-        url: "/api/alerts/:id/close",
+        method: "PUT",
+        url: "/api/alerts/:id/closure",
         access: permissionAccess("dismiss_alerts_manually"),
       },
       {
@@ -1627,6 +1665,7 @@ describe("the route access inventory", () => {
       },
       { method: "GET", url: "/api/health", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/devices/enroll", access: PUBLIC_ACCESS },
+      { method: "GET", url: "/api/changes", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/devices/rotate-token", access: PUBLIC_ACCESS },
       { method: "HEAD", url: "/*", access: PUBLIC_ACCESS },
       { method: "GET", url: "/*", access: PUBLIC_ACCESS },

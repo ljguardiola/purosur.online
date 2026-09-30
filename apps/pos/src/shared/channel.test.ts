@@ -3,6 +3,7 @@ import {
   CHANNEL_DATA_FOLDERS,
   cloudUrlFromCoreArguments,
   coreArgumentsFor,
+  localDataFolderFromCoreArguments,
   parseChannelFile,
   parseLocalChannelFile,
   sentryEnvironmentFromCoreArguments,
@@ -262,5 +263,32 @@ describe("the core's cloud argument", () => {
 
   it("finds no cloud in an argument that isn't an http(s) URL", () => {
     expect(cloudUrlFromCoreArguments(["--cloud-url=file:///etc/passwd"])).toBeUndefined();
+  });
+});
+
+describe("localDataFolderFromCoreArguments", () => {
+  it("finds the folder main handed the core for its local data", () => {
+    const argv = [
+      "/path/to/core.js",
+      ...coreArgumentsFor({
+        channel: "staging",
+        localDataFolder: "C:\\Users\\caja\\AppData\\Local\\purosur-pos-staging",
+      }),
+    ];
+
+    expect(localDataFolderFromCoreArguments(argv)).toBe(
+      "C:\\Users\\caja\\AppData\\Local\\purosur-pos-staging",
+    );
+    expect(sentryEnvironmentFromCoreArguments(argv)).toBe("staging");
+  });
+
+  it("finds no folder when main handed none, or an empty one", () => {
+    expect(
+      localDataFolderFromCoreArguments([
+        "/path/to/core.js",
+        ...coreArgumentsFor({ channel: "staging" }),
+      ]),
+    ).toBeUndefined();
+    expect(localDataFolderFromCoreArguments(["--local-data-folder="])).toBeUndefined();
   });
 });

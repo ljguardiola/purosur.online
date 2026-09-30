@@ -110,3 +110,10 @@ export {
   STOCK_QUANTITY_PER_UNIT,
   signedDelta,
 } from "./stock/index.js";
+export type { PulledChange, PullPage } from "./sync/index.js";
+export {
+  FIRST_PULL_CURSOR,
+  isPageAfter,
+  isPullCursor,
+  PULL_PAGE_MAX_CHANGES,
+} from "./sync/index.js";

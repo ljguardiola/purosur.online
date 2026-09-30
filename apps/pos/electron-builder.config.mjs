@@ -42,8 +42,8 @@ export default {
     output: `release/${channel}`,
   },
   files: ["out/**/*"],
-  // electron-vite has already bundled everything the app runs, and nothing has native bindings to
-  // rebuild.
+  // electron-vite has bundled everything the app runs except better-sqlite3, whose binding is a
+  // Node-API one that Electron loads as installed, so nothing is rebuilt.
   npmRebuild: false,
   forceCodeSigning: false,
   win: {

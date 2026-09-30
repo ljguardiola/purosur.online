@@ -126,8 +126,8 @@ function closeAlertRequest(
   headers: Record<string, string> = {},
 ) {
   return app.inject({
-    method: "POST",
-    url: `/alerts/${id}/close`,
+    method: "PUT",
+    url: `/alerts/${id}/closure`,
     headers: {
       origin: BACKOFFICE_ORIGIN,
       ...(rawSessionId ? cookieHeader(rawSessionId) : {}),
@@ -136,7 +136,22 @@ function closeAlertRequest(
   });
 }
 
-describe("POST /alerts/:id/close", () => {
+describe("PUT /alerts/:id/closure", () => {
+  it("no longer answers POST /alerts/:id/close", async () => {
+    const roleId = await insertRole("closer", ["dismiss_alerts_manually", "view_all_alerts"]);
+    const userId = await insertUserWithRole("Grace", roleId);
+    const rawSessionId = await insertSession(userId);
+    const alertId = await insertAlert({ audience: "all" });
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/alerts/${alertId}/close`,
+      headers: { origin: BACKOFFICE_ORIGIN, ...cookieHeader(rawSessionId) },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
   it("returns 401 unauthenticated when no cookie was sent", async () => {
     const response = await closeAlertRequest(undefined, "00000000-0000-0000-0000-000000000000");
 
