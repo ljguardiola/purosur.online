@@ -208,13 +208,20 @@ describe("who is signed in after signing in", () => {
   it("leaves nobody signed in from the moment an attempt starts until it signs someone in", async () => {
     const { built, signedIn } = deps();
     signedIn.set("u9");
-    let signedInWhileHashing: string | undefined = "not hashed";
+    const signedInWhileChecking: (string | undefined)[] = [];
 
     await signIn(
       {
         ...built,
+        store: {
+          ...built.store,
+          signInRecord: (userId) => {
+            signedInWhileChecking.push(signedIn.userId());
+            return built.store.signInRecord(userId);
+          },
+        },
         hashPin: async (pin, salt) => {
-          signedInWhileHashing = signedIn.userId();
+          signedInWhileChecking.push(signedIn.userId());
           return built.hashPin(pin, salt);
         },
       },
@@ -222,7 +229,16 @@ describe("who is signed in after signing in", () => {
       "9999",
     );
 
-    expect(signedInWhileHashing).toBeUndefined();
+    expect(signedInWhileChecking).toEqual([undefined, undefined]);
+    expect(signedIn.userId()).toBeUndefined();
+  });
+
+  it("signs nobody in when the right PIN's person holds no register permission", async () => {
+    const stored = record({ access: { isAdministrator: false, permissionKeys: [] } });
+    const { built, signedIn } = deps({ record: stored });
+
+    await signIn(built, "u1", "1234");
+
     expect(signedIn.userId()).toBeUndefined();
   });
 });
