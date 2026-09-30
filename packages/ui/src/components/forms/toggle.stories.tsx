@@ -52,3 +52,15 @@ export const FocusVisible: Story = {
 export const Disabled: Story = {
   args: { checked: false, disabled: true },
 };
+
+export const WithDescription: Story = {
+  args: { checked: true, description: "Al desactivarla deja de aplicarse." },
+};
+
+export const OffWithDescription: Story = {
+  args: { checked: false, description: "Al desactivarla deja de aplicarse." },
+};
+
+export const DisabledWithDescription: Story = {
+  args: { checked: false, disabled: true, description: "Al desactivarla deja de aplicarse." },
+};

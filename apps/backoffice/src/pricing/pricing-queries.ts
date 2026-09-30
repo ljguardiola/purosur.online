@@ -1,8 +1,15 @@
-import type { PriceList, PriceProduct } from "@purosur/contracts";
+import type {
+  DiscountList,
+  DiscountSummary,
+  DiscountTargets,
+  PriceList,
+  PriceProduct,
+} from "@purosur/contracts";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
+import type { fetchDiscounts, fetchDiscountTargets } from "./discounts-api";
 import type { FetchPricesInput, fetchPrices } from "./prices-api";
 
 export const pricesKey = ["prices"] as const;
@@ -13,6 +20,10 @@ export const pricesKeys = {
   reviewQueue: [...pricesKey, "review-queue"] as const,
   reload: [...pricesKey, "reload"] as const,
 };
+
+export const discountsKey = [...pricesKey, "discounts"] as const;
+
+export const discountTargetsKey = [...discountsKey, "targets"] as const;
 
 export type PricesRead = PriceList & { readAt: Date };
 
@@ -84,4 +95,58 @@ export function useReloadPrice(params: {
 export function useRefreshPrices(): () => Promise<void> {
   const client = useQueryClient();
   return () => client.invalidateQueries({ queryKey: pricesKey });
+}
+
+export function useDiscountsQuery(params: {
+  fetchDiscounts: typeof fetchDiscounts;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<DiscountList>({
+    queryKey: discountsKey,
+    read: params.fetchDiscounts,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useDiscountTargetsQuery(params: {
+  fetchDiscountTargets: typeof fetchDiscountTargets;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<DiscountTargets>({
+    queryKey: discountTargetsKey,
+    read: params.fetchDiscountTargets,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useRefreshDiscounts(): () => Promise<void> {
+  const client = useQueryClient();
+  return () => client.invalidateQueries({ queryKey: pricesKey });
+}
+
+export type DiscountReload =
+  | { kind: "found"; discount: DiscountSummary }
+  | { kind: "not_found" }
+  | { kind: "list_failed" };
+
+export function useReloadDiscount(params: {
+  fetchDiscounts: typeof fetchDiscounts;
+}): (id: string) => Promise<DiscountReload> {
+  const client = useQueryClient();
+  return async (id) => {
+    void client.invalidateQueries({ queryKey: pricesKey });
+    const listed = await fetchCloudQuery(client, {
+      queryKey: discountsKey,
+      read: params.fetchDiscounts,
+    });
+    if (listed.kind !== "ok") {
+      return { kind: "list_failed" };
+    }
+    const discount = listed.value.discounts.find((listedDiscount) => listedDiscount.id === id);
+    return discount ? { kind: "found", discount } : { kind: "not_found" };
+  };
 }

@@ -1,5 +1,17 @@
 export type { ConfirmPriceInput, ConfirmPriceOutcome } from "./confirm-price.js";
 export { confirmPrice } from "./confirm-price.js";
+export type { CreateDiscountInput, CreateDiscountOutcome } from "./create-discount.js";
+export { createDiscount } from "./create-discount.js";
+export type {
+  DiscountFields,
+  DiscountPorts,
+  DiscountStore,
+  DiscountStoreTransaction,
+  LockAssignableTargetResult,
+  LockDiscountResult,
+} from "./discount-store.js";
+export type { EditDiscountInput, EditDiscountOutcome } from "./edit-discount.js";
+export { editDiscount } from "./edit-discount.js";
 export type {
   Clock,
   CurrentPrice,
