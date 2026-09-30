@@ -141,6 +141,7 @@ export {
 export type {
   CashBalance,
   CloseCashSessionOutcome,
+  CloseLockedCashSessionOutcome,
   CoreStatusMessage,
   CoreToRendererMessage,
   EnrollmentOutcome,

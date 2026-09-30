@@ -43,6 +43,7 @@ import {
   cashBalanceFor,
   cashSessionOpener,
   closeCashSessionFor,
+  closeLockedCashSessionFor,
   currentCashSession,
   openCashSessionFor,
 } from "./register/cash-session-requests";
@@ -327,6 +328,22 @@ const rendererRequestDeps: RendererRequestDeps = {
               ids: uuidV7Ids,
             },
             { sessionId, countedCash, authorization },
+          ),
+  closeLockedCashSession:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (sessionId, countedCash, closer) =>
+          closeLockedCashSessionFor(
+            {
+              database: localDatabase,
+              gate: actionGate,
+              signedInPerson,
+              readOutboxChainKey: async () =>
+                (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+              now: () => new Date(),
+              ids: uuidV7Ids,
+            },
+            { sessionId, countedCash, closer },
           ),
   cashBalance: localDatabase === undefined ? undefined : () => cashBalanceFor(localDatabase),
   cashSession: localDatabase === undefined ? undefined : () => currentCashSession(localDatabase),

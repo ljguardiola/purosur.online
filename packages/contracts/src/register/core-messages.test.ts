@@ -769,6 +769,80 @@ describe("closing a cash session answers", () => {
   });
 });
 
+describe("closing a locked register's cash session", () => {
+  const close = {
+    type: "close-locked-cash-session",
+    request_id: REQUEST_ID,
+    session_id: "s1",
+    counted_cash: 152500,
+    closer: { user_id: "u2", pin: "1234" },
+  };
+
+  it("accepts a request to close the session with the cash counted and the closer's PIN", () => {
+    expect(rendererToCoreMessageSchema.parse(close)).toEqual(close);
+  });
+
+  it.each([-1, 1.5, MAX_CASH_AMOUNT_CENTS + 1, "100", null])(
+    "rejects a counted cash of %j",
+    (counted_cash) => {
+      expect(rendererToCoreMessageSchema.safeParse({ ...close, counted_cash }).success).toBe(false);
+    },
+  );
+
+  it.each(["request_id", "session_id", "counted_cash", "closer"])(
+    "rejects a request missing its %s",
+    (field) => {
+      const message = Object.fromEntries(Object.entries(close).filter(([key]) => key !== field));
+
+      expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+    },
+  );
+
+  it("rejects a closer without a PIN", () => {
+    const message = { ...close, closer: { user_id: "u2" } };
+
+    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("accepts the session that was closed with its expected cash, counted cash and difference", () => {
+    const message = {
+      type: "close-locked-cash-session-result",
+      request_id: REQUEST_ID,
+      outcome: {
+        kind: "closed",
+        session: { id: "s1", expected_cash: 150000, counted_cash: 149000, difference: -1000 },
+      },
+    };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "invalid_counted_cash" },
+    { kind: "no_open_session" },
+    { kind: "open_sale", total: 4500 },
+    { kind: "not_locked" },
+    { kind: "lacks_permission" },
+    { kind: "unavailable" },
+    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
+    { kind: "rate_limited", retry_after_seconds: 1, attempts_left: 2 },
+  ])("accepts the close result $kind", (outcome) => {
+    const message = { type: "close-locked-cash-session-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "not_signed_in" },
+    { kind: "closed", session: { id: "s1", expected_cash: 0, counted_cash: 0 } },
+    { kind: "open_sale" },
+  ])("rejects a close result it does not know: %j", (outcome) => {
+    const message = { type: "close-locked-cash-session-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+});
+
 describe("cash session answers", () => {
   it("accepts the session that was opened", () => {
     const message = {

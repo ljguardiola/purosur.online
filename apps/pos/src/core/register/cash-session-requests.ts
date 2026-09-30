@@ -2,11 +2,14 @@ import type {
   Authorization,
   CashBalance,
   CloseCashSessionOutcome,
+  CloseLockedCashSessionOutcome,
+  GuardedActionRefusal,
   OpenCashSession,
   OpenCashSessionOutcome,
 } from "@purosur/contracts";
 import { cashBreakdown } from "@purosur/domain";
 import {
+  type CloseCashSessionOutcome as CashSessionClosing,
   type Clock,
   closeCashSession,
   type IdGenerator,
@@ -99,10 +102,45 @@ export async function closeCashSessionFor(
       },
     ),
   );
-  if (guarded.kind !== "performed") {
-    return guarded;
+  return guarded.kind === "performed" ? closingAnswer(guarded.result) : guarded;
+}
+
+export interface CloseLockedCashSessionRequest {
+  sessionId: string;
+  countedCash: number;
+  closer: Authorization;
+}
+
+export async function closeLockedCashSessionFor(
+  { database, gate, readOutboxChainKey, now, ids }: CashSessionRequestDeps,
+  { sessionId, countedCash, closer }: CloseLockedCashSessionRequest,
+): Promise<CloseLockedCashSessionOutcome> {
+  const outboxChainKey = await readOutboxChainKey();
+  if (outboxChainKey === undefined) {
+    return { kind: "unavailable" };
   }
-  const outcome = guarded.result;
+  if (readOpenSession(database) === undefined) {
+    return { kind: "no_open_session" };
+  }
+  const guarded = await gate.runWhileLocked(
+    "close_anothers_register_session",
+    closer,
+    async (person) =>
+      closeCashSession(
+        {
+          ledger: new SqliteCashLedger(database, new SqliteSignInStore(database), outboxChainKey),
+          clock: { now },
+          ids,
+        },
+        { sessionId, closerId: person.user_id, authorizedBy: null, countedCash },
+      ),
+  );
+  return guarded.kind === "performed" ? closingAnswer(guarded.result) : guarded;
+}
+
+function closingAnswer(
+  outcome: CashSessionClosing,
+): Exclude<CloseCashSessionOutcome, { kind: GuardedActionRefusal["kind"] }> {
   return outcome.kind === "closed"
     ? {
         kind: "closed",
