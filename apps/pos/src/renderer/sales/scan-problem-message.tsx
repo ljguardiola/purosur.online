@@ -17,7 +17,10 @@ export type ScanProblem =
     >
   | { kind: "scan_failed" }
   | { kind: "add_failed" }
-  | { kind: "search_failed" };
+  | { kind: "search_failed" }
+  | { kind: "change_failed" }
+  | { kind: "remove_failed" }
+  | { kind: "cancel_failed" };
 
 type Message = { icon: LucideIcon; title: string; help: string };
 
@@ -70,6 +73,24 @@ export function messageFor(problem: ScanProblem): Message {
         icon: TriangleAlert,
         title: "No se pudo agregar el producto",
         help: "Probá elegirlo de nuevo.",
+      };
+    case "change_failed":
+      return {
+        icon: TriangleAlert,
+        title: "No se pudo cambiar la cantidad",
+        help: "Probá de nuevo.",
+      };
+    case "remove_failed":
+      return {
+        icon: TriangleAlert,
+        title: "No se pudo quitar la línea",
+        help: "Probá de nuevo.",
+      };
+    case "cancel_failed":
+      return {
+        icon: TriangleAlert,
+        title: "No se pudo cancelar la venta",
+        help: "Probá de nuevo.",
       };
     case "search_failed":
       return {
