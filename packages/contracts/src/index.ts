@@ -10,6 +10,8 @@ export type { PasskeySummaryWire } from "./access/passkey-summary.js";
 export { passkeyListSchema, passkeySummarySchema } from "./access/passkey-summary.js";
 export type { PinCodeRedemption, PinCodeRedemptionBody } from "./access/pin-code-redemption.js";
 export {
+  newPinSchema,
+  PIN_MIN_DIGITS,
   pinCodeRedemptionBodySchema,
   pinCodeRedemptionSchema,
 } from "./access/pin-code-redemption.js";
