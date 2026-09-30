@@ -142,6 +142,12 @@ const closeLockedCashSessionMessageSchema = z.object({
   closer: authorizationSchema,
 });
 
+const identifyLockedCloserMessageSchema = z.object({
+  type: z.literal("identify-locked-closer"),
+  request_id: requestId,
+  closer: authorizationSchema,
+});
+
 const cashBalanceRequestMessageSchema = z.object({
   type: z.literal("cash-balance-request"),
   request_id: requestId,
@@ -186,6 +192,7 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   cashMovementsRequestMessageSchema,
   closeCashSessionMessageSchema,
   closeLockedCashSessionMessageSchema,
+  identifyLockedCloserMessageSchema,
   cashBalanceRequestMessageSchema,
   authorizersRequestMessageSchema,
   scanProductMessageSchema,
@@ -274,6 +281,13 @@ const closeLockedCashSessionOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("not_locked") }),
 ]);
 export type CloseLockedCashSessionOutcome = z.infer<typeof closeLockedCashSessionOutcomeSchema>;
+
+const identifyLockedCloserOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("identified"), person: authorizedBySchema }),
+  ...authorizationRefusalSchema.options,
+  z.object({ kind: z.literal("not_locked") }),
+]);
+export type IdentifyLockedCloserOutcome = z.infer<typeof identifyLockedCloserOutcomeSchema>;
 
 const cashBalanceSchema = z.object({
   opening_float: z.number(),
@@ -394,6 +408,11 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("close-locked-cash-session-result"),
     request_id: requestId,
     outcome: closeLockedCashSessionOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("identify-locked-closer-result"),
+    request_id: requestId,
+    outcome: identifyLockedCloserOutcomeSchema,
   }),
   z.object({
     type: z.literal("cash-balance"),

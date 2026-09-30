@@ -146,6 +146,7 @@ export type {
   CoreToRendererMessage,
   EnrollmentOutcome,
   FirstPinCodeRequestOutcome,
+  IdentifyLockedCloserOutcome,
   ListedCashMovement,
   MainToCoreMessage,
   OpenCashSession,

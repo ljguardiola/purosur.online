@@ -769,6 +769,56 @@ describe("closing a cash session answers", () => {
   });
 });
 
+describe("identifying who closes a locked register", () => {
+  const identify = {
+    type: "identify-locked-closer",
+    request_id: REQUEST_ID,
+    closer: { user_id: "u2", pin: "1234" },
+  };
+
+  it("accepts a request to identify the closer by their PIN", () => {
+    expect(rendererToCoreMessageSchema.parse(identify)).toEqual(identify);
+  });
+
+  it.each(["request_id", "closer"])("rejects a request missing its %s", (field) => {
+    const message = Object.fromEntries(Object.entries(identify).filter(([key]) => key !== field));
+
+    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("accepts the person identified by their id and first name", () => {
+    const message = {
+      type: "identify-locked-closer-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "identified", person: { user_id: "u2", first_name: "Grace" } },
+    };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "not_locked" },
+    { kind: "lacks_permission" },
+    { kind: "unavailable" },
+    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
+    { kind: "locked", consecutive_failures: 8 },
+  ])("accepts the identification result $kind", (outcome) => {
+    const message = { type: "identify-locked-closer-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "identified" },
+    { kind: "identified", person: { user_id: "u2" } },
+    { kind: "not_signed_in" },
+  ])("rejects an identification result it does not know: %j", (outcome) => {
+    const message = { type: "identify-locked-closer-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+});
+
 describe("closing a locked register's cash session", () => {
   const close = {
     type: "close-locked-cash-session",

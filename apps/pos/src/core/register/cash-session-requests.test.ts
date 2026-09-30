@@ -13,6 +13,7 @@ import {
   closeCashSessionFor,
   closeLockedCashSessionFor,
   currentCashSession,
+  identifyLockedCloserFor,
   openCashSessionFor,
 } from "./cash-session-requests";
 import { SqliteCashLedger } from "./sqlite-cash-ledger";
@@ -571,6 +572,45 @@ describe("closing a locked register's cash session with another person's PIN", (
         closer: CLOSER,
       }),
     ).toEqual({ kind: "unavailable" });
+  });
+});
+
+describe("identifying who closes a locked register", () => {
+  const CLOSER = { user_id: "u9", pin: AUTHORIZER_PIN };
+
+  it("identifies the person whose PIN holds the permission, without signing them in or closing anything", async () => {
+    addAuthorizer("u9", ["close_anothers_register_session"]);
+    await openAs("u1", 5000);
+    signedInPerson.clear();
+
+    expect(await identifyLockedCloserFor(deps(), CLOSER)).toEqual({
+      kind: "identified",
+      person: { user_id: "u9", first_name: "Grace" },
+    });
+    expect(signedInPerson.userId()).toBeUndefined();
+    expect(closedSessionRow()).toMatchObject({ state: "OPEN" });
+  });
+
+  it("refuses a person without the permission", async () => {
+    addAuthorizer("u9", ["sell_and_charge"]);
+    signedInPerson.clear();
+
+    expect(await identifyLockedCloserFor(deps(), CLOSER)).toEqual({ kind: "lacks_permission" });
+  });
+
+  it("refuses a wrong PIN", async () => {
+    addAuthorizer("u9", ["close_anothers_register_session"]);
+    signedInPerson.clear();
+
+    const outcome = await identifyLockedCloserFor(deps(), { user_id: "u9", pin: "0000" });
+
+    expect(outcome.kind).toBe("wrong_pin");
+  });
+
+  it("refuses while someone is signed in", async () => {
+    addAuthorizer("u9", ["close_anothers_register_session"]);
+
+    expect(await identifyLockedCloserFor(deps(), CLOSER)).toEqual({ kind: "not_locked" });
   });
 });
 

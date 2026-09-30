@@ -4,6 +4,7 @@ import type {
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   GuardedActionRefusal,
+  IdentifyLockedCloserOutcome,
   OpenCashSession,
   OpenCashSessionOutcome,
 } from "@purosur/contracts";
@@ -136,6 +137,18 @@ export async function closeLockedCashSessionFor(
       ),
   );
   return guarded.kind === "performed" ? closingAnswer(guarded.result) : guarded;
+}
+
+export async function identifyLockedCloserFor(
+  { gate }: Pick<CashSessionRequestDeps, "gate">,
+  closer: Authorization,
+): Promise<IdentifyLockedCloserOutcome> {
+  const guarded = await gate.runWhileLocked(
+    "close_anothers_register_session",
+    closer,
+    async (person) => person,
+  );
+  return guarded.kind === "performed" ? { kind: "identified", person: guarded.result } : guarded;
 }
 
 function closingAnswer(
