@@ -70,7 +70,7 @@ describe("fetchDiscounts", () => {
 
 describe("fetchDiscountTargets", () => {
   const targets = {
-    products: [{ id: "product-1", name: "Yerba Playadito 1 kg" }],
+    products: [{ id: "product-1", name: "Yerba Playadito 1 kg", saleUnit: "UNIT" }],
     categories: [{ id: "category-1", name: "Almacén", parentId: null }],
     tags: [{ id: "tag-1", name: "Sin TACC" }],
   };

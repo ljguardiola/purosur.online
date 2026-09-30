@@ -153,7 +153,7 @@ test("the state filter shows the ended, the deactivated, or every promotion, wit
   await expect.element(screen.getByText("5 promociones · 1 vigente hoy")).toBeVisible();
 });
 
-test("the kind filter offers every kind and only the percentage kind, and keeps its promotions", async () => {
+test("the kind filter offers every kind, and the percentage kind keeps its promotions", async () => {
   const services = createServices();
   const screen = await loaded(services, everyPromotion);
 
@@ -163,7 +163,7 @@ test("the kind filter offers every kind and only the percentage kind, and keeps 
       .getByRole("option")
       .all()
       .map((option) => option.element().textContent),
-  ).toEqual(["Todos", "Porcentaje"]);
+  ).toEqual(["Todos", "Porcentaje", "Lleve N, pague M"]);
   await userEvent.click(screen.getByRole("option", { name: "Porcentaje" }));
 
   await expect.poll(() => rowCells(screen)).toHaveLength(3);

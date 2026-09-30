@@ -118,7 +118,9 @@ export type {
   IsoWeekday,
 } from "./pricing/index.js";
 export {
+  DISCOUNT_BUY_QTY_MIN,
   DISCOUNT_NAME_MAX_LENGTH,
+  DISCOUNT_PAY_QTY_MIN,
   DISCOUNT_PERCENT_MAX,
   DISCOUNT_PERCENT_MIN,
   DISCOUNT_TARGET_KINDS,
@@ -129,6 +131,9 @@ export {
   isDiscountNameTooLong,
   isDiscountWindowOrdered,
   isoWeekdayOf,
+  isValidDiscountBuyNPayM,
+  isValidDiscountBuyQty,
+  isValidDiscountPayQty,
   isValidDiscountPercent,
   isValidDiscountWeekdays,
   MAX_UNIT_PRICE_CENTS,

@@ -1,5 +1,7 @@
 import {
+  DISCOUNT_BUY_QTY_MIN,
   DISCOUNT_NAME_MAX_LENGTH,
+  DISCOUNT_PAY_QTY_MIN,
   DISCOUNT_PERCENT_MAX,
   DISCOUNT_PERCENT_MIN,
 } from "@purosur/domain";
@@ -93,7 +95,7 @@ describe("discountCreationBodySchema", () => {
       },
     );
 
-    it.each([undefined, null, {}, { kind: "BUY_N_PAY_M" }, { kind: "percent_off", percent: 10 }])(
+    it.each([undefined, null, {}, { kind: "BUY_ONE" }, { kind: "percent_off", percent: 10 }])(
       "rejects the benefit %j as not a listed kind",
       (benefit) => {
         const [failure] = failures({ ...valid, benefit });
@@ -101,6 +103,89 @@ describe("discountCreationBodySchema", () => {
         expect(failure?.message).toBe("benefit must be an object with a listed kind");
       },
     );
+  });
+
+  describe("buy-N-pay-M benefit", () => {
+    const buyNPayM = {
+      ...valid,
+      benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+      target: { kind: "PRODUCT", id: ID },
+    };
+
+    function withQuantities(buyQty: unknown, payQty: unknown) {
+      return { ...buyNPayM, benefit: { kind: "BUY_N_PAY_M", buyQty, payQty } };
+    }
+
+    it("accepts buying some units of a product and paying fewer", () => {
+      expect(discountCreationBodySchema.safeParse(buyNPayM).data).toEqual(buyNPayM);
+    });
+
+    it("accepts the domain's smallest quantities", () => {
+      expect(
+        discountCreationBodySchema.safeParse(
+          withQuantities(DISCOUNT_BUY_QTY_MIN, DISCOUNT_PAY_QTY_MIN),
+        ).success,
+      ).toBe(true);
+    });
+
+    it.each([DISCOUNT_BUY_QTY_MIN - 1, 0, 2.5, "3", null, undefined])(
+      "rejects the buyQty %j on benefit.buyQty",
+      (buyQty) => {
+        expect(failures(withQuantities(buyQty, 1))).toEqual([
+          {
+            path: ["benefit", "buyQty"],
+            message: `buyQty must be a whole number of ${DISCOUNT_BUY_QTY_MIN} or more`,
+          },
+        ]);
+      },
+    );
+
+    it.each([DISCOUNT_PAY_QTY_MIN - 1, -1, 1.5, "2", null, undefined])(
+      "rejects the payQty %j on benefit.payQty",
+      (payQty) => {
+        expect(failures(withQuantities(3, payQty))).toEqual([
+          {
+            path: ["benefit", "payQty"],
+            message: `payQty must be a whole number of ${DISCOUNT_PAY_QTY_MIN} or more`,
+          },
+        ]);
+      },
+    );
+
+    it.each([
+      [3, 3],
+      [3, 4],
+    ])("rejects buying %j and paying %j on benefit.payQty", (buyQty, payQty) => {
+      expect(failures(withQuantities(buyQty, payQty))).toEqual([
+        { path: ["benefit", "payQty"], message: "payQty must be less than buyQty" },
+      ]);
+    });
+
+    it.each(["CATEGORY", "TAG"])("rejects a %s target on target.kind", (kind) => {
+      expect(failures({ ...buyNPayM, target: { kind, id: ID } })).toEqual([
+        {
+          path: ["target", "kind"],
+          message: "target.kind must be PRODUCT for a BUY_N_PAY_M benefit",
+        },
+      ]);
+    });
+
+    it("reports only the target's own problem when the target is malformed", () => {
+      expect(failures({ ...buyNPayM, target: { kind: "BRAND", id: ID } })).toEqual([
+        { path: ["target", "kind"], message: "target.kind must be PRODUCT, CATEGORY or TAG" },
+      ]);
+    });
+
+    it("reports a non-product target next to the problems of other fields", () => {
+      expect(
+        failures({ ...withQuantities(1, 1), target: { kind: "TAG", id: ID } }).map(
+          (failure) => failure.path,
+        ),
+      ).toEqual([
+        ["benefit", "buyQty"],
+        ["target", "kind"],
+      ]);
+    });
   });
 
   describe("target", () => {

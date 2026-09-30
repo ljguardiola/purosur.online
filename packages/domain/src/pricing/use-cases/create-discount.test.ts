@@ -12,9 +12,20 @@ const input: CreateDiscountInput = {
   weekdays: [],
 };
 
+const buyThreePayTwo: CreateDiscountInput = {
+  ...input,
+  benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+};
+
 function storeWithTarget(kind: "PRODUCT" | "CATEGORY" | "TAG" = "PRODUCT", active = true) {
   const store = new FakeDiscountStore();
   store.seedTarget({ kind, id: "product-1", active });
+  return store;
+}
+
+function storeWithProductSoldBy(saleUnit: "UNIT" | "KG") {
+  const store = new FakeDiscountStore();
+  store.seedTarget({ kind: "PRODUCT", id: "product-1", active: true, saleUnit });
   return store;
 }
 
@@ -89,6 +100,59 @@ describe("createDiscount", () => {
 
     expect(outcome).toEqual({ kind: "target_not_found" });
     expect(store.snapshot().discounts).toEqual([]);
+  });
+
+  it("creates a buy-N-pay-M discount on a product sold by the unit", async () => {
+    const store = storeWithProductSoldBy("UNIT");
+
+    const outcome = await createDiscount({ store }, buyThreePayTwo);
+
+    expect(outcome).toEqual({ kind: "created", id: "discount-1" });
+    expect(store.snapshot().discounts[0]?.benefit).toEqual({
+      kind: "BUY_N_PAY_M",
+      buyQty: 3,
+      payQty: 2,
+    });
+  });
+
+  it("refuses a buy-N-pay-M discount on a product sold by weight, writing nothing", async () => {
+    const store = storeWithProductSoldBy("KG");
+
+    const outcome = await createDiscount({ store }, buyThreePayTwo);
+
+    expect(outcome).toEqual({ kind: "target_not_sold_by_unit" });
+    expect(store.snapshot().discounts).toEqual([]);
+    expect(store.operationOrder).toEqual(["lockAssignableTarget"]);
+  });
+
+  it.each(["CATEGORY", "TAG"] as const)(
+    "refuses a buy-N-pay-M discount on a %s, which is not sold by any unit",
+    async (kind) => {
+      const store = storeWithTarget(kind);
+
+      const outcome = await createDiscount(
+        { store },
+        { ...buyThreePayTwo, target: { kind, id: "product-1" } },
+      );
+
+      expect(outcome).toEqual({ kind: "target_not_sold_by_unit" });
+    },
+  );
+
+  it("creates a percentage discount on a product sold by weight", async () => {
+    const store = storeWithProductSoldBy("KG");
+
+    const outcome = await createDiscount({ store }, input);
+
+    expect(outcome.kind).toBe("created");
+  });
+
+  it("answers target_not_found before the sale unit for a missing product", async () => {
+    const store = new FakeDiscountStore();
+
+    const outcome = await createDiscount({ store }, buyThreePayTwo);
+
+    expect(outcome).toEqual({ kind: "target_not_found" });
   });
 
   it("locks the target before inserting the discount", async () => {

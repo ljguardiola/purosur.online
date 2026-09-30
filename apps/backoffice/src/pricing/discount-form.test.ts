@@ -194,8 +194,8 @@ describe("option lists", () => {
 
 describe("targetOptions", () => {
   const nothing = { products: [], categories: [], tags: [] };
-  const honey = { id: "product-1", name: "Miel pura de abeja 1 kg" };
-  const rice = { id: "product-3", name: "Arroz" };
+  const honey = { id: "product-1", name: "Miel pura de abeja 1 kg", saleUnit: "UNIT" } as const;
+  const rice = { id: "product-3", name: "Arroz", saleUnit: "UNIT" } as const;
   const sinTacc = { id: "tag-1", name: "Sin TACC" };
   const vegano = { id: "tag-2", name: "Vegano" };
   const organico = { id: "tag-4", name: "Orgánico" };

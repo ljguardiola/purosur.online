@@ -84,21 +84,25 @@ export function discountList(discounts: DiscountSummary[]): DiscountList {
   return { discounts };
 }
 
-type NamedTarget = DiscountTargets["products"][number];
+type ProductTarget = DiscountTargets["products"][number];
+type TagTarget = DiscountTargets["tags"][number];
 
-export const yerbaProduct: NamedTarget = {
+export const yerbaProduct: ProductTarget = {
   id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000101",
   name: "Yerba Playadito 1 kg",
+  saleUnit: "UNIT",
 };
 
-const almondsProduct: NamedTarget = {
+const almondsProduct: ProductTarget = {
   id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000104",
   name: "Almendras peladas",
+  saleUnit: "KG",
 };
 
-export const retiredProduct: NamedTarget = {
+export const retiredProduct: ProductTarget = {
   id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000105",
   name: "Café en grano",
+  saleUnit: "UNIT",
 };
 
 export const almacenCategory: DiscountTargets["categories"][number] = {
@@ -113,17 +117,17 @@ export const yerbasCategory: DiscountTargets["categories"][number] = {
   parentId: "7a1f3c1e-4f6a-4d0e-9d6e-000000000201",
 };
 
-const sinTaccTag: NamedTarget = {
+const sinTaccTag: TagTarget = {
   id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000301",
   name: "Sin TACC",
 };
 
-export const veganoTag: NamedTarget = {
+export const veganoTag: TagTarget = {
   id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000302",
   name: "Vegano",
 };
 
-export const retiredTag: NamedTarget = {
+export const retiredTag: TagTarget = {
   id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000303",
   name: "Sin colorantes",
 };

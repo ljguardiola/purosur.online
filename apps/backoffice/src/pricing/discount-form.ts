@@ -50,7 +50,7 @@ function percentFrom(text: string): number {
 export function discountRequestFrom(values: DiscountFormValues): DiscountCreationBody {
   return {
     name: values.name,
-    benefit: { kind: values.benefitKind, percent: percentFrom(values.percent) },
+    benefit: { kind: "PERCENT_OFF", percent: percentFrom(values.percent) },
     target: { kind: values.targetKind, id: values.targetId ?? "" },
     validFrom: values.validFrom?.toString() ?? "",
     validTo: values.validTo?.toString() ?? "",
@@ -72,7 +72,7 @@ export function discountFormValues(discount: DiscountSummary): DiscountEditFormV
     benefitKind: discount.benefit.kind,
     targetKind: discount.target.kind,
     targetId: discount.target.id,
-    percent: String(discount.benefit.percent),
+    percent: discount.benefit.kind === "PERCENT_OFF" ? String(discount.benefit.percent) : "",
     validFrom: parseDate(discount.validFrom),
     validTo: parseDate(discount.validTo),
     weekdays: normalizeDiscountWeekdays(discount.weekdays).map(String),
