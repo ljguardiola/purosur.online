@@ -8,13 +8,14 @@ import {
   categorySelectOptions,
   EMPTY_PRODUCT_FORM,
   netContentMessage,
-  PRODUCT_TAG_INACTIVE_ERROR,
   productFormValues,
   productMessage,
   productRequestFrom,
   saleUnitMessage,
+  tagInactiveError,
   tagsMessage,
 } from "./product-form";
+import { sinTacc, vegano } from "./test-support/tags";
 
 const NO_BARCODES = { codes: [], scan: "" };
 
@@ -214,9 +215,18 @@ describe("the product's tags", () => {
     ).toEqual(["tag-2", "tag-1"]);
   });
 
-  it("says a tag the cloud refuses no longer exists, or was deactivated", () => {
+  it("says a tag the cloud refuses no longer exists", () => {
     expect(tagsMessage()).toBe("Un distintivo elegido ya no existe.");
-    expect(PRODUCT_TAG_INACTIVE_ERROR).toBe(
+  });
+
+  it("names the deactivated tag the cloud refuses, among the tags the form has", () => {
+    expect(tagInactiveError([sinTacc, vegano], vegano.id)).toBe(
+      '"Vegano" se dio de baja. Quitalo para guardar.',
+    );
+  });
+
+  it("says a chosen tag was deactivated when the form does not know the refused one", () => {
+    expect(tagInactiveError([sinTacc], vegano.id)).toBe(
       "Un distintivo elegido se dio de baja. Quitalo para guardar.",
     );
   });

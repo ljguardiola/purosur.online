@@ -1,4 +1,9 @@
-import type { CategorySummary, ProductCreationBody, ProductSummary } from "@purosur/contracts";
+import type {
+  CategorySummary,
+  ProductCreationBody,
+  ProductSummary,
+  TagSummary,
+} from "@purosur/contracts";
 import {
   BARCODE_MAX_LENGTH,
   type BarcodeListProblem,
@@ -251,8 +256,12 @@ export function categoryNameOf(categories: CategorySummary[], id: string): strin
 export const PRODUCT_BRAND_INACTIVE_ERROR =
   "La marca elegida se dio de baja. Elegí otra o dejala sin marca.";
 
-export const PRODUCT_TAG_INACTIVE_ERROR =
-  "Un distintivo elegido se dio de baja. Quitalo para guardar.";
+export function tagInactiveError(tags: TagSummary[], tagId: string): string {
+  const tag = tags.find((candidate) => candidate.id === tagId);
+  return tag
+    ? `"${tag.name}" se dio de baja. Quitalo para guardar.`
+    : "Un distintivo elegido se dio de baja. Quitalo para guardar.";
+}
 
 const PRODUCT_BARCODE_TAKEN_UNNAMED = "Alguno de los códigos ya es de otro producto.";
 

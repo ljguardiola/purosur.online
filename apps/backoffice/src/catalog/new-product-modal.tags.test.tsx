@@ -198,7 +198,7 @@ test("a tag name already taken shows the error in the stacked modal and keeps th
 
 test("shows on the tags field that a tag chosen was deactivated meanwhile", async () => {
   const services = createServices();
-  vi.mocked(services.createProduct).mockResolvedValue({ kind: "tag_inactive" });
+  vi.mocked(services.createProduct).mockResolvedValue({ kind: "tag_inactive", tagId: sinTacc.id });
   const { dialog } = await renderModal(services, [sinTacc]);
   await fillNewProduct(dialog);
   await chooseTag(dialog, "Sin TACC");
@@ -206,7 +206,7 @@ test("shows on the tags field that a tag chosen was deactivated meanwhile", asyn
   await submit(dialog);
 
   await expect
-    .element(dialog.getByText("Un distintivo elegido se dio de baja. Quitalo para guardar."))
+    .element(dialog.getByText('"Sin TACC" se dio de baja. Quitalo para guardar.'))
     .toBeVisible();
 });
 

@@ -679,7 +679,7 @@ test("a tag chosen is appended after the product's own, and every tag just creat
 
 test("shows on the tags field that a tag chosen was deactivated meanwhile", async () => {
   const services = createServices();
-  vi.mocked(services.editProduct).mockResolvedValue({ kind: "tag_inactive" });
+  vi.mocked(services.editProduct).mockResolvedValue({ kind: "tag_inactive", tagId: vegano.id });
   const { dialog } = await renderModal(honey, services, { tags: [vegano] });
   await userEvent.click(addTagButton(dialog));
   await userEvent.click(page.getByRole("menuitem", { name: "Vegano" }));
@@ -687,6 +687,6 @@ test("shows on the tags field that a tag chosen was deactivated meanwhile", asyn
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect
-    .element(dialog.getByText("Un distintivo elegido se dio de baja. Quitalo para guardar."))
+    .element(dialog.getByText('"Vegano" se dio de baja. Quitalo para guardar.'))
     .toBeVisible();
 });

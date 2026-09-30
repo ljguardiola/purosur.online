@@ -205,11 +205,20 @@ test("createProduct returns brand_inactive on a 409 carrying that code", async (
   expect(await createProduct(createInput)).toEqual({ kind: "brand_inactive" });
 });
 
-test("createProduct returns tag_inactive on a 409 carrying that code", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "tag_inactive" }));
+test("createProduct returns tag_inactive with the refused tag on a 409 carrying that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "tag_inactive", tagId: "tag-2" }));
 
-  expect(await createProduct(createInput)).toEqual({ kind: "tag_inactive" });
+  expect(await createProduct(createInput)).toEqual({ kind: "tag_inactive", tagId: "tag-2" });
 });
+
+test.each([{ code: "tag_inactive" }, { code: "tag_inactive", tagId: 2 }])(
+  "createProduct fails on a tag_inactive 409 that does not name the tag: %o",
+  async (body) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, body));
+
+    expect(await createProduct(createInput)).toEqual({ kind: "failed" });
+  },
+);
 
 test("createProduct returns category_not_leaf on a 409 carrying that code", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "category_not_leaf" }));
@@ -322,11 +331,23 @@ test("editProduct returns brand_inactive on a 409 carrying that code", async () 
   expect(await editProduct("product-1", editInput)).toEqual({ kind: "brand_inactive" });
 });
 
-test("editProduct returns tag_inactive on a 409 carrying that code", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "tag_inactive" }));
+test("editProduct returns tag_inactive with the refused tag on a 409 carrying that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "tag_inactive", tagId: "tag-2" }));
 
-  expect(await editProduct("product-1", editInput)).toEqual({ kind: "tag_inactive" });
+  expect(await editProduct("product-1", editInput)).toEqual({
+    kind: "tag_inactive",
+    tagId: "tag-2",
+  });
 });
+
+test.each([{ code: "tag_inactive" }, { code: "tag_inactive", tagId: 2 }])(
+  "editProduct fails on a tag_inactive 409 that does not name the tag: %o",
+  async (body) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, body));
+
+    expect(await editProduct("product-1", editInput)).toEqual({ kind: "failed" });
+  },
+);
 
 test("editProduct returns category_not_leaf on a 409 carrying that code", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "category_not_leaf" }));

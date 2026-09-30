@@ -37,9 +37,9 @@ import {
   PRODUCT_CATEGORY_NOT_LEAF_ERROR,
   PRODUCT_FIELDS,
   PRODUCT_MESSAGES,
-  PRODUCT_TAG_INACTIVE_ERROR,
   productRequestFrom,
   SALE_UNIT_OPTIONS,
+  tagInactiveError,
 } from "./product-form";
 import { TagsField, useStackedTagCreation, withCreatedTags } from "./product-tags-field";
 import type { createProduct, generateInternalBarcode } from "./products-api";
@@ -125,7 +125,7 @@ export function NewProductModal({
         return;
       }
       if (outcome.kind === "tag_inactive") {
-        showFieldError("tagIds", PRODUCT_TAG_INACTIVE_ERROR);
+        showFieldError("tagIds", tagInactiveError(tags, outcome.tagId));
         return;
       }
       if (outcome.kind === "rate_limited") {
