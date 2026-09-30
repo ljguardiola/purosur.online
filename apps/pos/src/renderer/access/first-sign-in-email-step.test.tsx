@@ -178,16 +178,17 @@ describe("FirstSignInEmailStep", () => {
   });
 
   it.each<SignInLookupOutcome>([
-    ADA,
     { kind: "not_found" },
     { kind: "invalid_email" },
     { kind: "unreachable" },
-  ])("does not keep the typed email once the lookup answers $kind", async (outcome) => {
+  ])("keeps the typed email to correct it after the lookup answers $kind", async (outcome) => {
     const screen = await renderStep(answering(outcome));
 
     await submitEmail(screen, "ada@example.com");
 
-    await expect.element(screen.getByRole("textbox", { name: "Correo" })).toHaveValue("");
+    await expect
+      .element(screen.getByRole("textbox", { name: "Correo" }))
+      .toHaveValue("ada@example.com");
   });
 
   it("drops the message once the email is edited", async () => {

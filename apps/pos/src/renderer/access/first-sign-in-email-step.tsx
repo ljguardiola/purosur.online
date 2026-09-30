@@ -72,7 +72,6 @@ export function FirstSignInEmailStep({ lookup, onFound }: FirstSignInEmailStepPr
     setRefused(undefined);
     setSubmitting(true);
     const outcome = await lookup(email).catch((): SignInLookupOutcome => ({ kind: "unavailable" }));
-    setEmail("");
     setSubmitting(false);
     if (outcome.kind === "has_pin" || outcome.kind === "no_pin") {
       onFound(outcome);
