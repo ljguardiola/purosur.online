@@ -22,7 +22,8 @@ import { createActionGate } from "./access/action-gate";
 import { redeemPinCode } from "./access/pin-code-redemption";
 import { hashPin } from "./access/pin-hash";
 import { applyRedeemedPin } from "./access/redeemed-pin";
-import { signIn } from "./access/sign-in";
+import { firstSignIn, signIn } from "./access/sign-in";
+import { lookUpSignIn } from "./access/sign-in-lookup";
 import { createSignedInPerson } from "./access/signed-in-person";
 import { SqliteSignInStore } from "./access/sqlite-sign-in-store";
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
@@ -244,6 +245,37 @@ const rendererRequestDeps: RendererRequestDeps = {
             },
             userId,
             pin,
+          ),
+  firstSignIn:
+    signInStore === undefined
+      ? undefined
+      : (userId, pin) =>
+          firstSignIn(
+            {
+              store: signInStore,
+              signedInPerson,
+              readPepper,
+              hashPin,
+              now: () => new Date(),
+            },
+            userId,
+            pin,
+          ),
+  signInLookup:
+    signInStore === undefined
+      ? undefined
+      : (email) =>
+          lookUpSignIn(
+            {
+              readCredentials: () => mainRequests.readCredentials(),
+              postToCloud:
+                cloudClient === undefined
+                  ? undefined
+                  : (path, bearerToken, body) =>
+                      postToCloudWithBearer(cloudClient, path, bearerToken, body),
+              store: signInStore,
+            },
+            email,
           ),
   signOut: () => signedInPerson.clear(),
   openCashSession:

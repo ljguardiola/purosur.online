@@ -134,6 +134,42 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core who has the email as typed and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const outcome = client.signInLookup(" Ada@Example.com ");
+    port.answer({
+      type: "sign-in-lookup-result",
+      request_id: "request-1",
+      outcome: { kind: "has_pin", user: { id: "u1", first_name: "Ada" } },
+    });
+
+    expect(await outcome).toEqual({ kind: "has_pin", user: { id: "u1", first_name: "Ada" } });
+    expect(port.posted).toEqual([
+      { type: "sign-in-lookup", request_id: "request-1", email: " Ada@Example.com " },
+    ]);
+  });
+
+  it("asks the core to sign in for the first time with the PIN as typed and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const outcome = client.firstSignIn("u1", "0042");
+    port.answer({
+      type: "sign-in-result",
+      request_id: "request-1",
+      outcome: { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 7 },
+    });
+
+    expect(await outcome).toEqual({ kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 7 });
+    expect(port.posted).toEqual([
+      { type: "first-sign-in", request_id: "request-1", user_id: "u1", pin: "0042" },
+    ]);
+  });
+
   it("asks the core to sign out and resolves once it answers", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();

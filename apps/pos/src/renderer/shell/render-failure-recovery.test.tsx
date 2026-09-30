@@ -40,6 +40,8 @@ function buildFailingRouter(shouldThrow: () => boolean) {
       signOut: () => {},
       openCashSession: async () => ({ kind: "unavailable" }),
       redeemPinCode: async () => ({ kind: "redeemed" }),
+      signInLookup: async () => ({ kind: "unavailable" }),
+      firstSignIn: async () => ({ kind: "unavailable" }),
     },
     "/",
   );

@@ -326,6 +326,26 @@ describe("the register's local copy of the users, roles and permissions it pulls
     expect(replica.user(OTHER_USER_ID)).toMatchObject({ first_name: "Grace", removed: false });
   });
 
+  it("remembers nobody of the previous installation once another one takes over", async () => {
+    await save(userChange(1, userRow()));
+    new SqliteSignInStore(database).remember(USER_ID);
+
+    replica.adoptDevice({ deviceId: "device-b", pepper: OTHER_PEPPER });
+
+    expect(database.prepare("SELECT user_id FROM remembered_users").all()).toEqual([]);
+  });
+
+  it("keeps who it remembers for the installation that remembered them", async () => {
+    await save(userChange(1, userRow()));
+    new SqliteSignInStore(database).remember(USER_ID);
+
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
+
+    expect(database.prepare("SELECT user_id FROM remembered_users").all()).toEqual([
+      { user_id: USER_ID },
+    ]);
+  });
+
   it("does not let an older version bring back a user it held before joining another installation", async () => {
     await save(userChange(1, userRow({ version: 3 })));
 

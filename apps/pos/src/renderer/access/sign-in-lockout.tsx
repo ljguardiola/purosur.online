@@ -4,9 +4,11 @@ import { ArrowLeft, KeyRound } from "lucide-react";
 
 export function SignInLockout({
   consecutiveFailures,
+  backLabel,
   onBack,
 }: {
   consecutiveFailures: number;
+  backLabel: string;
   onBack: () => void;
 }) {
   const navigate = useNavigate();
@@ -35,7 +37,7 @@ export function SignInLockout({
         className="inline-flex cursor-pointer items-center gap-2 self-start py-1 font-bold text-body text-text-accent outline-none focus-visible:focus-ring-tight"
       >
         <ArrowLeft aria-hidden="true" className="size-icon-sm shrink-0" />
-        Volver a la lista de usuarios
+        {backLabel}
       </button>
     </>
   );

@@ -2,7 +2,7 @@ import { encodePinHash, PERMISSION_KEYS } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { hashPin } from "./pin-hash";
 import { derivePinVerifier } from "./pin-verifier";
-import { type SignInDeps, signIn } from "./sign-in";
+import { type FirstSignInDeps, firstSignIn, type SignInDeps, signIn } from "./sign-in";
 import { createSignedInPerson } from "./signed-in-person";
 import type { PinSignInFailures, SignInRecord } from "./sqlite-sign-in-store";
 
@@ -36,6 +36,7 @@ interface Options extends Partial<Omit<SignInDeps, "store">> {
 
 function deps(options: Options = {}) {
   const hashed: { pin: string; salt: Uint8Array }[] = [];
+  const remembered: string[] = [];
   const failures = new Map(Object.entries(options.failures ?? {}));
   const signedIn = createSignedInPerson();
   const {
@@ -43,9 +44,12 @@ function deps(options: Options = {}) {
     failures: _failures,
     ...rest
   } = "record" in options ? options : { record: record(), ...options };
-  const built: SignInDeps = {
+  const built: FirstSignInDeps = {
     signedInPerson: signedIn,
     store: {
+      remember: (userId) => {
+        remembered.push(userId);
+      },
       signInRecord: () => stored,
       pinSignInFailures: (userId) => failures.get(userId),
       recordPinSignInFailure: (userId, at) => {
@@ -82,7 +86,7 @@ function deps(options: Options = {}) {
     now: () => NOW,
     ...rest,
   };
-  return { built, hashed, failures, signedIn };
+  return { built, hashed, failures, signedIn, remembered };
 }
 
 describe("signing in", () => {
@@ -453,5 +457,63 @@ describe("signing in after wrong PINs", () => {
     await signIn(built, "u1", "9999");
 
     expect(failures.size).toBe(0);
+  });
+});
+
+describe("signing in for the first time on a register", () => {
+  it("signs in a person who enters the right PIN and remembers them", async () => {
+    const { built, remembered } = deps();
+
+    expect(await firstSignIn(built, "u1", "1234")).toEqual({
+      kind: "signed_in",
+      person: {
+        user_id: "u1",
+        first_name: "Ada",
+        permission_keys: ["sell_and_charge", "adjust_stock"],
+      },
+    });
+    expect(remembered).toEqual(["u1"]);
+  });
+
+  it("remembers nobody who enters a wrong PIN, and counts it like any sign-in", async () => {
+    const { built, remembered, failures } = deps();
+
+    expect(await firstSignIn(built, "u1", "9999")).toEqual({
+      kind: "wrong_pin",
+      retry_after_seconds: 0,
+      attempts_left: 7,
+    });
+    expect(remembered).toEqual([]);
+    expect(failures.get("u1")?.consecutiveFailures).toBe(1);
+  });
+
+  it("makes a person with wrong PINs wait, as any sign-in does", async () => {
+    const { built, remembered } = deps({ failures: { u1: failuresAt(5, 1) } });
+
+    expect(await firstSignIn(built, "u1", "1234")).toMatchObject({ kind: "rate_limited" });
+    expect(remembered).toEqual([]);
+  });
+
+  it("refuses a locked person even with the right PIN", async () => {
+    const { built, remembered } = deps({ failures: { u1: failuresAt(8) } });
+
+    expect(await firstSignIn(built, "u1", "1234")).toMatchObject({ kind: "locked" });
+    expect(remembered).toEqual([]);
+  });
+
+  it("remembers nobody whose right PIN opens no register permission", async () => {
+    const { built, remembered } = deps({
+      record: record({ access: { isAdministrator: false, permissionKeys: [] } }),
+    });
+
+    expect(await firstSignIn(built, "u1", "1234")).toEqual({ kind: "no_register_permission" });
+    expect(remembered).toEqual([]);
+  });
+
+  it("remembers nobody who cannot sign in", async () => {
+    const { built, remembered } = deps({ record: undefined });
+
+    expect(await firstSignIn(built, "u1", "1234")).toMatchObject({ kind: "wrong_pin" });
+    expect(remembered).toEqual([]);
   });
 });
