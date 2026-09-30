@@ -257,6 +257,47 @@ describe("PUT /discounts/:id", () => {
     });
   });
 
+  it("answers 409 discount_product_sold_by_weight naming the product when switching a buy-N-pay-M discount back on, changing nothing", async () => {
+    const product = await insertProductWithTags(db, {
+      name: "Queso cremoso",
+      tagIds: [],
+      saleUnit: "KG",
+    });
+    const discount = await insertDiscount(db, {
+      productId: product.id,
+      kind: "BUY_N_PAY_M",
+      percent: null,
+      buyQty: 3,
+      payQty: 2,
+      validFrom: "2026-01-01",
+      validTo: "2026-01-31",
+      active: false,
+    });
+    const rawSessionId = await signedInWithPermissions(db, NOON, ["manage_promotions"]);
+
+    const response = await editDiscount(
+      rawSessionId,
+      discount.id,
+      editBodyAimedAt(
+        { kind: "PRODUCT", id: product.id },
+        {
+          benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+          validFrom: "2026-01-01",
+          validTo: "2026-01-31",
+          active: true,
+        },
+      ),
+    );
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toEqual({
+      code: "discount_product_sold_by_weight",
+      message: "a buy-N-pay-M discount cannot be live while its product is sold by weight",
+      productName: "Queso cremoso",
+    });
+    expect(await storedDiscount(discount.id)).toMatchObject({ active: false, version: 1 });
+  });
+
   it("switches a discount to buy-N-pay-M on a product sold by the unit", async () => {
     const product = await insertProductWithTags(db, { name: "Alfajor", tagIds: [] });
     const discount = await insertDiscount(db, { productId: product.id });

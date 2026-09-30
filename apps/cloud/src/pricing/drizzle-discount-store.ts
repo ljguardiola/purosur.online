@@ -98,7 +98,9 @@ class DrizzleDiscountStoreTransaction<TQueryResult extends PgQueryResultHKT>
       return { kind: "not_found" };
     }
     const found = await this.lockedTargetRow(target);
-    return found ? { kind: "locked", saleUnit: found.saleUnit } : { kind: "not_found" };
+    return found
+      ? { kind: "locked", name: found.name, saleUnit: found.saleUnit }
+      : { kind: "not_found" };
   }
 
   async insertDiscount(fields: DiscountFields): Promise<{ id: string }> {
@@ -134,31 +136,31 @@ class DrizzleDiscountStoreTransaction<TQueryResult extends PgQueryResultHKT>
   // A shared lock is enough: deactivating a product or a tag takes the row's update lock, which waits.
   private async lockedTargetRow(
     target: DiscountFields["target"],
-  ): Promise<{ saleUnit: SaleUnit | null } | undefined> {
+  ): Promise<{ name: string; saleUnit: SaleUnit | null } | undefined> {
     switch (target.kind) {
       case "PRODUCT": {
         const [row] = await this.tx
-          .select({ saleUnit: products.saleUnit })
+          .select({ name: products.name, saleUnit: products.saleUnit })
           .from(products)
           .where(and(eq(products.id, target.id), eq(products.active, true)))
           .for("share");
-        return row && { saleUnit: row.saleUnit as SaleUnit };
+        return row && { name: row.name, saleUnit: row.saleUnit as SaleUnit };
       }
       case "TAG": {
         const [row] = await this.tx
-          .select({ id: tags.id })
+          .select({ name: tags.name })
           .from(tags)
           .where(and(eq(tags.id, target.id), eq(tags.active, true)))
           .for("share");
-        return row && { saleUnit: null };
+        return row && { name: row.name, saleUnit: null };
       }
       case "CATEGORY": {
         const [row] = await this.tx
-          .select({ id: categories.id })
+          .select({ name: categories.name })
           .from(categories)
           .where(eq(categories.id, target.id))
           .for("share");
-        return row && { saleUnit: null };
+        return row && { name: row.name, saleUnit: null };
       }
     }
   }

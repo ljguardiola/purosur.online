@@ -1048,7 +1048,7 @@ describe("GET /changes carrying the discounts", () => {
     const tagId = await newTag("Infusiones");
     const discountId = await newDiscount(tagId);
     await editDiscount(
-      { store: new DrizzleDiscountStore(db) },
+      { store: new DrizzleDiscountStore(db), clock: { now: () => new Date() } },
       {
         id: discountId,
         version: 1,
@@ -1091,7 +1091,7 @@ describe("GET /changes carrying the discounts", () => {
 
     const first = await pullPage(SEEDED_CHANGES, deviceToken);
     await editDiscount(
-      { store },
+      { store, clock: { now: () => new Date() } },
       {
         ...fields,
         id: created.id,

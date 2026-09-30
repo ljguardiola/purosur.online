@@ -67,9 +67,9 @@ describe("locking the target a discount points at", () => {
     ]);
 
     expect(outcomes).toEqual([
-      { kind: "locked", saleUnit: null },
-      { kind: "locked", saleUnit: null },
-      { kind: "locked", saleUnit: "UNIT" },
+      { kind: "locked", name: "Almacén", saleUnit: null },
+      { kind: "locked", name: "Vegano", saleUnit: null },
+      { kind: "locked", name: "Yerba", saleUnit: "UNIT" },
     ]);
   });
 
@@ -84,7 +84,7 @@ describe("locking the target a discount points at", () => {
       tx.lockAssignableTarget({ kind: "PRODUCT", id: product.id }),
     );
 
-    expect(outcome).toEqual({ kind: "locked", saleUnit: "KG" });
+    expect(outcome).toEqual({ kind: "locked", name: "Queso cremoso", saleUnit: "KG" });
   });
 
   it("answers not found for a target that does not exist", async () => {
