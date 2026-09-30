@@ -1,15 +1,15 @@
 import { House } from "lucide-react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { ActionEntry } from "./action-entries";
 import { entriesFor } from "./action-entries";
 
 function entry(label: string, permission: ActionEntry["permission"]): ActionEntry {
-  return { label, icon: House, permission, opens: vi.fn() };
+  return { label, icon: House, permission, to: "/sign-in" };
 }
 
 const HISTORY = entry("Historial", "view_sales_history");
 const REPRINT = entry("Reimprimir", "reprint_receipt");
-const HELP = entry("Ayuda", "sell_and_charge");
+const HELP = entry("Reloj", "correct_register_clock");
 
 describe("entriesFor", () => {
   it("keeps only the entries whose permission the person holds", () => {
@@ -17,9 +17,9 @@ describe("entriesFor", () => {
   });
 
   it("keeps the registry order", () => {
-    expect(entriesFor([HISTORY, REPRINT, HELP], ["sell_and_charge", "view_sales_history"])).toEqual(
-      [HISTORY, HELP],
-    );
+    expect(
+      entriesFor([HISTORY, REPRINT, HELP], ["correct_register_clock", "view_sales_history"]),
+    ).toEqual([HISTORY, HELP]);
   });
 
   it("offers nothing to a person who holds none of the permissions", () => {
@@ -27,6 +27,6 @@ describe("entriesFor", () => {
   });
 
   it("offers nothing when there are no entries", () => {
-    expect(entriesFor([], ["sell_and_charge"])).toEqual([]);
+    expect(entriesFor([], ["correct_register_clock"])).toEqual([]);
   });
 });

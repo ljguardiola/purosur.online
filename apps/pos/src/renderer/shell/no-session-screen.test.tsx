@@ -2,9 +2,9 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { History } from "lucide-react";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import type { ActionEntry } from "./action-entries";
 import { NoSessionScreen } from "./no-session-screen";
+import { render } from "./test-support/render-with-router";
 
 const PERSON = { first_name: "Ada", permission_keys: ["view_sales_history", "void_sale"] };
 
@@ -12,13 +12,13 @@ const HISTORY: ActionEntry = {
   label: "Historial",
   icon: History,
   permission: "view_sales_history",
-  opens: vi.fn(),
+  to: "/sign-in",
 };
 const REPRINT: ActionEntry = {
   label: "Reimprimir",
   icon: History,
   permission: "reprint_receipt",
-  opens: vi.fn(),
+  to: "/sign-in",
 };
 
 async function renderScreen(
@@ -74,10 +74,8 @@ describe("NoSessionScreen", () => {
   it("offers the entries the person's permissions unlock, and no others", async () => {
     const { screen } = await renderScreen([HISTORY, REPRINT]);
 
-    await expect.element(screen.getByRole("button", { name: "Historial" })).toBeVisible();
-    await expect
-      .element(screen.getByRole("button", { name: "Reimprimir" }))
-      .not.toBeInTheDocument();
+    await expect.element(screen.getByRole("link", { name: "Historial" })).toBeVisible();
+    await expect.element(screen.getByRole("link", { name: "Reimprimir" })).not.toBeInTheDocument();
   });
 
   it("asks for confirmation before leaving, without signing out yet", async () => {

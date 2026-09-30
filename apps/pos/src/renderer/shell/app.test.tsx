@@ -249,6 +249,10 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
 
     await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .not.toBeInTheDocument();
   });
 
   it("stays on the sign-in screen when the PIN is wrong", async () => {
