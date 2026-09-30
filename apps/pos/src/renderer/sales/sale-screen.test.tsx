@@ -363,6 +363,26 @@ describe("SaleScreen", () => {
       await expect.element(field).toHaveValue("77900");
     });
 
+    it("sends the whole next code when the previous one is refused while the scanner types it", async () => {
+      const answer = deferred<ScanProductOutcome>();
+      const scanProduct = vi
+        .fn<SaleScreenProps["scanProduct"]>()
+        .mockReturnValueOnce(answer.promise)
+        .mockResolvedValueOnce({ kind: "added", sale: SALE_OF_YERBA });
+      const { screen, field } = await renderScreen({ scanProduct });
+
+      await scan(field, "7790009");
+      await field.fill("77900");
+      answer.resolve({ kind: "unknown_code" });
+      await answer.promise;
+      await userEvent.keyboard("01{Enter}");
+
+      await expect.poll(() => scanProduct.mock.calls).toEqual([["7790009"], ["7790001"]]);
+      await expect
+        .element(screen.getByText("No hay ningún producto con ese código"))
+        .not.toBeInTheDocument();
+    });
+
     it.each<{
       name: string;
       outcome: ScanProductOutcome;

@@ -93,7 +93,10 @@ export function SaleScreen({
     setProblem(undefined);
   }
 
-  function refuse(refusal: ScanProblem) {
+  function refuse(submitted: string, refusal: ScanProblem) {
+    if (field.current?.querySelector("input")?.value.trim() !== submitted) {
+      return;
+    }
     setProblem(refusal);
     selectScanField(field.current);
   }
@@ -119,7 +122,7 @@ export function SaleScreen({
       case "not_permitted":
       case "installation_revoked":
       case "unavailable":
-        refuse(outcome);
+        refuse(submitted, outcome);
         break;
     }
   }
@@ -131,7 +134,7 @@ export function SaleScreen({
       return;
     }
     if (!scannedCodeSchema.safeParse(submitted).success) {
-      refuse({ kind: "unknown_code" });
+      refuse(submitted, { kind: "unknown_code" });
       return;
     }
     const outcome = await scanProduct(submitted).catch(
