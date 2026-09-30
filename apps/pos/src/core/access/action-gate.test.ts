@@ -1,7 +1,12 @@
 import type { Authorization } from "@purosur/contracts";
 import { encodePinHash, type RoleAccess } from "@purosur/domain";
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { type ActionGateDeps, createActionGate, type GuardedAction } from "./action-gate";
+import {
+  type ActionGateDeps,
+  createActionGate,
+  type GuardedAction,
+  type GuardedActor,
+} from "./action-gate";
 import { derivePinVerifier } from "./pin-verifier";
 import { createSignedInPerson } from "./signed-in-person";
 import type { PinSignInFailures, SignInRecord } from "./sqlite-sign-in-store";
@@ -61,11 +66,11 @@ function deps({
 }
 
 function guardedCashIn(sandbox: ActionGateDeps, authorization?: Authorization) {
-  const performed: (string | null)[] = [];
+  const performed: GuardedActor[] = [];
   const outcome = createActionGate(sandbox).run(
     { permission: "record_cash_in", authorization },
-    async (authorizedBy) => {
-      performed.push(authorizedBy?.first_name ?? null);
+    async (actor) => {
+      performed.push(actor);
       return "cash in recorded";
     },
   );
@@ -85,7 +90,7 @@ describe("running a guarded action for the signed-in person", () => {
       authorized_by: null,
       result: "cash in recorded",
     });
-    expect(performed).toEqual([null]);
+    expect(performed).toEqual([{ signedInUserId: "u1", authorizedBy: null }]);
   });
 
   it("runs the action on its own for a signed-in Administrator", async () => {
@@ -142,10 +147,14 @@ describe("running a guarded action for the signed-in person", () => {
   it("runs an action with a permission nobody can authorize for a signed-in person who holds it", async () => {
     const outcome = await createActionGate(deps()).run(
       { permission: "sell_and_charge" },
-      async (authorizedBy) => authorizedBy,
+      async (actor) => actor,
     );
 
-    expect(outcome).toEqual({ kind: "performed", authorized_by: null, result: null });
+    expect(outcome).toEqual({
+      kind: "performed",
+      authorized_by: null,
+      result: { signedInUserId: "u1", authorizedBy: null },
+    });
   });
 
   it("refuses an action with a permission nobody can authorize for a person who lacks it", async () => {
@@ -177,7 +186,50 @@ describe("running a guarded action with another person's authorization", () => {
       authorized_by: { user_id: "u2", first_name: "Grace" },
       result: "cash in recorded",
     });
-    expect(performed).toEqual(["Grace"]);
+    expect(performed).toEqual([
+      { signedInUserId: "u1", authorizedBy: { user_id: "u2", first_name: "Grace" } },
+    ]);
+  });
+
+  it("does not run the action when the signed-in person leaves while the authorization is checked", async () => {
+    const holder = createSignedInPerson();
+    holder.set("u1");
+    const { outcome, performed } = guardedCashIn(
+      deps({
+        overrides: {
+          signedInPerson: holder,
+          hashPin: async () => {
+            holder.clear();
+            return PIN_HASH;
+          },
+        },
+      }),
+      { user_id: "u2", pin: "1234" },
+    );
+
+    expect(await outcome).toEqual({ kind: "not_signed_in" });
+    expect(performed).toEqual([]);
+  });
+
+  it("does not run the action when someone else signs in while the authorization is checked", async () => {
+    const holder = createSignedInPerson();
+    holder.set("u1");
+    const { outcome, performed } = guardedCashIn(
+      deps({
+        accessOf: { u1: OWN_ACCESS, u3: OWN_ACCESS },
+        overrides: {
+          signedInPerson: holder,
+          hashPin: async () => {
+            holder.set("u3");
+            return PIN_HASH;
+          },
+        },
+      }),
+      { user_id: "u2", pin: "1234" },
+    );
+
+    expect(await outcome).toEqual({ kind: "not_signed_in" });
+    expect(performed).toEqual([]);
   });
 
   it("does not run the action on a wrong PIN", async () => {

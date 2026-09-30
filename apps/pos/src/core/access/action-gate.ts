@@ -22,10 +22,15 @@ export interface ActionGateDeps extends PinCheckDeps {
   signedInPerson: Pick<SignedInPerson, "userId">;
 }
 
+export interface GuardedActor {
+  signedInUserId: string;
+  authorizedBy: AuthorizedBy | null;
+}
+
 export interface ActionGate {
   run<Result>(
     action: GuardedAction,
-    perform: (authorizedBy: AuthorizedBy | null) => Promise<Result>,
+    perform: (actor: GuardedActor) => Promise<Result>,
   ): Promise<GuardedOutcome<Result>>;
 }
 
@@ -41,13 +46,24 @@ export function createActionGate(deps: ActionGateDeps): ActionGate {
         if (access === undefined || !holdsPermission(access, action.permission)) {
           return { kind: "lacks_permission" };
         }
-        return { kind: "performed", authorized_by: null, result: await perform(null) };
+        return {
+          kind: "performed",
+          authorized_by: null,
+          result: await perform({ signedInUserId, authorizedBy: null }),
+        };
       }
       const outcome = await authorize(deps, action.authorization, action.permission);
       if (outcome.kind !== "authorized") {
         return outcome;
       }
-      return { kind: "performed", authorized_by: outcome.by, result: await perform(outcome.by) };
+      if (deps.signedInPerson.userId() !== signedInUserId) {
+        return { kind: "not_signed_in" };
+      }
+      return {
+        kind: "performed",
+        authorized_by: outcome.by,
+        result: await perform({ signedInUserId, authorizedBy: outcome.by }),
+      };
     },
   };
 }
