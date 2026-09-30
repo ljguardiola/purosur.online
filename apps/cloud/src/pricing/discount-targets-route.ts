@@ -1,5 +1,4 @@
 import { discountTargetsSchema } from "@purosur/contracts";
-import type { NetContentUnit } from "@purosur/domain";
 import { and, asc, eq } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -9,6 +8,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
+import { netContentRow } from "../catalog/net-content-row.js";
 import { brands, categories, productBarcodes, products, tags } from "../platform/db/schema.js";
 import type { DiscountsRouteOptions } from "./discounts-list-route.js";
 
@@ -68,10 +68,7 @@ export function registerDiscountTargetsRoute<TQueryResult extends PgQueryResultH
             name: row.name,
             saleUnit: row.saleUnit,
             brandName: row.brandName,
-            netContent:
-              row.netContentQuantity === null || row.netContentUnit === null
-                ? null
-                : { quantity: row.netContentQuantity, unit: row.netContentUnit as NetContentUnit },
+            netContent: netContentRow(row),
             barcodes: barcodesByProduct.get(row.id) ?? [],
           })),
           categories: categoryRows,
