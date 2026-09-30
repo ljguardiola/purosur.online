@@ -62,6 +62,13 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       deactivateBrand: vi.fn(),
       reactivateBrand: vi.fn(),
     },
+    tagsListScreen: {
+      fetchTags: vi.fn().mockReturnValue(new Promise(() => {})),
+      createTag: vi.fn(),
+      editTag: vi.fn(),
+      deactivateTag: vi.fn(),
+      reactivateTag: vi.fn(),
+    },
     productsListScreen: {
       fetchProducts: vi.fn().mockReturnValue(new Promise(() => {})),
       createProduct: vi.fn(),
@@ -69,7 +76,11 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       deactivateProduct: vi.fn(),
       fetchCategories: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchBrands: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
+      fetchTags: vi
+        .fn()
+        .mockResolvedValue({ kind: "ok", value: { tags: [], taggedProductCount: 0 } }),
       createBrand: vi.fn(),
+      createTag: vi.fn(),
       generateInternalBarcode: vi.fn(),
       printLabels: vi.fn(),
     },

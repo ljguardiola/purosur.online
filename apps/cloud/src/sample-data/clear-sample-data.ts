@@ -16,6 +16,7 @@ import {
   prices,
   productBarcodes,
   products,
+  productTags,
   recoveryTokens,
   registerContingencyTicketKeys,
   registerEnrollmentCodes,
@@ -25,6 +26,7 @@ import {
   rolePermissions,
   roles,
   sessions,
+  tags,
   userRoles,
   users,
 } from "../platform/db/schema.js";
@@ -41,6 +43,7 @@ import {
   SAMPLE_LOCKOUT_SOURCE_ADDRESSES,
   SAMPLE_REGISTER_NAMES,
   SAMPLE_ROLES,
+  SAMPLE_TAGS,
 } from "./sample-catalog.js";
 
 interface ClearSampleDataSummary {
@@ -285,12 +288,20 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
     await tx.delete(priceReviews).where(inArray(priceReviews.productId, sampleProductIds));
     await tx.delete(prices).where(inArray(prices.productId, sampleProductIds));
     await tx.delete(productBarcodes).where(inArray(productBarcodes.productId, sampleProductIds));
+    await tx.delete(productTags).where(inArray(productTags.productId, sampleProductIds));
     await tx.execute(sql`alter table products disable trigger products_reject_deletion`);
     const deletedProducts = await tx
       .delete(products)
       .where(inArray(products.id, sampleProductIds))
       .returning({ id: products.id });
     await tx.execute(sql`alter table products enable trigger products_reject_deletion`);
+
+    await tx.delete(tags).where(
+      inArray(
+        tags.name,
+        SAMPLE_TAGS.map((tag) => tag.name),
+      ),
+    );
 
     let deletedCategoryCount = 0;
     for (const depthIds of [

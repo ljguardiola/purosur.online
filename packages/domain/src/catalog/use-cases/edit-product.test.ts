@@ -57,6 +57,23 @@ function brandedProduct(store: FakeCatalogStore, brandId: string): void {
   );
 }
 
+function taggedProduct(store: FakeCatalogStore, tagIds: string[]): void {
+  store.seedProduct(
+    {
+      id: "product-1",
+      name: "Yerba",
+      categoryId: "category-1",
+      brandId: null,
+      saleUnit: "UNIT",
+      netContent: null,
+      active: true,
+      version: 1,
+    },
+    [{ code: "111" }],
+    tagIds,
+  );
+}
+
 describe("editProduct", () => {
   it("answers stale_version for a row that is missing when it is locked", async () => {
     const store = new FakeCatalogStore();
@@ -69,6 +86,7 @@ describe("editProduct", () => {
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       netContent: null,
       version: 1,
     });
@@ -88,6 +106,7 @@ describe("editProduct", () => {
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       netContent: null,
       version: 1,
     });
@@ -107,6 +126,7 @@ describe("editProduct", () => {
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       netContent: null,
       version: 1,
     });
@@ -127,6 +147,7 @@ describe("editProduct", () => {
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       netContent: null,
       version: 1,
     });
@@ -159,6 +180,7 @@ describe("editProduct", () => {
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["222"],
+      tagIds: [],
       netContent: null,
       version: 1,
     });
@@ -178,6 +200,7 @@ describe("editProduct", () => {
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       netContent: null,
       version: 1,
     });
@@ -210,6 +233,7 @@ describe("editProduct", () => {
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["222"],
+      tagIds: [],
       netContent: null,
       version: 1,
     });
@@ -220,7 +244,16 @@ describe("editProduct", () => {
     });
     expect(await store.activeBarcodesTaken(["222"])).toEqual(["222"]);
     expect(store.barcodeReplacements).toEqual([
-      { product: { id: "product-1", version: 1, active: false, brandId: null }, barcodes: ["222"] },
+      {
+        product: {
+          id: "product-1",
+          version: 1,
+          active: false,
+          brandId: null,
+          tagIds: [],
+        },
+        barcodes: ["222"],
+      },
     ]);
   });
 
@@ -238,6 +271,7 @@ describe("editProduct", () => {
       brandId: null,
       saleUnit: "KG",
       barcodes: ["333"],
+      tagIds: [],
       netContent: { quantity: 0.5, unit: "KG" },
       version: 1,
     });
@@ -252,6 +286,7 @@ describe("editProduct", () => {
         categoryName: "Bebidas",
         saleUnit: "KG",
         barcodes: ["333"],
+        tagIds: [],
         netContent: { quantity: 0.5, unit: "KG" },
         active: true,
         version: 2,
@@ -299,6 +334,7 @@ describe("editProduct", () => {
       brandId: "brand-1",
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       netContent: null,
       version: 1,
     });
@@ -321,6 +357,7 @@ describe("editProduct", () => {
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       netContent: null,
       version: 1,
     });
@@ -343,6 +380,7 @@ describe("editProduct", () => {
       brandId: "brand-1",
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       netContent: null,
       version: 1,
     });
@@ -370,6 +408,7 @@ describe("editProduct", () => {
       brandId: "brand-2",
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       netContent: null,
       version: 1,
     });
@@ -393,6 +432,7 @@ describe("editProduct", () => {
       brandId: "brand-2",
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       netContent: null,
       version: 1,
     });
@@ -412,6 +452,7 @@ describe("editProduct", () => {
       brandId: "missing",
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       netContent: null,
       version: 1,
     });
@@ -432,6 +473,7 @@ describe("editProduct", () => {
       brandId: "missing",
       saleUnit: "UNIT",
       barcodes: ["900"],
+      tagIds: [],
       netContent: null,
       version: 1,
     });
@@ -454,6 +496,7 @@ describe("editProduct", () => {
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111", "222", "333"],
+      tagIds: [],
       netContent: null,
       version: 1,
     });
@@ -474,6 +517,7 @@ describe("editProduct", () => {
         brandId: null,
         saleUnit: "UNIT",
         barcodes: ["111"],
+        tagIds: [],
         netContent: null,
         version: 1,
       }),
@@ -492,10 +536,226 @@ describe("editProduct", () => {
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["111"],
+      tagIds: [],
       netContent: null,
       version: 1,
     });
 
     expect(store.transactionCount).toBe(1);
+  });
+
+  it("replaces the product's tags with the ones sent, locking them in id order after the brand", async () => {
+    const store = new FakeCatalogStore();
+    leafCategory(store);
+    store.seedBrand({ id: "brand-1", name: "Granix", active: true, version: 1 });
+    for (const id of ["tag-1", "tag-2", "tag-3"]) {
+      store.seedTag({ id, name: id, active: true, version: 1 });
+    }
+    store.seedProduct(
+      {
+        id: "product-1",
+        name: "Yerba",
+        categoryId: "category-1",
+        brandId: null,
+        saleUnit: "UNIT",
+        netContent: null,
+        active: true,
+        version: 1,
+      },
+      [{ code: "111" }],
+      ["tag-1", "tag-2"],
+    );
+    store.seedProduct(
+      {
+        id: "decoy",
+        name: "Decoy",
+        categoryId: "category-1",
+        brandId: null,
+        saleUnit: "UNIT",
+        netContent: null,
+        active: true,
+        version: 1,
+      },
+      [{ code: "900" }],
+      ["tag-1"],
+    );
+
+    const outcome = await editProduct(store, {
+      id: "product-1",
+      name: "Yerba",
+      categoryId: "category-1",
+      brandId: "brand-1",
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      tagIds: ["tag-3", "tag-2"],
+      netContent: null,
+      version: 1,
+    });
+
+    expect(outcome).toMatchObject({ kind: "applied", product: { tagIds: ["tag-3", "tag-2"] } });
+    expect(store.snapshot().productTags).toEqual([
+      { productId: "decoy", tagId: "tag-1" },
+      { productId: "product-1", tagId: "tag-3" },
+      { productId: "product-1", tagId: "tag-2" },
+    ]);
+    expect(store.lockCallOrder).toEqual([
+      "lockProduct",
+      "lockLeafCategory",
+      "lockBrand",
+      "lockTag",
+      "lockTag",
+    ]);
+    expect(store.lockedTagIds).toEqual(["tag-2", "tag-3"]);
+  });
+
+  it("removes every tag when saved with none, locking no tag", async () => {
+    const store = new FakeCatalogStore();
+    leafCategory(store);
+    store.seedTag({ id: "tag-1", name: "Sin TACC", active: true, version: 1 });
+    taggedProduct(store, ["tag-1"]);
+
+    const outcome = await editProduct(store, {
+      id: "product-1",
+      name: "Yerba",
+      categoryId: "category-1",
+      brandId: null,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      tagIds: [],
+      netContent: null,
+      version: 1,
+    });
+
+    expect(outcome).toMatchObject({ kind: "applied", product: { tagIds: [] } });
+    expect(store.snapshot().productTags).toEqual([]);
+    expect(store.lockCallOrder).toEqual(["lockProduct", "lockLeafCategory"]);
+  });
+
+  it("lets a product keep a deactivated tag it already carries while it takes an active one", async () => {
+    const store = new FakeCatalogStore();
+    leafCategory(store);
+    store.seedTag({ id: "tag-1", name: "Sin TACC", active: false, version: 2 });
+    store.seedTag({ id: "tag-2", name: "Vegano", active: true, version: 1 });
+    taggedProduct(store, ["tag-1"]);
+
+    const outcome = await editProduct(store, {
+      id: "product-1",
+      name: "Yerba",
+      categoryId: "category-1",
+      brandId: null,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      tagIds: ["tag-1", "tag-2"],
+      netContent: null,
+      version: 1,
+    });
+
+    expect(outcome).toMatchObject({ kind: "applied", product: { tagIds: ["tag-1", "tag-2"] } });
+    expect(store.snapshot().productTags).toEqual([
+      { productId: "product-1", tagId: "tag-1" },
+      { productId: "product-1", tagId: "tag-2" },
+    ]);
+  });
+
+  it("rejects a deactivated tag the product does not carry, changing nothing", async () => {
+    const store = new FakeCatalogStore();
+    leafCategory(store);
+    store.seedTag({ id: "tag-1", name: "Sin TACC", active: true, version: 1 });
+    store.seedTag({ id: "tag-2", name: "Vegano", active: false, version: 2 });
+    taggedProduct(store, ["tag-1"]);
+
+    const outcome = await editProduct(store, {
+      id: "product-1",
+      name: "Yerba nueva",
+      categoryId: "category-1",
+      brandId: null,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      tagIds: ["tag-1", "tag-2"],
+      netContent: null,
+      version: 1,
+    });
+
+    expect(outcome).toEqual({ kind: "tag_inactive", tagId: "tag-2" });
+    expect(store.snapshot().products).toMatchObject([{ name: "Yerba", version: 1 }]);
+    expect(store.snapshot().productTags).toEqual([{ productId: "product-1", tagId: "tag-1" }]);
+  });
+
+  it("rejects a tag that does not exist", async () => {
+    const store = new FakeCatalogStore();
+    leafCategory(store);
+    activeProduct(store);
+
+    const outcome = await editProduct(store, {
+      id: "product-1",
+      name: "Yerba",
+      categoryId: "category-1",
+      brandId: null,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      tagIds: ["missing"],
+      netContent: null,
+      version: 1,
+    });
+
+    expect(outcome).toEqual({ kind: "tag_not_found" });
+  });
+
+  it("checks the brand before the tags, and the tags before the barcodes", async () => {
+    const store = new FakeCatalogStore();
+    leafCategory(store);
+    decoyProduct(store);
+    activeProduct(store);
+    const input = {
+      id: "product-1",
+      name: "Yerba",
+      categoryId: "category-1",
+      saleUnit: "UNIT" as const,
+      barcodes: ["900"],
+      netContent: null,
+      version: 1,
+    };
+
+    expect(await editProduct(store, { ...input, brandId: "missing", tagIds: ["missing"] })).toEqual(
+      { kind: "brand_not_found" },
+    );
+    expect(await editProduct(store, { ...input, brandId: null, tagIds: ["missing"] })).toEqual({
+      kind: "tag_not_found",
+    });
+  });
+
+  it("does not let a product keep a deactivated tag that only another product carries", async () => {
+    const store = new FakeCatalogStore();
+    leafCategory(store);
+    store.seedTag({ id: "tag-1", name: "Sin TACC", active: false, version: 2 });
+    activeProduct(store);
+    store.seedProduct(
+      {
+        id: "decoy",
+        name: "Decoy",
+        categoryId: "category-1",
+        brandId: null,
+        saleUnit: "UNIT",
+        netContent: null,
+        active: true,
+        version: 1,
+      },
+      [{ code: "900" }],
+      ["tag-1"],
+    );
+
+    const outcome = await editProduct(store, {
+      id: "product-1",
+      name: "Yerba",
+      categoryId: "category-1",
+      brandId: null,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      tagIds: ["tag-1"],
+      netContent: null,
+      version: 1,
+    });
+
+    expect(outcome).toEqual({ kind: "tag_inactive", tagId: "tag-1" });
   });
 });

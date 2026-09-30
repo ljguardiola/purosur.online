@@ -23,6 +23,7 @@ import {
   prices,
   productBarcodes,
   products,
+  productTags,
   recoveryRateLimitAttempts,
   recoveryRejectedAttemptAccumulator,
   recoveryTokens,
@@ -41,6 +42,7 @@ import {
   stockBalances,
   stockCounts,
   stockMovements,
+  tags,
   userPinCodes,
   userPins,
   userRoles,
@@ -185,6 +187,11 @@ describe("buildTestDatabase", () => {
       throw new Error("seeding products returned no row");
     }
     await db.insert(productBarcodes).values({ productId: product.id, code: "111", position: 0 });
+    const [tag] = await db.insert(tags).values({ name: "Orgánico" }).returning({ id: tags.id });
+    if (!tag) {
+      throw new Error("seeding tags returned no row");
+    }
+    await db.insert(productTags).values({ productId: product.id, tagId: tag.id });
     const [otherPriceList] = await db
       .insert(priceLists)
       .values({ name: "Lista mayorista" })

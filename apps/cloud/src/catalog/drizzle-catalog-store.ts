@@ -5,6 +5,7 @@ import {
   CatalogCategoryNameConflict,
   type CatalogStore,
   type CatalogStoreTransaction,
+  CatalogTagNameConflict,
   type CategoryFields,
   type LockBrandResult,
   type LockCategoryResult,
@@ -12,19 +13,29 @@ import {
   type LockLeafCategoryResult,
   type LockParentForNewChildResult,
   type LockProductResult,
+  type LockTagResult,
   type NewProductFields,
   type ProductFields,
+  type TagFields,
 } from "@purosur/domain/catalog/use-cases";
-import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
-import { brands, categories, productBarcodes, products } from "../platform/db/schema.js";
+import {
+  brands,
+  categories,
+  productBarcodes,
+  products,
+  productTags,
+  tags,
+} from "../platform/db/schema.js";
 import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 
 const UNIQUE_VIOLATION = "23505";
 const BARCODE_UNIQUE_INDEX = "product_barcodes_code_key";
 const CATEGORY_NAME_UNIQUE_INDEX = "categories_name_lower_key";
 const BRAND_NAME_UNIQUE_INDEX = "brands_name_lower_key";
+const TAG_NAME_UNIQUE_INDEX = "tags_name_lower_key";
 
 export const CATEGORY_MOVE_LOCK_KEY = "category-move";
 
@@ -118,7 +129,10 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
       .from(products)
       .where(eq(products.id, productId))
       .for("update");
-    return product ? { kind: "locked", product } : { kind: "not_found" };
+    if (!product) {
+      return { kind: "not_found" };
+    }
+    return { kind: "locked", product: { ...product, tagIds: await this.tagIdsOf(productId) } };
   }
 
   async lockCategory(categoryId: string): Promise<LockCategoryResult> {
@@ -260,6 +274,67 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
     }
   }
 
+  async insertProductTags(productId: string, tagIds: readonly string[]): Promise<void> {
+    if (tagIds.length === 0) {
+      return;
+    }
+    await this.tx.insert(productTags).values(tagIds.map((tagId) => ({ productId, tagId })));
+  }
+
+  async replaceProductTags(productId: string, tagIds: readonly string[]): Promise<void> {
+    await this.tx.delete(productTags).where(eq(productTags.productId, productId));
+    await this.insertProductTags(productId, tagIds);
+  }
+
+  async lockTag(tagId: string): Promise<LockTagResult> {
+    if (!UUID_PATTERN.test(tagId)) {
+      return { kind: "not_found" };
+    }
+    const [tag] = await this.tx
+      .select({ name: tags.name, active: tags.active, version: tags.version })
+      .from(tags)
+      .where(eq(tags.id, tagId))
+      .for("update");
+    return tag ? { kind: "locked", tag } : { kind: "not_found" };
+  }
+
+  async tagNameTaken(name: string, excludingTagId?: string): Promise<boolean> {
+    const [tag] = await this.tx
+      .select({ id: tags.id })
+      .from(tags)
+      .where(
+        and(
+          sql`lower(${tags.name}) = lower(${name})`,
+          excludingTagId === undefined ? undefined : ne(tags.id, excludingTagId),
+        ),
+      )
+      .limit(1);
+    return tag !== undefined;
+  }
+
+  async insertTag(name: string): Promise<{ id: string }> {
+    try {
+      const [tag] = await this.tx.insert(tags).values({ name }).returning({ id: tags.id });
+      if (!tag) {
+        throw new Error("inserting the tag returned no row");
+      }
+      return tag;
+    } catch (error) {
+      throw translateTagNameViolation(error);
+    }
+  }
+
+  async updateTag(tagId: string, fields: TagFields): Promise<void> {
+    try {
+      await this.tx
+        .update(tags)
+        .set({ name: fields.name, active: fields.active, version: fields.version })
+        .where(eq(tags.id, tagId));
+    } catch (error) {
+      throw translateTagNameViolation(error);
+    }
+  }
+
   async lockBrand(brandId: string): Promise<LockBrandResult> {
     if (!UUID_PATTERN.test(brandId)) {
       return { kind: "not_found" };
@@ -309,6 +384,16 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
     }
   }
 
+  private async tagIdsOf(productId: string): Promise<string[]> {
+    const rows = await this.tx
+      .select({ tagId: productTags.tagId })
+      .from(productTags)
+      .innerJoin(tags, eq(tags.id, productTags.tagId))
+      .where(eq(productTags.productId, productId))
+      .orderBy(asc(tags.name));
+    return rows.map((row) => row.tagId);
+  }
+
   private async writeBarcodes(
     productId: string,
     barcodes: readonly string[],
@@ -337,6 +422,10 @@ function translateBrandNameViolation(error: unknown): unknown {
   return violatesUniqueIndex(error, BRAND_NAME_UNIQUE_INDEX)
     ? new CatalogBrandNameConflict()
     : error;
+}
+
+function translateTagNameViolation(error: unknown): unknown {
+  return violatesUniqueIndex(error, TAG_NAME_UNIQUE_INDEX) ? new CatalogTagNameConflict() : error;
 }
 
 export class DrizzleCatalogStore<TQueryResult extends PgQueryResultHKT> implements CatalogStore {

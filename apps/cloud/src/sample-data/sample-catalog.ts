@@ -21,6 +21,20 @@ export const SAMPLE_ADMINISTRATOR = {
 
 type SampleProductBarcodePlan = { kind: "manufacturer"; code: string } | { kind: "internal" };
 
+interface SampleTagPlan {
+  name: string;
+  active: boolean;
+}
+
+// A deactivated tag that products still carry, which the screens must be able to show.
+export const SAMPLE_TAGS: readonly SampleTagPlan[] = [
+  { name: "Sin TACC", active: true },
+  { name: "Vegano", active: true },
+  { name: "Orgánico", active: true },
+  { name: "Sin azúcar", active: true },
+  { name: "Kosher", active: false },
+];
+
 interface SampleProductPlan {
   name: string;
   saleUnit: SaleUnit;
@@ -29,6 +43,7 @@ interface SampleProductPlan {
   active: boolean;
   unitPriceCents: number;
   pricePlan: "current" | "due_for_review";
+  tagNames: readonly string[];
 }
 
 interface SampleLeafCategory {
@@ -300,6 +315,23 @@ function clampToMaxLength(value: string, maxLength: number): string {
   return value.length > maxLength ? value.slice(0, maxLength) : value;
 }
 
+function sampleTagNames(seed: number): readonly string[] {
+  const first = SAMPLE_TAGS[seed % SAMPLE_TAGS.length];
+  const second = SAMPLE_TAGS[(seed + 2) % SAMPLE_TAGS.length];
+  if (!first || !second) {
+    return [];
+  }
+  switch (seed % 6) {
+    case 1:
+    case 4:
+      return [first.name];
+    case 5:
+      return [first.name, second.name];
+    default:
+      return [];
+  }
+}
+
 function sampleProductPlansForLeaf(
   leaf: RawLeaf,
   leafIndex: number,
@@ -332,6 +364,7 @@ function sampleProductPlansForLeaf(
           ? 300_000 + ((seed * 137) % 271) * 10_000
           : 80_000 + ((seed * 137) % 2421) * 1_000,
       pricePlan: seed % 2 === 0 ? "current" : "due_for_review",
+      tagNames: sampleTagNames(seed),
     });
   }
   return plans;

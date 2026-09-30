@@ -59,6 +59,7 @@ test("edits a product and shows the updated data in the list", async () => {
     brandId: null,
     saleUnit: "UNIT",
     barcodes: ["7790987000015"],
+    tagIds: [],
     netContent: null,
     version: 1,
   });

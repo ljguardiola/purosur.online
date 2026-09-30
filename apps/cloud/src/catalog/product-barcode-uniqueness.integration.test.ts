@@ -46,6 +46,7 @@ describe("creating two products with the same barcode concurrently on a real Pos
         brandId: null,
         saleUnit: "UNIT",
         barcodes: [code],
+        tagIds: [],
         netContent: null,
       }),
       createProduct(new DrizzleCatalogStore(db), {
@@ -54,6 +55,7 @@ describe("creating two products with the same barcode concurrently on a real Pos
         brandId: null,
         saleUnit: "UNIT",
         barcodes: [code],
+        tagIds: [],
         netContent: null,
       }),
     ]);

@@ -195,7 +195,7 @@ test("createRegister returns failed when the request throws", async () => {
   expect(await createRegister({ name: "Caja 3" })).toEqual({ kind: "failed" });
 });
 
-test("emitEnrollmentCode posts to the register's enrollment-code route and returns the code on 200", async () => {
+test("emitEnrollmentCode posts to the register's device-codes route and returns the code on 200", async () => {
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse(200, { code: "P4NX7KWE2QRT8MZD", expires_at: "2026-09-25T12:15:00.000Z" }),
   );
@@ -206,7 +206,7 @@ test("emitEnrollmentCode posts to the register's enrollment-code route and retur
     kind: "ok",
     value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
   });
-  expect(fetch).toHaveBeenCalledWith("/api/registers/register-2/enrollment-code", {
+  expect(fetch).toHaveBeenCalledWith("/api/registers/register-2/device-codes", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({}),

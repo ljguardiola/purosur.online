@@ -1,7 +1,9 @@
 import {
   createCategory,
   createProduct,
+  createTag,
   deactivateProduct,
+  deactivateTag,
 } from "@purosur/domain/catalog/use-cases";
 import { confirmPrice, setPrice } from "@purosur/domain/pricing/use-cases";
 import { and, eq, like, sql } from "drizzle-orm";
@@ -29,6 +31,7 @@ import {
   SAMPLE_LOCKOUT_SOURCE_ADDRESSES,
   SAMPLE_REGISTER_NAMES,
   SAMPLE_ROLES,
+  SAMPLE_TAGS,
   sampleEmail,
 } from "./sample-catalog.js";
 
@@ -175,6 +178,12 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
         store: pricingStore,
         clock: { now: () => moment },
       });
+      const tagIdByName = new Map<string, string>();
+      for (const tagPlan of SAMPLE_TAGS) {
+        const tagOutcome = await createTag(catalogStore, { name: tagPlan.name });
+        const tag = expectOutcome(tagOutcome, "created", `tag "${tagPlan.name}"`);
+        tagIdByName.set(tagPlan.name, tag.tag.id);
+      }
       let categoryCount = 0;
       let productCount = 0;
       for (const top of SAMPLE_CATEGORY_TREE) {
@@ -212,6 +221,13 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
                 brandId: null,
                 saleUnit: plan.saleUnit,
                 barcodes: [barcode],
+                tagIds: plan.tagNames.map((tagName) => {
+                  const tagId = tagIdByName.get(tagName);
+                  if (!tagId) {
+                    throw new Error(`sample-data: tag "${tagName}" was not created`);
+                  }
+                  return tagId;
+                }),
                 netContent: plan.netContent,
               });
               const product = expectOutcome(productOutcome, "created", `product "${plan.name}"`);
@@ -257,6 +273,15 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
             }
           }
         }
+      }
+
+      for (const tagPlan of SAMPLE_TAGS.filter((plan) => !plan.active)) {
+        const tagId = tagIdByName.get(tagPlan.name);
+        if (!tagId) {
+          throw new Error(`sample-data: tag "${tagPlan.name}" was not created`);
+        }
+        const deactivated = await deactivateTag(catalogStore, tagId);
+        expectOutcome(deactivated, "deactivated", `deactivating tag "${tagPlan.name}"`);
       }
 
       for (const registerName of SAMPLE_REGISTER_NAMES) {

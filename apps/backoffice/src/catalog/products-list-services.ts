@@ -12,11 +12,13 @@ import {
   generateInternalBarcode,
   printLabels,
 } from "./products-api";
+import { createTag, fetchTags } from "./tags-api";
 
 export type ProductsListScreenServices = {
   fetchProducts: typeof fetchProducts;
   fetchCategories: typeof fetchCategories;
   fetchBrands: typeof fetchBrands;
+  fetchTags: typeof fetchTags;
 } & NewProductModalServices &
   EditProductModalServices &
   DeactivateProductModalServices &
@@ -29,7 +31,9 @@ export const defaultProductsListScreenServices: ProductsListScreenServices = {
   deactivateProduct,
   fetchCategories,
   fetchBrands,
+  fetchTags,
   createBrand,
+  createTag,
   generateInternalBarcode,
   printLabels,
 };

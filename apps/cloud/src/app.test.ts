@@ -965,6 +965,37 @@ describe("wiring the brands routes", () => {
   });
 });
 
+describe("wiring the tags routes", () => {
+  const ORIGIN = { origin: "https://staging.purosur.online" };
+  const ID = "00000000-0000-0000-0000-000000000000";
+
+  async function tagsResponses(app: ReturnType<typeof buildApp>): Promise<number[]> {
+    const responses = await Promise.all([
+      app.inject({ method: "GET", url: "/api/tags" }),
+      app.inject({ method: "POST", url: "/api/tags", headers: ORIGIN }),
+      app.inject({ method: "PUT", url: `/api/tags/${ID}`, headers: ORIGIN }),
+      app.inject({ method: "PUT", url: `/api/tags/${ID}/deactivation`, headers: ORIGIN }),
+      app.inject({ method: "DELETE", url: `/api/tags/${ID}/deactivation`, headers: ORIGIN }),
+    ]);
+    return responses.map((response) => response.statusCode);
+  }
+
+  it("does not register the tags routes when no tags option is given", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    expect(await tagsResponses(app)).toEqual([404, 404, 404, 404, 404]);
+  });
+
+  it("registers the tags routes when a tags option is given", async () => {
+    const app = buildApp({
+      version: "abc1234",
+      tags: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+    });
+
+    expect(await tagsResponses(app)).toEqual([401, 401, 401, 401, 401]);
+  });
+});
+
 describe("wiring the products routes", () => {
   it("does not register the products routes when no products option is given", async () => {
     const app = buildApp({ version: "abc1234" });
@@ -1162,7 +1193,7 @@ describe("wiring the registers routes", () => {
     });
     const emitCode = await app.inject({
       method: "POST",
-      url: "/api/registers/00000000-0000-0000-0000-000000000000/enrollment-code",
+      url: "/api/registers/00000000-0000-0000-0000-000000000000/device-codes",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1188,7 +1219,7 @@ describe("wiring the registers routes", () => {
     });
     const emitCode = await app.inject({
       method: "POST",
-      url: "/api/registers/00000000-0000-0000-0000-000000000000/enrollment-code",
+      url: "/api/registers/00000000-0000-0000-0000-000000000000/device-codes",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1202,15 +1233,15 @@ describe("wiring the registers routes", () => {
 });
 
 describe("wiring the device enrollment route", () => {
-  it("does not register POST /api/devices/enroll when no devices option is given", async () => {
+  it("does not register POST /api/devices when no devices option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
-    const response = await app.inject({ method: "POST", url: "/api/devices/enroll", payload: {} });
+    const response = await app.inject({ method: "POST", url: "/api/devices", payload: {} });
 
     expect(response.statusCode).toBe(404);
   });
 
-  it("registers POST /api/devices/enroll, answering without a session, when a devices option is given", async () => {
+  it("registers POST /api/devices, answering without a session, when a devices option is given", async () => {
     const app = buildApp({
       version: "abc1234",
       devices: {
@@ -1220,7 +1251,7 @@ describe("wiring the device enrollment route", () => {
       },
     });
 
-    const response = await app.inject({ method: "POST", url: "/api/devices/enroll", payload: {} });
+    const response = await app.inject({ method: "POST", url: "/api/devices", payload: {} });
 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ code: "validation_failed" });
@@ -1228,15 +1259,15 @@ describe("wiring the device enrollment route", () => {
 });
 
 describe("wiring the device token rotation route", () => {
-  it("does not register POST /api/devices/rotate-token when no devices option is given", async () => {
+  it("does not register POST /api/devices/current/tokens when no devices option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
-    const response = await app.inject({ method: "POST", url: "/api/devices/rotate-token" });
+    const response = await app.inject({ method: "POST", url: "/api/devices/current/tokens" });
 
     expect(response.statusCode).toBe(404);
   });
 
-  it("registers POST /api/devices/rotate-token, refusing a request without a device token, when a devices option is given", async () => {
+  it("registers POST /api/devices/current/tokens, refusing a request without a device token, when a devices option is given", async () => {
     const app = buildApp({
       version: "abc1234",
       devices: {
@@ -1246,7 +1277,7 @@ describe("wiring the device token rotation route", () => {
       },
     });
 
-    const response = await app.inject({ method: "POST", url: "/api/devices/rotate-token" });
+    const response = await app.inject({ method: "POST", url: "/api/devices/current/tokens" });
 
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ code: "device_token_rejected" });
@@ -1464,6 +1495,7 @@ function productionWiredApp() {
     },
     categories: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     brands: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
+    tags: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     products: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     alerts: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     prices: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
@@ -1475,6 +1507,28 @@ function productionWiredApp() {
     },
   });
 }
+
+describe("wiring the register and device routes", () => {
+  it("no longer answers the former register and device paths", async () => {
+    const app = productionWiredApp();
+    const formerRequests = [
+      {
+        method: "POST",
+        url: "/api/registers/00000000-0000-0000-0000-000000000000/enrollment-code",
+      },
+      { method: "POST", url: "/api/devices/enroll" },
+      { method: "POST", url: "/api/devices/rotate-token" },
+    ] as const;
+
+    const responses = await Promise.all(
+      formerRequests.map((request) =>
+        app.inject({ ...request, headers: { origin: BACKOFFICE_ORIGIN } }),
+      ),
+    );
+
+    expect(responses.map((response) => response.statusCode)).toEqual(formerRequests.map(() => 404));
+  });
+});
 
 describe("wiring the alerts routes", () => {
   it("no longer answers the former alert closing path", async () => {
@@ -1618,6 +1672,31 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/api/tags",
+        access: permissionAccess("manage_products_and_categories"),
+      },
+      {
+        method: "POST",
+        url: "/api/tags",
+        access: permissionAccess("manage_products_and_categories"),
+      },
+      {
+        method: "PUT",
+        url: "/api/tags/:id",
+        access: permissionAccess("manage_products_and_categories"),
+      },
+      {
+        method: "PUT",
+        url: "/api/tags/:id/deactivation",
+        access: permissionAccess("manage_products_and_categories"),
+      },
+      {
+        method: "DELETE",
+        url: "/api/tags/:id/deactivation",
+        access: permissionAccess("manage_products_and_categories"),
+      },
+      {
+        method: "GET",
         url: "/api/products",
         access: permissionAccess("manage_products_and_categories"),
       },
@@ -1686,13 +1765,13 @@ describe("the route access inventory", () => {
       },
       {
         method: "POST",
-        url: "/api/registers/:id/enrollment-code",
+        url: "/api/registers/:id/device-codes",
         access: permissionAccess("enroll_register_devices"),
       },
       { method: "GET", url: "/api/health", access: PUBLIC_ACCESS },
-      { method: "POST", url: "/api/devices/enroll", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/api/devices", access: PUBLIC_ACCESS },
       { method: "GET", url: "/api/changes", access: PUBLIC_ACCESS },
-      { method: "POST", url: "/api/devices/rotate-token", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/api/devices/current/tokens", access: PUBLIC_ACCESS },
       { method: "HEAD", url: "/*", access: PUBLIC_ACCESS },
       { method: "GET", url: "/*", access: PUBLIC_ACCESS },
     ]);

@@ -31,6 +31,7 @@ function Harness({ initialCodes, generateInternalBarcode, onSessionEnded }: Harn
       brandId: null,
       saleUnit: null,
       netContent: null,
+      tagIds: null,
       barcodes: "barcodes",
     },
     messages: { barcodes: PRODUCT_MESSAGES.barcodes },
