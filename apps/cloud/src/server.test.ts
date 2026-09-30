@@ -573,6 +573,7 @@ describe("startServer", () => {
       db: { marker: "fake-db" },
       jobQueue: { enqueueRecoveryRequest: vi.fn() },
       backofficeOrigin: "https://staging.purosur.online",
+      emailSender: { sendRecoveryLink: vi.fn(), sendFirstPinCode: vi.fn() },
       worker: { stop: vi.fn() },
       close,
     };
@@ -674,6 +675,12 @@ describe("startServer", () => {
         rotationKey: ROTATION_KEY_BYTES,
         keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
       },
+      firstPinCodes: {
+        db: fakeRecovery.db,
+        rotationKey: ROTATION_KEY_BYTES,
+        keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
+        emailSender: fakeRecovery.emailSender,
+      },
     });
 
     expect(onCloseHooks).toHaveLength(1);
@@ -710,6 +717,7 @@ describe("startServer with the real app", () => {
       db: {},
       jobQueue: { enqueueRecoveryRequest: vi.fn() },
       backofficeOrigin: "https://staging.purosur.online",
+      emailSender: { sendRecoveryLink: vi.fn(), sendFirstPinCode: vi.fn() },
       worker: { stop: vi.fn() },
       close: vi.fn().mockResolvedValue(undefined),
     });

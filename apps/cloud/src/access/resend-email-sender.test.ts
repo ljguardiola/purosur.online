@@ -94,3 +94,70 @@ describe("createResendRecoveryEmailSender", () => {
     ).rejects.toThrow(/422/);
   });
 });
+
+describe("createResendRecoveryEmailSender sending a first PIN code", () => {
+  function senderWith(fetch: ReturnType<typeof fakeFetch>) {
+    return createResendRecoveryEmailSender({
+      apiKey: "re_test_key",
+      from: "Puro Sur <acceso@mail.staging.purosur.online>",
+      replyTo: "purosur.comarca@gmail.com",
+      fetch,
+    });
+  }
+
+  it("posts the code, grouped in fours, to the address given", async () => {
+    const fetch = fakeFetch({ ok: true, status: 200 });
+
+    await senderWith(fetch).sendFirstPinCode({ to: "ada@example.com", code: "P4NX7KWE2QRT5MZD" });
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("https://api.resend.com/emails");
+    expect(init.headers).toMatchObject({ Authorization: "Bearer re_test_key" });
+    const body = JSON.parse(init.body as string);
+    expect(body).toMatchObject({
+      from: "Puro Sur <acceso@mail.staging.purosur.online>",
+      to: ["ada@example.com"],
+      reply_to: "purosur.comarca@gmail.com",
+      subject: "Tu código para crear el PIN",
+    });
+    expect(body.text).toBe(
+      [
+        "Se pidió crear el PIN de tu cuenta de Puro Sur.",
+        "",
+        "Ingresá este código en la caja para crear tu PIN:",
+        "P4NX 7KWE 2QRT 5MZD",
+        "",
+        "Vale 15 minutos y se usa una sola vez.",
+        "Si no lo pediste, podés ignorar este mensaje.",
+      ].join("\n"),
+    );
+    expect(body.html).toBe(
+      "<p>Se pidió crear el PIN de tu cuenta de Puro Sur.</p>" +
+        "<p>Ingresá este código en la caja para crear tu PIN:</p>" +
+        "<p><strong>P4NX 7KWE 2QRT 5MZD</strong></p>" +
+        "<p>Vale 15 minutos y se usa una sola vez.</p>" +
+        "<p>Si no lo pediste, podés ignorar este mensaje.</p>",
+    );
+  });
+
+  it("never mentions auditing in the email copy", async () => {
+    const fetch = fakeFetch({ ok: true, status: 200 });
+
+    await senderWith(fetch).sendFirstPinCode({ to: "ada@example.com", code: "P4NX7KWE2QRT5MZD" });
+
+    const [, init] = fetch.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string);
+    for (const field of [body.subject, body.text, body.html]) {
+      expect(field.toLowerCase()).not.toMatch(/audit|registro de acceso/);
+    }
+  });
+
+  it("throws when the Resend API responds with a non-2xx status, so the caller can tell the person", async () => {
+    const fetch = fakeFetch({ ok: false, status: 422, body: { message: "invalid from address" } });
+
+    await expect(
+      senderWith(fetch).sendFirstPinCode({ to: "ada@example.com", code: "P4NX7KWE2QRT5MZD" }),
+    ).rejects.toThrow(/422/);
+  });
+});

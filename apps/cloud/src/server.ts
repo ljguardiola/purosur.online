@@ -10,7 +10,7 @@ import pg from "pg";
 import postgres from "postgres";
 import { createGraphileRecoveryJobQueue } from "./access/graphile-recovery-job-queue.js";
 import { reportPoolErrors } from "./access/pool-connection-error-handler.js";
-import type { RecoveryEmailSender } from "./access/recovery-email-sender.js";
+import type { AccessEmailSender } from "./access/recovery-email-sender.js";
 import type { RecoveryJobQueue } from "./access/recovery-job-queue.js";
 import { type RecoveryWorkerHandle, startRecoveryWorker } from "./access/recovery-worker.js";
 import {
@@ -241,6 +241,7 @@ export interface RecoveryInfrastructure {
   db: PostgresJsDatabase<Record<string, never>>;
   jobQueue: RecoveryJobQueue;
   backofficeOrigin: string;
+  emailSender: AccessEmailSender;
   worker: RecoveryWorkerHandle;
   close(): Promise<void>;
 }
@@ -283,7 +284,7 @@ export async function closeRecoveryResources({
 
 export interface SetUpRecoveryDeps {
   /** Only an integration test injects a fake sender, to run this against a real Postgres without sending real email. */
-  emailSender?: RecoveryEmailSender;
+  emailSender?: AccessEmailSender;
   /** Lets a test give the job-queue pool a `pg.Pool` with no idle reaper, so it doesn't race pg-pool's own idle timeout. */
   createJobQueuePool?: CreateRecoveryJobQueuePoolDeps["createPool"];
 }
@@ -321,6 +322,7 @@ export async function setUpRecovery(
     db,
     jobQueue,
     backofficeOrigin: recoveryEnv.backofficeOrigin,
+    emailSender,
     worker,
     close: () => closeRecoveryResources({ worker, workerUtils, jobQueuePool, sql }),
   };
@@ -368,6 +370,7 @@ export async function startServer(
           authorizedCuit: database.authorizedCuit,
           deviceTokenRotationKey: database.deviceTokenRotationKey,
           installationKeysEncryptionKey: database.installationKeysEncryptionKey,
+          emailSender: database.recovery.emailSender,
         })
       : {}),
   });

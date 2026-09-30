@@ -1,4 +1,4 @@
-import type { RecoveryEmailSender } from "./recovery-email-sender.js";
+import type { AccessEmailSender } from "./recovery-email-sender.js";
 
 export interface ResendRecoveryEmailSenderOptions {
   apiKey: string;
@@ -19,36 +19,50 @@ function buildEmailBody(link: string): { text: string; html: string } {
   return { text, html };
 }
 
+function buildFirstPinCodeEmailBody(code: string): { text: string; html: string } {
+  const grouped = code.match(/.{1,4}/g)?.join(" ") ?? code;
+  const intro = "Se pidió crear el PIN de tu cuenta de Puro Sur.";
+  const action = "Ingresá este código en la caja para crear tu PIN:";
+  const validity = "Vale 15 minutos y se usa una sola vez.";
+  const ignore = "Si no lo pediste, podés ignorar este mensaje.";
+  const text = [intro, "", action, grouped, "", validity, ignore].join("\n");
+  const html = `<p>${intro}</p><p>${action}</p><p><strong>${grouped}</strong></p><p>${validity}</p><p>${ignore}</p>`;
+  return { text, html };
+}
+
 /** Rejects on a non-2xx response, so graphile-worker's own retries apply to a failed send. */
 export function createResendRecoveryEmailSender(
   options: ResendRecoveryEmailSenderOptions,
-): RecoveryEmailSender {
+): AccessEmailSender {
   const doFetch = options.fetch ?? globalThis.fetch;
 
+  async function send(to: string, subject: string, body: { text: string; html: string }) {
+    const response = await doFetch(RESEND_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${options.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: options.from,
+        to: [to],
+        reply_to: options.replyTo,
+        subject,
+        text: body.text,
+        html: body.html,
+      }),
+    });
+
+    if (!response.ok) {
+      const responseBody = await response.text();
+      throw new Error(`Resend API responded ${response.status}: ${responseBody}`);
+    }
+  }
+
   return {
-    async sendRecoveryLink(input) {
-      const { text, html } = buildEmailBody(input.link);
-
-      const response = await doFetch(RESEND_API_URL, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${options.apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: options.from,
-          to: [input.to],
-          reply_to: options.replyTo,
-          subject: "Recuperar el acceso a Puro Sur",
-          text,
-          html,
-        }),
-      });
-
-      if (!response.ok) {
-        const responseBody = await response.text();
-        throw new Error(`Resend API responded ${response.status}: ${responseBody}`);
-      }
-    },
+    sendRecoveryLink: (input) =>
+      send(input.to, "Recuperar el acceso a Puro Sur", buildEmailBody(input.link)),
+    sendFirstPinCode: (input) =>
+      send(input.to, "Tu código para crear el PIN", buildFirstPinCodeEmailBody(input.code)),
   };
 }

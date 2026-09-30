@@ -1,5 +1,5 @@
 import { createLogRecoveryEmailSender } from "./log-email-sender.js";
-import type { RecoveryEmailSender } from "./recovery-email-sender.js";
+import type { AccessEmailSender } from "./recovery-email-sender.js";
 import { createResendRecoveryEmailSender } from "./resend-email-sender.js";
 
 export type RecoveryEmailSenderEnv =
@@ -20,7 +20,7 @@ export interface SelectRecoveryEmailSenderDeps {
 export function selectRecoveryEmailSender(
   input: SelectRecoveryEmailSenderInput,
   deps: SelectRecoveryEmailSenderDeps = {},
-): RecoveryEmailSender {
+): AccessEmailSender {
   const doCreateResendSender =
     deps.createResendRecoveryEmailSender ?? createResendRecoveryEmailSender;
   const doCreateLogSender = deps.createLogRecoveryEmailSender ?? createLogRecoveryEmailSender;
