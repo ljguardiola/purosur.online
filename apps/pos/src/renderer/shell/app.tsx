@@ -1,6 +1,7 @@
 import type {
   Authorization,
   CloseCashSessionOutcome,
+  CloseLockedCashSessionOutcome,
   OpenCashSession,
   OpenCashSessionOutcome,
   SignInOutcome,
@@ -139,6 +140,21 @@ export function App({ core }: { core: CoreClient }) {
     return outcome satisfies CloseCashSessionOutcome;
   }
 
+  async function closeLockedCashSession(
+    sessionId: string,
+    countedCash: number,
+    closer: Authorization,
+  ) {
+    const outcome = await core.closeLockedCashSession(sessionId, countedCash, closer);
+    if (outcome.kind === "closed") {
+      setCashSession({ status: "none" });
+    }
+    if (outcome.kind === "no_open_session" || outcome.kind === "not_locked") {
+      await core.cashSession().then(refreshCashSession, () => {});
+    }
+    return outcome satisfies CloseLockedCashSessionOutcome;
+  }
+
   async function cashBalance() {
     const balance = await core.cashBalance();
     if (balance === null) {
@@ -180,6 +196,7 @@ export function App({ core }: { core: CoreClient }) {
     signOut,
     openCashSession,
     closeCashSession,
+    closeLockedCashSession,
     cashBalance,
     cashMovements,
     recordCashMovement,

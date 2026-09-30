@@ -263,6 +263,7 @@ function MovementModal({
         />
         <AuthorizationSection
           authorization={authorization}
+          picks="authorizer"
           action={presentation.authorizing}
           disabled={submitting}
         />

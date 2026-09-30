@@ -8,6 +8,7 @@ import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { Button } from "@purosur/ui";
 import type { FormEvent } from "react";
 import { useState } from "react";
+import type { AuthorizationSectionProps } from "../authorization-section";
 import { AuthorizationSection } from "../authorization-section";
 import type { SignedInPerson } from "../signed-in-person";
 import { useAuthorization } from "../use-authorization";
@@ -17,12 +18,18 @@ export type GuardedCashInOutcome =
   | AuthorizationRefusal;
 
 export type GuardedCashInFormProps = {
-  person: SignedInPerson;
+  person: SignedInPerson | undefined;
+  picks: AuthorizationSectionProps["picks"];
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   submit: (authorization: Authorization | undefined) => Promise<GuardedCashInOutcome>;
 };
 
-export function GuardedCashInForm({ person, loadAuthorizers, submit }: GuardedCashInFormProps) {
+export function GuardedCashInForm({
+  person,
+  picks,
+  loadAuthorizers,
+  submit,
+}: GuardedCashInFormProps) {
   const authorization = useAuthorization({
     person,
     permission: "record_cash_in",
@@ -49,9 +56,10 @@ export function GuardedCashInForm({ person, loadAuthorizers, submit }: GuardedCa
 
   return (
     <form noValidate onSubmit={onSubmit}>
-      <p>Operador: {person.first_name}</p>
+      {person === undefined ? null : <p>Operador: {person.first_name}</p>}
       <AuthorizationSection
         authorization={authorization}
+        picks={picks}
         action="cargar movimientos de efectivo"
         disabled={submitting}
       />

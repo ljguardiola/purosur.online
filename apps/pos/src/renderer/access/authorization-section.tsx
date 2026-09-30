@@ -17,7 +17,22 @@ import type { AuthorizationState, ShownRefusal } from "./use-authorization";
 
 type Notice = { icon: Icon; title: string; description: string };
 
-function noticeFor(refusal: ShownRefusal, secondsLeft: number): Notice | undefined {
+const PICKED = {
+  authorizer: {
+    eyebrow: "AUTORIZA ALGUIEN CON PERMISO",
+    label: "Persona que autoriza",
+    cannot: "no puede autorizar esto",
+  },
+  closer: {
+    eyebrow: "CIERRA ALGUIEN CON PERMISO",
+    label: "Persona que cierra",
+    cannot: "no puede cerrar la caja",
+  },
+} as const;
+
+type Picked = (typeof PICKED)[keyof typeof PICKED];
+
+function noticeFor(refusal: ShownRefusal, secondsLeft: number, picked: Picked): Notice | undefined {
   switch (refusal.kind) {
     case "wrong_pin":
       return {
@@ -45,7 +60,7 @@ function noticeFor(refusal: ShownRefusal, secondsLeft: number): Notice | undefin
     case "lacks_permission":
       return {
         icon: <UserX />,
-        title: `${refusal.firstName ?? "Esa persona"} no puede autorizar esto`,
+        title: `${refusal.firstName ?? "Esa persona"} ${picked.cannot}`,
         description: "Elegí a otra persona con permiso.",
       };
     case "unavailable":
@@ -59,15 +74,18 @@ function noticeFor(refusal: ShownRefusal, secondsLeft: number): Notice | undefin
 
 export type AuthorizationSectionProps = {
   authorization: AuthorizationState;
+  picks: keyof typeof PICKED;
   action: string;
   disabled?: boolean;
 };
 
 export function AuthorizationSection({
   authorization,
+  picks,
   action,
   disabled = false,
 }: AuthorizationSectionProps) {
+  const picked = PICKED[picks];
   const noticeId = useId();
   const { refusal, pinInput, secondsLeft } = authorization;
 
@@ -87,7 +105,7 @@ export function AuthorizationSection({
     return null;
   }
 
-  const { authorizers } = authorization;
+  const { authorizers, person } = authorization;
   const options =
     authorizers.status === "loaded"
       ? sortedItems(authorizers.users, {
@@ -96,15 +114,14 @@ export function AuthorizationSection({
         }).map((user) => ({ value: user.id, label: user.first_name }))
       : [];
   const [firstOption, ...otherOptions] = options;
-  const notice = refusal === undefined ? undefined : noticeFor(refusal, authorization.secondsLeft);
+  const notice =
+    refusal === undefined ? undefined : noticeFor(refusal, authorization.secondsLeft, picked);
   const pinRefused =
     notice !== undefined && (refusal?.kind === "wrong_pin" || refusal?.kind === "rate_limited");
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-caption font-bold text-text-eyebrow tracking-sm">
-        AUTORIZA ALGUIEN CON PERMISO
-      </p>
+      <p className="text-caption font-bold text-text-eyebrow tracking-sm">{picked.eyebrow}</p>
       {authorizers.status === "loading" ? <LoadingPlaceholder variant="form" fields={1} /> : null}
       {authorizers.status === "failed" ? (
         <LoadFailure
@@ -125,7 +142,7 @@ export function AuthorizationSection({
         <div className="flex items-end gap-3">
           <div className="min-w-0 flex-1">
             <Select
-              label="Persona que autoriza"
+              label={picked.label}
               placeholder="Elegí a la persona"
               options={[firstOption, ...otherOptions]}
               value={authorization.chosen}
@@ -143,9 +160,9 @@ export function AuthorizationSection({
           />
         </div>
       )}
-      {firstOption === undefined ? null : (
+      {firstOption === undefined || person === undefined ? null : (
         <p className="text-detail text-text-subtle">
-          {authorization.person.first_name} no tiene permiso para {action}.
+          {person.first_name} no tiene permiso para {action}.
         </p>
       )}
       {notice === undefined ? null : (

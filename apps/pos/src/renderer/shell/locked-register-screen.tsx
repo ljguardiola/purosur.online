@@ -1,5 +1,5 @@
 import type { SignInOutcome } from "@purosur/contracts";
-import { KeyRound } from "lucide-react";
+import { KeyRound, UserLock } from "lucide-react";
 import { useId } from "react";
 import { ResumePinForm } from "../access/resume-pin-form";
 import { SignInLockout } from "../access/sign-in-lockout";
@@ -61,6 +61,11 @@ export function LockedRegisterScreen({
               to="/pin-code-redemption"
               icon={<KeyRound />}
               label="Tengo un código para cambiar el PIN"
+            />
+            <ScreenLink
+              to="/locked-cash-count"
+              icon={<UserLock />}
+              label="Otra persona cierra la caja"
             />
           </>
         )}

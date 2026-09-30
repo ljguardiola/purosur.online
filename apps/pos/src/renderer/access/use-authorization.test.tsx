@@ -10,14 +10,16 @@ const WITHOUT_PERMISSION: SignedInPerson = {
 };
 
 function Probe({
+  person = WITHOUT_PERMISSION,
   applies,
   loadAuthorizers = async () => [],
 }: {
+  person?: SignedInPerson | undefined;
   applies?: boolean;
   loadAuthorizers?: () => Promise<[]>;
 }) {
   const authorization = useAuthorization({
-    person: WITHOUT_PERMISSION,
+    person,
     permission: "record_cash_in",
     loadAuthorizers,
     ...(applies === undefined ? {} : { applies }),
@@ -28,6 +30,12 @@ function Probe({
 describe("useAuthorization", () => {
   it("requires an authorizer from a person who lacks the permission", async () => {
     const screen = await render(<Probe />);
+
+    await expect.element(screen.getByText("required", { exact: true })).toBeVisible();
+  });
+
+  it("requires someone with the permission when nobody is signed in", async () => {
+    const screen = await render(<Probe person={undefined} />);
 
     await expect.element(screen.getByText("required", { exact: true })).toBeVisible();
   });

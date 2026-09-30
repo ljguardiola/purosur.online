@@ -54,13 +54,15 @@ function loading(users: SignInUser[] = AUTHORIZERS) {
 }
 
 async function renderForm(options: {
-  person?: SignedInPerson;
+  person?: SignedInPerson | undefined;
+  picks?: "authorizer" | "closer";
   loadAuthorizers?: (permission: string) => Promise<SignInUser[]>;
   submit?: ReturnType<typeof recording>["submit"];
 }) {
   return render(
     <GuardedCashInForm
-      person={options.person ?? TOMAS_WITHOUT_PERMISSION}
+      person={"person" in options ? options.person : TOMAS_WITHOUT_PERMISSION}
+      picks={options.picks ?? "authorizer"}
       loadAuthorizers={options.loadAuthorizers ?? loading().loadAuthorizers}
       submit={options.submit ?? recording({ kind: "performed", authorized_by: null }).submit}
     />,
@@ -426,6 +428,35 @@ describe("an action guarded by another person's PIN", () => {
       await pick(screen, "Sofía");
 
       await expect.element(screen.getByLabelText("PIN")).toHaveValue("");
+    });
+  });
+
+  describe("when nobody is signed in and the person with the permission closes the register", () => {
+    async function renderClosing(submit?: ReturnType<typeof recording>["submit"]) {
+      return renderForm({ person: undefined, picks: "closer", ...(submit ? { submit } : {}) });
+    }
+
+    it("asks for the person who closes, without naming anyone who lacks the permission", async () => {
+      const screen = await renderClosing();
+
+      await expect.element(screen.getByText("CIERRA ALGUIEN CON PERMISO")).toBeVisible();
+      await expect
+        .element(screen.getByRole("button", { name: /Persona que cierra/ }))
+        .toBeVisible();
+      await expect.element(screen.getByText(/no tiene permiso para/)).not.toBeInTheDocument();
+      await expectNoAccessibilityViolations(screen.container);
+    });
+
+    it("says the picked person cannot close the register when they lack the permission", async () => {
+      const screen = await renderClosing(recording({ kind: "lacks_permission" }).submit);
+
+      await userEvent.click(screen.getByRole("button", { name: /Persona que cierra/ }));
+      await userEvent.click(screen.getByRole("option", { name: "Sofía" }));
+      await userEvent.type(screen.getByLabelText("PIN"), "1234");
+      await userEvent.click(screen.getByRole("button", { name: "Cargar" }));
+
+      await expect.element(screen.getByText("Sofía no puede cerrar la caja")).toBeVisible();
+      await expect.element(screen.getByText("Elegí a otra persona con permiso.")).toBeVisible();
     });
   });
 

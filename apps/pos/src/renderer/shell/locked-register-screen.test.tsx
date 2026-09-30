@@ -59,6 +59,14 @@ describe("LockedRegisterScreen", () => {
       .not.toBeInTheDocument();
   });
 
+  it("offers another person the way to close the register", async () => {
+    const screen = await renderScreen();
+
+    await userEvent.click(screen.getByRole("link", { name: "Otra persona cierra la caja" }));
+
+    expect(screen.router.state.location.pathname).toBe("/locked-cash-count");
+  });
+
   it("focuses the PIN", async () => {
     const screen = await renderScreen();
 
