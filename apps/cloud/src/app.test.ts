@@ -41,6 +41,7 @@ import {
 } from "./test-support/build-test-app.js";
 import { buildTestDatabase, type TestDatabase } from "./test-support/build-test-database.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "./test-support/device-token-rotation-key.js";
+import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "./test-support/installation-keys-encryption-key.js";
 import { seededLocationId } from "./test-support/seeded-location.js";
 
 let testDatabase: TestDatabase;
@@ -73,7 +74,11 @@ describe("GET /api/health", () => {
     });
     const app = buildApp({
       version: "abc1234",
-      devices: { db: testDatabase.db, rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY },
+      devices: {
+        db: testDatabase.db,
+        rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
+        keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+      },
     });
 
     const response = await app.inject({
@@ -92,7 +97,11 @@ describe("GET /api/changes", () => {
     const { deviceToken } = await insertEnrolledInstallation(testDatabase.db);
     const app = buildApp({
       version: "abc1234",
-      devices: { db: testDatabase.db, rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY },
+      devices: {
+        db: testDatabase.db,
+        rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
+        keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+      },
     });
 
     const response = await app.inject({
@@ -1204,7 +1213,11 @@ describe("wiring the device enrollment route", () => {
   it("registers POST /api/devices/enroll, answering without a session, when a devices option is given", async () => {
     const app = buildApp({
       version: "abc1234",
-      devices: { db: testDatabase.db, rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY },
+      devices: {
+        db: testDatabase.db,
+        rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
+        keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+      },
     });
 
     const response = await app.inject({ method: "POST", url: "/api/devices/enroll", payload: {} });
@@ -1226,7 +1239,11 @@ describe("wiring the device token rotation route", () => {
   it("registers POST /api/devices/rotate-token, refusing a request without a device token, when a devices option is given", async () => {
     const app = buildApp({
       version: "abc1234",
-      devices: { db: testDatabase.db, rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY },
+      devices: {
+        db: testDatabase.db,
+        rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
+        keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+      },
     });
 
     const response = await app.inject({ method: "POST", url: "/api/devices/rotate-token" });
@@ -1451,7 +1468,11 @@ function productionWiredApp() {
     alerts: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     prices: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     registers: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
-    devices: { db: testDatabase.db, rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY },
+    devices: {
+      db: testDatabase.db,
+      rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
+      keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+    },
   });
 }
 

@@ -154,6 +154,7 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           EDGE_ORIGIN_SECRET: ${{ secrets.EDGE_ORIGIN_SECRET }}
           DEVICE_TOKEN_ROTATION_KEY: ${{ secrets.DEVICE_TOKEN_ROTATION_KEY }}
+          INSTALLATION_KEYS_ENCRYPTION_KEY: ${{ secrets.INSTALLATION_KEYS_ENCRYPTION_KEY }}
           CLOUD_APP_DATABASE_PASSWORD: ${{ secrets.CLOUD_APP_DATABASE_PASSWORD }}
           ARCA_CERTIFICATE: ${{ vars.ARCA_CERTIFICATE }}
         # Without --confirm-destructive, a plan that destroys or replaces a resource fails here.

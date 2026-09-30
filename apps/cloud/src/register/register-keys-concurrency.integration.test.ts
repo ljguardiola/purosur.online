@@ -4,6 +4,7 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { registerSnapshotKeys, registers } from "../platform/db/schema.js";
+import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -11,6 +12,7 @@ import {
 import { runQueuedBehindHeldLock } from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleRegisterStore } from "./drizzle-register-store.js";
+import { installationKeyCipher } from "./installation-key-cipher.js";
 
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
@@ -45,7 +47,10 @@ describe("handing one register its first keys twice at once on a real Postgres t
       .values({ locationId: await seededLocationId(db), name: "Caja 1" })
       .returning({ id: registers.id });
     if (!register) throw new Error("test setup: seeding the register returned no row");
-    const store = new DrizzleRegisterStore(db);
+    const store = new DrizzleRegisterStore(
+      db,
+      installationKeyCipher(TEST_INSTALLATION_KEYS_ENCRYPTION_KEY),
+    );
 
     const outcomes = await runQueuedBehindHeldLock(
       sql,
@@ -61,6 +66,6 @@ describe("handing one register its first keys twice at once on a real Postgres t
         .select({ version: registerSnapshotKeys.version, key: registerSnapshotKeys.key })
         .from(registerSnapshotKeys)
         .where(eq(registerSnapshotKeys.registerId, register.id)),
-    ).toEqual([{ version: 1, key: "first" }]);
+    ).toEqual([{ version: 1, key: expect.not.stringContaining("first") }]);
   });
 });

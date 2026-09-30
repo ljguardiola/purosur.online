@@ -12,6 +12,7 @@ import {
   registerInstallations,
   registers,
 } from "../platform/db/schema.js";
+import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -54,7 +55,10 @@ afterAll(async () => {
 beforeEach(() => {
   app = Fastify();
   registerRouteAccess(app);
-  registerDeviceEnrollmentRoute(app, { db });
+  registerDeviceEnrollmentRoute(app, {
+    db,
+    keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+  });
 });
 
 afterEach(async () => {

@@ -3,18 +3,16 @@ import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { registerRouteAccess } from "../access/route-access.js";
-import {
-  registerContingencyTicketKeys,
-  registerInstallations,
-  registerSnapshotKeys,
-} from "../platform/db/schema.js";
+import { registerInstallations } from "../platform/db/schema.js";
 import { registerHealthRoute } from "../platform/health-route.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
+import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import { authenticateDevice } from "./device-authentication.js";
 import { registerDeviceTokenRotationRoute } from "./device-token-rotation-route.js";
 import { installationTokenPorts } from "./installation-token-ports.js";
 import { insertEnrolledInstallation } from "./test-support/enrolled-installation.js";
+import { keyStore } from "./test-support/key-store.js";
 
 const NOW = new Date("2026-09-29T12:00:00.000Z");
 const ENROLLMENT_TOKEN_FORMAT = /^[A-Za-z0-9_-]{16}\.[A-Za-z0-9_-]{43}$/;
@@ -34,7 +32,12 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testDatabase.clear();
-  const options = { db, rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY, now: () => NOW };
+  const options = {
+    db,
+    rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
+    keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+    now: () => NOW,
+  };
   app = Fastify();
   registerRouteAccess(app);
   registerDeviceTokenRotationRoute(app, options);
@@ -94,10 +97,15 @@ describe("POST /devices/rotate-token", () => {
       (await rotate(`Bearer ${first.device_token}`)).json(),
     );
 
-    const [installation] = await db
+    const [stored] = await db
       .select({ outboxChainKey: registerInstallations.outboxChainKey })
       .from(registerInstallations)
       .where(eq(registerInstallations.id, deviceId));
+    const installation = await keyStore(db).transaction((tx) =>
+      tx.lockInstallationByTokenPrefix(second.device_token.split(".")[0] ?? ""),
+    );
+    expect(stored?.outboxChainKey).toEqual(expect.any(String));
+    expect(stored?.outboxChainKey).not.toBe(first.outbox_chain_key);
     expect(first.outbox_chain_key).toBe(installation?.outboxChainKey);
     expect({ ...second, device_token: first.device_token }).toEqual(first);
   });
@@ -112,8 +120,10 @@ describe("POST /devices/rotate-token", () => {
     const registerId = installation?.registerId ?? "";
     const newSnapshotKey = { version: 2, key: Buffer.alloc(32, 2).toString("base64") };
     const newTicketKey = { version: 2, key: Buffer.alloc(32, 3).toString("base64") };
-    await db.insert(registerSnapshotKeys).values({ registerId, ...newSnapshotKey });
-    await db.insert(registerContingencyTicketKeys).values({ registerId, ...newTicketKey });
+    await keyStore(db).transaction(async (tx) => {
+      await tx.recordSnapshotKey(registerId, newSnapshotKey);
+      await tx.recordContingencyTicketKey(registerId, newTicketKey);
+    });
 
     const second = deviceTokenRotationSchema.parse(
       (await rotate(`Bearer ${first.device_token}`)).json(),

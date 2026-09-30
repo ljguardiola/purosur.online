@@ -8,6 +8,7 @@ import { installationTokenPorts } from "../register/installation-token-ports.js"
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
+import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import { registerHealthRoute } from "./health-route.js";
 
 let testDatabase: TestDatabase;
@@ -34,6 +35,7 @@ beforeEach(async () => {
         installationTokenPorts({
           db,
           rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
+          keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
           now: () => new Date("2026-09-29T12:00:00.000Z"),
         }),
         authorization,

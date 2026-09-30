@@ -16,10 +16,12 @@ import {
   registers,
 } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { issueDeviceToken } from "./device-token.js";
 import { DrizzleRegisterStore } from "./drizzle-register-store.js";
 import { generateInstallationKey } from "./installation-key.js";
+import { installationKeyCipher } from "./installation-key-cipher.js";
 import {
   hashRegisterEnrollmentCode,
   registerEnrollmentCodeMatches,
@@ -107,7 +109,7 @@ function everythingReportedOf(error: unknown): string {
 }
 
 function adapterStore() {
-  return new DrizzleRegisterStore(db);
+  return new DrizzleRegisterStore(db, installationKeyCipher(TEST_INSTALLATION_KEYS_ENCRYPTION_KEY));
 }
 
 function enrollWithCode(code: string, now = NOW) {
@@ -263,24 +265,34 @@ describe("DrizzleRegisterStore", () => {
       revokedAt: null,
     });
     expect(JSON.stringify(installations)).not.toContain(outcome.deviceToken);
-    expect(installations.find((row) => row.id === outcome.deviceId)?.outboxChainKey).toBe(
-      outcome.keys.outboxChainKey,
+    const storedOutboxKey = installations.find(
+      (row) => row.id === outcome.deviceId,
+    )?.outboxChainKey;
+    const storedSnapshotKeys = await db
+      .select({ key: registerSnapshotKeys.key })
+      .from(registerSnapshotKeys)
+      .where(eq(registerSnapshotKeys.registerId, registerId));
+    const storedTicketKeys = await db
+      .select({ key: registerContingencyTicketKeys.key })
+      .from(registerContingencyTicketKeys)
+      .where(eq(registerContingencyTicketKeys.registerId, registerId));
+    expect(storedOutboxKey).toEqual(expect.any(String));
+    expect(storedOutboxKey).not.toBe(outcome.keys.outboxChainKey);
+    expect(storedSnapshotKeys.map((row) => row.key)).not.toContain(
+      outcome.keys.snapshotKeyVersions[0]?.key,
     );
-    expect(
-      await db
-        .select({ version: registerSnapshotKeys.version, key: registerSnapshotKeys.key })
-        .from(registerSnapshotKeys)
-        .where(eq(registerSnapshotKeys.registerId, registerId)),
-    ).toEqual(outcome.keys.snapshotKeyVersions);
-    expect(
-      await db
-        .select({
-          version: registerContingencyTicketKeys.version,
-          key: registerContingencyTicketKeys.key,
-        })
-        .from(registerContingencyTicketKeys)
-        .where(eq(registerContingencyTicketKeys.registerId, registerId)),
-    ).toEqual([outcome.keys.contingencyTicketKey]);
+    expect(storedTicketKeys.map((row) => row.key)).not.toContain(
+      outcome.keys.contingencyTicketKey.key,
+    );
+    const held = await adapterStore().transaction((tx) => tx.lockRegisterKeys(registerId));
+    expect(held).toEqual({
+      snapshotKeys: outcome.keys.snapshotKeyVersions,
+      contingencyTicketKeys: [outcome.keys.contingencyTicketKey],
+    });
+    const locked = await adapterStore().transaction((tx) =>
+      tx.lockInstallationByTokenPrefix(outcome.deviceToken.split(".")[0] ?? ""),
+    );
+    expect(locked?.outboxChainKey).toBe(outcome.keys.outboxChainKey);
     const [code] = await db
       .select({ redeemedAt: registerEnrollmentCodes.redeemedAt })
       .from(registerEnrollmentCodes)
@@ -319,6 +331,27 @@ describe("DrizzleRegisterStore", () => {
     const held = await adapterStore().transaction((tx) => tx.lockRegisterKeys(registerId));
 
     expect(held).toEqual({ snapshotKeys: [], contingencyTicketKeys: [] });
+  });
+
+  it("refuses to open a key copied from one row to another", async () => {
+    const registerId = await insertRegister("Caja 1");
+    const otherRegisterId = await insertRegister("Caja 2");
+    await adapterStore().transaction(async (tx) => {
+      await tx.recordSnapshotKey(registerId, { version: 1, key: generateInstallationKey() });
+      await tx.recordSnapshotKey(otherRegisterId, { version: 1, key: generateInstallationKey() });
+    });
+    const [copied] = await db
+      .select({ key: registerSnapshotKeys.key })
+      .from(registerSnapshotKeys)
+      .where(eq(registerSnapshotKeys.registerId, registerId));
+    await db
+      .update(registerSnapshotKeys)
+      .set({ key: copied?.key ?? "" })
+      .where(eq(registerSnapshotKeys.registerId, otherRegisterId));
+
+    await expect(
+      adapterStore().transaction((tx) => tx.lockRegisterKeys(otherRegisterId)),
+    ).rejects.toThrow("an installation key could not be decrypted");
   });
 
   it.each([

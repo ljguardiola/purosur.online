@@ -5,6 +5,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { registerInstallations } from "../platform/db/schema.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
+import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -33,7 +34,12 @@ afterAll(async () => {
 
 function rotate(deviceToken: string, now: Date) {
   return rotateDeviceToken(
-    deviceTokenRotationPorts({ db, rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY, now: () => now }),
+    deviceTokenRotationPorts({
+      db,
+      rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
+      keysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
+      now: () => now,
+    }),
     { deviceToken },
   );
 }

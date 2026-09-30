@@ -12,6 +12,7 @@ import {
   reportStartupFailure,
   requireAuthorizedCuit,
   requireDeviceTokenRotationKey,
+  requireInstallationKeysEncryptionKey,
   resolvePort,
   resolveRecoveryEnv,
   resolveStaticDir,
@@ -74,6 +75,33 @@ describe("requireDeviceTokenRotationKey", () => {
     expect(() => requireDeviceTokenRotationKey({ DEVICE_TOKEN_ROTATION_KEY: shortKey })).toThrow(
       "DEVICE_TOKEN_ROTATION_KEY must hold at least 32 bytes",
     );
+  });
+});
+
+const KEYS_ENCRYPTION_KEY_BYTES = Buffer.alloc(32, 6);
+const KEYS_ENCRYPTION_KEY = KEYS_ENCRYPTION_KEY_BYTES.toString("base64");
+
+describe("requireInstallationKeysEncryptionKey", () => {
+  it("returns the key decoded from base64", () => {
+    expect(
+      requireInstallationKeysEncryptionKey({
+        INSTALLATION_KEYS_ENCRYPTION_KEY: KEYS_ENCRYPTION_KEY,
+      }),
+    ).toEqual(KEYS_ENCRYPTION_KEY_BYTES);
+  });
+
+  it("throws when INSTALLATION_KEYS_ENCRYPTION_KEY is not set", () => {
+    expect(() => requireInstallationKeysEncryptionKey({})).toThrow(
+      "INSTALLATION_KEYS_ENCRYPTION_KEY must be set once DATABASE_URL is configured",
+    );
+  });
+
+  it.each([31, 33, 64])("throws when the key holds %i bytes instead of 32", (length) => {
+    const wrongSize = Buffer.alloc(length, 6).toString("base64");
+
+    expect(() =>
+      requireInstallationKeysEncryptionKey({ INSTALLATION_KEYS_ENCRYPTION_KEY: wrongSize }),
+    ).toThrow("INSTALLATION_KEYS_ENCRYPTION_KEY must hold exactly 32 bytes");
   });
 });
 
@@ -485,6 +513,29 @@ describe("startServer", () => {
     expect(buildApp).not.toHaveBeenCalled();
   });
 
+  it("refuses to start when DATABASE_URL is set but INSTALLATION_KEYS_ENCRYPTION_KEY is not, before opening any database or job-queue resource", async () => {
+    const buildApp = vi.fn();
+    const setUpRecovery = vi.fn();
+    const env = {
+      DATABASE_URL: "postgres://user:pass@db/purosur",
+      RESEND_API_KEY: "re_test_key",
+      RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+      RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+      BACKOFFICE_ORIGIN: "https://staging.purosur.online",
+      EDGE_ORIGIN_SECRET: "edge-secret",
+      ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
+      DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY,
+    };
+
+    await expect(
+      startServer(env, { initSentry: vi.fn(), buildApp, setUpRecovery }),
+    ).rejects.toThrow(
+      "INSTALLATION_KEYS_ENCRYPTION_KEY must be set once DATABASE_URL is configured",
+    );
+    expect(setUpRecovery).not.toHaveBeenCalled();
+    expect(buildApp).not.toHaveBeenCalled();
+  });
+
   it("refuses to start when ARCA_CERTIFICATE's CUIT is not valid", async () => {
     const buildApp = vi.fn();
     const setUpRecovery = vi.fn();
@@ -536,6 +587,7 @@ describe("startServer", () => {
       EDGE_ORIGIN_SECRET: "edge-secret",
       ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
       DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY,
+      INSTALLATION_KEYS_ENCRYPTION_KEY: KEYS_ENCRYPTION_KEY,
     };
 
     await startServer(env, { initSentry: vi.fn(), buildApp, setUpRecovery });
@@ -609,7 +661,11 @@ describe("startServer", () => {
         db: fakeRecovery.db,
         backofficeOrigin: fakeRecovery.backofficeOrigin,
       },
-      devices: { db: fakeRecovery.db, rotationKey: ROTATION_KEY_BYTES },
+      devices: {
+        db: fakeRecovery.db,
+        rotationKey: ROTATION_KEY_BYTES,
+        keysEncryptionKey: KEYS_ENCRYPTION_KEY_BYTES,
+      },
     });
 
     expect(onCloseHooks).toHaveLength(1);
@@ -660,6 +716,7 @@ describe("startServer with the real app", () => {
         EDGE_ORIGIN_SECRET: "edge-secret",
         ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
         DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY,
+        INSTALLATION_KEYS_ENCRYPTION_KEY: KEYS_ENCRYPTION_KEY,
         BACKOFFICE_STATIC_DIR: staticDir,
       },
       { initSentry: vi.fn(), buildApp: buildAppWithoutListening, setUpRecovery },

@@ -31,6 +31,7 @@ export interface ServerEnv {
   BACKOFFICE_STATIC_DIR?: string | undefined;
   DATABASE_URL?: string | undefined;
   DEVICE_TOKEN_ROTATION_KEY?: string | undefined;
+  INSTALLATION_KEYS_ENCRYPTION_KEY?: string | undefined;
   RESEND_API_KEY?: string | undefined;
   RECOVERY_EMAIL_FROM?: string | undefined;
   RECOVERY_EMAIL_REPLY_TO?: string | undefined;
@@ -116,6 +117,22 @@ export function requireDeviceTokenRotationKey(env: ServerEnv): Buffer {
   if (key.length < DEVICE_TOKEN_ROTATION_KEY_MIN_BYTES) {
     throw new Error(
       `DEVICE_TOKEN_ROTATION_KEY must hold at least ${DEVICE_TOKEN_ROTATION_KEY_MIN_BYTES} bytes`,
+    );
+  }
+  return key;
+}
+
+const INSTALLATION_KEYS_ENCRYPTION_KEY_BYTES = 32;
+
+export function requireInstallationKeysEncryptionKey(env: ServerEnv): Buffer {
+  const encoded = env.INSTALLATION_KEYS_ENCRYPTION_KEY;
+  if (!encoded) {
+    throw new Error("INSTALLATION_KEYS_ENCRYPTION_KEY must be set once DATABASE_URL is configured");
+  }
+  const key = Buffer.from(encoded, "base64");
+  if (key.length !== INSTALLATION_KEYS_ENCRYPTION_KEY_BYTES) {
+    throw new Error(
+      `INSTALLATION_KEYS_ENCRYPTION_KEY must hold exactly ${INSTALLATION_KEYS_ENCRYPTION_KEY_BYTES} bytes`,
     );
   }
   return key;
@@ -328,6 +345,7 @@ export async function startServer(
     ? {
         authorizedCuit: requireAuthorizedCuit(env),
         deviceTokenRotationKey: requireDeviceTokenRotationKey(env),
+        installationKeysEncryptionKey: requireInstallationKeysEncryptionKey(env),
         recovery: await doSetUpRecovery(recoveryEnv),
       }
     : undefined;
@@ -397,7 +415,11 @@ export async function startServer(
             db: database.recovery.db,
             backofficeOrigin: database.recovery.backofficeOrigin,
           },
-          devices: { db: database.recovery.db, rotationKey: database.deviceTokenRotationKey },
+          devices: {
+            db: database.recovery.db,
+            rotationKey: database.deviceTokenRotationKey,
+            keysEncryptionKey: database.installationKeysEncryptionKey,
+          },
         }
       : {}),
   });

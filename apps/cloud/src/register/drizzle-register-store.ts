@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { enrollmentAttemptWindowStart } from "@purosur/domain";
 import type {
   EnrollmentAlert,
@@ -22,6 +23,7 @@ import {
   registerInstallations,
   registerSnapshotKeys,
 } from "../platform/db/schema.js";
+import type { InstallationKeyCipher } from "./installation-key-cipher.js";
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
@@ -46,13 +48,21 @@ async function writingKey<T>(write: PromiseLike<T>): Promise<T> {
   }
 }
 
+const outboxChainKeyPurpose = (deviceId: string) => `outbox_chain_key:${deviceId}`;
+const snapshotKeyPurpose = (registerId: string, version: number) =>
+  `snapshot_key:${registerId}:${version}`;
+const contingencyTicketKeyPurpose = (registerId: string, version: number) =>
+  `contingency_ticket_key:${registerId}:${version}`;
+
 class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements RegisterStoreTransaction
 {
   private readonly tx: Transaction<TQueryResult>;
+  private readonly cipher: InstallationKeyCipher;
 
-  constructor(tx: Transaction<TQueryResult>) {
+  constructor(tx: Transaction<TQueryResult>, cipher: InstallationKeyCipher) {
     this.tx = tx;
+    this.cipher = cipher;
   }
 
   async lockEnrollmentCodes(lookup: string): Promise<LockedEnrollmentCode[]> {
@@ -127,10 +137,16 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   async recordInstallation(installation: NewInstallation): Promise<{ deviceId: string }> {
+    // The key is sealed for its installation, so the installation's id is chosen before the insert.
+    const id = randomUUID();
     const [recorded] = await writingKey(
       this.tx
         .insert(registerInstallations)
-        .values(installation)
+        .values({
+          ...installation,
+          id,
+          outboxChainKey: this.cipher.seal(installation.outboxChainKey, outboxChainKeyPurpose(id)),
+        })
         .returning({ id: registerInstallations.id }),
     );
     if (!recorded) {
@@ -171,7 +187,10 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
       deviceId: row.deviceId,
       registerId: row.registerId,
       revoked: row.revokedAt !== null,
-      outboxChainKey: row.outboxChainKey ?? undefined,
+      outboxChainKey:
+        row.outboxChainKey === null
+          ? undefined
+          : this.cipher.open(row.outboxChainKey, outboxChainKeyPurpose(row.deviceId)),
       currentToken: {
         lookupPrefix: row.tokenLookupPrefix,
         tokenHash: row.tokenHash,
@@ -219,7 +238,7 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
     await writingKey(
       this.tx
         .update(registerInstallations)
-        .set({ outboxChainKey })
+        .set({ outboxChainKey: this.cipher.seal(outboxChainKey, outboxChainKeyPurpose(deviceId)) })
         .where(eq(registerInstallations.id, deviceId)),
     );
   }
@@ -230,23 +249,46 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
     await this.tx.execute(
       sql`select pg_advisory_xact_lock(hashtextextended(${`register_keys:${registerId}`}, 0))`,
     );
-    const versionsOf = (table: typeof registerSnapshotKeys) =>
-      this.tx
+    const versionsOf = async (
+      table: typeof registerSnapshotKeys,
+      purpose: (registerId: string, version: number) => string,
+    ): Promise<VersionedKey[]> => {
+      const rows = await this.tx
         .select({ version: table.version, key: table.key })
         .from(table)
         .where(eq(table.registerId, registerId));
+      return rows.map((row) => ({
+        version: row.version,
+        key: this.cipher.open(row.key, purpose(registerId, row.version)),
+      }));
+    };
     return {
-      snapshotKeys: await versionsOf(registerSnapshotKeys),
-      contingencyTicketKeys: await versionsOf(registerContingencyTicketKeys),
+      snapshotKeys: await versionsOf(registerSnapshotKeys, snapshotKeyPurpose),
+      contingencyTicketKeys: await versionsOf(
+        registerContingencyTicketKeys,
+        contingencyTicketKeyPurpose,
+      ),
     };
   }
 
   async recordSnapshotKey(registerId: string, key: VersionedKey): Promise<void> {
-    await writingKey(this.tx.insert(registerSnapshotKeys).values({ registerId, ...key }));
+    await writingKey(
+      this.tx.insert(registerSnapshotKeys).values({
+        registerId,
+        version: key.version,
+        key: this.cipher.seal(key.key, snapshotKeyPurpose(registerId, key.version)),
+      }),
+    );
   }
 
   async recordContingencyTicketKey(registerId: string, key: VersionedKey): Promise<void> {
-    await writingKey(this.tx.insert(registerContingencyTicketKeys).values({ registerId, ...key }));
+    await writingKey(
+      this.tx.insert(registerContingencyTicketKeys).values({
+        registerId,
+        version: key.version,
+        key: this.cipher.seal(key.key, contingencyTicketKeyPurpose(registerId, key.version)),
+      }),
+    );
   }
 
   async markEnrollmentCodeRedeemed(registerId: string, redeemedAt: Date): Promise<void> {
@@ -276,14 +318,16 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
 
 export class DrizzleRegisterStore<TQueryResult extends PgQueryResultHKT> implements RegisterStore {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly cipher: InstallationKeyCipher;
 
-  constructor(db: PgDatabase<TQueryResult>) {
+  constructor(db: PgDatabase<TQueryResult>, cipher: InstallationKeyCipher) {
     this.db = db;
+    this.cipher = cipher;
   }
 
   transaction<TOutcome>(
     work: (tx: RegisterStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    return this.db.transaction((tx) => work(new DrizzleRegisterStoreTransaction(tx)));
+    return this.db.transaction((tx) => work(new DrizzleRegisterStoreTransaction(tx, this.cipher)));
   }
 }

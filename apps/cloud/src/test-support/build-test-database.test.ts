@@ -26,9 +26,11 @@ import {
   recoveryRateLimitAttempts,
   recoveryRejectedAttemptAccumulator,
   recoveryTokens,
+  registerContingencyTicketKeys,
   registerEnrollmentAttempts,
   registerEnrollmentCodes,
   registerInstallations,
+  registerSnapshotKeys,
   registers,
   rolePermissions,
   roles,
@@ -240,6 +242,16 @@ describe("buildTestDatabase", () => {
       entityId: await seededLocationId(db),
       version: 2,
       op: "update",
+    });
+    await db.insert(registerSnapshotKeys).values({
+      registerId: register.id,
+      version: 1,
+      key: "sealed-snapshot-key",
+    });
+    await db.insert(registerContingencyTicketKeys).values({
+      registerId: register.id,
+      version: 1,
+      key: "sealed-ticket-key",
     });
     await db.insert(registerEnrollmentAttempts).values({
       keyKind: "source_address",

@@ -14,11 +14,13 @@ import { answerErrorsWithCloudEnvelope } from "./cloud-error-handler.js";
 import { issueDeviceToken } from "./device-token.js";
 import { DrizzleRegisterStore } from "./drizzle-register-store.js";
 import { generateInstallationKey } from "./installation-key.js";
+import { installationKeyCipher } from "./installation-key-cipher.js";
 import { installationKeysBody } from "./installation-keys-body.js";
 import { registerEnrollmentCodeMatches } from "./register-enrollment-code.js";
 
 export interface DeviceEnrollmentRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
+  keysEncryptionKey: Uint8Array;
   now?: () => Date;
 }
 
@@ -32,7 +34,7 @@ export function registerDeviceEnrollmentRoute<TQueryResult extends PgQueryResult
   options: DeviceEnrollmentRouteOptions<TQueryResult>,
 ): void {
   const ports = {
-    store: new DrizzleRegisterStore(options.db),
+    store: new DrizzleRegisterStore(options.db, installationKeyCipher(options.keysEncryptionKey)),
     clock: { now: options.now ?? (() => new Date()) },
     tokens: { issue: issueDeviceToken },
     codes: { matches: registerEnrollmentCodeMatches },
