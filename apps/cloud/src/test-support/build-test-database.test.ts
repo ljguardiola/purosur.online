@@ -14,6 +14,7 @@ import {
   categories,
   changes,
   deviceState,
+  discounts,
   issuerIdentification,
   locations,
   passkeyChallenges,
@@ -193,6 +194,14 @@ describe("buildTestDatabase", () => {
       throw new Error("seeding tags returned no row");
     }
     await db.insert(productTags).values({ productId: product.id, tagId: tag.id });
+    await db.insert(discounts).values({
+      name: "Semana de los frutos secos",
+      kind: "PERCENT_OFF",
+      percent: 15,
+      tagId: tag.id,
+      validFrom: "2026-10-01",
+      validTo: "2026-10-31",
+    });
     const [otherPriceList] = await db
       .insert(priceLists)
       .values({ name: "Lista mayorista" })

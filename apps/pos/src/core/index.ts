@@ -195,6 +195,8 @@ const rendererRequestDeps: RendererRequestDeps = {
       newPin,
     ),
   signInUsers: signInStore === undefined ? undefined : () => signInStore.signableUsers(),
+  authorizers:
+    signInStore === undefined ? undefined : (permission) => signInStore.authorizers(permission),
   signIn:
     signInStore === undefined
       ? undefined

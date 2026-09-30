@@ -67,8 +67,16 @@ export function canSeePricesArea(access: BackofficeAccess): boolean {
   return access.isAdministrator || access.permissions.includes("manage_prices_and_review");
 }
 
+export function canManagePromotions(access: BackofficeAccess): boolean {
+  return access.isAdministrator || access.permissions.includes("manage_promotions");
+}
+
 export function canSeeCatalogArea(access: BackofficeAccess): boolean {
-  return canManageProductsAndCategories(access) || canSeePricesArea(access);
+  return (
+    canManageProductsAndCategories(access) ||
+    canSeePricesArea(access) ||
+    canManagePromotions(access)
+  );
 }
 
 export function canSeeCashArea(access: BackofficeAccess): boolean {

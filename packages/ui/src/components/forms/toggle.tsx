@@ -1,10 +1,12 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useId } from "react";
 import { Switch as AriaSwitch } from "react-aria-components";
+import { disabledTextProps, fieldHelperClassName } from "./field-styles";
 
 export type ToggleProps = {
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   children: Exclude<ReactNode, null | undefined | boolean>;
+  description?: string;
   disabled?: boolean;
 };
 
@@ -29,18 +31,40 @@ const knobClassName =
   "size-control-2xs shrink-0 rounded-full bg-surface " +
   "inset-ring-2 inset-ring-border-strong group-data-selected:inset-ring-0";
 
-export function Toggle({ checked, onCheckedChange, children, disabled = false }: ToggleProps) {
-  return (
+// Aligns the description with the content: the track's width plus the gap the label leaves after it.
+const descriptionClassName = `ps-15 ${fieldHelperClassName} aria-disabled:opacity-disabled`;
+
+export function Toggle({
+  checked,
+  onCheckedChange,
+  children,
+  description,
+  disabled = false,
+}: ToggleProps) {
+  const descriptionId = useId();
+  const toggle = (
     <AriaSwitch
       isSelected={checked}
       onChange={onCheckedChange}
       isDisabled={disabled}
       className={toggleLabelClassName}
+      {...(description === undefined ? {} : { "aria-describedby": descriptionId })}
     >
       <span aria-hidden="true" className={trackClassName}>
         <span className={knobClassName} />
       </span>
       <span className="min-w-0 flex-1">{children}</span>
     </AriaSwitch>
+  );
+  if (description === undefined) {
+    return toggle;
+  }
+  return (
+    <div className="flex flex-col gap-1">
+      {toggle}
+      <span id={descriptionId} className={descriptionClassName} {...disabledTextProps(disabled)}>
+        {description}
+      </span>
+    </div>
   );
 }

@@ -1,3 +1,4 @@
+import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { RouterProvider } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import type { SignedInPerson } from "../access/signed-in-person";
@@ -36,6 +37,7 @@ export function App({ core }: { core: CoreClient }) {
     enroll,
     registerName: () => core.registerName(),
     signInUsers: () => core.signInUsers(),
+    authorizers: (permission: AuthorizablePermissionKey) => core.authorizers(permission),
     signIn,
     signOut,
     redeemPinCode: (typedCode: string, newPin: string) => core.redeemPinCode(typedCode, newPin),

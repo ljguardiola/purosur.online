@@ -1,9 +1,9 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { PERMISSION_CATALOG, PERMISSION_KEYS } from "./permission-catalog.js";
+import { PERMISSION_CATALOG, PERMISSION_KEYS, type PermissionKey } from "./permission-catalog.js";
 import { holdsARegisterPermission, uncoveredRegisterPermissions } from "./register-coverage.js";
 
-const registerPermissionKeys = PERMISSION_CATALOG.filter(
+const registerPermissionKeys: readonly PermissionKey[] = PERMISSION_CATALOG.filter(
   (definition) => definition.registerMarker !== "none",
 ).map((definition) => definition.key);
 

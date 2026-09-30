@@ -6,10 +6,12 @@ import { render } from "vitest-browser-react";
 import { PinField } from "./pin-field";
 
 function Harness({
+  compact = false,
   disabled = false,
   explained = false,
   initial = "",
 }: {
+  compact?: boolean;
   disabled?: boolean;
   explained?: boolean;
   initial?: string;
@@ -23,6 +25,7 @@ function Harness({
         value={value}
         onChange={setValue}
         disabled={disabled}
+        compact={compact}
         {...(explained ? { errorMessageId: explanationId } : {})}
       />
     </>
@@ -110,5 +113,45 @@ describe("PinField", () => {
     const screen = await render(<Harness />);
 
     await expect.element(screen.getByLabelText("PIN")).not.toHaveAttribute("aria-invalid", "true");
+  });
+
+  describe("compact", () => {
+    it("fits its label and six slots in a box 200 pixels wide and 48 tall", async () => {
+      const screen = await render(<Harness compact />);
+
+      const box = screen.getByLabelText("PIN").element().parentElement?.getBoundingClientRect();
+      const label = screen.getByText("PIN").element().getBoundingClientRect();
+
+      expect(box?.width).toBe(200);
+      expect(box?.height).toBe(48);
+      expect(label.left).toBeGreaterThanOrEqual(box?.left ?? Number.POSITIVE_INFINITY);
+      expect(label.right).toBeLessThanOrEqual(box?.right ?? 0);
+      expect(dots(screen)).toEqual({ total: 6, filled: 0 });
+      await expectNoAccessibilityViolations(screen.container);
+    });
+
+    it("fills a slot for each digit typed and stays labelled PIN", async () => {
+      const screen = await render(<Harness compact />);
+
+      await userEvent.type(screen.getByLabelText("PIN"), "42");
+
+      expect(dots(screen)).toEqual({ total: 6, filled: 2 });
+    });
+
+    it("widens past 200 pixels to keep every slot of a long PIN inside the box", async () => {
+      const screen = await render(<Harness compact initial="1234567890" />);
+
+      const box = screen.getByLabelText("PIN").element().parentElement?.getBoundingClientRect();
+      const slots = [...screen.container.querySelectorAll("[data-pin-slot]")].map((slot) =>
+        slot.getBoundingClientRect(),
+      );
+
+      expect(slots).toHaveLength(10);
+      expect(box?.width).toBeGreaterThan(200);
+      for (const slot of slots) {
+        expect(slot.left).toBeGreaterThanOrEqual(box?.left ?? Number.POSITIVE_INFINITY);
+        expect(slot.right).toBeLessThanOrEqual(box?.right ?? 0);
+      }
+    });
   });
 });

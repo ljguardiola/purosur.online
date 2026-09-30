@@ -34,6 +34,7 @@ function buildFailingRouter(shouldThrow: () => boolean) {
       enroll: async () => ({ kind: "enrolled" }),
       registerName: async () => null,
       signInUsers: async () => [],
+      authorizers: async () => [],
       signIn: async () => ({ kind: "unavailable" }),
       signOut: () => {},
       redeemPinCode: async () => ({ kind: "redeemed" }),

@@ -1,4 +1,5 @@
 import type { SignInOutcome } from "@purosur/contracts";
+import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
 
@@ -6,11 +7,13 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const enrolledCodes: string[] = [];
   const redemptions: { resetCode: string; newPin: string }[] = [];
   const signIns: { userId: string; pin: string }[] = [];
+  const authorizerLookups: string[] = [];
   const failures: { context: string; error: unknown }[] = [];
   return {
     enrolledCodes,
     redemptions,
     signIns,
+    authorizerLookups,
     failures,
     deps: {
       credentialsPresent: async () => enrolled,
@@ -27,6 +30,10 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       signIn: async (userId: string, pin: string): Promise<SignInOutcome> => {
         signIns.push({ userId, pin });
         return { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 7 };
+      },
+      authorizers: (permission: AuthorizablePermissionKey) => {
+        authorizerLookups.push(permission);
+        return [{ id: "u2", first_name: "Grace" }];
       },
       reportFailure: (context: string, error: unknown) => {
         failures.push({ context, error });
@@ -138,6 +145,53 @@ describe("answerRendererRequest", () => {
         request_id: "r5",
       }),
     ).toEqual({ type: "sign-in-users-unavailable", request_id: "r5" });
+  });
+
+  it("answers with the people who can authorize the permission asked for", async () => {
+    const { deps: withAuthorizers, authorizerLookups } = deps(true);
+
+    const answer = await answerRendererRequest(withAuthorizers, {
+      type: "authorizers",
+      request_id: "r10",
+      permission: "record_cash_in",
+    });
+
+    expect(authorizerLookups).toEqual(["record_cash_in"]);
+    expect(answer).toEqual({
+      type: "authorizers",
+      request_id: "r10",
+      users: [{ id: "u2", first_name: "Grace" }],
+    });
+  });
+
+  it("answers that the authorizers cannot be read when reading them fails, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      authorizers: () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "authorizers",
+        request_id: "r11",
+        permission: "void_sale",
+      }),
+    ).toEqual({ type: "authorizers-unavailable", request_id: "r11" });
+    expect(failing.failures).toEqual([{ context: "reading the people who can authorize", error }]);
+  });
+
+  it("answers that the authorizers cannot be read when the register has no database", async () => {
+    const withoutDatabase = deps(true, { authorizers: undefined });
+
+    expect(
+      await answerRendererRequest(withoutDatabase.deps, {
+        type: "authorizers",
+        request_id: "r12",
+        permission: "void_sale",
+      }),
+    ).toEqual({ type: "authorizers-unavailable", request_id: "r12" });
   });
 
   it("signs in the chosen user with the PIN as typed and answers the outcome", async () => {
