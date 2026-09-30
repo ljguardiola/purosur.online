@@ -137,6 +137,7 @@ for (const path of [
   "pnpm-workspace.yaml",
   ".node-version",
   "vitest.config.ts",
+  "vitest.global-setup.playwright-server.ts",
   "tsconfig.json",
   ".github/workflows/verify.yml",
   ".github/scripts/slow-tests-reporter.mjs",
