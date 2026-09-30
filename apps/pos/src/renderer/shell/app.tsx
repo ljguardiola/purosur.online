@@ -43,6 +43,8 @@ export function App({ core }: { core: CoreClient }) {
     };
   }, [core, coreStatus]);
 
+  useEffect(() => core.onPulled(() => void router.invalidate()), [core, router]);
+
   useEffect(() => {
     router.navigate({ to: routeFor({ coreStatus, enrollment }), replace: true });
   }, [router, coreStatus, enrollment]);

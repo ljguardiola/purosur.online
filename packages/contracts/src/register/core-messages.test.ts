@@ -111,6 +111,12 @@ describe("coreToRendererMessageSchema", () => {
     expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 
+  it("accepts the notice that a pull finished, which answers no request", () => {
+    const message = { type: "pulled" };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
   it("rejects an enrollment status without whether it is enrolled", () => {
     expect(
       coreToRendererMessageSchema.safeParse({ type: "enrollment-status", request_id: REQUEST_ID })

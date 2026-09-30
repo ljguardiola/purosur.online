@@ -131,4 +131,40 @@ describe("createCoreClient", () => {
 
     expect(await enrolled).toBe(true);
   });
+
+  it("tells each listener every time the core finishes a pull, until it stops listening", () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    let first = 0;
+    let second = 0;
+    const stopFirst = client.onPulled(() => {
+      first += 1;
+    });
+    client.onPulled(() => {
+      second += 1;
+    });
+
+    port.answer({ type: "pulled" });
+    stopFirst();
+    port.answer({ type: "pulled" });
+
+    expect(first).toBe(1);
+    expect(second).toBe(2);
+  });
+
+  it("ignores a pull notice arriving on a replaced port", () => {
+    const client = clientWithSequentialIds();
+    const previous = new FakePort();
+    client.connect(previous);
+    client.connect(new FakePort());
+    let pulls = 0;
+    client.onPulled(() => {
+      pulls += 1;
+    });
+
+    previous.answer({ type: "pulled" });
+
+    expect(pulls).toBe(0);
+  });
 });

@@ -3,6 +3,7 @@ import { hostname, release, version } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import {
+  type CoreToRendererMessage,
   mainToCoreMessageSchema,
   rendererToCoreMessageSchema,
   scrubErrorReport,
@@ -82,6 +83,7 @@ const cloudClient: CloudClientDeps | undefined =
 const LOCAL_DATABASE_FILE = "register.sqlite";
 const PULL_INTERVAL_MS = 30_000;
 const PULL_FAILURE_BACKOFF = { baseMs: 2000, maxMs: 60_000 };
+const PULLED_NOTICE: CoreToRendererMessage = { type: "pulled" };
 
 function openLocalReplica(): SqliteLocalReplica | undefined {
   const localDataFolder = localDataFolderFromCoreArguments(process.argv);
@@ -134,6 +136,7 @@ const pullSchedule = createPullSchedule({
   onFailure: (error) => {
     console.error("core: the pull failed", error);
   },
+  afterEachPull: () => rendererConnection.tell(PULLED_NOTICE),
 });
 
 const rendererRequestDeps = {

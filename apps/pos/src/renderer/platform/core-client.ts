@@ -17,13 +17,16 @@ export interface CoreClient {
   enrollmentStatus(): Promise<boolean>;
   registerName(): Promise<string | null>;
   enroll(typedCode: string): Promise<EnrollmentOutcome>;
+  onPulled(listener: () => void): () => void;
 }
 
 type CoreRequest = Exclude<RendererToCoreMessage, { type: "ping" }>;
 
+type CoreAnswer = Exclude<CoreToRendererMessage, { type: "pulled" }>;
+
 interface PendingRequest {
   message: CoreRequest;
-  settle(answer: CoreToRendererMessage): boolean;
+  settle(answer: CoreAnswer): boolean;
   fail(error: Error): void;
 }
 
@@ -31,6 +34,7 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
   let current: CorePort | undefined;
   const unsent: PendingRequest[] = [];
   const sent = new Map<string, PendingRequest>();
+  const pulledListeners = new Set<() => void>();
 
   function receive(port: CorePort, data: unknown): void {
     if (port !== current) {
@@ -38,6 +42,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
     }
     const answer = coreToRendererMessageSchema.safeParse(data);
     if (!answer.success) {
+      return;
+    }
+    if (answer.data.type === "pulled") {
+      for (const listener of pulledListeners) {
+        listener();
+      }
       return;
     }
     if (sent.get(answer.data.request_id)?.settle(answer.data)) {
@@ -50,10 +60,7 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
     port.postMessage(request.message);
   }
 
-  function ask<T>(
-    message: CoreRequest,
-    read: (answer: CoreToRendererMessage) => T | undefined,
-  ): Promise<T> {
+  function ask<T>(message: CoreRequest, read: (answer: CoreAnswer) => T | undefined): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       const request: PendingRequest = {
         message,
@@ -106,6 +113,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       return ask({ type: "enroll", request_id: deps.newRequestId(), code: typedCode }, (answer) =>
         answer.type === "enrollment-result" ? answer.outcome : undefined,
       );
+    },
+    onPulled(listener) {
+      pulledListeners.add(listener);
+      return () => {
+        pulledListeners.delete(listener);
+      };
     },
   };
 }

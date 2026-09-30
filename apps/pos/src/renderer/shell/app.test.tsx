@@ -17,6 +17,8 @@ function coreAnswering(
   registerName: string | null = null,
 ) {
   const asked: string[] = [];
+  let savedName = registerName;
+  const pulledListeners = new Set<() => void>();
   const core: CoreClient = {
     connect() {},
     async enrollmentStatus() {
@@ -24,13 +26,25 @@ function coreAnswering(
       return enrolled;
     },
     async registerName() {
-      return registerName;
+      return savedName;
     },
     async enroll() {
       return outcome;
     },
+    onPulled(listener) {
+      pulledListeners.add(listener);
+      return () => {
+        pulledListeners.delete(listener);
+      };
+    },
   };
-  return { core, asked };
+  function finishPull(nameSaved: string | null) {
+    savedName = nameSaved;
+    for (const listener of pulledListeners) {
+      listener();
+    }
+  }
+  return { core, asked, finishPull };
 }
 
 const enrolledCore = coreAnswering(true).core;
@@ -86,6 +100,17 @@ describe("App", () => {
 
     await expect.element(screen.getByText(SHELL_READY_TEXT)).toBeVisible();
     await expect.element(screen.getByRole("heading")).not.toBeInTheDocument();
+  });
+
+  it("shows the name a pull saved on the ready screen once the pull finishes", async () => {
+    const { core, finishPull } = coreAnswering(true);
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await expect.element(screen.getByText(SHELL_READY_TEXT)).toBeVisible();
+
+    finishPull("Caja 1");
+
+    await expect.element(screen.getByRole("heading", { name: "Caja 1" })).toBeVisible();
   });
 
   it("replaces the whole screen with the core-down notice once the core reports it is down", async () => {
