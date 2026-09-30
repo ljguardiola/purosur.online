@@ -385,6 +385,8 @@ describe("createCoreClient", () => {
           product_name: "Yerba",
           quantity: 2,
           list_unit_price: 2_380,
+          discount_amount: 0,
+          promotion: null,
           line_total: 4_760,
         },
       ],

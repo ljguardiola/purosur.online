@@ -181,6 +181,7 @@ export {
   registerNameLength,
 } from "./register/index.js";
 export type {
+  LinePromotion,
   ListPrice,
   Sale,
   SaleLine,

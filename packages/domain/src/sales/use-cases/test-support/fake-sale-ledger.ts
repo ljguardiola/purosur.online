@@ -2,6 +2,7 @@ import type { RoleAccess } from "../../../access/index.js";
 import type { SaleWithLines } from "../../model/sale.js";
 import type { ListPrice } from "../../model/sale-line.js";
 import type {
+  CandidatePromotion,
   Clock,
   IdGenerator,
   RegisterIdentity,
@@ -24,6 +25,7 @@ export interface FakeSaleLedgerState {
   products: ScannedProduct[];
   barcodes: Record<string, string>;
   prices: FakePrice[];
+  promotionsByProduct: Record<string, CandidatePromotion[]>;
   sales: SaleWithLines[];
 }
 
@@ -32,6 +34,7 @@ export type FakeSaleLedgerWrite = "recordOpenedSale" | "recordSaleLine" | "recor
 export class FakeSaleLedger implements SaleLedger {
   state: FakeSaleLedgerState;
   transactions = 0;
+  promotionReads = 0;
   failOn: FakeSaleLedgerWrite | undefined;
 
   constructor(state: Partial<FakeSaleLedgerState> = {}) {
@@ -43,6 +46,7 @@ export class FakeSaleLedger implements SaleLedger {
       products: [],
       barcodes: {},
       prices: [],
+      promotionsByProduct: {},
       sales: [],
       ...state,
     };
@@ -65,6 +69,10 @@ export class FakeSaleLedger implements SaleLedger {
       activeProductByBarcode: (code) =>
         working.products.find((product) => product.id === working.barcodes[code]),
       priceAt: (productId, moment) => latestPriceAt(working.prices, productId, moment),
+      promotionsTargeting: (productId) => {
+        this.promotionReads += 1;
+        return structuredClone(working.promotionsByProduct[productId] ?? []);
+      },
       recordOpenedSale: (sale) => {
         this.failIfAsked("recordOpenedSale");
         working.sales.push({ ...sale, lines: [] });
@@ -78,7 +86,13 @@ export class FakeSaleLedger implements SaleLedger {
         for (const sale of working.sales) {
           sale.lines = sale.lines.map((stored) =>
             stored.id === line.id
-              ? { ...stored, quantity: line.quantity, lineTotal: line.lineTotal }
+              ? {
+                  ...stored,
+                  quantity: line.quantity,
+                  promotionId: line.promotionId,
+                  discountAmount: line.discountAmount,
+                  lineTotal: line.lineTotal,
+                }
               : stored,
           );
         }
