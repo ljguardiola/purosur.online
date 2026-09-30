@@ -20,8 +20,8 @@ export type Enrollment = "unknown" | "enrolled" | "not_enrolled";
 export interface RouterContext {
   coreStatus: CoreStatus;
   enrollment: Enrollment;
-  registerName: string | null;
   enroll: (typedCode: string) => Promise<EnrollmentOutcome>;
+  registerName: () => Promise<string | null>;
 }
 
 type ScreenPath = "/" | "/enroll" | "/starting" | "/core-down";
@@ -56,8 +56,9 @@ const readyRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
   beforeLoad: ({ context }) => requireRoute("/", context),
+  loader: ({ context }) => context.registerName().catch(() => null),
   component: function ReadyRoute() {
-    const { registerName } = readyRoute.useRouteContext();
+    const registerName = readyRoute.useLoaderData();
     return <ReadyScreen registerName={registerName} />;
   },
 });
@@ -106,10 +107,13 @@ export function createRegisterRouter<TRouteTree extends AnyRoute>(
   });
 }
 
-export function createAppRouter(enroll: RouterContext["enroll"]) {
+export function createAppRouter(
+  enroll: RouterContext["enroll"],
+  registerName: RouterContext["registerName"],
+) {
   return createRegisterRouter(
     routeTree,
-    { coreStatus: "starting", enrollment: "unknown", registerName: null, enroll },
+    { coreStatus: "starting", enrollment: "unknown", enroll, registerName },
     "/starting",
   );
 }

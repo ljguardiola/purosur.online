@@ -1,5 +1,5 @@
 import { RouterProvider } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import type { CoreClient } from "../platform/core-client";
 import { useCoreStatus } from "../platform/use-core-status";
 import type { Enrollment } from "./router";
@@ -9,20 +9,20 @@ export function App({ core }: { core: CoreClient }) {
   const coreStatus = useCoreStatus();
   const [knownEnrollment, setKnownEnrollment] = useState<Enrollment>("unknown");
   const enrollment = coreStatus === "up" ? knownEnrollment : "unknown";
-  const [registerName, setRegisterName] = useState<string | null>(null);
 
-  const enroll = useCallback(
-    async (typedCode: string) => {
-      const outcome = await core.enroll(typedCode);
-      if (outcome.kind === "enrolled") {
-        setKnownEnrollment("enrolled");
-      }
-      return outcome;
-    },
-    [core],
-  );
+  async function enroll(typedCode: string) {
+    const outcome = await core.enroll(typedCode);
+    if (outcome.kind === "enrolled") {
+      setKnownEnrollment("enrolled");
+    }
+    return outcome;
+  }
 
-  const [router] = useState(() => createAppRouter(enroll));
+  function registerName() {
+    return core.registerName();
+  }
+
+  const [router] = useState(() => createAppRouter(enroll, registerName));
 
   useEffect(() => {
     if (coreStatus !== "up") {
@@ -44,33 +44,10 @@ export function App({ core }: { core: CoreClient }) {
   }, [core, coreStatus]);
 
   useEffect(() => {
-    if (coreStatus !== "up" || enrollment !== "enrolled") {
-      return;
-    }
-    let current = true;
-    core.registerName().then(
-      (name) => {
-        if (current) {
-          setRegisterName(name);
-        }
-      },
-      () => {},
-    );
-    return () => {
-      current = false;
-    };
-  }, [core, coreStatus, enrollment]);
-
-  useEffect(() => {
     router.navigate({ to: routeFor({ coreStatus, enrollment }), replace: true });
   }, [router, coreStatus, enrollment]);
 
-  useEffect(() => {
-    router.update({ context: { coreStatus, enrollment, registerName, enroll } });
-    router.invalidate();
-  }, [router, coreStatus, enrollment, registerName, enroll]);
-
   return (
-    <RouterProvider router={router} context={{ coreStatus, enrollment, registerName, enroll }} />
+    <RouterProvider router={router} context={{ coreStatus, enrollment, enroll, registerName }} />
   );
 }

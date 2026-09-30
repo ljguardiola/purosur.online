@@ -46,7 +46,8 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
   // another branch, starts over from the first change. The users held so far are marked removed,
   // because another branch's pull never sends a removal for them; those it still serves come back
   // as they arrive. Their PIN verifiers were derived with the pepper of the one before, and the PIN
-  // hashes they came from are not kept, so they are dropped and derived again.
+  // hashes they came from are not kept, so they are dropped and derived again. The register row held
+  // is the previous installation's own, so it goes too.
   adoptDevice({ deviceId, pepper }: { deviceId: string; pepper: string }): void {
     this.pepper = pepper;
     this.database.transaction(() => {
