@@ -79,7 +79,7 @@ async function insertSession(): Promise<string> {
   return rawSessionId;
 }
 
-function postSignOut(rawSessionId?: string, headers: Record<string, string> = {}) {
+function deleteCurrentSession(rawSessionId?: string, headers: Record<string, string> = {}) {
   return app.inject({
     method: "DELETE",
     url: "/sessions/current",
@@ -115,7 +115,7 @@ describe("DELETE /sessions/current", () => {
   it("revokes the session and clears the cookie", async () => {
     const rawSessionId = await insertSession();
 
-    const response = await postSignOut(rawSessionId);
+    const response = await deleteCurrentSession(rawSessionId);
 
     expect(response.statusCode).toBe(200);
     const setCookie = String(response.headers["set-cookie"]);
@@ -131,7 +131,7 @@ describe("DELETE /sessions/current", () => {
   it("makes the cookie it revoked no longer authenticate a later GET /sessions/current", async () => {
     const rawSessionId = await insertSession();
 
-    await postSignOut(rawSessionId);
+    await deleteCurrentSession(rawSessionId);
     const response = await getSession(rawSessionId);
 
     expect(response.statusCode).toBe(401);
@@ -140,13 +140,13 @@ describe("DELETE /sessions/current", () => {
 
   it("is idempotent for an already-revoked session", async () => {
     const rawSessionId = await insertSession();
-    const first = await postSignOut(rawSessionId);
+    const first = await deleteCurrentSession(rawSessionId);
     const firstRow = await db
       .select()
       .from(sessions)
       .where(eq(sessions.sessionIdHash, hashSessionId(rawSessionId)));
 
-    const second = await postSignOut(rawSessionId);
+    const second = await deleteCurrentSession(rawSessionId);
 
     expect(first.statusCode).toBe(200);
     expect(second.statusCode).toBe(200);
@@ -158,7 +158,7 @@ describe("DELETE /sessions/current", () => {
   });
 
   it("succeeds for a cookie whose session is unknown, without error", async () => {
-    const response = await postSignOut(generateSessionId());
+    const response = await deleteCurrentSession(generateSessionId());
 
     expect(response.statusCode).toBe(200);
     const setCookie = String(response.headers["set-cookie"]);
@@ -166,7 +166,7 @@ describe("DELETE /sessions/current", () => {
   });
 
   it("returns 401 unauthenticated when no cookie was sent", async () => {
-    const response = await postSignOut();
+    const response = await deleteCurrentSession();
 
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
@@ -175,7 +175,9 @@ describe("DELETE /sessions/current", () => {
   it("rejects an Origin that does not match the backoffice's own origin", async () => {
     const rawSessionId = await insertSession();
 
-    const response = await postSignOut(rawSessionId, { origin: "https://evil.example.com" });
+    const response = await deleteCurrentSession(rawSessionId, {
+      origin: "https://evil.example.com",
+    });
 
     expect(response.statusCode).toBe(403);
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
@@ -185,7 +187,7 @@ describe("DELETE /sessions/current", () => {
     const rawSessionId = await insertSession();
     await exhaustSessionRateLimit(db, rawSessionId, NOON);
 
-    const response = await postSignOut(rawSessionId);
+    const response = await deleteCurrentSession(rawSessionId);
 
     expect(response.statusCode).toBe(429);
     expect(response.json()).toMatchObject({ code: "rate_limited" });
@@ -201,7 +203,7 @@ describe("DELETE /sessions/current", () => {
     await exhaustSourceAddressRateLimit(db, INJECTED_SOURCE_ADDRESS, NOON);
     const rawSessionId = await insertSession();
 
-    const response = await postSignOut(rawSessionId);
+    const response = await deleteCurrentSession(rawSessionId);
 
     expect(response.statusCode).toBe(429);
     expect(response.headers["retry-after"]).toBe("3600");
@@ -212,9 +214,9 @@ describe("DELETE /sessions/current", () => {
     currentTime = new Date(NOON.getTime() + THIRTY_MINUTES_MS);
     await exhaustSourceAddressRateLimit(db, INJECTED_SOURCE_ADDRESS, currentTime);
 
-    const withoutCookie = await postSignOut();
-    const withUnknownSession = await postSignOut(generateSessionId());
-    const withIdleSession = await postSignOut(idle);
+    const withoutCookie = await deleteCurrentSession();
+    const withUnknownSession = await deleteCurrentSession(generateSessionId());
+    const withIdleSession = await deleteCurrentSession(idle);
 
     expect(withoutCookie.statusCode).toBe(401);
     expect(withUnknownSession.statusCode).toBe(200);
