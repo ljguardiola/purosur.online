@@ -28,11 +28,16 @@ export function App({ core }: { core: CoreClient }) {
     return outcome;
   }
 
+  function signOut() {
+    setPerson(undefined);
+  }
+
   const services = {
     enroll,
     registerName: () => core.registerName(),
     signInUsers: () => core.signInUsers(),
     signIn,
+    signOut,
     redeemPinCode: (typedCode: string, newPin: string) => core.redeemPinCode(typedCode, newPin),
   };
 
