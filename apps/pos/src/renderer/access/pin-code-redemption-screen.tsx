@@ -26,7 +26,7 @@ function noticeFor(outcome: PinCodeRedemptionOutcome): Notice | undefined {
       return {
         icon: <Lock />,
         title: "La caja está abierta",
-        description: "Solo puede usar un código quien la abrió.",
+        description: "El PIN nuevo quedó guardado, pero solo puede entrar quien abrió la caja.",
       };
     case "code_invalid":
       return {
