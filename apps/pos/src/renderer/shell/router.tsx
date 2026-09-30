@@ -18,9 +18,10 @@ import { PinCodeRedemptionScreen } from "../access/pin-code-redemption-screen";
 import { SignInScreen } from "../access/sign-in-screen";
 import type { SignedInPerson } from "../access/signed-in-person";
 import { EnrollmentScreen } from "../register/enrollment-screen";
+import { ACTION_ENTRIES } from "./action-entries";
 import { BrandPanelScreen } from "./brand-panel-screen";
 import { CoreDownNotice } from "./core-down-notice";
-import { SignedInScreen } from "./signed-in-screen";
+import { NoSessionScreen } from "./no-session-screen";
 
 export type CoreStatus = CoreStatusMessage["status"];
 
@@ -34,6 +35,7 @@ export interface RouterContext {
   signInUsers: () => Promise<SignInUser[]>;
   signIn: (userId: string, pin: string) => Promise<SignInOutcome>;
   registerName: () => Promise<string | null>;
+  signOut: () => void;
   redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
 }
 
@@ -88,9 +90,16 @@ const signedInRoute = createRoute({
   path: "/",
   beforeLoad: ({ context }) => ({ person: requireSignedInPerson(context) }),
   component: function SignedInRoute() {
-    const { person } = signedInRoute.useRouteContext();
+    const { person, signOut } = signedInRoute.useRouteContext();
     const registerName = sessionEyebrowRoute.useLoaderData();
-    return <SignedInScreen person={person} registerName={registerName} />;
+    return (
+      <NoSessionScreen
+        person={person}
+        registerName={registerName}
+        entries={ACTION_ENTRIES}
+        signOut={signOut}
+      />
+    );
   },
 });
 
@@ -163,7 +172,7 @@ export function createRegisterRouter<TRouteTree extends AnyRoute>(
 export function createAppRouter(
   services: Pick<
     RouterContext,
-    "enroll" | "registerName" | "signInUsers" | "signIn" | "redeemPinCode"
+    "enroll" | "registerName" | "signInUsers" | "signIn" | "signOut" | "redeemPinCode"
   >,
 ) {
   return createRegisterRouter(
