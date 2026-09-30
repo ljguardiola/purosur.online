@@ -177,4 +177,31 @@ describe("the register's local migrations", () => {
       rmSync(folder, { recursive: true, force: true });
     }
   });
+
+  it("add the remembered users over the users and verifiers a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.slice(0, 5);
+      const before = openLocalDatabase(path, previous);
+      before
+        .prepare(
+          "INSERT INTO users (id, first_name, role_id, salt, active, version) VALUES ('u1', 'Ada', 'role', 'salt', 1, 3)",
+        )
+        .run();
+      before.prepare("INSERT INTO pin_verifiers (user_id, verifier) VALUES ('u1', 'v')").run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+
+      expect(after.prepare("SELECT first_name, version FROM users").all()).toEqual([
+        { first_name: "Ada", version: 3 },
+      ]);
+      expect(after.prepare("SELECT user_id FROM pin_verifiers").all()).toEqual([{ user_id: "u1" }]);
+      expect(after.prepare("SELECT user_id FROM remembered_users").all()).toEqual([]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
 });
