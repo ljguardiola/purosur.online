@@ -46,7 +46,7 @@ test("fetchSession returns the signed-in user's identity, permissions and deadli
     expiresAt: "2026-09-23T12:30:00.000Z",
     permissions: ["void_sale", "sell_and_charge"],
   });
-  expect(fetch).toHaveBeenCalledWith("/users/session");
+  expect(fetch).toHaveBeenCalledWith("/api/users/session");
 });
 
 test("fetchSession reports isAdministrator true for an Administrator session", async () => {
@@ -114,7 +114,7 @@ test("checkSessionStatus returns the session's deadline on 200, without touching
   const outcome = await checkSessionStatus();
 
   expect(outcome).toEqual({ kind: "ok", expiresAt: "2026-09-23T12:30:00.000Z" });
-  expect(fetch).toHaveBeenCalledWith("/users/session/status");
+  expect(fetch).toHaveBeenCalledWith("/api/users/session/status");
 });
 
 test("checkSessionStatus reports unauthenticated on 401", async () => {
@@ -177,7 +177,7 @@ test("fetchAuthenticationOptions posts with no body and returns the WebAuthn opt
 
   expect(outcome).toEqual({ kind: "ok", value: options });
   expect(fetch).toHaveBeenCalledWith(
-    "/users/session/authentication-options",
+    "/api/users/session/authentication-options",
     expect.objectContaining({ method: "POST" }),
   );
 });
@@ -215,7 +215,7 @@ test("authenticate posts the assertion and reports ok on 200", async () => {
 
   expect(outcome).toEqual({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith(
-    "/users/session/authenticate",
+    "/api/users/session/authenticate",
     expect.objectContaining({ method: "POST", body: JSON.stringify({ assertion }) }),
   );
 });
@@ -262,7 +262,7 @@ test("signOut posts with no body and reports that the session was ended", async 
 
   await expect(signOut()).resolves.toEqual({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith(
-    "/users/session/sign-out",
+    "/api/users/session/sign-out",
     expect.objectContaining({ method: "POST" }),
   );
 });
@@ -300,7 +300,7 @@ test("fetchSessionAuthorizationOptions posts with no body and returns the WebAut
 
   expect(outcome).toEqual({ kind: "ok", value: options });
   expect(fetch).toHaveBeenCalledWith(
-    "/users/session/authorization-options",
+    "/api/users/session/authorization-options",
     expect.objectContaining({ method: "POST" }),
   );
 });
@@ -355,7 +355,7 @@ test("authorizeSession posts the authorization and reports ok on 200", async () 
 
   expect(outcome).toEqual({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith(
-    "/users/session/authorization",
+    "/api/users/session/authorization",
     expect.objectContaining({ method: "POST", body: JSON.stringify({ authorization }) }),
   );
 });

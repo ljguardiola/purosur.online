@@ -65,7 +65,7 @@ test("fetchBranchSettings returns the branch's settings on 200", async () => {
   const outcome = await fetchBranchSettings();
 
   expect(outcome).toEqual({ kind: "ok", value: settings });
-  expect(fetch).toHaveBeenCalledWith("/branch-settings");
+  expect(fetch).toHaveBeenCalledWith("/api/branch-settings");
 });
 
 test.each([
@@ -123,7 +123,7 @@ test("saveBranchSettings PUTs every field, each day's ranges in order, and the v
   const outcome = await saveBranchSettings(wireRow);
 
   expect(outcome).toEqual({ kind: "ok" });
-  expect(fetch).toHaveBeenCalledWith("/branch-settings", {
+  expect(fetch).toHaveBeenCalledWith("/api/branch-settings", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(wireRow),

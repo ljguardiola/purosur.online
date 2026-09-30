@@ -24,7 +24,7 @@ test("reads the configuration the cloud answers", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, enabled));
 
   expect(await fetchErrorReportingConfiguration()).toEqual(enabled);
-  expect(fetch).toHaveBeenCalledWith("/error-reporting");
+  expect(fetch).toHaveBeenCalledWith("/api/error-reporting");
 });
 
 test("reads that reporting is off", async () => {

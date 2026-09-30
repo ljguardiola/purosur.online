@@ -42,7 +42,7 @@ test("fetchRegisters lists every register, translating pending_code from the wir
   const outcome = await fetchRegisters();
 
   expect(outcome).toEqual({ kind: "ok", value: [register1, register2] });
-  expect(fetch).toHaveBeenCalledWith("/registers");
+  expect(fetch).toHaveBeenCalledWith("/api/registers");
 });
 
 test("fetchRegisters returns unauthenticated on 401", async () => {
@@ -95,7 +95,7 @@ test("createRegister posts the name and returns ok on 201", async () => {
   const outcome = await createRegister({ name: "Caja 3" });
 
   expect(outcome).toEqual({ kind: "ok" });
-  expect(fetch).toHaveBeenCalledWith("/registers", {
+  expect(fetch).toHaveBeenCalledWith("/api/registers", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name: "Caja 3" }),
@@ -206,7 +206,7 @@ test("emitEnrollmentCode posts to the register's enrollment-code route and retur
     kind: "ok",
     value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
   });
-  expect(fetch).toHaveBeenCalledWith("/registers/register-2/enrollment-code", {
+  expect(fetch).toHaveBeenCalledWith("/api/registers/register-2/enrollment-code", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({}),
@@ -277,7 +277,7 @@ test("fetchRegisterCoverage lists the permissions nobody active at the branch ho
   const outcome = await fetchRegisterCoverage();
 
   expect(outcome).toEqual({ kind: "ok", value: ["void_sale", "correct_register_clock"] });
-  expect(fetch).toHaveBeenCalledWith("/registers/coverage");
+  expect(fetch).toHaveBeenCalledWith("/api/registers/coverage");
 });
 
 test.each([

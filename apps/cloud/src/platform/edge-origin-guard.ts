@@ -9,7 +9,7 @@ const DIRECT_ACCESS_REJECTED_RESPONSE = {
   message: "this request did not come through the edge",
 } as const;
 
-const HEALTH_CHECK_ROUTE = "/health";
+const HEALTH_CHECK_ROUTE = "/api/health";
 
 /**
  * Railway's own healthcheck reaches the container directly, bypassing Cloudflare. Fastify's

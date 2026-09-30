@@ -56,7 +56,7 @@ function queryString(listQuery: AlertListQuery): string {
 export async function fetchAlerts(listQuery: AlertListQuery = {}): Promise<FetchAlertsOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/alerts${queryString(listQuery)}`);
+    response = await fetch(`/api/alerts${queryString(listQuery)}`);
   } catch {
     return { kind: "failed" };
   }
@@ -79,7 +79,7 @@ export async function fetchAlerts(listQuery: AlertListQuery = {}): Promise<Fetch
 export async function fetchAlertsOverview(): Promise<FetchAlertsOverviewOutcome> {
   let response: Response;
   try {
-    response = await fetch("/alerts/overview");
+    response = await fetch("/api/alerts/overview");
   } catch {
     return { kind: "failed" };
   }
@@ -102,7 +102,7 @@ export async function fetchAlertsOverview(): Promise<FetchAlertsOverviewOutcome>
 export async function fetchAlert(id: string): Promise<FetchAlertOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/alerts/${id}`);
+    response = await fetch(`/api/alerts/${id}`);
   } catch {
     return { kind: "failed" };
   }
@@ -128,7 +128,7 @@ export async function fetchAlert(id: string): Promise<FetchAlertOutcome> {
 export async function closeAlert(id: string): Promise<CloseAlertOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/alerts/${id}/close`, {
+    response = await fetch(`/api/alerts/${id}/close`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),

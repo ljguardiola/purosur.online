@@ -19,7 +19,7 @@ function isEnabledConfiguration(
 
 export async function fetchErrorReportingConfiguration(): Promise<ErrorReportingConfiguration> {
   try {
-    const response = await fetch("/error-reporting");
+    const response = await fetch("/api/error-reporting");
     if (!response.ok) {
       return OFF;
     }
