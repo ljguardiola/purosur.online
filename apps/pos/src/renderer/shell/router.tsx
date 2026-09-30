@@ -1,6 +1,7 @@
 import type {
   CoreStatusMessage,
   EnrollmentOutcome,
+  PinCodeRedemptionOutcome,
   SignInOutcome,
   SignInUser,
 } from "@purosur/contracts";
@@ -13,6 +14,7 @@ import {
   Outlet,
   redirect,
 } from "@tanstack/react-router";
+import { PinCodeRedemptionScreen } from "../access/pin-code-redemption-screen";
 import { SignInScreen } from "../access/sign-in-screen";
 import type { SignedInPerson } from "../access/signed-in-person";
 import { EnrollmentScreen } from "../register/enrollment-screen";
@@ -32,6 +34,7 @@ export interface RouterContext {
   signInUsers: () => Promise<SignInUser[]>;
   signIn: (userId: string, pin: string) => Promise<SignInOutcome>;
   registerName: () => Promise<string | null>;
+  redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
 }
 
 type ScreenPath = "/" | "/sign-in" | "/enroll" | "/starting" | "/core-down";
@@ -102,6 +105,16 @@ const signInRoute = createRoute({
   },
 });
 
+const pinCodeRedemptionRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/pin-code-redemption",
+  beforeLoad: ({ context }) => requireRoute("/sign-in", context),
+  component: function PinCodeRedemptionRoute() {
+    const { redeemPinCode } = pinCodeRedemptionRoute.useRouteContext();
+    return <PinCodeRedemptionScreen redeem={redeemPinCode} />;
+  },
+});
+
 const enrollRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/enroll",
@@ -128,6 +141,7 @@ const coreDownRoute = createRoute({
 
 export const routeTree = rootRoute.addChildren([
   sessionEyebrowRoute.addChildren([signedInRoute, signInRoute]),
+  pinCodeRedemptionRoute,
   enrollRoute,
   startingRoute,
   coreDownRoute,
@@ -147,7 +161,10 @@ export function createRegisterRouter<TRouteTree extends AnyRoute>(
 }
 
 export function createAppRouter(
-  services: Pick<RouterContext, "enroll" | "registerName" | "signInUsers" | "signIn">,
+  services: Pick<
+    RouterContext,
+    "enroll" | "registerName" | "signInUsers" | "signIn" | "redeemPinCode"
+  >,
 ) {
   return createRegisterRouter(
     routeTree,

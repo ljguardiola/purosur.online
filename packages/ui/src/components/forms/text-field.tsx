@@ -54,6 +54,8 @@ type TextFieldCommonProps = {
   // Keeps the label as the input's accessible name but renders it visually hidden (`sr-only`)
   // instead of the ordinary visible caption.
   labelVisuallyHidden?: boolean;
+  type?: "text" | "password";
+  inputMode?: "text" | "numeric";
 };
 
 type TextFieldKindProps =
@@ -128,6 +130,8 @@ export function TextField(props: TextFieldProps | TextFieldReadOnlyReasonProps) 
     required = false,
     labelledBy,
     labelVisuallyHidden = false,
+    type = "text",
+    inputMode,
     kind,
   } = props;
   const { readOnlyReason } = props;
@@ -172,6 +176,7 @@ export function TextField(props: TextFieldProps | TextFieldReadOnlyReasonProps) 
   ]
     .filter((id) => id !== undefined)
     .join(" ");
+  const inputModeProps = inputMode !== undefined ? { inputMode } : {};
   const describedByProps = describedBy !== "" ? { "aria-describedby": describedBy } : {};
 
   // react-aria's useTextField wires the input's accessible name to this label through its own
@@ -196,6 +201,8 @@ export function TextField(props: TextFieldProps | TextFieldReadOnlyReasonProps) 
       isReadOnly={readOnly}
       isRequired={required}
       isInvalid={invalid}
+      type={type}
+      {...inputModeProps}
       {...describedByProps}
       className={`${fieldWrapperClassName} ${fieldWrapperGapClassName[size]}`}
     >

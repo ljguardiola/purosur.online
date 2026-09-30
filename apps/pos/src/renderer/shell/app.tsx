@@ -33,6 +33,7 @@ export function App({ core }: { core: CoreClient }) {
     registerName: () => core.registerName(),
     signInUsers: () => core.signInUsers(),
     signIn,
+    redeemPinCode: (typedCode: string, newPin: string) => core.redeemPinCode(typedCode, newPin),
   };
 
   const [router] = useState(() => createAppRouter(services));

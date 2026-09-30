@@ -1,5 +1,5 @@
 {
-  "id": "4c863fc3-c706-40e3-b6b7-5ad5e30c1830",
+  "id": "d2ff706e-f502-495b-aebb-825f1f4da1c2",
   "prevId": "797874b4-a401-4f00-90c0-06989c27830a",
   "version": "7",
   "dialect": "postgresql",
@@ -1188,6 +1188,88 @@
           "onUpdate": "no action"
         }
       },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.pin_code_redemption_attempts": {
+      "name": "pin_code_redemption_attempts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "key_kind": {
+          "name": "key_kind",
+          "type": "pin_code_redemption_attempt_key_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key_value": {
+          "name": "key_value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "attempted_at": {
+          "name": "attempted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "pin_code_redemption_attempts_key_idx": {
+          "name": "pin_code_redemption_attempts_key_idx",
+          "columns": [
+            {
+              "expression": "key_kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "key_value",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "attempted_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pin_code_redemption_attempts_attempted_at_idx": {
+          "name": "pin_code_redemption_attempts_attempted_at_idx",
+          "columns": [
+            {
+              "expression": "attempted_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -2453,13 +2535,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -3554,6 +3629,11 @@
       "name": "passkey_management_challenge_kind",
       "schema": "public",
       "values": ["registration", "session_authorization"]
+    },
+    "public.pin_code_redemption_attempt_key_kind": {
+      "name": "pin_code_redemption_attempt_key_kind",
+      "schema": "public",
+      "values": ["source_address", "register"]
     },
     "public.recovery_rate_limit_key_kind": {
       "name": "recovery_rate_limit_key_kind",

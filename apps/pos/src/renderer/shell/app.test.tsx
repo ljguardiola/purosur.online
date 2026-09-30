@@ -38,6 +38,9 @@ function coreAnswering(
     async enroll() {
       return outcome;
     },
+    async redeemPinCode() {
+      return { kind: "redeemed" };
+    },
     async signInUsers() {
       usersLoads += 1;
       return [{ id: "u1", first_name: "Ada" }];

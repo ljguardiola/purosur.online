@@ -2,7 +2,7 @@ import type { SignInOutcome, SignInUser } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
+import { render } from "../shell/test-support/render-with-router";
 import { SignInScreen } from "./sign-in-screen";
 
 const USERS: SignInUser[] = [
@@ -315,5 +315,40 @@ describe("SignInScreen", () => {
 
     await expect.element(screen.getByRole("radio", { name: "Ada" })).toBeVisible();
     expect(attempts).toBe(2);
+  });
+
+  it.each<{ state: string; loadUsers: () => Promise<SignInUser[]> }>([
+    { state: "loading", loadUsers: () => new Promise<SignInUser[]>(() => {}) },
+    {
+      state: "failed to load",
+      loadUsers: async () => {
+        throw new Error("the core could not read them");
+      },
+    },
+    { state: "empty", loadUsers: async () => [] },
+    { state: "loaded", loadUsers: async () => USERS },
+  ])("offers changing the PIN with a code while the users are $state", async ({ loadUsers }) => {
+    const screen = await render(
+      <SignInScreen
+        loadUsers={loadUsers}
+        signIn={answering(SIGNED_IN).signIn}
+        registerName={null}
+      />,
+    );
+
+    const link = screen.getByRole("link", { name: "Tengo un código para cambiar el PIN" });
+    await expect.element(link).toBeVisible();
+    expect(link.element().getAttribute("href")).toBe("/pin-code-redemption");
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("offers changing the PIN with a code after the button that signs in", async () => {
+    const screen = await renderScreen();
+
+    const button = screen.getByRole("button", { name: "Entrar" }).element();
+    const link = screen
+      .getByRole("link", { name: "Tengo un código para cambiar el PIN" })
+      .element();
+    expect(button.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

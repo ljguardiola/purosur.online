@@ -1,4 +1,14 @@
 import type {
+  HashedPin,
+  LockedPinCode,
+  PinCodeHolder,
+  PinCodeRedemption,
+  PinCodeRedemptionAttemptKey,
+  PinCodeRedemptionStore,
+  PinCodeRedemptionStoreTransaction,
+  PinHasher,
+} from "../pin-code-redemption-store.js";
+import type {
   Clock,
   GeneratedPinCode,
   NewPinCode,
@@ -15,24 +25,39 @@ export interface FakePinCode extends NewPinCode {
   supersededAt: Date | null;
 }
 
+export interface FakeRedemptionAttempt {
+  key: PinCodeRedemptionAttemptKey;
+  attemptedAt: Date;
+}
+
 export interface FakePinCodeState {
   users: Map<string, PinCodeTarget>;
-  pins: Set<string>;
+  pins: Map<string, HashedPin>;
   codes: FakePinCode[];
   emissions: PinCodeEmission[];
+  attempts: FakeRedemptionAttempt[];
+  redemptions: PinCodeRedemption[];
+  pinChanges: { userId: string; changedAt: Date }[];
 }
 
 type WriteOperation =
   | "supersedeLivePinCodes"
   | "removePin"
   | "recordPinCode"
-  | "recordPinCodeEmission";
+  | "recordPinCodeEmission"
+  | "recordPinCodeRedemptionAttempt"
+  | "recordFailedPinCodeRedemption"
+  | "replacePin"
+  | "markPinCodeRedeemed"
+  | "recordPinCodeRedemption";
 
 function cloneState(state: FakePinCodeState): FakePinCodeState {
   return structuredClone(state);
 }
 
-class FakePinCodeStoreTransaction implements PinCodeStoreTransaction {
+class FakePinCodeStoreTransaction
+  implements PinCodeStoreTransaction, PinCodeRedemptionStoreTransaction
+{
   private readonly state: FakePinCodeState;
   private readonly store: FakePinCodeStore;
 
@@ -83,6 +108,92 @@ class FakePinCodeStoreTransaction implements PinCodeStoreTransaction {
     this.state.emissions.push(structuredClone(emission));
   }
 
+  async findPinCodeHolder(codeHash: string): Promise<string | undefined> {
+    this.store.operationOrder.push("findPinCodeHolder");
+    return this.state.codes.find((candidate) => candidate.codeHash === codeHash)?.userId;
+  }
+
+  async lockPinCodeHolder(userId: string): Promise<PinCodeHolder | undefined> {
+    this.store.operationOrder.push("lockPinCodeHolder");
+    const user = this.state.users.get(userId);
+    return user ? { active: user.active } : undefined;
+  }
+
+  async lockHeldPinCode(userId: string, codeHash: string): Promise<LockedPinCode | undefined> {
+    this.store.operationOrder.push("lockHeldPinCode");
+    const code = this.state.codes.find(
+      (candidate) => candidate.userId === userId && candidate.codeHash === codeHash,
+    );
+    if (!code) {
+      return undefined;
+    }
+    return {
+      expiresAt: new Date(code.expiresAt),
+      failedAttempts: code.failedAttempts,
+      redeemedAt: code.redeemedAt && new Date(code.redeemedAt),
+      supersededAt: code.supersededAt && new Date(code.supersededAt),
+    };
+  }
+
+  async lockPinCodeRedemptionAttempts(keys: readonly PinCodeRedemptionAttemptKey[]): Promise<void> {
+    this.store.operationOrder.push("lockPinCodeRedemptionAttempts");
+    this.store.lockedAttemptKeys.push(...keys.map((key) => ({ ...key })));
+  }
+
+  async acceptedPinCodeRedemptionAttempts(
+    key: PinCodeRedemptionAttemptKey,
+    since: Date,
+  ): Promise<Date[]> {
+    this.store.operationOrder.push("acceptedPinCodeRedemptionAttempts");
+    return this.state.attempts
+      .filter(
+        (attempt) =>
+          attempt.key.kind === key.kind &&
+          attempt.key.value === key.value &&
+          attempt.attemptedAt > since,
+      )
+      .map((attempt) => new Date(attempt.attemptedAt));
+  }
+
+  async recordPinCodeRedemptionAttempt(
+    keys: readonly PinCodeRedemptionAttemptKey[],
+    attemptedAt: Date,
+  ): Promise<void> {
+    this.beforeWrite("recordPinCodeRedemptionAttempt");
+    for (const key of keys) {
+      this.state.attempts.push({ key: { ...key }, attemptedAt: new Date(attemptedAt) });
+    }
+  }
+
+  async recordFailedPinCodeRedemption(codeHash: string): Promise<void> {
+    this.beforeWrite("recordFailedPinCodeRedemption");
+    for (const code of this.state.codes) {
+      if (code.codeHash === codeHash) {
+        code.failedAttempts += 1;
+      }
+    }
+  }
+
+  async replacePin(userId: string, pin: HashedPin, changedAt: Date): Promise<void> {
+    this.beforeWrite("replacePin");
+    this.state.pins.set(userId, { ...pin });
+    this.state.pinChanges.push({ userId, changedAt: new Date(changedAt) });
+  }
+
+  async markPinCodeRedeemed(codeHash: string, redeemedAt: Date): Promise<void> {
+    this.beforeWrite("markPinCodeRedeemed");
+    for (const code of this.state.codes) {
+      if (code.codeHash === codeHash) {
+        code.redeemedAt = new Date(redeemedAt);
+      }
+    }
+  }
+
+  async recordPinCodeRedemption(redemption: PinCodeRedemption): Promise<void> {
+    this.beforeWrite("recordPinCodeRedemption");
+    this.state.redemptions.push(structuredClone(redemption));
+  }
+
   private beforeWrite(operation: WriteOperation): void {
     this.store.operationOrder.push(operation);
     if (this.store.failingWrites.has(operation)) {
@@ -91,21 +202,25 @@ class FakePinCodeStoreTransaction implements PinCodeStoreTransaction {
   }
 }
 
-export class FakePinCodeStore implements PinCodeStore {
+export class FakePinCodeStore implements PinCodeStore, PinCodeRedemptionStore {
   private state: FakePinCodeState = {
     users: new Map(),
-    pins: new Set(),
+    pins: new Map(),
     codes: [],
     emissions: [],
+    attempts: [],
+    redemptions: [],
+    pinChanges: [],
   };
 
   failingWrites = new Set<WriteOperation>();
   operationOrder: string[] = [];
+  lockedAttemptKeys: PinCodeRedemptionAttemptKey[] = [];
 
   seedUser(userId: string, target: PinCodeTarget, options: { hasPin?: boolean } = {}): void {
     this.state.users.set(userId, { ...target });
     if (options.hasPin) {
-      this.state.pins.add(userId);
+      this.state.pins.set(userId, { salt: "old-salt", pinHash: "old-hash" });
     }
   }
 
@@ -121,12 +236,16 @@ export class FakePinCodeStore implements PinCodeStore {
     });
   }
 
+  seedAttempt(attempt: FakeRedemptionAttempt): void {
+    this.state.attempts.push(structuredClone(attempt));
+  }
+
   snapshot(): FakePinCodeState {
     return cloneState(this.state);
   }
 
   async transaction<TOutcome>(
-    work: (tx: PinCodeStoreTransaction) => Promise<TOutcome>,
+    work: (tx: FakePinCodeStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     const before = cloneState(this.state);
     try {
@@ -159,5 +278,11 @@ export class SequentialPinCodes implements PinCodeGenerator {
     this.generated += 1;
     const code = `PINCODE${String(this.generated).padStart(9, "0")}`;
     return { code, codeHash: hashOfPinCode(code) };
+  }
+}
+
+export class FakePinHasher implements PinHasher {
+  async hash(pin: string): Promise<HashedPin> {
+    return { salt: `salt-for-${pin}`, pinHash: `hash-of-${pin}` };
   }
 }

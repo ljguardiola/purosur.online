@@ -4,10 +4,12 @@ import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requ
 
 function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const enrolledCodes: string[] = [];
+  const redemptions: { resetCode: string; newPin: string }[] = [];
   const signIns: { userId: string; pin: string }[] = [];
   const failures: { context: string; error: unknown }[] = [];
   return {
     enrolledCodes,
+    redemptions,
     signIns,
     failures,
     deps: {
@@ -16,6 +18,10 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       enroll: async (code: string) => {
         enrolledCodes.push(code);
         return { kind: "code_rejected" as const };
+      },
+      redeemPinCode: async (resetCode: string, newPin: string) => {
+        redemptions.push({ resetCode, newPin });
+        return { kind: "code_expired" as const };
       },
       signInUsers: () => [{ id: "u1", first_name: "Ada" }],
       signIn: async (userId: string, pin: string): Promise<SignInOutcome> => {
@@ -75,6 +81,24 @@ describe("answerRendererRequest", () => {
       type: "enrollment-result",
       request_id: "r2",
       outcome: { kind: "code_rejected" },
+    });
+  });
+
+  it("redeems the PIN code as typed and answers the outcome", async () => {
+    const { deps: withRedeem, redemptions } = deps(true);
+
+    const answer = await answerRendererRequest(withRedeem, {
+      type: "redeem-pin-code",
+      request_id: "r3",
+      reset_code: "k7qm 2xpa 3dtr 4hwn",
+      new_pin: "482915",
+    });
+
+    expect(redemptions).toEqual([{ resetCode: "k7qm 2xpa 3dtr 4hwn", newPin: "482915" }]);
+    expect(answer).toEqual({
+      type: "pin-code-redemption-result",
+      request_id: "r3",
+      outcome: { kind: "code_expired" },
     });
   });
 

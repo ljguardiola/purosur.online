@@ -18,7 +18,9 @@ import {
   sentryEnvironmentFromCoreArguments,
 } from "../shared/channel";
 import { CORE_READY_MESSAGE } from "../shared/core-readiness";
+import { redeemPinCode } from "./access/pin-code-redemption";
 import { hashPin } from "./access/pin-hash";
+import { applyRedeemedPin } from "./access/redeemed-pin";
 import { signIn } from "./access/sign-in";
 import { SqliteSignInStore } from "./access/sqlite-sign-in-store";
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
@@ -171,6 +173,27 @@ const rendererRequestDeps: RendererRequestDeps = {
     }
     return outcome;
   },
+  redeemPinCode: (typedCode: string, newPin: string) =>
+    redeemPinCode(
+      {
+        readCredentials: () => mainRequests.readCredentials(),
+        postToCloud:
+          cloudClient === undefined
+            ? undefined
+            : (path, bearerToken, body) =>
+                postToCloudWithBearer(cloudClient, path, bearerToken, body),
+        applyRedeemedPin:
+          localDatabase === undefined
+            ? undefined
+            : (pepper, redemption) => applyRedeemedPin(localDatabase, pepper, redemption),
+        reportLocalFailure: (error) => {
+          console.error("core: the redeemed PIN could not be kept locally", error);
+          Sentry.captureException(error);
+        },
+      },
+      typedCode,
+      newPin,
+    ),
   signInUsers: signInStore === undefined ? undefined : () => signInStore.signableUsers(),
   signIn:
     signInStore === undefined
