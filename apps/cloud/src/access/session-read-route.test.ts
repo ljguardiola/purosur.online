@@ -117,18 +117,6 @@ async function seededAdministratorRoleId(): Promise<string> {
 }
 
 describe("GET /sessions/current", () => {
-  it("no longer answers the old session path", async () => {
-    const rawSessionId = await insertSession();
-
-    const response = await app.inject({
-      method: "GET",
-      url: "/users/session",
-      headers: { cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` },
-    });
-
-    expect(response.statusCode).toBe(404);
-  });
-
   it("returns 401 unauthenticated when no cookie was sent", async () => {
     const response = await getSession();
 

@@ -106,18 +106,6 @@ function getPasskeys(rawSessionId?: string) {
 }
 
 describe("GET /account/passkeys", () => {
-  it("no longer answers the old list path", async () => {
-    const rawSessionId = await insertSession();
-
-    const response = await app.inject({
-      method: "GET",
-      url: "/users/passkeys",
-      headers: { cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` },
-    });
-
-    expect(response.statusCode).toBe(404);
-  });
-
   it("returns 401 unauthenticated when no cookie was sent", async () => {
     const response = await getPasskeys();
 

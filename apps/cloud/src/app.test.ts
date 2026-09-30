@@ -3,7 +3,7 @@ import { request as httpRequest } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { healthCheckSchema } from "@purosur/contracts";
+import { healthCheckSchema, openSessionSchema, passkeyListSchema } from "@purosur/contracts";
 import { PERMISSION_KEYS } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -21,7 +21,14 @@ import {
 import { SESSION_COOKIE_NAME } from "./access/session-cookie.js";
 import { generateSessionId, hashSessionId } from "./access/session-id.js";
 import { buildApp as buildRealApp } from "./app.js";
-import { rolePermissions, roles, sessions, userRoles, users } from "./platform/db/schema.js";
+import {
+  passkeys,
+  rolePermissions,
+  roles,
+  sessions,
+  userRoles,
+  users,
+} from "./platform/db/schema.js";
 import { insertEnrolledInstallation } from "./register/test-support/enrolled-installation.js";
 import {
   buildTestApp as buildApp,
@@ -1584,6 +1591,82 @@ describe("deleting a product", () => {
     });
 
     expect(response.statusCode).toBe(404);
+  });
+});
+
+describe("the former session and passkey read paths", () => {
+  async function signedInAdministratorWithPasskey(): Promise<string> {
+    const db = testDatabase.db;
+    const [administratorRole] = await db
+      .select({ id: roles.id })
+      .from(roles)
+      .where(eq(roles.isAdministrator, true));
+    if (!administratorRole) {
+      throw new Error("test setup: no Administrator role seeded");
+    }
+    const [user] = await db
+      .insert(users)
+      .values({
+        firstName: "Ada Lovelace",
+        email: "ada@example.com",
+        locationId: await seededLocationId(db),
+      })
+      .returning({ id: users.id });
+    if (!user) {
+      throw new Error("test setup: seeding the user returned no row");
+    }
+    await db.insert(userRoles).values({ userId: user.id, roleId: administratorRole.id });
+    await db.insert(passkeys).values({
+      userId: user.id,
+      credentialId: "credential-laptop",
+      publicKey: "cHVibGljLWtleQ",
+      counter: 0,
+      deviceType: "singleDevice",
+      backedUp: false,
+      name: "Notebook",
+    });
+    const rawSessionId = generateSessionId();
+    await db.insert(sessions).values({
+      userId: user.id,
+      sessionIdHash: hashSessionId(rawSessionId),
+      createdAt: new Date(),
+      lastSeenAt: new Date(),
+    });
+    return rawSessionId;
+  }
+
+  function get(app: ReturnType<typeof buildApp>, url: string, rawSessionId: string) {
+    return app.inject({
+      method: "GET",
+      url,
+      headers: { origin: BACKOFFICE_ORIGIN, cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` },
+    });
+  }
+
+  it("no longer returns the session to an Administrator who can read it at its current path", async () => {
+    const app = productionWiredApp();
+    const rawSessionId = await signedInAdministratorWithPasskey();
+
+    const current = await get(app, "/api/sessions/current", rawSessionId);
+    const former = await get(app, "/api/users/session", rawSessionId);
+
+    expect(openSessionSchema.safeParse(current.json()).success).toBe(true);
+    expect(current.body).toContain("Ada Lovelace");
+    expect(openSessionSchema.safeParse(former.json()).success).toBe(false);
+    expect(former.body).not.toContain("Ada Lovelace");
+  });
+
+  it("no longer returns the passkeys to an Administrator who can list them at their current path", async () => {
+    const app = productionWiredApp();
+    const rawSessionId = await signedInAdministratorWithPasskey();
+
+    const current = await get(app, "/api/account/passkeys", rawSessionId);
+    const former = await get(app, "/api/users/passkeys", rawSessionId);
+
+    expect(passkeyListSchema.safeParse(current.json()).success).toBe(true);
+    expect(current.body).toContain("Notebook");
+    expect(passkeyListSchema.safeParse(former.json()).success).toBe(false);
+    expect(former.body).not.toContain("Notebook");
   });
 });
 
