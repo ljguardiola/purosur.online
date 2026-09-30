@@ -494,7 +494,7 @@ describe("POST /users/:id/passkeys/:passkeyId/remove", () => {
 
     const optionsResponse = await authApp.inject({
       method: "POST",
-      url: "/users/session/authentication-options",
+      url: "/authentication-challenges",
       headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.50" },
     });
     const assertion = targetEmulatorA.getJSON(
@@ -503,7 +503,7 @@ describe("POST /users/:id/passkeys/:passkeyId/remove", () => {
     );
     const authenticateResponse = await authApp.inject({
       method: "POST",
-      url: "/users/session/authenticate",
+      url: "/sessions",
       headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.50" },
       payload: { assertion },
     });

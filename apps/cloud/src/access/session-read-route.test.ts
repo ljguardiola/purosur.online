@@ -92,7 +92,7 @@ async function insertSession(overrides: InsertSessionOverrides = {}): Promise<st
 function getSession(rawSessionId?: string) {
   return app.inject({
     method: "GET",
-    url: "/users/session",
+    url: "/sessions/current",
     headers: rawSessionId ? { cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` } : {},
   });
 }
@@ -116,7 +116,19 @@ async function seededAdministratorRoleId(): Promise<string> {
   return administratorRole.id;
 }
 
-describe("GET /users/session", () => {
+describe("GET /sessions/current", () => {
+  it("no longer answers the old session path", async () => {
+    const rawSessionId = await insertSession();
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/users/session",
+      headers: { cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
   it("returns 401 unauthenticated when no cookie was sent", async () => {
     const response = await getSession();
 
@@ -303,7 +315,7 @@ describe("GET /users/session", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/users/session",
+      url: "/sessions/current",
       headers: {
         cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}`,
         origin: "https://attacker.example",
@@ -413,7 +425,7 @@ describe("GET /users/session", () => {
     try {
       const response = await observedApp.inject({
         method: "GET",
-        url: "/users/session",
+        url: "/sessions/current",
         headers: { cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` },
       });
 

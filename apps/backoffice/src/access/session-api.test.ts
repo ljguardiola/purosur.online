@@ -46,7 +46,7 @@ test("fetchSession returns the signed-in user's identity, permissions and deadli
     expiresAt: "2026-09-23T12:30:00.000Z",
     permissions: ["void_sale", "sell_and_charge"],
   });
-  expect(fetch).toHaveBeenCalledWith("/api/users/session");
+  expect(fetch).toHaveBeenCalledWith("/api/sessions/current");
 });
 
 test("fetchSession reports isAdministrator true for an Administrator session", async () => {
@@ -114,7 +114,7 @@ test("checkSessionStatus returns the session's deadline on 200, without touching
   const outcome = await checkSessionStatus();
 
   expect(outcome).toEqual({ kind: "ok", expiresAt: "2026-09-23T12:30:00.000Z" });
-  expect(fetch).toHaveBeenCalledWith("/api/users/session/status");
+  expect(fetch).toHaveBeenCalledWith("/api/sessions/current/expiration");
 });
 
 test("checkSessionStatus reports unauthenticated on 401", async () => {
@@ -177,7 +177,7 @@ test("fetchAuthenticationOptions posts with no body and returns the WebAuthn opt
 
   expect(outcome).toEqual({ kind: "ok", value: options });
   expect(fetch).toHaveBeenCalledWith(
-    "/api/users/session/authentication-options",
+    "/api/authentication-challenges",
     expect.objectContaining({ method: "POST" }),
   );
 });
@@ -215,7 +215,7 @@ test("authenticate posts the assertion and reports ok on 200", async () => {
 
   expect(outcome).toEqual({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith(
-    "/api/users/session/authenticate",
+    "/api/sessions",
     expect.objectContaining({ method: "POST", body: JSON.stringify({ assertion }) }),
   );
 });
@@ -257,14 +257,11 @@ test("authenticate reports unknown_passkey on a 401 carrying that code, discrimi
   await expect(authenticate(assertion)).resolves.toEqual({ kind: "unknown_passkey" });
 });
 
-test("signOut posts with no body and reports that the session was ended", async () => {
+test("signOut deletes the current session with no body and reports that it was ended", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
 
   await expect(signOut()).resolves.toEqual({ kind: "ok" });
-  expect(fetch).toHaveBeenCalledWith(
-    "/api/users/session/sign-out",
-    expect.objectContaining({ method: "POST" }),
-  );
+  expect(fetch).toHaveBeenCalledWith("/api/sessions/current", { method: "DELETE" });
 });
 
 test("signOut reports ok on 401, where the cloud has no session left to end", async () => {
@@ -300,7 +297,7 @@ test("fetchSessionAuthorizationOptions posts with no body and returns the WebAut
 
   expect(outcome).toEqual({ kind: "ok", value: options });
   expect(fetch).toHaveBeenCalledWith(
-    "/api/users/session/authorization-options",
+    "/api/sessions/current/authorization-challenges",
     expect.objectContaining({ method: "POST" }),
   );
 });
@@ -348,15 +345,15 @@ test("fetchSessionAuthorizationOptions reports failed on any other status or a n
 
 const authorization = { id: "existing-cred" } as unknown as AuthenticationResponseJSON;
 
-test("authorizeSession posts the authorization and reports ok on 200", async () => {
+test("authorizeSession puts the authorization and reports ok on 200", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
 
   const outcome = await authorizeSession(authorization);
 
   expect(outcome).toEqual({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith(
-    "/api/users/session/authorization",
-    expect.objectContaining({ method: "POST", body: JSON.stringify({ authorization }) }),
+    "/api/sessions/current/authorization",
+    expect.objectContaining({ method: "PUT", body: JSON.stringify({ authorization }) }),
   );
 });
 

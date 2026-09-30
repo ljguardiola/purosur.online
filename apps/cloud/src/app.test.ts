@@ -627,24 +627,27 @@ describe("wiring the recovery routes", () => {
 });
 
 describe("wiring the session routes", () => {
-  it("does not register GET /api/users/session, its status route, POST /api/users/session/sign-out, or the authorization pair when no session option is given", async () => {
+  it("does not register GET /api/sessions/current, its status route, DELETE /api/sessions/current, or the authorization pair when no session option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
-    const readResponse = await app.inject({ method: "GET", url: "/api/users/session" });
-    const statusResponse = await app.inject({ method: "GET", url: "/api/users/session/status" });
+    const readResponse = await app.inject({ method: "GET", url: "/api/sessions/current" });
+    const statusResponse = await app.inject({
+      method: "GET",
+      url: "/api/sessions/current/expiration",
+    });
     const signOutResponse = await app.inject({
-      method: "POST",
-      url: "/api/users/session/sign-out",
+      method: "DELETE",
+      url: "/api/sessions/current",
       headers: { origin: "https://staging.purosur.online" },
     });
     const authorizationOptionsResponse = await app.inject({
       method: "POST",
-      url: "/api/users/session/authorization-options",
+      url: "/api/sessions/current/authorization-challenges",
       headers: { origin: "https://staging.purosur.online" },
     });
     const authorizationResponse = await app.inject({
-      method: "POST",
-      url: "/api/users/session/authorization",
+      method: "PUT",
+      url: "/api/sessions/current/authorization",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -655,27 +658,30 @@ describe("wiring the session routes", () => {
     expect(authorizationResponse.statusCode).toBe(404);
   });
 
-  it("registers GET /api/users/session, its status route, POST /api/users/session/sign-out, and the authorization pair when a session option is given", async () => {
+  it("registers GET /api/sessions/current, its status route, DELETE /api/sessions/current, and the authorization pair when a session option is given", async () => {
     const app = buildApp({
       version: "abc1234",
       session: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
 
-    const readResponse = await app.inject({ method: "GET", url: "/api/users/session" });
-    const statusResponse = await app.inject({ method: "GET", url: "/api/users/session/status" });
+    const readResponse = await app.inject({ method: "GET", url: "/api/sessions/current" });
+    const statusResponse = await app.inject({
+      method: "GET",
+      url: "/api/sessions/current/expiration",
+    });
     const signOutResponse = await app.inject({
-      method: "POST",
-      url: "/api/users/session/sign-out",
+      method: "DELETE",
+      url: "/api/sessions/current",
       headers: { origin: "https://staging.purosur.online" },
     });
     const authorizationOptionsResponse = await app.inject({
       method: "POST",
-      url: "/api/users/session/authorization-options",
+      url: "/api/sessions/current/authorization-challenges",
       headers: { origin: "https://staging.purosur.online" },
     });
     const authorizationResponse = await app.inject({
-      method: "POST",
-      url: "/api/users/session/authorization",
+      method: "PUT",
+      url: "/api/sessions/current/authorization",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1366,17 +1372,17 @@ describe("the route access inventory", () => {
       { method: "POST", url: "/api/users/recovery/request", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/users/recovery/registration-options", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/users/recovery/redeem", access: PUBLIC_ACCESS },
-      { method: "POST", url: "/api/users/session/authentication-options", access: PUBLIC_ACCESS },
-      { method: "POST", url: "/api/users/session/authenticate", access: PUBLIC_ACCESS },
-      { method: "GET", url: "/api/users/session", access: OPEN_SESSION_ACCESS },
-      { method: "GET", url: "/api/users/session/status", access: OPEN_SESSION_PEEK_ACCESS },
-      { method: "POST", url: "/api/users/session/sign-out", access: SESSION_COOKIE_ACCESS },
+      { method: "POST", url: "/api/authentication-challenges", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/api/sessions", access: PUBLIC_ACCESS },
+      { method: "GET", url: "/api/sessions/current", access: OPEN_SESSION_ACCESS },
+      { method: "GET", url: "/api/sessions/current/expiration", access: OPEN_SESSION_PEEK_ACCESS },
+      { method: "DELETE", url: "/api/sessions/current", access: SESSION_COOKIE_ACCESS },
       {
         method: "POST",
-        url: "/api/users/session/authorization-options",
+        url: "/api/sessions/current/authorization-challenges",
         access: OPEN_SESSION_ACCESS,
       },
-      { method: "POST", url: "/api/users/session/authorization", access: OPEN_SESSION_ACCESS },
+      { method: "PUT", url: "/api/sessions/current/authorization", access: OPEN_SESSION_ACCESS },
       { method: "GET", url: "/api/users/passkeys", access: OPEN_SESSION_ACCESS },
       {
         method: "POST",

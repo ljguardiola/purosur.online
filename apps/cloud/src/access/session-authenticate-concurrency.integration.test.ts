@@ -44,13 +44,13 @@ afterAll(async () => {
 function postAuthenticate(body: Record<string, unknown>) {
   return app.inject({
     method: "POST",
-    url: "/users/session/authenticate",
+    url: "/sessions",
     headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": SOURCE_ADDRESS },
     payload: body,
   });
 }
 
-describe("POST /users/session/authenticate on concurrent connections", () => {
+describe("POST /sessions on concurrent connections", () => {
   it("takes no lockout slot for requests with nothing to verify, however many arrive at once", async () => {
     const responses = await Promise.all(Array.from({ length: BURST }, () => postAuthenticate({})));
 

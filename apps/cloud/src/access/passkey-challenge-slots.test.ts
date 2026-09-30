@@ -146,13 +146,22 @@ function cookieHeader(rawSessionId: string): Record<string, string> {
   return { cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` };
 }
 
-function postJson(url: string, body: Record<string, unknown>, rawSessionId: string) {
+function sendJson(
+  method: "POST" | "PUT",
+  url: string,
+  body: Record<string, unknown>,
+  rawSessionId: string,
+) {
   return app.inject({
-    method: "POST",
+    method,
     url,
     headers: { origin: BACKOFFICE_ORIGIN, ...cookieHeader(rawSessionId) },
     payload: body,
   });
+}
+
+function postJson(url: string, body: Record<string, unknown>, rawSessionId: string) {
+  return sendJson("POST", url, body, rawSessionId);
 }
 
 async function requestRegistrationOptions(rawSessionId: string) {
@@ -166,7 +175,7 @@ async function requestRegistrationOptions(rawSessionId: string) {
 }
 
 async function requestAuthorizationOptions(rawSessionId: string) {
-  const response = await postJson("/users/session/authorization-options", {}, rawSessionId);
+  const response = await postJson("/sessions/current/authorization-challenges", {}, rawSessionId);
   if (response.statusCode !== 200) {
     throw new Error(
       `test setup: authorization-options failed: ${response.statusCode} ${response.body}`,
@@ -192,8 +201,9 @@ describe("a session's registration and session-authorization challenges holding 
       BACKOFFICE_ORIGIN,
       authorizationOptions.authorization_options,
     );
-    const authorizeResponse = await postJson(
-      "/users/session/authorization",
+    const authorizeResponse = await sendJson(
+      "PUT",
+      "/sessions/current/authorization",
       { authorization },
       rawSessionId,
     );
@@ -220,8 +230,9 @@ describe("a session's registration and session-authorization challenges holding 
 
     await requestRegistrationOptions(rawSessionId);
 
-    const authorizeResponse = await postJson(
-      "/users/session/authorization",
+    const authorizeResponse = await sendJson(
+      "PUT",
+      "/sessions/current/authorization",
       { authorization },
       rawSessionId,
     );

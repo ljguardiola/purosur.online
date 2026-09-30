@@ -160,7 +160,7 @@ describe("GET /users/passkeys", () => {
     ]);
   });
 
-  it("touches last_seen_at, the same as GET /users/session", async () => {
+  it("touches last_seen_at, the same as GET /sessions/current", async () => {
     const rawSessionId = await insertSession();
     currentTime = new Date(NOON.getTime() + 5 * 60 * 1000);
 

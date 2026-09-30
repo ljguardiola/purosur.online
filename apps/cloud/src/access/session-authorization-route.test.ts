@@ -140,22 +140,31 @@ function cookieHeader(rawSessionId: string): Record<string, string> {
   return { cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` };
 }
 
-function postJson(
+function sendJson(
+  method: "POST" | "PUT",
   url: string,
   body: Record<string, unknown>,
   headers: Record<string, string> = {},
 ) {
   return app.inject({
-    method: "POST",
+    method,
     url,
     headers: { origin: BACKOFFICE_ORIGIN, ...headers },
     payload: body,
   });
 }
 
+function postJson(
+  url: string,
+  body: Record<string, unknown>,
+  headers: Record<string, string> = {},
+) {
+  return sendJson("POST", url, body, headers);
+}
+
 async function requestAuthorizationOptions(rawSessionId: string) {
   const response = await postJson(
-    "/users/session/authorization-options",
+    "/sessions/current/authorization-challenges",
     {},
     cookieHeader(rawSessionId),
   );
@@ -167,9 +176,21 @@ async function requestAuthorizationOptions(rawSessionId: string) {
   return response.json();
 }
 
-describe("POST /users/session/authorization-options", () => {
+describe("POST /sessions/current/authorization-challenges", () => {
+  it("no longer answers the old authorization-options path", async () => {
+    const rawSessionId = await insertSession(userId);
+
+    const response = await postJson(
+      "/users/session/authorization-options",
+      {},
+      cookieHeader(rawSessionId),
+    );
+
+    expect(response.statusCode).toBe(404);
+  });
+
   it("returns 401 unauthenticated when no cookie was sent", async () => {
-    const response = await postJson("/users/session/authorization-options", {});
+    const response = await postJson("/sessions/current/authorization-challenges", {});
 
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
@@ -180,7 +201,7 @@ describe("POST /users/session/authorization-options", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/users/session/authorization-options",
+      url: "/sessions/current/authorization-challenges",
       headers: { origin: "https://attacker.example", ...cookieHeader(rawSessionId) },
     });
 
@@ -201,7 +222,7 @@ describe("POST /users/session/authorization-options", () => {
   });
 });
 
-describe("POST /users/session/authorization", () => {
+describe("PUT /sessions/current/authorization", () => {
   let emulator: WebAuthnEmulator;
 
   beforeEach(async () => {
@@ -214,12 +235,21 @@ describe("POST /users/session/authorization", () => {
     body: Record<string, unknown>,
     headers: Record<string, string> = {},
   ) {
-    return postJson(
-      "/users/session/authorization",
+    return sendJson(
+      "PUT",
+      "/sessions/current/authorization",
       body,
       rawSessionId ? { ...cookieHeader(rawSessionId), ...headers } : headers,
     );
   }
+
+  it("no longer answers the old authorization path", async () => {
+    const rawSessionId = await insertSession(userId);
+
+    const response = await postJson("/users/session/authorization", {}, cookieHeader(rawSessionId));
+
+    expect(response.statusCode).toBe(404);
+  });
 
   it("returns 401 unauthenticated when no cookie was sent", async () => {
     const response = await authorize(undefined, {});
@@ -232,8 +262,8 @@ describe("POST /users/session/authorization", () => {
     const rawSessionId = await insertSession(userId);
 
     const response = await app.inject({
-      method: "POST",
-      url: "/users/session/authorization",
+      method: "PUT",
+      url: "/sessions/current/authorization",
       headers: { origin: "https://attacker.example", ...cookieHeader(rawSessionId) },
     });
 

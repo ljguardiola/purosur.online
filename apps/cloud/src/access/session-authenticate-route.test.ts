@@ -106,7 +106,7 @@ afterEach(async () => {
 function postOptions(headers: Record<string, string> = {}) {
   return app.inject({
     method: "POST",
-    url: "/users/session/authentication-options",
+    url: "/authentication-challenges",
     headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": SOURCE_ADDRESS, ...headers },
   });
 }
@@ -114,7 +114,7 @@ function postOptions(headers: Record<string, string> = {}) {
 function postAuthenticate(body: Record<string, unknown>, headers: Record<string, string> = {}) {
   return app.inject({
     method: "POST",
-    url: "/users/session/authenticate",
+    url: "/sessions",
     headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": SOURCE_ADDRESS, ...headers },
     payload: body,
   });
@@ -185,7 +185,18 @@ async function getAuthenticationAssertion(emulator: WebAuthnEmulator) {
   return emulator.getJSON(BACKOFFICE_ORIGIN, options);
 }
 
-describe("POST /users/session/authenticate", () => {
+describe("POST /sessions", () => {
+  it("no longer answers the old authenticate path", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/users/session/authenticate",
+      headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": SOURCE_ADDRESS },
+      payload: {},
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
   it("signs the account in when the assertion verifies", async () => {
     const emulator = new WebAuthnEmulator();
     await registerPasskey(userId, emulator);
@@ -487,7 +498,7 @@ describe("POST /users/session/authenticate", () => {
   it("rejects a missing Origin header", async () => {
     const response = await app.inject({
       method: "POST",
-      url: "/users/session/authenticate",
+      url: "/sessions",
       headers: { "x-real-ip": SOURCE_ADDRESS },
       payload: {},
     });
@@ -597,7 +608,7 @@ describe("POST /users/session/authenticate", () => {
 
       const response = await failing.inject({
         method: "POST",
-        url: "/users/session/authenticate",
+        url: "/sessions",
         headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": SOURCE_ADDRESS },
         payload: { assertion: unregisteredCredentialAssertion() },
       });

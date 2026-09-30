@@ -81,8 +81,8 @@ async function insertSession(): Promise<string> {
 
 function postSignOut(rawSessionId?: string, headers: Record<string, string> = {}) {
   return app.inject({
-    method: "POST",
-    url: "/users/session/sign-out",
+    method: "DELETE",
+    url: "/sessions/current",
     headers: {
       origin: BACKOFFICE_ORIGIN,
       ...(rawSessionId ? { cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` } : {}),
@@ -94,12 +94,24 @@ function postSignOut(rawSessionId?: string, headers: Record<string, string> = {}
 function getSession(rawSessionId: string) {
   return app.inject({
     method: "GET",
-    url: "/users/session",
+    url: "/sessions/current",
     headers: { cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` },
   });
 }
 
-describe("POST /users/session/sign-out", () => {
+describe("DELETE /sessions/current", () => {
+  it("no longer answers the old sign-out path", async () => {
+    const rawSessionId = await insertSession();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/users/session/sign-out",
+      headers: { origin: BACKOFFICE_ORIGIN, cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
   it("revokes the session and clears the cookie", async () => {
     const rawSessionId = await insertSession();
 
@@ -116,7 +128,7 @@ describe("POST /users/session/sign-out", () => {
     expect(row?.revokedAt).not.toBeNull();
   });
 
-  it("makes the cookie it revoked no longer authenticate a later GET /users/session", async () => {
+  it("makes the cookie it revoked no longer authenticate a later GET /sessions/current", async () => {
     const rawSessionId = await insertSession();
 
     await postSignOut(rawSessionId);

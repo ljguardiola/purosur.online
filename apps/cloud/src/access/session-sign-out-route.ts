@@ -26,8 +26,8 @@ export function registerSessionSignOutRoute<TQueryResult extends PgQueryResultHK
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  app.post(
-    "/users/session/sign-out",
+  app.delete(
+    "/sessions/current",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: { access: SESSION_COOKIE_ACCESS, sessionSource },

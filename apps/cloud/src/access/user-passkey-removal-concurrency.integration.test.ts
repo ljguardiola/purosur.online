@@ -188,7 +188,7 @@ async function prepareSignIn(emulator: WebAuthnEmulator) {
   const headers = { origin: BACKOFFICE_ORIGIN, "x-real-ip": nextSourceAddress() };
   const options = await app.inject({
     method: "POST",
-    url: "/users/session/authentication-options",
+    url: "/authentication-challenges",
     headers,
   });
   const assertion = emulator.getJSON(
@@ -198,7 +198,7 @@ async function prepareSignIn(emulator: WebAuthnEmulator) {
   return () =>
     app.inject({
       method: "POST",
-      url: "/users/session/authenticate",
+      url: "/sessions",
       headers,
       payload: { assertion },
     });
