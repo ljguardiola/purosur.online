@@ -1,0 +1,35 @@
+export const PIN_CODE_VALIDITY_MS = 15 * 60 * 1000;
+export const PIN_CODE_MAX_FAILED_ATTEMPTS = 5;
+export const PIN_CODE_HOURLY_LIMIT = 5;
+export const PIN_CODE_WINDOW_MS = 60 * 60 * 1000;
+
+export interface PinCodeParty {
+  id: string;
+  isAdministrator: boolean;
+}
+
+export function pinCodeExpiresAt(issuedAt: Date): Date {
+  return new Date(issuedAt.getTime() + PIN_CODE_VALIDITY_MS);
+}
+
+export function pinCodeWindowStart(now: Date): Date {
+  return new Date(now.getTime() - PIN_CODE_WINDOW_MS);
+}
+
+export function pinCodeRetryAfterSeconds(
+  issuedAts: readonly Date[],
+  now: Date,
+): number | undefined {
+  const windowStart = pinCodeWindowStart(now);
+  const oldestCounted = issuedAts
+    .filter((issuedAt) => issuedAt > windowStart)
+    .sort((a, b) => b.getTime() - a.getTime())[PIN_CODE_HOURLY_LIMIT - 1];
+  if (oldestCounted === undefined) {
+    return undefined;
+  }
+  return Math.ceil((oldestCounted.getTime() + PIN_CODE_WINDOW_MS - now.getTime()) / 1000);
+}
+
+export function mayEmitPinCodeFor(actor: PinCodeParty, target: PinCodeParty): boolean {
+  return actor.isAdministrator || (!target.isAdministrator && actor.id !== target.id);
+}
