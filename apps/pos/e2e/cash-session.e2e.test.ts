@@ -5,6 +5,8 @@ import { type StandInCloud, startStandInCloud } from "./test-support/stand-in-cl
 
 const ANA_ID = "5b0b8f4e-3c2d-4a55-9c1e-0a6f6a1d0a01";
 const ANA_EMAIL = "ana@example.com";
+const BRUNO_ID = "5b0b8f4e-3c2d-4a55-9c1e-0a6f6a1d0a02";
+const BRUNO_EMAIL = "bruno@example.com";
 
 describe("the register's cash session", () => {
   let cloud: StandInCloud;
@@ -16,8 +18,24 @@ describe("the register's cash session", () => {
         registerChange({ id: "register-1", name: "Caja 1" }),
         roleChange({ id: "role-cashier", name: "Cajero", permissionKeys: ["sell_and_charge"] }),
         await userChange({ id: ANA_ID, firstName: "Ana", roleId: "role-cashier", pin: "4821" }),
+        roleChange({
+          id: "role-supervisor",
+          name: "Encargado",
+          permissionKeys: ["sell_and_charge", "close_anothers_register_session"],
+        }),
+        await userChange({
+          id: BRUNO_ID,
+          firstName: "Bruno",
+          roleId: "role-supervisor",
+          pin: "7314",
+        }),
       ],
-      { signInLookups: { [ANA_EMAIL]: { userId: ANA_ID, hasPin: true } } },
+      {
+        signInLookups: {
+          [ANA_EMAIL]: { userId: ANA_ID, hasPin: true },
+          [BRUNO_EMAIL]: { userId: BRUNO_ID, hasPin: true },
+        },
+      },
     );
     register = enrolledRegister(cloud);
     await register.launch();
@@ -96,5 +114,37 @@ describe("the register's cash session", () => {
 
     await page.getByRole("heading", { name: "¿Quién abre la caja?" }).waitFor();
     await page.getByRole("heading", { name: "¿Qué querés hacer?" }).waitFor({ state: "detached" });
+  });
+
+  it("is closed from the lock screen by another person with permission, who is left signed out", async () => {
+    const { page } = register;
+    await page.getByRole("link", { name: "Ingresar por primera vez" }).click();
+    await page.getByLabel("Correo").fill(BRUNO_EMAIL);
+    await page.getByRole("button", { name: "Continuar" }).click();
+    await page.getByLabel("PIN").fill("7314");
+    await page.getByRole("button", { name: "Entrar" }).click();
+    await page.getByRole("heading", { name: "¿Qué querés hacer?" }).waitFor();
+    await page.getByRole("button", { name: "Salir" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Salir" }).click();
+
+    await page.getByText("Ana", { exact: true }).click();
+    await page.getByLabel("PIN").fill("4821");
+    await page.getByRole("button", { name: "Entrar" }).click();
+    await page.getByRole("button", { name: "Abrir caja" }).click();
+    await page.getByLabel("Fondo inicial").fill("20.000,00");
+    await page.getByRole("button", { name: "Abrir la caja" }).click();
+    await page.getByRole("heading", { name: "Venta en curso" }).waitFor();
+    await page.getByRole("button", { name: "Salir" }).click();
+    await page.getByRole("button", { name: "Dejar bloqueada" }).click();
+
+    await page.getByRole("link", { name: "Otra persona cierra la caja" }).click();
+    await page.getByLabel("Efectivo contado").fill("20.000,00");
+    await page.getByRole("button", { name: /Persona que cierra/ }).click();
+    await page.getByRole("option", { name: "Bruno" }).click();
+    await page.getByLabel("PIN").fill("7314");
+    await page.getByRole("button", { name: "Cerrar caja" }).click();
+
+    await page.getByRole("heading", { name: "¿Quién abre la caja?" }).waitFor();
+    await page.getByRole("heading", { name: "Caja bloqueada" }).waitFor({ state: "detached" });
   });
 });
