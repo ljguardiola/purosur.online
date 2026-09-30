@@ -56,7 +56,7 @@ export async function createIntegrationDatabase(namePrefix: string): Promise<Int
     async close() {
       const cleanup = postgres(adminUrl, { max: 1 });
       try {
-        await cleanup.unsafe(`DROP DATABASE IF EXISTS "${databaseName}" WITH (FORCE)`);
+        await cleanup.unsafe(`DROP DATABASE IF EXISTS "${databaseName}"`);
       } finally {
         await cleanup.end({ timeout: 1 });
       }
