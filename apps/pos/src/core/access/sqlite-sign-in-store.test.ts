@@ -17,6 +17,7 @@ interface UserSeed {
   active?: boolean;
   removed?: boolean;
   verifier?: string | null;
+  remembered?: boolean;
 }
 
 function addUser(seed: UserSeed): void {
@@ -28,6 +29,7 @@ function addUser(seed: UserSeed): void {
     active = true,
     removed = false,
     verifier = `verifier-of-${id}`,
+    remembered = true,
   } = seed;
   database
     .prepare(
@@ -38,6 +40,9 @@ function addUser(seed: UserSeed): void {
     database
       .prepare("INSERT INTO pin_verifiers (user_id, verifier) VALUES (?, ?)")
       .run(id, verifier);
+  }
+  if (remembered) {
+    database.prepare("INSERT INTO remembered_users (user_id) VALUES (?)").run(id);
   }
 }
 
@@ -106,6 +111,52 @@ describe("signable users", () => {
   it("lists nothing on a register that pulled no users", () => {
     expect(store.signableUsers()).toEqual([]);
   });
+
+  it("leaves out a user nobody has signed in as on this register", () => {
+    addUser({ id: "u1", remembered: false });
+
+    expect(store.signableUsers()).toEqual([]);
+  });
+
+  it("lists a user once the register remembers them", () => {
+    addUser({ id: "u1", firstName: "Ada", remembered: false });
+
+    store.remember("u1");
+
+    expect(store.signableUsers()).toEqual([{ id: "u1", first_name: "Ada" }]);
+  });
+
+  it("remembers a user once however many times they are remembered", () => {
+    addUser({ id: "u1", firstName: "Ada", remembered: false });
+
+    store.remember("u1");
+    store.remember("u1");
+
+    expect(store.signableUsers()).toEqual([{ id: "u1", first_name: "Ada" }]);
+  });
+});
+
+describe("a user's first name", () => {
+  it("is held for an active user with or without a PIN, remembered or not", () => {
+    addUser({ id: "u1", firstName: "Ada", remembered: false });
+    addUser({ id: "u2", firstName: "Bruno", verifier: null, salt: null });
+
+    expect(store.firstNameOf("u1")).toBe("Ada");
+    expect(store.firstNameOf("u2")).toBe("Bruno");
+  });
+
+  it.each([
+    ["deactivated", { active: false }],
+    ["removed", { removed: true }],
+  ])("is not held for a user who is %s", (_case, seed) => {
+    addUser({ id: "u1", ...seed });
+
+    expect(store.firstNameOf("u1")).toBeUndefined();
+  });
+
+  it("is not held for a user the register does not know", () => {
+    expect(store.firstNameOf("nobody")).toBeUndefined();
+  });
 });
 
 describe("a user's sign-in record", () => {
@@ -152,6 +203,12 @@ describe("a user's sign-in record", () => {
       isAdministrator: false,
       permissionKeys: [],
     });
+  });
+
+  it("holds the record of a user the register does not remember yet", () => {
+    addUser({ id: "u1", firstName: "Ada", remembered: false });
+
+    expect(store.signInRecord("u1")?.firstName).toBe("Ada");
   });
 
   it("has no record for a user the register does not know", () => {
@@ -265,6 +322,13 @@ describe("the users who can authorize a permission", () => {
     addUser({ id: "u1", firstName: "Ada", roleId: "admin" });
 
     expect(store.authorizers("void_sale")).toEqual([{ id: "u1", first_name: "Ada" }]);
+  });
+
+  it("leaves out a user the register does not remember", () => {
+    grant("cashier", "record_cash_in");
+    addUser({ id: "u1", remembered: false });
+
+    expect(store.authorizers("record_cash_in")).toEqual([]);
   });
 
   it("leaves out a role whose grant of the permission was withdrawn", () => {

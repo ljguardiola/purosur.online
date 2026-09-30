@@ -31,6 +31,7 @@ import { registerSessionAuthorizationRoutes } from "./access/session-authorizati
 import { registerSessionReadRoute } from "./access/session-read-route.js";
 import { registerSessionSignOutRoute } from "./access/session-sign-out-route.js";
 import { registerSessionStatusRoute } from "./access/session-status-route.js";
+import { registerSignInLookupRoute } from "./access/sign-in-lookup-route.js";
 import { registerUserCreationRoutes } from "./access/user-creation-route.js";
 import { registerUserDeactivationRoutes } from "./access/user-deactivation-route.js";
 import { registerUserEditRoutes } from "./access/user-edit-route.js";
@@ -380,6 +381,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerDeviceEnrollmentRoute(api, options.devices);
         registerChangesRoute(api, options.devices);
         registerPinCodeRedemptionRoute(api, options.devices);
+        registerSignInLookupRoute(api, options.devices);
         registerDeviceTokenRotationRoute(api, options.devices);
       }
     },

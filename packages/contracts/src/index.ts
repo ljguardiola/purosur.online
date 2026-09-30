@@ -55,6 +55,8 @@ export type { SessionAuthorizationOptionsWire } from "./access/session-authoriza
 export { sessionAuthorizationOptionsSchema } from "./access/session-authorization-options.js";
 export type { SessionStatusWire } from "./access/session-status.js";
 export { sessionStatusSchema } from "./access/session-status.js";
+export type { SignInLookup, SignInLookupBody } from "./access/sign-in-lookup.js";
+export { signInLookupBodySchema, signInLookupSchema } from "./access/sign-in-lookup.js";
 export type { UserCreationBody } from "./access/user-creation.js";
 export { userCreationBodySchema } from "./access/user-creation.js";
 export type { UserEditBody } from "./access/user-edit.js";
@@ -141,6 +143,7 @@ export type {
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   RendererToCoreMessage,
+  SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
 } from "./register/core-messages.js";

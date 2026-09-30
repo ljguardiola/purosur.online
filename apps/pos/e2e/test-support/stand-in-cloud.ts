@@ -10,6 +10,8 @@ import {
   deviceEnrollmentBodySchema,
   deviceEnrollmentSchema,
   type SyncChange,
+  signInLookupBodySchema,
+  signInLookupSchema,
 } from "@purosur/contracts";
 import { PULL_PAGE_MAX_CHANGES } from "@purosur/domain";
 import type { CloudChange } from "./cloud-changes";
@@ -19,6 +21,10 @@ export interface StandInCloud {
   readonly enrollmentCode: string;
   readonly feedStored: Promise<void>;
   stop(): Promise<void>;
+}
+
+export interface StandInCloudOptions {
+  readonly signInLookups?: Readonly<Record<string, { userId: string; hasPin: boolean }>>;
 }
 
 const ENROLLMENT_CODE = "ABCD2345EFGH6723";
@@ -48,7 +54,10 @@ async function jsonBody(request: IncomingMessage): Promise<unknown> {
   return JSON.parse(text);
 }
 
-export async function startStandInCloud(changes: readonly CloudChange[]): Promise<StandInCloud> {
+export async function startStandInCloud(
+  changes: readonly CloudChange[],
+  options: StandInCloudOptions = {},
+): Promise<StandInCloud> {
   const feed = numbered(changes);
   const lastChangeSeq = feed.at(-1)?.change_seq ?? 0;
   const deviceToken = randomUUID();
@@ -112,6 +121,28 @@ export async function startStandInCloud(changes: readonly CloudChange[]): Promis
     );
   }
 
+  async function answerSignInLookup(
+    request: IncomingMessage,
+    response: ServerResponse,
+  ): Promise<void> {
+    if (request.headers.authorization !== `Bearer ${deviceToken}`) {
+      fail("a sign-in lookup without the device token it was issued");
+      refuse(response, "device_token_rejected");
+      return;
+    }
+    const { email } = signInLookupBodySchema.parse(await jsonBody(request));
+    const person = options.signInLookups?.[email];
+    send(
+      response,
+      200,
+      signInLookupSchema.parse(
+        person === undefined
+          ? { kind: "not_found" }
+          : { kind: "found", user_id: person.userId, has_pin: person.hasPin },
+      ),
+    );
+  }
+
   async function answer(
     route: string,
     url: URL,
@@ -120,6 +151,8 @@ export async function startStandInCloud(changes: readonly CloudChange[]): Promis
   ): Promise<void> {
     if (route === "POST /api/devices") {
       await enroll(request, response);
+    } else if (route === "POST /api/sign-in-lookups") {
+      await answerSignInLookup(request, response);
     } else if (route === "GET /api/changes") {
       pageAfter(url, request, response);
     } else {

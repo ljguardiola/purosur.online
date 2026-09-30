@@ -290,13 +290,10 @@ describe("SignInScreen", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it("says nobody has a PIN when no user can sign in", async () => {
+  it("says nobody has signed in on this register yet when the list is empty", async () => {
     const screen = await renderScreen(answering(SIGNED_IN).signIn, []);
 
-    await expect.element(screen.getByText("No hay usuarios con PIN en esta caja")).toBeVisible();
-    await expect
-      .element(screen.getByText("Cuando alguien elija su PIN con un código, va a aparecer acá."))
-      .toBeVisible();
+    await expect.element(screen.getByText("Todavía nadie ingresó en esta caja.")).toBeVisible();
     await expect.element(screen.getByLabelText("PIN")).not.toBeInTheDocument();
     await expect.element(screen.getByRole("button", { name: "Entrar" })).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
@@ -360,5 +357,30 @@ describe("SignInScreen", () => {
       .getByRole("link", { name: "Tengo un código para cambiar el PIN" })
       .element();
     expect(button.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it.each<{ state: string; loadUsers: () => Promise<SignInUser[]> }>([
+    { state: "loading", loadUsers: () => new Promise<SignInUser[]>(() => {}) },
+    {
+      state: "failed to load",
+      loadUsers: async () => {
+        throw new Error("the core could not read them");
+      },
+    },
+    { state: "empty", loadUsers: async () => [] },
+    { state: "loaded", loadUsers: async () => USERS },
+  ])("offers signing in for the first time while the users are $state", async ({ loadUsers }) => {
+    const screen = await render(
+      <SignInScreen
+        loadUsers={loadUsers}
+        signIn={answering(SIGNED_IN).signIn}
+        registerName={null}
+      />,
+    );
+
+    const link = screen.getByRole("link", { name: "Ingresar por primera vez" });
+    await expect.element(link).toBeVisible();
+    expect(link.element().getAttribute("href")).toBe("/first-sign-in");
+    await expectNoAccessibilityViolations(screen.container);
   });
 });

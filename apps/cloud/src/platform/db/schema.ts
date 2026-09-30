@@ -637,6 +637,24 @@ export const pinCodeRedemptionAttempts = pgTable(
   ],
 );
 
+export const signInLookupAttempts = pgTable(
+  "sign_in_lookup_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    registerId: uuid("register_id")
+      .notNull()
+      .references(() => registers.id),
+    attemptedAt: timestamp("attempted_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index("sign_in_lookup_attempts_register_id_attempted_at_idx").on(
+      table.registerId,
+      table.attemptedAt,
+    ),
+    index("sign_in_lookup_attempts_attempted_at_idx").on(table.attemptedAt),
+  ],
+);
+
 // `actor_id` is nullable: a null actor reads as "the service itself acted" (e.g. a sign-in
 // lockout, which is keyed by source address and may match no account at all).
 export const auditLog = pgTable("audit_log", {

@@ -26,6 +26,7 @@ jobs:
   build:
     name: build the catalog
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     permissions:
       contents: read
     steps:
@@ -52,6 +53,7 @@ jobs:
     name: deploy the catalog
     needs: build
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     permissions:
       pages: write
       id-token: write
