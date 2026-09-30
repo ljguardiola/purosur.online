@@ -200,9 +200,10 @@ export class DrizzleChangeLog<TQueryResult extends PgQueryResultHKT>
     this.db = db;
   }
 
-  // Read committed, so a device's overlapping pulls wait on its state row instead of failing; a
-  // row an operation is still writing is read once it commits, since every writer locks the row
-  // before touching it or what belongs to it, and the share locks in the reads wait for that.
+  // Read committed, so a device's overlapping pulls wait on its state row instead of failing. Only
+  // settings and products are read in more than one statement, so only they are share-locked, in
+  // id order: every save locks the row before touching what belongs to it, and the lock waits for
+  // it. Locking anything else would take locks in another order than the writers do.
   transaction<TOutcome>(
     work: (tx: ChangeLogTransaction<PulledCloudChange>) => Promise<TOutcome>,
   ): Promise<TOutcome> {

@@ -13,9 +13,6 @@ import {
 import { PRICE_VERSION } from "../pricing/price-version.js";
 import type { CategoryRow, PriceListRow, PriceRow, ProductRow, TagRow } from "./pulled-changes.js";
 
-// Every read takes a share lock on the rows it returns, so a row an operation is still writing
-// is read once that operation commits, and a row it removed is not read at all.
-
 export async function readCategories<TQueryResult extends PgQueryResultHKT>(
   tx: PgDatabase<TQueryResult>,
   ids: readonly string[],
@@ -32,8 +29,7 @@ export async function readCategories<TQueryResult extends PgQueryResultHKT>(
     })
     .from(categories)
     .where(inArray(categories.id, [...ids]))
-    .orderBy(asc(categories.id))
-    .for("share");
+    .orderBy(asc(categories.id));
   return new Map(rows.map(({ id, ...row }) => [id, row]));
 }
 
@@ -127,8 +123,7 @@ export async function readTags<TQueryResult extends PgQueryResultHKT>(
     .select({ id: tags.id, name: tags.name, active: tags.active, version: tags.version })
     .from(tags)
     .where(inArray(tags.id, [...ids]))
-    .orderBy(asc(tags.id))
-    .for("share");
+    .orderBy(asc(tags.id));
   return new Map(rows.map(({ id, ...row }) => [id, row]));
 }
 
@@ -143,8 +138,7 @@ export async function readPriceLists<TQueryResult extends PgQueryResultHKT>(
     .select({ id: priceLists.id, name: priceLists.name, version: priceLists.version })
     .from(priceLists)
     .where(inArray(priceLists.id, [...ids]))
-    .orderBy(asc(priceLists.id))
-    .for("share");
+    .orderBy(asc(priceLists.id));
   return new Map(rows.map(({ id, ...row }) => [id, row]));
 }
 
@@ -165,7 +159,6 @@ export async function readPrices<TQueryResult extends PgQueryResultHKT>(
     })
     .from(prices)
     .where(inArray(prices.id, [...ids]))
-    .orderBy(asc(prices.id))
-    .for("share");
+    .orderBy(asc(prices.id));
   return new Map(rows.map(({ id, ...row }) => [id, { ...row, version: PRICE_VERSION }]));
 }

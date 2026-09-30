@@ -19,6 +19,7 @@ import {
 } from "../test-support/integration-database.js";
 import { waitForLockWaiters } from "../test-support/queued-behind-held-lock.js";
 import { DrizzleChangeLog } from "./drizzle-change-log.js";
+import type { PulledCloudChange } from "./pulled-changes.js";
 
 // PGlite runs every query over one connection, so two pulls can never overlap there.
 let integrationDb: IntegrationDatabase;
@@ -187,6 +188,38 @@ describe("two pulls of the same device overlapping, on a real Postgres", () => {
           { position: 1, code: "7790001000028" },
         ],
       },
+    });
+  });
+
+  it("gives a category a writer holds locked as it was, without waiting for the writer", async () => {
+    const { deviceId, locationId } = await insertEnrolledInstallation(db, {
+      registerName: "Caja 4",
+    });
+    const ports = { changeLog: new DrizzleChangeLog(db), clock: { now: () => new Date() } };
+    const created = await createCategory(new DrizzleCatalogStore(db), {
+      name: "Bebidas",
+      parentId: null,
+    });
+    if (created.kind !== "created") {
+      throw new Error("test setup: the category was not created");
+    }
+    const categoryId = created.category.id;
+
+    const holder = await sql.reserve();
+    let page: Awaited<ReturnType<typeof pullChanges<PulledCloudChange>>> | undefined;
+    try {
+      await holder`begin`;
+      await holder`select id from categories where id = ${categoryId} for update`;
+      await holder`update categories set name = 'Bebidas y jugos', version = 2 where id = ${categoryId}`;
+
+      page = await pullChanges(ports, { deviceId, locationId, since: 0 });
+    } finally {
+      await holder`rollback`;
+      holder.release();
+    }
+
+    expect(page?.changes.find((change) => change.entityId === categoryId)).toMatchObject({
+      row: { name: "Bebidas", version: 1 },
     });
   });
 });
