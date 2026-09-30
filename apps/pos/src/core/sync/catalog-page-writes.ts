@@ -36,8 +36,8 @@ export function prepareCatalogPageWrites(database: LocalDatabase) {
   );
   const saveBarcode = database.prepare(
     `INSERT INTO product_barcodes (product_id, position, code, active)
-     VALUES (@product_id, @position, @code, 1)
-     ON CONFLICT (product_id, position) DO UPDATE SET code = excluded.code, active = 1`,
+     VALUES (@product_id, @position, @code, @active)
+     ON CONFLICT (product_id, position) DO UPDATE SET code = excluded.code, active = excluded.active`,
   );
   const deactivateBarcodesOutside = database.prepare(
     `UPDATE product_barcodes SET active = 0
@@ -45,8 +45,8 @@ export function prepareCatalogPageWrites(database: LocalDatabase) {
        AND position NOT IN (SELECT value FROM json_each(@positions))`,
   );
   const saveProductTag = database.prepare(
-    `INSERT INTO product_tags (product_id, tag_id, active) VALUES (@product_id, @tag_id, 1)
-     ON CONFLICT (product_id, tag_id) DO UPDATE SET active = 1`,
+    `INSERT INTO product_tags (product_id, tag_id, active) VALUES (@product_id, @tag_id, @active)
+     ON CONFLICT (product_id, tag_id) DO UPDATE SET active = excluded.active`,
   );
   const deactivateTagsOutside = database.prepare(
     `UPDATE product_tags SET active = 0
@@ -108,13 +108,14 @@ export function prepareCatalogPageWrites(database: LocalDatabase) {
     },
 
     product({ entity_id, row }: ChangeOf<"product">): void {
+      const active = row.active ? 1 : 0;
       const saved = saveProduct.run({
         id: entity_id,
         name: row.name,
         category_id: row.category_id,
         brand_id: row.brand_id,
         sale_unit: row.sale_unit,
-        active: row.active ? 1 : 0,
+        active,
         net_content_quantity: row.net_content?.quantity ?? null,
         net_content_unit: row.net_content?.unit ?? null,
         version: row.version,
@@ -123,10 +124,15 @@ export function prepareCatalogPageWrites(database: LocalDatabase) {
         return;
       }
       for (const barcode of row.barcodes) {
-        saveBarcode.run({ product_id: entity_id, position: barcode.position, code: barcode.code });
+        saveBarcode.run({
+          product_id: entity_id,
+          position: barcode.position,
+          code: barcode.code,
+          active,
+        });
       }
       for (const tagId of row.tag_ids) {
-        saveProductTag.run({ product_id: entity_id, tag_id: tagId });
+        saveProductTag.run({ product_id: entity_id, tag_id: tagId, active });
       }
       deactivateTagsOutside.run({ product_id: entity_id, tag_ids: JSON.stringify(row.tag_ids) });
       deactivateBarcodesOutside.run({

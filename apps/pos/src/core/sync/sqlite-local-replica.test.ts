@@ -292,7 +292,6 @@ describe("the register's local copy of what it pulls", () => {
         2,
         productRow({
           name: "Arroz largo fino",
-          active: false,
           barcodes: [{ position: 0, code: "7790001000035" }],
           version: 2,
         }),
@@ -301,12 +300,30 @@ describe("the register's local copy of what it pulls", () => {
 
     expect(replica.product(PRODUCT_ID)).toMatchObject({
       name: "Arroz largo fino",
-      active: false,
+      active: true,
       barcodes: [
         { position: 0, code: "7790001000035", active: true },
         { position: 1, code: "7790001000028", active: false },
       ],
       version: 2,
+    });
+  });
+
+  it("holds the barcodes and tags of an inactive product as inactive, and active again once a newer version reactivates it", async () => {
+    await save(productChange(1, productRow({ active: false, tag_ids: [TAG_ID], version: 2 })));
+
+    expect(replica.product(PRODUCT_ID)).toMatchObject({
+      active: false,
+      barcodes: [{ active: false }, { active: false }],
+      tag_ids: [{ tag_id: TAG_ID, active: false }],
+    });
+
+    await save(productChange(2, productRow({ tag_ids: [TAG_ID], version: 3 })));
+
+    expect(replica.product(PRODUCT_ID)).toMatchObject({
+      active: true,
+      barcodes: [{ active: true }, { active: true }],
+      tag_ids: [{ tag_id: TAG_ID, active: true }],
     });
   });
 
@@ -391,12 +408,8 @@ describe("the register's local copy of what it pulls", () => {
     expect(replica.price(PRICE_ID)).toMatchObject({ unit_price: 999, version: 3 });
   });
 
-  it("replaces a category, a price list and a price with a newer version", async () => {
-    await save(
-      categoryChange(1, categoryRow()),
-      priceListChange(2, priceListRow()),
-      priceChange(3, priceRow()),
-    );
+  it("replaces a category and a price list with a newer version", async () => {
+    await save(categoryChange(1, categoryRow()), priceListChange(2, priceListRow()));
 
     await save(
       categoryChange(
@@ -404,7 +417,6 @@ describe("the register's local copy of what it pulls", () => {
         categoryRow({ name: "Almacén y secos", parent_id: PRODUCT_ID, version: 2 }),
       ),
       priceListChange(5, priceListRow({ name: "Lista minorista", version: 2 })),
-      priceChange(6, priceRow({ unit_price: 130000, version: 2 })),
     );
 
     expect(replica.category(CATEGORY_ID)).toMatchObject({
@@ -413,7 +425,6 @@ describe("the register's local copy of what it pulls", () => {
       version: 2,
     });
     expect(replica.priceList(PRICE_LIST_ID)).toMatchObject({ name: "Lista minorista", version: 2 });
-    expect(replica.price(PRICE_ID)).toMatchObject({ unit_price: 130000, version: 2 });
   });
 
   it("marks what a removal names as removed, at its version, keeping the row and, for a product, marking its barcodes inactive", async () => {
