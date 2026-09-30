@@ -78,7 +78,13 @@ export class FakeSaleLedger implements SaleLedger {
         for (const sale of working.sales) {
           sale.lines = sale.lines.map((stored) =>
             stored.id === line.id
-              ? { ...stored, quantity: line.quantity, lineTotal: line.lineTotal }
+              ? {
+                  ...stored,
+                  quantity: line.quantity,
+                  promotionId: line.promotionId,
+                  discountAmount: line.discountAmount,
+                  lineTotal: line.lineTotal,
+                }
               : stored,
           );
         }

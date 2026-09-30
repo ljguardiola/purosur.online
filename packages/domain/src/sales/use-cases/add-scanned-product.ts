@@ -77,7 +77,7 @@ export function addScannedProduct(
     const sale = isOpenSale(target)
       ? target
       : startSale(tx, ids.next(), target, session.id, actorId, moment);
-    const added = newSaleLine(ids.next(), product, price);
+    const added = newSaleLine(ids.next(), product, price, []);
     tx.recordSaleLine(sale.id, added);
     return { kind: "added", sale: { ...sale, lines: [...sale.lines, added] } };
   });
