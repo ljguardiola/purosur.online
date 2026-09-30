@@ -127,6 +127,7 @@ export {
   discountAppliesOn,
   discountNameLength,
   discountStatus,
+  isBuyNPayMSaleUnit,
   isCalendarDay,
   isDiscountNameTooLong,
   isDiscountWindowOrdered,

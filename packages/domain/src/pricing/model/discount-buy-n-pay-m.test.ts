@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   DISCOUNT_BUY_QTY_MIN,
   DISCOUNT_PAY_QTY_MIN,
+  isBuyNPayMSaleUnit,
   isValidDiscountBuyNPayM,
   isValidDiscountBuyQty,
   isValidDiscountPayQty,
@@ -67,5 +68,16 @@ describe("isValidDiscountBuyNPayM", () => {
         },
       ),
     );
+  });
+});
+
+describe("isBuyNPayMSaleUnit", () => {
+  it("accepts a product sold by the unit", () => {
+    expect(isBuyNPayMSaleUnit("UNIT")).toBe(true);
+  });
+
+  it("rejects a product sold by weight, and a target with no sale unit", () => {
+    expect(isBuyNPayMSaleUnit("KG")).toBe(false);
+    expect(isBuyNPayMSaleUnit(null)).toBe(false);
   });
 });

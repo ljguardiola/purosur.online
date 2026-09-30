@@ -4,6 +4,7 @@ export type { DiscountBenefit } from "./model/discount-benefit.js";
 export {
   DISCOUNT_BUY_QTY_MIN,
   DISCOUNT_PAY_QTY_MIN,
+  isBuyNPayMSaleUnit,
   isValidDiscountBuyNPayM,
   isValidDiscountBuyQty,
   isValidDiscountPayQty,

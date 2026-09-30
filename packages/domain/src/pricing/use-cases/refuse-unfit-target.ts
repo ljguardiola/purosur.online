@@ -1,4 +1,5 @@
 import type { DiscountBenefit } from "../model/discount-benefit.js";
+import { isBuyNPayMSaleUnit } from "../model/discount-buy-n-pay-m.js";
 import type { DiscountTarget } from "../model/discount-target.js";
 import type { DiscountStoreTransaction } from "./discount-store.js";
 
@@ -15,7 +16,7 @@ export async function refuseUnfitTarget(
   if (locked.kind === "not_found") {
     return { kind: "target_not_found" };
   }
-  if (benefit.kind === "BUY_N_PAY_M" && locked.saleUnit !== "UNIT") {
+  if (benefit.kind === "BUY_N_PAY_M" && !isBuyNPayMSaleUnit(locked.saleUnit)) {
     return { kind: "target_not_sold_by_unit" };
   }
   return undefined;
