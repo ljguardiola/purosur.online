@@ -4,8 +4,8 @@ import react from "@vitejs/plugin-react";
 import reactCompiler from "babel-plugin-react-compiler";
 import { defineConfig } from "electron-vite";
 import type { Plugin } from "vite";
+import { withoutPackageOutput } from "../../.github/scripts/without-package-output.mjs";
 import { buildContentSecurityPolicy } from "./src/main/content-security-policy";
-import { withoutPackageOutput } from "./src/without-package-output";
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
