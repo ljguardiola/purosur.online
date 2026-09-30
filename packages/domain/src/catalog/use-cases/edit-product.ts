@@ -46,12 +46,12 @@ export async function editProduct(
         // discount created meanwhile waits on this product row, so it either commits before this
         // read or sees the product sold by weight.
         const today = argentinaCalendarDay(clock.now());
-        const holdingDiscounts = (await tx.buyNPayMDiscountsOn(input.id))
+        const [holding] = (await tx.buyNPayMDiscountsOn(input.id))
           .filter((discount) => isDiscountLive(discount, today))
-          .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
-        const [holding] = holdingDiscounts;
-        if (holding) {
-          return { kind: "sale_unit_held_by_discount", discountName: holding.name };
+          .map((discount) => discount.name)
+          .sort();
+        if (holding !== undefined) {
+          return { kind: "sale_unit_held_by_discount", discountName: holding };
         }
       }
 

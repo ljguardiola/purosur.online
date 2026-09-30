@@ -403,8 +403,7 @@ describe("editDiscount", () => {
     });
 
     it("switches a percentage discount on without checking the product", async () => {
-      const store = seededStore(true, "KG");
-      store.seedTarget({ kind: "PRODUCT", id: "product-9", active: true, saleUnit: "KG" });
+      const store = storeWithSwitchedOffBuyNPayM("KG", { benefit: stored.benefit });
 
       const outcome = await editDiscount({ store, clock }, { ...input, active: true });
 

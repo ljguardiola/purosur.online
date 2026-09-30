@@ -987,6 +987,27 @@ describe("editProduct", () => {
       expect(store.lockCallOrder).toEqual(["lockProduct", "lockLeafCategory"]);
     });
 
+    it("does not touch discounts when the product stays sold by weight", async () => {
+      const store = new FakeCatalogStore();
+      leafCategory(store);
+      store.seedProduct(
+        {
+          id: "product-1",
+          name: "Yerba",
+          categoryId: "category-1",
+          brandId: null,
+          saleUnit: "KG",
+          netContent: null,
+          active: true,
+          version: 1,
+        },
+        [{ code: "111" }],
+      );
+
+      expect(await edit(store, "KG")).toMatchObject({ kind: "applied" });
+      expect(store.lockCallOrder).toEqual(["lockProduct", "lockLeafCategory"]);
+    });
+
     it("locks the product before reading the discounts", async () => {
       const store = unitProductWithDiscount({ active: false });
 
