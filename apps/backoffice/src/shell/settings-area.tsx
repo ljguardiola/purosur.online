@@ -1,4 +1,4 @@
-import { createRoute, Outlet, redirect, useMatchRoute } from "@tanstack/react-router";
+import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { Laptop, Shield, Store, Users } from "lucide-react";
 import {
   canSeeBranchArea,
@@ -11,16 +11,8 @@ import { signedInRoute } from "./signed-in-route";
 
 export const settingsAreaRoute = createRoute({
   getParentRoute: () => signedInRoute,
-  path: "settings",
+  id: "settings-area",
   component: SettingsArea,
-});
-
-export const settingsAreaIndexRoute = createRoute({
-  getParentRoute: () => settingsAreaRoute,
-  path: "/",
-  beforeLoad: () => {
-    throw redirect({ to: "/help" });
-  },
 });
 
 function SettingsArea() {
@@ -38,50 +30,52 @@ function SettingsArea() {
             {canSeeUsersArea(session) ? (
               <li>
                 <SectionLink
-                  to="/settings/users"
-                  search={matchRoute({ to: "/settings/users" }) ? true : {}}
+                  to="/users"
+                  search={matchRoute({ to: "/users" }) ? true : {}}
                   label="Usuarios"
                   icon={<Users />}
-                  active={Boolean(matchRoute({ to: "/settings/users", fuzzy: true }))}
+                  active={Boolean(
+                    matchRoute({ to: "/users", fuzzy: true }) || matchRoute({ to: "/account" }),
+                  )}
                 />
               </li>
             ) : (
               <li>
                 <SectionLink
-                  to="/settings/users/me"
+                  to="/account"
                   label="Mi cuenta"
                   icon={<Users />}
-                  active={Boolean(matchRoute({ to: "/settings/users/me" }))}
+                  active={Boolean(matchRoute({ to: "/account" }))}
                 />
               </li>
             )}
             {canSeeRolesArea(session) && (
               <li>
                 <SectionLink
-                  to="/settings/roles"
+                  to="/roles"
                   label="Roles"
                   icon={<Shield />}
-                  active={Boolean(matchRoute({ to: "/settings/roles" }))}
+                  active={Boolean(matchRoute({ to: "/roles" }))}
                 />
               </li>
             )}
             {canSeeRegistersArea(session) && (
               <li>
                 <SectionLink
-                  to="/settings/registers"
+                  to="/registers"
                   label="Cajas registradoras"
                   icon={<Laptop />}
-                  active={Boolean(matchRoute({ to: "/settings/registers" }))}
+                  active={Boolean(matchRoute({ to: "/registers" }))}
                 />
               </li>
             )}
             {canSeeBranchArea(session) && (
               <li>
                 <SectionLink
-                  to="/settings/branch"
+                  to="/location-settings"
                   label="Sucursal"
                   icon={<Store />}
-                  active={Boolean(matchRoute({ to: "/settings/branch" }))}
+                  active={Boolean(matchRoute({ to: "/location-settings" }))}
                 />
               </li>
             )}

@@ -1,4 +1,4 @@
-import { createRoute, Outlet, redirect, useMatchRoute } from "@tanstack/react-router";
+import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { BadgePercent, Factory, ListChecks, Package, Sparkles, Tags } from "lucide-react";
 import {
   canManageProductsAndCategories,
@@ -10,27 +10,19 @@ import { signedInRoute } from "./signed-in-route";
 
 export const catalogAreaRoute = createRoute({
   getParentRoute: () => signedInRoute,
-  path: "catalog",
+  id: "catalog-area",
   component: CatalogArea,
-});
-
-export const catalogAreaIndexRoute = createRoute({
-  getParentRoute: () => catalogAreaRoute,
-  path: "/",
-  beforeLoad: () => {
-    throw redirect({ to: "/help" });
-  },
 });
 
 function CatalogArea() {
   const { session } = catalogAreaRoute.useRouteContext();
   const matchRoute = useMatchRoute();
-  const productsShown = Boolean(matchRoute({ to: "/catalog/products" }));
-  const categoriesShown = Boolean(matchRoute({ to: "/catalog/categories" }));
-  const brandsShown = Boolean(matchRoute({ to: "/catalog/brands" }));
-  const tagsShown = Boolean(matchRoute({ to: "/catalog/tags" }));
-  const pricesShown = Boolean(matchRoute({ to: "/catalog/prices" }));
-  const discountsShown = Boolean(matchRoute({ to: "/catalog/discounts" }));
+  const productsShown = Boolean(matchRoute({ to: "/products" }));
+  const categoriesShown = Boolean(matchRoute({ to: "/categories" }));
+  const brandsShown = Boolean(matchRoute({ to: "/brands" }));
+  const tagsShown = Boolean(matchRoute({ to: "/tags" }));
+  const pricesShown = Boolean(matchRoute({ to: "/prices" }));
+  const discountsShown = Boolean(matchRoute({ to: "/discounts" }));
   return (
     <AreaLayout
       area="catalog"
@@ -44,7 +36,7 @@ function CatalogArea() {
               <>
                 <li>
                   <SectionLink
-                    to="/catalog/products"
+                    to="/products"
                     label="Productos"
                     icon={<Package />}
                     search={productsShown ? true : {}}
@@ -53,7 +45,7 @@ function CatalogArea() {
                 </li>
                 <li>
                   <SectionLink
-                    to="/catalog/categories"
+                    to="/categories"
                     label="Categorías"
                     icon={<Tags />}
                     search={categoriesShown ? true : {}}
@@ -62,7 +54,7 @@ function CatalogArea() {
                 </li>
                 <li>
                   <SectionLink
-                    to="/catalog/brands"
+                    to="/brands"
                     label="Marcas"
                     icon={<Factory />}
                     search={brandsShown ? true : {}}
@@ -71,7 +63,7 @@ function CatalogArea() {
                 </li>
                 <li>
                   <SectionLink
-                    to="/catalog/tags"
+                    to="/tags"
                     label="Distintivos"
                     icon={<Sparkles />}
                     search={tagsShown ? true : {}}
@@ -83,7 +75,7 @@ function CatalogArea() {
             {canSeePricesArea(session) && (
               <li>
                 <SectionLink
-                  to="/catalog/prices"
+                  to="/prices"
                   label="Precios"
                   icon={<ListChecks />}
                   search={pricesShown ? true : {}}
@@ -94,7 +86,7 @@ function CatalogArea() {
             {canManagePromotions(session) && (
               <li>
                 <SectionLink
-                  to="/catalog/discounts"
+                  to="/discounts"
                   label="Promociones"
                   icon={<BadgePercent />}
                   search={discountsShown ? true : {}}

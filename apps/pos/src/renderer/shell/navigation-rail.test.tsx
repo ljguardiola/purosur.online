@@ -1,5 +1,5 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { Clock, History } from "lucide-react";
+import { Clock, History, ShoppingBasket } from "lucide-react";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { ActionEntry } from "./action-entries";
@@ -123,5 +123,37 @@ describe("NavigationRail", () => {
     expect(rail.scrollWidth).toBeLessThanOrEqual(88);
     expect(name.scrollWidth).toBeGreaterThan(name.clientWidth);
     expect(getComputedStyle(name).textOverflow).toBe("ellipsis");
+  });
+
+  it("names the current screen after the one it is given instead of Inicio", async () => {
+    const screen = await render(
+      <NavigationRail
+        firstName="Ada"
+        entries={[]}
+        home={{ label: "Venta", icon: ShoppingBasket }}
+      />,
+    );
+
+    await expect
+      .element(screen.getByRole("button", { name: "Venta" }))
+      .toHaveAttribute("aria-current", "page");
+    await expect.element(screen.getByRole("button", { name: "Inicio" })).not.toBeInTheDocument();
+  });
+
+  it("offers no Salir when it is given no way to sign out", async () => {
+    const screen = await render(
+      <NavigationRail
+        firstName="Ada"
+        entries={[]}
+        home={{ label: "Venta", icon: ShoppingBasket }}
+      />,
+    );
+
+    const rail = screen.getByRole("navigation", { name: "Menú de la caja" }).element();
+
+    const items = Array.from(rail.querySelectorAll("button, a")).map((item) => item.textContent);
+    expect(items).toEqual(["Venta"]);
+    await expect.element(screen.getByText("Ada")).toBeVisible();
+    await expectNoAccessibilityViolations(screen.container);
   });
 });

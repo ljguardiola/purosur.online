@@ -6,14 +6,14 @@ import { signedInRoute } from "./signed-in-route";
 
 export const homeAreaRoute = createRoute({
   getParentRoute: () => signedInRoute,
-  path: "home",
+  id: "home-area",
   component: HomeArea,
 });
 
 function HomeArea() {
   const { session } = homeAreaRoute.useRouteContext();
   const matchRoute = useMatchRoute();
-  const alertsShown = Boolean(matchRoute({ to: "/home/alerts" }));
+  const alertsShown = Boolean(matchRoute({ to: "/alerts" }));
   return (
     <AreaLayout
       area="home"
@@ -25,16 +25,16 @@ function HomeArea() {
           <ul className="flex flex-col gap-1">
             <li>
               <SectionLink
-                to="/home"
+                to="/"
                 label="Resumen"
                 icon={<LayoutDashboard />}
-                active={Boolean(matchRoute({ to: "/home" }))}
+                active={Boolean(matchRoute({ to: "/" }))}
               />
             </li>
             {canSeeAlertsArea(session) && (
               <li>
                 <SectionLink
-                  to="/home/alerts"
+                  to="/alerts"
                   search={alertsShown ? true : {}}
                   label="Alertas"
                   icon={<Bell />}

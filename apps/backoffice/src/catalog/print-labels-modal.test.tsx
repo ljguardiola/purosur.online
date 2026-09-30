@@ -499,7 +499,7 @@ test("ends the session when printing comes back unauthenticated", async () => {
 });
 
 test("navigates to Mi cuenta when printing comes back forbidden", async () => {
-  window.history.pushState(null, "", "/catalog/products");
+  window.history.pushState(null, "", "/products");
   const services = createServices();
   vi.mocked(services.printLabels).mockResolvedValue({ kind: "forbidden" });
   const screen = await renderModal(services, { products: [honeyWithInternalBarcode] });
@@ -510,7 +510,7 @@ test("navigates to Mi cuenta when printing comes back forbidden", async () => {
 
   await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
   window.history.pushState(null, "", "/");
 });
 

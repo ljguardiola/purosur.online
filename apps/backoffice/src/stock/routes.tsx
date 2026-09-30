@@ -37,7 +37,7 @@ export type StockMovementsFilters = z.output<typeof stockMovementsFilters>;
 
 export const stockBalancesRoute = createRoute({
   getParentRoute: () => stockAreaRoute,
-  path: "balances",
+  path: "inventory",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeStockBalances),
   validateSearch: stockBalancesFilters,
   search: { middlewares: [stripSearchParams(stockBalancesFilters.parse({}))] },
@@ -46,7 +46,7 @@ export const stockBalancesRoute = createRoute({
 
 export const stockCountsRoute = createRoute({
   getParentRoute: () => stockAreaRoute,
-  path: "counts",
+  path: "inventory-counts",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canPerformStockCounts),
   validateSearch: stockCountsFilters,
   search: { middlewares: [stripSearchParams(stockCountsFilters.parse({}))] },
@@ -55,7 +55,7 @@ export const stockCountsRoute = createRoute({
 
 export const stockMovementsRoute = createRoute({
   getParentRoute: () => stockAreaRoute,
-  path: "adjustments-and-losses",
+  path: "inventory-adjustments",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeStockMovements),
   validateSearch: stockMovementsFilters,
   search: { middlewares: [stripSearchParams(stockMovementsFilters.parse({}))] },

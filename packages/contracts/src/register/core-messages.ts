@@ -1,8 +1,18 @@
-import { type AuthorizablePermissionKey, isAuthorizablePermissionKey } from "@purosur/domain";
+import {
+  ARGENTINA_TIME_ZONE,
+  type AuthorizablePermissionKey,
+  isAuthorizablePermissionKey,
+  isValidCashAmount,
+  parseAmountCents,
+} from "@purosur/domain";
 import { z } from "zod";
 import { pinAttemptRefusalSchema } from "../access/pin-attempt-refusal.js";
 
 const requestId = z.string();
+
+export const openingFloatSchema = z.number().refine(isValidCashAmount);
+
+export { ARGENTINA_TIME_ZONE, parseAmountCents };
 
 const rendererPingMessageSchema = z.object({
   type: z.literal("ping"),
@@ -43,6 +53,18 @@ const signInMessageSchema = z.object({
   pin: z.string(),
 });
 
+const openCashSessionMessageSchema = z.object({
+  type: z.literal("open-cash-session"),
+  request_id: requestId,
+  user_id: z.string(),
+  opening_float: openingFloatSchema,
+});
+
+const cashSessionRequestMessageSchema = z.object({
+  type: z.literal("cash-session-request"),
+  request_id: requestId,
+});
+
 const authorizersRequestMessageSchema = z.object({
   type: z.literal("authorizers"),
   request_id: requestId,
@@ -57,6 +79,8 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   redeemPinCodeMessageSchema,
   signInUsersRequestMessageSchema,
   signInMessageSchema,
+  openCashSessionMessageSchema,
+  cashSessionRequestMessageSchema,
   authorizersRequestMessageSchema,
 ]);
 export type RendererToCoreMessage = z.infer<typeof rendererToCoreMessageSchema>;
@@ -83,16 +107,38 @@ const pinCodeRedemptionOutcomeSchema = z.discriminatedUnion("kind", [
 ]);
 export type PinCodeRedemptionOutcome = z.infer<typeof pinCodeRedemptionOutcomeSchema>;
 
+const signedInPersonSchema = z.object({
+  user_id: z.string(),
+  first_name: z.string(),
+  permission_keys: z.array(z.string()),
+});
+
 const signInOutcomeSchema = z.discriminatedUnion("kind", [
-  z.object({
-    kind: z.literal("signed_in"),
-    person: z.object({ first_name: z.string(), permission_keys: z.array(z.string()) }),
-  }),
+  z.object({ kind: z.literal("signed_in"), person: signedInPersonSchema }),
   ...pinAttemptRefusalSchema.options,
   z.object({ kind: z.literal("no_register_permission") }),
   z.object({ kind: z.literal("unavailable") }),
 ]);
 export type SignInOutcome = z.infer<typeof signInOutcomeSchema>;
+
+const openCashSessionOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("opened"),
+    session: z.object({ id: z.string(), opened_at: z.string(), opening_float: z.number() }),
+  }),
+  z.object({ kind: z.literal("not_permitted") }),
+  z.object({ kind: z.literal("already_open") }),
+  z.object({ kind: z.literal("invalid_opening_float") }),
+  z.object({ kind: z.literal("unavailable") }),
+]);
+export type OpenCashSessionOutcome = z.infer<typeof openCashSessionOutcomeSchema>;
+
+const openCashSessionSchema = z.object({
+  id: z.string(),
+  opened_at: z.string(),
+  opened_by: signedInPersonSchema,
+});
+export type OpenCashSession = z.infer<typeof openCashSessionSchema>;
 
 const signInUserSchema = z.object({ id: z.string(), first_name: z.string() });
 export type SignInUser = z.infer<typeof signInUserSchema>;
@@ -125,6 +171,17 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     request_id: requestId,
     outcome: signInOutcomeSchema,
   }),
+  z.object({
+    type: z.literal("open-cash-session-result"),
+    request_id: requestId,
+    outcome: openCashSessionOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("cash-session"),
+    request_id: requestId,
+    session: openCashSessionSchema.nullable(),
+  }),
+  z.object({ type: z.literal("cash-session-unavailable"), request_id: requestId }),
   z.object({
     type: z.literal("authorizers"),
     request_id: requestId,

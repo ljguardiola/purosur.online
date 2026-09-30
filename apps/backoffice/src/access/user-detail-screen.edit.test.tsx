@@ -83,7 +83,7 @@ test("shows the screen's not-found state when Recargar finds the user gone", asy
 });
 
 test("navigates to Mi cuenta when Recargar comes back forbidden", async () => {
-  window.history.pushState(null, "", "/settings/users/user-1");
+  window.history.pushState(null, "", "/users/user-1");
   const services = createServices();
   const { screen, dialog } = await openStaleModal(services);
 
@@ -91,7 +91,7 @@ test("navigates to Mi cuenta when Recargar comes back forbidden", async () => {
   await userEvent.click(dialog.getByRole("button", { name: "Recargar" }));
 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
 });
 
 test("keeps the loaded screen and an open edit modal with its typed email when the parent re-renders with a new onSessionEnded", async () => {

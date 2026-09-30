@@ -131,7 +131,7 @@ test("ends the session when creating finds no open session", async () => {
 });
 
 test("navigates to Mi cuenta when creating comes back forbidden", async () => {
-  window.history.pushState(null, "", "/catalog/tags");
+  window.history.pushState(null, "", "/tags");
   const createTag = vi.fn<NewTagModalServices["createTag"]>().mockResolvedValue({
     kind: "forbidden",
   });
@@ -139,7 +139,7 @@ test("navigates to Mi cuenta when creating comes back forbidden", async () => {
 
   await submitName(screen, "Vegano");
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
   window.history.pushState(null, "", "/");
 });
 

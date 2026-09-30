@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseEsArNumber } from "./es-ar-number";
+import { parseEsArNumber } from "./es-ar-number.js";
 
 describe("parseEsArNumber", () => {
   it("splits a comma-separated number into its whole and fraction digits", () => {

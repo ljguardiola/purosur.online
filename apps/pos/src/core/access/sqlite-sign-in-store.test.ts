@@ -170,6 +170,76 @@ describe("a user's sign-in record", () => {
   });
 });
 
+describe("an active person", () => {
+  it("holds the first name and the active permissions of the role", () => {
+    addUser({ id: "u1", firstName: "Ada" });
+    grant("cashier", "sell_and_charge");
+    grant("cashier", "adjust_stock", false);
+
+    expect(store.activePerson("u1")).toEqual({
+      firstName: "Ada",
+      access: { isAdministrator: false, permissionKeys: ["sell_and_charge"] },
+    });
+  });
+
+  it("marks a person whose role is an Administrator's", () => {
+    addRole("admin", { isAdministrator: true });
+    addUser({ id: "u1", roleId: "admin" });
+
+    expect(store.activePerson("u1")?.access.isAdministrator).toBe(true);
+  });
+
+  it("gives a person whose role was removed no access at all", () => {
+    addRole("gone", { isAdministrator: true, removed: true });
+    grant("gone", "sell_and_charge");
+    addUser({ id: "u1", roleId: "gone" });
+
+    expect(store.activePerson("u1")?.access).toEqual({
+      isAdministrator: false,
+      permissionKeys: [],
+    });
+  });
+
+  it("is found without a PIN, since the person is already signed in", () => {
+    addUser({ id: "u1", verifier: null, salt: null });
+
+    expect(store.activePerson("u1")?.firstName).toBe("Ada");
+  });
+
+  it("is not found for a person the register does not know", () => {
+    expect(store.activePerson("nobody")).toBeUndefined();
+  });
+
+  it.each([
+    ["deactivated", { active: false }],
+    ["removed", { removed: true }],
+  ])("is not found for a person who is %s", (_case, seed) => {
+    addUser({ id: "u1", ...seed });
+
+    expect(store.activePerson("u1")).toBeUndefined();
+  });
+});
+
+describe("any person", () => {
+  it.each([
+    ["deactivated", { active: false }],
+    ["removed", { removed: true }],
+    ["without a PIN", { verifier: null }],
+  ])("is found when %s, with the access the role holds now", (_case, seed) => {
+    addUser({ id: "u1", firstName: "Ada", ...seed });
+    grant("cashier", "sell_and_charge");
+
+    expect(store.anyPerson("u1")).toEqual({
+      firstName: "Ada",
+      access: { isAdministrator: false, permissionKeys: ["sell_and_charge"] },
+    });
+  });
+
+  it("is not found for a person the register does not know", () => {
+    expect(store.anyPerson("nobody")).toBeUndefined();
+  });
+});
+
 describe("the users who can authorize a permission", () => {
   it("lists the signable users whose role grants it, by id and first name", () => {
     grant("cashier", "record_cash_in");

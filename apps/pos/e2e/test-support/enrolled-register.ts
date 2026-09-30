@@ -10,6 +10,7 @@ export interface EnrolledRegister {
   readonly page: Page;
   readonly logs: readonly string[];
   launch(): Promise<void>;
+  restart(): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -91,6 +92,10 @@ export function enrolledRegister(cloud: StandInCloud): EnrolledRegister {
     },
     launch: async () => {
       await enroll((await start()).page, cloud);
+      await stop();
+      await start();
+    },
+    restart: async () => {
       await stop();
       await start();
     },
