@@ -18,6 +18,15 @@ describe("discountSummarySchema", () => {
     expect(discountSummarySchema.safeParse(summary).data).toEqual(summary);
   });
 
+  it("accepts a buy-N-pay-M discount", () => {
+    const buyNPayM = {
+      ...summary,
+      benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+      target: { kind: "PRODUCT", id: "product-1", name: "Alfajor" },
+    };
+    expect(discountSummarySchema.safeParse(buyNPayM).data).toEqual(buyNPayM);
+  });
+
   it.each(["PRODUCT", "CATEGORY", "TAG"])("accepts a %s target", (kind) => {
     expect(
       discountSummarySchema.safeParse({ ...summary, target: { ...summary.target, kind } }).success,
@@ -27,7 +36,11 @@ describe("discountSummarySchema", () => {
   it.each([
     ["a target without its name", { ...summary, target: { kind: "TAG", id: "tag-1" } }],
     ["an unknown target kind", { ...summary, target: { ...summary.target, kind: "BRAND" } }],
-    ["an unknown benefit kind", { ...summary, benefit: { kind: "BUY_N_PAY_M", percent: 1 } }],
+    ["an unknown benefit kind", { ...summary, benefit: { kind: "BUY_ONE", percent: 1 } }],
+    [
+      "a buy-N-pay-M benefit without its quantities",
+      { ...summary, benefit: { kind: "BUY_N_PAY_M", percent: 1 } },
+    ],
     ["a missing benefit", { ...summary, benefit: undefined }],
     ["a fractional version", { ...summary, version: 1.5 }],
     ["a weekday that is not a number", { ...summary, weekdays: ["1"] }],

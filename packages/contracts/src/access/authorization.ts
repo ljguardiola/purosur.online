@@ -13,3 +13,9 @@ export const authorizationRefusalSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("unavailable") }),
 ]);
 export type AuthorizationRefusal = z.infer<typeof authorizationRefusalSchema>;
+
+export const guardedActionRefusalSchema = z.discriminatedUnion("kind", [
+  ...authorizationRefusalSchema.options,
+  z.object({ kind: z.literal("not_signed_in") }),
+]);
+export type GuardedActionRefusal = z.infer<typeof guardedActionRefusalSchema>;

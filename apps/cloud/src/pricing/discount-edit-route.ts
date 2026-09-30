@@ -12,7 +12,10 @@ import {
 import { discounts } from "../platform/db/schema.js";
 import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
-import { DISCOUNT_TARGET_NOT_FOUND_RESPONSE } from "./discount-creation-route.js";
+import {
+  DISCOUNT_TARGET_NOT_FOUND_RESPONSE,
+  DISCOUNT_TARGET_NOT_SOLD_BY_UNIT_RESPONSE,
+} from "./discount-creation-route.js";
 import { type DiscountsRouteOptions, listDiscounts } from "./discounts-list-route.js";
 import { DrizzleDiscountStore } from "./drizzle-discount-store.js";
 
@@ -76,6 +79,10 @@ export function registerDiscountEditRoute<TQueryResult extends PgQueryResultHKT>
       }
       if (outcome.kind === "target_not_found") {
         await reply.code(409).send(DISCOUNT_TARGET_NOT_FOUND_RESPONSE);
+        return;
+      }
+      if (outcome.kind === "target_not_sold_by_unit") {
+        await reply.code(409).send(DISCOUNT_TARGET_NOT_SOLD_BY_UNIT_RESPONSE);
         return;
       }
 

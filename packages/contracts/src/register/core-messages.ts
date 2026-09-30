@@ -70,7 +70,6 @@ const firstSignInMessageSchema = z.object({
 const openCashSessionMessageSchema = z.object({
   type: z.literal("open-cash-session"),
   request_id: requestId,
-  user_id: z.string(),
   opening_float: openingFloatSchema,
 });
 
@@ -98,6 +97,11 @@ const saleRequestMessageSchema = z.object({
   user_id: z.string(),
 });
 
+const signOutMessageSchema = z.object({
+  type: z.literal("sign-out"),
+  request_id: requestId,
+});
+
 export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   rendererPingMessageSchema,
   enrollmentStatusRequestMessageSchema,
@@ -113,6 +117,7 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   authorizersRequestMessageSchema,
   scanProductMessageSchema,
   saleRequestMessageSchema,
+  signOutMessageSchema,
 ]);
 export type RendererToCoreMessage = z.infer<typeof rendererToCoreMessageSchema>;
 
@@ -122,6 +127,7 @@ const enrollmentOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("rate_limited"), retry_after_seconds: z.int().nonnegative() }),
   z.object({ kind: z.literal("unreachable") }),
   z.object({ kind: z.literal("unavailable") }),
+  z.object({ kind: z.literal("storage_unavailable") }),
   z.object({ kind: z.literal("not_stored") }),
 ]);
 export type EnrollmentOutcome = z.infer<typeof enrollmentOutcomeSchema>;
@@ -148,6 +154,7 @@ const signInOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("signed_in"), person: signedInPersonSchema }),
   ...pinAttemptRefusalSchema.options,
   z.object({ kind: z.literal("no_register_permission") }),
+  z.object({ kind: z.literal("cash_session_opened_by_another") }),
   z.object({ kind: z.literal("unavailable") }),
 ]);
 export type SignInOutcome = z.infer<typeof signInOutcomeSchema>;
@@ -157,6 +164,7 @@ const openCashSessionOutcomeSchema = z.discriminatedUnion("kind", [
     kind: z.literal("opened"),
     session: z.object({ id: z.string(), opened_at: z.string(), opening_float: z.number() }),
   }),
+  z.object({ kind: z.literal("not_signed_in") }),
   z.object({ kind: z.literal("not_permitted") }),
   z.object({ kind: z.literal("already_open") }),
   z.object({ kind: z.literal("invalid_opening_float") }),
@@ -243,6 +251,7 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("sale"), request_id: requestId, sale: saleSchema.nullable() }),
   z.object({ type: z.literal("sale-unavailable"), request_id: requestId }),
+  z.object({ type: z.literal("signed-out"), request_id: requestId }),
   z.object({ type: z.literal("pulled") }),
 ]);
 export type CoreToRendererMessage = z.infer<typeof coreToRendererMessageSchema>;

@@ -2,19 +2,37 @@ import type { SyncChange } from "@purosur/contracts";
 import type { LocalDatabase } from "../platform/local-database";
 import type { RemovalOf } from "./pulled-change";
 
+type DiscountBenefit = Extract<SyncChange, { entity: "discount" }>["row"]["benefit"];
+
+function benefitColumns(benefit: DiscountBenefit) {
+  switch (benefit.kind) {
+    case "PERCENT_OFF":
+      return { kind: benefit.kind, percent: benefit.percent, buy_qty: null, pay_qty: null };
+    case "BUY_N_PAY_M":
+      return {
+        kind: benefit.kind,
+        percent: null,
+        buy_qty: benefit.buyQty,
+        pay_qty: benefit.payQty,
+      };
+  }
+}
+
 export function prepareDiscountPageWrites(database: LocalDatabase) {
   const saveDiscount = database.prepare(
     `INSERT INTO discounts (
-       id, name, kind, percent, target_kind, target_id, valid_from, valid_to, weekdays,
-       active, version, removed
+       id, name, kind, percent, buy_qty, pay_qty, target_kind, target_id, valid_from, valid_to,
+       weekdays, active, version, removed
      ) VALUES (
-       @id, @name, @kind, @percent, @target_kind, @target_id, @valid_from, @valid_to, @weekdays,
-       @active, @version, 0
+       @id, @name, @kind, @percent, @buy_qty, @pay_qty, @target_kind, @target_id, @valid_from,
+       @valid_to, @weekdays, @active, @version, 0
      )
      ON CONFLICT (id) DO UPDATE SET
        name = excluded.name,
        kind = excluded.kind,
        percent = excluded.percent,
+       buy_qty = excluded.buy_qty,
+       pay_qty = excluded.pay_qty,
        target_kind = excluded.target_kind,
        target_id = excluded.target_id,
        valid_from = excluded.valid_from,
@@ -34,8 +52,7 @@ export function prepareDiscountPageWrites(database: LocalDatabase) {
       saveDiscount.run({
         id: entity_id,
         name: row.name,
-        kind: row.benefit.kind,
-        percent: row.benefit.percent,
+        ...benefitColumns(row.benefit),
         target_kind: row.target.kind,
         target_id: row.target.id,
         valid_from: row.valid_from,

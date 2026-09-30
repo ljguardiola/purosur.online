@@ -90,8 +90,23 @@ const kindFilterOptions = [
 
 const nameOrder = textOrder((discount: DiscountSummary) => discount.name);
 
-const benefitOrder: TableItemOrder<DiscountSummary> = (a, b) =>
-  a.benefit.percent - b.benefit.percent || nameOrder(a, b);
+const BENEFIT_KIND_RANK = {
+  PERCENT_OFF: 0,
+  BUY_N_PAY_M: 1,
+} satisfies Record<DiscountSummary["benefit"]["kind"], number>;
+
+function benefitSortKey(benefit: DiscountSummary["benefit"]): readonly [number, number, number] {
+  const rank = BENEFIT_KIND_RANK[benefit.kind];
+  return benefit.kind === "PERCENT_OFF"
+    ? [rank, benefit.percent, 0]
+    : [rank, benefit.buyQty, benefit.payQty];
+}
+
+const benefitOrder: TableItemOrder<DiscountSummary> = (a, b) => {
+  const [rankA, firstA, secondA] = benefitSortKey(a.benefit);
+  const [rankB, firstB, secondB] = benefitSortKey(b.benefit);
+  return rankA - rankB || firstA - firstB || secondA - secondB || nameOrder(a, b);
+};
 
 const validityOrder: TableItemOrder<DiscountSummary> = (a, b) =>
   a.validFrom.localeCompare(b.validFrom) || a.validTo.localeCompare(b.validTo) || nameOrder(a, b);

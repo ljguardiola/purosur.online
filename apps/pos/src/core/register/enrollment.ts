@@ -70,7 +70,7 @@ export async function enroll(deps: EnrollmentDeps, typedCode: string): Promise<E
   // Redeeming revokes the register's previous installation, so it only happens once this machine
   // is known to be able to keep the token it gets back.
   if (!(await deps.canStoreCredentials())) {
-    return { kind: "not_stored" };
+    return { kind: "storage_unavailable" };
   }
 
   const response = await deps.postToCloud("/api/devices", request.data);

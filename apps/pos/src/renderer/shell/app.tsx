@@ -42,6 +42,12 @@ export function App({ core }: { core: CoreClient }) {
     if (outcome.kind === "signed_in") {
       setPerson(outcome.person);
     }
+    if (outcome.kind === "cash_session_opened_by_another") {
+      await core.cashSession().then(
+        (session) => setCashSession(stateOf(session)),
+        () => {},
+      );
+    }
     return outcome;
   }
 
@@ -54,7 +60,10 @@ export function App({ core }: { core: CoreClient }) {
   }
 
   async function openCashSession(opener: SignedInPerson, openingFloat: number) {
-    const outcome = await core.openCashSession(opener.user_id, openingFloat);
+    const outcome = await core.openCashSession(openingFloat);
+    if (outcome.kind === "not_signed_in") {
+      setPerson(undefined);
+    }
     if (outcome.kind === "opened") {
       setCashSession({ status: "open", openedAt: outcome.session.opened_at, openedBy: opener });
     }
@@ -79,6 +88,7 @@ export function App({ core }: { core: CoreClient }) {
   }
 
   function signOut() {
+    core.signOut().catch(() => {});
     setPerson(undefined);
   }
 
@@ -102,6 +112,7 @@ export function App({ core }: { core: CoreClient }) {
 
   useEffect(() => {
     if (coreStatus !== "up") {
+      setPerson(undefined);
       return;
     }
     let current = true;

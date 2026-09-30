@@ -953,6 +953,117 @@ test("a schema issue on a key the request type does not declare shows on the fie
   await expect.element(screen.getByText("Revisá el contenido.")).toBeVisible();
 });
 
+test("a nested schema issue shows on the field declared for its dotted path, or else for its top key", async () => {
+  const schema = z.object({
+    deal: z.object({ buy: z.number().min(2), pay: z.number().min(1) }),
+  });
+  function NestedKeyProbe() {
+    const { form, submit } = useCloudForm({
+      defaultValues: { buy: "", pay: "" },
+      request: {
+        schema,
+        from: ({ buy, pay }) => ({ deal: { buy: Number(buy), pay: Number(pay) } }),
+      },
+      fields: { deal: "buy", "deal.pay": "pay" },
+      messages: { buy: "Revisá lo que lleva.", pay: "Revisá lo que paga." },
+      onSubmit: () => Promise.resolve(),
+    });
+    return (
+      <>
+        <form.AppField name="buy">
+          {(field) => <field.TextField kind="plain-text" label="Lleva" />}
+        </form.AppField>
+        <form.AppField name="pay">
+          {(field) => <field.TextField kind="plain-text" label="Paga" />}
+        </form.AppField>
+        <button type="button" onClick={() => void submit()}>
+          Enviar
+        </button>
+      </>
+    );
+  }
+  const screen = await render(<NestedKeyProbe />);
+  await userEvent.fill(screen.getByRole("textbox", { name: "Lleva" }), "3");
+  await userEvent.fill(screen.getByRole("textbox", { name: "Paga" }), "0");
+
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+  await expect.element(screen.getByText("Revisá lo que paga.")).toBeVisible();
+  expect(screen.getByText("Revisá lo que lleva.").query()).toBeNull();
+
+  await userEvent.fill(screen.getByRole("textbox", { name: "Lleva" }), "1");
+
+  await expect.element(screen.getByText("Revisá lo que lleva.")).toBeVisible();
+});
+
+test("a declared field that is not shown does not hold back a valid submit", async () => {
+  const onSubmit = vi.fn(() => Promise.resolve());
+  function HiddenFieldProbe() {
+    const { form, submit } = useCloudForm({
+      defaultValues: { name: "", hidden: "" },
+      request: { schema: z.object({ name: z.string() }), from: ({ name }) => ({ name }) },
+      fields: { name: "name", other: "hidden" },
+      messages: { name: "Revisá el nombre.", hidden: "Revisá lo oculto." },
+      onSubmit,
+    });
+    return (
+      <>
+        <form.AppField name="name">
+          {(field) => <field.TextField kind="plain-text" label="Nombre" />}
+        </form.AppField>
+        <button type="button" onClick={() => void submit()}>
+          Enviar
+        </button>
+      </>
+    );
+  }
+  const screen = await render(<HiddenFieldProbe />);
+
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+  await expect.poll(() => onSubmit.mock.calls.length).toBe(1);
+});
+
+test("a key can be declared for the field the values at that moment name", async () => {
+  function ChosenFieldProbe() {
+    const { form, submit } = useCloudForm({
+      defaultValues: { shape: "", percent: "5", fixed: "7" },
+      request: {
+        schema: z.object({ amount: z.number() }),
+        from: (values) => ({ amount: Number(values.percent) }),
+      },
+      fields: { amount: (values) => (values.shape === "fijo" ? "fixed" : "percent") },
+      messages: { percent: "Revisá el porcentaje.", fixed: "Revisá el monto fijo." },
+      onSubmit: async (_request, { showWireFieldError }) => {
+        showWireFieldError("amount");
+      },
+    });
+    return (
+      <>
+        <form.AppField name="shape">
+          {(field) => <field.TextField kind="plain-text" label="Forma" />}
+        </form.AppField>
+        <form.AppField name="percent">
+          {(field) => <field.TextField kind="plain-text" label="Porcentaje" />}
+        </form.AppField>
+        <form.AppField name="fixed">
+          {(field) => <field.TextField kind="plain-text" label="Fijo" />}
+        </form.AppField>
+        <button type="button" onClick={() => void submit()}>
+          Enviar
+        </button>
+      </>
+    );
+  }
+  const screen = await render(<ChosenFieldProbe />);
+  await userEvent.fill(screen.getByRole("textbox", { name: "Forma" }), "fijo");
+
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+  await expect.element(screen.getByText("Revisá el monto fijo.")).toBeVisible();
+  expect(screen.getByText("Revisá el porcentaje.").query()).toBeNull();
+});
+
 const DIRECTION_OPTIONS = [
   { value: "add", label: "Suma" },
   { value: "subtract", label: "Resta" },

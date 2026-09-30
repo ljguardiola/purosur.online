@@ -16,10 +16,11 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const signIns: { userId: string; pin: string }[] = [];
   const firstSignIns: { userId: string; pin: string }[] = [];
   const lookups: string[] = [];
-  const openings: { userId: string; openingFloat: number }[] = [];
+  const openings: number[] = [];
   const authorizerLookups: string[] = [];
   const scans: { userId: string; code: string }[] = [];
   const saleLookups: string[] = [];
+  const signOuts: string[] = [];
   const failures: { context: string; error: unknown }[] = [];
   return {
     enrolledCodes,
@@ -31,6 +32,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
     authorizerLookups,
     scans,
     saleLookups,
+    signOuts,
     failures,
     deps: {
       credentialsPresent: async () => enrolled,
@@ -56,11 +58,8 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         lookups.push(email);
         return { kind: "has_pin", user: { id: "u1", first_name: "Ada" } };
       },
-      openCashSession: async (
-        userId: string,
-        openingFloat: number,
-      ): Promise<OpenCashSessionOutcome> => {
-        openings.push({ userId, openingFloat });
+      openCashSession: async (openingFloat: number): Promise<OpenCashSessionOutcome> => {
+        openings.push(openingFloat);
         return { kind: "not_permitted" };
       },
       cashSession: (): OpenCashSession | null => null,
@@ -75,6 +74,9 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       authorizers: (permission: AuthorizablePermissionKey) => {
         authorizerLookups.push(permission);
         return [{ id: "u2", first_name: "Grace" }];
+      },
+      signOut: () => {
+        signOuts.push("signed out");
       },
       reportFailure: (context: string, error: unknown) => {
         failures.push({ context, error });
@@ -235,6 +237,18 @@ describe("answerRendererRequest", () => {
     ).toEqual({ type: "authorizers-unavailable", request_id: "r12" });
   });
 
+  it("signs out and answers that nobody is signed in", async () => {
+    const { deps: withSignOut, signOuts } = deps(true);
+
+    const answer = await answerRendererRequest(withSignOut, {
+      type: "sign-out",
+      request_id: "r10",
+    });
+
+    expect(signOuts).toHaveLength(1);
+    expect(answer).toEqual({ type: "signed-out", request_id: "r10" });
+  });
+
   it("signs in the chosen user with the PIN as typed and answers the outcome", async () => {
     const { deps: withSignIn, signIns } = deps(true);
 
@@ -299,7 +313,7 @@ describe("answerRendererRequest", () => {
     expect(failures).toEqual([]);
   });
 
-  it("opens a cash session for the chosen user with the float as sent and answers the outcome", async () => {
+  it("opens a cash session with the float as sent and answers the outcome", async () => {
     const opened: OpenCashSessionOutcome = {
       kind: "opened",
       session: { id: "s1", opened_at: "2026-09-30T12:00:00.000Z", opening_float: 5000 },
@@ -308,14 +322,12 @@ describe("answerRendererRequest", () => {
     const answer = await answerRendererRequest(withOpening, {
       type: "open-cash-session",
       request_id: "r11",
-      user_id: "u1",
       opening_float: 5000,
     });
     const refused = deps(true);
     await answerRendererRequest(refused.deps, {
       type: "open-cash-session",
       request_id: "r12",
-      user_id: "u2",
       opening_float: 0,
     });
 
@@ -325,7 +337,7 @@ describe("answerRendererRequest", () => {
       outcome: opened,
     });
     expect(openings).toEqual([]);
-    expect(refused.openings).toEqual([{ userId: "u2", openingFloat: 0 }]);
+    expect(refused.openings).toEqual([0]);
   });
 
   it("answers that opening a cash session is unavailable when it fails, and reports why", async () => {
@@ -340,7 +352,6 @@ describe("answerRendererRequest", () => {
       await answerRendererRequest(failing.deps, {
         type: "open-cash-session",
         request_id: "r13",
-        user_id: "u1",
         opening_float: 1,
       }),
     ).toEqual({
@@ -358,7 +369,6 @@ describe("answerRendererRequest", () => {
       await answerRendererRequest(withoutDatabase.deps, {
         type: "open-cash-session",
         request_id: "r14",
-        user_id: "u1",
         opening_float: 1,
       }),
     ).toEqual({

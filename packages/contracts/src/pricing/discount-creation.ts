@@ -35,6 +35,15 @@ export const discountCreationBodySchema = z
       .array(z.number({ error: WEEKDAYS_MESSAGE }), { error: WEEKDAYS_MESSAGE })
       .refine(isValidDiscountWeekdays, WEEKDAYS_MESSAGE),
   })
+  .superRefine((discount, context) => {
+    if (discount.benefit.kind === "BUY_N_PAY_M" && discount.target.kind !== "PRODUCT") {
+      context.addIssue({
+        code: "custom",
+        path: ["target", "kind"],
+        message: "target.kind must be PRODUCT for a BUY_N_PAY_M benefit",
+      });
+    }
+  })
   .superRefine(
     (discount, context) => {
       if (!isDiscountWindowOrdered(discount.validFrom, discount.validTo)) {

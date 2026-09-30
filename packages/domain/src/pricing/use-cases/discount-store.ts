@@ -1,3 +1,4 @@
+import type { SaleUnit } from "../../catalog/index.js";
 import type { DiscountBenefit } from "../model/discount-benefit.js";
 import type { DiscountTarget } from "../model/discount-target.js";
 
@@ -16,7 +17,9 @@ export interface DiscountFields {
   version: number;
 }
 
-export type LockAssignableTargetResult = { kind: "not_found" } | { kind: "locked" };
+export type LockAssignableTargetResult =
+  | { kind: "not_found" }
+  | { kind: "locked"; saleUnit: SaleUnit | null };
 
 export type LockDiscountResult =
   | { kind: "not_found" }

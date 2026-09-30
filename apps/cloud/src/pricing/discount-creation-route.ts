@@ -17,6 +17,11 @@ export const DISCOUNT_TARGET_NOT_FOUND_RESPONSE = {
   message: "the product, category or tag the discount applies to does not exist or is deactivated",
 } as const;
 
+export const DISCOUNT_TARGET_NOT_SOLD_BY_UNIT_RESPONSE = {
+  code: "discount_target_not_sold_by_unit",
+  message: "a buy-N-pay-M discount applies only to a product sold by the unit",
+} as const;
+
 export function registerDiscountCreationRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: DiscountsRouteOptions<TQueryResult>,
@@ -42,6 +47,10 @@ export function registerDiscountCreationRoute<TQueryResult extends PgQueryResult
 
       if (outcome.kind === "target_not_found") {
         await reply.code(409).send(DISCOUNT_TARGET_NOT_FOUND_RESPONSE);
+        return;
+      }
+      if (outcome.kind === "target_not_sold_by_unit") {
+        await reply.code(409).send(DISCOUNT_TARGET_NOT_SOLD_BY_UNIT_RESPONSE);
         return;
       }
 
