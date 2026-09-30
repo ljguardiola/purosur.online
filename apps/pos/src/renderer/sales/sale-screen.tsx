@@ -145,6 +145,8 @@ export function SaleScreen({
 
   const sale = view.status === "ready" ? view.sale : null;
   const notPermitted = messageFor({ kind: "not_permitted" });
+  const shownProblem =
+    view.status === "not_permitted" && problem?.kind === "not_permitted" ? undefined : problem;
 
   return (
     <div className="flex h-screen w-screen bg-surface-subtle">
@@ -166,7 +168,7 @@ export function SaleScreen({
             value={code}
             onChange={type}
           />
-          <ScanProblemMessage problem={problem} />
+          <ScanProblemMessage problem={shownProblem} />
         </form>
         {view.status === "loading" ? <LoadingPlaceholder variant="list" items={4} /> : null}
         {view.status === "failed" ? (

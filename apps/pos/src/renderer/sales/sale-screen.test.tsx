@@ -574,6 +574,23 @@ describe("SaleScreen", () => {
       expect(onSessionInvalid).not.toHaveBeenCalled();
     });
 
+    it("says only once that the person may not sell when a scan is refused for it too", async () => {
+      const { screen, field } = await renderScreen({
+        currentSale: async () => "not_permitted",
+        scanProduct: async () => ({ kind: "not_permitted" }),
+      });
+      await expect.element(screen.getByText(NOT_PERMITTED_TITLE)).toBeVisible();
+
+      await scan(field, "7790009");
+
+      const input = field.element() as HTMLInputElement;
+      await expect
+        .poll(() => [input.selectionStart, input.selectionEnd])
+        .toEqual([0, "7790009".length]);
+      await expect.element(screen.getByText(NOT_PERMITTED_TITLE)).toHaveLength(1);
+      await expect.element(screen.getByText(NOT_PERMITTED_HELP)).toHaveLength(1);
+    });
+
     it.each<ScanProductOutcome>([{ kind: "not_signed_in" }, { kind: "no_open_session" }])(
       "asks for the session to be read again when the core answers $kind, without any message",
       async (outcome) => {
