@@ -1,11 +1,12 @@
 import type { EnrollmentOutcome } from "@purosur/contracts";
 import { deviceEnrollmentBodySchema } from "@purosur/contracts";
 import type { Icon } from "@purosur/ui";
-import { Button, InlineNotice, plural, TextField } from "@purosur/ui";
+import { Button, InlineNotice, TextField } from "@purosur/ui";
 import { ShieldX, TriangleAlert, WifiOff } from "lucide-react";
 import type { FormEvent } from "react";
 import { useId, useState } from "react";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
+import { retryAfterText } from "../shell/retry-after-text";
 
 type Notice = { icon: Icon; title: string; description: string };
 
@@ -28,14 +29,12 @@ function noticeFor(outcome: EnrollmentOutcome): Notice | undefined {
         description:
           "Venció, ya se usó o se escribió mal varias veces. Pedí un código nuevo en el backoffice.",
       };
-    case "rate_limited": {
-      const minutes = Math.max(1, Math.ceil(outcome.retry_after_seconds / 60));
+    case "rate_limited":
       return {
         icon: <ShieldX />,
         title: "Demasiadas solicitudes",
-        description: `Se puede volver a intentar en ${plural(minutes, { one: "1 minuto", other: `${minutes} minutos` })}.`,
+        description: retryAfterText(outcome.retry_after_seconds),
       };
-    }
     case "unreachable":
       return {
         icon: <WifiOff />,

@@ -22,6 +22,9 @@ function coreAnswering(enrolled: boolean, outcome: EnrollmentOutcome = { kind: "
     async enroll() {
       return outcome;
     },
+    async redeemPinCode() {
+      return { kind: "redeemed" };
+    },
   };
   return { core, asked };
 }

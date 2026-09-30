@@ -1,4 +1,8 @@
-import type { CoreStatusMessage, EnrollmentOutcome } from "@purosur/contracts";
+import type {
+  CoreStatusMessage,
+  EnrollmentOutcome,
+  PinCodeRedemptionOutcome,
+} from "@purosur/contracts";
 import type { AnyRoute } from "@tanstack/react-router";
 import {
   createMemoryHistory,
@@ -8,6 +12,7 @@ import {
   Outlet,
   redirect,
 } from "@tanstack/react-router";
+import { PinCodeRedemptionScreen } from "../access/pin-code-redemption-screen";
 import { EnrollmentScreen } from "../register/enrollment-screen";
 import { BrandPanelScreen } from "./brand-panel-screen";
 import { CoreDownNotice } from "./core-down-notice";
@@ -21,13 +26,19 @@ export interface RouterContext {
   coreStatus: CoreStatus;
   enrollment: Enrollment;
   enroll: (typedCode: string) => Promise<EnrollmentOutcome>;
+  redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
 }
+
+export type RouterServices = Pick<RouterContext, "enroll" | "redeemPinCode">;
 
 type ScreenPath = "/" | "/enroll" | "/starting" | "/core-down";
 
 // Until the core says whether this installation is enrolled, the register stays on the brand panel
 // instead of guessing between the enrollment screen and the rest of the register.
-export function routeFor({ coreStatus, enrollment }: Omit<RouterContext, "enroll">): ScreenPath {
+export function routeFor({
+  coreStatus,
+  enrollment,
+}: Omit<RouterContext, keyof RouterServices>): ScreenPath {
   if (coreStatus === "down") {
     return "/core-down";
   }
@@ -53,6 +64,16 @@ const readyRoute = createRoute({
   path: "/",
   beforeLoad: ({ context }) => requireRoute("/", context),
   component: ReadyScreen,
+});
+
+const pinCodeRedemptionRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/pin-code-redemption",
+  beforeLoad: ({ context }) => requireRoute("/", context),
+  component: function PinCodeRedemptionRoute() {
+    const { redeemPinCode } = pinCodeRedemptionRoute.useRouteContext();
+    return <PinCodeRedemptionScreen redeem={redeemPinCode} />;
+  },
 });
 
 const enrollRoute = createRoute({
@@ -81,6 +102,7 @@ const coreDownRoute = createRoute({
 
 export const routeTree = rootRoute.addChildren([
   readyRoute,
+  pinCodeRedemptionRoute,
   enrollRoute,
   startingRoute,
   coreDownRoute,
@@ -99,10 +121,10 @@ export function createRegisterRouter<TRouteTree extends AnyRoute>(
   });
 }
 
-export function createAppRouter(enroll: RouterContext["enroll"]) {
+export function createAppRouter(services: RouterServices) {
   return createRegisterRouter(
     routeTree,
-    { coreStatus: "starting", enrollment: "unknown", enroll },
+    { coreStatus: "starting", enrollment: "unknown", ...services },
     "/starting",
   );
 }

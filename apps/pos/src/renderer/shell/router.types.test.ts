@@ -29,6 +29,14 @@ describe("the register's router types", () => {
     expectTypeOf<ToReadyScreen>().toExtend<ValidateNavigateOptions<AppRouter, ToReadyScreen>>();
   });
 
+  it("accepts navigating to the PIN code redemption screen", () => {
+    type ToPinCodeRedemption = { to: "/pin-code-redemption" };
+
+    expectTypeOf<ToPinCodeRedemption>().toExtend<
+      ValidateNavigateOptions<AppRouter, ToPinCodeRedemption>
+    >();
+  });
+
   it("fails to type-check navigating to a route that was never declared", () => {
     type ToUndeclaredScreen = { to: "/does-not-exist" };
 

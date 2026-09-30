@@ -18,7 +18,12 @@ export function App({ core }: { core: CoreClient }) {
     return outcome;
   }
 
-  const [router] = useState(() => createAppRouter(enroll));
+  const services = {
+    enroll,
+    redeemPinCode: (typedCode: string, newPin: string) => core.redeemPinCode(typedCode, newPin),
+  };
+
+  const [router] = useState(() => createAppRouter(services));
 
   useEffect(() => {
     if (coreStatus !== "up") {
@@ -43,5 +48,5 @@ export function App({ core }: { core: CoreClient }) {
     router.navigate({ to: routeFor({ coreStatus, enrollment }), replace: true });
   }, [router, coreStatus, enrollment]);
 
-  return <RouterProvider router={router} context={{ coreStatus, enrollment, enroll }} />;
+  return <RouterProvider router={router} context={{ coreStatus, enrollment, ...services }} />;
 }

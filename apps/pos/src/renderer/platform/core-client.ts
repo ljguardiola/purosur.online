@@ -1,6 +1,7 @@
 import type {
   CoreToRendererMessage,
   EnrollmentOutcome,
+  PinCodeRedemptionOutcome,
   RendererToCoreMessage,
 } from "@purosur/contracts";
 import { coreToRendererMessageSchema } from "@purosur/contracts";
@@ -16,6 +17,7 @@ export interface CoreClient {
   connect(port: CorePort): void;
   enrollmentStatus(): Promise<boolean>;
   enroll(typedCode: string): Promise<EnrollmentOutcome>;
+  redeemPinCode(typedCode: string, newPin: string): Promise<PinCodeRedemptionOutcome>;
 }
 
 type CoreRequest = Exclude<RendererToCoreMessage, { type: "ping" }>;
@@ -99,6 +101,17 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
     enroll(typedCode) {
       return ask({ type: "enroll", request_id: deps.newRequestId(), code: typedCode }, (answer) =>
         answer.type === "enrollment-result" ? answer.outcome : undefined,
+      );
+    },
+    redeemPinCode(typedCode, newPin) {
+      return ask(
+        {
+          type: "redeem-pin-code",
+          request_id: deps.newRequestId(),
+          reset_code: typedCode,
+          new_pin: newPin,
+        },
+        (answer) => (answer.type === "pin-code-redemption-result" ? answer.outcome : undefined),
       );
     },
   };
