@@ -32,6 +32,7 @@ export const locations = pgTable("locations", {
 export const priceLists = pgTable("price_lists", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
+  version: integer("version").notNull().default(1),
 });
 
 export const branchSettings = pgTable("branch_settings", {
@@ -506,7 +507,7 @@ export const deviceState = pgTable("device_state", {
   lastPulledAt: timestamp("last_pulled_at", { withTimezone: true }).notNull(),
 });
 
-export const changeOp = pgEnum("change_op", ["insert", "update"]);
+export const changeOp = pgEnum("change_op", ["insert", "update", "delete"]);
 
 // Append-only and never pruned: a register returning after any time offline catches up from it.
 // `origin_device_id` has no foreign key so a change outlives the installation that made it.
@@ -520,9 +521,13 @@ export const changes = pgTable(
     op: changeOp("op").notNull(),
     at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
     originDeviceId: uuid("origin_device_id"),
+    // Set on a price's changes only, so the feed can tell which branch's list a price belongs to
+    // after the price itself is gone.
+    priceListId: uuid("price_list_id"),
   },
   (table) => [
     index("changes_entity_entity_id_idx").on(table.entity, table.entityId, table.changeSeq),
+    index("changes_entity_price_list_id_idx").on(table.entity, table.priceListId, table.changeSeq),
   ],
 );
 

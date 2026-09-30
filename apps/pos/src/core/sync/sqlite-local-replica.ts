@@ -1,6 +1,8 @@
 import type { BranchSettingsBody } from "@purosur/contracts";
+import type { NetContentUnit, SaleUnit } from "@purosur/domain";
 import type { LocalReplica, PullPage } from "@purosur/domain/sync/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
+import { prepareCatalogPageWrites } from "./catalog-page-writes";
 import type { RegisterPulledChange } from "./pulled-change";
 
 const DAY_FIELDS = [
@@ -59,6 +61,7 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
 
   // A version the register already has, or an older one delivered late, never overwrites it.
   async savePage(page: PullPage<RegisterPulledChange>): Promise<void> {
+    const catalog = prepareCatalogPageWrites(this.database);
     const saveBranchSettings = this.database.prepare(
       `INSERT INTO branch_settings (
          location_id, address, whatsapp_number, instagram_handle, weekly_hours,
@@ -85,18 +88,41 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
 
     this.database.transaction(() => {
       for (const { change } of page.changes) {
-        const { row } = change;
-        saveBranchSettings.run({
-          location_id: change.entity_id,
-          address: row.address,
-          whatsapp_number: row.whatsapp_number,
-          instagram_handle: row.instagram_handle,
-          weekly_hours: JSON.stringify(weeklyHoursOf(row)),
-          expiring_lot_alert_days: row.expiring_lot_alert_days,
-          unreviewed_price_alert_days: row.unreviewed_price_alert_days,
-          good_condition_return_days: row.good_condition_return_days,
-          version: row.version,
-        });
+        switch (change.entity) {
+          case "branch_settings": {
+            const { row } = change;
+            saveBranchSettings.run({
+              location_id: change.entity_id,
+              address: row.address,
+              whatsapp_number: row.whatsapp_number,
+              instagram_handle: row.instagram_handle,
+              weekly_hours: JSON.stringify(weeklyHoursOf(row)),
+              expiring_lot_alert_days: row.expiring_lot_alert_days,
+              unreviewed_price_alert_days: row.unreviewed_price_alert_days,
+              good_condition_return_days: row.good_condition_return_days,
+              version: row.version,
+            });
+            break;
+          }
+          case "category":
+            catalog.category(change);
+            break;
+          case "product":
+            catalog.product(change);
+            break;
+          case "tag":
+            catalog.tag(change);
+            break;
+          case "price_list":
+            catalog.priceList(change);
+            break;
+          case "price":
+            catalog.price(change);
+            break;
+          case "removal":
+            catalog.removal(change);
+            break;
+        }
       }
       saveCursor.run(page.cursor);
     })();
@@ -115,5 +141,100 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
     }
     const { weekly_hours, ...fields } = record;
     return { ...fields, ...(JSON.parse(weekly_hours) as WeeklyHours) };
+  }
+
+  category(id: string) {
+    const record = this.database
+      .prepare<
+        [string],
+        { name: string; parent_id: string | null; version: number; removed: number }
+      >("SELECT name, parent_id, version, removed FROM categories WHERE id = ?")
+      .get(id);
+    return record && { ...record, removed: record.removed === 1 };
+  }
+
+  product(id: string) {
+    const record = this.database
+      .prepare<
+        [string],
+        {
+          name: string;
+          category_id: string;
+          brand_id: string | null;
+          sale_unit: SaleUnit;
+          active: number;
+          net_content_quantity: number | null;
+          net_content_unit: NetContentUnit | null;
+          version: number;
+          removed: number;
+        }
+      >(
+        `SELECT name, category_id, brand_id, sale_unit, active, net_content_quantity,
+                net_content_unit, version, removed
+         FROM products WHERE id = ?`,
+      )
+      .get(id);
+    if (record === undefined) {
+      return undefined;
+    }
+    const { net_content_quantity, net_content_unit, ...fields } = record;
+    const barcodes = this.database
+      .prepare<[string], { position: number; code: string; active: number }>(
+        "SELECT position, code, active FROM product_barcodes WHERE product_id = ? ORDER BY position",
+      )
+      .all(id);
+    const tagIds = this.database
+      .prepare<[string], { tag_id: string; active: number }>(
+        "SELECT tag_id, active FROM product_tags WHERE product_id = ? ORDER BY tag_id",
+      )
+      .all(id);
+    return {
+      ...fields,
+      active: record.active === 1,
+      tag_ids: tagIds.map((tag) => ({ tag_id: tag.tag_id, active: tag.active === 1 })),
+      net_content:
+        net_content_quantity === null || net_content_unit === null
+          ? null
+          : { quantity: net_content_quantity, unit: net_content_unit },
+      barcodes: barcodes.map((barcode) => ({ ...barcode, active: barcode.active === 1 })),
+      removed: record.removed === 1,
+    };
+  }
+
+  tag(id: string) {
+    const record = this.database
+      .prepare<[string], { name: string; active: number; version: number; removed: number }>(
+        "SELECT name, active, version, removed FROM tags WHERE id = ?",
+      )
+      .get(id);
+    return record && { ...record, active: record.active === 1, removed: record.removed === 1 };
+  }
+
+  priceList(id: string) {
+    return this.database
+      .prepare<[string], { name: string; version: number }>(
+        "SELECT name, version FROM price_lists WHERE id = ?",
+      )
+      .get(id);
+  }
+
+  price(id: string) {
+    const record = this.database
+      .prepare<
+        [string],
+        {
+          product_id: string;
+          price_list_id: string;
+          unit_price: number;
+          valid_from: string;
+          version: number;
+          removed: number;
+        }
+      >(
+        `SELECT product_id, price_list_id, unit_price, valid_from, version, removed
+         FROM prices WHERE id = ?`,
+      )
+      .get(id);
+    return record && { ...record, removed: record.removed === 1 };
   }
 }

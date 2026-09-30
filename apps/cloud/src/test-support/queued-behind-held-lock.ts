@@ -9,8 +9,14 @@ export async function countLockWaiters(sql: postgres.Sql): Promise<number> {
   return row?.waiting ?? 0;
 }
 
-export async function waitForLockWaiters(sql: postgres.Sql, count: number): Promise<void> {
-  for (let attempt = 0; attempt < 500; attempt += 1) {
+// By default gives up after about five seconds. A caller whose queries do a lot of work before they
+// queue passes `untilTestTimeout`, so only its own test's timeout bounds the wait.
+export async function waitForLockWaiters(
+  sql: postgres.Sql,
+  count: number,
+  { untilTestTimeout = false }: { untilTestTimeout?: boolean } = {},
+): Promise<void> {
+  for (let attempt = 0; untilTestTimeout || attempt < 500; attempt += 1) {
     if ((await countLockWaiters(sql)) >= count) return;
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
