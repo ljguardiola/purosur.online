@@ -82,6 +82,18 @@ describe("the cloud's pull, as the register reads it", () => {
     });
   });
 
+  it("carries how long the cloud asks to wait when it refuses for asking too often", async () => {
+    const { feed } = feedAnswering({
+      kind: "error",
+      error: cloudError("rate_limited", "too many requests", [{ retry_after_seconds: 45 }]),
+    });
+
+    expect(await feed.pageAfter(4)).toEqual({
+      kind: "failed",
+      failure: { kind: "refused", code: "rate_limited", retryAfterSeconds: 45 },
+    });
+  });
+
   it("fails when the cloud can't be reached", async () => {
     const { feed } = feedAnswering({ kind: "unreachable" });
 

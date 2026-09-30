@@ -1,11 +1,11 @@
-import { type CloudErrorCode, changesPageSchema } from "@purosur/contracts";
+import { type CloudErrorCode, changesPageSchema, retryAfterSecondsOf } from "@purosur/contracts";
 import type { CloudChangeFeed, CloudChangeFeedAnswer } from "@purosur/domain/sync/use-cases";
 import type { CloudResponse } from "../platform/cloud-client";
 import type { RegisterPulledChange } from "./pulled-change";
 
 export type PullFailure =
   | { kind: "unreachable" }
-  | { kind: "refused"; code: CloudErrorCode }
+  | { kind: "refused"; code: CloudErrorCode; retryAfterSeconds?: number }
   | { kind: "unreadable" };
 
 export type GetFromCloud = (
@@ -32,7 +32,15 @@ export class CloudPullFeed implements CloudChangeFeed<RegisterPulledChange, Pull
       return { kind: "failed", failure: { kind: "unreachable" } };
     }
     if (response.kind === "error") {
-      return { kind: "failed", failure: { kind: "refused", code: response.error.code } };
+      const retryAfterSeconds = retryAfterSecondsOf(response.error);
+      return {
+        kind: "failed",
+        failure: {
+          kind: "refused",
+          code: response.error.code,
+          ...(retryAfterSeconds === undefined ? {} : { retryAfterSeconds }),
+        },
+      };
     }
     const page = changesPageSchema.safeParse(response.body);
     if (!page.success) {

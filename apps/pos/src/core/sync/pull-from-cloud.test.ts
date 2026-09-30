@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { CloudResponse } from "../platform/cloud-client";
 import { openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
-import { pullFromCloud } from "./pull-from-cloud";
+import { pullFromCloud, pullResultOf } from "./pull-from-cloud";
 import { SqliteLocalReplica } from "./sqlite-local-replica";
 
 const CREDENTIALS = { device_id: "a4b1", device_token: "prefix.secret", pepper: "cGVwcGVy" };
@@ -149,5 +149,39 @@ describe("a pull from the cloud", () => {
 
     expect(attempt).toEqual({ kind: "no_local_database" });
     expect(requests).toEqual([]);
+  });
+});
+
+describe("what a pull attempt means for the schedule", () => {
+  it("counts a register that has nothing to pull yet, or is caught up, as succeeded", () => {
+    for (const attempt of [
+      { kind: "caught_up", cursor: 3 },
+      { kind: "not_enrolled" },
+      { kind: "no_cloud" },
+      { kind: "no_local_database" },
+    ] as const) {
+      expect(pullResultOf(attempt)).toEqual({ kind: "succeeded" });
+    }
+  });
+
+  it("counts every way of stopping before catching up as failed", () => {
+    for (const attempt of [
+      { kind: "failed", cursor: 3, failure: { kind: "unreachable" } },
+      { kind: "failed", cursor: 3, failure: { kind: "unreadable" } },
+      { kind: "failed", cursor: 3, failure: { kind: "refused", code: "server_unavailable" } },
+      { kind: "page_out_of_order", cursor: 3 },
+    ] as const) {
+      expect(pullResultOf(attempt)).toEqual({ kind: "failed" });
+    }
+  });
+
+  it("carries the wait the cloud asked for, in milliseconds", () => {
+    expect(
+      pullResultOf({
+        kind: "failed",
+        cursor: 3,
+        failure: { kind: "refused", code: "rate_limited", retryAfterSeconds: 45 },
+      }),
+    ).toEqual({ kind: "failed", retryAfterMs: 45_000 });
   });
 });

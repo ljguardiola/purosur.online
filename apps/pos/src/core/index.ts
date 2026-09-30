@@ -25,7 +25,7 @@ import { createMainRequests } from "./platform/main-requests";
 import { enroll, generatePepper, installationReportFrom } from "./register/enrollment";
 import { answerRendererRequest } from "./register/renderer-requests";
 import { createRendererConnection } from "./renderer-connection";
-import { pullFromCloud } from "./sync/pull-from-cloud";
+import { pullFromCloud, pullResultOf } from "./sync/pull-from-cloud";
 import { createPullSchedule } from "./sync/pull-schedule";
 import { SqliteLocalReplica } from "./sync/sqlite-local-replica";
 
@@ -73,7 +73,8 @@ const cloudClient: CloudClientDeps | undefined =
     : { cloudUrl, fetch: (input, init) => net.fetch(input, init), sleep };
 
 const LOCAL_DATABASE_FILE = "register.sqlite";
-const PULL_INTERVAL_MS = 60_000;
+const PULL_INTERVAL_MS = 30_000;
+const PULL_FAILURE_BACKOFF = { baseMs: 2000, maxMs: 60_000 };
 
 function openLocalReplica(): SqliteLocalReplica | undefined {
   const localDataFolder = localDataFolderFromCoreArguments(process.argv);
@@ -114,8 +115,11 @@ const pullSchedule = createPullSchedule({
     ) {
       console.warn("core: the pull stopped before catching up", attempt);
     }
+    return pullResultOf(attempt);
   },
   intervalMs: PULL_INTERVAL_MS,
+  failureBackoff: PULL_FAILURE_BACKOFF,
+  random: Math.random,
   scheduleNext: (run, delayMs) => {
     const timer = setTimeout(run, delayMs);
     return () => clearTimeout(timer);
