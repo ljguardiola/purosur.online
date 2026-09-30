@@ -95,12 +95,6 @@ describe("FirstSignInNoPin", () => {
       "Se puede volver a intentar en 10 minutos.",
     ],
     [
-      "email_unavailable",
-      { kind: "email_unavailable" },
-      "No se pudo enviar el código",
-      "El correo no salió. Probá de nuevo en unos minutos.",
-    ],
-    [
       "unreachable",
       { kind: "unreachable" },
       "Sin conexión a internet",

@@ -53,7 +53,6 @@ describe("cloudErrorStatus", () => {
     ["rate_limited", 429],
     ["internal_error", 500],
     ["server_unavailable", 503],
-    ["email_unavailable", 503],
   ] as const)("answers %s with HTTP %i", (code, status) => {
     expect(cloudErrorStatus(code)).toBe(status);
   });
@@ -67,7 +66,6 @@ describe("isRetryableCloudError", () => {
   it.each([
     ["rate_limited", true],
     ["server_unavailable", true],
-    ["email_unavailable", true],
     ["not_found", false],
     ["pin_already_set", false],
     ["validation_failed", false],

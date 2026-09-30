@@ -12,7 +12,6 @@ const CLOUD_ERRORS = {
   rate_limited: { status: 429, retryable: true },
   internal_error: { status: 500, retryable: false },
   server_unavailable: { status: 503, retryable: true },
-  email_unavailable: { status: 503, retryable: true },
 } as const satisfies Record<string, { status: number; retryable: boolean }>;
 
 export type CloudErrorCode = keyof typeof CLOUD_ERRORS;

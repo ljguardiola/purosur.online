@@ -52,7 +52,6 @@ describe("requestFirstPinCode", () => {
   it.each([
     ["not_found", envelope("not_found"), { kind: "not_found" }],
     ["pin_already_set", envelope("pin_already_set"), { kind: "pin_already_set" }],
-    ["email_unavailable", envelope("email_unavailable"), { kind: "email_unavailable" }],
     [
       "rate_limited",
       envelope("rate_limited", [{ retry_after_seconds: 1800 }]),

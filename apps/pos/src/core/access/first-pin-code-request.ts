@@ -21,8 +21,6 @@ function refusalOutcome(error: CloudError): FirstPinCodeRequestOutcome {
       return { kind: "not_found" };
     case "pin_already_set":
       return { kind: "pin_already_set" };
-    case "email_unavailable":
-      return { kind: "email_unavailable" };
     case "rate_limited":
       return { kind: "rate_limited", retry_after_seconds: retryAfterSecondsOf(error) ?? 0 };
     default:

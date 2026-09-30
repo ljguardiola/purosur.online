@@ -490,7 +490,6 @@ describe("first PIN code request answers", () => {
     { kind: "pin_already_set" },
     { kind: "not_found" },
     { kind: "rate_limited", retry_after_seconds: 600 },
-    { kind: "email_unavailable" },
     { kind: "unreachable" },
     { kind: "unavailable" },
   ])("accepts the first PIN code request result $kind", (outcome) => {

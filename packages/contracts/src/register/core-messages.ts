@@ -182,7 +182,6 @@ const firstPinCodeRequestOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("pin_already_set") }),
   z.object({ kind: z.literal("not_found") }),
   z.object({ kind: z.literal("rate_limited"), retry_after_seconds: z.int().nonnegative() }),
-  z.object({ kind: z.literal("email_unavailable") }),
   z.object({ kind: z.literal("unreachable") }),
   z.object({ kind: z.literal("unavailable") }),
 ]);

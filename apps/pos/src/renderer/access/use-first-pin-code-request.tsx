@@ -29,12 +29,6 @@ function noticeFor(refused: Refused): FirstPinCodeNotice {
         title: "Demasiadas solicitudes",
         description: retryAfterText(refused.retry_after_seconds),
       };
-    case "email_unavailable":
-      return {
-        icon: <TriangleAlert />,
-        title: "No se pudo enviar el código",
-        description: "El correo no salió. Probá de nuevo en unos minutos.",
-      };
     case "unreachable":
       return {
         icon: <WifiOff />,
