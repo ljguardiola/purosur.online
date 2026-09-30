@@ -1,5 +1,6 @@
 import type { AuthorizablePermissionKey } from "../../access/index.js";
 import { codePointLength } from "../../shared/index.js";
+import { isValidCashAmount } from "./cash-amount.js";
 
 export const CASH_MOVEMENT_KINDS = ["CASH_IN", "CASH_OUT", "WITHDRAWAL"] as const;
 
@@ -13,6 +14,10 @@ const PERMISSION_OF_KIND = {
 
 export function cashMovementPermission(kind: CashMovementKind): AuthorizablePermissionKey {
   return PERMISSION_OF_KIND[kind];
+}
+
+export function isValidCashMovementAmount(cents: number): boolean {
+  return isValidCashAmount(cents) && cents > 0;
 }
 
 export const CASH_MOVEMENT_REASON_MAX_LENGTH = 200;

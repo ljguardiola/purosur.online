@@ -90,7 +90,9 @@ describe("RecordCashMovementModal", () => {
     const dialog = screen.getByRole("dialog", { name: "Registrar un movimiento" });
 
     await expect.element(dialog).toBeVisible();
-    await expect.element(dialog.getByText("Caja 1 · Sesión de las 12:05", { exact: true })).toBeVisible();
+    await expect
+      .element(dialog.getByText("Caja 1 · Sesión de las 12:05", { exact: true }))
+      .toBeVisible();
     await expectNoAccessibilityViolations(document.body);
   });
 
@@ -221,6 +223,31 @@ describe("RecordCashMovementModal", () => {
     await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
 
     await expect.element(screen.getByRole("alert")).toHaveTextContent("No hay una caja abierta.");
+    expect(onRecorded).not.toHaveBeenCalled();
+  });
+
+  it("says the movement was not recorded when the core reports it unavailable", async () => {
+    const { screen, onRecorded } = await renderModal({ outcome: { kind: "unavailable" } });
+    await fill(screen, "100", "Cambio");
+
+    await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
+
+    await expect
+      .poll(() => screen.getByRole("alert").query()?.textContent)
+      .toBe("No se pudo registrar el movimiento. Probá de nuevo.");
+    expect(onRecorded).not.toHaveBeenCalled();
+  });
+
+  it("says the signed-in person no longer holds the kind's permission", async () => {
+    const { screen, onRecorded } = await renderModal({ outcome: { kind: "lacks_permission" } });
+    await choose(screen, "Gasto");
+    await fill(screen, "100", "Flete");
+
+    await userEvent.click(screen.getByRole("button", { name: "Registrar gasto" }));
+
+    await expect
+      .poll(() => screen.getByRole("alert").query()?.textContent)
+      .toBe("Ya no tenés permiso para registrar gastos.");
     expect(onRecorded).not.toHaveBeenCalled();
   });
 

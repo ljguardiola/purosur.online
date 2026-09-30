@@ -146,6 +146,7 @@ export type {
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   RecordCashMovementOutcome,
+  RecordCashMovementRequest,
   RendererToCoreMessage,
   SignInLookupOutcome,
   SignInOutcome,

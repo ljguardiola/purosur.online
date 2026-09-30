@@ -1,11 +1,13 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import type { AuthorizablePermissionKey } from "../../access/index.js";
+import { MAX_CASH_AMOUNT_CENTS } from "./cash-amount.js";
 import {
   CASH_MOVEMENT_KINDS,
   CASH_MOVEMENT_REASON_MAX_LENGTH,
   type CashMovementKind,
   cashMovementPermission,
   cashMovementReason,
+  isValidCashMovementAmount,
 } from "./cash-movement-kind.js";
 import type { CashMovementType } from "./cash-session.js";
 
@@ -55,5 +57,15 @@ describe("cashMovementReason", () => {
   it("measures the length after trimming", () => {
     const reason = "a".repeat(CASH_MOVEMENT_REASON_MAX_LENGTH);
     expect(cashMovementReason(`  ${reason}  `)).toBe(reason);
+  });
+});
+
+describe("isValidCashMovementAmount", () => {
+  it.each([1, 500_000, MAX_CASH_AMOUNT_CENTS])("accepts %i cents", (cents) => {
+    expect(isValidCashMovementAmount(cents)).toBe(true);
+  });
+
+  it.each([0, -1, 0.5, MAX_CASH_AMOUNT_CENTS + 1, Number.NaN])("refuses %d cents", (cents) => {
+    expect(isValidCashMovementAmount(cents)).toBe(false);
   });
 });

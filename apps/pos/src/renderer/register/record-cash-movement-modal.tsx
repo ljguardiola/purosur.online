@@ -159,7 +159,13 @@ function MovementModal({
       case "not_signed_in":
         break;
       default:
-        authorization.refuse(outcome);
+        if (authorization.required) {
+          authorization.refuse(outcome);
+        } else if (outcome.kind === "lacks_permission") {
+          setNotice(`Ya no tenés permiso para ${presentation.authorizing}.`);
+        } else {
+          setNotice(FAILED_MESSAGE);
+        }
     }
   }
 

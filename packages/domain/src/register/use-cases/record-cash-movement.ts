@@ -1,5 +1,8 @@
-import { isValidCashAmount } from "../model/cash-amount.js";
-import { type CashMovementKind, cashMovementReason } from "../model/cash-movement-kind.js";
+import {
+  type CashMovementKind,
+  cashMovementReason,
+  isValidCashMovementAmount,
+} from "../model/cash-movement-kind.js";
 import type { CashMovement } from "../model/cash-session.js";
 import type { CashLedger, IdGenerator } from "./cash-ledger.js";
 import type { Clock } from "./register-store.js";
@@ -28,7 +31,7 @@ export function recordCashMovement(
   { ledger, clock, ids }: RecordCashMovementPorts,
   input: RecordCashMovementInput,
 ): RecordCashMovementOutcome {
-  if (!isValidCashAmount(input.amount) || input.amount === 0) {
+  if (!isValidCashMovementAmount(input.amount)) {
     return { kind: "invalid_amount" };
   }
   const reason = cashMovementReason(input.reason);

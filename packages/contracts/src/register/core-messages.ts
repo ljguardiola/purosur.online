@@ -6,6 +6,7 @@ import {
   cashMovementReason,
   isAuthorizablePermissionKey,
   isValidCashAmount,
+  isValidCashMovementAmount,
   parseAmountCents,
 } from "@purosur/domain";
 import { z } from "zod";
@@ -20,7 +21,7 @@ const requestId = z.string();
 
 export const openingFloatSchema = z.number().refine(isValidCashAmount);
 
-export const cashMovementAmountSchema = openingFloatSchema.refine((amount) => amount > 0);
+export const cashMovementAmountSchema = z.number().refine(isValidCashMovementAmount);
 
 export { ARGENTINA_TIME_ZONE, parseAmountCents };
 
@@ -95,6 +96,10 @@ const recordCashMovementMessageSchema = z.object({
   reason: z.string().refine((reason) => cashMovementReason(reason) !== undefined),
   authorization: authorizationSchema.optional(),
 });
+export type RecordCashMovementRequest = Omit<
+  z.infer<typeof recordCashMovementMessageSchema>,
+  "type" | "request_id"
+>;
 
 const cashMovementsRequestMessageSchema = z.object({
   type: z.literal("cash-movements-request"),

@@ -1,21 +1,16 @@
 import type {
-  Authorization,
   ListedCashMovement,
   RecordCashMovementOutcome,
+  RecordCashMovementRequest,
 } from "@purosur/contracts";
-import { type CashMovementKind, cashMovementPermission } from "@purosur/domain";
+import { cashMovementPermission } from "@purosur/domain";
 import { recordCashMovement } from "@purosur/domain/register/use-cases";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import type { LocalDatabase } from "../platform/local-database";
 import type { CashSessionRequestDeps } from "./cash-session-requests";
 import { readOpenSessionMovements, SqliteCashLedger } from "./sqlite-cash-ledger";
 
-export interface CashMovementRequest {
-  kind: CashMovementKind;
-  amount: number;
-  reason: string;
-  authorization: Authorization | undefined;
-}
+export type CashMovementRequest = RecordCashMovementRequest;
 
 export async function recordCashMovementFor(
   { database, gate, readOutboxChainKey, now, ids }: CashSessionRequestDeps,

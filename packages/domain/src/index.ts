@@ -165,6 +165,7 @@ export {
   isInstallationReportTooLong,
   isRegisterNameTooLong,
   isValidCashAmount,
+  isValidCashMovementAmount,
   isWellFormedEnrollmentCode,
   isWellFormedInstallationKey,
   MAX_CASH_AMOUNT_CENTS,

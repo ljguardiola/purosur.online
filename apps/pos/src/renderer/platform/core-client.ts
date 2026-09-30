@@ -1,5 +1,4 @@
 import type {
-  Authorization,
   CoreToRendererMessage,
   EnrollmentOutcome,
   ListedCashMovement,
@@ -7,13 +6,14 @@ import type {
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   RecordCashMovementOutcome,
+  RecordCashMovementRequest,
   RendererToCoreMessage,
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
 } from "@purosur/contracts";
 import { coreToRendererMessageSchema } from "@purosur/contracts";
-import type { AuthorizablePermissionKey, CashMovementKind } from "@purosur/domain";
+import type { AuthorizablePermissionKey } from "@purosur/domain";
 
 export interface CorePort {
   postMessage(message: unknown): void;
@@ -22,12 +22,7 @@ export interface CorePort {
   close(): void;
 }
 
-export interface CashMovementInput {
-  kind: CashMovementKind;
-  amount: number;
-  reason: string;
-  authorization: Authorization | undefined;
-}
+export type CashMovementInput = RecordCashMovementRequest;
 
 export interface CoreClient {
   connect(port: CorePort): void;
