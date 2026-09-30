@@ -322,6 +322,8 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
           name: string;
           kind: string;
           percent: number | null;
+          buy_qty: number | null;
+          pay_qty: number | null;
           target_kind: string;
           target_id: string;
           valid_from: string;
@@ -332,8 +334,8 @@ export class SqliteLocalReplica implements LocalReplica<RegisterPulledChange> {
           removed: number;
         }
       >(
-        `SELECT name, kind, percent, target_kind, target_id, valid_from, valid_to, weekdays,
-                active, version, removed
+        `SELECT name, kind, percent, buy_qty, pay_qty, target_kind, target_id, valid_from,
+                valid_to, weekdays, active, version, removed
          FROM discounts WHERE id = ?`,
       )
       .get(id);

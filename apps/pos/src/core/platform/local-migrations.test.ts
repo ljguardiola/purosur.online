@@ -240,6 +240,34 @@ describe("the register's local migrations", () => {
     }
   });
 
+  it("add the buy-N-pay-M quantities over the discounts a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.slice(0, 7);
+      const before = openLocalDatabase(path, previous);
+      before
+        .prepare(
+          `INSERT INTO discounts (
+             id, name, kind, percent, target_kind, target_id, valid_from, valid_to, weekdays, active, version
+           ) VALUES ('d1', 'Martes', 'PERCENT_OFF', 10, 'TAG', 't', '2026-10-01', '2026-10-31', '[2]', 1, 4)`,
+        )
+        .run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+
+      expect(
+        after.prepare("SELECT id, kind, percent, buy_qty, pay_qty, version FROM discounts").all(),
+      ).toEqual([
+        { id: "d1", kind: "PERCENT_OFF", percent: 10, buy_qty: null, pay_qty: null, version: 4 },
+      ]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
   it("hold a discount of a kind and a percent a later migration may extend without a rewrite", () => {
     const database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS);
     const insert = database.prepare(
