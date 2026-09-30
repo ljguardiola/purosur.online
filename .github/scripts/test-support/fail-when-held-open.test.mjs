@@ -6,9 +6,9 @@ import { promisify } from "node:util";
 const run = promisify(execFile);
 const helperUrl = new URL("./fail-when-held-open.mjs", import.meta.url).href;
 
-function runScript(body) {
+function runScript(body, options = {}) {
   const source = `import { failWhenHeldOpen } from ${JSON.stringify(helperUrl)};\n${body}`;
-  return run(process.execPath, ["--input-type=module", "--eval", source]);
+  return run(process.execPath, ["--input-type=module", "--eval", source], options);
 }
 
 test("a process something still holds open fails, naming what holds it", async () => {
@@ -23,7 +23,7 @@ test("a process something still holds open fails, naming what holds it", async (
 });
 
 test("a process nothing holds open exits on its own, without waiting for the bound", async () => {
-  const { stderr } = await runScript("failWhenHeldOpen(600_000);");
+  const { stderr } = await runScript("failWhenHeldOpen(600_000);", { timeout: 10_000 });
 
   assert.equal(stderr, "");
 });
