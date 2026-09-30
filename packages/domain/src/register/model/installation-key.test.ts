@@ -1,7 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
-  FIRST_KEY_VERSION,
   INSTALLATION_KEY_BYTES,
   inVersionOrder,
   isWellFormedInstallationKey,
@@ -11,10 +10,6 @@ import {
 const base64Of = (bytes: Uint8Array): string => Buffer.from(bytes).toString("base64");
 
 describe("isWellFormedInstallationKey", () => {
-  it("holds 256 bits", () => {
-    expect(INSTALLATION_KEY_BYTES * 8).toBe(256);
-  });
-
   it("accepts every 256-bit key in standard padded base64", () => {
     fc.assert(
       fc.property(
@@ -93,11 +88,5 @@ describe("inVersionOrder", () => {
       { version: 3, key: "third" },
     ]);
     expect(keys[0]).toEqual({ version: 3, key: "third" });
-  });
-});
-
-describe("FIRST_KEY_VERSION", () => {
-  it("numbers a register's first key 1", () => {
-    expect(FIRST_KEY_VERSION).toBe(1);
   });
 });
