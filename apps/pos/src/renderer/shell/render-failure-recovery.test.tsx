@@ -44,6 +44,9 @@ function buildFailingRouter(shouldThrow: () => boolean) {
       redeemPinCode: async () => ({ kind: "redeemed" }),
       signInLookup: async () => ({ kind: "unavailable" }),
       firstSignIn: async () => ({ kind: "unavailable" }),
+      currentSale: async () => null,
+      scanProduct: async () => ({ kind: "unavailable" }),
+      refreshCashSession: async () => {},
     },
     "/",
   );

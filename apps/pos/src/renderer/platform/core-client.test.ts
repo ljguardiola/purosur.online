@@ -234,6 +234,80 @@ describe("createCoreClient", () => {
     expect(await asked).toBe("unavailable");
   });
 
+  it.each([
+    { kind: "unknown_code" },
+    { kind: "no_price", product_name: "Yerba" },
+    { kind: "unavailable" },
+  ])(
+    "asks the core to scan the code for the person and resolves with the outcome: %j",
+    async (outcome) => {
+      const client = clientWithSequentialIds();
+      const port = new FakePort();
+      client.connect(port);
+
+      const scanned = client.scanProduct("7790001");
+      port.answer({ type: "scan-product-result", request_id: "request-1", outcome });
+
+      expect(await scanned).toEqual(outcome);
+      expect(port.posted).toEqual([
+        { type: "scan-product", request_id: "request-1", code: "7790001" },
+      ]);
+    },
+  );
+
+  it.each([
+    null,
+    {
+      id: "sale-1",
+      lines: [
+        {
+          id: "line-1",
+          product_id: "p1",
+          product_name: "Yerba",
+          quantity: 2,
+          list_unit_price: 2_380,
+          line_total: 4_760,
+        },
+      ],
+      total: 4_760,
+    },
+  ])(
+    "asks the core for the sale in progress of the person and resolves with it: %j",
+    async (sale) => {
+      const client = clientWithSequentialIds();
+      const port = new FakePort();
+      client.connect(port);
+
+      const asked = client.currentSale();
+      port.answer({ type: "sale", request_id: "request-1", sale });
+
+      expect(await asked).toEqual(sale);
+      expect(port.posted).toEqual([{ type: "sale-request", request_id: "request-1" }]);
+    },
+  );
+
+  it("rejects when the core cannot read the sale in progress", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.currentSale();
+    port.answer({ type: "sale-unavailable", request_id: "request-1" });
+
+    await expect(asked).rejects.toThrow();
+  });
+
+  it("resolves that the person signed in may not sell when the core says so", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.currentSale();
+    port.answer({ type: "sale-not-permitted", request_id: "request-1" });
+
+    expect(await asked).toBe("not_permitted");
+  });
+
   it("asks the core to close a session with the cash counted and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();

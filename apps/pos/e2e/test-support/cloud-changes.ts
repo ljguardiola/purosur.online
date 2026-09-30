@@ -68,3 +68,64 @@ export async function userChange(user: {
     },
   };
 }
+
+export function categoryChange(category: { id: string; name: string }): CloudChange {
+  return {
+    entity: "category",
+    entity_id: category.id,
+    row: { name: category.name, parent_id: null, version: 1 },
+  };
+}
+
+export function productChange(product: {
+  id: string;
+  name: string;
+  categoryId: string;
+  barcodes: readonly string[];
+  saleUnit?: "UNIT" | "KG";
+  active?: boolean;
+}): CloudChange {
+  return {
+    entity: "product",
+    entity_id: product.id,
+    row: {
+      name: product.name,
+      category_id: product.categoryId,
+      brand_id: null,
+      sale_unit: product.saleUnit ?? "UNIT",
+      active: product.active ?? true,
+      net_content: null,
+      barcodes: product.barcodes.map((code, position) => ({ position, code })),
+      tag_ids: [],
+      version: 1,
+    },
+  };
+}
+
+export function priceListChange(priceList: { id: string; name: string }): CloudChange {
+  return {
+    entity: "price_list",
+    entity_id: priceList.id,
+    row: { name: priceList.name, version: 1 },
+  };
+}
+
+export function priceChange(price: {
+  id: string;
+  productId: string;
+  priceListId: string;
+  unitPriceCents: number;
+  validFrom: string;
+}): CloudChange {
+  return {
+    entity: "price",
+    entity_id: price.id,
+    row: {
+      product_id: price.productId,
+      price_list_id: price.priceListId,
+      unit_price: price.unitPriceCents,
+      valid_from: price.validFrom,
+      version: 1,
+    },
+  };
+}

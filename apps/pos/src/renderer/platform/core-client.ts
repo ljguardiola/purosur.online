@@ -3,11 +3,13 @@ import type {
   CashBalance,
   CloseCashSessionOutcome,
   CoreToRendererMessage,
+  CurrentSaleAnswer,
   EnrollmentOutcome,
   OpenCashSession,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   RendererToCoreMessage,
+  ScanProductOutcome,
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
@@ -36,6 +38,8 @@ export interface CoreClient {
   signOut(): Promise<void>;
   openCashSession(openingFloat: number): Promise<OpenCashSessionOutcome>;
   cashSession(): Promise<OpenCashSession | null | "unavailable">;
+  scanProduct(code: string): Promise<ScanProductOutcome>;
+  currentSale(): Promise<CurrentSaleAnswer>;
   closeCashSession(
     sessionId: string,
     countedCash: number,
@@ -208,6 +212,22 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           return answer.type === "cash-session" ? answer.session : undefined;
         },
       );
+    },
+    scanProduct(code) {
+      return ask({ type: "scan-product", request_id: deps.newRequestId(), code }, (answer) =>
+        answer.type === "scan-product-result" ? answer.outcome : undefined,
+      );
+    },
+    currentSale() {
+      return ask({ type: "sale-request", request_id: deps.newRequestId() }, (answer) => {
+        if (answer.type === "sale-unavailable") {
+          throw new Error("the core could not read the sale in progress");
+        }
+        if (answer.type === "sale-not-permitted") {
+          return "not_permitted";
+        }
+        return answer.type === "sale" ? answer.sale : undefined;
+      });
     },
     closeCashSession(sessionId, countedCash, authorization) {
       return ask(

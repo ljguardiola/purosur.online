@@ -2,8 +2,8 @@ import type { CashBalance } from "@purosur/contracts";
 import { createRootRouteWithContext, createRoute, RouterProvider } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { Component } from "react";
-import { describe, expect, it, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { SignedInPerson } from "../access/signed-in-person";
 import { GuardedCashInForm } from "../access/test-support/guarded-cash-in-form";
@@ -98,6 +98,9 @@ function contextWith(
     redeemPinCode: async () => ({ kind: "redeemed" }),
     signInLookup: async () => ({ kind: "not_found" }),
     firstSignIn: async () => ({ kind: "signed_in", person: PERSON }),
+    currentSale: async () => null,
+    scanProduct: async () => ({ kind: "unknown_code" }),
+    refreshCashSession: async () => {},
   };
 }
 
@@ -225,6 +228,9 @@ describe("routeFor", () => {
   );
 });
 
+beforeEach(() => page.viewport(1280, 720));
+
+afterEach(() => page.viewport(414, 896));
 describe("isSessionScreen", () => {
   it("is true for the screens reached while a session is open, and false for the others", () => {
     expect(["/session", "/cash", "/cash-count"].map(isSessionScreen)).toEqual([true, true, true]);
@@ -490,6 +496,52 @@ describe("the register's router", () => {
     await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
     await expect.element(screen.getByText("Grace")).toBeVisible();
     await expect.element(screen.getByText("Sesión abierta 09:02")).toBeVisible();
+  });
+
+  it("reads the sale in progress and scans products through the core", async () => {
+    const reads: string[] = [];
+    const scans: string[] = [];
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", null, undefined, OPEN_SESSION),
+        currentSale: async () => {
+          reads.push("read");
+          return null;
+        },
+        scanProduct: async (code) => {
+          scans.push(code);
+          return { kind: "unknown_code" };
+        },
+      },
+      "/session",
+    );
+    const screen = await render(<RouterProvider router={router} />);
+
+    await screen.getByRole("searchbox", { name: "Producto" }).fill("7790001");
+    await userEvent.keyboard("{Enter}");
+
+    await expect.poll(() => scans).toEqual(["7790001"]);
+    expect(reads).toEqual(["read"]);
+  });
+
+  it("reads the cash session again when the sale screen finds it is no longer valid", async () => {
+    const refreshed = vi.fn(async () => {});
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", null, undefined, OPEN_SESSION),
+        scanProduct: async () => ({ kind: "no_open_session" }),
+        refreshCashSession: refreshed,
+      },
+      "/session",
+    );
+    const screen = await render(<RouterProvider router={router} />);
+
+    await screen.getByRole("searchbox", { name: "Producto" }).fill("7790001");
+    await userEvent.keyboard("{Enter}");
+
+    await expect.poll(() => refreshed.mock.calls.length).toBe(1);
   });
 
   it("renders the cash screen for the open session with the expected cash from the context", async () => {

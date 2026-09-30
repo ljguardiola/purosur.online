@@ -5,10 +5,12 @@ import type {
   EnrollmentOutcome,
   OpenCashSession,
   OpenCashSessionOutcome,
+  OpenSale,
+  ScanProductOutcome,
   SignInOutcome,
 } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { CoreClient } from "../platform/core-client";
@@ -59,6 +61,10 @@ function coreAnswering(
     openOutcome?: OpenCashSessionOutcome;
     closeCashSession?: CoreClient["closeCashSession"];
     cashBalance?: CoreClient["cashBalance"];
+  } = {},
+  sales: {
+    currentSale?: () => Promise<OpenSale | null>;
+    scanProduct?: (code: string) => Promise<ScanProductOutcome>;
   } = {},
   signOut: () => Promise<void> = async () => {},
 ) {
@@ -112,6 +118,12 @@ function coreAnswering(
       cashSessionAsks.push("cash-session");
       return cashDrawer.cashSession === undefined ? null : cashDrawer.cashSession();
     },
+    async currentSale() {
+      return sales.currentSale === undefined ? null : sales.currentSale();
+    },
+    async scanProduct(code) {
+      return sales.scanProduct === undefined ? { kind: "unknown_code" } : sales.scanProduct(code);
+    },
     async closeCashSession(sessionId, countedCash, authorization) {
       closed.push([sessionId, countedCash, authorization]);
       return cashDrawer.closeCashSession === undefined
@@ -143,8 +155,11 @@ function postCoreStatus(status: "starting" | "down" | "up"): void {
   window.postMessage({ channel: "core-status", payload: { type: "core-status", status } }, "*");
 }
 
-afterEach(() => {
+beforeEach(() => page.viewport(1280, 720));
+
+afterEach(async () => {
   vi.useRealTimers();
+  await page.viewport(414, 896);
 });
 
 describe("App", () => {
@@ -344,7 +359,14 @@ describe("App", () => {
   ])("asks the core to sign out and still leaves when %s", async (_case, signOut) => {
     await page.viewport(1280, 900);
     onTestFinished(() => page.viewport(414, 896));
-    const { core, asked } = coreAnswering(true, { kind: "enrolled" }, ADA_SIGNED_IN, {}, signOut);
+    const { core, asked } = coreAnswering(
+      true,
+      { kind: "enrolled" },
+      ADA_SIGNED_IN,
+      {},
+      {},
+      signOut,
+    );
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
     await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
@@ -595,6 +617,60 @@ describe("App", () => {
 
     await expect.element(screen.getByRole("navigation").getByText("Grace")).toBeVisible();
     await expect.element(screen.getByText("Ada")).not.toBeInTheDocument();
+  });
+
+  it("shows the sale in progress", async () => {
+    const reads: string[] = [];
+    const { core } = coreAnswering(
+      true,
+      { kind: "enrolled" },
+      ADA_SIGNED_IN,
+      { cashSession: async () => GRACE_SESSION },
+      {
+        currentSale: async () => {
+          reads.push("read");
+          return {
+            id: "sale-1",
+            lines: [
+              {
+                id: "line-1",
+                product_id: "p1",
+                product_name: "Yerba mate 1 kg",
+                quantity: 1,
+                list_unit_price: 238_000,
+                line_total: 238_000,
+              },
+            ],
+            total: 238_000,
+          };
+        },
+      },
+    );
+    const screen = await render(<App core={core} />);
+
+    postCoreStatus("up");
+
+    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
+    expect(reads).toEqual(["read"]);
+  });
+
+  it("goes back to signing in when a scan finds that the cash session is no longer open", async () => {
+    const sessions: (OpenCashSession | null)[] = [GRACE_SESSION, null];
+    const { core } = coreAnswering(
+      true,
+      { kind: "enrolled" },
+      ADA_SIGNED_IN,
+      { cashSession: async () => sessions.shift() ?? null },
+      { scanProduct: async () => ({ kind: "no_open_session" }) },
+    );
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    const field = screen.getByRole("searchbox", { name: "Producto" });
+    await field.fill("7790001");
+
+    await userEvent.keyboard("{Enter}");
+
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
   });
 
   it("asks the core for the cash session again each time it comes back up, and waits for the answer", async () => {
