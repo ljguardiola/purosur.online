@@ -316,6 +316,23 @@ describe("SaleScreen", () => {
       await expect.element(screen.getByRole("button", { name: "Cobrar" })).toBeDisabled();
     });
 
+    it("keeps Cobrar disabled, and says why, while the sale's total is zero", async () => {
+      const { screen } = await renderScreen({
+        currentSale: async () => ({
+          id: "sale-1",
+          lines: [{ ...YERBA, discount_amount: 476_000, line_total: 0 }],
+          total: 0,
+        }),
+      });
+
+      await expect
+        .element(
+          screen.getByText("El total es $ 0,00: quitá el producto o cancelá la venta.").first(),
+        )
+        .toBeVisible();
+      await expect.element(screen.getByRole("button", { name: "Cobrar" })).toBeDisabled();
+    });
+
     it("enables Cobrar once a product is scanned into the sale", async () => {
       const { screen, field } = await renderScreen({
         scanProduct: async () => ({ kind: "added", sale: SALE_OF_YERBA }),

@@ -384,6 +384,20 @@ describe("chargeSaleInCash", () => {
     expect(store.state).toEqual(before);
   });
 
+  it("refuses a sale whose total is zero before looking at the amount, and records nothing", () => {
+    const [yerba] = OPEN_SALE.lines;
+    if (yerba === undefined) {
+      throw new Error("test setup: the sale has no lines");
+    }
+    const store = ledger({
+      sales: [{ ...OPEN_SALE, lines: [{ ...yerba, discountAmount: 5000, lineTotal: 0 }] }],
+    });
+    const before = structuredClone(store.state);
+
+    expect(charge(store, 0)).toEqual({ kind: "zero_total" });
+    expect(store.state).toEqual(before);
+  });
+
   it("refuses when the session has no open sale", () => {
     const store = ledger({ sales: [] });
 

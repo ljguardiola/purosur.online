@@ -341,6 +341,15 @@ describe("charging the sale in progress in cash", () => {
     ).toEqual({ kind });
   });
 
+  it("answers the domain's refusal of a sale whose total is zero", async () => {
+    const saleId = await sellTwo();
+    database.prepare("UPDATE sale_lines SET line_total = 0").run();
+
+    expect(await chargeSaleInCashFor(chargeDeps(), { saleId, tendered: 3000 })).toEqual({
+      kind: "zero_total",
+    });
+  });
+
   it("answers that no session is open", async () => {
     const saleId = await sellTwo();
     database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();

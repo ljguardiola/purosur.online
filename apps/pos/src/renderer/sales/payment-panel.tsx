@@ -1,5 +1,5 @@
-import { Button, formatCents, plural, SummaryRowGroup } from "@purosur/ui";
-import { Banknote } from "lucide-react";
+import { Button, formatCents, InlineNotice, plural, SummaryRowGroup } from "@purosur/ui";
+import { Banknote, TriangleAlert } from "lucide-react";
 import { Eyebrow } from "../shell/eyebrow";
 
 export type PaymentPanelProps = {
@@ -10,6 +10,7 @@ export type PaymentPanelProps = {
 
 export function PaymentPanel({ lineCount, total, onCharge }: PaymentPanelProps) {
   const lines = plural(lineCount, { one: "línea", other: "líneas" });
+  const isZeroTotal = lineCount > 0 && total === 0;
   return (
     <aside
       aria-label="Panel de cobro"
@@ -22,11 +23,18 @@ export function PaymentPanel({ lineCount, total, onCharge }: PaymentPanelProps) 
         size="sale"
         fullWidth
         icon={<Banknote />}
-        disabled={lineCount === 0}
+        disabled={lineCount === 0 || isZeroTotal}
         onPress={onCharge}
       >
         Cobrar
       </Button>
+      {isZeroTotal ? (
+        <InlineNotice
+          tone="warning"
+          icon={<TriangleAlert />}
+          title="El total es $ 0,00: quitá el producto o cancelá la venta."
+        />
+      ) : null}
     </aside>
   );
 }

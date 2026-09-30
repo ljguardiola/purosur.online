@@ -78,6 +78,7 @@ export function CashChargeModal({
         setRefusal(INVALID_AMOUNT_MESSAGE);
         break;
       case "empty_sale":
+      case "zero_total":
       case "no_open_sale":
       case "not_permitted":
         onSaleUnavailable();

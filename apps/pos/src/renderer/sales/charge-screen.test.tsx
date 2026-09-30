@@ -196,7 +196,7 @@ describe("ChargeScreen", () => {
     await expect.poll(() => screen.router.state.location.pathname).toBe("/session");
   });
 
-  it.each([["empty_sale"], ["no_open_sale"], ["not_permitted"]] as const)(
+  it.each([["empty_sale"], ["zero_total"], ["no_open_sale"], ["not_permitted"]] as const)(
     "goes back to the sale when the core answers %s",
     async (kind) => {
       const { screen } = await renderScreen({ chargeSaleInCash: async () => ({ kind }) });

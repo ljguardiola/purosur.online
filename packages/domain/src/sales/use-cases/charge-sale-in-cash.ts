@@ -26,6 +26,7 @@ export type ChargeSaleInCashOutcome =
   | { kind: "no_open_session" }
   | { kind: "no_open_sale" }
   | { kind: "empty_sale" }
+  | { kind: "zero_total" }
   | { kind: "invalid_amount" }
   | { kind: "insufficient_cash"; amountDue: number }
   | { kind: "completed"; saleId: string; total: number; tendered: number; change: number };
@@ -48,6 +49,9 @@ export function chargeSaleInCash(
     }
 
     const total = saleTotal(sale.lines);
+    if (total === 0) {
+      return { kind: "zero_total" };
+    }
     const charge = cashCharge(total, tendered);
     if (charge.kind === "invalid_amount") {
       return charge;

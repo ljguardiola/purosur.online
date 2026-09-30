@@ -137,6 +137,7 @@ describe("chargeSaleInCashOutcomeSchema", () => {
     { kind: "insufficient_cash", amount_due: 3000 },
     { kind: "invalid_amount" },
     { kind: "empty_sale" },
+    { kind: "zero_total" },
     { kind: "no_open_sale" },
     { kind: "not_permitted" },
     { kind: "not_signed_in" },

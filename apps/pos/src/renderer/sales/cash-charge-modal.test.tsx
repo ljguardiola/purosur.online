@@ -192,7 +192,7 @@ describe("CashChargeModal", () => {
       .toBeVisible();
   });
 
-  it.each([["empty_sale"], ["no_open_sale"], ["not_permitted"]] as const)(
+  it.each([["empty_sale"], ["zero_total"], ["no_open_sale"], ["not_permitted"]] as const)(
     "leaves the charge for the sale screen when the core answers %s",
     async (kind) => {
       const { field, complete, callbacks } = await renderModal(async () => ({ kind }));
