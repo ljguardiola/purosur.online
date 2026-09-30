@@ -72,4 +72,48 @@ describe("the register's local migrations", () => {
       rmSync(folder, { recursive: true, force: true });
     }
   });
+
+  it("add the users, roles and PIN verifiers over the catalog and cursor a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const [first, second] = LOCAL_MIGRATIONS;
+      if (first === undefined || second === undefined) {
+        throw new Error("test setup: fewer than two local migrations");
+      }
+      const before = openLocalDatabase(path, [first, second]);
+      before
+        .prepare("UPDATE sync_state SET pull_cursor = 9, device_id = 'device-a' WHERE id = 1")
+        .run();
+      before
+        .prepare("INSERT INTO tags (id, name, active, version) VALUES ('tag', 'Vegano', 1, 2)")
+        .run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+
+      expect(after.prepare("SELECT pull_cursor, device_id FROM sync_state").all()).toEqual([
+        { pull_cursor: 9, device_id: "device-a" },
+      ]);
+      expect(after.prepare("SELECT name, version FROM tags").all()).toEqual([
+        { name: "Vegano", version: 2 },
+      ]);
+      const tables = after
+        .prepare<[], { name: string }>(
+          `SELECT name FROM sqlite_schema WHERE type = 'table'
+             AND name IN ('users', 'roles', 'role_permissions', 'pin_verifiers')
+           ORDER BY name`,
+        )
+        .all();
+      expect(tables.map((table) => table.name)).toEqual([
+        "pin_verifiers",
+        "role_permissions",
+        "roles",
+        "users",
+      ]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
 });

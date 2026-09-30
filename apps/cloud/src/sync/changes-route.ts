@@ -85,6 +85,32 @@ function toChangeWire(change: PulledCloudChange): ChangesPage["changes"][number]
           version: change.row.version,
         },
       };
+    case "user":
+      return {
+        change_seq,
+        entity: change.entity,
+        entity_id,
+        row: {
+          first_name: change.row.firstName,
+          role_id: change.row.roleId,
+          salt: change.row.salt,
+          pin_hash: change.row.pinHash,
+          active: change.row.active,
+          version: change.row.version,
+        },
+      };
+    case "role":
+      return {
+        change_seq,
+        entity: change.entity,
+        entity_id,
+        row: {
+          name: change.row.name,
+          is_administrator: change.row.isAdministrator,
+          permission_keys: change.row.permissionKeys,
+          version: change.row.version,
+        },
+      };
     case "removal":
       return {
         change_seq,

@@ -2,16 +2,31 @@ import { sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { changes } from "../platform/db/schema.js";
 
-type PulledEntity = "branch_settings" | "category" | "product" | "tag" | "price_list" | "price";
+type PulledEntity =
+  | "branch_settings"
+  | "category"
+  | "product"
+  | "tag"
+  | "price_list"
+  | "price"
+  | "user"
+  | "role";
 
-export interface LoggedChange {
-  entity: PulledEntity;
+interface LoggedChangeFields {
   entityId: string;
   version: number;
   op: "insert" | "update" | "delete";
   originDeviceId?: string;
   priceListId?: string;
 }
+
+export type LoggedChange =
+  | (LoggedChangeFields & { entity: "user"; locationId: string })
+  | (LoggedChangeFields & { entity: Exclude<PulledEntity, "user">; locationId?: never });
+
+type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
+  Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
+>[0];
 
 const CHANGE_LOG_LOCK_KEY = "changes_log";
 
@@ -35,6 +50,7 @@ export async function logChanges<TQueryResult extends PgQueryResultHKT>(
       op: change.op,
       originDeviceId: change.originDeviceId ?? null,
       priceListId: change.priceListId ?? null,
+      locationId: change.locationId ?? null,
     })),
   );
 }
@@ -76,7 +92,7 @@ export class PendingChanges {
 export async function withPendingChanges<TQueryResult extends PgQueryResultHKT, TOutcome>(
   db: PgDatabase<TQueryResult>,
   callerOwned: PendingChanges | undefined,
-  work: (tx: PgDatabase<TQueryResult>, pending: PendingChanges) => Promise<TOutcome>,
+  work: (tx: Transaction<TQueryResult>, pending: PendingChanges) => Promise<TOutcome>,
 ): Promise<TOutcome> {
   return db.transaction(async (tx) => {
     if (callerOwned === undefined) {

@@ -61,7 +61,7 @@ describe("two pulls of the same device overlapping, on a real Postgres", () => {
     });
     await earlierIsRecorded;
 
-    const later = pullChanges(ports, { deviceId, locationId, since: 2 });
+    const later = pullChanges(ports, { deviceId, locationId, since: 3 });
     try {
       await waitForLockWaiters(sql, 1);
     } finally {
@@ -69,7 +69,7 @@ describe("two pulls of the same device overlapping, on a real Postgres", () => {
     }
     await earlier;
 
-    await expect(later).resolves.toMatchObject({ cursor: 2, hasMore: false });
+    await expect(later).resolves.toMatchObject({ cursor: 3, hasMore: false });
   });
 
   it("waits for a save of the branch's settings under way, then gives its settings with its hours", async () => {

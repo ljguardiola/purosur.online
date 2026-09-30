@@ -11,6 +11,7 @@ import {
   userRoles,
   users,
 } from "../platform/db/schema.js";
+import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { PASSKEY_AUTHORIZATION_WINDOW_MS } from "./passkey-authorization-guard.js";
@@ -358,6 +359,47 @@ describe("PUT /roles/:id", () => {
       previousValue: { name: "Cajera", permissions: ["sell_and_charge"] },
       newValue: { name: "Cajera senior", permissions: ["sell_and_charge", "configure_branch"] },
     });
+  });
+
+  it("logs an edited role as an update of its next version, for every branch", async () => {
+    const rawSessionId = await insertSession(administratorId);
+    const mark = await lastLoggedChangeSeq(db);
+
+    await editRoleRequest(roleId, rawSessionId, {
+      name: "Cajera",
+      permissions: ["sell_and_charge", "configure_branch"],
+      version: 1,
+    });
+
+    expect(await changesLoggedAfter(db, mark)).toEqual([
+      { entity: "role", entityId: roleId, version: 2, op: "update", locationId: null },
+    ]);
+  });
+
+  it("logs a no-op edit as nothing", async () => {
+    const rawSessionId = await insertSession(administratorId);
+    const mark = await lastLoggedChangeSeq(db);
+
+    await editRoleRequest(roleId, rawSessionId, {
+      name: "Cajera",
+      permissions: ["sell_and_charge"],
+      version: 1,
+    });
+
+    expect(await changesLoggedAfter(db, mark)).toEqual([]);
+  });
+
+  it("logs nothing for an edit refused as stale", async () => {
+    const rawSessionId = await insertSession(administratorId);
+    const mark = await lastLoggedChangeSeq(db);
+
+    await editRoleRequest(roleId, rawSessionId, {
+      name: "Cajera senior",
+      permissions: [],
+      version: 9,
+    });
+
+    expect(await changesLoggedAfter(db, mark)).toEqual([]);
   });
 
   it("lists and counts a person holding the role at another branch, since roles are global", async () => {

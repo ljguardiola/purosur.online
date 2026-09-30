@@ -13,6 +13,7 @@ import {
   userRoles,
   users,
 } from "../platform/db/schema.js";
+import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { PASSKEY_AUTHORIZATION_WINDOW_MS } from "./passkey-authorization-guard.js";
@@ -532,6 +533,54 @@ describe("PUT /users/:id", () => {
       payload: { recovery_token: rawToken },
     });
     expect(redemption.statusCode).not.toBe(410);
+  });
+
+  it("logs a changed role as an update of the user's next version, in the user's branch", async () => {
+    const encargadaRoleId = await insertCashierRole("Encargada");
+    const rawSessionId = await insertSession(administratorId);
+    const mark = await lastLoggedChangeSeq(db);
+
+    await editUser(targetId, rawSessionId, {
+      email: "grace@example.com",
+      role_id: encargadaRoleId,
+      version: 1,
+    });
+
+    expect(await changesLoggedAfter(db, mark)).toEqual([
+      {
+        entity: "user",
+        entityId: targetId,
+        version: 2,
+        op: "update",
+        locationId: await seededLocationId(db),
+      },
+    ]);
+  });
+
+  it("logs a no-op edit as nothing", async () => {
+    const rawSessionId = await insertSession(administratorId);
+    const mark = await lastLoggedChangeSeq(db);
+
+    await editUser(targetId, rawSessionId, {
+      email: "grace@example.com",
+      role_id: cashierRoleId,
+      version: 1,
+    });
+
+    expect(await changesLoggedAfter(db, mark)).toEqual([]);
+  });
+
+  it("logs nothing for an edit refused as stale", async () => {
+    const rawSessionId = await insertSession(administratorId);
+    const mark = await lastLoggedChangeSeq(db);
+
+    await editUser(targetId, rawSessionId, {
+      email: "other@example.com",
+      role_id: cashierRoleId,
+      version: 7,
+    });
+
+    expect(await changesLoggedAfter(db, mark)).toEqual([]);
   });
 
   it("changes both email and role together: bumps version once and writes one audit row per changed field", async () => {

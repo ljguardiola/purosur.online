@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { auditLog, roles, sessions, userRoles, users } from "../platform/db/schema.js";
+import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { PASSKEY_AUTHORIZATION_WINDOW_MS } from "./passkey-authorization-guard.js";
@@ -203,6 +204,30 @@ describe("POST /roles", () => {
       previousValue: null,
       newValue: { name: "Depósito", permissions: ["view_stock_balances", "adjust_stock"] },
     });
+  });
+
+  it("logs the created role as an insert of its first version, for every branch", async () => {
+    const rawSessionId = await insertSession(administratorId);
+    const mark = await lastLoggedChangeSeq(db);
+
+    const response = await createRole(rawSessionId, {
+      name: "Depósito",
+      permissions: ["view_stock_balances"],
+    });
+
+    expect(await changesLoggedAfter(db, mark)).toEqual([
+      { entity: "role", entityId: response.json().id, version: 1, op: "insert", locationId: null },
+    ]);
+  });
+
+  it("logs nothing when the name is already taken", async () => {
+    await insertCashierRole("Depósito");
+    const rawSessionId = await insertSession(administratorId);
+    const mark = await lastLoggedChangeSeq(db);
+
+    await createRole(rawSessionId, { name: "depósito", permissions: [] });
+
+    expect(await changesLoggedAfter(db, mark)).toEqual([]);
   });
 
   it("creates a role holding no permissions", async () => {

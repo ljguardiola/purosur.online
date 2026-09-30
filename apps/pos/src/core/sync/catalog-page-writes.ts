@@ -1,8 +1,11 @@
 import type { SyncChange } from "@purosur/contracts";
 import type { Statement } from "better-sqlite3";
 import type { LocalDatabase } from "../platform/local-database";
+import type { RemovalOf } from "./pulled-change";
 
 type ChangeOf<TEntity extends SyncChange["entity"]> = Extract<SyncChange, { entity: TEntity }>;
+
+type CatalogEntity = "category" | "product" | "tag" | "price";
 
 // Every save is guarded by the row's version, so a version the register already has, or an older
 // one delivered late, never overwrites it, and nothing is ever deleted.
@@ -76,7 +79,7 @@ export function prepareCatalogPageWrites(database: LocalDatabase) {
        removed = 0
      WHERE excluded.version > prices.version`,
   );
-  const removals: Record<ChangeOf<"removal">["removed_entity"], Statement> = {
+  const removals: Record<CatalogEntity, Statement> = {
     category: database.prepare(
       "UPDATE categories SET removed = 1, version = @version WHERE id = @id AND version < @version",
     ),
@@ -165,7 +168,7 @@ export function prepareCatalogPageWrites(database: LocalDatabase) {
       });
     },
 
-    removal({ entity_id, removed_entity, version }: ChangeOf<"removal">): void {
+    removal({ entity_id, removed_entity, version }: RemovalOf<CatalogEntity>): void {
       const removed = removals[removed_entity].run({ id: entity_id, version });
       if (removed_entity === "product" && removed.changes > 0) {
         deactivateBarcodes.run(entity_id);

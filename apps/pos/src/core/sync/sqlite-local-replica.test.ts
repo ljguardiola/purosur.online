@@ -6,6 +6,7 @@ import type { RegisterPulledChange } from "./pulled-change";
 import { SqliteLocalReplica } from "./sqlite-local-replica";
 
 const LOCATION_ID = "3f0d1a52-0f7e-4a53-9f4c-2a7d2f1c9b10";
+const PEPPER = Buffer.alloc(32, 7).toString("base64url");
 
 function settingsRow(overrides: Partial<BranchSettingsBody> = {}): BranchSettingsBody {
   return {
@@ -202,7 +203,7 @@ describe("the register's local copy of what it pulls", () => {
   });
 
   it("records the installation it holds the cursor for", () => {
-    replica.adoptDevice("device-a");
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
 
     expect(database.prepare("SELECT device_id FROM sync_state WHERE id = 1").get()).toEqual({
       device_id: "device-a",
@@ -210,27 +211,27 @@ describe("the register's local copy of what it pulls", () => {
   });
 
   it("keeps its cursor for the installation that pulled it", async () => {
-    replica.adoptDevice("device-a");
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
     await replica.savePage({
       changes: [branchSettingsChange(7, settingsRow())],
       cursor: 7,
       hasMore: false,
     });
 
-    replica.adoptDevice("device-a");
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
 
     expect(await replica.savedCursor()).toBe(7);
   });
 
   it("starts over from the very first cursor when another installation takes over, keeping what it holds", async () => {
-    replica.adoptDevice("device-a");
+    replica.adoptDevice({ deviceId: "device-a", pepper: PEPPER });
     await replica.savePage({
       changes: [branchSettingsChange(7, settingsRow())],
       cursor: 7,
       hasMore: false,
     });
 
-    replica.adoptDevice("device-b");
+    replica.adoptDevice({ deviceId: "device-b", pepper: PEPPER });
 
     expect(await replica.savedCursor()).toBe(0);
     expect(storedBranchSettings()).toEqual(settingsRow());

@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import type { CloudResponse } from "../platform/cloud-client";
 import { openLocalDatabase } from "../platform/local-database";
@@ -39,6 +40,40 @@ function page(changeSeqs: number[], hasMore: boolean): CloudResponse {
       has_more: hasMore,
     },
   };
+}
+
+const USER_ID = "1e7b3a90-52c4-4d18-9f6a-8b0c2d4e6f71";
+const PIN_HASH = "argon2id$v=19$m=65536,t=3,p=4$c2FsdA$aGFzaC1vZi10aGUtcGlu";
+
+function usersPage(): CloudResponse {
+  return {
+    kind: "ok",
+    body: {
+      changes: [
+        {
+          change_seq: 1,
+          entity: "user",
+          entity_id: USER_ID,
+          row: {
+            first_name: "Ada",
+            role_id: "3a9d5cb2-74e6-4f3a-9b8c-0d2e4f6a8b93",
+            salt: "c2FsdA",
+            pin_hash: PIN_HASH,
+            active: true,
+            version: 1,
+          },
+        },
+      ],
+      cursor: 1,
+      has_more: false,
+    },
+  };
+}
+
+function verifierWith(pepper: string): string {
+  return createHmac("sha256", Buffer.from(pepper, "base64url"))
+    .update(PIN_HASH)
+    .digest("base64url");
 }
 
 function cloudAnswering(...answers: CloudResponse[]) {
@@ -113,6 +148,40 @@ describe("a pull from the cloud", () => {
     expect(requests).toEqual([
       { path: "/api/changes?since=0", headers: { authorization: "Bearer new.token" } },
     ]);
+  });
+
+  it("derives a pulled user's verifier with the pepper of the credentials it read", async () => {
+    const replica = freshReplica();
+
+    await pullFromCloud({
+      readCredentials: async () => CREDENTIALS,
+      replica,
+      getFromCloud: cloudAnswering(usersPage()).getFromCloud,
+    });
+
+    expect(replica.pinVerifier(USER_ID)).toBe(verifierWith(CREDENTIALS.pepper));
+  });
+
+  it("derives the verifiers again with the new pepper once another installation's credentials are stored", async () => {
+    const replica = freshReplica();
+    await pullFromCloud({
+      readCredentials: async () => CREDENTIALS,
+      replica,
+      getFromCloud: cloudAnswering(usersPage()).getFromCloud,
+    });
+    const reEnrolledPepper = Buffer.alloc(32, 5).toString("base64url");
+
+    await pullFromCloud({
+      readCredentials: async () => ({
+        ...CREDENTIALS,
+        device_id: "c9d2",
+        pepper: reEnrolledPepper,
+      }),
+      replica,
+      getFromCloud: cloudAnswering(usersPage()).getFromCloud,
+    });
+
+    expect(replica.pinVerifier(USER_ID)).toBe(verifierWith(reEnrolledPepper));
   });
 
   it("asks nothing of the cloud before the register is enrolled", async () => {

@@ -395,13 +395,13 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
     const deletedUsers = await tx
       .delete(users)
       .where(inArray(users.id, sampleUserIds))
-      .returning({ id: users.id });
+      .returning({ id: users.id, version: users.version, locationId: users.locationId });
 
     await tx.delete(rolePermissions).where(inArray(rolePermissions.roleId, sampleRoleIds));
     const deletedRoles = await tx
       .delete(roles)
       .where(inArray(roles.id, sampleRoleIds))
-      .returning({ id: roles.id });
+      .returning({ id: roles.id, version: roles.version });
 
     await tx
       .delete(registerEnrollmentCodes)
@@ -469,6 +469,23 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
           version: PRICE_VERSION + 1,
           op: "delete",
           priceListId: price.priceListId,
+        }),
+      ),
+      ...deletedUsers.map(
+        (user): LoggedChange => ({
+          entity: "user",
+          entityId: user.id,
+          version: user.version + 1,
+          op: "delete",
+          locationId: user.locationId,
+        }),
+      ),
+      ...deletedRoles.map(
+        (role): LoggedChange => ({
+          entity: "role",
+          entityId: role.id,
+          version: role.version + 1,
+          op: "delete",
         }),
       ),
     ];

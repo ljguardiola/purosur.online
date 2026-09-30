@@ -4,6 +4,8 @@ import { pullChanges } from "@purosur/domain/sync/use-cases";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { createRole } from "../access/role-creation-route.js";
+import { createUser } from "../access/user-creation-route.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { users } from "../platform/db/schema.js";
 import { DrizzlePricingStore } from "../pricing/drizzle-pricing-store.js";
@@ -33,7 +35,7 @@ afterAll(async () => {
 });
 
 describe("a pull run as the role the deployed cloud connects with", () => {
-  it("gives a page holding every kind of catalog and price change", async () => {
+  it("gives a page holding every kind of catalog, price, user and role change", async () => {
     const { deviceId, locationId } = await insertEnrolledInstallation(db);
     const store = new DrizzleCatalogStore(db);
     const category = await createCategory(store, { name: "Almacén", parentId: null });
@@ -57,6 +59,25 @@ describe("a pull run as the role the deployed cloud connects with", () => {
     if (product.kind !== "created" || !actor) {
       throw new Error("test setup: the product or the actor was not created");
     }
+    const role = await createRole(db, {
+      name: "Cajera",
+      permissionKeys: ["sell_and_charge"],
+      actorId: actor.id,
+    });
+    if (role.kind !== "created") {
+      throw new Error("test setup: the role was not created");
+    }
+    await createUser(
+      db,
+      {
+        firstName: "Grace",
+        email: "grace@example.com",
+        roleId: role.role.id,
+        locationId,
+        actorId: actor.id,
+      },
+      { now: () => new Date() },
+    );
     await setPrice(
       { store: new DrizzlePricingStore(db), clock: { now: () => new Date() } },
       {
@@ -77,7 +98,10 @@ describe("a pull run as the role the deployed cloud connects with", () => {
       "price",
       "price_list",
       "product",
+      "role",
+      "role",
       "tag",
+      "user",
     ]);
   });
 });

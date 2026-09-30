@@ -301,6 +301,54 @@ describe("loadSampleData", () => {
     expect(loadedProducts.some((product) => product.version > 1)).toBe(true);
   }, 120_000);
 
+  it("logs every user it loads with its branch and every role it loads, the deactivated users as an update", async () => {
+    const db = await freshDatabase();
+    await seedActiveAdministrator(db);
+
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+
+    const logged = await db
+      .select({
+        entity: changes.entity,
+        entityId: changes.entityId,
+        version: changes.version,
+        op: changes.op,
+        locationId: changes.locationId,
+      })
+      .from(changes);
+    const latestLogged = (entity: string, entityId: string) =>
+      logged
+        .filter((change) => change.entity === entity && change.entityId === entityId)
+        .sort((a, b) => a.version - b.version)
+        .at(-1);
+    const loadedUsers = await db
+      .select({ id: users.id, version: users.version, locationId: users.locationId })
+      .from(users)
+      .where(sql`${users.email} like ${`%@${SAMPLE_EMAIL_DOMAIN}`}`);
+    const loadedRoles = await db
+      .select({ id: roles.id, version: roles.version })
+      .from(roles)
+      .where(eq(roles.isAdministrator, false));
+    expect(loadedUsers.length).toBeGreaterThan(0);
+    expect(loadedUsers.some((user) => user.version > 1)).toBe(true);
+    expect(loadedRoles.length).toBeGreaterThan(0);
+
+    for (const user of loadedUsers) {
+      expect(latestLogged("user", user.id)).toMatchObject({
+        version: user.version,
+        op: user.version === 1 ? "insert" : "update",
+        locationId: user.locationId,
+      });
+    }
+    for (const role of loadedRoles) {
+      expect(latestLogged("role", role.id)).toMatchObject({
+        version: role.version,
+        op: "insert",
+        locationId: null,
+      });
+    }
+  }, 120_000);
+
   it("leaves branch settings that were already configured untouched", async () => {
     const db = await freshDatabase();
     await seedActiveAdministrator(db);

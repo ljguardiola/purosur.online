@@ -13,6 +13,7 @@ import {
   users,
 } from "../platform/db/schema.js";
 import { hashSecretCode } from "../platform/secret-code.js";
+import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { PASSKEY_AUTHORIZATION_WINDOW_MS } from "./passkey-authorization-guard.js";
@@ -277,6 +278,37 @@ describe("POST /users/:id/pin-codes", () => {
 
       const remaining = await db.select().from(userPins);
       expect(remaining.map((pin) => pin.userId)).toEqual([holderId]);
+    });
+
+    it("bumps the version of a user whose PIN was removed and logs it as an update in their branch", async () => {
+      await db
+        .insert(userPins)
+        .values({ userId: targetId, salt: "salt", hash: "hash", setAt: NOON });
+      const mark = await lastLoggedChangeSeq(db);
+
+      await emitPinCode(targetId, holderSession);
+
+      const [target] = await db.select().from(users).where(eq(users.id, targetId));
+      expect(target?.version).toBe(2);
+      expect(await changesLoggedAfter(db, mark)).toEqual([
+        {
+          entity: "user",
+          entityId: targetId,
+          version: 2,
+          op: "update",
+          locationId: await seededLocationId(db),
+        },
+      ]);
+    });
+
+    it("leaves the version alone and logs nothing for a user who had no PIN", async () => {
+      const mark = await lastLoggedChangeSeq(db);
+
+      await emitPinCode(targetId, holderSession);
+
+      const [target] = await db.select().from(users).where(eq(users.id, targetId));
+      expect(target?.version).toBe(1);
+      expect(await changesLoggedAfter(db, mark)).toEqual([]);
     });
 
     it("supersedes the user's earlier live code, leaving the new one live", async () => {

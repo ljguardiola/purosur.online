@@ -9,10 +9,20 @@ import {
   readPriceLists,
   readPrices,
   readProducts,
+  readRoles,
   readTags,
+  readUsers,
 } from "./read-pulled-rows.js";
 
-type LoggedEntity = "branch_settings" | "category" | "product" | "tag" | "price_list" | "price";
+type LoggedEntity =
+  | "branch_settings"
+  | "category"
+  | "product"
+  | "tag"
+  | "price_list"
+  | "price"
+  | "user"
+  | "role";
 
 interface LoggedRow {
   changeSeq: number;
@@ -56,6 +66,8 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
     const tagRows = await readTags(this.tx, idsOf(logged, "tag"));
     const priceListRows = await readPriceLists(this.tx, idsOf(logged, "price_list"));
     const priceRows = await readPrices(this.tx, idsOf(logged, "price"));
+    const userRows = await readUsers(this.tx, idsOf(logged, "user"));
+    const roleRows = await readRoles(this.tx, idsOf(logged, "role"));
     const settingsRow = logged.some((row) => row.entity === "branch_settings")
       ? await this.readSettings(locationId)
       : undefined;
@@ -67,6 +79,8 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
       product: await this.latestLoggedVersions("product", absent(logged, "product", productRows)),
       tag: await this.latestLoggedVersions("tag", absent(logged, "tag", tagRows)),
       price: await this.latestLoggedVersions("price", absent(logged, "price", priceRows)),
+      user: await this.latestLoggedVersions("user", absent(logged, "user", userRows)),
+      role: await this.latestLoggedVersions("role", absent(logged, "role", roleRows)),
     };
 
     const pulled: PulledCloudChange[] = [];
@@ -110,6 +124,16 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
           pulled.push(row === undefined ? removal(entity) : { changeSeq, entity, entityId, row });
           break;
         }
+        case "user": {
+          const row = userRows.get(entityId);
+          pulled.push(row === undefined ? removal(entity) : { changeSeq, entity, entityId, row });
+          break;
+        }
+        case "role": {
+          const row = roleRows.get(entityId);
+          pulled.push(row === undefined ? removal(entity) : { changeSeq, entity, entityId, row });
+          break;
+        }
       }
     }
     return pulled;
@@ -134,7 +158,8 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
           gt(changes.changeSeq, since),
           or(
             and(eq(changes.entity, "branch_settings"), eq(changes.entityId, locationId)),
-            inArray(changes.entity, ["category", "product", "tag"]),
+            inArray(changes.entity, ["category", "product", "tag", "role"]),
+            and(eq(changes.entity, "user"), eq(changes.locationId, locationId)),
             priceListId === undefined
               ? undefined
               : and(eq(changes.entity, "price_list"), eq(changes.entityId, priceListId)),
@@ -203,7 +228,8 @@ export class DrizzleChangeLog<TQueryResult extends PgQueryResultHKT>
   // Read committed, so a device's overlapping pulls wait on its state row instead of failing. Only
   // settings and products are read in more than one statement, so only they are share-locked, in
   // id order: every save locks the row before touching what belongs to it, and the lock waits for
-  // it. Locking anything else would take locks in another order than the writers do.
+  // it. Locking anything else would take locks in another order than the writers do. A user with
+  // its role and PIN, and a role with its permissions, are each read in one statement.
   transaction<TOutcome>(
     work: (tx: ChangeLogTransaction<PulledCloudChange>) => Promise<TOutcome>,
   ): Promise<TOutcome> {
