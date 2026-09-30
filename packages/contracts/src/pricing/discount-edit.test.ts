@@ -46,6 +46,12 @@ describe("discountEditBodySchema", () => {
     expect(failures({ ...valid, validFrom: "2027-03-01" })).toEqual([
       { path: ["validTo"], message: "validTo must not be before validFrom" },
     ]);
+    expect(failures({ ...valid, validFrom: "0000-06-15" })).toEqual([
+      { path: ["validFrom"], message: "validFrom must be a calendar day as YYYY-MM-DD" },
+    ]);
+    expect(failures({ ...valid, validTo: "0000-06-15" })).toEqual([
+      { path: ["validTo"], message: "validTo must be a calendar day as YYYY-MM-DD" },
+    ]);
     expect(failures({ ...valid, name: " " })).toEqual([
       { path: ["name"], message: "name must not be empty" },
     ]);

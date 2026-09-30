@@ -166,17 +166,22 @@ describe("discountCreationBodySchema", () => {
       ]);
     });
 
-    it.each(["2026-02-30", "2026-13-01", "01/12/2026", "2026-12-01T00:00:00Z", 20261201, null])(
-      "rejects %j as a day",
-      (day) => {
-        expect(failures({ ...valid, validFrom: day, validTo: "2030-01-01" })).toEqual([
-          { path: ["validFrom"], message: "validFrom must be a calendar day as YYYY-MM-DD" },
-        ]);
-        expect(failures({ ...valid, validFrom: "2020-01-01", validTo: day })).toEqual([
-          { path: ["validTo"], message: "validTo must be a calendar day as YYYY-MM-DD" },
-        ]);
-      },
-    );
+    it.each([
+      "2026-02-30",
+      "2026-13-01",
+      "0000-06-15",
+      "01/12/2026",
+      "2026-12-01T00:00:00Z",
+      20261201,
+      null,
+    ])("rejects %j as a day", (day) => {
+      expect(failures({ ...valid, validFrom: day, validTo: "2030-01-01" })).toEqual([
+        { path: ["validFrom"], message: "validFrom must be a calendar day as YYYY-MM-DD" },
+      ]);
+      expect(failures({ ...valid, validFrom: "2020-01-01", validTo: day })).toEqual([
+        { path: ["validTo"], message: "validTo must be a calendar day as YYYY-MM-DD" },
+      ]);
+    });
   });
 
   describe("weekdays", () => {
