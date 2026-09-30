@@ -17,6 +17,8 @@ import {
   sentryEnvironmentFromCoreArguments,
 } from "../shared/channel";
 import { CORE_READY_MESSAGE } from "../shared/core-readiness";
+import { redeemPinCode } from "./access/pin-code-redemption";
+import { applyRedeemedPin } from "./access/redeemed-pin";
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
 import {
   type CloudClientDeps,
@@ -24,7 +26,7 @@ import {
   postToCloud,
   postToCloudWithBearer,
 } from "./platform/cloud-client";
-import { openLocalDatabase } from "./platform/local-database";
+import { type LocalDatabase, openLocalDatabase } from "./platform/local-database";
 import { LOCAL_MIGRATIONS } from "./platform/local-migrations";
 import { createMainRequests } from "./platform/main-requests";
 import { rotateDeviceToken } from "./register/device-token-rotation";
@@ -83,18 +85,19 @@ const LOCAL_DATABASE_FILE = "register.sqlite";
 const PULL_INTERVAL_MS = 30_000;
 const PULL_FAILURE_BACKOFF = { baseMs: 2000, maxMs: 60_000 };
 
-function openLocalReplica(): SqliteLocalReplica | undefined {
+function openLocalDatabaseFile(): LocalDatabase | undefined {
   const localDataFolder = localDataFolderFromCoreArguments(process.argv);
   if (localDataFolder === undefined) {
     console.error("core: no local data folder was handed over, so it can't pull");
     return undefined;
   }
   try {
-    const replica = new SqliteLocalReplica(
-      openLocalDatabase(join(localDataFolder, LOCAL_DATABASE_FILE), LOCAL_MIGRATIONS),
+    const database = openLocalDatabase(
+      join(localDataFolder, LOCAL_DATABASE_FILE),
+      LOCAL_MIGRATIONS,
     );
     console.info("core: the local database is ready");
-    return replica;
+    return database;
   } catch (error) {
     console.error("core: the local database could not be opened, so it can't pull", error);
     Sentry.captureException(error);
@@ -102,7 +105,8 @@ function openLocalReplica(): SqliteLocalReplica | undefined {
   }
 }
 
-const replica = openLocalReplica();
+const localDatabase = openLocalDatabaseFile();
+const replica = localDatabase === undefined ? undefined : new SqliteLocalReplica(localDatabase);
 
 // An unreachable cloud is how a register without internet looks, so only an unexpected stop is
 // reported; the next pull resumes from the cursor already saved either way.
@@ -158,6 +162,23 @@ const rendererRequestDeps = {
     }
     return outcome;
   },
+  redeemPinCode: (typedCode: string, newPin: string) =>
+    redeemPinCode(
+      {
+        readCredentials: () => mainRequests.readCredentials(),
+        postToCloud:
+          cloudClient === undefined
+            ? undefined
+            : (path, bearerToken, body) =>
+                postToCloudWithBearer(cloudClient, path, bearerToken, body),
+        applyRedeemedPin:
+          localDatabase === undefined
+            ? undefined
+            : (pepper, redemption) => applyRedeemedPin(localDatabase, pepper, redemption),
+      },
+      typedCode,
+      newPin,
+    ),
 };
 
 if (cloudClient !== undefined) {

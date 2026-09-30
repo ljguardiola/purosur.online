@@ -3,13 +3,19 @@ import { answerRendererRequest } from "./renderer-requests";
 
 function deps(enrolled: boolean) {
   const enrolledCodes: string[] = [];
+  const redemptions: { resetCode: string; newPin: string }[] = [];
   return {
     enrolledCodes,
+    redemptions,
     deps: {
       credentialsPresent: async () => enrolled,
       enroll: async (code: string) => {
         enrolledCodes.push(code);
         return { kind: "code_rejected" as const };
+      },
+      redeemPinCode: async (resetCode: string, newPin: string) => {
+        redemptions.push({ resetCode, newPin });
+        return { kind: "code_expired" as const };
       },
     },
   };
@@ -42,6 +48,24 @@ describe("answerRendererRequest", () => {
       type: "enrollment-result",
       request_id: "r2",
       outcome: { kind: "code_rejected" },
+    });
+  });
+
+  it("redeems the PIN code as typed and answers the outcome", async () => {
+    const { deps: withRedeem, redemptions } = deps(true);
+
+    const answer = await answerRendererRequest(withRedeem, {
+      type: "redeem-pin-code",
+      request_id: "r3",
+      reset_code: "k7qm 2xpa 3dtr 4hwn",
+      new_pin: "482915",
+    });
+
+    expect(redemptions).toEqual([{ resetCode: "k7qm 2xpa 3dtr 4hwn", newPin: "482915" }]);
+    expect(answer).toEqual({
+      type: "pin-code-redemption-result",
+      request_id: "r3",
+      outcome: { kind: "code_expired" },
     });
   });
 
