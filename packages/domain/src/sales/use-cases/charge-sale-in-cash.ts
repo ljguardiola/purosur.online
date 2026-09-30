@@ -2,7 +2,7 @@ import type { CashMovement } from "../../register/index.js";
 import type { OutboxEventDraft } from "../../sync/index.js";
 import { cashCharge } from "../model/cash-charge.js";
 import type { PaymentTransaction } from "../model/payment.js";
-import type { SaleWithLines } from "../model/sale.js";
+import type { LinePromotion, SaleWithLines } from "../model/sale.js";
 import { saleTotal } from "../model/sale-line.js";
 import type { Clock, IdGenerator, SaleLedger } from "./sale-ledger.js";
 import { isRefusal, sellingSession } from "./selling-session.js";
@@ -113,6 +113,24 @@ function cashMovements(
     : [movement("SALE", tendered)];
 }
 
+function frozenPromotion({ id, benefit }: LinePromotion) {
+  return benefit.kind === "PERCENT_OFF"
+    ? {
+        discount_id: id,
+        kind: benefit.kind,
+        percent: benefit.percent,
+        buy_qty: null,
+        pay_qty: null,
+      }
+    : {
+        discount_id: id,
+        kind: benefit.kind,
+        percent: null,
+        buy_qty: benefit.buyQty,
+        pay_qty: benefit.payQty,
+      };
+}
+
 function saleCompletedEvent(
   eventId: string,
   sale: SaleWithLines,
@@ -137,11 +155,15 @@ function saleCompletedEvent(
       occurred_at: sale.occurredAt.toISOString(),
       completed_at: completedAtIso,
       lines: sale.lines.map((line) => ({
+        id: line.id,
         product_id: line.productId,
         product_name: line.productName,
         quantity: line.quantity,
         list_unit_price: line.listUnitPrice,
         price_list_id: line.priceListId,
+        promotion_id: line.promotionId,
+        discount_amount: line.discountAmount,
+        promotions: line.promotions.map(frozenPromotion),
         line_total: line.lineTotal,
       })),
       payments: [

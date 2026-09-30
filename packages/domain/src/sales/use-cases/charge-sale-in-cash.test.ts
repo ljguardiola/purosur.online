@@ -61,6 +61,27 @@ const OPEN_SALE: SaleWithLines = {
   ],
 };
 
+const DISCOUNTED_SALE: SaleWithLines = {
+  ...OPEN_SALE,
+  lines: [
+    {
+      id: "line-3",
+      productId: "fideos",
+      productName: "Fideos",
+      quantity: 3,
+      listUnitPrice: 1000,
+      priceListId: "list-1",
+      promotions: [
+        { id: "d-percent", benefit: { kind: "PERCENT_OFF", percent: 10 } },
+        { id: "d-3x2", benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 } },
+      ],
+      promotionId: "d-3x2",
+      discountAmount: 1000,
+      lineTotal: 2000,
+    },
+  ],
+};
+
 function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
   return new FakeSaleLedger({
     accesses: { cashier: CASHIER },
@@ -158,6 +179,48 @@ describe("chargeSaleInCash", () => {
     expect(store.state.payments[0]).toMatchObject({ amount: TOTAL, tendered: TOTAL });
   });
 
+  it("charges the total with the line promotions applied, not the list prices", () => {
+    const store = ledger({ sales: [DISCOUNTED_SALE] });
+
+    expect(charge(store, 1999)).toEqual({ kind: "insufficient_cash", amountDue: 2000 });
+    expect(charge(store, 2500)).toEqual({
+      kind: "completed",
+      saleId: "sale-1",
+      total: 2000,
+      tendered: 2500,
+      change: 500,
+    });
+    expect(store.state.payments[0]).toMatchObject({ amount: 2000, tendered: 2500 });
+  });
+
+  it("appends each line's frozen promotions and the discount it charged to the sale_completed event", () => {
+    const store = ledger({ sales: [DISCOUNTED_SALE] });
+
+    charge(store, 2000);
+
+    expect(store.state.outbox[0]?.payload).toMatchObject({
+      lines: [
+        {
+          id: "line-3",
+          list_unit_price: 1000,
+          promotion_id: "d-3x2",
+          discount_amount: 1000,
+          promotions: [
+            {
+              discount_id: "d-percent",
+              kind: "PERCENT_OFF",
+              percent: 10,
+              buy_qty: null,
+              pay_qty: null,
+            },
+            { discount_id: "d-3x2", kind: "BUY_N_PAY_M", percent: null, buy_qty: 3, pay_qty: 2 },
+          ],
+          line_total: 2000,
+        },
+      ],
+    });
+  });
+
   it("does everything in one transaction", () => {
     const store = ledger();
 
@@ -190,19 +253,27 @@ describe("chargeSaleInCash", () => {
           completed_at: NOW.toISOString(),
           lines: [
             {
+              id: "line-1",
               product_id: "yerba",
               product_name: "Yerba 1 kg",
               quantity: 2,
               list_unit_price: 2500,
               price_list_id: "list-1",
+              promotion_id: null,
+              discount_amount: 0,
+              promotions: [],
               line_total: 5000,
             },
             {
+              id: "line-2",
               product_id: "fideos",
               product_name: "Fideos",
               quantity: 1,
               list_unit_price: 900,
               price_list_id: "list-1",
+              promotion_id: null,
+              discount_amount: 0,
+              promotions: [],
               line_total: 900,
             },
           ],
