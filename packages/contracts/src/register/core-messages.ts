@@ -249,6 +249,7 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("sale"), request_id: requestId, sale: saleSchema.nullable() }),
   z.object({ type: z.literal("sale-unavailable"), request_id: requestId }),
+  z.object({ type: z.literal("sale-not-permitted"), request_id: requestId }),
   z.object({ type: z.literal("signed-out"), request_id: requestId }),
   z.object({ type: z.literal("pulled") }),
 ]);

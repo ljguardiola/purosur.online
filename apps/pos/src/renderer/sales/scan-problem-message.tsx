@@ -1,17 +1,23 @@
 import type { ScanProductOutcome } from "@purosur/contracts";
 import type { LucideIcon } from "lucide-react";
-import { Ban, Scale, ScanBarcode, Tag, TriangleAlert } from "lucide-react";
+import { Ban, Lock, Scale, ScanBarcode, Tag, TriangleAlert } from "lucide-react";
 
 export type ScanProblem = Extract<
   ScanProductOutcome,
   {
-    kind: "unknown_code" | "no_price" | "sold_by_weight" | "installation_revoked" | "unavailable";
+    kind:
+      | "unknown_code"
+      | "no_price"
+      | "sold_by_weight"
+      | "not_permitted"
+      | "installation_revoked"
+      | "unavailable";
   }
 >;
 
 type Message = { icon: LucideIcon; title: string; help: string };
 
-function messageFor(problem: ScanProblem): Message {
+export function messageFor(problem: ScanProblem): Message {
   switch (problem.kind) {
     case "unknown_code":
       return {
@@ -30,6 +36,12 @@ function messageFor(problem: ScanProblem): Message {
         icon: Scale,
         title: `${problem.product_name} se vende por kilo`,
         help: "Esta caja todavía no vende productos por kilo.",
+      };
+    case "not_permitted":
+      return {
+        icon: Lock,
+        title: "No tenés el permiso de vender y cobrar",
+        help: "Quien administra los roles te lo puede dar en el backoffice.",
       };
     case "installation_revoked":
       return {

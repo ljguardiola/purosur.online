@@ -742,4 +742,16 @@ describe("sale answers", () => {
   it("rejects that the sale in progress cannot be read without its request id", () => {
     expect(coreToRendererMessageSchema.safeParse({ type: "sale-unavailable" }).success).toBe(false);
   });
+
+  it("accepts that the person signed in may not sell", () => {
+    const message = { type: "sale-not-permitted", request_id: REQUEST_ID };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects that the person signed in may not sell without its request id", () => {
+    expect(coreToRendererMessageSchema.safeParse({ type: "sale-not-permitted" }).success).toBe(
+      false,
+    );
+  });
 });

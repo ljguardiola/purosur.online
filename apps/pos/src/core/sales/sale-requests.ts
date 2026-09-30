@@ -1,4 +1,4 @@
-import type { OpenSale, ScanProductOutcome } from "@purosur/contracts";
+import type { CurrentSaleAnswer, OpenSale, ScanProductOutcome } from "@purosur/contracts";
 import { type SaleWithLines, saleTotal } from "@purosur/domain";
 import {
   addScannedProduct,
@@ -65,12 +65,15 @@ export async function scanProductFor(
 export async function currentSaleFor({
   database,
   gate,
-}: Pick<SaleRequestDeps, "database" | "gate">): Promise<OpenSale | null> {
+}: Pick<SaleRequestDeps, "database" | "gate">): Promise<CurrentSaleAnswer> {
   const guarded = await gate.run({ permission: "sell_and_charge" }, async ({ signedInUserId }) =>
     currentSale({ ledger: saleLedger(database) }, { actorId: signedInUserId }),
   );
-  if (guarded.kind !== "performed" || guarded.result.kind !== "open") {
+  if (guarded.kind === "not_signed_in") {
     return null;
   }
-  return toOpenSale(guarded.result.sale);
+  if (guarded.kind !== "performed" || guarded.result.kind === "not_permitted") {
+    return "not_permitted";
+  }
+  return guarded.result.kind === "open" ? toOpenSale(guarded.result.sale) : null;
 }

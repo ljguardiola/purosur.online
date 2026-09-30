@@ -1,6 +1,6 @@
-import type { OpenSale, ScanProductOutcome } from "@purosur/contracts";
+import type { CurrentSaleAnswer, OpenSale, ScanProductOutcome } from "@purosur/contracts";
 import { scannedCodeSchema } from "@purosur/contracts";
-import { LoadFailure, LoadingPlaceholder, SearchField } from "@purosur/ui";
+import { EmptyState, LoadFailure, LoadingPlaceholder, SearchField } from "@purosur/ui";
 import { ScanBarcode, ShoppingBasket, TriangleAlert } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -11,18 +11,19 @@ import { changedLineId } from "./changed-line";
 import { PaymentPanel } from "./payment-panel";
 import { SaleLines } from "./sale-lines";
 import type { ScanProblem } from "./scan-problem-message";
-import { ScanProblemMessage } from "./scan-problem-message";
+import { messageFor, ScanProblemMessage } from "./scan-problem-message";
 
 type SaleView =
   | { status: "loading" }
   | { status: "failed" }
+  | { status: "not_permitted" }
   | { status: "ready"; sale: OpenSale | null; changedLineId: string | undefined };
 
 export type SaleScreenProps = {
   person: SignedInPerson;
   registerName: string | null;
   openedAt: string;
-  currentSale: () => Promise<OpenSale | null>;
+  currentSale: () => Promise<CurrentSaleAnswer>;
   scanProduct: (code: string) => Promise<ScanProductOutcome>;
   onSessionInvalid: () => void;
 };
@@ -69,7 +70,11 @@ export function SaleScreen({
     currentSale().then(
       (sale) => {
         if (current) {
-          setView({ status: "ready", sale, changedLineId: undefined });
+          setView(
+            sale === "not_permitted"
+              ? { status: "not_permitted" }
+              : { status: "ready", sale, changedLineId: undefined },
+          );
         }
       },
       () => {
@@ -104,7 +109,6 @@ export function SaleScreen({
         }));
         setCode((typed) => (typed === submitted ? "" : typed));
         break;
-      case "not_permitted":
       case "not_signed_in":
       case "no_open_session":
         onSessionInvalid();
@@ -112,6 +116,7 @@ export function SaleScreen({
       case "unknown_code":
       case "no_price":
       case "sold_by_weight":
+      case "not_permitted":
       case "installation_revoked":
       case "unavailable":
         refuse(outcome);
@@ -136,6 +141,7 @@ export function SaleScreen({
   }
 
   const sale = view.status === "ready" ? view.sale : null;
+  const notPermitted = messageFor({ kind: "not_permitted" });
 
   return (
     <div className="flex h-screen w-screen bg-surface-subtle">
@@ -169,6 +175,14 @@ export function SaleScreen({
               setView({ status: "loading" });
               focusScanField(field.current);
             }}
+          />
+        ) : null}
+        {view.status === "not_permitted" ? (
+          <EmptyState
+            variant="blank"
+            icon={<notPermitted.icon />}
+            title={notPermitted.title}
+            description={notPermitted.help}
           />
         ) : null}
         {view.status === "ready" ? (

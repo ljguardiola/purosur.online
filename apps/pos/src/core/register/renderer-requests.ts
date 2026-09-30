@@ -1,9 +1,9 @@
 import type {
   CoreToRendererMessage,
+  CurrentSaleAnswer,
   EnrollmentOutcome,
   OpenCashSession,
   OpenCashSessionOutcome,
-  OpenSale,
   PinCodeRedemptionOutcome,
   RendererToCoreMessage,
   ScanProductOutcome,
@@ -25,7 +25,7 @@ export interface RendererRequestDeps {
   openCashSession: ((openingFloat: number) => Promise<OpenCashSessionOutcome>) | undefined;
   cashSession: (() => OpenCashSession | null) | undefined;
   scanProduct: ((code: string) => Promise<ScanProductOutcome>) | undefined;
-  currentSale: (() => Promise<OpenSale | null>) | undefined;
+  currentSale: (() => Promise<CurrentSaleAnswer>) | undefined;
   authorizers: ((permission: AuthorizablePermissionKey) => SignInUser[]) | undefined;
   signOut: () => void;
   reportFailure: (context: string, error: unknown) => void;
@@ -124,7 +124,7 @@ async function attemptScanProduct(
   }
 }
 
-async function readCurrentSale(deps: RendererRequestDeps): Promise<OpenSale | null | undefined> {
+async function readCurrentSale(deps: RendererRequestDeps): Promise<CurrentSaleAnswer | undefined> {
   try {
     return await deps.currentSale?.();
   } catch (error) {
@@ -206,6 +206,9 @@ export async function answerRendererRequest(
       };
     case "sale-request": {
       const sale = await readCurrentSale(deps);
+      if (sale === "not_permitted") {
+        return { type: "sale-not-permitted", request_id: message.request_id };
+      }
       return sale === undefined
         ? { type: "sale-unavailable", request_id: message.request_id }
         : { type: "sale", request_id: message.request_id, sale };

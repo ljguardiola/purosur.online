@@ -1,9 +1,9 @@
 import type {
   CoreToRendererMessage,
+  CurrentSaleAnswer,
   EnrollmentOutcome,
   OpenCashSession,
   OpenCashSessionOutcome,
-  OpenSale,
   PinCodeRedemptionOutcome,
   RendererToCoreMessage,
   ScanProductOutcome,
@@ -36,7 +36,7 @@ export interface CoreClient {
   openCashSession(openingFloat: number): Promise<OpenCashSessionOutcome>;
   cashSession(): Promise<OpenCashSession | null | "unavailable">;
   scanProduct(code: string): Promise<ScanProductOutcome>;
-  currentSale(): Promise<OpenSale | null>;
+  currentSale(): Promise<CurrentSaleAnswer>;
   onPulled(listener: () => void): () => void;
 }
 
@@ -213,6 +213,9 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       return ask({ type: "sale-request", request_id: deps.newRequestId() }, (answer) => {
         if (answer.type === "sale-unavailable") {
           throw new Error("the core could not read the sale in progress");
+        }
+        if (answer.type === "sale-not-permitted") {
+          return "not_permitted";
         }
         return answer.type === "sale" ? answer.sale : undefined;
       });

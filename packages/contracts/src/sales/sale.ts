@@ -23,6 +23,7 @@ export const saleSchema = z.object({
   total: cents,
 });
 export type OpenSale = z.infer<typeof saleSchema>;
+export type CurrentSaleAnswer = OpenSale | null | "not_permitted";
 
 export const scanProductOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("added"), sale: saleSchema }),

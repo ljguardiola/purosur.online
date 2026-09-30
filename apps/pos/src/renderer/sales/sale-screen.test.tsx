@@ -11,6 +11,8 @@ const PERSON = { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_c
 const OPENED_AT = "2026-09-30T12:02:00.000Z";
 const FIELD_NAME = "Producto";
 const PLACEHOLDER = "Escaneá o escribí el nombre del producto";
+const NOT_PERMITTED_TITLE = "No tenés el permiso de vender y cobrar";
+const NOT_PERMITTED_HELP = "Quien administra los roles te lo puede dar en el backoffice.";
 
 const YERBA = {
   id: "line-1",
@@ -197,6 +199,15 @@ describe("SaleScreen", () => {
       await expect.element(panel.getByText("Total a cobrar")).toBeVisible();
       await expect.element(panel.getByText("$ 0,00").first()).toBeVisible();
       await expect.element(panel.getByText("0 líneas")).toBeVisible();
+      await expectNoAccessibilityViolations(screen.container);
+    });
+
+    it("tells that the person may not sell instead of showing the sale as empty", async () => {
+      const { screen } = await renderScreen({ currentSale: async () => "not_permitted" });
+
+      await expect.element(screen.getByText(NOT_PERMITTED_TITLE)).toBeVisible();
+      await expect.element(screen.getByText(NOT_PERMITTED_HELP)).toBeVisible();
+      await expect.element(screen.getByText("La venta está vacía")).not.toBeInTheDocument();
       await expectNoAccessibilityViolations(screen.container);
     });
 
@@ -388,6 +399,12 @@ describe("SaleScreen", () => {
         title: "No se pudo agregar el producto",
         help: "Probá escanearlo de nuevo.",
       },
+      {
+        name: "a person who may not sell",
+        outcome: { kind: "not_permitted" },
+        title: NOT_PERMITTED_TITLE,
+        help: NOT_PERMITTED_HELP,
+      },
     ])(
       "tells what happened, keeps the code and leaves the sale alone on $name",
       async ({ outcome, title, help }) => {
@@ -418,6 +435,7 @@ describe("SaleScreen", () => {
       { kind: "sold_by_weight", product_name: "Queso cremoso" },
       { kind: "installation_revoked" },
       { kind: "unavailable" },
+      { kind: "not_permitted" },
     ])("has the next code the scanner types replace one refused as $kind", async (outcome) => {
       const scanProduct = vi
         .fn<SaleScreenProps["scanProduct"]>()
@@ -523,11 +541,20 @@ describe("SaleScreen", () => {
         .not.toBeInTheDocument();
     });
 
-    it.each<ScanProductOutcome>([
-      { kind: "not_permitted" },
-      { kind: "not_signed_in" },
-      { kind: "no_open_session" },
-    ])(
+    it("leaves the session alone when a scan is refused because the person may not sell", async () => {
+      const onSessionInvalid = vi.fn();
+      const { screen, field } = await renderScreen({
+        scanProduct: async () => ({ kind: "not_permitted" }),
+        onSessionInvalid,
+      });
+
+      await scan(field, "7790009");
+
+      await expect.element(screen.getByText(NOT_PERMITTED_TITLE)).toBeVisible();
+      expect(onSessionInvalid).not.toHaveBeenCalled();
+    });
+
+    it.each<ScanProductOutcome>([{ kind: "not_signed_in" }, { kind: "no_open_session" }])(
       "asks for the session to be read again when the core answers $kind, without any message",
       async (outcome) => {
         const onSessionInvalid = vi.fn();

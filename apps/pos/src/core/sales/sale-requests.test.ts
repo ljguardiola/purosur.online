@@ -207,12 +207,20 @@ describe("the sale in progress", () => {
     expect(await currentSaleFor(deps())).toBeNull();
   });
 
-  it("is none for a signed-in person without the permission to sell", async () => {
+  it("answers not permitted to a signed-in person without the permission to sell", async () => {
     await scanProductFor(deps(), "111");
     addPerson("u2", "guest");
     signedInPerson.set("u2");
 
-    expect(await currentSaleFor(deps())).toBeNull();
+    expect(await currentSaleFor(deps())).toBe("not_permitted");
+  });
+
+  it("answers the domain's refusal of a person who sells but did not open the session", async () => {
+    await scanProductFor(deps(), "111");
+    addPerson("u3", "cashier");
+    signedInPerson.set("u3");
+
+    expect(await currentSaleFor(deps())).toBe("not_permitted");
   });
 
   it("is the sale with its lines and the total to charge", async () => {

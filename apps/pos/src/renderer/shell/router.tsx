@@ -1,8 +1,8 @@
 import type {
   CoreStatusMessage,
+  CurrentSaleAnswer,
   EnrollmentOutcome,
   OpenCashSessionOutcome,
-  OpenSale,
   PinCodeRedemptionOutcome,
   ScanProductOutcome,
   SignInLookupOutcome,
@@ -53,7 +53,7 @@ export interface RouterContext {
   redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
   signInLookup: (email: string) => Promise<SignInLookupOutcome>;
   firstSignIn: (userId: string, pin: string) => Promise<SignInOutcome>;
-  currentSale: () => Promise<OpenSale | null>;
+  currentSale: () => Promise<CurrentSaleAnswer>;
   scanProduct: (code: string) => Promise<ScanProductOutcome>;
   refreshCashSession: () => Promise<void>;
 }

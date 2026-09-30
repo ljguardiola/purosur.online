@@ -297,6 +297,17 @@ describe("createCoreClient", () => {
     await expect(asked).rejects.toThrow();
   });
 
+  it("resolves that the person signed in may not sell when the core says so", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.currentSale();
+    port.answer({ type: "sale-not-permitted", request_id: "request-1" });
+
+    expect(await asked).toBe("not_permitted");
+  });
+
   it("asks the core to enroll with the code as typed and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();

@@ -529,6 +529,15 @@ describe("answerRendererRequest", () => {
     ).toEqual({ type: "sale", request_id: "r24", sale: null });
   });
 
+  it("answers that the person signed in may not sell", async () => {
+    expect(
+      await answerRendererRequest(deps(true, { currentSale: async () => "not_permitted" }).deps, {
+        type: "sale-request",
+        request_id: "r27",
+      }),
+    ).toEqual({ type: "sale-not-permitted", request_id: "r27" });
+  });
+
   it("answers that the sale in progress cannot be read when the register has no database", async () => {
     expect(
       await answerRendererRequest(deps(true, { currentSale: undefined }).deps, {
