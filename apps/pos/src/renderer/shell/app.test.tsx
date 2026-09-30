@@ -292,6 +292,29 @@ describe("App", () => {
     expect(asked.filter((question) => question === "sign-out")).toHaveLength(1);
   });
 
+  it.each(["down", "starting"] as const)(
+    "asks who opens the register again once the core is back up after reporting it is %s",
+    async (status) => {
+      const screen = await render(<App core={enrolledCore} />);
+      postCoreStatus("up");
+      await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+      await userEvent.type(screen.getByLabelText("PIN"), "1234");
+      await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+      await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
+
+      postCoreStatus(status);
+      await expect
+        .element(screen.getByRole("heading", { name: SIGNED_IN_TITLE }))
+        .not.toBeInTheDocument();
+      postCoreStatus("up");
+
+      await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+      await expect
+        .element(screen.getByRole("heading", { name: SIGNED_IN_TITLE }))
+        .not.toBeInTheDocument();
+    },
+  );
+
   it("stays signed in when the person cancels leaving the register", async () => {
     await page.viewport(1280, 900);
     onTestFinished(() => page.viewport(414, 896));

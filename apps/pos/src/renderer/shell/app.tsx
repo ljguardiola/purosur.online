@@ -48,6 +48,7 @@ export function App({ core }: { core: CoreClient }) {
 
   useEffect(() => {
     if (coreStatus !== "up") {
+      setPerson(undefined);
       return;
     }
     let current = true;
