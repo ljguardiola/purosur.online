@@ -39,12 +39,16 @@ export type ChangeBrandActivationOutcome =
   | { kind: "already_changed" }
   | RequestRefusal;
 
-function postJson(path: string, body?: unknown): Promise<Response> {
+function sendJson(method: "POST" | "PUT", path: string, body?: unknown): Promise<Response> {
   return fetch(path, {
-    method: "POST",
+    method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body ?? {}),
   });
+}
+
+function postJson(path: string, body?: unknown): Promise<Response> {
+  return sendJson("POST", path, body);
 }
 
 async function readCode(response: Response): Promise<string | undefined> {
@@ -105,7 +109,7 @@ export async function editBrand(id: string, input: EditBrandInput): Promise<Edit
   const requestBody: BrandEditBody = { name: input.name, version: input.version };
   let response: Response;
   try {
-    response = await postJson(`/api/brands/${id}/edit`, requestBody);
+    response = await sendJson("PUT", `/api/brands/${id}`, requestBody);
   } catch {
     return { kind: "failed" };
   }
@@ -129,12 +133,12 @@ export async function editBrand(id: string, input: EditBrandInput): Promise<Edit
 
 async function changeBrandActivation(
   id: string,
-  path: "deactivation" | "reactivation",
+  method: "PUT" | "DELETE",
   alreadyChangedCode: string,
 ): Promise<ChangeBrandActivationOutcome> {
   let response: Response;
   try {
-    response = await postJson(`/api/brands/${id}/${path}`);
+    response = await fetch(`/api/brands/${id}/deactivation`, { method });
   } catch {
     return { kind: "failed" };
   }
@@ -153,9 +157,9 @@ async function changeBrandActivation(
 }
 
 export function deactivateBrand(id: string): Promise<ChangeBrandActivationOutcome> {
-  return changeBrandActivation(id, "deactivation", "brand_already_inactive");
+  return changeBrandActivation(id, "PUT", "brand_already_inactive");
 }
 
 export function reactivateBrand(id: string): Promise<ChangeBrandActivationOutcome> {
-  return changeBrandActivation(id, "reactivation", "brand_already_active");
+  return changeBrandActivation(id, "DELETE", "brand_already_active");
 }
