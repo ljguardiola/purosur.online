@@ -1,7 +1,7 @@
 import type { PinCodeRedemptionOutcome } from "@purosur/contracts";
 import { newPinSchema, PIN_MIN_DIGITS, pinCodeRedemptionBodySchema } from "@purosur/contracts";
 import { Button, InlineNotice, TextField } from "@purosur/ui";
-import { Check, ShieldX, TriangleAlert, WifiOff } from "lucide-react";
+import { Check, Lock, ShieldX, TriangleAlert, WifiOff } from "lucide-react";
 import type { FormEvent, ReactNode } from "react";
 import { useId, useState } from "react";
 import { retryAfterText } from "../shell/retry-after-text";
@@ -18,8 +18,15 @@ function noticeFor(outcome: PinCodeRedemptionOutcome, newCodeAskedIn: NewCodePla
   const place = NEW_CODE_PLACE[newCodeAskedIn];
   switch (outcome.kind) {
     case "redeemed":
+    case "resumed":
     case "pin_rejected":
       return undefined;
+    case "cash_session_opened_by_another":
+      return {
+        icon: <Lock />,
+        title: "La caja está abierta",
+        description: "El PIN nuevo quedó guardado, pero solo puede entrar quien abrió la caja.",
+      };
     case "code_invalid":
       return {
         icon: <ShieldX />,
@@ -118,6 +125,15 @@ export function PinCodeRedemptionForm({
       setNewPin("");
       setRepeat("");
       await onRedeemed(newPin);
+    }
+    if (answered.kind === "resumed") {
+      setNewPin("");
+      setRepeat("");
+    }
+    if (answered.kind === "cash_session_opened_by_another") {
+      setCode("");
+      setNewPin("");
+      setRepeat("");
     }
     setSubmitting(false);
   }

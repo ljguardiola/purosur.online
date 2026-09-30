@@ -347,6 +347,11 @@ describe("coreToRendererMessageSchema", () => {
 
   it.each([
     { kind: "redeemed" },
+    {
+      kind: "resumed",
+      person: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+    },
+    { kind: "cash_session_opened_by_another" },
     { kind: "code_invalid" },
     { kind: "code_expired" },
     { kind: "code_burned" },
@@ -358,6 +363,16 @@ describe("coreToRendererMessageSchema", () => {
     const message = { type: "pin-code-redemption-result", request_id: REQUEST_ID, outcome };
 
     expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a resumed PIN code redemption without the person", () => {
+    const message = {
+      type: "pin-code-redemption-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "resumed" },
+    };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 
   it("rejects a PIN code redemption rate limit without when to retry", () => {
