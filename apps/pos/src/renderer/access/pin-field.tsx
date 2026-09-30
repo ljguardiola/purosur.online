@@ -29,7 +29,7 @@ export function PinField({
     invalid ? "inset-ring-error" : "inset-ring-border",
     "has-focus-visible:inset-ring-action has-focus-visible:focus-ring",
   ].join(" ");
-  const boxClassName = `${boxStateClassName} ${compact ? "h-12 w-50 gap-2 px-3" : "h-16 gap-4 px-4"}`;
+  const boxClassName = `${boxStateClassName} ${compact ? "h-12 w-max min-w-50 gap-2 px-3" : "h-16 gap-4 px-4"}`;
   const dotClassName = compact ? "size-3" : "size-4";
   const disabledClassName = disabled ? "opacity-disabled" : "";
 

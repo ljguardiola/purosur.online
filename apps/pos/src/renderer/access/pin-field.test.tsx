@@ -137,5 +137,21 @@ describe("PinField", () => {
 
       expect(dots(screen)).toEqual({ total: 6, filled: 2 });
     });
+
+    it("widens past 200 pixels to keep every slot of a long PIN inside the box", async () => {
+      const screen = await render(<Harness compact initial="1234567890" />);
+
+      const box = screen.getByLabelText("PIN").element().parentElement?.getBoundingClientRect();
+      const slots = [...screen.container.querySelectorAll("[data-pin-slot]")].map((slot) =>
+        slot.getBoundingClientRect(),
+      );
+
+      expect(slots).toHaveLength(10);
+      expect(box?.width).toBeGreaterThan(200);
+      for (const slot of slots) {
+        expect(slot.left).toBeGreaterThanOrEqual(box?.left ?? Number.POSITIVE_INFINITY);
+        expect(slot.right).toBeLessThanOrEqual(box?.right ?? 0);
+      }
+    });
   });
 });
