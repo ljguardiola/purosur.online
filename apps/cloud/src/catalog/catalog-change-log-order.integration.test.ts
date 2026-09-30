@@ -49,17 +49,20 @@ describe("editing a product while another writer holds the change log, on a real
     const holder = await sql.reserve();
     await holder`begin`;
     await holder`select pg_advisory_xact_lock(hashtextextended('changes_log', 0))`;
-    const edit = editProduct(store, {
-      id: productId,
-      name: "Arroz largo fino",
-      categoryId: category.id,
-      brandId: null,
-      saleUnit: "UNIT",
-      barcodes: ["7790001000011", "7790001000028"],
-      netContent: null,
-      tagIds: [],
-      version: 1,
-    });
+    const edit = editProduct(
+      { store, clock: { now: () => new Date() } },
+      {
+        id: productId,
+        name: "Arroz largo fino",
+        categoryId: category.id,
+        brandId: null,
+        saleUnit: "UNIT",
+        barcodes: ["7790001000011", "7790001000028"],
+        netContent: null,
+        tagIds: [],
+        version: 1,
+      },
+    );
     let claimNewBarcode: Promise<unknown> = Promise.resolve();
     try {
       await waitForLockWaiters(sql, 1);

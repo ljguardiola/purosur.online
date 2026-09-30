@@ -21,6 +21,11 @@ import { DrizzleDiscountStore } from "./drizzle-discount-store.js";
 
 const NOT_FOUND_RESPONSE = { code: "not_found", message: "no discount with that id" } as const;
 
+const DISCOUNT_PRODUCT_SOLD_BY_WEIGHT_RESPONSE = {
+  code: "discount_product_sold_by_weight",
+  message: "a buy-N-pay-M discount cannot be live while its product is sold by weight",
+} as const;
+
 const STALE_VERSION_RESPONSE = {
   code: "stale_version",
   message: "this discount was changed since it was loaded",
@@ -46,7 +51,7 @@ export function registerDiscountEditRoute<TQueryResult extends PgQueryResultHKT>
 ): void {
   const now = options.now ?? (() => new Date());
   registerRouteAccess(app);
-  const ports = { store: new DrizzleDiscountStore(options.db) };
+  const ports = { store: new DrizzleDiscountStore(options.db), clock: { now } };
   const sessionSource = routeSessionSource({ db: options.db, now });
 
   app.put<{ Params: { id: string } }>(
@@ -83,6 +88,12 @@ export function registerDiscountEditRoute<TQueryResult extends PgQueryResultHKT>
       }
       if (outcome.kind === "target_not_sold_by_unit") {
         await reply.code(409).send(DISCOUNT_TARGET_NOT_SOLD_BY_UNIT_RESPONSE);
+        return;
+      }
+      if (outcome.kind === "product_sold_by_weight") {
+        await reply
+          .code(409)
+          .send({ ...DISCOUNT_PRODUCT_SOLD_BY_WEIGHT_RESPONSE, productName: outcome.productName });
         return;
       }
 

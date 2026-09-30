@@ -3,12 +3,14 @@ import type {
   CashBalance,
   CloseCashSessionOutcome,
   CoreToRendererMessage,
+  CurrentSaleAnswer,
   EnrollmentOutcome,
   FirstPinCodeRequestOutcome,
   OpenCashSession,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   RendererToCoreMessage,
+  ScanProductOutcome,
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
@@ -27,6 +29,8 @@ export interface RendererRequestDeps {
   requestFirstPinCode: ((userId: string) => Promise<FirstPinCodeRequestOutcome>) | undefined;
   openCashSession: ((openingFloat: number) => Promise<OpenCashSessionOutcome>) | undefined;
   cashSession: (() => OpenCashSession | null) | undefined;
+  scanProduct: ((code: string) => Promise<ScanProductOutcome>) | undefined;
+  currentSale: (() => Promise<CurrentSaleAnswer>) | undefined;
   closeCashSession:
     | ((
         sessionId: string,
@@ -160,6 +164,27 @@ function readCashSession(deps: RendererRequestDeps): OpenCashSession | null | un
   }
 }
 
+async function attemptScanProduct(
+  deps: RendererRequestDeps,
+  code: string,
+): Promise<ScanProductOutcome> {
+  try {
+    return (await deps.scanProduct?.(code)) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure("scanning a product", error);
+    return { kind: "unavailable" };
+  }
+}
+
+async function readCurrentSale(deps: RendererRequestDeps): Promise<CurrentSaleAnswer | undefined> {
+  try {
+    return await deps.currentSale?.();
+  } catch (error) {
+    deps.reportFailure("reading the sale in progress", error);
+    return undefined;
+  }
+}
+
 export async function answerRendererRequest(
   deps: RendererRequestDeps,
   message: RendererToCoreMessage,
@@ -230,6 +255,21 @@ export async function answerRendererRequest(
       return session === undefined
         ? { type: "cash-session-unavailable", request_id: message.request_id }
         : { type: "cash-session", request_id: message.request_id, session };
+    }
+    case "scan-product":
+      return {
+        type: "scan-product-result",
+        request_id: message.request_id,
+        outcome: await attemptScanProduct(deps, message.code),
+      };
+    case "sale-request": {
+      const sale = await readCurrentSale(deps);
+      if (sale === "not_permitted") {
+        return { type: "sale-not-permitted", request_id: message.request_id };
+      }
+      return sale === undefined
+        ? { type: "sale-unavailable", request_id: message.request_id }
+        : { type: "sale", request_id: message.request_id, sale };
     }
     case "close-cash-session":
       return {

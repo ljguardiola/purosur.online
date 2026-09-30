@@ -146,6 +146,10 @@ export function App({ core }: { core: CoreClient }) {
     signInLookup: (email: string) => core.signInLookup(email),
     requestFirstPinCode: (userId: string) => core.requestFirstPinCode(userId),
     firstSignIn,
+    currentSale: () => core.currentSale(),
+    scanProduct: (code: string) => core.scanProduct(code),
+    // A replaced core connection fails this request; the core coming back up asks again.
+    refreshCashSession: () => core.cashSession().then(refreshCashSession, () => {}),
   };
 
   const [router] = useState(() => createAppRouter(services));

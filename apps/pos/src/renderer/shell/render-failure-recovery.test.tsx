@@ -45,6 +45,9 @@ function buildFailingRouter(shouldThrow: () => boolean) {
       signInLookup: async () => ({ kind: "unavailable" }),
       requestFirstPinCode: async () => ({ kind: "unavailable" }),
       firstSignIn: async () => ({ kind: "unavailable" }),
+      currentSale: async () => null,
+      scanProduct: async () => ({ kind: "unavailable" }),
+      refreshCashSession: async () => {},
     },
     "/",
   );

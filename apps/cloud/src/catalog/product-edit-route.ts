@@ -33,6 +33,11 @@ const STALE_VERSION_RESPONSE = {
   message: "this product was changed since it was loaded",
 } as const;
 
+const SALE_UNIT_HELD_BY_DISCOUNT_RESPONSE = {
+  code: "sale_unit_held_by_discount",
+  message: "a product cannot be sold by weight while a live buy-n-pay-m discount targets it",
+} as const;
+
 async function findProductById<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   id: string,
@@ -74,7 +79,10 @@ export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      const outcome = await editProduct(catalogStore, { id: target.id, ...parsedBody });
+      const outcome = await editProduct(
+        { store: catalogStore, clock: { now } },
+        { id: target.id, ...parsedBody },
+      );
 
       if (outcome.kind === "stale_version") {
         await reply.code(409).send(STALE_VERSION_RESPONSE);
@@ -114,6 +122,12 @@ export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
       }
       if (outcome.kind === "tag_inactive") {
         await reply.code(409).send({ ...TAG_INACTIVE_RESPONSE, tagId: outcome.tagId });
+        return;
+      }
+      if (outcome.kind === "sale_unit_held_by_discount") {
+        await reply
+          .code(409)
+          .send({ ...SALE_UNIT_HELD_BY_DISCOUNT_RESPONSE, discountName: outcome.discountName });
         return;
       }
       if (outcome.kind === "barcode_taken") {

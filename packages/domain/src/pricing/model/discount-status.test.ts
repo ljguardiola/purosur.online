@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { discountStatus } from "./discount-status.js";
+import { discountStatus, isDiscountLive } from "./discount-status.js";
 
 const window = { validFrom: "2026-09-12", validTo: "2026-09-30" };
 
@@ -44,5 +44,20 @@ describe("discountStatus", () => {
         ).toBe(expected);
       }),
     );
+  });
+});
+
+describe("isDiscountLive", () => {
+  it.each([
+    ["2026-09-11", true],
+    ["2026-09-12", true],
+    ["2026-09-30", true],
+    ["2026-10-01", false],
+  ])("for an active discount on %s is %s", (today, expected) => {
+    expect(isDiscountLive({ active: true, ...window }, today)).toBe(expected);
+  });
+
+  it("is false for a deactivated discount whatever its dates say", () => {
+    expect(isDiscountLive({ active: false, ...window }, "2026-09-20")).toBe(false);
   });
 });

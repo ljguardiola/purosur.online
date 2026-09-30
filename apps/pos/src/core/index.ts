@@ -51,6 +51,7 @@ import { enroll, generatePepper, installationReportFrom } from "./register/enrol
 import { answerRendererRequest, type RendererRequestDeps } from "./register/renderer-requests";
 import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
+import { currentSaleFor, scanProductFor } from "./sales/sale-requests";
 import { pullFromCloud, pullResultOf } from "./sync/pull-from-cloud";
 import { createPullSchedule } from "./sync/pull-schedule";
 import { SqliteLocalReplica } from "./sync/sqlite-local-replica";
@@ -333,6 +334,18 @@ const rendererRequestDeps: RendererRequestDeps = {
     localDatabase === undefined
       ? undefined
       : () => currentCashSession(localDatabase, signedInPerson),
+  scanProduct:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (code) =>
+          scanProductFor(
+            { database: localDatabase, gate: actionGate, now: () => new Date(), ids: uuidV7Ids },
+            code,
+          ),
+  currentSale:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : () => currentSaleFor({ database: localDatabase, gate: actionGate }),
   reportFailure,
 };
 

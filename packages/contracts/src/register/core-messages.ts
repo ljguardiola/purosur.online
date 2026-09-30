@@ -8,6 +8,7 @@ import {
 import { z } from "zod";
 import { authorizationSchema, guardedActionRefusalSchema } from "../access/authorization.js";
 import { pinAttemptRefusalSchema } from "../access/pin-attempt-refusal.js";
+import { saleSchema, scannedCodeSchema, scanProductOutcomeSchema } from "../sales/sale.js";
 
 const requestId = z.string();
 
@@ -106,6 +107,17 @@ const authorizersRequestMessageSchema = z.object({
   permission: z.custom<AuthorizablePermissionKey>(isAuthorizablePermissionKey),
 });
 
+const scanProductMessageSchema = z.object({
+  type: z.literal("scan-product"),
+  request_id: requestId,
+  code: scannedCodeSchema,
+});
+
+const saleRequestMessageSchema = z.object({
+  type: z.literal("sale-request"),
+  request_id: requestId,
+});
+
 const signOutMessageSchema = z.object({
   type: z.literal("sign-out"),
   request_id: requestId,
@@ -127,6 +139,8 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   closeCashSessionMessageSchema,
   cashBalanceRequestMessageSchema,
   authorizersRequestMessageSchema,
+  scanProductMessageSchema,
+  saleRequestMessageSchema,
   signOutMessageSchema,
 ]);
 export type RendererToCoreMessage = z.infer<typeof rendererToCoreMessageSchema>;
@@ -309,6 +323,14 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     users: z.array(signInUserSchema),
   }),
   z.object({ type: z.literal("authorizers-unavailable"), request_id: requestId }),
+  z.object({
+    type: z.literal("scan-product-result"),
+    request_id: requestId,
+    outcome: scanProductOutcomeSchema,
+  }),
+  z.object({ type: z.literal("sale"), request_id: requestId, sale: saleSchema.nullable() }),
+  z.object({ type: z.literal("sale-unavailable"), request_id: requestId }),
+  z.object({ type: z.literal("sale-not-permitted"), request_id: requestId }),
   z.object({ type: z.literal("signed-out"), request_id: requestId }),
   z.object({ type: z.literal("pulled") }),
 ]);

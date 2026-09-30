@@ -11,7 +11,7 @@ import {
 } from "@purosur/domain/catalog/use-cases";
 import { asc, eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { changes } from "../platform/db/schema.js";
+import { changes, discounts, products } from "../platform/db/schema.js";
 import { PendingChanges } from "../sync/change-log.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleCatalogStore } from "./drizzle-catalog-store.js";
@@ -20,6 +20,7 @@ let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
 
 const store = () => new DrizzleCatalogStore(db);
+const clock = { now: () => new Date("2026-06-15T15:00:00Z") };
 
 beforeAll(async () => {
   testDatabase = await buildTestDatabase();
@@ -111,17 +112,20 @@ describe("the catalog changes a pull hands to the registers", () => {
     const category = await newCategory();
     const product = await newProduct(category.id);
 
-    await editProduct(store(), {
-      id: product.id,
-      name: product.name,
-      categoryId: category.id,
-      brandId: null,
-      saleUnit: "UNIT",
-      barcodes: ["7790001000011"],
-      netContent: null,
-      tagIds: [],
-      version: product.version,
-    });
+    await editProduct(
+      { store: store(), clock },
+      {
+        id: product.id,
+        name: product.name,
+        categoryId: category.id,
+        brandId: null,
+        saleUnit: "UNIT",
+        barcodes: ["7790001000011"],
+        netContent: null,
+        tagIds: [],
+        version: product.version,
+      },
+    );
 
     expect((await loggedChanges()).slice(2)).toEqual([
       { entity: "product", entityId: product.id, version: 2, op: "update", priceListId: null },
@@ -180,17 +184,20 @@ describe("the catalog changes a pull hands to the registers", () => {
     const product = await newProduct(category.id);
     const logged = (await loggedChanges()).length;
 
-    await editProduct(store(), {
-      id: product.id,
-      name: product.name,
-      categoryId: category.id,
-      brandId: null,
-      saleUnit: "UNIT",
-      barcodes: ["7790001000011", "7790001000028"],
-      netContent: null,
-      tagIds: [tag.tag.id],
-      version: product.version,
-    });
+    await editProduct(
+      { store: store(), clock },
+      {
+        id: product.id,
+        name: product.name,
+        categoryId: category.id,
+        brandId: null,
+        saleUnit: "UNIT",
+        barcodes: ["7790001000011", "7790001000028"],
+        netContent: null,
+        tagIds: [tag.tag.id],
+        version: product.version,
+      },
+    );
 
     expect((await loggedChanges()).slice(logged)).toEqual([
       { entity: "product", entityId: product.id, version: 2, op: "update", priceListId: null },
@@ -202,17 +209,20 @@ describe("the catalog changes a pull hands to the registers", () => {
     const product = await newProduct(category.id);
     const logged = await loggedChanges();
 
-    const refusedEdit = await editProduct(store(), {
-      id: product.id,
-      name: "Otro",
-      categoryId: category.id,
-      brandId: null,
-      saleUnit: "UNIT",
-      barcodes: ["7790001000011"],
-      netContent: null,
-      tagIds: [],
-      version: product.version + 1,
-    });
+    const refusedEdit = await editProduct(
+      { store: store(), clock },
+      {
+        id: product.id,
+        name: "Otro",
+        categoryId: category.id,
+        brandId: null,
+        saleUnit: "UNIT",
+        barcodes: ["7790001000011"],
+        netContent: null,
+        tagIds: [],
+        version: product.version + 1,
+      },
+    );
     const refusedCreation = await createProduct(store(), {
       name: "Fideos",
       categoryId: category.id,
@@ -265,5 +275,88 @@ describe("the catalog changes a pull hands to the registers", () => {
 
       expect(await outer.select().from(changes).where(eq(changes.entity, "category"))).toEqual([]);
     });
+  });
+});
+
+describe("changing a product to sold by weight", () => {
+  async function discountOn(
+    productId: string,
+    overrides: Partial<typeof discounts.$inferInsert> = {},
+  ) {
+    await db.insert(discounts).values({
+      name: "3x2 Arroz",
+      kind: "BUY_N_PAY_M",
+      buyQty: 3,
+      payQty: 2,
+      productId,
+      validFrom: "2026-06-01",
+      validTo: "2026-06-30",
+      ...overrides,
+    });
+  }
+
+  async function editToWeight(
+    product: { id: string; name: string; version: number },
+    categoryId: string,
+  ) {
+    return editProduct(
+      { store: store(), clock },
+      {
+        id: product.id,
+        name: product.name,
+        categoryId,
+        brandId: null,
+        saleUnit: "KG",
+        barcodes: ["7790001000011", "7790001000028"],
+        netContent: null,
+        tagIds: [],
+        version: product.version,
+      },
+    );
+  }
+
+  async function storedSaleUnit(productId: string) {
+    const [row] = await db
+      .select({ saleUnit: products.saleUnit })
+      .from(products)
+      .where(eq(products.id, productId));
+    return row?.saleUnit;
+  }
+
+  it("is refused while a live buy-n-pay-m discount targets the product, which stays sold by the unit", async () => {
+    const category = await newCategory();
+    const product = await newProduct(category.id);
+    await discountOn(product.id);
+
+    const outcome = await editToWeight(product, category.id);
+
+    expect(outcome).toEqual({ kind: "sale_unit_held_by_discount", discountName: "3x2 Arroz" });
+    expect(await storedSaleUnit(product.id)).toBe("UNIT");
+  });
+
+  it.each([
+    ["switched off", { active: false }],
+    ["ended", { validFrom: "2026-05-01", validTo: "2026-06-14" }],
+    ["a percentage off", { kind: "PERCENT_OFF", percent: 10, buyQty: null, payQty: null }],
+  ] as const)("is saved when the discount is %s", async (_label, overrides) => {
+    const category = await newCategory();
+    const product = await newProduct(category.id);
+    await discountOn(product.id, overrides);
+
+    const outcome = await editToWeight(product, category.id);
+
+    expect(outcome.kind).toBe("applied");
+    expect(await storedSaleUnit(product.id)).toBe("KG");
+  });
+
+  it("is saved when the live discount targets another product", async () => {
+    const category = await newCategory();
+    const product = await newProduct(category.id);
+    const other = await newProduct(category.id, ["7790001000035"]);
+    await discountOn(other.id);
+
+    const outcome = await editToWeight(product, category.id);
+
+    expect(outcome.kind).toBe("applied");
   });
 });
