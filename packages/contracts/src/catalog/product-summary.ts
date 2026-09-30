@@ -14,6 +14,7 @@ export const productSummarySchema = z.object({
   brandId: z.string().nullable(),
   saleUnit: z.enum(SALE_UNITS),
   barcodes: z.array(z.string()),
+  tagIds: z.array(z.string()),
   netContent: netContentSummarySchema.nullable(),
   active: z.boolean(),
   version: z.int(),

@@ -224,6 +224,33 @@ export const products = pgTable(
   ],
 );
 
+export const tags = pgTable(
+  "tags",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    active: boolean("active").notNull().default(true),
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [uniqueIndex("tags_name_lower_key").on(sql`lower(${table.name})`)],
+);
+
+export const productTags = pgTable(
+  "product_tags",
+  {
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    tagId: uuid("tag_id")
+      .notNull()
+      .references(() => tags.id),
+  },
+  (table) => [
+    primaryKey({ columns: [table.productId, table.tagId] }),
+    index("product_tags_tag_id_idx").on(table.tagId),
+  ],
+);
+
 // Mirrors products.active (same transaction): a partial index can't read another table's column,
 // so this flag scopes the uniqueness below to active products.
 export const productBarcodes = pgTable(

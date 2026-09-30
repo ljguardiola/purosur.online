@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { createCategory, createProduct } from "@purosur/domain/catalog/use-cases";
+import { createCategory, createProduct, createTag } from "@purosur/domain/catalog/use-cases";
 import { confirmPrice, setPrice } from "@purosur/domain/pricing/use-cases";
 import { desc, eq, sql } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -27,6 +27,7 @@ import {
   registers,
   roles,
   sessions,
+  tags,
   userRoles,
   users,
 } from "../platform/db/schema.js";
@@ -39,7 +40,12 @@ import {
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { clearSampleData } from "./clear-sample-data.js";
 import { loadSampleData } from "./load-sample-data.js";
-import { SAMPLE_ADMINISTRATOR, SAMPLE_BRANCH_SETTINGS, sampleEmail } from "./sample-catalog.js";
+import {
+  SAMPLE_ADMINISTRATOR,
+  SAMPLE_BRANCH_SETTINGS,
+  SAMPLE_TAGS,
+  sampleEmail,
+} from "./sample-catalog.js";
 
 const NOW = new Date("2026-04-01T09:00:00.000Z");
 
@@ -113,6 +119,8 @@ async function sampleDataSnapshot(
     "categories",
     "products",
     "product_barcodes",
+    "tags",
+    "product_tags",
     "prices",
     "price_reviews",
     "registers",
@@ -239,12 +247,17 @@ describe("clearSampleData", () => {
     });
     if (realCategoryOutcome.kind !== "created")
       throw new Error("test setup: real category collided");
+    const realTagOutcome = await createTag(new DrizzleCatalogStore(db), {
+      name: "Sin Gluten Real",
+    });
+    if (realTagOutcome.kind !== "created") throw new Error("test setup: real tag collided");
     const realProductOutcome = await createProduct(new DrizzleCatalogStore(db), {
       name: "Producto Real",
       categoryId: realCategoryOutcome.category.id,
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["7791234567890"],
+      tagIds: [realTagOutcome.tag.id],
       netContent: null,
     });
     if (realProductOutcome.kind !== "created") throw new Error("test setup: real product collided");
@@ -308,6 +321,7 @@ describe("clearSampleData", () => {
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["7791234567890"],
+      tagIds: [],
       netContent: null,
     });
     if (realProduct.kind !== "created") throw new Error("test setup: real product collided");
@@ -340,6 +354,7 @@ describe("clearSampleData", () => {
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["7791234567890"],
+      tagIds: [],
       netContent: null,
     });
     if (realProduct.kind !== "created") throw new Error("test setup: real product collided");
@@ -572,6 +587,7 @@ describe("clearSampleData", () => {
       brandId: null,
       saleUnit: "UNIT",
       barcodes: ["7791234567890"],
+      tagIds: [],
       netContent: null,
     });
     if (realProduct.kind !== "created") throw new Error("test setup: real product collided");
@@ -779,6 +795,39 @@ describe("clearSampleData", () => {
     expect(outcome.kind).toBe("refused");
     expect(await sampleDataSnapshot(db)).toEqual(beforeClear);
   }, 120_000);
+  it("refuses and deletes nothing when a real product carries a sample tag", async () => {
+    const db = await freshOwnerDatabase();
+    await seedActiveAdministrator(db);
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    const [sampleTag] = await db
+      .select({ id: tags.id })
+      .from(tags)
+      .where(eq(tags.name, SAMPLE_TAGS[0]?.name ?? ""));
+    const realCategory = await createCategory(new DrizzleCatalogStore(db), {
+      name: "Categoría Real",
+      parentId: null,
+    });
+    if (!sampleTag || realCategory.kind !== "created") {
+      throw new Error("test setup: no sample tag or the real category collided");
+    }
+    const realProduct = await createProduct(new DrizzleCatalogStore(db), {
+      name: "Producto Real",
+      categoryId: realCategory.category.id,
+      brandId: null,
+      saleUnit: "UNIT",
+      barcodes: ["7791234567890"],
+      tagIds: [sampleTag.id],
+      netContent: null,
+    });
+    if (realProduct.kind !== "created") throw new Error("test setup: real product collided");
+    const beforeClear = await sampleDataSnapshot(db);
+
+    const outcome = await clearSampleData(db);
+
+    expect(outcome.kind).toBe("refused");
+    expect(await sampleDataSnapshot(db)).toEqual(beforeClear);
+  }, 120_000);
+
   it("reports the number of sample categories it actually deleted", async () => {
     const db = await freshOwnerDatabase();
     await seedActiveAdministrator(db);
@@ -796,6 +845,7 @@ describe("clearSampleData", () => {
     await db.execute(
       sql`delete from product_barcodes where product_id in ${productsOfRemovedLeaf}`,
     );
+    await db.execute(sql`delete from product_tags where product_id in ${productsOfRemovedLeaf}`);
     await db.execute(sql`alter table products disable trigger products_reject_deletion`);
     await db.execute(sql`delete from products where category_id = ${removedLeafId}`);
     await db.execute(sql`alter table products enable trigger products_reject_deletion`);

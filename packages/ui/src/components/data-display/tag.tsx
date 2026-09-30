@@ -1,9 +1,9 @@
 import type { ComponentPropsWithoutRef, ReactNode, Ref } from "react";
 import { type Icon, iconSlotClassName } from "../shared/icon";
-import { type Tone, toneClassName } from "../shared/tone";
+import { type TagTone, tagDotClassName, tagToneClassName } from "./tag-styles";
 
 export type TagProps = {
-  tone: Extract<Tone, "neutral" | "info">;
+  tone: TagTone;
   children: Exclude<ReactNode, null | undefined | boolean>;
   ref?: Ref<HTMLSpanElement>;
 } & ({ variant?: "plain"; icon?: Icon } | { variant: "status"; icon?: undefined });
@@ -11,13 +11,6 @@ export type TagProps = {
 const tagClassName =
   "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-caption font-bold whitespace-nowrap " +
   "outline-none focus-visible:focus-ring";
-
-const tagToneClassName: Record<TagProps["tone"], string> = {
-  neutral: "bg-surface-subtle text-text-subtle",
-  info: toneClassName.info.surface,
-};
-
-const dotBaseClassName = "size-1.5 shrink-0 rounded-full";
 
 // The extra span attributes react-aria's `Focusable` merges onto this element when a caller wraps
 // it as a tooltip's trigger (tabIndex, onFocus/onBlur, onMouseEnter/Leave, aria-describedby...).
@@ -33,12 +26,7 @@ export function Tag({
 }: TagProps & TagDomProps) {
   return (
     <span ref={ref} className={[tagClassName, tagToneClassName[tone]].join(" ")} {...rest}>
-      {variant === "status" ? (
-        <span
-          aria-hidden="true"
-          className={[dotBaseClassName, toneClassName[tone].dot].join(" ")}
-        />
-      ) : null}
+      {variant === "status" ? <span aria-hidden="true" className={tagDotClassName[tone]} /> : null}
       {icon ? (
         <span aria-hidden="true" className={iconSlotClassName["2xs"]}>
           {icon}

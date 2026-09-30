@@ -43,11 +43,11 @@ describe("postToCloud", () => {
   it("posts the body as JSON to the path on the channel's cloud", async () => {
     const { deps, requests } = clientAnswering(jsonResponse(200, { ok: true }));
 
-    const response = await postToCloud(deps, "/api/devices/enroll", { code: "X" });
+    const response = await postToCloud(deps, "/api/devices", { code: "X" });
 
     expect(response).toEqual({ kind: "ok", body: { ok: true } });
     expect(requests).toHaveLength(1);
-    expect(requests[0]?.url).toBe(`${CLOUD_URL}/api/devices/enroll`);
+    expect(requests[0]?.url).toBe(`${CLOUD_URL}/api/devices`);
     expect(requests[0]?.method).toBe("POST");
     expect(requests[0]?.headers.get("content-type")).toBe("application/json");
     expect(await requests[0]?.json()).toEqual({ code: "X" });
@@ -58,7 +58,7 @@ describe("postToCloud", () => {
       jsonResponse(403, envelope("enrollment_code_rejected")),
     );
 
-    const response = await postToCloud(deps, "/api/devices/enroll", {});
+    const response = await postToCloud(deps, "/api/devices", {});
 
     expect(response).toEqual({ kind: "error", error: envelope("enrollment_code_rejected") });
     expect(requests).toHaveLength(1);
@@ -71,7 +71,7 @@ describe("postToCloud", () => {
       jsonResponse(200, { ok: true }),
     );
 
-    const response = await postToCloud(deps, "/api/devices/enroll", {});
+    const response = await postToCloud(deps, "/api/devices", {});
 
     expect(response).toEqual({ kind: "ok", body: { ok: true } });
     expect(requests).toHaveLength(3);
@@ -81,7 +81,7 @@ describe("postToCloud", () => {
   it("stops after three attempts and answers the last refusal", async () => {
     const { deps, requests } = clientAnswering(jsonResponse(503, envelope("server_unavailable")));
 
-    const response = await postToCloud(deps, "/api/devices/enroll", {});
+    const response = await postToCloud(deps, "/api/devices", {});
 
     expect(response).toEqual({ kind: "error", error: envelope("server_unavailable") });
     expect(requests).toHaveLength(3);
@@ -93,7 +93,7 @@ describe("postToCloud", () => {
       jsonResponse(200, { ok: true }),
     );
 
-    expect(await postToCloud(deps, "/api/devices/enroll", {})).toEqual({
+    expect(await postToCloud(deps, "/api/devices", {})).toEqual({
       kind: "ok",
       body: { ok: true },
     });
@@ -104,7 +104,7 @@ describe("postToCloud", () => {
     const limited = envelope("rate_limited", [{ retry_after_seconds: 600 }]);
     const { deps, requests, waits } = clientAnswering(jsonResponse(429, limited));
 
-    expect(await postToCloud(deps, "/api/devices/enroll", {})).toEqual({
+    expect(await postToCloud(deps, "/api/devices", {})).toEqual({
       kind: "error",
       error: limited,
     });
@@ -118,7 +118,7 @@ describe("postToCloud", () => {
       jsonResponse(200, {}),
     );
 
-    await postToCloud(deps, "/api/devices/enroll", {});
+    await postToCloud(deps, "/api/devices", {});
 
     expect(waits).toEqual([10_000]);
   });
@@ -126,7 +126,7 @@ describe("postToCloud", () => {
   it("doesn't resend a request the cloud may have received when it can't be reached", async () => {
     const { deps, requests, waits } = clientAnswering(new TypeError("fetch failed"));
 
-    expect(await postToCloud(deps, "/api/devices/enroll", {})).toEqual({ kind: "unreachable" });
+    expect(await postToCloud(deps, "/api/devices", {})).toEqual({ kind: "unreachable" });
     expect(requests).toHaveLength(1);
     expect(waits).toEqual([]);
   });
@@ -136,7 +136,7 @@ describe("postToCloud", () => {
       new Response("<html>Bad gateway</html>", { status: 502 }),
     );
 
-    const response = await postToCloud(deps, "/api/devices/enroll", {});
+    const response = await postToCloud(deps, "/api/devices", {});
 
     expect(response).toMatchObject({ kind: "error", error: { code: "server_unavailable" } });
     expect(requests).toHaveLength(1);
@@ -147,7 +147,7 @@ describe("postToCloud", () => {
       jsonResponse(403, { code: "direct_access_rejected", message: "x" }),
     );
 
-    const response = await postToCloud(deps, "/api/devices/enroll", {});
+    const response = await postToCloud(deps, "/api/devices", {});
 
     expect(response).toMatchObject({ kind: "error", error: { code: "internal_error" } });
     expect(requests).toHaveLength(1);
@@ -156,7 +156,7 @@ describe("postToCloud", () => {
   it("reads a success whose body isn't JSON as an empty body", async () => {
     const { deps } = clientAnswering(new Response("not json", { status: 200 }));
 
-    expect(await postToCloud(deps, "/api/devices/enroll", {})).toEqual({
+    expect(await postToCloud(deps, "/api/devices", {})).toEqual({
       kind: "ok",
       body: undefined,
     });
@@ -216,13 +216,13 @@ describe("postToCloudWithBearer", () => {
 
     const response = await postToCloudWithBearer(
       deps,
-      "/api/devices/rotate-token",
+      "/api/devices/current/tokens",
       "prefix.secret",
     );
 
     expect(response).toEqual({ kind: "ok", body: { ok: true } });
     expect(requests).toHaveLength(1);
-    expect(requests[0]?.url).toBe(`${CLOUD_URL}/api/devices/rotate-token`);
+    expect(requests[0]?.url).toBe(`${CLOUD_URL}/api/devices/current/tokens`);
     expect(requests[0]?.method).toBe("POST");
     expect(requests[0]?.headers.get("authorization")).toBe("Bearer prefix.secret");
     expect(requests[0]?.headers.get("content-type")).toBeNull();
@@ -236,7 +236,7 @@ describe("postToCloudWithBearer", () => {
 
     const response = await postToCloudWithBearer(
       deps,
-      "/api/devices/rotate-token",
+      "/api/devices/current/tokens",
       "prefix.secret",
     );
 
@@ -250,7 +250,7 @@ describe("postToCloudWithBearer", () => {
       jsonResponse(200, { ok: true }),
     );
 
-    await postToCloudWithBearer(deps, "/api/devices/rotate-token", "prefix.secret");
+    await postToCloudWithBearer(deps, "/api/devices/current/tokens", "prefix.secret");
 
     expect(waits).toEqual([1000]);
     expect(requests.map((request) => request.headers.get("authorization"))).toEqual([
@@ -262,10 +262,10 @@ describe("postToCloudWithBearer", () => {
   it("answers unreachable when the cloud can't be reached", async () => {
     const { deps } = clientAnswering(new Error("offline"));
 
-    expect(await postToCloudWithBearer(deps, "/api/devices/rotate-token", "prefix.secret")).toEqual(
-      {
-        kind: "unreachable",
-      },
-    );
+    expect(
+      await postToCloudWithBearer(deps, "/api/devices/current/tokens", "prefix.secret"),
+    ).toEqual({
+      kind: "unreachable",
+    });
   });
 });

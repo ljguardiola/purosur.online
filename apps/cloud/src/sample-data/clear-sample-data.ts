@@ -16,6 +16,7 @@ import {
   prices,
   productBarcodes,
   products,
+  productTags,
   recoveryTokens,
   registerContingencyTicketKeys,
   registerEnrollmentCodes,
@@ -25,6 +26,7 @@ import {
   rolePermissions,
   roles,
   sessions,
+  tags,
   userRoles,
   users,
 } from "../platform/db/schema.js";
@@ -42,6 +44,7 @@ import {
   SAMPLE_LOCKOUT_SOURCE_ADDRESSES,
   SAMPLE_REGISTER_NAMES,
   SAMPLE_ROLES,
+  SAMPLE_TAGS,
 } from "./sample-catalog.js";
 
 interface ClearSampleDataSummary {
@@ -289,12 +292,23 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
       .where(inArray(prices.productId, sampleProductIds))
       .returning({ id: prices.id, priceListId: prices.priceListId });
     await tx.delete(productBarcodes).where(inArray(productBarcodes.productId, sampleProductIds));
+    await tx.delete(productTags).where(inArray(productTags.productId, sampleProductIds));
     await tx.execute(sql`alter table products disable trigger products_reject_deletion`);
     const deletedProducts = await tx
       .delete(products)
       .where(inArray(products.id, sampleProductIds))
       .returning({ id: products.id, version: products.version });
     await tx.execute(sql`alter table products enable trigger products_reject_deletion`);
+
+    const deletedTags = await tx
+      .delete(tags)
+      .where(
+        inArray(
+          tags.name,
+          SAMPLE_TAGS.map((tag) => tag.name),
+        ),
+      )
+      .returning({ id: tags.id, version: tags.version });
 
     const deletedCategories: { id: string; version: number }[] = [];
     for (const depthIds of [
@@ -437,6 +451,14 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
           entity: "product",
           entityId: product.id,
           version: product.version + 1,
+          op: "delete",
+        }),
+      ),
+      ...deletedTags.map(
+        (tag): LoggedChange => ({
+          entity: "tag",
+          entityId: tag.id,
+          version: tag.version + 1,
           op: "delete",
         }),
       ),
