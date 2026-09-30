@@ -5,6 +5,7 @@ import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { insetBoundary, tokenRgb } from "../../test/token-colors";
 import type { FieldErrorProps } from "./field-error";
+import { Select } from "./select";
 import { ToggleChipGroup, type ToggleChipGroupProps } from "./toggle-chip-group";
 
 type Day = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
@@ -129,7 +130,7 @@ test("is a single tab stop", async () => {
   expect(document.activeElement?.textContent).toBe("After");
 });
 
-test("lays the chips out as one row of equally wide, 40px tall chips 8px apart", async () => {
+test("lays the chips out as one row of equally wide chips 8px apart", async () => {
   const screen = await render(<ToggleChipGroup {...baseProps()} />);
   const rects = options.map((option) =>
     chip(screen, option.accessibleName ?? option.label).getBoundingClientRect(),
@@ -137,12 +138,31 @@ test("lays the chips out as one row of equally wide, 40px tall chips 8px apart",
 
   for (const rect of rects) {
     expect(rect.width).toBeCloseTo(rects[0]?.width ?? 0, 0);
-    expect(rect.height).toBe(40);
     expect(rect.top).toBe(rects[0]?.top);
   }
   for (const [index, rect] of rects.slice(1).entries()) {
     expect(rect.left - (rects[index]?.right ?? 0)).toBeCloseTo(8, 0);
   }
+});
+
+test("matches a select beside it in label, label spacing and height", async () => {
+  const screen = await render(
+    <>
+      <Select label="Kind" options={[{ value: "a", label: "A" }]} value="a" onChange={() => {}} />
+      <ToggleChipGroup {...baseProps()} />
+    </>,
+  );
+  const selectLabel = screen.getByText("Kind", { exact: true }).element();
+  const groupLabel = screen.getByText("Days", { exact: true }).element();
+  const selectTrigger = screen.getByRole("button", { name: /Kind/ }).element();
+  const selectField = selectLabel.parentElement as HTMLElement;
+  const groupField = groupLabel.parentElement as HTMLElement;
+
+  expect(getComputedStyle(groupLabel).font).toBe(getComputedStyle(selectLabel).font);
+  expect(getComputedStyle(groupField).rowGap).toBe(getComputedStyle(selectField).rowGap);
+  expect(chip(screen, "Monday").getBoundingClientRect().height).toBe(
+    selectTrigger.getBoundingClientRect().height,
+  );
 });
 
 test("draws a chosen chip blue with a 2px blue border and white bold 14px text, 8px rounded", async () => {

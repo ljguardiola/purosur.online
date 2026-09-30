@@ -4,7 +4,11 @@ import {
   ToggleButtonGroup as AriaToggleButtonGroup,
 } from "react-aria-components";
 import { type FieldErrorProps, fieldError } from "./field-error";
-import { fieldLabelClassName, fieldWrapperGapClassName } from "./field-size";
+import {
+  backofficeFieldHeightClassName,
+  fieldLabelClassName,
+  fieldWrapperGapClassName,
+} from "./field-size";
 import {
   disabledTextProps,
   fieldErrorClassName,
@@ -14,7 +18,6 @@ import {
 import type { NarrowedOption } from "./option";
 
 export type ToggleChipOption<V extends string> = NarrowedOption<V> & {
-  // Read out in place of the label when the visible one is an abbreviation.
   accessibleName?: string;
 };
 
@@ -27,13 +30,13 @@ export type ToggleChipGroupProps<V extends string> = FieldErrorProps & {
   disabled?: boolean;
 };
 
-const wrapperClassName = `${fieldWrapperClassName} ${fieldWrapperGapClassName.register}`;
+const wrapperClassName = `${fieldWrapperClassName} ${fieldWrapperGapClassName.backoffice}`;
 
 const chipRowClassName = "flex flex-row gap-2";
 
 // The 2px ring is an inset box-shadow, not a border, so choosing a chip never changes its size.
 const chipClassName =
-  "flex h-control-lg min-w-0 flex-1 cursor-pointer items-center justify-center rounded-lg " +
+  `flex ${backofficeFieldHeightClassName} min-w-0 flex-1 cursor-pointer items-center justify-center rounded-lg ` +
   "text-detail text-text outline-none " +
   "bg-surface inset-ring-2 inset-ring-border " +
   "data-hovered:bg-surface-subtle " +
@@ -56,7 +59,11 @@ export function ToggleChipGroup<V extends string>(props: ToggleChipGroupProps<V>
 
   return (
     <div data-disabled={disabled || undefined} className={wrapperClassName}>
-      <span id={labelId} className={fieldLabelClassName.register} {...disabledTextProps(disabled)}>
+      <span
+        id={labelId}
+        className={fieldLabelClassName.backoffice}
+        {...disabledTextProps(disabled)}
+      >
         {label}
       </span>
       <AriaToggleButtonGroup
