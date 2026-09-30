@@ -73,8 +73,12 @@ import { registerPriceSetRoute } from "./pricing/price-set-route.js";
 import type { PricesRouteOptions } from "./pricing/prices-list-route.js";
 import { registerPricesListRoute } from "./pricing/prices-list-route.js";
 import { authenticateDevice } from "./register/device-authentication.js";
-import type { DeviceEnrollmentRouteOptions } from "./register/device-enrollment-route.js";
 import { registerDeviceEnrollmentRoute } from "./register/device-enrollment-route.js";
+import { registerDeviceTokenRotationRoute } from "./register/device-token-rotation-route.js";
+import {
+  type DeviceTokensOptions,
+  installationTokenPorts,
+} from "./register/installation-token-ports.js";
 import { registerRegisterCoverageRoute } from "./register/register-coverage-route.js";
 import { registerRegisterCreationRoute } from "./register/register-creation-route.js";
 import { registerRegisterEnrollmentCodeRoute } from "./register/register-enrollment-code-route.js";
@@ -106,7 +110,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   prices?: PricesRouteOptions<TQueryResult>;
   registers?: RegistersRouteOptions<TQueryResult>;
   stock?: StockRouteOptions<TQueryResult>;
-  devices?: DeviceEnrollmentRouteOptions<TQueryResult>;
+  devices?: DeviceTokensOptions<TQueryResult>;
 }
 
 const API_PREFIX = "/api";
@@ -181,7 +185,8 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
       registerHealthRoute(api, {
         version: options.version,
         ...(devices && {
-          authenticateDevice: (authorization) => authenticateDevice(devices.db, authorization),
+          authenticateDevice: (authorization) =>
+            authenticateDevice(installationTokenPorts(devices), authorization),
         }),
       });
 
@@ -294,6 +299,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
       if (options.devices) {
         registerDeviceEnrollmentRoute(api, options.devices);
+        registerDeviceTokenRotationRoute(api, options.devices);
       }
     },
     { prefix: API_PREFIX },

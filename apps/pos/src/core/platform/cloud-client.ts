@@ -35,13 +35,19 @@ async function readJson(response: Response): Promise<unknown> {
 // timed out, or that a proxy in front of the cloud failed, may already have taken effect.
 type Attempt = { response: CloudResponse; refusedByCloud: boolean };
 
-async function postOnce(deps: CloudClientDeps, path: string, body: unknown): Promise<Attempt> {
+interface PostRequest {
+  path: string;
+  headers: Record<string, string>;
+  body: string | undefined;
+}
+
+async function postOnce(deps: CloudClientDeps, request: PostRequest): Promise<Attempt> {
   let response: Response;
   try {
-    response = await deps.fetch(new URL(path, deps.cloudUrl).href, {
+    response = await deps.fetch(new URL(request.path, deps.cloudUrl).href, {
       method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
+      headers: request.headers,
+      ...(request.body === undefined ? {} : { body: request.body }),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
   } catch {
@@ -71,17 +77,33 @@ function retryWaitMs({ response, refusedByCloud }: Attempt, attempt: number): nu
   return retryAfterSeconds === undefined ? BACKOFF_MS[attempt - 1] : retryAfterSeconds * 1000;
 }
 
-export async function postToCloud(
-  deps: CloudClientDeps,
-  path: string,
-  body: unknown,
-): Promise<CloudResponse> {
+async function post(deps: CloudClientDeps, request: PostRequest): Promise<CloudResponse> {
   for (let attempt = 1; ; attempt += 1) {
-    const sent = await postOnce(deps, path, body);
+    const sent = await postOnce(deps, request);
     const waitMs = retryWaitMs(sent, attempt);
     if (attempt === MAX_ATTEMPTS || waitMs === undefined || waitMs > MAX_WAIT_MS) {
       return sent.response;
     }
     await deps.sleep(waitMs);
   }
+}
+
+export function postToCloud(
+  deps: CloudClientDeps,
+  path: string,
+  body: unknown,
+): Promise<CloudResponse> {
+  return post(deps, {
+    path,
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function postToCloudWithBearer(
+  deps: CloudClientDeps,
+  path: string,
+  bearerToken: string,
+): Promise<CloudResponse> {
+  return post(deps, { path, headers: { authorization: `Bearer ${bearerToken}` }, body: undefined });
 }

@@ -67,6 +67,7 @@ export async function enrollInstallation(
       registerId: matched.registerId,
       tokenLookupPrefix: issued.lookupPrefix,
       tokenHash: issued.tokenHash,
+      tokenIssuedAt: now,
       hostname: input.hostname,
       windowsVersion: input.windowsVersion,
       enrolledAt: now,
