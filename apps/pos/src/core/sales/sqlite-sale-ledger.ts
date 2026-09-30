@@ -1,4 +1,11 @@
-import type { Sale, SaleLine, SaleUnit, SaleWithLines } from "@purosur/domain";
+import type {
+  OutboxEventDraft,
+  PaymentTransaction,
+  Sale,
+  SaleLine,
+  SaleUnit,
+  SaleWithLines,
+} from "@purosur/domain";
 import type {
   RegisterIdentity,
   SaleLedger,
@@ -8,6 +15,8 @@ import type {
 } from "@purosur/domain/sales/use-cases";
 import type { SignInStore } from "../access/sqlite-sign-in-store";
 import type { LocalDatabase } from "../platform/local-database";
+import { insertCashMovement } from "../register/sqlite-cash-ledger";
+import { appendOutboxEvent } from "../sync/sqlite-outbox";
 
 interface SaleRow {
   id: string;
@@ -31,10 +40,16 @@ interface LineRow {
 export class SqliteSaleLedger implements SaleLedger {
   private readonly database: LocalDatabase;
   private readonly people: Pick<SignInStore, "activePerson">;
+  private readonly outboxChainKey: string | undefined;
 
-  constructor(database: LocalDatabase, people: Pick<SignInStore, "activePerson">) {
+  constructor(
+    database: LocalDatabase,
+    people: Pick<SignInStore, "activePerson">,
+    outboxChainKey?: string,
+  ) {
     this.database = database;
     this.people = people;
+    this.outboxChainKey = outboxChainKey;
   }
 
   transaction<TOutcome>(work: (tx: SaleLedgerTransaction) => TOutcome): TOutcome {
@@ -53,6 +68,10 @@ export class SqliteSaleLedger implements SaleLedger {
       recordOpenedSale: (sale) => this.recordOpenedSale(sale),
       recordSaleLine: (saleId, line) => this.recordSaleLine(saleId, line),
       recordLineQuantity: (line) => this.recordLineQuantity(line),
+      recordPayment: (payment) => this.recordPayment(payment),
+      recordCashMovement: (movement) => insertCashMovement(this.database, movement),
+      recordCompletedSale: (saleId) => this.recordCompletedSale(saleId),
+      appendOutboxEvent: (draft) => this.appendOutboxEvent(draft),
     };
   }
 
@@ -193,6 +212,41 @@ export class SqliteSaleLedger implements SaleLedger {
         "UPDATE sale_lines SET quantity = @quantity, line_total = @line_total WHERE id = @id",
       )
       .run({ id: line.id, quantity: line.quantity, line_total: line.lineTotal });
+  }
+
+  private recordPayment(payment: PaymentTransaction): void {
+    this.database
+      .prepare(
+        `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, state, occurred_at)
+         VALUES (@id, @sale_id, @kind, @method, @provider, @amount, @tendered, @state, @occurred_at)`,
+      )
+      .run({
+        id: payment.id,
+        sale_id: payment.saleId,
+        kind: payment.kind,
+        method: payment.method,
+        provider: payment.provider,
+        amount: payment.amount,
+        tendered: payment.tendered ?? null,
+        state: payment.state,
+        occurred_at: payment.occurredAt.toISOString(),
+      });
+  }
+
+  private recordCompletedSale(saleId: string): void {
+    const { changes } = this.database
+      .prepare("UPDATE sales SET state = 'COMPLETED' WHERE id = ? AND state = 'OPEN'")
+      .run(saleId);
+    if (changes !== 1) {
+      throw new Error("the sale is not in progress");
+    }
+  }
+
+  private appendOutboxEvent(draft: OutboxEventDraft): void {
+    if (this.outboxChainKey === undefined) {
+      throw new Error("the ledger has no outbox chain key");
+    }
+    appendOutboxEvent(this.database, this.outboxChainKey, draft);
   }
 }
 

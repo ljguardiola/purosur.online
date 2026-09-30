@@ -1,14 +1,22 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { addScannedProduct, currentSale } from "@purosur/domain/sales/use-cases";
+import { closeCashSession } from "@purosur/domain/register/use-cases";
+import {
+  addScannedProduct,
+  chargeSaleInCash,
+  currentSale,
+} from "@purosur/domain/sales/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
+import { SqliteCashLedger } from "../register/sqlite-cash-ledger";
+import { cashBalanceFor } from "../register/cash-session-requests";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { SqliteSaleLedger } from "./sqlite-sale-ledger";
 
 const NOW = new Date("2026-09-30T12:00:00.000Z");
+const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base64");
 
 let database: LocalDatabase;
 let ledger: SqliteSaleLedger;
@@ -126,7 +134,7 @@ function readySeller(): void {
 beforeEach(() => {
   idCount = 0;
   database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS);
-  ledger = new SqliteSaleLedger(database, new SqliteSignInStore(database));
+  ledger = new SqliteSaleLedger(database, new SqliteSignInStore(database), CHAIN_KEY);
 });
 
 afterEach(() => {
@@ -370,7 +378,7 @@ describe("the sale after the register restarts", () => {
       const path = join(folder, "register.sqlite");
       database.close();
       database = openLocalDatabase(path, LOCAL_MIGRATIONS);
-      ledger = new SqliteSaleLedger(database, new SqliteSignInStore(database));
+      ledger = new SqliteSaleLedger(database, new SqliteSignInStore(database), CHAIN_KEY);
       readySeller();
       addProduct("111");
       addPrice("p1", "2026-09-01T00:00:00.000Z", 1000);
@@ -379,7 +387,7 @@ describe("the sale after the register restarts", () => {
       database.close();
 
       database = openLocalDatabase(path, LOCAL_MIGRATIONS);
-      ledger = new SqliteSaleLedger(database, new SqliteSignInStore(database));
+      ledger = new SqliteSaleLedger(database, new SqliteSignInStore(database), CHAIN_KEY);
 
       expect(currentSale({ ledger }, { actorId: "u1" })).toMatchObject({
         kind: "open",
@@ -415,5 +423,200 @@ describe("the installation's revocation", () => {
       .run();
 
     expect(ledger.transaction((tx) => tx.installationRevoked())).toBe(true);
+  });
+});
+
+describe("charging an open sale in cash", () => {
+  beforeEach(() => {
+    readySeller();
+    addProduct("111");
+    addPrice("p1", "2026-09-01T00:00:00.000Z", 1500);
+  });
+
+  function sellTwo(): string {
+    scan("111");
+    const outcome = scan("111");
+    if (outcome.kind !== "added") {
+      throw new Error("test setup: the product was not added");
+    }
+    return outcome.sale.id;
+  }
+
+  function charge(saleId: string, tendered: number) {
+    return chargeSaleInCash(
+      { ledger, clock: { now: () => NOW }, ids },
+      { actorId: "u1", saleId, tendered },
+    );
+  }
+
+  it("completes the sale and stores the payment with what was tendered and applied", () => {
+    const saleId = sellTwo();
+
+    expect(charge(saleId, 5000)).toMatchObject({ kind: "completed", change: 2000 });
+
+    expect(database.prepare("SELECT id, state FROM sales").all()).toEqual([
+      { id: saleId, state: "COMPLETED" },
+    ]);
+    expect(
+      database
+        .prepare(
+          "SELECT sale_id, kind, method, provider, amount, tendered, state, occurred_at FROM payment_transactions",
+        )
+        .all(),
+    ).toEqual([
+      {
+        sale_id: saleId,
+        kind: "SALE",
+        method: "CASH",
+        provider: "NONE",
+        amount: 3000,
+        tendered: 5000,
+        state: "APPROVED",
+        occurred_at: NOW.toISOString(),
+      },
+    ]);
+  });
+
+  it("stores the cash that came in and the change that went out against the sale", () => {
+    const saleId = sellTwo();
+
+    charge(saleId, 5000);
+
+    expect(
+      database
+        .prepare(
+          "SELECT type, amount, ref_type, ref_id, actor_id FROM cash_movements ORDER BY rowid",
+        )
+        .all(),
+    ).toEqual([
+      { type: "SALE", amount: 5000, ref_type: "sale", ref_id: saleId, actor_id: "u1" },
+      { type: "CHANGE", amount: 2000, ref_type: "sale", ref_id: saleId, actor_id: "u1" },
+    ]);
+  });
+
+  it("stores no change movement when the sale was paid exactly", () => {
+    const saleId = sellTwo();
+
+    charge(saleId, 3000);
+
+    expect(database.prepare("SELECT type, amount FROM cash_movements").all()).toEqual([
+      { type: "SALE", amount: 3000 },
+    ]);
+  });
+
+  it("appends the sale_completed event to the outbox and advances the chain", () => {
+    const saleId = sellTwo();
+
+    charge(saleId, 5000);
+
+    expect(
+      database
+        .prepare("SELECT device_seq, aggregate_type, aggregate_id, event_type FROM outbox")
+        .all(),
+    ).toEqual([
+      {
+        device_seq: 1,
+        aggregate_type: "Sale",
+        aggregate_id: saleId,
+        event_type: "sale_completed",
+      },
+    ]);
+    expect(database.prepare("SELECT last_device_seq FROM sync_state").get()).toEqual({
+      last_device_seq: 1,
+    });
+  });
+
+  it("leaves the sale no longer in progress, so the next scan starts another sale", () => {
+    const saleId = sellTwo();
+    charge(saleId, 3000);
+
+    const next = scan("111");
+
+    expect(next).toMatchObject({ kind: "added" });
+    expect(next.kind === "added" && next.sale.id).not.toBe(saleId);
+    expect(database.prepare("SELECT count(*) AS total FROM sales").get()).toEqual({ total: 2 });
+  });
+
+  it("adds the tendered cash less the change to what the session expects in the drawer", () => {
+    const saleId = sellTwo();
+
+    charge(saleId, 5000);
+
+    expect(cashBalanceFor(database)).toMatchObject({
+      cash_sales: 5000,
+      change_given: 2000,
+      expected: 3000,
+    });
+  });
+
+  it("lets the session close once the sale is completed", () => {
+    const saleId = sellTwo();
+    charge(saleId, 3000);
+
+    const closed = closeCashSession(
+      {
+        ledger: new SqliteCashLedger(database, new SqliteSignInStore(database), CHAIN_KEY),
+        clock: { now: () => NOW },
+        ids,
+      },
+      { sessionId: "session-1", closerId: "u1", authorizedBy: null, countedCash: 3000 },
+    );
+
+    expect(closed).toMatchObject({ kind: "closed" });
+  });
+
+  it("leaves nothing behind when the outbox append fails after the rest was written", () => {
+    const saleId = sellTwo();
+    database
+      .prepare(
+        `INSERT INTO outbox (
+           event_id, device_id, device_seq, aggregate_type, aggregate_id, event_type, schema_version,
+           payload, occurred_at, actor_id, chain_hmac
+         ) VALUES ('taken', 'device-1', 1, 'Sale', 'x', 'sale_completed', 1, '{}', '2026-09-30T12:00:00.000Z', 'u1', 'h')`,
+      )
+      .run();
+
+    expect(() => charge(saleId, 5000)).toThrow();
+
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+    expect(database.prepare("SELECT count(*) AS total FROM payment_transactions").get()).toEqual({
+      total: 0,
+    });
+    expect(database.prepare("SELECT count(*) AS total FROM cash_movements").get()).toEqual({
+      total: 0,
+    });
+    expect(database.prepare("SELECT count(*) AS total FROM outbox").get()).toEqual({ total: 1 });
+    expect(database.prepare("SELECT last_device_seq FROM sync_state").get()).toEqual({
+      last_device_seq: 0,
+    });
+  });
+
+  it("refuses to complete a sale that is not in progress", () => {
+    const saleId = sellTwo();
+    charge(saleId, 3000);
+
+    expect(() => ledger.transaction((tx) => tx.recordCompletedSale(saleId))).toThrow();
+    expect(() => ledger.transaction((tx) => tx.recordCompletedSale("missing"))).toThrow();
+  });
+});
+
+describe("a ledger given no outbox chain key", () => {
+  it("refuses to append an outbox event", () => {
+    const keyless = new SqliteSaleLedger(database, new SqliteSignInStore(database));
+
+    expect(() =>
+      keyless.transaction((tx) =>
+        tx.appendOutboxEvent({
+          event_id: "event-1",
+          aggregate_type: "Sale",
+          aggregate_id: "sale-1",
+          event_type: "sale_completed",
+          schema_version: 1,
+          payload: {},
+          occurred_at: NOW.toISOString(),
+          actor_id: "u1",
+        }),
+      ),
+    ).toThrow();
   });
 });
