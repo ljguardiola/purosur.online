@@ -1,5 +1,9 @@
 import { CalendarDate } from "@internationalized/date";
-import { discountCreationBodySchema, discountEditBodySchema } from "@purosur/contracts";
+import {
+  type DiscountTargets,
+  discountCreationBodySchema,
+  discountEditBodySchema,
+} from "@purosur/contracts";
 import { DISCOUNT_NAME_MAX_LENGTH, DISCOUNT_QTY_MAX } from "@purosur/domain";
 import { describe, expect, test } from "vitest";
 import { drinks, groceries, jams, spreads } from "../catalog/test-support/categories";
@@ -315,8 +319,22 @@ describe("option lists", () => {
 
 describe("targetOptions", () => {
   const nothing = { products: [], categories: [], tags: [] };
-  const honey = { id: "product-1", name: "Miel pura de abeja 1 kg", saleUnit: "UNIT" } as const;
-  const rice = { id: "product-3", name: "Arroz", saleUnit: "UNIT" } as const;
+  const honey = {
+    id: "product-1",
+    name: "Miel pura de abeja 1 kg",
+    saleUnit: "UNIT",
+    brandName: null,
+    netContent: null,
+    barcodes: [],
+  } satisfies DiscountTargets["products"][number];
+  const rice = {
+    id: "product-3",
+    name: "Arroz",
+    saleUnit: "UNIT",
+    brandName: null,
+    netContent: null,
+    barcodes: [],
+  } satisfies DiscountTargets["products"][number];
   const sinTacc = { id: "tag-1", name: "Sin TACC" };
   const vegano = { id: "tag-2", name: "Vegano" };
   const organico = { id: "tag-4", name: "Orgánico" };
@@ -325,8 +343,55 @@ describe("targetOptions", () => {
     const options = targetOptions("PRODUCT", { ...nothing, products: [honey, rice] });
 
     expect(options).toEqual([
-      { value: "product-3", label: "Arroz" },
-      { value: "product-1", label: "Miel pura de abeja 1 kg" },
+      { value: "product-3", label: "Arroz", searchKeywords: [] },
+      { value: "product-1", label: "Miel pura de abeja 1 kg", searchKeywords: [] },
+    ]);
+  });
+
+  test("describes a product by its brand and net content, and lets its barcodes be searched", () => {
+    const yerba = {
+      id: "product-4",
+      name: "Yerba mate",
+      saleUnit: "UNIT",
+      brandName: "Playadito",
+      netContent: { quantity: 1, unit: "KG" },
+      barcodes: ["7790001", "7790002"],
+    } satisfies DiscountTargets["products"][number];
+
+    const options = targetOptions("PRODUCT", { ...nothing, products: [yerba] });
+
+    expect(options).toEqual([
+      {
+        value: "product-4",
+        label: "Yerba mate",
+        description: "Playadito · 1 kg",
+        searchKeywords: ["7790001", "7790002"],
+      },
+    ]);
+  });
+
+  test("describes a product by its brand alone or by its net content alone", () => {
+    const branded = { ...rice, id: "product-5", brandName: "Gallo" };
+    const measured = {
+      ...rice,
+      id: "product-6",
+      netContent: { quantity: 500, unit: "G" },
+    } as const;
+
+    const options = targetOptions("PRODUCT", { ...nothing, products: [branded, measured] });
+
+    expect(options?.map((option) => option.description)).toEqual(["Gallo", "500 g"]);
+  });
+
+  test("tells two products with the same name apart by their descriptions", () => {
+    const kilo = { ...rice, id: "product-7", name: "Yerba mate", brandName: "Playadito" };
+    const half = { ...rice, id: "product-8", name: "Yerba mate", brandName: "Taragüí" };
+
+    const options = targetOptions("PRODUCT", { ...nothing, products: [kilo, half] });
+
+    expect(options?.map((option) => [option.label, option.description])).toEqual([
+      ["Yerba mate", "Playadito"],
+      ["Yerba mate", "Taragüí"],
     ]);
   });
 
@@ -365,7 +430,7 @@ describe("targetOptions", () => {
 
     expect(options).toEqual([
       { value: "gone", label: "Aceite", status: "Inactivo" },
-      { value: "product-1", label: "Miel pura de abeja 1 kg" },
+      { value: "product-1", label: "Miel pura de abeja 1 kg", searchKeywords: [] },
     ]);
   });
 
@@ -391,7 +456,7 @@ describe("targetOptions", () => {
 
     expect(options).toEqual([
       { value: "almonds", label: "Almendras", status: "Por peso" },
-      { value: "product-3", label: "Arroz" },
+      { value: "product-3", label: "Arroz", searchKeywords: [] },
     ]);
   });
 
@@ -412,7 +477,9 @@ describe("targetOptions", () => {
       { kind: "PRODUCT", id: honey.id, name: honey.name, status: "Inactivo" },
     );
 
-    expect(options).toEqual([{ value: "product-1", label: "Miel pura de abeja 1 kg" }]);
+    expect(options).toEqual([
+      { value: "product-1", label: "Miel pura de abeja 1 kg", searchKeywords: [] },
+    ]);
   });
 });
 

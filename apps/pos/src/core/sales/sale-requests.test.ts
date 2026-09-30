@@ -138,6 +138,8 @@ describe("scanning a product on the register", () => {
             product_name: "Yerba",
             quantity: 2,
             list_unit_price: 1500,
+            discount_amount: 0,
+            promotion: null,
             line_total: 3000,
           },
         ],
@@ -145,6 +147,45 @@ describe("scanning a product on the register", () => {
       },
     });
   });
+
+  it.each([
+    [
+      "a percent",
+      { kind: "PERCENT_OFF", percent: 10, buy_qty: null, pay_qty: null },
+      1,
+      { kind: "PERCENT_OFF", percent: 10 },
+      { discount_amount: 150, line_total: 1350 },
+    ],
+    [
+      "a buy N pay M",
+      { kind: "BUY_N_PAY_M", percent: null, buy_qty: 3, pay_qty: 2 },
+      3,
+      { kind: "BUY_N_PAY_M", buy_qty: 3, pay_qty: 2 },
+      { discount_amount: 1500, line_total: 3000 },
+    ],
+  ])(
+    "answers the promotion a line was charged with: %s",
+    async (_case, columns, scans, promotion, charged) => {
+      database
+        .prepare(
+          `INSERT INTO discounts (
+           id, name, kind, percent, buy_qty, pay_qty, target_kind, target_id, valid_from, valid_to,
+           weekdays, active, version
+         ) VALUES ('d1', 'Promo', @kind, @percent, @buy_qty, @pay_qty, 'PRODUCT', 'p1', '2026-09-01', '2026-12-31', '[]', 1, 1)`,
+        )
+        .run(columns);
+
+      let outcome = await scanProductFor(deps(), "111");
+      for (let scan = 1; scan < scans; scan += 1) {
+        outcome = await scanProductFor(deps(), "111");
+      }
+
+      expect(outcome.kind === "added" && outcome.sale.lines[0]).toMatchObject({
+        promotion,
+        ...charged,
+      });
+    },
+  );
 
   it("answers the name of a product that has no price", async () => {
     database.prepare("DELETE FROM prices").run();
@@ -241,6 +282,8 @@ describe("the sale in progress", () => {
           product_name: "Yerba",
           quantity: 2,
           list_unit_price: 1500,
+          discount_amount: 0,
+          promotion: null,
           line_total: 3000,
         },
       ],

@@ -9,6 +9,7 @@ import {
 import { useState } from "react";
 import { fieldContext, formContext } from "./cloud-form-context";
 import {
+  BoundComboBox,
   BoundDateField,
   BoundOptionCardGroup,
   BoundQuantityUnitField,
@@ -24,6 +25,7 @@ const { useAppForm } = createFormHook({
   formContext,
   fieldComponents: {
     TextField: BoundTextField,
+    ComboBox: BoundComboBox,
     Select: BoundSelect,
     DateField: BoundDateField,
     QuantityUnitField: BoundQuantityUnitField,

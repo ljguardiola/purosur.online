@@ -20,6 +20,8 @@ const YERBA = {
   product_name: "Yerba mate 1 kg",
   quantity: 2,
   list_unit_price: 238_000,
+  discount_amount: 0,
+  promotion: null,
   line_total: 476_000,
 };
 const ALFAJOR = {
@@ -28,6 +30,8 @@ const ALFAJOR = {
   product_name: "Alfajor triple",
   quantity: 1,
   list_unit_price: 150_000,
+  discount_amount: 0,
+  promotion: null,
   line_total: 150_000,
 };
 const SALE_OF_YERBA: OpenSale = { id: "sale-1", lines: [YERBA], total: 476_000 };
@@ -52,6 +56,7 @@ async function renderScreen({ registerName = "Caja 1", ...overrides }: Overrides
       person={PERSON}
       registerName={registerName}
       openedAt={OPENED_AT}
+      lock={() => {}}
       currentSale={currentSale}
       scanProduct={scanProduct}
       onSessionInvalid={onSessionInvalid}
@@ -93,16 +98,15 @@ describe("SaleScreen", () => {
     await expect.element(screen.getByText("Sesión abierta 09:02", { exact: true })).toBeVisible();
   });
 
-  it("offers Venta, Caja and the first name of the person who opened, and no way out", async () => {
+  it("offers Venta, Caja and the first name of the person who opened, and a way out", async () => {
     const { screen } = await renderScreen();
 
     const rail = screen.getByRole("navigation", { name: "Menú de la caja" }).element();
 
     const items = Array.from(rail.querySelectorAll("button, a")).map((item) => item.textContent);
-    expect(items).toEqual(["Venta", "Caja"]);
+    expect(items).toEqual(["Venta", "Caja", "Salir"]);
     await expect.element(screen.getByText("Ada")).toBeVisible();
     expect(screen.container.textContent).not.toContain("sell_and_charge");
-    await expect.element(screen.getByRole("button", { name: "Salir" })).not.toBeInTheDocument();
   });
 
   it("marks Venta as the current screen", async () => {
@@ -249,6 +253,52 @@ describe("SaleScreen", () => {
       await expect.element(panel.getByText("2 líneas")).toBeVisible();
       await expect.element(screen.getByText("La venta está vacía")).not.toBeInTheDocument();
       await expectNoAccessibilityViolations(screen.container);
+    });
+
+    it("shows under the name the promotion a line was charged with, and the amount it had without it", async () => {
+      const promoted = {
+        ...YERBA,
+        discount_amount: 47_600,
+        promotion: { kind: "PERCENT_OFF", percent: 10 } as const,
+        line_total: 428_400,
+      };
+      const { screen } = await renderScreen({
+        currentSale: async () => ({ id: "sale-1", lines: [promoted, ALFAJOR], total: 578_400 }),
+      });
+
+      const lines = screen.getByRole("list").getByRole("listitem");
+      const yerba = lines.first();
+      await expect.element(yerba.getByText("10 % de descuento")).toBeVisible();
+      const withoutPromotion = yerba.getByText("$ 4.760,00");
+      await expect.element(withoutPromotion).toBeVisible();
+      expect(withoutPromotion.element().tagName).toBe("S");
+      await expect.element(yerba.getByText("$ 4.284,00")).toBeVisible();
+      await expectNoAccessibilityViolations(screen.container);
+    });
+
+    it("writes a buy N pay M promotion as a purchase and a payment quantity", async () => {
+      const promoted = {
+        ...ALFAJOR,
+        quantity: 3,
+        discount_amount: 150_000,
+        promotion: { kind: "BUY_N_PAY_M", buy_qty: 3, pay_qty: 2 } as const,
+        line_total: 300_000,
+      };
+      const { screen } = await renderScreen({
+        currentSale: async () => ({ id: "sale-1", lines: [promoted], total: 300_000 }),
+      });
+
+      await expect.element(screen.getByText("Lleve 3, pague 2")).toBeVisible();
+      await expect.element(screen.getByText("$ 4.500,00")).toBeVisible();
+    });
+
+    it("shows nothing more than the name and the amount on a line without a promotion", async () => {
+      const { screen } = await renderScreen({ currentSale: async () => SALE_OF_YERBA });
+
+      const yerba = screen.getByRole("list").getByRole("listitem").first();
+      await expect.element(yerba.getByText("$ 4.760,00")).toBeVisible();
+      expect(yerba.element().querySelector("s")).toBeNull();
+      expect(yerba.element().textContent).toBe("Yerba mate 1 kg2$ 4.760,00");
     });
 
     it("writes 1 línea in the singular", async () => {

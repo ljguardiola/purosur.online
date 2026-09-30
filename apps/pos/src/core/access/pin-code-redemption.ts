@@ -16,6 +16,10 @@ export interface PinCodeRedemptionDeps {
     | undefined;
   applyRedeemedPin: ((pepper: string, redemption: PinCodeRedemption) => void) | undefined;
   reportLocalFailure: (error: unknown) => void;
+  cashSessionOpener: () => string | undefined;
+  signInRedeemed: (
+    userId: string,
+  ) => Extract<PinCodeRedemptionOutcome, { kind: "resumed" }>["person"] | undefined;
 }
 
 function refusalOutcome(error: CloudError): PinCodeRedemptionOutcome {
@@ -80,5 +84,13 @@ export async function redeemPinCode(
   } catch (error) {
     deps.reportLocalFailure(error);
   }
-  return { kind: "redeemed" };
+  const opener = deps.cashSessionOpener();
+  if (opener === undefined) {
+    return { kind: "redeemed" };
+  }
+  if (opener !== redemption.data.user_id) {
+    return { kind: "cash_session_opened_by_another" };
+  }
+  const person = deps.signInRedeemed(opener);
+  return person === undefined ? { kind: "redeemed" } : { kind: "resumed", person };
 }

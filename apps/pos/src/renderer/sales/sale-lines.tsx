@@ -1,6 +1,7 @@
 import type { OpenSale } from "@purosur/contracts";
 import { EmptyState, formatCents } from "@purosur/ui";
-import { Package, ShoppingBasket } from "lucide-react";
+import { Package, ShoppingBasket, Tag } from "lucide-react";
+import { linePromotionText } from "./line-promotion-text";
 
 type SaleLine = OpenSale["lines"][number];
 
@@ -19,12 +20,25 @@ function SaleLineRow({ line, changed }: { line: SaleLine; changed: boolean }) {
       >
         <Package className="size-icon-md" />
       </span>
-      <span className="min-w-0 flex-1 truncate text-subheading font-semibold text-text">
-        {line.product_name}
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate text-subheading font-semibold text-text">
+          {line.product_name}
+        </span>
+        {line.promotion === null ? null : (
+          <span className="flex items-center gap-1 text-detail font-bold text-success">
+            <Tag aria-hidden="true" className="size-icon-xs shrink-0" />
+            {linePromotionText(line.promotion)}
+          </span>
+        )}
       </span>
       <span className="w-33 shrink-0 text-center text-subheading text-text">{line.quantity}</span>
-      <span className="w-37.5 shrink-0 text-right text-heading text-text">
-        {formatCents(line.line_total)}
+      <span className="flex w-37.5 shrink-0 flex-col text-right">
+        {line.promotion === null ? null : (
+          <s className="text-detail text-text-subtle">
+            {formatCents(line.line_total + line.discount_amount)}
+          </s>
+        )}
+        <span className="text-heading text-text">{formatCents(line.line_total)}</span>
       </span>
     </li>
   );

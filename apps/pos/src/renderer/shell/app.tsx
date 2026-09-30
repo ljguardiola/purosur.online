@@ -33,8 +33,11 @@ export function App({ core }: { core: CoreClient }) {
   const enrollment = coreStatus === "up" ? knownEnrollment : "unknown";
   const [signedInPerson, setPerson] = useState<SignedInPerson>();
   const [cashSession, setCashSession] = useState<CashSessionState>(UNKNOWN_SESSION);
-  // An open session always belongs to the person who opened it, whoever signed in before.
-  const person = cashSession.status === "open" ? cashSession.openedBy : signedInPerson;
+  // Only the person who opened the open session can be in: anyone else leaves the register locked.
+  const person =
+    cashSession.status === "open" && signedInPerson?.user_id !== cashSession.openedBy.user_id
+      ? undefined
+      : signedInPerson;
 
   async function enroll(typedCode: string) {
     const outcome = await core.enroll(typedCode);
@@ -65,6 +68,11 @@ export function App({ core }: { core: CoreClient }) {
     return takeSignedInPerson(await core.firstSignIn(userId, pin));
   }
 
+  function signOut() {
+    core.signOut().catch(() => {});
+    setPerson(undefined);
+  }
+
   async function openCashSession(opener: SignedInPerson, openingFloat: number) {
     const outcome = await core.openCashSession(openingFloat);
     if (outcome.kind === "not_signed_in") {
@@ -82,6 +90,13 @@ export function App({ core }: { core: CoreClient }) {
       return core.cashSession().then(
         (session): OpenCashSessionOutcome => {
           setCashSession(stateOf(session));
+          if (
+            session !== null &&
+            session !== "unavailable" &&
+            session.opened_by.user_id !== opener.user_id
+          ) {
+            signOut();
+          }
           return outcome;
         },
         (): OpenCashSessionOutcome => ({ kind: "unavailable" }),
@@ -103,14 +118,19 @@ export function App({ core }: { core: CoreClient }) {
     closer: SignedInPerson,
     sessionId: string,
     countedCash: number,
-    authorization?: Authorization,
+    authorization: Authorization | undefined,
+    leaving: boolean,
   ) {
     const outcome = await core.closeCashSession(sessionId, countedCash, authorization);
     if (outcome.kind === "not_signed_in") {
       setPerson(undefined);
     }
     if (outcome.kind === "closed") {
-      setPerson(closer);
+      if (leaving) {
+        signOut();
+      } else {
+        setPerson(closer);
+      }
       setCashSession({ status: "none" });
     }
     if (outcome.kind === "no_open_session") {
@@ -125,6 +145,14 @@ export function App({ core }: { core: CoreClient }) {
       await core.cashSession().then(refreshCashSession, () => {});
     }
     return balance;
+  }
+
+  async function redeemPinCode(typedCode: string, newPin: string) {
+    const outcome = await core.redeemPinCode(typedCode, newPin);
+    if (outcome.kind === "resumed") {
+      setPerson(outcome.person);
+    }
+    return outcome;
   }
 
   async function cashMovements() {
@@ -143,11 +171,6 @@ export function App({ core }: { core: CoreClient }) {
     return outcome;
   }
 
-  function signOut() {
-    core.signOut().catch(() => {});
-    setPerson(undefined);
-  }
-
   const services = {
     enroll,
     registerName: () => core.registerName(),
@@ -160,7 +183,7 @@ export function App({ core }: { core: CoreClient }) {
     cashBalance,
     cashMovements,
     recordCashMovement,
-    redeemPinCode: (typedCode: string, newPin: string) => core.redeemPinCode(typedCode, newPin),
+    redeemPinCode,
     signInLookup: (email: string) => core.signInLookup(email),
     requestFirstPinCode: (userId: string) => core.requestFirstPinCode(userId),
     firstSignIn,

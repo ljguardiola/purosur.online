@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   categoryChange,
+  discountChange,
   priceChange,
   priceListChange,
   productChange,
@@ -15,6 +16,9 @@ const ANA_ID = "5b0b8f4e-3c2d-4a55-9c1e-0a6f6a1d0a01";
 const ANA_EMAIL = "ana@example.com";
 const YERBA_CODE = "7790001000011";
 const ALFAJOR_CODE = "7790002000022";
+const FIDEOS_CODE = "7790003000033";
+const PASTAS_ID = "0b6f7c9a-6f0e-4f8e-9a77-5d1c2f0a1b01";
+const FIDEOS_ID = "0b6f7c9a-6f0e-4f8e-9a77-5d1c2f0a1b02";
 
 describe("scanning products into a sale on the register", () => {
   let cloud: StandInCloud;
@@ -46,6 +50,36 @@ describe("scanning products into a sale on the register", () => {
           priceListId: "price-list-1",
           unitPriceCents: 238_000,
           validFrom: "2026-01-01T00:00:00.000Z",
+        }),
+        categoryChange({ id: PASTAS_ID, name: "Pastas" }),
+        productChange({
+          id: FIDEOS_ID,
+          name: "Fideos 500 g",
+          categoryId: PASTAS_ID,
+          barcodes: [FIDEOS_CODE],
+        }),
+        priceChange({
+          id: "price-fideos",
+          productId: FIDEOS_ID,
+          priceListId: "price-list-1",
+          unitPriceCents: 100_000,
+          validFrom: "2026-01-01T00:00:00.000Z",
+        }),
+        discountChange({
+          id: "0b6f7c9a-6f0e-4f8e-9a77-5d1c2f0a1b03",
+          name: "Pastas 10",
+          benefit: { kind: "PERCENT_OFF", percent: 10 },
+          target: { kind: "CATEGORY", id: PASTAS_ID },
+          validFrom: "2020-01-01",
+          validTo: "2099-12-31",
+        }),
+        discountChange({
+          id: "0b6f7c9a-6f0e-4f8e-9a77-5d1c2f0a1b04",
+          name: "Fideos 3x2",
+          benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+          target: { kind: "PRODUCT", id: FIDEOS_ID },
+          validFrom: "2020-01-01",
+          validTo: "2099-12-31",
         }),
       ],
       { signInLookups: { [ANA_EMAIL]: { userId: ANA_ID, hasPin: true } } },
@@ -98,13 +132,35 @@ describe("scanning products into a sale on the register", () => {
     await page.getByText("Alfajor triple no tiene precio").waitFor();
   });
 
-  it("charges the sale in cash, shows the change and starts a new sale", async () => {
+  it("charges a line with the promotion that gives the larger discount as its quantity grows", async () => {
+    const { page } = register;
+    const scanField = page.getByRole("searchbox", { name: "Producto" });
+    const fideos = page.getByRole("listitem").filter({ hasText: "Fideos 500 g" });
+
+    await scanField.fill(FIDEOS_CODE);
+    await scanField.press("Enter");
+    await fideos.getByText("10 % de descuento").waitFor();
+    await fideos.getByText("$ 1.000,00").waitFor();
+    await fideos.getByText("$ 900,00").waitFor();
+
+    await scanField.fill(FIDEOS_CODE);
+    await scanField.press("Enter");
+    await fideos.getByText("$ 1.800,00").waitFor();
+
+    await scanField.fill(FIDEOS_CODE);
+    await scanField.press("Enter");
+    await fideos.getByText("Lleve 3, pague 2").waitFor();
+    await fideos.getByText("$ 3.000,00").waitFor();
+    await fideos.getByText("$ 2.000,00").waitFor();
+  });
+
+  it("charges the discounted sale in cash, shows the change and starts a new sale", async () => {
     const { page } = register;
 
     await page.getByRole("button", { name: "Cobrar" }).click();
     await page.getByRole("heading", { name: "Elegí el medio de pago" }).waitFor();
     await page.getByText("Efectivo", { exact: true }).click();
-    await page.getByLabel("Importe entregado por el cliente").fill("5.000,00");
+    await page.getByLabel("Importe entregado por el cliente").fill("7.000,00");
     await page.getByText("VUELTO A ENTREGAR").waitFor();
     await page.getByRole("button", { name: "Completar venta" }).click();
 

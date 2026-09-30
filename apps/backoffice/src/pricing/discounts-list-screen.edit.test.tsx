@@ -140,8 +140,8 @@ test("the edit modal offers what the screen read: an inactive product stays as t
   );
 
   await expect
-    .element(screen.getByRole("dialog").getByRole("button", { name: /Café en grano/ }))
-    .toBeVisible();
+    .element(screen.getByRole("dialog").getByRole("combobox", { name: /^Producto/ }))
+    .toHaveValue("Café en grano");
 });
 
 test("shows no edit modal while the promotions are not loaded", async () => {

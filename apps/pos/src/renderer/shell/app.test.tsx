@@ -7,6 +7,7 @@ import type {
   OpenCashSession,
   OpenCashSessionOutcome,
   OpenSale,
+  PinCodeRedemptionOutcome,
   ScanProductOutcome,
   SignInOutcome,
 } from "@purosur/contracts";
@@ -19,6 +20,7 @@ import { App } from "./app";
 
 const SIGN_IN_TITLE = "¿Quién abre la caja?";
 const SIGNED_IN_TITLE = "¿Qué querés hacer?";
+const LOCKED_TITLE = "Caja bloqueada";
 const BRAND_LOGO_ALT = "Puro Sur";
 const CORE_DOWN_TITLE = "Esperá un momento";
 const ENROLLMENT_TITLE = "Dar de alta esta caja";
@@ -48,10 +50,20 @@ const ADA_SELLS: SignInOutcome = {
   person: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
 };
 
+const GRACE_SIGNED_IN: SignInOutcome = {
+  kind: "signed_in",
+  person: { user_id: "u2", first_name: "Grace", permission_keys: ["sell_and_charge"] },
+};
+
 const ADA_SIGNED_IN: SignInOutcome = {
   kind: "signed_in",
   person: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
 };
+
+async function resumeLockedRegister(screen: Awaited<ReturnType<typeof render>>) {
+  await userEvent.type(screen.getByLabelText("PIN"), "1234");
+  await userEvent.click(screen.getByRole("button", { name: "Retomar" }));
+}
 
 function coreAnswering(
   enrolled: boolean,
@@ -62,6 +74,7 @@ function coreAnswering(
     openOutcome?: OpenCashSessionOutcome;
     closeCashSession?: CoreClient["closeCashSession"];
     cashBalance?: CoreClient["cashBalance"];
+    redeemOutcome?: PinCodeRedemptionOutcome;
     cashMovements?: CoreClient["cashMovements"];
     recordCashMovement?: CoreClient["recordCashMovement"];
   } = {},
@@ -93,7 +106,7 @@ function coreAnswering(
       return outcome;
     },
     async redeemPinCode() {
-      return { kind: "redeemed" };
+      return cashDrawer.redeemOutcome ?? { kind: "redeemed" };
     },
     async signInUsers() {
       usersLoads += 1;
@@ -512,7 +525,7 @@ describe("App", () => {
       .not.toBeInTheDocument();
   });
 
-  it("shows the cash session another person opened when the core refuses a sign-in for it", async () => {
+  it("shows the register locked in the opener's name when the core refuses a sign-in for another person", async () => {
     let answers = 0;
     const { core } = coreAnswering(
       true,
@@ -532,8 +545,9 @@ describe("App", () => {
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
-    await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
-    await expect.element(screen.getByRole("navigation").getByText("Grace")).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("radio", { name: "Grace" })).toBeVisible();
+    await expect.element(screen.getByRole("radio", { name: "Ada" })).not.toBeInTheDocument();
   });
 
   it("still says the cash session is open when the core cannot tell which one after refusing a sign-in", async () => {
@@ -618,7 +632,7 @@ describe("App", () => {
     expect(cashSessionAsks).toEqual([]);
   });
 
-  it("resumes an open cash session for the person who opened it, without asking for a PIN", async () => {
+  it("shows an open cash session locked in its opener's name, offering no other sign-in", async () => {
     await page.viewport(1280, 720);
     onTestFinished(() => page.viewport(414, 896));
     const { core } = coreAnswering(true, { kind: "enrolled" }, ADA_SIGNED_IN, {
@@ -628,26 +642,69 @@ describe("App", () => {
 
     postCoreStatus("up");
 
-    await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
-    await expect.element(screen.getByRole("navigation").getByText("Grace")).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("radio", { name: "Grace" })).toBeVisible();
     await expect.element(screen.getByText("Sesión abierta 09:02")).toBeVisible();
     await expect
       .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
       .not.toBeInTheDocument();
-    await expect.element(screen.getByRole("button", { name: "Salir" })).not.toBeInTheDocument();
+    await expect.element(screen.getByText("Ada")).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it("resumes the open cash session even when the person who was in had signed in as someone else", async () => {
-    const { core } = coreAnswering(true, { kind: "enrolled" }, ADA_SIGNED_IN, {
+  it("resumes the open cash session with the opener's PIN", async () => {
+    const { core } = coreAnswering(true, { kind: "enrolled" }, GRACE_SIGNED_IN, {
       cashSession: async () => GRACE_SESSION,
     });
     const screen = await render(<App core={core} />);
-
     postCoreStatus("up");
+    await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
 
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Retomar" }));
+
+    await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
     await expect.element(screen.getByRole("navigation").getByText("Grace")).toBeVisible();
-    await expect.element(screen.getByText("Ada")).not.toBeInTheDocument();
+  });
+
+  describe("redeeming a PIN code on a locked register", () => {
+    async function redeemFromLocked(redeemOutcome: PinCodeRedemptionOutcome) {
+      const { core } = coreAnswering(true, { kind: "enrolled" }, GRACE_SIGNED_IN, {
+        cashSession: async () => GRACE_SESSION,
+        redeemOutcome,
+      });
+      const screen = await render(<App core={core} />);
+      postCoreStatus("up");
+      await userEvent.click(
+        screen.getByRole("link", { name: "Tengo un código para cambiar el PIN" }),
+      );
+      await userEvent.fill(screen.getByRole("textbox", { name: "Código" }), "K7QM2XPA3DTR4HWN");
+      await userEvent.fill(screen.getByLabelText("PIN nuevo, de al menos 6 dígitos"), "482915");
+      await userEvent.fill(screen.getByLabelText("Repetí el PIN nuevo"), "482915");
+      await userEvent.click(screen.getByRole("button", { name: "Guardar el PIN nuevo" }));
+      return screen;
+    }
+
+    it("resumes the session when the opener redeemed the code", async () => {
+      const screen = await redeemFromLocked({
+        kind: "resumed",
+        person: { user_id: "u2", first_name: "Grace", permission_keys: ["sell_and_charge"] },
+      });
+
+      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+      await expect.element(screen.getByRole("navigation").getByText("Grace")).toBeVisible();
+    });
+
+    it("stays locked and says only the opener can use a code when someone else redeemed it", async () => {
+      const screen = await redeemFromLocked({ kind: "cash_session_opened_by_another" });
+
+      await expect.element(screen.getByText("La caja está abierta")).toBeVisible();
+      await expect
+        .element(screen.getByRole("heading", { name: SESSION_TITLE }))
+        .not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole("link", { name: "Volver" }));
+      await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
+    });
   });
 
   it("shows the sale in progress", async () => {
@@ -655,7 +712,7 @@ describe("App", () => {
     const { core } = coreAnswering(
       true,
       { kind: "enrolled" },
-      ADA_SIGNED_IN,
+      GRACE_SIGNED_IN,
       { cashSession: async () => GRACE_SESSION },
       {
         currentSale: async () => {
@@ -669,6 +726,8 @@ describe("App", () => {
                 product_name: "Yerba mate 1 kg",
                 quantity: 1,
                 list_unit_price: 238_000,
+                discount_amount: 0,
+                promotion: null,
                 line_total: 238_000,
               },
             ],
@@ -680,6 +739,7 @@ describe("App", () => {
     const screen = await render(<App core={core} />);
 
     postCoreStatus("up");
+    await resumeLockedRegister(screen);
 
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
     expect(reads).toEqual(["read"]);
@@ -690,7 +750,7 @@ describe("App", () => {
     const { core } = coreAnswering(
       true,
       { kind: "enrolled" },
-      ADA_SIGNED_IN,
+      GRACE_SIGNED_IN,
       { cashSession: async () => GRACE_SESSION },
       {
         currentSale: async () => ({
@@ -702,6 +762,8 @@ describe("App", () => {
               product_name: "Yerba mate 1 kg",
               quantity: 1,
               list_unit_price: 238_000,
+              discount_amount: 0,
+              promotion: null,
               line_total: 238_000,
             },
           ],
@@ -715,6 +777,7 @@ describe("App", () => {
     );
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
+    await resumeLockedRegister(screen);
 
     await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
     await userEvent.click(screen.getByText("Efectivo", { exact: true }));
@@ -728,23 +791,24 @@ describe("App", () => {
     expect(charges).toEqual([["sale-1", 250_000]]);
   });
 
-  it("goes back to signing in when a scan finds that the cash session is no longer open", async () => {
+  it("goes back to the no-session screen, still signed in, when a scan finds that the cash session is no longer open", async () => {
     const sessions: (OpenCashSession | null)[] = [GRACE_SESSION, null];
     const { core } = coreAnswering(
       true,
       { kind: "enrolled" },
-      ADA_SIGNED_IN,
+      GRACE_SIGNED_IN,
       { cashSession: async () => sessions.shift() ?? null },
       { scanProduct: async () => ({ kind: "no_open_session" }) },
     );
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
+    await resumeLockedRegister(screen);
     const field = screen.getByRole("searchbox", { name: "Producto" });
     await field.fill("7790001");
 
     await userEvent.keyboard("{Enter}");
 
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
   });
 
   it("asks the core for the cash session again each time it comes back up, and waits for the answer", async () => {
@@ -830,7 +894,7 @@ describe("App", () => {
     await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
   });
 
-  it("resumes the open cash session once a failed read of it succeeds while the core stays up", async () => {
+  it("shows the open cash session locked once a failed read of it succeeds while the core stays up", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     const answers: (OpenCashSession | "unavailable")[] = ["unavailable", GRACE_SESSION];
     const { core } = coreAnswering(true, { kind: "enrolled" }, ADA_SIGNED_IN, {
@@ -842,7 +906,7 @@ describe("App", () => {
 
     await vi.advanceTimersToNextTimerAsync();
 
-    await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
   });
 
   it("does not ask for the cash session again while it could read it", async () => {
@@ -873,7 +937,7 @@ describe("App", () => {
       .not.toBeInTheDocument();
     postCoreStatus("up");
 
-    await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
     await expect
       .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
       .not.toBeInTheDocument();
@@ -894,11 +958,10 @@ describe("App", () => {
     await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
     await expect.element(screen.getByRole("navigation").getByText("Ada")).toBeVisible();
     await expect.element(screen.getByText("Sesión abierta 09:02")).toBeVisible();
-    await expect.element(screen.getByRole("button", { name: "Salir" })).not.toBeInTheDocument();
     expect(opened).toEqual([10_000]);
   });
 
-  it("shows the session that is already open when the core says so", async () => {
+  it("shows the register locked in the opener's name when the core says a session of another person is already open", async () => {
     let answers = 0;
     const { core } = coreAnswering(true, { kind: "enrolled" }, ADA_SELLS, {
       openOutcome: { kind: "already_open" },
@@ -917,8 +980,30 @@ describe("App", () => {
     await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "100");
     await userEvent.click(screen.getByRole("button", { name: "Abrir la caja" }));
 
-    await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
-    await expect.element(screen.getByRole("navigation").getByText("Grace")).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("radio", { name: "Grace" })).toBeVisible();
+  });
+
+  it("signs the person out in the core when the session already open is another person's", async () => {
+    let answers = 0;
+    const { core, asked } = coreAnswering(true, { kind: "enrolled" }, ADA_SELLS, {
+      openOutcome: { kind: "already_open" },
+      cashSession: async () => {
+        answers += 1;
+        return answers === 1 ? null : GRACE_SESSION;
+      },
+    });
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+    await userEvent.type(screen.getByLabelText("PIN"), "1234");
+    await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
+    await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "100");
+    await userEvent.click(screen.getByRole("button", { name: "Abrir la caja" }));
+    await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
+
+    expect(asked).toContain("sign-out");
   });
 
   it("asks to try again when the core cannot tell which session is already open", async () => {
@@ -996,13 +1081,15 @@ describe("App", () => {
     ) {
       await page.viewport(1280, 720);
       onTestFinished(() => page.viewport(414, 896));
-      const fake = coreAnswering(true, { kind: "enrolled" }, ADA_SIGNED_IN, {
+      const fake = coreAnswering(true, { kind: "enrolled" }, GRACE_SIGNED_IN, {
         cashSession: async () => GRACE_SESSION,
         cashBalance: async () => BALANCE,
         ...cashDrawer,
       });
       const screen = await render(<App core={fake.core} />);
       postCoreStatus("up");
+      await userEvent.type(screen.getByLabelText("PIN"), "1234");
+      await userEvent.click(screen.getByRole("button", { name: "Retomar" }));
       await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
       return { screen, ...fake };
     }
@@ -1039,7 +1126,7 @@ describe("App", () => {
           difference: -40_000,
         },
       };
-      const { screen, closed } = await resumeGracesSession({
+      const { screen, closed, asked } = await resumeGracesSession({
         closeCashSession: async () => closeOutcome,
       });
       await startClosing(screen);
@@ -1053,6 +1140,69 @@ describe("App", () => {
         .not.toBeInTheDocument();
       await expect.element(screen.getByText("Sin sesión abierta")).toBeVisible();
       expect(closed).toEqual([["s1", 4_580_000, undefined]]);
+      expect(asked).not.toContain("sign-out");
+    });
+
+    it("leaves the register locked in the opener's name from Salir, resumed with the opener's PIN", async () => {
+      const { screen, asked } = await resumeGracesSession();
+      await userEvent.click(screen.getByRole("button", { name: "Salir" }));
+
+      await userEvent.click(screen.getByRole("button", { name: "Dejar bloqueada" }));
+
+      await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
+      await expect.element(screen.getByRole("radio", { name: "Grace" })).toBeVisible();
+      expect(asked).toContain("sign-out");
+      await userEvent.type(screen.getByLabelText("PIN"), "1234");
+      await userEvent.click(screen.getByRole("button", { name: "Retomar" }));
+      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    });
+
+    it("ends signed out at the entry screen when the close was started from Salir", async () => {
+      const { screen, closed, asked } = await resumeGracesSession({
+        closeCashSession: async () => ({
+          kind: "closed",
+          session: {
+            id: "s1",
+            expected_cash: 4_620_000,
+            counted_cash: 4_580_000,
+            difference: -40_000,
+          },
+        }),
+      });
+      await userEvent.click(screen.getByRole("button", { name: "Salir" }));
+      await userEvent.click(
+        screen
+          .getByRole("dialog", { name: "¿Cerrar la caja o dejarla bloqueada?" })
+          .getByRole("button", { name: "Cerrar caja" }),
+      );
+      await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
+
+      await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
+
+      await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+      await expect
+        .element(screen.getByRole("heading", { name: SIGNED_IN_TITLE }))
+        .not.toBeInTheDocument();
+      expect(closed).toEqual([["s1", 4_580_000, undefined]]);
+      expect(asked).toContain("sign-out");
+    });
+
+    it("stays signed in on the cash count when the close from Salir is refused", async () => {
+      const { screen, asked } = await resumeGracesSession({
+        closeCashSession: async () => ({ kind: "open_sale", total: 3_434_000 }),
+      });
+      await userEvent.click(screen.getByRole("button", { name: "Salir" }));
+      await userEvent.click(
+        screen
+          .getByRole("dialog", { name: "¿Cerrar la caja o dejarla bloqueada?" })
+          .getByRole("button", { name: "Cerrar caja" }),
+      );
+      await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
+
+      await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
+
+      await expect.element(screen.getByText("Hay una venta abierta de $ 34.340,00")).toBeVisible();
+      expect(asked).not.toContain("sign-out");
     });
 
     it("stays on the cash count and offers the sale when it is still open", async () => {
@@ -1111,14 +1261,23 @@ describe("App", () => {
     ) {
       await page.viewport(1280, 720);
       onTestFinished(() => page.viewport(414, 896));
-      const fake = coreAnswering(true, { kind: "enrolled" }, ADA_SIGNED_IN, {
-        cashSession: async () => MOVER_SESSION,
-        cashBalance: async () => BALANCE,
-        cashMovements: async () => [OPENING],
-        ...cashDrawer,
-      });
+      const fake = coreAnswering(
+        true,
+        { kind: "enrolled" },
+        {
+          kind: "signed_in",
+          person: { user_id: "u2", first_name: "Grace", permission_keys: ["record_cash_in"] },
+        },
+        {
+          cashSession: async () => MOVER_SESSION,
+          cashBalance: async () => BALANCE,
+          cashMovements: async () => [OPENING],
+          ...cashDrawer,
+        },
+      );
       const screen = await render(<App core={fake.core} />);
       postCoreStatus("up");
+      await resumeLockedRegister(screen);
       await userEvent.click(screen.getByRole("link", { name: "Caja" }));
       await expect
         .element(
@@ -1176,7 +1335,7 @@ describe("App", () => {
 
       await recordCashIn(screen);
 
-      await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+      await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
     });
   });
 });

@@ -23,6 +23,7 @@ export type CashScreenProps = {
   person: SignedInPerson;
   registerName: string | null;
   openedAt: string;
+  lock: () => void;
   loadCashBalance: () => Promise<CashBalance | null | "unavailable">;
   loadCashMovements: () => Promise<ListedCashMovement[] | null | "unavailable">;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
@@ -33,6 +34,7 @@ export function CashScreen({
   person,
   registerName,
   openedAt,
+  lock,
   loadCashBalance,
   loadCashMovements,
   loadAuthorizers,
@@ -45,7 +47,12 @@ export function CashScreen({
 
   return (
     <div className="flex h-screen w-screen bg-surface">
-      <OpenSessionRail firstName={person.first_name} current="cash" />
+      <OpenSessionRail
+        firstName={person.first_name}
+        registerName={registerName}
+        lock={lock}
+        current="cash"
+      />
       <main className="flex flex-1 flex-col gap-6 p-8">
         <div className="flex flex-col gap-1.5">
           <SessionEyebrow registerName={registerName} openedAt={openedAt} />
@@ -72,7 +79,7 @@ export function CashScreen({
           size="large"
           fullWidth
           icon={<Lock />}
-          onPress={() => void navigate({ to: "/cash-count" })}
+          onPress={() => void navigate({ to: "/cash-count", search: { leaving: false } })}
         >
           Cerrar caja
         </Button>

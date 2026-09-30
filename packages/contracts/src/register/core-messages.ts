@@ -209,8 +209,16 @@ const enrollmentOutcomeSchema = z.discriminatedUnion("kind", [
 ]);
 export type EnrollmentOutcome = z.infer<typeof enrollmentOutcomeSchema>;
 
+const signedInPersonSchema = z.object({
+  user_id: z.string(),
+  first_name: z.string(),
+  permission_keys: z.array(z.string()),
+});
+
 const pinCodeRedemptionOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("redeemed") }),
+  z.object({ kind: z.literal("resumed"), person: signedInPersonSchema }),
+  z.object({ kind: z.literal("cash_session_opened_by_another") }),
   z.object({ kind: z.literal("code_invalid") }),
   z.object({ kind: z.literal("code_expired") }),
   z.object({ kind: z.literal("code_burned") }),
@@ -220,12 +228,6 @@ const pinCodeRedemptionOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("unavailable") }),
 ]);
 export type PinCodeRedemptionOutcome = z.infer<typeof pinCodeRedemptionOutcomeSchema>;
-
-const signedInPersonSchema = z.object({
-  user_id: z.string(),
-  first_name: z.string(),
-  permission_keys: z.array(z.string()),
-});
 
 const signInOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("signed_in"), person: signedInPersonSchema }),
@@ -291,6 +293,7 @@ const recordCashMovementOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("invalid_reason") }),
   z.object({ kind: z.literal("no_open_session") }),
   z.object({ kind: z.literal("not_signed_in") }),
+  z.object({ kind: z.literal("exceeds_expected_cash"), expected: z.number() }),
   ...authorizationRefusalSchema.options,
 ]);
 export type RecordCashMovementOutcome = z.infer<typeof recordCashMovementOutcomeSchema>;

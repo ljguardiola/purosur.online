@@ -347,6 +347,11 @@ describe("coreToRendererMessageSchema", () => {
 
   it.each([
     { kind: "redeemed" },
+    {
+      kind: "resumed",
+      person: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+    },
+    { kind: "cash_session_opened_by_another" },
     { kind: "code_invalid" },
     { kind: "code_expired" },
     { kind: "code_burned" },
@@ -358,6 +363,16 @@ describe("coreToRendererMessageSchema", () => {
     const message = { type: "pin-code-redemption-result", request_id: REQUEST_ID, outcome };
 
     expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a resumed PIN code redemption without the person", () => {
+    const message = {
+      type: "pin-code-redemption-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "resumed" },
+    };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 
   it("rejects a PIN code redemption rate limit without when to retry", () => {
@@ -885,20 +900,24 @@ describe("cash movement answers", () => {
     { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 7 },
     { kind: "rate_limited", retry_after_seconds: 30, attempts_left: 3 },
     { kind: "locked", consecutive_failures: 8 },
+    { kind: "exceeds_expected_cash", expected: 4_200_000 },
   ])("accepts the refusal $kind", (outcome) => {
     const message = { type: "record-cash-movement-result", request_id: REQUEST_ID, outcome };
 
     expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
-  it.each([{ kind: "x" }, { kind: "wrong_pin" }, { kind: "not_permitted" }])(
-    "rejects a refusal it does not know: %j",
-    (outcome) => {
-      const message = { type: "record-cash-movement-result", request_id: REQUEST_ID, outcome };
+  it.each([
+    { kind: "x" },
+    { kind: "wrong_pin" },
+    { kind: "not_permitted" },
+    { kind: "exceeds_expected_cash" },
+    { kind: "exceeds_expected_cash", expected: "42" },
+  ])("rejects a refusal it does not know: %j", (outcome) => {
+    const message = { type: "record-cash-movement-result", request_id: REQUEST_ID, outcome };
 
-      expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
-    },
-  );
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
 
   const listed = {
     id: "m1",
@@ -1173,6 +1192,8 @@ describe("sale answers", () => {
         product_name: "Yerba",
         quantity: 1,
         list_unit_price: 1500,
+        discount_amount: 0,
+        promotion: null,
         line_total: 1500,
       },
     ],
