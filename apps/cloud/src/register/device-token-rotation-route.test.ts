@@ -59,7 +59,7 @@ function daysAgo(days: number): Date {
 function rotate(authorization?: string) {
   return app.inject({
     method: "POST",
-    url: "/devices/rotate-token",
+    url: "/devices/current/tokens",
     ...(authorization !== undefined && { headers: { authorization } }),
   });
 }
@@ -77,7 +77,19 @@ async function rotatedToken(previousToken: string): Promise<string> {
   return deviceTokenRotationSchema.parse(response.json()).device_token;
 }
 
-describe("POST /devices/rotate-token", () => {
+describe("POST /devices/current/tokens", () => {
+  it("no longer answers POST /devices/rotate-token", async () => {
+    const { deviceToken } = await insertEnrolledInstallation(db);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/devices/rotate-token",
+      headers: { authorization: `Bearer ${deviceToken}` },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
   it("answers a new device token shaped like an enrolled one, without a session", async () => {
     const { deviceToken } = await insertEnrolledInstallation(db);
 

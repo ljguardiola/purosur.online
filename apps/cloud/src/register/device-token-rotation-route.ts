@@ -23,7 +23,7 @@ export function registerDeviceTokenRotationRoute<TQueryResult extends PgQueryRes
     answerErrorsWithCloudEnvelope(scope);
 
     scope.post(
-      "/devices/rotate-token",
+      "/devices/current/tokens",
       { config: { access: PUBLIC_ACCESS } },
       async (request, reply) => {
         const { authorization } = request.headers;
