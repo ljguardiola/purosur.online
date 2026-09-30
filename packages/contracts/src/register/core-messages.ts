@@ -1,11 +1,17 @@
 import {
+  ARGENTINA_TIME_ZONE,
   isValidCashAmount,
   PIN_SIGN_IN_LOCKOUT_FAILURES,
   PIN_SIGN_IN_MAX_DELAY_SECONDS,
+  parseAmountCents,
 } from "@purosur/domain";
 import { z } from "zod";
 
 const requestId = z.string();
+
+export const openingFloatSchema = z.number().refine(isValidCashAmount);
+
+export { ARGENTINA_TIME_ZONE, parseAmountCents };
 
 const rendererPingMessageSchema = z.object({
   type: z.literal("ping"),
@@ -50,7 +56,7 @@ const openCashSessionMessageSchema = z.object({
   type: z.literal("open-cash-session"),
   request_id: requestId,
   user_id: z.string(),
-  opening_float: z.number().refine(isValidCashAmount),
+  opening_float: openingFloatSchema,
 });
 
 const cashSessionRequestMessageSchema = z.object({

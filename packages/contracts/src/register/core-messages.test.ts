@@ -4,6 +4,7 @@ import {
   coreStatusMessageSchema,
   coreToRendererMessageSchema,
   mainToCoreMessageSchema,
+  openingFloatSchema,
   rendererToCoreMessageSchema,
 } from "./core-messages.js";
 
@@ -497,5 +498,15 @@ describe("coreStatusMessageSchema", () => {
   it("rejects any other message type", () => {
     expect(coreStatusMessageSchema.safeParse({ type: "ping", status: "up" }).success).toBe(false);
     expect(coreStatusMessageSchema.safeParse({ status: "up" }).success).toBe(false);
+  });
+});
+
+describe("openingFloatSchema", () => {
+  it.each([0, 1, MAX_CASH_AMOUNT_CENTS])("accepts %i cents", (cents) => {
+    expect(openingFloatSchema.safeParse(cents).success).toBe(true);
+  });
+
+  it.each([-1, 0.5, MAX_CASH_AMOUNT_CENTS + 1, Number.NaN, "100", null])("rejects %j", (value) => {
+    expect(openingFloatSchema.safeParse(value).success).toBe(false);
   });
 });

@@ -1,5 +1,5 @@
 import type { OpenCashSessionOutcome } from "@purosur/contracts";
-import { isValidCashAmount, parseAmountCents } from "@purosur/domain";
+import { openingFloatSchema, parseAmountCents } from "@purosur/contracts";
 import { Button, InlineNotice, TextField } from "@purosur/ui";
 import { LockOpen, TriangleAlert, UserX, X } from "lucide-react";
 import type { FormEvent } from "react";
@@ -18,7 +18,8 @@ function openingFloatFrom(typed: string): { cents: number } | { message: string 
     return { message: REQUIRED_MESSAGE };
   }
   const cents = parseAmountCents(typed);
-  return cents !== undefined && isValidCashAmount(cents) ? { cents } : { message: INVALID_MESSAGE };
+  const opening = openingFloatSchema.safeParse(cents);
+  return opening.success ? { cents: opening.data } : { message: INVALID_MESSAGE };
 }
 
 export type CashOpeningPanelProps = {

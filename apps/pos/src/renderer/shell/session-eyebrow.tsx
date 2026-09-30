@@ -1,4 +1,4 @@
-import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
+import { ARGENTINA_TIME_ZONE } from "@purosur/contracts";
 import { formatDate } from "@purosur/ui";
 
 function statusText(openedAt: string | undefined): string {
