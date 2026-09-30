@@ -1,6 +1,7 @@
 import type {
   Authorization,
   CashBalance,
+  ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
   CoreToRendererMessage,
   CurrentSaleAnswer,
@@ -49,6 +50,7 @@ export interface CoreClient {
   cashMovements(): Promise<ListedCashMovement[] | null | "unavailable">;
   scanProduct(code: string): Promise<ScanProductOutcome>;
   currentSale(): Promise<CurrentSaleAnswer>;
+  chargeSaleInCash(saleId: string, tendered: number): Promise<ChargeSaleInCashOutcome>;
   closeCashSession(
     sessionId: string,
     countedCash: number,
@@ -267,6 +269,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         }
         return answer.type === "sale" ? answer.sale : undefined;
       });
+    },
+    chargeSaleInCash(saleId, tendered) {
+      return ask(
+        { type: "charge-sale-in-cash", request_id: deps.newRequestId(), sale_id: saleId, tendered },
+        (answer) => (answer.type === "charge-sale-in-cash-result" ? answer.outcome : undefined),
+      );
     },
     closeCashSession(sessionId, countedCash, authorization) {
       return ask(

@@ -285,6 +285,41 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to charge a sale in cash and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const outcome = client.chargeSaleInCash("sale-1", 500_000);
+    port.answer({
+      type: "charge-sale-in-cash-result",
+      request_id: "request-1",
+      outcome: {
+        kind: "completed",
+        sale_id: "sale-1",
+        total: 476_000,
+        tendered: 500_000,
+        change: 24_000,
+      },
+    });
+
+    expect(await outcome).toEqual({
+      kind: "completed",
+      sale_id: "sale-1",
+      total: 476_000,
+      tendered: 500_000,
+      change: 24_000,
+    });
+    expect(port.posted).toEqual([
+      {
+        type: "charge-sale-in-cash",
+        request_id: "request-1",
+        sale_id: "sale-1",
+        tendered: 500_000,
+      },
+    ]);
+  });
+
   it("asks the core to record a cash movement without an authorization", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
