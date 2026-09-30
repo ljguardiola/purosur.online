@@ -74,15 +74,15 @@ export type CreateUserOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-function sendJson(method: "POST" | "PUT", path: string, body?: unknown): Promise<Response> {
+function sendJson(method: "POST" | "PUT", path: string, body: unknown): Promise<Response> {
   return fetch(path, {
     method,
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body ?? {}),
+    body: JSON.stringify(body),
   });
 }
 
-function postJson(path: string, body?: unknown): Promise<Response> {
+function postJson(path: string, body: unknown): Promise<Response> {
   return sendJson("POST", path, body);
 }
 
