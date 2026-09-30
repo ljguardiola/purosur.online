@@ -140,6 +140,7 @@ for (const path of [
   "tsconfig.json",
   ".github/workflows/verify.yml",
   ".github/scripts/slow-tests-reporter.mjs",
+  ".github/scripts/without-package-output.mjs",
 ]) {
   test(`treats ${path} as a catalog input`, () => {
     assert.equal(isCatalogInput(path), true);
