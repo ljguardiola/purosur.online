@@ -8,6 +8,7 @@ import type {
   SignInOutcome,
   SignInUser,
 } from "@purosur/contracts";
+import type { AuthorizablePermissionKey } from "@purosur/domain";
 
 export interface RendererRequestDeps {
   credentialsPresent: () => Promise<boolean>;
@@ -20,6 +21,7 @@ export interface RendererRequestDeps {
     | ((userId: string, openingFloat: number) => Promise<OpenCashSessionOutcome>)
     | undefined;
   cashSession: (() => OpenCashSession | null) | undefined;
+  authorizers: ((permission: AuthorizablePermissionKey) => SignInUser[]) | undefined;
   reportFailure: (context: string, error: unknown) => void;
 }
 
@@ -28,6 +30,18 @@ function readSignInUsers(deps: RendererRequestDeps): SignInUser[] | undefined {
     return deps.signInUsers?.();
   } catch (error) {
     deps.reportFailure("reading the users who can sign in", error);
+    return undefined;
+  }
+}
+
+function readAuthorizers(
+  deps: RendererRequestDeps,
+  permission: AuthorizablePermissionKey,
+): SignInUser[] | undefined {
+  try {
+    return deps.authorizers?.(permission);
+  } catch (error) {
+    deps.reportFailure("reading the people who can authorize", error);
     return undefined;
   }
 }
@@ -119,6 +133,12 @@ export async function answerRendererRequest(
       return session === undefined
         ? { type: "cash-session-unavailable", request_id: message.request_id }
         : { type: "cash-session", request_id: message.request_id, session };
+    }
+    case "authorizers": {
+      const users = readAuthorizers(deps, message.permission);
+      return users === undefined
+        ? { type: "authorizers-unavailable", request_id: message.request_id }
+        : { type: "authorizers", request_id: message.request_id, users };
     }
     case "ping":
       return undefined;

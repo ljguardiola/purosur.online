@@ -1,13 +1,6 @@
 import type { SignInOutcome, SignInUser } from "@purosur/contracts";
 import type { Icon } from "@purosur/ui";
-import {
-  Button,
-  EmptyState,
-  InlineNotice,
-  LoadFailure,
-  LoadingPlaceholder,
-  plural,
-} from "@purosur/ui";
+import { Button, EmptyState, InlineNotice, LoadFailure, LoadingPlaceholder } from "@purosur/ui";
 import { ArrowRight, KeyRound, ShieldX, TriangleAlert, UsersRound, UserX } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
@@ -15,6 +8,7 @@ import { useCountdown } from "../platform/use-countdown";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
 import { ScreenLink } from "../shell/screen-link";
 import { SessionEyebrow } from "../shell/session-eyebrow";
+import { waitDescription } from "./pin-attempt-text";
 import { PinField } from "./pin-field";
 import { SignInLockout } from "./sign-in-lockout";
 import { UserPicker } from "./user-picker";
@@ -37,22 +31,6 @@ const UNAVAILABLE_NOTICE: Notice = {
   title: "No se pudo verificar el PIN",
   description: "Volvé a intentarlo en unos segundos.",
 };
-
-function attemptsLeftText(attemptsLeft: number): string {
-  const attempts = plural(attemptsLeft, {
-    one: "Queda 1 intento",
-    other: `Quedan ${attemptsLeft} intentos`,
-  });
-  return `${attempts} antes de que el usuario se bloquee.`;
-}
-
-function waitDescription(secondsLeft: number, attemptsLeft: number): string {
-  const instruction =
-    secondsLeft > 0
-      ? `Esperá ${plural(secondsLeft, { one: "1 segundo", other: `${secondsLeft} segundos` })} para volver a intentar.`
-      : "Revisá el PIN y volvé a escribirlo.";
-  return `${instruction} ${attemptsLeftText(attemptsLeft)}`;
-}
 
 function noticeFor(refusal: Refusal, secondsLeft: number): Notice | undefined {
   switch (refusal.kind) {

@@ -1,6 +1,8 @@
 export type { RoleAccess } from "./model/access-increase.js";
 export { grantedPermissionKeys, increasesAccess } from "./model/access-increase.js";
 export { isEmailAddress } from "./model/email-address.js";
+export type { AuthorizablePermissionKey } from "./model/holds-permission.js";
+export { holdsPermission, isAuthorizablePermissionKey } from "./model/holds-permission.js";
 export {
   isPasskeyNameTooLong,
   PASSKEY_NAME_MAX_LENGTH,
@@ -21,7 +23,6 @@ export {
   PERMISSION_KEYS,
   repeatsAPermissionKey,
 } from "./model/permission-catalog.js";
-export { holdsPermission } from "./model/permission-holding.js";
 export {
   lacksARequiredPermission,
   permissionsRequiring,

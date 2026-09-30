@@ -1,92 +1,24 @@
-import { timingSafeEqual } from "node:crypto";
 import type { SignInOutcome } from "@purosur/contracts";
-import {
-  decodePinSalt,
-  holdsARegisterPermission,
-  isLockedOutOfPinSignIn,
-  PIN_SIGN_IN_LOCKOUT_FAILURES,
-  pinSignInAttemptsLeft,
-  pinSignInDelaySeconds,
-  pinSignInRetryAfterSeconds,
-} from "@purosur/domain";
+import { holdsARegisterPermission, pinSignInAttemptsLeft } from "@purosur/domain";
 import { grantedPermissionKeys } from "./granted-permission-keys";
-import { derivePinVerifier } from "./pin-verifier";
-import type { SignInStore } from "./sqlite-sign-in-store";
+import { checkCountedPin, type PinCheckDeps, signableRecord } from "./pin-check";
 
-export interface SignInDeps {
-  store: Pick<
-    SignInStore,
-    | "signInRecord"
-    | "pinSignInFailures"
-    | "recordPinSignInFailure"
-    | "withdrawPinSignInFailure"
-    | "clearPinSignInFailures"
-  >;
-  readPepper: () => Promise<string | undefined>;
-  hashPin: (pin: string, salt: Uint8Array) => Promise<string>;
-  now: () => Date;
-}
-
-function sameText(left: string, right: string): boolean {
-  const leftBytes = Buffer.from(left);
-  const rightBytes = Buffer.from(right);
-  return leftBytes.length === rightBytes.length && timingSafeEqual(leftBytes, rightBytes);
-}
+export type SignInDeps = PinCheckDeps;
 
 export async function signIn(
   deps: SignInDeps,
   userId: string,
   pin: string,
 ): Promise<SignInOutcome> {
-  const record = deps.store.signInRecord(userId);
-  const salt = record === undefined ? undefined : decodePinSalt(record.salt);
-  if (record === undefined || salt === undefined) {
+  const signable = signableRecord(deps.store, userId);
+  if (signable === undefined) {
     return { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: pinSignInAttemptsLeft(1) };
   }
-  const pepper = await deps.readPepper();
-  const failures = deps.store.pinSignInFailures(userId);
-  if (failures !== undefined) {
-    if (isLockedOutOfPinSignIn(failures.consecutiveFailures)) {
-      return { kind: "locked", consecutive_failures: PIN_SIGN_IN_LOCKOUT_FAILURES };
-    }
-    const retryAfterSeconds = pinSignInRetryAfterSeconds(
-      failures.consecutiveFailures,
-      failures.lastFailedAt,
-      deps.now(),
-    );
-    if (retryAfterSeconds > 0) {
-      return {
-        kind: "rate_limited",
-        retry_after_seconds: retryAfterSeconds,
-        attempts_left: pinSignInAttemptsLeft(failures.consecutiveFailures),
-      };
-    }
+  const check = await checkCountedPin(deps, userId, signable, pin);
+  if (check.kind !== "right_pin") {
+    return check;
   }
-  if (pepper === undefined) {
-    return { kind: "unavailable" };
-  }
-  // Counted before hashing, with no await since the check above, so an attempt in flight
-  // cannot let another one for the same person through the wait or the lockout.
-  const failed = deps.store.recordPinSignInFailure(userId, deps.now());
-  let pinHash: string;
-  try {
-    pinHash = await deps.hashPin(pin, salt);
-  } catch (error) {
-    deps.store.withdrawPinSignInFailure(userId);
-    throw error;
-  }
-  const verifier = derivePinVerifier(pepper, pinHash);
-  if (!sameText(verifier, record.verifier)) {
-    if (isLockedOutOfPinSignIn(failed.consecutiveFailures)) {
-      return { kind: "locked", consecutive_failures: PIN_SIGN_IN_LOCKOUT_FAILURES };
-    }
-    return {
-      kind: "wrong_pin",
-      retry_after_seconds: pinSignInDelaySeconds(failed.consecutiveFailures),
-      attempts_left: pinSignInAttemptsLeft(failed.consecutiveFailures),
-    };
-  }
-  deps.store.clearPinSignInFailures(userId);
+  const { record } = signable;
   if (!holdsARegisterPermission(record.access)) {
     return { kind: "no_register_permission" };
   }

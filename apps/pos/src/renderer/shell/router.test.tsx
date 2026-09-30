@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { SignedInPerson } from "../access/signed-in-person";
+import { GuardedCashInForm } from "../access/test-support/guarded-cash-in-form";
 import type { CashSessionState } from "./cash-session-state";
 import type { CoreStatus, Enrollment, RouterContext } from "./router";
 import { createRegisterRouter, routeFor, routeTree } from "./router";
@@ -70,6 +71,7 @@ function contextWith(
     enroll: async () => ({ kind: "enrolled" }),
     registerName: async () => null,
     signInUsers: async () => [{ id: "u1", first_name: "Ada" }],
+    authorizers: async () => [{ id: "u2", first_name: "Grace" }],
     signIn: async () => ({ kind: "signed_in", person: PERSON }),
     signOut,
     redeemPinCode: async () => ({ kind: "redeemed" }),
@@ -566,5 +568,34 @@ describe("the register's router", () => {
     await expect.element(screen.getByText(OUTER_BOUNDARY_TEXT)).toBeVisible();
     await expect.element(screen.getByText(ROUTER_DEFAULT_ERROR_TEXT)).not.toBeInTheDocument();
     expect(onCatch).toHaveBeenCalledWith(screenFailure);
+  });
+
+  it("hands a screen the loader of the people who can authorize", async () => {
+    const rootRoute = createRootRouteWithContext<RouterContext>()();
+    function GuardedScreen() {
+      const { authorizers } = rootRoute.useRouteContext();
+      return (
+        <GuardedCashInForm
+          person={{ user_id: "u1", first_name: "Tomás", permission_keys: [] }}
+          loadAuthorizers={authorizers}
+          submit={async () => ({ kind: "performed", authorized_by: null })}
+        />
+      );
+    }
+    const guardedRoute = createRoute({
+      getParentRoute: () => rootRoute,
+      path: "/",
+      component: GuardedScreen,
+    });
+    const router = createRegisterRouter(
+      rootRoute.addChildren([guardedRoute]),
+      contextWith("up"),
+      "/",
+    );
+
+    const screen = await render(<RouterProvider router={router} />);
+    await userEvent.click(screen.getByRole("button", { name: /Persona que autoriza/ }));
+
+    await expect.element(screen.getByRole("option", { name: "Grace" })).toBeVisible();
   });
 });

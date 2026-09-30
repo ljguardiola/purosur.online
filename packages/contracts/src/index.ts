@@ -1,3 +1,13 @@
+export type {
+  Authorization,
+  AuthorizationRefusal,
+  AuthorizedBy,
+} from "./access/authorization.js";
+export {
+  authorizationRefusalSchema,
+  authorizationSchema,
+  authorizedBySchema,
+} from "./access/authorization.js";
 export type { BranchUserWire } from "./access/branch-user.js";
 export { branchUserListSchema, branchUserSchema } from "./access/branch-user.js";
 export type { OpenSessionWire } from "./access/open-session.js";
@@ -8,6 +18,8 @@ export type { PasskeyRegistrationChallengeWire } from "./access/passkey-registra
 export { passkeyRegistrationChallengeSchema } from "./access/passkey-registration-challenge.js";
 export type { PasskeySummaryWire } from "./access/passkey-summary.js";
 export { passkeyListSchema, passkeySummarySchema } from "./access/passkey-summary.js";
+export type { PinAttemptRefusal } from "./access/pin-attempt-refusal.js";
+export { pinAttemptRefusalSchema } from "./access/pin-attempt-refusal.js";
 export type { PinCodeRedemption, PinCodeRedemptionBody } from "./access/pin-code-redemption.js";
 export {
   newPinSchema,

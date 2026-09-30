@@ -6,6 +6,7 @@ import type {
   SignInOutcome,
   SignInUser,
 } from "@purosur/contracts";
+import type { AuthorizablePermissionKey } from "@purosur/domain";
 import type { AnyRoute } from "@tanstack/react-router";
 import {
   createMemoryHistory,
@@ -37,6 +38,7 @@ export interface RouterContext {
   cashSession: CashSessionState;
   enroll: (typedCode: string) => Promise<EnrollmentOutcome>;
   signInUsers: () => Promise<SignInUser[]>;
+  authorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   signIn: (userId: string, pin: string) => Promise<SignInOutcome>;
   registerName: () => Promise<string | null>;
   signOut: () => void;
@@ -219,6 +221,7 @@ export function createAppRouter(
     | "signIn"
     | "signOut"
     | "openCashSession"
+    | "authorizers"
     | "redeemPinCode"
   >,
 ) {

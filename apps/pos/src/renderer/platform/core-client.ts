@@ -9,6 +9,7 @@ import type {
   SignInUser,
 } from "@purosur/contracts";
 import { coreToRendererMessageSchema } from "@purosur/contracts";
+import type { AuthorizablePermissionKey } from "@purosur/domain";
 
 export interface CorePort {
   postMessage(message: unknown): void;
@@ -24,6 +25,7 @@ export interface CoreClient {
   enroll(typedCode: string): Promise<EnrollmentOutcome>;
   redeemPinCode(typedCode: string, newPin: string): Promise<PinCodeRedemptionOutcome>;
   signInUsers(): Promise<SignInUser[]>;
+  authorizers(permission: AuthorizablePermissionKey): Promise<SignInUser[]>;
   signIn(userId: string, pin: string): Promise<SignInOutcome>;
   openCashSession(userId: string, openingFloat: number): Promise<OpenCashSessionOutcome>;
   cashSession(): Promise<OpenCashSession | null | "unavailable">;
@@ -145,6 +147,14 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           throw new Error("the core could not read the users who can sign in");
         }
         return answer.type === "sign-in-users" ? answer.users : undefined;
+      });
+    },
+    authorizers(permission) {
+      return ask({ type: "authorizers", request_id: deps.newRequestId(), permission }, (answer) => {
+        if (answer.type === "authorizers-unavailable") {
+          throw new Error("the core could not read the people who can authorize");
+        }
+        return answer.type === "authorizers" ? answer.users : undefined;
       });
     },
     signIn(userId, pin) {

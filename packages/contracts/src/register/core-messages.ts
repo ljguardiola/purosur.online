@@ -1,11 +1,12 @@
 import {
   ARGENTINA_TIME_ZONE,
+  type AuthorizablePermissionKey,
+  isAuthorizablePermissionKey,
   isValidCashAmount,
-  PIN_SIGN_IN_LOCKOUT_FAILURES,
-  PIN_SIGN_IN_MAX_DELAY_SECONDS,
   parseAmountCents,
 } from "@purosur/domain";
 import { z } from "zod";
+import { pinAttemptRefusalSchema } from "../access/pin-attempt-refusal.js";
 
 const requestId = z.string();
 
@@ -64,6 +65,12 @@ const cashSessionRequestMessageSchema = z.object({
   request_id: requestId,
 });
 
+const authorizersRequestMessageSchema = z.object({
+  type: z.literal("authorizers"),
+  request_id: requestId,
+  permission: z.custom<AuthorizablePermissionKey>(isAuthorizablePermissionKey),
+});
+
 export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   rendererPingMessageSchema,
   enrollmentStatusRequestMessageSchema,
@@ -74,6 +81,7 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   signInMessageSchema,
   openCashSessionMessageSchema,
   cashSessionRequestMessageSchema,
+  authorizersRequestMessageSchema,
 ]);
 export type RendererToCoreMessage = z.infer<typeof rendererToCoreMessageSchema>;
 
@@ -105,28 +113,9 @@ const signedInPersonSchema = z.object({
   permission_keys: z.array(z.string()),
 });
 
-const pinSignInWaitSeconds = z.int().max(PIN_SIGN_IN_MAX_DELAY_SECONDS);
-const pinSignInAttemptsLeft = z
-  .int()
-  .min(1)
-  .max(PIN_SIGN_IN_LOCKOUT_FAILURES - 1);
-
 const signInOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("signed_in"), person: signedInPersonSchema }),
-  z.object({
-    kind: z.literal("wrong_pin"),
-    retry_after_seconds: pinSignInWaitSeconds.min(0),
-    attempts_left: pinSignInAttemptsLeft,
-  }),
-  z.object({
-    kind: z.literal("rate_limited"),
-    retry_after_seconds: pinSignInWaitSeconds.min(1),
-    attempts_left: pinSignInAttemptsLeft,
-  }),
-  z.object({
-    kind: z.literal("locked"),
-    consecutive_failures: z.literal(PIN_SIGN_IN_LOCKOUT_FAILURES),
-  }),
+  ...pinAttemptRefusalSchema.options,
   z.object({ kind: z.literal("no_register_permission") }),
   z.object({ kind: z.literal("unavailable") }),
 ]);
@@ -193,6 +182,12 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     session: openCashSessionSchema.nullable(),
   }),
   z.object({ type: z.literal("cash-session-unavailable"), request_id: requestId }),
+  z.object({
+    type: z.literal("authorizers"),
+    request_id: requestId,
+    users: z.array(signInUserSchema),
+  }),
+  z.object({ type: z.literal("authorizers-unavailable"), request_id: requestId }),
   z.object({ type: z.literal("pulled") }),
 ]);
 export type CoreToRendererMessage = z.infer<typeof coreToRendererMessageSchema>;
