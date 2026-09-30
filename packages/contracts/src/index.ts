@@ -46,8 +46,6 @@ export type { AlertListPage, AlertSummary } from "./alerts/alert-summary.js";
 export { alertListPageSchema, alertSummarySchema } from "./alerts/alert-summary.js";
 export type { AlertsOverview } from "./alerts/alerts-overview.js";
 export { alertsOverviewSchema } from "./alerts/alerts-overview.js";
-export type { BranchSettingsBody } from "./branch/branch-settings.js";
-export { branchSettingsSchema } from "./branch/branch-settings.js";
 export type { BranchSettingsEditBody } from "./branch/branch-settings-edit.js";
 export { branchSettingsEditBodySchema } from "./branch/branch-settings-edit.js";
 export type { BrandCreationBody } from "./catalog/brand-creation.js";
@@ -128,8 +126,9 @@ export type { RegisterEnrollmentCodeBody } from "./register/register-enrollment-
 export { registerEnrollmentCodeSchema } from "./register/register-enrollment-code.js";
 export type { RegisterSummaryBody } from "./register/register-summary.js";
 export { registerListSchema, registerSummarySchema } from "./register/register-summary.js";
-export type { ErrorReportingConfiguration } from "./shared/index.js";
+export type { BranchSettingsBody, ErrorReportingConfiguration } from "./shared/index.js";
 export {
+  branchSettingsSchema,
   scrubErrorReport,
   scrubErrorReportBreadcrumb,
   scrubErrorReportLog,
@@ -139,7 +138,6 @@ export type {
   StockBalanceList,
   StockCount,
   StockCountList,
-  StockExpectedBalance,
   StockMovement,
   StockMovementList,
   StockPeriodDays,
@@ -149,8 +147,8 @@ export type {
 export {
   STOCK_PERIOD_DAYS,
   stockBalanceListSchema,
+  stockBalanceSchema,
   stockCountListSchema,
-  stockExpectedBalanceSchema,
   stockMovementListSchema,
   stockProductListSchema,
 } from "./stock/stock-lists.js";
@@ -166,3 +164,5 @@ export {
 } from "./stock/stock-movement-bodies.js";
 export type { StockCountResult, StockMovementResult } from "./stock/stock-results.js";
 export { stockCountResultSchema, stockMovementResultSchema } from "./stock/stock-results.js";
+export type { ChangesPage, ChangesQuery, SyncChange } from "./sync/changes.js";
+export { changesPageSchema, changesQuerySchema } from "./sync/changes.js";

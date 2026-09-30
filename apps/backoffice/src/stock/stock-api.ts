@@ -1,19 +1,19 @@
 import {
   type StockAdjustmentBody,
+  type StockBalance,
   type StockBalanceList,
   type StockCountBody,
   type StockCountList,
   type StockCountResult,
-  type StockExpectedBalance,
   type StockLossBody,
   type StockMovementList,
   type StockMovementResult,
   type StockPeriodDays,
   type StockProductList,
   stockBalanceListSchema,
+  stockBalanceSchema,
   stockCountListSchema,
   stockCountResultSchema,
-  stockExpectedBalanceSchema,
   stockMovementListSchema,
   stockMovementResultSchema,
   stockProductListSchema,
@@ -74,36 +74,31 @@ async function readList<T>(path: string, schema: Schema<T>): Promise<CloudReadOu
 }
 
 export function fetchStockBalances(): Promise<CloudReadOutcome<StockBalanceList>> {
-  return readList("/api/stock/balances", stockBalanceListSchema);
+  return readList("/api/inventory-levels", stockBalanceListSchema);
 }
 
 export function fetchStockProducts(): Promise<CloudReadOutcome<StockProductList>> {
-  return readList("/api/stock/products", stockProductListSchema);
+  return readList("/api/inventory-items", stockProductListSchema);
 }
 
 export function fetchStockCounts(days: StockPeriodDays): Promise<CloudReadOutcome<StockCountList>> {
-  return readList(`/api/stock/counts?days=${days}`, stockCountListSchema);
+  return readList(`/api/inventory-counts?days=${days}`, stockCountListSchema);
 }
 
 export function fetchStockMovements(
   days: StockPeriodDays,
 ): Promise<CloudReadOutcome<StockMovementList>> {
-  return readList(`/api/stock/movements?days=${days}`, stockMovementListSchema);
+  return readList(`/api/inventory-movements?days=${days}`, stockMovementListSchema);
 }
 
-export type FetchExpectedBalanceOutcome =
-  | CloudReadOutcome<StockExpectedBalance>
-  | { kind: "not_found" };
+export type FetchExpectedBalanceOutcome = CloudReadOutcome<StockBalance> | { kind: "not_found" };
 
 export function fetchExpectedBalance(
   productId: string,
   at: string,
 ): Promise<FetchExpectedBalanceOutcome> {
   const query = new URLSearchParams({ at });
-  return read(
-    `/api/stock/products/${productId}/expected-balance?${query.toString()}`,
-    stockExpectedBalanceSchema,
-  );
+  return read(`/api/inventory-levels/${productId}?${query.toString()}`, stockBalanceSchema);
 }
 
 type WriteOutcome<T, Refusal> =
@@ -152,11 +147,11 @@ async function post<T, Refusal extends { kind: string }>(
 export type RecordMovementOutcome = WriteOutcome<StockMovementResult, never>;
 
 export function recordLoss(body: StockLossBody): Promise<RecordMovementOutcome> {
-  return post("/api/stock/losses", body, stockMovementResultSchema);
+  return post("/api/inventory-losses", body, stockMovementResultSchema);
 }
 
 export function recordAdjustment(body: StockAdjustmentBody): Promise<RecordMovementOutcome> {
-  return post("/api/stock/adjustments", body, stockMovementResultSchema);
+  return post("/api/inventory-adjustments", body, stockMovementResultSchema);
 }
 
 export type RegisterCountOutcome = WriteOutcome<
@@ -165,7 +160,7 @@ export type RegisterCountOutcome = WriteOutcome<
 >;
 
 export function registerCount(body: StockCountBody): Promise<RegisterCountOutcome> {
-  return post("/api/stock/counts", body, stockCountResultSchema, [
+  return post("/api/inventory-counts", body, stockCountResultSchema, [
     "occurred_in_the_future",
     "count_at_same_moment",
   ]);

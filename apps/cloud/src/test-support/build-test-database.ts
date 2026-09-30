@@ -57,6 +57,24 @@ async function restoreSeedRows(
   });
 }
 
+// `restart identity` rewinds every serial column to 1, while the seeded rows keep the numbers they
+// were given, so each sequence is moved past the highest number a restored row holds.
+async function advanceSequencesPastRestoredRows(client: PGlite): Promise<void> {
+  const { rows } = await client.query<{ sequence: string; table: string; column: string }>(
+    `select s.relname as sequence, t.relname as table, a.attname as column
+     from pg_class s
+     join pg_depend d on d.objid = s.oid and d.deptype in ('a', 'i')
+     join pg_class t on t.oid = d.refobjid
+     join pg_attribute a on a.attrelid = t.oid and a.attnum = d.refobjsubid
+     where s.relkind = 'S' and t.relnamespace = 'public'::regnamespace`,
+  );
+  for (const { sequence, table, column } of rows) {
+    await client.query(
+      `select setval('"${sequence}"', coalesce((select max("${column}") from "${table}"), 0) + 1, false)`,
+    );
+  }
+}
+
 // A custom `migrationsFolder` migrates fresh from the run's already-initialized cluster dump,
 // so it never pays for its own initdb.
 export async function buildTestDatabase({
@@ -93,6 +111,7 @@ export async function buildTestDatabase({
       await client.query(`truncate table ${tableList} restart identity cascade`);
     }
     await restoreSeedRows(client, migrationSeedRows);
+    await advanceSequencesPastRestoredRows(client);
   }
 
   return {

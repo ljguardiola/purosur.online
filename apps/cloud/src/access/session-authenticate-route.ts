@@ -135,150 +135,146 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
     }
   }
 
-  app.post(
-    "/users/session/authenticate",
-    { config: { access: PUBLIC_ACCESS } },
-    async (request, reply) => {
-      const startedAt = performance.now();
-      if (!requireBackofficeOrigin(request, reply, options.backofficeOrigin)) {
-        return;
-      }
+  app.post("/sessions", { config: { access: PUBLIC_ACCESS } }, async (request, reply) => {
+    const startedAt = performance.now();
+    if (!requireBackofficeOrigin(request, reply, options.backofficeOrigin)) {
+      return;
+    }
 
-      // Checked before anything is recorded, so a request with nothing to verify never takes a lockout slot.
-      const body = sessionAuthenticationBodySchema.safeParse(request.body);
-      if (!body.success) {
-        await rejectAuthentication(reply, startedAt);
-        return;
-      }
-      const assertion = body.data.assertion as AuthenticationResponseJSON;
-      const challenge = readAssertionChallenge(assertion);
-      if (challenge === undefined) {
-        await rejectAuthentication(reply, startedAt);
-        return;
-      }
+    // Checked before anything is recorded, so a request with nothing to verify never takes a lockout slot.
+    const body = sessionAuthenticationBodySchema.safeParse(request.body);
+    if (!body.success) {
+      await rejectAuthentication(reply, startedAt);
+      return;
+    }
+    const assertion = body.data.assertion as AuthenticationResponseJSON;
+    const challenge = readAssertionChallenge(assertion);
+    if (challenge === undefined) {
+      await rejectAuthentication(reply, startedAt);
+      return;
+    }
 
-      const sourceAddress = resolveSourceAddress(request);
-      const attemptedAt = now();
-      const admission = await admitSignInAttempt(options.db, { sourceAddress, now: attemptedAt });
-      if (!admission.admitted) {
-        if (admission.trippedLockout) {
-          await auditLockout(sourceAddress, admission.trippedLockout);
-        }
-        const retryAfterSeconds = Math.ceil(
-          (admission.blockedUntil.getTime() - attemptedAt.getTime()) / 1000,
-        );
-        await reply
-          .header("Retry-After", String(retryAfterSeconds))
-          .code(429)
-          .send({ code: "rate_limited", message: "too many sign-in attempts" });
-        return;
+    const sourceAddress = resolveSourceAddress(request);
+    const attemptedAt = now();
+    const admission = await admitSignInAttempt(options.db, { sourceAddress, now: attemptedAt });
+    if (!admission.admitted) {
+      if (admission.trippedLockout) {
+        await auditLockout(sourceAddress, admission.trippedLockout);
       }
+      const retryAfterSeconds = Math.ceil(
+        (admission.blockedUntil.getTime() - attemptedAt.getTime()) / 1000,
+      );
+      await reply
+        .header("Retry-After", String(retryAfterSeconds))
+        .code(429)
+        .send({ code: "rate_limited", message: "too many sign-in attempts" });
+      return;
+    }
 
-      // Spent before the credential lookup, so it can't be replayed against a second credential id guess.
-      const challengeIsLive = await consumeSignInChallenge(options.db, {
-        challenge,
-        now: attemptedAt,
-      });
+    // Spent before the credential lookup, so it can't be replayed against a second credential id guess.
+    const challengeIsLive = await consumeSignInChallenge(options.db, {
+      challenge,
+      now: attemptedAt,
+    });
 
-      const [passkey] = await options.db
-        .select({
-          id: passkeys.id,
-          userId: passkeys.userId,
-          credentialId: passkeys.credentialId,
-          publicKey: passkeys.publicKey,
-          counter: passkeys.counter,
-          transports: passkeys.transports,
-          active: users.active,
+    const [passkey] = await options.db
+      .select({
+        id: passkeys.id,
+        userId: passkeys.userId,
+        credentialId: passkeys.credentialId,
+        publicKey: passkeys.publicKey,
+        counter: passkeys.counter,
+        transports: passkeys.transports,
+        active: users.active,
+      })
+      .from(passkeys)
+      .innerJoin(users, eq(users.id, passkeys.userId))
+      .where(eq(passkeys.credentialId, assertion.id))
+      .limit(1);
+    if (!passkey) {
+      await rejectSignInAttempt(
+        sourceAddress,
+        attemptedAt,
+        reply,
+        startedAt,
+        UNKNOWN_PASSKEY_RESPONSE,
+      );
+      return;
+    }
+    if (!passkey.active) {
+      await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
+      return;
+    }
+
+    const verification = await verifyAuthenticationResponse({
+      response: assertion,
+      expectedChallenge: () => challengeIsLive,
+      expectedOrigin: webAuthnConfig.expectedOrigin,
+      expectedRPID: webAuthnConfig.rpID,
+      credential: {
+        id: passkey.credentialId,
+        publicKey: Buffer.from(passkey.publicKey, "base64url"),
+        counter: passkey.counter,
+        ...(passkey.transports ? { transports: passkey.transports } : {}),
+      },
+      requireUserVerification: true,
+    }).catch(() => ({ verified: false as const }));
+    if (!verification.verified) {
+      await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
+      return;
+    }
+    const { authenticationInfo } = verification;
+
+    // WebAuthn clone signal: once the counter has left zero, a non-increasing counter means a cloned authenticator.
+    const isCloneSignal = passkey.counter > 0 && authenticationInfo.newCounter <= passkey.counter;
+    if (isCloneSignal) {
+      await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
+      return;
+    }
+
+    // One transaction, so a failed write can never leave behind a live session whose cookie nobody ever received.
+    const previousRawSessionId = readSessionCookie(request.headers.cookie);
+    const rawSessionId = generateSessionId();
+    const opened = await options.db.transaction(async (tx) => {
+      // Locks the passkey's row before any session exists, so a concurrent removal leaves nothing
+      // to update here and no session opens for a passkey removed in the meantime.
+      const [usedPasskey] = await tx
+        .update(passkeys)
+        .set({
+          lastUsedAt: attemptedAt,
+          ...(authenticationInfo.newCounter !== passkey.counter
+            ? { counter: authenticationInfo.newCounter }
+            : {}),
         })
-        .from(passkeys)
-        .innerJoin(users, eq(users.id, passkeys.userId))
-        .where(eq(passkeys.credentialId, assertion.id))
-        .limit(1);
-      if (!passkey) {
-        await rejectSignInAttempt(
-          sourceAddress,
-          attemptedAt,
-          reply,
-          startedAt,
-          UNKNOWN_PASSKEY_RESPONSE,
-        );
-        return;
-      }
-      if (!passkey.active) {
-        await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
-        return;
+        .where(eq(passkeys.id, passkey.id))
+        .returning({ id: passkeys.id });
+      if (!usedPasskey) {
+        return false;
       }
 
-      const verification = await verifyAuthenticationResponse({
-        response: assertion,
-        expectedChallenge: () => challengeIsLive,
-        expectedOrigin: webAuthnConfig.expectedOrigin,
-        expectedRPID: webAuthnConfig.rpID,
-        credential: {
-          id: passkey.credentialId,
-          publicKey: Buffer.from(passkey.publicKey, "base64url"),
-          counter: passkey.counter,
-          ...(passkey.transports ? { transports: passkey.transports } : {}),
-        },
-        requireUserVerification: true,
-      }).catch(() => ({ verified: false as const }));
-      if (!verification.verified) {
-        await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
-        return;
-      }
-      const { authenticationInfo } = verification;
-
-      // WebAuthn clone signal: once the counter has left zero, a non-increasing counter means a cloned authenticator.
-      const isCloneSignal = passkey.counter > 0 && authenticationInfo.newCounter <= passkey.counter;
-      if (isCloneSignal) {
-        await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
-        return;
+      if (previousRawSessionId) {
+        await tx
+          .update(sessions)
+          .set({ revokedAt: attemptedAt })
+          .where(eq(sessions.sessionIdHash, hashSessionId(previousRawSessionId)));
       }
 
-      // One transaction, so a failed write can never leave behind a live session whose cookie nobody ever received.
-      const previousRawSessionId = readSessionCookie(request.headers.cookie);
-      const rawSessionId = generateSessionId();
-      const opened = await options.db.transaction(async (tx) => {
-        // Locks the passkey's row before any session exists, so a concurrent removal leaves nothing
-        // to update here and no session opens for a passkey removed in the meantime.
-        const [usedPasskey] = await tx
-          .update(passkeys)
-          .set({
-            lastUsedAt: attemptedAt,
-            ...(authenticationInfo.newCounter !== passkey.counter
-              ? { counter: authenticationInfo.newCounter }
-              : {}),
-          })
-          .where(eq(passkeys.id, passkey.id))
-          .returning({ id: passkeys.id });
-        if (!usedPasskey) {
-          return false;
-        }
-
-        if (previousRawSessionId) {
-          await tx
-            .update(sessions)
-            .set({ revokedAt: attemptedAt })
-            .where(eq(sessions.sessionIdHash, hashSessionId(previousRawSessionId)));
-        }
-
-        await tx.insert(sessions).values({
-          userId: passkey.userId,
-          sessionIdHash: hashSessionId(rawSessionId),
-          createdAt: attemptedAt,
-          lastSeenAt: attemptedAt,
-          passkeyAuthorizedAt: attemptedAt,
-        });
-
-        await discardSignInAttempt(tx, admission.attemptId);
-        return true;
+      await tx.insert(sessions).values({
+        userId: passkey.userId,
+        sessionIdHash: hashSessionId(rawSessionId),
+        createdAt: attemptedAt,
+        lastSeenAt: attemptedAt,
+        passkeyAuthorizedAt: attemptedAt,
       });
-      if (!opened) {
-        await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
-        return;
-      }
 
-      await reply.header("Set-Cookie", serializeSessionCookie(rawSessionId)).code(200).send();
-    },
-  );
+      await discardSignInAttempt(tx, admission.attemptId);
+      return true;
+    });
+    if (!opened) {
+      await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
+      return;
+    }
+
+    await reply.header("Set-Cookie", serializeSessionCookie(rawSessionId)).code(200).send();
+  });
 }

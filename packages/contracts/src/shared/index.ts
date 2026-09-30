@@ -1,3 +1,5 @@
+export type { BranchSettingsBody } from "./branch-settings.js";
+export { branchSettingsSchema } from "./branch-settings.js";
 export {
   scrubErrorReport,
   scrubErrorReportBreadcrumb,

@@ -46,7 +46,7 @@ export function registerSessionAuthorizationRoutes<TQueryResult extends PgQueryR
   const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
 
   app.post(
-    "/users/session/authorization-options",
+    "/sessions/current/authorization-challenges",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: { access: OPEN_SESSION_ACCESS, sessionSource },
@@ -86,8 +86,8 @@ export function registerSessionAuthorizationRoutes<TQueryResult extends PgQueryR
     },
   );
 
-  app.post(
-    "/users/session/authorization",
+  app.put(
+    "/sessions/current/authorization",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: { access: OPEN_SESSION_ACCESS, sessionSource },

@@ -25,6 +25,10 @@
     "./register/use-cases": {
       "types": "./dist/register/use-cases/index.d.ts",
       "default": "./dist/register/use-cases/index.js"
+    },
+    "./sync/use-cases": {
+      "types": "./dist/sync/use-cases/index.d.ts",
+      "default": "./dist/sync/use-cases/index.js"
     }
   },
   "files": [

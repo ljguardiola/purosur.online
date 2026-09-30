@@ -28,6 +28,7 @@ import {
   userRoles,
   users,
 } from "../platform/db/schema.js";
+import { logChange } from "../sync/change-log.js";
 import {
   BRANCH_SETTINGS_DEFAULTS,
   branchSettingsEqualSampleValues,
@@ -402,11 +403,20 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
       .returning({ id: registers.id });
 
     if (settingsAreStillTheLoads) {
-      await tx
+      const [reset] = await tx
         .update(branchSettings)
         .set({ ...BRANCH_SETTINGS_DEFAULTS, version: sql`${branchSettings.version} + 1` })
-        .where(eq(branchSettings.locationId, location.id));
+        .where(eq(branchSettings.locationId, location.id))
+        .returning({ version: branchSettings.version });
       await tx.delete(branchHours).where(eq(branchHours.locationId, location.id));
+      if (reset) {
+        await logChange(tx, {
+          entity: "branch_settings",
+          entityId: location.id,
+          version: reset.version,
+          op: "update",
+        });
+      }
     }
 
     return {

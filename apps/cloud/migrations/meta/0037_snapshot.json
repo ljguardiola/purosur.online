@@ -1,5 +1,5 @@
 {
-  "id": "51900dc6-abe4-499a-bbf4-9a1aaeaf849e",
+  "id": "af4ffb03-0f9c-4ac9-860a-8861b434da78",
   "prevId": "339096b5-9eea-4a39-9fa4-5fdcb11c4bf0",
   "version": "7",
   "dialect": "postgresql",
@@ -739,6 +739,132 @@
           "value": "\"categories\".\"parent_id\" <> \"categories\".\"id\""
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.changes": {
+      "name": "changes",
+      "schema": "",
+      "columns": {
+        "change_seq": {
+          "name": "change_seq",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "entity": {
+          "name": "entity",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "op": {
+          "name": "op",
+          "type": "change_op",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "at": {
+          "name": "at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "origin_device_id": {
+          "name": "origin_device_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "changes_entity_entity_id_idx": {
+          "name": "changes_entity_entity_id_idx",
+          "columns": [
+            {
+              "expression": "entity",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "change_seq",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.device_state": {
+      "name": "device_state",
+      "schema": "",
+      "columns": {
+        "device_id": {
+          "name": "device_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "last_pull_since": {
+          "name": "last_pull_since",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_pulled_at": {
+          "name": "last_pulled_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "device_state_device_id_register_installations_id_fk": {
+          "name": "device_state_device_id_register_installations_id_fk",
+          "tableFrom": "device_state",
+          "tableTo": "register_installations",
+          "columnsFrom": ["device_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.issuer_identification": {
@@ -1747,59 +1873,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.register_contingency_ticket_keys": {
-      "name": "register_contingency_ticket_keys",
-      "schema": "",
-      "columns": {
-        "register_id": {
-          "name": "register_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "key": {
-          "name": "key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "register_contingency_ticket_keys_register_id_registers_id_fk": {
-          "name": "register_contingency_ticket_keys_register_id_registers_id_fk",
-          "tableFrom": "register_contingency_ticket_keys",
-          "tableTo": "registers",
-          "columnsFrom": ["register_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "register_contingency_ticket_keys_register_id_version_pk": {
-          "name": "register_contingency_ticket_keys_register_id_version_pk",
-          "columns": ["register_id", "version"]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.register_enrollment_attempts": {
       "name": "register_enrollment_attempts",
       "schema": "",
@@ -2017,12 +2090,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "outbox_chain_key": {
-          "name": "outbox_chain_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "hostname": {
           "name": "hostname",
           "type": "text",
@@ -2108,59 +2175,6 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.register_snapshot_keys": {
-      "name": "register_snapshot_keys",
-      "schema": "",
-      "columns": {
-        "register_id": {
-          "name": "register_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "key": {
-          "name": "key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "register_snapshot_keys_register_id_registers_id_fk": {
-          "name": "register_snapshot_keys_register_id_registers_id_fk",
-          "tableFrom": "register_snapshot_keys",
-          "tableTo": "registers",
-          "columnsFrom": ["register_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "register_snapshot_keys_register_id_version_pk": {
-          "name": "register_snapshot_keys_register_id_version_pk",
-          "columns": ["register_id", "version"]
-        }
-      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -3045,6 +3059,11 @@
       "name": "backoffice_rate_limit_key_kind",
       "schema": "public",
       "values": ["session", "source_address"]
+    },
+    "public.change_op": {
+      "name": "change_op",
+      "schema": "public",
+      "values": ["insert", "update"]
     },
     "public.passkey_management_challenge_kind": {
       "name": "passkey_management_challenge_kind",

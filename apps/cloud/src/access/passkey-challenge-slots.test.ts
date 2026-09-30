@@ -100,7 +100,7 @@ async function registerFirstPasskey(forUserId: string, emulator: WebAuthnEmulato
   });
   const optionsResponse = await recoveryApp.inject({
     method: "POST",
-    url: "/users/recovery/registration-options",
+    url: "/account-recovery-challenges",
     headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.10" },
     payload: { recovery_token: rawToken },
   });
@@ -115,7 +115,7 @@ async function registerFirstPasskey(forUserId: string, emulator: WebAuthnEmulato
   );
   const redeemResponse = await recoveryApp.inject({
     method: "POST",
-    url: "/users/recovery/redeem",
+    url: "/account-recovery-redemptions",
     headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.10" },
     payload: {
       recovery_token: rawToken,
@@ -146,17 +146,26 @@ function cookieHeader(rawSessionId: string): Record<string, string> {
   return { cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` };
 }
 
-function postJson(url: string, body: Record<string, unknown>, rawSessionId: string) {
+function sendJson(
+  method: "POST" | "PUT",
+  url: string,
+  body: Record<string, unknown>,
+  rawSessionId: string,
+) {
   return app.inject({
-    method: "POST",
+    method,
     url,
     headers: { origin: BACKOFFICE_ORIGIN, ...cookieHeader(rawSessionId) },
     payload: body,
   });
 }
 
+function postJson(url: string, body: Record<string, unknown>, rawSessionId: string) {
+  return sendJson("POST", url, body, rawSessionId);
+}
+
 async function requestRegistrationOptions(rawSessionId: string) {
-  const response = await postJson("/users/passkeys/registration-options", {}, rawSessionId);
+  const response = await postJson("/account/passkey-challenges", {}, rawSessionId);
   if (response.statusCode !== 200) {
     throw new Error(
       `test setup: registration-options failed: ${response.statusCode} ${response.body}`,
@@ -166,7 +175,7 @@ async function requestRegistrationOptions(rawSessionId: string) {
 }
 
 async function requestAuthorizationOptions(rawSessionId: string) {
-  const response = await postJson("/users/session/authorization-options", {}, rawSessionId);
+  const response = await postJson("/sessions/current/authorization-challenges", {}, rawSessionId);
   if (response.statusCode !== 200) {
     throw new Error(
       `test setup: authorization-options failed: ${response.statusCode} ${response.body}`,
@@ -192,15 +201,16 @@ describe("a session's registration and session-authorization challenges holding 
       BACKOFFICE_ORIGIN,
       authorizationOptions.authorization_options,
     );
-    const authorizeResponse = await postJson(
-      "/users/session/authorization",
+    const authorizeResponse = await sendJson(
+      "PUT",
+      "/sessions/current/authorization",
       { authorization },
       rawSessionId,
     );
     expect(authorizeResponse.statusCode).toBe(200);
 
     const registerResponse = await postJson(
-      "/users/passkeys",
+      "/account/passkeys",
       { passkey_registration: passkeyRegistration, passkey_name: "Teléfono del local" },
       rawSessionId,
     );
@@ -220,8 +230,9 @@ describe("a session's registration and session-authorization challenges holding 
 
     await requestRegistrationOptions(rawSessionId);
 
-    const authorizeResponse = await postJson(
-      "/users/session/authorization",
+    const authorizeResponse = await sendJson(
+      "PUT",
+      "/sessions/current/authorization",
       { authorization },
       rawSessionId,
     );
