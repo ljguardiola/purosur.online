@@ -49,6 +49,11 @@ const authorizersRequestMessageSchema = z.object({
   permission: z.custom<AuthorizablePermissionKey>(isAuthorizablePermissionKey),
 });
 
+const signOutMessageSchema = z.object({
+  type: z.literal("sign-out"),
+  request_id: requestId,
+});
+
 export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   rendererPingMessageSchema,
   enrollmentStatusRequestMessageSchema,
@@ -58,6 +63,7 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   signInUsersRequestMessageSchema,
   signInMessageSchema,
   authorizersRequestMessageSchema,
+  signOutMessageSchema,
 ]);
 export type RendererToCoreMessage = z.infer<typeof rendererToCoreMessageSchema>;
 
@@ -131,6 +137,7 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     users: z.array(signInUserSchema),
   }),
   z.object({ type: z.literal("authorizers-unavailable"), request_id: requestId }),
+  z.object({ type: z.literal("signed-out"), request_id: requestId }),
   z.object({ type: z.literal("pulled") }),
 ]);
 export type CoreToRendererMessage = z.infer<typeof coreToRendererMessageSchema>;

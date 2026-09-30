@@ -93,6 +93,16 @@ describe("rendererToCoreMessageSchema", () => {
     expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
   });
 
+  it("accepts a request to sign out", () => {
+    const message = { type: "sign-out", request_id: REQUEST_ID };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a request to sign out without its request id", () => {
+    expect(rendererToCoreMessageSchema.safeParse({ type: "sign-out" }).success).toBe(false);
+  });
+
   it("rejects a request without its request id", () => {
     expect(
       rendererToCoreMessageSchema.safeParse({ type: "enrollment-status-request" }).success,
@@ -372,6 +382,18 @@ describe("authorizers answers", () => {
     const message = { type: "authorizers", request_id: REQUEST_ID, users: [{ id: "u2" }] };
 
     expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+});
+
+describe("sign-out answer", () => {
+  it("accepts the confirmation that nobody is signed in", () => {
+    const message = { type: "signed-out", request_id: REQUEST_ID };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a confirmation without its request id", () => {
+    expect(coreToRendererMessageSchema.safeParse({ type: "signed-out" }).success).toBe(false);
   });
 });
 
