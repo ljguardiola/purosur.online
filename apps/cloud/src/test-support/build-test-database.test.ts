@@ -12,6 +12,8 @@ import {
   branchSettings,
   brands,
   categories,
+  changes,
+  deviceState,
   issuerIdentification,
   locations,
   passkeyChallenges,
@@ -213,14 +215,31 @@ describe("buildTestDatabase", () => {
       issuedAt: new Date("2026-01-05T12:00:00.000Z"),
       expiresAt: new Date("2026-01-05T12:15:00.000Z"),
     });
-    await db.insert(registerInstallations).values({
-      registerId: register.id,
-      tokenLookupPrefix: "token-prefix",
-      tokenHash: "token-hash",
-      tokenIssuedAt: new Date("2026-01-05T12:00:00.000Z"),
-      hostname: "CAJA",
-      windowsVersion: "Windows 11",
-      enrolledAt: new Date("2026-01-05T12:00:00.000Z"),
+    const [installation] = await db
+      .insert(registerInstallations)
+      .values({
+        registerId: register.id,
+        tokenLookupPrefix: "token-prefix",
+        tokenHash: "token-hash",
+        tokenIssuedAt: new Date("2026-01-05T12:00:00.000Z"),
+        hostname: "CAJA",
+        windowsVersion: "Windows 11",
+        enrolledAt: new Date("2026-01-05T12:00:00.000Z"),
+      })
+      .returning({ id: registerInstallations.id });
+    if (!installation) {
+      throw new Error("seeding the installation returned no row");
+    }
+    await db.insert(deviceState).values({
+      deviceId: installation.id,
+      lastPullSince: 0,
+      lastPulledAt: new Date("2026-01-05T12:00:00.000Z"),
+    });
+    await db.insert(changes).values({
+      entity: "branch_settings",
+      entityId: await seededLocationId(db),
+      version: 2,
+      op: "update",
     });
     await db.insert(registerEnrollmentAttempts).values({
       keyKind: "source_address",
@@ -374,6 +393,22 @@ describe("buildTestDatabase", () => {
       'select "seed_a"."b_id", "seed_b"."a_id" from "seed_a", "seed_b"',
     );
     expect(rows).toEqual([{ b_id: 1, a_id: 1 }]);
+  });
+
+  it("numbers a row inserted after clear() past the serial numbers of the rows it restored", async () => {
+    const migrationsFolder = await migrationsFolderWith([
+      'create table "seed_log" ("seq" bigserial primary key, "note" text not null)',
+      `insert into "seed_log" ("note") values ('first'), ('second')`,
+    ]);
+    const ownDatabase = await buildTestDatabase({ migrationsFolder });
+    onTestFinished(() => ownDatabase.close());
+
+    await ownDatabase.clear();
+    const { rows } = await ownDatabase.client.query<{ seq: number }>(
+      `insert into "seed_log" ("note") values ('after clear') returning "seq"`,
+    );
+
+    expect(rows).toEqual([{ seq: 3 }]);
   });
 
   it("closes its database and rejects with the migration's own error when migrating fails", async () => {

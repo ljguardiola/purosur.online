@@ -36,16 +36,22 @@ export default defineConfig({
     resolve: {
       // Contracts' and domain's package.json point `main` at their compiled dist/, which the register's
       // build never produces, so it reads their source instead.
-      alias: {
-        "@purosur/contracts": r("../../packages/contracts/src/index.ts"),
-        "@purosur/domain": r("../../packages/domain/src/index.ts"),
-      },
+      alias: [
+        { find: /^@purosur\/contracts$/, replacement: r("../../packages/contracts/src/index.ts") },
+        { find: /^@purosur\/domain$/, replacement: r("../../packages/domain/src/index.ts") },
+        {
+          find: /^@purosur\/domain\/sync\/use-cases$/,
+          replacement: r("../../packages/domain/src/sync/use-cases/index.ts"),
+        },
+      ],
     },
     build: {
       // electron-vite externalizes every package.json dependency by default, which would leave
-      // workspace packages as bare imports at runtime; only `electron` and Node built-ins stay external.
+      // workspace packages as bare imports at runtime; only `electron`, Node built-ins and
+      // better-sqlite3, whose native binding can't be bundled, stay external.
       externalizeDeps: false,
       rollupOptions: {
+        external: ["better-sqlite3"],
         input: {
           index: r("src/main/index.ts"),
           // Emitted next to index.js, so main finds it with a plain relative path.

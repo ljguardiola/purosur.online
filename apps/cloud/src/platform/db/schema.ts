@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
   bigint,
+  bigserial,
   boolean,
   check,
   date,
@@ -444,6 +445,34 @@ export const registerInstallations = pgTable(
     uniqueIndex("register_installations_active_register_id_key")
       .on(table.registerId)
       .where(sql`${table.revokedAt} is null`),
+  ],
+);
+
+export const deviceState = pgTable("device_state", {
+  deviceId: uuid("device_id")
+    .primaryKey()
+    .references(() => registerInstallations.id, { onDelete: "cascade" }),
+  lastPullSince: bigint("last_pull_since", { mode: "number" }).notNull(),
+  lastPulledAt: timestamp("last_pulled_at", { withTimezone: true }).notNull(),
+});
+
+export const changeOp = pgEnum("change_op", ["insert", "update"]);
+
+// Append-only and never pruned: a register returning after any time offline catches up from it.
+// `origin_device_id` has no foreign key so a change outlives the installation that made it.
+export const changes = pgTable(
+  "changes",
+  {
+    changeSeq: bigserial("change_seq", { mode: "number" }).primaryKey(),
+    entity: text("entity").notNull(),
+    entityId: uuid("entity_id").notNull(),
+    version: integer("version").notNull(),
+    op: changeOp("op").notNull(),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+    originDeviceId: uuid("origin_device_id"),
+  },
+  (table) => [
+    index("changes_entity_entity_id_idx").on(table.entity, table.entityId, table.changeSeq),
   ],
 );
 

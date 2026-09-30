@@ -89,6 +89,7 @@ import { registerStockCountsRoutes } from "./stock/stock-counts-route.js";
 import { registerStockMovementsRoutes } from "./stock/stock-movements-route.js";
 import { registerStockProductsRoute } from "./stock/stock-products-route.js";
 import type { StockRouteOptions } from "./stock/stock-route-options.js";
+import { registerChangesRoute } from "./sync/changes-route.js";
 
 export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = PostgresJsQueryResultHKT> {
   version: string;
@@ -299,6 +300,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
       if (options.devices) {
         registerDeviceEnrollmentRoute(api, options.devices);
+        registerChangesRoute(api, options.devices);
         registerDeviceTokenRotationRoute(api, options.devices);
       }
     },
