@@ -628,3 +628,99 @@ describe("openingFloatSchema", () => {
     expect(openingFloatSchema.safeParse(value).success).toBe(false);
   });
 });
+
+describe("sale requests", () => {
+  it("accepts a scan of a code for the person selling", () => {
+    const message = {
+      type: "scan-product",
+      request_id: REQUEST_ID,
+      user_id: "u1",
+      code: "7791234567890",
+    };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { type: "scan-product", user_id: "u1", code: "1" },
+    { type: "scan-product", request_id: REQUEST_ID, code: "1" },
+    { type: "scan-product", request_id: REQUEST_ID, user_id: "u1" },
+    { type: "scan-product", request_id: REQUEST_ID, user_id: "u1", code: "" },
+    { type: "scan-product", request_id: REQUEST_ID, user_id: "u1", code: "x".repeat(65) },
+  ])("rejects a scan that is not well formed: %j", (message) => {
+    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("accepts a request for the sale in progress of the person selling", () => {
+    const message = { type: "sale-request", request_id: REQUEST_ID, user_id: "u1" };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { type: "sale-request", user_id: "u1" },
+    { type: "sale-request", request_id: REQUEST_ID },
+  ])("rejects a request for the sale missing a field: %j", (message) => {
+    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+});
+
+describe("sale answers", () => {
+  const sale = {
+    id: "s1",
+    lines: [
+      {
+        id: "l1",
+        product_id: "p1",
+        product_name: "Yerba",
+        quantity: 1,
+        list_unit_price: 1500,
+        line_total: 1500,
+      },
+    ],
+    total: 1500,
+  };
+
+  it.each([
+    { kind: "added", sale },
+    { kind: "unknown_code" },
+    { kind: "no_price", product_name: "Yerba" },
+    { kind: "unavailable" },
+  ])("accepts the scan result $kind", (outcome) => {
+    const message = { type: "scan-product-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a scan result it does not know", () => {
+    const message = {
+      type: "scan-product-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "somewhere_else" },
+    };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it.each([sale, null])("accepts the sale in progress %j", (value) => {
+    const message = { type: "sale", request_id: REQUEST_ID, sale: value };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects the sale in progress without saying whether there is one", () => {
+    expect(
+      coreToRendererMessageSchema.safeParse({ type: "sale", request_id: REQUEST_ID }).success,
+    ).toBe(false);
+  });
+
+  it("accepts that the sale in progress cannot be read", () => {
+    const message = { type: "sale-unavailable", request_id: REQUEST_ID };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects that the sale in progress cannot be read without its request id", () => {
+    expect(coreToRendererMessageSchema.safeParse({ type: "sale-unavailable" }).success).toBe(false);
+  });
+});

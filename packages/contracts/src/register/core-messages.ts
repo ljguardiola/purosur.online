@@ -7,6 +7,7 @@ import {
 } from "@purosur/domain";
 import { z } from "zod";
 import { pinAttemptRefusalSchema } from "../access/pin-attempt-refusal.js";
+import { saleSchema, scannedCodeSchema, scanProductOutcomeSchema } from "../sales/sale.js";
 
 const requestId = z.string();
 
@@ -84,6 +85,19 @@ const authorizersRequestMessageSchema = z.object({
   permission: z.custom<AuthorizablePermissionKey>(isAuthorizablePermissionKey),
 });
 
+const scanProductMessageSchema = z.object({
+  type: z.literal("scan-product"),
+  request_id: requestId,
+  user_id: z.string(),
+  code: scannedCodeSchema,
+});
+
+const saleRequestMessageSchema = z.object({
+  type: z.literal("sale-request"),
+  request_id: requestId,
+  user_id: z.string(),
+});
+
 export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   rendererPingMessageSchema,
   enrollmentStatusRequestMessageSchema,
@@ -97,6 +111,8 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   openCashSessionMessageSchema,
   cashSessionRequestMessageSchema,
   authorizersRequestMessageSchema,
+  scanProductMessageSchema,
+  saleRequestMessageSchema,
 ]);
 export type RendererToCoreMessage = z.infer<typeof rendererToCoreMessageSchema>;
 
@@ -220,6 +236,13 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     users: z.array(signInUserSchema),
   }),
   z.object({ type: z.literal("authorizers-unavailable"), request_id: requestId }),
+  z.object({
+    type: z.literal("scan-product-result"),
+    request_id: requestId,
+    outcome: scanProductOutcomeSchema,
+  }),
+  z.object({ type: z.literal("sale"), request_id: requestId, sale: saleSchema.nullable() }),
+  z.object({ type: z.literal("sale-unavailable"), request_id: requestId }),
   z.object({ type: z.literal("pulled") }),
 ]);
 export type CoreToRendererMessage = z.infer<typeof coreToRendererMessageSchema>;
