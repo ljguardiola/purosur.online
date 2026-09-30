@@ -9,10 +9,12 @@ export interface PinCheckDeps {
   hashPin: (pin: string, salt: Uint8Array) => Promise<string>;
 }
 
-export type PinCheck =
-  | { kind: "right_pin"; record: SignInRecord }
-  | { kind: "wrong_pin" }
-  | { kind: "unavailable" };
+export interface SignableRecord {
+  record: SignInRecord;
+  salt: Uint8Array;
+}
+
+export type PinCheck = { kind: "right_pin" } | { kind: "wrong_pin" } | { kind: "unavailable" };
 
 function sameText(left: string, right: string): boolean {
   const leftBytes = Buffer.from(left);
@@ -24,17 +26,25 @@ export function pinMatches(pepper: string, pinHash: string, record: SignInRecord
   return sameText(derivePinVerifier(pepper, pinHash), record.verifier);
 }
 
-export async function checkPin(deps: PinCheckDeps, userId: string, pin: string): Promise<PinCheck> {
-  const record = deps.store.signInRecord(userId);
+export function signableRecord(
+  store: PinCheckDeps["store"],
+  userId: string,
+): SignableRecord | undefined {
+  const record = store.signInRecord(userId);
   const salt = record === undefined ? undefined : decodePinSalt(record.salt);
-  if (record === undefined || salt === undefined) {
-    return { kind: "wrong_pin" };
-  }
+  return record === undefined || salt === undefined ? undefined : { record, salt };
+}
+
+export async function checkPin(
+  deps: Omit<PinCheckDeps, "store">,
+  { record, salt }: SignableRecord,
+  pin: string,
+): Promise<PinCheck> {
   const pepper = await deps.readPepper();
   if (pepper === undefined) {
     return { kind: "unavailable" };
   }
   return pinMatches(pepper, await deps.hashPin(pin, salt), record)
-    ? { kind: "right_pin", record }
+    ? { kind: "right_pin" }
     : { kind: "wrong_pin" };
 }

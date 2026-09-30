@@ -69,10 +69,22 @@ describe("authorizing with another person's PIN", () => {
     });
   });
 
-  it("tells a wrong PIN before it tells a missing permission", async () => {
-    expect(await authorize(deps().built, { user_id: "u2", pin: "9999" }, "void_sale")).toEqual({
+  it("tells a missing permission before it checks the PIN, without hashing", async () => {
+    const { built, hashed } = deps();
+
+    expect(await authorize(built, { user_id: "u2", pin: "9999" }, "void_sale")).toEqual({
+      kind: "lacks_permission",
+    });
+    expect(hashed).toEqual([]);
+  });
+
+  it("refuses a person whose salt cannot be read as it refuses a wrong PIN, without hashing", async () => {
+    const { built, hashed } = deps(record({ salt: "not-a-salt" }));
+
+    expect(await authorize(built, { user_id: "u2", pin: "1234" }, "void_sale")).toEqual({
       kind: "wrong_pin",
     });
+    expect(hashed).toEqual([]);
   });
 
   it("is unavailable when the register has no pepper", async () => {
