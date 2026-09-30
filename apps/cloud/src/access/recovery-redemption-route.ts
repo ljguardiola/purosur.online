@@ -140,7 +140,7 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
   }
 
   app.post(
-    "/users/recovery/registration-options",
+    "/account-recovery-challenges",
     { config: { access: PUBLIC_ACCESS } },
     async (request, reply) => {
       if (!requireBackofficeOrigin(request, reply, options.backofficeOrigin)) {
@@ -226,7 +226,7 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
   );
 
   app.post(
-    "/users/recovery/redeem",
+    "/account-recovery-redemptions",
     { config: { access: PUBLIC_ACCESS } },
     async (request, reply) => {
       if (!requireBackofficeOrigin(request, reply, options.backofficeOrigin)) {

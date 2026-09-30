@@ -124,7 +124,7 @@ async function registerPasskey(userId: string, emulator: WebAuthnEmulator): Prom
   const headers = { origin: BACKOFFICE_ORIGIN, "x-real-ip": nextSourceAddress() };
   const options = await app.inject({
     method: "POST",
-    url: "/users/recovery/registration-options",
+    url: "/account-recovery-challenges",
     headers,
     payload: { recovery_token: rawToken },
   });
@@ -134,7 +134,7 @@ async function registerPasskey(userId: string, emulator: WebAuthnEmulator): Prom
   );
   const redeemed = await app.inject({
     method: "POST",
-    url: "/users/recovery/redeem",
+    url: "/account-recovery-redemptions",
     headers,
     payload: {
       recovery_token: rawToken,

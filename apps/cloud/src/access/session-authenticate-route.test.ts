@@ -135,7 +135,7 @@ async function requestRegistrationOptions(forUserId: string) {
   });
   const response = await recoveryApp.inject({
     method: "POST",
-    url: "/users/recovery/registration-options",
+    url: "/account-recovery-challenges",
     headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": SOURCE_ADDRESS },
     payload: { recovery_token: rawToken },
   });
@@ -152,7 +152,7 @@ async function registerPasskey(forUserId: string, emulator: WebAuthnEmulator) {
   const credential = emulator.createJSON(BACKOFFICE_ORIGIN, options);
   const response = await recoveryApp.inject({
     method: "POST",
-    url: "/users/recovery/redeem",
+    url: "/account-recovery-redemptions",
     headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": SOURCE_ADDRESS },
     payload: {
       recovery_token: rawToken,

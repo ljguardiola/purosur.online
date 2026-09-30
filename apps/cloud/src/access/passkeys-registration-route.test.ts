@@ -106,7 +106,7 @@ async function registerFirstPasskey(forUserId: string, emulator: WebAuthnEmulato
   });
   const optionsResponse = await recoveryApp.inject({
     method: "POST",
-    url: "/users/recovery/registration-options",
+    url: "/account-recovery-challenges",
     headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.10" },
     payload: { recovery_token: rawToken },
   });
@@ -121,7 +121,7 @@ async function registerFirstPasskey(forUserId: string, emulator: WebAuthnEmulato
   );
   const redeemResponse = await recoveryApp.inject({
     method: "POST",
-    url: "/users/recovery/redeem",
+    url: "/account-recovery-redemptions",
     headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.10" },
     payload: {
       recovery_token: rawToken,

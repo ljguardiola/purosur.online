@@ -547,19 +547,19 @@ describe("serving the backoffice's static build", () => {
 });
 
 describe("wiring the recovery routes", () => {
-  it("does not register POST /api/users/recovery/request when no recovery option is given", async () => {
+  it("does not register POST /api/account-recoveries when no recovery option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
     const response = await app.inject({
       method: "POST",
-      url: "/api/users/recovery/request",
+      url: "/api/account-recoveries",
       payload: { email: "ada@example.com" },
     });
 
     expect(response.statusCode).toBe(404);
   });
 
-  it("registers POST /api/users/recovery/request when a recovery option is given", async () => {
+  it("registers POST /api/account-recoveries when a recovery option is given", async () => {
     const enqueued: string[] = [];
 
     const app = buildApp({
@@ -577,7 +577,7 @@ describe("wiring the recovery routes", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/api/users/recovery/request",
+      url: "/api/account-recoveries",
       headers: { origin: "https://staging.purosur.online", "x-real-ip": "203.0.113.10" },
       payload: { email: "ada@example.com" },
     });
@@ -591,12 +591,12 @@ describe("wiring the recovery routes", () => {
 
     const optionsResponse = await app.inject({
       method: "POST",
-      url: "/api/users/recovery/registration-options",
+      url: "/api/account-recovery-challenges",
       payload: { recovery_token: "a-raw-token" },
     });
     const redeemResponse = await app.inject({
       method: "POST",
-      url: "/api/users/recovery/redeem",
+      url: "/api/account-recovery-redemptions",
       payload: { recovery_token: "a-raw-token" },
     });
 
@@ -616,7 +616,7 @@ describe("wiring the recovery routes", () => {
 
     const response = await app.inject({
       method: "POST",
-      url: "/api/users/recovery/registration-options",
+      url: "/api/account-recovery-challenges",
       headers: { origin: "https://staging.purosur.online", "x-real-ip": "203.0.113.10" },
       payload: { recovery_token: "an-unknown-raw-token" },
     });
@@ -1369,9 +1369,9 @@ describe("the route access inventory", () => {
 
     expect(app.routeAccessInventory()).toEqual([
       { method: "GET", url: "/api/error-reporting", access: PUBLIC_ACCESS },
-      { method: "POST", url: "/api/users/recovery/request", access: PUBLIC_ACCESS },
-      { method: "POST", url: "/api/users/recovery/registration-options", access: PUBLIC_ACCESS },
-      { method: "POST", url: "/api/users/recovery/redeem", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/api/account-recoveries", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/api/account-recovery-challenges", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/api/account-recovery-redemptions", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/authentication-challenges", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/sessions", access: PUBLIC_ACCESS },
       { method: "GET", url: "/api/sessions/current", access: OPEN_SESSION_ACCESS },
