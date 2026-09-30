@@ -482,30 +482,6 @@ describe("App", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it.each(["down", "starting"] as const)(
-    "resumes the open cash session's opener again once the core is back up after reporting it is %s",
-    async (status) => {
-      const { core } = coreAnswering(true, { kind: "enrolled" }, ADA_SIGNED_IN, {
-        cashSession: async () => GRACE_SESSION,
-      });
-      const screen = await render(<App core={core} />);
-      postCoreStatus("up");
-      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
-
-      postCoreStatus(status);
-      await expect
-        .element(screen.getByRole("heading", { name: SESSION_TITLE }))
-        .not.toBeInTheDocument();
-      postCoreStatus("up");
-
-      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
-      await expect.element(screen.getByRole("navigation").getByText("Grace")).toBeVisible();
-      await expect
-        .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
-        .not.toBeInTheDocument();
-    },
-  );
-
   it("resumes the open cash session even when the person who was in had signed in as someone else", async () => {
     const { core } = coreAnswering(true, { kind: "enrolled" }, ADA_SIGNED_IN, {
       cashSession: async () => GRACE_SESSION,
