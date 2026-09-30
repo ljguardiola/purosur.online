@@ -182,9 +182,16 @@ const openSessionRoute = createRoute({
     return { openedAt, person };
   },
   component: function OpenSessionRoute() {
-    const { openedAt, person } = openSessionRoute.useRouteContext();
+    const { openedAt, person, signOut } = openSessionRoute.useRouteContext();
     const registerName = sessionEyebrowRoute.useLoaderData();
-    return <OpenSessionScreen person={person} registerName={registerName} openedAt={openedAt} />;
+    return (
+      <OpenSessionScreen
+        person={person}
+        registerName={registerName}
+        openedAt={openedAt}
+        lock={signOut}
+      />
+    );
   },
 });
 
@@ -196,13 +203,14 @@ const cashRoute = createRoute({
     return { openedAt, person };
   },
   component: function CashRoute() {
-    const { openedAt, person, cashBalance } = cashRoute.useRouteContext();
+    const { openedAt, person, signOut, cashBalance } = cashRoute.useRouteContext();
     const registerName = sessionEyebrowRoute.useLoaderData();
     return (
       <CashScreen
         person={person}
         registerName={registerName}
         openedAt={openedAt}
+        lock={signOut}
         loadCashBalance={cashBalance}
       />
     );
@@ -218,7 +226,7 @@ const cashCountRoute = createRoute({
     return { id, openedAt, openedBy, person };
   },
   component: function CashCountRoute() {
-    const { id, openedAt, openedBy, person, cashBalance, authorizers, closeCashSession } =
+    const { id, openedAt, openedBy, person, signOut, cashBalance, authorizers, closeCashSession } =
       cashCountRoute.useRouteContext();
     const registerName = sessionEyebrowRoute.useLoaderData();
     const { leaving } = cashCountRoute.useSearch();
@@ -228,6 +236,7 @@ const cashCountRoute = createRoute({
         openedBy={openedBy}
         registerName={registerName}
         openedAt={openedAt}
+        lock={signOut}
         loadCashBalance={cashBalance}
         loadAuthorizers={authorizers}
         closeCashSession={(countedCash, authorization) =>

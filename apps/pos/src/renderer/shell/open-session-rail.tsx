@@ -1,16 +1,18 @@
 import { useNavigate } from "@tanstack/react-router";
 import { ShoppingBasket, Wallet } from "lucide-react";
 import { useState } from "react";
-import { CloseBeforeLeavingModal } from "./close-before-leaving-modal";
+import { LeavingTheRegisterModal } from "./leaving-the-register-modal";
 import { NavigationRail } from "./navigation-rail";
 
 export function OpenSessionRail({
   firstName,
   registerName,
+  lock,
   current,
 }: {
   firstName: string;
   registerName: string | null;
+  lock: () => void;
   current: "sale" | "cash";
 }) {
   const navigate = useNavigate();
@@ -29,10 +31,14 @@ export function OpenSessionRail({
         links={[{ label: "Caja", icon: Wallet, to: "/cash", current: current === "cash" }]}
         onSignOut={() => setLeaving(true)}
       />
-      <CloseBeforeLeavingModal
+      <LeavingTheRegisterModal
         open={leaving}
         registerName={registerName}
         onClose={() => setLeaving(false)}
+        onLock={() => {
+          setLeaving(false);
+          lock();
+        }}
         onCloseRegister={() => {
           setLeaving(false);
           void navigate({ to: "/cash-count", search: { leaving: true } });

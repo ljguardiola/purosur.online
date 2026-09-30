@@ -2,7 +2,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { CloseBeforeLeavingModal } from "./close-before-leaving-modal";
+import { LeavingTheRegisterModal } from "./leaving-the-register-modal";
 
 // Wider than the default phone-sized browser-mode viewport, which clips the modal.
 async function renderModal({
@@ -15,26 +15,31 @@ async function renderModal({
   await page.viewport(1280, 900);
   onTestFinished(() => page.viewport(414, 896));
   const onClose = vi.fn();
+  const onLock = vi.fn();
   const onCloseRegister = vi.fn();
   const screen = await render(
-    <CloseBeforeLeavingModal
+    <LeavingTheRegisterModal
       open={open}
       registerName={registerName}
       onClose={onClose}
+      onLock={onLock}
       onCloseRegister={onCloseRegister}
     />,
   );
-  return { screen, onClose, onCloseRegister };
+  return { screen, onClose, onLock, onCloseRegister };
 }
 
-describe("CloseBeforeLeavingModal", () => {
-  it("explains the register has to be closed first, naming the register", async () => {
+describe("LeavingTheRegisterModal", () => {
+  it("asks whether to close the register or leave it locked, naming the register", async () => {
     const { screen } = await renderModal();
 
-    const dialog = screen.getByRole("dialog", { name: "Para salir, primero cerrá la caja" });
+    const dialog = screen.getByRole("dialog", { name: "¿Cerrar la caja o dejarla bloqueada?" });
 
     await expect.element(dialog).toBeVisible();
     await expect.element(dialog.getByText("Caja 1 · Sesión abierta")).toBeVisible();
+    await expect.element(dialog.getByRole("button", { name: "Dejar bloqueada" })).toBeVisible();
+    await expect.element(dialog.getByRole("button", { name: "Cerrar caja" })).toBeVisible();
+    await expect.element(dialog.getByRole("button", { name: "Cancelar" })).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(document.body);
   });
 
@@ -51,29 +56,38 @@ describe("CloseBeforeLeavingModal", () => {
   });
 
   it("goes to close the register when Cerrar caja is pressed", async () => {
-    const { screen, onCloseRegister, onClose } = await renderModal();
+    const { screen, onCloseRegister, onLock, onClose } = await renderModal();
 
     await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
 
     expect(onCloseRegister).toHaveBeenCalledOnce();
+    expect(onLock).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("closes without closing the register on Cancelar", async () => {
-    const { screen, onCloseRegister, onClose } = await renderModal();
+  it("leaves the register locked when Dejar bloqueada is pressed", async () => {
+    const { screen, onCloseRegister, onLock, onClose } = await renderModal();
 
-    await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Dejar bloqueada" }));
 
-    expect(onClose).toHaveBeenCalledOnce();
+    expect(onLock).toHaveBeenCalledOnce();
     expect(onCloseRegister).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("closes without closing the register on Escape", async () => {
-    const { onCloseRegister, onClose } = await renderModal();
+  it.each([
+    ["Escape", () => userEvent.keyboard("{Escape}")],
+    [
+      "its close button",
+      () => userEvent.click(page.getByRole("button", { name: "Cerrar", exact: true })),
+    ],
+  ])("closes without doing either on %s", async (_way, dismiss) => {
+    const { onCloseRegister, onLock, onClose } = await renderModal();
 
-    await userEvent.keyboard("{Escape}");
+    await dismiss();
 
     expect(onClose).toHaveBeenCalledOnce();
+    expect(onLock).not.toHaveBeenCalled();
     expect(onCloseRegister).not.toHaveBeenCalled();
   });
 });

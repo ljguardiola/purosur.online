@@ -12,7 +12,12 @@ async function renderScreen(registerName: string | null = "Caja 1") {
   await page.viewport(1280, 720);
   onTestFinished(() => page.viewport(414, 896));
   return render(
-    <OpenSessionScreen person={PERSON} registerName={registerName} openedAt={OPENED_AT} />,
+    <OpenSessionScreen
+      person={PERSON}
+      registerName={registerName}
+      openedAt={OPENED_AT}
+      lock={() => {}}
+    />,
   );
 }
 

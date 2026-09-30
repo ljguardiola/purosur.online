@@ -6,7 +6,7 @@ import { render } from "./test-support/render-with-router";
 describe("OpenSessionRail", () => {
   it("marks Venta as current on the sale screen", async () => {
     const screen = await render(
-      <OpenSessionRail firstName="Ada" registerName="Caja 1" current="sale" />,
+      <OpenSessionRail firstName="Ada" registerName="Caja 1" lock={() => {}} current="sale" />,
     );
 
     await expect
@@ -19,7 +19,7 @@ describe("OpenSessionRail", () => {
 
   it("marks Caja as current on the cash screens and sends Venta to the sale", async () => {
     const screen = await render(
-      <OpenSessionRail firstName="Ada" registerName="Caja 1" current="cash" />,
+      <OpenSessionRail firstName="Ada" registerName="Caja 1" lock={() => {}} current="cash" />,
     );
 
     await expect
@@ -34,7 +34,16 @@ describe("OpenSessionRail", () => {
     async function renderRail() {
       await page.viewport(1280, 900);
       onTestFinished(() => page.viewport(414, 896));
-      return render(<OpenSessionRail firstName="Ada" registerName="Caja 1" current="sale" />);
+      const locked: string[] = [];
+      const screen = await render(
+        <OpenSessionRail
+          firstName="Ada"
+          registerName="Caja 1"
+          lock={() => locked.push("locked")}
+          current="sale"
+        />,
+      );
+      return Object.assign(screen, { locked });
     }
 
     it("asks to close the register first instead of leaving", async () => {
@@ -43,19 +52,30 @@ describe("OpenSessionRail", () => {
       await userEvent.click(screen.getByRole("button", { name: "Salir" }));
 
       await expect
-        .element(screen.getByRole("dialog", { name: "Para salir, primero cerrá la caja" }))
+        .element(screen.getByRole("dialog", { name: "¿Cerrar la caja o dejarla bloqueada?" }))
         .toBeVisible();
       expect(screen.router.state.location.pathname).toBe("/");
     });
 
-    it("keeps the session untouched on Cancelar", async () => {
+    it("keeps the session untouched when the modal is dismissed", async () => {
       const screen = await renderRail();
       await userEvent.click(screen.getByRole("button", { name: "Salir" }));
 
-      await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+      await userEvent.keyboard("{Escape}");
 
       await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
       expect(screen.router.state.location.pathname).toBe("/");
+      expect(screen.locked).toEqual([]);
+    });
+
+    it("leaves the register locked on Dejar bloqueada", async () => {
+      const screen = await renderRail();
+      await userEvent.click(screen.getByRole("button", { name: "Salir" }));
+
+      await userEvent.click(screen.getByRole("button", { name: "Dejar bloqueada" }));
+
+      expect(screen.locked).toEqual(["locked"]);
+      await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
     });
 
     it("goes to the cash count in leaving mode on Cerrar caja", async () => {

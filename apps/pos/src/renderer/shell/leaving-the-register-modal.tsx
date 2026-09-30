@@ -1,19 +1,21 @@
 import { Button, Modal } from "@purosur/ui";
-import { Lock, X } from "lucide-react";
+import { Lock, Pause } from "lucide-react";
 
-export type CloseBeforeLeavingModalProps = {
+export type LeavingTheRegisterModalProps = {
   open: boolean;
   registerName: string | null;
   onClose: () => void;
+  onLock: () => void;
   onCloseRegister: () => void;
 };
 
-export function CloseBeforeLeavingModal({
+export function LeavingTheRegisterModal({
   open,
   registerName,
   onClose,
+  onLock,
   onCloseRegister,
-}: CloseBeforeLeavingModalProps) {
+}: LeavingTheRegisterModalProps) {
   return (
     <Modal
       open={open}
@@ -26,12 +28,12 @@ export function CloseBeforeLeavingModal({
       tone="info"
       icon={<Lock />}
       context={registerName === null ? "Sesión abierta" : `${registerName} · Sesión abierta`}
-      title="Para salir, primero cerrá la caja"
+      title="¿Cerrar la caja o dejarla bloqueada?"
       closable
       footer={
         <>
-          <Button variant="secondary" size="large" icon={<X />} onPress={onClose}>
-            Cancelar
+          <Button variant="secondary" size="large" icon={<Pause />} onPress={onLock}>
+            Dejar bloqueada
           </Button>
           <Button size="large" icon={<Lock />} fullWidth onPress={onCloseRegister}>
             Cerrar caja

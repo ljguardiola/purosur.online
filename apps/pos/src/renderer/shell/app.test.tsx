@@ -915,6 +915,20 @@ describe("App", () => {
       expect(asked).not.toContain("sign-out");
     });
 
+    it("leaves the register locked in the opener's name from Salir, resumed with the opener's PIN", async () => {
+      const { screen, asked } = await resumeGracesSession();
+      await userEvent.click(screen.getByRole("button", { name: "Salir" }));
+
+      await userEvent.click(screen.getByRole("button", { name: "Dejar bloqueada" }));
+
+      await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
+      await expect.element(screen.getByRole("radio", { name: "Grace" })).toBeVisible();
+      expect(asked).toContain("sign-out");
+      await userEvent.type(screen.getByLabelText("PIN"), "1234");
+      await userEvent.click(screen.getByRole("button", { name: "Retomar" }));
+      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    });
+
     it("ends signed out at the entry screen when the close was started from Salir", async () => {
       const { screen, closed, asked } = await resumeGracesSession({
         closeCashSession: async () => ({
@@ -930,7 +944,7 @@ describe("App", () => {
       await userEvent.click(screen.getByRole("button", { name: "Salir" }));
       await userEvent.click(
         screen
-          .getByRole("dialog", { name: "Para salir, primero cerrá la caja" })
+          .getByRole("dialog", { name: "¿Cerrar la caja o dejarla bloqueada?" })
           .getByRole("button", { name: "Cerrar caja" }),
       );
       await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
@@ -952,7 +966,7 @@ describe("App", () => {
       await userEvent.click(screen.getByRole("button", { name: "Salir" }));
       await userEvent.click(
         screen
-          .getByRole("dialog", { name: "Para salir, primero cerrá la caja" })
+          .getByRole("dialog", { name: "¿Cerrar la caja o dejarla bloqueada?" })
           .getByRole("button", { name: "Cerrar caja" }),
       );
       await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");

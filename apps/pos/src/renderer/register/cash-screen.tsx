@@ -12,16 +12,28 @@ export type CashScreenProps = {
   person: SignedInPerson;
   registerName: string | null;
   openedAt: string;
+  lock: () => void;
   loadCashBalance: () => Promise<CashBalance | null | "unavailable">;
 };
 
-export function CashScreen({ person, registerName, openedAt, loadCashBalance }: CashScreenProps) {
+export function CashScreen({
+  person,
+  registerName,
+  openedAt,
+  lock,
+  loadCashBalance,
+}: CashScreenProps) {
   const navigate = useNavigate();
   const { state, retry } = useCashBalance(loadCashBalance);
 
   return (
     <div className="flex h-screen w-screen bg-surface">
-      <OpenSessionRail firstName={person.first_name} registerName={registerName} current="cash" />
+      <OpenSessionRail
+        firstName={person.first_name}
+        registerName={registerName}
+        lock={lock}
+        current="cash"
+      />
       <main className="flex flex-1 flex-col gap-1.5 p-8">
         <SessionEyebrow registerName={registerName} openedAt={openedAt} />
         <h1 className="text-display text-text-accent">Caja</h1>
