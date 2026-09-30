@@ -88,7 +88,7 @@ function IdentificationPanel({
       : {
           id: chosen.id,
           firstName: chosen.first_name,
-          signIn: async (pin) => {
+          attempt: async (pin) => {
             const outcome = await identify({ user_id: chosen.id, pin });
             if (outcome.kind === "identified") {
               onIdentified({

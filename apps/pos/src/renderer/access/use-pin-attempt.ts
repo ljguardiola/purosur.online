@@ -10,7 +10,7 @@ export type PinAttemptOutcome = SignInOutcome | IdentifyLockedCloserOutcome;
 export type PinTarget = {
   id: string;
   firstName: string;
-  signIn: (pin: string) => Promise<PinAttemptOutcome>;
+  attempt: (pin: string) => Promise<PinAttemptOutcome>;
 };
 
 export function usePinAttempt(target: PinTarget | null) {
@@ -66,7 +66,7 @@ export function usePinAttempt(target: PinTarget | null) {
     setRefusal(undefined);
     setSubmitting(true);
     const outcome = await target
-      .signIn(pin)
+      .attempt(pin)
       .catch((): PinAttemptOutcome => ({ kind: "unavailable" }));
     setSubmitting(false);
     if (outcome.kind === "unavailable" || outcome.kind === "not_locked") {

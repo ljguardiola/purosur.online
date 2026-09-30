@@ -26,7 +26,7 @@ export function LockedRegisterScreen({
   const attempt = usePinAttempt({
     id: opener.user_id,
     firstName: opener.first_name,
-    signIn: (pin) => signIn(opener.user_id, pin),
+    attempt: (pin) => signIn(opener.user_id, pin),
   });
   const { refusal, heading, reset } = attempt;
 
