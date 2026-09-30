@@ -1,6 +1,6 @@
 import type { ListedCashMovement } from "@purosur/contracts";
+import { CASH_MOVEMENT_TYPES } from "@purosur/contracts";
 import type { CashMovementType } from "@purosur/domain";
-import { CASH_MOVEMENT_TYPES } from "@purosur/domain";
 import type { TableLoadingState } from "@purosur/ui";
 import { formatCents, ListFilter, plural, Table, TableCellText, tableRows } from "@purosur/ui";
 import { Receipt, TriangleAlert } from "lucide-react";

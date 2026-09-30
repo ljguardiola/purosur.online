@@ -2,7 +2,9 @@ import {
   ARGENTINA_TIME_ZONE,
   type AuthorizablePermissionKey,
   CASH_MOVEMENT_KINDS,
+  CASH_MOVEMENT_REASON_MAX_LENGTH,
   CASH_MOVEMENT_TYPES,
+  cashMovementPermission,
   cashMovementReason,
   isAuthorizablePermissionKey,
   isValidCashAmount,
@@ -27,7 +29,14 @@ export const countedCashSchema = cashAmountSchema;
 
 export const cashMovementAmountSchema = z.number().refine(isValidCashMovementAmount);
 
-export { ARGENTINA_TIME_ZONE, parseAmountCents };
+export {
+  ARGENTINA_TIME_ZONE,
+  CASH_MOVEMENT_REASON_MAX_LENGTH,
+  CASH_MOVEMENT_TYPES,
+  cashMovementPermission,
+  cashMovementReason,
+  parseAmountCents,
+};
 
 const rendererPingMessageSchema = z.object({
   type: z.literal("ping"),
