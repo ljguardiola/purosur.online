@@ -118,8 +118,9 @@ export function createImportResolver(cwd = process.cwd()) {
       ts.sys,
       cache,
     );
-    if (!resolvedModule || resolvedModule.isExternalLibraryImport) return undefined;
-    return relative(cwd, resolvedModule.resolvedFileName);
+    if (!resolvedModule) return undefined;
+    const path = relative(cwd, resolvedModule.resolvedFileName);
+    return path.split("/").includes("node_modules") ? undefined : path;
   };
 }
 
