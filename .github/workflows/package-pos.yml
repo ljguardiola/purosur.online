@@ -39,6 +39,7 @@ permissions:
 jobs:
   package:
     runs-on: windows-latest
+    timeout-minutes: 12
     # Every run builds both channels' installers, so a change that breaks either one fails before
     # it merges. Only a merge to main runs under the staging environment, which admits nothing but
     # main, and keeps its staging installer. The job builds the app code once and packages both
@@ -117,6 +118,7 @@ jobs:
     name: independent build of the production app.asar
     if: github.event_name == 'push'
     runs-on: windows-latest
+    timeout-minutes: 8
     permissions:
       contents: read
     steps:
@@ -153,6 +155,7 @@ jobs:
     needs: [package, independent-build]
     if: github.event_name == 'push'
     runs-on: ubuntu-24.04
+    timeout-minutes: 3
     permissions:
       contents: read
     steps:
