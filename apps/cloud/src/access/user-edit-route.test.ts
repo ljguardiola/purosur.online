@@ -102,14 +102,14 @@ function cookieHeader(rawSessionId: string): Record<string, string> {
   return { cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` };
 }
 
-function postJson(
+function putJson(
   target: FastifyInstance,
   url: string,
   body: Record<string, unknown>,
   headers: Record<string, string> = {},
 ) {
   return target.inject({
-    method: "POST",
+    method: "PUT",
     url,
     headers: { origin: BACKOFFICE_ORIGIN, ...headers },
     payload: body,
@@ -154,9 +154,9 @@ function editUser(
   body: Record<string, unknown>,
   headers: Record<string, string> = {},
 ) {
-  return postJson(
+  return putJson(
     app,
-    `/users/${targetId}/edit`,
+    `/users/${targetId}`,
     body,
     rawSessionId ? { ...cookieHeader(rawSessionId), ...headers } : headers,
   );
@@ -193,7 +193,7 @@ afterEach(async () => {
   await recoveryApp.close();
 });
 
-describe("POST /users/:id/edit", () => {
+describe("PUT /users/:id", () => {
   let cashierRoleId: string;
   let targetId: string;
 
@@ -218,12 +218,25 @@ describe("POST /users/:id/edit", () => {
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
   });
 
-  it("rejects an Origin that is not the backoffice's own", async () => {
+  it("no longer answers the old edit path", async () => {
     const rawSessionId = await insertSession(administratorId);
 
     const response = await app.inject({
       method: "POST",
       url: `/users/${targetId}/edit`,
+      headers: { origin: BACKOFFICE_ORIGIN, ...cookieHeader(rawSessionId) },
+      payload: { email: "new@example.com", role_id: cashierRoleId, version: 1 },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("rejects an Origin that is not the backoffice's own", async () => {
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await app.inject({
+      method: "PUT",
+      url: `/users/${targetId}`,
       headers: { origin: "https://attacker.example", ...cookieHeader(rawSessionId) },
     });
 
@@ -562,9 +575,9 @@ describe("POST /users/:id/edit", () => {
       now: () => currentTime,
     });
 
-    const response = await postJson(
+    const response = await putJson(
       racedApp,
-      `/users/${targetId}/edit`,
+      `/users/${targetId}`,
       { email: "new.email@example.com", role_id: cashierRoleId, version: 1 },
       cookieHeader(rawSessionId),
     );
@@ -680,7 +693,7 @@ describe("POST /users/:id/edit", () => {
   });
 });
 
-describe("POST /users/:id/edit and the alert for increased access", () => {
+describe("PUT /users/:id and the alert for increased access", () => {
   let targetId: string;
 
   async function insertRoleWithPermissions(

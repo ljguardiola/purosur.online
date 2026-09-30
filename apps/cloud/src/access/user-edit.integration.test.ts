@@ -97,8 +97,8 @@ describe("editing a user's email to a taken address on a real Postgres through p
     const cookie = `${SESSION_COOKIE_NAME}=${await insertSession(administratorId)}`;
 
     const response = await app.inject({
-      method: "POST",
-      url: `/users/${targetId}/edit`,
+      method: "PUT",
+      url: `/users/${targetId}`,
       headers: { origin: BACKOFFICE_ORIGIN, cookie },
       payload: { email: takenEmail, role_id: cashierRole.id, version: 1 },
     });

@@ -3,7 +3,12 @@ import { request as httpRequest } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { healthCheckSchema, openSessionSchema, passkeyListSchema } from "@purosur/contracts";
+import {
+  changesPageSchema,
+  healthCheckSchema,
+  openSessionSchema,
+  passkeyListSchema,
+} from "@purosur/contracts";
 import { PERMISSION_KEYS } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -79,6 +84,25 @@ describe("GET /api/health", () => {
 
     expect(response.statusCode).toBe(200);
     expect(healthCheckSchema.parse(response.json()).installation).toEqual({ revoked: false });
+  });
+});
+
+describe("GET /api/changes", () => {
+  it("pulls the enrolled installation's branch changes when the device routes are wired", async () => {
+    const { deviceToken } = await insertEnrolledInstallation(testDatabase.db);
+    const app = buildApp({
+      version: "abc1234",
+      devices: { db: testDatabase.db, rotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY },
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/changes?since=0",
+      headers: { authorization: `Bearer ${deviceToken}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(changesPageSchema.parse(response.json()).changes).toHaveLength(1);
   });
 });
 
@@ -726,8 +750,8 @@ describe("wiring the users routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
     const edit = await app.inject({
-      method: "POST",
-      url: "/api/users/00000000-0000-0000-0000-000000000000/edit",
+      method: "PUT",
+      url: "/api/users/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
     const userPasskeys = await app.inject({
@@ -735,12 +759,12 @@ describe("wiring the users routes", () => {
       url: "/api/users/00000000-0000-0000-0000-000000000000/passkeys",
     });
     const userPasskeyRemove = await app.inject({
-      method: "POST",
-      url: "/api/users/00000000-0000-0000-0000-000000000000/passkeys/00000000-0000-0000-0000-000000000000/remove",
+      method: "DELETE",
+      url: "/api/users/00000000-0000-0000-0000-000000000000/passkeys/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
     const deactivation = await app.inject({
-      method: "POST",
+      method: "PUT",
       url: "/api/users/00000000-0000-0000-0000-000000000000/deactivation",
       headers: { origin: "https://staging.purosur.online" },
     });
@@ -771,8 +795,8 @@ describe("wiring the users routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
     const edit = await app.inject({
-      method: "POST",
-      url: "/api/users/00000000-0000-0000-0000-000000000000/edit",
+      method: "PUT",
+      url: "/api/users/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
     const userPasskeys = await app.inject({
@@ -780,12 +804,12 @@ describe("wiring the users routes", () => {
       url: "/api/users/00000000-0000-0000-0000-000000000000/passkeys",
     });
     const userPasskeyRemove = await app.inject({
-      method: "POST",
-      url: "/api/users/00000000-0000-0000-0000-000000000000/passkeys/00000000-0000-0000-0000-000000000000/remove",
+      method: "DELETE",
+      url: "/api/users/00000000-0000-0000-0000-000000000000/passkeys/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
     const deactivation = await app.inject({
-      method: "POST",
+      method: "PUT",
       url: "/api/users/00000000-0000-0000-0000-000000000000/deactivation",
       headers: { origin: "https://staging.purosur.online" },
     });
@@ -815,8 +839,8 @@ describe("wiring the roles routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
     const edit = await app.inject({
-      method: "POST",
-      url: "/api/roles/00000000-0000-0000-0000-000000000000/edit",
+      method: "PUT",
+      url: "/api/roles/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -844,8 +868,8 @@ describe("wiring the roles routes", () => {
       headers: { origin: "https://staging.purosur.online" },
     });
     const edit = await app.inject({
-      method: "POST",
-      url: "/api/roles/00000000-0000-0000-0000-000000000000/edit",
+      method: "PUT",
+      url: "/api/roles/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1244,15 +1268,15 @@ describe("wiring the device token rotation route", () => {
 });
 
 describe("wiring the branch settings routes", () => {
-  it("does not register GET /api/branch-settings when no branchSettings option is given", async () => {
+  it("does not register GET /api/locations/current/settings when no branchSettings option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
-    const response = await app.inject({ method: "GET", url: "/api/branch-settings" });
+    const response = await app.inject({ method: "GET", url: "/api/locations/current/settings" });
 
     expect(response.statusCode).toBe(404);
   });
 
-  it("registers GET /api/branch-settings when a branchSettings option is given", async () => {
+  it("registers GET /api/locations/current/settings when a branchSettings option is given", async () => {
     const app = buildApp({
       version: "abc1234",
       branchSettings: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
@@ -1260,7 +1284,7 @@ describe("wiring the branch settings routes", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/api/branch-settings",
+      url: "/api/locations/current/settings",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1268,15 +1292,15 @@ describe("wiring the branch settings routes", () => {
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
   });
 
-  it("does not register PUT /api/branch-settings when no branchSettings option is given", async () => {
+  it("does not register PUT /api/locations/current/settings when no branchSettings option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
-    const response = await app.inject({ method: "PUT", url: "/api/branch-settings" });
+    const response = await app.inject({ method: "PUT", url: "/api/locations/current/settings" });
 
     expect(response.statusCode).toBe(404);
   });
 
-  it("registers PUT /api/branch-settings when a branchSettings option is given", async () => {
+  it("registers PUT /api/locations/current/settings when a branchSettings option is given", async () => {
     const app = buildApp({
       version: "abc1234",
       branchSettings: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
@@ -1284,7 +1308,7 @@ describe("wiring the branch settings routes", () => {
 
     const response = await app.inject({
       method: "PUT",
-      url: "/api/branch-settings",
+      url: "/api/locations/current/settings",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1296,18 +1320,18 @@ describe("wiring the branch settings routes", () => {
 describe("wiring the issuer identification routes", () => {
   const authorizedCuit = "20-12345678-6";
 
-  it("does not register GET /api/fiscal-configuration/issuer-identification when no issuerIdentification option is given", async () => {
+  it("does not register GET /api/fiscal-settings/issuer-identification when no issuerIdentification option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
     const response = await app.inject({
       method: "GET",
-      url: "/api/fiscal-configuration/issuer-identification",
+      url: "/api/fiscal-settings/issuer-identification",
     });
 
     expect(response.statusCode).toBe(404);
   });
 
-  it("registers GET /api/fiscal-configuration/issuer-identification when an issuerIdentification option is given", async () => {
+  it("registers GET /api/fiscal-settings/issuer-identification when an issuerIdentification option is given", async () => {
     const app = buildApp({
       version: "abc1234",
       issuerIdentification: {
@@ -1319,7 +1343,7 @@ describe("wiring the issuer identification routes", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/api/fiscal-configuration/issuer-identification",
+      url: "/api/fiscal-settings/issuer-identification",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1327,18 +1351,18 @@ describe("wiring the issuer identification routes", () => {
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
   });
 
-  it("does not register PUT /api/fiscal-configuration/issuer-identification when no issuerIdentification option is given", async () => {
+  it("does not register PUT /api/fiscal-settings/issuer-identification when no issuerIdentification option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
     const response = await app.inject({
       method: "PUT",
-      url: "/api/fiscal-configuration/issuer-identification",
+      url: "/api/fiscal-settings/issuer-identification",
     });
 
     expect(response.statusCode).toBe(404);
   });
 
-  it("registers PUT /api/fiscal-configuration/issuer-identification when an issuerIdentification option is given", async () => {
+  it("registers PUT /api/fiscal-settings/issuer-identification when an issuerIdentification option is given", async () => {
     const app = buildApp({
       version: "abc1234",
       issuerIdentification: {
@@ -1350,7 +1374,7 @@ describe("wiring the issuer identification routes", () => {
 
     const response = await app.inject({
       method: "PUT",
-      url: "/api/fiscal-configuration/issuer-identification",
+      url: "/api/fiscal-settings/issuer-identification",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1463,6 +1487,20 @@ function productionWiredApp() {
   });
 }
 
+describe("wiring the alerts routes", () => {
+  it("no longer answers the former alert closing path", async () => {
+    const app = productionWiredApp();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/alerts/00000000-0000-0000-0000-000000000000/close",
+      headers: { origin: BACKOFFICE_ORIGIN },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+});
+
 describe("the route access inventory", () => {
   it("declares exactly one access level for every registered route", async () => {
     const app = productionWiredApp();
@@ -1503,45 +1541,45 @@ describe("the route access inventory", () => {
         access: permissionAccess(["deactivate_users", "reactivate_users"]),
       },
       { method: "POST", url: "/api/users", access: ADMINISTRATOR_ACCESS },
-      { method: "POST", url: "/api/users/:id/edit", access: ADMINISTRATOR_ACCESS },
+      { method: "PUT", url: "/api/users/:id", access: ADMINISTRATOR_ACCESS },
       { method: "GET", url: "/api/users/:id/passkeys", access: ADMINISTRATOR_ACCESS },
       {
-        method: "POST",
-        url: "/api/users/:id/passkeys/:passkeyId/remove",
+        method: "DELETE",
+        url: "/api/users/:id/passkeys/:passkeyId",
         access: ADMINISTRATOR_ACCESS,
       },
       {
-        method: "POST",
+        method: "PUT",
         url: "/api/users/:id/deactivation",
         access: permissionAccess("deactivate_users"),
       },
       {
-        method: "POST",
-        url: "/api/users/:id/reactivation",
+        method: "DELETE",
+        url: "/api/users/:id/deactivation",
         access: permissionAccess("reactivate_users"),
       },
       { method: "GET", url: "/api/roles", access: ADMINISTRATOR_ACCESS },
       { method: "GET", url: "/api/roles/:id", access: ADMINISTRATOR_ACCESS },
       { method: "POST", url: "/api/roles", access: ADMINISTRATOR_ACCESS },
-      { method: "POST", url: "/api/roles/:id/edit", access: ADMINISTRATOR_ACCESS },
+      { method: "PUT", url: "/api/roles/:id", access: ADMINISTRATOR_ACCESS },
       {
         method: "GET",
-        url: "/api/branch-settings",
+        url: "/api/locations/current/settings",
         access: permissionAccess("configure_branch"),
       },
       {
         method: "PUT",
-        url: "/api/branch-settings",
+        url: "/api/locations/current/settings",
         access: permissionAccess("configure_branch"),
       },
       {
         method: "GET",
-        url: "/api/fiscal-configuration/issuer-identification",
+        url: "/api/fiscal-settings/issuer-identification",
         access: permissionAccess("change_fiscal_configuration"),
       },
       {
         method: "PUT",
-        url: "/api/fiscal-configuration/issuer-identification",
+        url: "/api/fiscal-settings/issuer-identification",
         access: permissionAccess("change_fiscal_configuration"),
       },
       {
@@ -1643,8 +1681,8 @@ describe("the route access inventory", () => {
       { method: "GET", url: "/api/alerts/overview", access: OPEN_SESSION_ACCESS },
       { method: "GET", url: "/api/alerts/:id", access: OPEN_SESSION_ACCESS },
       {
-        method: "POST",
-        url: "/api/alerts/:id/close",
+        method: "PUT",
+        url: "/api/alerts/:id/closure",
         access: permissionAccess("dismiss_alerts_manually"),
       },
       {
@@ -1684,6 +1722,7 @@ describe("the route access inventory", () => {
       },
       { method: "GET", url: "/api/health", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/devices/enroll", access: PUBLIC_ACCESS },
+      { method: "GET", url: "/api/changes", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/devices/rotate-token", access: PUBLIC_ACCESS },
       { method: "HEAD", url: "/*", access: PUBLIC_ACCESS },
       { method: "GET", url: "/*", access: PUBLIC_ACCESS },

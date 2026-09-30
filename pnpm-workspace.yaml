@@ -4,6 +4,7 @@ packages:
 
 allowBuilds:
   electron: true
+  better-sqlite3: true
   "@serialport/bindings-cpp": true
   esbuild: false
   electron-winstaller: true

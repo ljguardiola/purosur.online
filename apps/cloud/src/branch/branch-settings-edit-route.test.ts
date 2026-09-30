@@ -1,5 +1,5 @@
 import { BRANCH_SETTINGS_DAYS_MAX } from "@purosur/domain";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
@@ -8,6 +8,7 @@ import {
   auditLog,
   branchHours,
   branchSettings,
+  changes,
   locations,
   rolePermissions,
   roles,
@@ -138,7 +139,7 @@ function validBody(overrides: Record<string, unknown> = {}): Record<string, unkn
 function putBranchSettings(body: Record<string, unknown>, rawSessionId?: string) {
   return app.inject({
     method: "PUT",
-    url: "/branch-settings",
+    url: "/locations/current/settings",
     headers: {
       origin: BACKOFFICE_ORIGIN,
       ...(rawSessionId ? cookieHeader(rawSessionId) : {}),
@@ -150,12 +151,31 @@ function putBranchSettings(body: Record<string, unknown>, rawSessionId?: string)
 function getBranchSettings(rawSessionId: string) {
   return app.inject({
     method: "GET",
-    url: "/branch-settings",
+    url: "/locations/current/settings",
     headers: { origin: BACKOFFICE_ORIGIN, ...cookieHeader(rawSessionId) },
   });
 }
 
-describe("PUT /branch-settings", () => {
+describe("PUT /locations/current/settings", () => {
+  it("no longer answers PUT /branch-settings", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/branch-settings",
+      headers: { origin: BACKOFFICE_ORIGIN, ...cookieHeader(rawSessionId) },
+      payload: validBody(),
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
   it("returns 401 unauthenticated when no cookie was sent", async () => {
     const response = await putBranchSettings(validBody());
 
@@ -174,7 +194,7 @@ describe("PUT /branch-settings", () => {
 
     const response = await app.inject({
       method: "PUT",
-      url: "/branch-settings",
+      url: "/locations/current/settings",
       headers: { origin: "https://attacker.example", ...cookieHeader(rawSessionId) },
       payload: validBody(),
     });
@@ -255,7 +275,7 @@ describe("PUT /branch-settings", () => {
     expect(row).toMatchObject({ address: "Av. Siempre Viva 742", version: 2 });
   });
 
-  it("makes the change visible to a subsequent GET /branch-settings", async () => {
+  it("makes the change visible to a subsequent GET /locations/current/settings", async () => {
     const administratorId = await insertUser({
       firstName: "Ada Lovelace",
       email: "ada@example.com",
@@ -320,6 +340,33 @@ describe("PUT /branch-settings", () => {
         sunday_hours: [],
       },
     });
+  });
+
+  it("logs the saved version as a change for registers to pull, and nothing for a save that changed nothing", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+    const locationId = await seededLocationId(db);
+
+    expect((await putBranchSettings(validBody(), rawSessionId)).statusCode).toBe(200);
+    expect((await putBranchSettings({ ...validBody(), version: 2 }, rawSessionId)).statusCode).toBe(
+      200,
+    );
+    expect((await putBranchSettings(validBody(), rawSessionId)).statusCode).toBe(409);
+
+    const logged = await db
+      .select({ entity: changes.entity, version: changes.version, op: changes.op })
+      .from(changes)
+      .where(eq(changes.entityId, locationId))
+      .orderBy(asc(changes.changeSeq));
+    expect(logged).toEqual([
+      { entity: "branch_settings", version: 1, op: "insert" },
+      { entity: "branch_settings", version: 2, op: "update" },
+    ]);
   });
 
   it("treats re-saving the same non-empty hours as a no-op: version unchanged, no new audit row", async () => {

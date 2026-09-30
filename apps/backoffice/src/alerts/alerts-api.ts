@@ -128,8 +128,8 @@ export async function fetchAlert(id: string): Promise<FetchAlertOutcome> {
 export async function closeAlert(id: string): Promise<CloseAlertOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/api/alerts/${id}/close`, {
-      method: "POST",
+    response = await fetch(`/api/alerts/${id}/closure`, {
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),
     });

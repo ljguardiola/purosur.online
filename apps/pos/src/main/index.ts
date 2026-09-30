@@ -33,6 +33,7 @@ import {
   CHILD_PROCESS_EVENT_REASONS,
   withoutReplacedDefaultIntegrations,
 } from "./error-reporting-integrations";
+import { localDataFolderFor } from "./local-data-folder";
 import { denyDisallowedNavigation, denyWindowOpen } from "./navigation-guard";
 import { reportStartFailure } from "./start-failure";
 import { showWhenReadyAndReviveRenderer } from "./window-lifecycle";
@@ -160,6 +161,16 @@ function startRegister(settings: ChannelSettings): void {
       },
     );
 
+    const coreArguments = coreArgumentsFor({
+      ...settings,
+      localDataFolder: localDataFolderFor({
+        platform: process.platform,
+        localAppData: process.env["LOCALAPPDATA"],
+        dataFolder: settings.dataFolder,
+        userData: app.getPath("userData"),
+      }),
+    });
+
     const deviceCredentials = createDeviceCredentialsStore({
       encryption: safeStorage,
       file: credentialsFileAt(join(app.getPath("userData"), "device-credentials.bin")),
@@ -201,7 +212,7 @@ function startRegister(settings: ChannelSettings): void {
 
     const supervisor = createCoreSupervisor({
       fork: (): SupervisedProcess => {
-        const child = utilityProcess.fork(CORE_ENTRY, coreArgumentsFor(settings), {
+        const child = utilityProcess.fork(CORE_ENTRY, coreArguments, {
           stdio: ["ignore", "pipe", "pipe"],
         });
         forwardCoreOutput(child, process.stdout, process.stderr);

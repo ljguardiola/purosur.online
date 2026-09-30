@@ -102,7 +102,7 @@ export async function findBranchSettings<TQueryResult extends PgQueryResultHKT>(
   });
 }
 
-async function readBranchSettings<TQueryResult extends PgQueryResultHKT>(
+export async function readBranchSettings<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   locationId: string,
 ): Promise<BranchSettingsRow> {
@@ -145,7 +145,7 @@ export function registerBranchSettingsReadRoute<TQueryResult extends PgQueryResu
   const sessionSource = routeSessionSource({ db: options.db, now });
 
   app.get(
-    "/branch-settings",
+    "/locations/current/settings",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
       config: { access: permissionAccess("configure_branch"), sessionSource },

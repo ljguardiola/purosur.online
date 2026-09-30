@@ -130,7 +130,7 @@ function validBody(overrides: Record<string, unknown> = {}): Record<string, unkn
 function putIssuerIdentification(body: Record<string, unknown>, rawSessionId?: string) {
   return app.inject({
     method: "PUT",
-    url: "/fiscal-configuration/issuer-identification",
+    url: "/fiscal-settings/issuer-identification",
     headers: {
       origin: BACKOFFICE_ORIGIN,
       ...(rawSessionId ? cookieHeader(rawSessionId) : {}),
@@ -142,12 +142,31 @@ function putIssuerIdentification(body: Record<string, unknown>, rawSessionId?: s
 function getIssuerIdentification(rawSessionId: string) {
   return app.inject({
     method: "GET",
-    url: "/fiscal-configuration/issuer-identification",
+    url: "/fiscal-settings/issuer-identification",
     headers: { origin: BACKOFFICE_ORIGIN, ...cookieHeader(rawSessionId) },
   });
 }
 
-describe("PUT /fiscal-configuration/issuer-identification", () => {
+describe("PUT /fiscal-settings/issuer-identification", () => {
+  it("no longer answers PUT /fiscal-configuration/issuer-identification", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/fiscal-configuration/issuer-identification",
+      headers: { origin: BACKOFFICE_ORIGIN, ...cookieHeader(rawSessionId) },
+      payload: validBody(),
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
   it("returns 401 unauthenticated when no cookie was sent", async () => {
     const response = await putIssuerIdentification(validBody());
 
@@ -166,7 +185,7 @@ describe("PUT /fiscal-configuration/issuer-identification", () => {
 
     const response = await app.inject({
       method: "PUT",
-      url: "/fiscal-configuration/issuer-identification",
+      url: "/fiscal-settings/issuer-identification",
       headers: { origin: "https://attacker.example", ...cookieHeader(rawSessionId) },
       payload: validBody(),
     });

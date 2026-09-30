@@ -15,6 +15,7 @@ import {
 } from "../access/route-access.js";
 import { auditLog, branchHours, branchSettings } from "../platform/db/schema.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
+import { logChange } from "../sync/change-log.js";
 import type {
   BranchHoursRange,
   BranchHoursRow,
@@ -200,6 +201,13 @@ export async function editBranchSettings<TQueryResult extends PgQueryResultHKT>(
         .values(nextHours.map((row) => ({ ...row, locationId: input.locationId })));
     }
 
+    await logChange(tx, {
+      entity: "branch_settings",
+      entityId: input.locationId,
+      version: nextVersion,
+      op: "update",
+    });
+
     await tx.insert(auditLog).values({
       entity: "branch_settings",
       entityId: input.locationId,
@@ -221,7 +229,7 @@ export function registerBranchSettingsEditRoute<TQueryResult extends PgQueryResu
   const sessionSource = routeSessionSource({ db: options.db, now });
 
   app.put(
-    "/branch-settings",
+    "/locations/current/settings",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
       config: { access: permissionAccess("configure_branch"), sessionSource },

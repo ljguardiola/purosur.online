@@ -113,8 +113,8 @@ describe("demoting the two last active Administrators at once on a real Postgres
 
     const demoteFirst = () =>
       app.inject({
-        method: "POST",
-        url: `/users/${firstAdministratorId}/edit`,
+        method: "PUT",
+        url: `/users/${firstAdministratorId}`,
         headers: { origin: BACKOFFICE_ORIGIN, cookie: secondCookie },
         payload: {
           email: `first-${randomUUID()}@example.com`,
@@ -124,8 +124,8 @@ describe("demoting the two last active Administrators at once on a real Postgres
       });
     const demoteSecond = () =>
       app.inject({
-        method: "POST",
-        url: `/users/${secondAdministratorId}/edit`,
+        method: "PUT",
+        url: `/users/${secondAdministratorId}`,
         headers: { origin: BACKOFFICE_ORIGIN, cookie: firstCookie },
         payload: {
           email: `second-${randomUUID()}@example.com`,

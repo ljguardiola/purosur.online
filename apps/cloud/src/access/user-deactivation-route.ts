@@ -91,7 +91,7 @@ export function registerUserDeactivationRoutes<TQueryResult extends PgQueryResul
     return row;
   }
 
-  app.post<{ Params: { id: string } }>(
+  app.put<{ Params: { id: string } }>(
     "/users/:id/deactivation",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),

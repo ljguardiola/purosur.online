@@ -148,12 +148,26 @@ export function serializeChannelFile(file: ChannelFile): string {
 
 const SENTRY_ENVIRONMENT_ARGUMENT = "--sentry-environment=";
 const CLOUD_URL_ARGUMENT = "--cloud-url=";
+const LOCAL_DATA_FOLDER_ARGUMENT = "--local-data-folder=";
 
-export function coreArgumentsFor(settings: Pick<ChannelFile, "channel" | "cloudUrl">): string[] {
+export interface CoreArguments extends Pick<ChannelFile, "channel" | "cloudUrl"> {
+  readonly localDataFolder?: string;
+}
+
+export function coreArgumentsFor(settings: CoreArguments): string[] {
   return [
     `${SENTRY_ENVIRONMENT_ARGUMENT}${settings.channel}`,
     ...(settings.cloudUrl === undefined ? [] : [`${CLOUD_URL_ARGUMENT}${settings.cloudUrl}`]),
+    ...(settings.localDataFolder === undefined
+      ? []
+      : [`${LOCAL_DATA_FOLDER_ARGUMENT}${settings.localDataFolder}`]),
   ];
+}
+
+export function localDataFolderFromCoreArguments(argv: readonly string[]): string | undefined {
+  const argument = argv.find((value) => value.startsWith(LOCAL_DATA_FOLDER_ARGUMENT));
+  const value = argument?.slice(LOCAL_DATA_FOLDER_ARGUMENT.length);
+  return value === "" ? undefined : value;
 }
 
 export function cloudUrlFromCoreArguments(argv: readonly string[]): string | undefined {
