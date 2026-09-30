@@ -1,14 +1,17 @@
 export type CashSessionState = "OPEN" | "CLOSED";
 
-export type CashMovementType =
-  | "OPENING"
-  | "SALE"
-  | "CHANGE"
-  | "REFUND"
-  | "CASH_IN"
-  | "CASH_OUT"
-  | "WITHDRAWAL"
-  | "CLOSING";
+export const CASH_MOVEMENT_TYPES = [
+  "OPENING",
+  "SALE",
+  "CHANGE",
+  "REFUND",
+  "CASH_IN",
+  "CASH_OUT",
+  "WITHDRAWAL",
+  "CLOSING",
+] as const;
+
+export type CashMovementType = (typeof CASH_MOVEMENT_TYPES)[number];
 
 export interface CashSession {
   id: string;

@@ -1,11 +1,11 @@
 import { createHmac } from "node:crypto";
-import type { CashSession } from "@purosur/domain";
+import type { CashMovement, CashSession } from "@purosur/domain";
 import { openCashSession } from "@purosur/domain/register/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
-import { SqliteCashLedger } from "./sqlite-cash-ledger";
+import { readOpenSessionMovements, SqliteCashLedger } from "./sqlite-cash-ledger";
 
 const CHAIN_KEY_BYTES = Buffer.from("0123456789abcdef0123456789abcdef");
 const CHAIN_KEY = CHAIN_KEY_BYTES.toString("base64");
@@ -369,5 +369,119 @@ describe("opening a cash session through the ledger", () => {
     expect(open).toThrow();
 
     expect([count("cash_sessions"), count("cash_movements"), counter()]).toEqual([0, 0, 0]);
+  });
+});
+
+describe("the open session's movements", () => {
+  function addPerson(id: string, firstName: string): void {
+    database
+      .prepare(
+        "INSERT INTO users (id, first_name, role_id, salt, active, version) VALUES (?, ?, 'cashier', 's', 1, 1)",
+      )
+      .run(id, firstName);
+  }
+
+  function record(
+    id: string,
+    overrides: Partial<CashMovement> = {},
+    sessionId = "session-1",
+  ): CashMovement {
+    const movement: CashMovement = {
+      id,
+      sessionId,
+      type: "CASH_IN",
+      amount: 1000,
+      actorId: "u1",
+      occurredAt: OPENED_AT,
+      ...overrides,
+    };
+    ledger.transaction((tx) => tx.recordCashMovement(movement));
+    return movement;
+  }
+
+  it("is none while no session is open", () => {
+    expect(readOpenSessionMovements(database)).toBeUndefined();
+  });
+
+  it("is empty for a session with no movements", () => {
+    ledger.transaction((tx) => tx.recordOpenedSession(session()));
+
+    expect(readOpenSessionMovements(database)).toEqual([]);
+  });
+
+  it("lists each movement with its reason, time, and the first names of who did it and who authorized it", () => {
+    addPerson("u1", "Ada");
+    addPerson("u2", "Grace");
+    ledger.transaction((tx) => tx.recordOpenedSession(session()));
+    record("m1", {
+      type: "WITHDRAWAL",
+      amount: 7000,
+      reason: "Retiro al banco",
+      authorizedBy: "u2",
+      occurredAt: new Date("2026-09-30T13:00:00.000Z"),
+    });
+
+    expect(readOpenSessionMovements(database)).toEqual([
+      {
+        id: "m1",
+        type: "WITHDRAWAL",
+        amount: 7000,
+        reason: "Retiro al banco",
+        occurred_at: "2026-09-30T13:00:00.000Z",
+        actor: { user_id: "u1", first_name: "Ada" },
+        authorized_by: { user_id: "u2", first_name: "Grace" },
+      },
+    ]);
+  });
+
+  it("leaves the reason and the authorizer empty when the movement has none", () => {
+    addPerson("u1", "Ada");
+    ledger.transaction((tx) => tx.recordOpenedSession(session()));
+    record("m1", { type: "OPENING" });
+
+    expect(readOpenSessionMovements(database)).toEqual([
+      expect.objectContaining({ reason: null, authorized_by: null }),
+    ]);
+  });
+
+  it("lists them oldest first, keeping the order they were recorded in when they share a time", () => {
+    addPerson("u1", "Ada");
+    ledger.transaction((tx) => tx.recordOpenedSession(session()));
+    record("late", { occurredAt: new Date("2026-09-30T15:00:00.000Z") });
+    record("tie-first", { occurredAt: new Date("2026-09-30T14:00:00.000Z") });
+    record("tie-second", { occurredAt: new Date("2026-09-30T14:00:00.000Z") });
+    record("early", { occurredAt: new Date("2026-09-30T13:00:00.000Z") });
+
+    expect(readOpenSessionMovements(database)?.map((movement) => movement.id)).toEqual([
+      "early",
+      "tie-first",
+      "tie-second",
+      "late",
+    ]);
+  });
+
+  it("leaves out the movements of a closed session", () => {
+    addPerson("u1", "Ada");
+    ledger.transaction((tx) => tx.recordOpenedSession(session()));
+    record("old");
+    database
+      .prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = ?")
+      .run("2026-09-30T20:00:00.000Z");
+    ledger.transaction((tx) => tx.recordOpenedSession(session({ id: "session-2" })));
+    record("new", {}, "session-2");
+
+    expect(readOpenSessionMovements(database)?.map((movement) => movement.id)).toEqual(["new"]);
+  });
+
+  it("names a person who was deactivated since", () => {
+    addPerson("u1", "Ada");
+    ledger.transaction((tx) => tx.recordOpenedSession(session()));
+    record("m1");
+    database.prepare("UPDATE users SET active = 0, removed = 1").run();
+
+    expect(readOpenSessionMovements(database)?.[0]?.actor).toEqual({
+      user_id: "u1",
+      first_name: "Ada",
+    });
   });
 });

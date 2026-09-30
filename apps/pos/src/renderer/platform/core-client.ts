@@ -1,22 +1,32 @@
 import type {
+  Authorization,
   CoreToRendererMessage,
   EnrollmentOutcome,
+  ListedCashMovement,
   OpenCashSession,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
+  RecordCashMovementOutcome,
   RendererToCoreMessage,
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
 } from "@purosur/contracts";
 import { coreToRendererMessageSchema } from "@purosur/contracts";
-import type { AuthorizablePermissionKey } from "@purosur/domain";
+import type { AuthorizablePermissionKey, CashMovementKind } from "@purosur/domain";
 
 export interface CorePort {
   postMessage(message: unknown): void;
   addEventListener(type: "message", listener: (event: { data: unknown }) => void): void;
   start(): void;
   close(): void;
+}
+
+export interface CashMovementInput {
+  kind: CashMovementKind;
+  amount: number;
+  reason: string;
+  authorization: Authorization | undefined;
 }
 
 export interface CoreClient {
@@ -33,6 +43,8 @@ export interface CoreClient {
   signOut(): Promise<void>;
   openCashSession(openingFloat: number): Promise<OpenCashSessionOutcome>;
   cashSession(): Promise<OpenCashSession | null | "unavailable">;
+  recordCashMovement(input: CashMovementInput): Promise<RecordCashMovementOutcome>;
+  cashMovements(): Promise<ListedCashMovement[] | null | "unavailable">;
   onPulled(listener: () => void): () => void;
 }
 
@@ -197,6 +209,30 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
             return "unavailable";
           }
           return answer.type === "cash-session" ? answer.session : undefined;
+        },
+      );
+    },
+    recordCashMovement({ kind, amount, reason, authorization }) {
+      return ask(
+        {
+          type: "record-cash-movement",
+          request_id: deps.newRequestId(),
+          kind,
+          amount,
+          reason,
+          ...(authorization === undefined ? {} : { authorization }),
+        },
+        (answer) => (answer.type === "record-cash-movement-result" ? answer.outcome : undefined),
+      );
+    },
+    cashMovements() {
+      return ask(
+        { type: "cash-movements-request", request_id: deps.newRequestId() },
+        (answer): ListedCashMovement[] | null | "unavailable" | undefined => {
+          if (answer.type === "cash-movements-unavailable") {
+            return "unavailable";
+          }
+          return answer.type === "cash-movements" ? answer.movements : undefined;
         },
       );
     },

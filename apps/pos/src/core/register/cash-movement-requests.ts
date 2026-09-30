@@ -1,0 +1,51 @@
+import type {
+  Authorization,
+  ListedCashMovement,
+  RecordCashMovementOutcome,
+} from "@purosur/contracts";
+import { type CashMovementKind, cashMovementPermission } from "@purosur/domain";
+import { recordCashMovement } from "@purosur/domain/register/use-cases";
+import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
+import type { LocalDatabase } from "../platform/local-database";
+import type { CashSessionRequestDeps } from "./cash-session-requests";
+import { readOpenSessionMovements, SqliteCashLedger } from "./sqlite-cash-ledger";
+
+export interface CashMovementRequest {
+  kind: CashMovementKind;
+  amount: number;
+  reason: string;
+  authorization: Authorization | undefined;
+}
+
+export async function recordCashMovementFor(
+  { database, gate, readOutboxChainKey, now, ids }: CashSessionRequestDeps,
+  { kind, amount, reason, authorization }: CashMovementRequest,
+): Promise<RecordCashMovementOutcome> {
+  const outboxChainKey = await readOutboxChainKey();
+  if (outboxChainKey === undefined) {
+    return { kind: "unavailable" };
+  }
+  const guarded = await gate.run(
+    { permission: cashMovementPermission(kind), authorization },
+    async ({ signedInUserId, authorizedBy }) =>
+      recordCashMovement(
+        {
+          ledger: new SqliteCashLedger(database, new SqliteSignInStore(database), outboxChainKey),
+          clock: { now },
+          ids,
+        },
+        { kind, amount, reason, actorId: signedInUserId, authorizedBy: authorizedBy?.user_id },
+      ),
+  );
+  if (guarded.kind !== "performed") {
+    return guarded;
+  }
+  const outcome = guarded.result;
+  return outcome.kind === "recorded"
+    ? { kind: "recorded", authorized_by: guarded.authorized_by }
+    : { kind: outcome.kind };
+}
+
+export function currentCashMovements(database: LocalDatabase): ListedCashMovement[] | null {
+  return readOpenSessionMovements(database) ?? null;
+}

@@ -1,11 +1,19 @@
 import {
   ARGENTINA_TIME_ZONE,
   type AuthorizablePermissionKey,
+  CASH_MOVEMENT_KINDS,
+  CASH_MOVEMENT_TYPES,
+  cashMovementReason,
   isAuthorizablePermissionKey,
   isValidCashAmount,
   parseAmountCents,
 } from "@purosur/domain";
 import { z } from "zod";
+import {
+  authorizationRefusalSchema,
+  authorizationSchema,
+  authorizedBySchema,
+} from "../access/authorization.js";
 import { pinAttemptRefusalSchema } from "../access/pin-attempt-refusal.js";
 
 const requestId = z.string();
@@ -77,6 +85,23 @@ const cashSessionRequestMessageSchema = z.object({
   request_id: requestId,
 });
 
+const recordCashMovementMessageSchema = z.object({
+  type: z.literal("record-cash-movement"),
+  request_id: requestId,
+  kind: z.enum(CASH_MOVEMENT_KINDS),
+  amount: z
+    .number()
+    .refine(isValidCashAmount)
+    .refine((amount) => amount > 0),
+  reason: z.string().refine((reason) => cashMovementReason(reason) !== undefined),
+  authorization: authorizationSchema.optional(),
+});
+
+const cashMovementsRequestMessageSchema = z.object({
+  type: z.literal("cash-movements-request"),
+  request_id: requestId,
+});
+
 const authorizersRequestMessageSchema = z.object({
   type: z.literal("authorizers"),
   request_id: requestId,
@@ -100,6 +125,8 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   firstSignInMessageSchema,
   openCashSessionMessageSchema,
   cashSessionRequestMessageSchema,
+  recordCashMovementMessageSchema,
+  cashMovementsRequestMessageSchema,
   authorizersRequestMessageSchema,
   signOutMessageSchema,
 ]);
@@ -163,6 +190,29 @@ const openCashSessionSchema = z.object({
 });
 export type OpenCashSession = z.infer<typeof openCashSessionSchema>;
 
+const recordCashMovementOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("recorded"), authorized_by: authorizedBySchema.nullable() }),
+  z.object({ kind: z.literal("invalid_amount") }),
+  z.object({ kind: z.literal("invalid_reason") }),
+  z.object({ kind: z.literal("no_open_session") }),
+  z.object({ kind: z.literal("not_signed_in") }),
+  ...authorizationRefusalSchema.options,
+]);
+export type RecordCashMovementOutcome = z.infer<typeof recordCashMovementOutcomeSchema>;
+
+const cashMovementPersonSchema = z.object({ user_id: z.string(), first_name: z.string() });
+
+const listedCashMovementSchema = z.object({
+  id: z.string(),
+  type: z.enum(CASH_MOVEMENT_TYPES),
+  amount: z.number(),
+  reason: z.string().nullable(),
+  occurred_at: z.string(),
+  actor: cashMovementPersonSchema,
+  authorized_by: cashMovementPersonSchema.nullable(),
+});
+export type ListedCashMovement = z.infer<typeof listedCashMovementSchema>;
+
 const signInUserSchema = z.object({ id: z.string(), first_name: z.string() });
 export type SignInUser = z.infer<typeof signInUserSchema>;
 
@@ -222,6 +272,17 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     session: openCashSessionSchema.nullable(),
   }),
   z.object({ type: z.literal("cash-session-unavailable"), request_id: requestId }),
+  z.object({
+    type: z.literal("record-cash-movement-result"),
+    request_id: requestId,
+    outcome: recordCashMovementOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("cash-movements"),
+    request_id: requestId,
+    movements: z.array(listedCashMovementSchema).nullable(),
+  }),
+  z.object({ type: z.literal("cash-movements-unavailable"), request_id: requestId }),
   z.object({
     type: z.literal("authorizers"),
     request_id: requestId,

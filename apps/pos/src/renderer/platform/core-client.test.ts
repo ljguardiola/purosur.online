@@ -234,6 +234,107 @@ describe("createCoreClient", () => {
     expect(await asked).toBe("unavailable");
   });
 
+  it("asks the core to record a cash movement with its authorization and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const outcome = client.recordCashMovement({
+      kind: "WITHDRAWAL",
+      amount: 7000,
+      reason: "Retiro al banco",
+      authorization: { user_id: "u2", pin: "1234" },
+    });
+    port.answer({
+      type: "record-cash-movement-result",
+      request_id: "request-1",
+      outcome: { kind: "recorded", authorized_by: { user_id: "u2", first_name: "Grace" } },
+    });
+
+    expect(await outcome).toEqual({
+      kind: "recorded",
+      authorized_by: { user_id: "u2", first_name: "Grace" },
+    });
+    expect(port.posted).toEqual([
+      {
+        type: "record-cash-movement",
+        request_id: "request-1",
+        kind: "WITHDRAWAL",
+        amount: 7000,
+        reason: "Retiro al banco",
+        authorization: { user_id: "u2", pin: "1234" },
+      },
+    ]);
+  });
+
+  it("asks the core to record a cash movement without an authorization", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const outcome = client.recordCashMovement({
+      kind: "CASH_IN",
+      amount: 100,
+      reason: "Cambio",
+      authorization: undefined,
+    });
+    port.answer({
+      type: "record-cash-movement-result",
+      request_id: "request-1",
+      outcome: { kind: "lacks_permission" },
+    });
+
+    expect(await outcome).toEqual({ kind: "lacks_permission" });
+    expect(port.posted).toEqual([
+      {
+        type: "record-cash-movement",
+        request_id: "request-1",
+        kind: "CASH_IN",
+        amount: 100,
+        reason: "Cambio",
+      },
+    ]);
+  });
+
+  it.each([
+    null,
+    [
+      {
+        id: "m1",
+        type: "CASH_IN",
+        amount: 100,
+        reason: "Cambio",
+        occurred_at: "2026-09-30T12:00:00.000Z",
+        actor: { user_id: "u1", first_name: "Ada" },
+        authorized_by: null,
+      },
+    ],
+  ])(
+    "asks the core for the open session's cash movements and resolves with them: %j",
+    async (movements) => {
+      const client = clientWithSequentialIds();
+      const port = new FakePort();
+      client.connect(port);
+
+      const asked = client.cashMovements();
+      port.answer({ type: "cash-movements", request_id: "request-1", movements });
+
+      expect(await asked).toEqual(movements);
+      expect(port.posted).toEqual([{ type: "cash-movements-request", request_id: "request-1" }]);
+    },
+  );
+
+  it("resolves that the cash movements are unavailable when the core cannot read them", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.cashMovements();
+    port.answer({ type: "cash-movements-unavailable", request_id: "request-1" });
+
+    expect(await asked).toBe("unavailable");
+  });
+
   it("asks the core to enroll with the code as typed and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();

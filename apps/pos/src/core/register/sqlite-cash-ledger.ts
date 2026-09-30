@@ -1,4 +1,5 @@
-import type { CashMovement, CashSession } from "@purosur/domain";
+import type { ListedCashMovement } from "@purosur/contracts";
+import type { CashMovement, CashMovementType, CashSession } from "@purosur/domain";
 import type {
   CashLedger,
   CashLedgerTransaction,
@@ -35,6 +36,54 @@ export function readOpenSession(database: LocalDatabase): CashSession | undefine
         openingFloat: row.opening_float,
         state: "OPEN",
       };
+}
+
+interface ListedMovementRow {
+  id: string;
+  type: CashMovementType;
+  amount: number;
+  reason: string | null;
+  occurred_at: string;
+  actor_id: string;
+  actor_first_name: string;
+  authorized_by: string | null;
+  authorizer_first_name: string | null;
+}
+
+export function readOpenSessionMovements(
+  database: LocalDatabase,
+): ListedCashMovement[] | undefined {
+  const session = readOpenSession(database);
+  if (session === undefined) {
+    return undefined;
+  }
+  return database
+    .prepare<[string], ListedMovementRow>(
+      `SELECT cash_movements.id AS id, cash_movements.type AS type,
+              cash_movements.amount AS amount, cash_movements.reason AS reason,
+              cash_movements.occurred_at AS occurred_at, cash_movements.actor_id AS actor_id,
+              actor.first_name AS actor_first_name,
+              cash_movements.authorized_by AS authorized_by,
+              authorizer.first_name AS authorizer_first_name
+       FROM cash_movements
+       JOIN users AS actor ON actor.id = cash_movements.actor_id
+       LEFT JOIN users AS authorizer ON authorizer.id = cash_movements.authorized_by
+       WHERE cash_movements.session_id = ?
+       ORDER BY cash_movements.occurred_at, cash_movements.rowid`,
+    )
+    .all(session.id)
+    .map((row) => ({
+      id: row.id,
+      type: row.type,
+      amount: row.amount,
+      reason: row.reason,
+      occurred_at: row.occurred_at,
+      actor: { user_id: row.actor_id, first_name: row.actor_first_name },
+      authorized_by:
+        row.authorized_by === null || row.authorizer_first_name === null
+          ? null
+          : { user_id: row.authorized_by, first_name: row.authorizer_first_name },
+    }));
 }
 
 export class SqliteCashLedger implements CashLedger {

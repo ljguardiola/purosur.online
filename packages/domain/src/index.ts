@@ -144,11 +144,17 @@ export {
 } from "./pricing/index.js";
 export type {
   CashMovement,
+  CashMovementKind,
   CashMovementType,
   CashSession,
   CashSessionState,
 } from "./register/index.js";
 export {
+  CASH_MOVEMENT_KINDS,
+  CASH_MOVEMENT_REASON_MAX_LENGTH,
+  CASH_MOVEMENT_TYPES,
+  cashMovementPermission,
+  cashMovementReason,
   ENROLLMENT_CODE_LENGTH,
   enrollmentAttemptWindowStart,
   enrollmentCodeExpiresAt,

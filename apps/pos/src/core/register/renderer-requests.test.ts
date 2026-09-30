@@ -1,11 +1,14 @@
 import type {
+  ListedCashMovement,
   OpenCashSession,
   OpenCashSessionOutcome,
+  RecordCashMovementOutcome,
   SignInLookupOutcome,
   SignInOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
+import type { CashMovementRequest } from "./cash-movement-requests";
 import { answerRendererRequest, type RendererRequestDeps } from "./renderer-requests";
 
 function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
@@ -15,6 +18,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const firstSignIns: { userId: string; pin: string }[] = [];
   const lookups: string[] = [];
   const openings: number[] = [];
+  const cashMovementRequests: CashMovementRequest[] = [];
   const authorizerLookups: string[] = [];
   const signOuts: string[] = [];
   const failures: { context: string; error: unknown }[] = [];
@@ -25,6 +29,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
     firstSignIns,
     lookups,
     openings,
+    cashMovementRequests,
     authorizerLookups,
     signOuts,
     failures,
@@ -57,6 +62,13 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         return { kind: "not_permitted" };
       },
       cashSession: (): OpenCashSession | null => null,
+      recordCashMovement: async (
+        request: CashMovementRequest,
+      ): Promise<RecordCashMovementOutcome> => {
+        cashMovementRequests.push(request);
+        return { kind: "no_open_session" };
+      },
+      cashMovements: (): ListedCashMovement[] | null => null,
       authorizers: (permission: AuthorizablePermissionKey) => {
         authorizerLookups.push(permission);
         return [{ id: "u2", first_name: "Grace" }];
@@ -412,6 +424,145 @@ describe("answerRendererRequest", () => {
       }),
     ).toEqual({ type: "cash-session-unavailable", request_id: "r17" });
     expect(failing.failures).toEqual([{ context: "reading the open cash session", error }]);
+  });
+
+  it("records a cash movement as sent, with its authorization if it has one, and answers the outcome", async () => {
+    const { deps: withMovement, cashMovementRequests } = deps(true);
+
+    const answer = await answerRendererRequest(withMovement, {
+      type: "record-cash-movement",
+      request_id: "r20",
+      kind: "WITHDRAWAL",
+      amount: 7000,
+      reason: "Retiro al banco",
+      authorization: { user_id: "u2", pin: "1234" },
+    });
+
+    expect(cashMovementRequests).toEqual([
+      {
+        kind: "WITHDRAWAL",
+        amount: 7000,
+        reason: "Retiro al banco",
+        authorization: { user_id: "u2", pin: "1234" },
+      },
+    ]);
+    expect(answer).toEqual({
+      type: "record-cash-movement-result",
+      request_id: "r20",
+      outcome: { kind: "no_open_session" },
+    });
+  });
+
+  it("passes no authorization when the movement has none", async () => {
+    const { deps: withMovement, cashMovementRequests } = deps(true);
+
+    await answerRendererRequest(withMovement, {
+      type: "record-cash-movement",
+      request_id: "r20",
+      kind: "CASH_IN",
+      amount: 100,
+      reason: "Cambio",
+    });
+
+    expect(cashMovementRequests).toEqual([
+      { kind: "CASH_IN", amount: 100, reason: "Cambio", authorization: undefined },
+    ]);
+  });
+
+  it("answers that recording a cash movement is unavailable when it fails, and reports why", async () => {
+    const error = new Error("disk full");
+    const failing = deps(true, {
+      recordCashMovement: async () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "record-cash-movement",
+        request_id: "r21",
+        kind: "CASH_IN",
+        amount: 100,
+        reason: "Cambio",
+      }),
+    ).toEqual({
+      type: "record-cash-movement-result",
+      request_id: "r21",
+      outcome: { kind: "unavailable" },
+    });
+    expect(failing.failures).toEqual([{ context: "recording a cash movement", error }]);
+  });
+
+  it("answers that recording a cash movement is unavailable when the register has no database", async () => {
+    expect(
+      await answerRendererRequest(deps(true, { recordCashMovement: undefined }).deps, {
+        type: "record-cash-movement",
+        request_id: "r22",
+        kind: "CASH_IN",
+        amount: 100,
+        reason: "Cambio",
+      }),
+    ).toEqual({
+      type: "record-cash-movement-result",
+      request_id: "r22",
+      outcome: { kind: "unavailable" },
+    });
+  });
+
+  it("answers the open session's cash movements", async () => {
+    const movements: ListedCashMovement[] = [
+      {
+        id: "m1",
+        type: "CASH_IN",
+        amount: 100,
+        reason: "Cambio",
+        occurred_at: "2026-09-30T12:00:00.000Z",
+        actor: { user_id: "u1", first_name: "Ada" },
+        authorized_by: null,
+      },
+    ];
+
+    expect(
+      await answerRendererRequest(deps(true, { cashMovements: () => movements }).deps, {
+        type: "cash-movements-request",
+        request_id: "r23",
+      }),
+    ).toEqual({ type: "cash-movements", request_id: "r23", movements });
+  });
+
+  it("answers no movements while no cash session is open", async () => {
+    expect(
+      await answerRendererRequest(deps(true).deps, {
+        type: "cash-movements-request",
+        request_id: "r24",
+      }),
+    ).toEqual({ type: "cash-movements", request_id: "r24", movements: null });
+  });
+
+  it("answers that the cash movements cannot be read when the register has no database", async () => {
+    expect(
+      await answerRendererRequest(deps(true, { cashMovements: undefined }).deps, {
+        type: "cash-movements-request",
+        request_id: "r25",
+      }),
+    ).toEqual({ type: "cash-movements-unavailable", request_id: "r25" });
+  });
+
+  it("answers that the cash movements cannot be read when reading them fails, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      cashMovements: () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "cash-movements-request",
+        request_id: "r26",
+      }),
+    ).toEqual({ type: "cash-movements-unavailable", request_id: "r26" });
+    expect(failing.failures).toEqual([{ context: "reading the cash movements", error }]);
   });
 
   it("answers nothing to a ping", async () => {
