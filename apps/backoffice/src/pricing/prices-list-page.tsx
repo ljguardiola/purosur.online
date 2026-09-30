@@ -3,7 +3,7 @@ import type { ReactElement } from "react";
 import { useDocumentTitle } from "../shell/document-title";
 import { PricesListScreen } from "./prices-list-screen";
 
-const route = getRouteApi("/signed-in/catalog/prices");
+const route = getRouteApi("/signed-in/catalog-area/prices");
 
 export function PricesListPage(): ReactElement {
   const { services, sessionActions } = route.useRouteContext();

@@ -61,7 +61,7 @@ test("following the rail's Catálogo item opens the products list, with Catálog
   await userEvent.click(screen.getByRole("link", { name: "Catálogo" }));
 
   await expect.element(screen.getByRole("heading", { name: "Productos", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/catalog/products");
+  expect(window.location.pathname).toBe("/products");
   const catalogItem = screen.getByRole("link", { name: "Catálogo" }).element() as HTMLAnchorElement;
   expect(catalogItem.getAttribute("aria-current")).toBe("page");
   const productsItem = screen
@@ -70,8 +70,8 @@ test("following the rail's Catálogo item opens the products list, with Catálog
   expect(productsItem.getAttribute("aria-current")).toBe("page");
 });
 
-test("navigating directly to /catalog/categories opens the categories list, with Categorías active", async () => {
-  window.history.pushState(null, "", "/catalog/categories");
+test("navigating directly to /categories opens the categories list, with Categorías active", async () => {
+  window.history.pushState(null, "", "/categories");
   const services = createAppServices();
   vi.mocked(services.categoriesListScreen.fetchCategories).mockResolvedValue({
     kind: "ok",
@@ -88,7 +88,7 @@ test("navigating directly to /catalog/categories opens the categories list, with
   window.history.pushState(null, "", "/");
 });
 
-test("redirects a non-permitted user's typed /catalog/categories to Mi cuenta, without listing categories", async () => {
+test("redirects a non-permitted user's typed /categories to Mi cuenta, without listing categories", async () => {
   const services = createAppServices({
     fetchSession: vi
       .fn()
@@ -97,17 +97,17 @@ test("redirects a non-permitted user's typed /catalog/categories to Mi cuenta, w
       ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
-  window.history.pushState(null, "", "/catalog/categories");
+  window.history.pushState(null, "", "/categories");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/settings/users/me");
+  expect(window.location.pathname).toBe("/account");
   expect(services.categoriesListScreen.fetchCategories).not.toHaveBeenCalled();
 });
 
-test("navigating directly to /catalog/brands opens the brands list, with Marcas active", async () => {
-  window.history.pushState(null, "", "/catalog/brands");
+test("navigating directly to /brands opens the brands list, with Marcas active", async () => {
+  window.history.pushState(null, "", "/brands");
   const services = createAppServices();
   vi.mocked(services.brandsListScreen.fetchBrands).mockResolvedValue({ kind: "ok", value: [] });
 
@@ -119,7 +119,7 @@ test("navigating directly to /catalog/brands opens the brands list, with Marcas 
   window.history.pushState(null, "", "/");
 });
 
-test("redirects a non-permitted user's typed /catalog/brands to Mi cuenta, without listing brands", async () => {
+test("redirects a non-permitted user's typed /brands to Mi cuenta, without listing brands", async () => {
   const services = createAppServices({
     fetchSession: vi
       .fn()
@@ -128,17 +128,17 @@ test("redirects a non-permitted user's typed /catalog/brands to Mi cuenta, witho
       ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
-  window.history.pushState(null, "", "/catalog/brands");
+  window.history.pushState(null, "", "/brands");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/settings/users/me");
+  expect(window.location.pathname).toBe("/account");
   expect(services.brandsListScreen.fetchBrands).not.toHaveBeenCalled();
 });
 
-test("navigating directly to /catalog/tags opens the tags list, with Distintivos active between Marcas and Precios", async () => {
-  window.history.pushState(null, "", "/catalog/tags");
+test("navigating directly to /tags opens the tags list, with Distintivos active between Marcas and Precios", async () => {
+  window.history.pushState(null, "", "/tags");
   const services = createAppServices();
   vi.mocked(services.tagsListScreen.fetchTags).mockResolvedValue({
     kind: "ok",
@@ -162,7 +162,7 @@ test("navigating directly to /catalog/tags opens the tags list, with Distintivos
   window.history.pushState(null, "", "/");
 });
 
-test("redirects a non-permitted user's typed /catalog/tags to Mi cuenta, without listing tags", async () => {
+test("redirects a non-permitted user's typed /tags to Mi cuenta, without listing tags", async () => {
   const services = createAppServices({
     fetchSession: vi
       .fn()
@@ -171,16 +171,16 @@ test("redirects a non-permitted user's typed /catalog/tags to Mi cuenta, without
       ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
-  window.history.pushState(null, "", "/catalog/tags");
+  window.history.pushState(null, "", "/tags");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/settings/users/me");
+  expect(window.location.pathname).toBe("/account");
   expect(services.tagsListScreen.fetchTags).not.toHaveBeenCalled();
 });
 
-test("redirects a non-permitted user's typed /catalog/products to Mi cuenta, without listing products", async () => {
+test("redirects a non-permitted user's typed /products to Mi cuenta, without listing products", async () => {
   const services = createAppServices({
     fetchSession: vi
       .fn()
@@ -189,16 +189,16 @@ test("redirects a non-permitted user's typed /catalog/products to Mi cuenta, wit
       ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
-  window.history.pushState(null, "", "/catalog/products");
+  window.history.pushState(null, "", "/products");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/settings/users/me");
+  expect(window.location.pathname).toBe("/account");
   expect(services.productsListScreen.fetchProducts).not.toHaveBeenCalled();
 });
 
-test("redirects a non-permitted user's typed /catalog/prices to Mi cuenta, without listing prices", async () => {
+test("redirects a non-permitted user's typed /prices to Mi cuenta, without listing prices", async () => {
   const services = createAppServices({
     fetchSession: vi
       .fn()
@@ -207,16 +207,16 @@ test("redirects a non-permitted user's typed /catalog/prices to Mi cuenta, witho
       ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
-  window.history.pushState(null, "", "/catalog/prices");
+  window.history.pushState(null, "", "/prices");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/settings/users/me");
+  expect(window.location.pathname).toBe("/account");
   expect(services.pricesListScreen.fetchPrices).not.toHaveBeenCalled();
 });
 
-test("redirects a user holding only manage_products_and_categories away from a typed /catalog/prices", async () => {
+test("redirects a user holding only manage_products_and_categories away from a typed /prices", async () => {
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
@@ -228,7 +228,7 @@ test("redirects a user holding only manage_products_and_categories away from a t
     ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
-  window.history.pushState(null, "", "/catalog/prices");
+  window.history.pushState(null, "", "/prices");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -236,7 +236,7 @@ test("redirects a user holding only manage_products_and_categories away from a t
   expect(services.pricesListScreen.fetchPrices).not.toHaveBeenCalled();
 });
 
-test("redirects a user holding only manage_prices_and_review away from a typed /catalog/products", async () => {
+test("redirects a user holding only manage_prices_and_review away from a typed /products", async () => {
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
@@ -248,7 +248,7 @@ test("redirects a user holding only manage_prices_and_review away from a typed /
     ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
-  window.history.pushState(null, "", "/catalog/products");
+  window.history.pushState(null, "", "/products");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -283,7 +283,7 @@ test("shows the Precios section, and only it, for a user holding only manage_pri
   await userEvent.click(screen.getByRole("link", { name: "Catálogo" }));
 
   await expect.element(screen.getByRole("heading", { name: "Precios", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/catalog/prices");
+  expect(window.location.pathname).toBe("/prices");
   expect(screen.getByRole("link", { name: "Productos" }).query()).toBeNull();
   expect(screen.getByRole("link", { name: "Categorías" }).query()).toBeNull();
   expect(screen.getByRole("link", { name: "Marcas" }).query()).toBeNull();
@@ -302,7 +302,7 @@ test("hides the Precios section item for a user holding only manage_products_and
       }),
     ),
   });
-  window.history.pushState(null, "", "/catalog/products");
+  window.history.pushState(null, "", "/products");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -310,8 +310,8 @@ test("hides the Precios section item for a user holding only manage_products_and
   expect(screen.getByRole("link", { name: "Precios" }).query()).toBeNull();
 });
 
-test("navigating directly to /catalog/discounts opens the promotions list, with Promociones active after Precios", async () => {
-  window.history.pushState(null, "", "/catalog/discounts");
+test("navigating directly to /discounts opens the promotions list, with Promociones active after Precios", async () => {
+  window.history.pushState(null, "", "/discounts");
   const services = createAppServices();
   vi.mocked(services.discountsListScreen.fetchDiscounts).mockResolvedValue({
     kind: "ok",
@@ -336,7 +336,7 @@ test("navigating directly to /catalog/discounts opens the promotions list, with 
   ).toEqual(["Distintivos", "Precios", "Promociones"]);
 });
 
-test("redirects a non-permitted user's typed /catalog/discounts to Mi cuenta, without listing promotions", async () => {
+test("redirects a non-permitted user's typed /discounts to Mi cuenta, without listing promotions", async () => {
   const services = createAppServices({
     fetchSession: vi
       .fn()
@@ -345,7 +345,7 @@ test("redirects a non-permitted user's typed /catalog/discounts to Mi cuenta, wi
       ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
-  window.history.pushState(null, "", "/catalog/discounts");
+  window.history.pushState(null, "", "/discounts");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -354,7 +354,7 @@ test("redirects a non-permitted user's typed /catalog/discounts to Mi cuenta, wi
 });
 
 test.each([["manage_products_and_categories"], ["manage_prices_and_review"]])(
-  "redirects a user holding only %s away from a typed /catalog/discounts",
+  "redirects a user holding only %s away from a typed /discounts",
   async (permission) => {
     const services = createAppServices({
       fetchSession: vi.fn().mockResolvedValue(
@@ -367,7 +367,7 @@ test.each([["manage_products_and_categories"], ["manage_prices_and_review"]])(
       ),
     });
     vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
-    window.history.pushState(null, "", "/catalog/discounts");
+    window.history.pushState(null, "", "/discounts");
 
     const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -379,8 +379,8 @@ test.each([["manage_products_and_categories"], ["manage_prices_and_review"]])(
 );
 
 test.each([
-  ["manage_products_and_categories", "/catalog/products", "Productos"],
-  ["manage_prices_and_review", "/catalog/prices", "Precios"],
+  ["manage_products_and_categories", "/products", "Productos"],
+  ["manage_prices_and_review", "/prices", "Precios"],
 ])(
   "hides the Promociones section item for a user holding only %s",
   async (permission, path, heading) => {
@@ -426,7 +426,7 @@ test("shows the Promociones section, and only it, for a user holding only manage
   await expect
     .element(screen.getByRole("heading", { name: "Promociones", level: 1 }))
     .toBeVisible();
-  expect(window.location.pathname).toBe("/catalog/discounts");
+  expect(window.location.pathname).toBe("/discounts");
   expect(screen.getByRole("link", { name: "Productos" }).query()).toBeNull();
   expect(screen.getByRole("link", { name: "Categorías" }).query()).toBeNull();
   expect(screen.getByRole("link", { name: "Marcas" }).query()).toBeNull();
@@ -435,7 +435,7 @@ test("shows the Promociones section, and only it, for a user holding only manage
   await expect.element(screen.getByRole("link", { name: "Promociones" })).toBeVisible();
 });
 
-test.each([["/catalog/products"], ["/catalog/prices"]])(
+test.each([["/products"], ["/prices"]])(
   "redirects a user holding only manage_promotions away from a typed %s",
   async (path) => {
     const services = createAppServices({
@@ -491,12 +491,12 @@ test("lists the promotions and opens Nueva promoción for a user holding only ma
     },
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
-  window.history.pushState(null, "", "/catalog/discounts");
+  window.history.pushState(null, "", "/discounts");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByText("Yerba de septiembre")).toBeVisible();
   await userEvent.click(screen.getByRole("button", { name: "Nueva promoción" }));
   await expect.element(screen.getByRole("dialog", { name: "Nueva promoción" })).toBeVisible();
-  expect(window.location.pathname).toBe("/catalog/discounts");
+  expect(window.location.pathname).toBe("/discounts");
 });

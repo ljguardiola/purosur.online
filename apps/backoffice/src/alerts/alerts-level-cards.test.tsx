@@ -28,9 +28,9 @@ test("links each card to the alerts list filtered by its level", async () => {
     .elements()
     .map((card) => new URL(card.getAttribute("href") ?? "", window.location.origin));
   expect(hrefs.map((href) => [href.pathname, href.searchParams.get("level")])).toEqual([
-    ["/home/alerts", "critical"],
-    ["/home/alerts", "warning"],
-    ["/home/alerts", "informational"],
+    ["/alerts", "critical"],
+    ["/alerts", "warning"],
+    ["/alerts", "informational"],
   ]);
 });
 

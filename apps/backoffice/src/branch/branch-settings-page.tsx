@@ -3,7 +3,7 @@ import type { ReactElement } from "react";
 import { useDocumentTitle } from "../shell/document-title";
 import { BranchSettingsScreen } from "./branch-settings-screen";
 
-const route = getRouteApi("/signed-in/settings/branch");
+const route = getRouteApi("/signed-in/settings-area/location-settings");
 
 export function BranchSettingsPage(): ReactElement {
   const { services, sessionActions } = route.useRouteContext();

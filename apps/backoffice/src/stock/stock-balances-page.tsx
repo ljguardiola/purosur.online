@@ -3,7 +3,7 @@ import type { ReactElement } from "react";
 import { useDocumentTitle } from "../shell/document-title";
 import { StockBalancesScreen } from "./stock-balances-screen";
 
-const route = getRouteApi("/signed-in/stock/balances");
+const route = getRouteApi("/signed-in/stock-area/inventory");
 
 export function StockBalancesPage(): ReactElement {
   const { services, sessionActions } = route.useRouteContext();

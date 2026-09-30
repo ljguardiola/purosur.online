@@ -159,7 +159,7 @@ function UserDetailView({
         {notFound ? (
           <>
             <InlineNotice tone="error" icon={<UserX />} title="No encontramos este usuario" />
-            <Button variant="secondary" onPress={() => navigate({ to: "/settings/users" })}>
+            <Button variant="secondary" onPress={() => navigate({ to: "/users" })}>
               Volver a Usuarios
             </Button>
           </>
@@ -341,7 +341,7 @@ function UserDetailView({
           onDeactivated={() => {
             setDeactivateModalOpen(false);
             void refreshAccess();
-            void navigate({ to: "/settings/users" });
+            void navigate({ to: "/users" });
           }}
           onVanished={() => {
             setDeactivateModalOpen(false);

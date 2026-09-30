@@ -29,7 +29,7 @@ export function AlertsLevelCards({ overview }: { overview: AlertsOverview }) {
       {LEVELS_BY_URGENCY.map((level) => (
         <li key={level} className="grid">
           <CountCardLink
-            to="/home/alerts"
+            to="/alerts"
             search={{ level }}
             label={LEVEL_CARD_LABELS[level]}
             count={overview[level].openCount}

@@ -31,7 +31,7 @@ export const registerPasskeyRoute = createRoute({
 
 export const myAccountRoute = createRoute({
   getParentRoute: () => settingsAreaRoute,
-  path: "users/me",
+  path: "account",
   component: lazyScreen(() => import("./my-account-page"), "MyAccountPage"),
 });
 

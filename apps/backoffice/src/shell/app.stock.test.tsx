@@ -38,10 +38,10 @@ function stockServices(permissions: string[]) {
 }
 
 test.each([
-  ["view_stock_balances", "Saldos", "/stock/balances"],
-  ["perform_stock_counts", "Recuentos", "/stock/counts"],
-  ["record_stock_losses", "Ajustes y pérdidas", "/stock/adjustments-and-losses"],
-  ["adjust_stock", "Ajustes y pérdidas", "/stock/adjustments-and-losses"],
+  ["view_stock_balances", "Saldos", "/inventory"],
+  ["perform_stock_counts", "Recuentos", "/inventory-counts"],
+  ["record_stock_losses", "Ajustes y pérdidas", "/inventory-adjustments"],
+  ["adjust_stock", "Ajustes y pérdidas", "/inventory-adjustments"],
 ])("opens only %s's section from the rail's Stock item: %s", async (permission, heading, path) => {
   const services = stockServices([permission]);
   window.history.pushState(null, "", "/help");
@@ -61,7 +61,7 @@ test.each([
 test("lists Saldos, Recuentos and Ajustes y pérdidas in that order to an Administrator", async () => {
   const services = stockServices([]);
   vi.mocked(services.fetchSession).mockResolvedValue(openSession());
-  window.history.pushState(null, "", "/stock/balances");
+  window.history.pushState(null, "", "/inventory");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -85,9 +85,9 @@ test("hides the Stock item in the rail for a user without a stock permission", a
 });
 
 test.each([
-  ["/stock/balances", "perform_stock_counts"],
-  ["/stock/counts", "view_stock_balances"],
-  ["/stock/adjustments-and-losses", "perform_stock_counts"],
+  ["/inventory", "perform_stock_counts"],
+  ["/inventory-counts", "view_stock_balances"],
+  ["/inventory-adjustments", "perform_stock_counts"],
 ])("sends a user who may not open %s to Mi cuenta", async (path, permission) => {
   const services = stockServices([permission]);
   window.history.pushState(null, "", path);

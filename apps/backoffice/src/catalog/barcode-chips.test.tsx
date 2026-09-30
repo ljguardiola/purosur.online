@@ -392,13 +392,13 @@ test("ends the session when generating finds no open session", async () => {
 });
 
 test("navigates to Mi cuenta when generating comes back forbidden", async () => {
-  window.history.pushState(null, "", "/catalog/products");
+  window.history.pushState(null, "", "/products");
   const generate = vi.fn<typeof generateInternalBarcode>().mockResolvedValue({ kind: "forbidden" });
   const chips = await renderChips({ generate });
 
   await userEvent.click(generateButtonOf(chips));
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  await expect.poll(() => window.location.pathname).toBe("/account");
 });
 
 test("describes the generate button with its failure, so a screen reader announces it", async () => {

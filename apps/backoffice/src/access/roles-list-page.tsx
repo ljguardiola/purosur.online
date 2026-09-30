@@ -3,7 +3,7 @@ import type { ReactElement } from "react";
 import { useDocumentTitle } from "../shell/document-title";
 import { RolesListScreen } from "./roles-list-screen";
 
-const route = getRouteApi("/signed-in/settings/roles");
+const route = getRouteApi("/signed-in/settings-area/roles");
 
 export function RolesListPage(): ReactElement {
   const { services, sessionActions } = route.useRouteContext();
