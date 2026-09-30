@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
@@ -164,5 +167,93 @@ describe("a user's sign-in record", () => {
     addUser({ id: "u1", ...seed });
 
     expect(store.signInRecord("u1")).toBeUndefined();
+  });
+});
+
+describe("a user's PIN sign-in failures", () => {
+  const FIRST = new Date("2026-05-01T10:00:00.000Z");
+  const SECOND = new Date("2026-05-01T10:00:05.000Z");
+
+  it("are none for a user who never got the PIN wrong", () => {
+    addUser({ id: "u1" });
+
+    expect(store.pinSignInFailures("u1")).toBeUndefined();
+  });
+
+  it("count each failure recorded and remember when the last one happened", () => {
+    addUser({ id: "u1" });
+
+    expect(store.recordPinSignInFailure("u1", FIRST)).toEqual({
+      consecutiveFailures: 1,
+      lastFailedAt: FIRST,
+    });
+    expect(store.recordPinSignInFailure("u1", SECOND)).toEqual({
+      consecutiveFailures: 2,
+      lastFailedAt: SECOND,
+    });
+    expect(store.pinSignInFailures("u1")).toEqual({
+      consecutiveFailures: 2,
+      lastFailedAt: SECOND,
+    });
+  });
+
+  it("are kept apart for each user", () => {
+    addUser({ id: "u1" });
+    addUser({ id: "u2" });
+
+    store.recordPinSignInFailure("u1", FIRST);
+    store.recordPinSignInFailure("u1", SECOND);
+    store.recordPinSignInFailure("u2", FIRST);
+
+    expect(store.pinSignInFailures("u1")?.consecutiveFailures).toBe(2);
+    expect(store.pinSignInFailures("u2")?.consecutiveFailures).toBe(1);
+  });
+
+  it("are cleared for one user without touching another's", () => {
+    addUser({ id: "u1" });
+    addUser({ id: "u2" });
+    store.recordPinSignInFailure("u1", FIRST);
+    store.recordPinSignInFailure("u2", FIRST);
+
+    store.clearPinSignInFailures("u1");
+
+    expect(store.pinSignInFailures("u1")).toBeUndefined();
+    expect(store.pinSignInFailures("u2")?.consecutiveFailures).toBe(1);
+  });
+
+  it("start again from one after being cleared", () => {
+    addUser({ id: "u1" });
+    store.recordPinSignInFailure("u1", FIRST);
+    store.recordPinSignInFailure("u1", SECOND);
+    store.clearPinSignInFailures("u1");
+
+    expect(store.recordPinSignInFailure("u1", SECOND).consecutiveFailures).toBe(1);
+  });
+
+  it("survive the register restarting", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-sign-in-failures-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const first = openLocalDatabase(path, LOCAL_MIGRATIONS);
+      first
+        .prepare(
+          "INSERT INTO users (id, first_name, role_id, salt, active, version) VALUES ('u1', 'Ada', 'cashier', 's', 1, 1)",
+        )
+        .run();
+      const beforeRestart = new SqliteSignInStore(first);
+      beforeRestart.recordPinSignInFailure("u1", FIRST);
+      beforeRestart.recordPinSignInFailure("u1", SECOND);
+      first.close();
+
+      const second = openLocalDatabase(path, LOCAL_MIGRATIONS);
+
+      expect(new SqliteSignInStore(second).pinSignInFailures("u1")).toEqual({
+        consecutiveFailures: 2,
+        lastFailedAt: SECOND,
+      });
+      second.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
   });
 });

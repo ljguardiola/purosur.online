@@ -9,9 +9,29 @@ export interface SignInRecord {
   access: RoleAccess;
 }
 
+export interface PinSignInFailures {
+  consecutiveFailures: number;
+  lastFailedAt: Date;
+}
+
 export interface SignInStore {
   signableUsers(): SignInUser[];
   signInRecord(userId: string): SignInRecord | undefined;
+  pinSignInFailures(userId: string): PinSignInFailures | undefined;
+  recordPinSignInFailure(userId: string, at: Date): PinSignInFailures;
+  clearPinSignInFailures(userId: string): void;
+}
+
+interface FailuresRow {
+  consecutive_failures: number;
+  last_failed_at: string;
+}
+
+function failuresOf(row: FailuresRow): PinSignInFailures {
+  return {
+    consecutiveFailures: row.consecutive_failures,
+    lastFailedAt: new Date(row.last_failed_at),
+  };
 }
 
 interface RecordRow {
@@ -70,5 +90,35 @@ export class SqliteSignInStore implements SignInStore {
       verifier: row.verifier,
       access: { isAdministrator: row.is_administrator === 1, permissionKeys },
     };
+  }
+
+  pinSignInFailures(userId: string): PinSignInFailures | undefined {
+    const row = this.database
+      .prepare<[string], FailuresRow>(
+        "SELECT consecutive_failures, last_failed_at FROM pin_sign_in_failures WHERE user_id = ?",
+      )
+      .get(userId);
+    return row === undefined ? undefined : failuresOf(row);
+  }
+
+  recordPinSignInFailure(userId: string, at: Date): PinSignInFailures {
+    const row = this.database
+      .prepare<{ user_id: string; last_failed_at: string }, FailuresRow>(
+        `INSERT INTO pin_sign_in_failures (user_id, consecutive_failures, last_failed_at)
+         VALUES (@user_id, 1, @last_failed_at)
+         ON CONFLICT (user_id) DO UPDATE SET
+           consecutive_failures = consecutive_failures + 1,
+           last_failed_at = excluded.last_failed_at
+         RETURNING consecutive_failures, last_failed_at`,
+      )
+      .get({ user_id: userId, last_failed_at: at.toISOString() });
+    if (row === undefined) {
+      throw new Error("the PIN sign-in failure was not recorded");
+    }
+    return failuresOf(row);
+  }
+
+  clearPinSignInFailures(userId: string): void {
+    this.database.prepare("DELETE FROM pin_sign_in_failures WHERE user_id = ?").run(userId);
   }
 }

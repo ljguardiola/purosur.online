@@ -217,7 +217,11 @@ describe("App", () => {
   });
 
   it("stays on the sign-in screen when the PIN is wrong", async () => {
-    const { core } = coreAnswering(true, { kind: "enrolled" }, { kind: "wrong_pin" });
+    const { core } = coreAnswering(
+      true,
+      { kind: "enrolled" },
+      { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 7 },
+    );
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
 
