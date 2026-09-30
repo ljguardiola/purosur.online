@@ -1,6 +1,13 @@
-import { BARCODE_MAX_LENGTH } from "@purosur/domain";
+import { BARCODE_MAX_LENGTH, PRODUCT_NAME_MAX_LENGTH } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
-import { saleSchema, scannedCodeSchema, scanProductOutcomeSchema } from "./sale.js";
+import {
+  addProductOutcomeSchema,
+  saleSchema,
+  scannedCodeSchema,
+  scanProductOutcomeSchema,
+  searchProductsOutcomeSchema,
+  searchQuerySchema,
+} from "./sale.js";
 
 const line = {
   id: "l1",
@@ -95,5 +102,140 @@ describe("scanProductOutcomeSchema", () => {
     {},
   ])("rejects the outcome %j", (outcome) => {
     expect(scanProductOutcomeSchema.safeParse(outcome).success).toBe(false);
+  });
+});
+
+describe("searchQuerySchema", () => {
+  it.each([
+    "",
+    "yer",
+    "té verde",
+    "x".repeat(PRODUCT_NAME_MAX_LENGTH),
+    "😀".repeat(PRODUCT_NAME_MAX_LENGTH),
+  ])("accepts the query %j", (query) => {
+    expect(searchQuerySchema.safeParse(query).success).toBe(true);
+  });
+
+  it.each([
+    "x".repeat(PRODUCT_NAME_MAX_LENGTH + 1),
+    "😀".repeat(PRODUCT_NAME_MAX_LENGTH + 1),
+    7,
+    null,
+  ])("rejects the query %j", (query) => {
+    expect(searchQuerySchema.safeParse(query).success).toBe(false);
+  });
+});
+
+describe("searchProductsOutcomeSchema", () => {
+  const found = {
+    product_id: "p1",
+    name: "Yerba mate",
+    sale_unit: "UNIT",
+    unit_price: 2500,
+    matches: [{ start: 0, length: 3 }],
+  };
+
+  it.each([
+    { kind: "results", products: [found], more: false },
+    { kind: "results", products: [], more: true },
+    { kind: "results", products: [{ ...found, sale_unit: "KG", unit_price: null }], more: false },
+    { kind: "not_permitted" },
+    { kind: "not_signed_in" },
+    { kind: "no_open_session" },
+    { kind: "unavailable" },
+  ])("accepts the outcome $kind", (outcome) => {
+    expect(searchProductsOutcomeSchema.parse(outcome)).toEqual(outcome);
+  });
+
+  it.each([
+    ["without saying whether there are more", { kind: "results", products: [found] }],
+    ["without its products", { kind: "results", more: false }],
+    [
+      "a product without its id",
+      { kind: "results", more: false, products: [{ ...found, product_id: undefined }] },
+    ],
+    [
+      "a product without its name",
+      { kind: "results", more: false, products: [{ ...found, name: undefined }] },
+    ],
+    [
+      "a product without its sale unit",
+      { kind: "results", more: false, products: [{ ...found, sale_unit: undefined }] },
+    ],
+    [
+      "a product sold by an unknown unit",
+      { kind: "results", more: false, products: [{ ...found, sale_unit: "BOX" }] },
+    ],
+    [
+      "a product without saying whether it has a price",
+      { kind: "results", more: false, products: [{ ...found, unit_price: undefined }] },
+    ],
+    [
+      "a negative price",
+      { kind: "results", more: false, products: [{ ...found, unit_price: -1 }] },
+    ],
+    [
+      "a fractional price",
+      { kind: "results", more: false, products: [{ ...found, unit_price: 1.5 }] },
+    ],
+    [
+      "a product without its matches",
+      { kind: "results", more: false, products: [{ ...found, matches: undefined }] },
+    ],
+    [
+      "a match that starts before the name",
+      {
+        kind: "results",
+        more: false,
+        products: [{ ...found, matches: [{ start: -1, length: 2 }] }],
+      },
+    ],
+    [
+      "an empty match",
+      {
+        kind: "results",
+        more: false,
+        products: [{ ...found, matches: [{ start: 0, length: 0 }] }],
+      },
+    ],
+    [
+      "a fractional match",
+      {
+        kind: "results",
+        more: false,
+        products: [{ ...found, matches: [{ start: 0.5, length: 1 }] }],
+      },
+    ],
+    ["an unknown outcome", { kind: "somewhere_else" }],
+    ["an outcome that only adding products has", { kind: "product_unavailable" }],
+  ])("rejects %s", (_case, outcome) => {
+    expect(searchProductsOutcomeSchema.safeParse(outcome).success).toBe(false);
+  });
+});
+
+describe("addProductOutcomeSchema", () => {
+  it.each([
+    { kind: "added", sale },
+    { kind: "no_price", product_name: "Yerba" },
+    { kind: "sold_by_weight", product_name: "Queso" },
+    { kind: "product_unavailable" },
+    { kind: "not_permitted" },
+    { kind: "not_signed_in" },
+    { kind: "no_open_session" },
+    { kind: "installation_revoked" },
+    { kind: "unavailable" },
+  ])("accepts the outcome $kind", (outcome) => {
+    expect(addProductOutcomeSchema.parse(outcome)).toEqual(outcome);
+  });
+
+  it.each([
+    { kind: "added" },
+    { kind: "no_price" },
+    { kind: "sold_by_weight" },
+    { kind: "unknown_code" },
+    { kind: "somewhere_else" },
+    {},
+  ])("rejects the outcome %j", (outcome) => {
+    expect(addProductOutcomeSchema.safeParse(outcome).success).toBe(false);
   });
 });

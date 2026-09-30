@@ -808,6 +808,41 @@ describe("sale requests", () => {
     expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
   });
 
+  it("accepts a search of the products by name", () => {
+    const message = { type: "search-products", request_id: REQUEST_ID, query: "té ver" };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { type: "search-products", query: "a" },
+    { type: "search-products", request_id: REQUEST_ID },
+    { type: "search-products", request_id: REQUEST_ID, query: "x".repeat(101) },
+  ])("rejects a search that is not well formed: %j", (message) => {
+    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("accepts adding a product by its id", () => {
+    const message = { type: "add-product", request_id: REQUEST_ID, product_id: "p1" };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("does not take who is selling from the search or the addition", () => {
+    const search = { type: "search-products", request_id: REQUEST_ID, query: "a" };
+    const add = { type: "add-product", request_id: REQUEST_ID, product_id: "p1" };
+
+    expect(rendererToCoreMessageSchema.parse({ ...search, user_id: "u9" })).toEqual(search);
+    expect(rendererToCoreMessageSchema.parse({ ...add, user_id: "u9" })).toEqual(add);
+  });
+
+  it.each([
+    { type: "add-product", product_id: "p1" },
+    { type: "add-product", request_id: REQUEST_ID },
+  ])("rejects an addition that is not well formed: %j", (message) => {
+    expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
   it("accepts a request for the sale in progress", () => {
     const message = { type: "sale-request", request_id: REQUEST_ID };
 
@@ -861,6 +896,45 @@ describe("sale answers", () => {
     };
 
     expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it.each([
+    { kind: "results", products: [], more: false },
+    { kind: "no_open_session" },
+    { kind: "unavailable" },
+  ])("accepts the search result $kind", (outcome) => {
+    const message = { type: "search-products-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { kind: "product_unavailable" },
+    { kind: "no_price", product_name: "Yerba" },
+    { kind: "not_signed_in" },
+  ])("accepts the add-product result $kind", (outcome) => {
+    const message = { type: "add-product-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects search and add-product results it does not know", () => {
+    const outcome = { kind: "somewhere_else" };
+
+    expect(
+      coreToRendererMessageSchema.safeParse({
+        type: "search-products-result",
+        request_id: REQUEST_ID,
+        outcome,
+      }).success,
+    ).toBe(false);
+    expect(
+      coreToRendererMessageSchema.safeParse({
+        type: "add-product-result",
+        request_id: REQUEST_ID,
+        outcome,
+      }).success,
+    ).toBe(false);
   });
 
   it.each([sale, null])("accepts the sale in progress %j", (value) => {
