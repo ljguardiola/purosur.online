@@ -141,7 +141,7 @@ export function PinCodeRedemptionScreen({ redeem }: PinCodeRedemptionScreenProps
               title="PIN nuevo guardado"
               description="Ya podés entrar con tu PIN nuevo."
             />
-            <Button fullWidth onPress={() => navigate({ to: "/" })}>
+            <Button fullWidth onPress={() => navigate({ to: "/sign-in" })}>
               Volver al inicio
             </Button>
           </>
@@ -185,7 +185,7 @@ export function PinCodeRedemptionScreen({ redeem }: PinCodeRedemptionScreenProps
             <Button type="submit" fullWidth icon={<Check />} disabled={submitting}>
               Guardar el PIN nuevo
             </Button>
-            <ScreenLink to="/" icon={<ArrowLeft />} label="Volver" />
+            <ScreenLink to="/sign-in" icon={<ArrowLeft />} label="Volver" />
           </form>
         )}
       </main>

@@ -223,6 +223,19 @@ describe("the register's router", () => {
     await expect.element(screen.getByRole("heading", { name: PIN_REDEMPTION_TITLE })).toBeVisible();
   });
 
+  it("reaches the PIN code redemption screen from the sign-in screen and comes back", async () => {
+    const router = routerAt("/sign-in", "up", "enrolled", null);
+    const screen = await render(<RouterProvider router={router} />);
+
+    await userEvent.click(
+      screen.getByRole("link", { name: "Tengo un código para cambiar el PIN" }),
+    );
+    await expect.element(screen.getByRole("heading", { name: PIN_REDEMPTION_TITLE })).toBeVisible();
+    await userEvent.click(screen.getByRole("link", { name: "Volver" }));
+
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+  });
+
   it("redeems through the context's callback and returns to the sign-in screen from the success message", async () => {
     const redeemed: string[] = [];
     const router = createRegisterRouter(

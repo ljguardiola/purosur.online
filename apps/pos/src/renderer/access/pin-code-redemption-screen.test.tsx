@@ -92,12 +92,14 @@ describe("PinCodeRedemptionScreen", () => {
     expect(calls).toEqual([{ code: "K7QM2XPA3DTR4HWN", pin: NEW_PIN }]);
   });
 
-  it("goes back to the start screen with its link", async () => {
+  it("goes back to the sign-in screen with its link", async () => {
     const screen = await render(
       <PinCodeRedemptionScreen redeem={answering({ kind: "redeemed" }).redeem} />,
     );
 
-    expect(screen.getByRole("link", { name: "Volver" }).element().getAttribute("href")).toBe("/");
+    expect(screen.getByRole("link", { name: "Volver" }).element().getAttribute("href")).toBe(
+      "/sign-in",
+    );
   });
 
   it("keeps the button disabled while the request is pending, so it is sent only once", async () => {

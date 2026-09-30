@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 
 export type ScreenLinkProps = {
-  to: "/" | "/pin-code-redemption";
+  to: "/sign-in" | "/pin-code-redemption";
   icon: ReactElement;
   label: string;
 };
