@@ -18,7 +18,7 @@ export const stockProductListSchema = z.object({ products: z.array(stockProductS
 export type StockProduct = z.output<typeof stockProductSchema>;
 export type StockProductList = z.output<typeof stockProductListSchema>;
 
-const stockBalanceSchema = stockProductSchema.extend({ balance: z.int() });
+export const stockBalanceSchema = stockProductSchema.extend({ balance: z.int() });
 
 export const stockBalanceListSchema = z.object({ products: z.array(stockBalanceSchema) });
 
@@ -61,7 +61,3 @@ export const stockMovementListSchema = z.object({ movements: z.array(stockMoveme
 
 export type StockMovement = z.output<typeof stockMovementSchema>;
 export type StockMovementList = z.output<typeof stockMovementListSchema>;
-
-export const stockExpectedBalanceSchema = z.object({ expected: z.int() });
-
-export type StockExpectedBalance = z.output<typeof stockExpectedBalanceSchema>;

@@ -46,7 +46,7 @@ export function registerStockBalancesRoute<TQueryResult extends PgQueryResultHKT
   const sessionSource = routeSessionSource({ db: options.db, now });
 
   app.get(
-    "/stock/balances",
+    "/inventory-levels",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
       config: { access: permissionAccess("view_stock_balances"), sessionSource },

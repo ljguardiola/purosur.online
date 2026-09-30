@@ -65,7 +65,7 @@ afterEach(async () => {
 function post(body: Record<string, unknown>, headers: Record<string, string> = {}) {
   return app.inject({
     method: "POST",
-    url: "/users/recovery/request",
+    url: "/account-recoveries",
     headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.10", ...headers },
     payload: body,
   });
@@ -75,7 +75,18 @@ async function accumulatorRows() {
   return db.select().from(recoveryRejectedAttemptAccumulator);
 }
 
-describe("POST /users/recovery/request", () => {
+describe("POST /account-recoveries", () => {
+  it("no longer answers the old recovery request path", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/users/recovery/request",
+      headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.10" },
+      payload: { email: "ada@example.com" },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
   it("answers 200 with no body and enqueues one job for a well-formed email", async () => {
     const response = await post({ email: "ada@example.com" });
 
@@ -169,7 +180,7 @@ describe("POST /users/recovery/request", () => {
   it("checks the Origin before validating the body", async () => {
     const response = await app.inject({
       method: "POST",
-      url: "/users/recovery/request",
+      url: "/account-recoveries",
       headers: { origin: "https://evil.example", "x-real-ip": "203.0.113.10" },
       payload: {},
     });
@@ -198,7 +209,7 @@ describe("POST /users/recovery/request", () => {
 
       const rejected = await observedApp.inject({
         method: "POST",
-        url: "/users/recovery/request",
+        url: "/account-recoveries",
         headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.99" },
         payload: { email: "ada@example.com" },
       });
@@ -267,7 +278,7 @@ describe("POST /users/recovery/request", () => {
 
       const response = await failingApp.inject({
         method: "POST",
-        url: "/users/recovery/request",
+        url: "/account-recoveries",
         headers: {
           origin: BACKOFFICE_ORIGIN,
           "x-real-ip": "203.0.113.99",

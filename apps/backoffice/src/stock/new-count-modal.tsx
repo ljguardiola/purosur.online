@@ -104,7 +104,7 @@ function ExpectedBalance({
   if (data.status === "failed") {
     return <LoadFailure {...cloudLoadFailure(data, "el saldo esperado")} />;
   }
-  const { expected } = data.value;
+  const { balance: expected } = data.value;
   return (
     <SummaryRowGroup
       rows={[

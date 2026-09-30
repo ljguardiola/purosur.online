@@ -30,48 +30,44 @@ export function registerRecoveryRoutes<TQueryResult extends PgQueryResultHKT>(
   const doRecordRejectedAttempt = options.recordRejectedAttempt ?? recordRejectedAttempt;
   const reportError = options.reportError ?? reportRecoveryBookkeepingError;
 
-  app.post(
-    "/users/recovery/request",
-    { config: { access: PUBLIC_ACCESS } },
-    async (request, reply) => {
-      if (!requireBackofficeOrigin(request, reply, options.backofficeOrigin)) {
-        return;
+  app.post("/account-recoveries", { config: { access: PUBLIC_ACCESS } }, async (request, reply) => {
+    if (!requireBackofficeOrigin(request, reply, options.backofficeOrigin)) {
+      return;
+    }
+
+    const parsedBody = await readValidatedBody(reply, recoveryRequestBodySchema, request.body);
+    if (!parsedBody) {
+      return;
+    }
+    const { email } = parsedBody;
+
+    const sourceAddress = resolveSourceAddress(request);
+    const requestedAt = now();
+
+    const rateLimit = await recordRecoveryRequestAttempt(options.db, {
+      destinationAddress: email,
+      sourceAddress,
+      now: requestedAt,
+    });
+    if (!rateLimit.allowed) {
+      // Upsert, never a lookup, so known and unknown addresses do identical work.
+      try {
+        await doRecordRejectedAttempt(options.db, {
+          kind: "request",
+          keyHash: hashDestinationAddress(email),
+          now: requestedAt,
+        });
+      } catch (error) {
+        reportError(error);
       }
+      await reply
+        .header("Retry-After", String(rateLimit.retryAfterSeconds))
+        .code(429)
+        .send({ code: "rate_limited", message: "too many recovery-link requests" });
+      return;
+    }
 
-      const parsedBody = await readValidatedBody(reply, recoveryRequestBodySchema, request.body);
-      if (!parsedBody) {
-        return;
-      }
-      const { email } = parsedBody;
-
-      const sourceAddress = resolveSourceAddress(request);
-      const requestedAt = now();
-
-      const rateLimit = await recordRecoveryRequestAttempt(options.db, {
-        destinationAddress: email,
-        sourceAddress,
-        now: requestedAt,
-      });
-      if (!rateLimit.allowed) {
-        // Upsert, never a lookup, so known and unknown addresses do identical work.
-        try {
-          await doRecordRejectedAttempt(options.db, {
-            kind: "request",
-            keyHash: hashDestinationAddress(email),
-            now: requestedAt,
-          });
-        } catch (error) {
-          reportError(error);
-        }
-        await reply
-          .header("Retry-After", String(rateLimit.retryAfterSeconds))
-          .code(429)
-          .send({ code: "rate_limited", message: "too many recovery-link requests" });
-        return;
-      }
-
-      await options.jobQueue.enqueueRecoveryRequest({ email, requestedAt });
-      await reply.code(200).send();
-    },
-  );
+    await options.jobQueue.enqueueRecoveryRequest({ email, requestedAt });
+    await reply.code(200).send();
+  });
 }

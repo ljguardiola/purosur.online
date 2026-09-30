@@ -26,7 +26,7 @@ export function registerPasskeysListRoute<TQueryResult extends PgQueryResultHKT>
   const sessionSource = routeSessionSource({ db: options.db, now });
 
   app.get(
-    "/users/passkeys",
+    "/account/passkeys",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
       config: { access: OPEN_SESSION_ACCESS, sessionSource },

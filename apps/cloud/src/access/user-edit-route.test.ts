@@ -433,7 +433,7 @@ describe("POST /users/:id/edit", () => {
 
     const redemption = await recoveryApp.inject({
       method: "POST",
-      url: "/users/recovery/registration-options",
+      url: "/account-recovery-challenges",
       headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.10" },
       payload: { recovery_token: rawToken },
     });
@@ -514,7 +514,7 @@ describe("POST /users/:id/edit", () => {
 
     const redemption = await recoveryApp.inject({
       method: "POST",
-      url: "/users/recovery/registration-options",
+      url: "/account-recovery-challenges",
       headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.11" },
       payload: { recovery_token: rawToken },
     });

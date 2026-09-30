@@ -87,18 +87,15 @@ describe("redeeming the same recovery token over two concurrent HTTP requests ag
     try {
       const { userId, rawToken } = await seedUserAndToken();
 
-      const optionsResponse = await fetch(
-        `${server.origin}/api/users/recovery/registration-options`,
-        {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            origin: BACKOFFICE_ORIGIN,
-            [EDGE_ORIGIN_SECRET_HEADER]: TEST_EDGE_ORIGIN_SECRET,
-          },
-          body: JSON.stringify({ recovery_token: rawToken }),
+      const optionsResponse = await fetch(`${server.origin}/api/account-recovery-challenges`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: BACKOFFICE_ORIGIN,
+          [EDGE_ORIGIN_SECRET_HEADER]: TEST_EDGE_ORIGIN_SECRET,
         },
-      );
+        body: JSON.stringify({ recovery_token: rawToken }),
+      });
       expect(optionsResponse.status).toBe(200);
       const { passkey_registration_options: registrationOptions } = await optionsResponse.json();
 
@@ -106,7 +103,7 @@ describe("redeeming the same recovery token over two concurrent HTTP requests ag
       const credential = emulator.createJSON(BACKOFFICE_ORIGIN, registrationOptions);
 
       const redeem = () =>
-        fetch(`${server.origin}/api/users/recovery/redeem`, {
+        fetch(`${server.origin}/api/account-recovery-redemptions`, {
           method: "POST",
           headers: {
             "content-type": "application/json",
