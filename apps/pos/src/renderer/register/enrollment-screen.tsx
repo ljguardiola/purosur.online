@@ -43,11 +43,18 @@ function noticeFor(outcome: EnrollmentOutcome): Notice | undefined {
       };
     case "unavailable":
       return UNAVAILABLE_NOTICE;
+    case "storage_unavailable":
+      return {
+        icon: <TriangleAlert />,
+        title: "Esta notebook no puede guardar el alta",
+        description:
+          "El código sigue sirviendo. Reiniciá la notebook y probá de nuevo; si sigue igual, avisá al Administrador.",
+      };
     case "not_stored":
       return {
         icon: <TriangleAlert />,
         title: "No se pudo guardar el alta en esta notebook",
-        description: "Avisá al Administrador.",
+        description: "El código ya se usó. Pedí un código nuevo en el backoffice y probá de nuevo.",
       };
   }
 }

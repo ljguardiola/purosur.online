@@ -159,7 +159,25 @@ describe("EnrollmentScreen", () => {
     await expect.element(screen.getByRole("button", { name: "Dar de alta" })).toBeEnabled();
   });
 
-  it("says the alta couldn't be kept on this notebook when its credentials can't be stored", async () => {
+  it("says this notebook can't keep the alta and that the code still works when its credentials can't be stored", async () => {
+    const screen = await render(
+      <EnrollmentScreen enroll={answering({ kind: "storage_unavailable" }).enroll} />,
+    );
+
+    await submitCode(screen);
+
+    await expect.element(screen.getByText("Esta notebook no puede guardar el alta")).toBeVisible();
+    await expect
+      .element(
+        screen.getByText(
+          "El código sigue sirviendo. Reiniciá la notebook y probá de nuevo; si sigue igual, avisá al Administrador.",
+        ),
+      )
+      .toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Dar de alta" })).toBeEnabled();
+  });
+
+  it("asks for a new code when the alta was redeemed but couldn't be kept on this notebook", async () => {
     const screen = await render(
       <EnrollmentScreen enroll={answering({ kind: "not_stored" }).enroll} />,
     );
@@ -170,7 +188,11 @@ describe("EnrollmentScreen", () => {
       .element(screen.getByText("No se pudo guardar el alta en esta notebook"))
       .toBeVisible();
     await expect
-      .element(screen.getByText("Avisá al Administrador.", { exact: true }))
+      .element(
+        screen.getByText(
+          "El código ya se usó. Pedí un código nuevo en el backoffice y probá de nuevo.",
+        ),
+      )
       .toBeVisible();
   });
 

@@ -210,6 +210,7 @@ describe("coreToRendererMessageSchema", () => {
     { kind: "rate_limited", retry_after_seconds: 600 },
     { kind: "unreachable" },
     { kind: "unavailable" },
+    { kind: "storage_unavailable" },
     { kind: "not_stored" },
   ])("accepts the enrollment result $kind", (outcome) => {
     const message = { type: "enrollment-result", request_id: REQUEST_ID, outcome };
