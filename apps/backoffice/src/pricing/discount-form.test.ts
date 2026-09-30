@@ -3,8 +3,6 @@ import { discountCreationBodySchema, discountEditBodySchema } from "@purosur/con
 import { DISCOUNT_NAME_MAX_LENGTH } from "@purosur/domain";
 import { describe, expect, test } from "vitest";
 import { drinks, groceries, jams, spreads } from "../catalog/test-support/categories";
-import { almonds, honey } from "../catalog/test-support/products";
-import { organico, sinColorantes, sinTacc, vegano } from "../catalog/test-support/tags";
 import {
   DISCOUNT_KIND_CARDS,
   DISCOUNT_MESSAGES,
@@ -196,16 +194,14 @@ describe("option lists", () => {
 
 describe("targetOptions", () => {
   const nothing = { products: [], categories: [], tags: [] };
+  const honey = { id: "product-1", name: "Miel pura de abeja 1 kg" };
+  const rice = { id: "product-3", name: "Arroz" };
+  const sinTacc = { id: "tag-1", name: "Sin TACC" };
+  const vegano = { id: "tag-2", name: "Vegano" };
+  const organico = { id: "tag-4", name: "Orgánico" };
 
-  test("offers the active products by name", () => {
-    const options = targetOptions("PRODUCT", {
-      ...nothing,
-      products: [
-        honey,
-        { ...almonds, active: false },
-        { ...honey, id: "product-3", name: "Arroz" },
-      ],
-    });
+  test("offers every product it is given, by name", () => {
+    const options = targetOptions("PRODUCT", { ...nothing, products: [honey, rice] });
 
     expect(options).toEqual([
       { value: "product-3", label: "Arroz" },
@@ -227,11 +223,8 @@ describe("targetOptions", () => {
     ]);
   });
 
-  test("offers the active tags by name", () => {
-    const options = targetOptions("TAG", {
-      ...nothing,
-      tags: [vegano, sinColorantes, sinTacc, organico],
-    });
+  test("offers every tag it is given, by name", () => {
+    const options = targetOptions("TAG", { ...nothing, tags: [vegano, sinTacc, organico] });
 
     expect(options?.map((option) => option.label)).toEqual(["Orgánico", "Sin TACC", "Vegano"]);
   });
@@ -242,35 +235,7 @@ describe("targetOptions", () => {
     expect(targetOptions("TAG", nothing)).toBeUndefined();
   });
 
-  test("keeps an inactive target that is the current value, marked inactive", () => {
-    const inactive = { ...almonds, active: false };
-
-    const options = targetOptions(
-      "PRODUCT",
-      { ...nothing, products: [honey, inactive] },
-      { kind: "PRODUCT", id: inactive.id, name: inactive.name },
-    );
-
-    expect(options).toEqual([
-      { value: "product-2", label: "Almendras peladas", status: "Inactivo" },
-      { value: "product-1", label: "Miel pura de abeja 1 kg" },
-    ]);
-  });
-
-  test("keeps an inactive tag that is the current value, marked inactive", () => {
-    const options = targetOptions(
-      "TAG",
-      { ...nothing, tags: [sinTacc, sinColorantes] },
-      { kind: "TAG", id: sinColorantes.id, name: sinColorantes.name },
-    );
-
-    expect(options).toEqual([
-      { value: "tag-3", label: "Sin colorantes", status: "Inactivo" },
-      { value: "tag-1", label: "Sin TACC" },
-    ]);
-  });
-
-  test("keeps a current product that is not among the products read at all, marked inactive", () => {
+  test("keeps a current product that is not among the products offered, marked inactive", () => {
     const options = targetOptions(
       "PRODUCT",
       { ...nothing, products: [honey] },
@@ -280,6 +245,19 @@ describe("targetOptions", () => {
     expect(options).toEqual([
       { value: "gone", label: "Aceite", status: "Inactivo" },
       { value: "product-1", label: "Miel pura de abeja 1 kg" },
+    ]);
+  });
+
+  test("keeps a current tag that is not among the tags offered, marked inactive", () => {
+    const options = targetOptions(
+      "TAG",
+      { ...nothing, tags: [sinTacc] },
+      { kind: "TAG", id: "tag-3", name: "Sin colorantes" },
+    );
+
+    expect(options).toEqual([
+      { value: "tag-3", label: "Sin colorantes", status: "Inactivo" },
+      { value: "tag-1", label: "Sin TACC" },
     ]);
   });
 
@@ -293,7 +271,7 @@ describe("targetOptions", () => {
     expect(options).toEqual([{ value: "tag-1", label: "Sin TACC" }]);
   });
 
-  test("does not list an active current target twice", () => {
+  test("does not list an offered current target twice", () => {
     const options = targetOptions(
       "PRODUCT",
       { ...nothing, products: [honey] },

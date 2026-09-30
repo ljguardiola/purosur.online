@@ -1,9 +1,15 @@
-import type { DiscountList, DiscountSummary, PriceList, PriceProduct } from "@purosur/contracts";
+import type {
+  DiscountList,
+  DiscountSummary,
+  DiscountTargets,
+  PriceList,
+  PriceProduct,
+} from "@purosur/contracts";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
-import type { fetchDiscounts } from "./discounts-api";
+import type { fetchDiscounts, fetchDiscountTargets } from "./discounts-api";
 import type { FetchPricesInput, fetchPrices } from "./prices-api";
 
 export const pricesKey = ["prices"] as const;
@@ -16,6 +22,8 @@ export const pricesKeys = {
 };
 
 export const discountsKey = [...pricesKey, "discounts"] as const;
+
+export const discountTargetsKey = [...discountsKey, "targets"] as const;
 
 export type PricesRead = PriceList & { readAt: Date };
 
@@ -97,6 +105,19 @@ export function useDiscountsQuery(params: {
   return useCloudQuery<DiscountList>({
     queryKey: discountsKey,
     read: params.fetchDiscounts,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useDiscountTargetsQuery(params: {
+  fetchDiscountTargets: typeof fetchDiscountTargets;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<DiscountTargets>({
+    queryKey: discountTargetsKey,
+    read: params.fetchDiscountTargets,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

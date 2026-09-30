@@ -1,9 +1,4 @@
-import type {
-  CategorySummary,
-  DiscountSummary,
-  ProductSummary,
-  TagSummary,
-} from "@purosur/contracts";
+import type { DiscountSummary } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
@@ -15,13 +10,11 @@ import { chooseTarget, radioLabel, typeDate } from "./test-support/discount-moda
 import {
   almacenCategory,
   almacenTuesdays,
-  almondsProduct,
+  discountTargets,
   retiredProduct,
   retiredTag,
-  sinTaccTag,
   sinTaccWinter,
   switchedOffPromotion,
-  veganoTag,
   yerbaOff,
   yerbaProduct,
   yerbasCategory,
@@ -39,9 +32,6 @@ function createServices(
 
 type ModalOptions = {
   target?: DiscountSummary | null;
-  products?: ProductSummary[];
-  categories?: CategorySummary[];
-  tags?: TagSummary[];
   reload?: (id: string) => Promise<DiscountReload>;
   onClose?: () => void;
   onSaved?: (discount: DiscountSummary) => void;
@@ -58,9 +48,7 @@ function modalElement(services: EditDiscountModalServices, options: ModalOptions
           onSaved={options.onSaved ?? (() => {})}
           onSessionEnded={options.onSessionEnded ?? (() => {})}
           reload={options.reload ?? (() => Promise.resolve({ kind: "list_failed" }))}
-          products={options.products ?? [yerbaProduct, almondsProduct, retiredProduct]}
-          categories={options.categories ?? [almacenCategory, yerbasCategory]}
-          tags={options.tags ?? [sinTaccTag, veganoTag, retiredTag]}
+          targets={discountTargets}
           services={services}
         />
       </main>

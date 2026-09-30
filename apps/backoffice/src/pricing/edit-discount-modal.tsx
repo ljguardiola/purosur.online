@@ -1,9 +1,7 @@
 import {
-  type CategorySummary,
   type DiscountSummary,
+  type DiscountTargets,
   discountEditBodySchema,
-  type ProductSummary,
-  type TagSummary,
 } from "@purosur/contracts";
 import { Button, FieldGroup, InlineNotice, Modal } from "@purosur/ui";
 import { Check, Info, Pencil, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
@@ -39,9 +37,7 @@ type EditDiscountModalProps = {
   onSaved: (discount: DiscountSummary) => void;
   onSessionEnded: () => void;
   reload: (id: string) => Promise<DiscountReload>;
-  products: ProductSummary[];
-  categories: CategorySummary[];
-  tags: TagSummary[];
+  targets: DiscountTargets;
   services: EditDiscountModalServices;
 };
 
@@ -57,9 +53,7 @@ export function EditDiscountModal({
   onSaved,
   onSessionEnded,
   reload,
-  products,
-  categories,
-  tags,
+  targets,
   services,
 }: EditDiscountModalProps) {
   const { editDiscount } = services;
@@ -146,7 +140,7 @@ export function EditDiscountModal({
   }
 
   const targetKindLabel = DISCOUNT_TARGET_KIND_LABELS[values.targetKind];
-  const options = targetOptions(values.targetKind, { products, categories, tags }, loaded?.target);
+  const options = targetOptions(values.targetKind, targets, loaded?.target);
 
   return (
     <Modal

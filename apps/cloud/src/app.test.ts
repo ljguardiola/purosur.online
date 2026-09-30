@@ -1074,6 +1074,7 @@ describe("wiring the discounts routes", () => {
       app.inject({ method: "GET", url: "/api/discounts" }),
       app.inject({ method: "POST", url: "/api/discounts", headers: ORIGIN }),
       app.inject({ method: "PUT", url: `/api/discounts/${ID}`, headers: ORIGIN }),
+      app.inject({ method: "GET", url: "/api/discount-targets" }),
     ]);
     return responses.map((response) => response.statusCode);
   }
@@ -1081,7 +1082,7 @@ describe("wiring the discounts routes", () => {
   it("does not register the discounts routes when no discounts option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
-    expect(await discountsResponses(app)).toEqual([404, 404, 404]);
+    expect(await discountsResponses(app)).toEqual([404, 404, 404, 404]);
   });
 
   it("registers the discounts routes when a discounts option is given", async () => {
@@ -1090,7 +1091,7 @@ describe("wiring the discounts routes", () => {
       discounts: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
 
-    expect(await discountsResponses(app)).toEqual([401, 401, 401]);
+    expect(await discountsResponses(app)).toEqual([401, 401, 401, 401]);
   });
 });
 
@@ -1764,6 +1765,11 @@ describe("the route access inventory", () => {
       {
         method: "PUT",
         url: "/api/discounts/:id",
+        access: permissionAccess("manage_promotions"),
+      },
+      {
+        method: "GET",
+        url: "/api/discount-targets",
         access: permissionAccess("manage_promotions"),
       },
       {

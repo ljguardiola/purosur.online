@@ -1,9 +1,7 @@
 import {
-  type CategorySummary,
   type DiscountSummary,
+  type DiscountTargets,
   discountCreationBodySchema,
-  type ProductSummary,
-  type TagSummary,
 } from "@purosur/contracts";
 import { Button, FieldGroup, InlineNotice, Modal } from "@purosur/ui";
 import { Check, Info, Percent, ShieldX, TriangleAlert, X } from "lucide-react";
@@ -36,9 +34,7 @@ type NewDiscountModalProps = {
   onClose: () => void;
   onCreated: (discount: DiscountSummary) => void;
   onSessionEnded: () => void;
-  products: ProductSummary[];
-  categories: CategorySummary[];
-  tags: TagSummary[];
+  targets: DiscountTargets;
   services: NewDiscountModalServices;
 };
 
@@ -49,9 +45,7 @@ export function NewDiscountModal({
   onClose,
   onCreated,
   onSessionEnded,
-  products,
-  categories,
-  tags,
+  targets,
   services,
 }: NewDiscountModalProps) {
   const { createDiscount } = services;
@@ -104,7 +98,7 @@ export function NewDiscountModal({
   }, [open, reset]);
 
   const targetKindLabel = DISCOUNT_TARGET_KIND_LABELS[values.targetKind];
-  const options = targetOptions(values.targetKind, { products, categories, tags });
+  const options = targetOptions(values.targetKind, targets);
 
   return (
     <Modal

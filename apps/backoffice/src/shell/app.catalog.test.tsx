@@ -460,3 +460,43 @@ test.each([["/catalog/products"], ["/catalog/prices"]])(
     expect(services.pricesListScreen.fetchPrices).not.toHaveBeenCalled();
   },
 );
+
+test("lists the promotions and opens Nueva promoción for a user holding only manage_promotions", async () => {
+  const services = createAppServices({
+    fetchSession: vi.fn().mockResolvedValue(
+      openSession({
+        userId: "user-2",
+        displayName: "Grace Hopper",
+        isAdministrator: false,
+        permissions: ["manage_promotions"],
+      }),
+    ),
+  });
+  vi.mocked(services.discountsListScreen.fetchDiscounts).mockResolvedValue({
+    kind: "ok",
+    value: {
+      discounts: [
+        {
+          id: "0b1f3c1e-4f6a-4d0e-9d6e-000000000001",
+          name: "Yerba de septiembre",
+          benefit: { kind: "PERCENT_OFF", percent: 15 },
+          target: { kind: "PRODUCT", id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000101", name: "Yerba" },
+          validFrom: "2026-09-12",
+          validTo: "2026-09-30",
+          weekdays: [],
+          active: true,
+          version: 1,
+        },
+      ],
+    },
+  });
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/catalog/discounts");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByText("Yerba de septiembre")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Nueva promoción" }));
+  await expect.element(screen.getByRole("dialog", { name: "Nueva promoción" })).toBeVisible();
+  expect(window.location.pathname).toBe("/catalog/discounts");
+});

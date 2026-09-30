@@ -5,17 +5,7 @@ import { render } from "../../shell/test-support/render-with-router";
 import { DiscountsListScreen } from "../discounts-list-screen";
 import type { DiscountsListScreenServices } from "../discounts-list-services";
 import { type DiscountsListFilters, discountsListFilters } from "../routes";
-import {
-  almacenCategory,
-  almondsProduct,
-  discountList,
-  retiredProduct,
-  retiredTag,
-  sinTaccTag,
-  veganoTag,
-  yerbaProduct,
-  yerbasCategory,
-} from "./discounts";
+import { discountList, discountTargets } from "./discounts";
 
 const DATA_COLUMN_COUNT = 5;
 
@@ -26,17 +16,7 @@ export function createServices(
 ): DiscountsListScreenServices {
   return {
     fetchDiscounts: vi.fn(),
-    fetchProducts: vi.fn().mockResolvedValue({
-      kind: "ok",
-      value: [yerbaProduct, almondsProduct, retiredProduct],
-    }),
-    fetchCategories: vi
-      .fn()
-      .mockResolvedValue({ kind: "ok", value: [almacenCategory, yerbasCategory] }),
-    fetchTags: vi.fn().mockResolvedValue({
-      kind: "ok",
-      value: { tags: [sinTaccTag, veganoTag, retiredTag], taggedProductCount: 5 },
-    }),
+    fetchDiscountTargets: vi.fn().mockResolvedValue({ kind: "ok", value: discountTargets }),
     createDiscount: vi.fn(),
     editDiscount: vi.fn(),
     ...overrides,

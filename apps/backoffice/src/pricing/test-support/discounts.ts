@@ -1,10 +1,4 @@
-import type {
-  CategorySummary,
-  DiscountList,
-  DiscountSummary,
-  ProductSummary,
-  TagSummary,
-} from "@purosur/contracts";
+import type { DiscountList, DiscountSummary, DiscountTargets } from "@purosur/contracts";
 
 export const yerbaOff: DiscountSummary = {
   id: "0b1f3c1e-4f6a-4d0e-9d6e-000000000001",
@@ -90,70 +84,52 @@ export function discountList(discounts: DiscountSummary[]): DiscountList {
   return { discounts };
 }
 
-export const yerbaProduct: ProductSummary = {
+type NamedTarget = DiscountTargets["products"][number];
+
+export const yerbaProduct: NamedTarget = {
   id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000101",
   name: "Yerba Playadito 1 kg",
-  categoryId: "7a1f3c1e-4f6a-4d0e-9d6e-000000000202",
-  categoryName: "Yerbas",
-  brandId: null,
-  saleUnit: "UNIT",
-  barcodes: ["7790000000101"],
-  tagIds: [],
-  netContent: null,
-  active: true,
-  version: 1,
 };
 
-export const almondsProduct: ProductSummary = {
-  ...yerbaProduct,
+const almondsProduct: NamedTarget = {
   id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000104",
   name: "Almendras peladas",
-  saleUnit: "KG",
-  barcodes: ["7790000000104"],
 };
 
-export const retiredProduct: ProductSummary = {
-  ...yerbaProduct,
+export const retiredProduct: NamedTarget = {
   id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000105",
   name: "Café en grano",
-  barcodes: ["7790000000105"],
-  active: false,
 };
 
-export const almacenCategory: CategorySummary = {
+export const almacenCategory: DiscountTargets["categories"][number] = {
   id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000201",
   name: "Almacén",
-  version: 1,
   parentId: null,
 };
 
-export const yerbasCategory: CategorySummary = {
+export const yerbasCategory: DiscountTargets["categories"][number] = {
   id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000202",
   name: "Yerbas",
-  version: 1,
   parentId: "7a1f3c1e-4f6a-4d0e-9d6e-000000000201",
 };
 
-export const sinTaccTag: TagSummary = {
+const sinTaccTag: NamedTarget = {
   id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000301",
   name: "Sin TACC",
-  active: true,
-  version: 1,
-  productCount: 3,
 };
 
-export const veganoTag: TagSummary = {
+export const veganoTag: NamedTarget = {
   id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000302",
   name: "Vegano",
-  active: true,
-  version: 1,
-  productCount: 2,
 };
 
-export const retiredTag: TagSummary = {
+export const retiredTag: NamedTarget = {
   id: "7a1f3c1e-4f6a-4d0e-9d6e-000000000303",
   name: "Sin colorantes",
-  active: false,
-  version: 2,
-  productCount: 1,
+};
+
+export const discountTargets: DiscountTargets = {
+  products: [yerbaProduct, almondsProduct],
+  categories: [almacenCategory, yerbasCategory],
+  tags: [sinTaccTag, veganoTag],
 };

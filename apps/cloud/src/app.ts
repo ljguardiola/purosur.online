@@ -76,6 +76,7 @@ import { registerEdgeOriginGuard } from "./platform/edge-origin-guard.js";
 import { registerHealthRoute } from "./platform/health-route.js";
 import { registerDiscountCreationRoute } from "./pricing/discount-creation-route.js";
 import { registerDiscountEditRoute } from "./pricing/discount-edit-route.js";
+import { registerDiscountTargetsRoute } from "./pricing/discount-targets-route.js";
 import type { DiscountsRouteOptions } from "./pricing/discounts-list-route.js";
 import { registerDiscountsListRoute } from "./pricing/discounts-list-route.js";
 import { registerPriceConfirmationRoute } from "./pricing/price-confirmation-route.js";
@@ -308,6 +309,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerDiscountsListRoute(api, options.discounts);
         registerDiscountCreationRoute(api, options.discounts);
         registerDiscountEditRoute(api, options.discounts);
+        registerDiscountTargetsRoute(api, options.discounts);
       }
 
       if (options.stock) {

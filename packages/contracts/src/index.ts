@@ -86,6 +86,8 @@ export type { DiscountEditBody } from "./pricing/discount-edit.js";
 export { discountEditBodySchema } from "./pricing/discount-edit.js";
 export type { DiscountList, DiscountSummary } from "./pricing/discount-summary.js";
 export { discountListSchema, discountSummarySchema } from "./pricing/discount-summary.js";
+export type { DiscountTargets } from "./pricing/discount-targets.js";
+export { discountTargetsSchema } from "./pricing/discount-targets.js";
 export type { PriceConfirmationBody } from "./pricing/price-confirmation.js";
 export { priceConfirmationBodySchema } from "./pricing/price-confirmation.js";
 export type {

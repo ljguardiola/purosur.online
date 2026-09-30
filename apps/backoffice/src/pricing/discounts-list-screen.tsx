@@ -1,9 +1,4 @@
-import type {
-  CategorySummary,
-  DiscountSummary,
-  ProductSummary,
-  TagSummary,
-} from "@purosur/contracts";
+import type { DiscountSummary, DiscountTargets } from "@purosur/contracts";
 import { argentinaCalendarDay, type DiscountStatus, discountStatus } from "@purosur/domain";
 import {
   Button,
@@ -20,7 +15,6 @@ import {
 import { deepEqual } from "@tanstack/react-router";
 import { BadgePercent, Check, Pencil, Plus, Search, SearchX } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-import { useCategoriesQuery, useProductsQuery, useTagsQuery } from "../catalog/catalog-queries";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { combineCloudData } from "../platform/combine-cloud-data";
 import { ScreenLayout } from "../shell/screen-layout";
@@ -37,7 +31,12 @@ import { discountsFooterText } from "./discounts-footer-text";
 import type { DiscountsListScreenServices } from "./discounts-list-services";
 import { EditDiscountModal } from "./edit-discount-modal";
 import { NewDiscountModal } from "./new-discount-modal";
-import { useDiscountsQuery, useRefreshDiscounts, useReloadDiscount } from "./pricing-queries";
+import {
+  useDiscountsQuery,
+  useDiscountTargetsQuery,
+  useRefreshDiscounts,
+  useReloadDiscount,
+} from "./pricing-queries";
 import type { DiscountsListFilters } from "./routes";
 
 export type DiscountsListScreenProps = {
@@ -53,9 +52,7 @@ type DiscountKindFilter = DiscountsListFilters["kind"];
 type DiscountSortColumn = DiscountsListFilters["sortBy"];
 
 const NO_DISCOUNTS: DiscountSummary[] = [];
-const NO_PRODUCTS: ProductSummary[] = [];
-const NO_CATEGORIES: CategorySummary[] = [];
-const NO_TAGS: TagSummary[] = [];
+const NO_TARGETS: DiscountTargets = { products: [], categories: [], tags: [] };
 
 type ScreenNotice = { id: number; title: string; description: string };
 
@@ -118,20 +115,11 @@ export function DiscountsListScreen({
     fetchDiscounts: services.fetchDiscounts,
     onSessionEnded,
   });
-  const productsData = useProductsQuery({
-    status: "active",
-    fetchProducts: services.fetchProducts,
+  const targetsData = useDiscountTargetsQuery({
+    fetchDiscountTargets: services.fetchDiscountTargets,
     onSessionEnded,
   });
-  const categoriesData = useCategoriesQuery({
-    fetchCategories: services.fetchCategories,
-    onSessionEnded,
-  });
-  const tagsData = useTagsQuery({ fetchTags: services.fetchTags, onSessionEnded });
-  const data = combineCloudData(
-    combineCloudData(combineCloudData(discountsData, productsData), categoriesData),
-    tagsData,
-  );
+  const data = combineCloudData(discountsData, targetsData);
   const refreshDiscounts = useRefreshDiscounts();
   const reloadDiscount = useReloadDiscount({ fetchDiscounts: services.fetchDiscounts });
   const [today, setToday] = useState(() => argentinaCalendarDay(clock()));
@@ -180,10 +168,8 @@ export function DiscountsListScreen({
     return () => window.clearInterval(intervalId);
   }, []);
 
-  const [[[{ discounts }, products], categories], { tags }] =
-    data.status === "loaded"
-      ? data.value
-      : [[[{ discounts: NO_DISCOUNTS }, NO_PRODUCTS], NO_CATEGORIES], { tags: NO_TAGS }];
+  const [{ discounts }, targets] =
+    data.status === "loaded" ? data.value : [{ discounts: NO_DISCOUNTS }, NO_TARGETS];
   const statusOf = (discount: DiscountSummary) => discountStatus(discount, today);
   const statusOrder: TableItemOrder<DiscountSummary> = (a, b) =>
     STATUS_RANK[statusOf(a)] - STATUS_RANK[statusOf(b)] || nameOrder(a, b);
@@ -359,9 +345,7 @@ export function DiscountsListScreen({
       {data.status === "loaded" ? (
         <EditDiscountModal
           target={editTarget}
-          products={products}
-          categories={categories}
-          tags={tags}
+          targets={targets}
           services={services}
           reload={reloadDiscount}
           onSaved={(saved) => {
@@ -378,9 +362,7 @@ export function DiscountsListScreen({
       ) : null}
       <NewDiscountModal
         open={newModalOpen}
-        products={products}
-        categories={categories}
-        tags={tags}
+        targets={targets}
         services={services}
         onCreated={(created) => {
           setNewModalOpen(false);

@@ -48,14 +48,14 @@ test("cancel closes the new promotion modal without creating anything", async ()
 
 test("the create action stays disabled while what the modal offers loads, and after it fails to load", async () => {
   const services = createServices();
-  const products = deferred<Awaited<ReturnType<typeof services.fetchProducts>>>();
-  vi.mocked(services.fetchProducts).mockReturnValueOnce(products.promise);
+  const targets = deferred<Awaited<ReturnType<typeof services.fetchDiscountTargets>>>();
+  vi.mocked(services.fetchDiscountTargets).mockReturnValueOnce(targets.promise);
   vi.mocked(services.fetchDiscounts).mockResolvedValue({ kind: "ok", value: discountList([]) });
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByRole("button", { name: "Nueva promoción" })).toBeDisabled();
 
-  products.resolve({ kind: "failed" });
+  targets.resolve({ kind: "failed" });
   await expect.element(screen.getByText("No pudimos abrir las promociones")).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Nueva promoción" })).toBeDisabled();
 });

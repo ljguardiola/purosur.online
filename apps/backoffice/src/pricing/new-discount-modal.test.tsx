@@ -1,9 +1,4 @@
-import type {
-  CategorySummary,
-  DiscountSummary,
-  ProductSummary,
-  TagSummary,
-} from "@purosur/contracts";
+import type { DiscountSummary } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
@@ -17,17 +12,7 @@ import {
   radioLabel,
   typeDate,
 } from "./test-support/discount-modal";
-import {
-  almacenCategory,
-  almondsProduct,
-  retiredProduct,
-  retiredTag,
-  sinTaccTag,
-  veganoTag,
-  yerbaOff,
-  yerbaProduct,
-  yerbasCategory,
-} from "./test-support/discounts";
+import { discountTargets, veganoTag, yerbaOff, yerbaProduct } from "./test-support/discounts";
 
 // A modal panel is centered by a fixed-position overlay that never grows the document's scroll
 // area, so a control past its clipped edge can't be scrolled into view at the default viewport.
@@ -42,9 +27,6 @@ function createServices(
 }
 
 type ModalOptions = {
-  products?: ProductSummary[];
-  categories?: CategorySummary[];
-  tags?: TagSummary[];
   onClose?: () => void;
   onCreated?: (discount: DiscountSummary) => void;
   onSessionEnded?: () => void;
@@ -59,9 +41,7 @@ function modalElement(open: boolean, services: NewDiscountModalServices, options
           onClose={options.onClose ?? (() => {})}
           onCreated={options.onCreated ?? (() => {})}
           onSessionEnded={options.onSessionEnded ?? (() => {})}
-          products={options.products ?? [yerbaProduct, almondsProduct, retiredProduct]}
-          categories={options.categories ?? [almacenCategory, yerbasCategory]}
-          tags={options.tags ?? [sinTaccTag, veganoTag, retiredTag]}
+          targets={discountTargets}
           services={services}
         />
       </main>
@@ -161,7 +141,7 @@ test("sends no weekday when none is marked", async () => {
   expect(vi.mocked(services.createDiscount).mock.calls[0]?.[0].weekdays).toEqual([]);
 });
 
-test("offers the active products by name, without the ones taken out of sale", async () => {
+test("offers the products it is given by name", async () => {
   const { dialog } = await renderModal(createServices());
 
   await userEvent.click(dialog.getByRole("button", { name: /^Elegí un producto/ }));

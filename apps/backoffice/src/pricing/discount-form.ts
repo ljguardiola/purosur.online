@@ -1,11 +1,9 @@
 import { type CalendarDate, parseDate } from "@internationalized/date";
 import type {
-  CategorySummary,
   DiscountCreationBody,
   DiscountEditBody,
   DiscountSummary,
-  ProductSummary,
-  TagSummary,
+  DiscountTargets,
 } from "@purosur/contracts";
 import {
   DISCOUNT_NAME_MAX_LENGTH,
@@ -177,17 +175,11 @@ export const WEEKDAY_OPTIONS = [
 
 const INACTIVE_TARGET_STATUS = "Inactivo";
 
-type TargetSources = {
-  products: readonly ProductSummary[];
-  categories: readonly CategorySummary[];
-  tags: readonly TagSummary[];
-};
-
 type CurrentTarget = { kind: DiscountTargetKind; id: string; name: string };
 
 const nameOrder = textOrder((named: { name: string }) => named.name);
 
-function offeredTargets(kind: DiscountTargetKind, sources: TargetSources): Option<string>[] {
+function offeredTargets(kind: DiscountTargetKind, sources: DiscountTargets): Option<string>[] {
   if (kind === "CATEGORY") {
     const labels = categoryPathLabels([...sources.categories]);
     return categoriesInTreeOrder([...sources.categories]).map((category) => ({
@@ -196,15 +188,15 @@ function offeredTargets(kind: DiscountTargetKind, sources: TargetSources): Optio
     }));
   }
   const named = kind === "PRODUCT" ? sources.products : sources.tags;
-  return sortedItems(
-    named.filter((item) => item.active),
-    { order: nameOrder, direction: "ascending" },
-  ).map((item) => ({ value: item.id, label: item.name }));
+  return sortedItems(named, { order: nameOrder, direction: "ascending" }).map((item) => ({
+    value: item.id,
+    label: item.name,
+  }));
 }
 
 export function targetOptions(
   kind: DiscountTargetKind,
-  sources: TargetSources,
+  sources: DiscountTargets,
   current?: CurrentTarget,
 ): Options<Option<string>> | undefined {
   const offered = offeredTargets(kind, sources);

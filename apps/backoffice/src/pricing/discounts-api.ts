@@ -3,14 +3,18 @@ import {
   type DiscountEditBody,
   type DiscountList,
   type DiscountSummary,
+  type DiscountTargets,
   discountListSchema,
   discountSummarySchema,
+  discountTargetsSchema,
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { retryAfterSeconds } from "../platform/retry-after-seconds";
 import { readValidationFailedField } from "../platform/validation-failed-field";
 
 export type FetchDiscountsOutcome = CloudReadOutcome<DiscountList>;
+
+export type FetchDiscountTargetsOutcome = CloudReadOutcome<DiscountTargets>;
 
 type RequestRefusal =
   | { kind: "forbidden" }
@@ -69,6 +73,20 @@ export async function fetchDiscounts(): Promise<FetchDiscountsOutcome> {
     return refusal(response);
   }
   const parsed = discountListSchema.safeParse(await response.json().catch(() => undefined));
+  return parsed.success ? { kind: "ok", value: parsed.data } : { kind: "failed" };
+}
+
+export async function fetchDiscountTargets(): Promise<FetchDiscountTargetsOutcome> {
+  let response: Response;
+  try {
+    response = await fetch("/api/discount-targets");
+  } catch {
+    return { kind: "failed" };
+  }
+  if (!response.ok) {
+    return refusal(response);
+  }
+  const parsed = discountTargetsSchema.safeParse(await response.json().catch(() => undefined));
   return parsed.success ? { kind: "ok", value: parsed.data } : { kind: "failed" };
 }
 
