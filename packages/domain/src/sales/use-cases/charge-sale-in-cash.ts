@@ -84,7 +84,7 @@ export function chargeSaleInCash(
     }
     tx.recordCompletedSale(sale.id);
     tx.appendOutboxEvent(
-      saleCompletedEvent(ids.next(), sale, payment, movements, actorId, completedAt),
+      saleCompletedEvent(ids.next(), sale, total, payment, movements, actorId, completedAt),
     );
     return { kind: "completed", saleId: sale.id, total, tendered, change: charge.change };
   });
@@ -134,6 +134,7 @@ function frozenPromotion({ id, benefit }: LinePromotion) {
 function saleCompletedEvent(
   eventId: string,
   sale: SaleWithLines,
+  total: number,
   payment: PaymentTransaction,
   movements: readonly SaleCashMovement[],
   actorId: string,
@@ -154,6 +155,7 @@ function saleCompletedEvent(
       actor_id: sale.actorId,
       occurred_at: sale.occurredAt.toISOString(),
       completed_at: completedAtIso,
+      total,
       lines: sale.lines.map((line) => ({
         id: line.id,
         product_id: line.productId,
@@ -175,6 +177,7 @@ function saleCompletedEvent(
           amount: payment.amount,
           tendered: payment.tendered ?? null,
           state: payment.state,
+          occurred_at: payment.occurredAt.toISOString(),
         },
       ],
       cash_movements: movements.map((movement) => ({

@@ -229,7 +229,7 @@ describe("chargeSaleInCash", () => {
     expect(store.transactions).toBe(1);
   });
 
-  it("appends the sale_completed event with the sale, its lines, its payment and its cash movements", () => {
+  it("appends the sale_completed event with the sale, its total, its lines, its payment and its cash movements", () => {
     const store = ledger();
 
     charge(store, 10000);
@@ -251,6 +251,7 @@ describe("chargeSaleInCash", () => {
           actor_id: "cashier",
           occurred_at: STARTED.toISOString(),
           completed_at: NOW.toISOString(),
+          total: TOTAL,
           lines: [
             {
               id: "line-1",
@@ -286,6 +287,7 @@ describe("chargeSaleInCash", () => {
               amount: TOTAL,
               tendered: 10000,
               state: "APPROVED",
+              occurred_at: NOW.toISOString(),
             },
           ],
           cash_movements: [
