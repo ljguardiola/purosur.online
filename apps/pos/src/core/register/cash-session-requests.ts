@@ -49,22 +49,11 @@ export async function openCashSessionFor(
     : { kind: outcome.kind };
 }
 
-function readOpenSessionSigningInItsOpener(
-  database: LocalDatabase,
-  signedInPerson: Pick<SignedInPerson, "set">,
-) {
-  const session = readOpenSession(database);
-  if (session !== undefined) {
-    signedInPerson.set(session.openedBy);
-  }
-  return session;
-}
-
 export function currentCashSession(
   database: LocalDatabase,
   signedInPerson: Pick<SignedInPerson, "set">,
 ): OpenCashSession | null {
-  const session = readOpenSessionSigningInItsOpener(database, signedInPerson);
+  const session = readOpenSession(database);
   if (session === undefined) {
     return null;
   }
@@ -72,6 +61,7 @@ export function currentCashSession(
     firstName: "",
     access: { isAdministrator: false, permissionKeys: [] },
   };
+  signedInPerson.set(session.openedBy);
   return {
     id: session.id,
     opened_at: session.openedAt.toISOString(),
@@ -96,7 +86,10 @@ export function resumeSignedInPerson({
 }: ResumeSignedInPersonDeps): void {
   signedInPerson.clear();
   try {
-    readOpenSessionSigningInItsOpener(database, signedInPerson);
+    const session = readOpenSession(database);
+    if (session !== undefined) {
+      signedInPerson.set(session.openedBy);
+    }
   } catch (error) {
     reportFailure("reading who opened the open cash session", error);
   }
