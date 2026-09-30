@@ -2,6 +2,7 @@ import type { Authorization, AuthorizedBy, GuardedActionRefusal } from "@purosur
 import {
   type AuthorizablePermissionKey,
   holdsPermission,
+  isAuthorizablePermissionKey,
   type PermissionKey,
 } from "@purosur/domain";
 import { authorize } from "./authorize";
@@ -51,6 +52,9 @@ export function createActionGate(deps: ActionGateDeps): ActionGate {
           authorized_by: null,
           result: await perform({ signedInUserId, authorizedBy: null }),
         };
+      }
+      if (!isAuthorizablePermissionKey(action.permission)) {
+        return { kind: "lacks_permission" };
       }
       const outcome = await authorize(deps, action.authorization, action.permission);
       if (outcome.kind !== "authorized") {

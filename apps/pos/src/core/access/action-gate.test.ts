@@ -191,6 +191,43 @@ describe("running a guarded action with another person's authorization", () => {
     ]);
   });
 
+  it("refuses an authorization for a permission nobody can authorize, without checking the PIN", async () => {
+    const base = deps({ accessOf: { u1: { isAdministrator: false, permissionKeys: [] } } });
+    const hashed: string[] = [];
+    const counted: string[] = [];
+    const sandbox = deps({
+      accessOf: { u1: { isAdministrator: false, permissionKeys: [] } },
+      overrides: {
+        store: {
+          ...base.store,
+          signInRecord: () => record(["sell_and_charge"]),
+          recordPinSignInFailure: (userId, at) => {
+            counted.push(userId);
+            return base.store.recordPinSignInFailure(userId, at);
+          },
+        },
+        hashPin: async (pin, salt) => {
+          hashed.push(pin);
+          return base.hashPin(pin, salt);
+        },
+      },
+    });
+    const parsed: GuardedAction = JSON.parse(
+      '{"permission":"sell_and_charge","authorization":{"user_id":"u2","pin":"1234"}}',
+    );
+    const performed: GuardedActor[] = [];
+
+    const outcome = await createActionGate(sandbox).run(parsed, async (actor) => {
+      performed.push(actor);
+      return "sold";
+    });
+
+    expect(outcome).toEqual({ kind: "lacks_permission" });
+    expect(performed).toEqual([]);
+    expect(hashed).toEqual([]);
+    expect(counted).toEqual([]);
+  });
+
   it("does not run the action when the signed-in person leaves while the authorization is checked", async () => {
     const holder = createSignedInPerson();
     holder.set("u1");
