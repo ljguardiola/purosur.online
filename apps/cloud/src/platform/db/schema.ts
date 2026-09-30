@@ -250,6 +250,43 @@ export const productTags = pgTable(
   ],
 );
 
+export const discounts = pgTable(
+  "discounts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    kind: text("kind").notNull(),
+    percent: integer("percent"),
+    productId: uuid("product_id").references(() => products.id),
+    categoryId: uuid("category_id").references(() => categories.id),
+    tagId: uuid("tag_id").references(() => tags.id),
+    validFrom: date("valid_from", { mode: "string" }).notNull(),
+    validTo: date("valid_to", { mode: "string" }).notNull(),
+    weekdays: smallint("weekdays").array().notNull().default(sql`'{}'`),
+    active: boolean("active").notNull().default(true),
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [
+    index("discounts_product_id_idx").on(table.productId),
+    index("discounts_category_id_idx").on(table.categoryId),
+    index("discounts_tag_id_idx").on(table.tagId),
+    check("discounts_kind_check", sql`${table.kind} in ('PERCENT_OFF')`),
+    check(
+      "discounts_percent_check",
+      sql`${table.kind} <> 'PERCENT_OFF' or coalesce(${table.percent} between 1 and 99, false)`,
+    ),
+    check(
+      "discounts_exactly_one_target_check",
+      sql`num_nonnulls(${table.productId}, ${table.categoryId}, ${table.tagId}) = 1`,
+    ),
+    check("discounts_valid_to_not_before_from_check", sql`${table.validTo} >= ${table.validFrom}`),
+    check(
+      "discounts_weekdays_check",
+      sql`${table.weekdays} <@ array[1, 2, 3, 4, 5, 6, 7]::smallint[]`,
+    ),
+  ],
+);
+
 // Mirrors products.active (same transaction): a partial index can't read another table's column,
 // so this flag scopes the uniqueness below to active products.
 export const productBarcodes = pgTable(
