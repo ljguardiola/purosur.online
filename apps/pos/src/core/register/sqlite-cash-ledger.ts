@@ -71,6 +71,16 @@ function movementOf(row: MovementRow): CashMovement {
   };
 }
 
+export function readSessionMovements(database: LocalDatabase, sessionId: string): CashMovement[] {
+  return database
+    .prepare<[string], MovementRow>(
+      `SELECT id, session_id, type, amount, reason, ref_type, ref_id, actor_id, authorized_by, occurred_at
+       FROM cash_movements WHERE session_id = ? ORDER BY rowid`,
+    )
+    .all(sessionId)
+    .map(movementOf);
+}
+
 export class SqliteCashLedger implements CashLedger {
   private readonly database: LocalDatabase;
   private readonly people: Pick<SignInStore, "activePerson">;
@@ -95,7 +105,7 @@ export class SqliteCashLedger implements CashLedger {
       openerAccess: (userId) => this.people.activePerson(userId)?.access,
       openSession: () => readOpenSession(this.database),
       openSaleTotal: () => undefined,
-      sessionMovements: (sessionId) => this.sessionMovements(sessionId),
+      sessionMovements: (sessionId) => readSessionMovements(this.database, sessionId),
       registerIdentity: () => this.registerIdentity(),
       recordOpenedSession: (session) => this.recordOpenedSession(session),
       recordClosedSession: (session) => this.recordClosedSession(session),
@@ -150,16 +160,6 @@ export class SqliteCashLedger implements CashLedger {
         counted_cash: session.countedCash,
         difference: session.difference,
       });
-  }
-
-  private sessionMovements(sessionId: string): CashMovement[] {
-    return this.database
-      .prepare<[string], MovementRow>(
-        `SELECT id, session_id, type, amount, reason, ref_type, ref_id, actor_id, authorized_by, occurred_at
-         FROM cash_movements WHERE session_id = ? ORDER BY rowid`,
-      )
-      .all(sessionId)
-      .map(movementOf);
   }
 
   private recordCashMovement(movement: CashMovement): void {

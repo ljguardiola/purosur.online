@@ -18,7 +18,7 @@ function stateOf(session: OpenCashSession | null | "unavailable"): CashSessionSt
   }
   return session === null
     ? { status: "none" }
-    : { status: "open", openedAt: session.opened_at, openedBy: session.opened_by };
+    : { status: "open", id: session.id, openedAt: session.opened_at, openedBy: session.opened_by };
 }
 
 export function App({ core }: { core: CoreClient }) {
@@ -65,7 +65,12 @@ export function App({ core }: { core: CoreClient }) {
       setPerson(undefined);
     }
     if (outcome.kind === "opened") {
-      setCashSession({ status: "open", openedAt: outcome.session.opened_at, openedBy: opener });
+      setCashSession({
+        status: "open",
+        id: outcome.session.id,
+        openedAt: outcome.session.opened_at,
+        openedBy: opener,
+      });
     }
     if (outcome.kind === "already_open") {
       return core.cashSession().then(

@@ -1,4 +1,7 @@
 import type {
+  Authorization,
+  CashBalance,
+  CloseCashSessionOutcome,
   CoreToRendererMessage,
   EnrollmentOutcome,
   OpenCashSession,
@@ -22,6 +25,14 @@ export interface RendererRequestDeps {
   signInLookup: ((email: string) => Promise<SignInLookupOutcome>) | undefined;
   openCashSession: ((openingFloat: number) => Promise<OpenCashSessionOutcome>) | undefined;
   cashSession: (() => OpenCashSession | null) | undefined;
+  closeCashSession:
+    | ((
+        sessionId: string,
+        countedCash: number,
+        authorization: Authorization | undefined,
+      ) => Promise<CloseCashSessionOutcome>)
+    | undefined;
+  cashBalance: (() => CashBalance | null) | undefined;
   authorizers: ((permission: AuthorizablePermissionKey) => SignInUser[]) | undefined;
   signOut: () => void;
   reportFailure: (context: string, error: unknown) => void;
@@ -99,6 +110,33 @@ async function attemptOpenCashSession(
   }
 }
 
+async function attemptCloseCashSession(
+  deps: RendererRequestDeps,
+  sessionId: string,
+  countedCash: number,
+  authorization: Authorization | undefined,
+): Promise<CloseCashSessionOutcome> {
+  try {
+    return (
+      (await deps.closeCashSession?.(sessionId, countedCash, authorization)) ?? {
+        kind: "unavailable",
+      }
+    );
+  } catch (error) {
+    deps.reportFailure("closing a cash session", error);
+    return { kind: "unavailable" };
+  }
+}
+
+function readCashBalance(deps: RendererRequestDeps): CashBalance | null | undefined {
+  try {
+    return deps.cashBalance?.();
+  } catch (error) {
+    deps.reportFailure("reading the cash balance", error);
+    return undefined;
+  }
+}
+
 function readCashSession(deps: RendererRequestDeps): OpenCashSession | null | undefined {
   try {
     return deps.cashSession?.();
@@ -172,6 +210,23 @@ export async function answerRendererRequest(
       return session === undefined
         ? { type: "cash-session-unavailable", request_id: message.request_id }
         : { type: "cash-session", request_id: message.request_id, session };
+    }
+    case "close-cash-session":
+      return {
+        type: "close-cash-session-result",
+        request_id: message.request_id,
+        outcome: await attemptCloseCashSession(
+          deps,
+          message.session_id,
+          message.counted_cash,
+          message.authorization,
+        ),
+      };
+    case "cash-balance-request": {
+      const balance = readCashBalance(deps);
+      return balance === undefined
+        ? { type: "cash-balance-unavailable", request_id: message.request_id }
+        : { type: "cash-balance", request_id: message.request_id, balance };
     }
     case "authorizers": {
       const users = readAuthorizers(deps, message.permission);

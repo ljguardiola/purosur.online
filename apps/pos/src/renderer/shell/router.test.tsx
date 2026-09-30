@@ -34,6 +34,7 @@ const OPENER: SignedInPerson = {
 const NO_SESSION: CashSessionState = { status: "none" };
 const OPEN_SESSION: CashSessionState = {
   status: "open",
+  id: "s1",
   openedAt: "2026-09-30T12:02:00.000Z",
   openedBy: OPENER,
 };

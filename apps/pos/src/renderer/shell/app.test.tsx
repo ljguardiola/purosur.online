@@ -96,6 +96,12 @@ function coreAnswering(
       cashSessionAsks.push("cash-session");
       return cashDrawer.cashSession === undefined ? null : cashDrawer.cashSession();
     },
+    async closeCashSession() {
+      return { kind: "unavailable" };
+    },
+    async cashBalance() {
+      return null;
+    },
     onPulled(listener) {
       pulledListeners.add(listener);
       return () => {
