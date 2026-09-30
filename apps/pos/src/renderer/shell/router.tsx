@@ -1,4 +1,5 @@
 import type {
+  AddProductOutcome,
   Authorization,
   CashBalance,
   CloseCashSessionOutcome,
@@ -8,6 +9,7 @@ import type {
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   ScanProductOutcome,
+  SearchProductsOutcome,
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
@@ -67,6 +69,8 @@ export interface RouterContext {
   firstSignIn: (userId: string, pin: string) => Promise<SignInOutcome>;
   currentSale: () => Promise<CurrentSaleAnswer>;
   scanProduct: (code: string) => Promise<ScanProductOutcome>;
+  searchProducts: (query: string) => Promise<SearchProductsOutcome>;
+  addProduct: (productId: string) => Promise<AddProductOutcome>;
   refreshCashSession: () => Promise<void>;
 }
 
@@ -167,8 +171,15 @@ const openSessionRoute = createRoute({
     return { id, openedAt, openedBy };
   },
   component: function OpenSessionRoute() {
-    const { openedAt, openedBy, currentSale, scanProduct, refreshCashSession } =
-      openSessionRoute.useRouteContext();
+    const {
+      openedAt,
+      openedBy,
+      currentSale,
+      scanProduct,
+      searchProducts,
+      addProduct,
+      refreshCashSession,
+    } = openSessionRoute.useRouteContext();
     const registerName = sessionEyebrowRoute.useLoaderData();
     return (
       <SaleScreen
@@ -177,6 +188,8 @@ const openSessionRoute = createRoute({
         openedAt={openedAt}
         currentSale={currentSale}
         scanProduct={scanProduct}
+        searchProducts={searchProducts}
+        addProduct={addProduct}
         onSessionInvalid={() => void refreshCashSession()}
       />
     );
@@ -332,6 +345,8 @@ export function createAppRouter(
     | "firstSignIn"
     | "currentSale"
     | "scanProduct"
+    | "searchProducts"
+    | "addProduct"
     | "refreshCashSession"
   >,
 ) {

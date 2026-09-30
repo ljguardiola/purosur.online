@@ -1,12 +1,13 @@
-import type { ScanProductOutcome } from "@purosur/contracts";
+import type { AddProductOutcome, ScanProductOutcome } from "@purosur/contracts";
 import type { LucideIcon } from "lucide-react";
-import { Ban, Lock, Scale, ScanBarcode, Tag, TriangleAlert } from "lucide-react";
+import { Ban, Lock, PackageX, Scale, ScanBarcode, Tag, TriangleAlert } from "lucide-react";
 
 export type ScanProblem = Extract<
-  ScanProductOutcome,
+  ScanProductOutcome | AddProductOutcome,
   {
     kind:
       | "unknown_code"
+      | "product_unavailable"
       | "no_price"
       | "sold_by_weight"
       | "not_permitted"
@@ -24,6 +25,12 @@ export function messageFor(problem: ScanProblem): Message {
         icon: ScanBarcode,
         title: "No hay ningún producto con ese código",
         help: "Buscalo por nombre. Si no aparece, falta darlo de alta en el backoffice.",
+      };
+    case "product_unavailable":
+      return {
+        icon: PackageX,
+        title: "Ese producto ya no se vende",
+        help: "Buscalo de nuevo por nombre.",
       };
     case "no_price":
       return {

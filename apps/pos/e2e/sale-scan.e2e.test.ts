@@ -74,7 +74,7 @@ describe("scanning products into a sale on the register", () => {
     await page.getByRole("button", { name: "Abrir la caja" }).click();
     await page.getByRole("heading", { name: "Venta en curso" }).waitFor();
 
-    const scanField = page.getByRole("searchbox", { name: "Producto" });
+    const scanField = page.getByRole("combobox", { name: "Producto" });
     const yerba = page.getByRole("listitem").filter({ hasText: "Yerba mate 1 kg" });
 
     await scanField.fill(YERBA_CODE);
