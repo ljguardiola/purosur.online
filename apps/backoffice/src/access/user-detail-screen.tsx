@@ -138,7 +138,7 @@ function UserDetailView({
         ...user,
         isAdministrator: user.role.isAdministrator,
       })
-    : access.isAdministrator || (access.permissions.includes("reset_user_pin") && !isOwnAccount);
+    : canResetUserPin(access, signedInUserId, { id: userId, isAdministrator: false });
 
   return (
     <>

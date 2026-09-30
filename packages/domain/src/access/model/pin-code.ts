@@ -1,4 +1,4 @@
-export const PIN_CODE_LENGTH = 16;
+const PIN_CODE_LENGTH = 16;
 export const PIN_CODE_VALIDITY_MS = 15 * 60 * 1000;
 export const PIN_CODE_MAX_FAILED_ATTEMPTS = 5;
 export const PIN_CODE_HOURLY_LIMIT = 5;
