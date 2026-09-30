@@ -62,7 +62,7 @@ test("fails with the observed and expected version once the timeout passes on a 
   });
 
   assert.equal(decision.action, "fail");
-  assert.match(decision.reason, /old-sha/);
+  assert.match(decision.reason, /GET \/api\/health reported version "old-sha"/);
   assert.match(decision.reason, /abc123/);
 });
 
@@ -86,7 +86,7 @@ test("fails on a non-200 status once the timeout passes", () => {
   });
 
   assert.equal(decision.action, "fail");
-  assert.match(decision.reason, /503/);
+  assert.match(decision.reason, /GET \/api\/health returned status 503/);
 });
 
 test("fails once the timeout passes on a malformed body", () => {
@@ -98,7 +98,7 @@ test("fails once the timeout passes on a malformed body", () => {
   });
 
   assert.equal(decision.action, "fail");
-  assert.match(decision.reason, /status.*ok/i);
+  assert.match(decision.reason, /GET \/api\/health body was not.*status.*ok/i);
 });
 
 function hangingFetch(_url, { signal }) {

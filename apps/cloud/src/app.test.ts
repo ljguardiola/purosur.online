@@ -415,6 +415,27 @@ describe("serving the backoffice's static build", () => {
     },
   );
 
+  it.each(["/api", "/api/", "/api?view=all"])(
+    "answers 404 to %s instead of serving the page",
+    async (url) => {
+      const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
+
+      const response = await app.inject({ method: "GET", url });
+
+      expect(response.statusCode).toBe(404);
+      expect(response.body).not.toContain("backoffice");
+    },
+  );
+
+  it("serves the page at an address that only starts with the letters of the API prefix", async () => {
+    const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
+
+    const response = await app.inject({ method: "GET", url: "/apiaries" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toBe("<!doctype html><title>backoffice</title>");
+  });
+
   it("falls back to index.html for a HEAD to a client route, same as a GET", async () => {
     const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
 

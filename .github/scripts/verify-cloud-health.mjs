@@ -15,12 +15,12 @@ function describeFailure({ result, expectedVersion }) {
     return "the health request failed (network error, or no response was received)";
   }
   if (result.status !== 200) {
-    return `GET /health returned status ${result.status}`;
+    return `GET /api/health returned status ${result.status}`;
   }
   if (!isPlainObject(result.body) || result.body.status !== "ok") {
-    return `GET /health body was not { status: "ok", ... }: ${JSON.stringify(result.body)}`;
+    return `GET /api/health body was not { status: "ok", ... }: ${JSON.stringify(result.body)}`;
   }
-  return `GET /health reported version ${JSON.stringify(result.body.version)}, expected ${JSON.stringify(expectedVersion)}`;
+  return `GET /api/health reported version ${JSON.stringify(result.body.version)}, expected ${JSON.stringify(expectedVersion)}`;
 }
 
 export function nextHealthPollDecision({ result, expectedVersion, elapsedMs, timeoutMs }) {
