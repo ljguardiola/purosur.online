@@ -48,7 +48,7 @@ function RailButton({
   );
 }
 
-export type RailLink = {
+type RailLink = {
   label: string;
   icon: LucideIcon;
   to: ActionEntry["to"];
