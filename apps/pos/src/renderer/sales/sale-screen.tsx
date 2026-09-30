@@ -26,6 +26,10 @@ export type SaleScreenProps = {
   onSessionInvalid: () => void;
 };
 
+function focusScanField(form: HTMLFormElement | null) {
+  form?.querySelector("input")?.focus();
+}
+
 export function SaleScreen({
   person,
   registerName,
@@ -40,7 +44,14 @@ export function SaleScreen({
   const [problem, setProblem] = useState<ScanProblem>();
 
   useEffect(() => {
-    field.current?.querySelector("input")?.focus();
+    function refocusWhenFocusIsLost(event: FocusEvent) {
+      if (event.relatedTarget === null) {
+        focusScanField(field.current);
+      }
+    }
+    focusScanField(field.current);
+    document.addEventListener("focusout", refocusWhenFocusIsLost);
+    return () => document.removeEventListener("focusout", refocusWhenFocusIsLost);
   }, []);
 
   useEffect(() => {
@@ -137,7 +148,10 @@ export function SaleScreen({
             icon={<TriangleAlert />}
             title="No se pudo cargar la venta"
             description="Volvé a intentarlo en unos segundos."
-            onRetry={() => setView({ status: "loading" })}
+            onRetry={() => {
+              setView({ status: "loading" });
+              focusScanField(field.current);
+            }}
           />
         ) : null}
         {view.status === "ready" ? (

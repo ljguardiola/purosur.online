@@ -111,6 +111,67 @@ describe("SaleScreen", () => {
     await expect.element(screen.getByRole("searchbox")).toBeVisible();
   });
 
+  describe("keeping the scan field ready", () => {
+    it.each([
+      [
+        "the heading",
+        (screen: Awaited<ReturnType<typeof renderScreen>>["screen"]) =>
+          screen.getByRole("heading", { name: "Venta en curso" }),
+      ],
+      [
+        "the lines",
+        (screen: Awaited<ReturnType<typeof renderScreen>>["screen"]) =>
+          screen.getByText("Yerba mate 1 kg"),
+      ],
+      [
+        "the amount to charge",
+        (screen: Awaited<ReturnType<typeof renderScreen>>["screen"]) => screen.getByText("1 línea"),
+      ],
+    ])("takes a scan typed after clicking %s", async (_place, target) => {
+      const scanProduct = vi.fn(
+        async (): Promise<ScanProductOutcome> => ({ kind: "added", sale: SALE_OF_YERBA }),
+      );
+      const { screen, field } = await renderScreen({
+        currentSale: async () => SALE_OF_YERBA,
+        scanProduct,
+      });
+      await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
+
+      await target(screen).click();
+      await expect.element(field).toHaveFocus();
+      await userEvent.keyboard("7790001{Enter}");
+
+      await expect.poll(() => scanProduct.mock.calls).toEqual([["u1", "7790001"]]);
+    });
+
+    it("leaves the focus on a button the person pressed", async () => {
+      const { screen } = await renderScreen({
+        currentSale: async () => {
+          throw new Error("unavailable");
+        },
+      });
+
+      const retry = screen.getByRole("button", { name: "Reintentar" });
+      await expect.element(retry).toBeVisible();
+      await retry.element().focus();
+
+      await expect.element(retry).toHaveFocus();
+    });
+
+    it("has the field ready again once the retry replaces the button that had the focus", async () => {
+      const currentSale = vi
+        .fn<SaleScreenProps["currentSale"]>()
+        .mockRejectedValueOnce(new Error("unavailable"))
+        .mockResolvedValueOnce(SALE_OF_YERBA);
+      const { screen, field } = await renderScreen({ currentSale });
+
+      await screen.getByRole("button", { name: "Reintentar" }).click();
+
+      await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
+      await expect.element(field).toHaveFocus();
+    });
+  });
+
   describe("reading the sale in progress", () => {
     it("asks for the sale of the person who is selling", async () => {
       const currentSale = vi.fn(async () => null);
