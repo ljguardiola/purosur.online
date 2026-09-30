@@ -133,7 +133,7 @@ function emitCode(
 ) {
   return app.inject({
     method: "POST",
-    url: `/registers/${registerId}/enrollment-code`,
+    url: `/registers/${registerId}/device-codes`,
     headers: {
       origin: BACKOFFICE_ORIGIN,
       ...(rawSessionId ? cookieHeader(rawSessionId) : {}),
@@ -142,7 +142,22 @@ function emitCode(
   });
 }
 
-describe("POST /registers/:id/enrollment-code", () => {
+describe("POST /registers/:id/device-codes", () => {
+  it("no longer answers POST /registers/:id/enrollment-code", async () => {
+    const locationId = await seededLocationId(db);
+    const registerId = await insertRegister(locationId, "Caja 1");
+    const userId = await insertUserWithPermission(locationId);
+    const rawSessionId = await insertSession(userId);
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/registers/${registerId}/enrollment-code`,
+      headers: { origin: BACKOFFICE_ORIGIN, ...cookieHeader(rawSessionId) },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
   it("returns 401 unauthenticated when no cookie was sent", async () => {
     const locationId = await seededLocationId(db);
     const registerId = await insertRegister(locationId, "Caja 1");

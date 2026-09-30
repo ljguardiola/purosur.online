@@ -1193,7 +1193,7 @@ describe("wiring the registers routes", () => {
     });
     const emitCode = await app.inject({
       method: "POST",
-      url: "/api/registers/00000000-0000-0000-0000-000000000000/enrollment-code",
+      url: "/api/registers/00000000-0000-0000-0000-000000000000/device-codes",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1219,7 +1219,7 @@ describe("wiring the registers routes", () => {
     });
     const emitCode = await app.inject({
       method: "POST",
-      url: "/api/registers/00000000-0000-0000-0000-000000000000/enrollment-code",
+      url: "/api/registers/00000000-0000-0000-0000-000000000000/device-codes",
       headers: { origin: "https://staging.purosur.online" },
     });
 
@@ -1233,15 +1233,15 @@ describe("wiring the registers routes", () => {
 });
 
 describe("wiring the device enrollment route", () => {
-  it("does not register POST /api/devices/enroll when no devices option is given", async () => {
+  it("does not register POST /api/devices when no devices option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
-    const response = await app.inject({ method: "POST", url: "/api/devices/enroll", payload: {} });
+    const response = await app.inject({ method: "POST", url: "/api/devices", payload: {} });
 
     expect(response.statusCode).toBe(404);
   });
 
-  it("registers POST /api/devices/enroll, answering without a session, when a devices option is given", async () => {
+  it("registers POST /api/devices, answering without a session, when a devices option is given", async () => {
     const app = buildApp({
       version: "abc1234",
       devices: {
@@ -1251,7 +1251,7 @@ describe("wiring the device enrollment route", () => {
       },
     });
 
-    const response = await app.inject({ method: "POST", url: "/api/devices/enroll", payload: {} });
+    const response = await app.inject({ method: "POST", url: "/api/devices", payload: {} });
 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ code: "validation_failed" });
@@ -1259,15 +1259,15 @@ describe("wiring the device enrollment route", () => {
 });
 
 describe("wiring the device token rotation route", () => {
-  it("does not register POST /api/devices/rotate-token when no devices option is given", async () => {
+  it("does not register POST /api/devices/current/tokens when no devices option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
-    const response = await app.inject({ method: "POST", url: "/api/devices/rotate-token" });
+    const response = await app.inject({ method: "POST", url: "/api/devices/current/tokens" });
 
     expect(response.statusCode).toBe(404);
   });
 
-  it("registers POST /api/devices/rotate-token, refusing a request without a device token, when a devices option is given", async () => {
+  it("registers POST /api/devices/current/tokens, refusing a request without a device token, when a devices option is given", async () => {
     const app = buildApp({
       version: "abc1234",
       devices: {
@@ -1277,7 +1277,7 @@ describe("wiring the device token rotation route", () => {
       },
     });
 
-    const response = await app.inject({ method: "POST", url: "/api/devices/rotate-token" });
+    const response = await app.inject({ method: "POST", url: "/api/devices/current/tokens" });
 
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ code: "device_token_rejected" });
@@ -1507,6 +1507,28 @@ function productionWiredApp() {
     },
   });
 }
+
+describe("wiring the register and device routes", () => {
+  it("no longer answers the former register and device paths", async () => {
+    const app = productionWiredApp();
+    const formerRequests = [
+      {
+        method: "POST",
+        url: "/api/registers/00000000-0000-0000-0000-000000000000/enrollment-code",
+      },
+      { method: "POST", url: "/api/devices/enroll" },
+      { method: "POST", url: "/api/devices/rotate-token" },
+    ] as const;
+
+    const responses = await Promise.all(
+      formerRequests.map((request) =>
+        app.inject({ ...request, headers: { origin: BACKOFFICE_ORIGIN } }),
+      ),
+    );
+
+    expect(responses.map((response) => response.statusCode)).toEqual(formerRequests.map(() => 404));
+  });
+});
 
 describe("wiring the alerts routes", () => {
   it("no longer answers the former alert closing path", async () => {
@@ -1738,13 +1760,13 @@ describe("the route access inventory", () => {
       },
       {
         method: "POST",
-        url: "/api/registers/:id/enrollment-code",
+        url: "/api/registers/:id/device-codes",
         access: permissionAccess("enroll_register_devices"),
       },
       { method: "GET", url: "/api/health", access: PUBLIC_ACCESS },
-      { method: "POST", url: "/api/devices/enroll", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/api/devices", access: PUBLIC_ACCESS },
       { method: "GET", url: "/api/changes", access: PUBLIC_ACCESS },
-      { method: "POST", url: "/api/devices/rotate-token", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/api/devices/current/tokens", access: PUBLIC_ACCESS },
       { method: "HEAD", url: "/*", access: PUBLIC_ACCESS },
       { method: "GET", url: "/*", access: PUBLIC_ACCESS },
     ]);

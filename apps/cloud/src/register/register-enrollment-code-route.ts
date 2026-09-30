@@ -131,7 +131,7 @@ export function registerRegisterEnrollmentCodeRoute<TQueryResult extends PgQuery
   const sessionSource = routeSessionSource({ db: options.db, now });
 
   app.post<{ Params: { id: string } }>(
-    "/registers/:id/enrollment-code",
+    "/registers/:id/device-codes",
     {
       preHandler: backofficeOriginGuard(options.backofficeOrigin),
       config: { access: permissionAccess("enroll_register_devices"), sessionSource },

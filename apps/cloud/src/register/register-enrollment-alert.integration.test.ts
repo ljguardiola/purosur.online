@@ -102,7 +102,7 @@ describe("a register's enrollment alert that fails to open, on a real Postgres",
 
     const response = await app.inject({
       method: "POST",
-      url: "/devices/enroll",
+      url: "/devices",
       payload: {
         code: CODE,
         hostname: "CAJA-MOSTRADOR",

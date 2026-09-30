@@ -150,7 +150,7 @@ export async function createRegister(input: CreateRegisterInput): Promise<Create
 export async function emitEnrollmentCode(id: string): Promise<EmitEnrollmentCodeOutcome> {
   let response: Response;
   try {
-    response = await postJson(`/api/registers/${id}/enrollment-code`);
+    response = await postJson(`/api/registers/${id}/device-codes`);
   } catch {
     return { kind: "failed" };
   }
