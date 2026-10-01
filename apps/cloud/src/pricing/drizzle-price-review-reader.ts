@@ -16,6 +16,7 @@ import {
   prices,
   products,
 } from "../platform/db/schema.js";
+import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 
 interface CategoryTreeRow {
   id: string;
@@ -146,8 +147,9 @@ export class DrizzlePriceReviewReader<TQueryResult extends PgQueryResultHKT>
     const pendingCountAcrossFullCatalog = withReview.filter((row) => row.pending).length;
 
     let filtered = withReview;
-    if (query.categoryId) {
-      filtered = filtered.filter((row) => row.categoryId === query.categoryId);
+    const categoryId = query.categoryId;
+    if (categoryId !== undefined && UUID_PATTERN.test(categoryId)) {
+      filtered = filtered.filter((row) => row.categoryId === categoryId);
     }
     if (query.search) {
       const needle = query.search.toLowerCase();

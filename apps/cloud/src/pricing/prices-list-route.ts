@@ -9,7 +9,6 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
-import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { DrizzlePriceReviewReader } from "./drizzle-price-review-reader.js";
 
 export interface PricesRouteOptions<TQueryResult extends PgQueryResultHKT> {
@@ -36,10 +35,6 @@ function readReviewFilter(value: unknown): PriceReviewFilter {
   return value === "pending" ? "pending" : "all";
 }
 
-function readCategoryIdFilter(value: unknown): string | undefined {
-  return typeof value === "string" && UUID_PATTERN.test(value) ? value : undefined;
-}
-
 function readSearchFilter(value: unknown): string | undefined {
   const trimmed = typeof value === "string" ? value.trim() : "";
   return trimmed.length > 0 ? trimmed : undefined;
@@ -61,7 +56,7 @@ export function registerPricesListRoute<TQueryResult extends PgQueryResultHKT>(
       config: { access: permissionAccess("manage_prices_and_review"), sessionSource },
     },
     async (request, reply) => {
-      const categoryId = readCategoryIdFilter(request.query.categoryId);
+      const { categoryId } = request.query;
       const search = readSearchFilter(request.query.search);
       const result = await reader.pricesUnderReview({
         locationId: openSessionOf(request).locationId,

@@ -7,7 +7,7 @@ import { PricesListScreen } from "../prices-list-screen";
 import type { PricesListScreenServices } from "../prices-list-services";
 import { type PricesListFilters, pricesListFilters } from "../routes";
 
-export const NOW = () => new Date("2026-09-25T12:00:00.000Z");
+const NOW = () => new Date("2026-09-25T12:00:00.000Z");
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function createServices(
