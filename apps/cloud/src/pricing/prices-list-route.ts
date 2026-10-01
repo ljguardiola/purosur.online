@@ -151,7 +151,12 @@ export async function listPrices<TQueryResult extends PgQueryResultHKT>(
 
   const pricesByProductId = new Map<string, typeof priceRows>();
   for (const row of priceRows) {
-    pricesByProductId.set(row.productId, [...(pricesByProductId.get(row.productId) ?? []), row]);
+    const productPrices = pricesByProductId.get(row.productId);
+    if (productPrices) {
+      productPrices.push(row);
+    } else {
+      pricesByProductId.set(row.productId, [row]);
+    }
   }
   const currentPriceByProductId = new Map<string, CurrentPriceRow>();
   for (const [productId, productPrices] of pricesByProductId) {
