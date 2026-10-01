@@ -1,5 +1,8 @@
 import { startAuthentication } from "@simplewebauthn/browser";
-import { authorizeSession, fetchSessionAuthorizationOptions } from "../access/session-api";
+import {
+  authorizeSession,
+  fetchSessionAuthorizationOptions,
+} from "../platform/session-authorization-api";
 import type { NewRegisterModalServices } from "./new-register-modal";
 import {
   createRegister,

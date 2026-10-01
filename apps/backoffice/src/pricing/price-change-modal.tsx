@@ -2,10 +2,10 @@ import { type PriceProduct, priceSetBodySchema } from "@purosur/contracts";
 import { Button, InlineNotice, Modal, NotificationCard } from "@purosur/ui";
 import { Check, Pencil, RotateCcw, ShieldX, TriangleAlert } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
-import { useSendToMyAccount } from "../access/send-to-my-account";
 import type { ProductSaleUnit } from "../catalog/products-api";
 import { type CloudSubmission, useCloudForm } from "../platform/cloud-form";
 import { retryAfterDetail } from "../platform/retry-after-detail";
+import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { formatCentsWithUnit } from "./money";
 import {
   AMOUNT_UNCHANGED,

@@ -2,11 +2,14 @@ import { Button, InlineNotice, Modal } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { ShieldX, Trash2, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useAuthorization } from "../platform/authorization-modal";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useAuthorization } from "./authorization-modal";
+import { useSendToMyAccount } from "../platform/send-to-my-account";
+import type {
+  authorizeSession,
+  fetchSessionAuthorizationOptions,
+} from "../platform/session-authorization-api";
 import type { Passkey } from "./passkey-api";
-import { useSendToMyAccount } from "./send-to-my-account";
-import type { authorizeSession, fetchSessionAuthorizationOptions } from "./session-api";
 import type { RemoveUserPasskeyOutcome, removeUserPasskey } from "./users-api";
 
 export type RemoveUserPasskeyModalServices = {

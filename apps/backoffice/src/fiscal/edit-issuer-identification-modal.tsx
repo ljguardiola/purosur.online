@@ -3,11 +3,14 @@ import { Button, InlineNotice, Modal } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { Check, Info, Landmark, RotateCcw, TriangleAlert, X } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
-import { useAuthorization } from "../access/authorization-modal";
-import { useSendToMyAccount } from "../access/send-to-my-account";
-import type { authorizeSession, fetchSessionAuthorizationOptions } from "../access/session-api";
+import { useAuthorization } from "../platform/authorization-modal";
 import { useCloudForm } from "../platform/cloud-form";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import { useSendToMyAccount } from "../platform/send-to-my-account";
+import type {
+  authorizeSession,
+  fetchSessionAuthorizationOptions,
+} from "../platform/session-authorization-api";
 import { FixedPair } from "./fiscal-data-pair";
 import type {
   IssuerIdentification,

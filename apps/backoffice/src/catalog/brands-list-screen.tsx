@@ -31,10 +31,10 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
-import { useSendToMyAccount } from "../access/send-to-my-account";
 import { useCloudForm } from "../platform/cloud-form";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { retryAfterDetail } from "../platform/retry-after-detail";
+import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { brandNameMessage } from "./brand-name";

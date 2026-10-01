@@ -2,9 +2,9 @@ import { Button, type Icon, InlineNotice, Modal } from "@purosur/ui";
 import type { StandardSchemaV1 } from "@tanstack/react-form";
 import { Check, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useSendToMyAccount } from "../access/send-to-my-account";
 import { useCloudForm } from "../platform/cloud-form";
 import { retryAfterDetail } from "../platform/retry-after-detail";
+import { useSendToMyAccount } from "../platform/send-to-my-account";
 
 export type NameCreationOutcome<Created> =
   | { kind: "ok"; created: Created }

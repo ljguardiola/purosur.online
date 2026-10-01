@@ -7,10 +7,10 @@ import {
 import { Button, FieldGroup, InlineNotice, Modal } from "@purosur/ui";
 import { Check, PackagePlus, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useSendToMyAccount } from "../access/send-to-my-account";
 import { useCloudForm } from "../platform/cloud-form";
 import { SharedFieldError } from "../platform/cloud-form-fields";
 import { retryAfterDetail } from "../platform/retry-after-detail";
+import { useSendToMyAccount } from "../platform/send-to-my-account";
 import {
   BarcodeChips,
   PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED,

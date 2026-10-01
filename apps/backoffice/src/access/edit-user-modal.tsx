@@ -3,16 +3,19 @@ import { Button, InlineNotice, Modal, TextField } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { Check, RotateCcw, ShieldX, TriangleAlert, UserPen, X } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
+import { useAuthorization } from "../platform/authorization-modal";
 import { useCloudForm } from "../platform/cloud-form";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { retryAfterDetail } from "../platform/retry-after-detail";
+import { useSendToMyAccount } from "../platform/send-to-my-account";
+import type {
+  authorizeSession,
+  fetchSessionAuthorizationOptions,
+} from "../platform/session-authorization-api";
 import type { UserRead } from "./access-queries";
-import { useAuthorization } from "./authorization-modal";
 import { userEmailMessage } from "./email-field-message";
 import { roleDisplayName, roleOptions } from "./role-display";
 import { roleFieldMessage } from "./role-field-message";
-import { useSendToMyAccount } from "./send-to-my-account";
-import type { authorizeSession, fetchSessionAuthorizationOptions } from "./session-api";
 import type { BranchUser, BranchUserRole, EditUserOutcome, editUser } from "./users-api";
 
 export type EditUserModalServices = {

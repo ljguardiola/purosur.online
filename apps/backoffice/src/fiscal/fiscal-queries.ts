@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useSendToMyAccount } from "../access/send-to-my-account";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type {
   BuyerIdentificationThresholds,
