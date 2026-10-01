@@ -46,6 +46,6 @@ test("downloads a screen's code when its menu link receives focus, before it is 
 
   (screen.getByRole("link", { name: "Caja" }).element() as HTMLElement).focus();
 
-  await expect.poll(() => downloaded("fiscal-configuration-page")).toBe(true);
+  await expect.poll(() => downloaded("points-of-sale-page")).toBe(true);
   expect(window.location.pathname).toBe("/help");
 });
