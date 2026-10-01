@@ -32,15 +32,24 @@ function pull(changeLog: FakeChangeLog, since: number) {
 
 describe("pulling changes", () => {
   it("gives a brand-new installation, from the very first change, only what the register it is installed in may pull", async () => {
-    const ownUser = { changeSeq: 1, entity: "user", entityId: "user-a", locationId: BRANCH };
-    const ownPrice = {
+    const ownUser: FakeLoggedChange = {
+      changeSeq: 1,
+      entity: "user",
+      entityId: "user-a",
+      locationId: BRANCH,
+    };
+    const ownPrice: FakeLoggedChange = {
       changeSeq: 3,
       entity: "price",
       entityId: "price-a",
       priceListId: "price-list-a",
     };
-    const ownRegister = { changeSeq: 5, entity: "register", entityId: "register-1" };
-    const category = { changeSeq: 7, entity: "category", entityId: "category-1" };
+    const ownRegister: FakeLoggedChange = {
+      changeSeq: 5,
+      entity: "register",
+      entityId: "register-1",
+    };
+    const category: FakeLoggedChange = { changeSeq: 7, entity: "category", entityId: "category-1" };
     const changeLog = fakeChangeLog([
       ownUser,
       { changeSeq: 2, entity: "user", entityId: "user-b", locationId: OTHER_BRANCH },

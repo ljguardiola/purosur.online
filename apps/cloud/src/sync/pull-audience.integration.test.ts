@@ -78,7 +78,7 @@ async function pullEverything(installation: Installation): Promise<Pulled[]> {
   const received: Pulled[] = [];
   let since = 0;
   for (;;) {
-    const page = await pullChanges(ports, { ...installation, since });
+    const page = await pullChanges(ports, { deviceId: installation.deviceId, since });
     for (const change of page.changes) {
       received.push(
         change.entity === "removal"

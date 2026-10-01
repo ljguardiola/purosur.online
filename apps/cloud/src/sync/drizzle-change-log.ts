@@ -1,8 +1,21 @@
-import type { ChangeLog, ChangeLogTransaction, PullAudience } from "@purosur/domain/sync/use-cases";
-import { and, asc, eq, gt, inArray, max, or } from "drizzle-orm";
+import type {
+  ChangeLog,
+  ChangeLogTransaction,
+  PullAudience,
+  PulledEntity,
+  PullingRegister,
+  PullReach,
+} from "@purosur/domain/sync/use-cases";
+import { and, asc, eq, gt, inArray, max, or, type SQL } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { readBranchSettings } from "../branch/drizzle-branch-settings-reader.js";
-import { branchSettings, changes, deviceState } from "../platform/db/schema.js";
+import {
+  branchSettings,
+  changes,
+  deviceState,
+  registerInstallations,
+  registers,
+} from "../platform/db/schema.js";
 import type { PulledCloudChange, RemovedEntity } from "./pulled-changes.js";
 import {
   readBuyerIdentificationThresholds,
@@ -20,21 +33,7 @@ import {
   readUsers,
 } from "./read-pulled-rows.js";
 
-type LoggedEntity =
-  | "branch_settings"
-  | "category"
-  | "product"
-  | "tag"
-  | "price_list"
-  | "price"
-  | "user"
-  | "role"
-  | "register"
-  | "register_point_of_sale"
-  | "discount"
-  | "issuer_identification"
-  | "buyer_identification_threshold"
-  | "buyer_tax_status_set";
+type LoggedEntity = PulledEntity;
 
 interface LoggedRow {
   changeSeq: number;
@@ -66,12 +65,28 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
       });
   }
 
+  async pullingRegister(deviceId: string): Promise<PullingRegister> {
+    const [register] = await this.tx
+      .select({
+        registerId: registers.id,
+        locationId: registers.locationId,
+        priceListId: branchSettings.priceListId,
+      })
+      .from(registerInstallations)
+      .innerJoin(registers, eq(registers.id, registerInstallations.registerId))
+      .leftJoin(branchSettings, eq(branchSettings.locationId, registers.locationId))
+      .where(eq(registerInstallations.id, deviceId));
+    if (!register) {
+      throw new Error("an authenticated installation has no register");
+    }
+    return register;
+  }
+
   async changesAfter(
     audience: PullAudience,
     since: number,
     limit: number,
   ): Promise<PulledCloudChange[]> {
-    const { locationId } = audience;
     const logged = await this.loggedAfter(audience, since, limit);
 
     // Every change carries the row as it is now, so one read serves every change of that row.
@@ -100,9 +115,8 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
       this.tx,
       idsOf(logged, "buyer_tax_status_set"),
     );
-    const settingsRow = logged.some((row) => row.entity === "branch_settings")
-      ? await this.readSettings(locationId)
-      : undefined;
+    const settingsId = logged.find((row) => row.entity === "branch_settings")?.entityId;
+    const settingsRow = settingsId === undefined ? undefined : await this.readSettings(settingsId);
     const removedVersions = {
       category: await this.latestLoggedVersions(
         "category",
@@ -222,16 +236,13 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   private async loggedAfter(
-    { locationId, registerId }: PullAudience,
+    audience: PullAudience,
     since: number,
     limit: number,
   ): Promise<LoggedRow[]> {
-    const [settings] = await this.tx
-      .select({ priceListId: branchSettings.priceListId })
-      .from(branchSettings)
-      .where(eq(branchSettings.locationId, locationId));
-    const priceListId = settings?.priceListId;
-
+    const reached = Object.entries(audience).map(([entity, reach]) =>
+      inReach(entity as LoggedEntity, reach),
+    );
     const rows = await this.tx
       .select({
         changeSeq: changes.changeSeq,
@@ -240,35 +251,7 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
         version: changes.version,
       })
       .from(changes)
-      .where(
-        and(
-          gt(changes.changeSeq, since),
-          or(
-            and(eq(changes.entity, "branch_settings"), eq(changes.entityId, locationId)),
-            inArray(changes.entity, [
-              "category",
-              "product",
-              "tag",
-              "role",
-              "discount",
-              "issuer_identification",
-              "buyer_identification_threshold",
-              "buyer_tax_status_set",
-            ]),
-            and(eq(changes.entity, "user"), eq(changes.locationId, locationId)),
-            and(
-              inArray(changes.entity, ["register", "register_point_of_sale"]),
-              eq(changes.entityId, registerId),
-            ),
-            priceListId === undefined
-              ? undefined
-              : and(eq(changes.entity, "price_list"), eq(changes.entityId, priceListId)),
-            priceListId === undefined
-              ? undefined
-              : and(eq(changes.entity, "price"), eq(changes.priceListId, priceListId)),
-          ),
-        ),
-      )
+      .where(and(gt(changes.changeSeq, since), or(...reached)))
       .orderBy(asc(changes.changeSeq))
       .limit(limit);
     return rows.map((row) => ({ ...row, entity: row.entity as LoggedEntity }));
@@ -298,6 +281,22 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
     return new Map(
       rows.flatMap(({ entityId, version }) => (version === null ? [] : [[entityId, version]])),
     );
+  }
+}
+
+function inReach(entity: LoggedEntity, reach: PullReach): SQL | undefined {
+  const ofEntity = eq(changes.entity, entity);
+  switch (reach.kind) {
+    case "every_row":
+      return ofEntity;
+    case "row":
+      return and(ofEntity, eq(changes.entityId, reach.id));
+    case "rows_of_branch":
+      return and(ofEntity, eq(changes.locationId, reach.locationId));
+    case "rows_of_price_list":
+      return and(ofEntity, eq(changes.priceListId, reach.priceListId));
+    case "none":
+      return undefined;
   }
 }
 
