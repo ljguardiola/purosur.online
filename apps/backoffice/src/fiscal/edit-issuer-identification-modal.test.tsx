@@ -111,7 +111,10 @@ async function typeActivityStartDate(dialog: Locator, typedDate: string) {
 }
 
 async function fillIncompleteForm(dialog: Locator, typedDate: string) {
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Razón social/ }), "Comercio de Prueba Nuevo");
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: /^Razón social/ }),
+    "Comercio de Prueba Nuevo",
+  );
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Ingresos Brutos/ }), "0000000-00");
   await typeActivityStartDate(dialog, typedDate);
 }
