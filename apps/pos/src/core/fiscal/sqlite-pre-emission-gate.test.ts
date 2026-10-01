@@ -1,4 +1,9 @@
 import type { FacturaC } from "@purosur/domain";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
@@ -16,10 +21,10 @@ const DOCUMENT: FacturaC = {
   netAmount: 5900,
   vatAmount: 0,
   issuer: {
-    legalName: "Comercio de Prueba",
-    cuit: "20000000000",
+    legalName: FICTIONAL_LEGAL_NAME,
+    cuit: FICTIONAL_CUIT,
     taxStatus: "Condicion de prueba",
-    grossIncomeRegistration: "901-000000-0",
+    grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
     activityStartDate: "2020-01-15",
     version: 2,
   },
@@ -36,20 +41,20 @@ function addSale(id: string): void {
     .run(id, NOW.toISOString());
 }
 
-function addIssuerVersion(version: number, legalName: string | null = "Comercio de Prueba"): void {
+function addIssuerVersion(version: number, legalName: string | null = FICTIONAL_LEGAL_NAME): void {
   database
     .prepare(
       `INSERT INTO issuer_identification_versions (
          version, legal_name, gross_income_registration, activity_start_date, authorized_cuit, tax_status
-       ) VALUES (?, ?, '901-000000-0', '2020-01-15', '20000000000', 'Condicion de prueba')`,
+       ) VALUES (?, ?, ?, '2020-01-15', ?, 'Condicion de prueba')`,
     )
-    .run(version, legalName);
+    .run(version, legalName, FICTIONAL_GROSS_INCOME_REGISTRATION, FICTIONAL_CUIT);
 }
 
 function addBuyerTaxStatusSet(paramsVersion: number, options: object[]): void {
   database
     .prepare("INSERT INTO buyer_tax_status_sets (params_version, set_id, options) VALUES (?, ?, ?)")
-    .run(paramsVersion, `set-`, JSON.stringify(options));
+    .run(paramsVersion, `set-${paramsVersion}`, JSON.stringify(options));
 }
 
 function storedOutcomes() {
@@ -94,9 +99,9 @@ describe("the issuer identification in effect", () => {
 
     expect(readIssuerIdentificationInEffect(database)).toEqual({
       legalName: null,
-      grossIncomeRegistration: "901-000000-0",
+      grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
       activityStartDate: "2020-01-15",
-      authorizedCuit: "20000000000",
+      authorizedCuit: FICTIONAL_CUIT,
       taxStatus: "Condicion de prueba",
       version: 3,
     });

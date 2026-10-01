@@ -1,4 +1,9 @@
 import { describe, expect, it } from "vitest";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "../test-support/fictional-tax-identities.js";
 import type { BuyerTaxStatusOption } from "./buyer-tax-status-set.js";
 import {
   type IssuerIdentificationInEffect,
@@ -7,10 +12,10 @@ import {
 } from "./pre-emission-gate.js";
 
 const ISSUER: IssuerIdentificationInEffect = {
-  legalName: "Comercio de Prueba",
-  grossIncomeRegistration: "901-000000-0",
+  legalName: FICTIONAL_LEGAL_NAME,
+  grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
   activityStartDate: "2020-01-15",
-  authorizedCuit: "20000000000",
+  authorizedCuit: FICTIONAL_CUIT,
   taxStatus: "Condicion de prueba",
   version: 3,
 };
@@ -38,10 +43,10 @@ describe("preEmissionGate", () => {
         netAmount: 5900,
         vatAmount: 0,
         issuer: {
-          legalName: "Comercio de Prueba",
-          cuit: "20000000000",
+          legalName: FICTIONAL_LEGAL_NAME,
+          cuit: FICTIONAL_CUIT,
           taxStatus: "Condicion de prueba",
-          grossIncomeRegistration: "901-000000-0",
+          grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
           activityStartDate: "2020-01-15",
           version: 3,
         },
@@ -97,7 +102,7 @@ describe("preEmissionGate", () => {
       reason: "legal_name_missing",
     });
     expect(
-      preEmissionGate({ ...INPUT, issuer: { ...issuer, legalName: "Comercio de Prueba" } }),
+      preEmissionGate({ ...INPUT, issuer: { ...issuer, legalName: FICTIONAL_LEGAL_NAME } }),
     ).toStrictEqual({ kind: "failed", reason: "gross_income_registration_missing" });
   });
 

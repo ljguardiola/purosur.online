@@ -1,5 +1,10 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "../../fiscal/test-support/fictional-tax-identities.js";
 import { type CashMovement, expectedCash, MAX_CASH_AMOUNT_CENTS } from "../../register/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import type { SaleLineRemoval } from "../model/sale-line-removal.js";
@@ -86,10 +91,10 @@ const REMOVED: SaleLineRemoval = {
 };
 
 const ISSUER = {
-  legalName: "Comercio de Prueba",
-  grossIncomeRegistration: "901-000000-0",
+  legalName: FICTIONAL_LEGAL_NAME,
+  grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
   activityStartDate: "2020-01-15",
-  authorizedCuit: "20000000000",
+  authorizedCuit: FICTIONAL_CUIT,
   taxStatus: "Condicion de prueba",
   version: 2,
 };
@@ -412,10 +417,10 @@ describe("chargeSaleInCash", () => {
             netAmount: TOTAL,
             vatAmount: 0,
             issuer: {
-              legalName: "Comercio de Prueba",
-              cuit: "20000000000",
+              legalName: FICTIONAL_LEGAL_NAME,
+              cuit: FICTIONAL_CUIT,
               taxStatus: "Condicion de prueba",
-              grossIncomeRegistration: "901-000000-0",
+              grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
               activityStartDate: "2020-01-15",
               version: 2,
             },

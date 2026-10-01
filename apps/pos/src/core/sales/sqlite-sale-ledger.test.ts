@@ -1,6 +1,11 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
 import { closeCashSession } from "@purosur/domain/register/use-cases";
 import {
   addScannedProduct,
@@ -503,9 +508,9 @@ describe("charging an open sale in cash", () => {
       .prepare(
         `INSERT INTO issuer_identification_versions (
            version, legal_name, gross_income_registration, activity_start_date, authorized_cuit, tax_status
-         ) VALUES (1, 'Comercio de Prueba', '901-000000-0', '2020-01-15', '20000000000', 'Condicion de prueba')`,
+         ) VALUES (1, ?, ?, '2020-01-15', ?, 'Condicion de prueba')`,
       )
-      .run();
+      .run(FICTIONAL_LEGAL_NAME, FICTIONAL_GROSS_INCOME_REGISTRATION, FICTIONAL_CUIT);
     database
       .prepare(
         "INSERT INTO buyer_tax_status_sets (params_version, set_id, options) VALUES (1, 'set-1', ?)",
