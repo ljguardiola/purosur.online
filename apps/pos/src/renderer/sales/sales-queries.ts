@@ -7,21 +7,33 @@ import { useCoreQuery } from "../platform/use-core-query";
 const salesKey = ["sales"] as const;
 
 export const salesKeys = {
-  currentSale: [...salesKey, "current-sale"] as const,
+  currentSaleRoot: [...salesKey, "current-sale"] as const,
+  currentSale: (sessionId: string, userId: string) =>
+    [...salesKey, "current-sale", sessionId, userId] as const,
   search: (query: string) => [...salesKey, "search", query] as const,
 };
 
-export function useCurrentSaleQuery(
-  read: () => Promise<CurrentSaleAnswer>,
-): CoreData<CurrentSaleAnswer> {
-  return useCoreQuery({ queryKey: salesKeys.currentSale, read });
+export function useCurrentSaleQuery({
+  sessionId,
+  userId,
+  read,
+}: {
+  sessionId: string;
+  userId: string;
+  read: () => Promise<CurrentSaleAnswer>;
+}): CoreData<CurrentSaleAnswer> {
+  return useCoreQuery({ queryKey: salesKeys.currentSale(sessionId, userId), read });
 }
 
-export function useTakeSale(): (sale: OpenSale) => Promise<OpenSale | null> {
+export function useTakeSale(
+  sessionId: string,
+  userId: string,
+): (sale: OpenSale) => Promise<OpenSale | null> {
   const queryClient = useQueryClient();
   return async (sale) => {
-    const previous = queryClient.getQueryData<CurrentSaleAnswer>(salesKeys.currentSale);
-    await setQueryAnswer(queryClient, salesKeys.currentSale, sale);
+    const queryKey = salesKeys.currentSale(sessionId, userId);
+    const previous = queryClient.getQueryData<CurrentSaleAnswer>(queryKey);
+    await setQueryAnswer(queryClient, queryKey, sale);
     return previous === undefined || previous === "not_permitted" ? null : previous;
   };
 }

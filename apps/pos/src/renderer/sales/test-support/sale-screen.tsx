@@ -65,6 +65,7 @@ export async function renderScreen({ registerName = "Caja 1", ...overrides }: Ov
   const onSessionInvalid = overrides.onSessionInvalid ?? vi.fn();
   const screen = await render(
     <SaleScreen
+      sessionId="s1"
       person={PERSON}
       registerName={registerName}
       openedAt={OPENED_AT}

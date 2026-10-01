@@ -27,6 +27,7 @@ const METHODS = [
 ] as const;
 
 export type ChargeScreenProps = {
+  sessionId: string;
   person: SignedInPerson;
   registerName: string | null;
   lock: () => void;
@@ -36,6 +37,7 @@ export type ChargeScreenProps = {
 };
 
 export function ChargeScreen({
+  sessionId,
   person,
   registerName,
   lock,
@@ -44,7 +46,7 @@ export function ChargeScreen({
   onSessionInvalid,
 }: ChargeScreenProps) {
   const navigate = useNavigate();
-  const current = useCurrentSaleQuery(currentSale);
+  const current = useCurrentSaleQuery({ sessionId, userId: person.user_id, read: currentSale });
   const [step, setStep] = useState<Step>({ name: "methods" });
 
   function backToSale() {

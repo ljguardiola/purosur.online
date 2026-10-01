@@ -24,6 +24,7 @@ import type { ScanProblem } from "./scan-problem-message";
 import { messageFor, ScanProblemMessage } from "./scan-problem-message";
 
 export type SaleScreenProps = {
+  sessionId: string;
   person: SignedInPerson;
   registerName: string | null;
   openedAt: string;
@@ -48,6 +49,7 @@ function selectScanField(form: HTMLFormElement | null) {
 }
 
 export function SaleScreen({
+  sessionId,
   person,
   registerName,
   openedAt,
@@ -60,8 +62,8 @@ export function SaleScreen({
 }: SaleScreenProps) {
   const navigate = useNavigate();
   const field = useRef<HTMLFormElement>(null);
-  const current = useCurrentSaleQuery(currentSale);
-  const takeSale = useTakeSale();
+  const current = useCurrentSaleQuery({ sessionId, userId: person.user_id, read: currentSale });
+  const takeSale = useTakeSale(sessionId, person.user_id);
   const search = useSearchProducts(searchProducts);
   const [changed, setChanged] = useState<string>();
   const [code, setCode] = useState("");

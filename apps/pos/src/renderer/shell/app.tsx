@@ -195,7 +195,13 @@ function Register({ core }: { core: CoreClient }) {
   async function chargeSaleInCash(saleId: string, tendered: number) {
     const outcome = await core.chargeSaleInCash(saleId, tendered);
     if (outcome.kind === "completed") {
-      await setQueryAnswer(queryClient, salesKeys.currentSale, null);
+      if (cashSession.status === "open" && person !== undefined) {
+        await setQueryAnswer(
+          queryClient,
+          salesKeys.currentSale(cashSession.id, person.user_id),
+          null,
+        );
+      }
       void queryClient.invalidateQueries({ queryKey: cashKey });
     } else if (
       outcome.kind === "empty_sale" ||
@@ -203,7 +209,7 @@ function Register({ core }: { core: CoreClient }) {
       outcome.kind === "no_open_sale" ||
       outcome.kind === "not_permitted"
     ) {
-      void queryClient.invalidateQueries({ queryKey: salesKeys.currentSale });
+      void queryClient.invalidateQueries({ queryKey: salesKeys.currentSaleRoot });
     }
     return outcome;
   }

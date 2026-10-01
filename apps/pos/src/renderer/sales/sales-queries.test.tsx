@@ -23,9 +23,17 @@ const SALE: OpenSale = {
   total: 238_000,
 };
 
-function CurrentSaleProbe({ read }: { read: () => Promise<CurrentSaleAnswer> }) {
-  const current = useCurrentSaleQuery(read);
-  const takeSale = useTakeSale();
+function CurrentSaleProbe({
+  read,
+  sessionId = "s1",
+  userId = "u1",
+}: {
+  read: () => Promise<CurrentSaleAnswer>;
+  sessionId?: string;
+  userId?: string;
+}) {
+  const current = useCurrentSaleQuery({ sessionId, userId, read });
+  const takeSale = useTakeSale(sessionId, userId);
   let text: string = current.status;
   if (current.status === "loaded") {
     text =
@@ -62,6 +70,31 @@ describe("current sale query", () => {
         ),
       )
       .toBeVisible();
+  });
+
+  it.each([
+    ["another person", "s1", "u2"],
+    ["another session", "s2", "u1"],
+  ])("never shows the answer given to %s", async (_who, sessionId, userId) => {
+    const queryClient = createQueryClient();
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <CurrentSaleProbe read={async () => "not_permitted"} />
+      </QueryClientProvider>,
+    );
+    await expect.element(screen.getByText("not_permitted")).toBeVisible();
+
+    await screen.rerender(
+      <QueryClientProvider client={queryClient}>
+        <CurrentSaleProbe
+          read={() => new Promise(() => {})}
+          sessionId={sessionId}
+          userId={userId}
+        />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("loading")).toBeVisible();
   });
 
   it("fails when the core cannot answer", async () => {

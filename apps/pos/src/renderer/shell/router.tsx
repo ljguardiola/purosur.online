@@ -211,11 +211,12 @@ const openSessionRoute = createRoute({
   getParentRoute: () => sessionEyebrowRoute,
   path: "/session",
   beforeLoad: ({ context }) => {
-    const { openedAt, person } = requireOpenSession(context);
-    return { openedAt, person };
+    const { id, openedAt, person } = requireOpenSession(context);
+    return { id, openedAt, person };
   },
   component: function OpenSessionRoute() {
     const {
+      id,
       openedAt,
       person,
       signOut,
@@ -228,6 +229,7 @@ const openSessionRoute = createRoute({
     const registerName = useRegisterName();
     return (
       <SaleScreen
+        sessionId={id}
         person={person}
         registerName={registerName}
         openedAt={openedAt}
@@ -246,15 +248,16 @@ const chargeRoute = createRoute({
   getParentRoute: () => sessionEyebrowRoute,
   path: "/charge",
   beforeLoad: ({ context }) => {
-    const { person } = requireOpenSession(context);
-    return { person };
+    const { id, person } = requireOpenSession(context);
+    return { id, person };
   },
   component: function ChargeRoute() {
-    const { person, signOut, currentSale, chargeSaleInCash, refreshCashSession } =
+    const { id, person, signOut, currentSale, chargeSaleInCash, refreshCashSession } =
       chargeRoute.useRouteContext();
     const registerName = useRegisterName();
     return (
       <ChargeScreen
+        sessionId={id}
         person={person}
         registerName={registerName}
         lock={signOut}
