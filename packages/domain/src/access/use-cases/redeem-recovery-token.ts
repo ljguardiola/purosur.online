@@ -20,7 +20,7 @@ export interface RedeemRecoveryTokenInput {
 
 export type RedeemRecoveryTokenOutcome =
   | { kind: "redeemed"; userId: string }
-  | { kind: "not_redeemable" }
+  | { kind: "not_redeemable"; reason: "invalid" | "burned" | "expired" }
   | { kind: "passkey_already_registered" };
 
 export async function redeemRecoveryToken(
@@ -32,8 +32,12 @@ export async function redeemRecoveryToken(
   try {
     return await store.transaction<RedeemRecoveryTokenOutcome>(async (tx) => {
       const token = await tx.lockToken(input.tokenId);
-      if (!token || recoveryTokenStatus(token, input.redeemedAt) !== "valid") {
-        return { kind: "not_redeemable" };
+      if (!token) {
+        return { kind: "not_redeemable", reason: "invalid" };
+      }
+      const status = recoveryTokenStatus(token, input.redeemedAt);
+      if (status !== "valid") {
+        return { kind: "not_redeemable", reason: status };
       }
       await tx.markTokenUsed(input.tokenId, input.redeemedAt);
       // A conflict raised here rolls the burn back, so the link stays usable for a retry.

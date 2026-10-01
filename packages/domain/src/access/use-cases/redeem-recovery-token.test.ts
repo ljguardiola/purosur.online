@@ -128,27 +128,27 @@ describe("redeemRecoveryToken", () => {
   });
 
   it.each([
-    ["already used", { usedAt: new Date("2026-10-01T11:00:00.000Z") }],
-    ["voided", { voidedAt: new Date("2026-10-01T11:00:00.000Z") }],
-    ["past its expiry", { expiresAt: new Date(REDEEMED_AT.getTime() - 1) }],
-    ["exactly at its expiry", { expiresAt: REDEEMED_AT }],
+    ["already used", { usedAt: new Date("2026-10-01T11:00:00.000Z") }, "burned"],
+    ["voided", { voidedAt: new Date("2026-10-01T11:00:00.000Z") }, "burned"],
+    ["past its expiry", { expiresAt: new Date(REDEEMED_AT.getTime() - 1) }, "expired"],
+    ["exactly at its expiry", { expiresAt: REDEEMED_AT }, "expired"],
   ] as const)(
-    "finds a token that is %s not redeemable and registers nothing",
-    async (_name, overrides) => {
+    "finds a token that is %s not redeemable, says why and registers nothing",
+    async (_name, overrides, reason) => {
       const { store, redeem } = fixture(overrides);
       const before = store.snapshot();
 
       const outcome = await redeem();
 
-      expect(outcome).toEqual({ kind: "not_redeemable" });
+      expect(outcome).toEqual({ kind: "not_redeemable", reason });
       expect(store.snapshot()).toEqual(before);
     },
   );
 
-  it("finds a token that no longer exists not redeemable", async () => {
+  it("finds a token that no longer exists not redeemable as invalid", async () => {
     const { redeem } = fixture(null);
 
-    expect(await redeem()).toEqual({ kind: "not_redeemable" });
+    expect(await redeem()).toEqual({ kind: "not_redeemable", reason: "invalid" });
   });
 
   it("does all its storage work in one transaction", async () => {

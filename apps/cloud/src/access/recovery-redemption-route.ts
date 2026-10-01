@@ -197,10 +197,12 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
         sendTokenError(reply, "invalid");
         return;
       }
-      const tokenHash = hashRecoveryToken(rawToken);
       const redeemedAt = now();
 
-      const found = await findRedeemableRecovery(ports, { tokenHash, now: redeemedAt });
+      const found = await findRedeemableRecovery(ports, {
+        tokenHash: hashRecoveryToken(rawToken),
+        now: redeemedAt,
+      });
       if (found.kind === "rejected") {
         await rejectToken(reply, "redeem", found.reason, found.token);
         return;
@@ -274,14 +276,7 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
         return;
       }
       if (outcome.kind === "not_redeemable") {
-        // Lost a race to another redemption; reclassify fresh instead of assuming why it lost.
-        const raced = await findRedeemableRecovery(ports, { tokenHash, now: now() });
-        await rejectToken(
-          reply,
-          "redeem",
-          raced.kind === "rejected" ? raced.reason : "burned",
-          token,
-        );
+        await rejectToken(reply, "redeem", outcome.reason, token);
         return;
       }
 

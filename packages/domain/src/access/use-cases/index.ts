@@ -18,6 +18,16 @@ export type {
 } from "./branch-users.js";
 export type { CheckPinInput, CheckPinOutcome, PinRefusal } from "./check-pin.js";
 export { checkPin } from "./check-pin.js";
+export type {
+  CreateFirstAdministratorInput,
+  CreateFirstAdministratorPorts,
+  CreateFirstAdministratorResult,
+} from "./create-first-administrator.js";
+export {
+  createFirstAdministrator,
+  FirstAdministratorAlreadyBootstrappedError,
+  InvalidFirstAdministratorInputError,
+} from "./create-first-administrator.js";
 export type { CreateRoleInput, CreateRoleOutcome, CreateRolePorts } from "./create-role.js";
 export { createRole } from "./create-role.js";
 export type {
@@ -98,6 +108,14 @@ export type {
 } from "./find-uncovered-register-permissions.js";
 export { findUncoveredRegisterPermissions } from "./find-uncovered-register-permissions.js";
 export type {
+  FirstAdministratorLocation,
+  FirstAdministratorRole,
+  FirstAdministratorStore,
+  FirstAdministratorStoreTransaction,
+  NewFirstAdministrator,
+  StoredFirstAdministrator,
+} from "./first-administrator-store.js";
+export type {
   FirstPinCodeEmission,
   FirstPinCodeEmissionPorts,
   FirstPinCodeStore,
@@ -105,6 +123,11 @@ export type {
   FirstPinCodeTarget,
   QueuedFirstPinCodeEmail,
 } from "./first-pin-code-store.js";
+export type {
+  FlushRejectedAttemptsInput,
+  FlushRejectedAttemptsPorts,
+} from "./flush-rejected-attempts.js";
+export { flushRejectedAttempts } from "./flush-rejected-attempts.js";
 export type {
   IssueRecoveryTokenInput,
   IssueRecoveryTokenOutcome,
@@ -210,6 +233,13 @@ export type {
   RedeemRecoveryTokenPorts,
 } from "./redeem-recovery-token.js";
 export { redeemRecoveryToken } from "./redeem-recovery-token.js";
+export type {
+  FlushedRejectedAttempts,
+  RejectedAttemptFlushStore,
+  RejectedAttemptFlushStoreTransaction,
+  RejectedAttemptKind,
+  RejectedAttemptWindow,
+} from "./rejected-attempt-flush-store.js";
 export type {
   PinReplacementPorts,
   PinReplacementStore,
