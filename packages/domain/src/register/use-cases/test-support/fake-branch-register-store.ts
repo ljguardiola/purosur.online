@@ -218,6 +218,7 @@ export class FakeBranchRegisterStore
       .filter((register) => register.locationId === locationId)
       .map((register) => {
         const code = this.state.codes.find((row) => row.registerId === register.id);
+        const setup = this.state.registerPointsOfSale.find((row) => row.registerId === register.id);
         return {
           id: register.id,
           name: register.name,
@@ -229,6 +230,7 @@ export class FakeBranchRegisterStore
                 failedAttempts: code.failedAttempts,
               }
             : null,
+          pointOfSaleNumber: setup?.pointOfSaleNumber ?? null,
         };
       });
   }

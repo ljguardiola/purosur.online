@@ -10,6 +10,7 @@ export interface BranchRegister {
   id: string;
   name: string;
   enrollmentCode: RegisterEnrollmentCode | null;
+  pointOfSaleNumber: number | null;
 }
 
 export interface BranchRegisters {

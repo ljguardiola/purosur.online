@@ -32,15 +32,35 @@ test("shows the breadcrumb, heading, each register's name and count", async () =
   await expect.element(screen.getByText("2 cajas")).toBeVisible();
 });
 
-test("shows Sin instalación and Sin configurar for every register, and the Esperando alta tag", async () => {
+test("shows Sin instalación and the Esperando alta tag for every register", async () => {
   const services = createServices();
   vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
 
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByText("Sin instalación")).toBeVisible();
-  await expect.element(screen.getByText("Sin configurar")).toBeVisible();
   await expect.element(screen.getByText("Esperando alta")).toBeVisible();
+});
+
+test("shows a configured register's point of sale as the tax authority prints it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register2] });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByRole("columnheader", { name: "Punto de venta" })).toBeVisible();
+  await expect.element(screen.getByText("00003")).toBeVisible();
+  await expect.element(screen.getByText("Sin configurar")).not.toBeInTheDocument();
+});
+
+test("shows Sin configurar for a register without a point of sale", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("Sin configurar")).toBeVisible();
+  await expect.element(screen.getByText("00003")).not.toBeInTheDocument();
 });
 
 test("shows the elapsed and remaining time for a register with a pending code", async () => {
@@ -338,7 +358,10 @@ test("creates a register and shows it in the list", async () => {
   vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register1] });
   vi.mocked(services.fetchRegisters).mockResolvedValueOnce({
     kind: "ok",
-    value: [register1, { id: "register-3", name: "Caja 3", pendingCode: null }],
+    value: [
+      register1,
+      { id: "register-3", name: "Caja 3", pendingCode: null, pointOfSaleNumber: null },
+    ],
   });
   vi.mocked(services.createRegister).mockResolvedValue({ kind: "ok" });
   const screen = await renderScreen(services);

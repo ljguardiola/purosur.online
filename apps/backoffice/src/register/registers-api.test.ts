@@ -22,21 +22,31 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const register1: RegisterSummary = { id: "register-1", name: "Caja 1", pendingCode: null };
+const register1: RegisterSummary = {
+  id: "register-1",
+  name: "Caja 1",
+  pendingCode: null,
+  pointOfSaleNumber: null,
+};
 const register2Wire = {
   id: "register-2",
   name: "Caja 2",
   pending_code: { seconds_since_issued: 240, seconds_until_expiry: 660 },
+  point_of_sale_number: 3,
 };
 const register2: RegisterSummary = {
   id: "register-2",
   name: "Caja 2",
   pendingCode: { secondsSinceIssued: 240, secondsUntilExpiry: 660 },
+  pointOfSaleNumber: 3,
 };
 
-test("fetchRegisters lists every register, translating pending_code from the wire", async () => {
+test("fetchRegisters lists every register, translating pending_code and point_of_sale_number from the wire", async () => {
   vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(200, [{ id: "register-1", name: "Caja 1", pending_code: null }, register2Wire]),
+    jsonResponse(200, [
+      { id: "register-1", name: "Caja 1", pending_code: null, point_of_sale_number: null },
+      register2Wire,
+    ]),
   );
 
   const outcome = await fetchRegisters();

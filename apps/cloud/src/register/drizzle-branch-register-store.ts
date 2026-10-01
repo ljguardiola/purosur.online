@@ -281,19 +281,24 @@ export class DrizzleBranchRegisterStore<TQueryResult extends PgQueryResultHKT>
         expiresAt: registerEnrollmentCodes.expiresAt,
         redeemedAt: registerEnrollmentCodes.redeemedAt,
         failedAttempts: registerEnrollmentCodes.failedAttempts,
+        pointOfSaleNumber: registerPointsOfSale.pointOfSaleNumber,
       })
       .from(registers)
       .leftJoin(registerEnrollmentCodes, eq(registerEnrollmentCodes.registerId, registers.id))
+      .leftJoin(registerPointsOfSale, eq(registerPointsOfSale.registerId, registers.id))
       .where(eq(registers.locationId, locationId))
       .orderBy(asc(registers.name));
-    return rows.map(({ id, name, issuedAt, expiresAt, redeemedAt, failedAttempts }) => ({
-      id,
-      name,
-      enrollmentCode:
-        issuedAt !== null && expiresAt !== null && failedAttempts !== null
-          ? { issuedAt, expiresAt, redeemedAt, failedAttempts }
-          : null,
-    }));
+    return rows.map(
+      ({ id, name, issuedAt, expiresAt, redeemedAt, failedAttempts, pointOfSaleNumber }) => ({
+        id,
+        name,
+        enrollmentCode:
+          issuedAt !== null && expiresAt !== null && failedAttempts !== null
+            ? { issuedAt, expiresAt, redeemedAt, failedAttempts }
+            : null,
+        pointOfSaleNumber,
+      }),
+    );
   }
 
   async branchRegisterPointsOfSale(locationId: string): Promise<BranchRegisterPointOfSale[]> {

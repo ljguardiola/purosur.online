@@ -30,6 +30,7 @@ function toRegisterWire(register: BranchRegisterSummary): RegisterSummaryBody {
           seconds_until_expiry: register.pendingCode.secondsUntilExpiry,
         }
       : null,
+    point_of_sale_number: register.pointOfSaleNumber,
   };
 }
 

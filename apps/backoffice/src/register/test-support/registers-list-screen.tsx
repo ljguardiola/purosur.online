@@ -21,11 +21,17 @@ export function createServices(
   };
 }
 
-export const register1: RegisterSummary = { id: "register-1", name: "Caja 1", pendingCode: null };
+export const register1: RegisterSummary = {
+  id: "register-1",
+  name: "Caja 1",
+  pendingCode: null,
+  pointOfSaleNumber: null,
+};
 export const register2: RegisterSummary = {
   id: "register-2",
   name: "Caja 2",
   pendingCode: { secondsSinceIssued: 240, secondsUntilExpiry: 660 },
+  pointOfSaleNumber: 3,
 };
 
 const authorizationOptions = { challenge: "session-auth" } as never;

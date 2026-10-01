@@ -394,3 +394,28 @@ describe("branchRegisterPointsOfSale of DrizzleBranchRegisterStore", () => {
     ]);
   });
 });
+
+describe("branchRegisters of DrizzleBranchRegisterStore", () => {
+  it("lists the branch's registers by name with the number each was configured with, null for one never configured", async () => {
+    const locationId = await seededLocationId(db);
+    const actorId = await insertActor(locationId);
+    const configuredId = await insertRegister(locationId, "Caja 2");
+    const neverConfiguredId = await insertRegister(locationId, "Caja 1");
+    await insertRegister(await insertOtherLocation(), "Caja 3");
+    await configure({
+      locationId,
+      registerId: configuredId,
+      pointOfSaleNumber: 7,
+      fiscalAddressId: await insertFiscalAddress(),
+      version: 0,
+      actorId,
+    });
+
+    const listed = await new DrizzleBranchRegisterStore(db).branchRegisters(locationId);
+
+    expect(listed).toEqual([
+      { id: neverConfiguredId, name: "Caja 1", enrollmentCode: null, pointOfSaleNumber: null },
+      { id: configuredId, name: "Caja 2", enrollmentCode: null, pointOfSaleNumber: 7 },
+    ]);
+  });
+});
