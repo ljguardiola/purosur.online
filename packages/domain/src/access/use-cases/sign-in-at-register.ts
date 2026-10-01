@@ -8,9 +8,12 @@ import { holdsARegisterPermission } from "../model/register-coverage.js";
 import { checkPin, type PinRefusal } from "./check-pin.js";
 import type { PinCheckPorts } from "./pin-sign-in-store.js";
 
-export interface SignInAtRegisterPorts<Credential> extends PinCheckPorts<Credential> {
+export interface SignInAtRegisterPorts<Credential, Session> extends PinCheckPorts<Credential> {
   signedInPerson: { clear(): void; set(userId: string): void };
-  register: { openSession(): { openedBy: string } | undefined };
+  register: {
+    openSession(): { openedBy: string } | undefined;
+    sessionToResume(userId: string): Session;
+  };
   rememberedPeople: { remember(userId: string): void };
 }
 
@@ -20,20 +23,21 @@ export interface SignInAtRegisterInput {
   remember: boolean;
 }
 
-export type SignInAtRegisterOutcome =
+export type SignInAtRegisterOutcome<Session> =
   | {
       kind: "signed_in";
       person: { userId: string; firstName: string; abilities: RegisterAbility[] };
+      resumedSession: Session;
     }
   | { kind: "cash_session_opened_by_another" }
   | { kind: "no_register_permission" }
   | PinRefusal
   | { kind: "unavailable" };
 
-export async function signInAtRegister<Credential>(
-  ports: SignInAtRegisterPorts<Credential>,
+export async function signInAtRegister<Credential, Session>(
+  ports: SignInAtRegisterPorts<Credential, Session>,
   { userId, pin, remember }: SignInAtRegisterInput,
-): Promise<SignInAtRegisterOutcome> {
+): Promise<SignInAtRegisterOutcome<Session>> {
   const { store, signedInPerson, register, rememberedPeople } = ports;
   signedInPerson.clear();
   if (isLockedToAnother(register.openSession(), userId)) {
@@ -53,6 +57,7 @@ export async function signInAtRegister<Credential>(
   if (isLockedToAnother(register.openSession(), userId)) {
     return { kind: "cash_session_opened_by_another" };
   }
+  const resumedSession = register.sessionToResume(userId);
   if (remember) {
     rememberedPeople.remember(userId);
   }
@@ -60,5 +65,6 @@ export async function signInAtRegister<Credential>(
   return {
     kind: "signed_in",
     person: { userId, firstName: holder.firstName, abilities: registerAbilities(holder.access) },
+    resumedSession,
   };
 }
