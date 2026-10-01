@@ -1268,7 +1268,7 @@ describe("App", () => {
         .not.toBeInTheDocument();
     });
 
-    it("reads the balance and the movements again when a pull happens while the cash screen is shown", async () => {
+    it("reads only what a pull can change when a pull happens while the cash screen is shown", async () => {
       const cashBalance = vi
         .fn<CoreClient["cashBalance"]>()
         .mockResolvedValueOnce(BALANCE)
@@ -1278,10 +1278,12 @@ describe("App", () => {
       await userEvent.click(screen.getByRole("link", { name: "Caja" }));
       await expect.element(screen.getByText("$ 46.200,00", { exact: true })).toBeVisible();
 
-      finishPull(null);
+      finishPull("Caja 1");
 
-      await expect.element(screen.getByText("$ 50.000,00", { exact: true })).toBeVisible();
-      expect(cashMovements).toHaveBeenCalledTimes(2);
+      await expect.element(screen.getByText(/Caja 1 · Sesión abierta/)).toBeVisible();
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(cashBalance).toHaveBeenCalledTimes(1);
+      expect(cashMovements).toHaveBeenCalledTimes(1);
     });
 
     it("starts the cash screen of a new session from loading, not from the balance of the one before", async () => {

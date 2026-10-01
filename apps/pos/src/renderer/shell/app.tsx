@@ -11,6 +11,7 @@ import { RouterProvider } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import type { SignedInPerson } from "../access/signed-in-person";
 import type { CashMovementInput, CoreClient } from "../platform/core-client";
+import { accessKey } from "../access/access-queries";
 import { createQueryClient } from "../platform/query-client";
 import { cancelReads, setQueryAnswer } from "../platform/set-query-answer";
 import { useCoreStatus } from "../platform/use-core-status";
@@ -272,7 +273,14 @@ function Register({ core }: { core: CoreClient }) {
     }
   }, [enrollment, queryClient]);
 
-  useEffect(() => core.onPulled(() => void queryClient.invalidateQueries()), [core, queryClient]);
+  useEffect(
+    () =>
+      core.onPulled(() => {
+        void queryClient.invalidateQueries({ queryKey: accessKey });
+        void queryClient.invalidateQueries({ queryKey: registerKeys.registerName });
+      }),
+    [core, queryClient],
+  );
 
   useEffect(() => {
     const to = routeFor({ coreStatus, enrollment, person, cashSession });

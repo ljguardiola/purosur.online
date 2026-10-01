@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { CoreData } from "../platform/use-core-query";
 import { useCoreQuery } from "../platform/use-core-query";
 
-const accessKey = ["access"] as const;
+export const accessKey = ["access"] as const;
 
 const accessKeys = {
   signInUsers: [...accessKey, "sign-in-users"] as const,
