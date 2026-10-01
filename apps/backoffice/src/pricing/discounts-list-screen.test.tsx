@@ -82,38 +82,39 @@ test("names each promotion's weekdays in the accessible text of its days", async
     .toBeVisible();
 });
 
-test("marks a promotion whose validity has passed as ended, and a switched off one as deactivated", async () => {
+test("shows each promotion in the status the cloud sends for it", async () => {
   const services = createServices();
-  const screen = await loaded(services, [endedPromotion, switchedOffPromotion, yerbaOff], {
-    filters: discountsListFilters.parse({ status: "all" }),
-  });
+  const screen = await loaded(
+    services,
+    [
+      { ...yerbaOff, name: "A", status: "deactivated" },
+      { ...yerbaOff, id: "b", name: "B", status: "ended" },
+      { ...endedPromotion, id: "c", name: "C", status: "current" },
+      { ...endedPromotion, id: "d", name: "D", status: "scheduled" },
+    ],
+    { filters: discountsListFilters.parse({ status: "all" }) },
+  );
 
   await expect
     .poll(() => rowCells(screen).map((cells) => cells.at(-1)))
-    .toEqual(["Desactivada", "Terminada", "Vigente"]);
+    .toEqual(["Desactivada", "Terminada", "Vigente", "Programada"]);
 });
 
-test("a promotion that starts today is current, and one that ended yesterday is not", async () => {
+test("filters by the status the cloud sends, whatever the promotion's dates say", async () => {
   const services = createServices();
-  const startsToday = { ...almacenTuesdays, validFrom: "2026-09-30", validTo: "2026-10-31" };
-  const endedYesterday = { ...yerbaOff, validFrom: "2026-09-01", validTo: "2026-09-29" };
-  const screen = await loaded(services, [startsToday, endedYesterday], {
-    filters: discountsListFilters.parse({ status: "all" }),
-  });
+  const screen = await loaded(
+    services,
+    [
+      { ...endedPromotion, name: "Terminada según la nube", status: "ended" },
+      { ...yerbaOff, name: "Vigente según la nube", status: "current" },
+      { ...yerbaOff, id: "x", name: "Programada según la nube", status: "scheduled" },
+    ],
+    { filters: discountsListFilters.parse({ status: "ended" }) },
+  );
 
   await expect
-    .poll(() => rowCells(screen).map((cells) => cells.at(-1)))
-    .toEqual(["Vigente", "Terminada"]);
-});
-
-test("today is Argentina's calendar day, not the UTC one", async () => {
-  const services = createServices();
-  const startsTomorrowInUtc = { ...almacenTuesdays, validFrom: "2026-10-01" };
-  const screen = await loaded(services, [startsTomorrowInUtc], {
-    now: () => new Date("2026-10-01T01:00:00.000Z"),
-  });
-
-  await expect.poll(() => rowCells(screen).map((cells) => cells.at(-1))).toEqual(["Programada"]);
+    .poll(() => rowCells(screen).map((cells) => cells[0]))
+    .toEqual(["Terminada según la nubeProducto · Cuaderno rayado"]);
 });
 
 test("the state filter offers Vigentes y programadas, Terminadas, Desactivadas and Todas", async () => {

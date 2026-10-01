@@ -14,6 +14,7 @@ export const yerbaOff: DiscountSummary = {
   weekdays: [],
   active: true,
   version: 1,
+  status: "current",
 };
 
 export const almacenTuesdays: DiscountSummary = {
@@ -30,6 +31,7 @@ export const almacenTuesdays: DiscountSummary = {
   weekdays: [2],
   active: true,
   version: 3,
+  status: "scheduled",
 };
 
 export const sinTaccWinter: DiscountSummary = {
@@ -46,6 +48,7 @@ export const sinTaccWinter: DiscountSummary = {
   weekdays: [1, 3, 5],
   active: true,
   version: 2,
+  status: "scheduled",
 };
 
 export const endedPromotion: DiscountSummary = {
@@ -62,6 +65,7 @@ export const endedPromotion: DiscountSummary = {
   weekdays: [],
   active: true,
   version: 1,
+  status: "ended",
 };
 
 export const switchedOffPromotion: DiscountSummary = {
@@ -78,6 +82,7 @@ export const switchedOffPromotion: DiscountSummary = {
   weekdays: [],
   active: false,
   version: 4,
+  status: "deactivated",
 };
 
 export const yerbaThreeForTwo: DiscountSummary = {
@@ -94,6 +99,7 @@ export const yerbaThreeForTwo: DiscountSummary = {
   weekdays: [],
   active: true,
   version: 2,
+  status: "current",
 };
 
 export const almondsThreeForTwo: DiscountSummary = {
@@ -110,6 +116,7 @@ export const almondsThreeForTwo: DiscountSummary = {
   weekdays: [],
   active: false,
   version: 3,
+  status: "deactivated",
 };
 
 export function discountList(discounts: DiscountSummary[]): DiscountList {
