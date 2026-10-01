@@ -50,8 +50,8 @@ describe("listBranchRegisters", () => {
     );
 
     expect(listed).toEqual([
-      { id: "register-1", name: "Caja 2", pendingCode: null },
-      { id: "register-3", name: "Caja 1", pendingCode: null },
+      { id: "register-1", name: "Caja 2", pendingCode: null, pointOfSaleNumber: null },
+      { id: "register-3", name: "Caja 1", pendingCode: null, pointOfSaleNumber: null },
     ]);
   });
 
@@ -141,5 +141,25 @@ describe("listBranchRegisters", () => {
     const [caja1] = await listCaja1(store);
 
     expect(caja1?.pendingCode).not.toBeNull();
+  });
+
+  it("reports the point of sale number a register was configured with", async () => {
+    const store = new FakeBranchRegisterStore();
+    store.seedRegister({
+      id: "register-1",
+      locationId: BRANCH,
+      name: "Caja 1",
+      pointOfSaleNumber: 3,
+    });
+
+    const [caja1] = await listCaja1(store);
+
+    expect(caja1?.pointOfSaleNumber).toBe(3);
+  });
+
+  it("reports no point of sale number for a register never configured", async () => {
+    const [caja1] = await listCaja1(storeWithCaja1());
+
+    expect(caja1?.pointOfSaleNumber).toBeNull();
   });
 });

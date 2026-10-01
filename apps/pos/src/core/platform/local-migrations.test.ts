@@ -413,6 +413,7 @@ describe("the register's local migrations", () => {
         "0013_sale_line_removals",
         "0014_fiscal_configuration",
         "0015_pre_emission_gate_outcomes",
+        "0016_register_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous);
       before
@@ -781,6 +782,7 @@ describe("the register's local migrations", () => {
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
         "0014_fiscal_configuration",
         "0015_pre_emission_gate_outcomes",
+        "0016_register_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous);
       before
@@ -823,6 +825,7 @@ describe("the register's local migrations", () => {
       expect(previous.at(-1)?.name).toBe("0014_fiscal_configuration");
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
         "0015_pre_emission_gate_outcomes",
+        "0016_register_point_of_sale",
       ]);
       const before = openLocalDatabase(path, previous);
       before
@@ -847,6 +850,44 @@ describe("the register's local migrations", () => {
       expect(
         after.prepare("SELECT count(*) AS total FROM pre_emission_gate_outcomes").get(),
       ).toEqual({ total: 0 });
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("add the register's point of sale over the own register and fiscal configuration a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.slice(0, 16);
+      expect(previous.at(-1)?.name).toBe("0015_pre_emission_gate_outcomes");
+      expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
+        "0016_register_point_of_sale",
+      ]);
+      const before = openLocalDatabase(path, previous);
+      before
+        .prepare("INSERT INTO own_register (id, name, version) VALUES ('r1', 'Caja 1', 3)")
+        .run();
+      before
+        .prepare(
+          `INSERT INTO buyer_identification_thresholds (id, amount, valid_from)
+           VALUES ('t1', 500000, '2026-01-01')`,
+        )
+        .run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+
+      expect(after.prepare("SELECT id, name, version FROM own_register").all()).toEqual([
+        { id: "r1", name: "Caja 1", version: 3 },
+      ]);
+      expect(after.prepare("SELECT id, amount FROM buyer_identification_thresholds").all()).toEqual(
+        [{ id: "t1", amount: 500000 }],
+      );
+      expect(after.prepare("SELECT count(*) AS total FROM register_point_of_sale").get()).toEqual({
+        total: 0,
+      });
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });

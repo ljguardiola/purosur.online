@@ -626,6 +626,10 @@ describe("startServer", () => {
         db: fakeRecovery.db,
         backofficeOrigin: fakeRecovery.backofficeOrigin,
       },
+      registersPointsOfSale: {
+        db: fakeRecovery.db,
+        backofficeOrigin: fakeRecovery.backofficeOrigin,
+      },
       roles: {
         db: fakeRecovery.db,
         backofficeOrigin: fakeRecovery.backofficeOrigin,
@@ -640,6 +644,10 @@ describe("startServer", () => {
         authorizedCuit: FICTIONAL_CERTIFICATE_CUIT,
       },
       buyerIdentificationThresholds: {
+        db: fakeRecovery.db,
+        backofficeOrigin: fakeRecovery.backofficeOrigin,
+      },
+      fiscalAddresses: {
         db: fakeRecovery.db,
         backofficeOrigin: fakeRecovery.backofficeOrigin,
       },

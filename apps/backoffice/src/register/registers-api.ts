@@ -16,6 +16,7 @@ export type RegisterSummary = {
   id: string;
   name: string;
   pendingCode: PendingEnrollmentCode | null;
+  pointOfSaleNumber: number | null;
 };
 
 export type FetchRegistersOutcome = CloudReadOutcome<RegisterSummary[]>;
@@ -63,6 +64,7 @@ function registerFromWire(row: RegisterSummaryBody): RegisterSummary {
           secondsUntilExpiry: row.pending_code.seconds_until_expiry,
         }
       : null,
+    pointOfSaleNumber: row.point_of_sale_number,
   };
 }
 

@@ -12,6 +12,7 @@ import {
   productBarcodes,
   products,
   productTags,
+  registerPointsOfSale,
   registers,
   rolePermissions,
   roles,
@@ -31,6 +32,7 @@ import type {
   PriceListRow,
   PriceRow,
   ProductRow,
+  RegisterPointOfSaleRow,
   RegisterRow,
   RoleRow,
   TagRow,
@@ -258,6 +260,26 @@ export async function readRegisters<TQueryResult extends PgQueryResultHKT>(
     .where(inArray(registers.id, [...ids]))
     .orderBy(asc(registers.id));
   return new Map(rows.map(({ id, ...row }) => [id, row]));
+}
+
+export async function readRegisterPointsOfSale<TQueryResult extends PgQueryResultHKT>(
+  tx: PgDatabase<TQueryResult>,
+  registerIds: readonly string[],
+): Promise<Map<string, RegisterPointOfSaleRow>> {
+  if (registerIds.length === 0) {
+    return new Map();
+  }
+  const rows = await tx
+    .select({
+      registerId: registerPointsOfSale.registerId,
+      pointOfSaleNumber: registerPointsOfSale.pointOfSaleNumber,
+      fiscalAddressId: registerPointsOfSale.fiscalAddressId,
+      version: registerPointsOfSale.version,
+    })
+    .from(registerPointsOfSale)
+    .where(inArray(registerPointsOfSale.registerId, [...registerIds]))
+    .orderBy(asc(registerPointsOfSale.registerId));
+  return new Map(rows.map(({ registerId, ...row }) => [registerId, row]));
 }
 
 export async function readDiscounts<TQueryResult extends PgQueryResultHKT>(

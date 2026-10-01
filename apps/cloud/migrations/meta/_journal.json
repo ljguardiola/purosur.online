@@ -372,6 +372,13 @@
       "when": 1790865858323,
       "tag": "0052_seed_buyer_identification_threshold",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1790868188842,
+      "tag": "0053_fiscal_addresses_and_points_of_sale",
+      "breakpoints": true
     }
   ]
 }
