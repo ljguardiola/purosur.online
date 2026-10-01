@@ -24,8 +24,5 @@ export type {
   PreEmissionGateFailureReason,
   PreEmissionGateOutcome,
 } from "./model/pre-emission-gate.js";
-export type {
-  PreEmissionGateRecorder,
-  RecordedPreEmissionGate,
-} from "./model/pre-emission-gate-evaluation.js";
-export { evaluatePreEmissionGateOfSale } from "./model/pre-emission-gate-evaluation.js";
+export { preEmissionGate } from "./model/pre-emission-gate.js";
+export { preEmissionGateFailedEvent } from "./model/pre-emission-gate-failed-event.js";

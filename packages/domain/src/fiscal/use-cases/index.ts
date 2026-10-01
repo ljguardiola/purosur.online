@@ -18,20 +18,6 @@ export type {
 } from "./edit-issuer-identification.js";
 export { editIssuerIdentification } from "./edit-issuer-identification.js";
 export type {
-  EvaluatePreEmissionGateInput,
-  EvaluatePreEmissionGateOutcome,
-  EvaluatePreEmissionGatePorts,
-} from "./evaluate-pre-emission-gate.js";
-export { evaluatePreEmissionGate } from "./evaluate-pre-emission-gate.js";
-export type {
-  Clock,
-  CompletedSale,
-  FiscalGateLedger,
-  FiscalGateLedgerTransaction,
-  IdGenerator,
-  RecordedPreEmissionGate,
-} from "./fiscal-gate-ledger.js";
-export type {
   AuthorizedIssuerIdentification,
   IssuerIdentification,
   IssuerIdentificationPorts,

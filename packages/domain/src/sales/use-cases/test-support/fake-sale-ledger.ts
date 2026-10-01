@@ -4,7 +4,6 @@ import {
   type IssuerIdentificationInEffect,
   latestBuyerTaxStatusSet,
   latestIssuerIdentification,
-  type RecordedPreEmissionGate,
 } from "../../../fiscal/index.js";
 import { priceInEffectAt } from "../../../pricing/index.js";
 import type { CashMovement } from "../../../register/index.js";
@@ -17,6 +16,7 @@ import type {
   CandidatePromotion,
   Clock,
   IdGenerator,
+  RecordedPreEmissionGate,
   RegisterIdentity,
   SaleLedger,
   SaleLedgerTransaction,
@@ -183,20 +183,12 @@ export class FakeSaleLedger implements SaleLedger {
         this.failIfAsked("appendOutboxEvent");
         working.outbox.push(draft);
       },
-      preEmissionGate: () => ({
-        issuerIdentificationInEffect: () =>
-          latestIssuerIdentification(working.issuerIdentifications),
-        buyerTaxStatusSetInEffect: () =>
-          latestBuyerTaxStatusSet(working.buyerTaxStatusSets)?.options,
-        recordPreEmissionGate: (recorded) => {
-          this.failIfAsked("recordPreEmissionGate");
-          working.preEmissionGates.push(recorded);
-        },
-        appendOutboxEvent: (draft) => {
-          this.failIfAsked("appendOutboxEvent");
-          working.outbox.push(draft);
-        },
-      }),
+      issuerIdentificationInEffect: () => latestIssuerIdentification(working.issuerIdentifications),
+      buyerTaxStatusSetInEffect: () => latestBuyerTaxStatusSet(working.buyerTaxStatusSets)?.options,
+      recordPreEmissionGate: (recorded) => {
+        this.failIfAsked("recordPreEmissionGate");
+        working.preEmissionGates.push(recorded);
+      },
     });
     this.state = working;
     return outcome;
