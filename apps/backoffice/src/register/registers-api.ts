@@ -10,7 +10,7 @@ import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { retryAfterSeconds } from "../platform/retry-after-seconds";
 import { readValidationFailedField } from "../platform/validation-failed-field";
 
-type PendingEnrollmentCode = { issuedAt: string; expiresAt: string };
+type PendingEnrollmentCode = { secondsSinceIssued: number; secondsUntilExpiry: number };
 
 export type RegisterSummary = {
   id: string;
@@ -58,7 +58,10 @@ function registerFromWire(row: RegisterSummaryBody): RegisterSummary {
     id: row.id,
     name: row.name,
     pendingCode: row.pending_code
-      ? { issuedAt: row.pending_code.issued_at, expiresAt: row.pending_code.expires_at }
+      ? {
+          secondsSinceIssued: row.pending_code.seconds_since_issued,
+          secondsUntilExpiry: row.pending_code.seconds_until_expiry,
+        }
       : null,
   };
 }

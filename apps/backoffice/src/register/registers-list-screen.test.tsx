@@ -9,7 +9,6 @@ import type { RegistersListScreenServices } from "./registers-list-services";
 import {
   createServices,
   grantAuthorization,
-  NOW,
   register1,
   register2,
   renderScreen,
@@ -59,7 +58,7 @@ test("shows recién for a code issued less than a minute ago", async () => {
   const justIssued: RegisterSummary = {
     id: "register-3",
     name: "Caja 3",
-    pendingCode: { issuedAt: "2026-09-25T11:59:40.000Z", expiresAt: "2026-09-25T12:14:40.000Z" },
+    pendingCode: { secondsSinceIssued: 20, secondsUntilExpiry: 880 },
   };
   vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [justIssued] });
 
@@ -68,25 +67,60 @@ test("shows recién for a code issued less than a minute ago", async () => {
   await expect.element(screen.getByText("Código emitido recién")).toBeVisible();
 });
 
-test("stops showing a pending code once it expires while the screen stays open", async () => {
+test("reads the list again after 30 seconds while a code is pending, showing the time the cloud reports", async () => {
   const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register2] });
-  let current = new Date("2026-09-25T12:00:00.000Z");
+  vi.mocked(services.fetchRegisters)
+    .mockResolvedValueOnce({ kind: "ok", value: [register2] })
+    .mockResolvedValueOnce({
+      kind: "ok",
+      value: [{ ...register2, pendingCode: { secondsSinceIssued: 330, secondsUntilExpiry: 570 } }],
+    });
   vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
   try {
-    const screen = await render(
-      <main>
-        <RegistersListScreen services={services} onSessionEnded={() => {}} now={() => current} />
-      </main>,
-    );
+    const screen = await renderScreen(services);
     await expect.element(screen.getByText("Vence en 11 minutos")).toBeVisible();
 
-    current = new Date("2026-09-25T12:11:00.000Z");
+    vi.advanceTimersByTime(30_000);
+
+    await expect.element(screen.getByText("Código emitido hace 5 minutos")).toBeVisible();
+    await expect.element(screen.getByText("Vence en 10 minutos")).toBeVisible();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("stops showing a pending code once the cloud no longer reports it, after the 30-second read", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters)
+    .mockResolvedValueOnce({ kind: "ok", value: [register2] })
+    .mockResolvedValueOnce({ kind: "ok", value: [{ ...register2, pendingCode: null }] });
+  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+  try {
+    const screen = await renderScreen(services);
+    await expect.element(screen.getByText("Vence en 11 minutos")).toBeVisible();
+
     vi.advanceTimersByTime(30_000);
 
     await expect.poll(() => screen.getByText(/^Vence en/).query()).toBeNull();
     await expect.poll(() => screen.getByText(/^Código emitido/).query()).toBeNull();
     await expect.element(screen.getByText("—")).toBeVisible();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("never reads the list again on its own while no code is pending", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
+  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+  try {
+    const screen = await renderScreen(services);
+    await expect.element(screen.getByText("Caja 1")).toBeVisible();
+
+    vi.advanceTimersByTime(60_000);
+
+    await expect.element(screen.getByText("Caja 1")).toBeVisible();
+    expect(services.fetchRegisters).toHaveBeenCalledTimes(1);
   } finally {
     vi.useRealTimers();
   }
@@ -352,7 +386,7 @@ test("under StrictMode, clicking the row action emits the code exactly once and 
   const screen = await render(
     <StrictMode>
       <main>
-        <RegistersListScreen services={services} onSessionEnded={() => {}} now={NOW} />
+        <RegistersListScreen services={services} onSessionEnded={() => {}} />
       </main>
     </StrictMode>,
   );
@@ -385,63 +419,26 @@ test("Listo closes the code modal and refreshes the list", async () => {
   await expect.element(screen.getByText("Caja 2")).toBeVisible();
 });
 
-test("keeps counting the pending code from the time already read when the parent hands it a new clock", async () => {
+test("shows the pending code the cloud reports once the code modal closes", async () => {
   const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register2] });
-  const screenFor = (now: () => Date) => (
-    <main>
-      <RegistersListScreen services={services} onSessionEnded={() => {}} now={now} />
-    </main>
-  );
-  const screen = await render(screenFor(() => new Date("2026-09-25T12:00:00.000Z")));
-  await expect.element(screen.getByText("Vence en 11 minutos")).toBeVisible();
-
-  await screen.rerender(screenFor(() => new Date("2026-09-25T12:11:00.000Z")));
-
-  expect(screen.getByText("Vence en 11 minutos").query()).not.toBeNull();
-  expect(services.fetchRegisters).toHaveBeenCalledTimes(1);
-});
-
-test("a code shown after the list refreshes counts its time from that refresh, not from the last tick", async () => {
-  const services = createServices();
-  let current = new Date("2026-09-25T12:00:00.000Z");
   vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register1] });
   vi.mocked(services.emitEnrollmentCode).mockResolvedValue({
     kind: "ok",
-    value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:25.000Z" },
+    value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
   });
-  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
-  try {
-    const screen = await render(
-      <main>
-        <RegistersListScreen services={services} onSessionEnded={() => {}} now={() => current} />
-      </main>,
-    );
-    await expect.element(screen.getByText("Caja 1")).toBeVisible();
-    current = new Date("2026-09-25T12:00:25.000Z");
-    const dialog = await openEmitModal(screen, "Caja 1");
-    await expect
-      .element(dialog.getByText("Vence en 15 minutos · se usa una sola vez"))
-      .toBeVisible();
-    vi.mocked(services.fetchRegisters).mockResolvedValueOnce({
-      kind: "ok",
-      value: [
-        {
-          ...register1,
-          pendingCode: {
-            issuedAt: "2026-09-25T12:00:25.000Z",
-            expiresAt: "2026-09-25T12:15:25.000Z",
-          },
-        },
-      ],
-    });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+  const dialog = await openEmitModal(screen, "Caja 1");
+  await expect.element(dialog.getByText("P4NX 7KWE 2QRT 8MZD")).toBeVisible();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({
+    kind: "ok",
+    value: [{ ...register1, pendingCode: { secondsSinceIssued: 0, secondsUntilExpiry: 900 } }],
+  });
 
-    await userEvent.click(dialog.getByRole("button", { name: "Listo" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Listo" }));
 
-    await expect.element(screen.getByText("Vence en 15 minutos")).toBeVisible();
-  } finally {
-    vi.useRealTimers();
-  }
+  await expect.element(screen.getByText("Código emitido recién")).toBeVisible();
+  await expect.element(screen.getByText("Vence en 15 minutos")).toBeVisible();
 });
 
 function deferred<T>() {

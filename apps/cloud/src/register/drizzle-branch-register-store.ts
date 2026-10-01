@@ -1,6 +1,8 @@
 import {
+  type BranchRegister,
   type BranchRegisterStore,
   type BranchRegisterStoreTransaction,
+  type BranchRegisters,
   type EnrollmentCodeEmission,
   type EnrollmentCodeState,
   type LockRegisterResult,
@@ -9,7 +11,7 @@ import {
   type RegisterCreation,
   RegisterNameConflict,
 } from "@purosur/domain/register/use-cases";
-import { and, eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import { auditLog, registerEnrollmentCodes, registers } from "../platform/db/schema.js";
@@ -139,7 +141,7 @@ class DrizzleBranchRegisterStoreTransaction<TQueryResult extends PgQueryResultHK
 }
 
 export class DrizzleBranchRegisterStore<TQueryResult extends PgQueryResultHKT>
-  implements BranchRegisterStore
+  implements BranchRegisterStore, BranchRegisters
 {
   private readonly db: PgDatabase<TQueryResult>;
   private readonly pending: PendingChanges | undefined;
@@ -155,6 +157,30 @@ export class DrizzleBranchRegisterStore<TQueryResult extends PgQueryResultHKT>
     return withPendingChanges(this.db, this.pending, (tx, pending) =>
       work(new DrizzleBranchRegisterStoreTransaction(tx, pending)),
     );
+  }
+
+  async branchRegisters(locationId: string): Promise<BranchRegister[]> {
+    const rows = await this.db
+      .select({
+        id: registers.id,
+        name: registers.name,
+        issuedAt: registerEnrollmentCodes.issuedAt,
+        expiresAt: registerEnrollmentCodes.expiresAt,
+        redeemedAt: registerEnrollmentCodes.redeemedAt,
+        failedAttempts: registerEnrollmentCodes.failedAttempts,
+      })
+      .from(registers)
+      .leftJoin(registerEnrollmentCodes, eq(registerEnrollmentCodes.registerId, registers.id))
+      .where(eq(registers.locationId, locationId))
+      .orderBy(asc(registers.name));
+    return rows.map(({ id, name, issuedAt, expiresAt, redeemedAt, failedAttempts }) => ({
+      id,
+      name,
+      enrollmentCode:
+        issuedAt !== null && expiresAt !== null && failedAttempts !== null
+          ? { issuedAt, expiresAt, redeemedAt, failedAttempts }
+          : null,
+    }));
   }
 
   async belongsToBranch(locationId: string, registerId: string): Promise<boolean> {
