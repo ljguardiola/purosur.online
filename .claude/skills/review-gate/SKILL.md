@@ -32,8 +32,7 @@ Launch `review-gate-reviewer` twice in parallel, as reviewer A and reviewer B,
 with the same prompt: the review folder, `BASE`, `TARGET`, the round, and for
 a re-review the delta file. Neither sees the other's result. Wait for both.
 
-- First round, and the round after a `decision`: the whole change, against
-  every area of the checklist.
+- First round: the whole change, against every area of the checklist.
 - Re-review: only the fix delta (`git diff <previous TARGET> <new TARGET>`,
   written to `delta-<round>.patch`) and the ledger. The reviewers check that
   each fixed finding is really resolved and look for defects the fixes
@@ -45,13 +44,13 @@ Merge both results into `ledger.md`: one row per distinct finding, an id
 `R<round>-<n>`, which reviewer raised it (`A`, `B` or `A+B`), and its kind
 and rule reference. A finding raised by one reviewer only is as valid as one
 raised by both. A re-review finding that a row marked fixed is not resolved
-reopens that row instead of adding one, and its fix counts as a failed
-attempt.
+keeps that row's id instead of adding one.
 
 ## 4. Verify
 
 Launch `review-gate-verifier` once with the review folder and the ids of this
-round. It returns, per id, `CONFIRMED` or `REFUTED` with its proof, the kind
+round, including the rows a re-review says are not resolved. A row it
+confirms unresolved is reopened, and its fix counts as a failed attempt. It returns, per id, `CONFIRMED` or `REFUTED` with its proof, the kind
 it settles on, and `in-scope` or `out-of-scope`. Copy its verdicts into the
 ledger.
 
@@ -66,18 +65,21 @@ ledger.
 
 The coordinator is whoever assigned the issue: the coordinating session, or
 the owner when no session coordinates. Once the coordinator answers a
-`stopped` row, the review resumes at step 6 with that row `open` and the
-answer attached: for an approved `decision`, the fix updates the written rule
-it contradicted in the same change; for a rejected one, it undoes the
-decision; for a row no fix could close, it follows the coordinator's answer.
-After a `decision`, the next round reviews the whole change again
-(`change.patch` from `BASE` to the new `TARGET`), not only the fix delta.
+`stopped` row, record the answer in the ledger and resume:
+
+- an approved `decision`: the row goes to the fixer `open`, to update the
+  written rule it contradicted in the same change;
+- a rejected `decision`: the row goes to the fixer `open`, to undo it;
+- a row no fix could close: the row goes to the fixer `open` when the answer
+  says how to fix it, is filed as a new issue (`filed as #<n>`) when the
+  answer moves it out of the issue, or is marked `accepted` when the answer
+  keeps the code as it is.
 
 ## 6. Fix
 
 Launch `review-gate-fixer` with the review folder and every confirmed
 in-scope id whose status is `open`, with the previous fixer report of any id
-it already tried. It reports each id `fixed` or `not fixed` with the reason.
+it already tried and the coordinator's answer of any id that had one. It reports each id `fixed` or `not fixed` with the reason.
 
 - When it fixed at least one: commit them in one commit
   (`<type>: address review-gate round <n> findings`, with the issue's commit

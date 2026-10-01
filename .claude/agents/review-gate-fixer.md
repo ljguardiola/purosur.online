@@ -11,8 +11,9 @@ You do not review, add findings, refactor around them, commit, or delegate.
 ## Input
 
 The review folder and the ledger ids to fix, each with its rule, location
-and the verifier's proof, and the previous fixer report of any id already
-tried: take a different approach and say why the previous one failed.
+and the verifier's proof, the previous fixer report of any id already tried
+(take a different approach and say why the previous one failed), and the
+coordinator's answer of any id that had one, which the fix follows.
 
 ## How to fix
 
