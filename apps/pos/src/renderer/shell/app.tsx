@@ -2,48 +2,83 @@ import type {
   Authorization,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
-  OpenCashSession,
   OpenCashSessionOutcome,
   SignInOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
+import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { accessKey } from "../access/access-queries";
 import type { SignedInPerson } from "../access/signed-in-person";
 import type { CashMovementInput, CoreClient } from "../platform/core-client";
+import { createQueryClient } from "../platform/query-client";
+import { cancelReads, setQueryAnswer } from "../platform/set-query-answer";
 import { useCoreStatus } from "../platform/use-core-status";
+import {
+  cashKey,
+  cashSessionQueryOptions,
+  registerKeys,
+  useCashSessionQuery,
+  useEnrollmentQuery,
+} from "../register/register-queries";
+import { salesKeys } from "../sales/sales-queries";
 import type { CashSessionState } from "./cash-session-state";
 import type { Enrollment } from "./router";
 import { createAppRouter, isSessionScreen, routeFor } from "./router";
 
-const UNKNOWN_SESSION: CashSessionState = { status: "unknown" };
-const CASH_SESSION_RETRY_MS = 5000;
+export function App({ core }: { core: CoreClient }) {
+  const [queryClient] = useState(createQueryClient);
 
-function stateOf(session: OpenCashSession | null | "unavailable"): CashSessionState {
-  if (session === "unavailable") {
-    return { status: "unavailable" };
-  }
-  return session === null
-    ? { status: "none" }
-    : { status: "open", id: session.id, openedAt: session.opened_at, openedBy: session.opened_by };
+  return (
+    <QueryClientProvider client={queryClient}>
+      <Register core={core} />
+    </QueryClientProvider>
+  );
 }
 
-export function App({ core }: { core: CoreClient }) {
+function Register({ core }: { core: CoreClient }) {
+  const queryClient = useQueryClient();
   const coreStatus = useCoreStatus();
-  const [knownEnrollment, setKnownEnrollment] = useState<Enrollment>("unknown");
-  const enrollment = coreStatus === "up" ? knownEnrollment : "unknown";
+  const enrollmentRead = useEnrollmentQuery({
+    read: () => core.enrollmentStatus(),
+    enabled: coreStatus === "up",
+  });
+  let enrollment: Enrollment = "unknown";
+  if (coreStatus === "up" && enrollmentRead.status === "loaded") {
+    enrollment = enrollmentRead.value ? "enrolled" : "not_enrolled";
+  }
   const [signedInPerson, setPerson] = useState<SignedInPerson>();
-  const [cashSession, setCashSession] = useState<CashSessionState>(UNKNOWN_SESSION);
+  const cashSession = useCashSessionQuery({
+    read: () => core.cashSession(),
+    enabled: enrollment === "enrolled",
+  });
   // Only the person who opened the open session can be in: anyone else leaves the register locked.
   const person =
     cashSession.status === "open" && signedInPerson?.user_id !== cashSession.openedBy.user_id
       ? undefined
       : signedInPerson;
 
+  function cancelCashSessionReads() {
+    return cancelReads(queryClient, registerKeys.cashSession);
+  }
+
+  function setCashSession(state: CashSessionState) {
+    queryClient.setQueryData(registerKeys.cashSession, state);
+  }
+
+  function refreshCashSession() {
+    return queryClient.invalidateQueries({ queryKey: registerKeys.cashSession });
+  }
+
+  function readCashSession() {
+    return queryClient.fetchQuery(cashSessionQueryOptions(() => core.cashSession()));
+  }
+
   async function enroll(typedCode: string) {
     const outcome = await core.enroll(typedCode);
     if (outcome.kind === "enrolled") {
-      setKnownEnrollment("enrolled");
+      await setQueryAnswer(queryClient, registerKeys.enrollment, true);
     }
     return outcome;
   }
@@ -53,10 +88,7 @@ export function App({ core }: { core: CoreClient }) {
       setPerson(outcome.person);
     }
     if (outcome.kind === "cash_session_opened_by_another") {
-      await core.cashSession().then(
-        (session) => setCashSession(stateOf(session)),
-        () => {},
-      );
+      await refreshCashSession();
     }
     return outcome;
   }
@@ -80,6 +112,7 @@ export function App({ core }: { core: CoreClient }) {
       setPerson(undefined);
     }
     if (outcome.kind === "opened") {
+      await cancelCashSessionReads();
       setCashSession({
         status: "open",
         id: outcome.session.id,
@@ -88,14 +121,9 @@ export function App({ core }: { core: CoreClient }) {
       });
     }
     if (outcome.kind === "already_open") {
-      return core.cashSession().then(
+      return readCashSession().then(
         (session): OpenCashSessionOutcome => {
-          setCashSession(stateOf(session));
-          if (
-            session !== null &&
-            session !== "unavailable" &&
-            session.opened_by.user_id !== opener.user_id
-          ) {
+          if (session.status === "open" && session.openedBy.user_id !== opener.user_id) {
             signOut();
           }
           return outcome;
@@ -104,15 +132,6 @@ export function App({ core }: { core: CoreClient }) {
       );
     }
     return outcome;
-  }
-
-  function refreshCashSession(session: OpenCashSession | null | "unavailable") {
-    const next = stateOf(session);
-    setCashSession((previous) =>
-      previous.status === "open" && next.status === "open" && previous.id === next.id
-        ? previous
-        : next,
-    );
   }
 
   async function closeCashSession(
@@ -127,6 +146,7 @@ export function App({ core }: { core: CoreClient }) {
       setPerson(undefined);
     }
     if (outcome.kind === "closed") {
+      await cancelCashSessionReads();
       if (leaving) {
         signOut();
       } else {
@@ -135,7 +155,7 @@ export function App({ core }: { core: CoreClient }) {
       setCashSession({ status: "none" });
     }
     if (outcome.kind === "no_open_session") {
-      await core.cashSession().then(refreshCashSession, () => {});
+      await refreshCashSession();
     }
     return outcome satisfies CloseCashSessionOutcome;
   }
@@ -147,10 +167,11 @@ export function App({ core }: { core: CoreClient }) {
   ) {
     const outcome = await core.closeLockedCashSession(sessionId, countedCash, closer);
     if (outcome.kind === "closed") {
+      await cancelCashSessionReads();
       setCashSession({ status: "none" });
     }
     if (outcome.kind === "no_open_session" || outcome.kind === "not_locked") {
-      await core.cashSession().then(refreshCashSession, () => {});
+      await refreshCashSession();
     }
     return outcome satisfies CloseLockedCashSessionOutcome;
   }
@@ -158,7 +179,7 @@ export function App({ core }: { core: CoreClient }) {
   async function identifyLockedCloser(closer: Authorization) {
     const outcome = await core.identifyLockedCloser(closer);
     if (outcome.kind === "not_locked") {
-      await core.cashSession().then(refreshCashSession, () => {});
+      await refreshCashSession();
     }
     return outcome;
   }
@@ -166,9 +187,31 @@ export function App({ core }: { core: CoreClient }) {
   async function cashBalance() {
     const balance = await core.cashBalance();
     if (balance === null) {
-      await core.cashSession().then(refreshCashSession, () => {});
+      await refreshCashSession();
     }
     return balance;
+  }
+
+  async function chargeSaleInCash(saleId: string, tendered: number) {
+    const outcome = await core.chargeSaleInCash(saleId, tendered);
+    if (outcome.kind === "completed") {
+      if (cashSession.status === "open" && person !== undefined) {
+        await setQueryAnswer(
+          queryClient,
+          salesKeys.currentSale(cashSession.id, person.user_id),
+          null,
+        );
+      }
+      void queryClient.invalidateQueries({ queryKey: cashKey });
+    } else if (
+      outcome.kind === "empty_sale" ||
+      outcome.kind === "zero_total" ||
+      outcome.kind === "no_open_sale" ||
+      outcome.kind === "not_permitted"
+    ) {
+      void queryClient.invalidateQueries({ queryKey: salesKeys.currentSaleRoot });
+    }
+    return outcome;
   }
 
   async function redeemPinCode(typedCode: string, newPin: string) {
@@ -182,15 +225,18 @@ export function App({ core }: { core: CoreClient }) {
   async function cashMovements() {
     const movements = await core.cashMovements();
     if (movements === null) {
-      await core.cashSession().then(refreshCashSession, () => {});
+      await refreshCashSession();
     }
     return movements;
   }
 
   async function recordCashMovement(input: CashMovementInput) {
     const outcome = await core.recordCashMovement(input);
+    if (outcome.kind === "recorded") {
+      void queryClient.invalidateQueries({ queryKey: cashKey });
+    }
     if (outcome.kind === "no_open_session") {
-      await core.cashSession().then(refreshCashSession, () => {});
+      await refreshCashSession();
     }
     return outcome;
   }
@@ -215,7 +261,7 @@ export function App({ core }: { core: CoreClient }) {
     firstSignIn,
     currentSale: () => core.currentSale(),
     scanProduct: (code: string) => core.scanProduct(code),
-    chargeSaleInCash: (saleId: string, tendered: number) => core.chargeSaleInCash(saleId, tendered),
+    chargeSaleInCash,
     searchProducts: (query: string) => core.searchProducts(query),
     addProduct: (productId: string) => core.addProduct(productId),
     changeLineQuantity: (lineId: string, quantity: number, expectedQuantity: number) =>
@@ -223,74 +269,31 @@ export function App({ core }: { core: CoreClient }) {
     removeSaleLine: (lineId: string) => core.removeSaleLine(lineId),
     cancelSale: () => core.cancelSale(),
     // A replaced core connection fails this request; the core coming back up asks again.
-    refreshCashSession: () => core.cashSession().then(refreshCashSession, () => {}),
+    refreshCashSession,
   };
 
-  const [router] = useState(() => createAppRouter(services));
+  const [router] = useState(() => createAppRouter(queryClient, services));
 
   useEffect(() => {
     if (coreStatus !== "up") {
       setPerson(undefined);
-      return;
     }
-    let current = true;
-    core.enrollmentStatus().then(
-      (enrolled) => {
-        if (current) {
-          setKnownEnrollment(enrolled ? "enrolled" : "not_enrolled");
-        }
-      },
-      // A replaced core connection fails this request; the core coming back up asks again.
-      () => {},
-    );
-    return () => {
-      current = false;
-    };
-  }, [core, coreStatus]);
+  }, [coreStatus]);
 
   useEffect(() => {
     if (enrollment !== "enrolled") {
-      return;
+      void queryClient.resetQueries({ queryKey: registerKeys.cashSession });
     }
-    let current = true;
-    core.cashSession().then(
-      (session) => {
-        if (current) {
-          setCashSession(stateOf(session));
-        }
-      },
-      // A replaced core connection fails this request; the core coming back up asks again.
-      () => {},
-    );
-    return () => {
-      current = false;
-      setCashSession(UNKNOWN_SESSION);
-    };
-  }, [core, enrollment]);
+  }, [enrollment, queryClient]);
 
-  useEffect(() => {
-    if (enrollment !== "enrolled" || cashSession.status !== "unavailable") {
-      return;
-    }
-    let current = true;
-    const retry = setTimeout(() => {
-      core.cashSession().then(
-        (session) => {
-          if (current) {
-            setCashSession(stateOf(session));
-          }
-        },
-        // A replaced core connection fails this request; the core coming back up asks again.
-        () => {},
-      );
-    }, CASH_SESSION_RETRY_MS);
-    return () => {
-      current = false;
-      clearTimeout(retry);
-    };
-  }, [core, enrollment, cashSession]);
-
-  useEffect(() => core.onPulled(() => void router.invalidate()), [core, router]);
+  useEffect(
+    () =>
+      core.onPulled(() => {
+        void queryClient.invalidateQueries({ queryKey: accessKey });
+        void queryClient.invalidateQueries({ queryKey: registerKeys.registerName });
+      }),
+    [core, queryClient],
+  );
 
   useEffect(() => {
     const to = routeFor({ coreStatus, enrollment, person, cashSession });
@@ -303,7 +306,7 @@ export function App({ core }: { core: CoreClient }) {
   return (
     <RouterProvider
       router={router}
-      context={{ coreStatus, enrollment, person, cashSession, ...services }}
+      context={{ queryClient, coreStatus, enrollment, person, cashSession, ...services }}
     />
   );
 }

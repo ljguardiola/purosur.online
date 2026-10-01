@@ -3,6 +3,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { SaleScreenProps } from "./sale-screen";
+import { salesKeys } from "./sales-queries";
 import {
   ALFAJOR,
   deferred,
@@ -72,6 +73,25 @@ describe("SaleScreen", () => {
     await expect.element(field).toHaveFocus();
     await expect.element(field).toHaveAttribute("placeholder", PLACEHOLDER);
     await expect.element(screen.getByRole("combobox")).toBeVisible();
+  });
+
+  it("keeps a scanned line when an older read of the sale answers after the scan", async () => {
+    const read = deferred<OpenSale | null>();
+    const { screen, field } = await renderScreen({
+      currentSale: () => read.promise,
+      scanProduct: async () => ({ kind: "added", sale: SALE_OF_YERBA }),
+    });
+
+    await scan(field, "7790001");
+    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
+    read.resolve(null);
+    await expect.poll(() => screen.queryClient.isFetching()).toBe(0);
+
+    expect(screen.queryClient.getQueryData(salesKeys.currentSale("s1", "u1"))).toEqual(
+      SALE_OF_YERBA,
+    );
+    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
+    await expect.element(screen.getByText("1 línea")).toBeVisible();
   });
 
   describe("keeping the scan field ready", () => {

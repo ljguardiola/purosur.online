@@ -16,10 +16,10 @@ import { SessionEyebrow } from "../shell/session-eyebrow";
 import { CashMovementsTable } from "./cash-movements-table";
 import { ExpectedCashPanel } from "./expected-cash-panel";
 import { RecordCashMovementModal } from "./record-cash-movement-modal";
-import { useCashBalance } from "./use-cash-balance";
-import { useCashMovements } from "./use-cash-movements";
+import { useCashBalanceQuery, useCashMovementsQuery } from "./register-queries";
 
 export type CashScreenProps = {
+  sessionId: string;
   person: SignedInPerson;
   registerName: string | null;
   openedAt: string;
@@ -31,6 +31,7 @@ export type CashScreenProps = {
 };
 
 export function CashScreen({
+  sessionId,
   person,
   registerName,
   openedAt,
@@ -41,8 +42,8 @@ export function CashScreen({
   recordCashMovement,
 }: CashScreenProps) {
   const navigate = useNavigate();
-  const balance = useCashBalance(loadCashBalance);
-  const movements = useCashMovements(loadCashMovements);
+  const balance = useCashBalanceQuery(sessionId, loadCashBalance);
+  const movements = useCashMovementsQuery(sessionId, loadCashMovements);
   const [recording, setRecording] = useState(false);
 
   return (
@@ -58,13 +59,9 @@ export function CashScreen({
           <SessionEyebrow registerName={registerName} openedAt={openedAt} />
           <h1 className="text-display text-text-accent">Movimientos de efectivo</h1>
         </div>
-        <CashMovementsTable state={movements.state} onRetry={movements.retry} />
+        <CashMovementsTable state={movements} />
       </main>
-      <ExpectedCashPanel
-        eyebrow="EFECTIVO ESPERADO AHORA"
-        balance={balance.state}
-        onRetry={balance.retry}
-      >
+      <ExpectedCashPanel eyebrow="EFECTIVO ESPERADO AHORA" balance={balance}>
         <Button
           variant="primary"
           size="large"
@@ -89,16 +86,12 @@ export function CashScreen({
         person={person}
         registerName={registerName}
         openedAt={openedAt}
-        {...(balance.state.status === "loaded"
-          ? { expectedCash: balance.state.balance.expected }
-          : {})}
+        {...(balance.status === "loaded" ? { expectedCash: balance.value.expected } : {})}
         loadAuthorizers={loadAuthorizers}
         recordCashMovement={recordCashMovement}
         onClose={() => setRecording(false)}
         onRecorded={() => {
           setRecording(false);
-          balance.refresh();
-          movements.refresh();
         }}
       />
     </div>

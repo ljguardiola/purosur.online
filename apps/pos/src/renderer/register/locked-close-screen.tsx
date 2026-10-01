@@ -17,6 +17,7 @@ type Step =
   | { kind: "counting"; closer: IdentifiedCloser };
 
 export type LockedCloseScreenProps = {
+  sessionId: string;
   opener: SignedInPerson;
   registerName: string | null;
   openedAt: string;
@@ -30,6 +31,7 @@ export type LockedCloseScreenProps = {
 };
 
 export function LockedCloseScreen({
+  sessionId,
   opener,
   registerName,
   openedAt,
@@ -44,6 +46,7 @@ export function LockedCloseScreen({
     const { closer } = step;
     return (
       <LockedCashCount
+        sessionId={sessionId}
         opener={opener}
         closerName={closer.first_name}
         registerName={registerName}
