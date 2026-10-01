@@ -28,6 +28,7 @@ import {
 } from "@purosur/domain/sales/use-cases";
 import type { ActionGate } from "../access/action-gate";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
+import { evaluatePreEmissionGateOfCompletedSale } from "../fiscal/after-sale-completed";
 import type { LocalDatabase } from "../platform/local-database";
 import { SqliteSaleLedger } from "./sqlite-sale-ledger";
 
@@ -302,6 +303,11 @@ export async function chargeSaleInCashFor(
   const outcome = guarded.result;
   switch (outcome.kind) {
     case "completed":
+      evaluatePreEmissionGateOfCompletedSale(
+        { database, now, ids },
+        outboxChainKey,
+        outcome.saleId,
+      );
       return {
         kind: "completed",
         sale_id: outcome.saleId,
