@@ -100,6 +100,68 @@ export const SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST = [
   "apps/backoffice/src/stock/stock-quantity.ts",
 ];
 
+export const SCREEN_CROSS_CONCEPT_IMPORT_ALLOWLIST = [
+  "apps/backoffice/src/alerts/alert-detail-modal.tsx",
+  "apps/backoffice/src/alerts/alerts-list-screen.tsx",
+  "apps/backoffice/src/alerts/alerts-overview-screen.tsx",
+  "apps/backoffice/src/alerts/alerts-queries.ts",
+  "apps/backoffice/src/alerts/routes.tsx",
+  "apps/backoffice/src/branch/branch-queries.ts",
+  "apps/backoffice/src/branch/branch-settings-screen.tsx",
+  "apps/backoffice/src/branch/routes.tsx",
+  "apps/backoffice/src/catalog/barcode-chips.tsx",
+  "apps/backoffice/src/catalog/brands-list-screen.tsx",
+  "apps/backoffice/src/catalog/catalog-queries.ts",
+  "apps/backoffice/src/catalog/deactivate-product-modal.tsx",
+  "apps/backoffice/src/catalog/deactivate-tag-modal.tsx",
+  "apps/backoffice/src/catalog/edit-category-modal.tsx",
+  "apps/backoffice/src/catalog/edit-product-modal.tsx",
+  "apps/backoffice/src/catalog/edit-tag-modal.tsx",
+  "apps/backoffice/src/catalog/name-creation-modal.tsx",
+  "apps/backoffice/src/catalog/new-category-modal.tsx",
+  "apps/backoffice/src/catalog/new-product-modal.tsx",
+  "apps/backoffice/src/catalog/print-labels-modal.tsx",
+  "apps/backoffice/src/catalog/reactivate-tag-modal.tsx",
+  "apps/backoffice/src/catalog/routes.tsx",
+  "apps/backoffice/src/fiscal/fiscal-configuration-screen.tsx",
+  "apps/backoffice/src/fiscal/fiscal-configuration-services.ts",
+  "apps/backoffice/src/fiscal/fiscal-queries.ts",
+  "apps/backoffice/src/fiscal/routes.tsx",
+  "apps/backoffice/src/pricing/discount-form.ts",
+  "apps/backoffice/src/pricing/edit-discount-modal.tsx",
+  "apps/backoffice/src/pricing/money.ts",
+  "apps/backoffice/src/pricing/new-discount-modal.tsx",
+  "apps/backoffice/src/pricing/price-change-modal.tsx",
+  "apps/backoffice/src/pricing/prices-list-screen.tsx",
+  "apps/backoffice/src/pricing/pricing-queries.ts",
+  "apps/backoffice/src/pricing/routes.tsx",
+  "apps/backoffice/src/pricing/test-support/discount-modal.ts",
+  "apps/backoffice/src/register/new-register-modal.tsx",
+  "apps/backoffice/src/register/register-coverage-notice.tsx",
+  "apps/backoffice/src/register/register-queries.ts",
+  "apps/backoffice/src/register/registers-list-screen.tsx",
+  "apps/backoffice/src/register/registers-list-services.ts",
+  "apps/backoffice/src/register/routes.tsx",
+  "apps/backoffice/src/stock/new-count-modal.tsx",
+  "apps/backoffice/src/stock/routes.tsx",
+  "apps/backoffice/src/stock/stock-counts-screen.tsx",
+  "apps/backoffice/src/stock/stock-movement-modal.tsx",
+  "apps/backoffice/src/stock/stock-movements-screen.tsx",
+  "apps/backoffice/src/stock/stock-queries.ts",
+  "apps/pos/src/renderer/register/cash-count-screen.tsx",
+  "apps/pos/src/renderer/register/cash-screen.tsx",
+  "apps/pos/src/renderer/register/locked-cash-count.tsx",
+  "apps/pos/src/renderer/register/locked-close-screen.tsx",
+  "apps/pos/src/renderer/register/locked-closer-identification.tsx",
+  "apps/pos/src/renderer/register/record-cash-movement-modal.tsx",
+  "apps/pos/src/renderer/sales/sale-screen.tsx",
+];
+
+export const CONTRACTS_CROSS_CONCEPT_IMPORT_ALLOWLIST = [
+  "packages/contracts/src/register/core-messages.ts",
+  "packages/contracts/src/sync/changes.ts",
+];
+
 function exactPaths(paths) {
   return paths.map((path) => `^${path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`);
 }
@@ -252,6 +314,46 @@ export default {
         path: "^packages/domain/src/",
         dependencyTypes: ["export"],
         dependencyTypesNot: ["type-only"],
+      },
+    },
+    {
+      name: "screens-no-cross-concept-imports",
+      comment:
+        "A file in a backoffice or register renderer concept folder never imports a " +
+        "file of another concept's folder; what several concepts share lives in " +
+        "platform/ or shell/ (the backoffice's help/ is imported by every concept too).",
+      severity: "error",
+      from: {
+        path: [
+          "^apps/backoffice/src/(?!(?:shell|platform|help)/)([^/]+)/",
+          "^apps/pos/src/renderer/(?!(?:shell|platform)/)([^/]+)/",
+        ],
+        pathNot: exactPaths(SCREEN_CROSS_CONCEPT_IMPORT_ALLOWLIST),
+      },
+      to: {
+        path: ["^apps/backoffice/src/[^/]+/", "^apps/pos/src/renderer/[^/]+/"],
+        pathNot: [
+          "^apps/backoffice/src/$1/",
+          "^apps/pos/src/renderer/$1/",
+          "^apps/backoffice/src/(shell|platform|help)/",
+          "^apps/pos/src/renderer/(shell|platform)/",
+        ],
+      },
+    },
+    {
+      name: "contracts-no-cross-concept-imports",
+      comment:
+        "A file in a packages/contracts concept folder never imports a file of " +
+        "another concept's folder; a shape several concepts need lives in " +
+        "packages/contracts/src/shared/.",
+      severity: "error",
+      from: {
+        path: "^packages/contracts/src/(?!shared/)([^/]+)/",
+        pathNot: exactPaths(CONTRACTS_CROSS_CONCEPT_IMPORT_ALLOWLIST),
+      },
+      to: {
+        path: "^packages/contracts/src/[^/]+/",
+        pathNot: ["^packages/contracts/src/$1/", "^packages/contracts/src/shared/"],
       },
     },
     {

@@ -8,7 +8,9 @@ import { cruise } from "dependency-cruiser";
 import extractTSConfig from "dependency-cruiser/config-utl/extract-ts-config";
 import config, {
   CLOUD_ONLY_CONCEPTS,
+  CONTRACTS_CROSS_CONCEPT_IMPORT_ALLOWLIST,
   PERSISTENCE_IN_HANDLERS_ALLOWLIST,
+  SCREEN_CROSS_CONCEPT_IMPORT_ALLOWLIST,
   SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST,
 } from "../../.dependency-cruiser.mjs";
 
@@ -1134,6 +1136,116 @@ test("persistence-only-in-adapters flags a register request handler importing th
   assert.equal(violationsFor(controlReport, "persistence-only-in-adapters").length, 0);
 });
 
+test("screens-no-cross-concept-imports flags a backoffice concept importing another concept and allows its own folder, shell, platform and help", async (t) => {
+  const root = await makeFixture(t, {
+    "apps/backoffice/src/catalog/products-screen.tsx": importEach([
+      "../pricing/money",
+      "../pricing/prices/price-form",
+      "./brand-name",
+      "./forms/product-form",
+      "../shell/layout",
+      "../platform/http",
+      "../help/manual",
+    ]),
+    "apps/backoffice/src/pricing/money.ts": "export const money = {};\n",
+    "apps/backoffice/src/pricing/prices/price-form.ts": "export const priceForm = {};\n",
+    "apps/backoffice/src/catalog/brand-name.ts": "export const brandName = {};\n",
+    "apps/backoffice/src/catalog/forms/product-form.ts": "export const productForm = {};\n",
+    "apps/backoffice/src/shell/layout.ts": importEach(["../catalog/brand-name"]),
+    "apps/backoffice/src/platform/http.ts": importEach(["../pricing/money"]),
+    "apps/backoffice/src/help/manual.ts": importEach(["../stock/count-moment"]),
+    "apps/backoffice/src/stock/count-moment.ts": "export const countMoment = {};\n",
+    "apps/backoffice/src/main.tsx": importEach(["./catalog/brand-name", "./pricing/money"]),
+  });
+
+  const report = await cruiseFixture(root, ["apps"]);
+  const violations = violationsFor(report, "screens-no-cross-concept-imports");
+
+  assert.deepEqual(violations.map((violation) => [violation.from, violation.to]).toSorted(), [
+    ["apps/backoffice/src/catalog/products-screen.tsx", "apps/backoffice/src/pricing/money.ts"],
+    [
+      "apps/backoffice/src/catalog/products-screen.tsx",
+      "apps/backoffice/src/pricing/prices/price-form.ts",
+    ],
+  ]);
+
+  await writeFixtureFile(
+    root,
+    "apps/backoffice/src/catalog/products-screen.tsx",
+    importEach(["./brand-name", "../platform/http"]),
+  );
+  const controlReport = await cruiseFixture(root, ["apps"]);
+  assert.equal(violationsFor(controlReport, "screens-no-cross-concept-imports").length, 0);
+});
+
+test("screens-no-cross-concept-imports flags a register renderer concept importing another concept and allows its own folder, shell and platform", async (t) => {
+  const root = await makeFixture(t, {
+    "apps/pos/src/renderer/sales/checkout-screen.tsx": importEach([
+      "../register/session",
+      "./cart",
+      "../shell/layout",
+      "../platform/core-client",
+    ]),
+    "apps/pos/src/renderer/register/session.ts": "export const session = {};\n",
+    "apps/pos/src/renderer/sales/cart.ts": "export const cart = {};\n",
+    "apps/pos/src/renderer/shell/layout.ts": importEach(["../sales/cart"]),
+    "apps/pos/src/renderer/platform/core-client.ts": importEach(["../register/session"]),
+    "apps/pos/src/renderer/main.tsx": importEach(["./sales/cart", "./register/session"]),
+    "apps/pos/src/core/sales/sale-requests.ts": importEach(["../register/session"]),
+    "apps/pos/src/core/register/session.ts": "export const session = {};\n",
+  });
+
+  const report = await cruiseFixture(root, ["apps"]);
+  const violations = violationsFor(report, "screens-no-cross-concept-imports");
+
+  assert.deepEqual(
+    violations.map((violation) => [violation.from, violation.to]),
+    [
+      [
+        "apps/pos/src/renderer/sales/checkout-screen.tsx",
+        "apps/pos/src/renderer/register/session.ts",
+      ],
+    ],
+  );
+});
+
+test("contracts-no-cross-concept-imports flags a concept importing another concept and allows its own folder and shared", async (t) => {
+  const root = await makeFixture(t, {
+    "packages/contracts/src/catalog/product.ts": importEach([
+      "../pricing/price",
+      "../pricing/prices/price-line",
+      "./brand",
+      "./brands/brand-line",
+      "../shared/index",
+    ]),
+    "packages/contracts/src/pricing/price.ts": "export const price = {};\n",
+    "packages/contracts/src/pricing/prices/price-line.ts": "export const priceLine = {};\n",
+    "packages/contracts/src/catalog/brand.ts": "export const brand = {};\n",
+    "packages/contracts/src/catalog/brands/brand-line.ts": "export const brandLine = {};\n",
+    "packages/contracts/src/shared/index.ts": importEach(["../catalog/brand"]),
+    "packages/contracts/src/index.ts": importEach(["./catalog/product", "./pricing/price"]),
+  });
+
+  const report = await cruiseFixture(root, ["packages"]);
+  const violations = violationsFor(report, "contracts-no-cross-concept-imports");
+
+  assert.deepEqual(violations.map((violation) => [violation.from, violation.to]).toSorted(), [
+    ["packages/contracts/src/catalog/product.ts", "packages/contracts/src/pricing/price.ts"],
+    [
+      "packages/contracts/src/catalog/product.ts",
+      "packages/contracts/src/pricing/prices/price-line.ts",
+    ],
+  ]);
+
+  await writeFixtureFile(
+    root,
+    "packages/contracts/src/catalog/product.ts",
+    importEach(["./brand", "../shared/index"]),
+  );
+  const controlReport = await cruiseFixture(root, ["packages"]);
+  assert.equal(violationsFor(controlReport, "contracts-no-cross-concept-imports").length, 0);
+});
+
 function withoutAllowlist(ruleName) {
   const rule = config.forbidden.find((candidate) => candidate.name === ruleName);
   const { pathNot: _allowlisted, ...from } = rule.from;
@@ -1145,6 +1257,8 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const ALLOWLISTED_RULES = [
   ["persistence-only-in-adapters", PERSISTENCE_IN_HANDLERS_ALLOWLIST],
   ["screens-types-only-from-domain", SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST],
+  ["screens-no-cross-concept-imports", SCREEN_CROSS_CONCEPT_IMPORT_ALLOWLIST],
+  ["contracts-no-cross-concept-imports", CONTRACTS_CROSS_CONCEPT_IMPORT_ALLOWLIST],
 ];
 
 test("every allowlist is sorted and lists only existing files", async () => {
