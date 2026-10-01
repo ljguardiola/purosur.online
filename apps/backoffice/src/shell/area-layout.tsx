@@ -69,7 +69,7 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
           )}
           {canSeeCashArea(session) && (
             <AreaLink
-              to="/fiscal-settings"
+              to="/points-of-sale"
               label="Caja"
               icon={<Wallet />}
               active={area === "cash-and-fiscal"}
