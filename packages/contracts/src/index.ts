@@ -171,6 +171,7 @@ export {
   coreToRendererMessageSchema,
   countedCashSchema,
   mainToCoreMessageSchema,
+  openCashSessionRequestSchema,
   openingFloatSchema,
   parseAmountCents,
   rendererToCoreMessageSchema,

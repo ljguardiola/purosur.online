@@ -259,6 +259,11 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
 ]);
 export type RendererToCoreMessage = z.infer<typeof rendererToCoreMessageSchema>;
 
+export const openCashSessionRequestSchema = openCashSessionMessageSchema.omit({
+  type: true,
+  request_id: true,
+});
+
 const enrollmentOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("enrolled") }),
   z.object({ kind: z.literal("code_rejected") }),
