@@ -1,5 +1,5 @@
 import type { PointOfSaleConfigurationBody } from "@purosur/contracts";
-import { parseEsArNumber } from "@purosur/ui";
+import { parsePointOfSaleNumber } from "@purosur/ui";
 import type { RegisterPointOfSale } from "./register-points-of-sale-api";
 
 export type RegisterPointOfSaleFormValues = {
@@ -31,7 +31,7 @@ export function registerPointOfSaleRequestFrom({
   version,
 }: RegisterPointOfSaleFormValues): PointOfSaleConfigurationBody {
   return {
-    point_of_sale_number: Number(parseEsArNumber(pointOfSaleNumber, 0)?.whole ?? Number.NaN),
+    point_of_sale_number: parsePointOfSaleNumber(pointOfSaleNumber),
     fiscal_address_id: fiscalAddressId ?? "",
     version,
   };

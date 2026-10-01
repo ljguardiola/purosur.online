@@ -133,6 +133,7 @@ export {
   formatDate,
   formatNumber,
   formatPointOfSaleNumber,
+  parsePointOfSaleNumber,
   plural,
 } from "./messages/formatters";
 export type {

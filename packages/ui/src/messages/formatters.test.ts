@@ -6,6 +6,7 @@ import {
   formatMonthName,
   formatNumber,
   formatPointOfSaleNumber,
+  parsePointOfSaleNumber,
   plural,
 } from "./formatters";
 
@@ -81,4 +82,22 @@ describe("formatPointOfSaleNumber", () => {
   it("keeps a number that already has five digits as it is", () => {
     expect(formatPointOfSaleNumber(99999)).toBe("99999");
   });
+});
+
+describe("parsePointOfSaleNumber", () => {
+  it.each([
+    ["3", 3],
+    [" 12 ", 12],
+    ["00003", 3],
+    ["99999", 99999],
+  ])("reads the bare identifier %j as %d", (typed, expected) => {
+    expect(parsePointOfSaleNumber(typed)).toBe(expected);
+  });
+
+  it.each(["1.234", "12.345", "1e1", "0x1F", "+7", "12.0", "1,5", "-3", ""])(
+    "refuses %j, which is not made of digits only",
+    (typed) => {
+      expect(parsePointOfSaleNumber(typed)).toBeNaN();
+    },
+  );
 });

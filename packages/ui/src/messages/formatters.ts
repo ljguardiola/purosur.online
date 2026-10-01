@@ -22,6 +22,11 @@ export function formatPointOfSaleNumber(number: number): string {
   return String(number).padStart(5, "0");
 }
 
+export function parsePointOfSaleNumber(text: string): number {
+  const digits = text.trim();
+  return /^\d+$/.test(digits) ? Number(digits) : Number.NaN;
+}
+
 export function formatDate(value: Date | number, options?: Intl.DateTimeFormatOptions): string {
   return new Intl.DateTimeFormat(LOCALE, options).format(value);
 }

@@ -61,7 +61,7 @@ test("builds a request the shape refuses for text that is not a number or an unc
   expect(pointOfSaleConfigurationBodySchema.safeParse(request).success).toBe(false);
 });
 
-test.each(["1e1", "0x1F", "0b11", "+7", "12.0", "1,5", "-3"])(
+test.each(["1.234", "1e1", "0x1F", "0b11", "+7", "12.0", "1,5", "-3"])(
   "builds a request the shape refuses for the typed text %s, which is not plain digits",
   (typed) => {
     const request = registerPointOfSaleRequestFrom({
