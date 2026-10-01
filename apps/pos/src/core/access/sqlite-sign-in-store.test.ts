@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { encodePinHash } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
@@ -224,6 +225,91 @@ describe("a user's sign-in record", () => {
     addUser({ id: "u1", ...seed });
 
     expect(store.signInRecord("u1")).toBeUndefined();
+  });
+});
+
+describe("a person who holds a PIN", () => {
+  const SALT_BYTES = new Uint8Array(16).fill(1);
+  const SALT = encodePinHash(SALT_BYTES);
+
+  it("holds the first name, the access of the role and the credential to match the PIN against", () => {
+    addUser({ id: "u1", firstName: "Ada", salt: SALT, verifier: "the-verifier" });
+    grant("cashier", "sell_and_charge");
+
+    expect(store.pinHolder("u1")).toEqual({
+      firstName: "Ada",
+      access: { isAdministrator: false, permissionKeys: ["sell_and_charge"] },
+      credential: { salt: SALT_BYTES, verifier: "the-verifier" },
+    });
+  });
+
+  it("is not found for a user whose salt cannot be read as a salt", () => {
+    addUser({ id: "u1", salt: "not-a-salt" });
+
+    expect(store.pinHolder("u1")).toBeUndefined();
+  });
+
+  it("is not found for a user the register does not know", () => {
+    expect(store.pinHolder("nobody")).toBeUndefined();
+  });
+
+  it.each([
+    ["without a PIN", { verifier: null }],
+    ["deactivated", { active: false }],
+    ["removed", { removed: true }],
+    ["without a salt", { salt: null }],
+  ])("is not found for a user who is %s", (_case, seed) => {
+    addUser({ id: "u1", salt: SALT, ...seed });
+
+    expect(store.pinHolder("u1")).toBeUndefined();
+  });
+});
+
+describe("the signable people", () => {
+  it("lists each person who can sign in with their first name and the access of their role", () => {
+    addRole("admin", { isAdministrator: true });
+    grant("cashier", "record_cash_in");
+    addUser({ id: "u1", firstName: "Ada", roleId: "cashier" });
+    addUser({ id: "u2", firstName: "Bruno", roleId: "admin" });
+
+    expect(store.signablePeople()).toEqual(
+      expect.arrayContaining([
+        {
+          id: "u1",
+          firstName: "Ada",
+          access: { isAdministrator: false, permissionKeys: ["record_cash_in"] },
+        },
+        { id: "u2", firstName: "Bruno", access: { isAdministrator: true, permissionKeys: [] } },
+      ]),
+    );
+    expect(store.signablePeople()).toHaveLength(2);
+  });
+
+  it("leaves out a person the register does not remember", () => {
+    addUser({ id: "u1", remembered: false });
+
+    expect(store.signablePeople()).toEqual([]);
+  });
+
+  it("gives a person whose role was removed no access at all", () => {
+    addRole("gone", { isAdministrator: true, removed: true });
+    addUser({ id: "u1", roleId: "gone" });
+
+    expect(store.signablePeople()[0]?.access).toEqual({
+      isAdministrator: false,
+      permissionKeys: [],
+    });
+  });
+
+  it.each([
+    ["without a PIN", { verifier: null }],
+    ["deactivated", { active: false }],
+    ["removed", { removed: true }],
+    ["without a salt", { salt: null }],
+  ])("leaves out a person who is %s", (_case, seed) => {
+    addUser({ id: "u1", ...seed });
+
+    expect(store.signablePeople()).toEqual([]);
   });
 });
 
