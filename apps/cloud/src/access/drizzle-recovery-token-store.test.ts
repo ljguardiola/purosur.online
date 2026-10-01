@@ -51,6 +51,8 @@ async function insertOtherUser(): Promise<string> {
 
 const store = () => new DrizzleRecoveryTokenStore(db);
 
+const findAccount = (email: string) => store().transaction((tx) => tx.findAccountByEmail(email));
+
 function newToken(tokenHash: string, requestId: string, requestedAt = REQUESTED_AT) {
   return {
     userId,
@@ -67,7 +69,7 @@ const REQUEST_B = "6f1b1c7e-0000-4000-8000-00000000000b";
 
 describe("finding an account by email", () => {
   it("answers the account's id and whether it is active", async () => {
-    expect(await store().findAccountByEmail("ada@example.com")).toEqual({
+    expect(await findAccount("ada@example.com")).toEqual({
       id: userId,
       active: true,
     });
@@ -76,14 +78,14 @@ describe("finding an account by email", () => {
   it("answers an inactive account as inactive", async () => {
     await db.update(users).set({ active: false }).where(eq(users.id, userId));
 
-    expect(await store().findAccountByEmail("ada@example.com")).toEqual({
+    expect(await findAccount("ada@example.com")).toEqual({
       id: userId,
       active: false,
     });
   });
 
   it("answers nothing for an email nobody holds", async () => {
-    expect(await store().findAccountByEmail("nobody@example.com")).toBeUndefined();
+    expect(await findAccount("nobody@example.com")).toBeUndefined();
   });
 });
 
@@ -91,7 +93,9 @@ describe("recording a rejected request", () => {
   it.each(["account_inactive", "superseded"] as const)(
     "audits the %s request at the moment it was made",
     async (reason) => {
-      await store().recordRejectedRequest({ userId, reason, requestedAt: REQUESTED_AT });
+      await store().transaction((tx) =>
+        tx.recordRejectedRequest({ userId, reason, requestedAt: REQUESTED_AT }),
+      );
 
       expect(await db.select().from(auditLog)).toEqual([
         expect.objectContaining({
@@ -105,14 +109,6 @@ describe("recording a rejected request", () => {
       ]);
     },
   );
-
-  it("audits it inside a transaction too", async () => {
-    await store().transaction((tx) =>
-      tx.recordRejectedRequest({ userId, reason: "superseded", requestedAt: REQUESTED_AT }),
-    );
-
-    expect(await db.select().from(auditLog)).toHaveLength(1);
-  });
 });
 
 describe("issuing a token", () => {
@@ -179,48 +175,31 @@ describe("voiding outstanding tokens", () => {
   });
 });
 
-describe("asking whether a newer request exists", () => {
-  async function liveTokenRequestedAt(requestedAt: Date) {
-    await db.insert(recoveryTokens).values(newToken("hash-a", REQUEST_A, requestedAt));
-  }
-
-  it("is true for a token of the account requested later by another request", async () => {
-    await liveTokenRequestedAt(new Date(REQUESTED_AT.getTime() + 1000));
-
-    expect(
-      await store().transaction((tx) =>
-        tx.hasNewerRequest(userId, { requestId: REQUEST_B, requestedAt: REQUESTED_AT }),
-      ),
-    ).toBe(true);
-  });
-
-  it("is true for a token requested at the same moment by another request", async () => {
-    await liveTokenRequestedAt(REQUESTED_AT);
-
-    expect(
-      await store().transaction((tx) =>
-        tx.hasNewerRequest(userId, { requestId: REQUEST_B, requestedAt: REQUESTED_AT }),
-      ),
-    ).toBe(true);
-  });
-
-  it("is false for an older token, for the request's own token and for another account's token", async () => {
-    await db.insert(recoveryTokens).values({
-      ...newToken("older", REQUEST_A, new Date(REQUESTED_AT.getTime() - 1000)),
-      voidedAt: ISSUED_AT,
-    });
-    await db.insert(recoveryTokens).values(newToken("own", REQUEST_B));
+describe("listing the account's recovery requests", () => {
+  it("answers the request id and moment of every token of the account, whatever its state", async () => {
     const otherId = await insertOtherUser();
-    await db.insert(recoveryTokens).values({
-      ...newToken("other", "6f1b1c7e-0000-4000-8000-00000000000c", ISSUED_AT),
-      userId: otherId,
-    });
+    await db.insert(recoveryTokens).values([
+      newToken("hash-a", REQUEST_A, REQUESTED_AT),
+      { ...newToken("hash-b", REQUEST_B, ISSUED_AT), voidedAt: ISSUED_AT },
+      {
+        ...newToken("hash-c", "6f1b1c7e-0000-4000-8000-00000000000c"),
+        userId: otherId,
+      },
+    ]);
 
-    expect(
-      await store().transaction((tx) =>
-        tx.hasNewerRequest(userId, { requestId: REQUEST_B, requestedAt: REQUESTED_AT }),
-      ),
-    ).toBe(false);
+    const requests = await store().transaction((tx) => tx.listRecoveryRequests(userId));
+
+    expect(requests).toHaveLength(2);
+    expect(requests).toEqual(
+      expect.arrayContaining([
+        { requestId: REQUEST_A, requestedAt: REQUESTED_AT },
+        { requestId: REQUEST_B, requestedAt: ISSUED_AT },
+      ]),
+    );
+  });
+
+  it("answers nothing for an account without tokens", async () => {
+    expect(await store().transaction((tx) => tx.listRecoveryRequests(userId))).toEqual([]);
   });
 });
 

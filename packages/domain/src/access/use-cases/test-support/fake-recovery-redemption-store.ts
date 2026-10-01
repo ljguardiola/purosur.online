@@ -40,7 +40,7 @@ export interface FakeRecoveryRedemptionState {
 type WriteOperation =
   | "recordRegistrationChallenge"
   | "recordRejectedRedemption"
-  | "burnToken"
+  | "markTokenUsed"
   | "registerPasskey"
   | "recordTokenRedeemed"
   | "recordPasskeyRegistered"
@@ -58,22 +58,18 @@ class FakeRecoveryRedemptionStoreTransaction implements RecoveryRedemptionStoreT
     return this.store.current;
   }
 
-  async burnToken(tokenId: string, at: Date): Promise<boolean> {
-    this.store.beforeWrite("burnToken");
-    if (this.store.burnRaceLost) {
-      return false;
-    }
+  async lockToken(tokenId: string): Promise<RecoveryTokenRecord | undefined> {
+    this.store.operationOrder.push("lockToken");
     const token = this.state.tokens.find((candidate) => candidate.id === tokenId);
-    if (
-      !token ||
-      token.usedAt !== null ||
-      token.voidedAt !== null ||
-      token.expiresAt.getTime() <= at.getTime()
-    ) {
-      return false;
+    return token && this.store.toRecord(token);
+  }
+
+  async markTokenUsed(tokenId: string, at: Date): Promise<void> {
+    this.store.beforeWrite("markTokenUsed");
+    const token = this.state.tokens.find((candidate) => candidate.id === tokenId);
+    if (token) {
+      token.usedAt = at;
     }
-    token.usedAt = at;
-    return true;
   }
 
   async registerPasskey(passkey: RecoveredPasskey): Promise<RegisteredPasskey> {
@@ -129,7 +125,7 @@ export class FakeRecoveryRedemptionStore implements RecoveryRedemptionStore {
   };
 
   failingWrites = new Set<WriteOperation>();
-  burnRaceLost = false;
+  transactionCount = 0;
   operationOrder: string[] = [];
 
   get current(): FakeRecoveryRedemptionState {
@@ -158,9 +154,10 @@ export class FakeRecoveryRedemptionStore implements RecoveryRedemptionStore {
 
   async findTokenByHash(tokenHash: string): Promise<RecoveryTokenRecord | undefined> {
     const token = this.state.tokens.find((candidate) => candidate.tokenHash === tokenHash);
-    if (!token) {
-      return undefined;
-    }
+    return token && this.toRecord(token);
+  }
+
+  toRecord(token: FakeRecoveryToken): RecoveryTokenRecord {
     return {
       id: token.id,
       userId: token.userId,
@@ -204,6 +201,7 @@ export class FakeRecoveryRedemptionStore implements RecoveryRedemptionStore {
   async transaction<TOutcome>(
     work: (tx: RecoveryRedemptionStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
+    this.transactionCount += 1;
     const before = structuredClone(this.state);
     try {
       return await work(new FakeRecoveryRedemptionStoreTransaction(this));

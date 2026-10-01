@@ -2,13 +2,13 @@ import type {
   IssuedRecoveryToken,
   NewRecoveryToken,
   RecoveryAccount,
+  RecoveryRequest,
   RecoveryRequestedAlert,
-  RecoveryRequestKey,
   RecoveryTokenStore,
   RecoveryTokenStoreTransaction,
   RejectedRecoveryRequest,
 } from "@purosur/domain/access/use-cases";
-import { and, eq, gte, ne, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
 import { auditLog, recoveryTokens, users } from "../platform/db/schema.js";
@@ -17,20 +17,6 @@ import { voidOutstandingRecoveryTokens } from "./void-outstanding-recovery-token
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
 >[0];
-
-async function auditRejectedRequest<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  rejection: RejectedRecoveryRequest,
-): Promise<void> {
-  await db.insert(auditLog).values({
-    entity: "user",
-    entityId: rejection.userId,
-    actorId: rejection.userId,
-    previousValue: null,
-    newValue: { attempt: "request", rejectedWith: rejection.reason },
-    at: rejection.requestedAt,
-  });
-}
 
 class DrizzleRecoveryTokenStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements RecoveryTokenStoreTransaction
@@ -41,29 +27,37 @@ class DrizzleRecoveryTokenStoreTransaction<TQueryResult extends PgQueryResultHKT
     this.tx = tx;
   }
 
+  async findAccountByEmail(email: string): Promise<RecoveryAccount | undefined> {
+    const [account] = await this.tx
+      .select({ id: users.id, active: users.active })
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+    return account;
+  }
+
   async lockRecoveryTokens(userId: string): Promise<void> {
     await this.tx.execute(
       sql`select pg_advisory_xact_lock(hashtextextended(${`recovery_token:${userId}`}, 0))`,
     );
   }
 
-  async hasNewerRequest(userId: string, request: RecoveryRequestKey): Promise<boolean> {
-    const [newer] = await this.tx
-      .select({ id: recoveryTokens.id })
+  listRecoveryRequests(userId: string): Promise<RecoveryRequest[]> {
+    return this.tx
+      .select({ requestId: recoveryTokens.requestId, requestedAt: recoveryTokens.requestedAt })
       .from(recoveryTokens)
-      .where(
-        and(
-          eq(recoveryTokens.userId, userId),
-          gte(recoveryTokens.requestedAt, request.requestedAt),
-          ne(recoveryTokens.requestId, request.requestId),
-        ),
-      )
-      .limit(1);
-    return newer !== undefined;
+      .where(eq(recoveryTokens.userId, userId));
   }
 
-  recordRejectedRequest(rejection: RejectedRecoveryRequest): Promise<void> {
-    return auditRejectedRequest(this.tx, rejection);
+  async recordRejectedRequest(rejection: RejectedRecoveryRequest): Promise<void> {
+    await this.tx.insert(auditLog).values({
+      entity: "user",
+      entityId: rejection.userId,
+      actorId: rejection.userId,
+      previousValue: null,
+      newValue: { attempt: "request", rejectedWith: rejection.reason },
+      at: rejection.requestedAt,
+    });
   }
 
   voidOutstandingRecoveryTokens(userId: string, at: Date): Promise<void> {
@@ -124,19 +118,6 @@ export class DrizzleRecoveryTokenStore<TQueryResult extends PgQueryResultHKT>
 
   constructor(db: PgDatabase<TQueryResult>) {
     this.db = db;
-  }
-
-  async findAccountByEmail(email: string): Promise<RecoveryAccount | undefined> {
-    const [account] = await this.db
-      .select({ id: users.id, active: users.active })
-      .from(users)
-      .where(eq(users.email, email))
-      .limit(1);
-    return account;
-  }
-
-  recordRejectedRequest(rejection: RejectedRecoveryRequest): Promise<void> {
-    return auditRejectedRequest(this.db, rejection);
   }
 
   transaction<TOutcome>(

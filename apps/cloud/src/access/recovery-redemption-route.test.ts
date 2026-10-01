@@ -421,6 +421,48 @@ describe("POST /account-recovery-redemptions", () => {
     });
   });
 
+  it("dates the alert with a clock read taken when it is opened, after the token was burned", async () => {
+    let ticks = 0;
+    const ticking = () => new Date(NOON.getTime() + ticks++ * 1000);
+    const tickingApp = Fastify();
+    registerRecoveryRedemptionRoutes(tickingApp, {
+      db,
+      backofficeOrigin: BACKOFFICE_ORIGIN,
+      now: ticking,
+    });
+    const rawToken = await issueToken();
+    const optionsResponse = await tickingApp.inject({
+      method: "POST",
+      url: "/account-recovery-challenges",
+      headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.10" },
+      payload: { recovery_token: rawToken },
+    });
+    const credential = new WebAuthnEmulator().createJSON(
+      BACKOFFICE_ORIGIN,
+      optionsResponse.json().passkey_registration_options,
+    );
+
+    const response = await tickingApp.inject({
+      method: "POST",
+      url: "/account-recovery-redemptions",
+      headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.10" },
+      payload: {
+        recovery_token: rawToken,
+        passkey_registration: credential,
+        passkey_name: "Notebook del local",
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const [token] = await db.select({ usedAt: recoveryTokens.usedAt }).from(recoveryTokens);
+    const [alert] = await db
+      .select({ openedAt: alerts.openedAt })
+      .from(alerts)
+      .where(eq(alerts.kind, "backoffice_passkey_changed"));
+    expect(alert?.openedAt.getTime()).toBeGreaterThan(token?.usedAt?.getTime() ?? Number.NaN);
+    await tickingApp.close();
+  });
+
   it("revokes every open session of the account, and opens no new one", async () => {
     await db.insert(sessions).values([
       {

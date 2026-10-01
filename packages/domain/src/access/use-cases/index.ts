@@ -1,4 +1,10 @@
 export type {
+  AccountProfile,
+  Accounts,
+  SignInPasskey,
+  StoredSignInPasskey,
+} from "./accounts.js";
+export type {
   BranchUser,
   BranchUserActiveScope,
   BranchUserFacts,
@@ -47,6 +53,11 @@ export type {
   EndExpiredSessionPorts,
 } from "./end-expired-session.js";
 export { endExpiredSession } from "./end-expired-session.js";
+export type {
+  FindAccountProfileInput,
+  FindAccountProfilePorts,
+} from "./find-account-profile.js";
+export { findAccountProfile } from "./find-account-profile.js";
 export type { FindBranchUserInput } from "./find-branch-user.js";
 export { findBranchUser } from "./find-branch-user.js";
 export type {
@@ -68,6 +79,17 @@ export type {
   FindRedeemableRecoveryPorts,
 } from "./find-redeemable-recovery.js";
 export { findRedeemableRecovery } from "./find-redeemable-recovery.js";
+export type {
+  FindSignInPasskeyInput,
+  FindSignInPasskeyOutcome,
+  FindSignInPasskeyPorts,
+} from "./find-sign-in-passkey.js";
+export { findSignInPasskey } from "./find-sign-in-passkey.js";
+export type {
+  FindUncoveredRegisterPermissionsInput,
+  FindUncoveredRegisterPermissionsPorts,
+} from "./find-uncovered-register-permissions.js";
+export { findUncoveredRegisterPermissions } from "./find-uncovered-register-permissions.js";
 export type {
   FirstPinCodeEmission,
   FirstPinCodeEmissionPorts,
@@ -150,8 +172,8 @@ export type {
   IssuedRecoveryToken,
   NewRecoveryToken,
   RecoveryAccount,
+  RecoveryRequest,
   RecoveryRequestedAlert,
-  RecoveryRequestKey,
   RecoveryTokenStore,
   RecoveryTokenStoreTransaction,
   RejectedRecoveryRequest,

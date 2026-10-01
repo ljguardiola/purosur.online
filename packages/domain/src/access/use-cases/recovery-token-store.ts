@@ -1,12 +1,11 @@
+import type { RecoveryRequest } from "../model/recovery-token.js";
+
 export interface RecoveryAccount {
   id: string;
   active: boolean;
 }
 
-export interface RecoveryRequestKey {
-  requestId: string;
-  requestedAt: Date;
-}
+export type { RecoveryRequest } from "../model/recovery-token.js";
 
 export interface RejectedRecoveryRequest {
   userId: string;
@@ -37,18 +36,16 @@ export interface RecoveryRequestedAlert {
 }
 
 export interface RecoveryTokenStore {
-  findAccountByEmail(email: string): Promise<RecoveryAccount | undefined>;
-  recordRejectedRequest(rejection: RejectedRecoveryRequest): Promise<void>;
   transaction<TOutcome>(
     work: (tx: RecoveryTokenStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome>;
 }
 
 export interface RecoveryTokenStoreTransaction {
+  findAccountByEmail(email: string): Promise<RecoveryAccount | undefined>;
   // Serializes the issuing of tokens for one account: whoever holds it decides alone.
   lockRecoveryTokens(userId: string): Promise<void>;
-  // A token of the account requested at the same moment or later by another request.
-  hasNewerRequest(userId: string, request: RecoveryRequestKey): Promise<boolean>;
+  listRecoveryRequests(userId: string): Promise<RecoveryRequest[]>;
   recordRejectedRequest(rejection: RejectedRecoveryRequest): Promise<void>;
   voidOutstandingRecoveryTokens(userId: string, at: Date): Promise<void>;
   issueToken(token: NewRecoveryToken): Promise<IssuedRecoveryToken>;

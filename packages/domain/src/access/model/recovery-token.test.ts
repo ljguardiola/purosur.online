@@ -3,6 +3,7 @@ import {
   RECOVERY_TOKEN_LIFETIME_MS,
   recoveryTokenExpiresAt,
   recoveryTokenStatus,
+  supersedesRecoveryRequest,
 } from "./recovery-token.js";
 
 const ISSUED_AT = new Date("2026-10-01T12:00:00.000Z");
@@ -53,5 +54,33 @@ describe("recoveryTokenStatus", () => {
     expect(recoveryTokenStatus({ ...UNTOUCHED, voidedAt: USED_AT }, after(EXPIRES_AT, 1))).toBe(
       "burned",
     );
+  });
+});
+
+describe("supersedesRecoveryRequest", () => {
+  const REQUEST = { requestId: "request-a", requestedAt: ISSUED_AT };
+
+  it("is true for another request made later", () => {
+    const other = { requestId: "request-b", requestedAt: after(ISSUED_AT, 1) };
+
+    expect(supersedesRecoveryRequest(other, REQUEST)).toBe(true);
+  });
+
+  it("is true for another request made at the same moment", () => {
+    const other = { requestId: "request-b", requestedAt: ISSUED_AT };
+
+    expect(supersedesRecoveryRequest(other, REQUEST)).toBe(true);
+  });
+
+  it("is false for another request made earlier", () => {
+    const other = { requestId: "request-b", requestedAt: after(ISSUED_AT, -1) };
+
+    expect(supersedesRecoveryRequest(other, REQUEST)).toBe(false);
+  });
+
+  it("is false for the request itself", () => {
+    expect(
+      supersedesRecoveryRequest({ ...REQUEST, requestedAt: after(ISSUED_AT, 1) }, REQUEST),
+    ).toBe(false);
   });
 });

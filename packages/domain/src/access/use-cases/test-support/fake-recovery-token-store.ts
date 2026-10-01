@@ -2,8 +2,8 @@ import type {
   IssuedRecoveryToken,
   NewRecoveryToken,
   RecoveryAccount,
+  RecoveryRequest,
   RecoveryRequestedAlert,
-  RecoveryRequestKey,
   RecoveryTokenStore,
   RecoveryTokenStoreTransaction,
   RejectedRecoveryRequest,
@@ -45,22 +45,26 @@ class FakeRecoveryTokenStoreTransaction implements RecoveryTokenStoreTransaction
     return this.store.current;
   }
 
+  async findAccountByEmail(email: string): Promise<RecoveryAccount | undefined> {
+    this.store.operationOrder.push("findAccountByEmail");
+    const account = this.state.accounts.find((candidate) => candidate.email === email);
+    return account && { id: account.id, active: account.active };
+  }
+
   async lockRecoveryTokens(userId: string): Promise<void> {
     this.store.operationOrder.push(`lockRecoveryTokens:${userId}`);
   }
 
-  async hasNewerRequest(userId: string, request: RecoveryRequestKey): Promise<boolean> {
-    this.store.operationOrder.push("hasNewerRequest");
-    return this.state.tokens.some(
-      (token) =>
-        token.userId === userId &&
-        token.requestedAt.getTime() >= request.requestedAt.getTime() &&
-        token.requestId !== request.requestId,
-    );
+  async listRecoveryRequests(userId: string): Promise<RecoveryRequest[]> {
+    this.store.operationOrder.push("listRecoveryRequests");
+    return this.state.tokens
+      .filter((token) => token.userId === userId)
+      .map(({ requestId, requestedAt }) => ({ requestId, requestedAt: new Date(requestedAt) }));
   }
 
   async recordRejectedRequest(rejection: RejectedRecoveryRequest): Promise<void> {
-    await this.store.recordRejectedRequest(rejection);
+    this.beforeWrite("recordRejectedRequest");
+    this.state.rejectedRequests.push(structuredClone(rejection));
   }
 
   async voidOutstandingRecoveryTokens(userId: string, at: Date): Promise<void> {
@@ -109,6 +113,7 @@ export class FakeRecoveryTokenStore implements RecoveryTokenStore {
 
   failingWrites = new Set<WriteOperation>();
   operationOrder: string[] = [];
+  transactionCount = 0;
 
   get current(): FakeRecoveryTokenStoreState {
     return this.state;
@@ -126,17 +131,6 @@ export class FakeRecoveryTokenStore implements RecoveryTokenStore {
     return structuredClone(this.state);
   }
 
-  async findAccountByEmail(email: string): Promise<RecoveryAccount | undefined> {
-    this.operationOrder.push("findAccountByEmail");
-    const account = this.state.accounts.find((candidate) => candidate.email === email);
-    return account && { id: account.id, active: account.active };
-  }
-
-  async recordRejectedRequest(rejection: RejectedRecoveryRequest): Promise<void> {
-    this.beforeWrite("recordRejectedRequest");
-    this.state.rejectedRequests.push(structuredClone(rejection));
-  }
-
   beforeWrite(operation: WriteOperation): void {
     this.operationOrder.push(operation);
     if (this.failingWrites.has(operation)) {
@@ -147,6 +141,7 @@ export class FakeRecoveryTokenStore implements RecoveryTokenStore {
   async transaction<TOutcome>(
     work: (tx: RecoveryTokenStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
+    this.transactionCount += 1;
     const before = structuredClone(this.state);
     try {
       return await work(new FakeRecoveryTokenStoreTransaction(this));

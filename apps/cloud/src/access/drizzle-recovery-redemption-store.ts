@@ -10,7 +10,7 @@ import {
   type RegisteredPasskey,
   type RejectedRedemption,
 } from "@purosur/domain/access/use-cases";
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
 import { auditLog, passkeys, recoveryTokens, users } from "../platform/db/schema.js";
@@ -19,6 +19,15 @@ import { revokeSessions } from "./revoke-sessions.js";
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
 >[0];
+
+const TOKEN_COLUMNS = {
+  id: recoveryTokens.id,
+  userId: recoveryTokens.userId,
+  expiresAt: recoveryTokens.expiresAt,
+  usedAt: recoveryTokens.usedAt,
+  voidedAt: recoveryTokens.voidedAt,
+  registrationChallenge: recoveryTokens.registrationChallenge,
+};
 
 function rejectionCode(rejectedWith: RejectedRedemption["rejectedWith"]): string {
   switch (rejectedWith) {
@@ -41,20 +50,17 @@ class DrizzleRecoveryRedemptionStoreTransaction<TQueryResult extends PgQueryResu
     this.tx = tx;
   }
 
-  async burnToken(tokenId: string, at: Date): Promise<boolean> {
-    const [burned] = await this.tx
-      .update(recoveryTokens)
-      .set({ usedAt: at })
-      .where(
-        and(
-          eq(recoveryTokens.id, tokenId),
-          isNull(recoveryTokens.usedAt),
-          isNull(recoveryTokens.voidedAt),
-          gt(recoveryTokens.expiresAt, at),
-        ),
-      )
-      .returning({ id: recoveryTokens.id });
-    return burned !== undefined;
+  async lockToken(tokenId: string): Promise<RecoveryTokenRecord | undefined> {
+    const [token] = await this.tx
+      .select(TOKEN_COLUMNS)
+      .from(recoveryTokens)
+      .where(eq(recoveryTokens.id, tokenId))
+      .for("update");
+    return token;
+  }
+
+  async markTokenUsed(tokenId: string, at: Date): Promise<void> {
+    await this.tx.update(recoveryTokens).set({ usedAt: at }).where(eq(recoveryTokens.id, tokenId));
   }
 
   async registerPasskey(passkey: RecoveredPasskey): Promise<RegisteredPasskey> {
@@ -132,14 +138,7 @@ export class DrizzleRecoveryRedemptionStore<TQueryResult extends PgQueryResultHK
 
   async findTokenByHash(tokenHash: string): Promise<RecoveryTokenRecord | undefined> {
     const [token] = await this.db
-      .select({
-        id: recoveryTokens.id,
-        userId: recoveryTokens.userId,
-        expiresAt: recoveryTokens.expiresAt,
-        usedAt: recoveryTokens.usedAt,
-        voidedAt: recoveryTokens.voidedAt,
-        registrationChallenge: recoveryTokens.registrationChallenge,
-      })
+      .select(TOKEN_COLUMNS)
       .from(recoveryTokens)
       .where(eq(recoveryTokens.tokenHash, tokenHash))
       .limit(1);

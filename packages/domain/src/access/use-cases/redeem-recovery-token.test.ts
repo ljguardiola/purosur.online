@@ -7,6 +7,7 @@ import {
 
 const REDEEMED_AT = new Date("2026-10-01T12:00:00.000Z");
 const TOKEN_HASH = "hash-1";
+const ALERTED_AT = new Date("2026-10-01T12:00:03.000Z");
 
 function storedToken(overrides: Partial<FakeRecoveryToken> = {}): FakeRecoveryToken {
   return {
@@ -38,12 +39,12 @@ function fixture(token: Partial<FakeRecoveryToken> | null = {}) {
   }
   store.seedAccount({ id: "u-1", firstName: "Ada", email: "ada@example.test", active: true });
   store.seedSession({ id: "s-1", userId: "u-1", revokedAt: null });
+  const clock = { now: () => ALERTED_AT };
   const redeem = (overrides: Partial<Parameters<typeof redeemRecoveryToken>[1]> = {}) =>
     redeemRecoveryToken(
-      { store },
+      { store, clock },
       {
         tokenId: "token-1",
-        tokenHash: TOKEN_HASH,
         userId: "u-1",
         passkey: PASSKEY,
         redeemedAt: REDEEMED_AT,
@@ -85,23 +86,24 @@ describe("redeemRecoveryToken", () => {
     ]);
   });
 
-  it("opens an alert that a passkey was registered through recovery", async () => {
+  it("opens an alert that a passkey was registered through recovery, dated when it is opened", async () => {
     const { store, redeem } = fixture();
 
     await redeem();
 
     expect(store.snapshot().alerts).toEqual([
-      { userId: "u-1", passkeyName: "Laptop", openedAt: REDEEMED_AT },
+      { userId: "u-1", passkeyName: "Laptop", openedAt: ALERTED_AT },
     ]);
   });
 
-  it("burns, registers, records, alerts and revokes the sessions, in that order", async () => {
+  it("locks the token, burns it, registers, records, alerts and revokes the sessions, in that order", async () => {
     const { store, redeem } = fixture();
 
     await redeem();
 
     expect(store.operationOrder).toEqual([
-      "burnToken",
+      "lockToken",
+      "markTokenUsed",
       "registerPasskey",
       "recordTokenRedeemed",
       "recordPasskeyRegistered",
@@ -126,50 +128,35 @@ describe("redeemRecoveryToken", () => {
   });
 
   it.each([
-    ["already used", { usedAt: new Date("2026-10-01T11:00:00.000Z") }, "burned"],
-    ["voided", { voidedAt: new Date("2026-10-01T11:00:00.000Z") }, "burned"],
-    ["past its expiry", { expiresAt: new Date(REDEEMED_AT.getTime() - 1) }, "expired"],
-    ["exactly at its expiry", { expiresAt: REDEEMED_AT }, "expired"],
+    ["already used", { usedAt: new Date("2026-10-01T11:00:00.000Z") }],
+    ["voided", { voidedAt: new Date("2026-10-01T11:00:00.000Z") }],
+    ["past its expiry", { expiresAt: new Date(REDEEMED_AT.getTime() - 1) }],
+    ["exactly at its expiry", { expiresAt: REDEEMED_AT }],
   ] as const)(
-    "rejects a token that is %s without registering anything",
-    async (_name, overrides, reason) => {
+    "finds a token that is %s not redeemable and registers nothing",
+    async (_name, overrides) => {
       const { store, redeem } = fixture(overrides);
       const before = store.snapshot();
 
       const outcome = await redeem();
 
-      expect(outcome).toEqual({ kind: "token_rejected", reason });
-      expect(store.snapshot()).toEqual({
-        ...before,
-        rejectedRedemptions: [
-          { tokenId: "token-1", userId: "u-1", attempt: "redeem", rejectedWith: reason },
-        ],
-      });
+      expect(outcome).toEqual({ kind: "not_redeemable" });
+      expect(store.snapshot()).toEqual(before);
     },
   );
 
-  it("rejects as burned a redemption that lost the race to another one", async () => {
-    const { store, redeem } = fixture();
-    store.burnRaceLost = true;
+  it("finds a token that no longer exists not redeemable", async () => {
+    const { redeem } = fixture(null);
 
-    const outcome = await redeem();
-
-    expect(outcome).toEqual({ kind: "token_rejected", reason: "burned" });
-    expect(store.snapshot().passkeys).toEqual([]);
-    expect(store.snapshot().rejectedRedemptions).toEqual([
-      { tokenId: "token-1", userId: "u-1", attempt: "redeem", rejectedWith: "burned" },
-    ]);
+    expect(await redeem()).toEqual({ kind: "not_redeemable" });
   });
 
-  it("rejects as invalid a token that no longer exists", async () => {
-    const { store, redeem } = fixture(null);
+  it("does all its storage work in one transaction", async () => {
+    const { store, redeem } = fixture();
 
-    const outcome = await redeem();
+    await redeem();
 
-    expect(outcome).toEqual({ kind: "token_rejected", reason: "invalid" });
-    expect(store.snapshot().rejectedRedemptions).toEqual([
-      { tokenId: "token-1", userId: "u-1", attempt: "redeem", rejectedWith: "invalid" },
-    ]);
+    expect(store.transactionCount).toBe(1);
   });
 
   describe("when another passkey already holds the credential", () => {
@@ -194,21 +181,12 @@ describe("redeemRecoveryToken", () => {
 
       await redeem();
 
-      expect(store.snapshot()).toEqual({
-        ...before,
-        rejectedRedemptions: [
-          {
-            tokenId: "token-1",
-            userId: "u-1",
-            attempt: "redeem",
-            rejectedWith: "passkey_already_registered",
-          },
-        ],
-      });
+      expect(store.snapshot()).toEqual(before);
     });
   });
 
   it.each([
+    "markTokenUsed",
     "registerPasskey",
     "recordTokenRedeemed",
     "recordPasskeyRegistered",
@@ -222,14 +200,5 @@ describe("redeemRecoveryToken", () => {
     await expect(redeem()).rejects.toThrow(`${operation} failed`);
 
     expect(store.snapshot()).toEqual(before);
-  });
-
-  it("does not record a rejection when the burn itself fails", async () => {
-    const { store, redeem } = fixture();
-    store.failingWrites.add("burnToken");
-
-    await expect(redeem()).rejects.toThrow("burnToken failed");
-
-    expect(store.snapshot().rejectedRedemptions).toEqual([]);
   });
 });

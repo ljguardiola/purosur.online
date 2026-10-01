@@ -1,11 +1,13 @@
 import { sessionAuthenticationBodySchema } from "@purosur/contracts";
+import { findSignInPasskey } from "@purosur/domain/access/use-cases";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
 import { verifyAuthenticationResponse } from "@simplewebauthn/server";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply } from "fastify";
-import { auditLog, passkeys, sessions, users } from "../platform/db/schema.js";
+import { auditLog, passkeys, sessions } from "../platform/db/schema.js";
 import { requireBackofficeOrigin } from "./backoffice-origin.js";
+import { drizzleAccounts } from "./drizzle-accounts.js";
 import { reportRecoveryBookkeepingError } from "./recovery-error-reporting.js";
 import { resolveSourceAddress } from "./recovery-source-address.js";
 import { PUBLIC_ACCESS, registerRouteAccess } from "./route-access.js";
@@ -177,21 +179,11 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
       now: attemptedAt,
     });
 
-    const [passkey] = await options.db
-      .select({
-        id: passkeys.id,
-        userId: passkeys.userId,
-        credentialId: passkeys.credentialId,
-        publicKey: passkeys.publicKey,
-        counter: passkeys.counter,
-        transports: passkeys.transports,
-        active: users.active,
-      })
-      .from(passkeys)
-      .innerJoin(users, eq(users.id, passkeys.userId))
-      .where(eq(passkeys.credentialId, assertion.id))
-      .limit(1);
-    if (!passkey) {
+    const found = await findSignInPasskey(
+      { accounts: drizzleAccounts(options.db) },
+      { credentialId: assertion.id },
+    );
+    if (found.kind === "unknown") {
       await rejectSignInAttempt(
         sourceAddress,
         attemptedAt,
@@ -201,10 +193,11 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
       );
       return;
     }
-    if (!passkey.active) {
+    if (found.kind === "inactive") {
       await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
       return;
     }
+    const { passkey } = found;
 
     const verification = await verifyAuthenticationResponse({
       response: assertion,

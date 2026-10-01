@@ -70,8 +70,9 @@ export interface RecoveryRedemptionStore {
 }
 
 export interface RecoveryRedemptionStoreTransaction {
-  // Burns the token only while it is still redeemable at `at`: unused, not voided, not expired.
-  burnToken(tokenId: string, at: Date): Promise<boolean>;
+  // Holds the token row until the transaction ends, so a concurrent redemption waits for it.
+  lockToken(tokenId: string): Promise<RecoveryTokenRecord | undefined>;
+  markTokenUsed(tokenId: string, at: Date): Promise<void>;
   // Raises `PasskeyAlreadyRegistered` when another passkey holds the credential.
   registerPasskey(passkey: RecoveredPasskey): Promise<RegisteredPasskey>;
   recordTokenRedeemed(tokenId: string, userId: string, at: Date): Promise<void>;

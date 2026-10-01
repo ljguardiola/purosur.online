@@ -7,6 +7,7 @@ import type {
 
 export interface FakeBranchUser extends BranchUserFacts {
   locationId: string;
+  permissionKeys?: string[];
 }
 
 function inScope(user: BranchUserFacts, scope: BranchUserActiveScope): boolean {
@@ -56,6 +57,12 @@ export class FakeBranchUsers implements BranchUsers {
     ).length;
   }
 
+  async activeUserPermissionKeys(locationId: string): Promise<string[]> {
+    return this.users
+      .filter((user) => user.locationId === locationId && user.active)
+      .flatMap((user) => user.permissionKeys ?? []);
+  }
+
   async emailHolder(email: string): Promise<EmailHolder | undefined> {
     const found = this.users.find((user) => user.email === email);
     return (
@@ -69,6 +76,10 @@ export class FakeBranchUsers implements BranchUsers {
   }
 }
 
-function factsOf({ locationId: _locationId, ...facts }: FakeBranchUser): BranchUserFacts {
+function factsOf({
+  locationId: _locationId,
+  permissionKeys: _permissionKeys,
+  ...facts
+}: FakeBranchUser): BranchUserFacts {
   return facts;
 }

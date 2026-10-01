@@ -192,6 +192,31 @@ describe("issueRecoveryToken", () => {
     expect(await issue()).toEqual({ kind: "issued" });
   });
 
+  it("does all its storage work in one transaction when the email is unknown", async () => {
+    const { store, issue } = fixture();
+
+    await issue({ email: "nobody@example.test" });
+
+    expect(store.transactionCount).toBe(1);
+  });
+
+  it("does all its storage work in one transaction when the account is inactive", async () => {
+    const { store, issue } = fixture({ active: false });
+
+    await issue();
+
+    expect(store.transactionCount).toBe(1);
+  });
+
+  it("does all its storage work in one transaction when the request is superseded", async () => {
+    const { store, issue } = fixture();
+    store.seedToken(storedToken({ id: "newer", requestedAt: NOW }));
+
+    await issue();
+
+    expect(store.transactionCount).toBe(1);
+  });
+
   it("takes the account's recovery token lock before checking for a newer request and voiding", async () => {
     const { store, issue } = fixture();
 
@@ -200,7 +225,7 @@ describe("issueRecoveryToken", () => {
     expect(store.operationOrder).toEqual([
       "findAccountByEmail",
       "lockRecoveryTokens:u-1",
-      "hasNewerRequest",
+      "listRecoveryRequests",
       "voidOutstandingRecoveryTokens",
       "issueToken",
       "recordIssuedToken",
@@ -217,7 +242,7 @@ describe("issueRecoveryToken", () => {
     expect(store.operationOrder).toEqual([
       "findAccountByEmail",
       "lockRecoveryTokens:u-1",
-      "hasNewerRequest",
+      "listRecoveryRequests",
       "recordRejectedRequest",
     ]);
   });

@@ -21,3 +21,18 @@ export function recoveryTokenStatus(token: RecoveryTokenState, at: Date): Recove
   }
   return "valid";
 }
+
+export interface RecoveryRequest {
+  requestId: string;
+  requestedAt: Date;
+}
+
+export function supersedesRecoveryRequest(
+  other: RecoveryRequest,
+  request: RecoveryRequest,
+): boolean {
+  return (
+    other.requestId !== request.requestId &&
+    other.requestedAt.getTime() >= request.requestedAt.getTime()
+  );
+}

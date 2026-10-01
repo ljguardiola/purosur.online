@@ -195,48 +195,34 @@ describe("recording a rejected redemption", () => {
   });
 });
 
-describe("burning a token", () => {
-  async function burn(at: Date): Promise<boolean> {
-    return store().transaction((tx) => tx.burnToken(tokenId, at));
-  }
+describe("locking a token", () => {
+  it("answers the token as it is stored", async () => {
+    const usedAt = new Date("2026-10-01T12:05:00.000Z");
+    await db.update(recoveryTokens).set({ usedAt, registrationChallenge: "challenge-1" });
 
-  async function usedAt() {
-    const [row] = await db.select({ usedAt: recoveryTokens.usedAt }).from(recoveryTokens);
-    return row?.usedAt;
-  }
-
-  it("burns a live token at the given time", async () => {
-    expect(await burn(BEFORE_EXPIRY)).toBe(true);
-    expect(await usedAt()).toEqual(BEFORE_EXPIRY);
+    expect(await store().transaction((tx) => tx.lockToken(tokenId))).toEqual({
+      id: tokenId,
+      userId,
+      expiresAt: EXPIRES_AT,
+      usedAt,
+      voidedAt: null,
+      registrationChallenge: "challenge-1",
+    });
   });
 
-  it("does not burn a token already used", async () => {
-    await db.update(recoveryTokens).set({ usedAt: ISSUED_AT });
-
-    expect(await burn(BEFORE_EXPIRY)).toBe(false);
-    expect(await usedAt()).toEqual(ISSUED_AT);
-  });
-
-  it("does not burn a voided token", async () => {
-    await db.update(recoveryTokens).set({ voidedAt: ISSUED_AT });
-
-    expect(await burn(BEFORE_EXPIRY)).toBe(false);
-    expect(await usedAt()).toBeNull();
-  });
-
-  it("does not burn a token exactly at its expiry", async () => {
-    expect(await burn(EXPIRES_AT)).toBe(false);
-    expect(await usedAt()).toBeNull();
-  });
-
-  it("does not burn a token past its expiry", async () => {
-    expect(await burn(new Date(EXPIRES_AT.getTime() + 1))).toBe(false);
-  });
-
-  it("does not burn an unknown token", async () => {
+  it("answers nothing for an unknown token", async () => {
     const unknown = "6f1b1c7e-0000-4000-8000-0000000000ff";
 
-    expect(await store().transaction((tx) => tx.burnToken(unknown, BEFORE_EXPIRY))).toBe(false);
+    expect(await store().transaction((tx) => tx.lockToken(unknown))).toBeUndefined();
+  });
+});
+
+describe("marking a token used", () => {
+  it("stores the time it was used", async () => {
+    await store().transaction((tx) => tx.markTokenUsed(tokenId, BEFORE_EXPIRY));
+
+    const [row] = await db.select({ usedAt: recoveryTokens.usedAt }).from(recoveryTokens);
+    expect(row?.usedAt).toEqual(BEFORE_EXPIRY);
   });
 });
 
@@ -272,10 +258,10 @@ describe("registering a passkey", () => {
 
     const outcome = await store().transaction(async (tx) => {
       await tx.registerPasskey(recoveredPasskey()).catch(() => undefined);
-      return tx.burnToken(tokenId, BEFORE_EXPIRY);
+      return tx.lockToken(tokenId);
     });
 
-    expect(outcome).toBe(true);
+    expect(outcome?.id).toBe(tokenId);
   });
 });
 
@@ -362,7 +348,7 @@ describe("the transaction", () => {
   it("rolls the burn back when a later write throws", async () => {
     await expect(
       store().transaction(async (tx) => {
-        await tx.burnToken(tokenId, BEFORE_EXPIRY);
+        await tx.markTokenUsed(tokenId, BEFORE_EXPIRY);
         throw new Error("boom");
       }),
     ).rejects.toThrow("boom");

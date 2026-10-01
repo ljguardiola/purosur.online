@@ -1,4 +1,4 @@
-import { recoveryTokenExpiresAt } from "../model/recovery-token.js";
+import { recoveryTokenExpiresAt, supersedesRecoveryRequest } from "../model/recovery-token.js";
 import type { RecoveryTokenStore } from "./recovery-token-store.js";
 
 export interface IssueRecoveryTokenPorts {
@@ -23,27 +23,23 @@ export async function issueRecoveryToken(
   { store }: IssueRecoveryTokenPorts,
   input: IssueRecoveryTokenInput,
 ): Promise<IssueRecoveryTokenOutcome> {
-  const account = await store.findAccountByEmail(input.email);
-  if (!account) {
-    return { kind: "no_account" };
-  }
-  if (!account.active) {
-    await store.recordRejectedRequest({
-      userId: account.id,
-      reason: "account_inactive",
-      requestedAt: input.requestedAt,
-    });
-    return { kind: "account_inactive" };
-  }
-
   return store.transaction<IssueRecoveryTokenOutcome>(async (tx) => {
-    await tx.lockRecoveryTokens(account.id);
-    if (
-      await tx.hasNewerRequest(account.id, {
-        requestId: input.requestId,
+    const account = await tx.findAccountByEmail(input.email);
+    if (!account) {
+      return { kind: "no_account" };
+    }
+    if (!account.active) {
+      await tx.recordRejectedRequest({
+        userId: account.id,
+        reason: "account_inactive",
         requestedAt: input.requestedAt,
-      })
-    ) {
+      });
+      return { kind: "account_inactive" };
+    }
+
+    await tx.lockRecoveryTokens(account.id);
+    const requests = await tx.listRecoveryRequests(account.id);
+    if (requests.some((other) => supersedesRecoveryRequest(other, input))) {
       await tx.recordRejectedRequest({
         userId: account.id,
         reason: "superseded",

@@ -1,4 +1,5 @@
 import { recoveryTokenStatus } from "../model/recovery-token.js";
+import type { Clock } from "./pin-code-store.js";
 import {
   PasskeyAlreadyRegistered,
   type RecoveredPasskey,
@@ -7,11 +8,11 @@ import {
 
 export interface RedeemRecoveryTokenPorts {
   store: RecoveryRedemptionStore;
+  clock: Clock;
 }
 
 export interface RedeemRecoveryTokenInput {
   tokenId: string;
-  tokenHash: string;
   userId: string;
   passkey: Omit<RecoveredPasskey, "userId">;
   redeemedAt: Date;
@@ -19,21 +20,22 @@ export interface RedeemRecoveryTokenInput {
 
 export type RedeemRecoveryTokenOutcome =
   | { kind: "redeemed"; userId: string }
-  | { kind: "token_rejected"; reason: "invalid" | "burned" | "expired" }
+  | { kind: "not_redeemable" }
   | { kind: "passkey_already_registered" };
 
 export async function redeemRecoveryToken(
-  { store }: RedeemRecoveryTokenPorts,
+  { store, clock }: RedeemRecoveryTokenPorts,
   input: RedeemRecoveryTokenInput,
 ): Promise<RedeemRecoveryTokenOutcome> {
-  const rejection = { tokenId: input.tokenId, userId: input.userId, attempt: "redeem" } as const;
   const passkey: RecoveredPasskey = { ...input.passkey, userId: input.userId };
 
   try {
-    const burned = await store.transaction(async (tx) => {
-      if (!(await tx.burnToken(input.tokenId, input.redeemedAt))) {
-        return false;
+    return await store.transaction<RedeemRecoveryTokenOutcome>(async (tx) => {
+      const token = await tx.lockToken(input.tokenId);
+      if (!token || recoveryTokenStatus(token, input.redeemedAt) !== "valid") {
+        return { kind: "not_redeemable" };
       }
+      await tx.markTokenUsed(input.tokenId, input.redeemedAt);
       // A conflict raised here rolls the burn back, so the link stays usable for a retry.
       const registered = await tx.registerPasskey(passkey);
       await tx.recordTokenRedeemed(input.tokenId, input.userId, input.redeemedAt);
@@ -41,29 +43,15 @@ export async function redeemRecoveryToken(
       await tx.openPasskeyRegisteredAlert({
         userId: input.userId,
         passkeyName: passkey.name,
-        openedAt: input.redeemedAt,
+        openedAt: clock.now(),
       });
       await tx.revokeSessions(input.userId, input.redeemedAt);
-      return true;
-    });
-    if (burned) {
       return { kind: "redeemed", userId: input.userId };
-    }
-  } catch (error) {
-    if (!(error instanceof PasskeyAlreadyRegistered)) {
-      throw error;
-    }
-    await store.recordRejectedRedemption({
-      ...rejection,
-      rejectedWith: "passkey_already_registered",
     });
-    return { kind: "passkey_already_registered" };
+  } catch (error) {
+    if (error instanceof PasskeyAlreadyRegistered) {
+      return { kind: "passkey_already_registered" };
+    }
+    throw error;
   }
-
-  // Lost a race to another redemption; reclassify fresh instead of assuming why it lost.
-  const token = await store.findTokenByHash(input.tokenHash);
-  const status = token ? recoveryTokenStatus(token, input.redeemedAt) : "invalid";
-  const reason = status === "valid" ? "burned" : status;
-  await store.recordRejectedRedemption({ ...rejection, rejectedWith: reason });
-  return { kind: "token_rejected", reason };
 }

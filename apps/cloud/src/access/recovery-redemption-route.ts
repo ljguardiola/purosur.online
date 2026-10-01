@@ -241,23 +241,31 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
       }
       const { registrationInfo } = verification;
 
-      const outcome = await redeemRecoveryToken(ports, {
-        tokenId: token.id,
-        tokenHash,
-        userId: account.id,
-        passkey: {
-          credentialId: registrationInfo.credential.id,
-          publicKey: Buffer.from(registrationInfo.credential.publicKey).toString("base64url"),
-          counter: registrationInfo.credential.counter,
-          transports: registrationInfo.credential.transports ?? null,
-          deviceType: registrationInfo.credentialDeviceType,
-          backedUp: registrationInfo.credentialBackedUp,
-          name: passkeyName,
+      const outcome = await redeemRecoveryToken(
+        { ...ports, clock: { now } },
+        {
+          tokenId: token.id,
+          userId: account.id,
+          passkey: {
+            credentialId: registrationInfo.credential.id,
+            publicKey: Buffer.from(registrationInfo.credential.publicKey).toString("base64url"),
+            counter: registrationInfo.credential.counter,
+            transports: registrationInfo.credential.transports ?? null,
+            deviceType: registrationInfo.credentialDeviceType,
+            backedUp: registrationInfo.credentialBackedUp,
+            name: passkeyName,
+          },
+          redeemedAt,
         },
-        redeemedAt,
-      });
+      );
 
       if (outcome.kind === "passkey_already_registered") {
+        await recordRejectedRedemption(ports, {
+          tokenId: token.id,
+          userId: token.userId,
+          attempt: "redeem",
+          rejectedWith: "passkey_already_registered",
+        });
         await reply.code(400).send({
           code: "passkey_already_registered",
           message: "this passkey is already registered",
@@ -265,8 +273,15 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
         });
         return;
       }
-      if (outcome.kind === "token_rejected") {
-        sendTokenError(reply, outcome.reason);
+      if (outcome.kind === "not_redeemable") {
+        // Lost a race to another redemption; reclassify fresh instead of assuming why it lost.
+        const raced = await findRedeemableRecovery(ports, { tokenHash, now: now() });
+        await rejectToken(
+          reply,
+          "redeem",
+          raced.kind === "rejected" ? raced.reason : "burned",
+          token,
+        );
         return;
       }
 
