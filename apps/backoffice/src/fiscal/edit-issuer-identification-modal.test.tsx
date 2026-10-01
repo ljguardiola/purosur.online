@@ -35,10 +35,10 @@ function grantAuthorization(services: EditIssuerIdentificationModalServices) {
 }
 
 const complete: IssuerIdentification = {
-  legalName: "María Laura Fernández",
-  grossIncomeRegistration: "1284531-06",
+  legalName: "Comercio de Prueba",
+  grossIncomeRegistration: "0000000-00",
   activityStartDate: "2019-03-01",
-  authorizedCuit: "27-28453196-0",
+  authorizedCuit: "20-00000000-1",
   taxStatus: "Responsable Monotributo",
   version: 1,
 };
@@ -47,7 +47,7 @@ const incomplete: IssuerIdentification = {
   legalName: null,
   grossIncomeRegistration: null,
   activityStartDate: null,
-  authorizedCuit: "27-28453196-0",
+  authorizedCuit: "20-00000000-1",
   taxStatus: "Responsable Monotributo",
   version: 1,
 };
@@ -112,7 +112,7 @@ async function typeActivityStartDate(dialog: Locator, typedDate: string) {
 
 async function fillIncompleteForm(dialog: Locator, typedDate: string) {
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Razón social/ }), "Puro Sur SRL");
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Ingresos Brutos/ }), "1284531-06");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Ingresos Brutos/ }), "0000000-00");
   await typeActivityStartDate(dialog, typedDate);
 }
 
@@ -180,17 +180,17 @@ test("shows CUIT and tax status as plain text, not inputs, with the fields prefi
     .toBeVisible();
   await expect
     .element(dialog.getByRole("textbox", { name: /^Razón social/ }))
-    .toHaveValue("María Laura Fernández");
+    .toHaveValue("Comercio de Prueba");
   await expect
     .element(dialog.getByRole("textbox", { name: /^Ingresos Brutos/ }))
-    .toHaveValue("1284531-06");
+    .toHaveValue("0000000-00");
   const dateGroup = dialog.getByRole("group", { name: /^Inicio de actividades/ }).element();
   expect(dateGroup.textContent).toContain("1");
   expect(dateGroup.textContent).toContain("3");
   expect(dateGroup.textContent).toContain("2019");
   expect(dialog.getByRole("textbox", { name: "CUIT" }).query()).toBeNull();
   expect(dialog.getByRole("textbox", { name: "Condición frente al IVA" }).query()).toBeNull();
-  await expect.element(dialog.getByText("27-28453196-0")).toBeVisible();
+  await expect.element(dialog.getByText("20-00000000-1")).toBeVisible();
   await expect.element(dialog.getByText("Responsable Monotributo")).toBeVisible();
 });
 
@@ -324,7 +324,7 @@ test("saves the edit directly, without the authorization modal, when the session
   await expect.poll(() => onSaved.mock.calls.length).toBe(1);
   expect(services.saveIssuerIdentification).toHaveBeenCalledWith({
     legal_name: "Nueva Razón Social SRL",
-    gross_income_registration: "1284531-06",
+    gross_income_registration: "0000000-00",
     activity_start_date: "2019-03-01",
     version: 1,
   });
@@ -396,7 +396,7 @@ test("a cloud error on a field clears as soon as that field is edited", async ()
   await save(dialog);
   await expect.element(dialog.getByText("Revisá el número de Ingresos Brutos.")).toBeVisible();
 
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Ingresos Brutos/ }), "1284531-07");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Ingresos Brutos/ }), "0000000-01");
 
   await expect
     .element(dialog.getByText("Revisá el número de Ingresos Brutos."))
@@ -478,7 +478,7 @@ test("shows a stale_version notice, and Recargar reads the data again so the sec
   await expect.poll(() => vi.mocked(services.saveIssuerIdentification).mock.calls.length).toBe(2);
   expect(services.saveIssuerIdentification).toHaveBeenLastCalledWith({
     legal_name: "Recargado SRL",
-    gross_income_registration: "1284531-06",
+    gross_income_registration: "0000000-00",
     activity_start_date: "2019-03-01",
     version: 5,
   });
@@ -496,7 +496,7 @@ test("keeps every value of the form, edited or not, when the data changes under 
   await expect.element(legalName).toHaveValue("Editada SRL");
   await expect
     .element(dialog.getByRole("textbox", { name: /^Ingresos Brutos/ }))
-    .toHaveValue("1284531-06");
+    .toHaveValue("0000000-00");
 });
 
 test("shows the data that changed in the form over values the person has not edited", async () => {

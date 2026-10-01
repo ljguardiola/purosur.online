@@ -63,10 +63,10 @@ function refreshFiscal(screen: Awaited<ReturnType<typeof renderScreen>>) {
 }
 
 const complete: IssuerIdentification = {
-  legalName: "María Laura Fernández",
-  grossIncomeRegistration: "1284531-06",
+  legalName: "Comercio de Prueba",
+  grossIncomeRegistration: "0000000-00",
   activityStartDate: "2019-03-01",
-  authorizedCuit: "27-28453196-0",
+  authorizedCuit: "20-00000000-1",
   taxStatus: "Responsable Monotributo",
   version: 1,
 };
@@ -75,7 +75,7 @@ const incomplete: IssuerIdentification = {
   legalName: null,
   grossIncomeRegistration: null,
   activityStartDate: null,
-  authorizedCuit: "27-28453196-0",
+  authorizedCuit: "20-00000000-1",
   taxStatus: "Responsable Monotributo",
   version: 1,
 };
@@ -111,10 +111,10 @@ test("shows the breadcrumb, heading, and the complete issuer identification", as
   await expect
     .element(screen.getByRole("heading", { name: "Identificación del emisor", level: 2 }))
     .toBeVisible();
-  await expect.element(screen.getByText("María Laura Fernández")).toBeVisible();
-  await expect.element(screen.getByText("27-28453196-0")).toBeVisible();
+  await expect.element(screen.getByText("Comercio de Prueba")).toBeVisible();
+  await expect.element(screen.getByText("20-00000000-1")).toBeVisible();
   await expect.element(screen.getByText("Responsable Monotributo")).toBeVisible();
-  await expect.element(screen.getByText("1284531-06")).toBeVisible();
+  await expect.element(screen.getByText("0000000-00")).toBeVisible();
   await expect.element(screen.getByText("01/03/2019")).toBeVisible();
   await expect
     .element(screen.getByText("Lo imprime cada factura y nota de crédito."))
@@ -140,7 +140,7 @@ test("shows the incomplete notice and Sin cargar for each missing value", async 
     )
     .toBeVisible();
   expect(screen.getByText("Sin cargar").elements().length).toBe(3);
-  await expect.element(screen.getByText("27-28453196-0")).toBeVisible();
+  await expect.element(screen.getByText("20-00000000-1")).toBeVisible();
   await expect.element(screen.getByText("Responsable Monotributo")).toBeVisible();
 });
 
@@ -158,7 +158,7 @@ test("shows a placeholder instead of a loading line while the issuer identificat
   expect(screen.container.querySelector("p[role=status]")).toBeNull();
   expect(screen.getByText("Sin cargar").query()).toBeNull();
   firstLoad.resolve({ kind: "ok", value: complete });
-  await expect.element(screen.getByText("María Laura Fernández")).toBeVisible();
+  await expect.element(screen.getByText("Comercio de Prueba")).toBeVisible();
 });
 
 test("shows a load failure, and Reintentar goes back to the placeholder before loading again", async () => {
@@ -178,7 +178,7 @@ test("shows a load failure, and Reintentar goes back to the placeholder before l
     .not.toBeInTheDocument();
   await expect.element(screen.getByText("Cargando…")).toHaveTextContent("Cargando…");
   retry.resolve({ kind: "ok", value: complete });
-  await expect.element(screen.getByText("María Laura Fernández")).toBeVisible();
+  await expect.element(screen.getByText("Comercio de Prueba")).toBeVisible();
 });
 
 test("shows the rate-limited notice with the time to wait and a retry action", async () => {
@@ -233,7 +233,7 @@ test("Editar opens the issuer identification modal with the loaded values", asyn
   const services = createServices();
   vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("María Laura Fernández")).toBeVisible();
+  await expect.element(screen.getByText("Comercio de Prueba")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Editar" }));
 
@@ -243,7 +243,7 @@ test("Editar opens the issuer identification modal with the loaded values", asyn
     .toBeVisible();
   await expect
     .element(dialog.getByRole("textbox", { name: /^Razón social/ }))
-    .toHaveValue("María Laura Fernández");
+    .toHaveValue("Comercio de Prueba");
 });
 
 test("saves the edit directly, without the authorization modal, when the session already has one, and shows what the read after it returns", async () => {
@@ -268,7 +268,7 @@ test("saves the edit directly, without the authorization modal, when the session
   await expect.poll(() => vi.mocked(services.saveIssuerIdentification).mock.calls.length).toBe(1);
   expect(services.saveIssuerIdentification).toHaveBeenCalledWith({
     legal_name: "Nueva Razón Social SRL",
-    gross_income_registration: "1284531-06",
+    gross_income_registration: "0000000-00",
     activity_start_date: "2019-03-01",
     version: 1,
   });
@@ -312,7 +312,7 @@ test("shows a load failure instead of the data when reading the issuer identific
 
   await expect.element(screen.getByText("No pudimos abrir la configuración fiscal")).toBeVisible();
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  expect(screen.getByText("María Laura Fernández").query()).toBeNull();
+  expect(screen.getByText("Comercio de Prueba").query()).toBeNull();
 });
 
 test("a second save sends the version the read after the first save returned", async () => {
@@ -378,7 +378,7 @@ test("keeps the modal closed once Reintentar loads the data a failed Recargar co
 
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
-  await expect.element(screen.getByText("María Laura Fernández")).toBeVisible();
+  await expect.element(screen.getByText("Comercio de Prueba")).toBeVisible();
   expect(screen.getByRole("dialog").query()).toBeNull();
 });
 
@@ -424,7 +424,7 @@ test("keeps what Recargar brought on the screen after Cancelar, so reopening sav
   await expect.poll(() => vi.mocked(services.saveIssuerIdentification).mock.calls.length).toBe(2);
   expect(services.saveIssuerIdentification).toHaveBeenLastCalledWith({
     legal_name: "Recargado SRL",
-    gross_income_registration: "1284531-06",
+    gross_income_registration: "0000000-00",
     activity_start_date: "2019-03-01",
     version: 5,
   });
@@ -454,7 +454,7 @@ test("keeps every value of the form, edited or not, when a refresh lands with di
   await expect.element(legalName).toHaveValue("Editada SRL");
   await expect
     .element(dialog.getByRole("textbox", { name: /^Ingresos Brutos/ }))
-    .toHaveValue("1284531-06");
+    .toHaveValue("0000000-00");
 });
 
 test("shows the refreshed data in the modal over values the person has not edited", async () => {
@@ -556,7 +556,7 @@ test("a threshold that fails to load leaves the issuer identification on screen,
   await expect
     .element(screen.getByText("No pudimos abrir el umbral de identificación del comprador"))
     .toBeVisible();
-  await expect.element(screen.getByText("María Laura Fernández")).toBeVisible();
+  await expect.element(screen.getByText("Comercio de Prueba")).toBeVisible();
   await expect
     .element(screen.getByRole("button", { name: "Cargar un umbral nuevo" }))
     .toBeDisabled();
@@ -602,7 +602,7 @@ test("Cargar un umbral nuevo opens its own modal, and Editar opens the issuer on
   const services = createServices();
   vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("María Laura Fernández")).toBeVisible();
+  await expect.element(screen.getByText("Comercio de Prueba")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Cargar un umbral nuevo" }));
 
