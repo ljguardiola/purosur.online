@@ -43,6 +43,7 @@ export async function findRedeemableRecovery(
     return { kind: "rejected", reason: "invalid" };
   }
   if (!account.active) {
+    // Rejected like an unknown token, so a deactivated account isn't distinguishable.
     return { kind: "rejected", reason: "invalid", token };
   }
   return {
