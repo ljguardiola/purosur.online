@@ -2,8 +2,8 @@ import type { TagSummary } from "@purosur/contracts";
 import { Button, InlineNotice, Modal } from "@purosur/ui";
 import { Ban, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useSendToMyAccount } from "../access/send-to-my-account";
 import { retryAfterDetail } from "../platform/retry-after-detail";
+import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type { deactivateTag } from "./tags-api";
 
 export type DeactivateTagModalServices = {

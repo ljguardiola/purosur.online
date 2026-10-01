@@ -17,8 +17,8 @@ import {
 } from "@purosur/ui";
 import { ArrowDownUp, Check, Info, Minus, Package, PackageX, Plus } from "lucide-react";
 import { useState } from "react";
-import { useSendToMyAccount } from "../access/send-to-my-account";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type { RecordMovementOutcome } from "./stock-api";
 import { StockBalanceChange } from "./stock-balance-change";
 import {

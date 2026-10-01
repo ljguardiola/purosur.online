@@ -3,8 +3,8 @@ import type { AuthenticationResponseJSON } from "@simplewebauthn/browser";
 import { startAuthentication } from "@simplewebauthn/browser";
 import { Fingerprint, ShieldX, TriangleAlert, X } from "lucide-react";
 import { type ReactNode, useRef, useState } from "react";
-import { retryAfterDetail } from "../platform/retry-after-detail";
-import { authorizeSession, fetchSessionAuthorizationOptions } from "./session-api";
+import { retryAfterDetail } from "./retry-after-detail";
+import { authorizeSession, fetchSessionAuthorizationOptions } from "./session-authorization-api";
 
 export type AuthorizationServices = {
   fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;

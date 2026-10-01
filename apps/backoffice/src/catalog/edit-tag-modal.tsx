@@ -2,8 +2,8 @@ import { type TagSummary, tagEditBodySchema } from "@purosur/contracts";
 import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import { Check, Pencil, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useSendToMyAccount } from "../access/send-to-my-account";
 import { retryAfterDetail } from "../platform/retry-after-detail";
+import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type { TagReload } from "./catalog-queries";
 import {
   EMPTY_TAG_EDIT_FORM,

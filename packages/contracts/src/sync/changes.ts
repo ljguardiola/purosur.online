@@ -1,7 +1,9 @@
 import {
+  isBuyerIdentificationThresholdAmount,
   isCalendarDay,
   isNetContentUnit,
   isPullCursor,
+  isValidBuyerTaxStatusSet,
   isValidDiscountWeekdays,
   type NetContentUnit,
   PULL_PAGE_MAX_CHANGES,
@@ -10,7 +12,7 @@ import {
 import { z } from "zod";
 import { discountBenefitSchema } from "../pricing/discount-benefit.js";
 import { discountTargetSchema } from "../pricing/discount-target.js";
-import { branchSettingsSchema } from "../shared/index.js";
+import { branchSettingsSchema, issuerIdentificationSchema } from "../shared/index.js";
 
 const SINCE_MESSAGE = "since must be the cursor of the last page already pulled, 0 the first time";
 
@@ -125,6 +127,40 @@ const discountChangeSchema = z.object({
   }),
 });
 
+const issuerIdentificationChangeSchema = z.object({
+  ...pulledChangeShape,
+  entity: z.literal("issuer_identification"),
+  row: issuerIdentificationSchema,
+});
+
+const buyerIdentificationThresholdChangeSchema = z.object({
+  ...pulledChangeShape,
+  entity: z.literal("buyer_identification_threshold"),
+  row: z.object({
+    amount: z.int().refine(isBuyerIdentificationThresholdAmount),
+    valid_from: calendarDaySchema,
+  }),
+});
+
+const buyerTaxStatusSetChangeSchema = z.object({
+  ...pulledChangeShape,
+  entity: z.literal("buyer_tax_status_set"),
+  row: z.object({
+    params_version: z.int().positive(),
+    options: z
+      .array(z.object({ code: z.int(), description: z.string(), invoice_class: z.string() }))
+      .refine((options) =>
+        isValidBuyerTaxStatusSet(
+          options.map(({ code, description, invoice_class }) => ({
+            code,
+            description,
+            invoiceClass: invoice_class,
+          })),
+        ),
+      ),
+  }),
+});
+
 const priceChangeSchema = z.object({
   ...pulledChangeShape,
   entity: z.literal("price"),
@@ -167,6 +203,9 @@ export const changesPageSchema = z.object({
         roleChangeSchema,
         registerChangeSchema,
         discountChangeSchema,
+        issuerIdentificationChangeSchema,
+        buyerIdentificationThresholdChangeSchema,
+        buyerTaxStatusSetChangeSchema,
         removalChangeSchema,
       ]),
     )

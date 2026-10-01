@@ -2,8 +2,8 @@ import { type CategorySummary, categoryEditBodySchema } from "@purosur/contracts
 import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import { Check, RotateCcw, ShieldX, Tags, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useSendToMyAccount } from "../access/send-to-my-account";
 import { retryAfterDetail } from "../platform/retry-after-detail";
+import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type { CategoryReload } from "./catalog-queries";
 import type { editCategory } from "./categories-api";
 import {

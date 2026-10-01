@@ -10,9 +10,9 @@ import {
 } from "@purosur/ui";
 import { KeySquare, Laptop, Plus } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-import { useAuthorization } from "../access/authorization-modal";
-import { useSendToMyAccount } from "../access/send-to-my-account";
+import { useAuthorization } from "../platform/authorization-modal";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { minutesElapsed, minutesRemaining } from "./enrollment-code";

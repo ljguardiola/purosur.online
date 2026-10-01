@@ -2,7 +2,7 @@ import { barcodeListProblem, isInternalBarcode } from "@purosur/domain";
 import { FieldGroup, fieldErrorMessage, IconButton, useFieldContext } from "@purosur/ui";
 import { Barcode, ScanBarcode, X } from "lucide-react";
 import { type KeyboardEvent, useId, useRef, useState } from "react";
-import { useSendToMyAccount } from "../access/send-to-my-account";
+import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { type BarcodeListValue, barcodeProblemMessage } from "./product-form";
 import type { generateInternalBarcode } from "./products-api";
 

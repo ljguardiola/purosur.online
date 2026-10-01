@@ -104,12 +104,18 @@ export {
   SALE_UNITS,
   TAG_NAME_MAX_LENGTH,
 } from "./catalog/index.js";
+export type { BuyerIdentificationThreshold, BuyerTaxStatusOption } from "./fiscal/index.js";
 export {
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
+  isBuyerIdentificationThresholdAmount,
   isIssuerIdentificationActivityStartDate,
   isIssuerIdentificationGrossIncomeRegistrationTooLong,
   isIssuerIdentificationLegalNameTooLong,
+  isValidBuyerTaxStatusSet,
+  latestThreshold,
+  thresholdInEffectOn,
+  thresholdScheduledAfter,
 } from "./fiscal/index.js";
 export type {
   CategoryLink,

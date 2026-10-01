@@ -5,8 +5,11 @@ import { readBranchSettings } from "../branch/branch-settings-read-route.js";
 import { branchSettings, changes, deviceState } from "../platform/db/schema.js";
 import type { PulledCloudChange, RemovedEntity } from "./pulled-changes.js";
 import {
+  readBuyerIdentificationThresholds,
+  readBuyerTaxStatusSets,
   readCategories,
   readDiscounts,
+  readIssuerIdentificationVersions,
   readPriceLists,
   readPrices,
   readProducts,
@@ -26,12 +29,16 @@ type LoggedEntity =
   | "user"
   | "role"
   | "register"
-  | "discount";
+  | "discount"
+  | "issuer_identification"
+  | "buyer_identification_threshold"
+  | "buyer_tax_status_set";
 
 interface LoggedRow {
   changeSeq: number;
   entity: LoggedEntity;
   entityId: string;
+  version: number;
 }
 
 function idsOf(logged: readonly LoggedRow[], entity: LoggedEntity): string[] {
@@ -75,6 +82,18 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
     const roleRows = await readRoles(this.tx, idsOf(logged, "role"));
     const registerRows = await readRegisters(this.tx, idsOf(logged, "register"));
     const discountRows = await readDiscounts(this.tx, idsOf(logged, "discount"));
+    const issuerRows = await readIssuerIdentificationVersions(
+      this.tx,
+      logged.filter((row) => row.entity === "issuer_identification").map((row) => row.version),
+    );
+    const thresholdRows = await readBuyerIdentificationThresholds(
+      this.tx,
+      idsOf(logged, "buyer_identification_threshold"),
+    );
+    const taxStatusSetRows = await readBuyerTaxStatusSets(
+      this.tx,
+      idsOf(logged, "buyer_tax_status_set"),
+    );
     const settingsRow = logged.some((row) => row.entity === "branch_settings")
       ? await this.readSettings(locationId)
       : undefined;
@@ -99,7 +118,7 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
     };
 
     const pulled: PulledCloudChange[] = [];
-    for (const { changeSeq, entity, entityId } of logged) {
+    for (const { changeSeq, entity, entityId, version } of logged) {
       const removal = (removedEntity: RemovedEntity): PulledCloudChange => {
         const version = removedVersions[removedEntity].get(entityId);
         if (version === undefined) {
@@ -159,6 +178,30 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
           pulled.push(row === undefined ? removal(entity) : { changeSeq, entity, entityId, row });
           break;
         }
+        case "issuer_identification":
+          pulled.push({
+            changeSeq,
+            entity,
+            entityId,
+            row: requiredRow(issuerRows.get(version), entity),
+          });
+          break;
+        case "buyer_identification_threshold":
+          pulled.push({
+            changeSeq,
+            entity,
+            entityId,
+            row: requiredRow(thresholdRows.get(entityId), entity),
+          });
+          break;
+        case "buyer_tax_status_set":
+          pulled.push({
+            changeSeq,
+            entity,
+            entityId,
+            row: requiredRow(taxStatusSetRows.get(entityId), entity),
+          });
+          break;
       }
     }
     return pulled;
@@ -176,14 +219,28 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
     const priceListId = settings?.priceListId;
 
     const rows = await this.tx
-      .select({ changeSeq: changes.changeSeq, entity: changes.entity, entityId: changes.entityId })
+      .select({
+        changeSeq: changes.changeSeq,
+        entity: changes.entity,
+        entityId: changes.entityId,
+        version: changes.version,
+      })
       .from(changes)
       .where(
         and(
           gt(changes.changeSeq, since),
           or(
             and(eq(changes.entity, "branch_settings"), eq(changes.entityId, locationId)),
-            inArray(changes.entity, ["category", "product", "tag", "role", "discount"]),
+            inArray(changes.entity, [
+              "category",
+              "product",
+              "tag",
+              "role",
+              "discount",
+              "issuer_identification",
+              "buyer_identification_threshold",
+              "buyer_tax_status_set",
+            ]),
             and(eq(changes.entity, "user"), eq(changes.locationId, locationId)),
             and(eq(changes.entity, "register"), eq(changes.entityId, registerId)),
             priceListId === undefined

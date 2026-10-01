@@ -2,8 +2,11 @@ import type { NetContentUnit, SaleUnit } from "@purosur/domain";
 import { asc, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
+  buyerIdentificationThresholds,
+  buyerTaxStatusSets,
   categories,
   discounts,
+  issuerIdentificationVersions,
   priceLists,
   prices,
   productBarcodes,
@@ -20,8 +23,11 @@ import {
 import { discountFieldsOf } from "../pricing/drizzle-discount-store.js";
 import { PRICE_VERSION } from "../pricing/price-version.js";
 import type {
+  BuyerIdentificationThresholdRow,
+  BuyerTaxStatusSetRow,
   CategoryRow,
   DiscountRow,
+  IssuerIdentificationVersionRow,
   PriceListRow,
   PriceRow,
   ProductRow,
@@ -267,4 +273,67 @@ export async function readDiscounts<TQueryResult extends PgQueryResultHKT>(
     .where(inArray(discounts.id, [...ids]))
     .orderBy(asc(discounts.id));
   return new Map(rows.map((row) => [row.id, discountFieldsOf(row)]));
+}
+
+export async function readIssuerIdentificationVersions<TQueryResult extends PgQueryResultHKT>(
+  tx: PgDatabase<TQueryResult>,
+  versions: readonly number[],
+): Promise<Map<number, IssuerIdentificationVersionRow>> {
+  if (versions.length === 0) {
+    return new Map();
+  }
+  const rows = await tx
+    .select({
+      version: issuerIdentificationVersions.version,
+      legalName: issuerIdentificationVersions.legalName,
+      grossIncomeRegistration: issuerIdentificationVersions.grossIncomeRegistration,
+      activityStartDate: issuerIdentificationVersions.activityStartDate,
+      authorizedCuit: issuerIdentificationVersions.authorizedCuit,
+    })
+    .from(issuerIdentificationVersions)
+    .where(inArray(issuerIdentificationVersions.version, [...versions]))
+    .orderBy(asc(issuerIdentificationVersions.version));
+  return new Map(
+    rows.flatMap(({ authorizedCuit, ...row }) =>
+      authorizedCuit === null ? [] : [[row.version, { ...row, authorizedCuit }]],
+    ),
+  );
+}
+
+export async function readBuyerIdentificationThresholds<TQueryResult extends PgQueryResultHKT>(
+  tx: PgDatabase<TQueryResult>,
+  ids: readonly string[],
+): Promise<Map<string, BuyerIdentificationThresholdRow>> {
+  if (ids.length === 0) {
+    return new Map();
+  }
+  const rows = await tx
+    .select({
+      id: buyerIdentificationThresholds.id,
+      amount: buyerIdentificationThresholds.amount,
+      validFrom: buyerIdentificationThresholds.validFrom,
+    })
+    .from(buyerIdentificationThresholds)
+    .where(inArray(buyerIdentificationThresholds.id, [...ids]))
+    .orderBy(asc(buyerIdentificationThresholds.id));
+  return new Map(rows.map(({ id, ...row }) => [id, row]));
+}
+
+export async function readBuyerTaxStatusSets<TQueryResult extends PgQueryResultHKT>(
+  tx: PgDatabase<TQueryResult>,
+  ids: readonly string[],
+): Promise<Map<string, BuyerTaxStatusSetRow>> {
+  if (ids.length === 0) {
+    return new Map();
+  }
+  const rows = await tx
+    .select({
+      id: buyerTaxStatusSets.id,
+      paramsVersion: buyerTaxStatusSets.paramsVersion,
+      options: buyerTaxStatusSets.options,
+    })
+    .from(buyerTaxStatusSets)
+    .where(inArray(buyerTaxStatusSets.id, [...ids]))
+    .orderBy(asc(buyerTaxStatusSets.id));
+  return new Map(rows.map(({ id, ...row }) => [id, row]));
 }
