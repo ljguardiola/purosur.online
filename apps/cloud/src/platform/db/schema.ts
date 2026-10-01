@@ -7,6 +7,7 @@ import {
   boolean,
   check,
   date,
+  doublePrecision,
   foreignKey,
   index,
   integer,
@@ -607,9 +608,39 @@ export const deviceState = pgTable("device_state", {
   deviceId: uuid("device_id")
     .primaryKey()
     .references(() => registerInstallations.id, { onDelete: "cascade" }),
-  lastPullSince: bigint("last_pull_since", { mode: "number" }).notNull(),
-  lastPulledAt: timestamp("last_pulled_at", { withTimezone: true }).notNull(),
+  // Null until the installation pulls: its first push can come before.
+  lastPullSince: bigint("last_pull_since", { mode: "number" }),
+  lastPulledAt: timestamp("last_pulled_at", { withTimezone: true }),
+  appVersion: text("app_version"),
+  lastPushedAt: timestamp("last_pushed_at", { withTimezone: true }),
+  walSizeBytes: bigint("wal_size_bytes", { mode: "number" }),
+  diskFreeBytes: bigint("disk_free_bytes", { mode: "number" }),
+  diskFreeRatio: doublePrecision("disk_free_ratio"),
 });
+
+export const inbox = pgTable(
+  "inbox",
+  {
+    eventId: uuid("event_id").primaryKey(),
+    deviceId: uuid("device_id")
+      .notNull()
+      .references(() => registerInstallations.id),
+    deviceSeq: bigint("device_seq", { mode: "number" }).notNull(),
+    aggregateType: text("aggregate_type").notNull(),
+    aggregateId: text("aggregate_id").notNull(),
+    eventType: text("event_type").notNull(),
+    schemaVersion: integer("schema_version").notNull(),
+    payload: jsonb("payload").notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+    actorId: text("actor_id").notNull(),
+    chainHmac: text("chain_hmac").notNull(),
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    unique("inbox_device_id_device_seq_key").on(table.deviceId, table.deviceSeq),
+    check("inbox_device_seq_positive", sql`${table.deviceSeq} > 0`),
+  ],
+);
 
 export const changeOp = pgEnum("change_op", ["insert", "update", "delete"]);
 
