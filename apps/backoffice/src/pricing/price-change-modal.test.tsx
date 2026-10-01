@@ -15,7 +15,6 @@ const withoutPrice: PriceProduct = {
   categoryName: "Almacén",
   saleUnit: "UNIT",
   currentPrice: null,
-  lastReviewedAt: null,
   daysSinceReview: null,
   pending: true,
 };
@@ -31,7 +30,6 @@ const rice: PriceProduct = {
     unitPrice: 750000,
     validFrom: new Date(NOW().getTime() - 40 * DAY_MS).toISOString(),
   },
-  lastReviewedAt: new Date(NOW().getTime() - 40 * DAY_MS).toISOString(),
   daysSinceReview: 40,
   pending: true,
 };
@@ -398,10 +396,9 @@ test.each([
   },
 );
 
-test("the modal shows a price reviewed 23 hours ago across Argentine midnight as reviewed today", async () => {
+test("the modal shows a price the cloud reports as reviewed today as reviewed today", async () => {
   const product: PriceProduct = {
     ...rice,
-    lastReviewedAt: "2026-01-04T02:30:00.000Z",
     daysSinceReview: 0,
     pending: false,
   };

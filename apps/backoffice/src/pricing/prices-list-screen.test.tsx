@@ -645,14 +645,12 @@ test("the screen with the price modal open has no accessibility violations", asy
   await expectNoAccessibilityViolations(document.body);
 });
 
-test("shows a price reviewed 23 hours ago across Argentine midnight as reviewed today, not pending", async () => {
+test("shows a price the cloud reports as reviewed today as reviewed today, not pending", async () => {
   const services = createServices();
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",
     value: {
-      products: [
-        { ...rice, lastReviewedAt: "2026-01-04T02:30:00.000Z", daysSinceReview: 0, pending: false },
-      ],
+      products: [{ ...rice, daysSinceReview: 0, pending: false }],
       pendingCount: 0,
       activeProductCount: 1,
       reviewWindowDays: 30,

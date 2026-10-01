@@ -40,8 +40,8 @@ async function insertUser(): Promise<string> {
   const [user] = await db
     .insert(users)
     .values({
-      firstName: "Ada Lovelace",
-      email: "ada@example.com",
+      firstName: "Marta Quiroga",
+      email: "marta@example.com",
       locationId: await seededLocationId(db),
     })
     .returning({ id: users.id });

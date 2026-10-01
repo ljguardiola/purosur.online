@@ -225,7 +225,6 @@ describe("GET /prices", () => {
           categoryName: "Almacén",
           saleUnit: "UNIT",
           currentPrice: { id: priceId, unitPrice: 500, validFrom: reviewedAt.toISOString() },
-          lastReviewedAt: reviewedAt.toISOString(),
           daysSinceReview: 3,
           pending: false,
         },

@@ -121,7 +121,6 @@ export type {
   DiscountTarget,
   DiscountTargetKind,
   IsoWeekday,
-  PriceReview,
   ProductTagLink,
   TargetedProduct,
 } from "./pricing/index.js";

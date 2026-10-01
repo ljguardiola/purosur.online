@@ -13,7 +13,6 @@ const rice: PriceProduct = {
     unitPrice: 750000,
     validFrom: "2026-08-16T12:00:00.000Z",
   },
-  lastReviewedAt: "2026-08-16T12:00:00.000Z",
   daysSinceReview: 40,
   pending: true,
 };
@@ -50,5 +49,5 @@ test("a price reviewed today is announced as reviewed today even when the cloud 
 
 test("a product with no price, or never reviewed, has no review age in the modal", () => {
   expect(modalEyebrow({ ...rice, currentPrice: null })).toBe("Sin precio");
-  expect(modalEyebrow({ ...rice, lastReviewedAt: null, daysSinceReview: null })).toBe("Sin precio");
+  expect(modalEyebrow({ ...rice, daysSinceReview: null })).toBe("Sin precio");
 });

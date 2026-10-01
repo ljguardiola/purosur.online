@@ -10,7 +10,6 @@ const priced = {
   categoryName: "Almacén",
   saleUnit: "KG",
   currentPrice: { id: "price-1", unitPrice: 750000, validFrom: at },
-  lastReviewedAt: at,
   daysSinceReview: 0,
   pending: false,
 };
@@ -18,7 +17,6 @@ const unpriced = {
   ...priced,
   id: "product-2",
   currentPrice: null,
-  lastReviewedAt: null,
   daysSinceReview: null,
 };
 const almacen = { id: "category-1", name: "Almacén" };
@@ -100,10 +98,6 @@ describe("priceProductSchema", () => {
     ["saleUnit", "kg"],
     ["currentPrice", undefined],
     ["currentPrice", "price-1"],
-    ["lastReviewedAt", undefined],
-    ["lastReviewedAt", 1758801600000],
-    ["lastReviewedAt", "yesterday"],
-    ["lastReviewedAt", "2026-09-25"],
     ["daysSinceReview", undefined],
     ["daysSinceReview", "3"],
     ["daysSinceReview", 1.5],

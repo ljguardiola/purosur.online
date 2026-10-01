@@ -26,7 +26,6 @@ function toPriceListBody(result: PricesUnderReview) {
         ...product.currentPrice,
         validFrom: product.currentPrice.validFrom.toISOString(),
       },
-      lastReviewedAt: product.lastReviewedAt?.toISOString() ?? null,
     })),
   });
 }

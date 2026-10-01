@@ -314,7 +314,7 @@ test("a row confirmation answered that there is no price to confirm reloads the 
     .mockResolvedValue({
       kind: "ok",
       value: {
-        products: [{ ...rice, currentPrice: null, lastReviewedAt: null, daysSinceReview: null }],
+        products: [{ ...rice, currentPrice: null, daysSinceReview: null }],
         pendingCount: 1,
         activeProductCount: 3,
         reviewWindowDays: 30,

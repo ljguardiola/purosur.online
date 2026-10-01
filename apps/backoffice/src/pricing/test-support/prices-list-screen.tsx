@@ -30,7 +30,6 @@ export const withoutPrice: PriceProduct = {
   categoryName: "Almacén",
   saleUnit: "UNIT",
   currentPrice: null,
-  lastReviewedAt: null,
   daysSinceReview: null,
   pending: true,
 };
@@ -46,7 +45,6 @@ export const rice: PriceProduct = {
     unitPrice: 750000,
     validFrom: new Date(NOW().getTime() - 40 * DAY_MS).toISOString(),
   },
-  lastReviewedAt: new Date(NOW().getTime() - 40 * DAY_MS).toISOString(),
   daysSinceReview: 40,
   pending: true,
 };
