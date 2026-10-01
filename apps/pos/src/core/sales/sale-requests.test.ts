@@ -911,6 +911,15 @@ describe("cancelling the open sale of a locked register", () => {
     expect(saleStates()).toEqual([{ state: "OPEN" }]);
   });
 
+  it("refuses the person who opened the session, leaving the sale open", async () => {
+    addCloser(["close_anothers_register_session"]);
+    await lockedWithOpenSale();
+    database.prepare("UPDATE cash_sessions SET opened_by = 'u9'").run();
+
+    expect(await cancelLockedSaleFor(lockedDeps(), CLOSER)).toEqual({ kind: "lacks_permission" });
+    expect(saleStates()).toEqual([{ state: "OPEN" }]);
+  });
+
   it("refuses a wrong PIN, leaving the sale open", async () => {
     addCloser(["close_anothers_register_session"]);
     await lockedWithOpenSale();

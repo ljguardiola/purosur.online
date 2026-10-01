@@ -5,7 +5,7 @@ export type CashSessionState =
   | { status: "unknown" }
   | { status: "none" }
   | { status: "unavailable" }
-  | { status: "open"; id: string; openedAt: string; openedBy: SignedInPerson };
+  | { status: "open"; id: string; openedAt: string; openedBy: SignedInPerson; locked: boolean };
 
 export function cashSessionStateOf(
   session: OpenCashSession | null | "unavailable",
@@ -15,5 +15,11 @@ export function cashSessionStateOf(
   }
   return session === null
     ? { status: "none" }
-    : { status: "open", id: session.id, openedAt: session.opened_at, openedBy: session.opened_by };
+    : {
+        status: "open",
+        id: session.id,
+        openedAt: session.opened_at,
+        openedBy: session.opened_by,
+        locked: session.locked,
+      };
 }

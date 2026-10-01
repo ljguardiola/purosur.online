@@ -51,6 +51,7 @@ describe("FirstSignInPinStep", () => {
     const { signIn, attempts } = answering({
       kind: "signed_in",
       person: { user_id: "u1", first_name: "Ada", permission_keys: [] },
+      cash_session: null,
     });
     const screen = await renderStep(signIn);
 

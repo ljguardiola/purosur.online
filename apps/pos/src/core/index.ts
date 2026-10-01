@@ -23,8 +23,8 @@ import { createActionGate } from "./access/action-gate";
 import { requestFirstPinCode } from "./access/first-pin-code-request";
 import { redeemPinCode } from "./access/pin-code-redemption";
 import { hashPin } from "./access/pin-hash";
+import { redeemedPerson } from "./access/redeemed-person";
 import { applyRedeemedPin } from "./access/redeemed-pin";
-import { signInRedeemedPerson } from "./access/redeemed-sign-in";
 import { firstSignIn, signIn } from "./access/sign-in";
 import { lookUpSignIn } from "./access/sign-in-lookup";
 import { createSignedInPerson } from "./access/signed-in-person";
@@ -46,11 +46,11 @@ import {
 } from "./register/cash-movement-requests";
 import {
   cashBalanceFor,
-  cashSessionOpener,
   closeCashSessionFor,
   closeLockedCashSessionFor,
   currentCashSession,
   identifyLockedCloserFor,
+  lockedClosersFor,
   openCashSessionFor,
   sessionOpenSaleFor,
 } from "./register/cash-session-requests";
@@ -58,6 +58,7 @@ import { rotateDeviceToken } from "./register/device-token-rotation";
 import { startDeviceTokenRotationSchedule } from "./register/device-token-rotation-schedule";
 import { enroll, generatePepper, installationReportFrom } from "./register/enrollment";
 import { answerRendererRequest, type RendererRequestDeps } from "./register/renderer-requests";
+import { readOpenSession } from "./register/sqlite-cash-ledger";
 import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
 import {
@@ -273,12 +274,13 @@ const rendererRequestDeps: RendererRequestDeps = {
           console.error("core: the redeemed PIN could not be kept locally", error);
           Sentry.captureException(error);
         },
-        cashSessionOpener: () =>
-          localDatabase === undefined ? undefined : cashSessionOpener(localDatabase),
-        signInRedeemed: (userId) =>
-          signInStore === undefined
-            ? undefined
-            : signInRedeemedPerson({ store: signInStore, signedInPerson }, userId),
+        openCashSession: () =>
+          localDatabase === undefined ? undefined : readOpenSession(localDatabase),
+        redeemedPerson: (userId) =>
+          signInStore === undefined ? undefined : redeemedPerson(signInStore, userId),
+        signedInPerson,
+        cashSession: (signedInPersonId) =>
+          localDatabase === undefined ? null : currentCashSession(localDatabase, signedInPersonId),
       },
       typedCode,
       newPin,
@@ -286,6 +288,7 @@ const rendererRequestDeps: RendererRequestDeps = {
   signInUsers: signInStore === undefined ? undefined : () => signInStore.signableUsers(),
   authorizers:
     signInStore === undefined ? undefined : (permission) => signInStore.authorizers(permission),
+  lockedClosers: localDatabase === undefined ? undefined : () => lockedClosersFor(localDatabase),
   signIn:
     localDatabase === undefined || signInStore === undefined
       ? undefined
@@ -294,7 +297,9 @@ const rendererRequestDeps: RendererRequestDeps = {
             {
               store: signInStore,
               signedInPerson,
-              cashSessionOpener: () => cashSessionOpener(localDatabase),
+              openCashSession: () => readOpenSession(localDatabase),
+              cashSession: (signedInPersonId) =>
+                currentCashSession(localDatabase, signedInPersonId),
               readPepper,
               hashPin,
               now: () => new Date(),
@@ -310,7 +315,9 @@ const rendererRequestDeps: RendererRequestDeps = {
             {
               store: signInStore,
               signedInPerson,
-              cashSessionOpener: () => cashSessionOpener(localDatabase),
+              openCashSession: () => readOpenSession(localDatabase),
+              cashSession: (signedInPersonId) =>
+                currentCashSession(localDatabase, signedInPersonId),
               readPepper,
               hashPin,
               now: () => new Date(),
@@ -355,7 +362,6 @@ const rendererRequestDeps: RendererRequestDeps = {
             {
               database: localDatabase,
               gate: actionGate,
-              signedInPerson,
               readOutboxChainKey: async () =>
                 (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
               now: () => new Date(),
@@ -366,18 +372,17 @@ const rendererRequestDeps: RendererRequestDeps = {
   closeCashSession:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (sessionId, countedCash, authorization) =>
+      : (sessionId, countedCash) =>
           closeCashSessionFor(
             {
               database: localDatabase,
               gate: actionGate,
-              signedInPerson,
               readOutboxChainKey: async () =>
                 (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
               now: () => new Date(),
               ids: uuidV7Ids,
             },
-            { sessionId, countedCash, authorization },
+            { sessionId, countedCash },
           ),
   closeLockedCashSession:
     localDatabase === undefined || actionGate === undefined
@@ -387,7 +392,6 @@ const rendererRequestDeps: RendererRequestDeps = {
             {
               database: localDatabase,
               gate: actionGate,
-              signedInPerson,
               readOutboxChainKey: async () =>
                 (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
               now: () => new Date(),
@@ -411,13 +415,16 @@ const rendererRequestDeps: RendererRequestDeps = {
             closer,
           ),
   identifyLockedCloser:
-    actionGate === undefined
+    localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (closer) => identifyLockedCloserFor({ gate: actionGate }, closer),
+      : (closer) => identifyLockedCloserFor({ database: localDatabase, gate: actionGate }, closer),
   cashBalance: localDatabase === undefined ? undefined : () => cashBalanceFor(localDatabase),
   sessionOpenSale:
     localDatabase === undefined ? undefined : () => sessionOpenSaleFor(localDatabase),
-  cashSession: localDatabase === undefined ? undefined : () => currentCashSession(localDatabase),
+  cashSession:
+    localDatabase === undefined
+      ? undefined
+      : () => currentCashSession(localDatabase, signedInPerson.userId()),
   recordCashMovement:
     localDatabase === undefined || actionGate === undefined
       ? undefined

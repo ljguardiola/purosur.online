@@ -3,7 +3,7 @@ import { encodePinHash } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
-import { cashSessionOpener } from "../register/cash-session-requests";
+import { readOpenSession } from "../register/sqlite-cash-ledger";
 import type { RegisterPulledChange } from "../sync/pulled-change";
 import { SqliteLocalReplica } from "../sync/sqlite-local-replica";
 import { type ActionGate, createActionGate } from "./action-gate";
@@ -69,7 +69,8 @@ async function signInAs(userId: string) {
     {
       store,
       signedInPerson,
-      cashSessionOpener: () => cashSessionOpener(database),
+      openCashSession: () => readOpenSession(database),
+      cashSession: () => null,
       readPepper: async () => PEPPER,
       hashPin: async () => PIN_HASH,
       now: () => new Date("2026-05-01T10:00:00.000Z"),

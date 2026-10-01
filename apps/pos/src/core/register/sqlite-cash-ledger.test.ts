@@ -278,7 +278,7 @@ describe("the open sale", () => {
     function close() {
       return closeCashSession(
         { ledger, clock: { now: () => OPENED_AT }, ids: { next: () => "id-1" } },
-        { sessionId: "session-1", closerId: "u1", authorizedBy: null, countedCash: 5000 },
+        { sessionId: "session-1", closerId: "u1", countedCash: 5000 },
       );
     }
 
