@@ -22,9 +22,9 @@ describe("hasValidPasskeyAuthorization", () => {
   });
 
   it("is valid at the moment of authorization", () => {
-    expect(hasValidPasskeyAuthorization({ passkeyAuthorizedAt: AUTHORIZED_AT }, AUTHORIZED_AT)).toBe(
-      true,
-    );
+    expect(
+      hasValidPasskeyAuthorization({ passkeyAuthorizedAt: AUTHORIZED_AT }, AUTHORIZED_AT),
+    ).toBe(true);
   });
 
   it("is valid exactly 5 minutes after the authorization", () => {
