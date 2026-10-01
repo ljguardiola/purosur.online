@@ -1,15 +1,12 @@
 import { userCreationBodySchema } from "@purosur/contracts";
-import { findEmailHolder } from "@purosur/domain/access/use-cases";
-import { eq } from "drizzle-orm";
-import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { createUser } from "@purosur/domain/access/use-cases";
+import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { openAlert } from "../alerts/open-alert.js";
-import { auditLog, roles, userRoles, users } from "../platform/db/schema.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
-import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import { backofficeOriginGuard } from "./backoffice-origin.js";
 import { canReactivateUsers, toBranchUserWire } from "./branch-users.js";
 import { drizzleBranchUsers } from "./drizzle-branch-users.js";
+import { DrizzleUserStore } from "./drizzle-user-store.js";
 import { requirePasskeyAuthorization } from "./passkey-authorization-guard.js";
 import {
   ADMINISTRATOR_ACCESS,
@@ -36,103 +33,6 @@ function emailBelongsToDeactivatedUserResponse(target: { id: string; firstName: 
     id: target.id,
     name: target.firstName,
   } as const;
-}
-
-class EmailAlreadyTaken extends Error {}
-
-export interface CreateUserInput {
-  firstName: string;
-  email: string;
-  roleId: string;
-  locationId: string;
-  actorId: string;
-}
-
-export interface CreateUserDeps {
-  now: () => Date;
-}
-
-interface CreatedUserRole {
-  id: string;
-  name: string | null;
-  isAdministrator: boolean;
-}
-
-export type CreateUserOutcome =
-  | { kind: "unknown_role" }
-  | { kind: "email_taken" }
-  | { kind: "created"; id: string; role: CreatedUserRole };
-
-export async function createUser<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  input: CreateUserInput,
-  deps: CreateUserDeps,
-  pending?: PendingChanges,
-): Promise<CreateUserOutcome> {
-  const [role] = await db
-    .select({ id: roles.id, name: roles.name, isAdministrator: roles.isAdministrator })
-    .from(roles)
-    .where(eq(roles.id, input.roleId))
-    .limit(1);
-  if (!role) {
-    return { kind: "unknown_role" };
-  }
-
-  const created = await withPendingChanges(db, pending, async (tx, changes) => {
-    const [newUser] = await tx
-      .insert(users)
-      .values({
-        firstName: input.firstName,
-        email: input.email,
-        locationId: input.locationId,
-      })
-      .onConflictDoNothing({ target: users.email })
-      .returning({ id: users.id, version: users.version });
-    if (!newUser) {
-      throw new EmailAlreadyTaken();
-    }
-    changes.note({
-      entity: "user",
-      entityId: newUser.id,
-      version: newUser.version,
-      op: "insert",
-      locationId: input.locationId,
-    });
-
-    await tx.insert(userRoles).values({ userId: newUser.id, roleId: role.id });
-
-    await tx.insert(auditLog).values({
-      entity: "user",
-      entityId: newUser.id,
-      actorId: input.actorId,
-      previousValue: null,
-      newValue: { firstName: input.firstName, email: input.email, roleId: role.id },
-    });
-
-    if (role.isAdministrator) {
-      await openAlert(
-        tx,
-        {
-          kind: "user_access_increased",
-          scope: newUser.id,
-          detail: { cause: "created_as_administrator", actorId: input.actorId },
-        },
-        deps,
-      );
-    }
-
-    return newUser;
-  }).catch((error: unknown) => {
-    if (error instanceof EmailAlreadyTaken) {
-      return undefined;
-    }
-    throw error;
-  });
-
-  if (!created) {
-    return { kind: "email_taken" };
-  }
-  return { kind: "created", id: created.id, role };
 }
 
 export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT>(
@@ -163,15 +63,19 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
       }
 
       const outcome = await createUser(
-        options.db,
+        {
+          store: new DrizzleUserStore(options.db),
+          users: drizzleBranchUsers(options.db),
+          clock: { now },
+        },
         {
           firstName: parsedBody.first_name,
           email: parsedBody.email,
           roleId: parsedBody.role_id,
           locationId: openSession.locationId,
           actorId: openSession.userId,
+          actorMayReactivateUsers: canReactivateUsers(openSession),
         },
-        { now },
       );
 
       if (outcome.kind === "unknown_role") {
@@ -179,22 +83,16 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
         return;
       }
 
+      if (outcome.kind === "email_belongs_to_deactivated_user") {
+        await reply
+          .code(409)
+          .send(
+            emailBelongsToDeactivatedUserResponse({ id: outcome.id, firstName: outcome.firstName }),
+          );
+        return;
+      }
+
       if (outcome.kind === "email_taken") {
-        // Naming the conflicting user is branch-scoped even though the email conflict is not, so
-        // another branch's user is never revealed.
-        const conflicting = await findEmailHolder(
-          { users: drizzleBranchUsers(options.db) },
-          { email: parsedBody.email },
-        );
-        if (
-          conflicting &&
-          !conflicting.active &&
-          conflicting.locationId === openSession.locationId &&
-          canReactivateUsers(openSession)
-        ) {
-          await reply.code(409).send(emailBelongsToDeactivatedUserResponse(conflicting));
-          return;
-        }
         await reply.code(409).send(EMAIL_TAKEN_RESPONSE);
         return;
       }

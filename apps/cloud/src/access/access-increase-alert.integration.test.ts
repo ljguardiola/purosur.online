@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { editRole } from "@purosur/domain/access/use-cases";
+import { createUser, editRole } from "@purosur/domain/access/use-cases";
 import { and, eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import Fastify, { type FastifyInstance } from "fastify";
@@ -21,11 +21,12 @@ import {
 } from "../test-support/integration-database.js";
 import { waitForLockWaiters } from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
+import { drizzleBranchUsers } from "./drizzle-branch-users.js";
 import { drizzleRoleDirectory } from "./drizzle-role-directory.js";
 import { DrizzleRoleStore } from "./drizzle-role-store.js";
+import { DrizzleUserStore } from "./drizzle-user-store.js";
 import { SESSION_COOKIE_NAME } from "./session-cookie.js";
 import { generateSessionId, hashSessionId } from "./session-id.js";
-import { createUser } from "./user-creation-route.js";
 import { registerUserEditRoutes } from "./user-edit-route.js";
 
 // PGlite serializes every transaction, so an assignment and a role edit can only interleave, and
@@ -310,15 +311,19 @@ describe("an alert for increased access that fails to open, on a real Postgres",
 
     await expect(
       createUser(
-        db,
+        {
+          store: new DrizzleUserStore(db),
+          users: drizzleBranchUsers(db),
+          clock: { now: () => new Date() },
+        },
         {
           firstName: "Katherine Johnson",
           email,
           roleId: administratorRole.id,
           locationId: await seededLocationId(db),
           actorId: administratorId,
+          actorMayReactivateUsers: false,
         },
-        { now: () => new Date() },
       ),
     ).rejects.toThrow(/insert into "alerts"/);
 

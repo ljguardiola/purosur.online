@@ -1,5 +1,5 @@
 import { argentinaCalendarDay } from "@purosur/domain";
-import { createRole } from "@purosur/domain/access/use-cases";
+import { createRole, createUser, deactivateUser } from "@purosur/domain/access/use-cases";
 import {
   createCategory,
   createProduct,
@@ -11,10 +11,10 @@ import { confirmPrice, createDiscount, setPrice } from "@purosur/domain/pricing/
 import { createRegister } from "@purosur/domain/register/use-cases";
 import { and, eq, like, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { drizzleBranchUsers } from "../access/drizzle-branch-users.js";
 import { DrizzleRoleStore } from "../access/drizzle-role-store.js";
+import { DrizzleUserStore } from "../access/drizzle-user-store.js";
 import { SIGN_IN_BLOCK_DURATION_MS, SIGN_IN_FAILURE_LIMIT } from "../access/sign-in-lockout.js";
-import { createUser } from "../access/user-creation-route.js";
-import { deactivateUser } from "../access/user-deactivation-route.js";
 import { closeAlert } from "../alerts/alert-close-route.js";
 import { escalateOverdueAlerts } from "../alerts/alert-escalation.js";
 import { openAlert } from "../alerts/open-alert.js";
@@ -116,17 +116,17 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
 
       const pending = new PendingChanges();
 
+      const userStore = new DrizzleUserStore(tx, pending);
       const administratorOutcome = await createUser(
-        tx,
+        { store: userStore, users: drizzleBranchUsers(tx), clock: deps },
         {
           firstName: SAMPLE_ADMINISTRATOR.firstName,
           email: SAMPLE_ADMINISTRATOR.email,
           roleId: bootstrapAdministrator.roleId,
           locationId: location.id,
           actorId: bootstrapAdministrator.id,
+          actorMayReactivateUsers: false,
         },
-        deps,
-        pending,
       );
       const sampleAdministrator = expectOutcome(
         administratorOutcome,
@@ -157,28 +157,22 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
         }
         for (const userPlan of rolePlan.users) {
           const outcome = await createUser(
-            tx,
+            { store: userStore, users: drizzleBranchUsers(tx), clock: deps },
             {
               firstName: userPlan.firstName,
               email: userPlan.email,
               roleId,
               locationId: location.id,
               actorId,
+              actorMayReactivateUsers: false,
             },
-            deps,
-            pending,
           );
           const created = expectOutcome(outcome, "created", `user "${userPlan.firstName}"`);
           sampleUserIdsInOrder.push(created.id);
           if (!userPlan.active) {
             const deactivated = await deactivateUser(
-              tx,
-              {
-                id: created.id,
-                actorId,
-                at: deps.now(),
-              },
-              pending,
+              { store: userStore },
+              { id: created.id, actorId, at: deps.now() },
             );
             expectOutcome(deactivated, "deactivated", `deactivating user "${userPlan.firstName}"`);
           }

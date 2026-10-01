@@ -16,7 +16,7 @@ export interface FakeUserRole extends AssignableRole {
   permissionKeys: string[];
 }
 
-export interface RecordedUserChange {
+interface RecordedUserChange {
   userId: string;
   actorId: string;
   change: UserChange;

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { createRole } from "@purosur/domain/access/use-cases";
+import { createRole, createUser } from "@purosur/domain/access/use-cases";
 import { createCategory, createProduct, createTag } from "@purosur/domain/catalog/use-cases";
 import { confirmPrice, createDiscount, setPrice } from "@purosur/domain/pricing/use-cases";
 import { createRegister } from "@purosur/domain/register/use-cases";
@@ -7,8 +7,9 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterEach, describe, expect, it } from "vitest";
+import { drizzleBranchUsers } from "../access/drizzle-branch-users.js";
 import { DrizzleRoleStore } from "../access/drizzle-role-store.js";
-import { createUser } from "../access/user-creation-route.js";
+import { DrizzleUserStore } from "../access/drizzle-user-store.js";
 import { openAlert } from "../alerts/open-alert.js";
 import { editBranchSettings } from "../branch/branch-settings-edit-route.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
@@ -229,15 +230,19 @@ describe("clearSampleData", () => {
     );
     if (realRoleOutcome.kind !== "created") throw new Error("test setup: real role collided");
     const realUserOutcome = await createUser(
-      db,
+      {
+        store: new DrizzleUserStore(db),
+        users: drizzleBranchUsers(db),
+        clock: { now: () => new Date() },
+      },
       {
         firstName: "Usuaria Real",
         email: "cajera.real@example.com",
         roleId: realRoleOutcome.role.id,
         locationId: bootstrapAdmin.locationId,
         actorId: bootstrapAdmin.id,
+        actorMayReactivateUsers: false,
       },
-      { now: () => new Date() },
     );
     if (realUserOutcome.kind !== "created") throw new Error("test setup: real user collided");
 
