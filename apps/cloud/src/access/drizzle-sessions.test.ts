@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { rolePermissions, roles, sessions, userRoles, users } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
@@ -25,10 +26,10 @@ beforeEach(async () => {
   branch = await seededLocationId(db);
 });
 
-async function insertRole(isAdministrator: boolean, permissionKeys: string[]): Promise<string> {
+async function insertRole(permissionKeys: string[]): Promise<string> {
   const [role] = await db
     .insert(roles)
-    .values({ name: isAdministrator ? null : "Cajero", isAdministrator })
+    .values({ name: "Cajero", isAdministrator: false })
     .returning({ id: roles.id });
   if (!role) {
     throw new Error("test setup: seeding the role returned no row");
@@ -37,6 +38,17 @@ async function insertRole(isAdministrator: boolean, permissionKeys: string[]): P
     await db
       .insert(rolePermissions)
       .values(permissionKeys.map((permissionKey) => ({ roleId: role.id, permissionKey })));
+  }
+  return role.id;
+}
+
+async function administratorRoleId(): Promise<string> {
+  const [role] = await db
+    .select({ id: roles.id })
+    .from(roles)
+    .where(eq(roles.isAdministrator, true));
+  if (!role) {
+    throw new Error("test setup: no Administrator role seeded");
   }
   return role.id;
 }
@@ -73,7 +85,7 @@ async function insertSession(
 describe("drizzleSessions", () => {
   describe("findSession", () => {
     it("finds a session by its key with its user and the permissions of the user's role", async () => {
-      const roleId = await insertRole(false, ["sell_and_charge", "view_sales_history"]);
+      const roleId = await insertRole(["sell_and_charge", "view_sales_history"]);
       const userId = await insertUser(roleId);
       const passkeyAuthorizedAt = new Date("2026-10-01T09:30:00.000Z");
       const sessionId = await insertSession(userId, "hash-1", { passkeyAuthorizedAt });
@@ -99,7 +111,7 @@ describe("drizzleSessions", () => {
     });
 
     it("finds the session of an administrator as one", async () => {
-      const userId = await insertUser(await insertRole(true, []));
+      const userId = await insertUser(await administratorRoleId());
       await insertSession(userId, "hash-1");
 
       const found = await drizzleSessions(db).findSession("hash-1");
@@ -118,7 +130,7 @@ describe("drizzleSessions", () => {
 
     it("reports a revoked session and a deactivated user as they are stored", async () => {
       const revokedAt = new Date("2026-10-01T09:10:00.000Z");
-      const userId = await insertUser(await insertRole(false, []), false);
+      const userId = await insertUser(await insertRole([]), false);
       await insertSession(userId, "hash-1", { revokedAt });
 
       const found = await drizzleSessions(db).findSession("hash-1");
@@ -127,7 +139,7 @@ describe("drizzleSessions", () => {
     });
 
     it("finds only the session whose key it is given", async () => {
-      const userId = await insertUser(await insertRole(false, []));
+      const userId = await insertUser(await insertRole([]));
       await insertSession(userId, "hash-1");
       const other = await insertSession(userId, "hash-2");
 
