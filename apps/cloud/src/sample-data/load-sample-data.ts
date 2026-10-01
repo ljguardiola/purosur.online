@@ -1,4 +1,5 @@
 import { argentinaCalendarDay } from "@purosur/domain";
+import { createRole } from "@purosur/domain/access/use-cases";
 import {
   createCategory,
   createProduct,
@@ -10,7 +11,7 @@ import { confirmPrice, createDiscount, setPrice } from "@purosur/domain/pricing/
 import { createRegister } from "@purosur/domain/register/use-cases";
 import { and, eq, like, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { createRole } from "../access/role-creation-route.js";
+import { DrizzleRoleStore } from "../access/drizzle-role-store.js";
 import { SIGN_IN_BLOCK_DURATION_MS, SIGN_IN_FAILURE_LIMIT } from "../access/sign-in-lockout.js";
 import { createUser } from "../access/user-creation-route.js";
 import { deactivateUser } from "../access/user-deactivation-route.js";
@@ -137,13 +138,12 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
       const roleIdByName = new Map<string, string>();
       for (const rolePlan of SAMPLE_ROLES) {
         const outcome = await createRole(
-          tx,
+          { store: new DrizzleRoleStore(tx, pending) },
           {
             name: rolePlan.name,
             permissionKeys: [...rolePlan.permissionKeys],
             actorId,
           },
-          pending,
         );
         const created = expectOutcome(outcome, "created", `role "${rolePlan.name}"`);
         roleIdByName.set(rolePlan.name, created.role.id);

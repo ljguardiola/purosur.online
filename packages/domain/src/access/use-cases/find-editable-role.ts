@@ -1,3 +1,4 @@
+import { isRoleEditable } from "../model/role-editability.js";
 import { permissionKeysInCatalogOrder } from "./list-roles.js";
 import type { RoleDirectory } from "./role-directory.js";
 
@@ -21,7 +22,7 @@ export async function findEditableRole(
   input: FindEditableRoleInput,
 ): Promise<EditableRole | undefined> {
   const role = await roles.role(input.roleId);
-  if (!role || role.isAdministrator) {
+  if (!role || !isRoleEditable(role)) {
     return undefined;
   }
   return {

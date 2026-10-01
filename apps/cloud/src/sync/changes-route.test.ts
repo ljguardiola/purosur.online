@@ -1,4 +1,5 @@
 import { changesPageSchema, cloudErrorSchema } from "@purosur/contracts";
+import { createRole } from "@purosur/domain/access/use-cases";
 import {
   createCategory,
   createProduct,
@@ -12,7 +13,7 @@ import { createRegister } from "@purosur/domain/register/use-cases";
 import { eq, inArray, sql } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { createRole } from "../access/role-creation-route.js";
+import { DrizzleRoleStore } from "../access/drizzle-role-store.js";
 import { registerRouteAccess } from "../access/route-access.js";
 import { createUser } from "../access/user-creation-route.js";
 import { deactivateUser } from "../access/user-deactivation-route.js";
@@ -760,7 +761,10 @@ describe("GET /changes carrying the users and the roles", () => {
   const NOW_FOR_ALERTS = { now: () => NOW };
 
   async function newRole(name: string, permissionKeys: string[]): Promise<string> {
-    const outcome = await createRole(db, { name, permissionKeys, actorId: await anActor() });
+    const outcome = await createRole(
+      { store: new DrizzleRoleStore(db) },
+      { name, permissionKeys, actorId: await anActor() },
+    );
     if (outcome.kind !== "created") {
       throw new Error(`test setup: creating the role ended as ${outcome.kind}`);
     }

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { createRole } from "@purosur/domain/access/use-cases";
 import { createCategory, createProduct, createTag } from "@purosur/domain/catalog/use-cases";
 import { confirmPrice, createDiscount, setPrice } from "@purosur/domain/pricing/use-cases";
 import { createRegister } from "@purosur/domain/register/use-cases";
@@ -6,7 +7,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterEach, describe, expect, it } from "vitest";
-import { createRole } from "../access/role-creation-route.js";
+import { DrizzleRoleStore } from "../access/drizzle-role-store.js";
 import { createUser } from "../access/user-creation-route.js";
 import { openAlert } from "../alerts/open-alert.js";
 import { editBranchSettings } from "../branch/branch-settings-edit-route.js";
@@ -218,11 +219,14 @@ describe("clearSampleData", () => {
     const db = await freshOwnerDatabase();
     const bootstrapAdmin = await seedActiveAdministrator(db);
 
-    const realRoleOutcome = await createRole(db, {
-      name: "Cajera Real",
-      permissionKeys: ["sell_and_charge"],
-      actorId: bootstrapAdmin.id,
-    });
+    const realRoleOutcome = await createRole(
+      { store: new DrizzleRoleStore(db) },
+      {
+        name: "Cajera Real",
+        permissionKeys: ["sell_and_charge"],
+        actorId: bootstrapAdmin.id,
+      },
+    );
     if (realRoleOutcome.kind !== "created") throw new Error("test setup: real role collided");
     const realUserOutcome = await createUser(
       db,

@@ -5,6 +5,15 @@ export type {
   BranchUsers,
   EmailHolder,
 } from "./branch-users.js";
+export type { CreateRoleInput, CreateRoleOutcome, CreateRolePorts } from "./create-role.js";
+export { createRole } from "./create-role.js";
+export type {
+  EditedRole,
+  EditRoleInput,
+  EditRoleOutcome,
+  EditRolePorts,
+} from "./edit-role.js";
+export { editRole } from "./edit-role.js";
 export type {
   EmitFirstPinCodeInput,
   EmitFirstPinCodeOutcome,
@@ -68,6 +77,19 @@ export type {
 } from "./redeem-pin-code.js";
 export { redeemPinCode } from "./redeem-pin-code.js";
 export type { RoleDirectory, RoleHolder, RoleListing, StoredRole } from "./role-directory.js";
+export type {
+  LockedRole,
+  LockRoleResult,
+  NewRole,
+  RoleAccessIncrease,
+  RoleChange,
+  RoleRewrite,
+  RoleSnapshot,
+  RoleStore,
+  RoleStoreTransaction,
+  StoredRoleRevision,
+} from "./role-store.js";
+export { RoleNameConflict } from "./role-store.js";
 export type {
   SignInCandidate,
   SignInLookupPorts,

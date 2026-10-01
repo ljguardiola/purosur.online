@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { editRole } from "@purosur/domain/access/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -10,7 +11,8 @@ import {
 } from "../test-support/integration-database.js";
 import { waitForLockWaiters } from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { editRole } from "./role-edit-route.js";
+import { drizzleRoleDirectory } from "./drizzle-role-directory.js";
+import { DrizzleRoleStore } from "./drizzle-role-store.js";
 import { deactivateUser } from "./user-deactivation-route.js";
 
 const UNIQUE_VIOLATION = "23505";
@@ -99,7 +101,11 @@ describe("changing a user or a role while another writer holds the change log, o
     const { started, concurrent } = await holdingTheChangeLog(
       () =>
         editRole(
-          db,
+          {
+            store: new DrizzleRoleStore(db),
+            roles: drizzleRoleDirectory(db),
+            clock: { now: () => new Date() },
+          },
           {
             id: roleId,
             name: "Cajera senior",
@@ -107,7 +113,6 @@ describe("changing a user or a role while another writer holds the change log, o
             version: 1,
             actorId,
           },
-          { now: () => new Date() },
         ),
       () =>
         sql`insert into role_permissions (role_id, permission_key) values (${roleId}, 'adjust_stock')`.then(

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { editRole } from "@purosur/domain/access/use-cases";
 import { and, eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import Fastify, { type FastifyInstance } from "fastify";
@@ -20,7 +21,8 @@ import {
 } from "../test-support/integration-database.js";
 import { waitForLockWaiters } from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { editRole } from "./role-edit-route.js";
+import { drizzleRoleDirectory } from "./drizzle-role-directory.js";
+import { DrizzleRoleStore } from "./drizzle-role-store.js";
 import { SESSION_COOKIE_NAME } from "./session-cookie.js";
 import { generateSessionId, hashSessionId } from "./session-id.js";
 import { createUser } from "./user-creation-route.js";
@@ -165,7 +167,11 @@ describe("assigning a role while that role's permissions change, on a real Postg
       await holder`begin`;
       await holder`select id from roles where id = ${editedRoleId} for share`;
       edit = editRole(
-        db,
+        {
+          store: new DrizzleRoleStore(db),
+          roles: drizzleRoleDirectory(db),
+          clock: { now: () => new Date() },
+        },
         {
           id: editedRoleId,
           name: `Rol ${randomUUID()}`,
@@ -173,7 +179,6 @@ describe("assigning a role while that role's permissions change, on a real Postg
           version: 1,
           actorId: administratorId,
         },
-        { now: () => new Date() },
       );
       await waitForLockWaiters(sql, 1);
       await holder`update user_roles set role_id = ${editedRoleId} where user_id = ${userId}`;
@@ -331,7 +336,11 @@ describe("an alert for increased access that fails to open, on a real Postgres",
 
     await expect(
       editRole(
-        db,
+        {
+          store: new DrizzleRoleStore(db),
+          roles: drizzleRoleDirectory(db),
+          clock: { now: () => new Date() },
+        },
         {
           id: roleId,
           name: `Rol ${randomUUID()}`,
@@ -339,7 +348,6 @@ describe("an alert for increased access that fails to open, on a real Postgres",
           version: 1,
           actorId: administratorId,
         },
-        { now: () => new Date() },
       ),
     ).rejects.toThrow(/insert into "alerts"/);
 

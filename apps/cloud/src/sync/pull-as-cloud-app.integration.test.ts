@@ -1,3 +1,4 @@
+import { createRole } from "@purosur/domain/access/use-cases";
 import { createCategory, createProduct, createTag } from "@purosur/domain/catalog/use-cases";
 import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import {
@@ -9,7 +10,7 @@ import { pullChanges } from "@purosur/domain/sync/use-cases";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createRole } from "../access/role-creation-route.js";
+import { DrizzleRoleStore } from "../access/drizzle-role-store.js";
 import { createUser } from "../access/user-creation-route.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { DrizzleBuyerIdentificationThresholdStore } from "../fiscal/drizzle-buyer-identification-threshold-store.js";
@@ -66,11 +67,14 @@ describe("a pull run as the role the deployed cloud connects with", () => {
     if (product.kind !== "created" || !actor) {
       throw new Error("test setup: the product or the actor was not created");
     }
-    const role = await createRole(db, {
-      name: "Cajera",
-      permissionKeys: ["sell_and_charge"],
-      actorId: actor.id,
-    });
+    const role = await createRole(
+      { store: new DrizzleRoleStore(db) },
+      {
+        name: "Cajera",
+        permissionKeys: ["sell_and_charge"],
+        actorId: actor.id,
+      },
+    );
     if (role.kind !== "created") {
       throw new Error("test setup: the role was not created");
     }
