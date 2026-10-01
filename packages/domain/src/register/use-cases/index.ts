@@ -4,6 +4,21 @@ export type {
 } from "./authenticate-installation.js";
 export { authenticateInstallation } from "./authenticate-installation.js";
 export type {
+  BranchRegister,
+  BranchRegisterStore,
+  BranchRegisterStoreTransaction,
+  BranchRegisters,
+  EnrollmentCodeEmission,
+  EnrollmentCodeIssuer,
+  IssuedEnrollmentCode,
+  LockRegisterResult,
+  NewEnrollmentCode,
+  NewRegister,
+  RegisterCreation,
+  RegisterEnrollmentCode,
+} from "./branch-register-store.js";
+export { RegisterNameConflict } from "./branch-register-store.js";
+export type {
   CashLedger,
   CashLedgerTransaction,
   IdGenerator,
@@ -15,12 +30,27 @@ export type {
   CloseCashSessionPorts,
 } from "./close-cash-session.js";
 export { closeCashSession } from "./close-cash-session.js";
+export type { CreateRegisterInput, CreateRegisterOutcome } from "./create-register.js";
+export { createRegister } from "./create-register.js";
+export type {
+  EmitEnrollmentCodeInput,
+  EmitEnrollmentCodeOutcome,
+  EmitEnrollmentCodePorts,
+} from "./emit-enrollment-code.js";
+export { emitEnrollmentCode } from "./emit-enrollment-code.js";
 export type {
   EnrollInstallationInput,
   EnrollInstallationOutcome,
 } from "./enroll-installation.js";
 export { enrollInstallation } from "./enroll-installation.js";
 export type { InstallationKeys } from "./installation-keys.js";
+export type {
+  BranchRegisterSummary,
+  ListBranchRegistersInput,
+  ListBranchRegistersPorts,
+  PendingEnrollmentCode,
+} from "./list-branch-registers.js";
+export { listBranchRegisters } from "./list-branch-registers.js";
 export type {
   OpenCashSessionInput,
   OpenCashSessionOutcome,
