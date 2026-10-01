@@ -17,6 +17,7 @@ type RoutePath =
   | "/session"
   | "/cash"
   | "/cash-count"
+  | "/charge"
   | "/locked"
   | "/locked-close"
   | "/enroll"
@@ -69,6 +70,7 @@ const screenFor: Record<
   "/session": (screen) => screen.getByRole("heading", { name: SESSION_TITLE }),
   "/cash": (screen) => screen.getByRole("heading", { name: "Caja" }),
   "/cash-count": (screen) => screen.getByRole("heading", { name: "Cerrar caja" }),
+  "/charge": (screen) => screen.getByRole("heading", { name: "Elegí el medio de pago" }),
   "/locked": (screen) => screen.getByRole("heading", { name: "Caja bloqueada" }),
   "/locked-close": (screen) => screen.getByRole("heading", { name: "¿Quién cierra la caja?" }),
   "/enroll": (screen) => screen.getByRole("heading", { name: ENROLLMENT_TITLE }),
@@ -108,6 +110,7 @@ function contextWith(
     requestFirstPinCode: async () => ({ kind: "sent" }),
     firstSignIn: async () => ({ kind: "signed_in", person: PERSON }),
     currentSale: async () => null,
+    chargeSaleInCash: async () => ({ kind: "unavailable" }),
     scanProduct: async () => ({ kind: "unknown_code" }),
     searchProducts: async () => ({ kind: "results", products: [], more: false }),
     addProduct: async () => ({ kind: "product_unavailable" }),
@@ -247,7 +250,12 @@ beforeEach(() => page.viewport(1280, 720));
 afterEach(() => page.viewport(414, 896));
 describe("isSessionScreen", () => {
   it("is true for the screens reached while a session is open, and false for the others", () => {
-    expect(["/session", "/cash", "/cash-count"].map(isSessionScreen)).toEqual([true, true, true]);
+    expect(["/session", "/cash", "/cash-count", "/charge"].map(isSessionScreen)).toEqual([
+      true,
+      true,
+      true,
+      true,
+    ]);
     expect(["/", "/sign-in", "/starting", "/core-down", "/enroll"].map(isSessionScreen)).toEqual([
       false,
       false,
@@ -384,6 +392,14 @@ describe("the register's router", () => {
     { path: "/session", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     { path: "/cash", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     { path: "/cash-count", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
+    { path: "/charge", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
+    {
+      path: "/charge",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      cashSession: { status: "unknown" },
+      redirectedTo: "/starting",
+    },
     {
       path: "/cash",
       coreStatus: "up",
@@ -599,6 +615,87 @@ describe("the register's router", () => {
 
     await expect.poll(() => scans).toEqual(["7790001"]);
     expect(reads).toEqual(["read"]);
+  });
+
+  it("reads the sale and charges it in cash through the core on the charge screen", async () => {
+    const charges: [string, number][] = [];
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", OPENER, undefined, OPEN_SESSION),
+        currentSale: async () => ({
+          id: "sale-1",
+          lines: [
+            {
+              id: "line-1",
+              product_id: "p1",
+              product_name: "Yerba mate 1 kg",
+              quantity: 1,
+              list_unit_price: 238_000,
+              discount_amount: 0,
+              promotion: null,
+              line_total: 238_000,
+            },
+          ],
+          total: 238_000,
+        }),
+        chargeSaleInCash: async (saleId, tendered) => {
+          charges.push([saleId, tendered]);
+          return { kind: "completed", sale_id: saleId, total: 238_000, tendered, change: 0 };
+        },
+      },
+      "/charge",
+    );
+    const screen = await render(<RouterProvider router={router} />);
+
+    await userEvent.click(screen.getByText("Efectivo", { exact: true }));
+    await userEvent.fill(
+      screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
+      "2.380,00",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
+
+    await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
+    expect(charges).toEqual([["sale-1", 238_000]]);
+  });
+
+  it("reads the cash session again when the charge screen finds it is no longer valid", async () => {
+    const refreshed = vi.fn(async () => {});
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", OPENER, undefined, OPEN_SESSION),
+        currentSale: async () => ({
+          id: "sale-1",
+          lines: [
+            {
+              id: "line-1",
+              product_id: "p1",
+              product_name: "Yerba mate 1 kg",
+              quantity: 1,
+              list_unit_price: 238_000,
+              discount_amount: 0,
+              promotion: null,
+              line_total: 238_000,
+            },
+          ],
+          total: 238_000,
+        }),
+        chargeSaleInCash: async () => ({ kind: "no_open_session" }),
+        refreshCashSession: refreshed,
+      },
+      "/charge",
+    );
+    const screen = await render(<RouterProvider router={router} />);
+
+    await userEvent.click(screen.getByText("Efectivo", { exact: true }));
+    await userEvent.fill(
+      screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
+      "2.380,00",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
+
+    await expect.poll(() => refreshed.mock.calls.length).toBe(1);
   });
 
   it("reads the cash session again when the sale screen finds it is no longer valid", async () => {

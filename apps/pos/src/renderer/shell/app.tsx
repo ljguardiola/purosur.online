@@ -215,6 +215,7 @@ export function App({ core }: { core: CoreClient }) {
     firstSignIn,
     currentSale: () => core.currentSale(),
     scanProduct: (code: string) => core.scanProduct(code),
+    chargeSaleInCash: (saleId: string, tendered: number) => core.chargeSaleInCash(saleId, tendered),
     searchProducts: (query: string) => core.searchProducts(query),
     addProduct: (productId: string) => core.addProduct(productId),
     changeLineQuantity: (lineId: string, quantity: number, expectedQuantity: number) =>

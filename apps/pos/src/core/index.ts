@@ -58,6 +58,7 @@ import {
   addSearchedProductFor,
   cancelSaleFor,
   changeLineQuantityFor,
+  chargeSaleInCashFor,
   currentSaleFor,
   removeSaleLineFor,
   scanProductFor,
@@ -415,6 +416,21 @@ const rendererRequestDeps: RendererRequestDeps = {
             now: () => new Date(),
             ids: uuidV7Ids,
           }),
+  chargeSaleInCash:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (request) =>
+          chargeSaleInCashFor(
+            {
+              database: localDatabase,
+              gate: actionGate,
+              readOutboxChainKey: async () =>
+                (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+              now: () => new Date(),
+              ids: uuidV7Ids,
+            },
+            request,
+          ),
   searchProducts:
     localDatabase === undefined || actionGate === undefined
       ? undefined

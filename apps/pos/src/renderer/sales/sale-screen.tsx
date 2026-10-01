@@ -11,6 +11,7 @@ import type {
 } from "@purosur/contracts";
 import { scannedCodeSchema, searchQuerySchema } from "@purosur/contracts";
 import { EmptyState, LoadFailure, LoadingPlaceholder, SearchField } from "@purosur/ui";
+import { useNavigate } from "@tanstack/react-router";
 import { ScanBarcode, TriangleAlert } from "lucide-react";
 import type { FormEvent, KeyboardEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
@@ -84,6 +85,7 @@ export function SaleScreen({
   cancelSale,
   onSessionInvalid,
 }: SaleScreenProps) {
+  const navigate = useNavigate();
   const field = useRef<HTMLFormElement>(null);
   const [view, setView] = useState<SaleView>({ status: "loading" });
   const [code, setCode] = useState("");
@@ -402,6 +404,7 @@ export function SaleScreen({
         lineCount={sale?.lines.length ?? 0}
         total={sale?.total ?? 0}
         canCancel={sale !== null && !editing}
+        onCharge={() => void navigate({ to: "/charge" })}
         onCancel={() => askToCancel(true)}
       />
       <CancelSaleModal

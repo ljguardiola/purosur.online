@@ -25,6 +25,12 @@ export type {
 } from "./change-line-quantity.js";
 export { changeLineQuantity } from "./change-line-quantity.js";
 export type {
+  ChargeSaleInCashInput,
+  ChargeSaleInCashOutcome,
+  ChargeSaleInCashPorts,
+} from "./charge-sale-in-cash.js";
+export { chargeSaleInCash } from "./charge-sale-in-cash.js";
+export type {
   CurrentSaleInput,
   CurrentSaleOutcome,
   CurrentSalePorts,

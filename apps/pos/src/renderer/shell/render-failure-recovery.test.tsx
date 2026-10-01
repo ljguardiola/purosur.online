@@ -50,6 +50,7 @@ function buildFailingRouter(shouldThrow: () => boolean) {
       requestFirstPinCode: async () => ({ kind: "unavailable" }),
       firstSignIn: async () => ({ kind: "unavailable" }),
       currentSale: async () => null,
+      chargeSaleInCash: async () => ({ kind: "unavailable" }),
       scanProduct: async () => ({ kind: "unavailable" }),
       searchProducts: async () => ({ kind: "unavailable" }),
       addProduct: async () => ({ kind: "unavailable" }),

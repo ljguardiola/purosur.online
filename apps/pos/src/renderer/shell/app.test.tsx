@@ -84,6 +84,7 @@ function coreAnswering(
   sales: {
     currentSale?: () => Promise<OpenSale | null>;
     scanProduct?: (code: string) => Promise<ScanProductOutcome>;
+    chargeSaleInCash?: CoreClient["chargeSaleInCash"];
     searchProducts?: CoreClient["searchProducts"];
     addProduct?: CoreClient["addProduct"];
   } = {},
@@ -177,6 +178,11 @@ function coreAnswering(
     },
     async scanProduct(code) {
       return sales.scanProduct === undefined ? { kind: "unknown_code" } : sales.scanProduct(code);
+    },
+    async chargeSaleInCash(saleId, tendered) {
+      return sales.chargeSaleInCash === undefined
+        ? { kind: "unavailable" }
+        : sales.chargeSaleInCash(saleId, tendered);
     },
     async closeCashSession(sessionId, countedCash, authorization) {
       closed.push([sessionId, countedCash, authorization]);
@@ -774,6 +780,52 @@ describe("App", () => {
 
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
     expect(reads).toEqual(["read"]);
+  });
+
+  it("charges the sale in progress in cash through the core", async () => {
+    const charges: [string, number][] = [];
+    const { core } = coreAnswering(
+      true,
+      { kind: "enrolled" },
+      GRACE_SIGNED_IN,
+      { cashSession: async () => GRACE_SESSION },
+      {
+        currentSale: async () => ({
+          id: "sale-1",
+          lines: [
+            {
+              id: "line-1",
+              product_id: "p1",
+              product_name: "Yerba mate 1 kg",
+              quantity: 1,
+              list_unit_price: 238_000,
+              discount_amount: 0,
+              promotion: null,
+              line_total: 238_000,
+            },
+          ],
+          total: 238_000,
+        }),
+        chargeSaleInCash: async (saleId, tendered) => {
+          charges.push([saleId, tendered]);
+          return { kind: "completed", sale_id: saleId, total: 238_000, tendered, change: 12_000 };
+        },
+      },
+    );
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await resumeLockedRegister(screen);
+
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+    await userEvent.click(screen.getByText("Efectivo", { exact: true }));
+    await userEvent.fill(
+      screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
+      "2.500,00",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
+
+    await expect.element(screen.getByRole("heading", { name: "Entregá el vuelto" })).toBeVisible();
+    expect(charges).toEqual([["sale-1", 250_000]]);
   });
 
   it("goes back to the no-session screen, still signed in, when a scan finds that the cash session is no longer open", async () => {

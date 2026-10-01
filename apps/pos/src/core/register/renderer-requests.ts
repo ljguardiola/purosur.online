@@ -4,6 +4,7 @@ import type {
   CancelSaleOutcome,
   CashBalance,
   ChangeLineQuantityOutcome,
+  ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   CoreToRendererMessage,
@@ -25,6 +26,7 @@ import type {
   SignInUser,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
+import type { ChargeSaleInCashRequest } from "../sales/sale-requests";
 import type { CashMovementRequest } from "./cash-movement-requests";
 
 export interface RendererRequestDeps {
@@ -44,6 +46,9 @@ export interface RendererRequestDeps {
     | undefined;
   cashMovements: (() => ListedCashMovement[] | null) | undefined;
   scanProduct: ((code: string) => Promise<ScanProductOutcome>) | undefined;
+  chargeSaleInCash:
+    | ((request: ChargeSaleInCashRequest) => Promise<ChargeSaleInCashOutcome>)
+    | undefined;
   searchProducts: ((query: string) => Promise<SearchProductsOutcome>) | undefined;
   addProduct: ((productId: string) => Promise<AddProductOutcome>) | undefined;
   currentSale: (() => Promise<CurrentSaleAnswer>) | undefined;
@@ -275,6 +280,18 @@ async function attemptSaleChange<TOutcome extends { kind: string }>(
   }
 }
 
+async function attemptChargeSaleInCash(
+  deps: RendererRequestDeps,
+  request: ChargeSaleInCashRequest,
+): Promise<ChargeSaleInCashOutcome> {
+  try {
+    return (await deps.chargeSaleInCash?.(request)) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure("charging a sale in cash", error);
+    return { kind: "unavailable" };
+  }
+}
+
 async function attemptSearchProducts(
   deps: RendererRequestDeps,
   query: string,
@@ -433,6 +450,15 @@ export async function answerRendererRequest(
         type: "cancel-sale-result",
         request_id: message.request_id,
         outcome: await attemptSaleChange(deps, "cancelling the sale", deps.cancelSale),
+      };
+    case "charge-sale-in-cash":
+      return {
+        type: "charge-sale-in-cash-result",
+        request_id: message.request_id,
+        outcome: await attemptChargeSaleInCash(deps, {
+          saleId: message.sale_id,
+          tendered: message.tendered,
+        }),
       };
     case "search-products":
       return {

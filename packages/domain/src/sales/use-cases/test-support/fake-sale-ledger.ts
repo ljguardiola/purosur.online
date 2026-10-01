@@ -1,5 +1,7 @@
 import type { RoleAccess } from "../../../access/index.js";
+import type { CashMovement } from "../../../register/index.js";
 import type { OutboxEventDraft } from "../../../sync/index.js";
+import type { PaymentTransaction } from "../../model/payment.js";
 import type { SaleWithLines } from "../../model/sale.js";
 import type { ListPrice } from "../../model/sale-line.js";
 import type { SaleLineRemoval } from "../../model/sale-line-removal.js";
@@ -30,6 +32,8 @@ export interface FakeSaleLedgerState {
   promotionsByProduct: Record<string, CandidatePromotion[]>;
   sales: SaleWithLines[];
   removals: SaleLineRemoval[];
+  payments: PaymentTransaction[];
+  movements: CashMovement[];
   outbox: OutboxEventDraft[];
 }
 
@@ -40,6 +44,9 @@ export type FakeSaleLedgerWrite =
   | "recordLineRemoval"
   | "deleteSaleLine"
   | "markSaleCancelled"
+  | "recordPayment"
+  | "recordCashMovement"
+  | "recordCompletedSale"
   | "appendOutboxEvent";
 
 export class FakeSaleLedger implements SaleLedger {
@@ -60,6 +67,8 @@ export class FakeSaleLedger implements SaleLedger {
       promotionsByProduct: {},
       sales: [],
       removals: [],
+      payments: [],
+      movements: [],
       outbox: [],
       ...state,
     };
@@ -134,6 +143,22 @@ export class FakeSaleLedger implements SaleLedger {
         const sale = working.sales.find((stored) => stored.id === saleId);
         if (sale) {
           sale.state = "CANCELLED";
+        }
+      },
+      recordPayment: (payment) => {
+        this.failIfAsked("recordPayment");
+        working.payments.push(payment);
+      },
+      recordCashMovement: (movement) => {
+        this.failIfAsked("recordCashMovement");
+        working.movements.push(movement);
+      },
+      recordCompletedSale: (saleId) => {
+        this.failIfAsked("recordCompletedSale");
+        for (const sale of working.sales) {
+          if (sale.id === saleId) {
+            sale.state = "COMPLETED";
+          }
         }
       },
       appendOutboxEvent: (draft) => {

@@ -2,6 +2,7 @@ import type {
   DiscountBenefit,
   LinePromotion,
   OutboxEventDraft,
+  PaymentTransaction,
   Sale,
   SaleLine,
   SaleLineRemoval,
@@ -19,6 +20,7 @@ import type {
 } from "@purosur/domain/sales/use-cases";
 import type { SignInStore } from "../access/sqlite-sign-in-store";
 import type { LocalDatabase } from "../platform/local-database";
+import { insertCashMovement } from "../register/sqlite-cash-ledger";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
 
 interface SaleRow {
@@ -88,7 +90,6 @@ function benefitColumns(benefit: DiscountBenefit): BenefitColumns {
 export class SqliteSaleLedger implements SaleLedger {
   private readonly database: LocalDatabase;
   private readonly people: Pick<SignInStore, "activePerson">;
-
   private readonly outboxChainKey: string | undefined;
 
   constructor(
@@ -124,6 +125,9 @@ export class SqliteSaleLedger implements SaleLedger {
       deleteSaleLine: (lineId) => this.deleteSaleLine(lineId),
       saleLineRemovals: (saleId) => this.saleLineRemovals(saleId),
       markSaleCancelled: (saleId) => this.markSaleCancelled(saleId),
+      recordPayment: (payment) => this.recordPayment(payment),
+      recordCashMovement: (movement) => insertCashMovement(this.database, movement),
+      recordCompletedSale: (saleId) => this.recordCompletedSale(saleId),
       appendOutboxEvent: (draft) => this.appendOutboxEvent(draft),
     };
   }
@@ -427,9 +431,37 @@ export class SqliteSaleLedger implements SaleLedger {
     this.database.prepare("UPDATE sales SET state = 'CANCELLED' WHERE id = ?").run(saleId);
   }
 
+  private recordPayment(payment: PaymentTransaction): void {
+    this.database
+      .prepare(
+        `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, state, occurred_at)
+         VALUES (@id, @sale_id, @kind, @method, @provider, @amount, @tendered, @state, @occurred_at)`,
+      )
+      .run({
+        id: payment.id,
+        sale_id: payment.saleId,
+        kind: payment.kind,
+        method: payment.method,
+        provider: payment.provider,
+        amount: payment.amount,
+        tendered: payment.tendered ?? null,
+        state: payment.state,
+        occurred_at: payment.occurredAt.toISOString(),
+      });
+  }
+
+  private recordCompletedSale(saleId: string): void {
+    const { changes } = this.database
+      .prepare("UPDATE sales SET state = 'COMPLETED' WHERE id = ? AND state = 'OPEN'")
+      .run(saleId);
+    if (changes !== 1) {
+      throw new Error("the sale is not in progress");
+    }
+  }
+
   private appendOutboxEvent(draft: OutboxEventDraft): void {
     if (this.outboxChainKey === undefined) {
-      throw new Error("the sale ledger has no outbox chain key");
+      throw new Error("the ledger has no outbox chain key");
     }
     appendOutboxEvent(this.database, this.outboxChainKey, draft);
   }

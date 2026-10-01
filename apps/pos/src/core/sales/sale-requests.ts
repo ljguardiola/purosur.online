@@ -2,6 +2,7 @@ import type {
   AddProductOutcome,
   CancelSaleOutcome,
   ChangeLineQuantityOutcome,
+  ChargeSaleInCashOutcome,
   CurrentSaleAnswer,
   OpenSale,
   RemoveSaleLineOutcome,
@@ -16,6 +17,7 @@ import {
   type Clock,
   cancelSale,
   changeLineQuantity,
+  chargeSaleInCash,
   currentSale,
   type IdGenerator,
   removeSaleLine,
@@ -33,8 +35,13 @@ export interface SaleRequestDeps {
   ids: IdGenerator;
 }
 
-export interface CancelSaleRequestDeps extends SaleRequestDeps {
+export interface OutboxSaleRequestDeps extends SaleRequestDeps {
   readOutboxChainKey: () => Promise<string | undefined>;
+}
+
+export interface ChargeSaleInCashRequest {
+  saleId: string;
+  tendered: number;
 }
 
 function saleLedger(database: LocalDatabase, outboxChainKey?: string): SqliteSaleLedger {
@@ -221,7 +228,7 @@ export async function cancelSaleFor({
   now,
   ids,
   readOutboxChainKey,
-}: CancelSaleRequestDeps): Promise<CancelSaleOutcome> {
+}: OutboxSaleRequestDeps): Promise<CancelSaleOutcome> {
   const outboxChainKey = await readOutboxChainKey();
   if (outboxChainKey === undefined) {
     return { kind: "unavailable" };
@@ -236,4 +243,38 @@ export async function cancelSaleFor({
     return { kind: guarded.kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };
   }
   return { kind: guarded.result.kind };
+}
+
+export async function chargeSaleInCashFor(
+  { database, gate, now, ids, readOutboxChainKey }: OutboxSaleRequestDeps,
+  { saleId, tendered }: ChargeSaleInCashRequest,
+): Promise<ChargeSaleInCashOutcome> {
+  const outboxChainKey = await readOutboxChainKey();
+  if (outboxChainKey === undefined) {
+    return { kind: "unavailable" };
+  }
+  const guarded = await gate.run({ permission: "sell_and_charge" }, async ({ signedInUserId }) =>
+    chargeSaleInCash(
+      { ledger: saleLedger(database, outboxChainKey), clock: { now }, ids },
+      { actorId: signedInUserId, saleId, tendered },
+    ),
+  );
+  if (guarded.kind !== "performed") {
+    return { kind: guarded.kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };
+  }
+  const outcome = guarded.result;
+  switch (outcome.kind) {
+    case "completed":
+      return {
+        kind: "completed",
+        sale_id: outcome.saleId,
+        total: outcome.total,
+        tendered: outcome.tendered,
+        change: outcome.change,
+      };
+    case "insufficient_cash":
+      return { kind: "insufficient_cash", amount_due: outcome.amountDue };
+    default:
+      return { kind: outcome.kind };
+  }
 }
