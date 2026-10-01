@@ -28,7 +28,7 @@ export function useAuthorizersQuery({
   return useCoreQuery({ queryKey: accessKeys.authorizers(permission), read, enabled });
 }
 
-export function useRefreshAuthorizers(permission: AuthorizablePermissionKey): () => void {
+export function useResetAuthorizers(permission: AuthorizablePermissionKey): () => void {
   const queryClient = useQueryClient();
-  return () => void queryClient.invalidateQueries({ queryKey: accessKeys.authorizers(permission) });
+  return () => void queryClient.resetQueries({ queryKey: accessKeys.authorizers(permission) });
 }

@@ -4,7 +4,7 @@ import type { RefObject } from "react";
 import { useRef, useState } from "react";
 import type { CoreData } from "../platform/use-core-query";
 import { useCountdown } from "../platform/use-countdown";
-import { useAuthorizersQuery, useRefreshAuthorizers } from "./access-queries";
+import { useAuthorizersQuery, useResetAuthorizers } from "./access-queries";
 import type { SignedInPerson } from "./signed-in-person";
 
 export type ShownRefusal =
@@ -49,7 +49,7 @@ export function useAuthorization({
     read: () => loadAuthorizers(permission),
     enabled: required,
   });
-  const refreshAuthorizers = useRefreshAuthorizers(permission);
+  const refreshAuthorizers = useResetAuthorizers(permission);
   const [chosen, setChosen] = useState<string | null>(null);
   const [pin, setPin] = useState("");
   const [refusal, setRefusal] = useState<ShownRefusal>();

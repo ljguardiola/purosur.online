@@ -6,7 +6,7 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { createQueryClient } from "../platform/query-client";
 import type { CoreData } from "../platform/use-core-query";
-import { useAuthorizersQuery, useRefreshAuthorizers, useSignInUsersQuery } from "./access-queries";
+import { useAuthorizersQuery, useResetAuthorizers, useSignInUsersQuery } from "./access-queries";
 
 const ADA: SignInUser = { id: "u1", first_name: "Ada" };
 const GRACE: SignInUser = { id: "u2", first_name: "Grace" };
@@ -33,7 +33,7 @@ type AuthorizersProbeProps = {
 
 function AuthorizersProbe({ permission, read, enabled = true }: AuthorizersProbeProps) {
   const data = useAuthorizersQuery({ permission, read: () => read(permission), enabled });
-  const refresh = useRefreshAuthorizers(permission);
+  const refresh = useResetAuthorizers(permission);
   return (
     <>
       <p>{names(data)}</p>

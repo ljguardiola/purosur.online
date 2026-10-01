@@ -400,6 +400,25 @@ describe("an action guarded by another person's PIN", () => {
       expect(loads).toBe(2);
     });
 
+    it("goes back to loading, without the refused person, until the authorizers are read again", async () => {
+      let loads = 0;
+      const loadAuthorizers = () => {
+        loads += 1;
+        return loads === 1 ? Promise.resolve(AUTHORIZERS) : new Promise<SignInUser[]>(() => {});
+      };
+      const screen = await renderForm({
+        loadAuthorizers,
+        submit: recording({ kind: "lacks_permission" }).submit,
+      });
+
+      await authorizeAs(screen, "Sofía", "1234");
+
+      await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
+      await expect
+        .element(screen.getByRole("button", { name: /Persona que autoriza/ }))
+        .not.toBeInTheDocument();
+    });
+
     it("says the PIN could not be checked when the register cannot verify it", async () => {
       const screen = await renderForm({ submit: recording({ kind: "unavailable" }).submit });
 
