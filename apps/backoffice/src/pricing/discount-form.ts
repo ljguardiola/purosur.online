@@ -163,7 +163,7 @@ export const DISCOUNT_MESSAGES = {
       return "Ingresá el nombre de la promoción.";
     }
     if (nameIsTooLong(trimmed)) {
-      return `El nombre puede tener hasta ${schemaLimit(discountNameSchema.meta()?.maxLength)} caracteres.`;
+      return `El nombre puede tener hasta ${schemaLimit(discountNameSchema.meta()?.["maxLength"])} caracteres.`;
     }
     return "Revisá el nombre de la promoción.";
   },

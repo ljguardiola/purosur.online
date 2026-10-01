@@ -331,7 +331,7 @@ describe("discountCreationBodySchema", () => {
 
 describe("discountNameSchema", () => {
   it("declares the longest name it accepts, counted in characters", () => {
-    expect(discountNameSchema.meta()?.maxLength).toBe(DISCOUNT_NAME_MAX_LENGTH);
+    expect(discountNameSchema.meta()?.["maxLength"]).toBe(DISCOUNT_NAME_MAX_LENGTH);
   });
 
   it("flags a name that is too long with a custom issue and an empty one with a too-small issue", () => {
