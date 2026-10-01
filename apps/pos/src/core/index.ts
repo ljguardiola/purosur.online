@@ -22,8 +22,8 @@ import { createActionGate } from "./access/action-gate";
 import { requestFirstPinCode } from "./access/first-pin-code-request";
 import { redeemPinCode } from "./access/pin-code-redemption";
 import { hashPin } from "./access/pin-hash";
+import { redeemedPerson } from "./access/redeemed-person";
 import { applyRedeemedPin } from "./access/redeemed-pin";
-import { signInRedeemedPerson } from "./access/redeemed-sign-in";
 import { firstSignIn, signIn } from "./access/sign-in";
 import { lookUpSignIn } from "./access/sign-in-lookup";
 import { createSignedInPerson } from "./access/signed-in-person";
@@ -243,10 +243,9 @@ const rendererRequestDeps: RendererRequestDeps = {
         },
         openCashSession: () =>
           localDatabase === undefined ? undefined : readOpenSession(localDatabase),
-        signInRedeemed: (userId) =>
-          signInStore === undefined
-            ? undefined
-            : signInRedeemedPerson({ store: signInStore, signedInPerson }, userId),
+        redeemedPerson: (userId) =>
+          signInStore === undefined ? undefined : redeemedPerson(signInStore, userId),
+        signedInPerson,
         cashSession: (signedInPersonId) =>
           localDatabase === undefined ? null : currentCashSession(localDatabase, signedInPersonId),
       },

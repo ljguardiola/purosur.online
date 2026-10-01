@@ -10,6 +10,7 @@ import {
 import { isLockedToAnother } from "@purosur/domain";
 import type { DeviceCredentials } from "../../shared/device-credentials-messages";
 import type { CloudResponse } from "../platform/cloud-client";
+import type { SignedInPerson } from "./signed-in-person";
 
 export interface PinCodeRedemptionDeps {
   readCredentials: () => Promise<DeviceCredentials | undefined>;
@@ -19,9 +20,10 @@ export interface PinCodeRedemptionDeps {
   applyRedeemedPin: ((pepper: string, redemption: PinCodeRedemption) => void) | undefined;
   reportLocalFailure: (error: unknown) => void;
   openCashSession: () => { openedBy: string } | undefined;
-  signInRedeemed: (
+  redeemedPerson: (
     userId: string,
   ) => Extract<PinCodeRedemptionOutcome, { kind: "resumed" }>["person"] | undefined;
+  signedInPerson: Pick<SignedInPerson, "set">;
   cashSession: (signedInPersonId: string) => OpenCashSession | null;
 }
 
@@ -94,9 +96,11 @@ export async function redeemPinCode(
   if (isLockedToAnother(openSession, redemption.data.user_id)) {
     return { kind: "cash_session_opened_by_another" };
   }
+  const person = deps.redeemedPerson(openSession.openedBy);
+  if (person === undefined) {
+    return { kind: "redeemed" };
+  }
   const cashSession = deps.cashSession(openSession.openedBy);
-  const person = deps.signInRedeemed(openSession.openedBy);
-  return person === undefined
-    ? { kind: "redeemed" }
-    : { kind: "resumed", person, cash_session: cashSession };
+  deps.signedInPerson.set(openSession.openedBy);
+  return { kind: "resumed", person, cash_session: cashSession };
 }

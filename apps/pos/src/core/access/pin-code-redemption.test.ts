@@ -53,9 +53,11 @@ function depsAnswering(
       reported.push(error);
     },
     openCashSession: () => (opener === undefined ? undefined : { openedBy: opener }),
-    signInRedeemed: (userId) => {
-      signedIn.push(userId);
-      return OPENER_PERSON;
+    redeemedPerson: () => OPENER_PERSON,
+    signedInPerson: {
+      set: (userId) => {
+        signedIn.push(userId);
+      },
     },
     cashSession: (personId) => {
       cashSessionReads.push(personId);
@@ -140,7 +142,17 @@ describe("redeemPinCode", () => {
 
   it("is only redeemed when the opener cannot be signed in", async () => {
     const { deps } = depsAnswering({ kind: "ok", body: REDEEMED_BODY }, { opener: USER_ID });
-    deps.signInRedeemed = () => undefined;
+    deps.redeemedPerson = () => undefined;
+
+    expect(await redeemPinCode(deps, TYPED_CODE, "482915")).toEqual({ kind: "redeemed" });
+  });
+
+  it("is redeemed when the opener cannot be signed in, whatever reading the open cash session does", async () => {
+    const { deps } = depsAnswering({ kind: "ok", body: REDEEMED_BODY }, { opener: USER_ID });
+    deps.redeemedPerson = () => undefined;
+    deps.cashSession = () => {
+      throw new Error("the register database is unavailable");
+    };
 
     expect(await redeemPinCode(deps, TYPED_CODE, "482915")).toEqual({ kind: "redeemed" });
   });
