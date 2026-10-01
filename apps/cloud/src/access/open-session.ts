@@ -1,4 +1,4 @@
-import { heldPermissionKeys, type PermissionKey } from "@purosur/domain";
+import { heldPermissionKeys, isSessionExpired, type PermissionKey } from "@purosur/domain";
 import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyReply, FastifyRequest } from "fastify";
@@ -7,9 +7,6 @@ import { recordBackofficeRequest } from "./backoffice-request-rate-limiter.js";
 import { resolveSourceAddress } from "./recovery-source-address.js";
 import { readSessionCookie } from "./session-cookie.js";
 import { hashSessionId } from "./session-id.js";
-
-const SESSION_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
-const SESSION_ABSOLUTE_TIMEOUT_MS = 12 * 60 * 60 * 1000;
 
 export const UNAUTHENTICATED_RESPONSE = {
   code: "unauthenticated",
@@ -26,12 +23,6 @@ export interface OpenSession {
   isAdministrator: boolean;
   passkeyAuthorizedAt: Date | null;
   permissionKeys: readonly PermissionKey[];
-}
-
-export function sessionExpiresAt(session: Pick<OpenSession, "createdAt" | "lastSeenAt">): Date {
-  const idleDeadline = session.lastSeenAt.getTime() + SESSION_IDLE_TIMEOUT_MS;
-  const absoluteDeadline = session.createdAt.getTime() + SESSION_ABSOLUTE_TIMEOUT_MS;
-  return new Date(Math.min(idleDeadline, absoluteDeadline));
 }
 
 export interface BackofficeSessionCheckOptions<TQueryResult extends PgQueryResultHKT> {
@@ -80,12 +71,7 @@ async function lookUpSession<TQueryResult extends PgQueryResultHKT>(
     return { state: "absent" };
   }
 
-  const currentTime = options.now;
-  const idleExpired =
-    session.lastSeenAt.getTime() + SESSION_IDLE_TIMEOUT_MS <= currentTime.getTime();
-  const absoluteExpired =
-    session.createdAt.getTime() + SESSION_ABSOLUTE_TIMEOUT_MS <= currentTime.getTime();
-  if (idleExpired || absoluteExpired || !session.active) {
+  if (isSessionExpired(session, options.now) || !session.active) {
     return { state: "ended", sessionIdHash };
   }
 

@@ -1,3 +1,4 @@
+import { RECOVERY_TOKEN_LIFETIME_MS, SIGN_IN_FAILURE_LIMIT } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { WebAuthnEmulator } from "nid-webauthn-emulator";
@@ -29,11 +30,9 @@ import { registerSessionAuthenticateRoute } from "./session-authenticate-route.j
 import { registerSessionAuthenticationOptionsRoute } from "./session-authentication-options-route.js";
 import { SESSION_COOKIE_NAME } from "./session-cookie.js";
 import { hashSessionId } from "./session-id.js";
-import { SIGN_IN_FAILURE_LIMIT } from "./sign-in-lockout.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
-const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 const SOURCE_ADDRESS = "203.0.113.10";
 
 let testDatabase: TestDatabase;
@@ -131,7 +130,7 @@ async function requestRegistrationOptions(forUserId: string) {
     userId: forUserId,
     tokenHash: hashRecoveryToken(rawToken),
     issuedAt: currentTime,
-    expiresAt: new Date(currentTime.getTime() + FIFTEEN_MINUTES_MS),
+    expiresAt: new Date(currentTime.getTime() + RECOVERY_TOKEN_LIFETIME_MS),
   });
   const response = await recoveryApp.inject({
     method: "POST",

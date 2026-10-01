@@ -1,3 +1,4 @@
+import { recoveryTokenStatus } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { recoveryTokens } from "../platform/db/schema.js";
@@ -15,7 +16,6 @@ export type RecoveryTokenClassification =
   | { status: "invalid"; token?: undefined }
   | { status: "burned" | "expired" | "valid"; token: RecoveryTokenRow };
 
-/** A token both used/voided and expired reports `burned`: it was consumed before it could expire. */
 export async function classifyRecoveryToken<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   tokenHash: string,
@@ -37,11 +37,5 @@ export async function classifyRecoveryToken<TQueryResult extends PgQueryResultHK
   if (!row) {
     return { status: "invalid" };
   }
-  if (row.usedAt !== null || row.voidedAt !== null) {
-    return { status: "burned", token: row };
-  }
-  if (row.expiresAt.getTime() <= now.getTime()) {
-    return { status: "expired", token: row };
-  }
-  return { status: "valid", token: row };
+  return { status: recoveryTokenStatus(row, now), token: row };
 }

@@ -8,6 +8,10 @@ export {
   isAuthorizablePermissionKey,
 } from "./model/holds-permission.js";
 export {
+  hasValidPasskeyAuthorization,
+  PASSKEY_AUTHORIZATION_WINDOW_MS,
+} from "./model/passkey-authorization-window.js";
+export {
   isPasskeyNameTooLong,
   PASSKEY_NAME_MAX_LENGTH,
   passkeyNameLength,
@@ -57,6 +61,12 @@ export {
   pinSignInDelaySeconds,
   pinSignInRetryAfterSeconds,
 } from "./model/pin-sign-in-failures.js";
+export type { RecoveryTokenState, RecoveryTokenStatus } from "./model/recovery-token.js";
+export {
+  RECOVERY_TOKEN_LIFETIME_MS,
+  recoveryTokenExpiresAt,
+  recoveryTokenStatus,
+} from "./model/recovery-token.js";
 export {
   holdsARegisterPermission,
   uncoveredRegisterPermissions,
@@ -67,4 +77,20 @@ export {
   ROLE_NAME_MAX_LENGTH,
   roleNameLength,
 } from "./model/role-name.js";
+export type { SessionActivity } from "./model/session-expiry.js";
+export {
+  isSessionExpired,
+  SESSION_ABSOLUTE_TIMEOUT_MS,
+  SESSION_IDLE_TIMEOUT_MS,
+  sessionExpiresAt,
+} from "./model/session-expiry.js";
+export {
+  hasReachedSignInFailureLimit,
+  isSignInBlockLive,
+  SIGN_IN_BLOCK_DURATION_MS,
+  SIGN_IN_FAILURE_LIMIT,
+  SIGN_IN_LOCKOUT_WINDOW_MS,
+  signInBlockedUntil,
+  signInLockoutWindowStart,
+} from "./model/sign-in-lockout.js";
 export { signInLookupAttemptWindowStart } from "./model/sign-in-lookup-attempt-limit.js";

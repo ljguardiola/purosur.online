@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { RECOVERY_TOKEN_LIFETIME_MS } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { WebAuthnEmulator } from "nid-webauthn-emulator";
@@ -22,7 +23,6 @@ import { findFreePort } from "./test-support/find-free-port.js";
 // PGlite serializes every query on one connection and can never race for real; this proves the
 // same guarantee against a real Postgres pool, over two genuinely parallel HTTP requests.
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
-const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
@@ -78,7 +78,7 @@ async function seedUserAndToken(): Promise<{ userId: string; rawToken: string }>
     userId: user.id,
     tokenHash: hashRecoveryToken(rawToken),
     issuedAt: new Date(),
-    expiresAt: new Date(Date.now() + FIFTEEN_MINUTES_MS),
+    expiresAt: new Date(Date.now() + RECOVERY_TOKEN_LIFETIME_MS),
   });
   return { userId: user.id, rawToken };
 }

@@ -1,8 +1,8 @@
 import { buyerIdentificationThresholdSchema } from "@purosur/contracts";
+import { PASSKEY_AUTHORIZATION_WINDOW_MS } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { PASSKEY_AUTHORIZATION_WINDOW_MS } from "../access/passkey-authorization-guard.js";
 import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../access/session-id.js";
 import {

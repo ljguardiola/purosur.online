@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { recoveryTokenExpiresAt } from "@purosur/domain";
 import { and, eq, gte, isNull, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
@@ -26,7 +27,6 @@ export interface ProcessRecoveryRequestJobResult {
 
 const TOKEN_ENTROPY_BITS = 160;
 const TOKEN_BYTES = TOKEN_ENTROPY_BITS / 8;
-const TOKEN_LIFETIME_MS = 15 * 60 * 1000;
 
 function generateRawToken(): string {
   return randomBytes(TOKEN_BYTES).toString("base64url");
@@ -115,7 +115,7 @@ export async function processRecoveryRequestJob<TQueryResult extends PgQueryResu
         requestedAt,
         requestId: payload.requestId,
         issuedAt: now,
-        expiresAt: new Date(now.getTime() + TOKEN_LIFETIME_MS),
+        expiresAt: recoveryTokenExpiresAt(now),
       })
       .returning({
         id: recoveryTokens.id,

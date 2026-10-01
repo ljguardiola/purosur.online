@@ -1,3 +1,4 @@
+import { RECOVERY_TOKEN_LIFETIME_MS } from "@purosur/domain";
 import { and, eq, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import Fastify, { type FastifyInstance } from "fastify";
@@ -19,7 +20,6 @@ import { hashRecoveryToken } from "./recovery-token-hash.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
-const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -96,7 +96,7 @@ async function issueToken(overrides: IssueTokenOverrides = {}): Promise<string> 
     userId: forUserId,
     tokenHash: hashRecoveryToken(rawToken),
     issuedAt: NOON,
-    expiresAt: overrides.expiresAt ?? new Date(NOON.getTime() + FIFTEEN_MINUTES_MS),
+    expiresAt: overrides.expiresAt ?? new Date(NOON.getTime() + RECOVERY_TOKEN_LIFETIME_MS),
     ...(overrides.usedAt ? { usedAt: overrides.usedAt } : {}),
     ...(overrides.voidedAt ? { voidedAt: overrides.voidedAt } : {}),
   });

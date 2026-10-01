@@ -1,3 +1,4 @@
+import { RECOVERY_TOKEN_LIFETIME_MS } from "@purosur/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { recoveryTokens, users } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
@@ -5,7 +6,6 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { classifyRecoveryToken } from "./recovery-token-lookup.js";
 
 const NOON = new Date("2026-01-05T12:00:00.000Z");
-const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -45,7 +45,7 @@ describe("classifyRecoveryToken", () => {
       userId,
       tokenHash: "live-hash",
       issuedAt: NOON,
-      expiresAt: new Date(NOON.getTime() + FIFTEEN_MINUTES_MS),
+      expiresAt: new Date(NOON.getTime() + RECOVERY_TOKEN_LIFETIME_MS),
     });
 
     const result = await classifyRecoveryToken(db, "live-hash", NOON);
@@ -59,7 +59,7 @@ describe("classifyRecoveryToken", () => {
       userId,
       tokenHash: "used-hash",
       issuedAt: NOON,
-      expiresAt: new Date(NOON.getTime() + FIFTEEN_MINUTES_MS),
+      expiresAt: new Date(NOON.getTime() + RECOVERY_TOKEN_LIFETIME_MS),
       usedAt: NOON,
     });
 
@@ -74,7 +74,7 @@ describe("classifyRecoveryToken", () => {
         userId,
         tokenHash: "burned-hash",
         issuedAt: NOON,
-        expiresAt: new Date(NOON.getTime() + FIFTEEN_MINUTES_MS),
+        expiresAt: new Date(NOON.getTime() + RECOVERY_TOKEN_LIFETIME_MS),
         usedAt: NOON,
       },
       { userId, tokenHash: "expired-hash", issuedAt: NOON, expiresAt: NOON },
@@ -92,7 +92,7 @@ describe("classifyRecoveryToken", () => {
       userId,
       tokenHash: "voided-hash",
       issuedAt: NOON,
-      expiresAt: new Date(NOON.getTime() + FIFTEEN_MINUTES_MS),
+      expiresAt: new Date(NOON.getTime() + RECOVERY_TOKEN_LIFETIME_MS),
       voidedAt: NOON,
     });
 

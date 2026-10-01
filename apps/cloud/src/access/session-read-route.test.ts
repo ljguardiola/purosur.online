@@ -1,4 +1,8 @@
-import { PERMISSION_KEYS } from "@purosur/domain";
+import {
+  PERMISSION_KEYS,
+  SESSION_ABSOLUTE_TIMEOUT_MS,
+  SESSION_IDLE_TIMEOUT_MS,
+} from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import Fastify, { type FastifyInstance } from "fastify";
@@ -24,8 +28,6 @@ import {
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
-const THIRTY_MINUTES_MS = 30 * 60 * 1000;
-const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -149,7 +151,7 @@ describe("GET /sessions/current", () => {
     expect(response.json()).toEqual({
       user_id: userId,
       display_name: "Ada Lovelace",
-      expires_at: new Date(NOON.getTime() + THIRTY_MINUTES_MS).toISOString(),
+      expires_at: new Date(NOON.getTime() + SESSION_IDLE_TIMEOUT_MS).toISOString(),
       is_administrator: false,
       permissions: [],
     });
@@ -223,7 +225,7 @@ describe("GET /sessions/current", () => {
     const response = await getSession(rawSessionId);
 
     expect(response.json()).toMatchObject({
-      expires_at: new Date(currentTime.getTime() + THIRTY_MINUTES_MS).toISOString(),
+      expires_at: new Date(currentTime.getTime() + SESSION_IDLE_TIMEOUT_MS).toISOString(),
     });
   });
 
@@ -239,7 +241,7 @@ describe("GET /sessions/current", () => {
 
   it("expires and revokes a session idle for 30 minutes with no activity", async () => {
     const rawSessionId = await insertSession({ createdAt: NOON, lastSeenAt: NOON });
-    currentTime = new Date(NOON.getTime() + THIRTY_MINUTES_MS);
+    currentTime = new Date(NOON.getTime() + SESSION_IDLE_TIMEOUT_MS);
 
     const response = await getSession(rawSessionId);
 
@@ -251,7 +253,7 @@ describe("GET /sessions/current", () => {
 
   it("does not expire a session just under the 30-minute idle threshold", async () => {
     const rawSessionId = await insertSession({ createdAt: NOON, lastSeenAt: NOON });
-    currentTime = new Date(NOON.getTime() + THIRTY_MINUTES_MS - 1);
+    currentTime = new Date(NOON.getTime() + SESSION_IDLE_TIMEOUT_MS - 1);
 
     const response = await getSession(rawSessionId);
 
@@ -259,7 +261,7 @@ describe("GET /sessions/current", () => {
   });
 
   it("expires and revokes a session open for 12 hours, even with recent activity", async () => {
-    currentTime = new Date(NOON.getTime() + TWELVE_HOURS_MS);
+    currentTime = new Date(NOON.getTime() + SESSION_ABSOLUTE_TIMEOUT_MS);
     const rawSessionId = await insertSession({
       createdAt: NOON,
       lastSeenAt: new Date(currentTime.getTime() - 1000),
@@ -274,7 +276,7 @@ describe("GET /sessions/current", () => {
   });
 
   it("does not expire a session just under the 12-hour absolute threshold", async () => {
-    currentTime = new Date(NOON.getTime() + TWELVE_HOURS_MS - 1);
+    currentTime = new Date(NOON.getTime() + SESSION_ABSOLUTE_TIMEOUT_MS - 1);
     const rawSessionId = await insertSession({
       createdAt: NOON,
       lastSeenAt: new Date(currentTime.getTime() - 1000),
@@ -353,7 +355,7 @@ describe("GET /sessions/current", () => {
   it("does not count a request with no open session against any limit", async () => {
     const revoked = await insertSession({ revokedAt: NOON });
     const idle = await insertSession({ lastSeenAt: NOON });
-    currentTime = new Date(NOON.getTime() + THIRTY_MINUTES_MS);
+    currentTime = new Date(NOON.getTime() + SESSION_IDLE_TIMEOUT_MS);
 
     for (const rawSessionId of [undefined, generateSessionId(), revoked, idle]) {
       expect((await getSession(rawSessionId)).statusCode).toBe(401);
@@ -364,7 +366,7 @@ describe("GET /sessions/current", () => {
 
   it("still answers a request with no open session as before while its source address is over its limit", async () => {
     const idle = await insertSession({ lastSeenAt: NOON });
-    currentTime = new Date(NOON.getTime() + THIRTY_MINUTES_MS);
+    currentTime = new Date(NOON.getTime() + SESSION_IDLE_TIMEOUT_MS);
     await exhaustSourceAddressRateLimit(db, INJECTED_SOURCE_ADDRESS, currentTime);
 
     const withoutCookie = await getSession();
