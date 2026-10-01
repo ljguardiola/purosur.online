@@ -1,5 +1,5 @@
 import { IconButton } from "../../forms/icon-button";
-import type { TableAction, TableColumn } from "./table-types";
+import type { TableAction, TableActions } from "./table-types";
 
 // 60px for one 38px IconButton, 104px for two with an 8px gap between them.
 const ACTIONS_CONTENT_WIDTH_PX: Record<1 | 2, number> = {
@@ -12,18 +12,18 @@ const CELL_INNER_PADDING_PX = 6;
 
 // table-fixed reads a column's width only from its header cell, whose padding shares the same
 // border-box as the declared width, so it has to be added on top of the content width here.
-export function headerColumnWidthStyle<T>(
-  column: TableColumn<T>,
+export function headerColumnWidthStyle(
+  actionCount: 1 | 2 | undefined,
   first: boolean,
   last: boolean,
 ): { width: string } | undefined {
-  if (column.kind !== "actions") {
+  if (actionCount === undefined) {
     return undefined;
   }
   const leftPadding = first ? CELL_EDGE_PADDING_PX : CELL_INNER_PADDING_PX;
   const rightPadding = last ? CELL_EDGE_PADDING_PX : CELL_INNER_PADDING_PX;
   return {
-    width: `${ACTIONS_CONTENT_WIDTH_PX[column.actions.length] + leftPadding + rightPadding}px`,
+    width: `${ACTIONS_CONTENT_WIDTH_PX[actionCount] + leftPadding + rightPadding}px`,
   };
 }
 
@@ -39,13 +39,7 @@ function TableActionButton<T>({ action, item }: { action: TableAction<T>; item: 
   return <IconButton icon={icon} aria-label={ariaLabel} onPress={onPress} />;
 }
 
-export function TableActionButtons<T>({
-  actions,
-  item,
-}: {
-  actions: readonly [TableAction<T>] | readonly [TableAction<T>, TableAction<T>];
-  item: T;
-}) {
+export function TableActionButtons<T>({ actions, item }: { actions: TableActions<T>; item: T }) {
   return (
     <>
       <TableActionButton action={actions[0]} item={item} />

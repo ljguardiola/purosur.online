@@ -7,25 +7,55 @@ import {
 } from "../../../test-support/story-interactions";
 import { Button } from "../../forms/button";
 import { Table } from "./table";
-import type { TableRow } from "./table-types";
+import { actionsColumn, dataColumn } from "./table-columns";
+import type { TableColumn, TableProps, TableSort } from "./table-types";
+import { useTableModel } from "./use-table-model";
 
 type Product = { id: string; name: string; sku: string; stock: string };
 
-const products: TableRow<Product>[] = [
-  { id: "1", item: { id: "1", name: "Café en grano", sku: "SKU-001", stock: "12" } },
-  { id: "2", item: { id: "2", name: "Té negro", sku: "SKU-002", stock: "8" } },
-  { id: "3", item: { id: "3", name: "Miel de abeja", sku: "SKU-003", stock: "0" } },
+const products: Product[] = [
+  { id: "1", name: "Café en grano", sku: "SKU-001", stock: "12" },
+  { id: "2", name: "Té negro", sku: "SKU-002", stock: "8" },
+  { id: "3", name: "Miel de abeja", sku: "SKU-003", stock: "0" },
 ];
 
+const noProducts: Product[] = [];
+
+// Every product ties, so the rows stay as the story lists them whichever way the header sorts.
+const unchangedOrder = () => 0;
+
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+
+function ProductsTable({
+  columns,
+  items = products,
+  sort,
+  onSortChange,
+  ...tableProps
+}: DistributiveOmit<TableProps<Product>, "table"> & {
+  columns: readonly TableColumn<Product>[];
+  items?: readonly Product[];
+  sort?: TableSort;
+  onSortChange?: (sort: TableSort) => void;
+}) {
+  const table = useTableModel({
+    items,
+    id: (item) => item.id,
+    columns,
+    sort: sort ?? { column: "none", direction: "ascending" },
+    onSortChange: onSortChange ?? (() => {}),
+  });
+  return <Table table={table} {...tableProps} />;
+}
+
 const baseColumns = [
-  {
-    key: "name",
+  dataColumn({
+    id: "name",
     header: "Producto",
-    sortable: true,
-    defaultDirection: "ascending",
+    sort: { order: unchangedOrder, firstDirection: "ascending" },
     render: (item: Product) => item.name,
-  },
-  { key: "stock", header: "Stock", align: "end", render: (item: Product) => item.stock },
+  }),
+  dataColumn({ id: "stock", header: "Stock", align: "end", render: (item: Product) => item.stock }),
 ] as const;
 
 function sortableHeader(canvasElement: HTMLElement): HTMLElement {
@@ -34,7 +64,6 @@ function sortableHeader(canvasElement: HTMLElement): HTMLElement {
 
 const sort = { column: "name", direction: "ascending" } as const;
 const onSortChange = () => {};
-const emptyRows: TableRow<Product>[] = [];
 
 const meta: Meta<typeof Table> = {
   title: "Components/Table",
@@ -47,10 +76,9 @@ type Story = StoryObj<typeof Table>;
 
 export const Default: Story = {
   render: () => (
-    <Table
+    <ProductsTable
       aria-label="Productos"
       columns={baseColumns}
-      rows={products}
       sort={sort}
       onSortChange={onSortChange}
     />
@@ -59,10 +87,9 @@ export const Default: Story = {
 
 export const SortedDescending: Story = {
   render: () => (
-    <Table
+    <ProductsTable
       aria-label="Productos"
       columns={baseColumns}
-      rows={products}
       sort={{ column: "name", direction: "descending" }}
       onSortChange={onSortChange}
     />
@@ -71,22 +98,20 @@ export const SortedDescending: Story = {
 
 const twoSortableColumns = [
   baseColumns[0],
-  {
-    key: "stock",
+  dataColumn({
+    id: "stock",
     header: "Stock",
     align: "end",
-    sortable: true,
-    defaultDirection: "descending",
+    sort: { order: unchangedOrder, firstDirection: "descending" },
     render: (item: Product) => item.stock,
-  },
+  }),
 ] as const;
 
 export const UnsortedSortableColumn: Story = {
   render: () => (
-    <Table
+    <ProductsTable
       aria-label="Productos"
       columns={twoSortableColumns}
-      rows={products}
       sort={{ column: "stock", direction: "descending" }}
       onSortChange={onSortChange}
     />
@@ -106,10 +131,9 @@ export const UnsortedSortableColumn: Story = {
 
 export const SortableHeaderHovered: Story = {
   render: () => (
-    <Table
+    <ProductsTable
       aria-label="Productos"
       columns={baseColumns}
-      rows={products}
       sort={sort}
       onSortChange={onSortChange}
     />
@@ -119,10 +143,9 @@ export const SortableHeaderHovered: Story = {
 
 export const SortableHeaderFocusVisible: Story = {
   render: () => (
-    <Table
+    <ProductsTable
       aria-label="Productos"
       columns={baseColumns}
-      rows={products}
       sort={sort}
       onSortChange={onSortChange}
     />
@@ -132,13 +155,11 @@ export const SortableHeaderFocusVisible: Story = {
 
 export const RowSelected: Story = {
   render: () => (
-    <Table
+    <ProductsTable
       aria-label="Productos"
       columns={baseColumns}
-      rows={[
-        { id: "1", item: products[0]?.item as Product, state: "selected" },
-        products[1] as TableRow<Product>,
-      ]}
+      items={[products[0] as Product, products[1] as Product]}
+      rowState={(item) => (item.id === "1" ? "selected" : undefined)}
       sort={sort}
       onSortChange={onSortChange}
     />
@@ -147,10 +168,11 @@ export const RowSelected: Story = {
 
 export const RowWarning: Story = {
   render: () => (
-    <Table
+    <ProductsTable
       aria-label="Productos"
       columns={baseColumns}
-      rows={[{ id: "1", item: products[0]?.item as Product, state: "warning" }]}
+      items={[products[0] as Product]}
+      rowState={() => "warning"}
       sort={sort}
       onSortChange={onSortChange}
     />
@@ -159,10 +181,11 @@ export const RowWarning: Story = {
 
 export const RowError: Story = {
   render: () => (
-    <Table
+    <ProductsTable
       aria-label="Productos"
       columns={baseColumns}
-      rows={[{ id: "1", item: products[0]?.item as Product, state: "error" }]}
+      items={[products[0] as Product]}
+      rowState={() => "error"}
       sort={sort}
       onSortChange={onSortChange}
     />
@@ -171,10 +194,11 @@ export const RowError: Story = {
 
 export const RowMuted: Story = {
   render: () => (
-    <Table
+    <ProductsTable
       aria-label="Productos"
       columns={baseColumns}
-      rows={[{ id: "3", item: products[2]?.item as Product, state: "muted" }]}
+      items={[products[2] as Product]}
+      rowState={() => "muted"}
       sort={sort}
       onSortChange={onSortChange}
     />
@@ -183,9 +207,8 @@ export const RowMuted: Story = {
 
 const oneActionColumns = [
   ...baseColumns,
-  {
-    key: "actions",
-    kind: "actions",
+  actionsColumn({
+    id: "actions",
     header: "Acciones",
     actions: [
       (item: Product) => ({
@@ -194,15 +217,14 @@ const oneActionColumns = [
         onPress: () => {},
       }),
     ],
-  },
+  }),
 ] as const;
 
 export const WithOneAction: Story = {
   render: () => (
-    <Table
+    <ProductsTable
       aria-label="Productos"
       columns={oneActionColumns}
-      rows={products}
       sort={sort}
       onSortChange={onSortChange}
     />
@@ -211,9 +233,8 @@ export const WithOneAction: Story = {
 
 const twoActionColumns = [
   ...baseColumns,
-  {
-    key: "actions",
-    kind: "actions",
+  actionsColumn({
+    id: "actions",
     header: "Acciones",
     actions: [
       (item: Product) => ({
@@ -227,15 +248,14 @@ const twoActionColumns = [
         onPress: () => {},
       }),
     ],
-  },
+  }),
 ] as const;
 
 export const WithTwoActions: Story = {
   render: () => (
-    <Table
+    <ProductsTable
       aria-label="Productos"
       columns={twoActionColumns}
-      rows={products}
       sort={sort}
       onSortChange={onSortChange}
     />
@@ -243,8 +263,8 @@ export const WithTwoActions: Story = {
 };
 
 const detailColumns = [
-  {
-    key: "name",
+  dataColumn({
+    id: "name",
     header: "Producto",
     render: (item: Product) => (
       <span className="flex flex-col gap-1">
@@ -252,20 +272,20 @@ const detailColumns = [
         <span className="text-detail text-text-subtle">{item.sku}</span>
       </span>
     ),
-  },
-  { key: "stock", header: "Stock", align: "end", render: (item: Product) => item.stock },
+  }),
+  dataColumn({ id: "stock", header: "Stock", align: "end", render: (item: Product) => item.stock }),
 ] as const;
 
 export const WithCellDetail: Story = {
-  render: () => <Table aria-label="Productos" columns={detailColumns} rows={products} />,
+  render: () => <ProductsTable aria-label="Productos" columns={detailColumns} />,
 };
 
 export const LoadingInitial: Story = {
   render: () => (
-    <Table
+    <ProductsTable
       aria-label="Productos"
       columns={baseColumns}
-      rows={emptyRows}
+      items={noProducts}
       loading="initial"
       sort={sort}
       onSortChange={onSortChange}
@@ -275,10 +295,9 @@ export const LoadingInitial: Story = {
 
 export const LoadingUpdating: Story = {
   render: () => (
-    <Table
+    <ProductsTable
       aria-label="Productos"
       columns={baseColumns}
-      rows={products}
       loading="updating"
       sort={sort}
       onSortChange={onSortChange}
@@ -288,10 +307,10 @@ export const LoadingUpdating: Story = {
 
 export const EmptyBlank: Story = {
   render: () => (
-    <Table
+    <ProductsTable
       aria-label="Productos"
       columns={baseColumns}
-      rows={emptyRows}
+      items={noProducts}
       sort={sort}
       onSortChange={onSortChange}
       empty={{
@@ -307,10 +326,10 @@ export const EmptyBlank: Story = {
 
 export const EmptyFiltered: Story = {
   render: () => (
-    <Table
+    <ProductsTable
       aria-label="Productos"
       columns={baseColumns}
-      rows={emptyRows}
+      items={noProducts}
       sort={sort}
       onSortChange={onSortChange}
       empty={{
@@ -325,10 +344,10 @@ export const EmptyFiltered: Story = {
 
 export const LoadFailed: Story = {
   render: () => (
-    <Table
+    <ProductsTable
       aria-label="Productos"
       columns={baseColumns}
-      rows={emptyRows}
+      items={noProducts}
       sort={sort}
       onSortChange={onSortChange}
       failure={{
@@ -343,10 +362,9 @@ export const LoadFailed: Story = {
 
 export const WithFooter: Story = {
   render: () => (
-    <Table
+    <ProductsTable
       aria-label="Productos"
       columns={baseColumns}
-      rows={products}
       sort={sort}
       onSortChange={onSortChange}
       footer={<p className="p-4 text-detail text-text-subtle">3 productos</p>}

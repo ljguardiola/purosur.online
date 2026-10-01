@@ -12,23 +12,22 @@ export { SummaryRowGroup } from "./components/data-display/summary-row-group";
 export { Table } from "./components/data-display/table/table";
 export type { TableCellTextProps } from "./components/data-display/table/table-cell-text";
 export { TableCellText } from "./components/data-display/table/table-cell-text";
-export type {
-  TableRows,
-  TableRowsOptions,
-} from "./components/data-display/table/table-rows";
-export { tableRows } from "./components/data-display/table/table-rows";
+export { actionsColumn, dataColumn } from "./components/data-display/table/table-columns";
 export type {
   TableAction,
+  TableActions,
   TableColumn,
   TableColumnAlign,
   TableLoadingState,
+  TableModel,
   TableProps,
-  TableRow,
   TableRowState,
   TableSort,
-  TableSortableColumnKey,
+  TableSortableColumnId,
   TableSortDirection,
 } from "./components/data-display/table/table-types";
+export type { TableModelOptions } from "./components/data-display/table/use-table-model";
+export { useTableModel } from "./components/data-display/table/use-table-model";
 export type { TagProps } from "./components/data-display/tag";
 export { Tag } from "./components/data-display/tag";
 export type { EmptyStateProps, EmptyStateVariant } from "./components/feedback/empty-state";

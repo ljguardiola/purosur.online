@@ -1,5 +1,13 @@
 import type { StockBalance } from "@purosur/contracts";
-import { ListFilter, plural, SearchField, Table, TableCellText, tableRows } from "@purosur/ui";
+import {
+  dataColumn,
+  ListFilter,
+  plural,
+  SearchField,
+  Table,
+  TableCellText,
+  useTableModel,
+} from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
 import { Package, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
@@ -43,19 +51,19 @@ function matchesBalance(balance: number, filter: BalanceFilter): boolean {
 }
 
 const columns = [
-  {
-    key: "product",
+  dataColumn({
+    id: "product",
     header: "Producto",
     render: (item: StockBalance) => (
       <TableCellText description={item.categoryName}>{item.name}</TableCellText>
     ),
-  },
-  {
-    key: "balance",
+  }),
+  dataColumn({
+    id: "balance",
     header: "Saldo",
-    align: "end" as const,
+    align: "end",
     render: (item: StockBalance) => formatStockQuantity(item.balance, item.saleUnit),
-  },
+  }),
 ] as const;
 
 export function StockBalancesScreen({
@@ -90,14 +98,16 @@ export function StockBalancesScreen({
     }
   }, [data.status, categoryIsOffered]);
 
-  const { rows, matchCount } = tableRows({
+  const table = useTableModel({
     items: products,
     id: (product) => product.id,
     search: { text: search, in: (product) => [product.name] },
     filter: (product) =>
       (category === "ALL" || product.categoryId === category) &&
       matchesBalance(product.balance, balance),
+    columns,
   });
+  const matchCount = table.getRowModel().rows.length;
 
   return (
     <ScreenLayout topBar={<StockTopBar title="Saldos" />} bodyClassName="gap-4 p-6">
@@ -125,9 +135,8 @@ export function StockBalancesScreen({
       </div>
       <Table
         aria-label="Saldos"
-        columns={columns}
+        table={table}
         {...cloudTableState(data, "los saldos")}
-        rows={rows}
         empty={
           products.length === 0
             ? {

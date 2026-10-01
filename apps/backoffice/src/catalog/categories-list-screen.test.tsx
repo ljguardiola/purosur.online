@@ -151,7 +151,68 @@ test("the search field filters the list by the full path label, case-insensitive
   await expect.element(screen.getByText("Almacén › Untables")).toBeVisible();
 });
 
-test("the category count in the footer counts only the categories the search leaves", async () => {
+test("a search that matches a subcategory shows it together with its parent categories", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchCategories).mockResolvedValue({
+    kind: "ok",
+    value: [groceries, drinks, spreads, jams],
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("4 categorías")).toBeVisible();
+
+  await userEvent.fill(screen.getByPlaceholder("Buscar una categoría"), "mermeladas");
+
+  await expect.element(screen.getByText("3 categorías")).toBeVisible();
+  const names = screen
+    .getByRole("row")
+    .all()
+    .slice(1)
+    .map((row) => row.element().textContent ?? "");
+  expect(names).toHaveLength(3);
+  expect(names[0]).toContain("Almacén");
+  expect(names[0]).not.toContain("›");
+  expect(names[1]).toContain("Almacén › Untables");
+  expect(names[1]).not.toContain("Mermeladas");
+  expect(names[2]).toContain("Almacén › Untables › Mermeladas");
+});
+
+test("keeps each subcategory under its category in both directions while a search is active", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchCategories).mockResolvedValue({
+    kind: "ok",
+    value: [groceries, drinks, spreads, jams],
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("4 categorías")).toBeVisible();
+  await userEvent.fill(screen.getByPlaceholder("Buscar una categoría"), "untables");
+  await expect.element(screen.getByText("3 categorías")).toBeVisible();
+
+  function rowNames(): string[] {
+    return screen
+      .getByRole("row")
+      .all()
+      .slice(1)
+      .map((row) => row.element().textContent ?? "");
+  }
+
+  expect(rowNames()).toEqual([
+    expect.stringMatching(/^Almacén$/),
+    expect.stringMatching(/^Almacén › Untables$/),
+    expect.stringMatching(/^Almacén › Untables › Mermeladas$/),
+  ]);
+
+  await userEvent.click(screen.getByRole("button", { name: "Categoría" }));
+
+  await expect
+    .poll(() => rowNames())
+    .toEqual([
+      expect.stringMatching(/^Almacén$/),
+      expect.stringMatching(/^Almacén › Untables$/),
+      expect.stringMatching(/^Almacén › Untables › Mermeladas$/),
+    ]);
+});
+
+test("the category count in the footer counts the categories the search leaves, parents included", async () => {
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({
     kind: "ok",
@@ -162,7 +223,7 @@ test("the category count in the footer counts only the categories the search lea
 
   await userEvent.fill(screen.getByPlaceholder("Buscar una categoría"), "untables");
 
-  await expect.element(screen.getByText("1 categoría")).toBeVisible();
+  await expect.element(screen.getByText("2 categorías")).toBeVisible();
   expect(screen.getByText("3 categorías").query()).toBeNull();
 });
 
