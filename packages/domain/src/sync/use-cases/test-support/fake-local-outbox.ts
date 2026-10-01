@@ -2,12 +2,19 @@ import type { PushedEvent } from "../../model/push-batch.js";
 import type { CloudEventInbox, CloudEventInboxAnswer, LocalOutbox } from "../sync-ports.js";
 
 export class FakeLocalOutbox implements LocalOutbox {
-  events: PushedEvent[];
+  held: PushedEvent[];
   acknowledgedThrough: number[] = [];
+  resentFrom: number[] = [];
   readLimits: number[] = [];
+  private readonly acknowledged = new Set<number>();
 
-  constructor(events: PushedEvent[]) {
-    this.events = [...events];
+  constructor(events: PushedEvent[], alreadyAcknowledgedThrough = 0) {
+    this.held = [...events];
+    this.markAcknowledged((seq) => seq <= alreadyAcknowledgedThrough);
+  }
+
+  get events(): PushedEvent[] {
+    return this.held.filter((event) => !this.acknowledged.has(event.device_seq));
   }
 
   async unacknowledged(limit: number): Promise<PushedEvent[]> {
@@ -17,7 +24,24 @@ export class FakeLocalOutbox implements LocalOutbox {
 
   async acknowledgeThrough(deviceSeq: number): Promise<void> {
     this.acknowledgedThrough.push(deviceSeq);
-    this.events = this.events.filter((event) => event.device_seq > deviceSeq);
+    this.markAcknowledged((seq) => seq <= deviceSeq);
+  }
+
+  async resendFrom(deviceSeq: number): Promise<void> {
+    this.resentFrom.push(deviceSeq);
+    for (const event of this.held) {
+      if (event.device_seq >= deviceSeq) {
+        this.acknowledged.delete(event.device_seq);
+      }
+    }
+  }
+
+  private markAcknowledged(matches: (deviceSeq: number) => boolean): void {
+    for (const event of this.held) {
+      if (matches(event.device_seq)) {
+        this.acknowledged.add(event.device_seq);
+      }
+    }
   }
 }
 

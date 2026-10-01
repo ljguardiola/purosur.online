@@ -98,35 +98,28 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
     });
   });
 
-  it("answers the highest contiguous seq, not the highest stored one, when a hole sits between", async () => {
-    const { deviceId } = await insertEnrolledInstallation();
-    const stored = [event(1), event(2), event(4)];
-    await db.insert(inbox).values(stored.map((pushed) => storedRow(deviceId, pushed)));
+  it("reads the seqs it holds for one installation only", async () => {
+    const first = await insertEnrolledInstallation();
+    const second = await insertEnrolledInstallation();
+    await db
+      .insert(inbox)
+      .values([event(4), event(1), event(2)].map((pushed) => storedRow(first.deviceId, pushed)));
+    await db.insert(inbox).values(storedRow(second.deviceId, event(3)));
 
-    const outcome = await push(deviceId, [event(1, stored[0]?.event_id)]);
+    const seqs = await new DrizzleInbox(db).transaction((tx) =>
+      tx.receivedDeviceSeqs(first.deviceId),
+    );
 
-    expect(outcome).toEqual({ kind: "received", ackSeq: 2 });
+    expect([...seqs].sort((a, b) => a - b)).toEqual([1, 2, 4]);
   });
 
-  it("counts on from the stored events once a push fills the hole", async () => {
-    const { deviceId } = await insertEnrolledInstallation();
-    const stored = [event(1), event(2), event(4)];
-    await db.insert(inbox).values(stored.map((pushed) => storedRow(deviceId, pushed)));
-
-    const outcome = await push(deviceId, [event(3)]);
-
-    expect(outcome).toEqual({ kind: "received", ackSeq: 4 });
-  });
-
-  it("acknowledges nothing while the first seq is missing, however many are stored", async () => {
+  it("acknowledges what a push fills in after a hole it left behind", async () => {
     const { deviceId } = await insertEnrolledInstallation();
     await db
       .insert(inbox)
-      .values([event(2), event(3)].map((pushed) => storedRow(deviceId, pushed)));
+      .values([event(1), event(2), event(4)].map((pushed) => storedRow(deviceId, pushed)));
 
-    const outcome = await push(deviceId, [event(4)]);
-
-    expect(outcome).toEqual({ kind: "gap", ackSeq: 0, expectedSeq: 1 });
+    expect(await push(deviceId, [event(3)])).toEqual({ kind: "received", ackSeq: 4 });
   });
 
   it("keeps the events of each installation apart", async () => {

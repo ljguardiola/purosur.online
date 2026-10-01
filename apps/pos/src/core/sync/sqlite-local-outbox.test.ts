@@ -142,3 +142,30 @@ describe("acknowledging events", () => {
     expect(ackedAts()).toEqual([null, null]);
   });
 });
+
+describe("sending events again", () => {
+  it("makes the acknowledged events from the sequence onward pending again", async () => {
+    appendEvents(4);
+    await outbox.acknowledgeThrough(4);
+
+    await outbox.resendFrom(3);
+
+    expect(ackedAts()).toEqual([
+      ACKNOWLEDGED_AT.toISOString(),
+      ACKNOWLEDGED_AT.toISOString(),
+      null,
+      null,
+    ]);
+    expect((await outbox.unacknowledged(10)).map((event) => event.device_seq)).toEqual([3, 4]);
+  });
+
+  it("never touches the events of a previous installation", async () => {
+    appendEvents(2);
+    await outbox.acknowledgeThrough(2);
+    adoptDevice("device-b");
+
+    await outbox.resendFrom(1);
+
+    expect(ackedAts()).toEqual([ACKNOWLEDGED_AT.toISOString(), ACKNOWLEDGED_AT.toISOString()]);
+  });
+});

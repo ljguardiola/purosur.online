@@ -29,6 +29,8 @@ const DEVICE_TOKEN_REJECTED = cloudError(
   "the device token is not recognized",
 );
 
+const PUSH_BODY_LIMIT_BYTES = 16 * 1024 * 1024;
+
 const REVOKED = cloudError("revoked", "this installation was revoked");
 
 function toPushWire(outcome: ReceivePushedEventsOutcome): PushEventsResponse {
@@ -60,32 +62,36 @@ export function registerEventsRoute<TQueryResult extends PgQueryResultHKT>(
   app.register(async (scope) => {
     answerErrorsWithCloudEnvelope(scope);
 
-    scope.post("/events", { config: { access: PUBLIC_ACCESS } }, async (request, reply) => {
-      const authentication = await authenticateDevice(tokenPorts, request.headers.authorization);
-      if (authentication.kind !== "installation") {
-        await reply
-          .code(cloudErrorStatus(DEVICE_TOKEN_REJECTED.code))
-          .header("WWW-Authenticate", "Bearer")
-          .send(DEVICE_TOKEN_REJECTED);
-        return;
-      }
-      if (authentication.installation.revoked) {
-        await reply.code(cloudErrorStatus(REVOKED.code)).send(REVOKED);
-        return;
-      }
+    scope.post(
+      "/events",
+      { bodyLimit: PUSH_BODY_LIMIT_BYTES, config: { access: PUBLIC_ACCESS } },
+      async (request, reply) => {
+        const authentication = await authenticateDevice(tokenPorts, request.headers.authorization);
+        if (authentication.kind !== "installation") {
+          await reply
+            .code(cloudErrorStatus(DEVICE_TOKEN_REJECTED.code))
+            .header("WWW-Authenticate", "Bearer")
+            .send(DEVICE_TOKEN_REJECTED);
+          return;
+        }
+        if (authentication.installation.revoked) {
+          await reply.code(cloudErrorStatus(REVOKED.code)).send(REVOKED);
+          return;
+        }
 
-      const push = await readValidatedBody(reply, pushEventsRequestSchema, request.body);
-      if (!push) {
-        return;
-      }
+        const push = await readValidatedBody(reply, pushEventsRequestSchema, request.body);
+        if (!push) {
+          return;
+        }
 
-      const outcome = await receivePushedEvents(ports, {
-        deviceId: authentication.installation.deviceId,
-        appVersion: push.app_version,
-        telemetry: push.telemetry,
-        events: push.events,
-      });
-      await reply.code(200).send(pushEventsResponseSchema.parse(toPushWire(outcome)));
-    });
+        const outcome = await receivePushedEvents(ports, {
+          deviceId: authentication.installation.deviceId,
+          appVersion: push.app_version,
+          telemetry: push.telemetry,
+          events: push.events,
+        });
+        await reply.code(200).send(pushEventsResponseSchema.parse(toPushWire(outcome)));
+      },
+    );
   });
 }

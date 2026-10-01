@@ -39,7 +39,6 @@ import {
 import { type LocalDatabase, openLocalDatabase } from "./platform/local-database";
 import { LOCAL_MIGRATIONS } from "./platform/local-migrations";
 import { createMainRequests } from "./platform/main-requests";
-import { nodeStorageFileSystem, storageTelemetryReader } from "./platform/storage-telemetry";
 import {
   cashMovementKindsFor,
   currentCashMovements,
@@ -77,6 +76,7 @@ import { pullFromCloud, pullResultOf } from "./sync/pull-from-cloud";
 import { pushResultOf, pushToCloud, pushWarningOf } from "./sync/push-to-cloud";
 import { SqliteLocalOutbox } from "./sync/sqlite-local-outbox";
 import { SqliteLocalReplica } from "./sync/sqlite-local-replica";
+import { nodeStorageFileSystem, storageTelemetryReader } from "./sync/storage-telemetry";
 import { runSyncCycle } from "./sync/sync-cycle";
 import { createSyncSchedule } from "./sync/sync-schedule";
 

@@ -58,7 +58,7 @@ export interface Inbox {
 
 export interface InboxTransaction {
   lockDevice(deviceId: string): Promise<void>;
-  highestContiguousReceivedSeq(deviceId: string): Promise<number>;
+  receivedDeviceSeqs(deviceId: string): Promise<number[]>;
   receivedEventIds(
     deviceId: string,
     deviceSeqs: readonly number[],
@@ -76,6 +76,7 @@ export interface LocalOutbox {
   // Oldest first, by device_seq.
   unacknowledged(limit: number): Promise<PushedEvent[]>;
   acknowledgeThrough(deviceSeq: number): Promise<void>;
+  resendFrom(deviceSeq: number): Promise<void>;
 }
 
 export type CloudEventInboxAnswer<TFailure> =

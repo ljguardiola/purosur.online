@@ -295,9 +295,16 @@ describe("GET /changes", () => {
     await pullPage(0, deviceToken);
     await pullPage(3, deviceToken);
 
-    expect(await db.select().from(deviceState).where(eq(deviceState.deviceId, deviceId))).toEqual([
-      { deviceId, lastPullSince: 3, lastPulledAt: NOW },
-    ]);
+    expect(
+      await db
+        .select({
+          deviceId: deviceState.deviceId,
+          lastPullSince: deviceState.lastPullSince,
+          lastPulledAt: deviceState.lastPulledAt,
+        })
+        .from(deviceState)
+        .where(eq(deviceState.deviceId, deviceId)),
+    ).toEqual([{ deviceId, lastPullSince: 3, lastPulledAt: NOW }]);
   });
 
   it.each([

@@ -48,18 +48,11 @@ export class FakeInbox implements Inbox {
       lockDevice: async (deviceId) => {
         this.calls.push(`lockDevice ${deviceId}`);
       },
-      highestContiguousReceivedSeq: async (deviceId) => {
-        this.calls.push(`highestContiguousReceivedSeq ${deviceId}`);
-        const seqs = new Set(
-          working.received
-            .filter((entry) => entry.deviceId === deviceId)
-            .map((entry) => entry.event.device_seq),
-        );
-        let highest = 0;
-        while (seqs.has(highest + 1)) {
-          highest += 1;
-        }
-        return highest;
+      receivedDeviceSeqs: async (deviceId) => {
+        this.calls.push(`receivedDeviceSeqs ${deviceId}`);
+        return working.received
+          .filter((entry) => entry.deviceId === deviceId)
+          .map((entry) => entry.event.device_seq);
       },
       receivedEventIds: async (deviceId, deviceSeqs) => {
         this.calls.push(`receivedEventIds ${deviceId}`);

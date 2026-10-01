@@ -1,6 +1,6 @@
 import type { PushedEvent } from "@purosur/domain";
 import type { Inbox, InboxTransaction, PushReport } from "@purosur/domain/sync/use-cases";
-import { and, eq, inArray, max, sql } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { deviceState, inbox, registerInstallations } from "../platform/db/schema.js";
 
@@ -19,22 +19,12 @@ class DrizzleInboxTransaction<TQueryResult extends PgQueryResultHKT> implements 
       .for("no key update");
   }
 
-  // A device's seqs are unique and positive, so its n-th smallest seq is at least n, and equal to n
-  // exactly while nothing is missing below it.
-  async highestContiguousReceivedSeq(deviceId: string): Promise<number> {
-    const ranked = this.tx
-      .select({
-        deviceSeq: inbox.deviceSeq,
-        rank: sql<number>`row_number() over (order by ${inbox.deviceSeq})`.as("rank"),
-      })
+  async receivedDeviceSeqs(deviceId: string): Promise<number[]> {
+    const rows = await this.tx
+      .select({ deviceSeq: inbox.deviceSeq })
       .from(inbox)
-      .where(eq(inbox.deviceId, deviceId))
-      .as("ranked");
-    const [row] = await this.tx
-      .select({ ackSeq: max(ranked.deviceSeq) })
-      .from(ranked)
-      .where(sql`${ranked.deviceSeq} = ${ranked.rank}`);
-    return row?.ackSeq ?? 0;
+      .where(eq(inbox.deviceId, deviceId));
+    return rows.map((row) => row.deviceSeq);
   }
 
   async receivedEventIds(

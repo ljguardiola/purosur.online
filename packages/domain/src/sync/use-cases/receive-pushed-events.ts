@@ -1,3 +1,4 @@
+import { highestContiguousSeq } from "../model/contiguous-seq.js";
 import type { PushedEvent, RegisterTelemetry } from "../model/push-batch.js";
 import type { ReceivePorts } from "./sync-ports.js";
 
@@ -21,7 +22,7 @@ export async function receivePushedEvents(
     const now = clock.now();
     await tx.lockDevice(deviceId);
     await tx.recordPushReport(deviceId, { appVersion, telemetry }, now);
-    const ackSeq = await tx.highestContiguousReceivedSeq(deviceId);
+    const ackSeq = highestContiguousSeq(await tx.receivedDeviceSeqs(deviceId));
 
     const heldEventIds = new Map(
       await tx.receivedEventIds(
@@ -49,6 +50,9 @@ export async function receivePushedEvents(
     }
 
     await tx.receive(deviceId, toReceive, now);
-    return { kind: "received", ackSeq: await tx.highestContiguousReceivedSeq(deviceId) };
+    return {
+      kind: "received",
+      ackSeq: highestContiguousSeq(await tx.receivedDeviceSeqs(deviceId)),
+    };
   });
 }

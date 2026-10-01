@@ -39,4 +39,13 @@ export class SqliteLocalOutbox implements LocalOutbox {
       )
       .run(this.now().toISOString(), deviceSeq);
   }
+
+  async resendFrom(deviceSeq: number): Promise<void> {
+    this.database
+      .prepare(
+        `UPDATE outbox SET acked_at = NULL
+          WHERE ${CURRENT_INSTALLATION} AND device_seq >= ?`,
+      )
+      .run(deviceSeq);
+  }
 }

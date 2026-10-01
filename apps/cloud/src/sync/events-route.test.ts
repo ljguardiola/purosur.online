@@ -96,6 +96,25 @@ describe("POST /events", () => {
     });
   });
 
+  it("accepts a full batch of large events although its body is over 1 MiB", async () => {
+    const { deviceToken } = await insertEnrolledInstallation(db);
+    const seqs = Array.from({ length: 200 }, (_, index) => index + 1);
+    const largeEvents = seqs.map((seq) => ({
+      ...event(seq),
+      payload: { lines: "x".repeat(7_000) },
+    }));
+    const largeBatch = { ...body(), events: largeEvents };
+    expect(JSON.stringify(largeBatch).length).toBeGreaterThan(1_048_576);
+
+    const response = await push(largeBatch, `Bearer ${deviceToken}`);
+
+    expect(response.statusCode).toBe(200);
+    expect(pushEventsResponseSchema.parse(response.json())).toEqual({
+      status: "ok",
+      ack_seq: 200,
+    });
+  });
+
   it("records the installation's version and telemetry", async () => {
     const { deviceId, deviceToken } = await insertEnrolledInstallation(db);
 

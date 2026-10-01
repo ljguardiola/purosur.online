@@ -74,6 +74,37 @@ describe("pushing the outbox to the cloud", () => {
     expect(outbox.acknowledgedThrough).toEqual([2]);
   });
 
+  it("sends again from the device_seq the cloud expects when the register had marked it acknowledged", async () => {
+    const outbox = new FakeLocalOutbox(eventsFrom(1, 4), 3);
+    const { inbox, outcome } = push(outbox, [
+      { kind: "gap", ackSeq: 1, expectedSeq: 2 },
+      { kind: "received", ackSeq: 4 },
+    ]);
+
+    expect(await outcome).toEqual({ kind: "pushed", ackSeq: 4 });
+    expect(inbox.pushedBatches.map((batch) => batch.map((event) => event.device_seq))).toEqual([
+      [4],
+      [2, 3, 4],
+    ]);
+    expect(outbox.resentFrom).toEqual([2]);
+  });
+
+  it("reports the gap without pushing again when the register no longer holds the expected event", async () => {
+    const outbox = new FakeLocalOutbox([fakeEvent(4)]);
+    const { inbox, outcome } = push(outbox, [{ kind: "gap", ackSeq: 2, expectedSeq: 3 }]);
+
+    expect(await outcome).toEqual({ kind: "gap", expectedSeq: 3 });
+    expect(inbox.pushedBatches).toHaveLength(1);
+  });
+
+  it("reports the gap without pushing again when the batch it sent already started at the expected event", async () => {
+    const outbox = new FakeLocalOutbox(eventsFrom(3, 2));
+    const { inbox, outcome } = push(outbox, [{ kind: "gap", ackSeq: 2, expectedSeq: 3 }]);
+
+    expect(await outcome).toEqual({ kind: "gap", expectedSeq: 3 });
+    expect(inbox.pushedBatches).toHaveLength(1);
+  });
+
   it("acknowledges nothing when the cloud says this is a stale device", async () => {
     const outbox = new FakeLocalOutbox(eventsFrom(1, 2));
     const { outcome } = push(outbox, [{ kind: "stale_device", ackSeq: 9 }]);
