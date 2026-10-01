@@ -3,6 +3,11 @@ import {
   branchSettingsEditBodySchema,
   branchSettingsSchema,
 } from "@purosur/contracts";
+import type {
+  BranchDayHoursRange,
+  BranchHoursRange,
+  BranchSettings,
+} from "@purosur/domain/branch/use-cases";
 import { asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -16,13 +21,8 @@ import {
 import { auditLog, branchHours, branchSettings } from "../platform/db/schema.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
-import type {
-  BranchHoursRange,
-  BranchHoursRow,
-  BranchSettingsRouteOptions,
-  BranchSettingsRow,
-} from "./branch-settings-read-route.js";
-import { toBranchSettingsWire } from "./branch-settings-read-route.js";
+import type { BranchSettingsRouteOptions } from "./branch-settings-read-route.js";
+import { toBranchSettingsWire } from "./branch-settings-wire.js";
 
 const STALE_VERSION_RESPONSE = {
   code: "stale_version",
@@ -76,7 +76,7 @@ export interface EditBranchSettingsInput extends BranchSettingsEditInput {
 
 export type EditBranchSettingsOutcome =
   | { kind: "stale_version" }
-  | { kind: "applied"; row: BranchSettingsRow };
+  | { kind: "applied"; row: BranchSettings };
 
 function orderedDayHours(input: BranchSettingsEditInput): BranchHoursRange[][] {
   return [
@@ -90,7 +90,7 @@ function orderedDayHours(input: BranchSettingsEditInput): BranchHoursRange[][] {
   ];
 }
 
-function currentOrderedDayHours(hours: BranchHoursRow[]): BranchHoursRange[][] {
+function currentOrderedDayHours(hours: BranchDayHoursRange[]): BranchHoursRange[][] {
   const byDay: BranchHoursRange[][] = Array.from({ length: 7 }, () => []);
   for (const row of hours) {
     byDay[row.dayOfWeek - 1]?.push({
@@ -111,13 +111,16 @@ function rangesEqual(a: BranchHoursRange[], b: BranchHoursRange[]): boolean {
   );
 }
 
-function hoursUnchangedInOrder(current: BranchHoursRow[], input: BranchSettingsEditInput): boolean {
+function hoursUnchangedInOrder(
+  current: BranchDayHoursRange[],
+  input: BranchSettingsEditInput,
+): boolean {
   const currentDays = currentOrderedDayHours(current);
   const nextDays = orderedDayHours(input);
   return currentDays.every((ranges, day) => rangesEqual(ranges, nextDays[day] ?? []));
 }
 
-function nextHoursRows(input: BranchSettingsEditInput): BranchHoursRow[] {
+function nextHoursRows(input: BranchSettingsEditInput): BranchDayHoursRange[] {
   return orderedDayHours(input).flatMap((ranges, dayIndex) =>
     ranges.map((range, position) => ({
       dayOfWeek: dayIndex + 1,
@@ -159,7 +162,7 @@ export async function editBranchSettings<TQueryResult extends PgQueryResultHKT>(
         return { kind: "stale_version" };
       }
 
-      const currentHours = await tx
+      const currentHourRows = await tx
         .select({
           dayOfWeek: branchHours.dayOfWeek,
           position: branchHours.position,
@@ -169,8 +172,13 @@ export async function editBranchSettings<TQueryResult extends PgQueryResultHKT>(
         .from(branchHours)
         .where(eq(branchHours.locationId, input.locationId))
         .orderBy(asc(branchHours.dayOfWeek), asc(branchHours.position));
+      const currentHours = currentHourRows.map((row) => ({
+        ...row,
+        opensAt: row.opensAt.slice(0, 5),
+        closesAt: row.closesAt.slice(0, 5),
+      }));
 
-      const next: Omit<BranchSettingsRow, "version" | "hours"> = {
+      const next: Omit<BranchSettings, "version" | "hours"> = {
         address: input.address,
         whatsappNumber: input.whatsappNumber,
         instagramHandle: input.instagramHandle,

@@ -1,6 +1,6 @@
 import type { NetContentUnit, SaleUnit } from "@purosur/domain";
+import type { BranchSettings } from "@purosur/domain/branch/use-cases";
 import type { DiscountFields } from "@purosur/domain/pricing/use-cases";
-import type { BranchSettingsRow } from "../branch/branch-settings-read-route.js";
 
 export interface CategoryRow {
   name: string;
@@ -97,7 +97,7 @@ export type RemovedEntity =
   | "discount";
 
 export type PulledCloudChange = { changeSeq: number; entityId: string } & (
-  | { entity: "branch_settings"; row: BranchSettingsRow }
+  | { entity: "branch_settings"; row: BranchSettings }
   | { entity: "category"; row: CategoryRow }
   | { entity: "product"; row: ProductRow }
   | { entity: "tag"; row: TagRow }

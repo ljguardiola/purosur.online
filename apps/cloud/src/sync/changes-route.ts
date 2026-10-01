@@ -10,7 +10,7 @@ import { eq } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { PUBLIC_ACCESS } from "../access/route-access.js";
-import { toBranchSettingsWire } from "../branch/branch-settings-read-route.js";
+import { toBranchSettingsWire } from "../branch/branch-settings-wire.js";
 import { toIssuerIdentificationWire } from "../fiscal/issuer-identification-read-route.js";
 import { registerInstallations, registers } from "../platform/db/schema.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";

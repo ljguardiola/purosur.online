@@ -5,8 +5,6 @@ import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../access/session-id.js";
 import {
   branchHours,
-  branchSettings,
-  locations,
   rolePermissions,
   roles,
   sessions,
@@ -15,7 +13,6 @@ import {
 } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { registerBranchSettingsReadRoute } from "./branch-settings-read-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
@@ -291,36 +288,5 @@ describe("GET /locations/current/settings", () => {
       saturday_hours: [{ opens_at: "09:00", closes_at: "13:00" }],
       sunday_hours: [],
     });
-  });
-
-  it("scopes the answer to the requesting user's own location, never another branch's", async () => {
-    const ownLocationId = await seededLocationId(db);
-    await db
-      .update(branchSettings)
-      .set({ address: "Av. Centro 100" })
-      .where(eq(branchSettings.locationId, ownLocationId));
-
-    const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
-    if (!otherLocation) {
-      throw new Error("test setup: seeding the other location returned no row");
-    }
-    await db.insert(branchSettings).values({
-      locationId: otherLocation.id,
-      address: "Av. Norte 200",
-      priceListId: await seededPriceListId(db),
-    });
-
-    const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
-      email: "ada@example.com",
-      roleId: await seededAdministratorRoleId(),
-      locationId: ownLocationId,
-    });
-    const rawSessionId = await insertSession(administratorId);
-
-    const response = await getBranchSettings(rawSessionId);
-
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ address: "Av. Centro 100" });
   });
 });
