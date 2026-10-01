@@ -36,8 +36,9 @@ file.
 5. Report what the code is, not how sure you are: no severity labels. A
    behavioral claim is a hypothesis the verifier will try to prove by running
    the code, so state the exact input and the outcome you expect.
-6. A gap the code already had is reported only when the change made it worse;
-   the verifier decides whether a finding is inside the issue's scope.
+6. A gap the code already had is reported when it sits inside the problem
+   `issue.md` states or the change made it worse; the verifier decides
+   whether a finding is inside the issue's scope.
 
 ## Output
 

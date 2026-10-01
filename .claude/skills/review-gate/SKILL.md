@@ -61,23 +61,28 @@ ledger.
 | Refuted | Record the proof that refutes it. Not fixed. |
 
 The coordinator is whoever assigned the issue: the coordinating session, or
-the owner when no session coordinates. When the coordinator approves a
-`decision`, the change itself updates the written rule it contradicted, and
-the review starts again from step 1 over the whole change.
+the owner when no session coordinates. Once the coordinator answers a
+`decision`, the row goes to the fixer as `open`: when approved, to update the
+written rule it contradicted in the same change; when rejected, to undo the
+decision. The review then starts again from step 1 over the whole change.
 
 ## 6. Fix
 
 Launch `review-gate-fixer` with the review folder and every confirmed
-in-scope id whose status is `open`. It reports each id `fixed` or `not fixed`
-with the reason. Commit what it fixed in one commit
-(`<type>: address review-gate round <n> findings`, with the issue's commit
-type), mark those rows `fixed in <sha>`, and go back to step 2 as a
-re-review with that commit as the new `TARGET`. A row the fixer could not fix
-stays `open` and goes to the next fixer launch, which takes a different
-approach and says why the previous one failed.
+in-scope id whose status is `open`, with the previous fixer report of any id
+it already tried. It reports each id `fixed` or `not fixed` with the reason.
 
-There is no round limit. The review is clean only when no confirmed in-scope
-row is `open` and the last re-review confirmed no new finding.
+- When it fixed at least one: commit them in one commit
+  (`<type>: address review-gate round <n> findings`, with the issue's commit
+  type), mark those rows `fixed in <sha>`, and go back to step 2 as a
+  re-review with that commit as the new `TARGET`.
+- A row reported `not fixed` stays `open` with its reason in the ledger and
+  goes to the next fixer launch, which takes a different approach. A row two
+  launches could not fix stops the review: report it to the coordinator.
+
+There is no round limit. The review is clean when no confirmed in-scope row
+is `open` and the last review round, first or re-review, confirmed no new
+in-scope finding.
 
 ## 7. Result
 
@@ -85,7 +90,7 @@ End with exactly one line, which the pull request's "How it was tested" cites:
 
 ```
 REVIEW-GATE: CLEAN — <rounds> rounds, <fixed> fixed, <refuted> refuted, <filed> filed as new issues (TARGET <sha>)
-REVIEW-GATE: STOPPED — <ledger id>: <the decision that needs the coordinator>
+REVIEW-GATE: STOPPED — <ledger id>: <the decision, or the finding no fix could close>
 ```
 
 Then report the new issues and any stop to the coordinator.

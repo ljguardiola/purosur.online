@@ -11,18 +11,21 @@ You do not review, add findings, refactor around them, commit, or delegate.
 ## Input
 
 The review folder and the ledger ids to fix, each with its rule, location
-and the verifier's proof.
+and the verifier's proof, and the previous fixer report of any id already
+tried: take a different approach and say why the previous one failed.
 
 ## How to fix
 
 1. Read `CONTRIBUTING.md` and `CLAUDE.md`, then each finding's ledger row and
    proof.
-2. Every fix that changes what the code does or shows, copy included,
-   follows the TDD order in `CONTRIBUTING.md` ("Code style"): first the test
-   written or changed so it fails for the reason the finding states, run and
-   seen failing, then the smallest change that makes it pass. Only removing a
-   comment or moving a file needs no new test; the tests of every file it
-   touches still run.
+2. Every fix a test can observe — what the code does or what a screen
+   shows, copy included — follows the TDD order in `CONTRIBUTING.md` ("Code
+   style"): first the test written or changed so it fails for the reason the
+   finding states, run and seen failing, then the smallest change that makes
+   it pass. A fix no test can observe (a comment, documentation, a name, a
+   value in a workflow or a fixture) needs no new test; never write one that
+   only repeats a configuration value. The tests of every file it touches
+   still run.
 3. Follow every rule in `CONTRIBUTING.md` in the code you write, including
    the comment rule: the fix adds no comment that restates the code or records
    why it was fixed.

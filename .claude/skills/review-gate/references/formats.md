@@ -38,8 +38,9 @@ copy). The kinds are defined in `checklist.md`. A clean result is
 | R1-1 | A+B | rule | path:line | ... | CONFIRMED | in-scope | ... | fixed in <sha> |
 ```
 
-`Status` is `open`, `fixed in <sha>`, `refuted`, `filed as #<n>` (out of
-scope) or `stopped` (a `decision` finding).
+`Status` is `open` (with the reason of each `not fixed` attempt),
+`fixed in <sha>`, `refuted`, `filed as #<n>` (out of scope) or `stopped` (a
+`decision` waiting for the coordinator, or a row two fixes could not close).
 
 ## Verifier verdict
 
@@ -58,7 +59,8 @@ One block per ledger id:
 ```markdown
 ### R1-1 — fixed | not fixed
 - Change: path:line and what changed.
-- Test: the test written or changed first and its observed failure, then the passing run; or, for a comment removed or a file moved, none.
+- Test: the test written or changed first and its observed failure, then the passing run; or none, when the fix changes nothing a test can observe.
+- Previous attempt: for an id already tried, why that approach failed and how this one differs.
 - Mutation: for a change to `packages/domain` or `packages/contracts`, the scoped mutation run and its survivors (none).
 - Not fixed: the reason, when the fix could not be made.
 - Focused run: the command and its result.
