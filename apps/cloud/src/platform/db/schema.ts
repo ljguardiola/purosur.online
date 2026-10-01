@@ -119,7 +119,7 @@ export const issuerIdentificationVersions = pgTable("issuer_identification_versi
   recordedBy: uuid("recorded_by").references(() => users.id),
 });
 
-// Append-only like prices. `amount` is in cents and outgrows a 32-bit integer.
+// `amount` is in cents.
 export const buyerIdentificationThresholds = pgTable(
   "buyer_identification_thresholds",
   {
@@ -137,8 +137,6 @@ export const buyerIdentificationThresholds = pgTable(
   ],
 );
 
-// Append-only like prices. A set is read and written whole, never searched by option, so its
-// options stay in one document instead of a child table.
 export const buyerTaxStatusSets = pgTable(
   "buyer_tax_status_sets",
   {

@@ -28,16 +28,12 @@ ALTER TABLE "buyer_identification_thresholds" ADD CONSTRAINT "buyer_identificati
 ALTER TABLE "issuer_identification_versions" ADD CONSTRAINT "issuer_identification_versions_recorded_by_users_id_fk" FOREIGN KEY ("recorded_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "buyer_identification_thresholds_valid_from_key" ON "buyer_identification_thresholds" USING btree ("valid_from");--> statement-breakpoint
 CREATE UNIQUE INDEX "buyer_tax_status_sets_params_version_key" ON "buyer_tax_status_sets" USING btree ("params_version");--> statement-breakpoint
--- The configuration history is never lost: the database itself refuses to rewrite or erase a
--- version, even from application code.
 REVOKE UPDATE, DELETE, TRUNCATE ON "buyer_identification_thresholds" FROM cloud_app;
 --> statement-breakpoint
 REVOKE UPDATE, DELETE, TRUNCATE ON "buyer_tax_status_sets" FROM cloud_app;
 --> statement-breakpoint
 REVOKE UPDATE, DELETE, TRUNCATE ON "issuer_identification_versions" FROM cloud_app;
 --> statement-breakpoint
--- The identification that exists before versions were stored becomes its first version, and is
--- logged once so a register pulling from the very first cursor receives it.
 INSERT INTO "issuer_identification_versions" ("version", "legal_name", "gross_income_registration", "activity_start_date")
 SELECT "version", "legal_name", "gross_income_registration", "activity_start_date" FROM "issuer_identification";
 --> statement-breakpoint
