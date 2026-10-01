@@ -2,6 +2,108 @@ export const CLOUD_ONLY_CONCEPTS = ["purchasing", "alerts", "catalog", "pricing"
 
 const REAL_POSTGRES_TEST = "apps/cloud/src/.+\\.integration\\.test\\.ts$";
 
+export const PERSISTENCE_IN_HANDLERS_ALLOWLIST = [
+  "apps/cloud/src/access/first-pin-code-route.ts",
+  "apps/cloud/src/access/passkeys-list-route.ts",
+  "apps/cloud/src/access/passkeys-registration-route.ts",
+  "apps/cloud/src/access/passkeys-removal-route.ts",
+  "apps/cloud/src/access/pin-code-redemption-route.ts",
+  "apps/cloud/src/access/recovery-redemption-route.ts",
+  "apps/cloud/src/access/role-creation-route.ts",
+  "apps/cloud/src/access/role-edit-route.ts",
+  "apps/cloud/src/access/role-read-route.ts",
+  "apps/cloud/src/access/roles-list-route.ts",
+  "apps/cloud/src/access/session-authenticate-route.ts",
+  "apps/cloud/src/access/session-authorization-route.ts",
+  "apps/cloud/src/access/session-sign-out-route.ts",
+  "apps/cloud/src/access/sign-in-lookup-route.ts",
+  "apps/cloud/src/access/user-creation-route.ts",
+  "apps/cloud/src/access/user-deactivation-route.ts",
+  "apps/cloud/src/access/user-edit-route.ts",
+  "apps/cloud/src/access/user-passkey-removal-route.ts",
+  "apps/cloud/src/access/user-passkeys-list-route.ts",
+  "apps/cloud/src/access/user-pin-code-route.ts",
+  "apps/cloud/src/access/user-reactivation-route.ts",
+  "apps/cloud/src/alerts/alert-close-route.ts",
+  "apps/cloud/src/alerts/alert-read-route.ts",
+  "apps/cloud/src/alerts/alerts-list-route.ts",
+  "apps/cloud/src/alerts/alerts-overview-route.ts",
+  "apps/cloud/src/branch/branch-settings-edit-route.ts",
+  "apps/cloud/src/branch/branch-settings-read-route.ts",
+  "apps/cloud/src/catalog/brand-deactivation-route.ts",
+  "apps/cloud/src/catalog/brand-edit-route.ts",
+  "apps/cloud/src/catalog/brand-reactivation-route.ts",
+  "apps/cloud/src/catalog/brands-list-route.ts",
+  "apps/cloud/src/catalog/categories-list-route.ts",
+  "apps/cloud/src/catalog/category-edit-route.ts",
+  "apps/cloud/src/catalog/internal-barcode-route.ts",
+  "apps/cloud/src/catalog/product-deactivation-route.ts",
+  "apps/cloud/src/catalog/product-edit-route.ts",
+  "apps/cloud/src/catalog/products-labels-route.ts",
+  "apps/cloud/src/catalog/products-list-route.ts",
+  "apps/cloud/src/catalog/tag-deactivation-route.ts",
+  "apps/cloud/src/catalog/tag-edit-route.ts",
+  "apps/cloud/src/catalog/tag-reactivation-route.ts",
+  "apps/cloud/src/catalog/tags-list-route.ts",
+  "apps/cloud/src/fiscal/issuer-identification-edit-route.ts",
+  "apps/cloud/src/fiscal/issuer-identification-read-route.ts",
+  "apps/cloud/src/pricing/discount-edit-route.ts",
+  "apps/cloud/src/pricing/discount-targets-route.ts",
+  "apps/cloud/src/pricing/discounts-list-route.ts",
+  "apps/cloud/src/pricing/prices-list-route.ts",
+  "apps/cloud/src/register/register-coverage-route.ts",
+  "apps/cloud/src/register/register-creation-route.ts",
+  "apps/cloud/src/register/register-enrollment-code-route.ts",
+  "apps/cloud/src/register/registers-list-route.ts",
+  "apps/cloud/src/stock/stock-balances-route.ts",
+  "apps/cloud/src/stock/stock-counts-route.ts",
+  "apps/cloud/src/stock/stock-movements-route.ts",
+  "apps/cloud/src/stock/stock-products-route.ts",
+  "apps/cloud/src/sync/changes-route.ts",
+];
+
+export const SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST = [
+  "apps/backoffice/src/access/backoffice-access.ts",
+  "apps/backoffice/src/access/email-field-message.ts",
+  "apps/backoffice/src/access/passkey-name-message.ts",
+  "apps/backoffice/src/access/passkey-row-detail.ts",
+  "apps/backoffice/src/access/permission-requirement-note.ts",
+  "apps/backoffice/src/access/pin-code-validity.ts",
+  "apps/backoffice/src/access/role-editor-form.tsx",
+  "apps/backoffice/src/access/role-editor-modal.tsx",
+  "apps/backoffice/src/access/role-name-message.ts",
+  "apps/backoffice/src/access/role-permissions.ts",
+  "apps/backoffice/src/access/roles-list-screen.tsx",
+  "apps/backoffice/src/alerts/alert-detail-modal.tsx",
+  "apps/backoffice/src/alerts/alerts-list-screen.tsx",
+  "apps/backoffice/src/branch/branch-day-row.tsx",
+  "apps/backoffice/src/branch/branch-settings-form.ts",
+  "apps/backoffice/src/catalog/barcode-chips.tsx",
+  "apps/backoffice/src/catalog/brand-name.ts",
+  "apps/backoffice/src/catalog/category-form.ts",
+  "apps/backoffice/src/catalog/label-preview-bars.tsx",
+  "apps/backoffice/src/catalog/net-content-quantity.ts",
+  "apps/backoffice/src/catalog/print-labels-modal.tsx",
+  "apps/backoffice/src/catalog/product-form.ts",
+  "apps/backoffice/src/catalog/tag-form.ts",
+  "apps/backoffice/src/fiscal/fiscal-configuration-screen.tsx",
+  "apps/backoffice/src/pricing/discount-form.ts",
+  "apps/backoffice/src/pricing/discounts-list-screen.tsx",
+  "apps/backoffice/src/pricing/money.ts",
+  "apps/backoffice/src/pricing/price-form.ts",
+  "apps/backoffice/src/register/register-name-message.ts",
+  "apps/backoffice/src/stock/count-moment.ts",
+  "apps/backoffice/src/stock/stock-movement-form.ts",
+  "apps/backoffice/src/stock/stock-movement-modal.tsx",
+  "apps/backoffice/src/stock/stock-movements-screen.tsx",
+  "apps/backoffice/src/stock/stock-period.ts",
+  "apps/backoffice/src/stock/stock-quantity.ts",
+];
+
+function exactPaths(paths) {
+  return paths.map((path) => `^${path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`);
+}
+
 // Matches an npm package either by its raw specifier (left unresolved when the
 // package isn't installed) or by its resolved node_modules path, never by a repo
 // folder that happens to share the package's name.
@@ -111,29 +213,72 @@ export default {
       },
     },
     {
-      name: "renderer-types-only-from-domain",
+      name: "screens-types-only-from-domain",
       comment:
-        "apps/pos/src/renderer/ may depend on packages/domain only for its types; it " +
-        "talks to the core process over a MessagePort, never by calling domain code " +
+        "apps/pos/src/renderer/ and apps/backoffice/src/ may depend on packages/domain " +
+        "only for its types; the renderer talks to the core process over a MessagePort " +
+        "and the backoffice to the cloud over HTTP, never by calling domain code " +
         "directly in-process.",
       severity: "error",
-      from: { path: "^apps/pos/src/renderer/" },
+      from: {
+        path: ["^apps/pos/src/renderer/", "^apps/backoffice/src/"],
+        pathNot: exactPaths(SCREEN_DOMAIN_VALUE_IMPORT_ALLOWLIST),
+      },
       to: {
         path: "^packages/domain/src/",
         dependencyTypesNot: ["type-only"],
       },
     },
     {
-      name: "renderer-no-domain-re-exports",
+      name: "screens-no-domain-re-exports",
       comment:
-        "apps/pos/src/renderer/ never re-exports from packages/domain. An empty or " +
-        "type-only re-export (`export {} from`, `export type { X } from`) is " +
-        "classified type-only, yet the empty form is kept by verbatimModuleSyntax " +
-        "and loads the domain module at runtime; the renderer has no reason to " +
-        "re-export domain at all.",
+        "apps/pos/src/renderer/ and apps/backoffice/src/ never re-export from " +
+        "packages/domain. An empty or type-only re-export (`export {} from`, " +
+        "`export type { X } from`) is classified type-only, yet the empty form is kept " +
+        "by verbatimModuleSyntax and loads the domain module at runtime; a screen has " +
+        "no reason to re-export domain at all.",
       severity: "error",
-      from: { path: "^apps/pos/src/renderer/" },
+      from: { path: ["^apps/pos/src/renderer/", "^apps/backoffice/src/"] },
       to: { path: "^packages/domain/src/", dependencyTypes: ["export"] },
+    },
+    {
+      name: "contracts-no-domain-value-re-exports",
+      comment:
+        "packages/contracts/src may import packages/domain to build its shapes but " +
+        "never re-exports a domain value; a type-only re-export is allowed.",
+      severity: "error",
+      from: { path: "^packages/contracts/src/" },
+      to: {
+        path: "^packages/domain/src/",
+        dependencyTypes: ["export"],
+        dependencyTypesNot: ["type-only"],
+      },
+    },
+    {
+      name: "persistence-only-in-adapters",
+      comment:
+        "A cloud route file and a register core request handler never import the " +
+        "database directly (drizzle-orm, better-sqlite3, the cloud's schema and " +
+        "connection, the register's local database) as a value; only an adapter does, " +
+        "and a route or handler reaches it through that adapter. A type-only import, " +
+        "which only types the connection handed to an adapter, is allowed.",
+      severity: "error",
+      from: {
+        path: [
+          "^apps/cloud/src/[^/]+/.+-route\\.ts$",
+          "^apps/pos/src/core/[^/]+/.+-requests\\.ts$",
+        ],
+        pathNot: exactPaths(PERSISTENCE_IN_HANDLERS_ALLOWLIST),
+      },
+      to: {
+        path: [
+          npmPackage("drizzle-orm"),
+          npmPackage("better-sqlite3"),
+          "^apps/cloud/src/platform/db/",
+          "^apps/pos/src/core/platform/local-database\\.ts$",
+        ],
+        dependencyTypesNot: ["type-only"],
+      },
     },
     {
       name: "renderer-no-db-or-hardware",
