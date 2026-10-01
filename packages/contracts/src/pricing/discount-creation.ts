@@ -3,6 +3,7 @@ import {
   isCalendarDay,
   isDiscountNameTooLong,
   isDiscountWindowOrdered,
+  isTargetKindAllowedFor,
   isValidDiscountWeekdays,
 } from "@purosur/domain";
 import { z } from "zod";
@@ -36,7 +37,7 @@ export const discountCreationBodySchema = z
       .refine(isValidDiscountWeekdays, WEEKDAYS_MESSAGE),
   })
   .superRefine((discount, context) => {
-    if (discount.benefit.kind === "BUY_N_PAY_M" && discount.target.kind !== "PRODUCT") {
+    if (!isTargetKindAllowedFor(discount.benefit.kind, discount.target.kind)) {
       context.addIssue({
         code: "custom",
         path: ["target", "kind"],
