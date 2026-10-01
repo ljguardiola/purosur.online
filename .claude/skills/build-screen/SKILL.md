@@ -43,9 +43,10 @@ A section reads its data through `useCloudQuery`
 concept's `<concept>-queries.ts` (such as `catalog/catalog-queries.ts`).
 It combines several reads with `combineCloudData`
 (`platform/combine-cloud-data.ts`), and a table takes its loading and failure
-from `cloudTableState` (`platform/cloud-table-state.tsx`). Its rows come from
-`tableRows` (`packages/ui/src/components/data-display/table/table-rows.ts`),
-which sorts, filters and pages them. The rules for
+from `cloudTableState` (`platform/cloud-table-state.tsx`). Its columns come from
+`dataColumn` and `actionsColumn`, and its rows from `useTableModel`
+(`packages/ui/src/components/data-display/table/use-table-model.ts`), which sorts,
+filters and nests them; `Table` renders the table it returns. The rules for
 loading, refreshing after a change and checking responses are in
 "Structure" and "Backoffice screens" in `CONTRIBUTING.md`.
 
