@@ -1,10 +1,6 @@
-import {
-  CASH_MOVEMENT_REASON_MAX_LENGTH,
-  cashMovementReason,
-  parseAmountCents,
-  recordCashMovementMessageSchema,
-} from "@purosur/contracts";
+import { recordCashMovementMessageSchema } from "@purosur/contracts";
 import type { CashMovementKind } from "@purosur/domain";
+import { parseAmountCents } from "@purosur/ui";
 
 export const recordCashMovementFormRequestSchema = recordCashMovementMessageSchema.omit({
   type: true,
@@ -14,7 +10,6 @@ export const recordCashMovementFormRequestSchema = recordCashMovementMessageSche
 
 const REQUIRED_AMOUNT_MESSAGE = "Ingresá el importe.";
 export const INVALID_AMOUNT_MESSAGE = "Ingresá un importe válido, por ejemplo 5.000,00.";
-export const INVALID_REASON_MESSAGE = `Escribí el motivo (hasta ${CASH_MOVEMENT_REASON_MAX_LENGTH} caracteres).`;
 
 export type CashMovementFormValues = { kind: CashMovementKind; amount: string; reason: string };
 
@@ -32,7 +27,7 @@ export function cashMovementRequestFrom({ kind, amount, reason }: CashMovementFo
   return {
     kind,
     amount: parseAmountCents(amount) ?? Number.NaN,
-    reason: cashMovementReason(reason) ?? reason,
+    reason,
   };
 }
 

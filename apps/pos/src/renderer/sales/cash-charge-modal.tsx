@@ -1,11 +1,13 @@
-import type { ChargeSaleInCashOutcome } from "@purosur/contracts";
-import { cashCharge, parseAmountCents } from "@purosur/contracts";
+import type { CashChargeAnswer, ChargeSaleInCashOutcome } from "@purosur/contracts";
 import {
   Button,
   fieldErrorMessage,
   formatCents,
   InlineNotice,
+  LoadFailure,
+  LoadingPlaceholder,
   Modal,
+  parseAmountCents,
   SummaryRowGroup,
   TextField,
   useRequestForm,
@@ -19,6 +21,7 @@ import {
   EMPTY_CASH_CHARGE_FORM,
   INVALID_AMOUNT_MESSAGE,
 } from "./cash-charge-form";
+import { useCashChargeQuery } from "./sales-queries";
 
 const FAILED_MESSAGE = "No se pudo cobrar la venta. Probá de nuevo.";
 
@@ -29,7 +32,9 @@ function coverMessage(amount: number): string {
 export type CompletedCharge = Extract<ChargeSaleInCashOutcome, { kind: "completed" }>;
 
 export type CashChargeModalProps = {
+  saleId: string;
   total: number;
+  readCharge: (tendered: number) => Promise<CashChargeAnswer>;
   charge: (tendered: number) => Promise<ChargeSaleInCashOutcome>;
   onChooseAnotherMethod: () => void;
   onCompleted: (charge: CompletedCharge) => void;
@@ -38,7 +43,9 @@ export type CashChargeModalProps = {
 };
 
 export function CashChargeModal({
+  saleId,
   total,
+  readCharge,
   charge,
   onChooseAnotherMethod,
   onCompleted,
@@ -87,17 +94,32 @@ export function CashChargeModal({
     content.current?.querySelector("input")?.focus();
   }, []);
 
-  const tendered = parseAmountCents(values.tendered);
-  const result = tendered === undefined ? undefined : cashCharge(total, tendered);
+  const isBlank = values.tendered.trim() === "";
+  const tendered = isBlank ? undefined : parseAmountCents(values.tendered);
+  const answer = useCashChargeQuery({ saleId, total, tendered, read: readCharge });
+  const loaded = answer.status === "loaded" ? answer : undefined;
+  const answered =
+    loaded === undefined || loaded.value === null || loaded.value === "not_permitted"
+      ? undefined
+      : loaded.value;
+  const saleUnavailable = loaded !== undefined && answered === undefined;
+  const answeredMessage =
+    tendered !== undefined && answered?.kind === "invalid_amount"
+      ? INVALID_AMOUNT_MESSAGE
+      : undefined;
   const covered =
-    tendered !== undefined && result?.kind === "covered" ? { tendered, ...result } : undefined;
+    tendered !== undefined && answered?.kind === "covered" && !loaded?.refreshing
+      ? { tendered, ...answered }
+      : undefined;
+
+  useEffect(() => {
+    if (saleUnavailable) {
+      onSaleUnavailable();
+    }
+  }, [saleUnavailable, onSaleUnavailable]);
 
   function tenderedMessage(typed: string): string | undefined {
-    if (typed.trim() === "") {
-      return undefined;
-    }
-    const typedCents = parseAmountCents(typed);
-    return typedCents === undefined || cashCharge(total, typedCents).kind === "invalid_amount"
+    return typed.trim() !== "" && parseAmountCents(typed) === undefined
       ? INVALID_AMOUNT_MESSAGE
       : undefined;
   }
@@ -140,7 +162,7 @@ export function CashChargeModal({
             size="large"
             fullWidth
             icon={<Check />}
-            dataStatus={submitting ? "loading" : "loaded"}
+            dataStatus={submitting ? "loading" : answer.status}
             disabled={covered === undefined}
             onPress={handleSubmit}
           >
@@ -172,10 +194,21 @@ export function CashChargeModal({
               onChange={field.handleChange}
               disabled={submitting}
               description={coverMessage(total)}
-              errorMessage={fieldErrorMessage(field.state.meta.errors)}
+              errorMessage={fieldErrorMessage(field.state.meta.errors) ?? answeredMessage}
             />
           )}
         </form.AppField>
+        {tendered !== undefined && answer.status === "loading" ? (
+          <LoadingPlaceholder variant="card" lines={2} />
+        ) : null}
+        {answer.status === "failed" ? (
+          <LoadFailure
+            icon={<TriangleAlert />}
+            title="No se pudo calcular el vuelto"
+            description="Volvé a intentarlo en unos segundos."
+            onRetry={answer.retry}
+          />
+        ) : null}
         {covered === undefined ? null : (
           <div className="flex flex-col gap-1 rounded-lg bg-surface-subtle p-4">
             <Eyebrow text="VUELTO A ENTREGAR" />

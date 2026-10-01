@@ -1,4 +1,4 @@
-export type EsArNumberDigits = { whole: string; fraction: string };
+type EsArNumberDigits = { whole: string; fraction: string };
 
 // Argentine format: comma is the only decimal separator; a dot only groups thousands, in valid
 // 3-digit groups with no leading zero — elsewhere it's rejected, not misread as a decimal point.
@@ -15,4 +15,12 @@ export function parseEsArNumber(value: string, maxDecimals: number): EsArNumberD
     return undefined;
   }
   return { whole: (match[1] as string).replaceAll(".", ""), fraction: match[2] ?? "" };
+}
+
+export function parseAmountCents(value: string): number | undefined {
+  const digits = parseEsArNumber(value, 2);
+  if (!digits) {
+    return undefined;
+  }
+  return Number(digits.whole) * 100 + Number(digits.fraction.padEnd(2, "0"));
 }

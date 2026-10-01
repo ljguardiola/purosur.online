@@ -160,6 +160,7 @@ export type {
   OpenCashSession,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
+  RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RecordCashMovementRequest,
   RendererToCoreMessage,
@@ -169,11 +170,7 @@ export type {
 } from "./register/core-messages.js";
 export {
   ARGENTINA_TIME_ZONE,
-  CASH_MOVEMENT_REASON_MAX_LENGTH,
-  CASH_MOVEMENT_TYPES,
-  cashCharge,
-  cashMovementPermission,
-  cashMovementReason,
+  cashMovementTypeSchema,
   chargeSaleInCashMessageSchema,
   closeCashSessionMessageSchema,
   closeLockedCashSessionMessageSchema,
@@ -181,7 +178,6 @@ export {
   coreToRendererMessageSchema,
   mainToCoreMessageSchema,
   openCashSessionMessageSchema,
-  parseAmountCents,
   recordCashMovementMessageSchema,
   rendererToCoreMessageSchema,
   signInLookupMessageSchema,
@@ -205,6 +201,8 @@ export { registerListSchema, registerSummarySchema } from "./register/register-s
 export type {
   AddProductOutcome,
   CancelSaleOutcome,
+  CashCharge,
+  CashChargeAnswer,
   ChangeLineQuantityOutcome,
   ChargeSaleInCashOutcome,
   CurrentSaleAnswer,
