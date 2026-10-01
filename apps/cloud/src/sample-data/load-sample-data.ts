@@ -7,6 +7,7 @@ import {
   deactivateTag,
 } from "@purosur/domain/catalog/use-cases";
 import { confirmPrice, createDiscount, setPrice } from "@purosur/domain/pricing/use-cases";
+import { createRegister } from "@purosur/domain/register/use-cases";
 import { and, eq, like, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { createRole } from "../access/role-creation-route.js";
@@ -20,10 +21,9 @@ import { editBranchSettings } from "../branch/branch-settings-edit-route.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { allocateInternalBarcode } from "../catalog/internal-barcode-route.js";
 import { branchSettings, locations, roles, userRoles, users } from "../platform/db/schema.js";
-import { branchPriceListId } from "../pricing/branch-price-list.js";
 import { DrizzleDiscountStore } from "../pricing/drizzle-discount-store.js";
 import { DrizzlePricingStore } from "../pricing/drizzle-pricing-store.js";
-import { createRegister } from "../register/register-creation-route.js";
+import { DrizzleBranchRegisterStore } from "../register/drizzle-branch-register-store.js";
 import { PendingChanges } from "../sync/change-log.js";
 import { branchSettingsAreAtDefaults } from "./sample-branch-settings.js";
 import {
@@ -185,7 +185,6 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
         }
       }
 
-      const priceListId = await branchPriceListId(tx, location.id);
       const recentMoment = deps.now();
       const overdueReviewMoment = new Date(recentMoment.getTime() - OVERDUE_PRICE_REVIEW_AGE_MS);
 
@@ -261,7 +260,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
               if (plan.pricePlan === "current") {
                 const setOutcome = await setPrice(pricingPortsAt(recentMoment), {
                   productId: product.product.id,
-                  priceListId,
+                  locationId: location.id,
                   unitPrice: plan.unitPriceCents,
                   expectedCurrentPriceId: null,
                   actorId,
@@ -269,7 +268,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
                 const applied = expectOutcome(setOutcome, "applied", `pricing "${plan.name}"`);
                 const confirmOutcome = await confirmPrice(pricingPortsAt(recentMoment), {
                   productId: product.product.id,
-                  priceListId,
+                  locationId: location.id,
                   expectedCurrentPriceId: applied.price.id,
                   actorId,
                 });
@@ -281,7 +280,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
               } else {
                 const setOutcome = await setPrice(pricingPortsAt(overdueReviewMoment), {
                   productId: product.product.id,
-                  priceListId,
+                  locationId: location.id,
                   unitPrice: plan.unitPriceCents,
                   expectedCurrentPriceId: null,
                   actorId,
@@ -331,12 +330,13 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
         expectOutcome(discountOutcome, "created", `discount "${plan.name}"`);
       }
 
+      const registerStore = new DrizzleBranchRegisterStore(tx, pending);
       for (const registerName of SAMPLE_REGISTER_NAMES) {
-        const outcome = await createRegister(
-          tx,
-          { locationId: location.id, name: registerName, actorId },
-          pending,
-        );
+        const outcome = await createRegister(registerStore, {
+          locationId: location.id,
+          name: registerName,
+          actorId,
+        });
         expectOutcome(outcome, "created", `register "${registerName}"`);
       }
 

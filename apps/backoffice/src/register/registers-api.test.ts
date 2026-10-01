@@ -26,12 +26,12 @@ const register1: RegisterSummary = { id: "register-1", name: "Caja 1", pendingCo
 const register2Wire = {
   id: "register-2",
   name: "Caja 2",
-  pending_code: { issued_at: "2026-09-25T12:00:00.000Z", expires_at: "2026-09-25T12:15:00.000Z" },
+  pending_code: { seconds_since_issued: 240, seconds_until_expiry: 660 },
 };
 const register2: RegisterSummary = {
   id: "register-2",
   name: "Caja 2",
-  pendingCode: { issuedAt: "2026-09-25T12:00:00.000Z", expiresAt: "2026-09-25T12:15:00.000Z" },
+  pendingCode: { secondsSinceIssued: 240, secondsUntilExpiry: 660 },
 };
 
 test("fetchRegisters lists every register, translating pending_code from the wire", async () => {
@@ -74,8 +74,8 @@ test.each([
   ["a register without a name", [{ id: "register-1", pending_code: null }]],
   ["a register without its pending_code", [{ id: "register-1", name: "Caja 1" }]],
   [
-    "a pending code without its expiry",
-    [{ id: "register-1", name: "Caja 1", pending_code: { issued_at: "2026-09-25T12:00:00.000Z" } }],
+    "a pending code without its time until expiry",
+    [{ id: "register-1", name: "Caja 1", pending_code: { seconds_since_issued: 240 } }],
   ],
 ])("fetchRegisters returns failed on %s", async (_name, body) => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, body));

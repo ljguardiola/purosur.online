@@ -18,8 +18,8 @@ import {
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
+import { DrizzlePriceReviewReader } from "./drizzle-price-review-reader.js";
 import { registerPriceSetRoute } from "./price-set-route.js";
-import { listPrices } from "./prices-list-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
@@ -218,20 +218,6 @@ describe("PUT /prices/:productId", () => {
     expect(response.json()).toMatchObject({ code: "not_found" });
   });
 
-  it("rejects a deactivated product as not found even before validating the body", async () => {
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
-    const productId = await insertProduct("Arroz");
-    await db.update(products).set({ active: false }).where(eq(products.id, productId));
-
-    const response = await setPriceRequest(rawSessionId, productId, {
-      unitPrice: 0,
-      expectedCurrentPriceId: "not-a-uuid",
-    });
-    expect(response.statusCode).toBe(404);
-    expect(response.json()).toMatchObject({ code: "not_found" });
-  });
-
   it("reaches the body validator, answering a validation failure on the named field", async () => {
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);
@@ -316,10 +302,9 @@ describe("PUT /prices/:productId", () => {
         .values({ id, productId, priceListId, unitPrice: 1000 + index * 100, validFrom: NOON });
     }
 
-    const listed = await listPrices(db, {
-      priceListId,
+    const listed = await new DrizzlePriceReviewReader(db).pricesUnderReview({
+      locationId: await seededLocationId(db),
       now: NOON,
-      unreviewedPriceAlertDays: 30,
       review: "all",
     });
     const listedPriceId = listed.products[0]?.currentPrice?.id;

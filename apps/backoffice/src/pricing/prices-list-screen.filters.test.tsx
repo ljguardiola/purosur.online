@@ -6,7 +6,6 @@ import {
   createServices,
   deferred,
   groceries,
-  NOW,
   renderScreen,
   rice,
   screenElement,
@@ -136,7 +135,7 @@ test("opens with the filters it is given, asking for them in its first request",
     },
   });
 
-  const screen = await renderScreen(services, () => {}, NOW, {
+  const screen = await renderScreen(services, () => {}, {
     filters: { search: " arroz ", category: groceries.id, review: "all" },
   });
 
@@ -165,7 +164,7 @@ test("falls back to every category when the category it is given is not one the 
   });
   const onFiltersChange = vi.fn();
 
-  const screen = await renderScreen(services, () => {}, NOW, {
+  const screen = await renderScreen(services, () => {}, {
     filters: { ...pricesListFilters.parse({}), category: "deleted-category" },
     onFiltersChange,
   });
@@ -192,7 +191,7 @@ test("reports every change to its filters, so they can be kept for a reload", as
     },
   });
   const onFiltersChange = vi.fn();
-  const screen = await renderScreen(services, () => {}, NOW, { onFiltersChange });
+  const screen = await renderScreen(services, () => {}, { onFiltersChange });
   await expect.element(screen.getByText("Arroz")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Revisión: Por revisar" }));
@@ -220,14 +219,14 @@ test("does not report its filters again when the route hands it a new callback",
   });
   const onFiltersChange = vi.fn();
   const filters = pricesListFilters.parse({});
-  const screen = await renderScreen(services, () => {}, NOW, { filters, onFiltersChange });
+  const screen = await renderScreen(services, () => {}, { filters, onFiltersChange });
   await expect.element(screen.getByText("Arroz")).toBeVisible();
   await userEvent.click(screen.getByRole("button", { name: "Revisión: Por revisar" }));
   await userEvent.click(screen.getByRole("option", { name: "Todos" }));
   await expect.poll(() => onFiltersChange.mock.calls.length).toBe(1);
 
   await screen.rerender(
-    screenElement(services, () => {}, NOW, {
+    screenElement(services, () => {}, {
       filters,
       onFiltersChange: (reported) => onFiltersChange(reported),
     }),

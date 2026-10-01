@@ -69,12 +69,12 @@ function pricingPorts() {
 
 describe("two price changes on the same never-priced product queued behind each other, on a real Postgres", () => {
   it("applies exactly one of them and reports the other as stale_price", async () => {
-    const priceListId = await seededPriceListId(db);
+    const locationId = await seededLocationId(db);
     const { actorId, productId } = await seedActorAndProduct();
     const change = (unitPrice: number) => () =>
       setPrice(pricingPorts(), {
         productId,
-        priceListId,
+        locationId,
         unitPrice,
         expectedCurrentPriceId: null,
         actorId,
@@ -97,6 +97,7 @@ describe("two price changes on the same never-priced product queued behind each 
 describe("a confirmation queued behind a change of the price it confirms, on a real Postgres", () => {
   it("reports the confirmation as stale_price and records no review of the superseded price", async () => {
     const priceListId = await seededPriceListId(db);
+    const locationId = await seededLocationId(db);
     const { actorId, productId } = await seedActorAndProduct();
     const [superseded] = await db
       .insert(prices)
@@ -112,7 +113,7 @@ describe("a confirmation queued behind a change of the price it confirms, on a r
       () =>
         setPrice(pricingPorts(), {
           productId,
-          priceListId,
+          locationId,
           unitPrice: 2000,
           expectedCurrentPriceId: superseded.id,
           actorId,
@@ -120,7 +121,7 @@ describe("a confirmation queued behind a change of the price it confirms, on a r
       () =>
         confirmPrice(pricingPorts(), {
           productId,
-          priceListId,
+          locationId,
           expectedCurrentPriceId: superseded.id,
           actorId,
         }),

@@ -3,7 +3,7 @@ import type { PricingPorts } from "./pricing-store.js";
 
 export interface SetPriceInput {
   productId: string;
-  priceListId: string;
+  locationId: string;
   unitPrice: number;
   expectedCurrentPriceId: string | null;
   actorId: string;
@@ -31,7 +31,8 @@ export async function setPrice(
       return { kind: "not_found" };
     }
 
-    const current = await tx.currentPrice(input.productId, input.priceListId);
+    const priceListId = await tx.branchPriceList(input.locationId);
+    const current = await tx.currentPrice(input.productId, priceListId);
     if ((current?.id ?? null) !== input.expectedCurrentPriceId) {
       return { kind: "stale_price" };
     }
@@ -41,18 +42,18 @@ export async function setPrice(
 
     const moment = momentAfter(clock.now(), [
       current?.validFrom,
-      await tx.latestReviewedAt(input.productId, input.priceListId),
+      await tx.latestReviewedAt(input.productId, priceListId),
     ]);
 
     const price = await tx.recordPrice({
       productId: input.productId,
-      priceListId: input.priceListId,
+      priceListId,
       unitPrice: input.unitPrice,
       validFrom: moment,
     });
     await tx.recordPriceReview({
       productId: input.productId,
-      priceListId: input.priceListId,
+      priceListId,
       reviewedAt: moment,
       actorId: input.actorId,
       priceId: price.id,

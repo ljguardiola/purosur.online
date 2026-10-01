@@ -176,7 +176,7 @@ describe("GET /registers", () => {
     ]);
   });
 
-  it("lists an unexpired, unredeemed pending code's issued_at and expires_at", async () => {
+  it("lists an unexpired, unredeemed pending code's seconds since issued and until expiry", async () => {
     const locationId = await seededLocationId(db);
     const registerId = await insertRegister(locationId, "Caja 1");
     const issuedAt = new Date(NOON.getTime() - 60_000);
@@ -198,7 +198,7 @@ describe("GET /registers", () => {
       {
         id: registerId,
         name: "Caja 1",
-        pending_code: { issued_at: issuedAt.toISOString(), expires_at: expiresAt.toISOString() },
+        pending_code: { seconds_since_issued: 60, seconds_until_expiry: 840 },
       },
     ]);
   });
@@ -249,6 +249,25 @@ describe("GET /registers", () => {
       issuedAt: new Date(NOON.getTime() - 60_000),
       expiresAt: new Date(NOON.getTime() + 14 * 60_000),
       redeemedAt: NOON,
+    });
+    const userId = await insertUserWithPermission(locationId);
+    const rawSessionId = await insertSession(userId);
+
+    const response = await getRegisters(rawSessionId);
+
+    expect(response.json()).toMatchObject([{ pending_code: null }]);
+  });
+
+  it("hides a pending code that has used up its failed attempts, reporting null", async () => {
+    const locationId = await seededLocationId(db);
+    const registerId = await insertRegister(locationId, "Caja 1");
+    await db.insert(registerEnrollmentCodes).values({
+      registerId,
+      codeLookup: "ABCD",
+      codeHash: "irrelevant-hash",
+      issuedAt: new Date(NOON.getTime() - 60_000),
+      expiresAt: new Date(NOON.getTime() + 14 * 60_000),
+      failedAttempts: 5,
     });
     const userId = await insertUserWithPermission(locationId);
     const rawSessionId = await insertSession(userId);

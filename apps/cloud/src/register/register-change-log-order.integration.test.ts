@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { createRegister } from "@purosur/domain/register/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -10,7 +11,7 @@ import {
 } from "../test-support/integration-database.js";
 import { waitForLockWaiters } from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { createRegister } from "./register-creation-route.js";
+import { DrizzleBranchRegisterStore } from "./drizzle-branch-register-store.js";
 
 const UNIQUE_VIOLATION = "23505";
 
@@ -46,7 +47,11 @@ describe("creating a register while another writer holds the change log, on a re
     const holder = await sql.reserve();
     await holder`begin`;
     await holder`select pg_advisory_xact_lock(hashtextextended('changes_log', 0))`;
-    const creation = createRegister(db, { locationId, name, actorId: actor.id });
+    const creation = createRegister(new DrizzleBranchRegisterStore(db), {
+      locationId,
+      name,
+      actorId: actor.id,
+    });
     let claim: Promise<unknown> = Promise.resolve();
     try {
       await waitForLockWaiters(sql, 1);

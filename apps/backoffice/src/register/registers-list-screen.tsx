@@ -9,15 +9,19 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { KeySquare, Laptop, Plus } from "lucide-react";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
-import { minutesElapsed, minutesRemaining } from "./enrollment-code";
 import { type EmissionState, EnrollmentCodeModal } from "./enrollment-code-modal";
 import { NewRegisterModal } from "./new-register-modal";
+import {
+  pendingCodeAfter,
+  pendingCodeExpiryText,
+  pendingCodeIssuedText,
+} from "./pending-code-text";
 import { RegisterCoverageNotice } from "./register-coverage-notice";
 import {
   useRefreshRegisters,
@@ -29,15 +33,14 @@ import type { RegistersListScreenServices } from "./registers-list-services";
 
 export type RegistersListScreenProps = {
   onSessionEnded: () => void;
-  now?: () => Date;
   services: RegistersListScreenServices;
 };
 
 const NO_REGISTERS: RegisterSummary[] = [];
 
-const PENDING_CODE_REFRESH_MS = 30_000;
+const COUNTDOWN_TICK_SECONDS = 30;
 
-export function RegistersListScreen({ onSessionEnded, now, services }: RegistersListScreenProps) {
+export function RegistersListScreen({ onSessionEnded, services }: RegistersListScreenProps) {
   const sendToMyAccount = useSendToMyAccount();
   const {
     fetchRegisters,
@@ -47,11 +50,9 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
     authorizeSession,
     startAuthentication,
   } = services;
-  const clock = now ?? (() => new Date());
   const data = useRegistersQuery({ fetchRegisters, onSessionEnded });
   const coverage = useRegisterCoverageQuery({ fetchRegisterCoverage, onSessionEnded });
   const refreshRegisters = useRefreshRegisters();
-  const [currentTime, setCurrentTime] = useState(() => clock());
   const [newModalOpen, setNewModalOpen] = useState(false);
   const [emission, setEmission] = useState<EmissionState>({ kind: "closed" });
   const { run: runEmission, modal: emissionAuthModal } =
@@ -60,23 +61,22 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
       onSessionEnded,
       services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
     });
-  const readClock = useEffectEvent(clock);
   const latestEmission = useRef(0);
-
-  const listSettled = data.status === "loaded" && !data.refreshing;
-  useEffect(() => {
-    if (listSettled) {
-      setCurrentTime(readClock());
-    }
-  }, [listSettled]);
+  const registers = data.status === "loaded" ? data.value : NO_REGISTERS;
+  const [countdown, setCountdown] = useState({ read: registers, ticks: 0 });
+  const ticksSinceRead = countdown.read === registers ? countdown.ticks : 0;
 
   useEffect(() => {
     const intervalId = window.setInterval(
-      () => setCurrentTime(readClock()),
-      PENDING_CODE_REFRESH_MS,
+      () =>
+        setCountdown((counted) => ({
+          read: registers,
+          ticks: counted.read === registers ? counted.ticks + 1 : 1,
+        })),
+      COUNTDOWN_TICK_SECONDS * 1000,
     );
     return () => window.clearInterval(intervalId);
-  }, []);
+  }, [registers]);
 
   // Guards a second Enter/Space activation before the first request settles (the modal backdrop
   // blocks other rows).
@@ -131,8 +131,6 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
     void refreshRegisters();
   }
 
-  const registers = data.status === "loaded" ? data.value : NO_REGISTERS;
-
   const columns = [
     dataColumn({
       id: "register",
@@ -145,23 +143,19 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
       id: "installation",
       header: "Instalación",
       render: (item: RegisterSummary) => {
-        const now = currentTime;
         const pendingCode =
-          item.pendingCode && new Date(item.pendingCode.expiresAt) > now ? item.pendingCode : null;
+          item.pendingCode &&
+          pendingCodeAfter(item.pendingCode, ticksSinceRead * COUNTDOWN_TICK_SECONDS);
         if (!pendingCode) {
           return <span className="text-text-subtle text-detail">—</span>;
         }
-        const elapsedMinutes = minutesElapsed(pendingCode.issuedAt, now);
-        const remainingMinutes = minutesRemaining(pendingCode.expiresAt, now);
         return (
           <div className="flex flex-col gap-1">
             <span className="text-text text-detail">
-              {elapsedMinutes < 1
-                ? "Código emitido recién"
-                : `Código emitido hace ${plural(elapsedMinutes, { one: "1 minuto", other: `${elapsedMinutes} minutos` })}`}
+              {pendingCodeIssuedText(pendingCode.secondsSinceIssued)}
             </span>
             <span className="text-detail text-warning-strong">
-              {`Vence en ${plural(remainingMinutes, { one: "1 minuto", other: `${remainingMinutes} minutos` })}`}
+              {pendingCodeExpiryText(pendingCode.secondsUntilExpiry)}
             </span>
           </div>
         );
