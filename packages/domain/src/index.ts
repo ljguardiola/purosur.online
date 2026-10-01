@@ -121,6 +121,7 @@ export type {
   DiscountTarget,
   DiscountTargetKind,
   IsoWeekday,
+  PriceReview,
   ProductTagLink,
   TargetedProduct,
 } from "./pricing/index.js";
@@ -150,6 +151,7 @@ export {
   newestPrice,
   normalizeDiscountWeekdays,
   priceInEffectAt,
+  priceReviewAt,
 } from "./pricing/index.js";
 export type {
   CashBreakdown,
