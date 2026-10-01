@@ -28,7 +28,7 @@ export function useCurrentSaleQuery({
 export function useTakeSale(
   sessionId: string,
   userId: string,
-): (sale: OpenSale) => Promise<OpenSale | null> {
+): (sale: OpenSale | null) => Promise<OpenSale | null> {
   const queryClient = useQueryClient();
   return async (sale) => {
     const queryKey = salesKeys.currentSale(sessionId, userId);
@@ -36,6 +36,11 @@ export function useTakeSale(
     await setQueryAnswer(queryClient, queryKey, sale);
     return previous === undefined || previous === "not_permitted" ? null : previous;
   };
+}
+
+export function useResetCurrentSale(sessionId: string, userId: string): () => Promise<void> {
+  const queryClient = useQueryClient();
+  return () => queryClient.resetQueries({ queryKey: salesKeys.currentSale(sessionId, userId) });
 }
 
 export function useSearchProducts(

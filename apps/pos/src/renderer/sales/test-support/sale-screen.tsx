@@ -1,6 +1,9 @@
 import type {
   AddProductOutcome,
+  CancelSaleOutcome,
+  ChangeLineQuantityOutcome,
   OpenSale,
+  RemoveSaleLineOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
 } from "@purosur/contracts";
@@ -62,6 +65,15 @@ export async function renderScreen({ registerName = "Caja 1", ...overrides }: Ov
   const addProduct =
     overrides.addProduct ??
     vi.fn(async (): Promise<AddProductOutcome> => ({ kind: "product_unavailable" }));
+  const changeLineQuantity =
+    overrides.changeLineQuantity ??
+    vi.fn(async (): Promise<ChangeLineQuantityOutcome> => ({ kind: "unavailable" }));
+  const removeSaleLine =
+    overrides.removeSaleLine ??
+    vi.fn(async (): Promise<RemoveSaleLineOutcome> => ({ kind: "unavailable" }));
+  const cancelSale =
+    overrides.cancelSale ??
+    vi.fn(async (): Promise<CancelSaleOutcome> => ({ kind: "unavailable" }));
   const onSessionInvalid = overrides.onSessionInvalid ?? vi.fn();
   const screen = await render(
     <SaleScreen
@@ -74,6 +86,9 @@ export async function renderScreen({ registerName = "Caja 1", ...overrides }: Ov
       scanProduct={scanProduct}
       searchProducts={searchProducts}
       addProduct={addProduct}
+      changeLineQuantity={changeLineQuantity}
+      removeSaleLine={removeSaleLine}
+      cancelSale={cancelSale}
       onSessionInvalid={onSessionInvalid}
     />,
   );

@@ -2,7 +2,10 @@ import { BARCODE_MAX_LENGTH, PRODUCT_NAME_MAX_LENGTH, SEARCH_RESULT_LIMIT } from
 import { describe, expect, it } from "vitest";
 import {
   addProductOutcomeSchema,
+  cancelSaleOutcomeSchema,
+  changeLineQuantityOutcomeSchema,
   chargeSaleInCashOutcomeSchema,
+  removeSaleLineOutcomeSchema,
   saleSchema,
   scannedCodeSchema,
   scanProductOutcomeSchema,
@@ -131,6 +134,65 @@ describe("scanProductOutcomeSchema", () => {
   ])("rejects the outcome %j", (outcome) => {
     expect(scanProductOutcomeSchema.safeParse(outcome).success).toBe(false);
   });
+});
+
+const refusals = [
+  { kind: "not_permitted" },
+  { kind: "not_signed_in" },
+  { kind: "no_open_session" },
+  { kind: "no_open_sale" },
+  { kind: "unavailable" },
+];
+
+describe("changeLineQuantityOutcomeSchema", () => {
+  it.each([
+    { kind: "changed", sale },
+    { kind: "unknown_line" },
+    { kind: "stale_quantity" },
+    { kind: "invalid_quantity" },
+    ...refusals,
+  ])("accepts the outcome $kind", (outcome) => {
+    expect(changeLineQuantityOutcomeSchema.parse(outcome)).toEqual(outcome);
+  });
+
+  it.each([{ kind: "changed" }, { kind: "removed", sale }, { kind: "somewhere_else" }, {}])(
+    "rejects the outcome %j",
+    (outcome) => {
+      expect(changeLineQuantityOutcomeSchema.safeParse(outcome).success).toBe(false);
+    },
+  );
+});
+
+describe("removeSaleLineOutcomeSchema", () => {
+  it.each([{ kind: "removed", sale }, { kind: "unknown_line" }, ...refusals])(
+    "accepts the outcome $kind",
+    (outcome) => {
+      expect(removeSaleLineOutcomeSchema.parse(outcome)).toEqual(outcome);
+    },
+  );
+
+  it.each([
+    { kind: "removed" },
+    { kind: "changed", sale },
+    { kind: "invalid_quantity" },
+    { kind: "somewhere_else" },
+    {},
+  ])("rejects the outcome %j", (outcome) => {
+    expect(removeSaleLineOutcomeSchema.safeParse(outcome).success).toBe(false);
+  });
+});
+
+describe("cancelSaleOutcomeSchema", () => {
+  it.each([{ kind: "cancelled" }, ...refusals])("accepts the outcome $kind", (outcome) => {
+    expect(cancelSaleOutcomeSchema.parse(outcome)).toEqual(outcome);
+  });
+
+  it.each([{ kind: "unknown_line" }, { kind: "somewhere_else" }, {}])(
+    "rejects the outcome %j",
+    (outcome) => {
+      expect(cancelSaleOutcomeSchema.safeParse(outcome).success).toBe(false);
+    },
+  );
 });
 
 describe("chargeSaleInCashOutcomeSchema", () => {

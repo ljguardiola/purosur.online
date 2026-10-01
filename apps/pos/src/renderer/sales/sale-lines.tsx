@@ -1,11 +1,25 @@
 import type { OpenSale } from "@purosur/contracts";
-import { EmptyState, formatCents } from "@purosur/ui";
-import { Package, ShoppingBasket, Tag } from "lucide-react";
+import { EmptyState, formatCents, IconButton } from "@purosur/ui";
+import { Minus, Package, Plus, ShoppingBasket, Tag, Trash2 } from "lucide-react";
 import { linePromotionText } from "./line-promotion-text";
 
 type SaleLine = OpenSale["lines"][number];
 
-function SaleLineRow({ line, changed }: { line: SaleLine; changed: boolean }) {
+export type SaleLineActions = {
+  busy: boolean;
+  onChangeQuantity: (line: SaleLine, quantity: number) => void;
+  onRemove: (line: SaleLine) => void;
+};
+
+function SaleLineRow({
+  line,
+  changed,
+  actions,
+}: {
+  line: SaleLine;
+  changed: boolean;
+  actions: SaleLineActions;
+}) {
   return (
     <li
       aria-current={changed ? "true" : undefined}
@@ -31,7 +45,21 @@ function SaleLineRow({ line, changed }: { line: SaleLine; changed: boolean }) {
           </span>
         )}
       </span>
-      <span className="w-33 shrink-0 text-center text-subheading text-text">{line.quantity}</span>
+      <span className="flex w-27 shrink-0 items-center justify-between">
+        <IconButton
+          aria-label={`Bajar la cantidad de ${line.product_name}`}
+          icon={<Minus />}
+          disabled={actions.busy || line.quantity <= 1}
+          onPress={() => actions.onChangeQuantity(line, line.quantity - 1)}
+        />
+        <span className="text-subheading text-text">{line.quantity}</span>
+        <IconButton
+          aria-label={`Subir la cantidad de ${line.product_name}`}
+          icon={<Plus />}
+          disabled={actions.busy}
+          onPress={() => actions.onChangeQuantity(line, line.quantity + 1)}
+        />
+      </span>
       <span className="flex w-37.5 shrink-0 flex-col text-right">
         {line.promotion === null ? null : (
           <s className="text-detail text-text-subtle">
@@ -40,6 +68,13 @@ function SaleLineRow({ line, changed }: { line: SaleLine; changed: boolean }) {
         )}
         <span className="text-heading text-text">{formatCents(line.line_total)}</span>
       </span>
+      <IconButton
+        variant="subtle"
+        aria-label={`Quitar ${line.product_name}`}
+        icon={<Trash2 />}
+        disabled={actions.busy}
+        onPress={() => actions.onRemove(line)}
+      />
     </li>
   );
 }
@@ -47,9 +82,11 @@ function SaleLineRow({ line, changed }: { line: SaleLine; changed: boolean }) {
 export function SaleLines({
   lines,
   changedLineId,
+  actions,
 }: {
   lines: OpenSale["lines"];
   changedLineId: string | undefined;
+  actions: SaleLineActions;
 }) {
   if (lines.length === 0) {
     return (
@@ -64,7 +101,12 @@ export function SaleLines({
   return (
     <ul className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
       {lines.map((line) => (
-        <SaleLineRow key={line.id} line={line} changed={line.id === changedLineId} />
+        <SaleLineRow
+          key={line.id}
+          line={line}
+          changed={line.id === changedLineId}
+          actions={actions}
+        />
       ))}
     </ul>
   );

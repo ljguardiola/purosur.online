@@ -4,6 +4,7 @@ import type { OutboxEventDraft } from "../../../sync/index.js";
 import type { PaymentTransaction } from "../../model/payment.js";
 import type { SaleWithLines } from "../../model/sale.js";
 import type { ListPrice } from "../../model/sale-line.js";
+import type { SaleLineRemoval } from "../../model/sale-line-removal.js";
 import type {
   CandidatePromotion,
   Clock,
@@ -30,6 +31,7 @@ export interface FakeSaleLedgerState {
   prices: FakePrice[];
   promotionsByProduct: Record<string, CandidatePromotion[]>;
   sales: SaleWithLines[];
+  removals: SaleLineRemoval[];
   payments: PaymentTransaction[];
   movements: CashMovement[];
   outbox: OutboxEventDraft[];
@@ -39,6 +41,9 @@ export type FakeSaleLedgerWrite =
   | "recordOpenedSale"
   | "recordSaleLine"
   | "recordLineQuantity"
+  | "recordLineRemoval"
+  | "deleteSaleLine"
+  | "markSaleCancelled"
   | "recordPayment"
   | "recordCashMovement"
   | "recordCompletedSale"
@@ -61,6 +66,7 @@ export class FakeSaleLedger implements SaleLedger {
       prices: [],
       promotionsByProduct: {},
       sales: [],
+      removals: [],
       payments: [],
       movements: [],
       outbox: [],
@@ -118,6 +124,25 @@ export class FakeSaleLedger implements SaleLedger {
                 }
               : stored,
           );
+        }
+      },
+      recordLineRemoval: (removal) => {
+        this.failIfAsked("recordLineRemoval");
+        working.removals.push(removal);
+      },
+      deleteSaleLine: (lineId) => {
+        this.failIfAsked("deleteSaleLine");
+        for (const sale of working.sales) {
+          sale.lines = sale.lines.filter((stored) => stored.id !== lineId);
+        }
+      },
+      saleLineRemovals: (saleId) =>
+        structuredClone(working.removals.filter((removal) => removal.saleId === saleId)),
+      markSaleCancelled: (saleId) => {
+        this.failIfAsked("markSaleCancelled");
+        const sale = working.sales.find((stored) => stored.id === saleId);
+        if (sale) {
+          sale.state = "CANCELLED";
         }
       },
       recordPayment: (payment) => {

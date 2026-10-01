@@ -158,6 +158,15 @@ function coreAnswering(
     async currentSale() {
       return sales.currentSale === undefined ? null : sales.currentSale();
     },
+    async changeLineQuantity() {
+      return { kind: "unavailable" };
+    },
+    async removeSaleLine() {
+      return { kind: "unavailable" };
+    },
+    async cancelSale() {
+      return { kind: "unavailable" };
+    },
     async searchProducts(query) {
       return sales.searchProducts === undefined
         ? { kind: "results", products: [], more: false }

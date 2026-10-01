@@ -56,8 +56,11 @@ import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
 import {
   addSearchedProductFor,
+  cancelSaleFor,
+  changeLineQuantityFor,
   chargeSaleInCashFor,
   currentSaleFor,
+  removeSaleLineFor,
   scanProductFor,
   searchProductsFor,
 } from "./sales/sale-requests";
@@ -383,6 +386,36 @@ const rendererRequestDeps: RendererRequestDeps = {
             { database: localDatabase, gate: actionGate, now: () => new Date(), ids: uuidV7Ids },
             code,
           ),
+  changeLineQuantity:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (lineId, quantity, expectedQuantity) =>
+          changeLineQuantityFor(
+            { database: localDatabase, gate: actionGate, now: () => new Date(), ids: uuidV7Ids },
+            lineId,
+            quantity,
+            expectedQuantity,
+          ),
+  removeSaleLine:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (lineId) =>
+          removeSaleLineFor(
+            { database: localDatabase, gate: actionGate, now: () => new Date(), ids: uuidV7Ids },
+            lineId,
+          ),
+  cancelSale:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : () =>
+          cancelSaleFor({
+            database: localDatabase,
+            gate: actionGate,
+            readOutboxChainKey: async () =>
+              (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+            now: () => new Date(),
+            ids: uuidV7Ids,
+          }),
   chargeSaleInCash:
     localDatabase === undefined || actionGate === undefined
       ? undefined

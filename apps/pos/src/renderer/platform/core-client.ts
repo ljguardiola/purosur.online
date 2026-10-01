@@ -1,7 +1,9 @@
 import type {
   AddProductOutcome,
   Authorization,
+  CancelSaleOutcome,
   CashBalance,
+  ChangeLineQuantityOutcome,
   ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
@@ -16,6 +18,7 @@ import type {
   PinCodeRedemptionOutcome,
   RecordCashMovementOutcome,
   RecordCashMovementRequest,
+  RemoveSaleLineOutcome,
   RendererToCoreMessage,
   ScanProductOutcome,
   SearchProductsOutcome,
@@ -56,6 +59,13 @@ export interface CoreClient {
   searchProducts(query: string): Promise<SearchProductsOutcome>;
   addProduct(productId: string): Promise<AddProductOutcome>;
   currentSale(): Promise<CurrentSaleAnswer>;
+  changeLineQuantity(
+    lineId: string,
+    quantity: number,
+    expectedQuantity: number,
+  ): Promise<ChangeLineQuantityOutcome>;
+  removeSaleLine(lineId: string): Promise<RemoveSaleLineOutcome>;
+  cancelSale(): Promise<CancelSaleOutcome>;
   chargeSaleInCash(saleId: string, tendered: number): Promise<ChargeSaleInCashOutcome>;
   closeCashSession(
     sessionId: string,
@@ -269,6 +279,29 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
     scanProduct(code) {
       return ask({ type: "scan-product", request_id: deps.newRequestId(), code }, (answer) =>
         answer.type === "scan-product-result" ? answer.outcome : undefined,
+      );
+    },
+    changeLineQuantity(lineId, quantity, expectedQuantity) {
+      return ask(
+        {
+          type: "change-line-quantity",
+          request_id: deps.newRequestId(),
+          line_id: lineId,
+          quantity,
+          expected_quantity: expectedQuantity,
+        },
+        (answer) => (answer.type === "change-line-quantity-result" ? answer.outcome : undefined),
+      );
+    },
+    removeSaleLine(lineId) {
+      return ask(
+        { type: "remove-sale-line", request_id: deps.newRequestId(), line_id: lineId },
+        (answer) => (answer.type === "remove-sale-line-result" ? answer.outcome : undefined),
+      );
+    },
+    cancelSale() {
+      return ask({ type: "cancel-sale", request_id: deps.newRequestId() }, (answer) =>
+        answer.type === "cancel-sale-result" ? answer.outcome : undefined,
       );
     },
     searchProducts(query) {
