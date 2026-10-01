@@ -112,7 +112,11 @@ async function insertAlert(input: {
       level: "warning",
       audience: input.audience,
       locationId: input.audience === "local" ? (input.locationId ?? ownLocationId) : null,
-      detail: {},
+      detail: {
+        previousEmail: "old@example.com",
+        newEmail: "new@example.com",
+        actorId: "an-actor-id",
+      },
       openedAt: NOON,
       resolvedAt: input.resolvedAt ?? null,
     })

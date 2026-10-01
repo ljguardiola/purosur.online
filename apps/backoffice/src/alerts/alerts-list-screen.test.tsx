@@ -361,7 +361,12 @@ const passkeyDetail: AlertDetail = {
   scopeDisplay: "Lucía Pérez",
   level: "warning",
   audience: "all",
-  detail: { action: "registered", passkeyName: "Teléfono de Lucía", via: "self" },
+  detail: {
+    action: "registered",
+    passkeyName: "Teléfono de Lucía",
+    actorId: "user-1",
+    via: "self",
+  },
   openedAt: "2026-01-05T12:00:00.000Z",
   escalatedAt: null,
   resolvedAt: null,

@@ -107,7 +107,11 @@ async function insertAlert(input: {
       level: "warning",
       audience: input.audience,
       locationId: input.audience === "local" ? (input.locationId ?? ownLocationId) : null,
-      detail: { previousEmail: "old@example.com" },
+      detail: {
+        previousEmail: "old@example.com",
+        newEmail: "new@example.com",
+        actorId: "an-actor-id",
+      },
       openedAt: NOON,
     })
     .returning({ id: alerts.id });
@@ -256,7 +260,11 @@ describe("GET /alerts/:id", () => {
         scope: hashedAddress,
         level: "warning",
         audience: "all",
-        detail: { sourceAddress: hashedAddress, failureCount: 6 },
+        detail: {
+          sourceAddress: hashedAddress,
+          failureCount: 6,
+          blockedUntil: "2026-05-04T12:15:00.000Z",
+        },
         openedAt: NOON,
         resolvedAt: NOON,
       })
