@@ -1,6 +1,13 @@
 import type { SignInUser } from "@purosur/contracts";
-import { type AuthorizablePermissionKey, holdsPermission, type RoleAccess } from "@purosur/domain";
+import {
+  type AuthorizablePermissionKey,
+  decodePinSalt,
+  holdsPermission,
+  type RoleAccess,
+} from "@purosur/domain";
+import type { PinHolder, SignablePerson } from "@purosur/domain/access/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
+import type { PinCredential } from "./pin-matching";
 
 export interface SignInRecord {
   firstName: string;
@@ -25,6 +32,8 @@ export interface SignInStore {
   firstNameOf(userId: string): string | undefined;
   authorizers(permission: AuthorizablePermissionKey): SignInUser[];
   signInRecord(userId: string): SignInRecord | undefined;
+  pinHolder(userId: string): PinHolder<PinCredential> | undefined;
+  signablePeople(): SignablePerson[];
   activePerson(userId: string): ActivePerson | undefined;
   pinSignInFailures(userId: string): PinSignInFailures | undefined;
   recordPinSignInFailure(userId: string, at: Date): PinSignInFailures;
@@ -93,6 +102,27 @@ export class SqliteSignInStore implements SignInStore {
       const record = this.signInRecord(user.id);
       return record !== undefined && mayAuthorize({ id: user.id, access: record.access });
     });
+  }
+
+  signablePeople(): SignablePerson[] {
+    return this.signableUsers().flatMap(({ id }) => {
+      const record = this.signInRecord(id);
+      return record === undefined
+        ? []
+        : [{ id, firstName: record.firstName, access: record.access }];
+    });
+  }
+
+  pinHolder(userId: string): PinHolder<PinCredential> | undefined {
+    const record = this.signInRecord(userId);
+    const salt = record === undefined ? undefined : decodePinSalt(record.salt);
+    return record === undefined || salt === undefined
+      ? undefined
+      : {
+          firstName: record.firstName,
+          access: record.access,
+          credential: { salt, verifier: record.verifier },
+        };
   }
 
   signInRecord(userId: string): SignInRecord | undefined {
