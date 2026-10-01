@@ -168,6 +168,7 @@ export {
   isDiscountNameTooLong,
   isDiscountWindowOrdered,
   isoWeekdayOf,
+  isTargetKindAllowedFor,
   isValidDiscountBuyNPayM,
   isValidDiscountBuyQty,
   isValidDiscountPayQty,
