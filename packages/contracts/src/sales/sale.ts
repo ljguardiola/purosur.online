@@ -1,10 +1,21 @@
-import { isBarcodeTooLong, isValidDiscountBuyNPayM, isValidDiscountPercent } from "@purosur/domain";
+import {
+  isBarcodeTooLong,
+  isProductNameTooLong,
+  isValidDiscountBuyNPayM,
+  isValidDiscountPercent,
+  SALE_UNITS,
+  SEARCH_RESULT_LIMIT,
+} from "@purosur/domain";
 import { z } from "zod";
+
+export { SEARCH_RESULT_LIMIT };
 
 export const scannedCodeSchema = z
   .string()
   .min(1)
   .refine((code) => !isBarcodeTooLong(code));
+
+export const searchQuerySchema = z.string().refine((query) => !isProductNameTooLong(query));
 
 const cents = z.int().nonnegative();
 
@@ -37,15 +48,114 @@ export const saleSchema = z.object({
 export type OpenSale = z.infer<typeof saleSchema>;
 export type CurrentSaleAnswer = OpenSale | null | "not_permitted";
 
+const addedOutcome = z.object({ kind: z.literal("added"), sale: saleSchema });
+const noPriceOutcome = z.object({ kind: z.literal("no_price"), product_name: z.string() });
+const soldByWeightOutcome = z.object({
+  kind: z.literal("sold_by_weight"),
+  product_name: z.string(),
+});
+const notPermittedOutcome = z.object({ kind: z.literal("not_permitted") });
+const notSignedInOutcome = z.object({ kind: z.literal("not_signed_in") });
+const noOpenSessionOutcome = z.object({ kind: z.literal("no_open_session") });
+const installationRevokedOutcome = z.object({ kind: z.literal("installation_revoked") });
+const unavailableOutcome = z.object({ kind: z.literal("unavailable") });
+
 export const scanProductOutcomeSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("added"), sale: saleSchema }),
+  addedOutcome,
   z.object({ kind: z.literal("unknown_code") }),
-  z.object({ kind: z.literal("no_price"), product_name: z.string() }),
-  z.object({ kind: z.literal("sold_by_weight"), product_name: z.string() }),
+  noPriceOutcome,
+  soldByWeightOutcome,
+  notPermittedOutcome,
+  notSignedInOutcome,
+  noOpenSessionOutcome,
+  installationRevokedOutcome,
+  unavailableOutcome,
+]);
+export type ScanProductOutcome = z.infer<typeof scanProductOutcomeSchema>;
+
+const saleRefusalSchemas = [
+  z.object({ kind: z.literal("no_open_sale") }),
+  notPermittedOutcome,
+  notSignedInOutcome,
+  noOpenSessionOutcome,
+  unavailableOutcome,
+] as const;
+
+export const saleLineQuantitySchema = z.int().positive();
+
+export const changeLineQuantityOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("changed"), sale: saleSchema }),
+  z.object({ kind: z.literal("unknown_line") }),
+  z.object({ kind: z.literal("stale_quantity") }),
+  z.object({ kind: z.literal("invalid_quantity") }),
+  ...saleRefusalSchemas,
+]);
+export type ChangeLineQuantityOutcome = z.infer<typeof changeLineQuantityOutcomeSchema>;
+
+export const removeSaleLineOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("removed"), sale: saleSchema }),
+  z.object({ kind: z.literal("unknown_line") }),
+  ...saleRefusalSchemas,
+]);
+export type RemoveSaleLineOutcome = z.infer<typeof removeSaleLineOutcomeSchema>;
+
+export const cancelSaleOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("cancelled") }),
+  ...saleRefusalSchemas,
+]);
+export type CancelSaleOutcome = z.infer<typeof cancelSaleOutcomeSchema>;
+
+export const addProductOutcomeSchema = z.discriminatedUnion("kind", [
+  addedOutcome,
+  z.object({ kind: z.literal("product_unavailable") }),
+  noPriceOutcome,
+  soldByWeightOutcome,
+  notPermittedOutcome,
+  notSignedInOutcome,
+  noOpenSessionOutcome,
+  installationRevokedOutcome,
+  unavailableOutcome,
+]);
+export type AddProductOutcome = z.infer<typeof addProductOutcomeSchema>;
+
+const foundProductSchema = z.object({
+  product_id: z.string(),
+  name: z.string(),
+  sale_unit: z.enum(SALE_UNITS),
+  unit_price: cents.nullable(),
+  matches: z.array(z.object({ start: z.int().nonnegative(), length: z.int().positive() })),
+});
+export type FoundProduct = z.infer<typeof foundProductSchema>;
+
+export const searchProductsOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("results"),
+    products: z.array(foundProductSchema).max(SEARCH_RESULT_LIMIT),
+    more: z.boolean(),
+  }),
+  notPermittedOutcome,
+  notSignedInOutcome,
+  noOpenSessionOutcome,
+  unavailableOutcome,
+]);
+export type SearchProductsOutcome = z.infer<typeof searchProductsOutcomeSchema>;
+
+export const chargeSaleInCashOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("completed"),
+    sale_id: z.string(),
+    total: cents,
+    tendered: cents,
+    change: cents,
+  }),
+  z.object({ kind: z.literal("insufficient_cash"), amount_due: cents }),
+  z.object({ kind: z.literal("invalid_amount") }),
+  z.object({ kind: z.literal("empty_sale") }),
+  z.object({ kind: z.literal("zero_total") }),
+  z.object({ kind: z.literal("no_open_sale") }),
   z.object({ kind: z.literal("not_permitted") }),
   z.object({ kind: z.literal("not_signed_in") }),
   z.object({ kind: z.literal("no_open_session") }),
-  z.object({ kind: z.literal("installation_revoked") }),
   z.object({ kind: z.literal("unavailable") }),
 ]);
-export type ScanProductOutcome = z.infer<typeof scanProductOutcomeSchema>;
+export type ChargeSaleInCashOutcome = z.infer<typeof chargeSaleInCashOutcomeSchema>;

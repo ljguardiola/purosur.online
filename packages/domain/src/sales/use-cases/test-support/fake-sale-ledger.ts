@@ -1,6 +1,11 @@
 import type { RoleAccess } from "../../../access/index.js";
+import { priceInEffectAt } from "../../../pricing/index.js";
+import type { CashMovement } from "../../../register/index.js";
+import type { OutboxEventDraft } from "../../../sync/index.js";
+import type { PaymentTransaction } from "../../model/payment.js";
 import type { SaleWithLines } from "../../model/sale.js";
 import type { ListPrice } from "../../model/sale-line.js";
+import type { SaleLineRemoval } from "../../model/sale-line-removal.js";
 import type {
   CandidatePromotion,
   Clock,
@@ -8,11 +13,12 @@ import type {
   RegisterIdentity,
   SaleLedger,
   SaleLedgerTransaction,
-  ScannedProduct,
+  SellableProduct,
   SellingSession,
 } from "../sale-ledger.js";
 
 interface FakePrice extends ListPrice {
+  id: string;
   productId: string;
   validFrom: Date;
 }
@@ -22,14 +28,28 @@ export interface FakeSaleLedgerState {
   identity: RegisterIdentity | undefined;
   revoked: boolean;
   session: SellingSession | undefined;
-  products: ScannedProduct[];
+  products: SellableProduct[];
   barcodes: Record<string, string>;
   prices: FakePrice[];
   promotionsByProduct: Record<string, CandidatePromotion[]>;
   sales: SaleWithLines[];
+  removals: SaleLineRemoval[];
+  payments: PaymentTransaction[];
+  movements: CashMovement[];
+  outbox: OutboxEventDraft[];
 }
 
-export type FakeSaleLedgerWrite = "recordOpenedSale" | "recordSaleLine" | "recordLineQuantity";
+export type FakeSaleLedgerWrite =
+  | "recordOpenedSale"
+  | "recordSaleLine"
+  | "recordLineQuantity"
+  | "recordLineRemoval"
+  | "deleteSaleLine"
+  | "markSaleCancelled"
+  | "recordPayment"
+  | "recordCashMovement"
+  | "recordCompletedSale"
+  | "appendOutboxEvent";
 
 export class FakeSaleLedger implements SaleLedger {
   state: FakeSaleLedgerState;
@@ -48,6 +68,10 @@ export class FakeSaleLedger implements SaleLedger {
       prices: [],
       promotionsByProduct: {},
       sales: [],
+      removals: [],
+      payments: [],
+      movements: [],
+      outbox: [],
       ...state,
     };
   }
@@ -68,6 +92,13 @@ export class FakeSaleLedger implements SaleLedger {
       registerIdentity: () => working.identity,
       activeProductByBarcode: (code) =>
         working.products.find((product) => product.id === working.barcodes[code]),
+      activeProductById: (productId) =>
+        working.products.find((product) => product.id === productId),
+      searchableProducts: () =>
+        working.products.map((product) => ({
+          ...product,
+          timesSoldHere: completedSalesContaining(working, product.id),
+        })),
       priceAt: (productId, moment) => latestPriceAt(working.prices, productId, moment),
       promotionsTargeting: (productId) => {
         this.promotionReads += 1;
@@ -97,6 +128,45 @@ export class FakeSaleLedger implements SaleLedger {
           );
         }
       },
+      recordLineRemoval: (removal) => {
+        this.failIfAsked("recordLineRemoval");
+        working.removals.push(removal);
+      },
+      deleteSaleLine: (lineId) => {
+        this.failIfAsked("deleteSaleLine");
+        for (const sale of working.sales) {
+          sale.lines = sale.lines.filter((stored) => stored.id !== lineId);
+        }
+      },
+      saleLineRemovals: (saleId) =>
+        structuredClone(working.removals.filter((removal) => removal.saleId === saleId)),
+      markSaleCancelled: (saleId) => {
+        this.failIfAsked("markSaleCancelled");
+        const sale = working.sales.find((stored) => stored.id === saleId);
+        if (sale) {
+          sale.state = "CANCELLED";
+        }
+      },
+      recordPayment: (payment) => {
+        this.failIfAsked("recordPayment");
+        working.payments.push(payment);
+      },
+      recordCashMovement: (movement) => {
+        this.failIfAsked("recordCashMovement");
+        working.movements.push(movement);
+      },
+      recordCompletedSale: (saleId) => {
+        this.failIfAsked("recordCompletedSale");
+        for (const sale of working.sales) {
+          if (sale.id === saleId) {
+            sale.state = "COMPLETED";
+          }
+        }
+      },
+      appendOutboxEvent: (draft) => {
+        this.failIfAsked("appendOutboxEvent");
+        working.outbox.push(draft);
+      },
     });
     this.state = working;
     return outcome;
@@ -109,16 +179,25 @@ export class FakeSaleLedger implements SaleLedger {
   }
 }
 
+function completedSalesContaining(state: FakeSaleLedgerState, productId: string): number {
+  return state.sales.filter(
+    (sale) =>
+      sale.state === "COMPLETED" &&
+      sale.registerId === state.identity?.registerId &&
+      sale.lines.some((line) => line.productId === productId),
+  ).length;
+}
+
 function latestPriceAt(
   prices: readonly FakePrice[],
   productId: string,
   moment: Date,
 ): ListPrice | undefined {
-  const valid = prices
-    .filter((price) => price.productId === productId && price.validFrom <= moment)
-    .sort((a, b) => b.validFrom.getTime() - a.validFrom.getTime());
-  const latest = valid[0];
-  return latest && { priceListId: latest.priceListId, unitPrice: latest.unitPrice };
+  const inEffect = priceInEffectAt(
+    prices.filter((price) => price.productId === productId),
+    moment,
+  );
+  return inEffect && { priceListId: inEffect.priceListId, unitPrice: inEffect.unitPrice };
 }
 
 export class SequentialIds implements IdGenerator {

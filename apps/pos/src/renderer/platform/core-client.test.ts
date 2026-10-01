@@ -285,6 +285,41 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to charge a sale in cash and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const outcome = client.chargeSaleInCash("sale-1", 500_000);
+    port.answer({
+      type: "charge-sale-in-cash-result",
+      request_id: "request-1",
+      outcome: {
+        kind: "completed",
+        sale_id: "sale-1",
+        total: 476_000,
+        tendered: 500_000,
+        change: 24_000,
+      },
+    });
+
+    expect(await outcome).toEqual({
+      kind: "completed",
+      sale_id: "sale-1",
+      total: 476_000,
+      tendered: 500_000,
+      change: 24_000,
+    });
+    expect(port.posted).toEqual([
+      {
+        type: "charge-sale-in-cash",
+        request_id: "request-1",
+        sale_id: "sale-1",
+        tendered: 500_000,
+      },
+    ]);
+  });
+
   it("asks the core to record a cash movement without an authorization", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
@@ -374,6 +409,106 @@ describe("createCoreClient", () => {
     },
   );
 
+  it("asks the core to change a line's quantity and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const changed = client.changeLineQuantity("line-1", 3, 4);
+    port.answer({
+      type: "change-line-quantity-result",
+      request_id: "request-1",
+      outcome: { kind: "unknown_line" },
+    });
+
+    expect(await changed).toEqual({ kind: "unknown_line" });
+    expect(port.posted).toEqual([
+      {
+        type: "change-line-quantity",
+        request_id: "request-1",
+        line_id: "line-1",
+        quantity: 3,
+        expected_quantity: 4,
+      },
+    ]);
+  });
+
+  it("asks the core to remove a line and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const removed = client.removeSaleLine("line-1");
+    port.answer({
+      type: "remove-sale-line-result",
+      request_id: "request-1",
+      outcome: { kind: "no_open_sale" },
+    });
+
+    expect(await removed).toEqual({ kind: "no_open_sale" });
+    expect(port.posted).toEqual([
+      { type: "remove-sale-line", request_id: "request-1", line_id: "line-1" },
+    ]);
+  });
+
+  it("asks the core to cancel the sale and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const cancelled = client.cancelSale();
+    port.answer({
+      type: "cancel-sale-result",
+      request_id: "request-1",
+      outcome: { kind: "cancelled" },
+    });
+
+    expect(await cancelled).toEqual({ kind: "cancelled" });
+    expect(port.posted).toEqual([{ type: "cancel-sale", request_id: "request-1" }]);
+  });
+
+  it.each([
+    { kind: "results", products: [], more: true },
+    { kind: "no_open_session" },
+    { kind: "unavailable" },
+  ])(
+    "asks the core to search the products by name and resolves with the outcome: %j",
+    async (outcome) => {
+      const client = clientWithSequentialIds();
+      const port = new FakePort();
+      client.connect(port);
+
+      const searched = client.searchProducts("té ver");
+      port.answer({ type: "search-products-result", request_id: "request-1", outcome });
+
+      expect(await searched).toEqual(outcome);
+      expect(port.posted).toEqual([
+        { type: "search-products", request_id: "request-1", query: "té ver" },
+      ]);
+    },
+  );
+
+  it.each([
+    { kind: "product_unavailable" },
+    { kind: "no_price", product_name: "Yerba" },
+    { kind: "unavailable" },
+  ])(
+    "asks the core to add the product by its id and resolves with the outcome: %j",
+    async (outcome) => {
+      const client = clientWithSequentialIds();
+      const port = new FakePort();
+      client.connect(port);
+
+      const added = client.addProduct("p1");
+      port.answer({ type: "add-product-result", request_id: "request-1", outcome });
+
+      expect(await added).toEqual(outcome);
+      expect(port.posted).toEqual([
+        { type: "add-product", request_id: "request-1", product_id: "p1" },
+      ]);
+    },
+  );
+
   it.each([
     null,
     {
@@ -444,6 +579,51 @@ describe("createCoreClient", () => {
     expect(await outcome).toEqual(closed);
     expect(port.posted).toEqual([
       { type: "close-cash-session", request_id: "request-1", session_id: "s1", counted_cash: 4800 },
+    ]);
+  });
+
+  it("asks the core to close a locked register's session with the closer's PIN and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const closer = { user_id: "u2", pin: "1234" };
+
+    const outcome = client.closeLockedCashSession("s1", 4800, closer);
+    port.answer({
+      type: "close-locked-cash-session-result",
+      request_id: "request-1",
+      outcome: { kind: "not_locked" },
+    });
+
+    expect(await outcome).toEqual({ kind: "not_locked" });
+    expect(port.posted).toEqual([
+      {
+        type: "close-locked-cash-session",
+        request_id: "request-1",
+        session_id: "s1",
+        counted_cash: 4800,
+        closer,
+      },
+    ]);
+  });
+
+  it("asks the core who closes a locked register by their PIN and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const closer = { user_id: "u2", pin: "1234" };
+    const identified = { kind: "identified", person: { user_id: "u2", first_name: "Grace" } };
+
+    const outcome = client.identifyLockedCloser(closer);
+    port.answer({
+      type: "identify-locked-closer-result",
+      request_id: "request-1",
+      outcome: identified,
+    });
+
+    expect(await outcome).toEqual(identified);
+    expect(port.posted).toEqual([
+      { type: "identify-locked-closer", request_id: "request-1", closer },
     ]);
   });
 

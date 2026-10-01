@@ -1,3 +1,4 @@
+import type { RowData } from "@tanstack/react-table";
 import type { ReactElement } from "react";
 import { EmptyState } from "../../feedback/empty-state";
 import { LoadFailure } from "../../feedback/load-failure";
@@ -5,13 +6,7 @@ import { TableCell } from "./table-cell";
 import { TableHeaderRow } from "./table-header-row";
 import { TablePlaceholderRows } from "./table-placeholder-rows";
 import { rowBoxShadowClassName, rowStateClassName } from "./table-styles";
-import type {
-  TableColumn,
-  TableCommonProps,
-  TableLoadingState,
-  TableProps,
-  TableSort,
-} from "./table-types";
+import type { TableLoadingState, TableProps } from "./table-types";
 import { TableUpdatingBar } from "./table-updating-bar";
 
 type TableDisplayMode = "placeholders" | "failure" | "empty" | "rows";
@@ -34,26 +29,17 @@ function tableDisplayMode(
   return rowCount === 0 && hasEmptyState ? "empty" : "rows";
 }
 
-// TableProps<T, C>'s sort/onSortChange requirement is a conditional type over generic C, which
-// TypeScript can't pattern-match inside this function's own body, hence the looser signature below.
-export function Table<T, const C extends readonly [TableColumn<T>, ...TableColumn<T>[]]>(
-  props: TableProps<T, C>,
-): ReactElement;
-export function Table<T>({
+export function Table<T extends RowData>({
+  table,
   "aria-label": ariaLabel,
-  columns,
-  rows,
-  sort,
-  onSortChange,
+  rowState,
   loading = false,
   failure,
   empty,
   footer,
-}: TableCommonProps<T> & {
-  columns: readonly [TableColumn<T>, ...TableColumn<T>[]];
-  sort?: TableSort;
-  onSortChange?: (sort: TableSort) => void;
-}): ReactElement {
+}: TableProps<T>): ReactElement {
+  const rows = table.getRowModel().rows;
+  const columns = table.getAllLeafColumns();
   const displayMode = tableDisplayMode(
     loading,
     failure !== undefined,
@@ -75,7 +61,7 @@ export function Table<T>({
           className="w-full table-fixed"
         >
           <thead>
-            <TableHeaderRow columns={columns} sort={sort} onSortChange={onSortChange} />
+            <TableHeaderRow table={table} />
           </thead>
           <tbody aria-hidden={showingPlaceholders ? true : undefined}>
             {showingPlaceholders && <TablePlaceholderRows columns={columns} />}
@@ -94,25 +80,27 @@ export function Table<T>({
               </tr>
             )}
             {displayMode === "rows" &&
-              rows.map(({ id, item, state }, rowIndex) => (
-                <tr
-                  key={id}
-                  className={[
-                    rowBoxShadowClassName(state, rowIndex === rows.length - 1),
-                    rowStateClassName(state),
-                  ].join(" ")}
-                >
-                  {columns.map((column, index) => (
-                    <TableCell
-                      key={column.key}
-                      column={column}
-                      item={item}
-                      first={index === 0}
-                      last={index === columns.length - 1}
-                    />
-                  ))}
-                </tr>
-              ))}
+              rows.map((row, rowIndex) => {
+                const state = rowState?.(row.original);
+                return (
+                  <tr
+                    key={row.id}
+                    className={[
+                      rowBoxShadowClassName(state, rowIndex === rows.length - 1),
+                      rowStateClassName(state),
+                    ].join(" ")}
+                  >
+                    {row.getAllCells().map((cell, index, cells) => (
+                      <TableCell
+                        key={cell.id}
+                        cell={cell}
+                        first={index === 0}
+                        last={index === cells.length - 1}
+                      />
+                    ))}
+                  </tr>
+                );
+              })}
           </tbody>
         </table>
       </div>

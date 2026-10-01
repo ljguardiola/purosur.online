@@ -4,64 +4,38 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { runMigrations } from "../../migrate.js";
 import { CLOUD_APP_PASSWORD } from "../../test-support/cloud-app-password.js";
-import { withExclusiveMigration } from "../../test-support/integration-database.js";
+import {
+  createEmptyIntegrationDatabase,
+  type IntegrationDatabase,
+  withExclusiveMigration,
+} from "../../test-support/integration-database.js";
 import { MIGRATIONS_FOLDER } from "./migrations-folder.js";
 
 // `cloud_app` is one cluster-wide role, so this suite reuses CLOUD_APP_PASSWORD; withExclusiveMigration
 // keeps its runMigrations calls from racing another integration suite's own.
 const PERMISSION_DENIED = "42501";
 
-function databaseUrlFor(adminUrl: string, databaseName: string): string {
-  const url = new URL(adminUrl);
-  url.pathname = `/${databaseName}`;
-  return url.toString();
-}
-
-function asCloudApp(databaseUrl: string): string {
-  const url = new URL(databaseUrl);
-  url.username = "cloud_app";
-  url.password = CLOUD_APP_PASSWORD;
-  return url.toString();
-}
-
 async function expectPermissionDenied(promise: Promise<unknown>): Promise<void> {
   await expect(promise).rejects.toMatchObject({ code: PERMISSION_DENIED });
 }
 
 describe("the cloud_app role runMigrations creates", () => {
-  let adminUrl: string;
-  let databaseName: string;
-  let cloudAppUrl: string;
+  let database: IntegrationDatabase;
   let cloudApp: postgres.Sql;
 
   beforeAll(async () => {
-    adminUrl = inject("recoveryPostgresAdminUrl");
-    databaseName = `cloud_app_role_${randomUUID().replaceAll("-", "")}`;
-
-    const admin = postgres(adminUrl, { max: 1 });
-    try {
-      await admin.unsafe(`CREATE DATABASE "${databaseName}"`);
-    } finally {
-      await admin.end({ timeout: 1 });
-    }
-
-    const databaseUrl = databaseUrlFor(adminUrl, databaseName);
+    database = await createEmptyIntegrationDatabase("cloud_app_role");
     await withExclusiveMigration(() =>
-      runMigrations(databaseUrl, CLOUD_APP_PASSWORD, { migrationsFolder: MIGRATIONS_FOLDER }),
+      runMigrations(database.adminDatabaseUrl, CLOUD_APP_PASSWORD, {
+        migrationsFolder: MIGRATIONS_FOLDER,
+      }),
     );
-
-    cloudAppUrl = asCloudApp(databaseUrl);
-    cloudApp = postgres(cloudAppUrl, { max: 1 });
+    cloudApp = postgres(database.databaseUrl, { max: 1 });
   }, 60_000);
 
   afterAll(async () => {
     await cloudApp.end({ timeout: 1 });
-    const cleanup = postgres(adminUrl, { max: 1 });
-    try {
-      await cleanup.unsafe(`DROP DATABASE IF EXISTS "${databaseName}" WITH (FORCE)`);
-    } finally {
-      await cleanup.end({ timeout: 1 });
-    }
+    await database.close();
   });
 
   it("logs in with the password runMigrations set", async () => {
@@ -353,7 +327,7 @@ describe("the cloud_app role runMigrations creates", () => {
   // The previous deployment keeps serving as cloud_app while the next migrates; dropping and
   // recreating this policy would refuse it every graphile-worker row in between.
   it("keeps its graphile-worker row-security policies in place when migrations run again", async () => {
-    const admin = postgres(databaseUrlFor(adminUrl, databaseName), { max: 1 });
+    const admin = postgres(database.adminDatabaseUrl, { max: 1 });
     try {
       const policyIds = () =>
         admin<{ oid: number }[]>`
@@ -366,7 +340,7 @@ describe("the cloud_app role runMigrations creates", () => {
       const before = await policyIds();
 
       await withExclusiveMigration(() =>
-        runMigrations(databaseUrlFor(adminUrl, databaseName), CLOUD_APP_PASSWORD, {
+        runMigrations(database.adminDatabaseUrl, CLOUD_APP_PASSWORD, {
           migrationsFolder: MIGRATIONS_FOLDER,
         }),
       );
@@ -379,17 +353,17 @@ describe("the cloud_app role runMigrations creates", () => {
   }, 60_000);
 
   it("leaves no connection open on the database once it resolves", async () => {
-    const admin = postgres(adminUrl, { max: 1 });
+    const admin = postgres(inject("recoveryPostgresAdminUrl"), { max: 1 });
     // Postgres refuses `CREATE DATABASE ... TEMPLATE` and blocks `DROP DATABASE` while anyone is
     // still connected, so a leaked connection here would make whatever runs next flaky.
     try {
       await withExclusiveMigration(async () => {
-        await runMigrations(databaseUrlFor(adminUrl, databaseName), CLOUD_APP_PASSWORD, {
+        await runMigrations(database.adminDatabaseUrl, CLOUD_APP_PASSWORD, {
           migrationsFolder: MIGRATIONS_FOLDER,
         });
         const backends = await admin<{ pid: number }[]>`
           select pid from pg_stat_activity
-          where datname = ${databaseName} and usename = current_user
+          where datname = ${new URL(database.adminDatabaseUrl).pathname.slice(1)} and usename = current_user
         `;
         expect(backends).toEqual([]);
       });
@@ -401,7 +375,7 @@ describe("the cloud_app role runMigrations creates", () => {
   // graphile-worker checks its own schema on every start; runMigrations already applied it as
   // admin, so this never needs DDL privilege as cloud_app.
   it("starts graphile-worker as cloud_app without it needing any DDL privilege", async () => {
-    const workerUtils = await makeWorkerUtils({ connectionString: cloudAppUrl });
+    const workerUtils = await makeWorkerUtils({ connectionString: database.databaseUrl });
     await workerUtils.release();
   });
 });

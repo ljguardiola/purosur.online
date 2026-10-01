@@ -1,5 +1,5 @@
 import { PERMISSION_KEYS } from "@purosur/domain";
-import { Button, plural, Table, tableRows } from "@purosur/ui";
+import { actionsColumn, Button, dataColumn, plural, Table, useTableModel } from "@purosur/ui";
 import { Copy, Lock, Pencil, Plus, Shield } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
@@ -26,8 +26,8 @@ function permissionsCellContent(role: RoleSummary) {
 
 function columnsFor(openEditor: (request: RoleEditorRequest) => void) {
   return [
-    {
-      key: "role",
+    dataColumn({
+      id: "role",
       header: "Rol",
       render: (item: RoleSummary) =>
         item.isAdministrator ? (
@@ -38,23 +38,22 @@ function columnsFor(openEditor: (request: RoleEditorRequest) => void) {
         ) : (
           roleDisplayName(item)
         ),
-    },
-    {
-      key: "permissions",
+    }),
+    dataColumn({
+      id: "permissions",
       header: "Permisos",
       render: (item: RoleSummary) => permissionsCellContent(item),
-    },
-    {
-      key: "users",
+    }),
+    dataColumn({
+      id: "users",
       header: "Usuarios",
       render: (item: RoleSummary) =>
         item.userCount === 0
           ? "Sin usuarios"
           : plural(item.userCount, { one: "1 usuario", other: `${item.userCount} usuarios` }),
-    },
-    {
-      key: "actions",
-      kind: "actions",
+    }),
+    actionsColumn({
+      id: "actions",
       header: "Acciones",
       actions: [
         // Administrator included: duplicating it is how an ordinary role starts from every
@@ -74,7 +73,7 @@ function columnsFor(openEditor: (request: RoleEditorRequest) => void) {
                 onPress: () => openEditor({ kind: "edit", roleId: item.id }),
               },
       ],
-    },
+    }),
   ] as const;
 }
 
@@ -91,7 +90,11 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
   }, [data.status]);
 
   const roles = data.status === "loaded" ? data.value : NO_ROLES;
-  const columns = columnsFor(setEditorRequest);
+  const table = useTableModel({
+    items: roles,
+    id: (role) => role.id,
+    columns: columnsFor(setEditorRequest),
+  });
 
   return (
     <ScreenLayout
@@ -114,9 +117,8 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
     >
       <Table
         aria-label="Roles"
-        columns={columns}
+        table={table}
         {...cloudTableState(data, "los roles")}
-        rows={tableRows({ items: roles, id: (role) => role.id }).rows}
         empty={{
           icon: <Shield />,
           title: "Todavía no hay roles",

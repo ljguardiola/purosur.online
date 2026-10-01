@@ -4,6 +4,7 @@ import {
   CASH_MOVEMENT_KINDS,
   CASH_MOVEMENT_REASON_MAX_LENGTH,
   CASH_MOVEMENT_TYPES,
+  cashCharge,
   cashMovementPermission,
   cashMovementReason,
   isAuthorizablePermissionKey,
@@ -19,7 +20,19 @@ import {
   guardedActionRefusalSchema,
 } from "../access/authorization.js";
 import { pinAttemptRefusalSchema } from "../access/pin-attempt-refusal.js";
-import { saleSchema, scannedCodeSchema, scanProductOutcomeSchema } from "../sales/sale.js";
+import {
+  addProductOutcomeSchema,
+  cancelSaleOutcomeSchema,
+  changeLineQuantityOutcomeSchema,
+  chargeSaleInCashOutcomeSchema,
+  removeSaleLineOutcomeSchema,
+  saleLineQuantitySchema,
+  saleSchema,
+  scannedCodeSchema,
+  scanProductOutcomeSchema,
+  searchProductsOutcomeSchema,
+  searchQuerySchema,
+} from "../sales/sale.js";
 
 const requestId = z.string();
 
@@ -34,6 +47,7 @@ export {
   ARGENTINA_TIME_ZONE,
   CASH_MOVEMENT_REASON_MAX_LENGTH,
   CASH_MOVEMENT_TYPES,
+  cashCharge,
   cashMovementPermission,
   cashMovementReason,
   parseAmountCents,
@@ -134,6 +148,20 @@ const closeCashSessionMessageSchema = z.object({
   authorization: authorizationSchema.optional(),
 });
 
+const closeLockedCashSessionMessageSchema = z.object({
+  type: z.literal("close-locked-cash-session"),
+  request_id: requestId,
+  session_id: z.string(),
+  counted_cash: countedCashSchema,
+  closer: authorizationSchema,
+});
+
+const identifyLockedCloserMessageSchema = z.object({
+  type: z.literal("identify-locked-closer"),
+  request_id: requestId,
+  closer: authorizationSchema,
+});
+
 const cashBalanceRequestMessageSchema = z.object({
   type: z.literal("cash-balance-request"),
   request_id: requestId,
@@ -151,9 +179,47 @@ const scanProductMessageSchema = z.object({
   code: scannedCodeSchema,
 });
 
+const changeLineQuantityMessageSchema = z.object({
+  type: z.literal("change-line-quantity"),
+  request_id: requestId,
+  line_id: z.string(),
+  quantity: saleLineQuantitySchema,
+  expected_quantity: saleLineQuantitySchema,
+});
+
+const removeSaleLineMessageSchema = z.object({
+  type: z.literal("remove-sale-line"),
+  request_id: requestId,
+  line_id: z.string(),
+});
+
+const cancelSaleMessageSchema = z.object({
+  type: z.literal("cancel-sale"),
+  request_id: requestId,
+});
+
+const searchProductsMessageSchema = z.object({
+  type: z.literal("search-products"),
+  request_id: requestId,
+  query: searchQuerySchema,
+});
+
+const addProductMessageSchema = z.object({
+  type: z.literal("add-product"),
+  request_id: requestId,
+  product_id: z.string(),
+});
+
 const saleRequestMessageSchema = z.object({
   type: z.literal("sale-request"),
   request_id: requestId,
+});
+
+const chargeSaleInCashMessageSchema = z.object({
+  type: z.literal("charge-sale-in-cash"),
+  request_id: requestId,
+  sale_id: z.string(),
+  tendered: z.int(),
 });
 
 const signOutMessageSchema = z.object({
@@ -177,10 +243,18 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   recordCashMovementMessageSchema,
   cashMovementsRequestMessageSchema,
   closeCashSessionMessageSchema,
+  closeLockedCashSessionMessageSchema,
+  identifyLockedCloserMessageSchema,
   cashBalanceRequestMessageSchema,
   authorizersRequestMessageSchema,
   scanProductMessageSchema,
+  changeLineQuantityMessageSchema,
+  removeSaleLineMessageSchema,
+  cancelSaleMessageSchema,
+  searchProductsMessageSchema,
+  addProductMessageSchema,
   saleRequestMessageSchema,
+  chargeSaleInCashMessageSchema,
   signOutMessageSchema,
 ]);
 export type RendererToCoreMessage = z.infer<typeof rendererToCoreMessageSchema>;
@@ -238,7 +312,7 @@ const openCashSessionOutcomeSchema = z.discriminatedUnion("kind", [
 ]);
 export type OpenCashSessionOutcome = z.infer<typeof openCashSessionOutcomeSchema>;
 
-const closeCashSessionOutcomeSchema = z.discriminatedUnion("kind", [
+const cashSessionClosingOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("closed"),
     session: z.object({
@@ -251,9 +325,27 @@ const closeCashSessionOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("invalid_counted_cash") }),
   z.object({ kind: z.literal("no_open_session") }),
   z.object({ kind: z.literal("open_sale"), total: z.number() }),
+]);
+
+const closeCashSessionOutcomeSchema = z.discriminatedUnion("kind", [
+  ...cashSessionClosingOutcomeSchema.options,
   ...guardedActionRefusalSchema.options,
 ]);
 export type CloseCashSessionOutcome = z.infer<typeof closeCashSessionOutcomeSchema>;
+
+const closeLockedCashSessionOutcomeSchema = z.discriminatedUnion("kind", [
+  ...cashSessionClosingOutcomeSchema.options,
+  ...authorizationRefusalSchema.options,
+  z.object({ kind: z.literal("not_locked") }),
+]);
+export type CloseLockedCashSessionOutcome = z.infer<typeof closeLockedCashSessionOutcomeSchema>;
+
+const identifyLockedCloserOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("identified"), person: authorizedBySchema }),
+  ...authorizationRefusalSchema.options,
+  z.object({ kind: z.literal("not_locked") }),
+]);
+export type IdentifyLockedCloserOutcome = z.infer<typeof identifyLockedCloserOutcomeSchema>;
 
 const cashBalanceSchema = z.object({
   opening_float: z.number(),
@@ -372,6 +464,16 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     outcome: closeCashSessionOutcomeSchema,
   }),
   z.object({
+    type: z.literal("close-locked-cash-session-result"),
+    request_id: requestId,
+    outcome: closeLockedCashSessionOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("identify-locked-closer-result"),
+    request_id: requestId,
+    outcome: identifyLockedCloserOutcomeSchema,
+  }),
+  z.object({
     type: z.literal("cash-balance"),
     request_id: requestId,
     balance: cashBalanceSchema.nullable(),
@@ -404,6 +506,36 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("scan-product-result"),
     request_id: requestId,
     outcome: scanProductOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("change-line-quantity-result"),
+    request_id: requestId,
+    outcome: changeLineQuantityOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("remove-sale-line-result"),
+    request_id: requestId,
+    outcome: removeSaleLineOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("cancel-sale-result"),
+    request_id: requestId,
+    outcome: cancelSaleOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("search-products-result"),
+    request_id: requestId,
+    outcome: searchProductsOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("add-product-result"),
+    request_id: requestId,
+    outcome: addProductOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("charge-sale-in-cash-result"),
+    request_id: requestId,
+    outcome: chargeSaleInCashOutcomeSchema,
   }),
   z.object({ type: z.literal("sale"), request_id: requestId, sale: saleSchema.nullable() }),
   z.object({ type: z.literal("sale-unavailable"), request_id: requestId }),

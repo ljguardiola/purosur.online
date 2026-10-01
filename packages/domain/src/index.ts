@@ -119,6 +119,8 @@ export {
   thresholdScheduledAfter,
 } from "./fiscal/index.js";
 export type {
+  CategoryLink,
+  DatedPrice,
   DiscountBenefit,
   DiscountRecurrence,
   DiscountSchedule,
@@ -126,6 +128,8 @@ export type {
   DiscountTarget,
   DiscountTargetKind,
   IsoWeekday,
+  ProductTagLink,
+  TargetedProduct,
 } from "./pricing/index.js";
 export {
   DISCOUNT_BUY_QTY_MIN,
@@ -138,6 +142,7 @@ export {
   discountAppliesOn,
   discountNameLength,
   discountStatus,
+  discountsTargeting,
   isBuyNPayMSaleUnit,
   isCalendarDay,
   isDiscountNameTooLong,
@@ -149,7 +154,9 @@ export {
   isValidDiscountPercent,
   isValidDiscountWeekdays,
   MAX_UNIT_PRICE_CENTS,
+  newestPrice,
   normalizeDiscountWeekdays,
+  priceInEffectAt,
 } from "./pricing/index.js";
 export type {
   CashBreakdown,
@@ -190,13 +197,15 @@ export {
 export type {
   LinePromotion,
   ListPrice,
+  PaymentTransaction,
   Sale,
   SaleLine,
+  SaleLineRemoval,
   SaleState,
   SaleWithLines,
   SoldProduct,
 } from "./sales/index.js";
-export { saleTotal } from "./sales/index.js";
+export { cashCharge, SEARCH_RESULT_LIMIT, saleTotal } from "./sales/index.js";
 export type { EsArNumberDigits } from "./shared/index.js";
 export {
   ARGENTINA_TIME_ZONE,

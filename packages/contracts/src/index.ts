@@ -148,10 +148,12 @@ export {
 export type {
   CashBalance,
   CloseCashSessionOutcome,
+  CloseLockedCashSessionOutcome,
   CoreStatusMessage,
   CoreToRendererMessage,
   EnrollmentOutcome,
   FirstPinCodeRequestOutcome,
+  IdentifyLockedCloserOutcome,
   ListedCashMovement,
   MainToCoreMessage,
   OpenCashSession,
@@ -168,6 +170,7 @@ export {
   ARGENTINA_TIME_ZONE,
   CASH_MOVEMENT_REASON_MAX_LENGTH,
   CASH_MOVEMENT_TYPES,
+  cashCharge,
   cashMovementAmountSchema,
   cashMovementPermission,
   cashMovementReason,
@@ -195,8 +198,23 @@ export type { RegisterEnrollmentCodeBody } from "./register/register-enrollment-
 export { registerEnrollmentCodeSchema } from "./register/register-enrollment-code.js";
 export type { RegisterSummaryBody } from "./register/register-summary.js";
 export { registerListSchema, registerSummarySchema } from "./register/register-summary.js";
-export type { CurrentSaleAnswer, OpenSale, ScanProductOutcome } from "./sales/sale.js";
-export { scannedCodeSchema } from "./sales/sale.js";
+export type {
+  AddProductOutcome,
+  CancelSaleOutcome,
+  ChangeLineQuantityOutcome,
+  ChargeSaleInCashOutcome,
+  CurrentSaleAnswer,
+  FoundProduct,
+  OpenSale,
+  RemoveSaleLineOutcome,
+  ScanProductOutcome,
+  SearchProductsOutcome,
+} from "./sales/sale.js";
+export {
+  SEARCH_RESULT_LIMIT,
+  scannedCodeSchema,
+  searchQuerySchema,
+} from "./sales/sale.js";
 export type { BranchSettingsBody, ErrorReportingConfiguration } from "./shared/index.js";
 export {
   branchSettingsSchema,

@@ -1,14 +1,28 @@
-import type { CurrentSaleAnswer, OpenSale, ScanProductOutcome } from "@purosur/contracts";
-import { scannedCodeSchema } from "@purosur/contracts";
+import type {
+  AddProductOutcome,
+  CancelSaleOutcome,
+  ChangeLineQuantityOutcome,
+  CurrentSaleAnswer,
+  FoundProduct,
+  OpenSale,
+  RemoveSaleLineOutcome,
+  ScanProductOutcome,
+  SearchProductsOutcome,
+} from "@purosur/contracts";
+import { scannedCodeSchema, searchQuerySchema } from "@purosur/contracts";
 import { EmptyState, LoadFailure, LoadingPlaceholder, SearchField } from "@purosur/ui";
+import { useNavigate } from "@tanstack/react-router";
 import { ScanBarcode, TriangleAlert } from "lucide-react";
-import type { FormEvent } from "react";
-import { useEffect, useRef, useState } from "react";
+import type { FormEvent, KeyboardEvent } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { SignedInPerson } from "../access/signed-in-person";
 import { OpenSessionRail } from "../shell/open-session-rail";
 import { SessionEyebrow } from "../shell/session-eyebrow";
+import { CancelSaleModal } from "./cancel-sale-modal";
 import { changedLineId } from "./changed-line";
 import { PaymentPanel } from "./payment-panel";
+import type { SearchResults } from "./product-search-results";
+import { ProductSearchResults, searchOptionId } from "./product-search-results";
 import { SaleLines } from "./sale-lines";
 import type { ScanProblem } from "./scan-problem-message";
 import { messageFor, ScanProblemMessage } from "./scan-problem-message";
@@ -26,8 +40,26 @@ export type SaleScreenProps = {
   lock: () => void;
   currentSale: () => Promise<CurrentSaleAnswer>;
   scanProduct: (code: string) => Promise<ScanProductOutcome>;
+  searchProducts: (query: string) => Promise<SearchProductsOutcome>;
+  addProduct: (productId: string) => Promise<AddProductOutcome>;
+  changeLineQuantity: (
+    lineId: string,
+    quantity: number,
+    expectedQuantity: number,
+  ) => Promise<ChangeLineQuantityOutcome>;
+  removeSaleLine: (lineId: string) => Promise<RemoveSaleLineOutcome>;
+  cancelSale: () => Promise<CancelSaleOutcome>;
   onSessionInvalid: () => void;
 };
+
+type SaleEditOutcome = ChangeLineQuantityOutcome | RemoveSaleLineOutcome | CancelSaleOutcome;
+
+type SaleEditFailure = Extract<
+  ScanProblem,
+  { kind: "change_failed" | "remove_failed" | "cancel_failed" }
+>;
+
+const LETTER = /\p{L}/u;
 
 function focusScanField(form: HTMLFormElement | null) {
   form?.querySelector("input")?.focus();
@@ -46,16 +78,30 @@ export function SaleScreen({
   lock,
   currentSale,
   scanProduct,
+  searchProducts,
+  addProduct,
+  changeLineQuantity,
+  removeSaleLine,
+  cancelSale,
   onSessionInvalid,
 }: SaleScreenProps) {
+  const navigate = useNavigate();
   const field = useRef<HTMLFormElement>(null);
   const [view, setView] = useState<SaleView>({ status: "loading" });
   const [code, setCode] = useState("");
   const [problem, setProblem] = useState<ScanProblem>();
+  const [search, setSearch] = useState<SearchResults>();
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [dismissed, setDismissed] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
+  const editInFlight = useRef(false);
+  const confirmingCancelNow = useRef(false);
+  const listboxId = useId();
 
   useEffect(() => {
     function refocusWhenFocusIsLost(event: FocusEvent) {
-      if (event.relatedTarget === null) {
+      if (event.relatedTarget === null && !confirmingCancelNow.current) {
         focusScanField(field.current);
       }
     }
@@ -93,6 +139,43 @@ export function SaleScreen({
   function type(typed: string) {
     setCode(typed);
     setProblem(undefined);
+    setDismissed(false);
+    const query = typed.trim();
+    if (!LETTER.test(query)) {
+      setSearch(undefined);
+      return;
+    }
+    if (!searchQuerySchema.safeParse(query).success) {
+      setSearch({ query, products: [], more: false });
+      return;
+    }
+    searchProducts(query)
+      .catch((): SearchProductsOutcome => ({ kind: "unavailable" }))
+      .then((outcome) => takeSearch(query, outcome));
+  }
+
+  function takeSearch(query: string, outcome: SearchProductsOutcome) {
+    if (field.current?.querySelector("input")?.value.trim() !== query) {
+      return;
+    }
+    switch (outcome.kind) {
+      case "results":
+        setSearch({ query, products: outcome.products, more: outcome.more });
+        setActiveIndex(0);
+        break;
+      case "not_signed_in":
+      case "no_open_session":
+        onSessionInvalid();
+        break;
+      case "not_permitted":
+        setSearch(undefined);
+        setProblem(outcome);
+        break;
+      case "unavailable":
+        setSearch(undefined);
+        setProblem({ kind: "search_failed" });
+        break;
+    }
   }
 
   function refuse(submitted: string, refusal: ScanProblem) {
@@ -100,10 +183,15 @@ export function SaleScreen({
       return;
     }
     setProblem(refusal);
+    setDismissed(true);
     selectScanField(field.current);
   }
 
-  function take(submitted: string, outcome: ScanProductOutcome) {
+  function take(
+    submitted: string,
+    outcome: ScanProductOutcome | AddProductOutcome,
+    failure: { kind: "scan_failed" } | { kind: "add_failed" },
+  ) {
     switch (outcome.kind) {
       case "added":
         setProblem(undefined);
@@ -112,19 +200,22 @@ export function SaleScreen({
           sale: outcome.sale,
           changedLineId: changedLineId(now.status === "ready" ? now.sale : null, outcome.sale),
         }));
-        setCode((typed) => (typed === submitted ? "" : typed));
+        setCode((typed) => (typed.trim() === submitted ? "" : typed));
         break;
       case "not_signed_in":
       case "no_open_session":
         onSessionInvalid();
         break;
       case "unknown_code":
+      case "product_unavailable":
       case "no_price":
       case "sold_by_weight":
       case "not_permitted":
       case "installation_revoked":
-      case "unavailable":
         refuse(submitted, outcome);
+        break;
+      case "unavailable":
+        refuse(submitted, failure);
         break;
     }
   }
@@ -142,7 +233,90 @@ export function SaleScreen({
     const outcome = await scanProduct(submitted).catch(
       (): ScanProductOutcome => ({ kind: "unavailable" }),
     );
-    take(submitted, outcome);
+    take(submitted, outcome, { kind: "scan_failed" });
+  }
+
+  async function add(product: FoundProduct) {
+    const submitted = code.trim();
+    const outcome = await addProduct(product.product_id).catch(
+      (): AddProductOutcome => ({ kind: "unavailable" }),
+    );
+    take(submitted, outcome, { kind: "add_failed" });
+  }
+
+  function askToCancel(asking: boolean) {
+    confirmingCancelNow.current = asking;
+    setConfirmingCancel(asking);
+  }
+
+  async function edit(request: () => Promise<SaleEditOutcome>, failure: SaleEditFailure) {
+    if (editInFlight.current) {
+      return;
+    }
+    editInFlight.current = true;
+    setEditing(true);
+    const outcome = await request().catch((): SaleEditOutcome => ({ kind: "unavailable" }));
+    editInFlight.current = false;
+    setEditing(false);
+    switch (outcome.kind) {
+      case "changed":
+      case "removed":
+        setProblem(undefined);
+        setView({ status: "ready", sale: outcome.sale, changedLineId: undefined });
+        break;
+      case "cancelled":
+        setProblem(undefined);
+        setView({ status: "ready", sale: null, changedLineId: undefined });
+        break;
+      case "not_signed_in":
+      case "no_open_session":
+        onSessionInvalid();
+        break;
+      case "not_permitted":
+        setProblem(outcome);
+        break;
+      case "unknown_line":
+      case "stale_quantity":
+      case "no_open_sale":
+        setView({ status: "loading" });
+        break;
+      case "invalid_quantity":
+      case "unavailable":
+        setProblem(failure);
+        break;
+    }
+    askToCancel(false);
+    focusScanField(field.current);
+  }
+
+  useEffect(() => {
+    if (!confirmingCancel) {
+      focusScanField(field.current);
+    }
+  }, [confirmingCancel]);
+
+  const found = search?.query === code.trim() && !dismissed ? search : undefined;
+  const choosing = found !== undefined && found.products.length > 0;
+  const chosen = choosing ? found.products[activeIndex] : undefined;
+
+  // The field is the only thing with the keyboard, so the list is driven from it before the field's
+  // own handling: Escape would otherwise clear the text it should keep.
+  function driveResults(event: KeyboardEvent) {
+    if (found === undefined) {
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      setDismissed(true);
+    } else if (chosen !== undefined && event.key === "Enter") {
+      event.preventDefault();
+      void add(chosen);
+    } else if (choosing && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
+      event.preventDefault();
+      const step = event.key === "ArrowDown" ? 1 : -1;
+      setActiveIndex(Math.min(found.products.length - 1, Math.max(0, activeIndex + step)));
+    }
   }
 
   const sale = view.status === "ready" ? view.sale : null;
@@ -163,13 +337,30 @@ export function SaleScreen({
           <SessionEyebrow registerName={registerName} openedAt={openedAt} />
           <h1 className="text-display text-text-accent">Venta en curso</h1>
         </div>
-        <form ref={field} noValidate className="relative" onSubmit={submit}>
+        <form
+          ref={field}
+          noValidate
+          className="relative"
+          onSubmit={submit}
+          onKeyDownCapture={driveResults}
+        >
           <SearchField
             label="Producto"
             placeholder="Escaneá o escribí el nombre del producto"
             icon={<ScanBarcode />}
             value={code}
             onChange={type}
+            combobox={{
+              expanded: choosing,
+              listboxId,
+              activeOptionId: choosing ? searchOptionId(listboxId, activeIndex) : undefined,
+            }}
+          />
+          <ProductSearchResults
+            listboxId={listboxId}
+            search={found}
+            activeIndex={activeIndex}
+            onChoose={(product) => void add(product)}
           />
           <ScanProblemMessage problem={shownProblem} />
         </form>
@@ -194,10 +385,36 @@ export function SaleScreen({
           />
         ) : null}
         {view.status === "ready" ? (
-          <SaleLines lines={sale?.lines ?? []} changedLineId={view.changedLineId} />
+          <SaleLines
+            lines={sale?.lines ?? []}
+            changedLineId={view.changedLineId}
+            actions={{
+              busy: editing,
+              onChangeQuantity: (line, quantity) =>
+                void edit(() => changeLineQuantity(line.id, quantity, line.quantity), {
+                  kind: "change_failed",
+                }),
+              onRemove: (line) =>
+                void edit(() => removeSaleLine(line.id), { kind: "remove_failed" }),
+            }}
+          />
         ) : null}
       </main>
-      <PaymentPanel lineCount={sale?.lines.length ?? 0} total={sale?.total ?? 0} />
+      <PaymentPanel
+        lineCount={sale?.lines.length ?? 0}
+        total={sale?.total ?? 0}
+        canCancel={sale !== null && !editing}
+        onCharge={() => void navigate({ to: "/charge" })}
+        onCancel={() => askToCancel(true)}
+      />
+      <CancelSaleModal
+        open={confirmingCancel}
+        lineCount={sale?.lines.length ?? 0}
+        total={sale?.total ?? 0}
+        busy={editing}
+        onClose={() => askToCancel(false)}
+        onCancelSale={() => void edit(cancelSale, { kind: "cancel_failed" })}
+      />
     </div>
   );
 }

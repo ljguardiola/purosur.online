@@ -108,7 +108,7 @@ describe("scanning products into a sale on the register", () => {
     await page.getByRole("button", { name: "Abrir la caja" }).click();
     await page.getByRole("heading", { name: "Venta en curso" }).waitFor();
 
-    const scanField = page.getByRole("searchbox", { name: "Producto" });
+    const scanField = page.getByRole("combobox", { name: "Producto" });
     const yerba = page.getByRole("listitem").filter({ hasText: "Yerba mate 1 kg" });
 
     await scanField.fill(YERBA_CODE);
@@ -134,7 +134,7 @@ describe("scanning products into a sale on the register", () => {
 
   it("charges a line with the promotion that gives the larger discount as its quantity grows", async () => {
     const { page } = register;
-    const scanField = page.getByRole("searchbox", { name: "Producto" });
+    const scanField = page.getByRole("combobox", { name: "Producto" });
     const fideos = page.getByRole("listitem").filter({ hasText: "Fideos 500 g" });
 
     await scanField.fill(FIDEOS_CODE);
@@ -152,5 +152,23 @@ describe("scanning products into a sale on the register", () => {
     await fideos.getByText("Lleve 3, pague 2").waitFor();
     await fideos.getByText("$ 3.000,00").waitFor();
     await fideos.getByText("$ 2.000,00").waitFor();
+  });
+
+  it("charges the discounted sale in cash, shows the change and starts a new sale", async () => {
+    const { page } = register;
+
+    await page.getByRole("button", { name: "Cobrar" }).click();
+    await page.getByRole("heading", { name: "Elegí el medio de pago" }).waitFor();
+    await page.getByText("Efectivo", { exact: true }).click();
+    await page.getByLabel("Importe entregado por el cliente").fill("7.000,00");
+    await page.getByText("VUELTO A ENTREGAR").waitFor();
+    await page.getByRole("button", { name: "Completar venta" }).click();
+
+    await page.getByRole("heading", { name: "Entregá el vuelto" }).waitFor();
+    await page.getByText("$ 240,00").waitFor();
+    await page.getByRole("button", { name: "Nueva venta" }).click();
+
+    await page.getByRole("heading", { name: "Venta en curso" }).waitFor();
+    await page.getByText("La venta está vacía").waitFor();
   });
 });

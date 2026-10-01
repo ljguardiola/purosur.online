@@ -4,14 +4,26 @@ import { createSignedInPerson, type SignedInPerson } from "../access/signed-in-p
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import { type LocalDatabase, openLocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
-import { currentSaleFor, type SaleRequestDeps, scanProductFor } from "./sale-requests";
+import {
+  addSearchedProductFor,
+  cancelSaleFor,
+  changeLineQuantityFor,
+  chargeSaleInCashFor,
+  currentSaleFor,
+  type OutboxSaleRequestDeps,
+  removeSaleLineFor,
+  scanProductFor,
+  searchProductsFor,
+} from "./sale-requests";
 
 const NOW = new Date("2026-09-30T12:00:00.000Z");
+
+const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base64");
 
 let database: LocalDatabase;
 let signedInPerson: SignedInPerson;
 
-function deps(overrides: Partial<SaleRequestDeps> = {}): SaleRequestDeps {
+function deps(overrides: Partial<OutboxSaleRequestDeps> = {}): OutboxSaleRequestDeps {
   let count = 0;
   return {
     database,
@@ -22,6 +34,7 @@ function deps(overrides: Partial<SaleRequestDeps> = {}): SaleRequestDeps {
       hashPin: async () => "",
       now: () => NOW,
     }),
+    readOutboxChainKey: async () => CHAIN_KEY,
     now: () => NOW,
     ids: {
       next: () => {
@@ -229,6 +242,113 @@ describe("scanning a product on the register", () => {
   });
 });
 
+describe("searching products by name on the register", () => {
+  it("answers each product the way the screen shows it, with its price and where the name matched", async () => {
+    expect(await searchProductsFor(deps(), "yer")).toEqual({
+      kind: "results",
+      products: [
+        {
+          product_id: "p1",
+          name: "Yerba",
+          sale_unit: "UNIT",
+          unit_price: 1500,
+          matches: [{ start: 0, length: 3 }],
+        },
+      ],
+      more: false,
+    });
+  });
+
+  it("answers no price for a product that has none", async () => {
+    const outcome = await searchProductsFor(deps(), "queso");
+
+    expect(outcome.kind === "results" && outcome.products).toEqual([
+      expect.objectContaining({ product_id: "p2", sale_unit: "KG", unit_price: null }),
+    ]);
+  });
+
+  it("answers not signed in when nobody is signed in", async () => {
+    signedInPerson.clear();
+
+    expect(await searchProductsFor(deps(), "yer")).toEqual({ kind: "not_signed_in" });
+  });
+
+  it("answers not permitted to a signed-in person without the permission to sell", async () => {
+    addPerson("u2", "guest");
+    signedInPerson.set("u2");
+
+    expect(await searchProductsFor(deps(), "yer")).toEqual({ kind: "not_permitted" });
+  });
+
+  it("answers that no session is open", async () => {
+    database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();
+
+    expect(await searchProductsFor(deps(), "yer")).toEqual({ kind: "no_open_session" });
+  });
+});
+
+describe("adding a searched product on the register", () => {
+  it("answers the sale with the product as a line and the total to charge", async () => {
+    expect(await addSearchedProductFor(deps(), "p1")).toEqual({
+      kind: "added",
+      sale: {
+        id: "id-1",
+        lines: [
+          {
+            id: "id-2",
+            product_id: "p1",
+            product_name: "Yerba",
+            quantity: 1,
+            list_unit_price: 1500,
+            discount_amount: 0,
+            promotion: null,
+            line_total: 1500,
+          },
+        ],
+        total: 1500,
+      },
+    });
+  });
+
+  it("answers the name of a product that has no price or is sold by weight", async () => {
+    database.prepare("DELETE FROM prices").run();
+
+    expect(await addSearchedProductFor(deps(), "p1")).toEqual({
+      kind: "no_price",
+      product_name: "Yerba",
+    });
+    expect(await addSearchedProductFor(deps(), "p2")).toEqual({
+      kind: "sold_by_weight",
+      product_name: "Queso",
+    });
+  });
+
+  it("answers that a product that is not sold any more is unavailable", async () => {
+    database.prepare("UPDATE products SET active = 0 WHERE id = 'p1'").run();
+
+    expect(await addSearchedProductFor(deps(), "p1")).toEqual({ kind: "product_unavailable" });
+  });
+
+  it("answers not signed in when nobody is signed in", async () => {
+    signedInPerson.clear();
+
+    expect(await addSearchedProductFor(deps(), "p1")).toEqual({ kind: "not_signed_in" });
+  });
+
+  it("answers not permitted to a signed-in person without the permission to sell", async () => {
+    addPerson("u2", "guest");
+    signedInPerson.set("u2");
+
+    expect(await addSearchedProductFor(deps(), "p1")).toEqual({ kind: "not_permitted" });
+  });
+
+  it("answers the refusal of a session that is not open", async () => {
+    database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();
+
+    expect(await addSearchedProductFor(deps(), "p1")).toEqual({ kind: "no_open_session" });
+  });
+});
+
 describe("the sale in progress", () => {
   it("is none before anything was scanned", async () => {
     expect(await currentSaleFor(deps())).toBeNull();
@@ -277,5 +397,301 @@ describe("the sale in progress", () => {
       ],
       total: 3000,
     });
+  });
+});
+
+async function sellTwoYerbas(): Promise<string> {
+  await scanProductFor(deps(), "111");
+  await scanProductFor(deps(), "111");
+  return "id-2";
+}
+
+describe("changing the quantity of a line", () => {
+  it("answers the sale with the new quantity and total", async () => {
+    const lineId = await sellTwoYerbas();
+
+    const outcome = await changeLineQuantityFor(deps(), lineId, 1, 2);
+
+    expect(outcome).toMatchObject({
+      kind: "changed",
+      sale: { lines: [{ id: lineId, quantity: 1, line_total: 1500 }], total: 1500 },
+    });
+  });
+
+  it("answers that the line changed, writing nothing, when the screen showed another quantity", async () => {
+    const lineId = await sellTwoYerbas();
+
+    expect(await changeLineQuantityFor(deps(), lineId, 1, 5)).toEqual({ kind: "stale_quantity" });
+    expect(database.prepare("SELECT quantity FROM sale_lines").all()).toEqual([{ quantity: 2 }]);
+  });
+
+  it("keeps what a lowered quantity took away", async () => {
+    const lineId = await sellTwoYerbas();
+
+    await changeLineQuantityFor(deps(), lineId, 1, 2);
+
+    expect(database.prepare("SELECT qty_removed FROM sale_line_removals").all()).toEqual([
+      { qty_removed: 1 },
+    ]);
+  });
+
+  it.each([
+    ["a line the sale does not have", "other-line", 1, { kind: "unknown_line" }],
+    ["a quantity of zero", "id-2", 0, { kind: "invalid_quantity" }],
+  ])("answers the domain's refusal of %s", async (_case, lineId, quantity, expected) => {
+    await sellTwoYerbas();
+
+    expect(await changeLineQuantityFor(deps(), lineId, quantity, 2)).toEqual(expected);
+  });
+
+  it("answers that there is no sale to change", async () => {
+    expect(await changeLineQuantityFor(deps(), "id-2", 1, 2)).toEqual({ kind: "no_open_sale" });
+  });
+
+  it("answers not signed in when nobody is signed in", async () => {
+    const lineId = await sellTwoYerbas();
+    signedInPerson.clear();
+
+    expect(await changeLineQuantityFor(deps(), lineId, 1, 2)).toEqual({ kind: "not_signed_in" });
+  });
+
+  it("answers not permitted to a person who sells but did not open the session", async () => {
+    const lineId = await sellTwoYerbas();
+    addPerson("u3", "cashier");
+    signedInPerson.set("u3");
+
+    expect(await changeLineQuantityFor(deps(), lineId, 1, 2)).toEqual({ kind: "not_permitted" });
+  });
+
+  it("answers not permitted to a person without the permission to sell", async () => {
+    const lineId = await sellTwoYerbas();
+    addPerson("u2", "guest");
+    signedInPerson.set("u2");
+
+    expect(await changeLineQuantityFor(deps(), lineId, 1, 2)).toEqual({ kind: "not_permitted" });
+  });
+
+  it("answers that no session is open", async () => {
+    const lineId = await sellTwoYerbas();
+    database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();
+
+    expect(await changeLineQuantityFor(deps(), lineId, 1, 2)).toEqual({ kind: "no_open_session" });
+  });
+});
+
+describe("removing a line", () => {
+  it("answers the sale without the line and keeps the removal", async () => {
+    const lineId = await sellTwoYerbas();
+
+    expect(await removeSaleLineFor(deps(), lineId)).toEqual({
+      kind: "removed",
+      sale: { id: "id-1", lines: [], total: 0 },
+    });
+    expect(
+      database.prepare("SELECT qty_removed, amount_removed FROM sale_line_removals").all(),
+    ).toEqual([{ qty_removed: 2, amount_removed: 3000 }]);
+  });
+
+  it("answers the domain's refusal of a line the sale does not have", async () => {
+    await sellTwoYerbas();
+
+    expect(await removeSaleLineFor(deps(), "other-line")).toEqual({ kind: "unknown_line" });
+  });
+
+  it("answers that there is no sale to change", async () => {
+    expect(await removeSaleLineFor(deps(), "id-2")).toEqual({ kind: "no_open_sale" });
+  });
+
+  it("answers not signed in when nobody is signed in", async () => {
+    const lineId = await sellTwoYerbas();
+    signedInPerson.clear();
+
+    expect(await removeSaleLineFor(deps(), lineId)).toEqual({ kind: "not_signed_in" });
+  });
+
+  it("answers not permitted to a person who sells but did not open the session", async () => {
+    const lineId = await sellTwoYerbas();
+    addPerson("u3", "cashier");
+    signedInPerson.set("u3");
+
+    expect(await removeSaleLineFor(deps(), lineId)).toEqual({ kind: "not_permitted" });
+  });
+
+  it("answers that no session is open", async () => {
+    const lineId = await sellTwoYerbas();
+    database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();
+
+    expect(await removeSaleLineFor(deps(), lineId)).toEqual({ kind: "no_open_session" });
+  });
+});
+
+describe("cancelling the sale", () => {
+  it("cancels it and emits one chained sale_cancelled event", async () => {
+    await sellTwoYerbas();
+
+    expect(await cancelSaleFor(deps())).toEqual({ kind: "cancelled" });
+
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "CANCELLED" }]);
+    const events = database
+      .prepare(
+        "SELECT device_seq, chain_hmac, payload FROM outbox WHERE event_type = 'sale_cancelled'",
+      )
+      .all() as { device_seq: number; chain_hmac: string; payload: string }[];
+    expect(events).toHaveLength(1);
+    expect(events[0]?.device_seq).toBe(1);
+    expect(events[0]?.chain_hmac).toBeTruthy();
+    expect(JSON.parse(events[0]?.payload ?? "")).toMatchObject({
+      id: "id-1",
+      lines: [{ product_id: "p1", quantity: 2 }],
+      removals: [],
+    });
+  });
+
+  it("lets the next scan start a new sale", async () => {
+    const shared = deps();
+    await scanProductFor(shared, "111");
+    await cancelSaleFor(shared);
+
+    expect(await scanProductFor(shared, "111")).toMatchObject({
+      kind: "added",
+      sale: { lines: [{ quantity: 1 }], total: 1500 },
+    });
+    expect(await currentSaleFor(shared)).toMatchObject({ total: 1500 });
+  });
+
+  it("answers that there is no sale to cancel", async () => {
+    expect(await cancelSaleFor(deps())).toEqual({ kind: "no_open_sale" });
+  });
+
+  it("answers not signed in when nobody is signed in", async () => {
+    await sellTwoYerbas();
+    signedInPerson.clear();
+
+    expect(await cancelSaleFor(deps())).toEqual({ kind: "not_signed_in" });
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+  });
+
+  it("answers not permitted to a person who sells but did not open the session", async () => {
+    await sellTwoYerbas();
+    addPerson("u3", "cashier");
+    signedInPerson.set("u3");
+
+    expect(await cancelSaleFor(deps())).toEqual({ kind: "not_permitted" });
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+  });
+
+  it("answers that no session is open", async () => {
+    await sellTwoYerbas();
+    database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();
+
+    expect(await cancelSaleFor(deps())).toEqual({ kind: "no_open_session" });
+  });
+
+  it("answers unavailable, leaving the sale open, when the register has no outbox key yet", async () => {
+    await sellTwoYerbas();
+
+    expect(await cancelSaleFor(deps({ readOutboxChainKey: async () => undefined }))).toEqual({
+      kind: "unavailable",
+    });
+  });
+});
+
+describe("charging the sale in progress in cash", () => {
+  async function sellTwo(): Promise<string> {
+    await scanProductFor(deps(), "111");
+    const outcome = await scanProductFor(deps(), "111");
+    if (outcome.kind !== "added") {
+      throw new Error("test setup: the product was not added");
+    }
+    return outcome.sale.id;
+  }
+
+  it("completes the sale and answers what was charged and the change", async () => {
+    const saleId = await sellTwo();
+
+    expect(await chargeSaleInCashFor(deps(), { saleId, tendered: 5000 })).toEqual({
+      kind: "completed",
+      sale_id: saleId,
+      total: 3000,
+      tendered: 5000,
+      change: 2000,
+    });
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "COMPLETED" }]);
+    expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([
+      { event_type: "sale_completed" },
+    ]);
+  });
+
+  it("answers how much is still due when the cash does not cover the sale", async () => {
+    const saleId = await sellTwo();
+
+    expect(await chargeSaleInCashFor(deps(), { saleId, tendered: 1000 })).toEqual({
+      kind: "insufficient_cash",
+      amount_due: 3000,
+    });
+  });
+
+  it.each([
+    ["an amount that is not a valid cash amount", "invalid_amount", 0],
+    ["a sale that is not the one in progress", "no_open_sale", 3000],
+  ] as const)("answers the domain's refusal of %s", async (_case, kind, tendered) => {
+    const saleId = await sellTwo();
+
+    expect(
+      await chargeSaleInCashFor(deps(), {
+        saleId: kind === "no_open_sale" ? "other-sale" : saleId,
+        tendered,
+      }),
+    ).toEqual({ kind });
+  });
+
+  it("answers the domain's refusal of a sale whose total is zero", async () => {
+    const saleId = await sellTwo();
+    database.prepare("UPDATE sale_lines SET line_total = 0").run();
+
+    expect(await chargeSaleInCashFor(deps(), { saleId, tendered: 3000 })).toEqual({
+      kind: "zero_total",
+    });
+  });
+
+  it("answers that no session is open", async () => {
+    const saleId = await sellTwo();
+    database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();
+
+    expect(await chargeSaleInCashFor(deps(), { saleId, tendered: 3000 })).toEqual({
+      kind: "no_open_session",
+    });
+  });
+
+  it("answers not signed in when nobody is signed in", async () => {
+    const saleId = await sellTwo();
+    signedInPerson.clear();
+
+    expect(await chargeSaleInCashFor(deps(), { saleId, tendered: 3000 })).toEqual({
+      kind: "not_signed_in",
+    });
+  });
+
+  it("answers not permitted to a signed-in person without the permission to sell", async () => {
+    const saleId = await sellTwo();
+    addPerson("u2", "guest");
+    signedInPerson.set("u2");
+
+    expect(await chargeSaleInCashFor(deps(), { saleId, tendered: 3000 })).toEqual({
+      kind: "not_permitted",
+    });
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+  });
+
+  it("answers unavailable, charging nothing, when the register holds no outbox chain key", async () => {
+    const saleId = await sellTwo();
+
+    expect(
+      await chargeSaleInCashFor(deps({ readOutboxChainKey: async () => undefined }), {
+        saleId,
+        tendered: 3000,
+      }),
+    ).toEqual({ kind: "unavailable" });
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
   });
 });

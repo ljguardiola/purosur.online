@@ -1,16 +1,24 @@
 import type {
+  AddProductOutcome,
   Authorization,
+  CancelSaleOutcome,
   CashBalance,
+  ChangeLineQuantityOutcome,
+  ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
+  CloseLockedCashSessionOutcome,
   CoreStatusMessage,
   CurrentSaleAnswer,
   EnrollmentOutcome,
   FirstPinCodeRequestOutcome,
+  IdentifyLockedCloserOutcome,
   ListedCashMovement,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
   RecordCashMovementOutcome,
+  RemoveSaleLineOutcome,
   ScanProductOutcome,
+  SearchProductsOutcome,
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
@@ -33,6 +41,8 @@ import type { CashMovementInput } from "../platform/core-client";
 import { CashCountScreen } from "../register/cash-count-screen";
 import { CashScreen } from "../register/cash-screen";
 import { EnrollmentScreen } from "../register/enrollment-screen";
+import { LockedCloseScreen } from "../register/locked-close-screen";
+import { ChargeScreen } from "../sales/charge-screen";
 import { SaleScreen } from "../sales/sale-screen";
 import { ACTION_ENTRIES } from "./action-entries";
 import { BrandPanelScreen } from "./brand-panel-screen";
@@ -67,6 +77,12 @@ export interface RouterContext {
     authorization: Authorization | undefined,
     leaving: boolean,
   ) => Promise<CloseCashSessionOutcome>;
+  closeLockedCashSession: (
+    sessionId: string,
+    countedCash: number,
+    closer: Authorization,
+  ) => Promise<CloseLockedCashSessionOutcome>;
+  identifyLockedCloser: (closer: Authorization) => Promise<IdentifyLockedCloserOutcome>;
   cashBalance: () => Promise<CashBalance | null | "unavailable">;
   cashMovements: () => Promise<ListedCashMovement[] | null | "unavailable">;
   recordCashMovement: (input: CashMovementInput) => Promise<RecordCashMovementOutcome>;
@@ -76,6 +92,16 @@ export interface RouterContext {
   firstSignIn: (userId: string, pin: string) => Promise<SignInOutcome>;
   currentSale: () => Promise<CurrentSaleAnswer>;
   scanProduct: (code: string) => Promise<ScanProductOutcome>;
+  chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
+  searchProducts: (query: string) => Promise<SearchProductsOutcome>;
+  addProduct: (productId: string) => Promise<AddProductOutcome>;
+  changeLineQuantity: (
+    lineId: string,
+    quantity: number,
+    expectedQuantity: number,
+  ) => Promise<ChangeLineQuantityOutcome>;
+  removeSaleLine: (lineId: string) => Promise<RemoveSaleLineOutcome>;
+  cancelSale: () => Promise<CancelSaleOutcome>;
   refreshCashSession: () => Promise<void>;
 }
 
@@ -118,7 +144,7 @@ export function routeFor({
   return person === undefined ? "/sign-in" : "/";
 }
 
-const SESSION_SCREENS: readonly string[] = ["/session", "/cash", "/cash-count"];
+const SESSION_SCREENS: readonly string[] = ["/session", "/cash", "/cash-count", "/charge"];
 
 export function isSessionScreen(path: string): boolean {
   return SESSION_SCREENS.includes(path);
@@ -194,8 +220,19 @@ const openSessionRoute = createRoute({
     return { openedAt, person };
   },
   component: function OpenSessionRoute() {
-    const { openedAt, person, signOut, currentSale, scanProduct, refreshCashSession } =
-      openSessionRoute.useRouteContext();
+    const {
+      openedAt,
+      person,
+      signOut,
+      currentSale,
+      scanProduct,
+      searchProducts,
+      addProduct,
+      changeLineQuantity,
+      removeSaleLine,
+      cancelSale,
+      refreshCashSession,
+    } = openSessionRoute.useRouteContext();
     const registerName = sessionEyebrowRoute.useLoaderData();
     return (
       <SaleScreen
@@ -205,6 +242,35 @@ const openSessionRoute = createRoute({
         lock={signOut}
         currentSale={currentSale}
         scanProduct={scanProduct}
+        searchProducts={searchProducts}
+        addProduct={addProduct}
+        changeLineQuantity={changeLineQuantity}
+        removeSaleLine={removeSaleLine}
+        cancelSale={cancelSale}
+        onSessionInvalid={() => void refreshCashSession()}
+      />
+    );
+  },
+});
+
+const chargeRoute = createRoute({
+  getParentRoute: () => sessionEyebrowRoute,
+  path: "/charge",
+  beforeLoad: ({ context }) => {
+    const { person } = requireOpenSession(context);
+    return { person };
+  },
+  component: function ChargeRoute() {
+    const { person, signOut, currentSale, chargeSaleInCash, refreshCashSession } =
+      chargeRoute.useRouteContext();
+    const registerName = sessionEyebrowRoute.useLoaderData();
+    return (
+      <ChargeScreen
+        person={person}
+        registerName={registerName}
+        lock={signOut}
+        currentSale={currentSale}
+        chargeSaleInCash={chargeSaleInCash}
         onSessionInvalid={() => void refreshCashSession()}
       />
     );
@@ -295,6 +361,40 @@ const lockedRoute = createRoute({
   },
 });
 
+const lockedCloseRoute = createRoute({
+  getParentRoute: () => sessionEyebrowRoute,
+  path: "/locked-close",
+  beforeLoad: ({ context }) => {
+    const { id, openedAt, openedBy } = requireLockedRegister(context);
+    return { id, openedAt, openedBy };
+  },
+  component: function LockedCloseRoute() {
+    const {
+      id,
+      openedAt,
+      openedBy,
+      cashBalance,
+      authorizers,
+      identifyLockedCloser,
+      closeLockedCashSession,
+    } = lockedCloseRoute.useRouteContext();
+    const registerName = sessionEyebrowRoute.useLoaderData();
+    return (
+      <LockedCloseScreen
+        opener={openedBy}
+        registerName={registerName}
+        openedAt={openedAt}
+        loadCashBalance={cashBalance}
+        loadAuthorizers={authorizers}
+        identifyLockedCloser={identifyLockedCloser}
+        closeLockedCashSession={(countedCash, closer) =>
+          closeLockedCashSession(id, countedCash, closer)
+        }
+      />
+    );
+  },
+});
+
 const signInRoute = createRoute({
   getParentRoute: () => sessionEyebrowRoute,
   path: "/sign-in",
@@ -363,9 +463,11 @@ export const routeTree = rootRoute.addChildren([
     signedInRoute,
     signInRoute,
     openSessionRoute,
+    chargeRoute,
     cashRoute,
     cashCountRoute,
     lockedRoute,
+    lockedCloseRoute,
   ]),
   pinCodeRedemptionRoute,
   firstSignInRoute,
@@ -397,6 +499,8 @@ export function createAppRouter(
     | "signOut"
     | "openCashSession"
     | "closeCashSession"
+    | "closeLockedCashSession"
+    | "identifyLockedCloser"
     | "cashBalance"
     | "cashMovements"
     | "recordCashMovement"
@@ -407,6 +511,12 @@ export function createAppRouter(
     | "firstSignIn"
     | "currentSale"
     | "scanProduct"
+    | "chargeSaleInCash"
+    | "searchProducts"
+    | "addProduct"
+    | "changeLineQuantity"
+    | "removeSaleLine"
+    | "cancelSale"
     | "refreshCashSession"
   >,
 ) {
