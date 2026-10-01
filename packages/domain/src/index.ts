@@ -167,7 +167,6 @@ export {
   CASH_MOVEMENT_TYPES,
   cashBreakdown,
   cashMovementPermission,
-  cashMovementReason,
   ENROLLMENT_CODE_LENGTH,
   enrollmentAttemptWindowStart,
   enrollmentCodeExpiresAt,
