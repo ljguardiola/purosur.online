@@ -24,7 +24,6 @@ export const PERSISTENCE_IN_HANDLERS_ALLOWLIST = [
   "apps/cloud/src/catalog/internal-barcode-route.ts",
   "apps/cloud/src/catalog/product-deactivation-route.ts",
   "apps/cloud/src/catalog/product-edit-route.ts",
-  "apps/cloud/src/catalog/products-labels-route.ts",
   "apps/cloud/src/catalog/products-list-route.ts",
   "apps/cloud/src/catalog/tag-deactivation-route.ts",
   "apps/cloud/src/catalog/tag-edit-route.ts",
