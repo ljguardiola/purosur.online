@@ -1,4 +1,4 @@
-import type { PinCodeRedemption } from "@purosur/contracts";
+import type { OpenCashSession, PinCodeRedemption } from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
 import type { DeviceCredentials } from "../../shared/device-credentials-messages";
 import type { CloudResponse } from "../platform/cloud-client";
@@ -17,7 +17,11 @@ function envelope(code: string, details: unknown[] = []): CloudResponse {
   return { kind: "error", error: { code, message: "x", details } } as CloudResponse;
 }
 
-const OPENER_PERSON = { user_id: USER_ID, first_name: "Ada", permission_keys: ["sell_and_charge"] };
+const OPENER_PERSON: OpenCashSession["opened_by"] = {
+  user_id: USER_ID,
+  first_name: "Ada",
+  abilities: ["open_cash_session"],
+};
 const OPEN_CASH_SESSION = {
   id: "s1",
   opened_at: "2026-05-01T09:00:00.000Z",

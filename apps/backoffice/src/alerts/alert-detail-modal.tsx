@@ -113,39 +113,6 @@ function alertIcon(kind: string): Icon {
   }
 }
 
-type PasskeyChangeDetail =
-  | { action: "registered" | "removed"; passkeyName: string; via: "self" }
-  | { action: "registered"; passkeyName: string; via: "recovery" }
-  | { action: "removed"; passkeyName: string; via: "administrator"; actorName: string };
-
-function passkeyChangeDetail(detail: Record<string, unknown>): PasskeyChangeDetail | undefined {
-  const { action, passkeyName, via, actorName } = detail;
-  if (typeof passkeyName !== "string") {
-    return undefined;
-  }
-  if (via === "self" && (action === "registered" || action === "removed")) {
-    return { action, passkeyName, via };
-  }
-  if (via === "recovery" && action === "registered") {
-    return { action, passkeyName, via };
-  }
-  if (via === "administrator" && action === "removed" && typeof actorName === "string") {
-    return { action, passkeyName, via, actorName };
-  }
-  return undefined;
-}
-
-function roleName(role: unknown): string | undefined {
-  if (typeof role !== "object" || role === null) {
-    return undefined;
-  }
-  const { name, isAdministrator } = role as Record<string, unknown>;
-  if (typeof isAdministrator !== "boolean" || !(name === null || typeof name === "string")) {
-    return undefined;
-  }
-  return roleDisplayName({ isAdministrator, name });
-}
-
 // Many permission labels only read clearly under their area's heading, as the role editor shows them.
 function permissionLabelWithArea(key: PermissionKey): string {
   const definition = PERMISSION_CATALOG.find((permission) => permission.key === key);
@@ -153,8 +120,8 @@ function permissionLabelWithArea(key: PermissionKey): string {
   return definition ? `${AREA_LABELS[definition.area]}: ${label}` : label;
 }
 
-function permissionLabels(keys: unknown): string[] | undefined {
-  if (!Array.isArray(keys) || keys.length === 0 || !keys.every(isPermissionKey)) {
+function permissionLabels(keys: readonly string[]): string[] | undefined {
+  if (keys.length === 0 || !keys.every(isPermissionKey)) {
     return undefined;
   }
   return keys.map((key) => `«${permissionLabelWithArea(key)}»`);
@@ -162,62 +129,51 @@ function permissionLabels(keys: unknown): string[] | undefined {
 
 const PERMISSION_LIST_FORMAT = new Intl.ListFormat("es-AR", { type: "conjunction" });
 
-function accessIncreaseDescription(detail: Record<string, unknown>, targetName: string): string {
-  const { cause, actorName } = detail;
-  if (typeof actorName !== "string") {
+type AccessIncreasedAlert = Extract<AlertDetail, { kind: "user_access_increased" }>;
+
+function accessIncreaseDescription(detail: AccessIncreasedAlert["detail"], targetName: string) {
+  const { actorName } = detail;
+  if (actorName === undefined) {
     return "";
   }
-  if (cause === "created_as_administrator") {
-    return `El Administrador ${actorName} creó a ${targetName} como Administrador.`;
-  }
-  if (cause === "role_assigned") {
-    const previousRoleName = roleName(detail["previousRole"]);
-    const newRoleName = roleName(detail["newRole"]);
-    if (previousRoleName === undefined || newRoleName === undefined) {
-      return "";
+  switch (detail.cause) {
+    case "created_as_administrator":
+      return `El Administrador ${actorName} creó a ${targetName} como Administrador.`;
+    case "role_assigned":
+      return `El Administrador ${actorName} cambió el rol de ${targetName} de «${roleDisplayName(detail.previousRole)}» a «${roleDisplayName(detail.newRole)}», que le da permisos que no tenía.`;
+    case "role_permissions_added": {
+      const labels = permissionLabels(detail.addedPermissionKeys);
+      if (labels === undefined) {
+        return "";
+      }
+      const permissionList = PERMISSION_LIST_FORMAT.format(labels);
+      const permissionsText = plural(labels.length, {
+        one: `el permiso ${permissionList}`,
+        other: `los permisos ${permissionList}`,
+      });
+      return `El Administrador ${actorName} agregó ${permissionsText} al rol «${detail.roleName}», que tiene ${targetName}.`;
     }
-    return `El Administrador ${actorName} cambió el rol de ${targetName} de «${previousRoleName}» a «${newRoleName}», que le da permisos que no tenía.`;
   }
-  if (cause === "role_permissions_added") {
-    const { roleName: editedRoleName } = detail;
-    const labels = permissionLabels(detail["addedPermissionKeys"]);
-    if (typeof editedRoleName !== "string" || labels === undefined) {
-      return "";
-    }
-    const permissionList = PERMISSION_LIST_FORMAT.format(labels);
-    const permissionsText = plural(labels.length, {
-      one: `el permiso ${permissionList}`,
-      other: `los permisos ${permissionList}`,
-    });
-    return `El Administrador ${actorName} agregó ${permissionsText} al rol «${editedRoleName}», que tiene ${targetName}.`;
-  }
-  return "";
 }
 
 function registerEnrollmentDescription(
-  detail: Record<string, unknown>,
+  {
+    hostname,
+    windowsVersion,
+    replacedInstallation,
+  }: { hostname: string; windowsVersion: string; replacedInstallation: boolean },
   registerName: string,
 ): string {
-  const { hostname, windowsVersion, replacedInstallation } = detail;
-  if (
-    typeof hostname !== "string" ||
-    typeof windowsVersion !== "string" ||
-    typeof replacedInstallation !== "boolean"
-  ) {
-    return "";
-  }
   const replaced = replacedInstallation ? " La instalación que tenía antes dejó de funcionar." : "";
   return `La caja «${registerName}» se dio de alta en el equipo «${hostname}» (${windowsVersion}).${replaced} Si no se reconoce esta alta, conviene revisarla desde Cajas registradoras.`;
 }
 
 function alertTitle(alert: AlertDetail): string {
   switch (alert.kind) {
-    case "backoffice_passkey_changed": {
-      const detail = passkeyChangeDetail(alert.detail);
-      return detail?.action === "removed"
+    case "backoffice_passkey_changed":
+      return alert.detail.action === "removed"
         ? "Se dio de baja una passkey"
         : "Se registró una passkey";
-    }
     case "backoffice_recovery_requested":
       return "Se pidió el enlace de acceso";
     case "user_email_changed":
@@ -228,15 +184,12 @@ function alertTitle(alert: AlertDetail): string {
       return "Se amplió el acceso de un usuario";
     case "register_enrolled":
       return "Se dio de alta una caja";
-    default:
-      return alert.kind;
   }
 }
 
 function alertDescription(alert: AlertDetail): string {
   if (alert.kind === "backoffice_sign_in_lockout") {
-    const failureCount =
-      typeof alert.detail["failureCount"] === "number" ? alert.detail["failureCount"] : 0;
+    const { failureCount } = alert.detail;
     const failuresText = plural(failureCount, {
       one: "1 intento fallido",
       other: `${failureCount} intentos fallidos`,
@@ -251,10 +204,7 @@ function alertDescription(alert: AlertDetail): string {
   }
   switch (alert.kind) {
     case "backoffice_passkey_changed": {
-      const detail = passkeyChangeDetail(alert.detail);
-      if (!detail) {
-        return "";
-      }
+      const { detail } = alert;
       if (detail.via === "self") {
         return detail.action === "registered"
           ? `${targetName} registró la passkey «${detail.passkeyName}». Si no se reconoce este cambio, conviene dar de baja esa passkey desde Usuarios.`
@@ -263,27 +213,22 @@ function alertDescription(alert: AlertDetail): string {
       if (detail.via === "recovery") {
         return `${targetName} registró la passkey «${detail.passkeyName}» al usar el enlace de recuperación de acceso. Si no se reconoce este cambio, conviene dar de baja esa passkey desde Usuarios.`;
       }
-      return `El Administrador ${detail.actorName} dio de baja la passkey «${detail.passkeyName}» de ${targetName}. Si no fue así, conviene revisarlo.`;
+      return detail.actorName === undefined
+        ? ""
+        : `El Administrador ${detail.actorName} dio de baja la passkey «${detail.passkeyName}» de ${targetName}. Si no fue así, conviene revisarlo.`;
     }
     case "backoffice_recovery_requested":
       return `Alguien pidió el enlace de acceso para ${targetName}. Si no se reconoce este pedido, conviene revisar sus passkeys desde Usuarios.`;
     case "user_email_changed": {
       const { previousEmail, newEmail, actorName } = alert.detail;
-      if (
-        typeof previousEmail !== "string" ||
-        typeof newEmail !== "string" ||
-        typeof actorName !== "string"
-      ) {
-        return "";
-      }
-      return `El Administrador ${actorName} cambió el correo de ${targetName} de ${previousEmail} a ${newEmail}.`;
+      return actorName === undefined
+        ? ""
+        : `El Administrador ${actorName} cambió el correo de ${targetName} de ${previousEmail} a ${newEmail}.`;
     }
     case "user_access_increased":
       return accessIncreaseDescription(alert.detail, targetName);
     case "register_enrolled":
       return registerEnrollmentDescription(alert.detail, targetName);
-    default:
-      return "";
   }
 }
 
@@ -346,7 +291,7 @@ function OpenAlertDetailModal({
 
   const alert =
     data.status === "loaded" && data.value.kind === "found" ? data.value.alert : undefined;
-  const isKnownClosed = alert !== undefined && alert.resolvedAt !== null;
+  const isKnownClosed = alert !== undefined && !alert.open;
   const isKnownMissing = data.status === "loaded" && alert === undefined;
   const offersClose = canCloseAlertsManually(access) && !isKnownClosed && !isKnownMissing;
 
@@ -468,11 +413,11 @@ function OpenAlertDetailModal({
                 ))}
               </div>
             </div>
-            {alert.resolvedAt === null && (
+            {alert.open ? (
               <p className="text-text-subtle text-detail">
                 No se cierra sola: se cierra a mano después de revisarla.
               </p>
-            )}
+            ) : null}
           </>
         ) : null}
       </div>

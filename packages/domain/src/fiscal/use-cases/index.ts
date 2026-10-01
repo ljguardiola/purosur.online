@@ -44,8 +44,10 @@ export type {
 export { FiscalAddressNameConflict } from "./fiscal-address-store.js";
 export type {
   AuthorizedIssuerIdentification,
+  EditableIssuerIdentification,
   IssuerIdentification,
   IssuerIdentificationPorts,
+  IssuerIdentificationReader,
   IssuerIdentificationStore,
   IssuerIdentificationStoreTransaction,
   NewIssuerIdentificationVersion,
@@ -67,10 +69,10 @@ export type {
 export { recordBuyerTaxStatusSet } from "./record-buyer-tax-status-set.js";
 export type {
   BranchRegisterPointOfSale,
-  BranchRegisterPointsOfSale,
   LockBranchRegisterResult,
   PointOfSaleClaim,
   RegisterPointOfSale,
+  RegisterPointOfSaleReader,
   RegisterPointOfSaleRecord,
   RegisterPointOfSaleStore,
   RegisterPointOfSaleStoreTransaction,

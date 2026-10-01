@@ -4,7 +4,7 @@ import {
 } from "@purosur/domain/register/use-cases";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { escalateOverdueAlerts } from "../alerts/alert-escalation.js";
+import { escalateAlertsTask } from "../alerts/alert-escalation-task.js";
 import { openAlert } from "../alerts/open-alert.js";
 import {
   alerts,
@@ -555,7 +555,7 @@ describe("DrizzleRegisterStore", () => {
         { now: () => later },
       ),
     );
-    await escalateOverdueAlerts(db, { now: () => afterADay });
+    await escalateAlertsTask(db, { now: () => afterADay });
 
     expect(passkeyChange.kind).toBe("opened");
     const open = await db

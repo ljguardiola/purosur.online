@@ -12,7 +12,7 @@ import { FirstSignInScreen } from "./first-sign-in-screen";
 
 const SIGNED_IN: SignInOutcome = {
   kind: "signed_in",
-  person: { user_id: "u1", first_name: "Ada", permission_keys: [] },
+  person: { user_id: "u1", first_name: "Ada", abilities: [] },
   cash_session: null,
 };
 

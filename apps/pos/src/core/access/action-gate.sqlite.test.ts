@@ -83,10 +83,14 @@ async function signInAs(userId: string) {
 
 function cashIn() {
   const performed: string[] = [];
-  const outcome = gate.run({ permission: "record_cash_in" }, async () => {
-    performed.push("cash in recorded");
-    return "cash in recorded";
-  });
+  const outcome = gate.runAuthorized(
+    { kind: "record_cash_movement", movement: "CASH_IN" },
+    undefined,
+    async () => {
+      performed.push("cash in recorded");
+      return "cash in recorded";
+    },
+  );
   return { outcome, performed };
 }
 

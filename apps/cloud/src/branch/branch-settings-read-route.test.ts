@@ -293,34 +293,43 @@ describe("GET /locations/current/settings", () => {
     });
   });
 
-  it("scopes the answer to the requesting user's own location, never another branch's", async () => {
-    const ownLocationId = await seededLocationId(db);
+  it("answers each session with its own branch's settings, never another branch's", async () => {
+    const firstLocationId = await seededLocationId(db);
     await db
       .update(branchSettings)
       .set({ address: "Av. Centro 100" })
-      .where(eq(branchSettings.locationId, ownLocationId));
-
-    const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
-    if (!otherLocation) {
-      throw new Error("test setup: seeding the other location returned no row");
+      .where(eq(branchSettings.locationId, firstLocationId));
+    const [secondLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
+    if (!secondLocation) {
+      throw new Error("test setup: seeding the second location returned no row");
     }
     await db.insert(branchSettings).values({
-      locationId: otherLocation.id,
+      locationId: secondLocation.id,
       address: "Av. Norte 200",
       priceListId: await seededPriceListId(db),
     });
+    const administratorRoleId = await seededAdministratorRoleId();
+    const firstBranchSessionId = await insertSession(
+      await insertUser({
+        firstName: "Marta Quiroga",
+        email: "marta@example.com",
+        roleId: administratorRoleId,
+        locationId: firstLocationId,
+      }),
+    );
+    const secondBranchSessionId = await insertSession(
+      await insertUser({
+        firstName: "Julián Ferreyra",
+        email: "julian@example.com",
+        roleId: administratorRoleId,
+        locationId: secondLocation.id,
+      }),
+    );
 
-    const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
-      email: "ada@example.com",
-      roleId: await seededAdministratorRoleId(),
-      locationId: ownLocationId,
-    });
-    const rawSessionId = await insertSession(administratorId);
+    const firstBranchResponse = await getBranchSettings(firstBranchSessionId);
+    const secondBranchResponse = await getBranchSettings(secondBranchSessionId);
 
-    const response = await getBranchSettings(rawSessionId);
-
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ address: "Av. Centro 100" });
+    expect(firstBranchResponse.json()).toMatchObject({ address: "Av. Centro 100" });
+    expect(secondBranchResponse.json()).toMatchObject({ address: "Av. Norte 200" });
   });
 });

@@ -9,13 +9,13 @@ import { render } from "./test-support/render-with-router";
 const HISTORY: ActionEntry = {
   label: "Historial",
   icon: History,
-  permission: "view_sales_history",
+  ability: "view_sales_history",
   to: "/sign-in",
 };
 const CLOCK: ActionEntry = {
   label: "Reloj",
   icon: Clock,
-  permission: "correct_register_clock",
+  ability: "correct_register_clock",
   to: "/pin-code-redemption",
 };
 

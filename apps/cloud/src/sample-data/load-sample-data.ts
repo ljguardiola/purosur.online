@@ -1,9 +1,12 @@
 import {
   argentinaCalendarDay,
+  RECOVERY_TOKEN_LIFETIME_MS,
   SIGN_IN_BLOCK_DURATION_MS,
   SIGN_IN_FAILURE_LIMIT,
 } from "@purosur/domain";
 import { createRole, createUser, deactivateUser } from "@purosur/domain/access/use-cases";
+import { closeAlert, escalateOverdueAlerts } from "@purosur/domain/alerts/use-cases";
+import { editBranchSettings } from "@purosur/domain/branch/use-cases";
 import {
   createCategory,
   createProduct,
@@ -17,10 +20,10 @@ import { and, eq, like, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { DrizzleRoleStore } from "../access/drizzle-role-store.js";
 import { DrizzleUserStore } from "../access/drizzle-user-store.js";
-import { closeAlert } from "../alerts/alert-close-route.js";
-import { escalateOverdueAlerts } from "../alerts/alert-escalation.js";
+import { hashSourceAddress } from "../access/sign-in-lockout.js";
+import { DrizzleAlertStore } from "../alerts/drizzle-alert-store.js";
 import { openAlert } from "../alerts/open-alert.js";
-import { editBranchSettings } from "../branch/branch-settings-edit-route.js";
+import { DrizzleBranchSettingsStore } from "../branch/drizzle-branch-settings-store.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { allocateInternalBarcode } from "../catalog/internal-barcode-route.js";
 import { branchSettings, locations, roles, userRoles, users } from "../platform/db/schema.js";
@@ -345,16 +348,15 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
           throw new Error("sample-data: no branch settings are seeded for the location");
         }
         const settingsOutcome = await editBranchSettings(
-          tx,
+          { store: new DrizzleBranchSettingsStore(tx, pending) },
           {
             ...SAMPLE_BRANCH_SETTINGS,
             locationId: location.id,
             actorId,
             version: currentBranchSettings.version,
           },
-          pending,
         );
-        expectOutcome(settingsOutcome, "applied", "the branch settings");
+        expectOutcome(settingsOutcome, "edited", "the branch settings");
       }
 
       const emailChangedTargetId = sampleUserIdsInOrder[0];
@@ -378,9 +380,22 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
       );
       expectOutcome(warningOpenOutcome, "opened", "the open warning alert");
 
+      const openingPorts = { store: new DrizzleAlertStore(tx), clock: { now: deps.now } };
+      const closingPorts = { ...openingPorts, hasher: { hash: hashSourceAddress } };
+      const recoveryRequestedAt = deps.now();
       const warningToCloseOutcome = await openAlert(
         tx,
-        { kind: "backoffice_recovery_requested", scope: recoveryRequestedTargetId, detail: {} },
+        {
+          kind: "backoffice_recovery_requested",
+          scope: recoveryRequestedTargetId,
+          detail: {
+            requestedAt: recoveryRequestedAt.toISOString(),
+            issuedAt: recoveryRequestedAt.toISOString(),
+            expiresAt: new Date(
+              recoveryRequestedAt.getTime() + RECOVERY_TOKEN_LIFETIME_MS,
+            ).toISOString(),
+          },
+        },
         { now: deps.now },
       );
       const warningToClose = expectOutcome(
@@ -388,11 +403,10 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
         "opened",
         "the warning alert to close",
       );
-      const closedWarningOutcome = await closeAlert(
-        tx,
-        { id: warningToClose.alertId, actorId },
-        { now: deps.now },
-      );
+      const closedWarningOutcome = await closeAlert(closingPorts, {
+        alertId: warningToClose.alertId,
+        closedBy: actorId,
+      });
       expectOutcome(closedWarningOutcome, "closed", "closing the warning alert");
 
       const escalationEligibleMoment = new Date(
@@ -429,17 +443,16 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
         "opened",
         "the critical alert to close",
       );
-      const escalatedCount = await escalateOverdueAlerts(tx, { now: deps.now });
+      const escalatedCount = await escalateOverdueAlerts(openingPorts);
       if (escalatedCount < 2) {
         throw new Error(
           `sample-data: expected at least 2 alerts to escalate to critical, only ${escalatedCount} did`,
         );
       }
-      const closedCriticalOutcome = await closeAlert(
-        tx,
-        { id: toCloseLockout.alertId, actorId },
-        { now: deps.now },
-      );
+      const closedCriticalOutcome = await closeAlert(closingPorts, {
+        alertId: toCloseLockout.alertId,
+        closedBy: actorId,
+      });
       expectOutcome(closedCriticalOutcome, "closed", "closing the critical alert");
       await pending.log(tx);
 

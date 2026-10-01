@@ -6,13 +6,13 @@ import {
   isAuthorizablePermissionKey,
   isValidCashAmount,
   isValidCashMovementAmount,
+  REGISTER_ABILITIES,
 } from "@purosur/domain";
 import { z } from "zod";
 import {
   authorizationRefusalSchema,
   authorizationSchema,
   authorizedBySchema,
-  guardedActionRefusalSchema,
 } from "../access/authorization.js";
 import { pinAttemptRefusalSchema } from "../access/pin-attempt-refusal.js";
 import {
@@ -301,7 +301,7 @@ export type EnrollmentOutcome = z.infer<typeof enrollmentOutcomeSchema>;
 const signedInPersonSchema = z.object({
   user_id: z.string(),
   first_name: z.string(),
-  permission_keys: z.array(z.string()),
+  abilities: z.array(z.enum(REGISTER_ABILITIES)),
 });
 
 const openCashSessionSchema = z.object({
@@ -370,7 +370,9 @@ const cashSessionClosingOutcomeSchema = z.discriminatedUnion("kind", [
 
 const closeCashSessionOutcomeSchema = z.discriminatedUnion("kind", [
   ...cashSessionClosingOutcomeSchema.options,
-  ...guardedActionRefusalSchema.options,
+  z.object({ kind: z.literal("not_signed_in") }),
+  z.object({ kind: z.literal("lacks_permission") }),
+  z.object({ kind: z.literal("unavailable") }),
 ]);
 export type CloseCashSessionOutcome = z.infer<typeof closeCashSessionOutcomeSchema>;
 

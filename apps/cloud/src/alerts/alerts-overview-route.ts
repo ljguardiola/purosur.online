@@ -1,42 +1,17 @@
-import { type AlertsOverview, alertsOverviewSchema } from "@purosur/contracts";
-import { and, asc, count, isNull } from "drizzle-orm";
-import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { alertsOverviewSchema } from "@purosur/contracts";
+import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../access/backoffice-origin.js";
 import { FORBIDDEN_RESPONSE } from "../access/forbidden-response.js";
-import type { OpenSession } from "../access/open-session.js";
 import {
   OPEN_SESSION_ACCESS,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
-import { alerts } from "../platform/db/schema.js";
-import { canSeeAnyAlerts, visibleAlertsCondition } from "./alert-visibility.js";
+import { visibleSightOf } from "./alert-route-sight.js";
 import type { AlertsRouteOptions } from "./alerts-list-route.js";
-
-async function overviewOfOpenVisibleAlerts<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  session: OpenSession,
-): Promise<AlertsOverview> {
-  const rows = await db
-    .select({ level: alerts.level, kind: alerts.kind, openCount: count() })
-    .from(alerts)
-    .where(and(visibleAlertsCondition(session), isNull(alerts.resolvedAt)))
-    .groupBy(alerts.level, alerts.kind)
-    .orderBy(asc(alerts.kind));
-  const overview: AlertsOverview = {
-    critical: { openCount: 0, kinds: [] },
-    warning: { openCount: 0, kinds: [] },
-    informational: { openCount: 0, kinds: [] },
-  };
-  for (const row of rows) {
-    const level = overview[row.level];
-    level.openCount += row.openCount;
-    level.kinds.push(row.kind);
-  }
-  return overview;
-}
+import { DrizzleAlertReader } from "./drizzle-alert-reader.js";
 
 export function registerAlertsOverviewRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
@@ -54,12 +29,13 @@ export function registerAlertsOverviewRoute<TQueryResult extends PgQueryResultHK
     },
     async (request, reply) => {
       const openSession = openSessionOf(request);
-      if (!canSeeAnyAlerts(openSession)) {
+      const sight = visibleSightOf(openSession);
+      if (!sight) {
         await reply.code(403).send(FORBIDDEN_RESPONSE);
         return;
       }
       const body = alertsOverviewSchema.parse(
-        await overviewOfOpenVisibleAlerts(options.db, openSession),
+        await new DrizzleAlertReader(options.db).overviewOfOpenVisibleAlerts(sight),
       );
       await reply.code(200).send(body);
     },

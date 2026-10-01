@@ -50,7 +50,7 @@ describe("FirstSignInPinStep", () => {
   it("sends the person and the PIN as typed", async () => {
     const { signIn, attempts } = answering({
       kind: "signed_in",
-      person: { user_id: "u1", first_name: "Ada", permission_keys: [] },
+      person: { user_id: "u1", first_name: "Ada", abilities: [] },
       cash_session: null,
     });
     const screen = await renderStep(signIn);

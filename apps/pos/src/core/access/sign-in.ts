@@ -1,71 +1,40 @@
 import type { OpenCashSession, SignInOutcome } from "@purosur/contracts";
-import {
-  holdsARegisterPermission,
-  isLockedToAnother,
-  pinSignInAttemptsLeft,
-} from "@purosur/domain";
-import { heldPermissionKeys } from "./held-permission-keys";
-import { checkCountedPin, type PinCheckDeps, signableRecord } from "./pin-check";
+import { signInAtRegister } from "@purosur/domain/access/use-cases";
+import { signInAnswer } from "./access-outcomes";
+import { type PinCheckDeps, pinCheckPorts } from "./pin-matching";
 import type { SignedInPerson } from "./signed-in-person";
 import type { SignInStore } from "./sqlite-sign-in-store";
 
 export interface SignInDeps extends PinCheckDeps {
+  store: PinCheckDeps["store"] & Pick<SignInStore, "remember">;
   signedInPerson: Pick<SignedInPerson, "set" | "clear">;
   openCashSession: () => { openedBy: string } | undefined;
   cashSession: (signedInPersonId: string) => OpenCashSession | null;
 }
 
-export interface FirstSignInDeps extends SignInDeps {
-  store: SignInDeps["store"] & Pick<SignInStore, "remember">;
-}
-
 export function signIn(deps: SignInDeps, userId: string, pin: string): Promise<SignInOutcome> {
-  return signInThen(deps, userId, pin, () => {});
+  return signInRemembering(deps, userId, pin, false);
 }
 
-export function firstSignIn(
-  deps: FirstSignInDeps,
-  userId: string,
-  pin: string,
-): Promise<SignInOutcome> {
-  return signInThen(deps, userId, pin, () => deps.store.remember(userId));
+export function firstSignIn(deps: SignInDeps, userId: string, pin: string): Promise<SignInOutcome> {
+  return signInRemembering(deps, userId, pin, true);
 }
 
-async function signInThen(
+async function signInRemembering(
   deps: SignInDeps,
   userId: string,
   pin: string,
-  beforeSigningIn: () => void,
+  remember: boolean,
 ): Promise<SignInOutcome> {
-  deps.signedInPerson.clear();
-  if (isLockedToAnother(deps.openCashSession(), userId)) {
-    return { kind: "cash_session_opened_by_another" };
-  }
-  const signable = signableRecord(deps.store, userId);
-  if (signable === undefined) {
-    return { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: pinSignInAttemptsLeft(1) };
-  }
-  const check = await checkCountedPin(deps, userId, signable, pin);
-  if (check.kind !== "right_pin") {
-    return check;
-  }
-  const { record } = signable;
-  if (!holdsARegisterPermission(record.access)) {
-    return { kind: "no_register_permission" };
-  }
-  if (isLockedToAnother(deps.openCashSession(), userId)) {
-    return { kind: "cash_session_opened_by_another" };
-  }
-  const cashSession = deps.cashSession(userId);
-  beforeSigningIn();
-  deps.signedInPerson.set(userId);
-  return {
-    kind: "signed_in",
-    person: {
-      user_id: userId,
-      first_name: record.firstName,
-      permission_keys: heldPermissionKeys(record.access),
-    },
-    cash_session: cashSession,
-  };
+  return signInAnswer(
+    await signInAtRegister(
+      {
+        ...pinCheckPorts(deps),
+        signedInPerson: deps.signedInPerson,
+        register: { openSession: deps.openCashSession, sessionToResume: deps.cashSession },
+        rememberedPeople: { remember: (rememberedId) => deps.store.remember(rememberedId) },
+      },
+      { userId, pin, remember },
+    ),
+  );
 }

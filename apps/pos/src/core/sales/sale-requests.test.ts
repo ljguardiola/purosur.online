@@ -1143,12 +1143,12 @@ describe("cancelling the open sale of a locked register", () => {
     expect(await cancelLockedSaleFor(lockedDeps(), CLOSER)).toEqual({ kind: "no_open_sale" });
   });
 
-  it("answers that no session is open", async () => {
+  it("refuses when no session is open", async () => {
     addCloser(["close_anothers_register_session"]);
     await lockedWithOpenSale();
     database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();
 
-    expect(await cancelLockedSaleFor(lockedDeps(), CLOSER)).toEqual({ kind: "no_open_session" });
+    expect(await cancelLockedSaleFor(lockedDeps(), CLOSER)).toEqual({ kind: "lacks_permission" });
   });
 
   it("refuses a sale that has an approved payment, leaving it open", async () => {

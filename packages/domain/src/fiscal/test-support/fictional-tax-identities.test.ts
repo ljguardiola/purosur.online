@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { isValidCuit } from "../model/cuit.js";
 import {
   ANOTHER_FICTIONAL_CUIT,
   FICTIONAL_CERTIFICATE_CUIT,
@@ -7,24 +8,11 @@ import {
   FICTIONAL_LEGAL_NAME,
 } from "./fictional-tax-identities.js";
 
-const CHECK_DIGIT_WEIGHTS = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2];
-
-function checkDigitOf(firstTenDigits: string): number {
-  const sum = CHECK_DIGIT_WEIGHTS.reduce(
-    (total, weight, index) => total + weight * Number(firstTenDigits[index]),
-    0,
-  );
-  return (11 - (sum % 11)) % 11;
-}
-
 describe.each([FICTIONAL_CUIT, ANOTHER_FICTIONAL_CUIT, FICTIONAL_CERTIFICATE_CUIT])(
   "the fictional CUIT %s",
   (cuit) => {
-    const [prefix, body, checkDigit] = cuit.split("-");
-
-    it("has the NN-NNNNNNNN-N shape with a valid check digit, so CUIT validation accepts it", () => {
-      expect(cuit).toMatch(/^\d{2}-\d{8}-\d$/);
-      expect(Number(checkDigit)).toBe(checkDigitOf(`${prefix}${body}`));
+    it("is accepted by CUIT validation", () => {
+      expect(isValidCuit(cuit)).toBe(true);
     });
   },
 );

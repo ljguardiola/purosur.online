@@ -5,12 +5,19 @@ export type {
   StoredSignInPasskey,
 } from "./accounts.js";
 export type {
+  AuthorizeRegisterOperationInput,
+  AuthorizeRegisterOperationOutcome,
+} from "./authorize-register-operation.js";
+export { authorizeRegisterOperation } from "./authorize-register-operation.js";
+export type {
   BranchUser,
   BranchUserActiveScope,
   BranchUserFacts,
   BranchUsers,
   EmailHolder,
 } from "./branch-users.js";
+export type { CheckPinInput, CheckPinOutcome, PinRefusal } from "./check-pin.js";
+export { checkPin } from "./check-pin.js";
 export type { CreateRoleInput, CreateRoleOutcome, CreateRolePorts } from "./create-role.js";
 export { createRole } from "./create-role.js";
 export type {
@@ -104,6 +111,12 @@ export type {
   IssueRecoveryTokenPorts,
 } from "./issue-recovery-token.js";
 export { issueRecoveryToken } from "./issue-recovery-token.js";
+export type {
+  ListAuthorizersInput,
+  ListAuthorizersPorts,
+  SignablePerson,
+} from "./list-authorizers.js";
+export { listAuthorizers } from "./list-authorizers.js";
 export type { ListBranchUsersInput } from "./list-branch-users.js";
 export { listBranchUsers } from "./list-branch-users.js";
 export type { RoleSummary } from "./list-roles.js";
@@ -135,6 +148,14 @@ export type {
   PinCodeStoreTransaction,
   PinCodeTarget,
 } from "./pin-code-store.js";
+export type {
+  PinCheckPorts,
+  PinHolder,
+  PinMatcher,
+  PinMatching,
+  PinSignInFailures,
+  PinSignInStore,
+} from "./pin-sign-in-store.js";
 export type {
   ReactivateUserInput,
   ReactivateUserOutcome,
@@ -189,6 +210,12 @@ export type {
   RedeemRecoveryTokenPorts,
 } from "./redeem-recovery-token.js";
 export { redeemRecoveryToken } from "./redeem-recovery-token.js";
+export type {
+  PinReplacementPorts,
+  PinReplacementStore,
+  ReplacePinInput,
+} from "./replace-pin.js";
+export { replacePin } from "./replace-pin.js";
 export type { RoleDirectory, RoleHolder, RoleListing, StoredRole } from "./role-directory.js";
 export type {
   LockedRole,
@@ -205,6 +232,12 @@ export type {
 export { RoleNameConflict } from "./role-store.js";
 export type { SessionStore } from "./session-store.js";
 export type { OpenSession, Sessions, StoredSession } from "./sessions.js";
+export type {
+  SignInAtRegisterInput,
+  SignInAtRegisterOutcome,
+  SignInAtRegisterPorts,
+} from "./sign-in-at-register.js";
+export { signInAtRegister } from "./sign-in-at-register.js";
 export type {
   SignInCandidate,
   SignInLookupPorts,

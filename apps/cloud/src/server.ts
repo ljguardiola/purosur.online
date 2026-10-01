@@ -2,6 +2,7 @@ import { X509Certificate } from "node:crypto";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isValidCuit } from "@purosur/domain";
 import { recordAuthorizedCuit } from "@purosur/domain/fiscal/use-cases";
 import * as Sentry from "@sentry/node";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -18,13 +19,13 @@ import {
   type RecoveryEmailSenderEnv,
   selectRecoveryEmailSender,
 } from "./access/select-recovery-email-sender.js";
+import { alertEscalationJobs } from "./alerts/alert-escalation-task.js";
 import {
   type BackofficeErrorReporting,
   type BuildAppOptions,
   buildApp,
   databaseRouteOptions,
 } from "./app.js";
-import { parseCuit } from "./fiscal/cuit.js";
 import { DrizzleIssuerIdentificationStore } from "./fiscal/drizzle-issuer-identification-store.js";
 import { runShutdownSteps } from "./platform/run-shutdown-steps.js";
 import { initSentry } from "./platform/sentry.js";
@@ -188,8 +189,8 @@ export function requireAuthorizedCuit(env: ServerEnv): string {
   if (!cuitDigits) {
     throw new Error('ARCA_CERTIFICATE\'s serialNumber must be in the form "CUIT <11 digits>"');
   }
-  const normalized = parseCuit(cuitDigits);
-  if (!normalized) {
+  const normalized = `${cuitDigits.slice(0, 2)}-${cuitDigits.slice(2, 10)}-${cuitDigits.slice(10)}`;
+  if (!isValidCuit(normalized)) {
     throw new Error("ARCA_CERTIFICATE's CUIT must have a correct check digit");
   }
   return normalized;
@@ -311,6 +312,7 @@ export async function setUpRecovery(
     databaseUrl: recoveryEnv.databaseUrl,
     backofficeOrigin: recoveryEnv.backofficeOrigin,
     emailSender,
+    jobs: [alertEscalationJobs({ now: () => new Date() })],
   });
   const jobQueuePool = createRecoveryJobQueuePool(
     recoveryEnv.databaseUrl,

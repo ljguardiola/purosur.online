@@ -1,6 +1,14 @@
 import type { SignInUser } from "@purosur/contracts";
-import { type AuthorizablePermissionKey, holdsPermission, type RoleAccess } from "@purosur/domain";
+import { decodePinSalt, type RoleAccess } from "@purosur/domain";
+import type {
+  PinHolder,
+  PinReplacementStore,
+  PinSignInFailures,
+  PinSignInStore,
+  SignablePerson,
+} from "@purosur/domain/access/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
+import type { PinCredential } from "./pin-matching";
 
 export interface SignInRecord {
   firstName: string;
@@ -14,22 +22,13 @@ export interface ActivePerson {
   access: RoleAccess;
 }
 
-export interface PinSignInFailures {
-  consecutiveFailures: number;
-  lastFailedAt: Date;
-}
-
-export interface SignInStore {
+export interface SignInStore extends PinSignInStore<PinCredential>, PinReplacementStore<string> {
   signableUsers(): SignInUser[];
   remember(userId: string): void;
   firstNameOf(userId: string): string | undefined;
-  authorizers(permission: AuthorizablePermissionKey): SignInUser[];
   signInRecord(userId: string): SignInRecord | undefined;
+  signablePeople(): SignablePerson[];
   activePerson(userId: string): ActivePerson | undefined;
-  pinSignInFailures(userId: string): PinSignInFailures | undefined;
-  recordPinSignInFailure(userId: string, at: Date): PinSignInFailures;
-  withdrawPinSignInFailure(userId: string): void;
-  clearPinSignInFailures(userId: string): void;
 }
 
 interface FailuresRow {
@@ -84,11 +83,25 @@ export class SqliteSignInStore implements SignInStore {
       .get(userId)?.first_name;
   }
 
-  authorizers(permission: AuthorizablePermissionKey): SignInUser[] {
-    return this.signableUsers().filter((user) => {
-      const record = this.signInRecord(user.id);
-      return record !== undefined && holdsPermission(record.access, permission);
+  signablePeople(): SignablePerson[] {
+    return this.signableUsers().flatMap(({ id }) => {
+      const record = this.signInRecord(id);
+      return record === undefined
+        ? []
+        : [{ id, firstName: record.firstName, access: record.access }];
     });
+  }
+
+  pinHolder(userId: string): PinHolder<PinCredential> | undefined {
+    const record = this.signInRecord(userId);
+    const salt = record === undefined ? undefined : decodePinSalt(record.salt);
+    return record === undefined || salt === undefined
+      ? undefined
+      : {
+          firstName: record.firstName,
+          access: record.access,
+          credential: { salt, verifier: record.verifier },
+        };
   }
 
   signInRecord(userId: string): SignInRecord | undefined {
@@ -193,5 +206,24 @@ export class SqliteSignInStore implements SignInStore {
 
   clearPinSignInFailures(userId: string): void {
     this.database.prepare("DELETE FROM pin_sign_in_failures WHERE user_id = ?").run(userId);
+  }
+
+  savePinCredential(userId: string, verifier: string | undefined): boolean {
+    const current = this.database
+      .prepare<[string], { verifier: string }>(
+        "SELECT verifier FROM pin_verifiers WHERE user_id = ?",
+      )
+      .get(userId)?.verifier;
+    if (verifier === undefined) {
+      this.database.prepare("DELETE FROM pin_verifiers WHERE user_id = ?").run(userId);
+    } else {
+      this.database
+        .prepare(
+          `INSERT INTO pin_verifiers (user_id, verifier) VALUES (@user_id, @verifier)
+           ON CONFLICT (user_id) DO UPDATE SET verifier = excluded.verifier`,
+        )
+        .run({ user_id: userId, verifier });
+    }
+    return current !== verifier;
   }
 }

@@ -1,5 +1,4 @@
-import { holdsPermission } from "../../access/index.js";
-import { isLockedToAnother } from "../../register/index.js";
+import { isLockedToAnother, registerOperationAccess } from "../../register/index.js";
 import type { SaleLedgerTransaction, SellingSession } from "./sale-ledger.js";
 
 export type SellingSessionRefusal = { kind: "not_permitted" } | { kind: "no_open_session" };
@@ -8,8 +7,8 @@ export function sellingSession(
   tx: SaleLedgerTransaction,
   actorId: string,
 ): SellingSession | SellingSessionRefusal {
-  const access = tx.sellerAccess(actorId);
-  if (!access || !holdsPermission(access, "sell_and_charge")) {
+  const seller = { id: actorId, access: tx.sellerAccess(actorId) };
+  if (registerOperationAccess({ kind: "sell" }, seller).kind !== "permitted") {
     return { kind: "not_permitted" };
   }
   const session = tx.openSession();

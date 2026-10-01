@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createRole, createUser } from "@purosur/domain/access/use-cases";
+import { editBranchSettings } from "@purosur/domain/branch/use-cases";
 import { createCategory, createProduct, createTag } from "@purosur/domain/catalog/use-cases";
 import { confirmPrice, createDiscount, setPrice } from "@purosur/domain/pricing/use-cases";
 import { createRegister } from "@purosur/domain/register/use-cases";
@@ -10,7 +11,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { DrizzleRoleStore } from "../access/drizzle-role-store.js";
 import { DrizzleUserStore } from "../access/drizzle-user-store.js";
 import { openAlert } from "../alerts/open-alert.js";
-import { editBranchSettings } from "../branch/branch-settings-edit-route.js";
+import { DrizzleBranchSettingsStore } from "../branch/drizzle-branch-settings-store.js";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import {
   alerts,
@@ -52,6 +53,11 @@ import {
 } from "./sample-catalog.js";
 
 const NOW = new Date("2026-04-01T09:00:00.000Z");
+const RECOVERY_REQUESTED_DETAIL = {
+  requestedAt: NOW.toISOString(),
+  issuedAt: NOW.toISOString(),
+  expiresAt: new Date(NOW.getTime() + 15 * 60 * 1000).toISOString(),
+};
 
 let integrationDb: IntegrationDatabase | undefined;
 let connection: ReturnType<typeof postgres> | undefined;
@@ -189,14 +195,17 @@ async function editBranchSettingsAs(
     .from(branchSettings)
     .where(eq(branchSettings.locationId, locationId));
   if (!current) throw new Error("test setup: no branch settings seeded");
-  const edit = await editBranchSettings(db, {
-    ...SAMPLE_BRANCH_SETTINGS,
-    address,
-    locationId,
-    actorId,
-    version: current.version,
-  });
-  if (edit.kind !== "applied") throw new Error("test setup: editing the branch settings failed");
+  const edit = await editBranchSettings(
+    { store: new DrizzleBranchSettingsStore(db) },
+    {
+      ...SAMPLE_BRANCH_SETTINGS,
+      address,
+      locationId,
+      actorId,
+      version: current.version,
+    },
+  );
+  if (edit.kind !== "edited") throw new Error("test setup: editing the branch settings failed");
 }
 
 function pricingPorts(db: PostgresJsDatabase<Record<string, never>>) {
@@ -296,7 +305,11 @@ describe("clearSampleData", () => {
     const realAlertOutcome = await db.transaction((tx) =>
       openAlert(
         tx,
-        { kind: "backoffice_recovery_requested", scope: realUserOutcome.user.id, detail: {} },
+        {
+          kind: "backoffice_recovery_requested",
+          scope: realUserOutcome.user.id,
+          detail: RECOVERY_REQUESTED_DETAIL,
+        },
         { now: () => NOW },
       ),
     );
@@ -424,7 +437,11 @@ describe("clearSampleData", () => {
     const realAlert = await db.transaction((tx) =>
       openAlert(
         tx,
-        { kind: "backoffice_recovery_requested", scope: bootstrapAdmin.id, detail: {} },
+        {
+          kind: "backoffice_recovery_requested",
+          scope: bootstrapAdmin.id,
+          detail: RECOVERY_REQUESTED_DETAIL,
+        },
         { now: () => NOW },
       ),
     );
@@ -764,14 +781,17 @@ describe("clearSampleData", () => {
       .from(branchSettings)
       .where(eq(branchSettings.locationId, bootstrapAdmin.locationId));
     if (!loadedSettings) throw new Error("test setup: no branch settings seeded");
-    const edit = await editBranchSettings(db, {
-      ...SAMPLE_BRANCH_SETTINGS,
-      address: "Calle Real 1",
-      locationId: bootstrapAdmin.locationId,
-      actorId: bootstrapAdmin.id,
-      version: loadedSettings.version,
-    });
-    if (edit.kind !== "applied") throw new Error("test setup: editing the branch settings failed");
+    const edit = await editBranchSettings(
+      { store: new DrizzleBranchSettingsStore(db) },
+      {
+        ...SAMPLE_BRANCH_SETTINGS,
+        address: "Calle Real 1",
+        locationId: bootstrapAdmin.locationId,
+        actorId: bootstrapAdmin.id,
+        version: loadedSettings.version,
+      },
+    );
+    if (edit.kind !== "edited") throw new Error("test setup: editing the branch settings failed");
     const [editedSettings] = await db.select().from(branchSettings);
     const editedHoursCount = await tableCount(db, "branch_hours");
 
@@ -801,13 +821,16 @@ describe("clearSampleData", () => {
       .from(branchSettings)
       .where(eq(branchSettings.locationId, bootstrapAdmin.locationId));
     if (!initialSettings) throw new Error("test setup: no branch settings seeded");
-    const edit = await editBranchSettings(db, {
-      ...SAMPLE_BRANCH_SETTINGS,
-      locationId: bootstrapAdmin.locationId,
-      actorId: bootstrapAdmin.id,
-      version: initialSettings.version,
-    });
-    if (edit.kind !== "applied") throw new Error("test setup: editing the branch settings failed");
+    const edit = await editBranchSettings(
+      { store: new DrizzleBranchSettingsStore(db) },
+      {
+        ...SAMPLE_BRANCH_SETTINGS,
+        locationId: bootstrapAdmin.locationId,
+        actorId: bootstrapAdmin.id,
+        version: initialSettings.version,
+      },
+    );
+    if (edit.kind !== "edited") throw new Error("test setup: editing the branch settings failed");
     const [realSettings] = await db.select().from(branchSettings);
     const realHoursCount = await tableCount(db, "branch_hours");
     expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
@@ -829,15 +852,17 @@ describe("clearSampleData", () => {
         .from(branchSettings)
         .where(eq(branchSettings.locationId, bootstrapAdmin.locationId));
       if (!current) throw new Error("test setup: no branch settings seeded");
-      const edit = await editBranchSettings(db, {
-        ...SAMPLE_BRANCH_SETTINGS,
-        address,
-        locationId: bootstrapAdmin.locationId,
-        actorId: bootstrapAdmin.id,
-        version: current.version,
-      });
-      if (edit.kind !== "applied")
-        throw new Error("test setup: editing the branch settings failed");
+      const edit = await editBranchSettings(
+        { store: new DrizzleBranchSettingsStore(db) },
+        {
+          ...SAMPLE_BRANCH_SETTINGS,
+          address,
+          locationId: bootstrapAdmin.locationId,
+          actorId: bootstrapAdmin.id,
+          version: current.version,
+        },
+      );
+      if (edit.kind !== "edited") throw new Error("test setup: editing the branch settings failed");
     };
     await editAsRealAdministrator("Calle Real 1");
     await editAsRealAdministrator(SAMPLE_BRANCH_SETTINGS.address);
@@ -907,14 +932,17 @@ describe("clearSampleData", () => {
       .from(branchSettings)
       .where(eq(branchSettings.locationId, bootstrapAdmin.locationId));
     if (!loadedSettings) throw new Error("test setup: no branch settings seeded");
-    const edit = await editBranchSettings(db, {
-      ...SAMPLE_BRANCH_SETTINGS,
-      address: "Calle Real 1",
-      locationId: bootstrapAdmin.locationId,
-      actorId: await userIdByEmail(db, SAMPLE_ADMINISTRATOR.email),
-      version: loadedSettings.version,
-    });
-    if (edit.kind !== "applied") throw new Error("test setup: editing the branch settings failed");
+    const edit = await editBranchSettings(
+      { store: new DrizzleBranchSettingsStore(db) },
+      {
+        ...SAMPLE_BRANCH_SETTINGS,
+        address: "Calle Real 1",
+        locationId: bootstrapAdmin.locationId,
+        actorId: await userIdByEmail(db, SAMPLE_ADMINISTRATOR.email),
+        version: loadedSettings.version,
+      },
+    );
+    if (edit.kind !== "edited") throw new Error("test setup: editing the branch settings failed");
     const beforeClear = await sampleDataSnapshot(db);
 
     const outcome = await clearSampleData(db);

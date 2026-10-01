@@ -7,8 +7,8 @@ import type {
 import {
   type CashMovementKind,
   cashMovementPermission,
-  holdsPermission,
-  type RoleAccess,
+  type RegisterActor,
+  registerOperationAccess,
 } from "@purosur/domain";
 import { recordCashMovement } from "@purosur/domain/register/use-cases";
 import type { SignedInPerson } from "../access/signed-in-person";
@@ -27,8 +27,9 @@ export async function recordCashMovementFor(
   if (outboxChainKey === undefined) {
     return { kind: "unavailable" };
   }
-  const guarded = await gate.run(
-    { permission: cashMovementPermission(kind), authorization },
+  const guarded = await gate.runAuthorized(
+    { kind: "record_cash_movement", movement: kind },
+    authorization,
     async ({ signedInUserId, authorizedBy }) =>
       recordCashMovement(
         {
@@ -67,22 +68,26 @@ export function cashMovementKindsFor({
     signedInUserId === undefined
       ? undefined
       : new SqliteSignInStore(database).activePerson(signedInUserId)?.access;
-  if (access === undefined) {
+  if (signedInUserId === undefined || access === undefined) {
     return null;
   }
+  const actor = { id: signedInUserId, access };
   return {
-    CASH_IN: authorizationNeeded(access, "CASH_IN"),
-    CASH_OUT: authorizationNeeded(access, "CASH_OUT"),
-    WITHDRAWAL: authorizationNeeded(access, "WITHDRAWAL"),
+    CASH_IN: authorizationNeeded(actor, "CASH_IN"),
+    CASH_OUT: authorizationNeeded(actor, "CASH_OUT"),
+    WITHDRAWAL: authorizationNeeded(actor, "WITHDRAWAL"),
   };
 }
 
 function authorizationNeeded(
-  access: RoleAccess,
-  kind: CashMovementKind,
+  actor: RegisterActor,
+  movement: CashMovementKind,
 ): RecordableCashMovementKinds[CashMovementKind] {
-  const permission = cashMovementPermission(kind);
-  return { permission, authorization_required: !holdsPermission(access, permission) };
+  const answer = registerOperationAccess({ kind: "record_cash_movement", movement }, actor);
+  return {
+    permission: cashMovementPermission(movement),
+    authorization_required: answer.kind === "needs_authorization",
+  };
 }
 
 export function currentCashMovements(database: LocalDatabase): ListedCashMovement[] | null {
