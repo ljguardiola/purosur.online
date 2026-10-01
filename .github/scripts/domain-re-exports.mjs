@@ -15,6 +15,7 @@ const DOMAIN_VALUE_IMPORT =
   /import\s+(?!type\b)\{([^}]*)\}\s*from\s*["']@purosur\/domain(?:\/[^"']*)?["']/g;
 const LOCAL_EXPORT = /export\s+(?!type\b)\{([^}]*)\}(?!\s*from\b)/g;
 const LOCAL_CONSTANT_EXPORT = /export\s+(?:const|let|var)\s+[\w$]+([^;]*);/g;
+const DECLARATOR_SEPARATOR = /,(?=\s*[A-Za-z_$][\w$]*\s*[:=])/;
 const INITIALIZER = /(?<![=<>!])=(?![=>])([\s\S]*)/;
 const BARE_IDENTIFIER = /^([A-Za-z_$][\w$]*)(?:\s+(?:as|satisfies)\s[\s\S]*)?$/;
 const DOMAIN_RE_EXPORT =
@@ -40,10 +41,12 @@ export function findDomainValueReExports(source) {
     ...[...source.matchAll(LOCAL_EXPORT)].flatMap((match) =>
       valueMembers(match[1]).map(exportedLocalName),
     ),
-    ...[...source.matchAll(LOCAL_CONSTANT_EXPORT)].flatMap(([, declaration]) => {
-      const initializer = declaration.match(INITIALIZER)?.[1].trim();
-      return initializer?.match(BARE_IDENTIFIER)?.[1] ?? [];
-    }),
+    ...[...source.matchAll(LOCAL_CONSTANT_EXPORT)].flatMap(([, declaration]) =>
+      declaration.split(DECLARATOR_SEPARATOR).flatMap((declarator) => {
+        const initializer = declarator.match(INITIALIZER)?.[1].trim();
+        return initializer?.match(BARE_IDENTIFIER)?.[1] ?? [];
+      }),
+    ),
   ].filter((name) => imported.has(name));
   const reExported = [...source.matchAll(DOMAIN_RE_EXPORT)]
     .filter(([, typeOnly]) => typeOnly === undefined)

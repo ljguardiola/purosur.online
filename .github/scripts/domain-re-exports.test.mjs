@@ -33,11 +33,13 @@ test("finds a domain value bound to an exported constant", () => {
   assert.deepEqual(findDomainValueReExports(source), ["LIMIT"]);
 });
 
-test("finds a domain value bound to an exported constant with a function type or a cast", () => {
+test("finds a domain value bound to an exported constant with a function type, a cast or a later declarator", () => {
   for (const binding of [
     "export const check: (value: string) => boolean = isValid;",
     "export const check = isValid as (value: string) => boolean;",
     "export const check = isValid satisfies (value: string) => boolean;",
+    "export const a = 1, check = isValid;",
+    "export const check: (value: string, other: number) => boolean = isValid, b = 1;",
   ]) {
     const source = ['import { isValid } from "@purosur/domain";', binding].join("\n");
 
