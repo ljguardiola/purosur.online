@@ -1246,11 +1246,19 @@ describe("wiring the registers routes", () => {
     });
 
     const coverage = await app.inject({ method: "GET", url: "/api/registers/coverage" });
+    const pointsOfSale = await app.inject({ method: "GET", url: "/api/registers/points-of-sale" });
+    const configurePointOfSale = await app.inject({
+      method: "PUT",
+      url: "/api/registers/00000000-0000-0000-0000-000000000000/point-of-sale",
+      headers: { origin: "https://staging.purosur.online" },
+    });
 
     expect(list.statusCode).toBe(404);
     expect(create.statusCode).toBe(404);
     expect(emitCode.statusCode).toBe(404);
     expect(coverage.statusCode).toBe(404);
+    expect(pointsOfSale.statusCode).toBe(404);
+    expect(configurePointOfSale.statusCode).toBe(404);
   });
 
   it("registers the registers routes when a registers option is given", async () => {
@@ -1272,11 +1280,19 @@ describe("wiring the registers routes", () => {
     });
 
     const coverage = await app.inject({ method: "GET", url: "/api/registers/coverage" });
+    const pointsOfSale = await app.inject({ method: "GET", url: "/api/registers/points-of-sale" });
+    const configurePointOfSale = await app.inject({
+      method: "PUT",
+      url: "/api/registers/00000000-0000-0000-0000-000000000000/point-of-sale",
+      headers: { origin: "https://staging.purosur.online" },
+    });
 
     expect(list.statusCode).toBe(401);
     expect(create.statusCode).toBe(401);
     expect(emitCode.statusCode).toBe(401);
     expect(coverage.statusCode).toBe(401);
+    expect(pointsOfSale.statusCode).toBe(401);
+    expect(configurePointOfSale.statusCode).toBe(401);
   });
 });
 
@@ -1504,6 +1520,28 @@ describe("wiring the buyer-identification threshold routes", () => {
   );
 });
 
+describe("wiring the fiscal address routes", () => {
+  it.each([
+    ["GET", "/api/fiscal-addresses"],
+    ["POST", "/api/fiscal-addresses"],
+    ["PUT", "/api/fiscal-addresses/00000000-0000-0000-0000-000000000000"],
+  ])("%s %s: answers according to the fiscalAddresses option", async (method, url) => {
+    const unwired = buildApp({ version: "abc1234" });
+    const wired = buildApp({
+      version: "abc1234",
+      fiscalAddresses: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+    });
+    const request = {
+      method: method as "GET" | "POST" | "PUT",
+      url,
+      headers: { origin: "https://staging.purosur.online" },
+    };
+
+    expect((await unwired.inject(request)).statusCode).toBe(404);
+    expect((await wired.inject(request)).statusCode).toBe(401);
+  });
+});
+
 describe("wiring the passkeys routes", () => {
   it("does not register GET /api/account/passkeys when no passkeys option is given", async () => {
     const app = buildApp({ version: "abc1234" });
@@ -1727,6 +1765,21 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/api/fiscal-addresses",
+        access: permissionAccess("change_fiscal_configuration"),
+      },
+      {
+        method: "POST",
+        url: "/api/fiscal-addresses",
+        access: permissionAccess("change_fiscal_configuration"),
+      },
+      {
+        method: "PUT",
+        url: "/api/fiscal-addresses/:id",
+        access: permissionAccess("change_fiscal_configuration"),
+      },
+      {
+        method: "GET",
         url: "/api/categories",
         access: permissionAccess("manage_products_and_categories"),
       },
@@ -1927,6 +1980,16 @@ describe("the route access inventory", () => {
         method: "POST",
         url: "/api/registers/:id/device-codes",
         access: permissionAccess("enroll_register_devices"),
+      },
+      {
+        method: "GET",
+        url: "/api/registers/points-of-sale",
+        access: permissionAccess("change_fiscal_configuration"),
+      },
+      {
+        method: "PUT",
+        url: "/api/registers/:id/point-of-sale",
+        access: permissionAccess("change_fiscal_configuration"),
       },
       { method: "GET", url: "/api/health", access: PUBLIC_ACCESS },
       { method: "POST", url: "/api/devices", access: PUBLIC_ACCESS },

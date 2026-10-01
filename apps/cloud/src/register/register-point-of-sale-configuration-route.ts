@@ -1,0 +1,102 @@
+import { pointOfSaleConfigurationBodySchema, registerPointOfSaleSchema } from "@purosur/contracts";
+import { configureRegisterPointOfSale } from "@purosur/domain/register/use-cases";
+import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
+import type { FastifyInstance } from "fastify";
+import { sameOriginGuard } from "../access/backoffice-origin.js";
+import { requirePasskeyAuthorization } from "../access/passkey-authorization-guard.js";
+import {
+  openSessionOf,
+  permissionAccess,
+  registerRouteAccess,
+  routeSessionSource,
+} from "../access/route-access.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
+import { DrizzleBranchRegisterStore } from "./drizzle-branch-register-store.js";
+import type { RegistersRouteOptions } from "./registers-list-route.js";
+
+const REGISTER_NOT_FOUND_RESPONSE = {
+  code: "not_found",
+  message: "no register with that id belongs to this branch",
+} as const;
+
+const STALE_VERSION_RESPONSE = {
+  code: "stale_version",
+  message: "this register's point of sale was changed since it was loaded",
+} as const;
+
+const POINT_OF_SALE_TAKEN_RESPONSE = {
+  code: "point_of_sale_taken",
+  message: "that point of sale number belongs to another register",
+  details: [{ field: "point_of_sale_number" }],
+} as const;
+
+const FISCAL_ADDRESS_NOT_FOUND_RESPONSE = {
+  code: "validation_failed",
+  message: "fiscal_address_id must be the id of a fiscal address",
+  details: [{ field: "fiscal_address_id" }],
+} as const;
+
+export function registerRegisterPointOfSaleConfigurationRoute<
+  TQueryResult extends PgQueryResultHKT,
+>(app: FastifyInstance, options: RegistersRouteOptions<TQueryResult>): void {
+  const now = options.now ?? (() => new Date());
+  registerRouteAccess(app);
+  const sessionSource = routeSessionSource({ db: options.db, now });
+  const store = new DrizzleBranchRegisterStore(options.db);
+
+  app.put<{ Params: { id: string } }>(
+    "/registers/:id/point-of-sale",
+    {
+      preHandler: sameOriginGuard(options.backofficeOrigin),
+      config: { access: permissionAccess("change_fiscal_configuration"), sessionSource },
+    },
+    async (request, reply) => {
+      const attemptedAt = now();
+      const openSession = openSessionOf(request);
+
+      const body = await readValidatedBody(reply, pointOfSaleConfigurationBodySchema, request.body);
+      if (!body) {
+        return;
+      }
+
+      if (!(await requirePasskeyAuthorization(openSession, reply, attemptedAt))) {
+        return;
+      }
+
+      const outcome = await configureRegisterPointOfSale(store, {
+        locationId: openSession.locationId,
+        registerId: request.params.id,
+        pointOfSaleNumber: body.point_of_sale_number,
+        fiscalAddressId: body.fiscal_address_id,
+        version: body.version,
+        actorId: openSession.userId,
+      });
+
+      if (outcome.kind === "register_not_found") {
+        await reply.code(404).send(REGISTER_NOT_FOUND_RESPONSE);
+        return;
+      }
+      if (outcome.kind === "stale_version") {
+        await reply.code(409).send(STALE_VERSION_RESPONSE);
+        return;
+      }
+      if (outcome.kind === "fiscal_address_not_found") {
+        await reply.code(400).send(FISCAL_ADDRESS_NOT_FOUND_RESPONSE);
+        return;
+      }
+      if (outcome.kind === "point_of_sale_taken") {
+        await reply.code(409).send(POINT_OF_SALE_TAKEN_RESPONSE);
+        return;
+      }
+
+      await reply.code(200).send(
+        registerPointOfSaleSchema.parse({
+          register_id: request.params.id,
+          point_of_sale_number: outcome.setup.pointOfSaleNumber,
+          fiscal_address_id: outcome.setup.fiscalAddressId,
+          version: outcome.setup.version,
+        }),
+      );
+    },
+  );
+}
