@@ -323,6 +323,7 @@ describe("PUT /products/:id", () => {
       barcodes: ["333"],
       netContent: null,
       active: true,
+      labelCode: null,
       brandId: null,
       tagIds: [],
       version: 2,
@@ -332,6 +333,30 @@ describe("PUT /products/:id", () => {
       .from(productBarcodes)
       .where(eq(productBarcodes.productId, product.id));
     expect(codes.map((row) => row.code)).toEqual(["333"]);
+  });
+
+  it("answers the edited product with the internal barcode its label carries", async () => {
+    const categoryId = await insertCategory("Macetas");
+    const product = await insertProduct({
+      name: "Maceta",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+    });
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await editProduct(rawSessionId, product.id, {
+      name: "Maceta",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111", "2000000000015"],
+      brandId: null,
+      tagIds: [],
+      version: product.version,
+    });
+
+    expect(response.json()).toMatchObject({ labelCode: "2000000000015" });
   });
 
   it("allows a product to keep one of its own codes", async () => {
