@@ -73,6 +73,9 @@ function coreAnswering(
     cashSession?: CoreClient["cashSession"];
     openOutcome?: OpenCashSessionOutcome;
     closeCashSession?: CoreClient["closeCashSession"];
+    closeLockedCashSession?: CoreClient["closeLockedCashSession"];
+    identifyLockedCloser?: CoreClient["identifyLockedCloser"];
+    authorizers?: CoreClient["authorizers"];
     cashBalance?: CoreClient["cashBalance"];
     redeemOutcome?: PinCodeRedemptionOutcome;
     cashMovements?: CoreClient["cashMovements"];
@@ -89,6 +92,7 @@ function coreAnswering(
   const cashSessionAsks: string[] = [];
   const opened: number[] = [];
   const closed: [string, number, Authorization | undefined][] = [];
+  const closedLocked: [string, number, Authorization][] = [];
   const recorded: Parameters<CoreClient["recordCashMovement"]>[0][] = [];
   const asked: string[] = [];
   let usersLoads = 0;
@@ -113,8 +117,8 @@ function coreAnswering(
       usersLoads += 1;
       return [{ id: "u1", first_name: "Ada" }];
     },
-    async authorizers() {
-      return [];
+    async authorizers(permission) {
+      return cashDrawer.authorizers === undefined ? [] : cashDrawer.authorizers(permission);
     },
     async signIn() {
       return signInOutcome;
@@ -180,6 +184,17 @@ function coreAnswering(
         ? { kind: "unavailable" }
         : cashDrawer.closeCashSession(sessionId, countedCash, authorization);
     },
+    async closeLockedCashSession(sessionId, countedCash, closer) {
+      closedLocked.push([sessionId, countedCash, closer]);
+      return cashDrawer.closeLockedCashSession === undefined
+        ? { kind: "unavailable" }
+        : cashDrawer.closeLockedCashSession(sessionId, countedCash, closer);
+    },
+    async identifyLockedCloser(closer) {
+      return cashDrawer.identifyLockedCloser === undefined
+        ? { kind: "identified", person: { user_id: closer.user_id, first_name: "Sofía" } }
+        : cashDrawer.identifyLockedCloser(closer);
+    },
     async cashBalance() {
       return cashDrawer.cashBalance === undefined ? null : cashDrawer.cashBalance();
     },
@@ -202,6 +217,7 @@ function coreAnswering(
     cashSessionAsks,
     opened,
     closed,
+    closedLocked,
     recorded,
     finishPull,
     usersLoads: () => usersLoads,
@@ -1248,6 +1264,92 @@ describe("App", () => {
 
       await expect.poll(() => asks).toBe(2);
       await expect.element(screen.getByRole("heading", { name: "Cerrar caja" })).toBeVisible();
+    });
+  });
+
+  describe("closing a locked register's cash session by another person", () => {
+    async function identifyFromLocked(
+      cashDrawer: {
+        identifyLockedCloser?: CoreClient["identifyLockedCloser"];
+        closeLockedCashSession?: CoreClient["closeLockedCashSession"];
+        cashSession?: CoreClient["cashSession"];
+      } = {},
+    ) {
+      await page.viewport(1280, 720);
+      onTestFinished(() => page.viewport(414, 896));
+      const fake = coreAnswering(true, { kind: "enrolled" }, ADA_SIGNED_IN, {
+        cashSession: async () => GRACE_SESSION,
+        cashBalance: async () => BALANCE,
+        authorizers: async () => [{ id: "u3", first_name: "Sofía" }],
+        ...cashDrawer,
+      });
+      const screen = await render(<App core={fake.core} />);
+      postCoreStatus("up");
+      await userEvent.click(screen.getByRole("link", { name: "Otra persona cierra la caja" }));
+      await userEvent.click(screen.getByText("Sofía", { exact: true }));
+      await userEvent.type(screen.getByLabelText("PIN"), "1234");
+      await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
+      return { screen, ...fake };
+    }
+
+    async function closeFromLocked(cashDrawer: Parameters<typeof identifyFromLocked>[0]) {
+      const identified = await identifyFromLocked(cashDrawer);
+      const { screen } = identified;
+      await expect
+        .element(screen.getByRole("complementary").getByText("$ 46.200,00", { exact: true }))
+        .toBeVisible();
+      await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
+      await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
+      return identified;
+    }
+
+    it("lands on the sign-in screen with nobody signed in once the session is closed", async () => {
+      const { screen, closedLocked, asked } = await closeFromLocked({
+        closeLockedCashSession: async () => ({
+          kind: "closed",
+          session: {
+            id: "s1",
+            expected_cash: 4_620_000,
+            counted_cash: 4_580_000,
+            difference: -40_000,
+          },
+        }),
+      });
+
+      await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+      expect(closedLocked).toEqual([["s1", 4_580_000, { user_id: "u3", pin: "1234" }]]);
+      expect(asked).not.toContain("sign-out");
+    });
+
+    it.each(["no_open_session", "not_locked"] as const)(
+      "reads the cash session again when the close answers %s",
+      async (kind) => {
+        let asks = 0;
+        const { screen } = await closeFromLocked({
+          closeLockedCashSession: async () => ({ kind }),
+          cashSession: async () => {
+            asks += 1;
+            return asks === 1 ? GRACE_SESSION : null;
+          },
+        });
+
+        await expect.poll(() => asks).toBe(2);
+        await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+      },
+    );
+
+    it("reads the cash session again when identifying answers that the register is not locked", async () => {
+      let asks = 0;
+      const { screen } = await identifyFromLocked({
+        identifyLockedCloser: async () => ({ kind: "not_locked" }),
+        cashSession: async () => {
+          asks += 1;
+          return asks === 1 ? GRACE_SESSION : null;
+        },
+      });
+
+      await expect.poll(() => asks).toBe(2);
+      await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
     });
   });
 

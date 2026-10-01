@@ -5,10 +5,12 @@ import type {
   CashBalance,
   ChangeLineQuantityOutcome,
   CloseCashSessionOutcome,
+  CloseLockedCashSessionOutcome,
   CoreToRendererMessage,
   CurrentSaleAnswer,
   EnrollmentOutcome,
   FirstPinCodeRequestOutcome,
+  IdentifyLockedCloserOutcome,
   ListedCashMovement,
   OpenCashSession,
   OpenCashSessionOutcome,
@@ -68,6 +70,12 @@ export interface CoreClient {
     countedCash: number,
     authorization?: Authorization,
   ): Promise<CloseCashSessionOutcome>;
+  closeLockedCashSession(
+    sessionId: string,
+    countedCash: number,
+    closer: Authorization,
+  ): Promise<CloseLockedCashSessionOutcome>;
+  identifyLockedCloser(closer: Authorization): Promise<IdentifyLockedCloserOutcome>;
   cashBalance(): Promise<CashBalance | null | "unavailable">;
   onPulled(listener: () => void): () => void;
 }
@@ -326,6 +334,25 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           ...(authorization === undefined ? {} : { authorization }),
         },
         (answer) => (answer.type === "close-cash-session-result" ? answer.outcome : undefined),
+      );
+    },
+    closeLockedCashSession(sessionId, countedCash, closer) {
+      return ask(
+        {
+          type: "close-locked-cash-session",
+          request_id: deps.newRequestId(),
+          session_id: sessionId,
+          counted_cash: countedCash,
+          closer,
+        },
+        (answer) =>
+          answer.type === "close-locked-cash-session-result" ? answer.outcome : undefined,
+      );
+    },
+    identifyLockedCloser(closer) {
+      return ask(
+        { type: "identify-locked-closer", request_id: deps.newRequestId(), closer },
+        (answer) => (answer.type === "identify-locked-closer-result" ? answer.outcome : undefined),
       );
     },
     cashBalance() {

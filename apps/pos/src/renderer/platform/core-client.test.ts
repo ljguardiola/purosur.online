@@ -547,6 +547,51 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to close a locked register's session with the closer's PIN and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const closer = { user_id: "u2", pin: "1234" };
+
+    const outcome = client.closeLockedCashSession("s1", 4800, closer);
+    port.answer({
+      type: "close-locked-cash-session-result",
+      request_id: "request-1",
+      outcome: { kind: "not_locked" },
+    });
+
+    expect(await outcome).toEqual({ kind: "not_locked" });
+    expect(port.posted).toEqual([
+      {
+        type: "close-locked-cash-session",
+        request_id: "request-1",
+        session_id: "s1",
+        counted_cash: 4800,
+        closer,
+      },
+    ]);
+  });
+
+  it("asks the core who closes a locked register by their PIN and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const closer = { user_id: "u2", pin: "1234" };
+    const identified = { kind: "identified", person: { user_id: "u2", first_name: "Grace" } };
+
+    const outcome = client.identifyLockedCloser(closer);
+    port.answer({
+      type: "identify-locked-closer-result",
+      request_id: "request-1",
+      outcome: identified,
+    });
+
+    expect(await outcome).toEqual(identified);
+    expect(port.posted).toEqual([
+      { type: "identify-locked-closer", request_id: "request-1", closer },
+    ]);
+  });
+
   it("sends the authorization when closing a session with one", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();

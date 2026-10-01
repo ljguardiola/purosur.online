@@ -141,10 +141,12 @@ export {
 export type {
   CashBalance,
   CloseCashSessionOutcome,
+  CloseLockedCashSessionOutcome,
   CoreStatusMessage,
   CoreToRendererMessage,
   EnrollmentOutcome,
   FirstPinCodeRequestOutcome,
+  IdentifyLockedCloserOutcome,
   ListedCashMovement,
   MainToCoreMessage,
   OpenCashSession,

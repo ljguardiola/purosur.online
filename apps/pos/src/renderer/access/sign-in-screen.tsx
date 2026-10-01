@@ -55,7 +55,7 @@ function SignInPanel({
   const attempt = usePinAttempt(
     chosen === null
       ? null
-      : { id: chosen.id, firstName: chosen.first_name, signIn: (pin) => signIn(chosen.id, pin) },
+      : { id: chosen.id, firstName: chosen.first_name, attempt: (pin) => signIn(chosen.id, pin) },
   );
   const { refusal, locked, submitting } = attempt;
 

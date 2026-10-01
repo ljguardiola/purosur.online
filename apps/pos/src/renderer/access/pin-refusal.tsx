@@ -5,7 +5,8 @@ import { waitDescription } from "./pin-attempt-text";
 
 export type Refusal =
   | Exclude<SignInOutcome, { kind: "signed_in" | "locked" }>
-  | { kind: "locked"; firstName: string; consecutiveFailures: number };
+  | { kind: "locked"; firstName: string; consecutiveFailures: number }
+  | { kind: "lacks_permission"; firstName: string };
 
 export type PinNotice = { icon: Icon; title: string; description: string };
 
@@ -44,6 +45,7 @@ export function noticeFor(refusal: Refusal, secondsLeft: number): PinNotice | un
         title: "La caja está abierta",
         description: "Solo puede ingresar quien la abrió.",
       };
+    case "lacks_permission":
     case "locked":
       return undefined;
     case "unavailable":

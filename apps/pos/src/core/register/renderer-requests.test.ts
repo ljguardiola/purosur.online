@@ -4,7 +4,9 @@ import type {
   CashBalance,
   ChangeLineQuantityOutcome,
   CloseCashSessionOutcome,
+  CloseLockedCashSessionOutcome,
   FirstPinCodeRequestOutcome,
+  IdentifyLockedCloserOutcome,
   ListedCashMovement,
   OpenCashSession,
   OpenCashSessionOutcome,
@@ -141,6 +143,12 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         closings.push({ sessionId, countedCash, authorization });
         return { kind: "no_open_session" };
       },
+      closeLockedCashSession: async (): Promise<CloseLockedCashSessionOutcome> => ({
+        kind: "no_open_session",
+      }),
+      identifyLockedCloser: async (): Promise<IdentifyLockedCloserOutcome> => ({
+        kind: "not_locked",
+      }),
       cashBalance: (): CashBalance | null => null,
       authorizers: (permission: AuthorizablePermissionKey) => {
         authorizerLookups.push(permission);
@@ -945,6 +953,144 @@ describe("answerRendererRequest", () => {
     ).toEqual({
       type: "close-cash-session-result",
       request_id: "r23",
+      outcome: { kind: "unavailable" },
+    });
+  });
+
+  it("closes a locked register's cash session with the session, the count and the closer as sent, and answers the outcome", async () => {
+    const closed: CloseLockedCashSessionOutcome = {
+      kind: "closed",
+      session: { id: "s1", expected_cash: 5000, counted_cash: 4800, difference: -200 },
+    };
+    const closer = { user_id: "u2", pin: "1234" };
+    const received: unknown[] = [];
+    const { deps: withClosing } = deps(true, {
+      closeLockedCashSession: async (sessionId, countedCash, sentCloser) => {
+        received.push({ sessionId, countedCash, closer: sentCloser });
+        return closed;
+      },
+    });
+
+    const answer = await answerRendererRequest(withClosing, {
+      type: "close-locked-cash-session",
+      request_id: "r24",
+      session_id: "s1",
+      counted_cash: 4800,
+      closer,
+    });
+
+    expect(answer).toEqual({
+      type: "close-locked-cash-session-result",
+      request_id: "r24",
+      outcome: closed,
+    });
+    expect(received).toEqual([{ sessionId: "s1", countedCash: 4800, closer }]);
+  });
+
+  it("answers that closing a locked register's cash session is unavailable when it fails, and reports why", async () => {
+    const error = new Error("disk full");
+    const failing = deps(true, {
+      closeLockedCashSession: async () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "close-locked-cash-session",
+        request_id: "r25",
+        session_id: "s1",
+        counted_cash: 0,
+        closer: { user_id: "u2", pin: "1234" },
+      }),
+    ).toEqual({
+      type: "close-locked-cash-session-result",
+      request_id: "r25",
+      outcome: { kind: "unavailable" },
+    });
+    expect(failing.failures).toEqual([
+      { context: "closing a locked register's cash session", error },
+    ]);
+  });
+
+  it("answers that closing a locked register's cash session is unavailable when the register has no database", async () => {
+    expect(
+      await answerRendererRequest(deps(true, { closeLockedCashSession: undefined }).deps, {
+        type: "close-locked-cash-session",
+        request_id: "r26",
+        session_id: "s1",
+        counted_cash: 0,
+        closer: { user_id: "u2", pin: "1234" },
+      }),
+    ).toEqual({
+      type: "close-locked-cash-session-result",
+      request_id: "r26",
+      outcome: { kind: "unavailable" },
+    });
+  });
+
+  it("identifies who closes a locked register with the closer as sent, and answers the outcome", async () => {
+    const identified: IdentifyLockedCloserOutcome = {
+      kind: "identified",
+      person: { user_id: "u2", first_name: "Grace" },
+    };
+    const closer = { user_id: "u2", pin: "1234" };
+    const received: unknown[] = [];
+    const { deps: identifying } = deps(true, {
+      identifyLockedCloser: async (sentCloser) => {
+        received.push(sentCloser);
+        return identified;
+      },
+    });
+
+    const answer = await answerRendererRequest(identifying, {
+      type: "identify-locked-closer",
+      request_id: "r27",
+      closer,
+    });
+
+    expect(answer).toEqual({
+      type: "identify-locked-closer-result",
+      request_id: "r27",
+      outcome: identified,
+    });
+    expect(received).toEqual([closer]);
+  });
+
+  it("answers that identifying who closes a locked register is unavailable when it fails, and reports why", async () => {
+    const error = new Error("disk full");
+    const failing = deps(true, {
+      identifyLockedCloser: async () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "identify-locked-closer",
+        request_id: "r28",
+        closer: { user_id: "u2", pin: "1234" },
+      }),
+    ).toEqual({
+      type: "identify-locked-closer-result",
+      request_id: "r28",
+      outcome: { kind: "unavailable" },
+    });
+    expect(failing.failures).toEqual([
+      { context: "identifying who closes a locked register", error },
+    ]);
+  });
+
+  it("answers that identifying who closes a locked register is unavailable when the register has no database", async () => {
+    expect(
+      await answerRendererRequest(deps(true, { identifyLockedCloser: undefined }).deps, {
+        type: "identify-locked-closer",
+        request_id: "r29",
+        closer: { user_id: "u2", pin: "1234" },
+      }),
+    ).toEqual({
+      type: "identify-locked-closer-result",
+      request_id: "r29",
       outcome: { kind: "unavailable" },
     });
   });

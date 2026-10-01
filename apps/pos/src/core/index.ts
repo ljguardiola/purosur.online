@@ -43,7 +43,9 @@ import {
   cashBalanceFor,
   cashSessionOpener,
   closeCashSessionFor,
+  closeLockedCashSessionFor,
   currentCashSession,
+  identifyLockedCloserFor,
   openCashSessionFor,
 } from "./register/cash-session-requests";
 import { rotateDeviceToken } from "./register/device-token-rotation";
@@ -336,6 +338,26 @@ const rendererRequestDeps: RendererRequestDeps = {
             },
             { sessionId, countedCash, authorization },
           ),
+  closeLockedCashSession:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (sessionId, countedCash, closer) =>
+          closeLockedCashSessionFor(
+            {
+              database: localDatabase,
+              gate: actionGate,
+              signedInPerson,
+              readOutboxChainKey: async () =>
+                (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+              now: () => new Date(),
+              ids: uuidV7Ids,
+            },
+            { sessionId, countedCash, closer },
+          ),
+  identifyLockedCloser:
+    actionGate === undefined
+      ? undefined
+      : (closer) => identifyLockedCloserFor({ gate: actionGate }, closer),
   cashBalance: localDatabase === undefined ? undefined : () => cashBalanceFor(localDatabase),
   cashSession: localDatabase === undefined ? undefined : () => currentCashSession(localDatabase),
   recordCashMovement:
