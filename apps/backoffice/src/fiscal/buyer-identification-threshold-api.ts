@@ -1,7 +1,7 @@
 import {
   type BuyerIdentificationThresholdBody,
   type BuyerIdentificationThresholdRecordBody,
-  buyerIdentificationThresholdListSchema,
+  buyerIdentificationThresholdOverviewSchema,
   buyerIdentificationThresholdSchema,
 } from "@purosur/contracts";
 import type { BuyerIdentificationThreshold } from "@purosur/domain";
@@ -9,9 +9,14 @@ import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { retryAfterSeconds } from "../platform/retry-after-seconds";
 import { readValidationFailedField } from "../platform/validation-failed-field";
 
-export type FetchBuyerIdentificationThresholdsOutcome = CloudReadOutcome<
-  BuyerIdentificationThreshold[]
->;
+export type BuyerIdentificationThresholds = {
+  inEffect: BuyerIdentificationThreshold | null;
+  scheduled: BuyerIdentificationThreshold | null;
+  latestValidFrom: string | null;
+};
+
+export type FetchBuyerIdentificationThresholdsOutcome =
+  CloudReadOutcome<BuyerIdentificationThresholds>;
 
 export type RecordBuyerIdentificationThresholdOutcome =
   | { kind: "ok"; value: BuyerIdentificationThreshold }
@@ -45,13 +50,21 @@ export async function fetchBuyerIdentificationThresholds(): Promise<FetchBuyerId
   if (!response.ok) {
     return { kind: "failed" };
   }
-  const parsed = buyerIdentificationThresholdListSchema.safeParse(
+  const parsed = buyerIdentificationThresholdOverviewSchema.safeParse(
     await response.json().catch(() => undefined),
   );
   if (!parsed.success) {
     return { kind: "failed" };
   }
-  return { kind: "ok", value: parsed.data.map(thresholdFromWire) };
+  const { in_effect, scheduled, latest_valid_from } = parsed.data;
+  return {
+    kind: "ok",
+    value: {
+      inEffect: in_effect && thresholdFromWire(in_effect),
+      scheduled: scheduled && thresholdFromWire(scheduled),
+      latestValidFrom: latest_valid_from,
+    },
+  };
 }
 
 async function codeOf(response: Response): Promise<unknown> {

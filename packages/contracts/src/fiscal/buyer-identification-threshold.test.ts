@@ -1,7 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   type BuyerIdentificationThresholdBody,
-  buyerIdentificationThresholdListSchema,
+  buyerIdentificationThresholdOverviewSchema,
   buyerIdentificationThresholdSchema,
 } from "./buyer-identification-threshold.js";
 
@@ -35,15 +35,41 @@ describe("buyerIdentificationThresholdSchema", () => {
   });
 });
 
-describe("buyerIdentificationThresholdListSchema", () => {
-  it("accepts a list of thresholds, including an empty one", () => {
-    expect(buyerIdentificationThresholdListSchema.parse([row, { ...row, id: "b" }])).toHaveLength(
-      2,
-    );
-    expect(buyerIdentificationThresholdListSchema.parse([])).toEqual([]);
+describe("buyerIdentificationThresholdOverviewSchema", () => {
+  const overview = { in_effect: row, scheduled: null, latest_valid_from: "2026-01-01" };
+
+  it("accepts the threshold in effect, the scheduled one and the day the newest starts", () => {
+    const scheduled = { ...row, id: "b", valid_from: "2026-06-01" };
+
+    expect(
+      buyerIdentificationThresholdOverviewSchema.parse({
+        in_effect: row,
+        scheduled,
+        latest_valid_from: "2026-06-01",
+      }),
+    ).toEqual({ in_effect: row, scheduled, latest_valid_from: "2026-06-01" });
   });
 
-  it("refuses a list holding something that is not a threshold", () => {
-    expect(buyerIdentificationThresholdListSchema.safeParse([{ id: "a" }]).success).toBe(false);
+  it("accepts an overview with nothing in effect, nothing scheduled and no newest day", () => {
+    const empty = { in_effect: null, scheduled: null, latest_valid_from: null };
+
+    expect(buyerIdentificationThresholdOverviewSchema.parse(empty)).toEqual(empty);
+  });
+
+  it.each([
+    ["without in_effect", { ...overview, in_effect: undefined }],
+    ["without scheduled", { ...overview, scheduled: undefined }],
+    ["without latest_valid_from", { ...overview, latest_valid_from: undefined }],
+    ["with an in_effect that is not a threshold", { ...overview, in_effect: { id: "a" } }],
+    ["with a scheduled that is not a threshold", { ...overview, scheduled: { id: "a" } }],
+    ["with a latest_valid_from that is not text", { ...overview, latest_valid_from: 20260101 }],
+  ])("refuses an overview %s", (_case, body) => {
+    expect(buyerIdentificationThresholdOverviewSchema.safeParse(body).success).toBe(false);
+  });
+
+  it("keeps nothing but the fields the backoffice may hold", () => {
+    expect(
+      buyerIdentificationThresholdOverviewSchema.parse({ ...overview, created_by: "x" }),
+    ).toEqual(overview);
   });
 });

@@ -1,14 +1,13 @@
-import { thresholdInEffectOn, thresholdScheduledAfter } from "@purosur/domain";
 import { Button, formatCents, LoadFailure, LoadingPlaceholder } from "@purosur/ui";
 import { Plus } from "lucide-react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import type { CloudData } from "../platform/use-cloud-query";
+import type { BuyerIdentificationThresholds } from "./buyer-identification-threshold-api";
 import { formatDisplayDate } from "./display-date";
 import { DataPair } from "./fiscal-data-pair";
-import type { BuyerIdentificationThresholdsOnDay } from "./fiscal-queries";
 
 type BuyerIdentificationThresholdSectionProps = {
-  data: CloudData<BuyerIdentificationThresholdsOnDay>;
+  data: CloudData<BuyerIdentificationThresholds>;
   onRecord: () => void;
 };
 
@@ -17,8 +16,8 @@ export function BuyerIdentificationThresholdSection({
   onRecord,
 }: BuyerIdentificationThresholdSectionProps) {
   const loaded = data.status === "loaded" ? data.value : null;
-  const inEffect = loaded && thresholdInEffectOn(loaded.thresholds, loaded.today);
-  const scheduled = loaded && thresholdScheduledAfter(loaded.thresholds, loaded.today);
+  const inEffect = loaded?.inEffect;
+  const scheduled = loaded?.scheduled;
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">

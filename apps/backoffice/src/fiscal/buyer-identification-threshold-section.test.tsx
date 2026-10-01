@@ -1,35 +1,35 @@
-import type { BuyerIdentificationThreshold } from "@purosur/domain";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { CloudData } from "../platform/use-cloud-query";
+import type { BuyerIdentificationThresholds } from "./buyer-identification-threshold-api";
 import { BuyerIdentificationThresholdSection } from "./buyer-identification-threshold-section";
-import type { BuyerIdentificationThresholdsOnDay } from "./fiscal-queries";
 
-const inEffect: BuyerIdentificationThreshold = {
+const inEffect = {
   id: "threshold-1",
   amount: 1_000_000_000,
   validFrom: "2026-01-01",
 };
 
-const scheduled: BuyerIdentificationThreshold = {
+const scheduled = {
   id: "threshold-2",
   amount: 1_500_000_000,
   validFrom: "2026-12-01",
 };
 
-const aDayOfOctober = "2026-10-15";
-
 function loaded(
-  thresholds: BuyerIdentificationThreshold[],
-  today = aDayOfOctober,
-): CloudData<BuyerIdentificationThresholdsOnDay> {
-  return { status: "loaded", value: { thresholds, today }, refreshing: false };
+  thresholds: Partial<BuyerIdentificationThresholds>,
+): CloudData<BuyerIdentificationThresholds> {
+  return {
+    status: "loaded",
+    value: { inEffect: null, scheduled: null, latestValidFrom: null, ...thresholds },
+    refreshing: false,
+  };
 }
 
 function sectionFor(
-  data: CloudData<BuyerIdentificationThresholdsOnDay>,
+  data: CloudData<BuyerIdentificationThresholds>,
   options: { onRecord?: () => void } = {},
 ) {
   return (
@@ -40,7 +40,7 @@ function sectionFor(
 }
 
 test("shows the threshold in effect today with the day it started, and what a sale at that amount means", async () => {
-  const screen = await render(sectionFor(loaded([scheduled, inEffect])));
+  const screen = await render(sectionFor(loaded({ inEffect, scheduled })));
 
   await expect
     .element(
@@ -56,7 +56,7 @@ test("shows the threshold in effect today with the day it started, and what a sa
 });
 
 test("also shows the next threshold, with its own start, when one is scheduled after today", async () => {
-  const screen = await render(sectionFor(loaded([scheduled, inEffect])));
+  const screen = await render(sectionFor(loaded({ inEffect, scheduled })));
 
   await expect.element(screen.getByText("Próximo")).toBeVisible();
   await expect.element(screen.getByText("$ 15.000.000,00")).toBeVisible();
@@ -64,14 +64,14 @@ test("also shows the next threshold, with its own start, when one is scheduled a
 });
 
 test("shows no next threshold when none is scheduled", async () => {
-  const screen = await render(sectionFor(loaded([inEffect])));
+  const screen = await render(sectionFor(loaded({ inEffect })));
 
   await expect.element(screen.getByText("$ 10.000.000,00")).toBeVisible();
   expect(screen.getByText("Próximo").query()).toBeNull();
 });
 
 test("shows Sin cargar, and no start, when no threshold has been loaded", async () => {
-  const screen = await render(sectionFor(loaded([])));
+  const screen = await render(sectionFor(loaded({})));
 
   await expect.element(screen.getByText("Sin cargar")).toBeVisible();
   expect(screen.getByText("Desde").query()).toBeNull();
@@ -79,20 +79,10 @@ test("shows Sin cargar, and no start, when no threshold has been loaded", async 
 });
 
 test("shows Sin cargar for what is in effect while the only threshold starts later", async () => {
-  const screen = await render(sectionFor(loaded([scheduled])));
+  const screen = await render(sectionFor(loaded({ scheduled })));
 
   await expect.element(screen.getByText("Sin cargar")).toBeVisible();
   await expect.element(screen.getByText("Próximo")).toBeVisible();
-  await expect.element(screen.getByText("$ 15.000.000,00")).toBeVisible();
-});
-
-test("moves the split between in effect and next when the loaded day moves past the next start", async () => {
-  const screen = await render(sectionFor(loaded([scheduled, inEffect])));
-  await expect.element(screen.getByText("Próximo")).toBeVisible();
-
-  await screen.rerender(sectionFor(loaded([scheduled, inEffect], "2026-12-01")));
-
-  await expect.element(screen.getByText("Próximo")).not.toBeInTheDocument();
   await expect.element(screen.getByText("$ 15.000.000,00")).toBeVisible();
 });
 
@@ -137,7 +127,7 @@ test("keeps the action available while loaded data refreshes", async () => {
     sectionFor(
       {
         status: "loaded",
-        value: { thresholds: [inEffect], today: aDayOfOctober },
+        value: { inEffect, scheduled: null, latestValidFrom: inEffect.validFrom },
         refreshing: true,
       },
       { onRecord },
@@ -150,7 +140,7 @@ test("keeps the action available while loaded data refreshes", async () => {
 });
 
 test("has no accessibility violations once loaded", async () => {
-  const screen = await render(sectionFor(loaded([scheduled, inEffect])));
+  const screen = await render(sectionFor(loaded({ inEffect, scheduled })));
   await expect.element(screen.getByText("$ 10.000.000,00")).toBeVisible();
 
   await expectNoAccessibilityViolations(document.body);

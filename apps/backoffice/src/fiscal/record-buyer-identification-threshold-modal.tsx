@@ -10,6 +10,7 @@ import type { authorizeSession, fetchSessionAuthorizationOptions } from "../acce
 import { useCloudForm } from "../platform/cloud-form";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import type {
+  BuyerIdentificationThresholds,
   RecordBuyerIdentificationThresholdOutcome,
   recordBuyerIdentificationThreshold,
 } from "./buyer-identification-threshold-api";
@@ -32,7 +33,7 @@ type RecordBuyerIdentificationThresholdModalProps = {
   open: boolean;
   onClose: () => void;
   onRecorded: (threshold: BuyerIdentificationThreshold) => void;
-  reload: () => Promise<CloudReadOutcome<BuyerIdentificationThreshold[]>>;
+  reload: () => Promise<CloudReadOutcome<BuyerIdentificationThresholds>>;
   onSessionEnded: () => void;
   services: RecordBuyerIdentificationThresholdModalServices;
 };
@@ -87,10 +88,10 @@ export function RecordBuyerIdentificationThresholdModal({
       }
       if (outcome.kind === "not_after_latest") {
         const thresholds = await reload();
-        const latest = thresholds.kind === "ok" ? thresholds.value[0] : undefined;
+        const latestValidFrom = thresholds.kind === "ok" ? thresholds.value.latestValidFrom : null;
         showFieldError(
           "validFrom",
-          latest ? notAfterLatestMessage(latest.validFrom) : validFromMessage(values),
+          latestValidFrom ? notAfterLatestMessage(latestValidFrom) : validFromMessage(values),
         );
         return;
       }

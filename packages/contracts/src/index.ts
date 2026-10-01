@@ -103,9 +103,12 @@ export type { TagEditBody } from "./catalog/tag-edit.js";
 export { tagEditBodySchema } from "./catalog/tag-edit.js";
 export type { TagList, TagSummary } from "./catalog/tag-summary.js";
 export { tagListSchema, tagSummarySchema } from "./catalog/tag-summary.js";
-export type { BuyerIdentificationThresholdBody } from "./fiscal/buyer-identification-threshold.js";
+export type {
+  BuyerIdentificationThresholdBody,
+  BuyerIdentificationThresholdOverviewBody,
+} from "./fiscal/buyer-identification-threshold.js";
 export {
-  buyerIdentificationThresholdListSchema,
+  buyerIdentificationThresholdOverviewSchema,
   buyerIdentificationThresholdSchema,
 } from "./fiscal/buyer-identification-threshold.js";
 export type { BuyerIdentificationThresholdRecordBody } from "./fiscal/buyer-identification-threshold-record.js";

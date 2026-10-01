@@ -16,37 +16,54 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const wireRows = [
-  { id: "threshold-2", amount: 1_500_000, valid_from: "2026-10-01" },
-  { id: "threshold-1", amount: 1_000_000, valid_from: "2026-01-01" },
-];
+const wireInEffect = { id: "threshold-1", amount: 1_000_000, valid_from: "2026-01-01" };
+const wireScheduled = { id: "threshold-2", amount: 1_500_000, valid_from: "2026-10-01" };
 
-const thresholds = [
-  { id: "threshold-2", amount: 1_500_000, validFrom: "2026-10-01" },
-  { id: "threshold-1", amount: 1_000_000, validFrom: "2026-01-01" },
-];
+const wireOverview = {
+  in_effect: wireInEffect,
+  scheduled: wireScheduled,
+  latest_valid_from: "2026-10-01",
+};
+
+const inEffect = { id: "threshold-1", amount: 1_000_000, validFrom: "2026-01-01" };
+const scheduled = { id: "threshold-2", amount: 1_500_000, validFrom: "2026-10-01" };
 
 const recordInput = { amount: 1_500_000, valid_from: "2026-10-01" };
 
-test("fetchBuyerIdentificationThresholds returns the thresholds, newest first as the cloud sends them", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, wireRows));
+test("fetchBuyerIdentificationThresholds returns the threshold in effect, the scheduled one and the newest start", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, wireOverview));
 
   const outcome = await fetchBuyerIdentificationThresholds();
 
-  expect(outcome).toEqual({ kind: "ok", value: thresholds });
+  expect(outcome).toEqual({
+    kind: "ok",
+    value: { inEffect, scheduled, latestValidFrom: "2026-10-01" },
+  });
   expect(fetch).toHaveBeenCalledWith("/api/buyer-identification-thresholds");
 });
 
-test("fetchBuyerIdentificationThresholds returns an empty list when none was loaded", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, []));
+test("fetchBuyerIdentificationThresholds returns nothing in effect, scheduled or started when none was loaded", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, { in_effect: null, scheduled: null, latest_valid_from: null }),
+  );
 
-  expect(await fetchBuyerIdentificationThresholds()).toEqual({ kind: "ok", value: [] });
+  expect(await fetchBuyerIdentificationThresholds()).toEqual({
+    kind: "ok",
+    value: { inEffect: null, scheduled: null, latestValidFrom: null },
+  });
 });
 
 test.each([
-  ["a body that is not a list", { id: "threshold-1" }],
-  ["a row missing its amount", [{ id: "threshold-1", valid_from: "2026-01-01" }]],
-  ["a row with a fractional amount", [{ ...wireRows[0], amount: 10.5 }]],
+  ["a body that is not an overview", [wireInEffect]],
+  ["an overview missing its newest start", { in_effect: null, scheduled: null }],
+  [
+    "an in-effect threshold missing its amount",
+    { ...wireOverview, in_effect: { id: "threshold-1", valid_from: "2026-01-01" } },
+  ],
+  [
+    "an in-effect threshold with a fractional amount",
+    { ...wireOverview, in_effect: { ...wireInEffect, amount: 10.5 } },
+  ],
 ])("fetchBuyerIdentificationThresholds returns failed on 200 with %s", async (_name, body) => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, body));
 
@@ -95,11 +112,11 @@ test("fetchBuyerIdentificationThresholds returns failed on an unexpected status"
 });
 
 test("recordBuyerIdentificationThreshold POSTs the amount in cents and the day it starts, and returns the recorded threshold", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(201, wireRows[0]));
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(201, wireScheduled));
 
   const outcome = await recordBuyerIdentificationThreshold(recordInput);
 
-  expect(outcome).toEqual({ kind: "ok", value: thresholds[0] });
+  expect(outcome).toEqual({ kind: "ok", value: scheduled });
   expect(fetch).toHaveBeenCalledWith("/api/buyer-identification-thresholds", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

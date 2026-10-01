@@ -22,3 +22,7 @@ export interface BuyerIdentificationThresholdStoreTransaction {
     threshold: NewBuyerIdentificationThreshold,
   ): Promise<BuyerIdentificationThreshold>;
 }
+
+export interface BuyerIdentificationThresholdReader {
+  listBuyerIdentificationThresholds(): Promise<BuyerIdentificationThreshold[]>;
+}

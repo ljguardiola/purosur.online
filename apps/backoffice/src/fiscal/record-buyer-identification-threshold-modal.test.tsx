@@ -2,7 +2,9 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { type Locator, page, userEvent } from "vitest/browser";
+import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { render } from "../shell/test-support/render-with-router";
+import type { BuyerIdentificationThresholds } from "./buyer-identification-threshold-api";
 import {
   RecordBuyerIdentificationThresholdModal,
   type RecordBuyerIdentificationThresholdModalServices,
@@ -29,7 +31,11 @@ function grantAuthorization(services: RecordBuyerIdentificationThresholdModalSer
 const recorded = { id: "threshold-2", amount: 1_500_000, validFrom: "2026-10-01" };
 const latest = { id: "threshold-1", amount: 1_000_000, validFrom: "2026-09-15" };
 
-type Reload = () => Promise<{ kind: "ok"; value: (typeof recorded)[] } | { kind: "failed" }>;
+function overview(newest: typeof recorded): BuyerIdentificationThresholds {
+  return { inEffect: newest, scheduled: null, latestValidFrom: newest.validFrom };
+}
+
+type Reload = () => Promise<CloudReadOutcome<BuyerIdentificationThresholds>>;
 
 type ModalOptions = {
   open?: boolean;
@@ -45,7 +51,7 @@ function modalElement({
   services = createServices(),
   onClose = () => {},
   onRecorded = () => {},
-  reload = () => Promise.resolve({ kind: "ok", value: [latest] }),
+  reload = () => Promise.resolve({ kind: "ok", value: overview(latest) }),
   onSessionEnded = () => {},
 }: ModalOptions) {
   return (
@@ -136,7 +142,7 @@ test("records the amount in cents and the day, reads the thresholds again, then 
     kind: "ok",
     value: recorded,
   });
-  const reload = vi.fn<Reload>(() => Promise.resolve({ kind: "ok", value: [recorded, latest] }));
+  const reload = vi.fn<Reload>(() => Promise.resolve({ kind: "ok", value: overview(recorded) }));
   const onRecorded = vi.fn();
   const { dialog } = await renderModal({ services, reload, onRecorded });
   await fillForm(dialog, "15.000,00", "01102026");
@@ -174,7 +180,7 @@ test("keeps the buttons disabled while the thresholds are read again after recor
   await expect.element(dialog.getByRole("button", { name: "Cargar el umbral" })).toBeDisabled();
   await expect.element(dialog.getByRole("button", { name: "Cancelar" })).toBeDisabled();
   expect(onRecorded).not.toHaveBeenCalled();
-  finishReading({ kind: "ok", value: [recorded] });
+  finishReading({ kind: "ok", value: overview(recorded) });
   await expect.poll(() => onRecorded.mock.calls.length).toBe(1);
 });
 
@@ -235,7 +241,7 @@ test("a start that is not after the latest threshold lands on Vigente desde, nam
     kind: "not_after_latest",
   });
   const onRecorded = vi.fn();
-  const reload = vi.fn<Reload>(() => Promise.resolve({ kind: "ok", value: [latest] }));
+  const reload = vi.fn<Reload>(() => Promise.resolve({ kind: "ok", value: overview(latest) }));
   const { dialog } = await renderModal({ services, reload, onRecorded });
   await fillForm(dialog, "15.000,00", "01092026");
 

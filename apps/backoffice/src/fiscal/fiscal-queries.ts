@@ -1,9 +1,11 @@
-import { argentinaCalendarDay, type BuyerIdentificationThreshold } from "@purosur/domain";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
-import type { fetchBuyerIdentificationThresholds } from "./buyer-identification-threshold-api";
+import type {
+  BuyerIdentificationThresholds,
+  fetchBuyerIdentificationThresholds,
+} from "./buyer-identification-threshold-api";
 import type { fetchIssuerIdentification, IssuerIdentification } from "./issuer-identification-api";
 
 export const fiscalKey = ["fiscal"] as const;
@@ -39,38 +41,14 @@ export function useReloadIssuerIdentification(params: {
   };
 }
 
-export type BuyerIdentificationThresholdsOnDay = {
-  thresholds: BuyerIdentificationThreshold[];
-  today: string;
-};
-
-export function readBuyerIdentificationThresholdsOnDay(
-  fetchThresholds: typeof fetchBuyerIdentificationThresholds,
-  now: () => Date,
-): () => Promise<CloudReadOutcome<BuyerIdentificationThresholdsOnDay>> {
-  return async () => {
-    const outcome = await fetchThresholds();
-    return outcome.kind === "ok"
-      ? {
-          kind: "ok",
-          value: { thresholds: outcome.value, today: argentinaCalendarDay(now()) },
-        }
-      : outcome;
-  };
-}
-
 export function useBuyerIdentificationThresholdsQuery(params: {
   fetchBuyerIdentificationThresholds: typeof fetchBuyerIdentificationThresholds;
-  now: () => Date;
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
-  return useCloudQuery<BuyerIdentificationThresholdsOnDay>({
+  return useCloudQuery<BuyerIdentificationThresholds>({
     queryKey: fiscalKeys.buyerIdentificationThresholds,
-    read: readBuyerIdentificationThresholdsOnDay(
-      params.fetchBuyerIdentificationThresholds,
-      params.now,
-    ),
+    read: params.fetchBuyerIdentificationThresholds,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
@@ -78,18 +56,13 @@ export function useBuyerIdentificationThresholdsQuery(params: {
 
 export function useReloadBuyerIdentificationThresholds(params: {
   fetchBuyerIdentificationThresholds: typeof fetchBuyerIdentificationThresholds;
-  now: () => Date;
-}): () => Promise<CloudReadOutcome<BuyerIdentificationThreshold[]>> {
+}): () => Promise<CloudReadOutcome<BuyerIdentificationThresholds>> {
   const client = useQueryClient();
-  return async () => {
+  return () => {
     void client.invalidateQueries({ queryKey: fiscalKey });
-    const outcome = await fetchCloudQuery(client, {
+    return fetchCloudQuery(client, {
       queryKey: fiscalKeys.buyerIdentificationThresholds,
-      read: readBuyerIdentificationThresholdsOnDay(
-        params.fetchBuyerIdentificationThresholds,
-        params.now,
-      ),
+      read: params.fetchBuyerIdentificationThresholds,
     });
-    return outcome.kind === "ok" ? { kind: "ok", value: outcome.value.thresholds } : outcome;
   };
 }

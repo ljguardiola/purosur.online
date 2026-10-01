@@ -1,5 +1,6 @@
 export type {
   BuyerIdentificationThresholdPorts,
+  BuyerIdentificationThresholdReader,
   BuyerIdentificationThresholdStore,
   BuyerIdentificationThresholdStoreTransaction,
   NewBuyerIdentificationThreshold,
