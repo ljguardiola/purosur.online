@@ -46,6 +46,7 @@ describe("cloudErrorStatus", () => {
     ["reset_code_invalid", 400],
     ["device_token_rejected", 401],
     ["enrollment_code_rejected", 403],
+    ["revoked", 403],
     ["not_found", 404],
     ["pin_already_set", 409],
     ["reset_code_expired", 410],
@@ -74,6 +75,7 @@ describe("isRetryableCloudError", () => {
     ["reset_code_expired", false],
     ["reset_code_burned", false],
     ["device_token_rejected", false],
+    ["revoked", false],
     ["internal_error", false],
   ] as const)("marks %s as retryable: %s", (code, retryable) => {
     expect(isRetryableCloudError(code)).toBe(retryable);
