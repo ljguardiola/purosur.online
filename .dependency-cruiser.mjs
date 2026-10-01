@@ -257,11 +257,12 @@ export default {
     {
       name: "persistence-only-in-adapters",
       comment:
-        "A cloud route file and a register core request handler never import the " +
-        "database directly (drizzle-orm, better-sqlite3, the cloud's schema and " +
-        "connection, the register's local database) as a value; only an adapter does, " +
-        "and a route or handler reaches it through that adapter. A type-only import, " +
-        "which only types the connection handed to an adapter, is allowed.",
+        "A cloud route file and a register core request handler never import a " +
+        "database as a value: not drizzle-orm, a Postgres or SQLite driver, the " +
+        "cloud's apps/cloud/src/platform/db/ schema and helpers, nor the register's " +
+        "local database module. Only an adapter does, and a route or handler reaches " +
+        "it through that adapter. A type-only import, which only types the connection " +
+        "handed to an adapter, is allowed.",
       severity: "error",
       from: {
         path: [
@@ -274,6 +275,9 @@ export default {
         path: [
           npmPackage("drizzle-orm"),
           npmPackage("better-sqlite3"),
+          npmPackage("postgres"),
+          npmPackage("pg"),
+          npmPackage("@electric-sql/pglite"),
           "^apps/cloud/src/platform/db/",
           "^apps/pos/src/core/platform/local-database\\.ts$",
         ],

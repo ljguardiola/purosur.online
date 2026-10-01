@@ -1210,3 +1210,17 @@ test("persistence-only-in-adapters allows type-only database imports and flags v
     ]),
   );
 });
+
+test("persistence-only-in-adapters flags a cloud route importing a Postgres driver", async (t) => {
+  const drivers = ["postgres", "pg", "@electric-sql/pglite"];
+  const root = await makeFixture(t, {
+    "apps/cloud/src/catalog/driver-route.ts": importEach(drivers),
+  });
+
+  const report = await cruiseFixture(root, ["apps"]);
+  const targets = violationsFor(report, "persistence-only-in-adapters").map(
+    (violation) => violation.to,
+  );
+
+  assert.deepEqual(targets.toSorted(), drivers.toSorted());
+});

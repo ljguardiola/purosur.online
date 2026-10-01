@@ -50,7 +50,8 @@ keeps that row's id instead of adding one.
 
 Launch `review-gate-verifier` once with the review folder and the ids of this
 round, including the rows a re-review says are not resolved. A row it
-confirms unresolved is reopened, and its fix counts as a failed attempt. It returns, per id, `CONFIRMED` or `REFUTED` with its proof, the kind
+confirms unresolved is reopened, and its fix counts as a failed attempt; a
+row it finds resolved keeps its verdict and status. It returns, per id, `CONFIRMED` or `REFUTED` with its proof, the kind
 it settles on, and `in-scope` or `out-of-scope`. Copy its verdicts into the
 ledger.
 
@@ -75,11 +76,15 @@ the owner when no session coordinates. Once the coordinator answers a
   answer moves it out of the issue, or is marked `accepted` when the answer
   keeps the code as it is.
 
+Then continue at step 6 with the rows that are `open`; when none is, go to
+step 7.
+
 ## 6. Fix
 
 Launch `review-gate-fixer` with the review folder and every confirmed
 in-scope id whose status is `open`, with the previous fixer report of any id
-it already tried and the coordinator's answer of any id that had one. It reports each id `fixed` or `not fixed` with the reason.
+it already tried and the coordinator's answer of any id that had one. It
+reports each id `fixed` or `not fixed` with the reason.
 
 - When it fixed at least one: commit them in one commit
   (`<type>: address review-gate round <n> findings`, with the issue's commit
@@ -90,16 +95,18 @@ it already tried and the coordinator's answer of any id that had one. It reports
   different approach. A row two failed attempts could not close is marked
   `stopped` and stops the review: report it to the coordinator.
 
-There is no round limit. The review is clean when no confirmed in-scope row
-is `open` and the last review round, first or re-review, confirmed no new
-in-scope finding.
+There is no round limit.
+
+The review is clean when every row is `refuted`, `filed as #<n>`,
+`accepted`, or `fixed in <sha>` with a re-review after that fix that confirmed
+no new in-scope finding.
 
 ## 7. Result
 
 End with exactly one line, which the pull request's "How it was tested" cites:
 
 ```
-REVIEW-GATE: CLEAN — <rounds> rounds, <fixed> fixed, <refuted> refuted, <filed> filed as new issues (TARGET <sha>)
+REVIEW-GATE: CLEAN — <rounds> rounds, <fixed> fixed, <refuted> refuted, <filed> filed as new issues, <accepted> accepted (TARGET <sha>)
 REVIEW-GATE: STOPPED — <ledger id>: <the decision, or the finding no fix could close>
 ```
 
