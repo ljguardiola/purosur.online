@@ -402,18 +402,7 @@ const rendererRequestDeps: RendererRequestDeps = {
   cancelLockedSale:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (closer) =>
-          cancelLockedSaleFor(
-            {
-              database: localDatabase,
-              gate: actionGate,
-              readOutboxChainKey: async () =>
-                (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
-              now: () => new Date(),
-              ids: uuidV7Ids,
-            },
-            closer,
-          ),
+      : (closer) => cancelLockedSaleFor({ database: localDatabase, gate: actionGate }, closer),
   identifyLockedCloser:
     localDatabase === undefined || actionGate === undefined
       ? undefined
@@ -459,7 +448,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       ? undefined
       : (lineId, quantity, expectedQuantity) =>
           changeLineQuantityFor(
-            { database: localDatabase, gate: actionGate, now: () => new Date(), ids: uuidV7Ids },
+            { database: localDatabase, gate: actionGate, now: () => new Date() },
             lineId,
             quantity,
             expectedQuantity,
@@ -469,21 +458,13 @@ const rendererRequestDeps: RendererRequestDeps = {
       ? undefined
       : (lineId) =>
           removeSaleLineFor(
-            { database: localDatabase, gate: actionGate, now: () => new Date(), ids: uuidV7Ids },
+            { database: localDatabase, gate: actionGate, now: () => new Date() },
             lineId,
           ),
   cancelSale:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : () =>
-          cancelSaleFor({
-            database: localDatabase,
-            gate: actionGate,
-            readOutboxChainKey: async () =>
-              (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
-            now: () => new Date(),
-            ids: uuidV7Ids,
-          }),
+      : () => cancelSaleFor({ database: localDatabase, gate: actionGate }),
   chargeSaleInCash:
     localDatabase === undefined || actionGate === undefined
       ? undefined

@@ -486,16 +486,6 @@ describe("changing the quantity of a line", () => {
     expect(database.prepare("SELECT quantity FROM sale_lines").all()).toEqual([{ quantity: 2 }]);
   });
 
-  it("keeps what a lowered quantity took away", async () => {
-    const lineId = await sellTwoYerbas();
-
-    await changeLineQuantityFor(deps(), lineId, 1, 2);
-
-    expect(database.prepare("SELECT qty_removed FROM sale_line_removals").all()).toEqual([
-      { qty_removed: 1 },
-    ]);
-  });
-
   it.each([
     ["a line the sale does not have", "other-line", 1, { kind: "unknown_line" }],
     ["a quantity of zero", "id-2", 0, { kind: "invalid_quantity" }],
@@ -541,16 +531,13 @@ describe("changing the quantity of a line", () => {
 });
 
 describe("removing a line", () => {
-  it("answers the sale without the line and keeps the removal", async () => {
+  it("answers the sale without the line", async () => {
     const lineId = await sellTwoYerbas();
 
     expect(await removeSaleLineFor(deps(), lineId)).toEqual({
       kind: "removed",
       sale: { id: "id-1", lines: [], total: 0, charge_refusal: null },
     });
-    expect(
-      database.prepare("SELECT qty_removed, amount_removed FROM sale_line_removals").all(),
-    ).toEqual([{ qty_removed: 2, amount_removed: 3000 }]);
   });
 
   it("answers the domain's refusal of a line the sale does not have", async () => {
@@ -587,25 +574,13 @@ describe("removing a line", () => {
 });
 
 describe("cancelling the sale", () => {
-  it("cancels it and emits one chained sale_cancelled event", async () => {
+  it("cancels it, leaving neither the sale nor an event behind", async () => {
     await sellTwoYerbas();
 
     expect(await cancelSaleFor(deps())).toEqual({ kind: "cancelled" });
 
-    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "CANCELLED" }]);
-    const events = database
-      .prepare(
-        "SELECT device_seq, chain_hmac, payload FROM outbox WHERE event_type = 'sale_cancelled'",
-      )
-      .all() as { device_seq: number; chain_hmac: string; payload: string }[];
-    expect(events).toHaveLength(1);
-    expect(events[0]?.device_seq).toBe(1);
-    expect(events[0]?.chain_hmac).toBeTruthy();
-    expect(JSON.parse(events[0]?.payload ?? "")).toMatchObject({
-      id: "id-1",
-      lines: [{ product_id: "p1", quantity: 2 }],
-      removals: [],
-    });
+    expect(database.prepare("SELECT id FROM sales").all()).toEqual([]);
+    expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([]);
   });
 
   it("lets the next scan start a new sale", async () => {
@@ -648,12 +623,13 @@ describe("cancelling the sale", () => {
     expect(await cancelSaleFor(deps())).toEqual({ kind: "no_open_session" });
   });
 
-  it("answers unavailable, leaving the sale open, when the register has no outbox key yet", async () => {
+  it("cancels it even when the register has no outbox key yet", async () => {
     await sellTwoYerbas();
 
     expect(await cancelSaleFor(deps({ readOutboxChainKey: async () => undefined }))).toEqual({
-      kind: "unavailable",
+      kind: "cancelled",
     });
+    expect(database.prepare("SELECT id FROM sales").all()).toEqual([]);
   });
 });
 
@@ -947,16 +923,14 @@ describe("cancelling the open sale of a locked register", () => {
     return database.prepare("SELECT state FROM sales").all();
   }
 
-  it("cancels the sale as the person whose PIN holds the permission and emits the cancellation in their name", async () => {
+  it("cancels the sale for the person whose PIN holds the permission, leaving neither the sale nor an event behind", async () => {
     addCloser(["close_anothers_register_session"]);
     await lockedWithOpenSale();
 
     expect(await cancelLockedSaleFor(lockedDeps(), CLOSER)).toEqual({ kind: "cancelled" });
 
-    expect(saleStates()).toEqual([{ state: "CANCELLED" }]);
-    expect(
-      database.prepare("SELECT actor_id FROM outbox WHERE event_type = 'sale_cancelled'").all(),
-    ).toEqual([{ actor_id: "u9" }]);
+    expect(saleStates()).toEqual([]);
+    expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([]);
   });
 
   it("leaves nobody signed in", async () => {
@@ -1034,13 +1008,13 @@ describe("cancelling the open sale of a locked register", () => {
     expect(saleStates()).toEqual([{ state: "OPEN" }]);
   });
 
-  it("answers unavailable, leaving the sale open, when the register has no outbox key yet", async () => {
+  it("cancels the sale even when the register has no outbox key yet", async () => {
     addCloser(["close_anothers_register_session"]);
     await lockedWithOpenSale();
 
     expect(
       await cancelLockedSaleFor(lockedDeps({ readOutboxChainKey: async () => undefined }), CLOSER),
-    ).toEqual({ kind: "unavailable" });
-    expect(saleStates()).toEqual([{ state: "OPEN" }]);
+    ).toEqual({ kind: "cancelled" });
+    expect(saleStates()).toEqual([]);
   });
 });

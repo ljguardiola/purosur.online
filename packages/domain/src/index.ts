@@ -209,7 +209,6 @@ export type {
   PaymentTransaction,
   Sale,
   SaleLine,
-  SaleLineRemoval,
   SaleState,
   SaleWithLines,
   SoldProduct,
