@@ -42,7 +42,7 @@ const registerNameRequestMessageSchema = z.object({
   request_id: requestId,
 });
 
-const enrollMessageSchema = z.object({
+export const enrollMessageSchema = z.object({
   type: z.literal("enroll"),
   request_id: requestId,
   code: z.string(),
@@ -281,6 +281,7 @@ const enrollmentOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("unavailable") }),
   z.object({ kind: z.literal("storage_unavailable") }),
   z.object({ kind: z.literal("not_stored") }),
+  z.object({ kind: z.literal("invalid_input"), fields: z.array(z.literal("code")) }),
 ]);
 export type EnrollmentOutcome = z.infer<typeof enrollmentOutcomeSchema>;
 

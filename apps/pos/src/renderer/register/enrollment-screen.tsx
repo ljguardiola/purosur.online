@@ -24,6 +24,7 @@ const UNAVAILABLE_NOTICE: Notice = {
 function noticeFor(outcome: EnrollmentOutcome): Notice | undefined {
   switch (outcome.kind) {
     case "enrolled":
+    case "invalid_input":
       return undefined;
     case "code_rejected":
       return {
@@ -74,8 +75,13 @@ export function EnrollmentScreen({ enroll }: EnrollmentScreenProps) {
     request: { schema: enrollmentRequestSchema, from: enrollmentRequestFrom },
     fields: { code: "code" },
     messages: { code: INCOMPLETE_CODE_MESSAGE },
-    onSubmit: async ({ code }) => {
-      setOutcome(await enroll(code).catch((): EnrollmentOutcome => ({ kind: "unavailable" })));
+    onSubmit: async ({ code }, { showWireFieldError }) => {
+      const answer = await enroll(code).catch((): EnrollmentOutcome => ({ kind: "unavailable" }));
+      if (answer.kind === "invalid_input") {
+        answer.fields.forEach(showWireFieldError);
+        return;
+      }
+      setOutcome(answer);
     },
   });
 

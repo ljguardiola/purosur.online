@@ -192,6 +192,7 @@ export {
   closeLockedCashSessionMessageSchema,
   coreStatusMessageSchema,
   coreToRendererMessageSchema,
+  enrollMessageSchema,
   mainToCoreMessageSchema,
   openCashSessionMessageSchema,
   recordCashMovementMessageSchema,
