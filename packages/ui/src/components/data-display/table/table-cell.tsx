@@ -1,20 +1,19 @@
-import { TableActionButtons } from "./table-actions";
+import type { Cell, RowData } from "@tanstack/react-table";
+import { columnActionCount, columnAlign, renderCell } from "./table-column";
+import type { tableModelFeatures } from "./table-features";
 import { alignClassName, cellHorizontalPaddingClassName } from "./table-styles";
-import type { TableColumn } from "./table-types";
 
-export function TableCell<T>({
-  column,
-  item,
+export function TableCell<T extends RowData>({
+  cell,
   first,
   last,
 }: {
-  column: TableColumn<T>;
-  item: T;
+  cell: Cell<typeof tableModelFeatures, T, unknown>;
   first: boolean;
   last: boolean;
 }) {
-  const actionsColumn = column.kind === "actions";
-  const align = actionsColumn ? "start" : column.align;
+  const actionsColumn = columnActionCount(cell.column) !== undefined;
+  const align = actionsColumn ? "start" : columnAlign(cell.column);
 
   return (
     <td
@@ -35,11 +34,11 @@ export function TableCell<T>({
         }
       >
         {actionsColumn ? (
-          <TableActionButtons actions={column.actions} item={item} />
+          renderCell(cell)
         ) : (
           // items-start/-end opts out of flex stretch, so an unbreakable run's unclamped preferred
           // width can exceed the column; max-w-full caps it there so it wraps instead of overflowing.
-          <div className="flex flex-col gap-1 max-w-full">{column.render(item)}</div>
+          <div className="flex flex-col gap-1 max-w-full">{renderCell(cell)}</div>
         )}
       </div>
     </td>

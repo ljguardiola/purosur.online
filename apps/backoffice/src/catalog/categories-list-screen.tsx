@@ -1,5 +1,14 @@
 import type { CategorySummary } from "@purosur/contracts";
-import { Button, plural, SearchField, Table, type TableSort, tableRows } from "@purosur/ui";
+import {
+  actionsColumn,
+  Button,
+  dataColumn,
+  plural,
+  SearchField,
+  Table,
+  type TableSort,
+  useTableModel,
+} from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
 import { Pencil, Plus, Search, Tags } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
@@ -57,28 +66,15 @@ export function CategoriesListScreen({
   const categories = data.status === "loaded" ? data.value : NO_CATEGORIES;
   const labels = categoryPathLabels(categories);
   const pathLabel = (category: CategorySummary) => labels.get(category.id) ?? category.name;
-  const { rows, matchCount } = tableRows({
-    items: categories,
-    id: (category) => category.id,
-    search: { text: search, in: (category) => [pathLabel(category)] },
-    sort: {
-      by: sort,
-      orders: { category: categoryNameOrder },
-      parentId: categoryParentId,
-    },
-  });
-
   const columns = [
-    {
-      key: "category",
+    dataColumn({
+      id: "category",
       header: "Categoría",
-      sortable: true,
-      defaultDirection: "ascending",
+      sort: { order: categoryNameOrder, firstDirection: "ascending" },
       render: pathLabel,
-    },
-    {
-      key: "actions",
-      kind: "actions",
+    }),
+    actionsColumn({
+      id: "actions",
       header: "Acciones",
       actions: [
         (item: CategorySummary) => ({
@@ -87,8 +83,19 @@ export function CategoriesListScreen({
           onPress: () => setEditTarget(item),
         }),
       ],
-    },
+    }),
   ] as const;
+
+  const table = useTableModel({
+    items: categories,
+    id: (category) => category.id,
+    parentId: categoryParentId,
+    search: { text: search, in: (category) => [pathLabel(category)] },
+    columns,
+    sort,
+    onSortChange: setSort,
+  });
+  const matchCount = table.getRowModel().rows.length;
 
   return (
     <>
@@ -121,11 +128,8 @@ export function CategoriesListScreen({
         </div>
         <Table
           aria-label="Categorías"
-          columns={columns}
-          sort={sort}
-          onSortChange={setSort}
+          table={table}
           {...cloudTableState(data, "las categorías")}
-          rows={rows}
           empty={
             categories.length === 0
               ? {

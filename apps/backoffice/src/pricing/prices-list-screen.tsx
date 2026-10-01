@@ -1,6 +1,7 @@
 import type { PriceCategory, PriceProduct } from "@purosur/contracts";
 import {
   Button,
+  dataColumn,
   FloatingNotification,
   IconButton,
   ListFilter,
@@ -10,8 +11,8 @@ import {
   Table,
   Tag,
   Tooltip,
-  tableRows,
   textOrder,
+  useTableModel,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
 import {
@@ -386,8 +387,8 @@ export function PricesListScreen({
   }
 
   const columns = [
-    {
-      key: "product",
+    dataColumn({
+      id: "product",
       header: "Producto",
       render: (item: PriceProduct) => (
         <div className="flex items-center gap-2">
@@ -399,23 +400,23 @@ export function PricesListScreen({
           )}
         </div>
       ),
-    },
-    {
-      key: "price",
+    }),
+    dataColumn({
+      id: "price",
       header: "Precio",
       render: (item: PriceProduct) =>
         item.currentPrice ? formatCentsWithUnit(item.currentPrice.unitPrice, item.saleUnit) : "—",
-    },
-    {
-      key: "reviewed",
+    }),
+    dataColumn({
+      id: "reviewed",
       header: "Revisado",
       render: (item: PriceProduct) =>
         readAt ? reviewedCellText(item.lastReviewedAt, readAt) : null,
-    },
-    {
-      key: "actions",
+    }),
+    dataColumn({
+      id: "actions",
       header: "Acciones",
-      align: "end" as const,
+      align: "end",
       render: (item: PriceProduct) => (
         <div className="flex flex-row items-center justify-end gap-2">
           {item.currentPrice ? (
@@ -439,8 +440,14 @@ export function PricesListScreen({
           />
         </div>
       ),
-    },
+    }),
   ] as const;
+
+  const table = useTableModel({
+    items: products,
+    id: (product) => product.id,
+    columns,
+  });
 
   return (
     <>
@@ -501,9 +508,8 @@ export function PricesListScreen({
         </div>
         <Table
           aria-label="Precios"
-          columns={columns}
+          table={table}
           {...cloudTableState(shownData, "los precios")}
-          rows={tableRows({ items: products, id: (product) => product.id }).rows}
           empty={emptyTableState({
             activeProductCount,
             reviewFilter,

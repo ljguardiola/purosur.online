@@ -1,11 +1,7 @@
 import { ChevronDown, ChevronsUpDown, ChevronUp } from "lucide-react";
 import { Button as AriaButton } from "react-aria-components";
 import { cellHorizontalPaddingClassName } from "./table-styles";
-import type { TableSort, TableSortableDataColumn, TableSortDirection } from "./table-types";
-
-function oppositeDirection(direction: TableSortDirection): TableSortDirection {
-  return direction === "ascending" ? "descending" : "ascending";
-}
+import type { TableColumnAlign, TableSortDirection } from "./table-types";
 
 const sortIconClassName = "size-icon-2xs shrink-0";
 
@@ -19,22 +15,22 @@ const headerButtonClassName =
   "data-focus-visible:relative data-focus-visible:z-focused " +
   "data-focus-visible:focus-ring-inset";
 
-export function SortableColumnHeader<T>({
-  column,
-  sort,
-  onSortChange,
+export function SortableColumnHeader({
+  title,
+  align,
+  direction,
+  onPress,
   first,
   last,
 }: {
-  column: TableSortableDataColumn<T>;
-  sort: TableSort | undefined;
-  onSortChange: (sort: TableSort) => void;
+  title: string;
+  align: TableColumnAlign;
+  direction: TableSortDirection | undefined;
+  onPress: () => void;
   first: boolean;
   last: boolean;
 }) {
-  const sorted = sort?.column === column.key;
-  const direction = sorted ? sort.direction : undefined;
-  const colorClassName = sorted ? "text-text" : "text-text-subtle";
+  const colorClassName = direction === undefined ? "text-text-subtle" : "text-text";
   const Icon =
     direction === "ascending"
       ? ChevronUp
@@ -42,25 +38,18 @@ export function SortableColumnHeader<T>({
         ? ChevronDown
         : ChevronsUpDown;
 
-  function handlePress() {
-    onSortChange({
-      column: column.key,
-      direction: sorted ? oppositeDirection(sort.direction) : column.defaultDirection,
-    });
-  }
-
   return (
     <AriaButton
-      onPress={handlePress}
+      onPress={onPress}
       className={[
         headerButtonClassName,
         cellHorizontalPaddingClassName(first, last),
-        column.align === "end" ? "justify-end" : "justify-start",
+        align === "end" ? "justify-end" : "justify-start",
       ].join(" ")}
     >
       {/* min-w-0 overrides a flex item's default min-width of its own unwrapped content width,
           which would otherwise keep a long title from using the <th>'s own break-words. */}
-      <span className={["min-w-0", colorClassName].join(" ")}>{column.header}</span>
+      <span className={["min-w-0", colorClassName].join(" ")}>{title}</span>
       <Icon aria-hidden="true" className={[sortIconClassName, colorClassName].join(" ")} />
     </AriaButton>
   );

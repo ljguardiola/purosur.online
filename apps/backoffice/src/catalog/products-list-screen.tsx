@@ -1,14 +1,16 @@
 import type { BrandSummary, CategorySummary, ProductSummary, TagList } from "@purosur/contracts";
 import {
+  actionsColumn,
   Button,
+  dataColumn,
   ListFilter,
   plural,
   SearchField,
   StatusIndicator,
   Table,
   type TableSort,
-  tableRows,
   textOrder,
+  useTableModel,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
 import { Ban, Package, Pencil, Plus, Printer, Search, SearchX } from "lucide-react";
@@ -190,36 +192,25 @@ export function ProductsListScreen({
     { value: "all" as const, label: "Todos" },
   ] as const;
 
-  const { rows, matchCount } = tableRows({
-    items: products,
-    id: (product) => product.id,
-    search: { text: search, in: (product) => [product.name, ...product.barcodes] },
-    filter: (product) =>
-      (categoryFilter === "ALL" || product.categoryId === categoryFilter) &&
-      (unitFilter === "ALL" || product.saleUnit === unitFilter),
-    sort: { by: sort, orders: { product: productNameOrder } },
-  });
-
   const columns = [
-    {
-      key: "product",
+    dataColumn({
+      id: "product",
       header: "Producto",
-      sortable: true,
-      defaultDirection: "ascending",
+      sort: { order: productNameOrder, firstDirection: "ascending" },
       render: (item: ProductSummary) => item.name,
-    },
-    {
-      key: "category",
+    }),
+    dataColumn({
+      id: "category",
       header: "Categoría",
       render: (item: ProductSummary) => categoryLabels.get(item.categoryId) ?? item.categoryName,
-    },
-    {
-      key: "unit",
+    }),
+    dataColumn({
+      id: "unit",
       header: "Unidad",
       render: (item: ProductSummary) => unitLabel(item.saleUnit),
-    },
-    {
-      key: "status",
+    }),
+    dataColumn({
+      id: "status",
       header: "Estado",
       render: (item: ProductSummary) =>
         item.active ? (
@@ -227,10 +218,9 @@ export function ProductsListScreen({
         ) : (
           <StatusIndicator tone="neutral">Inactivo</StatusIndicator>
         ),
-    },
-    {
-      key: "actions",
-      kind: "actions",
+    }),
+    actionsColumn({
+      id: "actions",
       header: "Acciones",
       actions: [
         (item: ProductSummary) => ({
@@ -247,8 +237,21 @@ export function ProductsListScreen({
               }
             : undefined,
       ],
-    },
+    }),
   ] as const;
+
+  const table = useTableModel({
+    items: products,
+    id: (product) => product.id,
+    search: { text: search, in: (product) => [product.name, ...product.barcodes] },
+    filter: (product) =>
+      (categoryFilter === "ALL" || product.categoryId === categoryFilter) &&
+      (unitFilter === "ALL" || product.saleUnit === unitFilter),
+    columns,
+    sort,
+    onSortChange: setSort,
+  });
+  const matchCount = table.getRowModel().rows.length;
 
   function closeDeactivationAndRefresh() {
     setDeactivateTarget(null);
@@ -316,11 +319,8 @@ export function ProductsListScreen({
         </div>
         <Table
           aria-label="Productos"
-          columns={columns}
-          sort={sort}
-          onSortChange={setSort}
+          table={table}
           {...cloudTableState(data, "los productos")}
-          rows={rows}
           empty={
             products.length === 0
               ? {

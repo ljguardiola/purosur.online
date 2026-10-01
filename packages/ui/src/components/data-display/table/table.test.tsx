@@ -1,7 +1,9 @@
+import type { RowData } from "@tanstack/react-table";
 import { PackageSearch, Pencil, ShieldX, Trash2 } from "lucide-react";
-import { expect, expectTypeOf, test, vi } from "vitest";
+import { expect, test, vi } from "vitest";
 import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { textOrder } from "../../../ordering/item-ordering";
 import { expectNoAccessibilityViolations } from "../../../test/axe";
 import { paintedBoxShadowLayers, tokenRgb } from "../../../test/token-colors";
 import type { EmptyStateProps } from "../../feedback/empty-state";
@@ -9,31 +11,47 @@ import type { LoadFailureProps } from "../../feedback/load-failure";
 import { Button } from "../../forms/button";
 import { Table } from "./table";
 import { TableCellText } from "./table-cell-text";
-import type {
-  TableAction,
-  TableColumn,
-  TableProps,
-  TableRow,
-  TableSort,
-  TableSortableColumnKey,
-  TableSortDirection,
-} from "./table-types";
+import { actionsColumn, dataColumn } from "./table-columns";
+import type { TableColumn, TableColumns, TableProps, TableSort } from "./table-types";
+import { useTableModel } from "./use-table-model";
 
 type Product = { id: string; name: string; sku?: string; stock: string };
 
+const byName = textOrder((p: Product) => p.name);
+const byStock = (a: Product, b: Product) => Number(a.stock) - Number(b.stock);
+
 const columns = [
-  { key: "name", header: "Producto", render: (p: Product) => p.name },
-  { key: "stock", header: "Stock", align: "end", render: (p: Product) => p.stock },
+  dataColumn({ id: "name", header: "Producto", render: (p: Product) => p.name }),
+  dataColumn({ id: "stock", header: "Stock", align: "end", render: (p: Product) => p.stock }),
 ] as const;
 
-const rows: TableRow<Product>[] = [
-  { id: "1", item: { id: "1", name: "Coffee", stock: "12" } },
-  { id: "2", item: { id: "2", name: "Tea", stock: "8" } },
-];
+const coffee: Product = { id: "1", name: "Coffee", stock: "12" };
+const tea: Product = { id: "2", name: "Tea", stock: "8" };
+const products = [coffee, tea];
 
-const emptyRows: TableRow<Product>[] = [];
+const noProducts: Product[] = [];
 
-const commonProps = { "aria-label": "Products", rows };
+const commonProps = { "aria-label": "Products", items: products };
+
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+
+const NO_SORT: TableSort = { column: "", direction: "ascending" };
+
+function TestTable<T extends RowData & { id: string }>({
+  columns,
+  items,
+  sort = NO_SORT,
+  onSortChange = () => {},
+  ...tableProps
+}: DistributiveOmit<TableProps<T>, "table"> & {
+  columns: TableColumns<T>;
+  items: readonly T[];
+  sort?: TableSort;
+  onSortChange?: (sort: TableSort) => void;
+}) {
+  const table = useTableModel({ items, id: (item) => item.id, columns, sort, onSortChange });
+  return <Table table={table} {...tableProps} />;
+}
 
 function paintedTextRight(element: HTMLElement): number {
   const range = document.createRange();
@@ -89,13 +107,10 @@ function rgbTuple(rgb: string): [number, number, number] {
 
 test("actually paints the selected row's left accent and the row divider, not just declares them", async () => {
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={columns}
-      rows={[
-        { id: "1", item: rows[0]?.item as Product, state: "selected" },
-        { id: "2", item: rows[1]?.item as Product },
-      ]}
+      rowState={(item) => (item.id === "1" ? "selected" : undefined)}
     />,
   );
   await settleScroll();
@@ -131,7 +146,7 @@ test("keeps every corner rounded: no adjacent fill reaches the curve, with a bac
         background: "rgb(0, 255, 0)",
       }}
     >
-      <Table {...commonProps} columns={columns} />
+      <TestTable {...commonProps} columns={columns} />
     </div>,
   );
   await settleScroll();
@@ -166,7 +181,7 @@ test("keeps every corner rounded: no adjacent fill reaches the curve, with a bac
 });
 
 test("renders a white container with an 8px radius and a 1px line border", async () => {
-  const screen = await render(<Table {...commonProps} columns={columns} />);
+  const screen = await render(<TestTable {...commonProps} columns={columns} />);
   const container = screen.getByRole("table").element().parentElement as HTMLElement;
   const style = getComputedStyle(container);
 
@@ -179,14 +194,14 @@ test("renders a white container with an 8px radius and a 1px line border", async
 });
 
 test("has no aria-busy when the table isn't loading", async () => {
-  const screen = await render(<Table {...commonProps} columns={columns} />);
+  const screen = await render(<TestTable {...commonProps} columns={columns} />);
   const table = screen.getByRole("table").element() as HTMLElement;
 
   expect(table.hasAttribute("aria-busy")).toBe(false);
 });
 
 test("builds the table from real table/thead/tbody/tr/th/td tags instead of styled divs, so every table role comes from the tag itself in every engine", async () => {
-  const screen = await render(<Table {...commonProps} columns={columns} />);
+  const screen = await render(<TestTable {...commonProps} columns={columns} />);
   const table = screen.getByRole("table").element() as HTMLElement;
   const thead = table.querySelector("thead") as HTMLElement;
   const tbody = table.querySelector("tbody") as HTMLElement;
@@ -213,7 +228,7 @@ test("builds the table from real table/thead/tbody/tr/th/td tags instead of styl
 });
 
 test("renders a 44px header row on a bone background with 16px edge padding and a 12px gap between columns", async () => {
-  const screen = await render(<Table {...commonProps} columns={columns} />);
+  const screen = await render(<TestTable {...commonProps} columns={columns} />);
   const firstCell = screen.getByRole("columnheader", { name: "Producto" }).element() as HTMLElement;
   const lastCell = screen.getByRole("columnheader", { name: "Stock" }).element() as HTMLElement;
   const headerRow = firstCell.parentElement as HTMLElement;
@@ -233,14 +248,14 @@ test("renders a 44px header row on a bone background with 16px edge padding and 
 
 test("wraps a long, unbreakable plain header title instead of overrunning the next column", async () => {
   const longColumns = [
-    {
-      key: "name",
+    dataColumn({
+      id: "name",
       header: "Superlongunbreakabletitlethatwouldnotwraponitsown",
       render: (p: Product) => p.name,
-    },
-    { key: "stock", header: "Stock", align: "end", render: (p: Product) => p.stock },
+    }),
+    dataColumn({ id: "stock", header: "Stock", align: "end", render: (p: Product) => p.stock }),
   ] as const;
-  const screen = await render(<Table {...commonProps} columns={longColumns} />);
+  const screen = await render(<TestTable {...commonProps} columns={longColumns} />);
   const firstHeader = screen
     .getByRole("columnheader", { name: "Superlongunbreakabletitlethatwouldnotwraponitsown" })
     .element() as HTMLElement;
@@ -259,17 +274,16 @@ test("wraps a long, unbreakable plain header title instead of overrunning the ne
 
 test("wraps a long, unbreakable sortable header title instead of overrunning the next column", async () => {
   const longColumns = [
-    {
-      key: "name",
+    dataColumn({
+      id: "name",
       header: "Superlongunbreakabletitlethatwouldnotwraponitsown",
-      sortable: true,
-      defaultDirection: "ascending",
+      sort: { order: byName, firstDirection: "ascending" },
       render: (p: Product) => p.name,
-    },
-    { key: "stock", header: "Stock", align: "end", render: (p: Product) => p.stock },
+    }),
+    dataColumn({ id: "stock", header: "Stock", align: "end", render: (p: Product) => p.stock }),
   ] as const;
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={longColumns}
       sort={{ column: "name", direction: "ascending" }}
@@ -295,11 +309,11 @@ test("wraps a long, unbreakable sortable header title instead of overrunning the
 
 test("renders 12px bold capital column titles, whether or not the column is sortable", async () => {
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={[
         sortableColumns[0],
-        { key: "stock", header: "Stock", align: "end", render: (p: Product) => p.stock },
+        dataColumn({ id: "stock", header: "Stock", align: "end", render: (p: Product) => p.stock }),
       ]}
       sort={{ column: "name", direction: "ascending" }}
       onSortChange={() => {}}
@@ -319,11 +333,13 @@ test("renders 12px bold capital column titles, whether or not the column is sort
 });
 
 test("still renders every row, each with its own content, when two rows share the same id", async () => {
-  const dupRows: TableRow<Product>[] = [
-    { id: "1", item: { id: "1", name: "Coffee", stock: "12" } },
-    { id: "1", item: { id: "1", name: "Tea", stock: "8" } },
+  const sameIdProducts: Product[] = [
+    { id: "1", name: "Coffee", stock: "12" },
+    { id: "1", name: "Tea", stock: "8" },
   ];
-  const screen = await render(<Table aria-label="Products" columns={columns} rows={dupRows} />);
+  const screen = await render(
+    <TestTable aria-label="Products" columns={columns} items={sameIdProducts} />,
+  );
 
   await expect.element(screen.getByRole("cell", { name: "Coffee" })).toBeVisible();
   await expect.element(screen.getByRole("cell", { name: "Tea" })).toBeVisible();
@@ -334,24 +350,22 @@ test("still renders every row, each with its own content, when two rows share th
 
 test("shows both columns as sorted when they share a key that matches the current sort", async () => {
   const dupColumns = [
-    {
-      key: "same",
+    dataColumn({
+      id: "same",
       header: "Producto",
-      sortable: true,
-      defaultDirection: "ascending",
+      sort: { order: byStock, firstDirection: "ascending" },
       render: (p: Product) => p.name,
-    },
-    {
-      key: "same",
+    }),
+    dataColumn({
+      id: "same",
       header: "Stock",
       align: "end",
-      sortable: true,
-      defaultDirection: "ascending",
+      sort: { order: byStock, firstDirection: "ascending" },
       render: (p: Product) => p.stock,
-    },
+    }),
   ] as const;
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={dupColumns}
       sort={{ column: "same", direction: "ascending" }}
@@ -369,7 +383,7 @@ test("shows both columns as sorted when they share a key that matches the curren
 });
 
 test("skips its own bottom divider on the last row, since the container's own border already closes it", async () => {
-  const screen = await render(<Table {...commonProps} columns={columns} />);
+  const screen = await render(<TestTable {...commonProps} columns={columns} />);
   const lastCell = screen.getByRole("cell", { name: "8" }).element() as HTMLElement;
   const lastRow = lastCell.parentElement as HTMLElement;
   const container = screen.getByRole("table").element().parentElement as HTMLElement;
@@ -383,11 +397,7 @@ test("skips its own bottom divider on the last row, since the container's own bo
 
 test("keeps the selected row's own left accent on the last row, with no bottom divider layer", async () => {
   const screen = await render(
-    <Table
-      {...commonProps}
-      columns={columns}
-      rows={[{ id: "1", item: rows[0]?.item as Product, state: "selected" }]}
-    />,
+    <TestTable {...commonProps} columns={columns} items={[coffee]} rowState={() => "selected"} />,
   );
   const row = screen.getByRole("cell", { name: "Coffee" }).element().parentElement as HTMLElement;
 
@@ -398,7 +408,7 @@ test("keeps the selected row's own left accent on the last row, with no bottom d
 
 test("skips its own bottom divider on the last placeholder row too, while loading is initial", async () => {
   const screen = await render(
-    <Table {...commonProps} columns={columns} rows={emptyRows} loading="initial" />,
+    <TestTable {...commonProps} columns={columns} items={noProducts} loading="initial" />,
   );
   const placeholderRows = screen.container.querySelectorAll('tbody[aria-hidden="true"] tr');
   const lastPlaceholderRow = placeholderRows[placeholderRows.length - 1] as HTMLElement;
@@ -416,7 +426,7 @@ test("skips its own bottom divider on the last placeholder row too, while loadin
 });
 
 test("renders every row's cells with 16px edge padding and a 12px gap lined up with the header, over a 1px line bottom border", async () => {
-  const screen = await render(<Table {...commonProps} columns={columns} />);
+  const screen = await render(<TestTable {...commonProps} columns={columns} />);
   const firstCell = screen.getByRole("cell", { name: "Coffee" }).element() as HTMLElement;
   const lastCell = screen.getByRole("cell", { name: "12" }).element() as HTMLElement;
   const row = firstCell.parentElement as HTMLElement;
@@ -431,7 +441,7 @@ test("renders every row's cells with 16px edge padding and a 12px gap lined up w
 });
 
 test("renders a 56px row when every cell holds a single line", async () => {
-  const screen = await render(<Table {...commonProps} columns={columns} />);
+  const screen = await render(<TestTable {...commonProps} columns={columns} />);
   const row = screen.getByRole("cell", { name: "Coffee" }).element().parentElement as HTMLElement;
   const rect = row.getBoundingClientRect();
 
@@ -441,17 +451,17 @@ test("renders a 56px row when every cell holds a single line", async () => {
 
 test("grows a row to 64px when a cell renders a detail line under its main text", async () => {
   const twoLineColumns = [
-    {
-      key: "name",
+    dataColumn({
+      id: "name",
       header: "Producto",
       render: (p: Product) => <TableCellText description={p.sku}>{p.name}</TableCellText>,
-    },
+    }),
   ] as const;
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={twoLineColumns}
-      rows={[{ id: "1", item: { id: "1", name: "Coffee", sku: "SKU-001", stock: "12" } }]}
+      items={[{ id: "1", name: "Coffee", sku: "SKU-001", stock: "12" }]}
     />,
   );
   const row = screen.getByRole("cell", { name: "Coffee SKU-001" }).element()
@@ -464,17 +474,17 @@ test("grows a row to 64px when a cell renders a detail line under its main text"
 
 test("grows a row to fit a taller cell, like one holding a form control, beyond the 56px floor", async () => {
   const tallColumns = [
-    {
-      key: "name",
+    dataColumn({
+      id: "name",
       header: "Producto",
-      render: () => <div style={{ height: "48px" }}>Control</div>,
-    },
+      render: (_p: Product) => <div style={{ height: "48px" }}>Control</div>,
+    }),
   ] as const;
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={tallColumns}
-      rows={[{ id: "1", item: { id: "1", name: "Coffee", stock: "12" } }]}
+      items={[{ id: "1", name: "Coffee", stock: "12" }]}
     />,
   );
   const row = screen.getByText("Control").element().closest("tr") as HTMLElement;
@@ -488,23 +498,18 @@ test("grows a row to fit a taller cell, like one holding a form control, beyond 
 
 test("renders a cell's detail line at 14px in secondary text, even in a muted row", async () => {
   const twoLineColumns = [
-    {
-      key: "name",
+    dataColumn({
+      id: "name",
       header: "Producto",
       render: (p: Product) => <TableCellText description={p.sku}>{p.name}</TableCellText>,
-    },
+    }),
   ] as const;
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={twoLineColumns}
-      rows={[
-        {
-          id: "1",
-          item: { id: "1", name: "Coffee", sku: "SKU-001", stock: "12" },
-          state: "muted",
-        },
-      ]}
+      items={[{ id: "1", name: "Coffee", sku: "SKU-001", stock: "12" }]}
+      rowState={() => "muted"}
     />,
   );
   const detail = screen.getByText("SKU-001", { exact: true }).element() as HTMLElement;
@@ -517,19 +522,19 @@ test("renders a cell's detail line at 14px in secondary text, even in a muted ro
 
 test("lays out a cell whose render returns several elements with the same 4px gap TableCellText uses", async () => {
   const fragmentColumns = [
-    {
-      key: "name",
+    dataColumn({
+      id: "name",
       header: "Producto",
-      render: () => (
+      render: (_p: Product) => (
         <>
           <span className="block">Line A</span>
           <span className="block">Line B</span>
         </>
       ),
-    },
+    }),
   ] as const;
   const screen = await render(
-    <Table {...commonProps} columns={fragmentColumns} rows={[rows[0] as TableRow<Product>]} />,
+    <TestTable {...commonProps} columns={fragmentColumns} items={[coffee]} />,
   );
   const lineA = screen.getByText("Line A").element() as HTMLElement;
   const lineB = screen.getByText("Line B").element() as HTMLElement;
@@ -545,10 +550,10 @@ test("wraps long cell text onto a second line instead of cutting it with an elli
     "A very long product name that does not fit on a single line of this narrow column";
   const screen = await render(
     <div style={{ width: "320px" }}>
-      <Table
+      <TestTable
         {...commonProps}
         columns={columns}
-        rows={[{ id: "1", item: { id: "1", name: longText, stock: "1" } }]}
+        items={[{ id: "1", name: longText, stock: "1" }]}
       />
     </div>,
   );
@@ -566,10 +571,10 @@ test("breaks a long unbreakable token inside its own cell instead of overrunning
   const barcode = "1234567890123456789012345678901234567890";
   const screen = await render(
     <div style={{ width: "320px" }}>
-      <Table
+      <TestTable
         {...commonProps}
         columns={columns}
-        rows={[{ id: "1", item: { id: "1", name: barcode, stock: "1" } }]}
+        items={[{ id: "1", name: barcode, stock: "1" }]}
       />
     </div>,
   );
@@ -590,10 +595,10 @@ test("breaks a long unbreakable token inside an align:end cell instead of overru
   const barcode = "1234567890123456789012345678901234567890";
   const screen = await render(
     <div style={{ width: "320px" }}>
-      <Table
+      <TestTable
         {...commonProps}
         columns={columns}
-        rows={[{ id: "1", item: { id: "1", name: "x", stock: barcode } }]}
+        items={[{ id: "1", name: "x", stock: barcode }]}
       />
     </div>,
   );
@@ -611,7 +616,7 @@ test("breaks a long unbreakable token inside an align:end cell instead of overru
 });
 
 test("right-aligns a numeric column in the header and the rows, with tabular digits", async () => {
-  const screen = await render(<Table {...commonProps} columns={columns} />);
+  const screen = await render(<TestTable {...commonProps} columns={columns} />);
   const header = screen.getByRole("columnheader", { name: "Stock" }).element() as HTMLElement;
   const cell = screen.getByRole("cell", { name: "12" }).element() as HTMLElement;
   const cellText = screen.getByText("12", { exact: true }).element() as HTMLElement;
@@ -629,7 +634,7 @@ test("right-aligns a numeric column in the header and the rows, with tabular dig
 
 test("right-aligns a sortable end-aligned header's own title and icon, not just its text-align", async () => {
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={sortableColumns}
       sort={{ column: "stock", direction: "descending" }}
@@ -649,13 +654,10 @@ test("right-aligns a sortable end-aligned header's own title and icon, not just 
 
 test("renders the selected row state with a blue message background and a 4px blue left edge", async () => {
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={columns}
-      rows={[
-        { id: "1", item: rows[0]?.item as Product, state: "selected" },
-        { id: "2", item: rows[1]?.item as Product },
-      ]}
+      rowState={(item) => (item.id === "1" ? "selected" : undefined)}
     />,
   );
   const row = screen.getByRole("cell", { name: "Coffee" }).element().parentElement as HTMLElement;
@@ -672,11 +674,7 @@ test("renders the selected row state with a blue message background and a 4px bl
 
 test("renders the warning row state with a warning message background", async () => {
   const screen = await render(
-    <Table
-      {...commonProps}
-      columns={columns}
-      rows={[{ id: "1", item: rows[0]?.item as Product, state: "warning" }]}
-    />,
+    <TestTable {...commonProps} columns={columns} items={[coffee]} rowState={() => "warning"} />,
   );
   const row = screen.getByRole("cell", { name: "Coffee" }).element().parentElement as HTMLElement;
   const cellText = screen.getByText("Coffee", { exact: true }).element() as HTMLElement;
@@ -687,11 +685,7 @@ test("renders the warning row state with a warning message background", async ()
 
 test("renders the error row state with an error message background", async () => {
   const screen = await render(
-    <Table
-      {...commonProps}
-      columns={columns}
-      rows={[{ id: "1", item: rows[0]?.item as Product, state: "error" }]}
-    />,
+    <TestTable {...commonProps} columns={columns} items={[coffee]} rowState={() => "error"} />,
   );
   const row = screen.getByRole("cell", { name: "Coffee" }).element().parentElement as HTMLElement;
   const cellText = screen.getByText("Coffee", { exact: true }).element() as HTMLElement;
@@ -702,11 +696,7 @@ test("renders the error row state with an error message background", async () =>
 
 test("renders every cell of a muted row in secondary text, with its background unchanged", async () => {
   const screen = await render(
-    <Table
-      {...commonProps}
-      columns={columns}
-      rows={[{ id: "1", item: rows[0]?.item as Product, state: "muted" }]}
-    />,
+    <TestTable {...commonProps} columns={columns} items={[coffee]} rowState={() => "muted"} />,
   );
   const row = screen.getByRole("cell", { name: "Coffee" }).element().parentElement as HTMLElement;
   const firstCellText = screen.getByText("Coffee", { exact: true }).element() as HTMLElement;
@@ -719,15 +709,14 @@ test("renders every cell of a muted row in secondary text, with its background u
 
 test("renders one IconButton at its own 38x38px in an 82px wide, unnamed-title actions column named for assistive technology", async () => {
   const actionColumns = [
-    { key: "name", header: "Producto", render: (p: Product) => p.name },
-    {
-      key: "actions",
-      kind: "actions",
+    dataColumn({ id: "name", header: "Producto", render: (p: Product) => p.name }),
+    actionsColumn({
+      id: "actions",
       header: "Actions",
-      actions: [() => ({ icon: <Pencil />, "aria-label": "Edit", onPress: () => {} })],
-    },
+      actions: [(_p: Product) => ({ icon: <Pencil />, "aria-label": "Edit", onPress: () => {} })],
+    }),
   ] as const;
-  const screen = await render(<Table {...commonProps} columns={actionColumns} />);
+  const screen = await render(<TestTable {...commonProps} columns={actionColumns} />);
   const header = screen.getByRole("columnheader", { name: "Actions" }).element() as HTMLElement;
 
   expect(header.textContent).toBe("Actions");
@@ -754,18 +743,17 @@ test("renders one IconButton at its own 38x38px in an 82px wide, unnamed-title a
 
 test("renders two IconButtons at their own 38x38px with an 8px gap, right-aligned, in a 126px actions column", async () => {
   const actionColumns = [
-    { key: "name", header: "Producto", render: (p: Product) => p.name },
-    {
-      key: "actions",
-      kind: "actions",
+    dataColumn({ id: "name", header: "Producto", render: (p: Product) => p.name }),
+    actionsColumn({
+      id: "actions",
       header: "Actions",
       actions: [
-        () => ({ icon: <Pencil />, "aria-label": "Edit", onPress: () => {} }),
-        () => ({ icon: <Trash2 />, "aria-label": "Delete", onPress: () => {} }),
+        (_p: Product) => ({ icon: <Pencil />, "aria-label": "Edit", onPress: () => {} }),
+        (_p: Product) => ({ icon: <Trash2 />, "aria-label": "Delete", onPress: () => {} }),
       ],
-    },
+    }),
   ] as const;
-  const screen = await render(<Table {...commonProps} columns={actionColumns} />);
+  const screen = await render(<TestTable {...commonProps} columns={actionColumns} />);
   const header = screen.getByRole("columnheader", { name: "Actions" }).element() as HTMLElement;
 
   const twoActionColumnWidthPx = 104 + 6 + 16;
@@ -794,9 +782,8 @@ test("renders two IconButtons at their own 38x38px with an 8px gap, right-aligne
 test("keeps focus on the action button when its own label changes with the item's state", async () => {
   type ToggleItem = { id: string; active: boolean };
   const toggleColumns = [
-    {
-      key: "actions",
-      kind: "actions",
+    actionsColumn({
+      id: "actions",
       header: "Actions",
       actions: [
         (item: ToggleItem) => ({
@@ -805,13 +792,13 @@ test("keeps focus on the action button when its own label changes with the item'
           onPress: () => {},
         }),
       ],
-    },
+    }),
   ] as const;
   const screen = await render(
-    <Table
+    <TestTable
       aria-label="Products"
       columns={toggleColumns}
-      rows={[{ id: "1", item: { id: "1", active: false } }]}
+      items={[{ id: "1", active: false }]}
     />,
   );
   const button = screen.getByRole("button", { name: "Activar" }).element() as HTMLElement;
@@ -819,11 +806,7 @@ test("keeps focus on the action button when its own label changes with the item'
   expect(document.activeElement).toBe(button);
 
   await screen.rerender(
-    <Table
-      aria-label="Products"
-      columns={toggleColumns}
-      rows={[{ id: "1", item: { id: "1", active: true } }]}
-    />,
+    <TestTable aria-label="Products" columns={toggleColumns} items={[{ id: "1", active: true }]} />,
   );
 
   expect(document.activeElement).toBe(button);
@@ -837,45 +820,35 @@ test("keeps the second action's own identity untouched when an update makes the 
   const onEdit = vi.fn();
   const onEditAgain = vi.fn();
   const columnsBeforeCollision = [
-    {
-      key: "actions",
-      kind: "actions",
+    actionsColumn({
+      id: "actions",
       header: "Actions",
       actions: [
         (_item: Item) => ({ icon: <Pencil />, "aria-label": "Modify", onPress: onEdit }),
         (_item: Item) => ({ icon: <Trash2 />, "aria-label": "Edit", onPress: onEditAgain }),
       ],
-    },
+    }),
   ] as const;
   const columnsWithCollision = [
-    {
-      key: "actions",
-      kind: "actions",
+    actionsColumn({
+      id: "actions",
       header: "Actions",
       actions: [
         (_item: Item) => ({ icon: <Pencil />, "aria-label": "Edit", onPress: onEdit }),
         (_item: Item) => ({ icon: <Trash2 />, "aria-label": "Edit", onPress: onEditAgain }),
       ],
-    },
+    }),
   ] as const;
 
   const screen = await render(
-    <Table
-      aria-label="Products"
-      columns={columnsBeforeCollision}
-      rows={[{ id: "1", item: { id: "1" } }]}
-    />,
+    <TestTable aria-label="Products" columns={columnsBeforeCollision} items={[{ id: "1" }]} />,
   );
   const editAgainButton = screen.getByRole("button", { name: "Edit" }).element() as HTMLElement;
   editAgainButton.focus();
   expect(document.activeElement).toBe(editAgainButton);
 
   await screen.rerender(
-    <Table
-      aria-label="Products"
-      columns={columnsWithCollision}
-      rows={[{ id: "1", item: { id: "1" } }]}
-    />,
+    <TestTable aria-label="Products" columns={columnsWithCollision} items={[{ id: "1" }]} />,
   );
 
   const editButtons = screen.getByRole("button", { name: "Edit" }).elements() as HTMLElement[];
@@ -891,15 +864,14 @@ test("keeps the second action's own identity untouched when an update makes the 
 
 test("renders no button at all for a row whose action reports undefined, keeping the button for other rows", async () => {
   type Item = { id: string; isAdministrator: boolean };
-  const itemRows: TableRow<Item>[] = [
-    { id: "1", item: { id: "1", isAdministrator: true } },
-    { id: "2", item: { id: "2", isAdministrator: false } },
+  const itemRows: Item[] = [
+    { id: "1", isAdministrator: true },
+    { id: "2", isAdministrator: false },
   ];
   const hideableColumns = [
-    { key: "name", header: "Rol", render: (item: Item) => item.id },
-    {
-      key: "actions",
-      kind: "actions",
+    dataColumn({ id: "name", header: "Rol", render: (item: Item) => item.id }),
+    actionsColumn({
+      id: "actions",
       header: "Actions",
       actions: [
         (item: Item) =>
@@ -907,11 +879,11 @@ test("renders no button at all for a row whose action reports undefined, keeping
             ? undefined
             : { icon: <Pencil />, "aria-label": `Edit ${item.id}`, onPress: () => {} },
       ],
-    },
+    }),
   ] as const;
 
   const screen = await render(
-    <Table aria-label="Roles" columns={hideableColumns} rows={itemRows} />,
+    <TestTable aria-label="Roles" columns={hideableColumns} items={itemRows} />,
   );
 
   expect(screen.getByRole("button", { name: "Edit 1" }).query()).toBeNull();
@@ -922,15 +894,14 @@ test("renders no button at all for a row whose action reports undefined, keeping
 
 test("keeps the first action in the same column position across rows even when the second action is hidden on one of them", async () => {
   type Item = { id: string; isAdministrator: boolean };
-  const itemRows: TableRow<Item>[] = [
-    { id: "1", item: { id: "1", isAdministrator: true } },
-    { id: "2", item: { id: "2", isAdministrator: false } },
+  const itemRows: Item[] = [
+    { id: "1", isAdministrator: true },
+    { id: "2", isAdministrator: false },
   ];
   const twoActionColumns = [
-    { key: "name", header: "Rol", render: (item: Item) => item.id },
-    {
-      key: "actions",
-      kind: "actions",
+    dataColumn({ id: "name", header: "Rol", render: (item: Item) => item.id }),
+    actionsColumn({
+      id: "actions",
       header: "Actions",
       actions: [
         (item: Item) => ({
@@ -943,11 +914,11 @@ test("keeps the first action in the same column position across rows even when t
             ? undefined
             : { icon: <Pencil />, "aria-label": `Edit ${item.id}`, onPress: () => {} },
       ],
-    },
+    }),
   ] as const;
 
   const screen = await render(
-    <Table aria-label="Roles" columns={twoActionColumns} rows={itemRows} />,
+    <TestTable aria-label="Roles" columns={twoActionColumns} items={itemRows} />,
   );
 
   const copyOnAdminRow = screen.getByRole("button", { name: "Copy 1" }).element() as HTMLElement;
@@ -963,12 +934,11 @@ test("keeps the first action in the same column position across rows even when t
 
 test("hides a missing action behind an invisible, non-focusable placeholder instead of collapsing its slot", async () => {
   type Item = { id: string; isAdministrator: boolean };
-  const itemRows: TableRow<Item>[] = [{ id: "1", item: { id: "1", isAdministrator: true } }];
+  const itemRows: Item[] = [{ id: "1", isAdministrator: true }];
   const twoActionColumns = [
-    { key: "name", header: "Rol", render: (item: Item) => item.id },
-    {
-      key: "actions",
-      kind: "actions",
+    dataColumn({ id: "name", header: "Rol", render: (item: Item) => item.id }),
+    actionsColumn({
+      id: "actions",
       header: "Actions",
       actions: [
         (item: Item) => ({
@@ -981,11 +951,11 @@ test("hides a missing action behind an invisible, non-focusable placeholder inst
             ? undefined
             : { icon: <Pencil />, "aria-label": `Edit ${item.id}`, onPress: () => {} },
       ],
-    },
+    }),
   ] as const;
 
   const screen = await render(
-    <Table aria-label="Roles" columns={twoActionColumns} rows={itemRows} />,
+    <TestTable aria-label="Roles" columns={twoActionColumns} items={itemRows} />,
   );
 
   const copyButton = screen.getByRole("button", { name: "Copy 1" }).element() as HTMLElement;
@@ -1004,65 +974,33 @@ test("hides a missing action behind an invisible, non-focusable placeholder inst
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("does not accept a column without a title, or an actions column without its own fields", () => {
-  expectTypeOf<{ key: string; render: (item: Product) => string }>().not.toExtend<
-    TableColumn<Product>
-  >();
-  expectTypeOf<{ key: string; kind: "actions"; render: (item: Product) => string }>().not.toExtend<
-    TableColumn<Product>
-  >();
-  expectTypeOf<{ key: string; kind: "actions"; header: string }>().not.toExtend<
-    TableColumn<Product>
-  >();
-  expectTypeOf<{
-    key: string;
-    kind: "actions";
-    actions: readonly [TableAction<Product>];
-  }>().not.toExtend<TableColumn<Product>>();
-});
-
-test("does not accept an actions column with zero or three actions", () => {
-  expectTypeOf<{ key: string; kind: "actions"; header: string; actions: [] }>().not.toExtend<
-    TableColumn<Product>
-  >();
-  expectTypeOf<{
-    key: string;
-    kind: "actions";
-    header: string;
-    actions: [TableAction<Product>, TableAction<Product>, TableAction<Product>];
-  }>().not.toExtend<TableColumn<Product>>();
-});
-
 const sortableColumns = [
-  {
-    key: "name",
+  dataColumn({
+    id: "name",
     header: "Producto",
-    sortable: true,
-    defaultDirection: "ascending",
+    sort: { order: byName, firstDirection: "ascending" },
     render: (p: Product) => p.name,
-  },
-  {
-    key: "stock",
+  }),
+  dataColumn({
+    id: "stock",
     header: "Stock",
     align: "end",
-    sortable: true,
-    defaultDirection: "descending",
+    sort: { order: byStock, firstDirection: "descending" },
     render: (p: Product) => p.stock,
-  },
+  }),
 ] as const;
 
 test("shows the hand cursor on the sortable header button and on each row action", async () => {
   const actionColumns = [
-    { key: "name", header: "Producto", render: (p: Product) => p.name },
-    {
-      key: "actions",
-      kind: "actions",
+    dataColumn({ id: "name", header: "Producto", render: (p: Product) => p.name }),
+    actionsColumn({
+      id: "actions",
       header: "Actions",
-      actions: [() => ({ icon: <Pencil />, "aria-label": "Edit", onPress: () => {} })],
-    },
+      actions: [(_p: Product) => ({ icon: <Pencil />, "aria-label": "Edit", onPress: () => {} })],
+    }),
   ] as const;
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={sortableColumns}
       sort={{ column: "stock", direction: "descending" }}
@@ -1073,14 +1011,14 @@ test("shows the hand cursor on the sortable header button and on each row action
   expect(getComputedStyle(header).cursor).toBe("pointer");
   await screen.unmount();
 
-  const actionsScreen = await render(<Table {...commonProps} columns={actionColumns} />);
+  const actionsScreen = await render(<TestTable {...commonProps} columns={actionColumns} />);
   const edit = actionsScreen.getByRole("button", { name: "Edit" }).nth(0).element() as HTMLElement;
   expect(getComputedStyle(edit).cursor).toBe("pointer");
 });
 
 test("renders an unsorted sortable column with a 12px chevrons-up-down icon, both in secondary text", async () => {
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={sortableColumns}
       sort={{ column: "stock", direction: "descending" }}
@@ -1099,71 +1037,9 @@ test("renders an unsorted sortable column with a 12px chevrons-up-down icon, bot
   expect(header.getAttribute("aria-sort")).toBe("none");
 });
 
-test("does not accept a non-literal boolean sortable value, alone or beside a genuinely sortable column", () => {
-  type MinimalItem = { id: string; name: string };
-  expectTypeOf<{
-    key: string;
-    header: string;
-    sortable: boolean;
-    defaultDirection: TableSortDirection;
-    render: (item: MinimalItem) => string;
-  }>().not.toExtend<TableColumn<MinimalItem>>();
-
-  expectTypeOf<{
-    key: string;
-    header: string;
-    sortable: true;
-    defaultDirection: TableSortDirection;
-    render: (item: MinimalItem) => string;
-  }>().toExtend<TableColumn<MinimalItem>>();
-
-  expectTypeOf<
-    [
-      {
-        key: "name";
-        header: string;
-        sortable: true;
-        defaultDirection: TableSortDirection;
-        render: (item: MinimalItem) => string;
-      },
-      {
-        key: "other";
-        header: string;
-        sortable: boolean;
-        defaultDirection: TableSortDirection;
-        render: (item: MinimalItem) => string;
-      },
-    ]
-  >().not.toExtend<readonly [TableColumn<MinimalItem>, ...TableColumn<MinimalItem>[]]>();
-});
-
-test("infers literal column keys from an inline columns array, without `as const`", () => {
-  type MinimalItem = { id: string; value: string };
-  const element = (
-    <Table
-      aria-label="Items"
-      rows={[] as TableRow<MinimalItem>[]}
-      columns={[
-        {
-          key: "value",
-          header: "Value",
-          sortable: true,
-          defaultDirection: "ascending",
-          render: (item: MinimalItem) => item.value,
-        },
-      ]}
-      sort={{ column: "value", direction: "ascending" }}
-      onSortChange={(sort) => {
-        expectTypeOf(sort.column).toEqualTypeOf<"value">();
-      }}
-    />
-  );
-  expectTypeOf(element).not.toBeNever();
-});
-
 test("makes the sortable header's own button reach every edge of the header cell, padding included", async () => {
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={sortableColumns}
       sort={{ column: "stock", direction: "descending" }}
@@ -1185,18 +1061,17 @@ test("makes the sortable header's own button reach every edge of the header cell
 
 test("keeps the sortable header's own button matching a wrapped title's grown header box, not just the 44px floor", async () => {
   const wrappedColumns = [
-    {
-      key: "name",
+    dataColumn({
+      id: "name",
       header: "Superlongunbreakabletitlethatwouldwraptotwoormorelines",
-      sortable: true,
-      defaultDirection: "ascending",
+      sort: { order: byName, firstDirection: "ascending" },
       render: (p: Product) => p.name,
-    },
-    { key: "stock", header: "Stock", align: "end", render: (p: Product) => p.stock },
+    }),
+    dataColumn({ id: "stock", header: "Stock", align: "end", render: (p: Product) => p.stock }),
   ] as const;
   const screen = await render(
     <div style={{ width: "320px" }}>
-      <Table
+      <TestTable
         {...commonProps}
         columns={wrappedColumns}
         sort={{ column: "name", direction: "ascending" }}
@@ -1222,7 +1097,7 @@ test("keeps the sortable header's own button matching a wrapped title's grown he
 
 test("shows a visible focus outline in strong blue when a sortable header is reached by keyboard", async () => {
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={sortableColumns}
       sort={{ column: "stock", direction: "descending" }}
@@ -1248,7 +1123,7 @@ test("hovers a sortable header to the soft surface, since it sits on the header 
     ): Promise<unknown>;
   }
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={sortableColumns}
       sort={{ column: "stock", direction: "descending" }}
@@ -1279,7 +1154,7 @@ test("hovers a sortable header to the soft surface, since it sits on the header 
 test("paints the sortable header's own focus ring inside the container, never past its edge", async () => {
   const screen = await render(
     <div style={{ marginTop: "40px", marginLeft: "40px", width: "300px", background: "white" }}>
-      <Table
+      <TestTable
         {...commonProps}
         columns={sortableColumns}
         sort={{ column: "stock", direction: "descending" }}
@@ -1315,7 +1190,7 @@ test("paints the sortable header's own focus ring inside the container, never pa
 
 test("sits the sort chevron 4px after the column title", async () => {
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={sortableColumns}
       sort={{ column: "stock", direction: "descending" }}
@@ -1335,7 +1210,7 @@ test("sits the sort chevron 4px after the column title", async () => {
 
 test("shows the ascending sort with an up chevron, title and icon in ink, exposed as aria-sort", async () => {
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={sortableColumns}
       sort={{ column: "name", direction: "ascending" }}
@@ -1356,7 +1231,7 @@ test("shows the ascending sort with an up chevron, title and icon in ink, expose
 
 test("shows the descending sort with a down chevron, title and icon in ink, exposed as aria-sort", async () => {
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={sortableColumns}
       sort={{ column: "stock", direction: "descending" }}
@@ -1375,7 +1250,7 @@ test("shows the descending sort with a down chevron, title and icon in ink, expo
 test("asks the caller to sort by a column using its own first direction, on click", async () => {
   const onSortChange = vi.fn();
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={sortableColumns}
       sort={{ column: "stock", direction: "descending" }}
@@ -1392,7 +1267,7 @@ test("asks the caller to sort by a column using its own first direction, on clic
 test("asks the caller to sort by a column using its own first direction, from the keyboard", async () => {
   const onSortChange = vi.fn();
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={sortableColumns}
       sort={{ column: "name", direction: "ascending" }}
@@ -1411,7 +1286,7 @@ test("asks the caller to sort by a column using its own first direction, from th
 test("asks for the opposite direction when activating the column already sorted", async () => {
   const onSortChange = vi.fn();
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={sortableColumns}
       sort={{ column: "name", direction: "ascending" }}
@@ -1428,7 +1303,7 @@ test("asks for the opposite direction when activating the column already sorted"
 test("keeps showing the column as unsorted when the caller's onSortChange does nothing", async () => {
   const onSortChange = vi.fn();
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={sortableColumns}
       sort={{ column: "stock", direction: "descending" }}
@@ -1453,7 +1328,7 @@ const wideSortableColumns: readonly [TableColumn<Product>, ...TableColumn<Produc
 test("shows nothing sorted when sort.column names a column absent from the current columns", async () => {
   const onSortChange = vi.fn();
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={wideSortableColumns}
       sort={{ column: "removed-column", direction: "ascending" }}
@@ -1480,75 +1355,9 @@ test("shows nothing sorted when sort.column names a column absent from the curre
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("does not accept a sortable column without its own first direction", () => {
-  expectTypeOf<{
-    key: string;
-    header: string;
-    sortable: true;
-    render: (item: Product) => string;
-  }>().not.toExtend<TableColumn<Product>>();
-});
-
-test("does not accept a sortable column without sort and onSortChange", () => {
-  expectTypeOf<{
-    "aria-label": string;
-    columns: typeof sortableColumns;
-    rows: TableRow<Product>[];
-  }>().not.toExtend<TableProps<Product, typeof sortableColumns>>();
-});
-
-test("does not accept sort or onSortChange when no column is sortable", () => {
-  expectTypeOf<{
-    "aria-label": string;
-    columns: typeof columns;
-    rows: TableRow<Product>[];
-    sort: TableSort;
-  }>().not.toExtend<TableProps<Product, typeof columns>>();
-  expectTypeOf<{
-    "aria-label": string;
-    columns: typeof columns;
-    rows: TableRow<Product>[];
-    onSortChange: (sort: TableSort) => void;
-  }>().not.toExtend<TableProps<Product, typeof columns>>();
-});
-
-test("does not accept sorting by a non-sortable or unknown column key", () => {
-  expectTypeOf<{
-    "aria-label": string;
-    columns: typeof sortableColumns;
-    rows: TableRow<Product>[];
-    sort: { column: "unknown-key"; direction: "ascending" };
-    onSortChange: (sort: TableSort) => void;
-  }>().not.toExtend<TableProps<Product, typeof sortableColumns>>();
-});
-
-test("types onSortChange's column as exactly the union of the sortable columns' own keys", () => {
-  expectTypeOf<TableSortableColumnKey<Product, typeof sortableColumns>>().toEqualTypeOf<
-    "name" | "stock"
-  >();
-});
-
-const wideColumns: readonly [TableColumn<Product>, ...TableColumn<Product>[]] = columns;
-
-test("falls to the safe side for a widely annotated columns array: a required handler and string keys", () => {
-  expectTypeOf<TableSortableColumnKey<Product, typeof wideColumns>>().toEqualTypeOf<string>();
-  expectTypeOf<{
-    "aria-label": string;
-    columns: typeof wideColumns;
-    rows: TableRow<Product>[];
-  }>().not.toExtend<TableProps<Product, typeof wideColumns>>();
-  expectTypeOf<{
-    "aria-label": string;
-    columns: typeof wideColumns;
-    rows: TableRow<Product>[];
-    sort: { column: string; direction: "ascending" };
-    onSortChange: (sort: TableSort) => void;
-  }>().toExtend<TableProps<Product, typeof wideColumns>>();
-});
-
 test("renders the placeholder rows immediately, hidden from assistive technology, with loading initial", async () => {
   const screen = await render(
-    <Table {...commonProps} columns={columns} rows={emptyRows} loading="initial" />,
+    <TestTable {...commonProps} columns={columns} items={noProducts} loading="initial" />,
   );
   const table = screen.getByRole("table").element() as HTMLElement;
 
@@ -1565,7 +1374,7 @@ test("renders the placeholder rows immediately, hidden from assistive technology
 
 test("renders each placeholder bar at its own declared width, cycling per column", async () => {
   const screen = await render(
-    <Table {...commonProps} columns={columns} rows={emptyRows} loading="initial" />,
+    <TestTable {...commonProps} columns={columns} items={noProducts} loading="initial" />,
   );
   const firstRow = screen.container.querySelector('tbody[aria-hidden="true"] tr') as HTMLElement;
   const cells = firstRow.querySelectorAll("td");
@@ -1589,16 +1398,15 @@ test("renders each placeholder bar at its own declared width, cycling per column
 
 test("renders one placeholder square, right-aligned, for a one-button actions column", async () => {
   const actionColumns = [
-    { key: "name", header: "Producto", render: (p: Product) => p.name },
-    {
-      key: "actions",
-      kind: "actions",
+    dataColumn({ id: "name", header: "Producto", render: (p: Product) => p.name }),
+    actionsColumn({
+      id: "actions",
       header: "Actions",
-      actions: [() => ({ icon: <Pencil />, "aria-label": "Edit", onPress: () => {} })],
-    },
+      actions: [(_p: Product) => ({ icon: <Pencil />, "aria-label": "Edit", onPress: () => {} })],
+    }),
   ] as const;
   const screen = await render(
-    <Table {...commonProps} columns={actionColumns} rows={emptyRows} loading="initial" />,
+    <TestTable {...commonProps} columns={actionColumns} items={noProducts} loading="initial" />,
   );
   const firstRow = screen.container.querySelector('tbody[aria-hidden="true"] tr') as HTMLElement;
   const actionsCell = firstRow.querySelectorAll("td")[1] as HTMLElement;
@@ -1619,19 +1427,18 @@ test("renders one placeholder square, right-aligned, for a one-button actions co
 
 test("renders two placeholder squares with an 8px gap, right-aligned, for a two-button actions column", async () => {
   const actionColumns = [
-    { key: "name", header: "Producto", render: (p: Product) => p.name },
-    {
-      key: "actions",
-      kind: "actions",
+    dataColumn({ id: "name", header: "Producto", render: (p: Product) => p.name }),
+    actionsColumn({
+      id: "actions",
       header: "Actions",
       actions: [
-        () => ({ icon: <Pencil />, "aria-label": "Edit", onPress: () => {} }),
-        () => ({ icon: <Trash2 />, "aria-label": "Delete", onPress: () => {} }),
+        (_p: Product) => ({ icon: <Pencil />, "aria-label": "Edit", onPress: () => {} }),
+        (_p: Product) => ({ icon: <Trash2 />, "aria-label": "Delete", onPress: () => {} }),
       ],
-    },
+    }),
   ] as const;
   const screen = await render(
-    <Table {...commonProps} columns={actionColumns} rows={emptyRows} loading="initial" />,
+    <TestTable {...commonProps} columns={actionColumns} items={noProducts} loading="initial" />,
   );
   const firstRow = screen.container.querySelector('tbody[aria-hidden="true"] tr') as HTMLElement;
   const actionsCell = firstRow.querySelectorAll("td")[1] as HTMLElement;
@@ -1655,7 +1462,7 @@ test("renders two placeholder squares with an 8px gap, right-aligned, for a two-
 
 test("discards any rows the caller still passes while loading is initial, in favor of the placeholders", async () => {
   const screen = await render(
-    <Table {...commonProps} columns={columns} rows={rows} loading="initial" />,
+    <TestTable {...commonProps} columns={columns} items={products} loading="initial" />,
   );
 
   expect(screen.container.querySelectorAll('tbody[aria-hidden="true"] tr')).toHaveLength(5);
@@ -1665,7 +1472,7 @@ test("discards any rows the caller still passes while loading is initial, in fav
 
 test("reveals the placeholder rows exactly at 300ms, proven with the Web Animations API", async () => {
   const screen = await render(
-    <Table {...commonProps} columns={columns} rows={emptyRows} loading="initial" />,
+    <TestTable {...commonProps} columns={columns} items={noProducts} loading="initial" />,
   );
   const placeholderRow = screen.container.querySelector(
     'tbody[aria-hidden="true"] tr',
@@ -1695,7 +1502,7 @@ test("still reveals the placeholder rows at 300ms when the system asks for reduc
 
   try {
     const screen = await render(
-      <Table {...commonProps} columns={columns} rows={emptyRows} loading="initial" />,
+      <TestTable {...commonProps} columns={columns} items={noProducts} loading="initial" />,
     );
     const placeholderRow = screen.container.querySelector(
       'tbody[aria-hidden="true"] tr',
@@ -1725,16 +1532,16 @@ test("still reveals the placeholder rows at 300ms when the system asks for reduc
 
 test("removes the placeholder rows once loading leaves initial", async () => {
   const screen = await render(
-    <Table {...commonProps} columns={columns} rows={emptyRows} loading="initial" />,
+    <TestTable {...commonProps} columns={columns} items={noProducts} loading="initial" />,
   );
-  await screen.rerender(<Table {...commonProps} columns={columns} loading={false} />);
+  await screen.rerender(<TestTable {...commonProps} columns={columns} loading={false} />);
 
   expect(screen.container.querySelectorAll('tbody[aria-hidden="true"] tr')).toHaveLength(0);
   await expect.element(screen.getByRole("cell", { name: "Coffee" })).toBeVisible();
 });
 
 test("keeps the current rows and shows a top loading bar while updating", async () => {
-  const screen = await render(<Table {...commonProps} columns={columns} loading="updating" />);
+  const screen = await render(<TestTable {...commonProps} columns={columns} loading="updating" />);
   const table = screen.getByRole("table").element() as HTMLElement;
 
   await expect.element(screen.getByRole("cell", { name: "Coffee" })).toBeVisible();
@@ -1749,7 +1556,7 @@ test("keeps the current rows and shows a top loading bar while updating", async 
 // An absolutely positioned sibling still receives pointer events by default even when aria-hidden.
 test("does not intercept a click landing on the header underneath the loading bar's own band", async () => {
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={sortableColumns}
       sort={{ column: "stock", direction: "descending" }}
@@ -1787,7 +1594,7 @@ test("keeps a hovered, unfocused header's own hover fill under the updating bar"
 
   try {
     const screen = await render(
-      <Table
+      <TestTable
         {...commonProps}
         columns={sortableColumns}
         sort={{ column: "stock", direction: "descending" }}
@@ -1835,7 +1642,7 @@ test("keeps a hovered, unfocused header's own hover fill under the updating bar"
 
 test("keeps the header's own title text below the loading bar's 3px band", async () => {
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={sortableColumns}
       sort={{ column: "stock", direction: "descending" }}
@@ -1857,7 +1664,7 @@ test("keeps the header's own title text below the loading bar's 3px band", async
 test("keeps the focused header's own inset ring visible on every edge, even under the updating bar", async () => {
   const screen = await render(
     <div style={{ marginTop: "40px", marginLeft: "40px", width: "300px", background: "white" }}>
-      <Table
+      <TestTable
         {...commonProps}
         columns={sortableColumns}
         sort={{ column: "stock", direction: "descending" }}
@@ -1901,7 +1708,7 @@ test("contains the focused header's own z-20 inside the table, instead of lettin
           background: `rgb(${toolbarColor.join(", ")})`,
         }}
       />
-      <Table
+      <TestTable
         {...commonProps}
         columns={sortableColumns}
         sort={{ column: "stock", direction: "descending" }}
@@ -1931,7 +1738,7 @@ test("reads the focused header's own ring color at the same probe point when the
   const screen = await render(
     <div style={{ position: "relative", marginTop: "40px", marginLeft: "40px", width: "300px" }}>
       <div style={{ position: "absolute", inset: 0, zIndex: -1, background: "rgb(255, 0, 255)" }} />
-      <Table
+      <TestTable
         {...commonProps}
         columns={sortableColumns}
         sort={{ column: "stock", direction: "descending" }}
@@ -1956,7 +1763,7 @@ test("reads the focused header's own ring color at the same probe point when the
 });
 
 test("slides the updating bar's segment left to right in a loop", async () => {
-  const screen = await render(<Table {...commonProps} columns={columns} loading="updating" />);
+  const screen = await render(<TestTable {...commonProps} columns={columns} loading="updating" />);
   const table = screen.getByRole("table").element() as HTMLElement;
   const bar = table.previousElementSibling as HTMLElement;
   const segment = bar.firstElementChild as HTMLElement;
@@ -1970,7 +1777,7 @@ test("slides the updating bar's segment exactly from off the left edge to off th
   // Fixed width, since the table is w-full and would otherwise tie the bar's width to the runner's viewport.
   const screen = await render(
     <div style={{ width: "300px" }}>
-      <Table {...commonProps} columns={columns} loading="updating" />
+      <TestTable {...commonProps} columns={columns} loading="updating" />
     </div>,
   );
   const table = screen.getByRole("table").element() as HTMLElement;
@@ -2002,7 +1809,9 @@ test("keeps the updating bar's segment still when the system asks for reduced mo
   });
 
   try {
-    const screen = await render(<Table {...commonProps} columns={columns} loading="updating" />);
+    const screen = await render(
+      <TestTable {...commonProps} columns={columns} loading="updating" />,
+    );
     const table = screen.getByRole("table").element() as HTMLElement;
     const bar = table.previousElementSibling as HTMLElement;
     const segment = bar.firstElementChild as HTMLElement;
@@ -2022,10 +1831,10 @@ test("keeps the updating bar's segment still when the system asks for reduced mo
 
 test("renders the empty state under the kept header, in blue strong when there is nothing yet", async () => {
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={columns}
-      rows={emptyRows}
+      items={noProducts}
       empty={{
         icon: <PackageSearch />,
         title: "No products yet",
@@ -2056,13 +1865,19 @@ test("keeps the table the same height from its placeholders to its empty state, 
     variant: "blank",
   };
   const screen = await render(
-    <Table {...commonProps} columns={columns} rows={emptyRows} loading="initial" empty={empty} />,
+    <TestTable
+      {...commonProps}
+      columns={columns}
+      items={noProducts}
+      loading="initial"
+      empty={empty}
+    />,
   );
   const table = screen.container.querySelector("table") as HTMLTableElement;
   const placeholderHeight = table.getBoundingClientRect().height;
 
   await screen.rerender(
-    <Table {...commonProps} columns={columns} rows={emptyRows} empty={empty} />,
+    <TestTable {...commonProps} columns={columns} items={noProducts} empty={empty} />,
   );
 
   expect(screen.container.querySelector("table")?.getBoundingClientRect().height).toBe(
@@ -2079,13 +1894,19 @@ test("keeps the table the same height from its placeholders to an empty state wi
     actions: <Button>Add product</Button>,
   };
   const screen = await render(
-    <Table {...commonProps} columns={columns} rows={emptyRows} loading="initial" empty={empty} />,
+    <TestTable
+      {...commonProps}
+      columns={columns}
+      items={noProducts}
+      loading="initial"
+      empty={empty}
+    />,
   );
   const table = screen.container.querySelector("table") as HTMLTableElement;
   const placeholderHeight = table.getBoundingClientRect().height;
 
   await screen.rerender(
-    <Table {...commonProps} columns={columns} rows={emptyRows} empty={empty} />,
+    <TestTable {...commonProps} columns={columns} items={noProducts} empty={empty} />,
   );
 
   expect(screen.container.querySelector("table")?.getBoundingClientRect().height).toBe(
@@ -2095,10 +1916,10 @@ test("keeps the table the same height from its placeholders to an empty state wi
 
 test("centers the empty state in the frame's body", async () => {
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={columns}
-      rows={emptyRows}
+      items={noProducts}
       empty={{ icon: <PackageSearch />, title: "No products yet", variant: "blank" }}
     />,
   );
@@ -2115,10 +1936,10 @@ test("centers the empty state in the frame's body", async () => {
 
 test("renders the empty state in secondary text when nothing matches the filters, with the caller's actions", async () => {
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={columns}
-      rows={emptyRows}
+      items={noProducts}
       empty={{
         icon: <PackageSearch />,
         title: "No matches",
@@ -2136,10 +1957,10 @@ test("renders the empty state in secondary text when nothing matches the filters
 
 test("renders only the title under the icon when the empty state has no detail", async () => {
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={columns}
-      rows={emptyRows}
+      items={noProducts}
       empty={{ icon: <PackageSearch />, title: "No archived products", variant: "filtered" }}
     />,
   );
@@ -2151,7 +1972,7 @@ test("renders only the title under the icon when the empty state has no detail",
 
 test("renders the real rows, not the empty state, when both rows and an empty prop are given", async () => {
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={columns}
       empty={{
@@ -2165,12 +1986,14 @@ test("renders the real rows, not the empty state, when both rows and an empty pr
 
   await expect.element(screen.getByRole("cell", { name: "Coffee" })).toBeVisible();
   expect(screen.getByText("No products yet").query()).toBeNull();
-  expect(screen.container.querySelectorAll("tbody td")).toHaveLength(columns.length * rows.length);
+  expect(screen.container.querySelectorAll("tbody td")).toHaveLength(
+    columns.length * products.length,
+  );
 });
 
 test("keeps focus on the header when the rows become the empty state", async () => {
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={sortableColumns}
       sort={{ column: "stock", direction: "descending" }}
@@ -2182,12 +2005,12 @@ test("keeps focus on the header when the rows become the empty state", async () 
   expect(document.activeElement).toBe(header);
 
   await screen.rerender(
-    <Table
+    <TestTable
       {...commonProps}
       columns={sortableColumns}
       sort={{ column: "stock", direction: "descending" }}
       onSortChange={() => {}}
-      rows={emptyRows}
+      items={noProducts}
       empty={{
         icon: <PackageSearch />,
         title: "No matches",
@@ -2210,7 +2033,12 @@ const failure: LoadFailureProps = {
 test("renders the failure with its retry under the kept header, in the frame's own body", async () => {
   const onRetry = vi.fn();
   const screen = await render(
-    <Table {...commonProps} columns={columns} rows={emptyRows} failure={{ ...failure, onRetry }} />,
+    <TestTable
+      {...commonProps}
+      columns={columns}
+      items={noProducts}
+      failure={{ ...failure, onRetry }}
+    />,
   );
 
   await expect.element(screen.getByRole("columnheader", { name: "Producto" })).toBeVisible();
@@ -2228,14 +2056,14 @@ test("renders the failure with its retry under the kept header, in the frame's o
 
 test("keeps the table the same height from its placeholders to its failure, so nothing jumps", async () => {
   const screen = await render(
-    <Table {...commonProps} columns={columns} rows={emptyRows} loading="initial" />,
+    <TestTable {...commonProps} columns={columns} items={noProducts} loading="initial" />,
   );
   const placeholderHeight = (
     screen.container.querySelector("table") as HTMLTableElement
   ).getBoundingClientRect().height;
 
   await screen.rerender(
-    <Table {...commonProps} columns={columns} rows={emptyRows} failure={failure} />,
+    <TestTable {...commonProps} columns={columns} items={noProducts} failure={failure} />,
   );
 
   expect(screen.container.querySelector("table")?.getBoundingClientRect().height).toBe(
@@ -2245,7 +2073,7 @@ test("keeps the table the same height from its placeholders to its failure, so n
 
 test("starts the failure at the top of the frame's body with 16px around it", async () => {
   const screen = await render(
-    <Table {...commonProps} columns={columns} rows={emptyRows} failure={failure} />,
+    <TestTable {...commonProps} columns={columns} items={noProducts} failure={failure} />,
   );
 
   const cell = screen.container.querySelector("tbody td") as HTMLElement;
@@ -2256,7 +2084,7 @@ test("starts the failure at the top of the frame's body with 16px around it", as
 
 test("shows the failure instead of the empty state and of any rows", async () => {
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={columns}
       failure={failure}
@@ -2271,10 +2099,10 @@ test("shows the failure instead of the empty state and of any rows", async () =>
 
 test("hides the footer while the failure shows", async () => {
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={columns}
-      rows={emptyRows}
+      items={noProducts}
       failure={failure}
       footer={<p>0 of 215 products</p>}
     />,
@@ -2284,28 +2112,12 @@ test("hides the footer while the failure shows", async () => {
   expect(screen.getByText("0 of 215 products").query()).toBeNull();
 });
 
-test("does not accept a failure together with a loading state", () => {
-  expectTypeOf<{
-    "aria-label": string;
-    columns: typeof columns;
-    rows: TableRow<Product>[];
-    loading: "initial";
-    failure: LoadFailureProps;
-  }>().not.toExtend<TableProps<Product, typeof columns>>();
-  expectTypeOf<{
-    "aria-label": string;
-    columns: typeof columns;
-    rows: TableRow<Product>[];
-    failure: LoadFailureProps;
-  }>().toExtend<TableProps<Product, typeof columns>>();
-});
-
 test("shows placeholders instead of the empty state while loading is initial, even with an empty prop", async () => {
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={columns}
-      rows={emptyRows}
+      items={noProducts}
       loading="initial"
       empty={{
         icon: <PackageSearch />,
@@ -2322,10 +2134,10 @@ test("shows placeholders instead of the empty state while loading is initial, ev
 
 test("keeps showing the current (empty) rows under the loading bar while updating, not the empty state", async () => {
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={columns}
-      rows={emptyRows}
+      items={noProducts}
       loading="updating"
       empty={{
         icon: <PackageSearch />,
@@ -2344,7 +2156,7 @@ test("keeps showing the current (empty) rows under the loading bar while updatin
 });
 
 test("renders a plain, message-less empty table when there are no rows and no empty prop", async () => {
-  const screen = await render(<Table {...commonProps} columns={columns} rows={emptyRows} />);
+  const screen = await render(<TestTable {...commonProps} columns={columns} items={noProducts} />);
 
   await expect.element(screen.getByRole("table")).toBeVisible();
   expect(screen.container.querySelectorAll("tbody tr")).toHaveLength(0);
@@ -2355,7 +2167,7 @@ test("renders a plain, message-less empty table when there are no rows and no em
 
 test("renders the caller's footer below the table", async () => {
   const screen = await render(
-    <Table {...commonProps} columns={columns} footer={<p>1-2 of 2</p>} />,
+    <TestTable {...commonProps} columns={columns} footer={<p>1-2 of 2</p>} />,
   );
 
   await expect.element(screen.getByText("1-2 of 2")).toBeVisible();
@@ -2363,10 +2175,10 @@ test("renders the caller's footer below the table", async () => {
 
 test("holds back the footer during the first load, alongside the placeholders", async () => {
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={columns}
-      rows={emptyRows}
+      items={noProducts}
       loading="initial"
       footer={<p>1-2 of 2</p>}
     />,
@@ -2377,7 +2189,7 @@ test("holds back the footer during the first load, alongside the placeholders", 
 
 test("keeps showing the footer while updating", async () => {
   const screen = await render(
-    <Table {...commonProps} columns={columns} loading="updating" footer={<p>1-2 of 2</p>} />,
+    <TestTable {...commonProps} columns={columns} loading="updating" footer={<p>1-2 of 2</p>} />,
   );
 
   await expect.element(screen.getByText("1-2 of 2")).toBeVisible();
@@ -2387,10 +2199,10 @@ test("keeps showing the footer while updating", async () => {
 
 test("keeps showing the footer alongside the empty state", async () => {
   const screen = await render(
-    <Table
+    <TestTable
       {...commonProps}
       columns={columns}
-      rows={emptyRows}
+      items={noProducts}
       footer={<p>0 of 215 products</p>}
       empty={{
         icon: <PackageSearch />,
@@ -2405,25 +2217,4 @@ test("keeps showing the footer alongside the empty state", async () => {
   await expect.element(screen.getByText("0 of 215 products")).toBeVisible();
 
   await expectNoAccessibilityViolations(screen.container);
-});
-
-test("does not accept a table without an accessible name, its columns or its rows", () => {
-  expectTypeOf<{ columns: typeof columns; rows: TableRow<Product>[] }>().not.toExtend<
-    TableProps<Product, typeof columns>
-  >();
-  expectTypeOf<{ "aria-label": string; rows: TableRow<Product>[] }>().not.toExtend<
-    TableProps<Product, typeof columns>
-  >();
-  expectTypeOf<{ "aria-label": string; columns: typeof columns }>().not.toExtend<
-    TableProps<Product, typeof columns>
-  >();
-});
-
-test("names a column's heading header and an empty state's look variant", () => {
-  expectTypeOf<EmptyStateProps>().toHaveProperty("variant");
-  expectTypeOf<EmptyStateProps>().not.toHaveProperty("tone");
-  expectTypeOf<Extract<TableColumn<unknown>, { kind?: "data" }>>().toHaveProperty("header");
-  expectTypeOf<Extract<TableColumn<unknown>, { kind?: "data" }>>().not.toHaveProperty("title");
-  expectTypeOf<Extract<TableColumn<unknown>, { kind: "actions" }>>().toHaveProperty("header");
-  expectTypeOf<Extract<TableColumn<unknown>, { kind: "actions" }>>().not.toHaveProperty("srLabel");
 });

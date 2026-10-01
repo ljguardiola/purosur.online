@@ -1,15 +1,17 @@
 import type { TagSummary } from "@purosur/contracts";
 import {
+  actionsColumn,
   Button,
+  dataColumn,
   formatNumber,
+  type ItemOrder,
   ListFilter,
   SearchField,
   StatusIndicator,
   Table,
-  type TableItemOrder,
   type TableSort,
-  tableRows,
   textOrder,
+  useTableModel,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
 import { Ban, Pencil, Plus, RotateCcw, Search, SearchX, Sparkles } from "lucide-react";
@@ -46,7 +48,7 @@ const TAG_STATUS_EMPTY_TITLE = {
 
 const tagNameOrder = textOrder((tag: TagSummary) => tag.name);
 
-const productCountOrder: TableItemOrder<TagSummary> = (a, b) =>
+const productCountOrder: ItemOrder<TagSummary> = (a, b) =>
   a.productCount - b.productCount || tagNameOrder(a, b);
 
 function showsStatus(tag: TagSummary, status: TagStatusFilter): boolean {
@@ -94,13 +96,6 @@ export function TagsListScreen({
 
   const { tags, taggedProductCount } =
     data.status === "loaded" ? data.value : { tags: NO_TAGS, taggedProductCount: 0 };
-  const { rows, matchCount } = tableRows({
-    items: tags,
-    id: (tag) => tag.id,
-    search: { text: search, in: (tag) => [tag.name] },
-    filter: (tag) => showsStatus(tag, statusFilter),
-    sort: { by: sort, orders: { tag: tagNameOrder, products: productCountOrder } },
-  });
 
   const statusFilterOptions = [
     { value: "active" as const, label: "Activos" },
@@ -109,22 +104,20 @@ export function TagsListScreen({
   ] as const;
 
   const columns = [
-    {
-      key: "tag",
+    dataColumn({
+      id: "tag",
       header: "Distintivo",
-      sortable: true,
-      defaultDirection: "ascending",
+      sort: { order: tagNameOrder, firstDirection: "ascending" },
       render: (item: TagSummary) => item.name,
-    },
-    {
-      key: "products",
+    }),
+    dataColumn({
+      id: "products",
       header: "Productos",
-      sortable: true,
-      defaultDirection: "descending",
+      sort: { order: productCountOrder, firstDirection: "descending" },
       render: (item: TagSummary) => formatNumber(item.productCount),
-    },
-    {
-      key: "status",
+    }),
+    dataColumn({
+      id: "status",
       header: "Estado",
       render: (item: TagSummary) =>
         item.active ? (
@@ -132,10 +125,9 @@ export function TagsListScreen({
         ) : (
           <StatusIndicator tone="neutral">Inactivo</StatusIndicator>
         ),
-    },
-    {
-      key: "actions",
-      kind: "actions",
+    }),
+    actionsColumn({
+      id: "actions",
       header: "Acciones",
       actions: [
         (item: TagSummary) => ({
@@ -156,10 +148,19 @@ export function TagsListScreen({
                 onPress: () => setReactivateTarget(item),
               },
       ],
-    },
+    }),
   ] as const;
 
-  const matchedTags = rows.map((row) => row.item);
+  const table = useTableModel({
+    items: tags,
+    id: (tag) => tag.id,
+    search: { text: search, in: (tag) => [tag.name] },
+    filter: (tag) => showsStatus(tag, statusFilter),
+    columns,
+    sort,
+    onSortChange: setSort,
+  });
+  const matchedTags = table.getRowModel().rows.map((row) => row.original);
 
   return (
     <>
@@ -195,11 +196,8 @@ export function TagsListScreen({
         </div>
         <Table
           aria-label="Distintivos"
-          columns={columns}
-          sort={sort}
-          onSortChange={setSort}
+          table={table}
           {...cloudTableState(data, "los distintivos")}
-          rows={rows}
           empty={
             tags.length === 0
               ? {
@@ -223,7 +221,7 @@ export function TagsListScreen({
                   }
           }
           footer={
-            matchCount === 0 ? undefined : (
+            matchedTags.length === 0 ? undefined : (
               <p className="text-text-subtle text-detail">
                 {tagsFooterText(matchedTags, taggedProductCount)}
               </p>

@@ -2,6 +2,7 @@ import type { StockMovement, StockMovementResult, StockProduct } from "@purosur/
 import { ADJUSTMENT_REASONS, LOSS_REASONS } from "@purosur/domain";
 import {
   Button,
+  dataColumn,
   FloatingNotification,
   ListFilter,
   plural,
@@ -9,7 +10,7 @@ import {
   Table,
   TableCellText,
   Tag,
-  tableRows,
+  useTableModel,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
 import { ArrowDownUp, Check, Plus, Search } from "lucide-react";
@@ -57,38 +58,38 @@ const KIND_LABELS = { loss: "Pérdida", adjustment: "Ajuste" } satisfies Record<
 >;
 
 const columns = [
-  {
-    key: "date",
+  dataColumn({
+    id: "date",
     header: "Fecha",
     render: (movement: StockMovement) => (
       <TableCellText description={formatStockTime(movement.occurredAt)}>
         {formatStockDay(movement.occurredAt)}
       </TableCellText>
     ),
-  },
-  {
-    key: "product",
+  }),
+  dataColumn({
+    id: "product",
     header: "Producto",
     render: (movement: StockMovement) => (
       <TableCellText description={movement.categoryName}>{movement.productName}</TableCellText>
     ),
-  },
-  {
-    key: "kind",
+  }),
+  dataColumn({
+    id: "kind",
     header: "Tipo",
     render: (movement: StockMovement) => (
       <Tag tone={movement.kind === "loss" ? "neutral" : "info"}>{KIND_LABELS[movement.kind]}</Tag>
     ),
-  },
-  {
-    key: "reason",
+  }),
+  dataColumn({
+    id: "reason",
     header: "Motivo",
     render: (movement: StockMovement) => REASON_LABELS[movement.reason],
-  },
-  {
-    key: "quantity",
+  }),
+  dataColumn({
+    id: "quantity",
     header: "Cantidad",
-    align: "end" as const,
+    align: "end",
     render: (movement: StockMovement) => {
       const change = formatStockChange(movement.delta, movement.saleUnit);
       return movement.superseded ? (
@@ -100,7 +101,7 @@ const columns = [
         change
       );
     },
-  },
+  }),
 ] as const;
 
 function registeredNotice(
@@ -192,12 +193,14 @@ export function StockMovementsScreen({
   });
   const movements = data.status === "loaded" ? data.value.movements : NO_MOVEMENTS;
 
-  const { rows, matchCount } = tableRows({
+  const table = useTableModel({
     items: movements,
     id: (movement) => movement.id,
     search: { text: search, in: (movement) => [movement.productName] },
     filter: (movement) => reason === "ALL" || movement.reason === reason,
+    columns,
   });
+  const matchCount = table.getRowModel().rows.length;
 
   // A fresh id for each notice, so a screen reader announces a notice with the same text again.
   function showNotice(shown: Omit<ScreenNotice, "id">) {
@@ -257,9 +260,8 @@ export function StockMovementsScreen({
         </div>
         <Table
           aria-label="Ajustes y pérdidas"
-          columns={columns}
+          table={table}
           {...cloudTableState(data, "los ajustes y las pérdidas")}
-          rows={rows}
           empty={
             movements.length === 0
               ? {
