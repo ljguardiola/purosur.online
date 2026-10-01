@@ -12,6 +12,7 @@ type PulledEntity =
   | "user"
   | "role"
   | "register"
+  | "register_point_of_sale"
   | "discount"
   | "issuer_identification"
   | "buyer_identification_threshold"

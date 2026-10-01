@@ -1790,6 +1790,57 @@ describe("charge sale in cash answer", () => {
   });
 });
 
+describe("charge sale by transfer request", () => {
+  const message = { type: "charge-sale-by-transfer", request_id: REQUEST_ID, sale_id: "s1" };
+
+  it("accepts a charge of a sale", () => {
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("does not take who is charging or an amount from the renderer", () => {
+    expect(
+      rendererToCoreMessageSchema.parse({ ...message, user_id: "u9", tendered: 5000, amount: 1 }),
+    ).toEqual(message);
+  });
+
+  it.each([
+    ["request id", { ...message, request_id: undefined }],
+    ["sale id", { ...message, sale_id: undefined }],
+    ["sale id as text", { ...message, sale_id: 7 }],
+  ])("rejects a charge without a valid %s", (_case, value) => {
+    expect(rendererToCoreMessageSchema.safeParse(value).success).toBe(false);
+  });
+});
+
+describe("charge sale by transfer answer", () => {
+  it.each([
+    { kind: "completed", sale_id: "s1", total: 3000 },
+    { kind: "empty_sale" },
+    { kind: "not_signed_in" },
+    { kind: "unavailable" },
+  ])("accepts the result $kind", (outcome) => {
+    const message = { type: "charge-sale-by-transfer-result", request_id: REQUEST_ID, outcome };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a result it does not know", () => {
+    const message = {
+      type: "charge-sale-by-transfer-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "insufficient_cash", amount_due: 3000 },
+    };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("rejects a result without its request id", () => {
+    const message = { type: "charge-sale-by-transfer-result", outcome: { kind: "empty_sale" } };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+});
+
 describe("cash charge request", () => {
   const message = {
     type: "cash-charge-request",

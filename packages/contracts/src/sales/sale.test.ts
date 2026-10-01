@@ -4,6 +4,7 @@ import {
   addProductOutcomeSchema,
   cancelSaleOutcomeSchema,
   changeLineQuantityOutcomeSchema,
+  chargeSaleByTransferOutcomeSchema,
   chargeSaleInCashOutcomeSchema,
   removeSaleLineOutcomeSchema,
   saleSchema,
@@ -266,6 +267,52 @@ describe("chargeSaleInCashOutcomeSchema", () => {
     {},
   ])("rejects the outcome %j", (outcome) => {
     expect(chargeSaleInCashOutcomeSchema.safeParse(outcome).success).toBe(false);
+  });
+});
+
+describe("chargeSaleByTransferOutcomeSchema", () => {
+  it.each([
+    { kind: "completed", sale_id: "s1", total: 3000 },
+    { kind: "empty_sale" },
+    { kind: "zero_total" },
+    { kind: "reaches_buyer_identification_threshold", threshold: 10_000_000 },
+    { kind: "no_buyer_identification_threshold" },
+    { kind: "no_open_sale" },
+    { kind: "not_permitted" },
+    { kind: "not_signed_in" },
+    { kind: "no_open_session" },
+    { kind: "unavailable" },
+  ])("accepts the outcome $kind", (outcome) => {
+    expect(chargeSaleByTransferOutcomeSchema.parse(outcome)).toEqual(outcome);
+  });
+
+  it.each([
+    { kind: "completed" },
+    { kind: "completed", sale_id: "s1" },
+    { kind: "completed", total: 3000 },
+    { kind: "completed", sale_id: "s1", total: -1 },
+    { kind: "completed", sale_id: "s1", total: 3000.5 },
+    { kind: "insufficient_cash", amount_due: 3000 },
+    { kind: "invalid_amount" },
+    { kind: "reaches_buyer_identification_threshold" },
+    { kind: "reaches_buyer_identification_threshold", threshold: 0 },
+    { kind: "reaches_buyer_identification_threshold", threshold: 1.5 },
+    { kind: "somewhere_else" },
+    {},
+  ])("rejects the outcome %j", (outcome) => {
+    expect(chargeSaleByTransferOutcomeSchema.safeParse(outcome).success).toBe(false);
+  });
+
+  it("leaves out what only a cash charge reports", () => {
+    expect(
+      chargeSaleByTransferOutcomeSchema.parse({
+        kind: "completed",
+        sale_id: "s1",
+        total: 3000,
+        tendered: 5000,
+        change: 2000,
+      }),
+    ).toEqual({ kind: "completed", sale_id: "s1", total: 3000 });
   });
 });
 

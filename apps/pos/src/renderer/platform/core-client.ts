@@ -6,6 +6,7 @@ import type {
   CashBalance,
   CashChargeAnswer,
   ChangeLineQuantityOutcome,
+  ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
@@ -74,6 +75,7 @@ export interface CoreClient {
   cancelSale(): Promise<CancelSaleOutcome>;
   cashCharge(saleId: string, tendered: number): Promise<CashChargeAnswer>;
   chargeSaleInCash(saleId: string, tendered: number): Promise<ChargeSaleInCashOutcome>;
+  chargeSaleByTransfer(saleId: string): Promise<ChargeSaleByTransferOutcome>;
   closeCashSession(sessionId: string, countedCash: number): Promise<CloseCashSessionOutcome>;
   closeLockedCashSession(
     sessionId: string,
@@ -368,6 +370,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       return ask(
         { type: "charge-sale-in-cash", request_id: deps.newRequestId(), sale_id: saleId, tendered },
         (answer) => (answer.type === "charge-sale-in-cash-result" ? answer.outcome : undefined),
+      );
+    },
+    chargeSaleByTransfer(saleId) {
+      return ask(
+        { type: "charge-sale-by-transfer", request_id: deps.newRequestId(), sale_id: saleId },
+        (answer) => (answer.type === "charge-sale-by-transfer-result" ? answer.outcome : undefined),
       );
     },
     closeCashSession(sessionId, countedCash) {

@@ -2,8 +2,11 @@ import { emitEnrollmentCode } from "@purosur/domain/register/use-cases";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   auditLog,
+  fiscalAddresses,
   locations,
+  pointOfSaleClaims,
   registerEnrollmentCodes,
+  registerPointsOfSale,
   registers,
   users,
 } from "../platform/db/schema.js";
@@ -61,5 +64,72 @@ describe("emitting an enrollment code through DrizzleBranchRegisterStore", () =>
     expect(outcome).toEqual({ kind: "register_not_found" });
     expect(await db.select().from(registerEnrollmentCodes)).toEqual([]);
     expect(await db.select().from(auditLog)).toEqual([]);
+  });
+});
+
+async function insertActor(locationId: string): Promise<string> {
+  const [actor] = await db
+    .insert(users)
+    .values({ firstName: "Ada Lovelace", email: "ada@example.com", locationId })
+    .returning({ id: users.id });
+  if (!actor) {
+    throw new Error("test setup: seeding the actor returned no row");
+  }
+  return actor.id;
+}
+
+async function insertRegister(locationId: string, name: string): Promise<string> {
+  const [register] = await db
+    .insert(registers)
+    .values({ locationId, name })
+    .returning({ id: registers.id });
+  if (!register) {
+    throw new Error("test setup: seeding the register returned no row");
+  }
+  return register.id;
+}
+
+async function insertFiscalAddress(name = "Deposito Central"): Promise<string> {
+  const [fiscalAddress] = await db
+    .insert(fiscalAddresses)
+    .values({ name, streetAddress: "Calle Ficticia 123, CABA" })
+    .returning({ id: fiscalAddresses.id });
+  if (!fiscalAddress) {
+    throw new Error("test setup: seeding the fiscal address returned no row");
+  }
+  return fiscalAddress.id;
+}
+
+async function insertOtherLocation(): Promise<string> {
+  const [location] = await db.insert(locations).values({}).returning({ id: locations.id });
+  if (!location) {
+    throw new Error("test setup: seeding the other location returned no row");
+  }
+  return location.id;
+}
+
+describe("branchRegisters of DrizzleBranchRegisterStore", () => {
+  it("lists the branch's registers by name with the number each was configured with, null for one never configured", async () => {
+    const locationId = await seededLocationId(db);
+    const actorId = await insertActor(locationId);
+    const configuredId = await insertRegister(locationId, "Caja 2");
+    const neverConfiguredId = await insertRegister(locationId, "Caja 1");
+    await insertRegister(await insertOtherLocation(), "Caja 3");
+    await db
+      .insert(pointOfSaleClaims)
+      .values({ pointOfSaleNumber: 7, registerId: configuredId, claimedBy: actorId });
+    await db.insert(registerPointsOfSale).values({
+      registerId: configuredId,
+      pointOfSaleNumber: 7,
+      fiscalAddressId: await insertFiscalAddress(),
+      version: 1,
+    });
+
+    const listed = await new DrizzleBranchRegisterStore(db).branchRegisters(locationId);
+
+    expect(listed).toEqual([
+      { id: neverConfiguredId, name: "Caja 1", enrollmentCode: null, pointOfSaleNumber: null },
+      { id: configuredId, name: "Caja 2", enrollmentCode: null, pointOfSaleNumber: 7 },
+    ]);
   });
 });

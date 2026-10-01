@@ -5,6 +5,7 @@ import type {
   CancelSaleOutcome,
   CashChargeAnswer,
   ChangeLineQuantityOutcome,
+  ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
   CurrentSaleAnswer,
   OpenSale,
@@ -26,6 +27,7 @@ import {
   type Clock,
   cancelSale,
   changeLineQuantity,
+  chargeSaleByTransfer,
   chargeSaleInCash,
   currentSale,
   type IdGenerator,
@@ -52,6 +54,10 @@ export interface OutboxSaleRequestDeps extends SaleRequestDeps {
 export interface ChargeSaleInCashRequest {
   saleId: string;
   tendered: number;
+}
+
+export interface ChargeSaleByTransferRequest {
+  saleId: string;
 }
 
 function saleLedger(database: LocalDatabase, outboxChainKey?: string): SqliteSaleLedger {
@@ -207,14 +213,14 @@ export async function cashChargeFor(
 }
 
 export async function changeLineQuantityFor(
-  { database, gate, now, ids }: SaleRequestDeps,
+  { database, gate, now }: Pick<SaleRequestDeps, "database" | "gate" | "now">,
   lineId: string,
   quantity: number,
   expectedQuantity: number,
 ): Promise<ChangeLineQuantityOutcome> {
   const guarded = await gate.run({ permission: "sell_and_charge" }, async ({ signedInUserId }) =>
     changeLineQuantity(
-      { ledger: saleLedger(database), clock: { now }, ids },
+      { ledger: saleLedger(database), clock: { now } },
       { actorId: signedInUserId, lineId, quantity, expectedQuantity },
     ),
   );
@@ -228,12 +234,12 @@ export async function changeLineQuantityFor(
 }
 
 export async function removeSaleLineFor(
-  { database, gate, now, ids }: SaleRequestDeps,
+  { database, gate, now }: Pick<SaleRequestDeps, "database" | "gate" | "now">,
   lineId: string,
 ): Promise<RemoveSaleLineOutcome> {
   const guarded = await gate.run({ permission: "sell_and_charge" }, async ({ signedInUserId }) =>
     removeSaleLine(
-      { ledger: saleLedger(database), clock: { now }, ids },
+      { ledger: saleLedger(database), clock: { now } },
       { actorId: signedInUserId, lineId },
     ),
   );
@@ -249,19 +255,9 @@ export async function removeSaleLineFor(
 export async function cancelSaleFor({
   database,
   gate,
-  now,
-  ids,
-  readOutboxChainKey,
-}: OutboxSaleRequestDeps): Promise<CancelSaleOutcome> {
-  const outboxChainKey = await readOutboxChainKey();
-  if (outboxChainKey === undefined) {
-    return { kind: "unavailable" };
-  }
+}: Pick<SaleRequestDeps, "database" | "gate">): Promise<CancelSaleOutcome> {
   const guarded = await gate.run({ permission: "sell_and_charge" }, async ({ signedInUserId }) =>
-    cancelSale(
-      { ledger: saleLedger(database, outboxChainKey), clock: { now }, ids },
-      { actorId: signedInUserId, from: "sale" },
-    ),
+    cancelSale({ ledger: saleLedger(database) }, { actorId: signedInUserId, from: "sale" }),
   );
   if (guarded.kind !== "performed") {
     return { kind: guarded.kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };
@@ -270,20 +266,16 @@ export async function cancelSaleFor({
 }
 
 export async function cancelLockedSaleFor(
-  { database, gate, now, ids, readOutboxChainKey }: OutboxSaleRequestDeps,
+  { database, gate }: Pick<SaleRequestDeps, "database" | "gate">,
   closer: Authorization,
 ): Promise<CancelLockedSaleOutcome> {
-  const outboxChainKey = await readOutboxChainKey();
-  if (outboxChainKey === undefined) {
-    return { kind: "unavailable" };
-  }
   const guarded = await gate.runWhileLocked(
     "close_anothers_register_session",
     closer,
     readOpenSession(database),
     async (person) =>
       cancelSale(
-        { ledger: saleLedger(database, outboxChainKey), clock: { now }, ids },
+        { ledger: saleLedger(database) },
         { actorId: person.user_id, from: "locked_register" },
       ),
   );
@@ -322,6 +314,34 @@ export async function chargeSaleInCashFor(
       };
     case "insufficient_cash":
       return { kind: "insufficient_cash", amount_due: outcome.amountDue };
+    case "reaches_buyer_identification_threshold":
+      return { kind: outcome.kind, threshold: outcome.threshold };
+    default:
+      return { kind: outcome.kind };
+  }
+}
+
+export async function chargeSaleByTransferFor(
+  { database, gate, now, ids, readOutboxChainKey }: OutboxSaleRequestDeps,
+  { saleId }: ChargeSaleByTransferRequest,
+): Promise<ChargeSaleByTransferOutcome> {
+  const outboxChainKey = await readOutboxChainKey();
+  if (outboxChainKey === undefined) {
+    return { kind: "unavailable" };
+  }
+  const guarded = await gate.run({ permission: "sell_and_charge" }, async ({ signedInUserId }) =>
+    chargeSaleByTransfer(
+      { ledger: saleLedger(database, outboxChainKey), clock: { now }, ids },
+      { actorId: signedInUserId, saleId },
+    ),
+  );
+  if (guarded.kind !== "performed") {
+    return { kind: guarded.kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };
+  }
+  const outcome = guarded.result;
+  switch (outcome.kind) {
+    case "completed":
+      return { kind: "completed", sale_id: outcome.saleId, total: outcome.total };
     case "reaches_buyer_identification_threshold":
       return { kind: outcome.kind, threshold: outcome.threshold };
     default:

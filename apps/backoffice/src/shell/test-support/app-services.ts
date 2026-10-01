@@ -148,6 +148,16 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),
     },
+    pointsOfSaleScreen: {
+      fetchRegisterPointsOfSale: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchFiscalAddresses: vi.fn().mockReturnValue(new Promise(() => {})),
+      configureRegisterPointOfSale: vi.fn(),
+      createFiscalAddress: vi.fn(),
+      editFiscalAddress: vi.fn(),
+      fetchSessionAuthorizationOptions: vi.fn(),
+      authorizeSession: vi.fn(),
+      startAuthentication: vi.fn(),
+    },
     accountFooter: { signOut: vi.fn().mockResolvedValue({ kind: "ok" }) },
     screenFailure: { isOnline: vi.fn(), reloadPage: vi.fn() },
     alertsOverviewScreen: {

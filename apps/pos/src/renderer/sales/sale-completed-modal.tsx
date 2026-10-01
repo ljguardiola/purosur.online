@@ -4,17 +4,16 @@ import { Eyebrow } from "../shell/eyebrow";
 
 export type SaleCompletedModalProps = {
   total: number;
-  tendered: number;
-  change: number;
   onNewSale: () => void;
-};
+} & ({ tendered: number; change: number; method?: "CASH" } | { method: "TRANSFER" });
 
-export function SaleCompletedModal({
-  total,
-  tendered,
-  change,
-  onNewSale,
-}: SaleCompletedModalProps) {
+export function SaleCompletedModal(props: SaleCompletedModalProps) {
+  const { total, onNewSale } = props;
+  const change = props.method === "TRANSFER" ? 0 : props.change;
+  const paymentRow =
+    props.method === "TRANSFER"
+      ? { label: "Transferencia", value: formatCents(total) }
+      : { label: "Efectivo entregado", value: formatCents(props.tendered) };
   return (
     <Modal
       open
@@ -38,12 +37,7 @@ export function SaleCompletedModal({
             <p className="text-display text-text-accent">{formatCents(change)}</p>
           </div>
         ) : null}
-        <SummaryRowGroup
-          rows={[
-            { label: "Total", value: formatCents(total) },
-            { label: "Efectivo entregado", value: formatCents(tendered) },
-          ]}
-        />
+        <SummaryRowGroup rows={[{ label: "Total", value: formatCents(total) }, paymentRow]} />
       </div>
     </Modal>
   );

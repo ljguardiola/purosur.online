@@ -18,6 +18,7 @@ export interface FakeBranchRegister {
   id: string;
   locationId: string;
   name: string;
+  pointOfSaleNumber?: number;
 }
 
 export interface FakeRegisterEnrollmentCode extends RegisterEnrollmentCode {
@@ -148,6 +149,7 @@ export class FakeBranchRegisterStore implements BranchRegisterStore, BranchRegis
                 failedAttempts: code.failedAttempts,
               }
             : null,
+          pointOfSaleNumber: register.pointOfSaleNumber ?? null,
         };
       });
   }

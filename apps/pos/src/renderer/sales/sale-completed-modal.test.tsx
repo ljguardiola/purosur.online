@@ -4,7 +4,11 @@ import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { SaleCompletedModal } from "./sale-completed-modal";
 
-async function renderModal(amounts: { total: number; tendered: number; change: number }) {
+async function renderModal(
+  amounts:
+    | { total: number; tendered: number; change: number }
+    | { total: number; method: "TRANSFER" },
+) {
   await page.viewport(1280, 1000);
   onTestFinished(() => page.viewport(414, 896));
   const onNewSale = vi.fn();
@@ -35,6 +39,21 @@ describe("SaleCompletedModal", () => {
       .toBeVisible();
     await expect.element(screen.getByText("VUELTO", { exact: true })).not.toBeInTheDocument();
     await expect.element(screen.getByText("Efectivo entregado")).toBeVisible();
+  });
+
+  it("says there is no change to hand over and shows the total charged by transfer", async () => {
+    const { screen } = await renderModal({ total: 476_000, method: "TRANSFER" });
+
+    await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }))
+      .toBeVisible();
+    await expect.element(screen.getByText("Total", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("Transferencia", { exact: true })).toBeVisible();
+    expect(screen.getByText("$ 4.760,00").elements()).toHaveLength(2);
+    await expect.element(screen.getByText("VUELTO", { exact: true })).not.toBeInTheDocument();
+    await expect.element(screen.getByText("Efectivo entregado")).not.toBeInTheDocument();
+    await expectNoAccessibilityViolations(screen.container);
   });
 
   it("starts a new sale from its only button", async () => {

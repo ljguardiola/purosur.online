@@ -6,20 +6,7 @@ import {
   isIssuerIdentificationLegalNameTooLong,
 } from "@purosur/domain";
 import { z } from "zod";
-import { loadedVersionSchema } from "../shared/index.js";
-
-function requiredTextSchema(
-  field: string,
-  maxLength: number,
-  isTooLong: (value: string) => boolean,
-) {
-  const message = `${field} must be a non-empty string of at most ${maxLength} characters`;
-  return z
-    .string({ error: message })
-    .trim()
-    .min(1, message)
-    .refine((value) => !isTooLong(value), message);
-}
+import { loadedVersionSchema, requiredTextSchema } from "../shared/index.js";
 
 export function issuerIdentificationEditBodySchema(today: Date) {
   const activityStartDateMessage =

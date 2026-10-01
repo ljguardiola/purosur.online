@@ -27,3 +27,11 @@ test("a fixed pair shows its label and its value", async () => {
   await expect.element(screen.getByText("CUIT")).toBeVisible();
   await expect.element(screen.getByText(FICTIONAL_CUIT)).toBeVisible();
 });
+
+test("a data pair without a value says what its screen calls a missing one", async () => {
+  const screen = await render(
+    <DataPair label="Punto de venta" value={null} missing="Sin configurar" />,
+  );
+
+  await expect.element(screen.getByText("Sin configurar")).toBeVisible();
+});

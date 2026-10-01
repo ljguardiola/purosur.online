@@ -409,11 +409,8 @@ describe("the register's local migrations", () => {
       const path = join(folder, "register.sqlite");
       const previous = LOCAL_MIGRATIONS.slice(0, 13);
       expect(previous.at(-1)?.name).toBe("0012_payment_transactions");
-      expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
-        "0013_sale_line_removals",
-        "0014_fiscal_configuration",
-        "0015_pre_emission_gate_outcomes",
-      ]);
+      const withRemovals = LOCAL_MIGRATIONS.slice(0, 14);
+      expect(withRemovals.at(-1)?.name).toBe("0013_sale_line_removals");
       const before = openLocalDatabase(path, previous);
       before
         .prepare(
@@ -429,7 +426,7 @@ describe("the register's local migrations", () => {
         .run();
       before.close();
 
-      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+      const after = openLocalDatabase(path, withRemovals);
 
       expect(after.prepare("SELECT id, state FROM sales").all()).toEqual([
         { id: "a", state: "OPEN" },
@@ -437,6 +434,82 @@ describe("the register's local migrations", () => {
       expect(after.prepare("SELECT count(*) AS total FROM sale_line_removals").get()).toEqual({
         total: 0,
       });
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("let a payment be a transfer, keeping the cash payments a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.slice(0, 18);
+      expect(previous.at(-1)?.name).toBe("0017_completed_sales_only");
+      expect(LOCAL_MIGRATIONS.at(previous.length)?.name).toBe("0018_transfer_payments");
+      const before = openLocalDatabase(path, previous);
+      before
+        .prepare(
+          `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+           VALUES ('s1', 'r1', 'device-a', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN')`,
+        )
+        .run();
+      before
+        .prepare(
+          `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+           VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-09-30T12:05:00.000Z')`,
+        )
+        .run();
+      before
+        .prepare(
+          `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, state, occurred_at)
+           VALUES ('p1', 'sale-1', 'SALE', 'CASH', 'NONE', 1500, 2000, 'APPROVED', '2026-09-30T12:06:00.000Z')`,
+        )
+        .run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+
+      expect(
+        after
+          .prepare(
+            "SELECT id, sale_id, method, amount, tendered, authorized_by, confirmed_at FROM payment_transactions",
+          )
+          .all(),
+      ).toEqual([
+        {
+          id: "p1",
+          sale_id: "sale-1",
+          method: "CASH",
+          amount: 1500,
+          tendered: 2000,
+          authorized_by: null,
+          confirmed_at: null,
+        },
+      ]);
+      const insertTransfer = after.prepare(
+        `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state, occurred_at)
+         VALUES (@id, 'sale-1', 'SALE', @method, 'NONE', 900, @tendered, @authorized_by, @confirmed_at, 'APPROVED', '2026-09-30T12:07:00.000Z')`,
+      );
+      const transfer = {
+        id: "p2",
+        method: "TRANSFER",
+        tendered: null,
+        authorized_by: "u1",
+        confirmed_at: "2026-09-30T12:07:00.000Z",
+      };
+      insertTransfer.run(transfer);
+      expect(after.prepare("SELECT count(*) AS total FROM payment_transactions").get()).toEqual({
+        total: 2,
+      });
+      expect(after.pragma("foreign_key_check")).toEqual([]);
+      expect(() => insertTransfer.run({ ...transfer, id: "p3", authorized_by: null })).toThrow();
+      expect(() => insertTransfer.run({ ...transfer, id: "p4", confirmed_at: null })).toThrow();
+      expect(() => insertTransfer.run({ ...transfer, id: "p5", tendered: 900 })).toThrow();
+      expect(() =>
+        insertTransfer.run({ ...transfer, id: "p6", method: "CASH", tendered: 900 }),
+      ).toThrow();
+      after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });
     }
@@ -639,7 +712,7 @@ describe("the register's local migrations", () => {
     it("are at most one open per session, while any number of finished ones stay", () => {
       const database = withSession();
       insertSale(database, "a", "COMPLETED");
-      insertSale(database, "b", "CANCELLED");
+      insertSale(database, "b", "VOIDED");
       insertSale(database, "c", "OPEN");
 
       expect(() => insertSale(database, "d", "OPEN")).toThrow(/UNIQUE/);
@@ -650,6 +723,7 @@ describe("the register's local migrations", () => {
       const database = withSession();
 
       expect(() => insertSale(database, "a", "PENDING")).toThrow(/CHECK/);
+      expect(() => insertSale(database, "c", "CANCELLED")).toThrow(/CHECK/);
       expect(() => insertSale(database, "b", "OPEN", "missing")).toThrow(/FOREIGN KEY/);
       database.close();
     });
@@ -781,6 +855,9 @@ describe("the register's local migrations", () => {
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
         "0014_fiscal_configuration",
         "0015_pre_emission_gate_outcomes",
+        "0016_register_point_of_sale",
+        "0017_completed_sales_only",
+        "0018_transfer_payments",
       ]);
       const before = openLocalDatabase(path, previous);
       before
@@ -823,6 +900,9 @@ describe("the register's local migrations", () => {
       expect(previous.at(-1)?.name).toBe("0014_fiscal_configuration");
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
         "0015_pre_emission_gate_outcomes",
+        "0016_register_point_of_sale",
+        "0017_completed_sales_only",
+        "0018_transfer_payments",
       ]);
       const before = openLocalDatabase(path, previous);
       before
@@ -847,6 +927,114 @@ describe("the register's local migrations", () => {
       expect(
         after.prepare("SELECT count(*) AS total FROM pre_emission_gate_outcomes").get(),
       ).toEqual({ total: 0 });
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("add the register's point of sale over the own register and fiscal configuration a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.slice(0, 16);
+      expect(previous.at(-1)?.name).toBe("0015_pre_emission_gate_outcomes");
+      expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
+        "0016_register_point_of_sale",
+        "0017_completed_sales_only",
+        "0018_transfer_payments",
+      ]);
+      const before = openLocalDatabase(path, previous);
+      before
+        .prepare("INSERT INTO own_register (id, name, version) VALUES ('r1', 'Caja 1', 3)")
+        .run();
+      before
+        .prepare(
+          `INSERT INTO buyer_identification_thresholds (id, amount, valid_from)
+           VALUES ('t1', 500000, '2026-01-01')`,
+        )
+        .run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+
+      expect(after.prepare("SELECT id, name, version FROM own_register").all()).toEqual([
+        { id: "r1", name: "Caja 1", version: 3 },
+      ]);
+      expect(after.prepare("SELECT id, amount FROM buyer_identification_thresholds").all()).toEqual(
+        [{ id: "t1", amount: 500000 }],
+      );
+      expect(after.prepare("SELECT count(*) AS total FROM register_point_of_sale").get()).toEqual({
+        total: 0,
+      });
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("keep only the open and completed sales and drop the removals over the sales a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.slice(0, 17);
+      expect(previous.at(-1)?.name).toBe("0016_register_point_of_sale");
+      expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
+        "0017_completed_sales_only",
+        "0018_transfer_payments",
+      ]);
+      const before = openLocalDatabase(path, previous);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('done', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-09-30T12:05:00.000Z'),
+                ('dropped', 'r1', 'device-a', 's1', 'u1', 'CANCELLED', '2026-09-30T12:07:00.000Z'),
+                ('open', 'r1', 'device-a', 's1', 'u1', 'OPEN', '2026-09-30T12:10:00.000Z');
+         INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total)
+         VALUES ('l-done', 'done', 1, 'p1', 'Yerba', 1, 1000, 'pl', 1000),
+                ('l-dropped', 'dropped', 1, 'p1', 'Yerba', 1, 1000, 'pl', 1000),
+                ('l-open', 'open', 1, 'p1', 'Yerba', 1, 1000, 'pl', 1000);
+         INSERT INTO sale_line_promotions (line_id, discount_id, kind, percent)
+         VALUES ('l-done', 'ten', 'PERCENT_OFF', 10),
+                ('l-dropped', 'ten', 'PERCENT_OFF', 10),
+                ('l-open', 'ten', 'PERCENT_OFF', 10);
+         INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, state, occurred_at)
+         VALUES ('pay-done', 'done', 'SALE', 'CASH', 'NONE', 1000, 1000, 'APPROVED', '2026-09-30T12:06:00.000Z');
+         INSERT INTO pre_emission_gate_outcomes (sale_id, evaluated_at, outcome, document)
+         VALUES ('done', '2026-09-30T12:06:00.000Z', 'PASSED', 'FACTURA_B');
+         INSERT INTO sale_line_removals (id, sale_id, sale_line_id, product_id, qty_removed, amount_removed, actor_id, occurred_at)
+         VALUES ('r-open', 'open', 'l-gone', 'p2', 1, 500, 'u1', '2026-09-30T12:11:00.000Z'),
+                ('r-dropped', 'dropped', 'l-gone', 'p2', 1, 500, 'u1', '2026-09-29T12:06:00.000Z');`,
+      );
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+
+      expect(after.prepare("SELECT id, state FROM sales ORDER BY id").all()).toEqual([
+        { id: "done", state: "COMPLETED" },
+        { id: "open", state: "OPEN" },
+      ]);
+      expect(after.prepare("SELECT id, sale_id FROM sale_lines ORDER BY id").all()).toEqual([
+        { id: "l-done", sale_id: "done" },
+        { id: "l-open", sale_id: "open" },
+      ]);
+      expect(
+        after.prepare("SELECT line_id FROM sale_line_promotions ORDER BY line_id").all(),
+      ).toEqual([{ line_id: "l-done" }, { line_id: "l-open" }]);
+      expect(after.prepare("SELECT id FROM payment_transactions").all()).toEqual([
+        { id: "pay-done" },
+      ]);
+      expect(after.prepare("SELECT sale_id FROM pre_emission_gate_outcomes").all()).toEqual([
+        { sale_id: "done" },
+      ]);
+      expect(
+        after.prepare("SELECT name FROM sqlite_master WHERE name LIKE 'sale_line_removals%'").all(),
+      ).toEqual([]);
+      expect(after.pragma("foreign_key_check")).toEqual([]);
+      expect(() => after.prepare("DELETE FROM sales WHERE id = 'done'").run()).toThrow(
+        /FOREIGN KEY/,
+      );
       after.close();
     } finally {
       rmSync(folder, { recursive: true, force: true });

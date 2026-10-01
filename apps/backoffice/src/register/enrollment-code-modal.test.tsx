@@ -4,7 +4,12 @@ import { render } from "../shell/test-support/render-with-router";
 import { type EmissionState, EnrollmentCodeModal } from "./enrollment-code-modal";
 import type { RegisterSummary } from "./registers-api";
 
-const register1: RegisterSummary = { id: "register-1", name: "Caja 1", pendingCode: null };
+const register1: RegisterSummary = {
+  id: "register-1",
+  name: "Caja 1",
+  pendingCode: null,
+  pointOfSaleNumber: null,
+};
 
 function modalFor(
   emission: EmissionState,

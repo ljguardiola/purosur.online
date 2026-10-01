@@ -13,6 +13,7 @@ import {
   readPriceLists,
   readPrices,
   readProducts,
+  readRegisterPointsOfSale,
   readRegisters,
   readRoles,
   readTags,
@@ -29,6 +30,7 @@ type LoggedEntity =
   | "user"
   | "role"
   | "register"
+  | "register_point_of_sale"
   | "discount"
   | "issuer_identification"
   | "buyer_identification_threshold"
@@ -81,6 +83,10 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
     const userRows = await readUsers(this.tx, idsOf(logged, "user"));
     const roleRows = await readRoles(this.tx, idsOf(logged, "role"));
     const registerRows = await readRegisters(this.tx, idsOf(logged, "register"));
+    const registerPointOfSaleRows = await readRegisterPointsOfSale(
+      this.tx,
+      idsOf(logged, "register_point_of_sale"),
+    );
     const discountRows = await readDiscounts(this.tx, idsOf(logged, "discount"));
     const issuerRows = await readIssuerIdentificationVersions(
       this.tx,
@@ -173,6 +179,14 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
           pulled.push(row === undefined ? removal(entity) : { changeSeq, entity, entityId, row });
           break;
         }
+        case "register_point_of_sale":
+          pulled.push({
+            changeSeq,
+            entity,
+            entityId,
+            row: requiredRow(registerPointOfSaleRows.get(entityId), entity),
+          });
+          break;
         case "discount": {
           const row = discountRows.get(entityId);
           pulled.push(row === undefined ? removal(entity) : { changeSeq, entity, entityId, row });
@@ -242,7 +256,10 @@ class DrizzleChangeLogTransaction<TQueryResult extends PgQueryResultHKT>
               "buyer_tax_status_set",
             ]),
             and(eq(changes.entity, "user"), eq(changes.locationId, locationId)),
-            and(eq(changes.entity, "register"), eq(changes.entityId, registerId)),
+            and(
+              inArray(changes.entity, ["register", "register_point_of_sale"]),
+              eq(changes.entityId, registerId),
+            ),
             priceListId === undefined
               ? undefined
               : and(eq(changes.entity, "price_list"), eq(changes.entityId, priceListId)),

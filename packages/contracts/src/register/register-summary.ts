@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { pointOfSaleNumberSchema } from "../shared/index.js";
 
 export const registerSummarySchema = z.object({
   id: z.string(),
@@ -9,6 +10,7 @@ export const registerSummarySchema = z.object({
       seconds_until_expiry: z.number().int().positive(),
     })
     .nullable(),
+  point_of_sale_number: pointOfSaleNumberSchema.nullable(),
 });
 
 export const registerListSchema = z.array(registerSummarySchema);

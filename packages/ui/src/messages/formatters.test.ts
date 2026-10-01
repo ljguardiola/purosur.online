@@ -5,7 +5,9 @@ import {
   formatMonthAndYear,
   formatMonthName,
   formatNumber,
+  formatPointOfSaleNumber,
   formatTimeAgo,
+  parsePointOfSaleNumber,
   plural,
 } from "./formatters";
 
@@ -70,6 +72,35 @@ describe("formatMonthAndYear", () => {
   it("writes a year of five digits without a thousands separator", () => {
     expect(formatMonthAndYear(10000, 1)).toBe("Enero 10000");
   });
+});
+
+describe("formatPointOfSaleNumber", () => {
+  it("pads the number with zeros to the five digits the tax authority prints", () => {
+    expect(formatPointOfSaleNumber(7)).toBe("00007");
+    expect(formatPointOfSaleNumber(1234)).toBe("01234");
+  });
+
+  it("keeps a number that already has five digits as it is", () => {
+    expect(formatPointOfSaleNumber(99999)).toBe("99999");
+  });
+});
+
+describe("parsePointOfSaleNumber", () => {
+  it.each([
+    ["3", 3],
+    [" 12 ", 12],
+    ["00003", 3],
+    ["99999", 99999],
+  ])("reads the bare identifier %j as %d", (typed, expected) => {
+    expect(parsePointOfSaleNumber(typed)).toBe(expected);
+  });
+
+  it.each(["1.234", "12.345", "1e1", "0x1F", "+7", "12.0", "1,5", "-3", ""])(
+    "refuses %j, which is not made of digits only",
+    (typed) => {
+      expect(parsePointOfSaleNumber(typed)).toBeNaN();
+    },
+  );
 });
 
 describe("formatTimeAgo", () => {
