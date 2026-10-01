@@ -2,6 +2,7 @@ import {
   isBuyerIdentificationThresholdAmount,
   isCalendarDay,
   isNetContentUnit,
+  isPointOfSaleNumber,
   isPullCursor,
   isValidBuyerTaxStatusSet,
   isValidDiscountWeekdays,
@@ -142,6 +143,16 @@ const buyerIdentificationThresholdChangeSchema = z.object({
   }),
 });
 
+const registerPointOfSaleChangeSchema = z.object({
+  ...pulledChangeShape,
+  entity: z.literal("register_point_of_sale"),
+  row: z.object({
+    point_of_sale_number: z.int().refine(isPointOfSaleNumber),
+    fiscal_address_id: z.string(),
+    version: z.int().positive(),
+  }),
+});
+
 const buyerTaxStatusSetChangeSchema = z.object({
   ...pulledChangeShape,
   entity: z.literal("buyer_tax_status_set"),
@@ -205,6 +216,7 @@ export const changesPageSchema = z.object({
         discountChangeSchema,
         issuerIdentificationChangeSchema,
         buyerIdentificationThresholdChangeSchema,
+        registerPointOfSaleChangeSchema,
         buyerTaxStatusSetChangeSchema,
         removalChangeSchema,
       ]),
