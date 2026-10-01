@@ -1,5 +1,7 @@
 import type { EnrollmentCodeState } from "../model/enrollment-code.js";
 
+export type { EnrollmentCodeState };
+
 export interface RegisterEnrollmentCode extends EnrollmentCodeState {
   issuedAt: Date;
 }

@@ -10,6 +10,7 @@ export type {
   BranchRegisters,
   EnrollmentCodeEmission,
   EnrollmentCodeIssuer,
+  EnrollmentCodeState,
   IssuedEnrollmentCode,
   LockRegisterResult,
   NewEnrollmentCode,

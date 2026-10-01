@@ -1,7 +1,10 @@
 import { ENROLLMENT_CODE_LENGTH, isWellFormedEnrollmentCode } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { generateSecretCode, hashSecretCode } from "../platform/secret-code.js";
-import { registerEnrollmentCodeMatches } from "./register-enrollment-code.js";
+import {
+  registerEnrollmentCodeMatches,
+  secretEnrollmentCodes,
+} from "./register-enrollment-code.js";
 
 describe("the enrollment code the cloud generates", () => {
   it("is a well-formed enrollment code", () => {
@@ -28,5 +31,18 @@ describe("registerEnrollmentCodeMatches", () => {
 
   it("refuses a stored hash that is not a hash of any code", () => {
     expect(registerEnrollmentCodeMatches(generateSecretCode(), "")).toBe(false);
+  });
+});
+
+describe("secretEnrollmentCodes", () => {
+  it("issues a well-formed code together with the hash its match is checked against", () => {
+    const issued = secretEnrollmentCodes.issue();
+
+    expect(isWellFormedEnrollmentCode(issued.code)).toBe(true);
+    expect(registerEnrollmentCodeMatches(issued.code, issued.codeHash)).toBe(true);
+  });
+
+  it("issues a different code each time", () => {
+    expect(secretEnrollmentCodes.issue().code).not.toBe(secretEnrollmentCodes.issue().code);
   });
 });

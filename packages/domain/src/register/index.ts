@@ -20,8 +20,6 @@ export { isDeviceTokenRotationDue } from "./model/device-token.js";
 export { enrollmentAttemptWindowStart } from "./model/enrollment-attempt-limit.js";
 export {
   ENROLLMENT_CODE_LENGTH,
-  enrollmentCodeExpiresAt,
-  enrollmentCodeLookup,
   isWellFormedEnrollmentCode,
   normalizeEnrollmentCode,
 } from "./model/enrollment-code.js";

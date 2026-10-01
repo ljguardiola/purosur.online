@@ -52,8 +52,6 @@ export const PERSISTENCE_IN_HANDLERS_ALLOWLIST = [
   "apps/cloud/src/pricing/discounts-list-route.ts",
   "apps/cloud/src/pricing/prices-list-route.ts",
   "apps/cloud/src/register/register-coverage-route.ts",
-  "apps/cloud/src/register/register-creation-route.ts",
-  "apps/cloud/src/register/register-enrollment-code-route.ts",
   "apps/cloud/src/register/registers-list-route.ts",
   "apps/cloud/src/stock/stock-balances-route.ts",
   "apps/cloud/src/stock/stock-counts-route.ts",

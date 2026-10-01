@@ -336,7 +336,7 @@ describe("POST /registers/:id/device-codes", () => {
 
   async function insertPreviousCode(
     registerId: string,
-    previous: { expiresAt: Date; redeemedAt: Date | null },
+    previous: { expiresAt: Date; redeemedAt: Date | null; failedAttempts?: number },
   ): Promise<void> {
     await db.insert(registerEnrollmentCodes).values({
       registerId,
@@ -345,7 +345,7 @@ describe("POST /registers/:id/device-codes", () => {
       issuedAt: new Date(previous.expiresAt.getTime() - FIFTEEN_MINUTES_MS),
       expiresAt: previous.expiresAt,
       redeemedAt: previous.redeemedAt,
-      failedAttempts: 0,
+      failedAttempts: previous.failedAttempts ?? 0,
     });
   }
 
@@ -391,6 +391,23 @@ describe("POST /registers/:id/device-codes", () => {
     await insertPreviousCode(registerId, {
       expiresAt: new Date(NOON.getTime() + 60_000),
       redeemedAt: new Date(NOON.getTime() - 60_000),
+    });
+
+    const response = await emitCode(registerId, rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    expect(await auditedPreviousValue(registerId)).toBeNull();
+  });
+
+  it("audits no previous value when the replaced code had used up its failed attempts", async () => {
+    const locationId = await seededLocationId(db);
+    const registerId = await insertRegister(locationId, "Caja 1");
+    const userId = await insertUserWithPermission(locationId);
+    const rawSessionId = await insertSession(userId);
+    await insertPreviousCode(registerId, {
+      expiresAt: new Date(NOON.getTime() + 60_000),
+      redeemedAt: null,
+      failedAttempts: 5,
     });
 
     const response = await emitCode(registerId, rawSessionId);
