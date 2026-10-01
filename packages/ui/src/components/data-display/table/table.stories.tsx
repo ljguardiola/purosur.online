@@ -8,9 +8,9 @@ import {
   playTabReachesFocusVisible,
 } from "../../../test-support/story-interactions";
 import { Button } from "../../forms/button";
-import { Pagination } from "../../navigation/pagination";
 import { Table } from "./table";
 import { actionsColumn, dataColumn } from "./table-columns";
+import { TablePagination } from "./table-pagination";
 import type { TableColumns, TableProps, TableSort } from "./table-types";
 import { useTableModel } from "./use-table-model";
 
@@ -403,12 +403,7 @@ function PagedProductsTable({ initialPage }: { initialPage: number }) {
           <p className="text-text-subtle text-detail">
             {plural(rowCount, { one: "1 producto", other: `${rowCount} productos` })}
           </p>
-          <Pagination
-            page={table.state.pagination.pageIndex + 1}
-            pageCount={table.getPageCount()}
-            onPageChange={setPage}
-            label="Páginas de productos"
-          />
+          <TablePagination table={table} label="Páginas de productos" />
         </div>
       }
     />

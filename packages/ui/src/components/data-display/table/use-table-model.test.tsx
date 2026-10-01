@@ -324,7 +324,6 @@ describe("paging", () => {
 
     expect(table.getRowCount()).toBe(60);
     expect(table.getPageCount()).toBe(3);
-    expect(table.state.pagination.pageIndex + 1).toBe(1);
   });
 
   it("pages the rows the filter leaves", async () => {
@@ -338,21 +337,18 @@ describe("paging", () => {
   it("shows the last page when the page is past it", async () => {
     const { table } = await paged(9);
 
-    expect(table.state.pagination.pageIndex + 1).toBe(3);
     expect(table.getRowModel().rows).toHaveLength(10);
   });
 
   it("shows the first page when the page is before it", async () => {
     const { table } = await paged(0);
 
-    expect(table.state.pagination.pageIndex + 1).toBe(1);
     expect(table.getRowModel().rows).toHaveLength(25);
   });
 
   it("shows page 1 and no rows when there are no rows", async () => {
     const { table } = await paged(4, { items: [] });
 
-    expect(table.state.pagination.pageIndex + 1).toBe(1);
     expect(table.getRowCount()).toBe(0);
     expect(table.getRowModel().rows).toEqual([]);
   });
@@ -364,6 +360,22 @@ describe("paging", () => {
 
     expect(onSortChange).toHaveBeenCalledExactlyOnceWith(descending("weight"));
     expect(onPageChange).toHaveBeenCalledExactlyOnceWith(1);
+  });
+
+  it("asks for the page after the page index it is given", async () => {
+    const { table, onPageChange } = await paged(1);
+
+    table.setPageIndex(2);
+
+    expect(onPageChange).toHaveBeenCalledExactlyOnceWith(3);
+  });
+
+  it("asks for the next page from the page asked for", async () => {
+    const { table, onPageChange } = await paged(2);
+
+    table.nextPage();
+
+    expect(onPageChange).toHaveBeenCalledExactlyOnceWith(3);
   });
 
   it("never asks for a page on its own", async () => {

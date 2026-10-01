@@ -1,7 +1,7 @@
 import { functionalUpdate, type Row, type RowData, useTable } from "@tanstack/react-table";
 import { itemTree } from "../../../ordering/item-tree";
 import { tableModelFeatures } from "./table-features";
-import { clampedPageIndex, PAGE_SIZE } from "./table-paging";
+import { PAGE_SIZE } from "./table-paging";
 import type {
   TableColumn,
   TableColumns,
@@ -91,9 +91,10 @@ export function useTableModel<T extends RowData>({
   const tree = parentId === undefined ? undefined : itemTree(items, id, parentId);
   const sorting =
     sort === undefined ? [] : [{ id: sort.column, desc: sort.direction === "descending" }];
+  const pagination = { pageIndex: Math.max((paging?.page ?? 1) - 1, 0), pageSize: PAGE_SIZE };
   const searchColumnId = columns.find((column) => column.meta?.actionCount === undefined)?.id;
 
-  const table = useTable({
+  return useTable({
     features: tableModelFeatures,
     columns,
     data: tree === undefined ? items : tree.roots,
@@ -110,18 +111,16 @@ export function useTableModel<T extends RowData>({
         paging?.onPageChange(1);
       }
     },
+    onPaginationChange: (updater) => {
+      paging?.onPageChange(functionalUpdate(updater, pagination).pageIndex + 1);
+    },
     manualPagination: paging === undefined,
     autoResetPageIndex: false,
     state: {
       sorting,
       globalFilter: rowFilterOf(search, filter),
       expanded: true,
-      pagination: { pageIndex: Math.max((paging?.page ?? 1) - 1, 0), pageSize: PAGE_SIZE },
+      pagination,
     },
   });
-  const pageIndex = clampedPageIndex(table.state.pagination.pageIndex, table.getRowCount());
-  return {
-    ...table,
-    state: { ...table.state, pagination: { ...table.state.pagination, pageIndex } },
-  };
 }

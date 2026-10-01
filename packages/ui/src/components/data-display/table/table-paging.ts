@@ -19,7 +19,8 @@ export function clampedPageIndex(pageIndex: number, rowCount: number): number {
 function requestedPageIndex<TFeatures extends TableFeatures, T extends RowData>(
   table: Table<TFeatures, T>,
 ): number {
-  return (table.atoms as Atoms_All).pagination?.get()?.pageIndex ?? 0;
+  const atoms: Atoms_All = table.atoms;
+  return atoms.pagination?.get()?.pageIndex ?? 0;
 }
 
 // TanStack slices at the requested page; this one slices at the page that exists, so a page past
