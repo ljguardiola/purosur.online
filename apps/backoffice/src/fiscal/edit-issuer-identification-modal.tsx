@@ -1,10 +1,9 @@
 import { issuerIdentificationEditBodySchema } from "@purosur/contracts";
-import { Button, InlineNotice, Modal } from "@purosur/ui";
+import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { Check, Info, Landmark, RotateCcw, TriangleAlert, X } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
-import { useCloudForm } from "../platform/cloud-form";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type {
@@ -75,7 +74,7 @@ export function EditIssuerIdentificationModal({
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
-  const { form, submit, submitting, dirty, reset } = useCloudForm({
+  const { form, submit, submitting, dirty, reset } = useRequestForm({
     defaultValues: EMPTY_ISSUER_IDENTIFICATION_FORM,
     request: {
       schema: issuerIdentificationEditBodySchema(openedAt),

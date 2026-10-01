@@ -1,11 +1,10 @@
 import { buyerIdentificationThresholdRecordBodySchema } from "@purosur/contracts";
 import type { BuyerIdentificationThreshold } from "@purosur/domain";
-import { Button, InlineNotice, Modal } from "@purosur/ui";
+import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { Check, Landmark, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
-import { useCloudForm } from "../platform/cloud-form";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type {
@@ -62,7 +61,7 @@ export function RecordBuyerIdentificationThresholdModal({
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
-  const { form, submit, submitting, reset } = useCloudForm({
+  const { form, submit, submitting, reset } = useRequestForm({
     defaultValues: EMPTY_THRESHOLD_FORM,
     request: {
       schema: buyerIdentificationThresholdRecordBodySchema,
