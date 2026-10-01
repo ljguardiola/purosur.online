@@ -1,4 +1,6 @@
-export type DiscountStatus = "current" | "scheduled" | "ended" | "deactivated";
+export const DISCOUNT_STATUSES = ["current", "scheduled", "ended", "deactivated"] as const;
+
+export type DiscountStatus = (typeof DISCOUNT_STATUSES)[number];
 
 export interface DiscountSchedule {
   active: boolean;

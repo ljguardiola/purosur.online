@@ -46,7 +46,9 @@ describe("listDiscounts", () => {
   });
 
   it("gives each discount its status on Argentina's calendar day, not the UTC day", async () => {
-    const discounts = fakeDiscountReader([stored({ validFrom: "2026-12-15", validTo: "2026-12-15" })]);
+    const discounts = fakeDiscountReader([
+      stored({ validFrom: "2026-12-15", validTo: "2026-12-15" }),
+    ]);
 
     const lateEvening = await listDiscounts({ discounts, clock: clockAt("2026-12-16T01:00:00Z") });
     const nextMorning = await listDiscounts({ discounts, clock: clockAt("2026-12-16T03:00:00Z") });

@@ -24,7 +24,7 @@ export {
   isValidDiscountPercent,
 } from "./model/discount-percent.js";
 export type { DiscountSchedule, DiscountStatus } from "./model/discount-status.js";
-export { discountStatus, isDiscountLive } from "./model/discount-status.js";
+export { DISCOUNT_STATUSES, discountStatus, isDiscountLive } from "./model/discount-status.js";
 export type { DiscountTarget, DiscountTargetKind } from "./model/discount-target.js";
 export { DISCOUNT_TARGET_KINDS } from "./model/discount-target.js";
 export { isTargetKindAllowedFor } from "./model/discount-target-eligibility.js";
