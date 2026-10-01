@@ -1,5 +1,4 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
-import type { CashMovement } from "../../register/index.js";
 import { cashCharge } from "../model/cash-charge.js";
 import type { PaymentTransaction } from "../model/payment.js";
 import type { SaleWithLines } from "../model/sale.js";

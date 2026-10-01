@@ -184,6 +184,8 @@ export const chargeSaleByTransferOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("completed"), sale_id: z.string(), total: cents }),
   z.object({ kind: z.literal("empty_sale") }),
   z.object({ kind: z.literal("zero_total") }),
+  reachesThresholdRefusal,
+  noThresholdRefusal,
   z.object({ kind: z.literal("no_open_sale") }),
   z.object({ kind: z.literal("not_permitted") }),
   z.object({ kind: z.literal("not_signed_in") }),

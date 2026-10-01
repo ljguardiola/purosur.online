@@ -1097,7 +1097,12 @@ describe("App", () => {
         currentSale: () => {
           reads += 1;
           return reads <= 2
-            ? Promise.resolve({ id: "sale-1", lines: [yerba], total: 238_000, charge_refusal: null })
+            ? Promise.resolve({
+                id: "sale-1",
+                lines: [yerba],
+                total: 238_000,
+                charge_refusal: null,
+              })
             : new Promise(() => {});
         },
         chargeSaleByTransfer: async (saleId) => ({

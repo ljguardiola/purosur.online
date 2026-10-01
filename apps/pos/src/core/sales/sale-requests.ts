@@ -339,7 +339,12 @@ export async function chargeSaleByTransferFor(
     return { kind: guarded.kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };
   }
   const outcome = guarded.result;
-  return outcome.kind === "completed"
-    ? { kind: "completed", sale_id: outcome.saleId, total: outcome.total }
-    : { kind: outcome.kind };
+  switch (outcome.kind) {
+    case "completed":
+      return { kind: "completed", sale_id: outcome.saleId, total: outcome.total };
+    case "reaches_buyer_identification_threshold":
+      return { kind: outcome.kind, threshold: outcome.threshold };
+    default:
+      return { kind: outcome.kind };
+  }
 }

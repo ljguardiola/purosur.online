@@ -46,6 +46,8 @@ export function TransferChargeModal({
         break;
       case "empty_sale":
       case "zero_total":
+      case "reaches_buyer_identification_threshold":
+      case "no_buyer_identification_threshold":
       case "no_open_sale":
       case "not_permitted":
         onSaleUnavailable();

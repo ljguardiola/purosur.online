@@ -275,6 +275,8 @@ describe("chargeSaleByTransferOutcomeSchema", () => {
     { kind: "completed", sale_id: "s1", total: 3000 },
     { kind: "empty_sale" },
     { kind: "zero_total" },
+    { kind: "reaches_buyer_identification_threshold", threshold: 10_000_000 },
+    { kind: "no_buyer_identification_threshold" },
     { kind: "no_open_sale" },
     { kind: "not_permitted" },
     { kind: "not_signed_in" },
@@ -292,6 +294,9 @@ describe("chargeSaleByTransferOutcomeSchema", () => {
     { kind: "completed", sale_id: "s1", total: 3000.5 },
     { kind: "insufficient_cash", amount_due: 3000 },
     { kind: "invalid_amount" },
+    { kind: "reaches_buyer_identification_threshold" },
+    { kind: "reaches_buyer_identification_threshold", threshold: 0 },
+    { kind: "reaches_buyer_identification_threshold", threshold: 1.5 },
     { kind: "somewhere_else" },
     {},
   ])("rejects the outcome %j", (outcome) => {

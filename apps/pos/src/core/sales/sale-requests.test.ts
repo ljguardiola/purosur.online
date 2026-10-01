@@ -897,6 +897,30 @@ describe("charging the sale in progress by transfer", () => {
     });
   });
 
+  it("refuses to charge by transfer a sale that reaches the threshold, leaving it open", async () => {
+    saveThreshold(3000, "2026-09-30");
+    const saleId = await sellTwo();
+
+    expect(await chargeSaleByTransferFor(deps(), { saleId })).toEqual({
+      kind: "reaches_buyer_identification_threshold",
+      threshold: 3000,
+    });
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+    expect(database.prepare("SELECT count(*) AS total FROM payment_transactions").get()).toEqual({
+      total: 0,
+    });
+  });
+
+  it("refuses to charge by transfer any sale while the register holds no threshold", async () => {
+    database.prepare("DELETE FROM buyer_identification_thresholds").run();
+    const saleId = await sellTwo();
+
+    expect(await chargeSaleByTransferFor(deps(), { saleId })).toEqual({
+      kind: "no_buyer_identification_threshold",
+    });
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+  });
+
   it("answers the domain's refusal of a sale whose total is zero", async () => {
     const saleId = await sellTwo();
     database.prepare("UPDATE sale_lines SET line_total = 0").run();
