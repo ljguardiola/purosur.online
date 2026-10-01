@@ -5,8 +5,8 @@ export const registerSummarySchema = z.object({
   name: z.string(),
   pending_code: z
     .object({
-      issued_at: z.string(),
-      expires_at: z.string(),
+      seconds_since_issued: z.number().int().nonnegative(),
+      seconds_until_expiry: z.number().int().positive(),
     })
     .nullable(),
 });

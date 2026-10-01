@@ -176,8 +176,6 @@ export {
   cashMovementPermission,
   ENROLLMENT_CODE_LENGTH,
   enrollmentAttemptWindowStart,
-  enrollmentCodeExpiresAt,
-  enrollmentCodeLookup,
   expectedCash,
   INSTALLATION_KEY_BYTES,
   INSTALLATION_REPORT_MAX_LENGTH,

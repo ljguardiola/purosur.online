@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { createCategory, createProduct, createTag } from "@purosur/domain/catalog/use-cases";
 import { confirmPrice, createDiscount, setPrice } from "@purosur/domain/pricing/use-cases";
+import { createRegister } from "@purosur/domain/register/use-cases";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -34,7 +35,7 @@ import {
 } from "../platform/db/schema.js";
 import { DrizzleDiscountStore } from "../pricing/drizzle-discount-store.js";
 import { DrizzlePricingStore } from "../pricing/drizzle-pricing-store.js";
-import { createRegister } from "../register/register-creation-route.js";
+import { DrizzleBranchRegisterStore } from "../register/drizzle-branch-register-store.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -277,7 +278,7 @@ describe("clearSampleData", () => {
     });
     if (realPriceOutcome.kind !== "applied") throw new Error("test setup: real price failed");
 
-    const realRegisterOutcome = await createRegister(db, {
+    const realRegisterOutcome = await createRegister(new DrizzleBranchRegisterStore(db), {
       locationId: bootstrapAdmin.locationId,
       name: "Caja Real",
       actorId: bootstrapAdmin.id,
@@ -567,7 +568,7 @@ describe("clearSampleData", () => {
   it("logs every register it removes as a delete of the version after its last one, and none it leaves in place", async () => {
     const db = await freshOwnerDatabase();
     const bootstrap = await seedActiveAdministrator(db);
-    const realRegister = await createRegister(db, {
+    const realRegister = await createRegister(new DrizzleBranchRegisterStore(db), {
       locationId: bootstrap.locationId,
       name: "Caja Real",
       actorId: bootstrap.id,

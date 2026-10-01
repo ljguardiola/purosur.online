@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { emitEnrollmentCode } from "@purosur/domain/register/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -10,7 +11,8 @@ import {
 } from "../test-support/integration-database.js";
 import { waitForLockWaiters } from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { emitRegisterEnrollmentCode } from "./register-enrollment-code-route.js";
+import { DrizzleBranchRegisterStore } from "./drizzle-branch-register-store.js";
+import { secretEnrollmentCodes } from "./register-enrollment-code.js";
 
 // PGlite runs every query over one connection, so it can never race two emissions for the same
 // register; this runs them over a real multi-connection postgres-js pool instead.
@@ -26,6 +28,17 @@ beforeAll(async () => {
   adminSql = postgres(integrationDb.adminDatabaseUrl, { max: 2 });
   db = drizzle(sql);
 }, 60_000);
+
+function emitAt(locationId: string, registerId: string, actorId: string, now: Date) {
+  return emitEnrollmentCode(
+    {
+      store: new DrizzleBranchRegisterStore(db),
+      clock: { now: () => now },
+      codes: secretEnrollmentCodes,
+    },
+    { locationId, registerId, actorId },
+  );
+}
 
 afterAll(async () => {
   await sql.end({ timeout: 1 });
@@ -55,28 +68,23 @@ describe("emitting two enrollment codes for a register with no code yet concurre
     // the register row, so the second waits on that row and sees the first's code as replaced only
     // once it commits.
     const holder = await adminSql.reserve();
-    let emissions: ReturnType<typeof emitRegisterEnrollmentCode>[] = [];
+    let emissions: ReturnType<typeof emitAt>[] = [];
     try {
       await holder`begin`;
       await holder`lock table register_enrollment_codes in share mode`;
       emissions = [
-        emitRegisterEnrollmentCode(db, {
-          registerId: register.id,
-          actorId: actor.id,
-          now: firstNow,
-        }),
-        emitRegisterEnrollmentCode(db, {
-          registerId: register.id,
-          actorId: actor.id,
-          now: secondNow,
-        }),
+        emitAt(locationId, register.id, actor.id, firstNow),
+        emitAt(locationId, register.id, actor.id, secondNow),
       ];
       await waitForLockWaiters(adminSql, 2);
     } finally {
       await holder`rollback`;
       holder.release();
     }
-    const emitted = await Promise.all(emissions);
+    const emitted = (await Promise.all(emissions)).flatMap((outcome) =>
+      outcome.kind === "emitted" ? [outcome] : [],
+    );
+    expect(emitted).toHaveLength(2);
 
     const entries = await db.select().from(auditLog).where(eq(auditLog.entityId, register.id));
     expect(entries).toHaveLength(2);

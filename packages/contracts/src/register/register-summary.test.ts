@@ -6,8 +6,8 @@ import {
 } from "./register-summary.js";
 
 const pendingCode = {
-  issued_at: "2026-09-25T12:00:00.000Z",
-  expires_at: "2026-09-25T12:15:00.000Z",
+  seconds_since_issued: 0,
+  seconds_until_expiry: 900,
 };
 const withoutCode = { id: "register-1", name: "Caja 1", pending_code: null };
 const withCode = { id: "register-2", name: "Caja 2", pending_code: pendingCode };
@@ -18,11 +18,20 @@ describe("registerSummarySchema", () => {
     expect(registerSummarySchema.safeParse(withCode).data).toEqual(withCode);
   });
 
+  it("accepts a code that expires within its last second", () => {
+    const lastSecond = {
+      ...withCode,
+      pending_code: { seconds_since_issued: 899, seconds_until_expiry: 1 },
+    };
+
+    expect(registerSummarySchema.safeParse(lastSecond).data).toEqual(lastSecond);
+  });
+
   it("strips keys it does not define, in the register and in its pending code", () => {
     const parsed = registerSummarySchema.safeParse({
       ...withCode,
       location_id: "location-1",
-      pending_code: { ...pendingCode, redeemed_at: null },
+      pending_code: { ...pendingCode, expires_at: "2026-09-25T12:15:00.000Z" },
     });
 
     expect(parsed.data).toEqual(withCode);
@@ -34,13 +43,16 @@ describe("registerSummarySchema", () => {
     expect(registerSummarySchema.safeParse(rest).success).toBe(false);
   });
 
-  it.each(["issued_at", "expires_at"])("requires the pending code's %s", (field) => {
-    const { [field as keyof typeof pendingCode]: _omitted, ...rest } = pendingCode;
+  it.each(["seconds_since_issued", "seconds_until_expiry"])(
+    "requires the pending code's %s",
+    (field) => {
+      const { [field as keyof typeof pendingCode]: _omitted, ...rest } = pendingCode;
 
-    expect(registerSummarySchema.safeParse({ ...withCode, pending_code: rest }).success).toBe(
-      false,
-    );
-  });
+      expect(registerSummarySchema.safeParse({ ...withCode, pending_code: rest }).success).toBe(
+        false,
+      );
+    },
+  );
 
   it.each([
     ["id", 1],
@@ -49,10 +61,14 @@ describe("registerSummarySchema", () => {
     ["name", null],
     ["pending_code", undefined],
     ["pending_code", "2026-09-25T12:15:00.000Z"],
-    ["pending_code", { ...pendingCode, issued_at: 1 }],
-    ["pending_code", { ...pendingCode, issued_at: null }],
-    ["pending_code", { ...pendingCode, expires_at: 1 }],
-    ["pending_code", { ...pendingCode, expires_at: null }],
+    ["pending_code", { ...pendingCode, seconds_since_issued: "0" }],
+    ["pending_code", { ...pendingCode, seconds_since_issued: null }],
+    ["pending_code", { ...pendingCode, seconds_since_issued: -1 }],
+    ["pending_code", { ...pendingCode, seconds_since_issued: 1.5 }],
+    ["pending_code", { ...pendingCode, seconds_until_expiry: "900" }],
+    ["pending_code", { ...pendingCode, seconds_until_expiry: null }],
+    ["pending_code", { ...pendingCode, seconds_until_expiry: 0 }],
+    ["pending_code", { ...pendingCode, seconds_until_expiry: 1.5 }],
   ])("refuses %s as %j", (field, value) => {
     expect(registerSummarySchema.safeParse({ ...withCode, [field]: value }).success).toBe(false);
   });
@@ -60,8 +76,8 @@ describe("registerSummarySchema", () => {
   it("types its output as the wire shape", () => {
     expectTypeOf<RegisterSummaryBody["name"]>().toEqualTypeOf<string>();
     expectTypeOf<RegisterSummaryBody["pending_code"]>().toEqualTypeOf<{
-      issued_at: string;
-      expires_at: string;
+      seconds_since_issued: number;
+      seconds_until_expiry: number;
     } | null>();
   });
 });

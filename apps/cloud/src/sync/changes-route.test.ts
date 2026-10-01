@@ -8,6 +8,7 @@ import {
   editProduct,
 } from "@purosur/domain/catalog/use-cases";
 import { createDiscount, editDiscount, setPrice } from "@purosur/domain/pricing/use-cases";
+import { createRegister } from "@purosur/domain/register/use-cases";
 import { eq, inArray, sql } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -42,7 +43,7 @@ import {
 import { DrizzleDiscountStore } from "../pricing/drizzle-discount-store.js";
 import { DrizzlePricingStore } from "../pricing/drizzle-pricing-store.js";
 import { issueDeviceToken } from "../register/device-token.js";
-import { createRegister } from "../register/register-creation-route.js";
+import { DrizzleBranchRegisterStore } from "../register/drizzle-branch-register-store.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
@@ -1149,7 +1150,7 @@ describe("GET /changes carrying the register's own row", () => {
 
   async function newRegister(name: string): Promise<string> {
     const [actor] = await db.select({ id: users.id }).from(users).limit(1);
-    const outcome = await createRegister(db, {
+    const outcome = await createRegister(new DrizzleBranchRegisterStore(db), {
       locationId: await seededLocationId(db),
       name,
       actorId: actor?.id ?? (await insertActor(await seededLocationId(db))),

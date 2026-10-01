@@ -1,7 +1,6 @@
 import { registerEnrollmentCodeSchema } from "@purosur/contracts";
-import { enrollmentCodeExpiresAt, enrollmentCodeLookup } from "@purosur/domain";
-import { and, eq } from "drizzle-orm";
-import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { emitEnrollmentCode } from "@purosur/domain/register/use-cases";
+import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { backofficeOriginGuard } from "../access/backoffice-origin.js";
 import { requirePasskeyAuthorization } from "../access/passkey-authorization-guard.js";
@@ -11,113 +10,14 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../access/route-access.js";
-import { auditLog, registerEnrollmentCodes, registers } from "../platform/db/schema.js";
-import { generateSecretCode, hashSecretCode } from "../platform/secret-code.js";
+import { DrizzleBranchRegisterStore } from "./drizzle-branch-register-store.js";
+import { secretEnrollmentCodes } from "./register-enrollment-code.js";
 import type { RegistersRouteOptions } from "./registers-list-route.js";
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const REGISTER_NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no register with that id belongs to this branch",
 } as const;
-
-async function findBranchRegister<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  locationId: string,
-  registerId: string,
-): Promise<{ id: string } | undefined> {
-  if (!UUID_PATTERN.test(registerId)) {
-    return undefined;
-  }
-  const [row] = await db
-    .select({ id: registers.id })
-    .from(registers)
-    .where(and(eq(registers.id, registerId), eq(registers.locationId, locationId)))
-    .limit(1);
-  return row;
-}
-
-export interface EmitRegisterEnrollmentCodeInput {
-  registerId: string;
-  actorId: string;
-  now: Date;
-}
-
-export interface EmittedRegisterEnrollmentCode {
-  code: string;
-  expiresAt: Date;
-}
-
-// register_id is both primary and foreign key on register_enrollment_codes, so at most one code
-// row exists per register.
-export async function emitRegisterEnrollmentCode<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  input: EmitRegisterEnrollmentCodeInput,
-): Promise<EmittedRegisterEnrollmentCode> {
-  const rawCode = generateSecretCode();
-  const codeLookup = enrollmentCodeLookup(rawCode);
-  const expiresAt = enrollmentCodeExpiresAt(input.now);
-
-  await db.transaction(async (tx) => {
-    // The register row always exists, unlike its code row before the first emission, so locking it
-    // is what serializes two emissions for the same register. NO KEY UPDATE leaves the foreign-key
-    // check of an enrollment redeeming this register's code free to proceed, instead of deadlocking.
-    await tx
-      .select({ id: registers.id })
-      .from(registers)
-      .where(eq(registers.id, input.registerId))
-      .for("no key update");
-
-    const [previous] = await tx
-      .select({
-        expiresAt: registerEnrollmentCodes.expiresAt,
-        redeemedAt: registerEnrollmentCodes.redeemedAt,
-      })
-      .from(registerEnrollmentCodes)
-      .where(eq(registerEnrollmentCodes.registerId, input.registerId))
-      .for("update");
-    const replacedPendingCode =
-      previous && previous.redeemedAt === null && previous.expiresAt > input.now
-        ? previous
-        : undefined;
-
-    await tx
-      .insert(registerEnrollmentCodes)
-      .values({
-        registerId: input.registerId,
-        codeLookup,
-        codeHash: hashSecretCode(rawCode),
-        issuedAt: input.now,
-        expiresAt,
-        redeemedAt: null,
-        failedAttempts: 0,
-      })
-      .onConflictDoUpdate({
-        target: registerEnrollmentCodes.registerId,
-        set: {
-          codeLookup,
-          codeHash: hashSecretCode(rawCode),
-          issuedAt: input.now,
-          expiresAt,
-          redeemedAt: null,
-          failedAttempts: 0,
-        },
-      });
-
-    await tx.insert(auditLog).values({
-      entity: "register_enrollment_code",
-      entityId: input.registerId,
-      actorId: input.actorId,
-      previousValue: replacedPendingCode
-        ? { expires_at: replacedPendingCode.expiresAt.toISOString() }
-        : null,
-      newValue: { expires_at: expiresAt.toISOString() },
-    });
-  });
-
-  return { code: rawCode, expiresAt };
-}
 
 export function registerRegisterEnrollmentCodeRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
@@ -126,6 +26,7 @@ export function registerRegisterEnrollmentCodeRoute<TQueryResult extends PgQuery
   const now = options.now ?? (() => new Date());
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
+  const store = new DrizzleBranchRegisterStore(options.db);
 
   app.post<{ Params: { id: string } }>(
     "/registers/:id/device-codes",
@@ -137,12 +38,7 @@ export function registerRegisterEnrollmentCodeRoute<TQueryResult extends PgQuery
       const attemptedAt = now();
       const openSession = openSessionOf(request);
 
-      const target = await findBranchRegister(
-        options.db,
-        openSession.locationId,
-        request.params.id,
-      );
-      if (!target) {
+      if (!(await store.hasRegister(openSession.locationId, request.params.id))) {
         await reply.code(404).send(REGISTER_NOT_FOUND_RESPONSE);
         return;
       }
@@ -151,16 +47,24 @@ export function registerRegisterEnrollmentCodeRoute<TQueryResult extends PgQuery
         return;
       }
 
-      const emitted = await emitRegisterEnrollmentCode(options.db, {
-        registerId: target.id,
-        actorId: openSession.userId,
-        now: attemptedAt,
-      });
+      const outcome = await emitEnrollmentCode(
+        { store, clock: { now: () => attemptedAt }, codes: secretEnrollmentCodes },
+        {
+          locationId: openSession.locationId,
+          registerId: request.params.id,
+          actorId: openSession.userId,
+        },
+      );
+
+      if (outcome.kind === "register_not_found") {
+        await reply.code(404).send(REGISTER_NOT_FOUND_RESPONSE);
+        return;
+      }
 
       await reply.code(200).send(
         registerEnrollmentCodeSchema.parse({
-          code: emitted.code,
-          expires_at: emitted.expiresAt.toISOString(),
+          code: outcome.code,
+          expires_at: outcome.expiresAt.toISOString(),
         }),
       );
     },
