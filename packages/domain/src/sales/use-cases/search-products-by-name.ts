@@ -1,4 +1,4 @@
-import type { SaleUnit } from "../../catalog/index.js";
+import { isProductNameTooLong, type SaleUnit } from "../../catalog/index.js";
 import type { NameMatch } from "../model/product-name-match.js";
 import { rankProductSearch } from "../model/product-search.js";
 import type { Clock, SaleLedger } from "./sale-ledger.js";
@@ -30,6 +30,9 @@ export function searchProductsByName(
   { ledger, clock }: SearchProductsByNamePorts,
   { actorId, query }: SearchProductsByNameInput,
 ): SearchProductsByNameOutcome {
+  if (isProductNameTooLong(query)) {
+    return { kind: "results", products: [], more: false };
+  }
   return ledger.transaction<SearchProductsByNameOutcome>((tx) => {
     const session = sellingSession(tx, actorId);
     if (isRefusal(session)) {
