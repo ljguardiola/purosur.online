@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import { cancellableWithoutAuthorization, type PaymentTransaction } from "./payment.js";
 
 const APPROVED: PaymentTransaction = {
@@ -29,5 +29,14 @@ describe("cancellableWithoutAuthorization", () => {
     expect(cancellableWithoutAuthorization([APPROVED, { ...APPROVED, id: "payment-2" }])).toBe(
       false,
     );
+  });
+});
+
+describe("PaymentTransaction", () => {
+  it("does not accept a transfer without who confirmed it and when", () => {
+    type Transfer = Extract<PaymentTransaction, { method: "TRANSFER" }>;
+
+    expectTypeOf<Omit<Transfer, "authorizedBy">>().not.toExtend<PaymentTransaction>();
+    expectTypeOf<Omit<Transfer, "confirmedAt">>().not.toExtend<PaymentTransaction>();
   });
 });

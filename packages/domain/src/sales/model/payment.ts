@@ -1,20 +1,26 @@
-type PaymentMethod = "CASH";
-
-type PaymentProvider = "NONE";
-
-type PaymentState = "APPROVED";
-
-export interface PaymentTransaction {
+interface ApprovedPayment {
   id: string;
   saleId: string;
   kind: "SALE";
-  method: PaymentMethod;
-  provider: PaymentProvider;
+  provider: "NONE";
   amount: number;
-  tendered?: number;
-  state: PaymentState;
+  state: "APPROVED";
   occurredAt: Date;
 }
+
+interface CashPayment extends ApprovedPayment {
+  method: "CASH";
+  tendered?: number;
+}
+
+interface TransferPayment extends ApprovedPayment {
+  method: "TRANSFER";
+  tendered?: never;
+  authorizedBy: string;
+  confirmedAt: Date;
+}
+
+export type PaymentTransaction = CashPayment | TransferPayment;
 
 export function cancellableWithoutAuthorization(payments: readonly { state: string }[]): boolean {
   return !payments.some((payment) => payment.state === "APPROVED");

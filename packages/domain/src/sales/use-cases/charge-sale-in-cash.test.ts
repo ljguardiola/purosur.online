@@ -310,6 +310,8 @@ describe("chargeSaleInCash", () => {
               tendered: 10000,
               state: "APPROVED",
               occurred_at: NOW.toISOString(),
+              authorized_by: null,
+              confirmed_at: null,
             },
           ],
           cash_movements: [

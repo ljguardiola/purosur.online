@@ -223,6 +223,7 @@ export type {
   CashCharge,
   CashChargeAnswer,
   ChangeLineQuantityOutcome,
+  ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
   CurrentSaleAnswer,
   FoundProduct,

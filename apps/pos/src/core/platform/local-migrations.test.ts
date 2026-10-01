@@ -440,6 +440,81 @@ describe("the register's local migrations", () => {
     }
   });
 
+  it("let a payment be a transfer, keeping the cash payments a register already holds", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.slice(0, 18);
+      expect(previous.at(-1)?.name).toBe("0017_completed_sales_only");
+      expect(LOCAL_MIGRATIONS.at(previous.length)?.name).toBe("0018_transfer_payments");
+      const before = openLocalDatabase(path, previous);
+      before
+        .prepare(
+          `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+           VALUES ('s1', 'r1', 'device-a', 'u1', '2026-09-30T12:00:00.000Z', 0, 'OPEN')`,
+        )
+        .run();
+      before
+        .prepare(
+          `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+           VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-09-30T12:05:00.000Z')`,
+        )
+        .run();
+      before
+        .prepare(
+          `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, state, occurred_at)
+           VALUES ('p1', 'sale-1', 'SALE', 'CASH', 'NONE', 1500, 2000, 'APPROVED', '2026-09-30T12:06:00.000Z')`,
+        )
+        .run();
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS);
+
+      expect(
+        after
+          .prepare(
+            "SELECT id, sale_id, method, amount, tendered, authorized_by, confirmed_at FROM payment_transactions",
+          )
+          .all(),
+      ).toEqual([
+        {
+          id: "p1",
+          sale_id: "sale-1",
+          method: "CASH",
+          amount: 1500,
+          tendered: 2000,
+          authorized_by: null,
+          confirmed_at: null,
+        },
+      ]);
+      const insertTransfer = after.prepare(
+        `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state, occurred_at)
+         VALUES (@id, 'sale-1', 'SALE', @method, 'NONE', 900, @tendered, @authorized_by, @confirmed_at, 'APPROVED', '2026-09-30T12:07:00.000Z')`,
+      );
+      const transfer = {
+        id: "p2",
+        method: "TRANSFER",
+        tendered: null,
+        authorized_by: "u1",
+        confirmed_at: "2026-09-30T12:07:00.000Z",
+      };
+      insertTransfer.run(transfer);
+      expect(after.prepare("SELECT count(*) AS total FROM payment_transactions").get()).toEqual({
+        total: 2,
+      });
+      expect(after.pragma("foreign_key_check")).toEqual([]);
+      expect(() => insertTransfer.run({ ...transfer, id: "p3", authorized_by: null })).toThrow();
+      expect(() => insertTransfer.run({ ...transfer, id: "p4", confirmed_at: null })).toThrow();
+      expect(() => insertTransfer.run({ ...transfer, id: "p5", tendered: 900 })).toThrow();
+      expect(() =>
+        insertTransfer.run({ ...transfer, id: "p6", method: "CASH", tendered: 900 }),
+      ).toThrow();
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
   it("find the lines of a product without reading every line, keeping the sales a register already holds", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
@@ -782,6 +857,7 @@ describe("the register's local migrations", () => {
         "0015_pre_emission_gate_outcomes",
         "0016_register_point_of_sale",
         "0017_completed_sales_only",
+        "0018_transfer_payments",
       ]);
       const before = openLocalDatabase(path, previous);
       before
@@ -826,6 +902,7 @@ describe("the register's local migrations", () => {
         "0015_pre_emission_gate_outcomes",
         "0016_register_point_of_sale",
         "0017_completed_sales_only",
+        "0018_transfer_payments",
       ]);
       const before = openLocalDatabase(path, previous);
       before
@@ -865,6 +942,7 @@ describe("the register's local migrations", () => {
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
         "0016_register_point_of_sale",
         "0017_completed_sales_only",
+        "0018_transfer_payments",
       ]);
       const before = openLocalDatabase(path, previous);
       before
@@ -903,6 +981,7 @@ describe("the register's local migrations", () => {
       expect(previous.at(-1)?.name).toBe("0016_register_point_of_sale");
       expect(LOCAL_MIGRATIONS.slice(previous.length).map((migration) => migration.name)).toEqual([
         "0017_completed_sales_only",
+        "0018_transfer_payments",
       ]);
       const before = openLocalDatabase(path, previous);
       before.exec(

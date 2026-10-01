@@ -5,6 +5,7 @@ import type {
   CancelSaleOutcome,
   CashChargeAnswer,
   ChangeLineQuantityOutcome,
+  ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
   CurrentSaleAnswer,
   OpenSale,
@@ -26,6 +27,7 @@ import {
   type Clock,
   cancelSale,
   changeLineQuantity,
+  chargeSaleByTransfer,
   chargeSaleInCash,
   currentSale,
   type IdGenerator,
@@ -52,6 +54,10 @@ export interface OutboxSaleRequestDeps extends SaleRequestDeps {
 export interface ChargeSaleInCashRequest {
   saleId: string;
   tendered: number;
+}
+
+export interface ChargeSaleByTransferRequest {
+  saleId: string;
 }
 
 function saleLedger(database: LocalDatabase, outboxChainKey?: string): SqliteSaleLedger {
@@ -308,6 +314,34 @@ export async function chargeSaleInCashFor(
       };
     case "insufficient_cash":
       return { kind: "insufficient_cash", amount_due: outcome.amountDue };
+    case "reaches_buyer_identification_threshold":
+      return { kind: outcome.kind, threshold: outcome.threshold };
+    default:
+      return { kind: outcome.kind };
+  }
+}
+
+export async function chargeSaleByTransferFor(
+  { database, gate, now, ids, readOutboxChainKey }: OutboxSaleRequestDeps,
+  { saleId }: ChargeSaleByTransferRequest,
+): Promise<ChargeSaleByTransferOutcome> {
+  const outboxChainKey = await readOutboxChainKey();
+  if (outboxChainKey === undefined) {
+    return { kind: "unavailable" };
+  }
+  const guarded = await gate.run({ permission: "sell_and_charge" }, async ({ signedInUserId }) =>
+    chargeSaleByTransfer(
+      { ledger: saleLedger(database, outboxChainKey), clock: { now }, ids },
+      { actorId: signedInUserId, saleId },
+    ),
+  );
+  if (guarded.kind !== "performed") {
+    return { kind: guarded.kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };
+  }
+  const outcome = guarded.result;
+  switch (outcome.kind) {
+    case "completed":
+      return { kind: "completed", sale_id: outcome.saleId, total: outcome.total };
     case "reaches_buyer_identification_threshold":
       return { kind: outcome.kind, threshold: outcome.threshold };
     default:
