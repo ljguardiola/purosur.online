@@ -1,13 +1,16 @@
-import type {
-  DiscountBenefit,
-  LinePromotion,
-  OutboxEventDraft,
-  PaymentTransaction,
-  Sale,
-  SaleLine,
-  SaleLineRemoval,
-  SaleUnit,
-  SaleWithLines,
+import {
+  type DiscountBenefit,
+  type DiscountTargetKind,
+  discountsTargeting,
+  type LinePromotion,
+  type OutboxEventDraft,
+  type PaymentTransaction,
+  priceInEffectAt,
+  type Sale,
+  type SaleLine,
+  type SaleLineRemoval,
+  type SaleUnit,
+  type SaleWithLines,
 } from "@purosur/domain";
 import type {
   CandidatePromotion,
@@ -67,8 +70,17 @@ interface FrozenPromotionRow extends BenefitColumns {
   discount_id: string;
 }
 
+interface PriceRow {
+  id: string;
+  price_list_id: string;
+  unit_price: number;
+  valid_from: string;
+}
+
 interface CandidatePromotionRow extends BenefitColumns {
   id: string;
+  target_kind: DiscountTargetKind;
+  target_id: string;
   active: number;
   valid_from: string;
   valid_to: string;
@@ -261,51 +273,63 @@ export class SqliteSaleLedger implements SaleLedger {
     productId: string,
     moment: Date,
   ): { priceListId: string; unitPrice: number } | undefined {
-    const row = this.database
-      .prepare<[string, string], { price_list_id: string; unit_price: number }>(
-        `SELECT price_list_id, unit_price FROM prices
-         WHERE product_id = ? AND removed = 0 AND valid_from <= ?
-         ORDER BY valid_from DESC, version DESC, id DESC
-         LIMIT 1`,
+    const candidates = this.database
+      .prepare<[string], PriceRow>(
+        "SELECT id, price_list_id, unit_price, valid_from FROM prices WHERE product_id = ? AND removed = 0",
       )
-      .get(productId, moment.toISOString());
-    return row === undefined
-      ? undefined
-      : { priceListId: row.price_list_id, unitPrice: row.unit_price };
+      .all(productId)
+      .map((row) => ({
+        id: row.id,
+        priceListId: row.price_list_id,
+        unitPrice: row.unit_price,
+        validFrom: new Date(row.valid_from),
+      }));
+    const price = priceInEffectAt(candidates, moment);
+    return price && { priceListId: price.priceListId, unitPrice: price.unitPrice };
   }
 
   private promotionsTargeting(productId: string): CandidatePromotion[] {
-    return this.database
-      .prepare<[string, string, string], CandidatePromotionRow>(
-        `SELECT id, kind, percent, buy_qty, pay_qty, active, valid_from, valid_to, weekdays
+    const product = this.database
+      .prepare<[string], { category_id: string }>("SELECT category_id FROM products WHERE id = ?")
+      .get(productId);
+    if (product === undefined) {
+      return [];
+    }
+    const tags = this.database
+      .prepare<[string], { tag_id: string; active: number }>(
+        "SELECT tag_id, active FROM product_tags WHERE product_id = ?",
+      )
+      .all(productId)
+      .map((row) => ({ tagId: row.tag_id, active: row.active === 1 }));
+    const categories = this.database
+      .prepare<[], { id: string; parent_id: string | null }>("SELECT id, parent_id FROM categories")
+      .all()
+      .map((row) => ({ id: row.id, parentId: row.parent_id }));
+    const candidates = this.database
+      .prepare<[], CandidatePromotionRow>(
+        `SELECT id, kind, percent, buy_qty, pay_qty, active, valid_from, valid_to, weekdays,
+                target_kind, target_id
          FROM discounts
-         WHERE removed = 0 AND (
-           (target_kind = 'PRODUCT' AND target_id = ?)
-           OR (target_kind = 'CATEGORY' AND target_id IN (
-             WITH RECURSIVE category_and_ancestors (id) AS (
-               SELECT category_id FROM products WHERE id = ?
-               UNION
-               SELECT categories.parent_id
-               FROM categories JOIN category_and_ancestors ON categories.id = category_and_ancestors.id
-               WHERE categories.parent_id IS NOT NULL
-             )
-             SELECT id FROM category_and_ancestors
-           ))
-           OR (target_kind = 'TAG' AND target_id IN (
-             SELECT tag_id FROM product_tags WHERE product_id = ? AND active = 1
-           ))
-         )
+         WHERE removed = 0
          ORDER BY id`,
       )
-      .all(productId, productId, productId)
+      .all()
       .map((row) => ({
-        id: row.id,
-        benefit: toBenefit(row),
-        active: row.active === 1,
-        validFrom: row.valid_from,
-        validTo: row.valid_to,
-        weekdays: JSON.parse(row.weekdays) as number[],
+        target: { kind: row.target_kind, id: row.target_id },
+        promotion: {
+          id: row.id,
+          benefit: toBenefit(row),
+          active: row.active === 1,
+          validFrom: row.valid_from,
+          validTo: row.valid_to,
+          weekdays: JSON.parse(row.weekdays) as number[],
+        },
       }));
+    return discountsTargeting(
+      candidates,
+      { id: productId, categoryId: product.category_id, tags },
+      categories,
+    ).map(({ promotion }) => promotion);
   }
 
   private recordOpenedSale(sale: Sale): void {

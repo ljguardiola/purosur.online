@@ -1,4 +1,5 @@
 import type { RoleAccess } from "../../../access/index.js";
+import { priceInEffectAt } from "../../../pricing/model/current-price.js";
 import type { CashMovement } from "../../../register/index.js";
 import type { OutboxEventDraft } from "../../../sync/index.js";
 import type { PaymentTransaction } from "../../model/payment.js";
@@ -191,11 +192,11 @@ function latestPriceAt(
   productId: string,
   moment: Date,
 ): ListPrice | undefined {
-  const valid = prices
-    .filter((price) => price.productId === productId && price.validFrom <= moment)
-    .sort((a, b) => b.validFrom.getTime() - a.validFrom.getTime());
-  const latest = valid[0];
-  return latest && { priceListId: latest.priceListId, unitPrice: latest.unitPrice };
+  const candidates = prices
+    .filter((price) => price.productId === productId)
+    .map((price, index) => ({ ...price, id: String(index) }));
+  const inEffect = priceInEffectAt(candidates, moment);
+  return inEffect && { priceListId: inEffect.priceListId, unitPrice: inEffect.unitPrice };
 }
 
 export class SequentialIds implements IdGenerator {

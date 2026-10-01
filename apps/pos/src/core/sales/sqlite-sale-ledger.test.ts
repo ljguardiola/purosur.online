@@ -311,17 +311,15 @@ describe("the price a scan takes", () => {
     expect(scannedPrice()).toEqual({ kind: "no_price", productName: "Yerba" });
   });
 
-  it("is the one with the highest version when two start at the same moment", () => {
-    addPrice("p1", "2026-09-15T00:00:00.000Z", 1200, { id: "a", version: 2 });
-    addPrice("p1", "2026-09-15T00:00:00.000Z", 1250, { id: "b", version: 3 });
-    addPrice("p1", "2026-09-15T00:00:00.000Z", 1100, { id: "c", version: 1 });
-
-    expect(scannedPrice()).toMatchObject({ listUnitPrice: 1250 });
-  });
-
-  it("is the one with the highest id when two of the same version start at the same moment", () => {
-    addPrice("p1", "2026-09-15T00:00:00.000Z", 1200, { id: "a" });
-    addPrice("p1", "2026-09-15T00:00:00.000Z", 1250, { id: "b" });
+  it("is the one with the greater id when two start at the same moment, whatever their versions", () => {
+    addPrice("p1", "2026-09-15T00:00:00.000Z", 1100, {
+      id: "00000000-0000-4000-8000-000000000001",
+      version: 3,
+    });
+    addPrice("p1", "2026-09-15T00:00:00.000Z", 1250, {
+      id: "00000000-0000-4000-8000-000000000002",
+      version: 1,
+    });
 
     expect(scannedPrice()).toMatchObject({ listUnitPrice: 1250 });
   });
