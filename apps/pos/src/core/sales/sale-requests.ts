@@ -328,7 +328,7 @@ export async function chargeSaleByTransferFor(
   if (outboxChainKey === undefined) {
     return { kind: "unavailable" };
   }
-  const guarded = await gate.run({ permission: "sell_and_charge" }, async ({ signedInUserId }) =>
+  const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
     chargeSaleByTransfer(
       { ledger: saleLedger(database, outboxChainKey), clock: { now }, ids },
       { actorId: signedInUserId, saleId },
