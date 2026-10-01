@@ -14,6 +14,7 @@ import {
 import { Receipt, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { formatClockTime } from "../platform/clock-time";
+import type { CoreData } from "../platform/use-core-query";
 import { signedAmount } from "./cash-amounts";
 import { CASH_MOVEMENT_ICONS } from "./cash-movement-icons";
 
@@ -146,24 +147,19 @@ const columns = [
   }),
 ] as const;
 
-export type CashMovementsState =
-  | { status: "loading" }
-  | { status: "failed" }
-  | { status: "loaded" | "refreshing"; movements: ListedCashMovement[] };
-
-const TABLE_LOADING = {
-  loading: "initial",
-  refreshing: "updating",
-  loaded: false,
-} as const satisfies Record<Exclude<CashMovementsState["status"], "failed">, TableLoadingState>;
-
 export type CashMovementsTableProps = {
-  state: CashMovementsState;
-  onRetry: () => void;
+  state: CoreData<ListedCashMovement[]>;
 };
 
-export function CashMovementsTable({ state, onRetry }: CashMovementsTableProps) {
-  const movements = "movements" in state ? state.movements : [];
+function loadingOf(state: Exclude<CoreData<unknown>, { status: "failed" }>): TableLoadingState {
+  if (state.status === "loading") {
+    return "initial";
+  }
+  return state.refreshing ? "updating" : false;
+}
+
+export function CashMovementsTable({ state }: CashMovementsTableProps) {
+  const movements = state.status === "loaded" ? state.value : [];
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
   const [sort, setSort] = useState<{ column: "time"; direction: "ascending" | "descending" }>({
     column: "time",
@@ -199,10 +195,10 @@ export function CashMovementsTable({ state, onRetry }: CashMovementsTableProps) 
                 icon: <TriangleAlert />,
                 title: "No se pudieron leer los movimientos",
                 description: "Volvé a intentarlo en unos segundos.",
-                onRetry,
+                onRetry: state.retry,
               },
             }
-          : { loading: TABLE_LOADING[state.status] })}
+          : { loading: loadingOf(state) })}
         empty={{
           icon: <Receipt />,
           title: "No hay movimientos de este tipo",

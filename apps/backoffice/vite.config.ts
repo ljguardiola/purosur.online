@@ -1,4 +1,5 @@
 import { fileURLToPath } from "node:url";
+import optimizeLocales from "@react-aria/optimize-locales-plugin";
 import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
@@ -33,6 +34,7 @@ export default defineConfig(({ mode }) => {
     resolve: { conditions: ["@purosur/source", ...defaultClientConditions] },
     plugins: [
       withoutPackageOutput(REPO_ROOT),
+      optimizeLocales.vite({ locales: ["es"] }),
       react(),
       babel({ presets: [reactCompilerPreset()] }),
       tailwindcss(),

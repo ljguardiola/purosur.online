@@ -1,4 +1,4 @@
-import { FieldSizeProvider } from "@purosur/ui";
+import { FieldSizeProvider, LocaleProvider } from "@purosur/ui";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -286,9 +286,11 @@ function createSessionControl({
 
 export function App(props: AppProps) {
   return (
-    <FieldSizeProvider size="backoffice">
-      <AppContent {...props} />
-    </FieldSizeProvider>
+    <LocaleProvider>
+      <FieldSizeProvider size="backoffice">
+        <AppContent {...props} />
+      </FieldSizeProvider>
+    </LocaleProvider>
   );
 }
 
