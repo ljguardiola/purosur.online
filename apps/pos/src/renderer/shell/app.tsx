@@ -14,11 +14,13 @@ import type { CashMovementInput, CoreClient } from "../platform/core-client";
 import { createQueryClient } from "../platform/query-client";
 import { useCoreStatus } from "../platform/use-core-status";
 import {
+  cashKey,
   cashSessionQueryOptions,
   registerKeys,
   useCashSessionQuery,
   useEnrollmentQuery,
 } from "../register/register-queries";
+import { salesKeys } from "../sales/sales-queries";
 import type { CashSessionState } from "./cash-session-state";
 import type { Enrollment } from "./router";
 import { createAppRouter, isSessionScreen, routeFor } from "./router";
@@ -181,6 +183,22 @@ function Register({ core }: { core: CoreClient }) {
     return balance;
   }
 
+  async function chargeSaleInCash(saleId: string, tendered: number) {
+    const outcome = await core.chargeSaleInCash(saleId, tendered);
+    if (outcome.kind === "completed") {
+      queryClient.setQueryData(salesKeys.currentSale, null);
+      void queryClient.invalidateQueries({ queryKey: cashKey });
+    } else if (
+      outcome.kind === "empty_sale" ||
+      outcome.kind === "zero_total" ||
+      outcome.kind === "no_open_sale" ||
+      outcome.kind === "not_permitted"
+    ) {
+      void queryClient.invalidateQueries({ queryKey: salesKeys.currentSale });
+    }
+    return outcome;
+  }
+
   async function redeemPinCode(typedCode: string, newPin: string) {
     const outcome = await core.redeemPinCode(typedCode, newPin);
     if (outcome.kind === "resumed") {
@@ -225,7 +243,7 @@ function Register({ core }: { core: CoreClient }) {
     firstSignIn,
     currentSale: () => core.currentSale(),
     scanProduct: (code: string) => core.scanProduct(code),
-    chargeSaleInCash: (saleId: string, tendered: number) => core.chargeSaleInCash(saleId, tendered),
+    chargeSaleInCash,
     searchProducts: (query: string) => core.searchProducts(query),
     addProduct: (productId: string) => core.addProduct(productId),
     // A replaced core connection fails this request; the core coming back up asks again.

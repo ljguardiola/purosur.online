@@ -10,13 +10,12 @@ import type { CompletedCharge } from "./cash-charge-modal";
 import { CashChargeModal } from "./cash-charge-modal";
 import { ChargePaymentPanel } from "./charge-payment-panel";
 import { SaleCompletedModal } from "./sale-completed-modal";
+import { useCurrentSaleQuery } from "./sales-queries";
 
-type ChargeView =
-  | { status: "loading" }
-  | { status: "failed" }
-  | { status: "ready"; sale: OpenSale };
-
-type Step = { name: "methods" } | { name: "cash" } | { name: "completed"; charge: CompletedCharge };
+type Step =
+  | { name: "methods" }
+  | { name: "cash" }
+  | { name: "completed"; charge: CompletedCharge; sale: OpenSale };
 
 const METHODS = [
   {
@@ -45,41 +44,31 @@ export function ChargeScreen({
   onSessionInvalid,
 }: ChargeScreenProps) {
   const navigate = useNavigate();
-  const [view, setView] = useState<ChargeView>({ status: "loading" });
+  const current = useCurrentSaleQuery(currentSale);
   const [step, setStep] = useState<Step>({ name: "methods" });
 
   function backToSale() {
     void navigate({ to: "/session" });
   }
 
-  useEffect(() => {
-    if (view.status !== "loading") {
-      return;
-    }
-    let current = true;
-    currentSale().then(
-      (sale) => {
-        if (!current) {
-          return;
-        }
-        if (sale === null || sale === "not_permitted" || sale.lines.length === 0) {
-          void navigate({ to: "/session" });
-          return;
-        }
-        setView({ status: "ready", sale });
-      },
-      () => {
-        if (current) {
-          setView({ status: "failed" });
-        }
-      },
-    );
-    return () => {
-      current = false;
-    };
-  }, [view.status, currentSale, navigate]);
+  const answer = current.status === "loaded" ? current.value : undefined;
+  const chargeable =
+    answer === undefined ||
+    answer === null ||
+    answer === "not_permitted" ||
+    answer.lines.length === 0
+      ? undefined
+      : answer;
+  const nothingToCharge =
+    answer !== undefined && chargeable === undefined && step.name !== "completed";
 
-  const sale = view.status === "ready" ? view.sale : undefined;
+  useEffect(() => {
+    if (nothingToCharge) {
+      void navigate({ to: "/session" });
+    }
+  }, [nothingToCharge, navigate]);
+
+  const sale = step.name === "completed" ? step.sale : chargeable;
   const lineCount = sale?.lines.length ?? 0;
   const lines = plural(lineCount, { one: "LÍNEA", other: "LÍNEAS" });
 
@@ -92,13 +81,13 @@ export function ChargeScreen({
         current="sale"
       />
       <main className="flex min-w-0 flex-1 flex-col gap-4 pt-6 pr-6 pb-6 pl-8">
-        {view.status === "loading" ? <LoadingPlaceholder variant="list" items={1} /> : null}
-        {view.status === "failed" ? (
+        {current.status === "loading" ? <LoadingPlaceholder variant="list" items={1} /> : null}
+        {current.status === "failed" ? (
           <LoadFailure
             icon={<TriangleAlert />}
             title="No se pudo cargar la venta"
             description="Volvé a intentarlo en unos segundos."
-            onRetry={() => setView({ status: "loading" })}
+            onRetry={current.retry}
           />
         ) : null}
         {sale === undefined ? null : (
@@ -128,7 +117,7 @@ export function ChargeScreen({
           total={sale.total}
           charge={(tendered) => chargeSaleInCash(sale.id, tendered)}
           onChooseAnotherMethod={() => setStep({ name: "methods" })}
-          onCompleted={(charge) => setStep({ name: "completed", charge })}
+          onCompleted={(charge) => setStep({ name: "completed", charge, sale })}
           onSaleUnavailable={backToSale}
           onSessionInvalid={onSessionInvalid}
         />

@@ -2,7 +2,6 @@ import type {
   AddProductOutcome,
   CurrentSaleAnswer,
   FoundProduct,
-  OpenSale,
   ScanProductOutcome,
   SearchProductsOutcome,
 } from "@purosur/contracts";
@@ -20,14 +19,9 @@ import { PaymentPanel } from "./payment-panel";
 import type { SearchResults } from "./product-search-results";
 import { ProductSearchResults, searchOptionId } from "./product-search-results";
 import { SaleLines } from "./sale-lines";
+import { useCurrentSaleQuery, useSearchProducts, useTakeSale } from "./sales-queries";
 import type { ScanProblem } from "./scan-problem-message";
 import { messageFor, ScanProblemMessage } from "./scan-problem-message";
-
-type SaleView =
-  | { status: "loading" }
-  | { status: "failed" }
-  | { status: "not_permitted" }
-  | { status: "ready"; sale: OpenSale | null; changedLineId: string | undefined };
 
 export type SaleScreenProps = {
   person: SignedInPerson;
@@ -66,10 +60,13 @@ export function SaleScreen({
 }: SaleScreenProps) {
   const navigate = useNavigate();
   const field = useRef<HTMLFormElement>(null);
-  const [view, setView] = useState<SaleView>({ status: "loading" });
+  const current = useCurrentSaleQuery(currentSale);
+  const takeSale = useTakeSale();
+  const search = useSearchProducts(searchProducts);
+  const [changed, setChanged] = useState<string>();
   const [code, setCode] = useState("");
   const [problem, setProblem] = useState<ScanProblem>();
-  const [search, setSearch] = useState<SearchResults>();
+  const [results, setResults] = useState<SearchResults>();
   const [activeIndex, setActiveIndex] = useState(0);
   const [dismissed, setDismissed] = useState(false);
   const listboxId = useId();
@@ -85,48 +82,20 @@ export function SaleScreen({
     return () => document.removeEventListener("focusout", refocusWhenFocusIsLost);
   }, []);
 
-  useEffect(() => {
-    if (view.status !== "loading") {
-      return;
-    }
-    let current = true;
-    currentSale().then(
-      (sale) => {
-        if (current) {
-          setView(
-            sale === "not_permitted"
-              ? { status: "not_permitted" }
-              : { status: "ready", sale, changedLineId: undefined },
-          );
-        }
-      },
-      () => {
-        if (current) {
-          setView({ status: "failed" });
-        }
-      },
-    );
-    return () => {
-      current = false;
-    };
-  }, [view.status, currentSale]);
-
   function type(typed: string) {
     setCode(typed);
     setProblem(undefined);
     setDismissed(false);
     const query = typed.trim();
     if (!LETTER.test(query)) {
-      setSearch(undefined);
+      setResults(undefined);
       return;
     }
     if (!searchQuerySchema.safeParse(query).success) {
-      setSearch({ query, products: [], more: false });
+      setResults({ query, products: [], more: false });
       return;
     }
-    searchProducts(query)
-      .catch((): SearchProductsOutcome => ({ kind: "unavailable" }))
-      .then((outcome) => takeSearch(query, outcome));
+    void search(query).then((outcome) => takeSearch(query, outcome));
   }
 
   function takeSearch(query: string, outcome: SearchProductsOutcome) {
@@ -135,7 +104,7 @@ export function SaleScreen({
     }
     switch (outcome.kind) {
       case "results":
-        setSearch({ query, products: outcome.products, more: outcome.more });
+        setResults({ query, products: outcome.products, more: outcome.more });
         setActiveIndex(0);
         break;
       case "not_signed_in":
@@ -143,11 +112,11 @@ export function SaleScreen({
         onSessionInvalid();
         break;
       case "not_permitted":
-        setSearch(undefined);
+        setResults(undefined);
         setProblem(outcome);
         break;
       case "unavailable":
-        setSearch(undefined);
+        setResults(undefined);
         setProblem({ kind: "search_failed" });
         break;
     }
@@ -170,11 +139,7 @@ export function SaleScreen({
     switch (outcome.kind) {
       case "added":
         setProblem(undefined);
-        setView((now) => ({
-          status: "ready",
-          sale: outcome.sale,
-          changedLineId: changedLineId(now.status === "ready" ? now.sale : null, outcome.sale),
-        }));
+        setChanged(changedLineId(takeSale(outcome.sale), outcome.sale));
         setCode((typed) => (typed.trim() === submitted ? "" : typed));
         break;
       case "not_signed_in":
@@ -219,7 +184,7 @@ export function SaleScreen({
     take(submitted, outcome, { kind: "add_failed" });
   }
 
-  const found = search?.query === code.trim() && !dismissed ? search : undefined;
+  const found = results?.query === code.trim() && !dismissed ? results : undefined;
   const choosing = found !== undefined && found.products.length > 0;
   const chosen = choosing ? found.products[activeIndex] : undefined;
 
@@ -243,10 +208,11 @@ export function SaleScreen({
     }
   }
 
-  const sale = view.status === "ready" ? view.sale : null;
+  const answer = current.status === "loaded" ? current.value : undefined;
+  const sale = answer === undefined || answer === "not_permitted" ? null : answer;
   const notPermitted = messageFor({ kind: "not_permitted" });
   const shownProblem =
-    view.status === "not_permitted" && problem?.kind === "not_permitted" ? undefined : problem;
+    answer === "not_permitted" && problem?.kind === "not_permitted" ? undefined : problem;
 
   return (
     <div className="flex h-screen w-screen bg-surface-subtle">
@@ -288,19 +254,19 @@ export function SaleScreen({
           />
           <ScanProblemMessage problem={shownProblem} />
         </form>
-        {view.status === "loading" ? <LoadingPlaceholder variant="list" items={4} /> : null}
-        {view.status === "failed" ? (
+        {current.status === "loading" ? <LoadingPlaceholder variant="list" items={4} /> : null}
+        {current.status === "failed" ? (
           <LoadFailure
             icon={<TriangleAlert />}
             title="No se pudo cargar la venta"
             description="Volvé a intentarlo en unos segundos."
             onRetry={() => {
-              setView({ status: "loading" });
+              current.retry();
               focusScanField(field.current);
             }}
           />
         ) : null}
-        {view.status === "not_permitted" ? (
+        {answer === "not_permitted" ? (
           <EmptyState
             variant="blank"
             icon={<notPermitted.icon />}
@@ -308,8 +274,8 @@ export function SaleScreen({
             description={notPermitted.help}
           />
         ) : null}
-        {view.status === "ready" ? (
-          <SaleLines lines={sale?.lines ?? []} changedLineId={view.changedLineId} />
+        {answer !== undefined && answer !== "not_permitted" ? (
+          <SaleLines lines={sale?.lines ?? []} changedLineId={changed} />
         ) : null}
       </main>
       <PaymentPanel

@@ -7,7 +7,7 @@ import { cashSessionStateOf } from "../shell/cash-session-state";
 
 const registerKey = ["register"] as const;
 
-const cashKey = [...registerKey, "cash"] as const;
+export const cashKey = [...registerKey, "cash"] as const;
 
 export const registerKeys = {
   enrollment: [...registerKey, "enrollment"] as const,
