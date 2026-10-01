@@ -55,6 +55,20 @@ describe("editFiscalAddress", () => {
     ]);
   });
 
+  it("saves a new street address under the name it already has", async () => {
+    const store = seeded();
+
+    const outcome = await edit(store, {
+      name: "Depósito Central",
+      streetAddress: "Calle Inventada 9",
+    });
+
+    expect(outcome).toEqual({
+      kind: "edited",
+      fiscalAddress: { ...central, streetAddress: "Calle Inventada 9", version: 4 },
+    });
+  });
+
   it("refuses a fiscal address that does not exist", async () => {
     const store = seeded();
     const before = store.snapshot();
@@ -84,6 +98,20 @@ describe("editFiscalAddress", () => {
 
     expect(outcome).toEqual({ kind: "name_taken" });
     expect(store.snapshot()).toEqual(before);
+  });
+
+  it("refuses a name one of several other fiscal addresses has", async () => {
+    const store = seeded();
+    store.seed({
+      id: "address-3",
+      name: "Sucursal Sur",
+      streetAddress: "Pasaje Ficticio 7",
+      version: 1,
+    });
+
+    const outcome = await edit(store, { name: "sucursal sur" });
+
+    expect(outcome).toEqual({ kind: "name_taken" });
   });
 
   it("lets a fiscal address change only the letter case of its own name", async () => {
