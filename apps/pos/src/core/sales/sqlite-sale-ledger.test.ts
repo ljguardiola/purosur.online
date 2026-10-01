@@ -1181,6 +1181,46 @@ describe("the lines of the sale being changed", () => {
     ]);
   });
 
+  it("chains the removals of a sale charged in cash in its sale_completed event", () => {
+    scan("111");
+    scan("111");
+    scan("111");
+    scan("222");
+    const lowered = lineIdOf("p1");
+    const removed = lineIdOf("p2");
+    changeLineQuantity(sellerPorts(), {
+      actorId: "u1",
+      lineId: lowered,
+      quantity: 2,
+      expectedQuantity: 3,
+    });
+    removeSaleLine(sellerPorts(), { actorId: "u1", lineId: removed });
+
+    const outcome = chargeSaleInCash(sellerPorts(), {
+      actorId: "u1",
+      saleId: "id-1",
+      tendered: 5000,
+    });
+
+    expect(outcome.kind).toBe("completed");
+    const event = database.prepare("SELECT event_type, payload FROM outbox").get() as {
+      event_type: string;
+      payload: string;
+    };
+    expect(event.event_type).toBe("sale_completed");
+    expect(
+      JSON.parse(event.payload).removals.map(
+        (removal: { sale_line_id: string; qty_removed: number }) => [
+          removal.sale_line_id,
+          removal.qty_removed,
+        ],
+      ),
+    ).toEqual([
+      [lowered, 1],
+      [removed, 1],
+    ]);
+  });
+
   it("lets the next scan start a new open sale once the previous one is cancelled", () => {
     scan("111");
     cancelSale(sellerPorts(), { actorId: "u1" });

@@ -1,6 +1,7 @@
 import type { JsonValue } from "../../sync/index.js";
 import type { SaleLine, SaleWithLines } from "../model/sale.js";
 import type { SaleLineRemoval } from "../model/sale-line-removal.js";
+import { removalRecord } from "./removal-record.js";
 import type { Clock, IdGenerator, SaleLedger } from "./sale-ledger.js";
 import { isRefusal, sellingSession } from "./selling-session.js";
 
@@ -79,17 +80,5 @@ function heldLine(line: SaleLine): JsonValue {
     promotion_id: line.promotionId,
     discount_amount: line.discountAmount,
     line_total: line.lineTotal,
-  };
-}
-
-function removalRecord(removal: SaleLineRemoval): JsonValue {
-  return {
-    id: removal.id,
-    sale_line_id: removal.saleLineId,
-    product_id: removal.productId,
-    qty_removed: removal.qtyRemoved,
-    amount_removed: removal.amountRemoved,
-    actor_id: removal.actorId,
-    occurred_at: removal.occurredAt.toISOString(),
   };
 }
