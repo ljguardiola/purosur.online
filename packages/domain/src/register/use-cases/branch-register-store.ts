@@ -29,6 +29,38 @@ export interface EnrollmentCodeIssuer {
 // Thrown by a write that races a register name's per-branch uniqueness.
 export class RegisterNameConflict extends Error {}
 
+export interface RegisterPointOfSale {
+  pointOfSaleNumber: number | null;
+  fiscalAddressId: string | null;
+  version: number;
+}
+
+export interface BranchRegisterPointOfSale extends RegisterPointOfSale {
+  registerId: string;
+  registerName: string;
+}
+
+export interface BranchRegisterPointsOfSale {
+  branchRegisterPointsOfSale(locationId: string): Promise<BranchRegisterPointOfSale[]>;
+}
+
+export interface PointOfSaleClaim {
+  pointOfSaleNumber: number;
+  registerId: string;
+  actorId: string;
+}
+
+export interface RegisterPointOfSaleRecord {
+  registerId: string;
+  pointOfSaleNumber: number;
+  fiscalAddressId: string;
+  version: number;
+  actorId: string;
+}
+
+// Thrown by a write that loses a point-of-sale number to a concurrent claim by another register.
+export class PointOfSaleClaimConflict extends Error {}
+
 export interface NewRegister {
   locationId: string;
   name: string;
@@ -70,6 +102,11 @@ export interface BranchRegisterStoreTransaction {
   recordRegister(register: NewRegister): Promise<{ id: string }>;
   recordRegisterCreation(creation: RegisterCreation): Promise<void>;
   lockBranchRegister(locationId: string, registerId: string): Promise<LockRegisterResult>;
+  lockRegisterPointOfSale(registerId: string): Promise<RegisterPointOfSale>;
+  fiscalAddressExists(fiscalAddressId: string): Promise<boolean>;
+  lockPointOfSaleClaim(pointOfSaleNumber: number): Promise<string | undefined>;
+  claimPointOfSale(claim: PointOfSaleClaim): Promise<void>;
+  recordRegisterPointOfSale(record: RegisterPointOfSaleRecord): Promise<void>;
   lockEnrollmentCode(registerId: string): Promise<EnrollmentCodeState | undefined>;
   recordEnrollmentCode(code: NewEnrollmentCode): Promise<void>;
   recordEnrollmentCodeEmission(emission: EnrollmentCodeEmission): Promise<void>;
