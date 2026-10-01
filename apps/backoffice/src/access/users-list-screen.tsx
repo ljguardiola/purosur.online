@@ -10,6 +10,7 @@ import {
   Table,
   TableCellText,
   Tag,
+  useRequestForm,
   useTableModel,
 } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
@@ -29,7 +30,6 @@ import {
 } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
-import { useCloudForm } from "../platform/cloud-form";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { combineCloudData } from "../platform/combine-cloud-data";
 import { retryAfterDetail } from "../platform/retry-after-detail";
@@ -108,7 +108,7 @@ function NewUserModal({
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
-  const { form, submit, submitting, reset, values } = useCloudForm({
+  const { form, submit, submitting, reset, values } = useRequestForm({
     defaultValues: { firstName: "", email: "", roleId: options?.[0].value ?? "" },
     request: {
       schema: userCreationBodySchema,

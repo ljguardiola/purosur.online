@@ -1,8 +1,7 @@
 import { recoveryRequestBodySchema } from "@purosur/contracts";
-import { Button, InlineNotice } from "@purosur/ui";
+import { Button, InlineNotice, useRequestForm } from "@purosur/ui";
 import { ArrowLeft, MailCheck, Send, ShieldX, TriangleAlert } from "lucide-react";
 import { type FormEvent, useState } from "react";
-import { useCloudForm } from "../platform/cloud-form";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { AccessFooterLink, AccessHeader, AccessLayout } from "./access-layout";
 import type { AccountRecoveryScreenServices } from "./account-recovery-services";
@@ -24,7 +23,7 @@ export function AccountRecoveryScreen({ services }: AccountRecoveryScreenProps) 
   const { requestRecoveryLink } = services;
   const [notice, setNotice] = useState<Notice | null>(null);
   const [sent, setSent] = useState(false);
-  const { form, submit, submitting } = useCloudForm({
+  const { form, submit, submitting } = useRequestForm({
     defaultValues: { email: "" },
     request: { schema: recoveryRequestBodySchema, from: ({ email }) => ({ email }) },
     fields: { email: "email" },

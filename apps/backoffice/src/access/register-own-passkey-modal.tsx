@@ -1,5 +1,5 @@
 import { passkeyRegistrationBodySchema } from "@purosur/contracts";
-import { Button, InlineNotice, Modal } from "@purosur/ui";
+import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import type {
   RegistrationResponseJSON,
   startAuthentication,
@@ -8,7 +8,6 @@ import type {
 import { KeyRound, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
-import { useCloudForm } from "../platform/cloud-form";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import type {
   authorizeSession,
@@ -81,7 +80,7 @@ export function RegisterOwnPasskeyModal({
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
-  const { form, submit, submitting, reset } = useCloudForm({
+  const { form, submit, submitting, reset } = useRequestForm({
     defaultValues: { name: "" },
     request: {
       schema: PASSKEY_NAME_REQUEST,

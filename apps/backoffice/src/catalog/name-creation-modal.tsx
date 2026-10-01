@@ -1,8 +1,7 @@
-import { Button, type Icon, InlineNotice, Modal } from "@purosur/ui";
+import { Button, type Icon, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import type { StandardSchemaV1 } from "@tanstack/react-form";
 import { Check, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useCloudForm } from "../platform/cloud-form";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 
@@ -53,7 +52,7 @@ export function NameCreationModal<Created>({
 }: NameCreationModalProps<Created>) {
   const sendToMyAccount = useSendToMyAccount();
   const [notice, setNotice] = useState<Notice | null>(null);
-  const { form, submit, submitting, reset } = useCloudForm({
+  const { form, submit, submitting, reset } = useRequestForm({
     defaultValues: { name: "" },
     request: { schema, from: ({ name }) => ({ name: name.trim() }) },
     fields: { name: "name" },
