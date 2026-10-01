@@ -4,6 +4,7 @@ import {
   CASH_MOVEMENT_KINDS,
   CASH_MOVEMENT_REASON_MAX_LENGTH,
   CASH_MOVEMENT_TYPES,
+  cashCharge,
   cashMovementPermission,
   cashMovementReason,
   isAuthorizablePermissionKey,
@@ -21,6 +22,7 @@ import {
 import { pinAttemptRefusalSchema } from "../access/pin-attempt-refusal.js";
 import {
   addProductOutcomeSchema,
+  chargeSaleInCashOutcomeSchema,
   saleSchema,
   scannedCodeSchema,
   scanProductOutcomeSchema,
@@ -41,6 +43,7 @@ export {
   ARGENTINA_TIME_ZONE,
   CASH_MOVEMENT_REASON_MAX_LENGTH,
   CASH_MOVEMENT_TYPES,
+  cashCharge,
   cashMovementPermission,
   cashMovementReason,
   parseAmountCents,
@@ -189,6 +192,13 @@ const saleRequestMessageSchema = z.object({
   request_id: requestId,
 });
 
+const chargeSaleInCashMessageSchema = z.object({
+  type: z.literal("charge-sale-in-cash"),
+  request_id: requestId,
+  sale_id: z.string(),
+  tendered: z.int(),
+});
+
 const signOutMessageSchema = z.object({
   type: z.literal("sign-out"),
   request_id: requestId,
@@ -218,6 +228,7 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   searchProductsMessageSchema,
   addProductMessageSchema,
   saleRequestMessageSchema,
+  chargeSaleInCashMessageSchema,
   signOutMessageSchema,
 ]);
 export type RendererToCoreMessage = z.infer<typeof rendererToCoreMessageSchema>;
@@ -479,6 +490,11 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("add-product-result"),
     request_id: requestId,
     outcome: addProductOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("charge-sale-in-cash-result"),
+    request_id: requestId,
+    outcome: chargeSaleInCashOutcomeSchema,
   }),
   z.object({ type: z.literal("sale"), request_id: requestId, sale: saleSchema.nullable() }),
   z.object({ type: z.literal("sale-unavailable"), request_id: requestId }),

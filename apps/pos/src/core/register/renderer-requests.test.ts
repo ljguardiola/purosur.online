@@ -1,6 +1,7 @@
 import type {
   AddProductOutcome,
   CashBalance,
+  ChargeSaleInCashOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   FirstPinCodeRequestOutcome,
@@ -36,6 +37,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   }[] = [];
   const authorizerLookups: string[] = [];
   const scans: string[] = [];
+  const charges: { saleId: string; tendered: number }[] = [];
   const searches: string[] = [];
   const additions: string[] = [];
   const saleLookups: string[] = [];
@@ -53,6 +55,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
     closings,
     authorizerLookups,
     scans,
+    charges,
     searches,
     additions,
     saleLookups,
@@ -101,6 +104,13 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       scanProduct: async (code: string): Promise<ScanProductOutcome> => {
         scans.push(code);
         return { kind: "unknown_code" };
+      },
+      chargeSaleInCash: async (request: {
+        saleId: string;
+        tendered: number;
+      }): Promise<ChargeSaleInCashOutcome> => {
+        charges.push(request);
+        return { kind: "no_open_sale" };
       },
       searchProducts: async (query: string): Promise<SearchProductsOutcome> => {
         searches.push(query);
@@ -681,6 +691,74 @@ describe("answerRendererRequest", () => {
     ).toEqual({
       type: "scan-product-result",
       request_id: "r21",
+      outcome: { kind: "unavailable" },
+    });
+  });
+
+  it("charges the sale in cash and answers the outcome", async () => {
+    const outcome: ChargeSaleInCashOutcome = {
+      kind: "completed",
+      sale_id: "s1",
+      total: 3000,
+      tendered: 5000,
+      change: 2000,
+    };
+    const { deps: withCharge, charges } = deps(true, { chargeSaleInCash: async () => outcome });
+    const answer = await answerRendererRequest(withCharge, {
+      type: "charge-sale-in-cash",
+      request_id: "r30",
+      sale_id: "s1",
+      tendered: 5000,
+    });
+    const recording = deps(true);
+    await answerRendererRequest(recording.deps, {
+      type: "charge-sale-in-cash",
+      request_id: "r31",
+      sale_id: "s2",
+      tendered: 1234,
+    });
+
+    expect(answer).toEqual({ type: "charge-sale-in-cash-result", request_id: "r30", outcome });
+    expect(charges).toEqual([]);
+    expect(recording.charges).toEqual([{ saleId: "s2", tendered: 1234 }]);
+  });
+
+  it("answers that charging is unavailable when it fails, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      chargeSaleInCash: async () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "charge-sale-in-cash",
+        request_id: "r32",
+        sale_id: "s1",
+        tendered: 100,
+      }),
+    ).toEqual({
+      type: "charge-sale-in-cash-result",
+      request_id: "r32",
+      outcome: { kind: "unavailable" },
+    });
+    expect(failing.failures).toEqual([{ context: "charging a sale in cash", error }]);
+  });
+
+  it("answers that charging is unavailable when the register has no database", async () => {
+    const withoutDatabase = deps(true, { chargeSaleInCash: undefined });
+
+    expect(
+      await answerRendererRequest(withoutDatabase.deps, {
+        type: "charge-sale-in-cash",
+        request_id: "r33",
+        sale_id: "s1",
+        tendered: 100,
+      }),
+    ).toEqual({
+      type: "charge-sale-in-cash-result",
+      request_id: "r33",
       outcome: { kind: "unavailable" },
     });
   });

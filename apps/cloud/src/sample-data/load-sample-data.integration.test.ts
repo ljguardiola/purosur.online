@@ -48,15 +48,19 @@ const PRODUCIBLE_ALERT_LEVELS = new Set(
 const NOW = new Date("2026-03-15T12:00:00.000Z");
 
 let integrationDb: IntegrationDatabase | undefined;
+let connection: ReturnType<typeof postgres> | undefined;
 
 afterEach(async () => {
+  await connection?.end({ timeout: 1 });
+  connection = undefined;
   await integrationDb?.close();
   integrationDb = undefined;
 });
 
 async function freshDatabase(): Promise<PostgresJsDatabase<Record<string, never>>> {
   integrationDb = await createIntegrationDatabase("sample_data_load");
-  return drizzle(postgres(integrationDb.databaseUrl, { max: 5 }));
+  connection = postgres(integrationDb.databaseUrl, { max: 5 });
+  return drizzle(connection);
 }
 
 async function seedActiveAdministrator(

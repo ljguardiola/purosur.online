@@ -52,8 +52,11 @@ import {
 const NOW = new Date("2026-04-01T09:00:00.000Z");
 
 let integrationDb: IntegrationDatabase | undefined;
+let connection: ReturnType<typeof postgres> | undefined;
 
 afterEach(async () => {
+  await connection?.end({ timeout: 1 });
+  connection = undefined;
   await integrationDb?.close();
   integrationDb = undefined;
 });
@@ -63,7 +66,8 @@ afterEach(async () => {
 // this command actually runs as.
 async function freshOwnerDatabase(): Promise<PostgresJsDatabase<Record<string, never>>> {
   integrationDb = await createIntegrationDatabase("sample_data_clear");
-  return drizzle(postgres(integrationDb.adminDatabaseUrl, { max: 5 }));
+  connection = postgres(integrationDb.adminDatabaseUrl, { max: 5 });
+  return drizzle(connection);
 }
 
 async function seedActiveAdministrator(

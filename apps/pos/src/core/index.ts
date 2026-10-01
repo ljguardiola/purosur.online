@@ -56,6 +56,7 @@ import { uuidV7Ids } from "./register/uuid-v7-ids";
 import { createRendererConnection } from "./renderer-connection";
 import {
   addSearchedProductFor,
+  chargeSaleInCashFor,
   currentSaleFor,
   scanProductFor,
   searchProductsFor,
@@ -381,6 +382,21 @@ const rendererRequestDeps: RendererRequestDeps = {
           scanProductFor(
             { database: localDatabase, gate: actionGate, now: () => new Date(), ids: uuidV7Ids },
             code,
+          ),
+  chargeSaleInCash:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (request) =>
+          chargeSaleInCashFor(
+            {
+              database: localDatabase,
+              gate: actionGate,
+              readOutboxChainKey: async () =>
+                (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+              now: () => new Date(),
+              ids: uuidV7Ids,
+            },
+            request,
           ),
   searchProducts:
     localDatabase === undefined || actionGate === undefined

@@ -1,4 +1,7 @@
 import type { RoleAccess } from "../../../access/index.js";
+import type { CashMovement } from "../../../register/index.js";
+import type { OutboxEventDraft } from "../../../sync/index.js";
+import type { PaymentTransaction } from "../../model/payment.js";
 import type { SaleWithLines } from "../../model/sale.js";
 import type { ListPrice } from "../../model/sale-line.js";
 import type {
@@ -27,9 +30,19 @@ export interface FakeSaleLedgerState {
   prices: FakePrice[];
   promotionsByProduct: Record<string, CandidatePromotion[]>;
   sales: SaleWithLines[];
+  payments: PaymentTransaction[];
+  movements: CashMovement[];
+  outbox: OutboxEventDraft[];
 }
 
-export type FakeSaleLedgerWrite = "recordOpenedSale" | "recordSaleLine" | "recordLineQuantity";
+export type FakeSaleLedgerWrite =
+  | "recordOpenedSale"
+  | "recordSaleLine"
+  | "recordLineQuantity"
+  | "recordPayment"
+  | "recordCashMovement"
+  | "recordCompletedSale"
+  | "appendOutboxEvent";
 
 export class FakeSaleLedger implements SaleLedger {
   state: FakeSaleLedgerState;
@@ -48,6 +61,9 @@ export class FakeSaleLedger implements SaleLedger {
       prices: [],
       promotionsByProduct: {},
       sales: [],
+      payments: [],
+      movements: [],
+      outbox: [],
       ...state,
     };
   }
@@ -103,6 +119,26 @@ export class FakeSaleLedger implements SaleLedger {
               : stored,
           );
         }
+      },
+      recordPayment: (payment) => {
+        this.failIfAsked("recordPayment");
+        working.payments.push(payment);
+      },
+      recordCashMovement: (movement) => {
+        this.failIfAsked("recordCashMovement");
+        working.movements.push(movement);
+      },
+      recordCompletedSale: (saleId) => {
+        this.failIfAsked("recordCompletedSale");
+        for (const sale of working.sales) {
+          if (sale.id === saleId) {
+            sale.state = "COMPLETED";
+          }
+        }
+      },
+      appendOutboxEvent: (draft) => {
+        this.failIfAsked("appendOutboxEvent");
+        working.outbox.push(draft);
       },
     });
     this.state = working;
