@@ -24,8 +24,6 @@ export type { PinAttemptRefusal } from "./access/pin-attempt-refusal.js";
 export { pinAttemptRefusalSchema } from "./access/pin-attempt-refusal.js";
 export type { PinCodeRedemption, PinCodeRedemptionBody } from "./access/pin-code-redemption.js";
 export {
-  newPinSchema,
-  PIN_MIN_DIGITS,
   pinCodeRedemptionBodySchema,
   pinCodeRedemptionSchema,
 } from "./access/pin-code-redemption.js";
