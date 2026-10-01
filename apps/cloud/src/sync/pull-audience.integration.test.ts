@@ -212,14 +212,14 @@ beforeAll(async () => {
 
   const locationA = registerA1.locationId;
   const actorA = await insertUser(
-    "Ada Lovelace",
-    "ada@example.com",
+    "Marta Quiroga",
+    "marta@example.com",
     locationA,
     administratorRoleId,
   );
   const userB = await insertUser(
-    "Grace Hopper",
-    "grace@example.com",
+    "Tomas Ibarra",
+    "tomas@example.com",
     locationB,
     administratorRoleId,
   );
