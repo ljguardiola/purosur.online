@@ -7,10 +7,12 @@ import type {
   SignInOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import type { SignedInPerson } from "../access/signed-in-person";
 import type { CashMovementInput, CoreClient } from "../platform/core-client";
+import { createQueryClient } from "../platform/query-client";
 import { useCoreStatus } from "../platform/use-core-status";
 import type { CashSessionState } from "./cash-session-state";
 import type { Enrollment } from "./router";
@@ -222,6 +224,7 @@ export function App({ core }: { core: CoreClient }) {
   };
 
   const [router] = useState(() => createAppRouter(services));
+  const [queryClient] = useState(createQueryClient);
 
   useEffect(() => {
     if (coreStatus !== "up") {
@@ -285,7 +288,14 @@ export function App({ core }: { core: CoreClient }) {
     };
   }, [core, enrollment, cashSession]);
 
-  useEffect(() => core.onPulled(() => void router.invalidate()), [core, router]);
+  useEffect(
+    () =>
+      core.onPulled(() => {
+        void router.invalidate();
+        void queryClient.invalidateQueries();
+      }),
+    [core, router, queryClient],
+  );
 
   useEffect(() => {
     const to = routeFor({ coreStatus, enrollment, person, cashSession });
@@ -296,9 +306,11 @@ export function App({ core }: { core: CoreClient }) {
   }, [router, coreStatus, enrollment, person, cashSession]);
 
   return (
-    <RouterProvider
-      router={router}
-      context={{ coreStatus, enrollment, person, cashSession, ...services }}
-    />
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider
+        router={router}
+        context={{ coreStatus, enrollment, person, cashSession, ...services }}
+      />
+    </QueryClientProvider>
   );
 }

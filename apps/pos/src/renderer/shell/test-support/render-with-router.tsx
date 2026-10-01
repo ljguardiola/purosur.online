@@ -1,3 +1,4 @@
+import { QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -9,6 +10,7 @@ import type { ReactNode } from "react";
 import { createContext, useContext } from "react";
 import type { ComponentRenderOptions } from "vitest-browser-react";
 import { render as renderInPage } from "vitest-browser-react";
+import { createQueryClient } from "../../platform/query-client";
 
 const ContentContext = createContext<ReactNode>(null);
 
@@ -29,13 +31,16 @@ function createAnyPathRouter() {
 
 export async function render(ui: ReactNode, options: ComponentRenderOptions = {}) {
   const router = createAnyPathRouter();
+  const queryClient = createQueryClient();
   await router.load();
   const screen = await renderInPage(ui, {
     ...options,
     wrapper: ({ children }) => (
-      <ContentContext value={children}>
-        <RouterProvider router={router} />
-      </ContentContext>
+      <QueryClientProvider client={queryClient}>
+        <ContentContext value={children}>
+          <RouterProvider router={router} />
+        </ContentContext>
+      </QueryClientProvider>
     ),
   });
   return Object.assign(screen, { router });
