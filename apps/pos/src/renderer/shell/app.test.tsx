@@ -35,6 +35,7 @@ const GRACE_SESSION: OpenCashSession = {
   id: "s1",
   opened_at: "2026-09-30T12:02:00.000Z",
   opened_by: { user_id: "u2", first_name: "Grace", permission_keys: ["sell_and_charge"] },
+  locked: false,
 };
 const BALANCE: CashBalance = {
   opening_float: 2_000_000,

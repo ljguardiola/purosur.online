@@ -7,8 +7,9 @@ import type {
   IdentifyLockedCloserOutcome,
   OpenCashSession,
   OpenCashSessionOutcome,
+  SignInUser,
 } from "@purosur/contracts";
-import { cashBreakdown } from "@purosur/domain";
+import { cashBreakdown, isLockedToAnother } from "@purosur/domain";
 import {
   type CloseCashSessionOutcome as CashSessionClosing,
   type Clock,
@@ -69,12 +70,11 @@ export async function openCashSessionFor(
 export interface CloseCashSessionRequest {
   sessionId: string;
   countedCash: number;
-  authorization: Authorization | undefined;
 }
 
 export async function closeCashSessionFor(
-  { database, gate, signedInPerson, readOutboxChainKey, now, ids }: CashSessionRequestDeps,
-  { sessionId, countedCash, authorization }: CloseCashSessionRequest,
+  { database, gate, readOutboxChainKey, now, ids }: CashSessionRequestDeps,
+  { sessionId, countedCash }: CloseCashSessionRequest,
 ): Promise<CloseCashSessionOutcome> {
   const outboxChainKey = await readOutboxChainKey();
   if (outboxChainKey === undefined) {
@@ -84,11 +84,7 @@ export async function closeCashSessionFor(
   if (open === undefined) {
     return { kind: "no_open_session" };
   }
-  const action =
-    open.openedBy === signedInPerson.userId()
-      ? ({ closesOwnCashSession: true } as const)
-      : ({ permission: "close_anothers_register_session", authorization } as const);
-  const guarded = await gate.run(action, async (actor) =>
+  const guarded = await gate.run({ closesCashSession: open }, async (actor) =>
     closeCashSession(
       {
         ledger: new SqliteCashLedger(database, new SqliteSignInStore(database), outboxChainKey),
@@ -120,35 +116,60 @@ export async function closeLockedCashSessionFor(
   if (outboxChainKey === undefined) {
     return { kind: "unavailable" };
   }
-  if (readOpenSession(database) === undefined) {
+  const open = readOpenSession(database);
+  if (open === undefined) {
     return { kind: "no_open_session" };
   }
   const guarded = await gate.runWhileLocked(
     "close_anothers_register_session",
     closer,
     async (person) =>
-      closeCashSession(
-        {
-          ledger: new SqliteCashLedger(database, new SqliteSignInStore(database), outboxChainKey),
-          clock: { now },
-          ids,
-        },
-        { sessionId, closerId: person.user_id, authorizedBy: null, countedCash },
-      ),
+      isLockedToAnother(open, person.user_id)
+        ? closeCashSession(
+            {
+              ledger: new SqliteCashLedger(
+                database,
+                new SqliteSignInStore(database),
+                outboxChainKey,
+              ),
+              clock: { now },
+              ids,
+            },
+            { sessionId, closerId: person.user_id, authorizedBy: null, countedCash },
+          )
+        : undefined,
   );
-  return guarded.kind === "performed" ? closingAnswer(guarded.result) : guarded;
+  if (guarded.kind !== "performed") {
+    return guarded;
+  }
+  return guarded.result === undefined
+    ? { kind: "lacks_permission" }
+    : closingAnswer(guarded.result);
 }
 
 export async function identifyLockedCloserFor(
-  { gate }: Pick<CashSessionRequestDeps, "gate">,
+  { database, gate }: Pick<CashSessionRequestDeps, "database" | "gate">,
   closer: Authorization,
 ): Promise<IdentifyLockedCloserOutcome> {
+  const open = readOpenSession(database);
   const guarded = await gate.runWhileLocked(
     "close_anothers_register_session",
     closer,
-    async (person) => person,
+    async (person) => (isLockedToAnother(open, person.user_id) ? person : undefined),
   );
-  return guarded.kind === "performed" ? { kind: "identified", person: guarded.result } : guarded;
+  if (guarded.kind !== "performed") {
+    return guarded;
+  }
+  return guarded.result === undefined
+    ? { kind: "lacks_permission" }
+    : { kind: "identified", person: guarded.result };
+}
+
+export function lockedClosersFor(database: LocalDatabase): SignInUser[] {
+  const open = readOpenSession(database);
+  return new SqliteSignInStore(database)
+    .authorizers("close_anothers_register_session")
+    .filter((user) => isLockedToAnother(open, user.id));
 }
 
 function closingAnswer(
@@ -185,11 +206,10 @@ export function cashBalanceFor(database: LocalDatabase): CashBalance | null {
   };
 }
 
-export function cashSessionOpener(database: LocalDatabase): string | undefined {
-  return readOpenSession(database)?.openedBy;
-}
-
-export function currentCashSession(database: LocalDatabase): OpenCashSession | null {
+export function currentCashSession(
+  database: LocalDatabase,
+  signedInPersonId: string | undefined,
+): OpenCashSession | null {
   const session = readOpenSession(database);
   if (session === undefined) {
     return null;
@@ -206,5 +226,6 @@ export function currentCashSession(database: LocalDatabase): OpenCashSession | n
       first_name: opener.firstName,
       permission_keys: heldPermissionKeys(opener.access),
     },
+    locked: isLockedToAnother(session, signedInPersonId),
   };
 }

@@ -9,11 +9,11 @@ import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import {
   type CashSessionRequestDeps,
   cashBalanceFor,
-  cashSessionOpener,
   closeCashSessionFor,
   closeLockedCashSessionFor,
   currentCashSession,
   identifyLockedCloserFor,
+  lockedClosersFor,
   openCashSessionFor,
 } from "./cash-session-requests";
 import { SqliteCashLedger } from "./sqlite-cash-ledger";
@@ -149,7 +149,7 @@ describe("opening a cash session on the register", () => {
 
 describe("the open cash session", () => {
   it("is none while no session is open, and leaves the signed-in person signed in", () => {
-    expect(currentCashSession(database)).toBeNull();
+    expect(currentCashSession(database, signedInPerson.userId())).toBeNull();
     expect(signedInPerson.userId()).toBe("u1");
   });
 
@@ -157,7 +157,7 @@ describe("the open cash session", () => {
     await openCashSessionFor(deps(), 5000);
     signedInPerson.clear();
 
-    currentCashSession(database);
+    currentCashSession(database, signedInPerson.userId());
 
     expect(signedInPerson.userId()).toBeUndefined();
   });
@@ -167,7 +167,7 @@ describe("the open cash session", () => {
     signedInPerson.clear();
     database.exec("DROP TABLE role_permissions");
 
-    expect(() => currentCashSession(database)).toThrow();
+    expect(() => currentCashSession(database, signedInPerson.userId())).toThrow();
     expect(signedInPerson.userId()).toBeUndefined();
   });
 
@@ -176,18 +176,34 @@ describe("the open cash session", () => {
     signedInPerson.clear();
     database.prepare("UPDATE cash_sessions SET opened_at = 'not a date'").run();
 
-    expect(() => currentCashSession(database)).toThrow();
+    expect(() => currentCashSession(database, signedInPerson.userId())).toThrow();
     expect(signedInPerson.userId()).toBeUndefined();
   });
 
   it("names its opener with the permissions of the opener's role", async () => {
     await openCashSessionFor(deps(), 5000);
 
-    expect(currentCashSession(database)).toEqual({
+    expect(currentCashSession(database, signedInPerson.userId())).toEqual({
       id: "id-1",
       opened_at: "2026-09-30T12:00:00.000Z",
       opened_by: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+      locked: false,
     });
+  });
+
+  it("is locked while nobody is signed in", async () => {
+    await openCashSessionFor(deps(), 5000);
+    signedInPerson.clear();
+
+    expect(currentCashSession(database, signedInPerson.userId())?.locked).toBe(true);
+  });
+
+  it("is locked while a person who did not open it is signed in", async () => {
+    await openCashSessionFor(deps(), 5000);
+    addPerson("u2", "cashier", "Bruno");
+    signedInPerson.set("u2");
+
+    expect(currentCashSession(database, signedInPerson.userId())?.locked).toBe(true);
   });
 
   it("gives an Administrator opener every permission", async () => {
@@ -196,7 +212,9 @@ describe("the open cash session", () => {
     signedInPerson.set("u3");
     await openCashSessionFor(deps(), 0);
 
-    expect(currentCashSession(database)?.opened_by.permission_keys).toEqual([...PERMISSION_KEYS]);
+    expect(
+      currentCashSession(database, signedInPerson.userId())?.opened_by.permission_keys,
+    ).toEqual([...PERMISSION_KEYS]);
   });
 
   it.each([
@@ -208,7 +226,7 @@ describe("the open cash session", () => {
     await openCashSessionFor(deps(), 5000);
     database.prepare(change).run();
 
-    expect(currentCashSession(database)?.opened_by).toEqual({
+    expect(currentCashSession(database, signedInPerson.userId())?.opened_by).toEqual({
       user_id: "u1",
       first_name: "Ada",
       permission_keys: ["sell_and_charge"],
@@ -219,30 +237,20 @@ describe("the open cash session", () => {
     await openCashSessionFor(deps(), 5000);
     database.prepare("UPDATE roles SET removed = 1").run();
 
-    expect(currentCashSession(database)?.opened_by.permission_keys).toEqual([]);
+    expect(
+      currentCashSession(database, signedInPerson.userId())?.opened_by.permission_keys,
+    ).toEqual([]);
   });
 
   it("is still the open session when the opener's row is gone, with no name and no permissions", async () => {
     await openCashSessionFor(deps(), 5000);
     database.prepare("DELETE FROM users").run();
 
-    expect(currentCashSession(database)?.opened_by).toEqual({
+    expect(currentCashSession(database, signedInPerson.userId())?.opened_by).toEqual({
       user_id: "u1",
       first_name: "",
       permission_keys: [],
     });
-  });
-});
-
-describe("who opened the open cash session", () => {
-  it("is the open session's opener", async () => {
-    await openCashSessionFor(deps(), 5000);
-
-    expect(cashSessionOpener(database)).toBe("u1");
-  });
-
-  it("is nobody while no session is open", () => {
-    expect(cashSessionOpener(database)).toBeUndefined();
   });
 });
 
@@ -272,12 +280,8 @@ async function openAs(userId: string, openingFloat: number): Promise<string> {
   return outcome.session.id;
 }
 
-function closeRequest(sessionId: string, countedCash: number, authorization?: unknown) {
-  return {
-    sessionId,
-    countedCash,
-    authorization: authorization as { user_id: string; pin: string } | undefined,
-  };
+function closeRequest(sessionId: string, countedCash: number) {
+  return { sessionId, countedCash };
 }
 
 function movementsOf(type: string): unknown[] {
@@ -353,7 +357,7 @@ describe("closing a cash session on the register", () => {
     expect((await openCashSessionFor(afterOpening, 100)).kind).toBe("opened");
   });
 
-  it("refuses to close another person's session without the permission, and writes nothing", async () => {
+  it("refuses to close another person's session, and writes nothing", async () => {
     addPerson("u2", "cashier", "Bruno");
     const sessionId = await openAs("u2", 5000);
 
@@ -365,70 +369,16 @@ describe("closing a cash session on the register", () => {
     expect(closedSessionRow()).toMatchObject({ state: "OPEN" });
   });
 
-  it("closes another person's session for a signed-in person who holds the permission", async () => {
+  it("refuses a signed-in person who did not open the session even when they hold the permission to close anyone's", async () => {
     addRole("supervisor", { permissions: ["sell_and_charge", "close_anothers_register_session"] });
     addPerson("u2", "supervisor", "Bruno");
     const sessionId = await openAs("u1", 5000);
     signedInPerson.set("u2");
 
-    const outcome = await closeCashSessionFor(deps(), closeRequest(sessionId, 5000));
-
-    expect(outcome.kind).toBe("closed");
-    expect(movementsOf("CLOSING")).toEqual([{ amount: 5000, actor_id: "u2", authorized_by: null }]);
-  });
-
-  it("closes another person's session with the PIN of someone holding the permission, recording who authorized", async () => {
-    addPerson("u2", "cashier", "Bruno");
-    addAuthorizer("u9", ["close_anothers_register_session"]);
-    const sessionId = await openAs("u2", 5000);
-
-    const outcome = await closeCashSessionFor(
-      deps(),
-      closeRequest(sessionId, 5000, { user_id: "u9", pin: AUTHORIZER_PIN }),
-    );
-
-    expect(outcome.kind).toBe("closed");
-    expect(movementsOf("CLOSING")).toEqual([{ amount: 5000, actor_id: "u1", authorized_by: "u9" }]);
-  });
-
-  it("refuses a wrong PIN for the authorizer, and writes nothing", async () => {
-    addPerson("u2", "cashier", "Bruno");
-    addAuthorizer("u9", ["close_anothers_register_session"]);
-    const sessionId = await openAs("u2", 5000);
-
-    const outcome = await closeCashSessionFor(
-      deps(),
-      closeRequest(sessionId, 5000, { user_id: "u9", pin: "0000" }),
-    );
-
-    expect(outcome.kind).toBe("wrong_pin");
+    expect(await closeCashSessionFor(deps(), closeRequest(sessionId, 5000))).toEqual({
+      kind: "lacks_permission",
+    });
     expect(movementsOf("CLOSING")).toEqual([]);
-  });
-
-  it("refuses an authorizer without the permission", async () => {
-    addPerson("u2", "cashier", "Bruno");
-    addAuthorizer("u9", ["sell_and_charge"]);
-    const sessionId = await openAs("u2", 5000);
-
-    expect(
-      await closeCashSessionFor(
-        deps(),
-        closeRequest(sessionId, 5000, { user_id: "u9", pin: AUTHORIZER_PIN }),
-      ),
-    ).toEqual({ kind: "lacks_permission" });
-  });
-
-  it("ignores an authorization sent for a session its own opener closes", async () => {
-    addAuthorizer("u9", ["close_anothers_register_session"]);
-    const sessionId = await openAs("u1", 5000);
-
-    const outcome = await closeCashSessionFor(
-      deps(),
-      closeRequest(sessionId, 5000, { user_id: "u9", pin: AUTHORIZER_PIN }),
-    );
-
-    expect(outcome.kind).toBe("closed");
-    expect(movementsOf("CLOSING")).toEqual([{ amount: 5000, actor_id: "u1", authorized_by: null }]);
   });
 
   it("refuses while nobody is signed in", async () => {
@@ -501,6 +451,18 @@ describe("closing a locked register's cash session with another person's PIN", (
     expect(movementsOf("CLOSING")).toEqual([{ amount: 4800, actor_id: "u9", authorized_by: null }]);
     expect(closedSessionRow()).toMatchObject({ state: "CLOSED", closed_by: "u9" });
     expect(JSON.parse(outboxRows()[0]?.payload ?? "")).toMatchObject({ closed_by: "u9" });
+  });
+
+  it("refuses the person who opened the session even when their PIN holds the permission, and leaves it open", async () => {
+    addAuthorizer("u9", ["close_anothers_register_session", "sell_and_charge"]);
+    const sessionId = await lockedWithSessionOf("u9");
+
+    expect(
+      await closeLockedCashSessionFor(deps(), { sessionId, countedCash: 5000, closer: CLOSER }),
+    ).toEqual({ kind: "lacks_permission" });
+    expect(movementsOf("CLOSING")).toEqual([]);
+    expect(outboxRows()).toEqual([]);
+    expect(closedSessionRow()).toMatchObject({ state: "OPEN" });
   });
 
   it("leaves nobody signed in after closing", async () => {
@@ -591,6 +553,14 @@ describe("identifying who closes a locked register", () => {
     expect(closedSessionRow()).toMatchObject({ state: "OPEN" });
   });
 
+  it("refuses the person who opened the session even when their PIN holds the permission", async () => {
+    addAuthorizer("u9", ["close_anothers_register_session", "sell_and_charge"]);
+    await openAs("u9", 5000);
+    signedInPerson.clear();
+
+    expect(await identifyLockedCloserFor(deps(), CLOSER)).toEqual({ kind: "lacks_permission" });
+  });
+
   it("refuses a person without the permission", async () => {
     addAuthorizer("u9", ["sell_and_charge"]);
     signedInPerson.clear();
@@ -611,6 +581,27 @@ describe("identifying who closes a locked register", () => {
     addAuthorizer("u9", ["close_anothers_register_session"]);
 
     expect(await identifyLockedCloserFor(deps(), CLOSER)).toEqual({ kind: "not_locked" });
+  });
+});
+
+describe("who may close a locked register", () => {
+  it("is everyone holding the permission to close another's session but the person who opened it", async () => {
+    addAuthorizer("u8", ["close_anothers_register_session", "sell_and_charge"]);
+    addAuthorizer("u9", ["close_anothers_register_session"]);
+    addAuthorizer("u7", ["sell_and_charge"]);
+    for (const id of ["u7", "u8", "u9"]) {
+      new SqliteSignInStore(database).remember(id);
+    }
+    await openAs("u8", 5000);
+
+    expect(lockedClosersFor(database)).toEqual([{ id: "u9", first_name: "Grace" }]);
+  });
+
+  it("is nobody while no session is open", () => {
+    addAuthorizer("u9", ["close_anothers_register_session"]);
+    new SqliteSignInStore(database).remember("u9");
+
+    expect(lockedClosersFor(database)).toEqual([]);
   });
 });
 

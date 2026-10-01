@@ -138,7 +138,6 @@ export const closeCashSessionMessageSchema = z.object({
   request_id: requestId,
   session_id: z.string(),
   counted_cash: countedCashSchema,
-  authorization: authorizationSchema.optional(),
 });
 
 export const closeLockedCashSessionMessageSchema = z.object({
@@ -164,6 +163,11 @@ const authorizersRequestMessageSchema = z.object({
   type: z.literal("authorizers"),
   request_id: requestId,
   permission: z.custom<AuthorizablePermissionKey>(isAuthorizablePermissionKey),
+});
+
+const lockedClosersRequestMessageSchema = z.object({
+  type: z.literal("locked-closers-request"),
+  request_id: requestId,
 });
 
 const scanProductMessageSchema = z.object({
@@ -248,6 +252,7 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   identifyLockedCloserMessageSchema,
   cashBalanceRequestMessageSchema,
   authorizersRequestMessageSchema,
+  lockedClosersRequestMessageSchema,
   scanProductMessageSchema,
   changeLineQuantityMessageSchema,
   removeSaleLineMessageSchema,
@@ -365,6 +370,7 @@ const openCashSessionSchema = z.object({
   id: z.string(),
   opened_at: z.string(),
   opened_by: signedInPersonSchema,
+  locked: z.boolean(),
 });
 export type OpenCashSession = z.infer<typeof openCashSessionSchema>;
 
@@ -521,6 +527,12 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     users: z.array(signInUserSchema),
   }),
   z.object({ type: z.literal("authorizers-unavailable"), request_id: requestId }),
+  z.object({
+    type: z.literal("locked-closers"),
+    request_id: requestId,
+    users: z.array(signInUserSchema),
+  }),
+  z.object({ type: z.literal("locked-closers-unavailable"), request_id: requestId }),
   z.object({
     type: z.literal("scan-product-result"),
     request_id: requestId,

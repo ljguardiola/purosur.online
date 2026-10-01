@@ -1,5 +1,9 @@
 import type { SignInOutcome } from "@purosur/contracts";
-import { holdsARegisterPermission, pinSignInAttemptsLeft } from "@purosur/domain";
+import {
+  holdsARegisterPermission,
+  isLockedToAnother,
+  pinSignInAttemptsLeft,
+} from "@purosur/domain";
 import { heldPermissionKeys } from "./held-permission-keys";
 import { checkCountedPin, type PinCheckDeps, signableRecord } from "./pin-check";
 import type { SignedInPerson } from "./signed-in-person";
@@ -7,7 +11,7 @@ import type { SignInStore } from "./sqlite-sign-in-store";
 
 export interface SignInDeps extends PinCheckDeps {
   signedInPerson: Pick<SignedInPerson, "set" | "clear">;
-  cashSessionOpener: () => string | undefined;
+  openCashSession: () => { openedBy: string } | undefined;
 }
 
 export interface FirstSignInDeps extends SignInDeps {
@@ -33,8 +37,7 @@ async function signInThen(
   beforeSigningIn: () => void,
 ): Promise<SignInOutcome> {
   deps.signedInPerson.clear();
-  const opener = deps.cashSessionOpener();
-  if (opener !== undefined && opener !== userId) {
+  if (isLockedToAnother(deps.openCashSession(), userId)) {
     return { kind: "cash_session_opened_by_another" };
   }
   const signable = signableRecord(deps.store, userId);
@@ -49,8 +52,7 @@ async function signInThen(
   if (!holdsARegisterPermission(record.access)) {
     return { kind: "no_register_permission" };
   }
-  const openerAfterCheck = deps.cashSessionOpener();
-  if (openerAfterCheck !== undefined && openerAfterCheck !== userId) {
+  if (isLockedToAnother(deps.openCashSession(), userId)) {
     return { kind: "cash_session_opened_by_another" };
   }
   beforeSigningIn();

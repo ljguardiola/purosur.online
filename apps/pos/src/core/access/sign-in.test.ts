@@ -84,7 +84,7 @@ function deps(options: Options = {}) {
       return pin === "1234" ? PIN_HASH : "hash-of-another-pin";
     },
     now: () => NOW,
-    cashSessionOpener: () => undefined,
+    openCashSession: () => undefined,
     ...rest,
   };
   return { built, hashed, failures, signedIn, remembered };
@@ -254,7 +254,9 @@ describe("who is signed in after signing in", () => {
 
 describe("signing in while a cash session is open", () => {
   it("refuses anyone but the opener, checking no PIN and leaving nobody signed in", async () => {
-    const { built, signedIn, hashed, failures } = deps({ cashSessionOpener: () => "u2" });
+    const { built, signedIn, hashed, failures } = deps({
+      openCashSession: () => ({ openedBy: "u2" }),
+    });
     signedIn.set("u2");
 
     expect(await signIn(built, "u1", "9999")).toEqual({ kind: "cash_session_opened_by_another" });
@@ -264,7 +266,7 @@ describe("signing in while a cash session is open", () => {
   });
 
   it("signs the opener in", async () => {
-    const { built, signedIn } = deps({ cashSessionOpener: () => "u1" });
+    const { built, signedIn } = deps({ openCashSession: () => ({ openedBy: "u1" }) });
 
     expect((await signIn(built, "u1", "1234")).kind).toBe("signed_in");
     expect(signedIn.userId()).toBe("u1");
@@ -272,7 +274,9 @@ describe("signing in while a cash session is open", () => {
 
   it("refuses an attempt whose PIN was checked while another person opened a cash session, leaving nobody signed in", async () => {
     let opener: string | undefined;
-    const { built, signedIn, remembered } = deps({ cashSessionOpener: () => opener });
+    const { built, signedIn, remembered } = deps({
+      openCashSession: () => (opener === undefined ? undefined : { openedBy: opener }),
+    });
 
     const outcome = await firstSignIn(
       {
@@ -292,7 +296,7 @@ describe("signing in while a cash session is open", () => {
   });
 
   it("refuses a first sign-in by anyone but the opener, remembering nobody", async () => {
-    const { built, signedIn, remembered } = deps({ cashSessionOpener: () => "u2" });
+    const { built, signedIn, remembered } = deps({ openCashSession: () => ({ openedBy: "u2" }) });
     signedIn.set("u2");
 
     expect(await firstSignIn(built, "u1", "1234")).toEqual({

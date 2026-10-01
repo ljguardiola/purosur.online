@@ -45,7 +45,7 @@ function depsAnswering(
     reportLocalFailure: (error) => {
       reported.push(error);
     },
-    cashSessionOpener: () => opener,
+    openCashSession: () => (opener === undefined ? undefined : { openedBy: opener }),
     signInRedeemed: (userId) => {
       signedIn.push(userId);
       return OPENER_PERSON;

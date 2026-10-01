@@ -6,6 +6,7 @@ import {
   pinCodeRedemptionSchema,
   retryAfterSecondsOf,
 } from "@purosur/contracts";
+import { isLockedToAnother } from "@purosur/domain";
 import type { DeviceCredentials } from "../../shared/device-credentials-messages";
 import type { CloudResponse } from "../platform/cloud-client";
 
@@ -16,7 +17,7 @@ export interface PinCodeRedemptionDeps {
     | undefined;
   applyRedeemedPin: ((pepper: string, redemption: PinCodeRedemption) => void) | undefined;
   reportLocalFailure: (error: unknown) => void;
-  cashSessionOpener: () => string | undefined;
+  openCashSession: () => { openedBy: string } | undefined;
   signInRedeemed: (
     userId: string,
   ) => Extract<PinCodeRedemptionOutcome, { kind: "resumed" }>["person"] | undefined;
@@ -84,13 +85,13 @@ export async function redeemPinCode(
   } catch (error) {
     deps.reportLocalFailure(error);
   }
-  const opener = deps.cashSessionOpener();
-  if (opener === undefined) {
+  const openSession = deps.openCashSession();
+  if (openSession === undefined) {
     return { kind: "redeemed" };
   }
-  if (opener !== redemption.data.user_id) {
+  if (isLockedToAnother(openSession, redemption.data.user_id)) {
     return { kind: "cash_session_opened_by_another" };
   }
-  const person = deps.signInRedeemed(opener);
+  const person = deps.signInRedeemed(openSession.openedBy);
   return person === undefined ? { kind: "redeemed" } : { kind: "resumed", person };
 }

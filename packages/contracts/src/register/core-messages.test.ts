@@ -137,6 +137,18 @@ describe("rendererToCoreMessageSchema", () => {
     expect(rendererToCoreMessageSchema.safeParse(message).success).toBe(false);
   });
 
+  it("accepts a request for the people who may close a locked register", () => {
+    const message = { type: "locked-closers-request", request_id: REQUEST_ID };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a request for the people who may close a locked register without its request id", () => {
+    expect(rendererToCoreMessageSchema.safeParse({ type: "locked-closers-request" }).success).toBe(
+      false,
+    );
+  });
+
   it("accepts a request to sign out", () => {
     const message = { type: "sign-out", request_id: REQUEST_ID };
 
@@ -639,14 +651,15 @@ describe("closing a cash session requests", () => {
     expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
-  it("accepts a request to close a session with someone's authorization", () => {
-    const message = {
-      ...close,
-      counted_cash: 0,
-      authorization: { user_id: "u2", pin: "1234" },
-    };
+  it("drops an authorization sent with a request to close a session", () => {
+    const message = { ...close, counted_cash: 0 };
 
-    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+    expect(
+      rendererToCoreMessageSchema.parse({
+        ...message,
+        authorization: { user_id: "u2", pin: "1234" },
+      }),
+    ).toEqual(message);
   });
 
   it("drops a closer sent with a request to close a session", () => {
@@ -941,6 +954,7 @@ describe("cash session answers", () => {
         id: "s1",
         opened_at: "2026-09-30T12:00:00.000Z",
         opened_by: { user_id: "u1", first_name: "Ada", permission_keys: ["sell_and_charge"] },
+        locked: false,
       },
     };
 
@@ -967,16 +981,33 @@ describe("cash session answers", () => {
 
   it.each([
     undefined,
-    { id: "s1", opened_at: "2026-09-30T12:00:00.000Z" },
-    { id: "s1", opened_by: { user_id: "u1", first_name: "Ada", permission_keys: [] } },
+    { id: "s1", opened_at: "2026-09-30T12:00:00.000Z", locked: false },
     {
+      id: "s1",
+      opened_by: { user_id: "u1", first_name: "Ada", permission_keys: [] },
+      locked: false,
+    },
+    {
+      opened_at: "2026-09-30T12:00:00.000Z",
+      opened_by: { user_id: "u1", first_name: "Ada", permission_keys: [] },
+      locked: false,
+    },
+    {
+      id: "s1",
+      opened_at: "2026-09-30T12:00:00.000Z",
+      opened_by: { first_name: "Ada", permission_keys: [] },
+      locked: false,
+    },
+    {
+      id: "s1",
       opened_at: "2026-09-30T12:00:00.000Z",
       opened_by: { user_id: "u1", first_name: "Ada", permission_keys: [] },
     },
     {
       id: "s1",
       opened_at: "2026-09-30T12:00:00.000Z",
-      opened_by: { first_name: "Ada", permission_keys: [] },
+      opened_by: { user_id: "u1", first_name: "Ada", permission_keys: [] },
+      locked: "yes",
     },
   ])("rejects an open cash session it does not know: %j", (session) => {
     const message = { type: "cash-session", request_id: REQUEST_ID, session };
@@ -1165,6 +1196,36 @@ describe("authorizers answers", () => {
 
   it("rejects a listed authorizer without its first name", () => {
     const message = { type: "authorizers", request_id: REQUEST_ID, users: [{ id: "u2" }] };
+
+    expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+});
+
+describe("locked register closers answers", () => {
+  it("accepts the people who may close a locked register, by id and first name", () => {
+    const message = {
+      type: "locked-closers",
+      request_id: REQUEST_ID,
+      users: [{ id: "u2", first_name: "Grace" }],
+    };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts that nobody may close a locked register", () => {
+    const message = { type: "locked-closers", request_id: REQUEST_ID, users: [] };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts that the locked register's closers cannot be read", () => {
+    const message = { type: "locked-closers-unavailable", request_id: REQUEST_ID };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a listed closer without its first name", () => {
+    const message = { type: "locked-closers", request_id: REQUEST_ID, users: [{ id: "u2" }] };
 
     expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
