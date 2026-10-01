@@ -1,0 +1,104 @@
+import {
+  type AuthorizablePermissionKey,
+  holdsPermission,
+  type PermissionKey,
+  type RoleAccess,
+} from "../../access/index.js";
+import { type CashMovementKind, cashMovementPermission } from "./cash-movement-kind.js";
+import { isLockedToAnother } from "./register-lock.js";
+
+type OpenSession = { openedBy: string };
+
+export type RegisterOperation =
+  | { kind: "open_cash_session" }
+  | { kind: "sell" }
+  | { kind: "record_cash_movement"; movement: CashMovementKind }
+  | { kind: "close_cash_session"; session: OpenSession }
+  | { kind: "close_locked_register"; session: OpenSession | undefined };
+
+export interface RegisterActor {
+  id: string;
+  access: RoleAccess | undefined;
+}
+
+export type RegisterOperationAccess =
+  | { kind: "permitted" }
+  | { kind: "needs_authorization"; permission: AuthorizablePermissionKey }
+  | { kind: "refused" };
+
+const SELLING_PERMISSION = "sell_and_charge";
+
+const PERMITTED = { kind: "permitted" } as const;
+const REFUSED = { kind: "refused" } as const;
+
+function holds(access: RoleAccess | undefined, key: PermissionKey): boolean {
+  return access !== undefined && holdsPermission(access, key);
+}
+
+export function registerOperationAccess(
+  operation: RegisterOperation,
+  actor: RegisterActor | undefined,
+): RegisterOperationAccess {
+  if (operation.kind === "close_locked_register") {
+    return actor === undefined
+      ? { kind: "needs_authorization", permission: "close_anothers_register_session" }
+      : REFUSED;
+  }
+  if (actor === undefined) {
+    return REFUSED;
+  }
+  switch (operation.kind) {
+    case "open_cash_session":
+    case "sell":
+      return holds(actor.access, SELLING_PERMISSION) ? PERMITTED : REFUSED;
+    case "record_cash_movement": {
+      const permission = cashMovementPermission(operation.movement);
+      return holds(actor.access, permission)
+        ? PERMITTED
+        : { kind: "needs_authorization", permission };
+    }
+    case "close_cash_session":
+      return isLockedToAnother(operation.session, actor.id) ? REFUSED : PERMITTED;
+  }
+}
+
+export function mayAuthorize(
+  operation: RegisterOperation,
+  authorizer: { id: string; access: RoleAccess },
+): boolean {
+  switch (operation.kind) {
+    case "record_cash_movement":
+      return holdsPermission(authorizer.access, cashMovementPermission(operation.movement));
+    case "close_locked_register":
+      return (
+        holdsPermission(authorizer.access, "close_anothers_register_session") &&
+        (operation.session === undefined || isLockedToAnother(operation.session, authorizer.id))
+      );
+    default:
+      return false;
+  }
+}
+
+export const REGISTER_ABILITIES = [
+  "open_cash_session",
+  "view_sales_history",
+  "reprint_receipt",
+  "correct_register_clock",
+  "record_initial_inventory",
+] as const;
+
+export type RegisterAbility = (typeof REGISTER_ABILITIES)[number];
+
+const PERMISSION_OF_ABILITY = {
+  open_cash_session: SELLING_PERMISSION,
+  view_sales_history: "view_sales_history",
+  reprint_receipt: "reprint_receipt",
+  correct_register_clock: "correct_register_clock",
+  record_initial_inventory: "record_initial_inventory",
+} as const satisfies Record<RegisterAbility, PermissionKey>;
+
+export function registerAbilities(access: RoleAccess): RegisterAbility[] {
+  return REGISTER_ABILITIES.filter((ability) =>
+    holdsPermission(access, PERMISSION_OF_ABILITY[ability]),
+  );
+}

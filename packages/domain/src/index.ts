@@ -185,6 +185,10 @@ export type {
   CashSessionState,
   ClosedCashSession,
   OpenedCashSession,
+  RegisterAbility,
+  RegisterActor,
+  RegisterOperation,
+  RegisterOperationAccess,
 } from "./register/index.js";
 export {
   CASH_MOVEMENT_KINDS,
@@ -206,9 +210,13 @@ export {
   isWellFormedEnrollmentCode,
   isWellFormedInstallationKey,
   MAX_CASH_AMOUNT_CENTS,
+  mayAuthorize,
   normalizeEnrollmentCode,
+  REGISTER_ABILITIES,
   REGISTER_NAME_MAX_LENGTH,
+  registerAbilities,
   registerNameLength,
+  registerOperationAccess,
 } from "./register/index.js";
 export type {
   LinePromotion,
