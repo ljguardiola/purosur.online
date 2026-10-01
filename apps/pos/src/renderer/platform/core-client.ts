@@ -23,6 +23,7 @@ import type {
   RendererToCoreMessage,
   ScanProductOutcome,
   SearchProductsOutcome,
+  SessionOpenSale,
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
@@ -81,6 +82,7 @@ export interface CoreClient {
   cancelLockedSale(closer: Authorization): Promise<CancelLockedSaleOutcome>;
   identifyLockedCloser(closer: Authorization): Promise<IdentifyLockedCloserOutcome>;
   cashBalance(): Promise<CashBalance | null | "unavailable">;
+  sessionOpenSale(): Promise<SessionOpenSale | null | "unavailable">;
   onPulled(listener: () => void): () => void;
 }
 
@@ -379,6 +381,17 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
             return "unavailable";
           }
           return answer.type === "cash-balance" ? answer.balance : undefined;
+        },
+      );
+    },
+    sessionOpenSale() {
+      return ask(
+        { type: "session-open-sale-request", request_id: deps.newRequestId() },
+        (answer): SessionOpenSale | null | "unavailable" | undefined => {
+          if (answer.type === "session-open-sale-unavailable") {
+            return "unavailable";
+          }
+          return answer.type === "session-open-sale" ? answer.sale : undefined;
         },
       );
     },

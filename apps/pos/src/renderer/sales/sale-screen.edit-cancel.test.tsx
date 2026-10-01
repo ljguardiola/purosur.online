@@ -319,7 +319,7 @@ describe("SaleScreen cancelling the sale", () => {
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
   });
 
-  it("tells the sale could not be cancelled when it already has an approved payment", async () => {
+  it("tells the sale cannot be cancelled, without inviting a retry, when it already has an approved payment", async () => {
     const { screen } = await renderScreen({
       currentSale: async () => SALE_OF_YERBA,
       cancelSale: async () => ({ kind: "has_approved_payment" }),
@@ -328,7 +328,9 @@ describe("SaleScreen cancelling the sale", () => {
 
     await screen.getByRole("button", { name: "Cancelar la venta" }).click();
 
-    await expect.element(screen.getByText("No se pudo cancelar la venta")).toBeVisible();
+    await expect.element(screen.getByText("No se puede cancelar la venta")).toBeVisible();
+    await expect.element(screen.getByText("Ya tiene un pago aprobado.")).toBeVisible();
+    await expect.element(screen.getByText("Probá de nuevo.")).not.toBeInTheDocument();
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
   });
 

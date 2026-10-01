@@ -4,7 +4,6 @@ import type {
   CashMovementType,
   ClosedCashSession,
   OpenedCashSession,
-  PaymentTransaction,
 } from "@purosur/domain";
 import type {
   CashLedger,
@@ -14,6 +13,7 @@ import type {
 } from "@purosur/domain/register/use-cases";
 import type { SignInStore } from "../access/sqlite-sign-in-store";
 import type { LocalDatabase } from "../platform/local-database";
+import { readSalePayments } from "../sales/sqlite-sale-payments";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
 
 interface SessionRow {
@@ -132,43 +132,11 @@ export function readSessionMovements(database: LocalDatabase, sessionId: string)
     .map(movementOf);
 }
 
-interface PaymentRow {
-  id: string;
-  sale_id: string;
-  kind: PaymentTransaction["kind"];
-  method: PaymentTransaction["method"];
-  provider: PaymentTransaction["provider"];
-  amount: number;
-  tendered: number | null;
-  state: PaymentTransaction["state"];
-  occurred_at: string;
-}
-
-export function readSalePayments(database: LocalDatabase, saleId: string): PaymentTransaction[] {
-  return database
-    .prepare<[string], PaymentRow>(
-      `SELECT id, sale_id, kind, method, provider, amount, tendered, state, occurred_at
-       FROM payment_transactions WHERE sale_id = ? ORDER BY rowid`,
-    )
-    .all(saleId)
-    .map((row) => ({
-      id: row.id,
-      saleId: row.sale_id,
-      kind: row.kind,
-      method: row.method,
-      provider: row.provider,
-      amount: row.amount,
-      ...(row.tendered === null ? {} : { tendered: row.tendered }),
-      state: row.state,
-      occurredAt: new Date(row.occurred_at),
-    }));
-}
-
-function readOpenSale(database: LocalDatabase): OpenSale | undefined {
+export function readOpenSale(database: LocalDatabase): OpenSale | undefined {
   const row = database
     .prepare<[], { id: string; total: number }>(
-      `SELECT sales.id AS id, sum(sale_lines.line_total) AS total
-       FROM sales JOIN sale_lines ON sale_lines.sale_id = sales.id
+      `SELECT sales.id AS id, coalesce(sum(sale_lines.line_total), 0) AS total
+       FROM sales LEFT JOIN sale_lines ON sale_lines.sale_id = sales.id
        WHERE sales.state = 'OPEN'
        GROUP BY sales.id`,
     )

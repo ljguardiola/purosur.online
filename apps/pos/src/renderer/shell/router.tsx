@@ -20,6 +20,7 @@ import type {
   RemoveSaleLineOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
+  SessionOpenSale,
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
@@ -89,6 +90,7 @@ export interface RouterContext {
   cancelLockedSale: (closer: Authorization) => Promise<CancelLockedSaleOutcome>;
   identifyLockedCloser: (closer: Authorization) => Promise<IdentifyLockedCloserOutcome>;
   cashBalance: () => Promise<CashBalance | null | "unavailable">;
+  sessionOpenSale: () => Promise<SessionOpenSale | null | "unavailable">;
   cashMovements: () => Promise<ListedCashMovement[] | null | "unavailable">;
   recordCashMovement: (input: CashMovementInput) => Promise<RecordCashMovementOutcome>;
   redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
@@ -394,6 +396,7 @@ const lockedCloseRoute = createRoute({
       openedAt,
       openedBy,
       cashBalance,
+      sessionOpenSale,
       authorizers,
       identifyLockedCloser,
       closeLockedCashSession,
@@ -407,6 +410,7 @@ const lockedCloseRoute = createRoute({
         registerName={registerName}
         openedAt={openedAt}
         loadCashBalance={cashBalance}
+        loadOpenSale={sessionOpenSale}
         loadAuthorizers={authorizers}
         identifyLockedCloser={identifyLockedCloser}
         closeLockedCashSession={(countedCash, closer) =>
@@ -527,6 +531,7 @@ export function createAppRouter(
     | "cancelLockedSale"
     | "identifyLockedCloser"
     | "cashBalance"
+    | "sessionOpenSale"
     | "cashMovements"
     | "recordCashMovement"
     | "authorizers"

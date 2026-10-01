@@ -23,8 +23,9 @@ import type {
 } from "@purosur/domain/sales/use-cases";
 import type { SignInStore } from "../access/sqlite-sign-in-store";
 import type { LocalDatabase } from "../platform/local-database";
-import { insertCashMovement, readSalePayments } from "../register/sqlite-cash-ledger";
+import { insertCashMovement } from "../register/sqlite-cash-ledger";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
+import { readSalePayments } from "./sqlite-sale-payments";
 
 interface SaleRow {
   id: string;

@@ -1,5 +1,11 @@
-import type { CashBalance, ListedCashMovement, OpenCashSession } from "@purosur/contracts";
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import type {
+  CashBalance,
+  ListedCashMovement,
+  OpenCashSession,
+  SessionOpenSale,
+} from "@purosur/contracts";
+import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
+import { setQueryAnswer } from "../platform/set-query-answer";
 import type { CoreData } from "../platform/use-core-query";
 import { coreQueryOptions, useCoreQuery } from "../platform/use-core-query";
 import type { CashSessionState } from "../shell/cash-session-state";
@@ -15,6 +21,7 @@ export const registerKeys = {
   registerName: [...registerKey, "register-name"] as const,
   cashBalance: (sessionId: string) => [...cashKey, sessionId, "balance"] as const,
   cashMovements: (sessionId: string) => [...cashKey, sessionId, "movements"] as const,
+  openSale: (sessionId: string) => [...cashKey, sessionId, "open-sale"] as const,
 };
 
 const CASH_SESSION_REREAD_MS = 5000;
@@ -84,4 +91,18 @@ export function useCashMovementsQuery(
   return onlyWithOpenSession(
     useCoreQuery({ queryKey: registerKeys.cashMovements(sessionId), read }),
   );
+}
+
+export function useSessionOpenSaleQuery(
+  sessionId: string,
+  read: () => Promise<SessionOpenSale | null | "unavailable">,
+): CoreData<SessionOpenSale | null> {
+  return useCoreQuery({ queryKey: registerKeys.openSale(sessionId), read });
+}
+
+export function useSetSessionOpenSale(
+  sessionId: string,
+): (sale: SessionOpenSale | null) => Promise<void> {
+  const queryClient = useQueryClient();
+  return (sale) => setQueryAnswer(queryClient, registerKeys.openSale(sessionId), sale);
 }

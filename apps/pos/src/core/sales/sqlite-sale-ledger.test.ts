@@ -1197,28 +1197,6 @@ describe("the lines of the sale being changed", () => {
     expect(ledger.transaction((tx) => tx.salePayments("id-1"))).toEqual([payment]);
   });
 
-  it("refuses to cancel a sale with an approved payment, leaving it open", () => {
-    scan("111");
-    ledger.transaction((tx) =>
-      tx.recordPayment({
-        id: "payment-1",
-        saleId: "id-1",
-        kind: "SALE",
-        method: "CASH",
-        provider: "NONE",
-        amount: 1500,
-        state: "APPROVED",
-        occurredAt: NOW,
-      }),
-    );
-
-    expect(cancelSale(sellerPorts(), { actorId: "u1", from: "sale" })).toEqual({
-      kind: "has_approved_payment",
-    });
-    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
-    expect(database.prepare("SELECT count(*) AS total FROM outbox").get()).toEqual({ total: 0 });
-  });
-
   it("chains the removals of a sale charged in cash in its sale_completed event", () => {
     scan("111");
     scan("111");

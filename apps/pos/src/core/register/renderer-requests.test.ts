@@ -17,6 +17,7 @@ import type {
   RemoveSaleLineOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
+  SessionOpenSale,
   SignInLookupOutcome,
   SignInOutcome,
 } from "@purosur/contracts";
@@ -164,6 +165,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         kind: "not_locked",
       }),
       cashBalance: (): CashBalance | null => null,
+      sessionOpenSale: (): SessionOpenSale | null => null,
       authorizers: (permission: AuthorizablePermissionKey) => {
         authorizerLookups.push(permission);
         return [{ id: "u2", first_name: "Grace" }];
@@ -1292,6 +1294,43 @@ describe("answerRendererRequest", () => {
       }),
     ).toEqual({ type: "cash-balance-unavailable", request_id: "r27" });
     expect(failing.failures).toEqual([{ context: "reading the cash balance", error }]);
+  });
+
+  it("answers the open sale of the session", async () => {
+    const sale: SessionOpenSale = { total: 3_434_000, cancellable: true };
+
+    expect(
+      await answerRendererRequest(deps(true, { sessionOpenSale: () => sale }).deps, {
+        type: "session-open-sale-request",
+        request_id: "r30",
+      }),
+    ).toEqual({ type: "session-open-sale", request_id: "r30", sale });
+  });
+
+  it("answers that the open sale cannot be read when the register has no database", async () => {
+    expect(
+      await answerRendererRequest(deps(true, { sessionOpenSale: undefined }).deps, {
+        type: "session-open-sale-request",
+        request_id: "r31",
+      }),
+    ).toEqual({ type: "session-open-sale-unavailable", request_id: "r31" });
+  });
+
+  it("answers that the open sale cannot be read when reading it fails, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      sessionOpenSale: () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "session-open-sale-request",
+        request_id: "r32",
+      }),
+    ).toEqual({ type: "session-open-sale-unavailable", request_id: "r32" });
+    expect(failing.failures).toEqual([{ context: "reading the open sale", error }]);
   });
 
   it("answers nothing to a ping", async () => {

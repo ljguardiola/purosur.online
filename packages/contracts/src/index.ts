@@ -156,6 +156,7 @@ export type {
   RecordCashMovementOutcome,
   RecordCashMovementRequest,
   RendererToCoreMessage,
+  SessionOpenSale,
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,

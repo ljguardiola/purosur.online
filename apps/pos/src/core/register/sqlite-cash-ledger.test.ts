@@ -257,6 +257,12 @@ describe("the open sale", () => {
     expect(ledger.transaction((tx) => tx.openSale())).toEqual({ total: 1750, payments: [] });
   });
 
+  it("totals zero for a sale in progress whose lines were all removed", () => {
+    addSale("sale-1", "OPEN", []);
+
+    expect(ledger.transaction((tx) => tx.openSale())).toEqual({ total: 0, payments: [] });
+  });
+
   it("carries the payments of the sale in progress and none of another sale", () => {
     addSale("sale-1", "COMPLETED", [999]);
     addSale("sale-2", "OPEN", [1500]);

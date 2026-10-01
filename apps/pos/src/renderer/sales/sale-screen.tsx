@@ -248,6 +248,7 @@ export function SaleScreen({
         onSessionInvalid();
         break;
       case "not_permitted":
+      case "has_approved_payment":
         setProblem(outcome);
         break;
       case "unknown_line":
@@ -256,7 +257,6 @@ export function SaleScreen({
         await resetCurrentSale();
         break;
       case "invalid_quantity":
-      case "has_approved_payment":
       case "unavailable":
         setProblem(failure);
         break;

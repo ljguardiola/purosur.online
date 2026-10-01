@@ -704,6 +704,32 @@ describe("createCoreClient", () => {
     expect(await asked).toBe("unavailable");
   });
 
+  it.each([null, { total: 3_434_000, cancellable: true }])(
+    "asks the core for the open sale of the session and resolves with it: %j",
+    async (sale) => {
+      const client = clientWithSequentialIds();
+      const port = new FakePort();
+      client.connect(port);
+
+      const asked = client.sessionOpenSale();
+      port.answer({ type: "session-open-sale", request_id: "request-1", sale });
+
+      expect(await asked).toEqual(sale);
+      expect(port.posted).toEqual([{ type: "session-open-sale-request", request_id: "request-1" }]);
+    },
+  );
+
+  it("resolves that the open sale is unavailable when the core cannot read it", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.sessionOpenSale();
+    port.answer({ type: "session-open-sale-unavailable", request_id: "request-1" });
+
+    expect(await asked).toBe("unavailable");
+  });
+
   it("asks the core to enroll with the code as typed and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();

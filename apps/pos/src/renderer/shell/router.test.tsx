@@ -107,6 +107,7 @@ function contextWith(
     cancelLockedSale: async () => ({ kind: "unavailable" }),
     identifyLockedCloser: async () => ({ kind: "unavailable" }),
     cashBalance: async () => "unavailable",
+    sessionOpenSale: async () => "unavailable",
     cashMovements: async () => "unavailable",
     recordCashMovement: async () => ({ kind: "unavailable" }),
     enroll: async () => ({ kind: "enrolled" }),
@@ -1097,7 +1098,7 @@ describe("the register's router", () => {
     await expect.poll(() => closed).toEqual([["s1", 4_580_000, { user_id: "u3", pin: "1234" }]]);
   });
 
-  it("cancels the locked register's open sale through the router context with the closer's PIN", async () => {
+  it("shows the locked register's open sale read through the router context and cancels it with the closer's PIN", async () => {
     const cancelled: unknown[] = [];
     const router = createRegisterRouter(
       routeTree,
@@ -1109,11 +1110,7 @@ describe("the register's router", () => {
           kind: "identified",
           person: { user_id: "u3", first_name: "Sofía" },
         }),
-        closeLockedCashSession: async () => ({
-          kind: "open_sale",
-          total: 3_434_000,
-          cancellable: true,
-        }),
+        sessionOpenSale: async () => ({ total: 3_434_000, cancellable: true }),
         cancelLockedSale: async (closer) => {
           cancelled.push(closer);
           return { kind: "cancelled" };
@@ -1125,11 +1122,6 @@ describe("the register's router", () => {
     await userEvent.click(screen.getByText("Sofía", { exact: true }));
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
-    await expect
-      .element(screen.getByRole("complementary").getByText("$ 46.200,00", { exact: true }))
-      .toBeVisible();
-    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
-    await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
     await userEvent.click(screen.getByRole("button", { name: "Cancelar la venta" }));
 
     await userEvent.click(

@@ -2,8 +2,9 @@ import type {
   CancelLockedSaleOutcome,
   CashBalance,
   CloseLockedCashSessionOutcome,
+  SessionOpenSale,
 } from "@purosur/contracts";
-import { Button, formatCents, InlineNotice, TextField } from "@purosur/ui";
+import { Button, formatCents, InlineNotice, LoadFailure, TextField } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Lock, ShoppingBasket, TriangleAlert, X } from "lucide-react";
 import type { FormEvent } from "react";
@@ -14,7 +15,11 @@ import { CancelLockedSaleModal } from "./cancel-locked-sale-modal";
 import { countedCashFrom, differenceNotice, INVALID_COUNTED_CASH_MESSAGE } from "./cash-amounts";
 import { CashCountStrip } from "./cash-count-strip";
 import { ExpectedCashPanel } from "./expected-cash-panel";
-import { useCashBalanceQuery } from "./register-queries";
+import {
+  useCashBalanceQuery,
+  useSessionOpenSaleQuery,
+  useSetSessionOpenSale,
+} from "./register-queries";
 
 const CLOSE_FAILED = "No se pudo cerrar la caja. Probá de nuevo.";
 const CANCEL_FAILED = "No se pudo cancelar la venta. Probá de nuevo.";
@@ -31,6 +36,7 @@ export type LockedCashCountProps = {
   registerName: string | null;
   openedAt: string;
   loadCashBalance: () => Promise<CashBalance | null | "unavailable">;
+  loadOpenSale: () => Promise<SessionOpenSale | null | "unavailable">;
   close: (countedCash: number) => Promise<CloseLockedCashSessionOutcome>;
   cancelSale: () => Promise<CancelLockedSaleOutcome>;
   onRefused: (refusal: RefusedClose) => void;
@@ -43,17 +49,19 @@ export function LockedCashCount({
   registerName,
   openedAt,
   loadCashBalance,
+  loadOpenSale,
   close,
   cancelSale,
   onRefused,
 }: LockedCashCountProps) {
   const navigate = useNavigate();
   const balance = useCashBalanceQuery(sessionId, loadCashBalance);
+  const openSaleData = useSessionOpenSaleQuery(sessionId, loadOpenSale);
+  const setOpenSale = useSetSessionOpenSale(sessionId);
   const field = useRef<HTMLDivElement>(null);
   const [typed, setTyped] = useState("");
   const [fieldMessage, setFieldMessage] = useState<string>();
   const [failure, setFailure] = useState<string>();
-  const [openSale, setOpenSale] = useState<{ total: number; cancellable: boolean }>();
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -61,6 +69,7 @@ export function LockedCashCount({
     field.current?.querySelector("input")?.focus();
   }, []);
 
+  const openSale = openSaleData.status === "loaded" ? openSaleData.value : null;
   const expected = balance.status === "loaded" ? balance.value.expected : undefined;
   const typedCash = typed.trim() === "" ? undefined : countedCashFrom(typed);
   const counted = typedCash !== undefined && "cents" in typedCash ? typedCash.cents : undefined;
@@ -73,7 +82,6 @@ export function LockedCashCount({
     setTyped(value);
     setFieldMessage(undefined);
     setFailure(undefined);
-    setOpenSale(undefined);
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -82,7 +90,6 @@ export function LockedCashCount({
       return;
     }
     setFailure(undefined);
-    setOpenSale(undefined);
     const countedCash = countedCashFrom(typed);
     if ("message" in countedCash) {
       setFieldMessage(countedCash.message);
@@ -102,7 +109,7 @@ export function LockedCashCount({
         setFieldMessage(INVALID_COUNTED_CASH_MESSAGE);
         break;
       case "open_sale":
-        setOpenSale({ total: outcome.total, cancellable: outcome.cancellable });
+        await setOpenSale({ total: outcome.total, cancellable: outcome.cancellable });
         break;
       case "unavailable":
         setFailure(CLOSE_FAILED);
@@ -113,6 +120,7 @@ export function LockedCashCount({
   }
 
   async function cancelOpenSale() {
+    setFailure(undefined);
     setBusy(true);
     const outcome = await cancelSale().catch(
       (): CancelLockedSaleOutcome => ({ kind: "unavailable" }),
@@ -122,10 +130,10 @@ export function LockedCashCount({
     switch (outcome.kind) {
       case "cancelled":
       case "no_open_sale":
-        setOpenSale(undefined);
+        await setOpenSale(null);
         break;
       case "has_approved_payment":
-        setOpenSale((current) => current && { ...current, cancellable: false });
+        await setOpenSale(openSale && { ...openSale, cancellable: false });
         break;
       case "no_open_session":
         break;
@@ -147,7 +155,15 @@ export function LockedCashCount({
             {`Cierra ${closerName}. La sesión es de ${opener.first_name}.`}
           </p>
         </div>
-        {openSale === undefined ? null : (
+        {openSaleData.status === "failed" ? (
+          <LoadFailure
+            icon={<TriangleAlert />}
+            title="No se pudo leer la venta abierta"
+            description="Volvé a intentarlo en unos segundos."
+            onRetry={openSaleData.retry}
+          />
+        ) : null}
+        {openSale === null ? null : (
           <div className="flex flex-col items-start gap-3">
             <InlineNotice
               tone="error"
@@ -218,7 +234,7 @@ export function LockedCashCount({
           Volver
         </Button>
       </ExpectedCashPanel>
-      {openSale === undefined ? null : (
+      {openSale === null ? null : (
         <CancelLockedSaleModal
           open={confirmingCancel}
           total={openSale.total}

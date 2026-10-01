@@ -173,6 +173,11 @@ const cashBalanceRequestMessageSchema = z.object({
   request_id: requestId,
 });
 
+const sessionOpenSaleRequestMessageSchema = z.object({
+  type: z.literal("session-open-sale-request"),
+  request_id: requestId,
+});
+
 const authorizersRequestMessageSchema = z.object({
   type: z.literal("authorizers"),
   request_id: requestId,
@@ -253,6 +258,7 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   cancelLockedSaleMessageSchema,
   identifyLockedCloserMessageSchema,
   cashBalanceRequestMessageSchema,
+  sessionOpenSaleRequestMessageSchema,
   authorizersRequestMessageSchema,
   scanProductMessageSchema,
   changeLineQuantityMessageSchema,
@@ -375,6 +381,9 @@ const cashBalanceSchema = z.object({
   expected: z.number(),
 });
 export type CashBalance = z.infer<typeof cashBalanceSchema>;
+
+const sessionOpenSaleSchema = z.object({ total: z.number(), cancellable: z.boolean() });
+export type SessionOpenSale = z.infer<typeof sessionOpenSaleSchema>;
 
 const openCashSessionSchema = z.object({
   id: z.string(),
@@ -501,6 +510,12 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     balance: cashBalanceSchema.nullable(),
   }),
   z.object({ type: z.literal("cash-balance-unavailable"), request_id: requestId }),
+  z.object({
+    type: z.literal("session-open-sale"),
+    request_id: requestId,
+    sale: sessionOpenSaleSchema.nullable(),
+  }),
+  z.object({ type: z.literal("session-open-sale-unavailable"), request_id: requestId }),
   z.object({
     type: z.literal("cash-session"),
     request_id: requestId,

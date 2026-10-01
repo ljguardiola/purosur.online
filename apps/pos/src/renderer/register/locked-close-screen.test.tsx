@@ -4,6 +4,7 @@ import type {
   CashBalance,
   CloseLockedCashSessionOutcome,
   IdentifyLockedCloserOutcome,
+  SessionOpenSale,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
@@ -40,6 +41,7 @@ async function renderScreen(
     identify?: () => Promise<IdentifyLockedCloserOutcome>;
     close?: Close;
     cancelSale?: CancelSale;
+    loadOpenSale?: () => Promise<SessionOpenSale | null | "unavailable">;
   } = {},
 ) {
   await page.viewport(1280, 720);
@@ -53,6 +55,7 @@ async function renderScreen(
       registerName="Caja 1"
       openedAt="2026-09-30T12:02:00.000Z"
       loadCashBalance={loadCashBalance}
+      loadOpenSale={options.loadOpenSale ?? (async () => null)}
       loadAuthorizers={async () => [{ id: "u3", first_name: "Sofía" }]}
       identifyLockedCloser={options.identify ?? (async () => IDENTIFIED)}
       closeLockedCashSession={close}
@@ -90,6 +93,7 @@ describe("LockedCloseScreen", () => {
         registerName="Caja 1"
         openedAt="2026-09-30T12:02:00.000Z"
         loadCashBalance={async () => BALANCE}
+        loadOpenSale={async () => null}
         loadAuthorizers={(permission) => loadAuthorizers(permission)}
         identifyLockedCloser={async () => IDENTIFIED}
         closeLockedCashSession={async () => ({ kind: "unavailable" })}
@@ -152,14 +156,14 @@ describe("LockedCloseScreen", () => {
     await expect.element(screen.getByText("$ 46.200,00", { exact: true })).not.toBeInTheDocument();
   });
 
-  it("cancels the open sale with the PIN of the person who closes", async () => {
+  it("shows the open sale once the person who closes is identified and cancels it with their PIN", async () => {
     const cancelSale = vi.fn<CancelSale>(async () => ({ kind: "cancelled" }));
     const { screen } = await renderScreen({
-      close: async () => ({ kind: "open_sale", total: 3_434_000, cancellable: true }),
+      loadOpenSale: async () => ({ total: 3_434_000, cancellable: true }),
       cancelSale,
     });
     await identifySofia(screen);
-    await closeWith(screen, "45.800,00");
+    await expect.element(screen.getByText("Hay una venta abierta de $ 34.340,00")).toBeVisible();
     await screen.getByRole("button", { name: "Cancelar la venta" }).click();
 
     await screen.getByRole("dialog").getByRole("button", { name: "Cancelar la venta" }).click();

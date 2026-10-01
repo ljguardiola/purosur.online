@@ -2,7 +2,6 @@ import type {
   Authorization,
   CashBalance,
   CloseCashSessionOutcome,
-  CloseLockedCashSessionOutcome,
   EnrollmentOutcome,
   ListedCashMovement,
   OpenCashSession,
@@ -80,6 +79,7 @@ function coreAnswering(
     identifyLockedCloser?: CoreClient["identifyLockedCloser"];
     authorizers?: CoreClient["authorizers"];
     cashBalance?: CoreClient["cashBalance"];
+    sessionOpenSale?: CoreClient["sessionOpenSale"];
     redeemOutcome?: PinCodeRedemptionOutcome;
     cashMovements?: CoreClient["cashMovements"];
     recordCashMovement?: CoreClient["recordCashMovement"];
@@ -210,6 +210,9 @@ function coreAnswering(
       return cashDrawer.identifyLockedCloser === undefined
         ? { kind: "identified", person: { user_id: closer.user_id, first_name: "Sofía" } }
         : cashDrawer.identifyLockedCloser(closer);
+    },
+    async sessionOpenSale() {
+      return cashDrawer.sessionOpenSale === undefined ? null : cashDrawer.sessionOpenSale();
     },
     async cashBalance() {
       return cashDrawer.cashBalance === undefined ? null : cashDrawer.cashBalance();
@@ -1500,6 +1503,7 @@ describe("App", () => {
         identifyLockedCloser?: CoreClient["identifyLockedCloser"];
         closeLockedCashSession?: CoreClient["closeLockedCashSession"];
         cancelLockedSale?: CoreClient["cancelLockedSale"];
+        sessionOpenSale?: CoreClient["sessionOpenSale"];
         cashSession?: CoreClient["cashSession"];
       } = {},
     ) {
@@ -1567,22 +1571,16 @@ describe("App", () => {
     );
 
     describe("cancelling its open sale", () => {
-      const OPEN_SALE: CloseLockedCashSessionOutcome = {
-        kind: "open_sale",
-        total: 3_434_000,
-        cancellable: true,
-      };
-
       async function cancelFromLocked(cashDrawer: Parameters<typeof identifyFromLocked>[0]) {
-        const closed = await closeFromLocked({
-          closeLockedCashSession: async () => OPEN_SALE,
+        const identified = await identifyFromLocked({
+          sessionOpenSale: async () => ({ total: 3_434_000, cancellable: true }),
           ...cashDrawer,
         });
-        await userEvent.click(closed.screen.getByRole("button", { name: "Cancelar la venta" }));
+        await userEvent.click(identified.screen.getByRole("button", { name: "Cancelar la venta" }));
         await userEvent.click(
-          closed.screen.getByRole("dialog").getByRole("button", { name: "Cancelar la venta" }),
+          identified.screen.getByRole("dialog").getByRole("button", { name: "Cancelar la venta" }),
         );
-        return closed;
+        return identified;
       }
 
       it("cancels it with the PIN of the person who closes, staying on the cash count", async () => {

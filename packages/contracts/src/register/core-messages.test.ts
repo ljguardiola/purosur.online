@@ -772,6 +772,50 @@ describe("closing a cash session answers", () => {
   });
 });
 
+describe("the open sale of the cash session", () => {
+  it("accepts a request for the open sale", () => {
+    const message = { type: "session-open-sale-request", request_id: REQUEST_ID };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a request for the open sale without its request id", () => {
+    expect(
+      rendererToCoreMessageSchema.safeParse({ type: "session-open-sale-request" }).success,
+    ).toBe(false);
+  });
+
+  it.each([{ total: 3_434_000, cancellable: true }, { total: 0, cancellable: false }, null])(
+    "accepts the open sale answered: %j",
+    (sale) => {
+      const message = { type: "session-open-sale", request_id: REQUEST_ID, sale };
+
+      expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    },
+  );
+
+  it.each([{ total: 4500 }, { cancellable: true }, { total: 4500, cancellable: "yes" }])(
+    "rejects an open sale it does not know: %j",
+    (sale) => {
+      const message = { type: "session-open-sale", request_id: REQUEST_ID, sale };
+
+      expect(coreToRendererMessageSchema.safeParse(message).success).toBe(false);
+    },
+  );
+
+  it("accepts that the open sale cannot be read", () => {
+    const message = { type: "session-open-sale-unavailable", request_id: REQUEST_ID };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects that the open sale cannot be read without its request id", () => {
+    expect(
+      coreToRendererMessageSchema.safeParse({ type: "session-open-sale-unavailable" }).success,
+    ).toBe(false);
+  });
+});
+
 describe("identifying who closes a locked register", () => {
   const identify = {
     type: "identify-locked-closer",

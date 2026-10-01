@@ -198,7 +198,12 @@ export type {
   SaleWithLines,
   SoldProduct,
 } from "./sales/index.js";
-export { cashCharge, SEARCH_RESULT_LIMIT, saleTotal } from "./sales/index.js";
+export {
+  cancellableWithoutAuthorization,
+  cashCharge,
+  SEARCH_RESULT_LIMIT,
+  saleTotal,
+} from "./sales/index.js";
 export type { EsArNumberDigits } from "./shared/index.js";
 export {
   ARGENTINA_TIME_ZONE,

@@ -47,6 +47,7 @@ import {
   currentCashSession,
   identifyLockedCloserFor,
   openCashSessionFor,
+  sessionOpenSaleFor,
 } from "./register/cash-session-requests";
 import { rotateDeviceToken } from "./register/device-token-rotation";
 import { startDeviceTokenRotationSchedule } from "./register/device-token-rotation-schedule";
@@ -376,6 +377,8 @@ const rendererRequestDeps: RendererRequestDeps = {
       ? undefined
       : (closer) => identifyLockedCloserFor({ gate: actionGate }, closer),
   cashBalance: localDatabase === undefined ? undefined : () => cashBalanceFor(localDatabase),
+  sessionOpenSale:
+    localDatabase === undefined ? undefined : () => sessionOpenSaleFor(localDatabase),
   cashSession: localDatabase === undefined ? undefined : () => currentCashSession(localDatabase),
   recordCashMovement:
     localDatabase === undefined || actionGate === undefined

@@ -22,6 +22,7 @@ import type {
   RendererToCoreMessage,
   ScanProductOutcome,
   SearchProductsOutcome,
+  SessionOpenSale,
   SignInLookupOutcome,
   SignInOutcome,
   SignInUser,
@@ -81,6 +82,7 @@ export interface RendererRequestDeps {
     | ((closer: Authorization) => Promise<IdentifyLockedCloserOutcome>)
     | undefined;
   cashBalance: (() => CashBalance | null) | undefined;
+  sessionOpenSale: (() => SessionOpenSale | null) | undefined;
   authorizers: ((permission: AuthorizablePermissionKey) => SignInUser[]) | undefined;
   signOut: () => void;
   reportFailure: (context: string, error: unknown) => void;
@@ -235,6 +237,15 @@ function readCashBalance(deps: RendererRequestDeps): CashBalance | null | undefi
     return deps.cashBalance?.();
   } catch (error) {
     deps.reportFailure("reading the cash balance", error);
+    return undefined;
+  }
+}
+
+function readSessionOpenSale(deps: RendererRequestDeps): SessionOpenSale | null | undefined {
+  try {
+    return deps.sessionOpenSale?.();
+  } catch (error) {
+    deps.reportFailure("reading the open sale", error);
     return undefined;
   }
 }
@@ -534,6 +545,12 @@ export async function answerRendererRequest(
       return balance === undefined
         ? { type: "cash-balance-unavailable", request_id: message.request_id }
         : { type: "cash-balance", request_id: message.request_id, balance };
+    }
+    case "session-open-sale-request": {
+      const sale = readSessionOpenSale(deps);
+      return sale === undefined
+        ? { type: "session-open-sale-unavailable", request_id: message.request_id }
+        : { type: "session-open-sale", request_id: message.request_id, sale };
     }
     case "authorizers": {
       const users = readAuthorizers(deps, message.permission);

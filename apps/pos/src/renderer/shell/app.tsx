@@ -262,6 +262,7 @@ function Register({ core }: { core: CoreClient }) {
     cancelLockedSale,
     identifyLockedCloser,
     cashBalance,
+    sessionOpenSale: () => core.sessionOpenSale(),
     cashMovements,
     recordCashMovement,
     redeemPinCode,

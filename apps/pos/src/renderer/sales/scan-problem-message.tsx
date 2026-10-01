@@ -20,7 +20,8 @@ export type ScanProblem =
   | { kind: "search_failed" }
   | { kind: "change_failed" }
   | { kind: "remove_failed" }
-  | { kind: "cancel_failed" };
+  | { kind: "cancel_failed" }
+  | { kind: "has_approved_payment" };
 
 type Message = { icon: LucideIcon; title: string; help: string };
 
@@ -91,6 +92,12 @@ export function messageFor(problem: ScanProblem): Message {
         icon: TriangleAlert,
         title: "No se pudo cancelar la venta",
         help: "Probá de nuevo.",
+      };
+    case "has_approved_payment":
+      return {
+        icon: Ban,
+        title: "No se puede cancelar la venta",
+        help: "Ya tiene un pago aprobado.",
       };
     case "search_failed":
       return {
