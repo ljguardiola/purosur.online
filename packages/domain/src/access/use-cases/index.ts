@@ -63,6 +63,12 @@ export type {
 } from "./find-open-session.js";
 export { findOpenSession } from "./find-open-session.js";
 export type {
+  FindRedeemableRecoveryInput,
+  FindRedeemableRecoveryOutcome,
+  FindRedeemableRecoveryPorts,
+} from "./find-redeemable-recovery.js";
+export { findRedeemableRecovery } from "./find-redeemable-recovery.js";
+export type {
   FirstPinCodeEmission,
   FirstPinCodeEmissionPorts,
   FirstPinCodeStore,
@@ -114,11 +120,32 @@ export type {
 } from "./reactivate-user.js";
 export { reactivateUser } from "./reactivate-user.js";
 export type {
+  RecordRegistrationChallengeInput,
+  RecordRegistrationChallengePorts,
+} from "./record-registration-challenge.js";
+export { recordRegistrationChallenge } from "./record-registration-challenge.js";
+export type { RecordRejectedRedemptionPorts } from "./record-rejected-redemption.js";
+export { recordRejectedRedemption } from "./record-rejected-redemption.js";
+export type {
   RecordSessionActivityInput,
   RecordSessionActivityOutcome,
   RecordSessionActivityPorts,
 } from "./record-session-activity.js";
 export { recordSessionActivity } from "./record-session-activity.js";
+export type {
+  RecoveredPasskey,
+  RecoveringAccount,
+  RecoveryAttempt,
+  RecoveryPasskeyAlert,
+  RecoveryRedemptionStore,
+  RecoveryRedemptionStoreTransaction,
+  RecoveryRejection,
+  RecoveryTokenRecord,
+  RegisteredCredential,
+  RegisteredPasskey,
+  RejectedRedemption,
+} from "./recovery-redemption-store.js";
+export { PasskeyAlreadyRegistered } from "./recovery-redemption-store.js";
 export type {
   IssuedRecoveryToken,
   NewRecoveryToken,
@@ -134,6 +161,12 @@ export type {
   RedeemPinCodeOutcome,
 } from "./redeem-pin-code.js";
 export { redeemPinCode } from "./redeem-pin-code.js";
+export type {
+  RedeemRecoveryTokenInput,
+  RedeemRecoveryTokenOutcome,
+  RedeemRecoveryTokenPorts,
+} from "./redeem-recovery-token.js";
+export { redeemRecoveryToken } from "./redeem-recovery-token.js";
 export type { RoleDirectory, RoleHolder, RoleListing, StoredRole } from "./role-directory.js";
 export type {
   LockedRole,
