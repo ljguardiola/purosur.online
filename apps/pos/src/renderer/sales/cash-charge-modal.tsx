@@ -1,6 +1,5 @@
 import type { ChargeSaleInCashOutcome } from "@purosur/contracts";
-import { parseAmountCents } from "@purosur/contracts";
-import { cashCharge } from "@purosur/domain";
+import { cashCharge, parseAmountCents } from "@purosur/contracts";
 import { Button, formatCents, InlineNotice, Modal, SummaryRowGroup, TextField } from "@purosur/ui";
 import { ArrowLeft, Banknote, Check, TriangleAlert } from "lucide-react";
 import { useEffect, useRef, useState } from "react";

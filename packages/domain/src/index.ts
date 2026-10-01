@@ -181,7 +181,6 @@ export {
   registerNameLength,
 } from "./register/index.js";
 export type {
-  CashCharge,
   LinePromotion,
   ListPrice,
   PaymentTransaction,

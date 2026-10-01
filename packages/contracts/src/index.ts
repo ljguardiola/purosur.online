@@ -161,6 +161,7 @@ export {
   ARGENTINA_TIME_ZONE,
   CASH_MOVEMENT_REASON_MAX_LENGTH,
   CASH_MOVEMENT_TYPES,
+  cashCharge,
   cashMovementAmountSchema,
   cashMovementPermission,
   cashMovementReason,
