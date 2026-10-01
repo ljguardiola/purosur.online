@@ -111,7 +111,21 @@ describe("CashOpeningPanel", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it.each(["abc", "20.000,001", "21.474.836,48"])(
+  it("sends a float beyond the largest amount to the core and shows its refusal on the field", async () => {
+    const open = vi.fn(
+      async (): Promise<OpenCashSessionOutcome> => ({
+        kind: "invalid_opening_float",
+      }),
+    );
+    const { screen } = await renderPanel({ open });
+
+    await submitFloat(screen, "21.474.836,48");
+
+    await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
+    expect(open).toHaveBeenCalledWith(2_147_483_648);
+  });
+
+  it.each(["abc", "20.000,001"])(
     "asks for a valid amount without sending anything when the float is %s",
     async (typed) => {
       const { screen, open } = await renderPanel();
