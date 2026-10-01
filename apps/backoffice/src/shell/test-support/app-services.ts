@@ -142,6 +142,8 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     fiscalConfigurationScreen: {
       fetchIssuerIdentification: vi.fn().mockReturnValue(new Promise(() => {})),
       saveIssuerIdentification: vi.fn(),
+      fetchBuyerIdentificationThresholds: vi.fn().mockReturnValue(new Promise(() => {})),
+      recordBuyerIdentificationThreshold: vi.fn(),
       fetchSessionAuthorizationOptions: vi.fn(),
       authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),

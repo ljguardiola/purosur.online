@@ -1,13 +1,16 @@
+import type { BuyerIdentificationThreshold } from "@purosur/domain";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
+import type { fetchBuyerIdentificationThresholds } from "./buyer-identification-threshold-api";
 import type { fetchIssuerIdentification, IssuerIdentification } from "./issuer-identification-api";
 
 export const fiscalKey = ["fiscal"] as const;
 
 export const fiscalKeys = {
   issuerIdentification: [...fiscalKey, "issuer-identification"] as const,
+  buyerIdentificationThresholds: [...fiscalKey, "buyer-identification-thresholds"] as const,
 };
 
 export function useIssuerIdentificationQuery(params: {
@@ -32,6 +35,32 @@ export function useReloadIssuerIdentification(params: {
     return fetchCloudQuery(client, {
       queryKey: fiscalKeys.issuerIdentification,
       read: params.fetchIssuerIdentification,
+    });
+  };
+}
+
+export function useBuyerIdentificationThresholdsQuery(params: {
+  fetchBuyerIdentificationThresholds: typeof fetchBuyerIdentificationThresholds;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<BuyerIdentificationThreshold[]>({
+    queryKey: fiscalKeys.buyerIdentificationThresholds,
+    read: params.fetchBuyerIdentificationThresholds,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useReloadBuyerIdentificationThresholds(params: {
+  fetchBuyerIdentificationThresholds: typeof fetchBuyerIdentificationThresholds;
+}): () => Promise<CloudReadOutcome<BuyerIdentificationThreshold[]>> {
+  const client = useQueryClient();
+  return () => {
+    void client.invalidateQueries({ queryKey: fiscalKey });
+    return fetchCloudQuery(client, {
+      queryKey: fiscalKeys.buyerIdentificationThresholds,
+      read: params.fetchBuyerIdentificationThresholds,
     });
   };
 }

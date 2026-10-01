@@ -1,13 +1,20 @@
+import type { BuyerIdentificationThreshold } from "@purosur/domain";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useIsFetching, useQueryClient } from "@tanstack/react-query";
 import { expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { FiscalConfigurationScreen } from "./fiscal-configuration-screen";
 import type { FiscalConfigurationScreenServices } from "./fiscal-configuration-services";
 import { fiscalKey } from "./fiscal-queries";
 import type { IssuerIdentification } from "./issuer-identification-api";
+
+const inEffect: BuyerIdentificationThreshold = {
+  id: "threshold-1",
+  amount: 1_000_000_000,
+  validFrom: "2026-01-01",
+};
 
 function createServices(
   overrides: Partial<FiscalConfigurationScreenServices> = {},
@@ -15,6 +22,10 @@ function createServices(
   return {
     fetchIssuerIdentification: vi.fn(),
     saveIssuerIdentification: vi.fn(),
+    fetchBuyerIdentificationThresholds: vi
+      .fn()
+      .mockResolvedValue({ kind: "ok", value: [inEffect] }),
+    recordBuyerIdentificationThreshold: vi.fn(),
     fetchSessionAuthorizationOptions: vi.fn(),
     authorizeSession: vi.fn(),
     startAuthentication: vi.fn(),
@@ -69,14 +80,17 @@ const incomplete: IssuerIdentification = {
   version: 1,
 };
 
+const aDayOfOctober = () => new Date("2026-10-15T12:00:00-03:00");
+
 function renderScreen(
   services: FiscalConfigurationScreenServices,
   onSessionEnded: () => void = () => {},
+  now: () => Date = aDayOfOctober,
 ) {
   return render(
     <FieldSizeProvider size="backoffice">
       <main>
-        <FiscalConfigurationScreen services={services} onSessionEnded={onSessionEnded} />
+        <FiscalConfigurationScreen services={services} onSessionEnded={onSessionEnded} now={now} />
         <FetchesInFlight />
         <RefreshFiscal />
       </main>
@@ -492,4 +506,181 @@ test("has no accessibility violations once loaded", async () => {
     .toBeVisible();
 
   await expectNoAccessibilityViolations(document.body);
+});
+
+test("shows the buyer-identification threshold in effect today under the issuer identification", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+  vi.mocked(services.fetchBuyerIdentificationThresholds).mockResolvedValue({
+    kind: "ok",
+    value: [inEffect],
+  });
+
+  const screen = await renderScreen(services);
+
+  const headings = screen.getByRole("heading", { level: 2 }).elements();
+  expect(headings.map((heading) => heading.textContent)).toEqual([
+    "Identificación del emisor",
+    "Umbral de identificación del comprador",
+  ]);
+  await expect.element(screen.getByText("$ 10.000.000,00")).toBeVisible();
+});
+
+test("counts the threshold in effect from the screen's clock", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+  vi.mocked(services.fetchBuyerIdentificationThresholds).mockResolvedValue({
+    kind: "ok",
+    value: [inEffect],
+  });
+
+  const screen = await renderScreen(
+    services,
+    () => {},
+    () => new Date("2025-12-31T12:00:00-03:00"),
+  );
+
+  await expect.element(screen.getByText("Sin cargar")).toBeVisible();
+  await expect.element(screen.getByText("Próximo")).toBeVisible();
+});
+
+test("a threshold that fails to load leaves the issuer identification on screen, and each section retries on its own", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+  vi.mocked(services.fetchBuyerIdentificationThresholds)
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockResolvedValueOnce({ kind: "ok", value: [inEffect] });
+
+  const screen = await renderScreen(services);
+
+  await expect
+    .element(screen.getByText("No pudimos abrir el umbral de identificación del comprador"))
+    .toBeVisible();
+  await expect.element(screen.getByText("María Laura Fernández")).toBeVisible();
+  await expect
+    .element(screen.getByRole("button", { name: "Cargar un umbral nuevo" }))
+    .toBeDisabled();
+  await expect.element(screen.getByRole("button", { name: "Editar" })).toBeEnabled();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText("$ 10.000.000,00")).toBeVisible();
+  expect(services.fetchIssuerIdentification).toHaveBeenCalledTimes(1);
+});
+
+test("the issuer identification failing to load leaves the threshold on screen", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "failed" });
+  vi.mocked(services.fetchBuyerIdentificationThresholds).mockResolvedValue({
+    kind: "ok",
+    value: [inEffect],
+  });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("No pudimos abrir la configuración fiscal")).toBeVisible();
+  await expect.element(screen.getByText("$ 10.000.000,00")).toBeVisible();
+  await expect
+    .element(screen.getByRole("button", { name: "Cargar un umbral nuevo" }))
+    .toBeEnabled();
+});
+
+test("ends the session when the thresholds read finds it closed", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+  vi.mocked(services.fetchBuyerIdentificationThresholds).mockResolvedValue({
+    kind: "unauthenticated",
+  });
+  const onSessionEnded = vi.fn();
+
+  await renderScreen(services, onSessionEnded);
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("Cargar un umbral nuevo opens its own modal, and Editar opens the issuer one", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("María Laura Fernández")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Cargar un umbral nuevo" }));
+
+  await expect
+    .element(screen.getByRole("dialog").getByRole("heading", { name: "Cargar un umbral nuevo" }))
+    .toBeVisible();
+  expect(
+    screen.getByRole("heading", { name: "Identificación del emisor", level: 2 }).query(),
+  ).not.toBeNull();
+  await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Cancelar" }));
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+
+  await expect
+    .element(screen.getByRole("dialog").getByRole("heading", { name: "Identificación del emisor" }))
+    .toBeVisible();
+});
+
+test("recording a threshold closes the modal, shows the threshold the read after it returns, and says it was loaded", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+  vi.mocked(services.fetchBuyerIdentificationThresholds)
+    .mockResolvedValueOnce({ kind: "ok", value: [inEffect] })
+    .mockResolvedValue({
+      kind: "ok",
+      value: [{ id: "threshold-2", amount: 1_500_000_000, validFrom: "2026-12-01" }, inEffect],
+    });
+  vi.mocked(services.recordBuyerIdentificationThreshold).mockResolvedValue({
+    kind: "ok",
+    value: { id: "threshold-2", amount: 1_500_000_000, validFrom: "2026-12-01" },
+  });
+  await page.viewport(1440, 1000);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("$ 10.000.000,00")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Cargar un umbral nuevo" }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Importe/ }), "15.000.000,00");
+  await userEvent.click(
+    dialog
+      .getByRole("group", { name: /^Vigente desde/ })
+      .getByRole("spinbutton")
+      .first(),
+  );
+  await userEvent.keyboard("01122026");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Cargar el umbral" }));
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.element(screen.getByText("Próximo")).toBeVisible();
+  await expect.element(screen.getByText("$ 15.000.000,00")).toBeVisible();
+  await expect.element(screen.getByText("Umbral cargado")).toBeVisible();
+  await expect.element(screen.getByText("Rige desde el 01/12/2026.")).toBeVisible();
+  expect(services.fetchBuyerIdentificationThresholds).toHaveBeenCalledTimes(2);
+  expect(services.fetchIssuerIdentification).toHaveBeenCalledTimes(2);
+});
+
+test("a refresh of the fiscal data reads the thresholds again without hiding them", async () => {
+  const services = createServices();
+  const refresh =
+    deferred<
+      Awaited<ReturnType<FiscalConfigurationScreenServices["fetchBuyerIdentificationThresholds"]>>
+    >();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+  vi.mocked(services.fetchBuyerIdentificationThresholds)
+    .mockResolvedValueOnce({ kind: "ok", value: [inEffect] })
+    .mockReturnValueOnce(refresh.promise);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("$ 10.000.000,00")).toBeVisible();
+
+  refreshFiscal(screen);
+  await expect.element(screen.getByLabelText("Lecturas en curso")).toHaveTextContent("1");
+
+  expect(screen.getByText("$ 10.000.000,00").query()).not.toBeNull();
+  expect(screen.getByText("Cargando…").query()).toBeNull();
+  await expect
+    .element(screen.getByRole("button", { name: "Cargar un umbral nuevo" }))
+    .toBeEnabled();
+  refresh.resolve({ kind: "ok", value: [{ ...inEffect, amount: 2_000_000_000 }] });
+  await expect.element(screen.getByText("$ 20.000.000,00")).toBeVisible();
 });
