@@ -492,11 +492,16 @@ test("lists the promotions and opens Nueva promoción for a user holding only ma
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   window.history.pushState(null, "", "/discounts");
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-09-20T15:00:00.000Z"));
+  try {
+    const screen = await render(<App help={emptyHelp} services={services} />);
 
-  const screen = await render(<App help={emptyHelp} services={services} />);
-
-  await expect.element(screen.getByText("Yerba de septiembre")).toBeVisible();
-  await userEvent.click(screen.getByRole("button", { name: "Nueva promoción" }));
-  await expect.element(screen.getByRole("dialog", { name: "Nueva promoción" })).toBeVisible();
-  expect(window.location.pathname).toBe("/discounts");
+    await expect.element(screen.getByText("Yerba de septiembre")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Nueva promoción" }));
+    await expect.element(screen.getByRole("dialog", { name: "Nueva promoción" })).toBeVisible();
+    expect(window.location.pathname).toBe("/discounts");
+  } finally {
+    vi.useRealTimers();
+  }
 });
