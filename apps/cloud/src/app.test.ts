@@ -10,6 +10,7 @@ import {
   passkeyListSchema,
 } from "@purosur/contracts";
 import { PERMISSION_KEYS } from "@purosur/domain";
+import { FICTIONAL_CERTIFICATE_CUIT } from "@purosur/domain/fiscal/test-support";
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -1425,7 +1426,7 @@ describe("wiring the branch settings routes", () => {
 });
 
 describe("wiring the issuer identification routes", () => {
-  const authorizedCuit = "20-12345678-6";
+  const authorizedCuit = FICTIONAL_CERTIFICATE_CUIT;
 
   it("does not register GET /api/fiscal-settings/issuer-identification when no issuerIdentification option is given", async () => {
     const app = buildApp({ version: "abc1234" });
@@ -1624,7 +1625,7 @@ function productionWiredApp() {
       db: testDatabase.db,
       backofficeOrigin: BACKOFFICE_ORIGIN,
       recoveryJobQueue: { async enqueueRecoveryRequest() {} },
-      authorizedCuit: "20-12345678-6",
+      authorizedCuit: FICTIONAL_CERTIFICATE_CUIT,
       deviceTokenRotationKey: TEST_DEVICE_TOKEN_ROTATION_KEY,
       installationKeysEncryptionKey: TEST_INSTALLATION_KEYS_ENCRYPTION_KEY,
     }),

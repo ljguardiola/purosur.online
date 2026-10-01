@@ -1,5 +1,11 @@
 import { type ChangesPage, changesPageSchema } from "@purosur/contracts";
 import {
+  ANOTHER_FICTIONAL_CUIT,
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
+import {
   editIssuerIdentification,
   recordAuthorizedCuit,
   recordBuyerIdentificationThreshold,
@@ -26,8 +32,8 @@ import { logChange } from "./change-log.js";
 import { registerChangesRoute } from "./changes-route.js";
 
 const NOW = new Date("2026-09-29T12:00:00.000Z");
-const AUTHORIZED_CUIT = "20-00000000-1";
-const NEXT_AUTHORIZED_CUIT = "20-11111111-2";
+const AUTHORIZED_CUIT = FICTIONAL_CUIT;
+const NEXT_AUTHORIZED_CUIT = ANOTHER_FICTIONAL_CUIT;
 const SEEDED_CHANGES = 3;
 
 let testDatabase: TestDatabase;
@@ -144,7 +150,7 @@ async function startUnder(authorizedCuit: string) {
 async function editIssuer(actorId: string, version: number, legalName: string) {
   const outcome = await editIssuerIdentification(issuerPorts(), {
     legalName,
-    grossIncomeRegistration: "CM 000-000000-0",
+    grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
     activityStartDate: "2020-01-15",
     authorizedCuit: AUTHORIZED_CUIT,
     version,
@@ -184,14 +190,14 @@ describe("GET /changes carrying the fiscal configuration", () => {
     const { deviceToken } = await insertEnrolledInstallation(db);
     const actorId = await insertActor();
     await startUnder(AUTHORIZED_CUIT);
-    await editIssuer(actorId, 2, "Comercio de Prueba");
+    await editIssuer(actorId, 2, FICTIONAL_LEGAL_NAME);
     await editIssuer(actorId, 3, "Comercio de Prueba Nuevo");
 
     const page = await pullAfterSeed(deviceToken);
 
     expect(withoutSeq(page)).toMatchObject([
       { entity: "issuer_identification", row: { legal_name: null, version: 2 } },
-      { entity: "issuer_identification", row: { legal_name: "Comercio de Prueba", version: 3 } },
+      { entity: "issuer_identification", row: { legal_name: FICTIONAL_LEGAL_NAME, version: 3 } },
       {
         entity: "issuer_identification",
         row: { legal_name: "Comercio de Prueba Nuevo", version: 4 },
@@ -202,15 +208,15 @@ describe("GET /changes carrying the fiscal configuration", () => {
   it("gives a new version under the new CUIT on the pull after the cloud starts with another certificate, the earlier versions keeping theirs", async () => {
     const { deviceToken } = await insertEnrolledInstallation(db);
     await startUnder(AUTHORIZED_CUIT);
-    await editIssuer(await insertActor(), 2, "Comercio de Prueba");
+    await editIssuer(await insertActor(), 2, FICTIONAL_LEGAL_NAME);
     const first = await pullFrom(0, deviceToken);
 
     await startUnder(NEXT_AUTHORIZED_CUIT);
 
     expect(issuerRows(await pullFrom(first.cursor, deviceToken))).toEqual([
       {
-        legal_name: "Comercio de Prueba",
-        gross_income_registration: "CM 000-000000-0",
+        legal_name: FICTIONAL_LEGAL_NAME,
+        gross_income_registration: FICTIONAL_GROSS_INCOME_REGISTRATION,
         activity_start_date: "2020-01-15",
         authorized_cuit: NEXT_AUTHORIZED_CUIT,
         tax_status: "Responsable Monotributo",

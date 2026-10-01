@@ -1,25 +1,26 @@
+import { ANOTHER_FICTIONAL_CUIT, FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { describe, expect, it } from "vitest";
 import { parseCuit } from "./cuit.js";
 
 describe("parseCuit", () => {
   it("accepts a CUIT already in the hyphenated NN-NNNNNNNN-N shape", () => {
-    expect(parseCuit("20-12345678-6")).toBe("20-12345678-6");
+    expect(parseCuit(FICTIONAL_CUIT)).toBe(FICTIONAL_CUIT);
   });
 
   it("accepts a CUIT with no hyphens at all, normalizing it to NN-NNNNNNNN-N", () => {
-    expect(parseCuit("20123456786")).toBe("20-12345678-6");
+    expect(parseCuit("20000000001")).toBe(FICTIONAL_CUIT);
   });
 
-  it("accepts another valid check digit (0), not just 6", () => {
-    expect(parseCuit("27-12345678-0")).toBe("27-12345678-0");
+  it("accepts a valid check digit of 0", () => {
+    expect(parseCuit(ANOTHER_FICTIONAL_CUIT)).toBe(ANOTHER_FICTIONAL_CUIT);
   });
 
   it("trims surrounding whitespace", () => {
-    expect(parseCuit("  20-12345678-6  ")).toBe("20-12345678-6");
+    expect(parseCuit(`  ${FICTIONAL_CUIT}  `)).toBe(FICTIONAL_CUIT);
   });
 
   it("rejects a CUIT whose check digit does not match the first ten digits", () => {
-    expect(parseCuit("20-12345678-5")).toBeUndefined();
+    expect(parseCuit("20-00000000-2")).toBeUndefined();
   });
 
   it("rejects the rare prefix for which no check digit is ever valid", () => {

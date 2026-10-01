@@ -1,3 +1,8 @@
+import {
+  FICTIONAL_CERTIFICATE_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -16,7 +21,7 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerIssuerIdentificationReadRoute } from "./issuer-identification-read-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
-const TEST_AUTHORIZED_CUIT = "20-12345678-6";
+const TEST_AUTHORIZED_CUIT = FICTIONAL_CERTIFICATE_CUIT;
 const NOON = new Date("2026-01-05T12:00:00.000Z");
 
 let testDatabase: TestDatabase;
@@ -232,8 +237,8 @@ describe("GET /fiscal-settings/issuer-identification", () => {
   it("returns the saved identification once it has been set", async () => {
     // Only one row ever exists, so no `where` clause is needed to target it.
     await db.update(issuerIdentification).set({
-      legalName: "Puro Sur SRL",
-      grossIncomeRegistration: "CM 901-123456-3",
+      legalName: FICTIONAL_LEGAL_NAME,
+      grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
       activityStartDate: "2020-01-15",
       version: 2,
     });
@@ -249,8 +254,8 @@ describe("GET /fiscal-settings/issuer-identification", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
-      legal_name: "Puro Sur SRL",
-      gross_income_registration: "CM 901-123456-3",
+      legal_name: FICTIONAL_LEGAL_NAME,
+      gross_income_registration: FICTIONAL_GROSS_INCOME_REGISTRATION,
       activity_start_date: "2020-01-15",
       authorized_cuit: TEST_AUTHORIZED_CUIT,
       tax_status: "Responsable Monotributo",

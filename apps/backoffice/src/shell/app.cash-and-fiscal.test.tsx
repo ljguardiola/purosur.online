@@ -1,3 +1,4 @@
+import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -95,7 +96,7 @@ test("following the section's Configuración fiscal link opens it, with only tha
       legalName: null,
       grossIncomeRegistration: null,
       activityStartDate: null,
-      authorizedCuit: "27-28453196-0",
+      authorizedCuit: FICTIONAL_CUIT,
       taxStatus: "Responsable Monotributo",
       version: 1,
     },
