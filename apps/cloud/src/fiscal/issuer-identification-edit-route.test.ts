@@ -121,7 +121,7 @@ function cookieHeader(rawSessionId: string): Record<string, string> {
 
 function validBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    legal_name: "Puro Sur SRL",
+    legal_name: "Comercio de Prueba",
     gross_income_registration: "CM 901-123456-3",
     activity_start_date: "2020-01-15",
     version: 1,
@@ -230,7 +230,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
-      legal_name: "Puro Sur SRL",
+      legal_name: "Comercio de Prueba",
       gross_income_registration: "CM 901-123456-3",
       activity_start_date: "2020-01-15",
       authorized_cuit: TEST_AUTHORIZED_CUIT,
@@ -241,7 +241,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
       .select()
       .from(issuerIdentification)
       .where(eq(issuerIdentification.id, ISSUER_IDENTIFICATION_SINGLETON_ID));
-    expect(row).toMatchObject({ legalName: "Puro Sur SRL", version: 2 });
+    expect(row).toMatchObject({ legalName: "Comercio de Prueba", version: 2 });
   });
 
   it("makes the change visible to a subsequent GET", async () => {
@@ -257,7 +257,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
 
     const getResponse = await getIssuerIdentification(rawSessionId);
 
-    expect(getResponse.json()).toMatchObject({ legal_name: "Puro Sur SRL", version: 2 });
+    expect(getResponse.json()).toMatchObject({ legal_name: "Comercio de Prueba", version: 2 });
   });
 
   it("audits the actor and the previous/new values in the same transaction", async () => {
@@ -287,7 +287,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
         version: 1,
       },
       newValue: {
-        legal_name: "Puro Sur SRL",
+        legal_name: "Comercio de Prueba",
         gross_income_registration: "CM 901-123456-3",
         activity_start_date: "2020-01-15",
         version: 2,
@@ -334,7 +334,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
       },
       {
         version: 2,
-        legalName: "Puro Sur SRL",
+        legalName: "Comercio de Prueba",
         grossIncomeRegistration: "CM 901-123456-3",
         activityStartDate: "2020-01-15",
         recordedBy: administratorId,
@@ -388,7 +388,7 @@ describe("PUT /fiscal-settings/issuer-identification", () => {
     const response = await putIssuerIdentification(validBody({ version: 2 }), rawSessionId);
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ legal_name: "Puro Sur SRL", version: 2 });
+    expect(response.json()).toMatchObject({ legal_name: "Comercio de Prueba", version: 2 });
     const [row] = await db
       .select()
       .from(issuerIdentification)
