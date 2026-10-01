@@ -3,11 +3,7 @@ import type {
   RecordCashMovementOutcome,
   SignInUser,
 } from "@purosur/contracts";
-import {
-  CASH_MOVEMENT_REASON_MAX_LENGTH,
-  cashMovementAmountSchema,
-  cashMovementReason,
-} from "@purosur/contracts";
+import { cashMovementAmountSchema } from "@purosur/contracts";
 import type { AuthorizablePermissionKey, CashMovementKind } from "@purosur/domain";
 import {
   Button,
@@ -32,9 +28,12 @@ import { useCashMovementKindsQuery } from "./register-queries";
 
 const REQUIRED_AMOUNT_MESSAGE = "Ingresá el importe.";
 const INVALID_AMOUNT_MESSAGE = "Ingresá un importe válido, por ejemplo 5.000,00.";
-const INVALID_REASON_MESSAGE = `Escribí el motivo (hasta ${CASH_MOVEMENT_REASON_MAX_LENGTH} caracteres).`;
 const NO_OPEN_SESSION_MESSAGE = "No hay una caja abierta.";
 const FAILED_MESSAGE = "No se pudo registrar el movimiento. Probá de nuevo.";
+
+function invalidReasonMessage(maxLength: number): string {
+  return `Escribí el motivo (hasta ${maxLength} caracteres).`;
+}
 
 type KindPresentation = {
   submit: string;
@@ -132,7 +131,7 @@ function MovementModal({
   const authorization = useAuthorization({
     person,
     permission: kinds[kind].permission,
-    applies: kinds[kind].authorization_required,
+    required: kinds[kind].authorization_required,
     loadAuthorizers,
   });
   const presentation = PRESENTATION[kind];
@@ -151,17 +150,16 @@ function MovementModal({
     }
     setNotice(undefined);
     const amount = amountFrom(typedAmount);
-    const reason = cashMovementReason(typedReason);
     setAmountMessage("message" in amount ? amount.message : undefined);
-    setReasonMessage(reason === undefined ? INVALID_REASON_MESSAGE : undefined);
-    if ("message" in amount || reason === undefined) {
+    setReasonMessage(undefined);
+    if ("message" in amount) {
       return;
     }
     setSubmitting(true);
     const outcome = await recordCashMovement({
       kind,
       amount: amount.cents,
-      reason,
+      reason: typedReason,
       authorization: authorization.value,
     }).catch((): "failed" => "failed");
     setSubmitting(false);
@@ -184,7 +182,7 @@ function MovementModal({
         );
         break;
       case "invalid_reason":
-        setReasonMessage(INVALID_REASON_MESSAGE);
+        setReasonMessage(invalidReasonMessage(outcome.max_length));
         break;
       case "no_open_session":
         setNotice(NO_OPEN_SESSION_MESSAGE);

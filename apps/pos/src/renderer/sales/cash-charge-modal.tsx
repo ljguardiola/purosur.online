@@ -4,6 +4,7 @@ import {
   formatCents,
   InlineNotice,
   LoadFailure,
+  LoadingPlaceholder,
   Modal,
   parseAmountCents,
   SummaryRowGroup,
@@ -56,7 +57,7 @@ export function CashChargeModal({
 
   const isBlank = typed.trim() === "";
   const tendered = isBlank ? undefined : parseAmountCents(typed);
-  const answer = useCashChargeQuery({ saleId, tendered, read: readCharge });
+  const answer = useCashChargeQuery({ saleId, total, tendered, read: readCharge });
   const loaded = answer.status === "loaded" ? answer : undefined;
   const answered =
     loaded === undefined || loaded.value === null || loaded.value === "not_permitted"
@@ -151,7 +152,7 @@ export function CashChargeModal({
             size="large"
             fullWidth
             icon={<Check />}
-            dataStatus={submitting ? "loading" : "loaded"}
+            dataStatus={submitting ? "loading" : answer.status}
             disabled={covered === undefined}
             onPress={() => void submit()}
           >
@@ -179,6 +180,9 @@ export function CashChargeModal({
           description={coverMessage(total)}
           errorMessage={fieldMessage}
         />
+        {tendered !== undefined && answer.status === "loading" ? (
+          <LoadingPlaceholder variant="card" lines={2} />
+        ) : null}
         {answer.status === "failed" ? (
           <LoadFailure
             icon={<TriangleAlert />}

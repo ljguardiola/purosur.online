@@ -260,19 +260,16 @@ describe("cash movement requests", () => {
     },
   );
 
-  it.each(["Flete", " Flete ", "a".repeat(CASH_MOVEMENT_REASON_MAX_LENGTH)])(
-    "accepts the reason %j",
+  it.each(["Flete", " Flete ", "", "   ", "a".repeat(CASH_MOVEMENT_REASON_MAX_LENGTH + 1)])(
+    "carries the reason %j as typed, for the core to judge",
     (reason) => {
       expect(rendererToCoreMessageSchema.safeParse({ ...movement, reason }).success).toBe(true);
     },
   );
 
-  it.each(["", "   ", "a".repeat(CASH_MOVEMENT_REASON_MAX_LENGTH + 1), 1, null])(
-    "rejects the reason %j",
-    (reason) => {
-      expect(rendererToCoreMessageSchema.safeParse({ ...movement, reason }).success).toBe(false);
-    },
-  );
+  it.each([1, null])("rejects the reason %j", (reason) => {
+    expect(rendererToCoreMessageSchema.safeParse({ ...movement, reason }).success).toBe(false);
+  });
 
   it.each(["request_id", "kind", "amount", "reason"])(
     "rejects a cash movement without its %s",
@@ -1021,7 +1018,7 @@ describe("cash movement answers", () => {
 
   it.each([
     { kind: "invalid_amount" },
-    { kind: "invalid_reason" },
+    { kind: "invalid_reason", max_length: 200 },
     { kind: "no_open_session" },
     { kind: "not_signed_in" },
     { kind: "lacks_permission" },
@@ -1040,6 +1037,8 @@ describe("cash movement answers", () => {
     { kind: "x" },
     { kind: "wrong_pin" },
     { kind: "not_permitted" },
+    { kind: "invalid_reason" },
+    { kind: "invalid_reason", max_length: "200" },
     { kind: "exceeds_expected_cash" },
     { kind: "exceeds_expected_cash", expected: "42" },
   ])("rejects a refusal it does not know: %j", (outcome) => {

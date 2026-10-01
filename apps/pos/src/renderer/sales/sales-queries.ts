@@ -15,8 +15,8 @@ export const salesKeys = {
   currentSaleRoot: [...salesKey, "current-sale"] as const,
   currentSale: (sessionId: string, userId: string) =>
     [...salesKey, "current-sale", sessionId, userId] as const,
-  cashCharge: (saleId: string, tendered: number | undefined) =>
-    [...salesKey, "cash-charge", saleId, tendered ?? null] as const,
+  cashCharge: (saleId: string, total: number, tendered: number | undefined) =>
+    [...salesKey, "cash-charge", saleId, total, tendered ?? null] as const,
   search: (query: string) => [...salesKey, "search", query] as const,
 };
 
@@ -34,15 +34,17 @@ export function useCurrentSaleQuery({
 
 export function useCashChargeQuery({
   saleId,
+  total,
   tendered,
   read,
 }: {
   saleId: string;
+  total: number;
   tendered: number | undefined;
   read: (tendered: number) => Promise<CashChargeAnswer>;
 }): CoreData<CashChargeAnswer> {
   return useCoreQuery({
-    queryKey: salesKeys.cashCharge(saleId, tendered),
+    queryKey: salesKeys.cashCharge(saleId, total, tendered),
     read: async () => (tendered === undefined ? "unavailable" : read(tendered)),
     enabled: tendered !== undefined,
   });

@@ -1,4 +1,4 @@
-import { encodePinHash } from "@purosur/domain";
+import { CASH_MOVEMENT_REASON_MAX_LENGTH, encodePinHash } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createActionGate } from "../access/action-gate";
 import { derivePinVerifier } from "../access/pin-verifier";
@@ -225,10 +225,14 @@ describe("recording a cash movement", () => {
   });
 
   it.each([
-    ["an amount that is not positive", { amount: 0 }, "invalid_amount"],
-    ["a reason that is blank", { reason: "  " }, "invalid_reason"],
-  ] as const)("answers the domain's refusal of %s", async (_case, overrides, kind) => {
-    expect(await recordCashMovementFor(deps(), request(overrides))).toEqual({ kind });
+    ["an amount that is not positive", { amount: 0 }, { kind: "invalid_amount" }],
+    [
+      "a reason that is blank",
+      { reason: "  " },
+      { kind: "invalid_reason", max_length: CASH_MOVEMENT_REASON_MAX_LENGTH },
+    ],
+  ] as const)("answers the domain's refusal of %s", async (_case, overrides, outcome) => {
+    expect(await recordCashMovementFor(deps(), request(overrides))).toEqual(outcome);
     expect(movementRows()).toEqual([]);
   });
 

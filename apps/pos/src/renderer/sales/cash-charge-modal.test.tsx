@@ -178,16 +178,83 @@ describe("CashChargeModal", () => {
     expect(readCashCharge).not.toHaveBeenCalled();
   });
 
-  it("keeps Completar venta disabled and shows no change until the core answers", async () => {
+  it("keeps Completar venta disabled and shows the change loading until the core answers", async () => {
     const answer = deferred<CashChargeAnswer>();
     const { screen, field, complete } = await renderModal(undefined, () => answer.promise);
 
     await userEvent.fill(field, "5.000,00");
 
+    await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
     await expect.element(complete).toBeDisabled();
     await expect.element(screen.getByText("VUELTO A ENTREGAR")).not.toBeInTheDocument();
     answer.resolve({ kind: "covered", applied: TOTAL, change: 24_000 });
     await expect.element(complete).toBeEnabled();
+    await expect.element(screen.getByText("Cargando…")).not.toBeInTheDocument();
+  });
+
+  it("shows nothing loading while nothing is typed", async () => {
+    const { screen } = await renderModal();
+
+    await expect.element(screen.getByText("Tiene que cubrir $ 4.760,00.")).toBeVisible();
+    await expect.element(screen.getByText("Cargando…")).not.toBeInTheDocument();
+  });
+
+  it("shows the change loading again after Reintentar, until the core answers", async () => {
+    const retried = deferred<CashChargeAnswer>();
+    const answers = [
+      () => Promise.reject(new Error("the core connection was replaced")),
+      () => retried.promise,
+    ];
+    const { screen, field } = await renderModal(undefined, () => {
+      const next = answers.shift();
+      if (next === undefined) {
+        throw new Error("no answer left");
+      }
+      return next();
+    });
+    await userEvent.fill(field, "5.000,00");
+    await expect.element(screen.getByText("No se pudo calcular el vuelto")).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+    await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
+    await expect.element(screen.getByText("No se pudo calcular el vuelto")).not.toBeInTheDocument();
+    retried.resolve({ kind: "covered", applied: TOTAL, change: 24_000 });
+    await expect.element(screen.getByText("$ 240,00")).toBeVisible();
+  });
+
+  it("never shows the change worked out for an earlier total of the sale as current", async () => {
+    const answers: (CashChargeAnswer | Error)[] = [
+      { kind: "covered", applied: TOTAL, change: 24_000 },
+      new Error("the core connection was replaced"),
+    ];
+    const readCharge = async () => {
+      const answer = answers.shift();
+      if (answer === undefined || answer instanceof Error) {
+        throw answer ?? new Error("no answer left");
+      }
+      return answer;
+    };
+    const { screen, field, complete, chargeSale, callbacks } = await renderModal(
+      undefined,
+      readCharge,
+    );
+    await userEvent.fill(field, "5.000,00");
+    await expect.element(screen.getByText("$ 240,00")).toBeVisible();
+
+    await screen.rerender(
+      <CashChargeModal
+        saleId="sale-1"
+        total={490_000}
+        readCharge={readCharge}
+        charge={chargeSale}
+        {...callbacks}
+      />,
+    );
+
+    await expect.element(screen.getByText("No se pudo calcular el vuelto")).toBeVisible();
+    await expect.element(screen.getByText("$ 240,00")).not.toBeInTheDocument();
+    await expect.element(complete).toBeDisabled();
   });
 
   it("says the change could not be worked out when the core cannot answer, and asks again on retry", async () => {

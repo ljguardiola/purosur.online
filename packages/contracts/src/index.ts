@@ -162,10 +162,8 @@ export type {
 } from "./register/core-messages.js";
 export {
   ARGENTINA_TIME_ZONE,
-  CASH_MOVEMENT_REASON_MAX_LENGTH,
-  CASH_MOVEMENT_TYPES,
   cashMovementAmountSchema,
-  cashMovementReason,
+  cashMovementTypeSchema,
   coreStatusMessageSchema,
   coreToRendererMessageSchema,
   countedCashSchema,

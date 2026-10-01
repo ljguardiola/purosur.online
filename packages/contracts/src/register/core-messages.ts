@@ -2,9 +2,7 @@ import {
   ARGENTINA_TIME_ZONE,
   type AuthorizablePermissionKey,
   CASH_MOVEMENT_KINDS,
-  CASH_MOVEMENT_REASON_MAX_LENGTH,
   CASH_MOVEMENT_TYPES,
-  cashMovementReason,
   isAuthorizablePermissionKey,
   isValidCashAmount,
   isValidCashMovementAmount,
@@ -41,12 +39,7 @@ export const countedCashSchema = cashAmountSchema;
 
 export const cashMovementAmountSchema = z.number().refine(isValidCashMovementAmount);
 
-export {
-  ARGENTINA_TIME_ZONE,
-  CASH_MOVEMENT_REASON_MAX_LENGTH,
-  CASH_MOVEMENT_TYPES,
-  cashMovementReason,
-};
+export { ARGENTINA_TIME_ZONE };
 
 const rendererPingMessageSchema = z.object({
   type: z.literal("ping"),
@@ -122,7 +115,7 @@ const recordCashMovementMessageSchema = z.object({
   request_id: requestId,
   kind: z.enum(CASH_MOVEMENT_KINDS),
   amount: cashMovementAmountSchema,
-  reason: z.string().refine((reason) => cashMovementReason(reason) !== undefined),
+  reason: z.string(),
   authorization: authorizationSchema.optional(),
 });
 export type RecordCashMovementRequest = Omit<
@@ -378,7 +371,7 @@ export type OpenCashSession = z.infer<typeof openCashSessionSchema>;
 const recordCashMovementOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("recorded"), authorized_by: authorizedBySchema.nullable() }),
   z.object({ kind: z.literal("invalid_amount") }),
-  z.object({ kind: z.literal("invalid_reason") }),
+  z.object({ kind: z.literal("invalid_reason"), max_length: z.number() }),
   z.object({ kind: z.literal("no_open_session") }),
   z.object({ kind: z.literal("not_signed_in") }),
   z.object({ kind: z.literal("exceeds_expected_cash"), expected: z.number() }),
@@ -388,9 +381,11 @@ export type RecordCashMovementOutcome = z.infer<typeof recordCashMovementOutcome
 
 const cashMovementPersonSchema = z.object({ user_id: z.string(), first_name: z.string() });
 
+export const cashMovementTypeSchema = z.enum(CASH_MOVEMENT_TYPES);
+
 const listedCashMovementSchema = z.object({
   id: z.string(),
-  type: z.enum(CASH_MOVEMENT_TYPES),
+  type: cashMovementTypeSchema,
   amount: z.number(),
   reason: z.string().nullable(),
   occurred_at: z.string(),

@@ -48,6 +48,8 @@ export async function recordCashMovementFor(
       return { kind: "recorded", authorized_by: guarded.authorized_by };
     case "exceeds_expected_cash":
       return outcome;
+    case "invalid_reason":
+      return { kind: "invalid_reason", max_length: outcome.maxLength };
     default:
       return { kind: outcome.kind };
   }

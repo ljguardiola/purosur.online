@@ -1,5 +1,5 @@
 import type { ListedCashMovement } from "@purosur/contracts";
-import { CASH_MOVEMENT_TYPES } from "@purosur/contracts";
+import { cashMovementTypeSchema } from "@purosur/contracts";
 import type { CashMovementType } from "@purosur/domain";
 import type { TableLoadingState } from "@purosur/ui";
 import {
@@ -84,10 +84,12 @@ type TypeFilter = "ALL" | Exclude<CashMovementType, "CLOSING">;
 
 const TYPE_FILTER_OPTIONS = [
   { value: "ALL", label: "Todos" },
-  ...CASH_MOVEMENT_TYPES.filter((type) => type !== "CLOSING").map((type) => ({
-    value: type,
-    label: PRESENTATION[type].label,
-  })),
+  ...cashMovementTypeSchema.options
+    .filter((type) => type !== "CLOSING")
+    .map((type) => ({
+      value: type,
+      label: PRESENTATION[type].label,
+    })),
 ] as const;
 
 function amountText(movement: ListedCashMovement): string {

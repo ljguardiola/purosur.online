@@ -173,7 +173,7 @@ describe("RecordCashMovementModal", () => {
     await expect.element(screen.getByText(/en la caja antes de/)).not.toBeInTheDocument();
   });
 
-  it("records the typed amount and the trimmed reason, then reports it", async () => {
+  it("records the typed amount and the reason as typed, then reports it", async () => {
     const { screen, recordCashMovement, onRecorded } = await renderModal();
     await choose(screen, "Gasto");
     await fill(screen, "5.000,50", "  Flete  ");
@@ -183,7 +183,7 @@ describe("RecordCashMovementModal", () => {
     expect(recordCashMovement).toHaveBeenCalledExactlyOnceWith({
       kind: "CASH_OUT",
       amount: 500_050,
-      reason: "Flete",
+      reason: "  Flete  ",
       authorization: undefined,
     });
     expect(onRecorded).toHaveBeenCalledOnce();
@@ -203,24 +203,28 @@ describe("RecordCashMovementModal", () => {
     expect(recordCashMovement).not.toHaveBeenCalled();
   });
 
-  it.each([["   "], ["x".repeat(201)]])(
-    "refuses the reason %j before recording anything",
-    async (reason) => {
-      const { screen, recordCashMovement } = await renderModal();
-      await fill(screen, "100", reason);
+  it("leaves judging a blank reason to the core", async () => {
+    const { screen, recordCashMovement } = await renderModal({
+      outcome: { kind: "invalid_reason", max_length: 200 },
+    });
+    await fill(screen, "100", "   ");
 
-      await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
+    await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
 
-      await expect
-        .element(screen.getByText("Escribí el motivo (hasta 200 caracteres)."))
-        .toBeVisible();
-      expect(recordCashMovement).not.toHaveBeenCalled();
-    },
-  );
+    await expect
+      .element(screen.getByText("Escribí el motivo (hasta 200 caracteres)."))
+      .toBeVisible();
+    expect(recordCashMovement).toHaveBeenCalledExactlyOnceWith({
+      kind: "CASH_IN",
+      amount: 10_000,
+      reason: "   ",
+      authorization: undefined,
+    });
+  });
 
   it.each([
     [{ kind: "invalid_amount" }, "Ingresá un importe válido, por ejemplo 5.000,00."],
-    [{ kind: "invalid_reason" }, "Escribí el motivo (hasta 200 caracteres)."],
+    [{ kind: "invalid_reason", max_length: 150 }, "Escribí el motivo (hasta 150 caracteres)."],
   ] as const)("shows the core's refusal %j beside its field", async (outcome, message) => {
     const { screen, onRecorded } = await renderModal({ outcome });
     await fill(screen, "100", "Cambio");
@@ -416,6 +420,19 @@ describe("RecordCashMovementModal", () => {
     await expect.element(screen.getByRole("button", { name: "Registrar retiro" })).toBeVisible();
     await expect.element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO")).not.toBeInTheDocument();
     expect(requested).toEqual([]);
+  });
+
+  it("asks for an authorizer when the core says one is needed, whatever the person's permission keys say", async () => {
+    const { screen, requested } = await renderModal({
+      person: ALL_PERMISSIONS,
+      lacking: ["WITHDRAWAL"],
+    });
+
+    await choose(screen, "Retiro");
+
+    await expect.element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO")).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Registrar retiro" })).toBeDisabled();
+    expect(requested).toEqual(["withdraw_cash"]);
   });
 
   it("asks the core which movements can be recorded, once, when it opens", async () => {
