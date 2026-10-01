@@ -1,10 +1,21 @@
-import { FICTIONAL_CERTIFICATE_CUIT } from "@purosur/domain/fiscal/test-support";
+import {
+  FICTIONAL_CERTIFICATE_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../access/session-id.js";
-import { rolePermissions, roles, sessions, userRoles, users } from "../platform/db/schema.js";
+import {
+  issuerIdentification,
+  rolePermissions,
+  roles,
+  sessions,
+  userRoles,
+  users,
+} from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerIssuerIdentificationReadRoute } from "./issuer-identification-read-route.js";
@@ -220,6 +231,34 @@ describe("GET /fiscal-settings/issuer-identification", () => {
       authorized_cuit: TEST_AUTHORIZED_CUIT,
       tax_status: "Responsable Monotributo",
       version: 1,
+    });
+  });
+
+  it("returns the saved identification once it has been set", async () => {
+    await db.update(issuerIdentification).set({
+      legalName: FICTIONAL_LEGAL_NAME,
+      grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+      activityStartDate: "2020-01-15",
+      version: 2,
+    });
+    const administratorId = await insertUser({
+      firstName: "Marta Quiroga",
+      email: "marta@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await getIssuerIdentification(rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      legal_name: FICTIONAL_LEGAL_NAME,
+      gross_income_registration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+      activity_start_date: "2020-01-15",
+      authorized_cuit: TEST_AUTHORIZED_CUIT,
+      tax_status: "Responsable Monotributo",
+      version: 2,
     });
   });
 });

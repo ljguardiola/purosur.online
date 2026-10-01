@@ -19,10 +19,10 @@ import {
 } from "../platform/db/schema.js";
 import { UUID_PATTERN } from "../platform/db/uuid-pattern.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
+import { NEVER_CONFIGURED_VERSION } from "./register-point-of-sale-version.js";
 
 const UNIQUE_VIOLATION = "23505";
 const POINT_OF_SALE_CLAIM_PRIMARY_KEY = "point_of_sale_claims_pkey";
-const NEVER_CONFIGURED = 0;
 
 function pointOfSaleAuditValueOf(setup: {
   pointOfSaleNumber: number;
@@ -74,7 +74,13 @@ class DrizzleRegisterPointOfSaleStoreTransaction<TQueryResult extends PgQueryRes
       .from(registerPointsOfSale)
       .where(eq(registerPointsOfSale.registerId, registerId))
       .for("update");
-    return current ?? { pointOfSaleNumber: null, fiscalAddressId: null, version: NEVER_CONFIGURED };
+    return (
+      current ?? {
+        pointOfSaleNumber: null,
+        fiscalAddressId: null,
+        version: NEVER_CONFIGURED_VERSION,
+      }
+    );
   }
 
   async fiscalAddressExists(fiscalAddressId: string): Promise<boolean> {

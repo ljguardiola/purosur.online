@@ -5,6 +5,8 @@ import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../access/session-id.js";
 import {
   branchHours,
+  branchSettings,
+  locations,
   rolePermissions,
   roles,
   sessions,
@@ -13,6 +15,7 @@ import {
 } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
+import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { registerBranchSettingsReadRoute } from "./branch-settings-read-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
@@ -288,5 +291,45 @@ describe("GET /locations/current/settings", () => {
       saturday_hours: [{ opens_at: "09:00", closes_at: "13:00" }],
       sunday_hours: [],
     });
+  });
+
+  it("answers each session with its own branch's settings, never another branch's", async () => {
+    const firstLocationId = await seededLocationId(db);
+    await db
+      .update(branchSettings)
+      .set({ address: "Av. Centro 100" })
+      .where(eq(branchSettings.locationId, firstLocationId));
+    const [secondLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
+    if (!secondLocation) {
+      throw new Error("test setup: seeding the second location returned no row");
+    }
+    await db.insert(branchSettings).values({
+      locationId: secondLocation.id,
+      address: "Av. Norte 200",
+      priceListId: await seededPriceListId(db),
+    });
+    const administratorRoleId = await seededAdministratorRoleId();
+    const firstBranchSessionId = await insertSession(
+      await insertUser({
+        firstName: "Marta Quiroga",
+        email: "marta@example.com",
+        roleId: administratorRoleId,
+        locationId: firstLocationId,
+      }),
+    );
+    const secondBranchSessionId = await insertSession(
+      await insertUser({
+        firstName: "Julián Ferreyra",
+        email: "julian@example.com",
+        roleId: administratorRoleId,
+        locationId: secondLocation.id,
+      }),
+    );
+
+    const firstBranchResponse = await getBranchSettings(firstBranchSessionId);
+    const secondBranchResponse = await getBranchSettings(secondBranchSessionId);
+
+    expect(firstBranchResponse.json()).toMatchObject({ address: "Av. Centro 100" });
+    expect(secondBranchResponse.json()).toMatchObject({ address: "Av. Norte 200" });
   });
 });

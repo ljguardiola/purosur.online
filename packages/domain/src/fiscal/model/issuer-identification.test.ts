@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
+  ISSUER_TAX_STATUS,
   isIssuerIdentificationActivityStartDate,
   isIssuerIdentificationGrossIncomeRegistrationTooLong,
   isIssuerIdentificationLegalNameTooLong,
@@ -23,6 +24,12 @@ describe("ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH", () => {
 describe("ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH", () => {
   it("allows Ingresos Brutos registrations of up to 100 characters", () => {
     expect(ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH).toBe(100);
+  });
+});
+
+describe("ISSUER_TAX_STATUS", () => {
+  it("registers the issuer as Responsable Monotributo", () => {
+    expect(ISSUER_TAX_STATUS).toBe("Responsable Monotributo");
   });
 });
 

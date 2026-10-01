@@ -5,8 +5,7 @@ import type {
 import { asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { registerPointsOfSale, registers } from "../platform/db/schema.js";
-
-const NEVER_CONFIGURED = 0;
+import { NEVER_CONFIGURED_VERSION } from "./register-point-of-sale-version.js";
 
 export class DrizzleRegisterPointOfSaleReader<TQueryResult extends PgQueryResultHKT>
   implements RegisterPointOfSaleReader
@@ -30,6 +29,9 @@ export class DrizzleRegisterPointOfSaleReader<TQueryResult extends PgQueryResult
       .leftJoin(registerPointsOfSale, eq(registerPointsOfSale.registerId, registers.id))
       .where(eq(registers.locationId, locationId))
       .orderBy(asc(registers.name));
-    return rows.map(({ version, ...row }) => ({ ...row, version: version ?? NEVER_CONFIGURED }));
+    return rows.map(({ version, ...row }) => ({
+      ...row,
+      version: version ?? NEVER_CONFIGURED_VERSION,
+    }));
   }
 }
