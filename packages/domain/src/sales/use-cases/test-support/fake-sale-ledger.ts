@@ -1,5 +1,5 @@
 import type { RoleAccess } from "../../../access/index.js";
-import { priceInEffectAt } from "../../../pricing/model/current-price.js";
+import { priceInEffectAt } from "../../../pricing/index.js";
 import type { CashMovement } from "../../../register/index.js";
 import type { OutboxEventDraft } from "../../../sync/index.js";
 import type { PaymentTransaction } from "../../model/payment.js";
