@@ -16,6 +16,7 @@ import type {
   ListedCashMovement,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
+  RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RemoveSaleLineOutcome,
   ScanProductOutcome,
@@ -89,6 +90,7 @@ export interface RouterContext {
   identifyLockedCloser: (closer: Authorization) => Promise<IdentifyLockedCloserOutcome>;
   cashBalance: () => Promise<CashBalance | null | "unavailable">;
   cashMovements: () => Promise<ListedCashMovement[] | null | "unavailable">;
+  cashMovementKinds: () => Promise<RecordableCashMovementKinds | null | "unavailable">;
   recordCashMovement: (input: CashMovementInput) => Promise<RecordCashMovementOutcome>;
   redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
   signInLookup: (email: string) => Promise<SignInLookupOutcome>;
@@ -310,6 +312,7 @@ const cashRoute = createRoute({
       signOut,
       cashBalance,
       cashMovements,
+      cashMovementKinds,
       authorizers,
       recordCashMovement,
     } = cashRoute.useRouteContext();
@@ -323,6 +326,7 @@ const cashRoute = createRoute({
         lock={signOut}
         loadCashBalance={cashBalance}
         loadCashMovements={cashMovements}
+        loadCashMovementKinds={cashMovementKinds}
         loadAuthorizers={authorizers}
         recordCashMovement={recordCashMovement}
       />
@@ -526,6 +530,7 @@ export function createAppRouter(
     | "identifyLockedCloser"
     | "cashBalance"
     | "cashMovements"
+    | "cashMovementKinds"
     | "recordCashMovement"
     | "authorizers"
     | "redeemPinCode"

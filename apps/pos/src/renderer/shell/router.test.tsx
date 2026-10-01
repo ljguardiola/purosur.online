@@ -107,6 +107,7 @@ function contextWith(
     identifyLockedCloser: async () => ({ kind: "unavailable" }),
     cashBalance: async () => "unavailable",
     cashMovements: async () => "unavailable",
+    cashMovementKinds: async () => "unavailable",
     recordCashMovement: async () => ({ kind: "unavailable" }),
     enroll: async () => ({ kind: "enrolled" }),
     registerName: async () => null,
@@ -787,6 +788,11 @@ describe("the register's router", () => {
         ),
         cashBalance: async () => BALANCE,
         cashMovements: async () => [],
+        cashMovementKinds: async () => ({
+          CASH_IN: { permission: "record_cash_in", authorization_required: false },
+          CASH_OUT: { permission: "record_cash_expense", authorization_required: true },
+          WITHDRAWAL: { permission: "withdraw_cash", authorization_required: true },
+        }),
         recordCashMovement: async (input) => {
           recorded.push([input.kind, input.reason]);
           return { kind: "unavailable" };

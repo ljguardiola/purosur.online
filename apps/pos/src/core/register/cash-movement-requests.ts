@@ -1,10 +1,17 @@
 import type {
   ListedCashMovement,
+  RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RecordCashMovementRequest,
 } from "@purosur/contracts";
-import { cashMovementPermission } from "@purosur/domain";
+import {
+  type CashMovementKind,
+  cashMovementPermission,
+  holdsPermission,
+  type RoleAccess,
+} from "@purosur/domain";
 import { recordCashMovement } from "@purosur/domain/register/use-cases";
+import type { SignedInPerson } from "../access/signed-in-person";
 import { SqliteSignInStore } from "../access/sqlite-sign-in-store";
 import type { LocalDatabase } from "../platform/local-database";
 import type { CashSessionRequestDeps } from "./cash-session-requests";
@@ -44,6 +51,36 @@ export async function recordCashMovementFor(
     default:
       return { kind: outcome.kind };
   }
+}
+
+export function cashMovementKindsFor({
+  database,
+  signedInPerson,
+}: {
+  database: LocalDatabase;
+  signedInPerson: Pick<SignedInPerson, "userId">;
+}): RecordableCashMovementKinds | null {
+  const signedInUserId = signedInPerson.userId();
+  const access =
+    signedInUserId === undefined
+      ? undefined
+      : new SqliteSignInStore(database).activePerson(signedInUserId)?.access;
+  if (access === undefined) {
+    return null;
+  }
+  return {
+    CASH_IN: authorizationNeeded(access, "CASH_IN"),
+    CASH_OUT: authorizationNeeded(access, "CASH_OUT"),
+    WITHDRAWAL: authorizationNeeded(access, "WITHDRAWAL"),
+  };
+}
+
+function authorizationNeeded(
+  access: RoleAccess,
+  kind: CashMovementKind,
+): RecordableCashMovementKinds[CashMovementKind] {
+  const permission = cashMovementPermission(kind);
+  return { permission, authorization_required: !holdsPermission(access, permission) };
 }
 
 export function currentCashMovements(database: LocalDatabase): ListedCashMovement[] | null {

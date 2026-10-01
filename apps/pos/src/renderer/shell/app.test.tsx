@@ -80,6 +80,7 @@ function coreAnswering(
     cashBalance?: CoreClient["cashBalance"];
     redeemOutcome?: PinCodeRedemptionOutcome;
     cashMovements?: CoreClient["cashMovements"];
+    cashMovementKinds?: CoreClient["cashMovementKinds"];
     recordCashMovement?: CoreClient["recordCashMovement"];
   } = {},
   sales: {
@@ -152,6 +153,11 @@ function coreAnswering(
       return cashDrawer.recordCashMovement === undefined
         ? { kind: "no_open_session" }
         : cashDrawer.recordCashMovement(input);
+    },
+    async cashMovementKinds() {
+      return cashDrawer.cashMovementKinds === undefined
+        ? "unavailable"
+        : cashDrawer.cashMovementKinds();
     },
     async cashMovements() {
       return cashDrawer.cashMovements === undefined ? [] : cashDrawer.cashMovements();
@@ -1598,6 +1604,7 @@ describe("App", () => {
         cashSession?: CoreClient["cashSession"];
         cashBalance?: CoreClient["cashBalance"];
         cashMovements?: CoreClient["cashMovements"];
+        cashMovementKinds?: CoreClient["cashMovementKinds"];
         recordCashMovement?: CoreClient["recordCashMovement"];
       } = {},
     ) {
@@ -1614,6 +1621,11 @@ describe("App", () => {
           cashSession: async () => MOVER_SESSION,
           cashBalance: async () => BALANCE,
           cashMovements: async () => [OPENING],
+          cashMovementKinds: async () => ({
+            CASH_IN: { permission: "record_cash_in", authorization_required: false },
+            CASH_OUT: { permission: "record_cash_expense", authorization_required: true },
+            WITHDRAWAL: { permission: "withdraw_cash", authorization_required: true },
+          }),
           ...cashDrawer,
         },
       );

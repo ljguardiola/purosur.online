@@ -34,6 +34,12 @@ function clientWithSequentialIds() {
   return createCoreClient({ newRequestId: () => `request-${++next}` });
 }
 
+const KINDS = {
+  CASH_IN: { permission: "record_cash_in", authorization_required: false },
+  CASH_OUT: { permission: "record_cash_expense", authorization_required: true },
+  WITHDRAWAL: { permission: "withdraw_cash", authorization_required: true },
+} as const;
+
 describe("createCoreClient", () => {
   it("asks the core whether this installation is enrolled and resolves with its answer", async () => {
     const client = clientWithSequentialIds();
@@ -606,6 +612,34 @@ describe("createCoreClient", () => {
     port.answer({ type: "cash-charge-not-permitted", request_id: "request-1" });
 
     expect(await asked).toBe("not_permitted");
+  });
+
+  it.each([[KINDS], [null]])(
+    "asks the core which cash movements can be recorded and resolves with %j",
+    async (kinds) => {
+      const client = clientWithSequentialIds();
+      const port = new FakePort();
+      client.connect(port);
+
+      const asked = client.cashMovementKinds();
+      port.answer({ type: "cash-movement-kinds", request_id: "request-1", kinds });
+
+      expect(await asked).toEqual(kinds);
+      expect(port.posted).toEqual([
+        { type: "cash-movement-kinds-request", request_id: "request-1" },
+      ]);
+    },
+  );
+
+  it("resolves unavailable when the core cannot say which cash movements can be recorded", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.cashMovementKinds();
+    port.answer({ type: "cash-movement-kinds-unavailable", request_id: "request-1" });
+
+    expect(await asked).toBe("unavailable");
   });
 
   it("asks the core to close a session with the cash counted and resolves with the outcome", async () => {

@@ -17,6 +17,7 @@ import type {
   OpenCashSession,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
+  RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RemoveSaleLineOutcome,
   RendererToCoreMessage,
@@ -46,6 +47,7 @@ export interface RendererRequestDeps {
     | ((request: CashMovementRequest) => Promise<RecordCashMovementOutcome>)
     | undefined;
   cashMovements: (() => ListedCashMovement[] | null) | undefined;
+  cashMovementKinds: (() => RecordableCashMovementKinds | null) | undefined;
   scanProduct: ((code: string) => Promise<ScanProductOutcome>) | undefined;
   chargeSaleInCash:
     | ((request: ChargeSaleInCashRequest) => Promise<ChargeSaleInCashOutcome>)
@@ -257,6 +259,17 @@ function readCashMovements(deps: RendererRequestDeps): ListedCashMovement[] | nu
   }
 }
 
+function readCashMovementKinds(
+  deps: RendererRequestDeps,
+): RecordableCashMovementKinds | null | undefined {
+  try {
+    return deps.cashMovementKinds?.();
+  } catch (error) {
+    deps.reportFailure("reading the cash movements the person can record", error);
+    return undefined;
+  }
+}
+
 async function attemptScanProduct(
   deps: RendererRequestDeps,
   code: string,
@@ -426,6 +439,12 @@ export async function answerRendererRequest(
       return movements === undefined
         ? { type: "cash-movements-unavailable", request_id: message.request_id }
         : { type: "cash-movements", request_id: message.request_id, movements };
+    }
+    case "cash-movement-kinds-request": {
+      const kinds = readCashMovementKinds(deps);
+      return kinds === undefined
+        ? { type: "cash-movement-kinds-unavailable", request_id: message.request_id }
+        : { type: "cash-movement-kinds", request_id: message.request_id, kinds };
     }
     case "scan-product":
       return {

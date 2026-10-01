@@ -17,6 +17,7 @@ import type {
   OpenCashSession,
   OpenCashSessionOutcome,
   PinCodeRedemptionOutcome,
+  RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   RecordCashMovementRequest,
   RemoveSaleLineOutcome,
@@ -56,6 +57,7 @@ export interface CoreClient {
   cashSession(): Promise<OpenCashSession | null | "unavailable">;
   recordCashMovement(input: CashMovementInput): Promise<RecordCashMovementOutcome>;
   cashMovements(): Promise<ListedCashMovement[] | null | "unavailable">;
+  cashMovementKinds(): Promise<RecordableCashMovementKinds | null | "unavailable">;
   scanProduct(code: string): Promise<ScanProductOutcome>;
   searchProducts(query: string): Promise<SearchProductsOutcome>;
   addProduct(productId: string): Promise<AddProductOutcome>;
@@ -275,6 +277,17 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
             return "unavailable";
           }
           return answer.type === "cash-movements" ? answer.movements : undefined;
+        },
+      );
+    },
+    cashMovementKinds() {
+      return ask(
+        { type: "cash-movement-kinds-request", request_id: deps.newRequestId() },
+        (answer): RecordableCashMovementKinds | null | "unavailable" | undefined => {
+          if (answer.type === "cash-movement-kinds-unavailable") {
+            return "unavailable";
+          }
+          return answer.type === "cash-movement-kinds" ? answer.kinds : undefined;
         },
       );
     },

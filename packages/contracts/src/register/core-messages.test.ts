@@ -1667,3 +1667,68 @@ describe("cash charge answers", () => {
     expectTypeOf<CashCharge>().toEqualTypeOf<ReturnType<typeof cashCharge>>();
   });
 });
+
+describe("cash movement kinds request", () => {
+  it("accepts a request for the cash movements the person signed in can record", () => {
+    const message = { type: "cash-movement-kinds-request", request_id: REQUEST_ID };
+
+    expect(rendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("does not take who is signed in from the request", () => {
+    const message = { type: "cash-movement-kinds-request", request_id: REQUEST_ID };
+
+    expect(rendererToCoreMessageSchema.parse({ ...message, user_id: "u9" })).toEqual(message);
+  });
+
+  it("rejects a request missing its request id", () => {
+    expect(
+      rendererToCoreMessageSchema.safeParse({ type: "cash-movement-kinds-request" }).success,
+    ).toBe(false);
+  });
+});
+
+describe("cash movement kinds answers", () => {
+  const kinds = {
+    CASH_IN: { permission: "record_cash_in", authorization_required: false },
+    CASH_OUT: { permission: "record_cash_expense", authorization_required: true },
+    WITHDRAWAL: { permission: "withdraw_cash", authorization_required: true },
+  };
+
+  it.each([[kinds], [null]])("accepts the answer %j", (answered) => {
+    const message = { type: "cash-movement-kinds", request_id: REQUEST_ID, kinds: answered };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    ["a kind left out", { CASH_IN: kinds.CASH_IN, CASH_OUT: kinds.CASH_OUT }],
+    ["a kind that is not a cash movement kind", { ...kinds, OPENING: kinds.CASH_IN }],
+    [
+      "a permission that cannot be authorized",
+      { ...kinds, CASH_IN: { ...kinds.CASH_IN, permission: "sell_and_charge" } },
+    ],
+    ["an unknown permission", { ...kinds, CASH_IN: { ...kinds.CASH_IN, permission: "fly" } }],
+    [
+      "no say on whether an authorizer is needed",
+      { ...kinds, CASH_IN: { permission: "record_cash_in" } },
+    ],
+  ])("rejects %s", (_case, answered) => {
+    expect(
+      coreToRendererMessageSchema.safeParse({
+        type: "cash-movement-kinds",
+        request_id: REQUEST_ID,
+        kinds: answered,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("accepts that the kinds cannot be read, and rejects it without its request id", () => {
+    const message = { type: "cash-movement-kinds-unavailable", request_id: REQUEST_ID };
+
+    expect(coreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(
+      coreToRendererMessageSchema.safeParse({ type: "cash-movement-kinds-unavailable" }).success,
+    ).toBe(false);
+  });
+});

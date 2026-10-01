@@ -43,6 +43,7 @@ function buildFailingRouter(shouldThrow: () => boolean) {
       identifyLockedCloser: async () => ({ kind: "unavailable" }),
       cashBalance: async () => "unavailable",
       cashMovements: async () => "unavailable",
+      cashMovementKinds: async () => "unavailable",
       recordCashMovement: async () => ({ kind: "unavailable" }),
       signIn: async () => ({ kind: "unavailable" }),
       signOut: () => {},

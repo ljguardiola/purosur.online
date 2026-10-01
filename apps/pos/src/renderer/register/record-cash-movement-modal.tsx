@@ -1,8 +1,11 @@
-import type { RecordCashMovementOutcome, SignInUser } from "@purosur/contracts";
+import type {
+  RecordableCashMovementKinds,
+  RecordCashMovementOutcome,
+  SignInUser,
+} from "@purosur/contracts";
 import {
   CASH_MOVEMENT_REASON_MAX_LENGTH,
   cashMovementAmountSchema,
-  cashMovementPermission,
   cashMovementReason,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey, CashMovementKind } from "@purosur/domain";
@@ -10,6 +13,8 @@ import {
   Button,
   formatCents,
   InlineNotice,
+  LoadFailure,
+  LoadingPlaceholder,
   Modal,
   OptionCardGroup,
   parseAmountCents,
@@ -23,6 +28,7 @@ import { useAuthorization } from "../access/use-authorization";
 import { formatClockTime } from "../platform/clock-time";
 import type { CashMovementInput } from "../platform/core-client";
 import { CASH_MOVEMENT_ICONS } from "./cash-movement-icons";
+import { useCashMovementKindsQuery } from "./register-queries";
 
 const REQUIRED_AMOUNT_MESSAGE = "Ingresá el importe.";
 const INVALID_AMOUNT_MESSAGE = "Ingresá un importe válido, por ejemplo 5.000,00.";
@@ -94,6 +100,7 @@ export type RecordCashMovementModalProps = {
   registerName: string | null;
   openedAt: string;
   expectedCash?: number;
+  loadKinds: () => Promise<RecordableCashMovementKinds | null | "unavailable">;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   recordCashMovement: (input: CashMovementInput) => Promise<RecordCashMovementOutcome>;
   onClose: () => void;
@@ -101,6 +108,7 @@ export type RecordCashMovementModalProps = {
 };
 
 function MovementModal({
+  kinds,
   person,
   registerName,
   openedAt,
@@ -109,7 +117,9 @@ function MovementModal({
   recordCashMovement,
   onClose,
   onRecorded,
-}: Omit<RecordCashMovementModalProps, "open">) {
+}: Omit<RecordCashMovementModalProps, "open" | "loadKinds"> & {
+  kinds: RecordableCashMovementKinds;
+}) {
   const [refusedExpectedCash, setRefusedExpectedCash] = useState<number>();
   const expectedCash = refusedExpectedCash ?? givenExpectedCash;
   const [kind, setKind] = useState<CashMovementKind>("CASH_IN");
@@ -121,7 +131,8 @@ function MovementModal({
   const [submitting, setSubmitting] = useState(false);
   const authorization = useAuthorization({
     person,
-    permission: cashMovementPermission(kind),
+    permission: kinds[kind].permission,
+    applies: kinds[kind].authorization_required,
     loadAuthorizers,
   });
   const presentation = PRESENTATION[kind];
@@ -290,6 +301,47 @@ function MovementModal({
   );
 }
 
+function MovementModalWhenKindsAreKnown({
+  loadKinds,
+  ...props
+}: Omit<RecordCashMovementModalProps, "open">) {
+  const kinds = useCashMovementKindsQuery(props.person.user_id, loadKinds);
+  if (kinds.status === "loaded") {
+    return <MovementModal {...props} kinds={kinds.value} />;
+  }
+  return (
+    <Modal
+      open
+      onOpenChange={(next) => {
+        if (!next) {
+          props.onClose();
+        }
+      }}
+      width="standard"
+      tone="info"
+      icon={CASH_MOVEMENT_ICONS.CASH_IN}
+      context={eyebrowText(props.registerName, props.openedAt)}
+      title="Registrar un movimiento"
+      footer={
+        <Button variant="secondary" size="large" icon={<X />} onPress={props.onClose}>
+          Cancelar
+        </Button>
+      }
+    >
+      {kinds.status === "failed" ? (
+        <LoadFailure
+          icon={<TriangleAlert />}
+          title="No se pudieron cargar los movimientos que podés registrar"
+          description="Volvé a intentarlo en unos segundos."
+          onRetry={kinds.retry}
+        />
+      ) : (
+        <LoadingPlaceholder variant="form" fields={3} />
+      )}
+    </Modal>
+  );
+}
+
 export function RecordCashMovementModal({ open, ...props }: RecordCashMovementModalProps) {
-  return open ? <MovementModal {...props} /> : null;
+  return open ? <MovementModalWhenKindsAreKnown {...props} /> : null;
 }

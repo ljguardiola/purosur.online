@@ -4,7 +4,6 @@ import {
   CASH_MOVEMENT_KINDS,
   CASH_MOVEMENT_REASON_MAX_LENGTH,
   CASH_MOVEMENT_TYPES,
-  cashMovementPermission,
   cashMovementReason,
   isAuthorizablePermissionKey,
   isValidCashAmount,
@@ -46,7 +45,6 @@ export {
   ARGENTINA_TIME_ZONE,
   CASH_MOVEMENT_REASON_MAX_LENGTH,
   CASH_MOVEMENT_TYPES,
-  cashMovementPermission,
   cashMovementReason,
 };
 
@@ -134,6 +132,11 @@ export type RecordCashMovementRequest = Omit<
 
 const cashMovementsRequestMessageSchema = z.object({
   type: z.literal("cash-movements-request"),
+  request_id: requestId,
+});
+
+const cashMovementKindsRequestMessageSchema = z.object({
+  type: z.literal("cash-movement-kinds-request"),
   request_id: requestId,
 });
 
@@ -246,6 +249,7 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   cashSessionRequestMessageSchema,
   recordCashMovementMessageSchema,
   cashMovementsRequestMessageSchema,
+  cashMovementKindsRequestMessageSchema,
   closeCashSessionMessageSchema,
   closeLockedCashSessionMessageSchema,
   identifyLockedCloserMessageSchema,
@@ -395,6 +399,15 @@ const listedCashMovementSchema = z.object({
 });
 export type ListedCashMovement = z.infer<typeof listedCashMovementSchema>;
 
+const recordableCashMovementKindsSchema = z.record(
+  z.enum(CASH_MOVEMENT_KINDS),
+  z.object({
+    permission: z.custom<AuthorizablePermissionKey>(isAuthorizablePermissionKey),
+    authorization_required: z.boolean(),
+  }),
+);
+export type RecordableCashMovementKinds = z.infer<typeof recordableCashMovementKindsSchema>;
+
 const signInUserSchema = z.object({ id: z.string(), first_name: z.string() });
 export type SignInUser = z.infer<typeof signInUserSchema>;
 
@@ -501,6 +514,12 @@ export const coreToRendererMessageSchema = z.discriminatedUnion("type", [
     movements: z.array(listedCashMovementSchema).nullable(),
   }),
   z.object({ type: z.literal("cash-movements-unavailable"), request_id: requestId }),
+  z.object({
+    type: z.literal("cash-movement-kinds"),
+    request_id: requestId,
+    kinds: recordableCashMovementKindsSchema.nullable(),
+  }),
+  z.object({ type: z.literal("cash-movement-kinds-unavailable"), request_id: requestId }),
   z.object({
     type: z.literal("authorizers"),
     request_id: requestId,

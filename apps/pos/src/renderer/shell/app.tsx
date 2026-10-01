@@ -254,6 +254,7 @@ function Register({ core }: { core: CoreClient }) {
     identifyLockedCloser,
     cashBalance,
     cashMovements,
+    cashMovementKinds: () => core.cashMovementKinds(),
     recordCashMovement,
     redeemPinCode,
     signInLookup: (email: string) => core.signInLookup(email),
