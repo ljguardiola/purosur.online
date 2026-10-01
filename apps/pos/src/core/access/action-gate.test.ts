@@ -409,11 +409,16 @@ describe("running a guarded action with another person's authorization", () => {
 });
 
 describe("running an action on a locked register with a person's own PIN", () => {
-  function lockedCashIn(sandbox: ActionGateDeps, authorization: Authorization) {
+  function lockedCashIn(
+    sandbox: ActionGateDeps,
+    authorization: Authorization,
+    openSession: { openedBy: string } | undefined = { openedBy: "u1" },
+  ) {
     const performed: AuthorizedBy[] = [];
     const outcome = createActionGate(sandbox).runWhileLocked(
       "record_cash_in",
       authorization,
+      openSession,
       async (person) => {
         performed.push(person);
         return "done while locked";
@@ -431,6 +436,22 @@ describe("running an action on a locked register with a person's own PIN", () =>
     expect(await outcome).toEqual({ kind: "performed", result: "done while locked" });
     expect(performed).toEqual([{ user_id: "u2", first_name: "Grace" }]);
     expect(sandbox.signedInPerson.userId()).toBeUndefined();
+  });
+
+  it("refuses the person who opened the open session, though their PIN holds the permission", async () => {
+    const { outcome, performed } = lockedCashIn(deps({ signedInAs: null }), RIGHT_PIN, {
+      openedBy: "u2",
+    });
+
+    expect(await outcome).toEqual({ kind: "lacks_permission" });
+    expect(performed).toEqual([]);
+  });
+
+  it("runs the action when no session is open", async () => {
+    const { outcome, performed } = lockedCashIn(deps({ signedInAs: null }), RIGHT_PIN, undefined);
+
+    expect((await outcome).kind).toBe("performed");
+    expect(performed).toEqual([{ user_id: "u2", first_name: "Grace" }]);
   });
 
   it("refuses while someone is signed in, without checking the PIN", async () => {

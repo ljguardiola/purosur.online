@@ -48,6 +48,7 @@ export interface ActionGate {
   runWhileLocked<Result>(
     permission: AuthorizablePermissionKey,
     authorization: Authorization,
+    openSession: { openedBy: string } | undefined,
     perform: (person: AuthorizedBy) => Promise<Result>,
   ): Promise<LockedOutcome<Result>>;
 }
@@ -102,7 +103,7 @@ export function createActionGate(deps: ActionGateDeps): ActionGate {
         result: await perform({ signedInUserId, authorizedBy: outcome.by }),
       };
     },
-    async runWhileLocked(permission, authorization, perform) {
+    async runWhileLocked(permission, authorization, openSession, perform) {
       if (deps.signedInPerson.userId() !== undefined) {
         return { kind: "not_locked" };
       }
@@ -112,6 +113,9 @@ export function createActionGate(deps: ActionGateDeps): ActionGate {
       }
       if (deps.signedInPerson.userId() !== undefined) {
         return { kind: "not_locked" };
+      }
+      if (openSession !== undefined && !isLockedToAnother(openSession, outcome.by.user_id)) {
+        return { kind: "lacks_permission" };
       }
       return { kind: "performed", result: await perform(outcome.by) };
     },

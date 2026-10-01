@@ -7,8 +7,8 @@ import type {
   IdentifyLockedCloserOutcome,
   OpenCashSession,
   OpenCashSessionOutcome,
-  SignInUser,
   SessionOpenSale,
+  SignInUser,
 } from "@purosur/contracts";
 import { cancellableWithoutAuthorization, cashBreakdown, isLockedToAnother } from "@purosur/domain";
 import {
@@ -129,28 +129,18 @@ export async function closeLockedCashSessionFor(
   const guarded = await gate.runWhileLocked(
     "close_anothers_register_session",
     closer,
+    open,
     async (person) =>
-      isLockedToAnother(open, person.user_id)
-        ? closeCashSession(
-            {
-              ledger: new SqliteCashLedger(
-                database,
-                new SqliteSignInStore(database),
-                outboxChainKey,
-              ),
-              clock: { now },
-              ids,
-            },
-            { sessionId, closerId: person.user_id, authorizedBy: null, countedCash },
-          )
-        : undefined,
+      closeCashSession(
+        {
+          ledger: new SqliteCashLedger(database, new SqliteSignInStore(database), outboxChainKey),
+          clock: { now },
+          ids,
+        },
+        { sessionId, closerId: person.user_id, authorizedBy: null, countedCash },
+      ),
   );
-  if (guarded.kind !== "performed") {
-    return guarded;
-  }
-  return guarded.result === undefined
-    ? { kind: "lacks_permission" }
-    : closingAnswer(guarded.result);
+  return guarded.kind === "performed" ? closingAnswer(guarded.result) : guarded;
 }
 
 export async function identifyLockedCloserFor(
@@ -161,14 +151,10 @@ export async function identifyLockedCloserFor(
   const guarded = await gate.runWhileLocked(
     "close_anothers_register_session",
     closer,
-    async (person) => (isLockedToAnother(open, person.user_id) ? person : undefined),
+    open,
+    async (person) => person,
   );
-  if (guarded.kind !== "performed") {
-    return guarded;
-  }
-  return guarded.result === undefined
-    ? { kind: "lacks_permission" }
-    : { kind: "identified", person: guarded.result };
+  return guarded.kind === "performed" ? { kind: "identified", person: guarded.result } : guarded;
 }
 
 export function lockedClosersFor(database: LocalDatabase): SignInUser[] {
