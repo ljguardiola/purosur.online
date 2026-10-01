@@ -1,3 +1,4 @@
+import { SIGN_IN_FAILURE_LIMIT } from "@purosur/domain";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -5,7 +6,7 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
-import { admitSignInAttempt, SIGN_IN_FAILURE_LIMIT } from "./sign-in-lockout.js";
+import { admitSignInAttempt } from "./sign-in-lockout.js";
 
 // PGlite serves every query on one connection, so only a real Postgres pool can race a burst.
 // Each admission needs two connections (prune, then its locked transaction), hence the headroom.

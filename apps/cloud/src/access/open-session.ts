@@ -1,38 +1,24 @@
-import { heldPermissionKeys, type PermissionKey } from "@purosur/domain";
-import { eq, sql } from "drizzle-orm";
+import {
+  endExpiredSession,
+  findOpenSession,
+  type OpenSession,
+  recordSessionActivity,
+} from "@purosur/domain/access/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { rolePermissions, roles, sessions, userRoles, users } from "../platform/db/schema.js";
 import { recordBackofficeRequest } from "./backoffice-request-rate-limiter.js";
+import { drizzleSessionStore } from "./drizzle-session-store.js";
+import { drizzleSessions } from "./drizzle-sessions.js";
 import { resolveSourceAddress } from "./recovery-source-address.js";
 import { readSessionCookie } from "./session-cookie.js";
 import { hashSessionId } from "./session-id.js";
-
-const SESSION_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
-const SESSION_ABSOLUTE_TIMEOUT_MS = 12 * 60 * 60 * 1000;
 
 export const UNAUTHENTICATED_RESPONSE = {
   code: "unauthenticated",
   message: "no session is signed in",
 } as const;
 
-export interface OpenSession {
-  sessionId: string;
-  userId: string;
-  firstName: string;
-  createdAt: Date;
-  lastSeenAt: Date;
-  locationId: string;
-  isAdministrator: boolean;
-  passkeyAuthorizedAt: Date | null;
-  permissionKeys: readonly PermissionKey[];
-}
-
-export function sessionExpiresAt(session: Pick<OpenSession, "createdAt" | "lastSeenAt">): Date {
-  const idleDeadline = session.lastSeenAt.getTime() + SESSION_IDLE_TIMEOUT_MS;
-  const absoluteDeadline = session.createdAt.getTime() + SESSION_ABSOLUTE_TIMEOUT_MS;
-  return new Date(Math.min(idleDeadline, absoluteDeadline));
-}
+export type { OpenSession };
 
 export interface BackofficeSessionCheckOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
@@ -54,62 +40,18 @@ async function lookUpSession<TQueryResult extends PgQueryResultHKT>(
   }
   const sessionIdHash = hashSessionId(rawSessionId);
 
-  const [session] = await options.db
-    .select({
-      id: sessions.id,
-      userId: sessions.userId,
-      createdAt: sessions.createdAt,
-      lastSeenAt: sessions.lastSeenAt,
-      revokedAt: sessions.revokedAt,
-      passkeyAuthorizedAt: sessions.passkeyAuthorizedAt,
-      firstName: users.firstName,
-      active: users.active,
-      locationId: users.locationId,
-      isAdministrator: roles.isAdministrator,
-      grantedPermissionKeys: sql<
-        string[]
-      >`array(select ${rolePermissions.permissionKey} from ${rolePermissions} where ${rolePermissions.roleId} = ${roles.id})`,
-    })
-    .from(sessions)
-    .innerJoin(users, eq(users.id, sessions.userId))
-    .leftJoin(userRoles, eq(userRoles.userId, users.id))
-    .leftJoin(roles, eq(roles.id, userRoles.roleId))
-    .where(eq(sessions.sessionIdHash, sessionIdHash))
-    .limit(1);
-  if (!session || session.revokedAt) {
-    return { state: "absent" };
+  const found = await findOpenSession(
+    { sessions: drizzleSessions(options.db) },
+    { sessionKey: sessionIdHash, now: options.now },
+  );
+  switch (found.kind) {
+    case "absent":
+      return { state: "absent" };
+    case "ended":
+      return { state: "ended", sessionIdHash };
+    case "open":
+      return { state: "open", sessionIdHash, session: found.session };
   }
-
-  const currentTime = options.now;
-  const idleExpired =
-    session.lastSeenAt.getTime() + SESSION_IDLE_TIMEOUT_MS <= currentTime.getTime();
-  const absoluteExpired =
-    session.createdAt.getTime() + SESSION_ABSOLUTE_TIMEOUT_MS <= currentTime.getTime();
-  if (idleExpired || absoluteExpired || !session.active) {
-    return { state: "ended", sessionIdHash };
-  }
-
-  const isAdministrator = session.isAdministrator ?? false;
-  const permissionKeys = heldPermissionKeys({
-    isAdministrator,
-    permissionKeys: session.grantedPermissionKeys,
-  });
-
-  return {
-    state: "open",
-    sessionIdHash,
-    session: {
-      sessionId: session.id,
-      userId: session.userId,
-      firstName: session.firstName,
-      createdAt: session.createdAt,
-      lastSeenAt: session.lastSeenAt,
-      locationId: session.locationId,
-      isAdministrator,
-      permissionKeys,
-      passkeyAuthorizedAt: session.passkeyAuthorizedAt,
-    },
-  };
 }
 
 const RATE_LIMITED_RESPONSE_CODE = "rate_limited";
@@ -152,10 +94,10 @@ async function resolveOpenSession<TQueryResult extends PgQueryResultHKT>(
     return undefined;
   }
   if (check.state === "ended") {
-    await options.db
-      .update(sessions)
-      .set({ revokedAt: options.now })
-      .where(eq(sessions.sessionIdHash, check.sessionIdHash));
+    await endExpiredSession(
+      { store: drizzleSessionStore(options.db) },
+      { sessionKey: check.sessionIdHash, at: options.now },
+    );
   }
   if (check.state !== "open") {
     await reply.code(401).send(UNAUTHENTICATED_RESPONSE);
@@ -175,10 +117,10 @@ export async function requireOpenSession<TQueryResult extends PgQueryResultHKT>(
     return undefined;
   }
 
-  await options.db
-    .update(sessions)
-    .set({ lastSeenAt: options.now })
-    .where(eq(sessions.sessionIdHash, resolved.sessionIdHash));
+  await recordSessionActivity(
+    { store: drizzleSessionStore(options.db) },
+    { sessionKey: resolved.sessionIdHash, at: options.now },
+  );
 
   return { ...resolved.session, lastSeenAt: options.now };
 }

@@ -1,3 +1,4 @@
+import { SESSION_ABSOLUTE_TIMEOUT_MS, SESSION_IDLE_TIMEOUT_MS } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -11,8 +12,6 @@ import { exhaustSessionRateLimit } from "./test-support/exhaust-backoffice-rate-
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
-const THIRTY_MINUTES_MS = 30 * 60 * 1000;
-const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -135,19 +134,19 @@ describe("GET /sessions/current/expiration", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
-      expires_at: new Date(NOON.getTime() + THIRTY_MINUTES_MS).toISOString(),
+      expires_at: new Date(NOON.getTime() + SESSION_IDLE_TIMEOUT_MS).toISOString(),
     });
   });
 
   it("returns expires_at bound by the absolute timeout when it comes before the idle one", async () => {
-    currentTime = new Date(NOON.getTime() + TWELVE_HOURS_MS - 10 * 60 * 1000);
+    currentTime = new Date(NOON.getTime() + SESSION_ABSOLUTE_TIMEOUT_MS - 10 * 60 * 1000);
     const rawSessionId = await insertSession({ createdAt: NOON, lastSeenAt: currentTime });
 
     const response = await getStatus(rawSessionId);
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
-      expires_at: new Date(NOON.getTime() + TWELVE_HOURS_MS).toISOString(),
+      expires_at: new Date(NOON.getTime() + SESSION_ABSOLUTE_TIMEOUT_MS).toISOString(),
     });
   });
 
@@ -162,7 +161,7 @@ describe("GET /sessions/current/expiration", () => {
     const untouchedRow = await sessionRow(rawSessionId);
     expect(untouchedRow?.lastSeenAt.getTime()).toBe(NOON.getTime());
 
-    currentTime = new Date(NOON.getTime() + THIRTY_MINUTES_MS);
+    currentTime = new Date(NOON.getTime() + SESSION_IDLE_TIMEOUT_MS);
     const response = await getStatus(rawSessionId);
 
     expect(response.statusCode).toBe(401);
@@ -173,7 +172,7 @@ describe("GET /sessions/current/expiration", () => {
 
   it("expires and revokes a session idle for 30 minutes with no activity", async () => {
     const rawSessionId = await insertSession({ createdAt: NOON, lastSeenAt: NOON });
-    currentTime = new Date(NOON.getTime() + THIRTY_MINUTES_MS);
+    currentTime = new Date(NOON.getTime() + SESSION_IDLE_TIMEOUT_MS);
 
     const response = await getStatus(rawSessionId);
 
@@ -184,7 +183,7 @@ describe("GET /sessions/current/expiration", () => {
   });
 
   it("expires and revokes a session open for 12 hours, even with recent activity", async () => {
-    currentTime = new Date(NOON.getTime() + TWELVE_HOURS_MS);
+    currentTime = new Date(NOON.getTime() + SESSION_ABSOLUTE_TIMEOUT_MS);
     const rawSessionId = await insertSession({
       createdAt: NOON,
       lastSeenAt: new Date(currentTime.getTime() - 1000),

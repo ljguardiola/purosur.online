@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { RECOVERY_TOKEN_LIFETIME_MS } from "@purosur/domain";
 import { and, eq, isNull } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import Fastify, { type FastifyInstance } from "fastify";
@@ -35,7 +36,6 @@ import { registerUserPasskeyRemovalRoutes } from "./user-passkey-removal-route.j
 // PGlite serializes every transaction, so racing requests can only interleave on a real Postgres
 // pool; each test pins the order by holding a row lock until both requests queue behind it.
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
-const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
@@ -119,7 +119,7 @@ async function registerPasskey(userId: string, emulator: WebAuthnEmulator): Prom
     userId,
     tokenHash: hashRecoveryToken(rawToken),
     issuedAt: new Date(),
-    expiresAt: new Date(Date.now() + FIFTEEN_MINUTES_MS),
+    expiresAt: new Date(Date.now() + RECOVERY_TOKEN_LIFETIME_MS),
   });
   const headers = { origin: BACKOFFICE_ORIGIN, "x-real-ip": nextSourceAddress() };
   const options = await app.inject({

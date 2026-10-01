@@ -1,5 +1,5 @@
 import { eq, sql } from "drizzle-orm";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { auditLog, locations, roles, userRoles, users } from "../platform/db/schema.js";
 import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
@@ -7,7 +7,6 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import {
   createFirstAdministrator,
   FirstAdministratorAlreadyBootstrappedError,
-  InvalidFirstAdministratorInputError,
 } from "./create-first-administrator.js";
 
 let testDatabase: TestDatabase;
@@ -104,16 +103,6 @@ describe("createFirstAdministrator", () => {
     expect(createdUser).toMatchObject({ locationId: seededLocation.id });
   });
 
-  it("trims the name and trims and lowercases the email", async () => {
-    const result = await createFirstAdministrator(db, {
-      name: "  Ada Lovelace  ",
-      email: "  ADA@Example.com  ",
-    });
-
-    const [createdUser] = await db.select().from(users).where(eq(users.id, result.id));
-    expect(createdUser).toMatchObject({ firstName: "Ada Lovelace", email: "ada@example.com" });
-  });
-
   it("refuses a second run and keeps only what the first run created", async () => {
     const first = await createFirstAdministrator(db, {
       name: "Ada Lovelace",
@@ -151,44 +140,6 @@ describe("createFirstAdministrator", () => {
     expect(remainingUsers[0]).toMatchObject({ email: "cashier@example.com" });
     await expect(db.select().from(userRoles)).resolves.toEqual([]);
     await expect(db.select().from(auditLog)).resolves.toEqual([]);
-  });
-
-  it("rejects an empty name and creates nothing", async () => {
-    await expect(
-      createFirstAdministrator(db, { name: "   ", email: "ada@example.com" }),
-    ).rejects.toBeInstanceOf(InvalidFirstAdministratorInputError);
-
-    await expect(db.select().from(users)).resolves.toEqual([]);
-  });
-
-  it("rejects an email with no @ and creates nothing", async () => {
-    await expect(
-      createFirstAdministrator(db, { name: "Ada Lovelace", email: "not-an-email" }),
-    ).rejects.toBeInstanceOf(InvalidFirstAdministratorInputError);
-
-    await expect(db.select().from(users)).resolves.toEqual([]);
-  });
-
-  it("rejects an email containing spaces and creates nothing", async () => {
-    await expect(
-      createFirstAdministrator(db, { name: "Ada Lovelace", email: "ada lovelace@example.com" }),
-    ).rejects.toBeInstanceOf(InvalidFirstAdministratorInputError);
-
-    await expect(db.select().from(users)).resolves.toEqual([]);
-  });
-
-  it.each([
-    ["an empty name", { name: "   ", email: "ada@example.com" }],
-    ["a malformed email", { name: "Ada Lovelace", email: "not-an-email" }],
-  ])("rejects %s without opening a transaction", async (_, input) => {
-    const transaction = vi.spyOn(db, "transaction");
-    onTestFinished(() => transaction.mockRestore());
-
-    await expect(createFirstAdministrator(db, input)).rejects.toBeInstanceOf(
-      InvalidFirstAdministratorInputError,
-    );
-
-    expect(transaction).not.toHaveBeenCalled();
   });
 
   it("seeds exactly one Administrator role in the migrations", async () => {
