@@ -1,3 +1,4 @@
+import { preEmissionGate, preEmissionGateFailedEvent } from "../../fiscal/index.js";
 import type { CashMovement } from "../../register/index.js";
 import type { OutboxEventDraft } from "../../sync/index.js";
 import { cashCharge } from "../model/cash-charge.js";
@@ -101,6 +102,24 @@ export function chargeSaleInCash(
         completedAt,
       ),
     );
+    const gate = preEmissionGate({
+      total,
+      issuer: tx.issuerIdentificationInEffect(),
+      buyerTaxStatuses: tx.buyerTaxStatusSetInEffect(),
+    });
+    tx.recordPreEmissionGate({ saleId: sale.id, evaluatedAt: completedAt, outcome: gate });
+    if (gate.kind === "failed") {
+      tx.appendOutboxEvent(
+        preEmissionGateFailedEvent({
+          eventId: ids.next(),
+          saleId: sale.id,
+          registerId: sale.registerId,
+          actorId: sale.actorId,
+          reason: gate.reason,
+          evaluatedAt: completedAt,
+        }),
+      );
+    }
     return { kind: "completed", saleId: sale.id, total, tendered, change: charge.change };
   });
 }
